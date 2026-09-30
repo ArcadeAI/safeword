@@ -33,6 +33,7 @@ import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { missingPhases } from './support/provenance-denial.js';
 import { REVIEWER_CAPABILITIES } from '../packages/cli/tests/review-fixtures.ts';
 import {
   COMPLETE_DATA_PLAN,
@@ -392,10 +393,11 @@ function createProject(world: PlanWorld): string {
   mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
   // Isolate from the phase-exit review gate (on by default since KHL52X): these
   // scenarios prove the PLAN gate's verdicts, and a missing-stamp denial would
-  // mask them.
+  // mask them. Terminal reply formatting is a separate contract; the stop
+  // fixture deliberately carries only the planning state under test.
   writeFileSync(
     nodePath.join(project, '.safeword', 'config.json'),
-    `${JSON.stringify({ reviewGate: false }, undefined, 2)}\n`,
+    `${JSON.stringify({ reviewGate: false, terminalHandoffCorrection: false }, undefined, 2)}\n`,
   );
   world.projectDirectory = project;
   world.ticketDirectory = nodePath.join(project, '.project', 'tickets', TICKET_FOLDER);
@@ -1047,24 +1049,27 @@ Given(/^an Implementation Plan with (.+)$/u, function (this: PlanWorld, presenta
   }
 });
 
-Given(/^an Implementation Plan has (.+)$/u, function (this: PlanWorld, presentation: string) {
-  switch (presentation) {
-    case 'a concise decision summary with named decisions and subordinate linked detail':
-      this.focusedPlan = {
-        plan: `${FOCUSED_ARCHITECTURE}\n## Decision-bearing contracts\n\nFailure-posture decision: fail closed when authorization is unavailable.\nConsequence: authorization outages deny resource access instead of risking exposure.\n\nSupporting detail: linked-design.md\n`,
-        linkedDetail:
-          '# Supporting design\n\nFailure posture: deny resource access when current authorization cannot be established.\n',
-      };
-      break;
-    case 'a decision summary buried beneath step-by-step execution detail':
-      this.focusedPlan = {
-        plan: `${FOCUSED_ARCHITECTURE}\n## Approach\n\n1. Create the authorization service.\n2. Wire the gateway.\n${FOCUSED_DECISIONS}`,
-      };
-      break;
-    default:
-      assert.fail(`unknown receipt presentation: ${presentation}`);
-  }
-});
+Given(
+  /^an Implementation Plan has (a concise decision summary with named decisions and subordinate linked detail|a decision summary buried beneath step-by-step execution detail)$/u,
+  function (this: PlanWorld, presentation: string) {
+    switch (presentation) {
+      case 'a concise decision summary with named decisions and subordinate linked detail':
+        this.focusedPlan = {
+          plan: `${FOCUSED_ARCHITECTURE}\n## Decision-bearing contracts\n\nFailure-posture decision: fail closed when authorization is unavailable.\nConsequence: authorization outages deny resource access instead of risking exposure.\n\nSupporting detail: linked-design.md\n`,
+          linkedDetail:
+            '# Supporting design\n\nFailure posture: deny resource access when current authorization cannot be established.\n',
+        };
+        break;
+      case 'a decision summary buried beneath step-by-step execution detail':
+        this.focusedPlan = {
+          plan: `${FOCUSED_ARCHITECTURE}\n## Approach\n\n1. Create the authorization service.\n2. Wire the gateway.\n${FOCUSED_DECISIONS}`,
+        };
+        break;
+      default:
+        assert.fail(`unknown receipt presentation: ${presentation}`);
+    }
+  },
+);
 
 Given(
   'a short Implementation Plan summary with a load-bearing failure-posture decision recorded nowhere in the plan or its linked detail',
@@ -1484,6 +1489,7 @@ Given('the project architecture record', function (this: PlanWorld) {
 // ---------------------------------------------------------------------------
 
 When('the phase order is inspected', function (this: PlanWorld) {
+  assert.ok(this.phaseList);
   assert.ok(this.phaseList.length > 0);
 });
 
@@ -1496,11 +1502,14 @@ When(
 );
 
 When('the plan-implementation distribution is inspected', function (this: PlanWorld) {
+  assert.ok(this.schemaSource);
   assert.ok(this.schemaSource.length > 0);
+  assert.ok(this.cursorWrapperSource);
   assert.ok(this.cursorWrapperSource.length > 0);
 });
 
 When('accepted architecture decisions are inspected', function (this: PlanWorld) {
+  assert.ok(this.architectureRecord);
   assert.ok(this.architectureRecord.length > 0);
 });
 
@@ -1513,8 +1522,9 @@ When(
 );
 
 When('the plan is validated at a phase gate', SUBPROCESS, function (this: PlanWorld) {
-  // The implement-entry transition gate is the phase gate that parses the plan.
-  advancePhase(this, 'implement');
+  // Implementation Planning hands its design to Execution Planning; entering
+  // implement additionally requires the separately reviewed execution plan.
+  advancePhase(this, 'plan-execution');
 });
 
 When('the agent edits an application source file', SUBPROCESS, function (this: PlanWorld) {
@@ -2456,11 +2466,15 @@ Then('the denial names the scaffold template to author the plan from', function 
   assert.match(this.verdict?.text ?? '', /impl-plan-template\.md/);
 });
 
-Then('the denial names plan-implementation as the skipped phase', function (this: PlanWorld) {
-  const text = this.verdict?.text ?? '';
-  assert.match(text, /plan-implementation/);
-  assert.match(text, /skip|justification/i);
-});
+Then(
+  'the denial names plan-implementation and plan-execution as the skipped phases',
+  function (this: PlanWorld) {
+    assert.deepEqual(missingPhases(this.verdict?.text ?? ''), [
+      'plan-implementation',
+      'plan-execution',
+    ]);
+  },
+);
 
 Then('the plan passes', function (this: PlanWorld) {
   assert.equal(
@@ -2508,6 +2522,7 @@ Then('the stop is blocked until the ledger exists', function (this: PlanWorld) {
 
 Then('the stop is allowed', function (this: PlanWorld) {
   assert.equal(this.stop?.exitCode, 0);
+  assert.notEqual(this.stop?.decision, 'block', this.stop?.reason);
   const reason = this.stop?.reason ?? '';
   assert.ok(
     !reason.includes('requires impl-plan.md'),
@@ -2586,7 +2601,11 @@ Then('it directs authoring impl-plan.md with the five design sections', function
 Then(
   'it directs consulting the architecture record before filling the alignment section',
   function (this: PlanWorld) {
-    matchDocs(this.docs, /paths\.architecture/, /before/i);
+    matchDocs(
+      this.docs,
+      /Then survey what exists[^\n]*after sketching the ideal and comparing candidates[^\n]*decision record \(resolved from `paths\.architecture`\)/i,
+      /\*\*Design alignment\*\*[^\n]*Then consult the architecture record/i,
+    );
   },
 );
 
@@ -2600,21 +2619,32 @@ Then(
 Then(
   'it directs amending or superseding the contradicted ADR rather than recording the deviation alone',
   function (this: PlanWorld) {
-    matchDocs(this.docs, /supersed/i);
+    matchDocs(
+      this.docs,
+      /A changed or contradicted decision gets a new record marked "supersedes", and the old one "superseded by"[^\n]*linked both directions, nothing deleted/i,
+    );
   },
 );
 
 Then(
   'it bounds the ADR offer to decisions affecting structure, key quality attributes, or ones difficult to reverse',
   function (this: PlanWorld) {
-    matchDocs(this.docs, /structure, key quality attributes/i, /difficult to reverse/i);
+    matchDocs(
+      this.docs,
+      /shared structure or contracts/i,
+      /key quality attributes/i,
+      /difficult-to-reverse/i,
+    );
   },
 );
 
 Then(
   "it directs recording routine choices in the plan's decisions table alone",
   function (this: PlanWorld) {
-    matchDocs(this.docs, /Decisions table/i);
+    matchDocs(
+      this.docs,
+      /Routine choices live and die in the plan's Decisions table[^\n]*no ceremony records/i,
+    );
   },
 );
 
@@ -2625,13 +2655,16 @@ Then(
   },
 );
 
+Then('it directs scaffolding new ADRs from the shipped ADR template', function (this: PlanWorld) {
+  matchDocs(this.docs, /New ADRs scaffold from `\.safeword\/templates\/adr-template\.md`/i);
+});
+
 Then(
   'it directs never writing decision records into generated architecture state documents',
   function (this: PlanWorld) {
     matchDocs(
       this.docs,
-      /architecture\.generated\.md|generated architecture state/i,
-      /never|not a destination|don't write/i,
+      /\*\*Never into generated structure\.\*\*[^\n]*Never put decision records in either place[^\n]*configured architecture record[^\n]*is the destination/i,
     );
   },
 );
@@ -2639,21 +2672,24 @@ Then(
 Then(
   'they direct updating the plan and superseding any affected ADR when implementation contradicts a planned decision, before verify',
   function (this: PlanWorld) {
-    matchDocs(this.planDocs, /during implement|mid-flight|proven wrong/i, /supersed/i);
-    matchDocs(this.tddDocs, /reconcile the plan/i);
+    matchDocs(
+      this.planDocs,
+      /when implementation disproves an accepted decision[^\n]*stop coding and return to `plan-implementation`[^\n]*Revise the plan[^\n]*supersede any affected ADR[^\n]*review the new exact plan bytes/i,
+    );
+    matchDocs(this.tddDocs, /reconcile `impl-plan\.md`[^\n]*before[^\n]*advancing to verify/i);
   },
 );
 
 Then(
-  "it directs enumerating which configured documentation sources the feature's customer-visible changes touch, as build-order tasks or an explicit skip with a reason",
+  'it identifies affected documentation sources and required outcomes or a reasoned skip, leaving documentation tasks and build order to Execution Planning',
   function (this: PlanWorld) {
     matchDocs(
       this.docs,
       /Doc impact/,
       /docs\.sources/,
       /customer-visible/i,
-      /build order/i,
-      /skip/i,
+      /required documentation outcome; Execution Planning owns the tasks and their build order/i,
+      /Internal-only: `skip: <reason>`/i,
     );
     eachDoc(this.templateDocs, (text, path) => {
       assert.ok(text.includes('## Doc impact'), path);
@@ -2665,25 +2701,33 @@ Then(
 Then(
   'it directs recording, for each surface the spec lists as affected, the proof that covers it or a per-surface skip with a reason',
   function (this: PlanWorld) {
-    matchDocs(this.docs, /affected surface/i, /skip/i);
+    matchDocs(
+      this.docs,
+      /Cover each \*\*affected surface\*\* the spec lists[^\n]*name the proof that covers it or a per-surface `skip: <reason>`/i,
+    );
   },
 );
 
 Then('it states a brief plan is correct for a small feature', function (this: PlanWorld) {
-  matchDocs(this.docs, /brief plan is correct|small feature/i);
+  matchDocs(this.docs, /A brief plan is correct for a small feature/i);
 });
 
 Then(
   'it directs deeper treatment for hard-to-reverse or cross-cutting work',
   function (this: PlanWorld) {
-    matchDocs(this.docs, /hard-to-reverse|cross-cutting/i);
+    matchDocs(this.docs, /hard-to-reverse or cross-cutting work compels depth/i);
   },
 );
 
 Then(
-  'it directs storing impl-plan.md and qualifying ADRs, routing deeper design to the existing design-doc lane rather than novel artifact kinds',
+  'it keeps impl-plan.md as the single design plan, links qualifying ADRs, and permits only subordinate supporting detail',
   function (this: PlanWorld) {
-    matchDocs(this.docs, /design-doc/i, /no (new|novel) artifact kinds|novel artifact/i);
+    matchDocs(
+      this.docs,
+      /single feature design plan of record/i,
+      /resolvable link to the configured\s+durable architecture record/i,
+      /supporting detail cannot become a second design\s+authority/i,
+    );
   },
 );
 
@@ -2692,7 +2736,7 @@ Then('it directs keeping each ADR to a page or two', function (this: PlanWorld) 
 });
 
 Then('it warns against mega-records and design guides in disguise', function (this: PlanWorld) {
-  matchDocs(this.docs, /mega/i);
+  matchDocs(this.docs, /no mega-ADRs or second feature design plans/i);
 });
 
 Then(
@@ -2739,11 +2783,16 @@ Then(
 );
 
 Then(
-  'it routes component and data-model design to the design-doc template and the data-architecture guide rather than new plan sections',
+  'it keeps component and data-model decisions in impl-plan.md and loads the data-architecture guide for applicable concerns',
   function (this: PlanWorld) {
     eachDoc(this.docs, (text, path) => {
-      assert.ok(text.includes('design-doc-template.md'), path);
+      assert.match(text, /Keep each choice and its consequence in\s+`impl-plan.md`/i, path);
       assert.match(text, /data-architecture-guide/i, path);
+      assert.match(
+        text,
+        /data contracts, ownership, lifecycle, migration, or cross-system flow change/i,
+        path,
+      );
     });
   },
 );
@@ -2791,7 +2840,7 @@ Then(
 );
 
 Then(
-  'it states the reviewed plan advances to implement without human approval when designApprovalGate is absent or off',
+  'it states the reviewed plan advances to Execution Planning without human approval when designApprovalGate is absent or off',
   function (this: PlanWorld) {
     eachDoc(this.docs, (text, path) => {
       assert.ok(text.includes('designApprovalGate'), path);
@@ -2802,12 +2851,17 @@ Then(
 );
 
 Then(
-  'it states that with designApprovalGate enabled the reviewed plan is presented for user approval before implement',
+  'it states that with designApprovalGate enabled the reviewed plan requires user approval before Execution Planning',
   function (this: PlanWorld) {
     eachDoc(this.docs, (text, path) => {
       assert.ok(text.includes('designApprovalGate'), path);
-      assert.match(text, /user approval/i, path);
-      assert.match(text, /before `?implement`?/i, path);
+      assert.match(text, /user's digest-bound approval or decline before changing phase/i, path);
+      assert.match(text, /successful approval[\s\S]*sets `phase: plan-execution`/i, path);
+      assert.match(
+        text,
+        /Declined, pending, invalid, or stale evidence remains in Implementation\s+Planning/i,
+        path,
+      );
     });
   },
 );
@@ -2861,13 +2915,14 @@ Then(
 // ---------------------------------------------------------------------------
 
 Then(
-  'it reads intake, define-behavior, scenario-gate, plan-implementation, implement, verify, done',
+  'it reads intake, define-behavior, scenario-gate, plan-implementation, plan-execution, implement, verify, done',
   function (this: PlanWorld) {
     assert.deepEqual(this.phaseList, [
       'intake',
       'define-behavior',
       'scenario-gate',
       'plan-implementation',
+      'plan-execution',
       'implement',
       'verify',
       'done',
