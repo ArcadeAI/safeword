@@ -377,9 +377,19 @@ When(
       ],
       ['.project/personas.md', 'Needs current authenticated approval', 'Needs anonymous approval'],
       [
+        '.project/personas.md',
+        '# Personas\n\n',
+        '# Personas\n\nAll personas require current authenticated approval.\n\n',
+      ],
+      [
         '.project/surfaces.md',
         'Requests and presents planning approval',
         'Rejects planning approval',
+      ],
+      [
+        '.project/surfaces.md',
+        '# Surfaces\n\n',
+        '# Surfaces\n\nAll surfaces require a current approval receipt.\n\n',
       ],
       [
         '.project/architecture.md',
