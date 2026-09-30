@@ -949,6 +949,21 @@ const isCanonicalTicketEdit =
   nodePath.basename(editedFile) === 'ticket.md' && isNamespacePath(editedFile, 'tickets/');
 const isCanonicalSpecEdit =
   nodePath.basename(editedFile) === 'spec.md' && isNamespacePath(editedFile, 'tickets/');
+const planningArtifactPhase = isNamespacePath(editedFile, 'tickets/')
+  ? (
+      {
+        'spec.md': 'product-plan',
+        'impl-plan.md': 'plan-implementation',
+        'execution-plan.md': 'plan-execution',
+      } as const
+    )[nodePath.basename(editedFile) as 'spec.md' | 'impl-plan.md' | 'execution-plan.md']
+  : undefined;
+if (planningArtifactPhase !== undefined) {
+  assertPlanningContractCopy(
+    nodePath.basename(nodePath.dirname(editedFile)),
+    planningArtifactPhase,
+  );
+}
 
 // Some hosts report a ticket/spec save without exposing either complete content
 // or an applicable edit delta. There is no proposed state to validate in that
