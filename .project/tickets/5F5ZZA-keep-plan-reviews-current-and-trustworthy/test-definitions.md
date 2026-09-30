@@ -511,9 +511,15 @@ while admission still names `canonical_contract_copy_mismatch`. Run
 features/keep-plan-reviews-current-and-trustworthy.feature --name 'Cosmetic
 canonical changes preserve review currency but require copy reconciliation'`.
 
-- [ ] RED
+- [x] RED e81dbf2a1
 - [ ] GREEN
 - [ ] REFACTOR
+
+GREEN implementation is committed at `1d9c54b2d` and passed the focused R5
+scenario, full acceptance with zero failures, and independent quality review.
+The checkbox remains open because recording RED changed this scenario's ledger
+fingerprint and made the prior independently approved executable RED receipt
+stale at the GREEN hook. No completion credit is claimed by this note.
 
 ## Rule: plan-implementability.TBU4.5F5ZZA.R6 — Review fallback is bounded and honestly labeled
 
