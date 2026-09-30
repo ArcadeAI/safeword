@@ -284,6 +284,18 @@ describe('write-time annotation gate', () => {
   });
 
   describe('Rule 1: Marking a TDD checkbox requires a SHA or skip reason', () => {
+    it('rejects retrospective proof on an unrelated ticket despite plausible receipt IDs', () => {
+      const setup = setupProject('### Scenario: example\n\n- [ ] VERIFIED\n');
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] VERIFIED',
+        '- [x] VERIFIED eligibility: 11111111-1111-4111-8111-111111111111 proof: 22222222-2222-4222-8222-222222222222',
+      );
+      expectHookDeny(result, 'Cannot mark VERIFIED');
+    });
+
     it('Scenario 1: valid SHA annotation passes the write-time hook', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
