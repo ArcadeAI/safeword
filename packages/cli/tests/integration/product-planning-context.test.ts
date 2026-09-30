@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -67,7 +68,8 @@ process.stdin.on('end', () => {
   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
     reviewer_agent: 'claude', verdict: complete ? 'approve' : 'request_changes',
     summary: complete ? 'The current principles reached review.' : 'Required principles were omitted.',
-    findings: complete ? [] : [{ severity: 'error', message: 'Required principles were omitted from the actual packet.' }] } }));
+    findings: complete ? [] : [{ severity: 'error', message: 'Required principles were omitted from the actual packet.' }],
+    evidence_records: { schema_version: 1, records: [] } } }));
 });
 `,
     { mode: 0o755 },
@@ -145,10 +147,41 @@ process.stdin.on('end', () => {
   );
   const review = () =>
     run(['review', 'run', 'quality-review', `.project/tickets/${folder}/spec.md`]);
-  return { project, capture, review };
+  return { project, distribution, capture, review };
 }
 
 describe('required context through installed Product Plan review', () => {
+  it('refuses a changed generated Product rubric before starting another reviewer', () => {
+    const installed = fixture();
+    const approved = installed.review();
+    expect(approved.status, `${approved.stdout}\n${approved.stderr}`).toBe(0);
+    expect(JSON.parse(approved.stdout).data.status).toBe('approved');
+    rmSync(installed.capture);
+
+    const bundle = readdirSync(nodePath.join(installed.distribution, 'dist'))
+      .filter(file => file.endsWith('.js'))
+      .map(file => nodePath.join(installed.distribution, 'dist', file))
+      .find(file => readFileSync(file, 'utf8').includes('var PRODUCT_PLAN_REVIEW_RUBRIC = '));
+    if (bundle === undefined) throw new Error('Copied distribution lacks its Product rubric');
+    const source = readFileSync(bundle, 'utf8');
+    const clause = 'Accepted scope and exclusions belong to the user.';
+    const start = source.indexOf('var PRODUCT_PLAN_REVIEW_RUBRIC = ');
+    const end = source.indexOf('PRODUCT_PLAN_REVIEW_RUBRIC_SHA256', start);
+    const clauseIndex = source.indexOf(clause, start);
+    expect(clauseIndex).toBeGreaterThan(start);
+    expect(clauseIndex).toBeLessThan(end);
+    writeFileSync(bundle, source.slice(0, clauseIndex) + source.slice(clauseIndex + clause.length));
+
+    const refused = installed.review();
+    expect(refused.status).not.toBe(0);
+    expect(refused.stdout).toContain('canonical_contract_copy_mismatch');
+    expect(refused.stdout).toContain('product-plan');
+    expect(refused.stdout).toContain('src/review/product-plan-rubric.generated.ts');
+    expect(existsSync(installed.capture), 'reviewer must not launch with a changed rubric').toBe(
+      false,
+    );
+  });
+
   it('supplies all current project inventories without caller context', () => {
     const project = fixture();
     const result = project.review();
