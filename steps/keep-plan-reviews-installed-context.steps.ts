@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   cpSync,
   existsSync,
@@ -15,6 +16,8 @@ import path from 'node:path';
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
+import { parsePlanningContract } from '../packages/cli/src/planning/phase-contract.js';
+import { extractPlanReviewRubric } from '../packages/cli/src/review/plan-rubric.js';
 import { writePlanningInventories } from '../packages/cli/tests/planning-fixtures.js';
 import {
   createTrustedReviewerDirectory,
@@ -36,8 +39,32 @@ interface InstalledContextState {
   authorGate?: ReturnType<typeof spawnSync>;
   reviewDispatch?: ReturnType<typeof spawnSync>;
   contractCase?: 'reviewer-drift' | 'canonical';
+  cosmeticContractChanged?: boolean;
+  reviewStatus?: ReturnType<typeof spawnSync>;
+  reviewId?: string;
 }
 const states = new WeakMap<SafewordWorld, InstalledContextState>();
+
+function copiedRuntimeReviewStatus(state: InstalledContextState) {
+  assert.ok(state.runtimeRoot && state.reviewId);
+  return spawnSync(
+    'bun',
+    [path.join(state.runtimeRoot, 'runtime/cli.js'), 'review', 'status', state.reviewId, '--json'],
+    {
+      cwd: state.root,
+      encoding: 'utf8',
+      timeout: 60_000,
+      env: {
+        ...process.env,
+        PATH: `${state.reviewer}:${process.env.PATH ?? ''}`,
+        CLAUDE_PROJECT_DIR: state.root,
+        CLAUDE_PLUGIN_ROOT: state.runtimeRoot,
+        CLAUDE_SESSION_ID: 'r3-installed',
+        SAFEWORD_AGENT_RUNTIME: 'claude',
+      },
+    },
+  );
+}
 
 export function fixtureProject(): string {
   const root = mkdtempSync(path.join(tmpdir(), 'safeword-r3-installed-'));
@@ -164,6 +191,9 @@ function establishApprovedPlanningContext(this: SafewordWorld, overrideState: st
   assert.equal(reviewed.status, 0, `${reviewed.stdout}\n${reviewed.stderr}`);
   const result = JSON.parse(reviewed.stdout) as { data: { status: string; review_id: string } };
   assert.equal(result.data.status, 'approved');
+  const state = states.get(this);
+  assert.ok(state);
+  state.reviewId = result.data.review_id;
   const stamp = spawnSync(
     'bun',
     [
@@ -299,6 +329,52 @@ Given(
       runtime,
       source.slice(0, clauseIndex) + source.slice(clauseIndex + clause.length),
     );
+  },
+);
+
+Given(
+  'a plan review is current and its canonical phase contract changed only in whitespace or comments after installed copies were generated',
+  function (this: SafewordWorld) {
+    establishApprovedPlanningContext.call(this, 'current');
+    const state = states.get(this);
+    assert.ok(state);
+    state.runtimeRoot = mkdtempSync(path.join(tmpdir(), 'safeword-r5-cosmetic-plugin-'));
+    cpSync(pluginRoot, state.runtimeRoot, { recursive: true });
+    const baseline = copiedRuntimeReviewStatus(state);
+    assert.equal(baseline.status, 0, `${baseline.stdout}\n${baseline.stderr}`);
+    assert.equal(
+      (JSON.parse(baseline.stdout) as { data?: { status?: string } }).data?.status,
+      'approved',
+    );
+    const installed = path.join(state.runtimeRoot, 'skills/bdd/PLAN_IMPLEMENTATION.md');
+    const template = path.join(state.runtimeRoot, 'templates/skills/bdd/PLAN_IMPLEMENTATION.md');
+    const oldBytes = readFileSync(installed);
+    const oldHash = createHash('sha256').update(oldBytes).digest('hex');
+    const newBytes = Buffer.concat([oldBytes, Buffer.from('\n<!-- editorial -->\n')]);
+    const newHash = createHash('sha256').update(newBytes).digest('hex');
+    assert.equal(
+      extractPlanReviewRubric(newBytes.toString('utf8')),
+      extractPlanReviewRubric(oldBytes.toString('utf8')),
+    );
+    const originalTemplate = readFileSync(template, 'utf8');
+    const changedTemplate = `${originalTemplate}\n<!-- editorial -->\n`;
+    assert.deepEqual(
+      parsePlanningContract('plan-implementation', changedTemplate),
+      parsePlanningContract('plan-implementation', originalTemplate),
+    );
+    writeFileSync(template, changedTemplate);
+    const runtime = path.join(state.runtimeRoot, 'runtime/cli.js');
+    const source = readFileSync(runtime, 'utf8');
+    const authorIdentity = `relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "${oldHash}"`;
+    assert.ok(
+      source.includes(authorIdentity),
+      'the installed runtime must name the old author copy',
+    );
+    writeFileSync(
+      runtime,
+      source.replace(authorIdentity, authorIdentity.replace(oldHash, newHash)),
+    );
+    state.cosmeticContractChanged = true;
   },
 );
 
@@ -445,6 +521,9 @@ When(
   function (this: SafewordWorld) {
     const state = states.get(this);
     assert.ok(state);
+    if (state.cosmeticContractChanged) {
+      state.reviewStatus = copiedRuntimeReviewStatus(state);
+    }
     const ticketPath = path.join(state.root, ticketRoot, 'ticket.md');
     const hook = path.join(state.runtimeRoot ?? pluginRoot, 'runtime/hooks/pre-tool-quality.ts');
     assert.ok(existsSync(hook));
@@ -497,6 +576,30 @@ Then(
     assert.ok(
       reason.includes('skills/bdd/PLAN_IMPLEMENTATION.md'),
       `The installed authoring contract path was not named at the phase gate. Actual reason: ${reason}`,
+    );
+  },
+);
+
+Then(
+  'the review receipt remains current and the phase remains blocked with canonical contract reconciliation named',
+  function (this: SafewordWorld) {
+    const state = states.get(this);
+    assert.ok(state?.reviewStatus && state.gate);
+    assert.equal(
+      state.reviewStatus.status,
+      0,
+      `cosmetic canonical copy drift incorrectly staled review: ${state.reviewStatus.stdout}\n${state.reviewStatus.stderr}`,
+    );
+    const status = JSON.parse(state.reviewStatus.stdout) as { data?: { status?: string } };
+    assert.equal(status.data?.status, 'approved');
+    assert.equal(state.gate.status, 0, state.gate.stderr);
+    const gate = JSON.parse(state.gate.stdout) as {
+      hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
+    };
+    assert.equal(gate.hookSpecificOutput?.permissionDecision, 'deny');
+    assert.match(
+      gate.hookSpecificOutput?.permissionDecisionReason ?? '',
+      /canonical_contract_copy_mismatch.*skills\/bdd\/PLAN_IMPLEMENTATION\.md/su,
     );
   },
 );

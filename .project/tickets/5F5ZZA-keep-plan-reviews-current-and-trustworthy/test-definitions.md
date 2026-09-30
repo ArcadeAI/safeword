@@ -480,6 +480,25 @@ unaltered.
 
 ### Scenario: Cosmetic canonical changes preserve review currency but require copy reconciliation
 
+Actor-facing RED loop: start with an authenticated current Implementation
+review, copy the installed Claude plugin, change a comment in its canonical
+author source, and update the copied runtime's generated author identity to
+the corresponding new bytes while leaving the installed author copy old.
+Before the mutation, the same copied runtime and plugin root must report the
+receipt approved; the author and reviewer projections must remain unchanged
+by the appended editorial comment. This controls for changing binaries or
+plugin roots during the proof.
+Invoke actual `review status` and the installed phase hook with the same
+project and copied distribution. The hook must refuse the stale copy, but
+`review status` currently returns `REVIEW_STALE` before it can compare semantic
+dependencies because packet preparation insists on exact installed author
+bytes. The intended failure is the `REVIEW_STALE` status after a comment-only
+canonical edit; the corrected behavior keeps the authenticated receipt current
+while admission still names `canonical_contract_copy_mismatch`. Run
+`NODE_OPTIONS='--import tsx' scripts/dev node node_modules/.bin/cucumber-js
+features/keep-plan-reviews-current-and-trustworthy.feature --name 'Cosmetic
+canonical changes preserve review currency but require copy reconciliation'`.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
