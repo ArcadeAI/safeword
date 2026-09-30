@@ -194,10 +194,16 @@ const authoringPhases = [
   },
 ] as const;
 
+function alterAuthorCopy(asset: string, state: 'canonical' | 'comment drift' | 'missing copy') {
+  if (state === 'comment drift')
+    writeFileSync(asset, `<!-- authoring-copy drift -->\n${readFileSync(asset, 'utf8')}`);
+  else if (state === 'missing copy') rmSync(asset);
+}
+
 describe('Cursor installed planning copy admission', () => {
   it.each(
     authoringPhases.flatMap(phase =>
-      (['canonical', 'comment drift'] as const).map(state => ({ ...phase, state })),
+      (['canonical', 'comment drift', 'missing copy'] as const).map(state => ({ ...phase, state })),
     ),
   )(
     'checks $phase authoring copy with $state before an installed $artifact edit',
@@ -213,9 +219,7 @@ describe('Cursor installed planning copy admission', () => {
         );
       }
       const asset = nodePath.join(installed.project, '.safeword/skills/bdd', contract);
-      if (state === 'comment drift') {
-        writeFileSync(asset, `<!-- authoring-copy drift -->\n${readFileSync(asset, 'utf8')}`);
-      }
+      alterAuthorCopy(asset, state);
       const planPath = nodePath.join(installed.project, '.project/tickets', folder, artifact);
       if (artifact === 'execution-plan.md')
         writeFileSync(planPath, '# Execution Plan\n\nOne step.\n');
@@ -241,6 +245,10 @@ describe('Cursor installed planning copy admission', () => {
       if (state === 'canonical') {
         expect(edited.stdout.trim(), 'canonical authoring must remain available').toBe('');
       } else {
+        const findingCode =
+          state === 'missing copy'
+            ? 'missing_generated_contract_copy'
+            : 'canonical_contract_copy_mismatch';
         expect(
           edited.stdout.trim(),
           'installed plan authoring must refuse a drifted contract copy before the edit',
@@ -253,10 +261,8 @@ describe('Cursor installed planning copy admission', () => {
         expect(
           output.systemMessage,
           'a blocked author should see the contract mismatch without another command',
-        ).toContain('canonical_contract_copy_mismatch');
-        expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
-          'canonical_contract_copy_mismatch',
-        );
+        ).toContain(findingCode);
+        expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(findingCode);
         expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(phase);
         expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
           `.safeword/skills/bdd/${contract}`,
