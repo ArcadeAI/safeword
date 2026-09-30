@@ -521,9 +521,6 @@ When(
   function (this: SafewordWorld) {
     const state = states.get(this);
     assert.ok(state);
-    if (state.cosmeticContractChanged) {
-      state.reviewStatus = copiedRuntimeReviewStatus(state);
-    }
     const ticketPath = path.join(state.root, ticketRoot, 'ticket.md');
     const hook = path.join(state.runtimeRoot ?? pluginRoot, 'runtime/hooks/pre-tool-quality.ts');
     assert.ok(existsSync(hook));
@@ -546,8 +543,12 @@ When(
         CLAUDE_PROJECT_DIR: state.root,
         CLAUDE_PLUGIN_ROOT: state.runtimeRoot ?? pluginRoot,
         CLAUDE_SESSION_ID: 'r3-installed',
+        SAFEWORD_AGENT_RUNTIME: 'claude',
       },
     });
+    if (state.cosmeticContractChanged) {
+      state.reviewStatus = copiedRuntimeReviewStatus(state);
+    }
   },
 );
 
