@@ -399,6 +399,7 @@ function assertPlanningContractCopy(ticket: string, phase: string): void {
       deny(
         `${finding.code}: ${finding.message}`,
         'Reconcile the installed planning contract copy and retry.',
+        true,
       );
     }
   } catch (error) {
