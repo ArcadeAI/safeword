@@ -183,11 +183,38 @@ describe('Planning contract shared-clause generation', () => {
     }
   });
 
-  it.each(
-    (['PLAN_IMPLEMENTATION.md', 'PLAN_EXECUTION.md', 'DISCOVERY.md'] as const).flatMap(file =>
-      (['entire-clause', 'body-only'] as const).map(omission => ({ file, omission })),
-    ),
-  )(
+  it('keeps phase-only clauses in their owning installed contract', () => {
+    const distribution = sourceDistribution();
+    const project = nodePath.join(distribution, 'project');
+    mkdirSync(project);
+    writeFileSync(
+      nodePath.join(project, 'package.json'),
+      JSON.stringify({ name: 'planning-fixture', private: true }),
+    );
+    generatePhaseContracts(distribution);
+    reconcileProject(distribution, project, 'install');
+    const implementation = readFileSync(
+      nodePath.join(project, '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md'),
+      'utf8',
+    );
+    const execution = readFileSync(
+      nodePath.join(project, '.safeword/skills/bdd/PLAN_EXECUTION.md'),
+      'utf8',
+    );
+    expect(implementation).toContain('Direction and completeness');
+    expect(implementation).not.toContain('Startable steps:');
+    expect(execution).toContain('Startable steps:');
+    expect(execution).not.toContain('Direction and completeness');
+  });
+
+  it.each([
+    { file: 'PLAN_IMPLEMENTATION.md', omission: 'entire-clause' },
+    { file: 'PLAN_IMPLEMENTATION.md', omission: 'body-only' },
+    { file: 'PLAN_EXECUTION.md', omission: 'entire-clause' },
+    { file: 'PLAN_EXECUTION.md', omission: 'body-only' },
+    { file: 'DISCOVERY.md', omission: 'entire-clause' },
+    { file: 'DISCOVERY.md', omission: 'body-only' },
+  ] as const)(
     'blocks reconciliation when $file omits a generated shared clause ($omission)',
     ({ file, omission }) => {
       const distribution = sourceDistribution();

@@ -1,0 +1,17 @@
+{
+  "feature": "features/keep-plan-reviews-current-and-trustworthy.feature",
+  "scenarios": {
+    "Editing the canonical shared clause changes both generated phase contracts": [
+      "packages/cli/tests/integration/planning-contract-generation.test.ts",
+      "reconciles a canonical shared-clause edit into both installed phase contracts"
+    ],
+    "Phase-only clauses remain in their owning contract": [
+      "packages/cli/tests/integration/planning-contract-generation.test.ts",
+      "keeps phase-only clauses in their owning installed contract"
+    ],
+    "A missing generated shared clause blocks reconciliation": [
+      "packages/cli/tests/integration/planning-contract-generation.test.ts",
+      "blocks reconciliation when $file omits a generated shared clause ($omission)"
+    ]
+  }
+}
