@@ -35818,6 +35818,10 @@ function stableObservation(observation) {
     }
   });
 }
+function hasDiscriminatingOutcome(observation, testFullName) {
+  const { passing, mutated } = observation;
+  return passing.exitCode === 0 && passing.passedTests === 1 && passing.failedTests === 0 && passing.test === testFullName && mutated.exitCode !== 0 && mutated.passedTests === 0 && mutated.failedTests === 1 && mutated.test === testFullName;
+}
 function verifiedProof(root, targets, request, eligibility) {
   if (targets.length !== 2 || targets.some((path7) => !path7.endsWith(".json")))
     return false;
@@ -35826,11 +35830,13 @@ function verifiedProof(root, targets, request, eligibility) {
   if (proofRequest.ticketId !== RETROSPECTIVE_TICKET || proofRequest.scenario !== request.scenario || eligibility.blobs.every((blob) => blob.currentPath !== proofRequest.implementationPath) || JSON.stringify(reviewed.request) !== JSON.stringify(proofRequest))
     return false;
   const rerun = runRetrospectiveProof(root, proofRequest);
-  return stableObservation(reviewed) === stableObservation(rerun);
+  return hasDiscriminatingOutcome(rerun, proofRequest.testFullName) && stableObservation(reviewed) === stableObservation(rerun);
 }
 function retrospectiveGate(root, request) {
-  if (request.ticketId !== RETROSPECTIVE_TICKET || request.ledger !== RETROSPECTIVE_LEDGER || request.eligibilityId === request.proofId)
-    return deny("Only CKWE2D may use distinct retrospective receipts.");
+  if (request.ticketId !== RETROSPECTIVE_TICKET || request.ledger !== RETROSPECTIVE_LEDGER)
+    return deny("Only CKWE2D may use retrospective receipts.");
+  if (request.eligibilityId === request.proofId)
+    return deny("Eligibility and proof must use separate review receipts.");
   try {
     const eligibilityTargets = approvedRetrospectiveReview(root, request.eligibilityId, "retrospective-eligibility");
     const proofTargets = approvedRetrospectiveReview(root, request.proofId, "retrospective-proof");

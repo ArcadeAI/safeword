@@ -83,6 +83,16 @@ describe('retrospective baseline blobs', () => {
     try {
       expect(
         validateBaselineBlobClaims(history.root, history.baseline, [
+          {
+            ...history.claim,
+            currentBlobSha: history.git('hash-object', 'src/behavior.ts'),
+            currentExcerpts: ['export const behavior = true;'],
+            baselineExcerpts: ['export const behavior = true;'],
+          },
+        ]),
+      ).toEqual({ valid: true });
+      expect(
+        validateBaselineBlobClaims(history.root, history.baseline, [
           { ...history.claim, baselineExcerpts: ['export const behavior = true;'] },
         ]),
       ).toEqual({ valid: true });

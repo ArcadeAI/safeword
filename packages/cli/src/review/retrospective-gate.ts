@@ -149,6 +149,23 @@ function stableObservation(observation: RetrospectiveProofObservation): string {
   });
 }
 
+function hasDiscriminatingOutcome(
+  observation: RetrospectiveProofObservation,
+  testFullName: string,
+): boolean {
+  const { passing, mutated } = observation;
+  return (
+    passing.exitCode === 0 &&
+    passing.passedTests === 1 &&
+    passing.failedTests === 0 &&
+    passing.test === testFullName &&
+    mutated.exitCode !== 0 &&
+    mutated.passedTests === 0 &&
+    mutated.failedTests === 1 &&
+    mutated.test === testFullName
+  );
+}
+
 function verifiedProof(
   root: string,
   targets: readonly string[],
@@ -170,17 +187,18 @@ function verifiedProof(
   )
     return false;
   const rerun = runRetrospectiveProof(root, proofRequest);
-  return stableObservation(reviewed) === stableObservation(rerun);
+  return (
+    hasDiscriminatingOutcome(rerun, proofRequest.testFullName) &&
+    stableObservation(reviewed) === stableObservation(rerun)
+  );
 }
 
 /** This gate never treats a review verdict or author JSON as execution evidence. */
 export function retrospectiveGate(root: string, request: RetrospectiveGateRequest): CliResult {
-  if (
-    request.ticketId !== RETROSPECTIVE_TICKET ||
-    request.ledger !== RETROSPECTIVE_LEDGER ||
-    request.eligibilityId === request.proofId
-  )
-    return deny('Only CKWE2D may use distinct retrospective receipts.');
+  if (request.ticketId !== RETROSPECTIVE_TICKET || request.ledger !== RETROSPECTIVE_LEDGER)
+    return deny('Only CKWE2D may use retrospective receipts.');
+  if (request.eligibilityId === request.proofId)
+    return deny('Eligibility and proof must use separate review receipts.');
   try {
     const eligibilityTargets = approvedRetrospectiveReview(
       root,
