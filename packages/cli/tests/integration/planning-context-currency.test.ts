@@ -128,6 +128,7 @@ process.stdin.on('end', () => {
   const receipt = JSON.parse(reviewed.stdout).data;
   expect(receipt.status).toBe('approved');
   expect(receipt.review_id).toEqual(expect.any(String));
+  let reviewId: string = receipt.review_id;
   return {
     edit: (path: string, transform: (text: string) => string) => {
       const absolute = nodePath.join(project, path);
@@ -137,8 +138,15 @@ process.stdin.on('end', () => {
       writeFileSync(absolute, after);
     },
     status: async () => {
-      const result = await run(['review', 'status', receipt.review_id]);
+      const result = await run(['review', 'status', reviewId]);
       return JSON.parse(result.stdout).data.status as string;
+    },
+    rerun: async () => {
+      const result = await run(['review', 'run', 'quality-review', target]);
+      expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
+      const next = JSON.parse(result.stdout).data;
+      expect(next.status).toBe('approved');
+      reviewId = next.review_id;
     },
   };
 }
@@ -148,28 +156,28 @@ describe('semantic planning context currency through public review status', () =
     const review = await fixture();
     expect(await review.status()).toBe('approved');
   });
-  it('accepts math in selected Product context and tracks its meaning', async () => {
-    const review = await fixture(project => {
-      const path = nodePath.join(project, parentSpec);
-      writeFileSync(
-        path,
-        readFileSync(path, 'utf8').replace(
-          'Approval authenticates the current source.',
-          () => 'Approval authenticates the current source for $5 to $10.',
-        ),
-      );
-    });
+  it('stales approval when selected Product context gains math', async () => {
+    const review = await fixture();
+    review.edit(parentSpec, text =>
+      text.replace(
+        'Approval authenticates the current source.',
+        () => 'Approval authenticates the current source for $5 to $10.',
+      ),
+    );
+    expect(await review.status()).toBe('stale');
+    await review.rerun();
     review.edit(parentSpec, text => text.replace('$5 to $10', () => '$5 to $11'));
     expect(await review.status()).toBe('stale');
   });
-  it('tracks a footnote definition referenced by selected Product context', async () => {
-    const review = await fixture(project => {
-      const path = nodePath.join(project, parentSpec);
-      writeFileSync(
-        path,
-        `${readFileSync(path, 'utf8').replace('Approval authenticates the current source.', 'Approval authenticates the current source.[^source]')}\n[^source]: Evidence requires current approval.\n`,
-      );
-    });
+  it('stales approval when selected Product context gains a footnote', async () => {
+    const review = await fixture();
+    review.edit(
+      parentSpec,
+      text =>
+        `${text.replace('Approval authenticates the current source.', 'Approval authenticates the current source.[^source]')}\n[^source]: Evidence requires current approval.\n`,
+    );
+    expect(await review.status()).toBe('stale');
+    await review.rerun();
     review.edit(parentSpec, text =>
       text.replace('Evidence requires current approval.', 'Evidence permits anonymous approval.'),
     );
