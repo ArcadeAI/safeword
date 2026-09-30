@@ -11,6 +11,8 @@
 
 # Deterministic Bun build output; formatted canonical sources are bundled into it.
 plugin/runtime/cli.js
+plugin/runtime/review-mcp.js
+plugin/.mcp.json
 packages/cli/codex-plugin/package.json
 packages/cli/codex-plugin/runtime/
 packages/cli/codex-plugin/skills/
