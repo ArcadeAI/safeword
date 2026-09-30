@@ -574,7 +574,10 @@ function planningPersonaIdentity(packet: ReviewPacket, content: string): string 
   // Legacy inventories may use a display-only code shape. Keep the complete
   // inventory in currency when references cannot be resolved unambiguously.
   if (selected.length !== references.size) return artifactIdentity(content);
-  return identity({ version: 1, selected });
+  const preamble = semanticMarkdownIdentity(
+    lines.slice(0, (personas[0]?.lineNumber ?? 1) - 1).join('\n'),
+  );
+  return identity({ version: 1, preamble, selected });
 }
 
 function planningSurfaceIdentity(packet: ReviewPacket, content: string): string {
@@ -604,7 +607,8 @@ function planningSurfaceIdentity(packet: ReviewPacket, content: string): string 
   });
   if (selected.length !== references.size)
     throw new Error('Scenario references missing or ambiguous surface inventory entries.');
-  return identity({ version: 1, selected });
+  const preamble = identity(normalizeNodes(nodes.slice(0, headings[0]?.index ?? 0)));
+  return identity({ version: 1, preamble, selected });
 }
 
 function sha256(content: string): string {

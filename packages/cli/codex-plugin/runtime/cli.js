@@ -52230,7 +52230,9 @@ function planningPersonaIdentity(packet, content) {
   });
   if (selected.length !== references.size)
     return artifactIdentity(content);
-  return identity({ version: 1, selected });
+  const preamble = semanticMarkdownIdentity(lines.slice(0, (personas[0]?.lineNumber ?? 1) - 1).join(`
+`));
+  return identity({ version: 1, preamble, selected });
 }
 function planningSurfaceIdentity(packet, content) {
   const spec = planningRoleContent(packet, "rules");
@@ -52253,7 +52255,8 @@ function planningSurfaceIdentity(packet, content) {
   });
   if (selected.length !== references.size)
     throw new Error("Scenario references missing or ambiguous surface inventory entries.");
-  return identity({ version: 1, selected });
+  const preamble = identity(normalizeNodes(nodes.slice(0, headings[0]?.index ?? 0)));
+  return identity({ version: 1, preamble, selected });
 }
 function sha2565(content) {
   return createHash21("sha256").update(content).digest("hex");
