@@ -421,6 +421,13 @@ above and passing command results apply to those same source bytes.
 - [x] GREEN 9e0f7c2fc
 - [x] REFACTOR skip: no structural change remained after the minimal gate fix
 
+Corrective R/G/R cycle for the split commits; the historical rows above remain
+unaltered.
+
+- [x] RED 9221612ef
+- [x] GREEN b73b7ee89
+- [x] REFACTOR skip: the minimal shared hook check needed no further restructuring
+
 ### Scenario: Cosmetic canonical changes preserve review currency but require copy reconciliation
 
 - [ ] RED
