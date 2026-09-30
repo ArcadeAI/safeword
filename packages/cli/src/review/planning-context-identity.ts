@@ -487,6 +487,32 @@ function productPersonaInventory(content: string): string {
   return inventories.length === 1 ? (inventories[0] ?? '') : '';
 }
 
+function personaNamePosition(text: string, name: string): number {
+  for (let index = text.indexOf(name); index >= 0; index = text.indexOf(name, index + 1)) {
+    const before = text[index - 1] ?? '';
+    const after = text[index + name.length] ?? '';
+    if (!/[\p{L}\p{N}-]/u.test(before) && !/[\p{L}\p{N}-]/u.test(after)) return index;
+  }
+  return -1;
+}
+
+function namedPersonaCodes(
+  inventory: string,
+  personas: ReturnType<typeof resolvePersonaCodes>,
+): ReadonlySet<string> {
+  const names = new Set<string>();
+  const remaining = inventory.toLocaleLowerCase().split('');
+  const longestFirst = personas.toSorted((a, b) => b.name.length - a.name.length);
+  for (const persona of longestFirst) {
+    const name = persona.name.toLocaleLowerCase();
+    const index = personaNamePosition(remaining.join(''), name);
+    if (index === -1) continue;
+    names.add(persona.code);
+    remaining.fill(' ', index, index + name.length);
+  }
+  return names;
+}
+
 // eslint-disable-next-line complexity -- References and inventory are independent semantic selectors.
 function planningPersonaIdentity(packet: ReviewPacket, content: string): string {
   const spec = planningRoleContent(packet, 'rules');
@@ -522,8 +548,9 @@ function planningPersonaIdentity(packet: ReviewPacket, content: string): string 
     }
   }
   let inventoryMatched = false;
+  const namedPersonas = namedPersonaCodes(inventory, personas);
   for (const persona of personas) {
-    const named = inventory.toLocaleLowerCase().includes(persona.name.toLocaleLowerCase());
+    const named = namedPersonas.has(persona.code);
     if (!named && !inventory.includes(`(${persona.code})`)) continue;
     references.add(persona.code);
     inventoryMatched = true;

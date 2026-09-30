@@ -306,6 +306,21 @@ When('the canonical phase contract changes semantically occurs', function (this:
       'Decide a coherent implementation approach within accepted behavior.',
       'Decide a coherent implementation approach within accepted behavior.\n\n  Also permit unreviewed rollout.',
     ),
+    ...[
+      'Entry criteria',
+      'Required content',
+      'Prohibited content',
+      'Review question',
+      'Approval meaning',
+      'Invalidation',
+      'Return path',
+    ].map(field =>
+      statusWithContractSource(
+        state,
+        `- **${field}:** `,
+        `- **${field}:** Permit a different decision. `,
+      ),
+    ),
   ];
 });
 
