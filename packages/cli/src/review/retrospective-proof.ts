@@ -41,10 +41,18 @@ export interface RetrospectiveProofObservation {
   readonly sourceSha256: string;
   readonly mutantSha256: string;
   readonly supportSha256: Readonly<Record<string, string>>;
-  readonly passing: { readonly exitCode: 0; readonly test: string };
+  readonly mutatedSupportSha256: Readonly<Record<string, string>>;
+  readonly passing: {
+    readonly exitCode: 0;
+    readonly test: string;
+    readonly passedTests: 1;
+    readonly failedTests: 0;
+  };
   readonly mutated: {
     readonly exitCode: number;
     readonly test: string;
+    readonly passedTests: 0;
+    readonly failedTests: 1;
     readonly failure: string;
   };
 }
@@ -232,6 +240,20 @@ function requireArchivedSource(copy: string, path: string, source: Buffer): void
   }
 }
 
+function archiveDigests(copy: string, paths: readonly string[]): Record<string, string> {
+  return Object.fromEntries(
+    paths.map(path => [path, sha256(readFileSync(nodePath.join(copy, path)))]),
+  );
+}
+
+function requireDigests(
+  actual: Readonly<Record<string, string>>,
+  expected: Readonly<Record<string, string>>,
+  message: string,
+): void {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(message);
+}
+
 /**
  * Observe both executions only. This result is not a receipt and cannot authorize VERIFIED.
  * The coordinator must bind it to independent reviews before either gate may consume it.
@@ -288,7 +310,20 @@ export function runRetrospectiveProof(
     snapshot(root, mutatedCopy);
     requireArchivedSource(passingCopy, request.implementationPath, sourceBytes);
     requireArchivedSource(mutatedCopy, request.implementationPath, sourceBytes);
+    const passingDigests = archiveDigests(passingCopy, inputs);
+    requireDigests(
+      passingDigests,
+      supportSha256,
+      'Archived proof inputs differ from committed source.',
+    );
     writeFileSync(nodePath.join(mutatedCopy, request.implementationPath), mutant);
+    const mutatedSupportSha256 = archiveDigests(mutatedCopy, inputs);
+    const expectedMutated = { ...supportSha256, [request.implementationPath]: sha256(mutant) };
+    requireDigests(
+      mutatedSupportSha256,
+      expectedMutated,
+      'Mutated proof inputs differ beyond the declared mutation.',
+    );
     runTest(passingCopy, argv, request.testFullName, 'passed');
     const mutated = runTest(mutatedCopy, argv, request.testFullName, 'failed');
     if (
@@ -305,8 +340,15 @@ export function runRetrospectiveProof(
       sourceSha256: sha256(sourceBytes),
       mutantSha256: sha256(mutant),
       supportSha256,
-      passing: { exitCode: 0, test: request.testFullName },
-      mutated: { exitCode: mutated.exitCode, test: request.testFullName, failure: mutated.failure },
+      mutatedSupportSha256,
+      passing: { exitCode: 0, test: request.testFullName, passedTests: 1, failedTests: 0 },
+      mutated: {
+        exitCode: mutated.exitCode,
+        test: request.testFullName,
+        passedTests: 0,
+        failedTests: 1,
+        failure: mutated.failure,
+      },
     };
   } finally {
     rmSync(temporary, { recursive: true, force: true });

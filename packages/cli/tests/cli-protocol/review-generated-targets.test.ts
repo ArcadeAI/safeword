@@ -197,9 +197,11 @@ describe('generated review targets', () => {
 
     const envelope = JSON.parse(result.stdout) as {
       data?: { excluded_targets?: string[] };
+      errors?: { code: string }[];
     };
     expect(envelope.data?.excluded_targets).toEqual(['generated/output.js']);
     expect(result.exitCode, result.stdout).toBe(0);
+    expect(envelope.errors).toEqual([]);
     const prompt = readFileSync(promptLog, 'utf8');
     const packetMarker = '\n{"schema_version":';
     const packetStart = prompt.lastIndexOf(packetMarker);
