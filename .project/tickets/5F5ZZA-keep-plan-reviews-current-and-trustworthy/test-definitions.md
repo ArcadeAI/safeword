@@ -164,8 +164,8 @@ installed-dispatch outline or full feature verification, so R/G/R remains open.
 ### Scenario: Context identity ignores cosmetic and unrelated edits
 
 - [x] RED 1ec6d2e09
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN fd833c0fe
+- [x] REFACTOR 6569bc614
 
 ## Rule: plan-implementability.TBU4.5F5ZZA.R5 — Contract identity binds exact canonical bytes
 

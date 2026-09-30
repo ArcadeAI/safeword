@@ -153,19 +153,21 @@ describe('semantic planning context currency through public review status', () =
       const personas = nodePath.join(project, '.project/personas.md');
       writeFileSync(
         personas,
-        `${readFileSync(personas, 'utf8').replace('## Builder (BU)', '## Non-Technical Builder (BU)')}\n## Technical Builder (TB)\n\n**Role:** An unrelated technical contributor.\n**Context:** Does not request this approval.\n`,
+        `${readFileSync(personas, 'utf8').replace('## Builder (BU)', '## Non-Technical Builder (BU)')}\n## Technical Builder (TB)\n\n**Role:** An unrelated technical contributor.\n**Context:** Does not request this approval.\n\n## Builder (BD)\n\n**Role:** Another unrelated contributor.\n`,
       );
       const specification = nodePath.join(project, parentSpec);
       writeFileSync(
         specification,
         readFileSync(specification, 'utf8').replace(
           'Builder receives approval or a named refusal.',
-          'Non-Technical Builder receives approval or a named refusal.',
+          'Non-Technical Builder receives approval or a named refusal. Non-Technical Builder also reads the result.',
         ),
       );
     });
     review.edit('.project/personas.md', text =>
-      text.replace('An unrelated technical contributor.', 'An unrelated technical reader.'),
+      text
+        .replace('An unrelated technical contributor.', 'An unrelated technical reader.')
+        .replace('Another unrelated contributor.', 'Another unrelated reader.'),
     );
     expect(await review.status(), 'unrelated overlapping persona changed review currency').toBe(
       'approved',
