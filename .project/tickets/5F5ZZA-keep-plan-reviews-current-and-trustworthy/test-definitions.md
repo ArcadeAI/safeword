@@ -512,14 +512,19 @@ features/keep-plan-reviews-current-and-trustworthy.feature --name 'Cosmetic
 canonical changes preserve review currency but require copy reconciliation'`.
 
 - [x] RED e81dbf2a1
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 1d9c54b2d
+- [x] REFACTOR skip: the status-only fingerprint and exact dispatch check needed no further restructuring
 
 GREEN implementation is committed at `1d9c54b2d` and passed the focused R5
 scenario, full acceptance with zero failures, and independent quality review.
-The checkbox remains open because recording RED changed this scenario's ledger
-fingerprint and made the prior independently approved executable RED receipt
-stale at the GREEN hook. No completion credit is claimed by this note.
+The historical RED receipt went stale when RED was recorded in this ledger.
+Commit `6cc4953c0` strengthened the actor proof to read receipt status after
+the installed phase hook, then the exact pre-fix production bytes from
+`e81dbf2a1` reproduced the intended failure in this checkout. Independent
+executable RED review `07cb4cc1-1de0-49fd-8f31-e7f0fdf1b2aa` approved the
+replay. Restoring current source made all 50 scenario steps pass, and the
+receipt gate authorized GREEN before its checkbox was checked. The wider R5
+scenario and remaining Product/Execution actor paths are still open.
 
 ## Rule: plan-implementability.TBU4.5F5ZZA.R6 — Review fallback is bounded and honestly labeled
 
