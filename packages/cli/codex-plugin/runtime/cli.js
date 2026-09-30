@@ -51863,10 +51863,10 @@ function normalizeChildren(node) {
   });
 }
 function normalizeNode(node) {
-  if (!nodeTypes.has(node.type))
-    throw new Error(`Unsupported planning Markdown node: ${node.type}`);
   if (node.type === "html" && onlyComments(node.value ?? ""))
     return;
+  if (node.type === "frontMatter")
+    return { type: node.type, language: node.language, value: node.value };
   const layoutFields = new Set(["position", "children"]);
   if (node.type === "list" || node.type === "listItem")
     layoutFields.add("spread");
@@ -51960,16 +51960,18 @@ function referencedDefinitions(nodes, retained) {
   const references = new Set;
   const visit = (node) => {
     if ((node.type === "linkReference" || node.type === "imageReference") && typeof node.identifier === "string")
-      references.add(node.identifier);
+      references.add(`definition:${node.identifier}`);
+    if (node.type === "footnoteReference" && typeof node.identifier === "string")
+      references.add(`footnoteDefinition:${node.identifier}`);
     const children = node.children ?? [];
     for (const child of children)
       visit(child);
   };
   for (const node of retained)
     visit(node);
-  const definitions = nodes.filter((node) => node.type === "definition" && typeof node.identifier === "string" && references.has(node.identifier));
-  if ([...references].some((reference) => definitions.filter((node) => node.identifier === reference).length !== 1)) {
-    throw new Error("Planning parent context has missing or duplicate referenced link definitions.");
+  const definitions = nodes.filter((node) => (node.type === "definition" || node.type === "footnoteDefinition") && typeof node.identifier === "string" && references.has(`${node.type}:${node.identifier}`));
+  if ([...references].some((reference) => definitions.filter((node) => `${node.type}:${node.identifier}` === reference).length !== 1)) {
+    throw new Error("Planning parent context has missing or duplicate referenced definitions.");
   }
   return definitions;
 }
@@ -52323,7 +52325,7 @@ function createPlanningReviewIdentity(packet) {
     canonical_contract_digest: contractDigest
   };
 }
-var nodeTypes, productFrameFields;
+var productFrameFields;
 var init_planning_context_identity = __esm(() => {
   init_markdown();
   init_contracts_generated();
@@ -52334,31 +52336,6 @@ var init_planning_context_identity = __esm(() => {
   init_evidence_record();
   init_planning_context_error();
   init_review_rubric();
-  nodeTypes = new Set([
-    "root",
-    "blockquote",
-    "break",
-    "code",
-    "definition",
-    "emphasis",
-    "heading",
-    "html",
-    "image",
-    "imageReference",
-    "inlineCode",
-    "link",
-    "linkReference",
-    "list",
-    "listItem",
-    "paragraph",
-    "strong",
-    "text",
-    "thematicBreak",
-    "delete",
-    "table",
-    "tableRow",
-    "tableCell"
-  ]);
   productFrameFields = [
     "Expected outcome",
     "Persona outcome inventory",

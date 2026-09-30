@@ -27,32 +27,6 @@ interface MarkdownNode {
   readonly [key: string]: unknown;
 }
 
-const nodeTypes = new Set([
-  'root',
-  'blockquote',
-  'break',
-  'code',
-  'definition',
-  'emphasis',
-  'heading',
-  'html',
-  'image',
-  'imageReference',
-  'inlineCode',
-  'link',
-  'linkReference',
-  'list',
-  'listItem',
-  'paragraph',
-  'strong',
-  'text',
-  'thematicBreak',
-  'delete',
-  'table',
-  'tableRow',
-  'tableCell',
-]);
-
 function parseMarkdown(content: string): readonly MarkdownNode[] {
   // The public built-in parser consumes source only; its shared TypeScript
   // signature also describes formatters' resolved options. Validate the actual
@@ -114,9 +88,9 @@ function normalizeChildren(node: MarkdownNode): MarkdownNode[] {
 }
 
 function normalizeNode(node: MarkdownNode): MarkdownNode | undefined {
-  if (!nodeTypes.has(node.type))
-    throw new Error(`Unsupported planning Markdown node: ${node.type}`);
   if (node.type === 'html' && onlyComments(node.value ?? '')) return undefined;
+  if (node.type === 'frontMatter')
+    return { type: node.type, language: node.language, value: node.value };
   const layoutFields = new Set(['position', 'children']);
   if (node.type === 'list' || node.type === 'listItem') layoutFields.add('spread');
   const properties = Object.fromEntries(
@@ -256,25 +230,26 @@ function referencedDefinitions(nodes: readonly MarkdownNode[], retained: readonl
       (node.type === 'linkReference' || node.type === 'imageReference') &&
       typeof node.identifier === 'string'
     )
-      references.add(node.identifier);
+      references.add(`definition:${node.identifier}`);
+    if (node.type === 'footnoteReference' && typeof node.identifier === 'string')
+      references.add(`footnoteDefinition:${node.identifier}`);
     const children = node.children ?? [];
     for (const child of children) visit(child);
   };
   for (const node of retained) visit(node);
   const definitions = nodes.filter(
     node =>
-      node.type === 'definition' &&
+      (node.type === 'definition' || node.type === 'footnoteDefinition') &&
       typeof node.identifier === 'string' &&
-      references.has(node.identifier),
+      references.has(`${node.type}:${node.identifier}`),
   );
   if (
     [...references].some(
-      reference => definitions.filter(node => node.identifier === reference).length !== 1,
+      reference =>
+        definitions.filter(node => `${node.type}:${node.identifier}` === reference).length !== 1,
     )
   ) {
-    throw new Error(
-      'Planning parent context has missing or duplicate referenced link definitions.',
-    );
+    throw new Error('Planning parent context has missing or duplicate referenced definitions.');
   }
   return definitions;
 }
