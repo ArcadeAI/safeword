@@ -6,7 +6,7 @@ phase: define-behavior
 phase_anchors:
   - "define-behavior: .project/tickets/5WB90V-prompt-free-codex-reviews/spec.md"
 status: in_progress
-scope: Bounded review MCP tools in the Codex and Claude plugins, signed receipts, an MCP Apps sign-in view with a text link fallback, reviewer CLI browser/device sign-in handoff, and a one-time narrow Codex review-tool approval choice.
+scope: Bounded review MCP tools in the Codex and Claude plugins, signed receipts, an MCP Apps sign-in view with a text link fallback, reviewer CLI browser/device sign-in handoff, and one explicit Codex setup choice approving only the review-start and reviewer-login tools.
 out_of_scope: Executable RED through MCP, broad Codex profile or shell rule changes, hook trust, cloud-only local subprocesses, and silent permission grants.
 done_when: After one explicit Codex review-tool approval, ordinary independent checks no longer prompt; signed receipts verify through the normal gate; when the reviewer is signed out, the exact CLI-generated URL and any device code appear in UI or as a clickable link in both hosts; reviewed source remains unchanged; blocked or inconclusive results never report independent completion.
 product_plan_contract: v1

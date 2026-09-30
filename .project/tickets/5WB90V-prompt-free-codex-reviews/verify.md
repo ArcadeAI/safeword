@@ -1,31 +1,30 @@
-# Verification — 2026-09-25
+# Verification — 2026-09-30
 
-## Verify Checklist
+## Current result
 
-**Test Suite:** ✓ 10174/10174 tests pass (13 skipped; 595 files)
-**Gherkin:** ✅ Acceptance lane passes (596/596 scenarios in both root and package lanes)
-**Build:** ⚠️ Affected packages build; aggregate repository build is limited by missing `astro` in this worktree
-**Lint:** ✅ Clean
-**Typecheck:** ✅ Clean
-**Scenarios:** ❌ 0/24 complete in the ticket ledger
-**Refactor:** ⏭️ Skipped — feature is still in progress
-**PR Scope:** ✅ Diff matches ticket scope; generated plugin artifacts and ticket documents are included
-**Dep Drift:** ✅ Clean (dependency audits reported no vulnerabilities; no dependency changes)
-**Parent Epic:** N/A
-**Reconcile:** ✅ No pattern deviation identified
-**Experience:** ⚠️ Walked a technical builder from an unauthenticated reviewer through the CLI URL, MCP Apps opener, and text-link fallback. Worst step = host may decline the browser-open request, requiring a click. New steps vs before = one explicit tool approval. The Killer Demo's full sign-in continuation has not been observed live.
-**Surface Evidence:** ⚠️ 2 affected hosts have limited proof; protocol and CLI behavior are covered, but live browser handoff is unobserved
-**Evidence limits:** ⚠️ Missing Astro command blocks aggregate repository build; live Claude and Codex sign-in UI/browser handoff remains unobserved
+**Status:** In progress. Automated checks and independent reviews pass; the full live sign-in continuation is unverified.
 
-## Surface evidence
+**PR Scope:** The committed diff contains the review MCP implementation, one-time approval setup, sign-in UI, tests, generated plugin artifacts, and ticket evidence. No pull request has been opened.
 
-| Affected surface | Proof command or manual check | Result |
-| --- | --- | --- |
-| Codex plugin | Full CLI suite; disposable installed-plugin synthetic review; signed receipt status read | Protocol, review route, and receipt passed; live sign-in UI/browser handoff not observed |
-| Claude plugin | `claude plugin validate plugin --json`; generated-surface check; full CLI suite | Packaging and sign-in guidance passed; live sign-in UI/browser handoff not observed |
+| Check | Result |
+| --- | --- |
+| CLI suite | 600 files passed; 10,219 tests passed; 13 skipped |
+| BDD acceptance | 596 scenarios and 11,118 steps passed |
+| CLI lint, Gherkin lint, typecheck | Passed |
+| Generated surfaces | All four current |
+| Diff whitespace | `git diff --check` passed |
+| Independent scenario review | Approved, cross-agent; scenario-gate stamp recorded (`2466e9ce-8094-40e9-92ae-223c5c7b2b03`) |
+| Independent source review | Approved, cross-agent (`4eaf4b2f-b51a-4240-89bc-fc34bb96ce1c`) |
+| Scenario ledger | 48 scenarios defined; RED/GREEN/REFACTOR boxes remain unchecked pending the live demo |
 
-## Agent's next actions
+## Host evidence and limits
 
-- Complete and check the 24 scenario ledgers against implementation evidence.
-- Exercise the unauthenticated reviewer sign-in flow in live Codex and Claude plugin hosts, including browser-open request and clickable fallback.
-- Re-run the aggregate build after restoring the worktree's Astro dependency.
+- A disposable Codex home installed the built plugin and one-time `--approve-reviews` choice. The resulting profile granted only `start_review` and `start_reviewer_login`. A workspace-sandbox host with `on-request` approval called `start_review` without an approval event and received a signed review ID.
+- Disposable signed-out Claude and Codex reviewer CLI runs printed official HTTPS sign-in URLs; Codex also printed a device code. MCP tests verify that displayed details must exactly match the review's live CLI capture, with no shell interpretation.
+- A synthetic review returned a signed cross-agent Claude finding and a fresh status read verified its receipt. The read-only status and sign-in display paths now avoid writes and subprocess launches.
+- The MCP Apps view's `ui/open-link` request is covered by a UI-script test. An actual browser handoff and a completed vendor OAuth flow followed by a retry of the same blocked review have not been observed in both live hosts. This remains the completion gate.
+- The repository-wide lint/build lanes were not rerun here. A prior root lint run hit an unchanged website `strictNullChecks` rule; the affected CLI package lint and build pass.
+
+## Next action
+
+Complete the live signed-out → sign-in → same-review retry demonstration in disposable Claude and Codex profiles, then check the scenario ledger and close the ticket only if both hosts finish independently with signed receipts.

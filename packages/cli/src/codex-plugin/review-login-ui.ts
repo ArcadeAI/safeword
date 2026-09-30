@@ -37,9 +37,12 @@ export const REVIEW_LOGIN_HTML = `<!doctype html>
       code.append(token);
     }
     document.getElementById('help').textContent = value.reviewer === 'claude'
-      ? 'If Claude asks for a code after browser sign-in, paste it into the waiting login command.'
+      ? 'Complete Claude sign-in in your browser, then retry the review.'
       : 'Return here after sign-in, then retry the same review.';
-    if (!opened) { opened = true; openLogin(); }
+    if (!opened) {
+      opened = true;
+      if (value.automatic_open_allowed && !value.browser_launch_requested) openLogin();
+    }
   }
   open.addEventListener('click', openLogin);
   window.addEventListener('message', event => {

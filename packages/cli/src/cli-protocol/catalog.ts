@@ -170,7 +170,8 @@ function claudeScopeOption(): CommandDefinition['registration']['options'][numbe
 function approveReviewsOption(): CommandDefinition['registration']['options'][number] {
   return {
     flags: '--approve-reviews',
-    description: 'Once, approve only the Safeword start_review MCP tool in this Codex profile',
+    description:
+      'Once, approve only Safeword review and reviewer sign-in MCP tools in this Codex profile',
   };
 }
 

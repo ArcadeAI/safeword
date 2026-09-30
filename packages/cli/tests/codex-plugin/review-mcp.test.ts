@@ -1,11 +1,20 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { handleReviewMcpRequest } from '../../src/codex-plugin/review-mcp.js';
+import { handleReviewMcpRequest, isCodexDeviceCode } from '../../src/codex-plugin/review-mcp.js';
+import { hasIndependentVerdict } from '../../src/review/job.js';
 
 const roots: string[] = [];
 
@@ -33,6 +42,48 @@ function payload(response: Record<string, unknown>): Record<string, unknown> {
 }
 
 describe('Codex review MCP boundary', () => {
+  it('rejects a project-relative review target that symlinks outside the project', async () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-mcp-target-'));
+    const outside = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-mcp-outside-'));
+    roots.push(root, outside);
+    mkdirSync(nodePath.join(root, '.safeword'));
+    writeFileSync(nodePath.join(root, '.safeword', 'config.json'), '{}');
+    writeFileSync(nodePath.join(outside, 'secret.md'), 'outside');
+    symlinkSync(nodePath.join(outside, 'secret.md'), nodePath.join(root, 'linked.md'));
+
+    const result = payload(
+      await call(99, 'start_review', {
+        project_root: root,
+        kind: 'quality-review',
+        targets: ['linked.md'],
+      }),
+    );
+
+    expect(result).toMatchObject({ error: expect.stringContaining('not a regular file') });
+    expect(readdirSync(nodePath.join(root, '.safeword'))).not.toContain('state');
+  });
+
+  it('requires a different, matching reviewer identity before claiming independence', () => {
+    const verdict = {
+      status: 'changes_requested',
+      independence: 'cross-agent',
+      author_agent: 'codex',
+      actual_reviewer: 'claude',
+      reviewer_output: { reviewer_agent: 'claude' },
+    };
+    expect(hasIndependentVerdict(verdict)).toBe(true);
+    expect(hasIndependentVerdict({ ...verdict, actual_reviewer: 'codex' })).toBe(false);
+    expect(
+      hasIndependentVerdict({ ...verdict, reviewer_output: { reviewer_agent: 'codex' } }),
+    ).toBe(false);
+  });
+  it('accepts the device-code shape printed by the current Codex CLI', () => {
+    expect(isCodexDeviceCode('5T5I-3IZNL')).toBe(true);
+    expect(isCodexDeviceCode('ABCDE-12345')).toBe(true);
+    expect(isCodexDeviceCode('https://auth.openai.com/codex/device')).toBe(false);
+    expect(isCodexDeviceCode('5T5I-3IZNL\nopen https://example.com')).toBe(false);
+  });
+
   it('starts the generated plugin server from the packaged manifest', () => {
     const pluginRoot = nodePath.resolve(import.meta.dirname, '../../codex-plugin');
     const manifest = JSON.parse(readFileSync(nodePath.join(pluginRoot, '.mcp.json'), 'utf8')) as {
@@ -40,6 +91,13 @@ describe('Codex review MCP boundary', () => {
     };
     const server = manifest.mcpServers.safeword_review;
     expect(server.cwd).toBe('.');
+    expect(server.args.at(-1)).toBe('--codex');
+    const claudeManifest = JSON.parse(
+      readFileSync(nodePath.resolve(import.meta.dirname, '../../../../plugin/.mcp.json'), 'utf8'),
+    ) as {
+      mcpServers: { safeword_review: { args: string[] } };
+    };
+    expect(claudeManifest.mcpServers.safeword_review.args.at(-1)).toBe('--claude');
     const launched = spawnSync('bun', server.args, {
       cwd: pluginRoot,
       encoding: 'utf8',
@@ -54,11 +112,16 @@ describe('Codex review MCP boundary', () => {
     expect(response.result.tools.map(tool => tool.name)).toEqual([
       'start_review',
       'review_status',
+      'start_reviewer_login',
       'show_reviewer_login',
     ]);
   });
 
   it('exposes bounded review and sign-in display tools, excluding executable RED', async () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-mcp-boundary-'));
+    roots.push(root);
+    mkdirSync(nodePath.join(root, '.safeword'));
+    writeFileSync(nodePath.join(root, '.safeword', 'config.json'), '{}');
     const response = (await handleReviewMcpRequest({
       jsonrpc: '2.0',
       id: 1,
@@ -69,11 +132,13 @@ describe('Codex review MCP boundary', () => {
     expect(response.result.tools.map(tool => tool.name)).toEqual([
       'start_review',
       'review_status',
+      'start_reviewer_login',
       'show_reviewer_login',
     ]);
     expect(response.result.tools.map(tool => tool.annotations.readOnlyHint)).toEqual([
       false,
       true,
+      false,
       true,
     ]);
     const listed = (await handleReviewMcpRequest({
@@ -94,9 +159,12 @@ describe('Codex review MCP boundary', () => {
     expect(resource.result.contents[0]?.mimeType).toBe('text/html;profile=mcp-app');
     expect(resource.result.contents[0]?.text).toContain('ui/open-link');
     expect(
+      payload(await call(12, 'start_reviewer_login', { project_root: root, review_id: 'unknown' })),
+    ).toMatchObject({ error: expect.stringContaining('not waiting') });
+    expect(
       payload(
         await call(2, 'start_review', {
-          project_root: '/tmp',
+          project_root: root,
           kind: 'executable-red',
           targets: ['proof.ts'],
         }),
@@ -105,14 +173,14 @@ describe('Codex review MCP boundary', () => {
     expect(
       payload(
         await call(6, 'start_review', {
-          project_root: '/tmp',
+          project_root: root,
           kind: 'quality-review',
           targets: ['../secret.txt'],
         }),
       ),
     ).toMatchObject({ error: expect.stringContaining('project-relative') });
     expect(
-      payload(await call(7, 'review_status', { project_root: '/tmp', review_id: 'unknown' })),
+      payload(await call(7, 'review_status', { project_root: root, review_id: 'unknown' })),
     ).toMatchObject({
       status: 'failed',
       independent: false,
@@ -120,7 +188,7 @@ describe('Codex review MCP boundary', () => {
     expect(
       payload(
         await call(11, 'show_reviewer_login', {
-          project_root: '/tmp',
+          project_root: root,
           review_id: 'unknown',
           auth_url: 'https://claude.com/signin',
         }),
@@ -155,7 +223,7 @@ describe('Codex review MCP boundary', () => {
     expect(readdirSync(nodePath.join(root, '.safeword/state/reviews'))).toContain(`${id}.json`);
     expect(readFileSync(nodePath.join(root, 'target.md'), 'utf8')).toBe('Synthetic target\n');
     const pluginRoot = nodePath.resolve(import.meta.dirname, '../../codex-plugin');
-    const restarted = spawnSync('bun', ['runtime/review-mcp.js'], {
+    const restarted = spawnSync('bun', ['runtime/review-mcp.js', '--codex'], {
       cwd: pluginRoot,
       encoding: 'utf8',
       input: `${JSON.stringify({

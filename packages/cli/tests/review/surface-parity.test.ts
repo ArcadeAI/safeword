@@ -181,7 +181,11 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
   const normalized = section.replaceAll(/\s+/gu, ' ');
   expect(normalized, context).toContain('--agent-handoff --json');
   expect(normalized, context).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
-  expect(normalized, context).toMatch(/(?:execute|run) its exact recovery command/iu);
+  if (normalized.includes('mcp__safeword_review__start_reviewer_login')) {
+    expect(normalized, context).toContain('call `mcp__safeword_review__start_reviewer_login`');
+  } else {
+    expect(normalized, context).toMatch(/(?:execute|run) its exact recovery command/iu);
+  }
   expect(normalized, context).toMatch(/rerun the same coordinator command once/iu);
   expect(section, context).toContain('REVIEW_PENDING');
   expect(normalized, context).toMatch(/independence: degraded[^.]{0,240}not independent/iu);
@@ -749,7 +753,9 @@ exit ${status}`,
       const content = readFileSync(nodePath.join(codexRoot, relativePath), 'utf8');
       expect(content, relativePath).toContain('mcp__safeword_review__start_review');
       expect(content, relativePath).toContain('mcp__safeword_review__review_status');
-      expect(content, relativePath).not.toMatch(/review run (?:quality-review|scenario-gate|plan-implementation)/u);
+      expect(content, relativePath).not.toMatch(
+        /review run (?:quality-review|scenario-gate|plan-implementation)/u,
+      );
     }
 
     const cursorRoots = [

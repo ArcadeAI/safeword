@@ -682,6 +682,18 @@ function executableCandidates(
   return { paths: [...new Set(staged)], rejectedForTrust };
 }
 
+/** Resolve the same trusted executable used for reviewer dispatch before running login. */
+export function trustedReviewerExecutable(
+  reviewer: 'claude' | 'codex',
+  untrustedRoot: string,
+): string {
+  const candidates = executableCandidates(reviewer, untrustedRoot);
+  const executable = candidates.paths[0];
+  if (executable === undefined)
+    throw unavailableReviewerError(reviewer, candidates.rejectedForTrust);
+  return executable;
+}
+
 function unavailableReviewerError(
   reviewer: ReviewAgent,
   rejectedForTrust: boolean,
@@ -946,15 +958,42 @@ const PROCESS_GROUP_POLL_INTERVAL_MS = 50;
 const WINDOWS_CLEANUP_BUDGET_MS = 1000;
 
 /**
- * A reviewer that could not authenticate says so on stderr; anything else keeps
- * the caller's classification.
+ * Claude can return a zero-exit JSON error on stdout when signed out. Only its
+ * explicit `is_error` envelope may classify stdout as an authentication failure;
+ * review text containing those words is not an authentication signal.
  */
-function classifyExit(stderr: string, otherwise: ReviewFailure): ReviewFailure {
-  return /not logged in|sign in|authentication|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(
-    stderr,
-  )
-    ? 'not_authenticated'
-    : otherwise;
+function claudeErrorMessage(stdout: string): string | undefined {
+  try {
+    const envelope: unknown = JSON.parse(stdout);
+    if (
+      envelope !== null &&
+      typeof envelope === 'object' &&
+      'is_error' in envelope &&
+      envelope.is_error === true &&
+      'result' in envelope &&
+      typeof envelope.result === 'string'
+    ) {
+      return envelope.result;
+    }
+  } catch {
+    // A non-JSON response retains the caller's failure classification.
+  }
+  return undefined;
+}
+
+function classifyExit(
+  reviewer: ReviewAgent,
+  stdout: string,
+  stderr: string,
+  otherwise: ReviewFailure,
+): ReviewFailure {
+  const authenticationMessage =
+    /not logged in|sign in|authentication|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu;
+  if (authenticationMessage.test(stderr)) return 'not_authenticated';
+  if (reviewer === 'claude' && authenticationMessage.test(claudeErrorMessage(stdout) ?? '')) {
+    return 'not_authenticated';
+  }
+  return otherwise;
 }
 
 /**
@@ -1243,7 +1282,7 @@ async function runCandidate(
             if (overflow) {
               reject(
                 new ReviewRuntimeError(
-                  classifyExit(stderr, 'invalid_output'),
+                  classifyExit(reviewer, stdout, stderr, 'invalid_output'),
                   `${reviewer} exceeded its output limit`,
                 ),
               );
@@ -1252,7 +1291,7 @@ async function runCandidate(
             if (code !== 0) {
               reject(
                 new ReviewRuntimeError(
-                  classifyExit(stderr, 'process_failed'),
+                  classifyExit(reviewer, stdout, stderr, 'process_failed'),
                   `${reviewer} review failed (${code ?? 'signal'}): ${stderr.trim()}`,
                 ),
               );
@@ -1263,7 +1302,7 @@ async function runCandidate(
             } catch {
               reject(
                 new ReviewRuntimeError(
-                  'invalid_output',
+                  classifyExit(reviewer, stdout, stderr, 'invalid_output'),
                   `${reviewer} returned invalid review output`,
                 ),
               );

@@ -19493,11 +19493,14 @@ import nodePath32 from "path";
 function record(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value : undefined;
 }
-function configuredApproval(content) {
+function configuredApprovals(content) {
   const config = record(parse(content));
   const plugin = record(record(config?.plugins)?.["safeword@safeword"]);
   const server = record(record(plugin?.mcp_servers)?.safeword_review);
-  return record(record(server?.tools)?.start_review);
+  if (plugin?.approval_mode !== undefined || server?.approval_mode !== undefined) {
+    throw new Error("Codex already has a plugin or server review policy; Safeword left it unchanged");
+  }
+  return record(server?.tools) ?? {};
 }
 function existingConfigMode(configPath) {
   try {
@@ -19512,49 +19515,64 @@ function existingConfigMode(configPath) {
     throw error2;
   }
 }
+function missingApprovals(existing) {
+  for (const tool of REVIEW_TOOLS) {
+    if (existing[tool] !== undefined && record(existing[tool])?.approval_mode !== "approve") {
+      throw new Error("Codex already has a review-tool policy; Safeword left it unchanged");
+    }
+  }
+  return REVIEW_TOOLS.filter((tool) => existing[tool] === undefined);
+}
 function enableCodexReviewApproval(environment = process.env) {
   const configPath = nodePath32.join(environment.CODEX_HOME ?? nodePath32.join(homedir4(), ".codex"), "config.toml");
   const currentMode = existingConfigMode(configPath);
   const current = currentMode === undefined ? "" : readFileSync20(configPath, "utf8");
   let existing;
   try {
-    existing = configuredApproval(current);
-  } catch {
-    throw new Error("Codex config is invalid TOML; review approval was not changed");
+    existing = configuredApprovals(current);
+  } catch (error2) {
+    if (error2 instanceof Error && error2.message.includes("review policy"))
+      throw error2;
+    throw new Error("Codex config is invalid TOML; review approval was not changed", {
+      cause: error2
+    });
   }
-  if (existing !== undefined) {
-    if (record(existing)?.approval_mode === "approve")
-      return false;
-    throw new Error("Codex already has a review-tool policy; Safeword left it unchanged");
-  }
+  const missing = missingApprovals(existing);
+  if (missing.length === 0)
+    return false;
+  process.stderr.write(`Safeword review approval: bounded packet contents go to the assigned reviewer provider. Both the review worker and assigned vendor login CLI run outside the author shell sandbox; login may open its sign-in URL. Approving only the named review and reviewer-login tools in this Codex profile.
+`);
   const updated = `${current.trimEnd()}
 
-${REVIEW_APPROVAL}`;
+${missing.map((tool) => approval(tool)).join(`
+`)}`;
   const directory = nodePath32.dirname(configPath);
   mkdirSync8(directory, { recursive: true, mode: 448 });
   const mode = currentMode ?? 384;
   const temporary = nodePath32.join(directory, `.config.toml.safeword-${randomUUID5()}`);
-  const descriptor = openSync3(temporary, "wx", mode);
   try {
-    writeFileSync8(descriptor, updated);
-  } finally {
-    closeSync3(descriptor);
-  }
-  try {
-    configuredApproval(readFileSync20(temporary, "utf8"));
+    const descriptor = openSync3(temporary, "wx", mode);
+    try {
+      writeFileSync8(descriptor, updated);
+    } finally {
+      closeSync3(descriptor);
+    }
+    configuredApprovals(readFileSync20(temporary, "utf8"));
     renameSync5(temporary, configPath);
   } catch (error2) {
-    unlinkSync3(temporary);
+    try {
+      unlinkSync3(temporary);
+    } catch {}
     throw error2;
   }
   return true;
 }
-var REVIEW_TOOL_TABLE = '[plugins."safeword@safeword".mcp_servers.safeword_review.tools.start_review]', REVIEW_APPROVAL;
-var init_review_approval = __esm(() => {
-  init_dist();
-  REVIEW_APPROVAL = `${REVIEW_TOOL_TABLE}
+var REVIEW_TOOLS, approval = (tool) => `[plugins."safeword@safeword".mcp_servers.safeword_review.tools.${tool}]
 approval_mode = "approve"
 `;
+var init_review_approval = __esm(() => {
+  init_dist();
+  REVIEW_TOOLS = ["start_review", "start_reviewer_login"];
 });
 
 // src/codex-plugin/operations.ts
@@ -31740,6 +31758,7 @@ var init_policy = __esm(() => {
 // src/review/packet.ts
 var exports_packet = {};
 __export(exports_packet, {
+  prepareReviewPacketReadOnly: () => prepareReviewPacketReadOnly,
   prepareReviewPacket: () => prepareReviewPacket,
   ReviewPacketError: () => ReviewPacketError
 });
@@ -31863,13 +31882,13 @@ function snapshotEntries(root, directory = root) {
     return [`other:${relative}`];
   });
 }
-function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution = {}) {
+function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution = {}, snapshot = true) {
   if (targets.length + context.length > MAX_FILE_COUNT) {
     throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
   }
   const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot = realpathSync7(cwd);
-  const workspace = mkdtempSync5(nodePath45.join(tmpdir3(), "safeword-review-"));
+  const workspace = snapshot ? mkdtempSync5(nodePath45.join(tmpdir3(), "safeword-review-")) : "";
   const tracked = [];
   const expectedSnapshotEntries = new Set;
   let logicalFiles;
@@ -31895,16 +31914,18 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
       if (packetBytes > MAX_PACKET_BYTES) {
         throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
       }
-      const snapshot = nodePath45.join(workspace, relative);
-      mkdirSync12(nodePath45.dirname(snapshot), { recursive: true });
-      writeFileSync12(snapshot, bytes, { mode: 384 });
+      const snapshotPath = snapshot ? nodePath45.join(workspace, relative) : "";
+      if (snapshot) {
+        mkdirSync12(nodePath45.dirname(snapshotPath), { recursive: true });
+        writeFileSync12(snapshotPath, bytes, { mode: 384 });
+      }
       let parent = nodePath45.dirname(relative);
       while (parent !== ".") {
         expectedSnapshotEntries.add(`directory:${parent}`);
         parent = nodePath45.dirname(parent);
       }
       expectedSnapshotEntries.add(`file:${relative}`);
-      tracked.push({ source, snapshot, sha256: digest2(bytes), device, inode });
+      tracked.push({ source, snapshot: snapshotPath, sha256: digest2(bytes), device, inode });
       return { path: relative, content };
     });
     const seen = new Set;
@@ -31924,7 +31945,8 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
   } catch (error2) {
-    rmSync7(workspace, { recursive: true, force: true });
+    if (snapshot)
+      rmSync7(workspace, { recursive: true, force: true });
     throw error2;
   }
   const packet = {
@@ -31936,7 +31958,8 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     ...executionAttestation !== undefined && { execution_attestation: executionAttestation }
   };
   if (Buffer.byteLength(JSON.stringify(packet), "utf8") > MAX_PACKET_BYTES) {
-    rmSync7(workspace, { recursive: true, force: true });
+    if (snapshot)
+      rmSync7(workspace, { recursive: true, force: true });
     throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
   }
   return {
@@ -31945,6 +31968,8 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     workspace,
     sourceChanged: () => tracked.some((file) => sourceFileChanged(file)),
     snapshotChanged: () => {
+      if (!snapshot)
+        return false;
       if (tracked.some((file) => fileDigest(file.snapshot) !== file.sha256))
         return true;
       try {
@@ -31955,7 +31980,8 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
       }
     },
     cleanup: () => {
-      rmSync7(workspace, { recursive: true, force: true });
+      if (snapshot)
+        rmSync7(workspace, { recursive: true, force: true });
     }
   };
 }
@@ -31967,6 +31993,15 @@ function prepareReviewPacket(cwd, kind, targets, context = [], execution = {}) {
       throw error2;
     const message = error2 instanceof Error ? error2.message : "";
     throw new ReviewPacketError(message.startsWith("Review ") ? message : "Review packet could not be prepared. Check that every target and context path exists and is readable.");
+  }
+}
+function prepareReviewPacketReadOnly(cwd, kind, targets, context = [], execution = {}) {
+  try {
+    return prepareReviewPacketUnsafe(cwd, kind, targets, context, execution, false);
+  } catch (error2) {
+    if (error2 instanceof ReviewPacketError)
+      throw error2;
+    throw new ReviewPacketError("Review packet could not be read for verification.");
   }
 }
 var MAX_FILE_COUNT = 64, MAX_FILE_BYTES, MAX_PACKET_BYTES, HIGH_CONFIDENCE_SECRET_PATTERNS, ReviewPacketError;
@@ -32782,8 +32817,23 @@ function appendBounded(current, currentBytes, chunk) {
     overflow: bytes > MAX_OUTPUT_BYTES
   };
 }
-function classifyExit(stderr, otherwise) {
-  return /not logged in|sign in|authentication|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(stderr) ? "not_authenticated" : otherwise;
+function claudeErrorMessage(stdout) {
+  try {
+    const envelope = JSON.parse(stdout);
+    if (envelope !== null && typeof envelope === "object" && "is_error" in envelope && envelope.is_error === true && "result" in envelope && typeof envelope.result === "string") {
+      return envelope.result;
+    }
+  } catch {}
+  return;
+}
+function classifyExit(reviewer, stdout, stderr, otherwise) {
+  const authenticationMessage = /not logged in|sign in|authentication|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu;
+  if (authenticationMessage.test(stderr))
+    return "not_authenticated";
+  if (reviewer === "claude" && authenticationMessage.test(claudeErrorMessage(stdout) ?? "")) {
+    return "not_authenticated";
+  }
+  return otherwise;
 }
 function stopWindowsReviewer(child, pid) {
   const streamClosed = (stream) => stream === null || stream.closed;
@@ -32984,17 +33034,17 @@ async function runCandidate(executable, attempt, timeoutMs) {
         child.on("close", (code) => {
           settle(() => {
             if (overflow) {
-              reject(new ReviewRuntimeError(classifyExit(stderr, "invalid_output"), `${reviewer} exceeded its output limit`));
+              reject(new ReviewRuntimeError(classifyExit(reviewer, stdout, stderr, "invalid_output"), `${reviewer} exceeded its output limit`));
               return;
             }
             if (code !== 0) {
-              reject(new ReviewRuntimeError(classifyExit(stderr, "process_failed"), `${reviewer} review failed (${code ?? "signal"}): ${stderr.trim()}`));
+              reject(new ReviewRuntimeError(classifyExit(reviewer, stdout, stderr, "process_failed"), `${reviewer} review failed (${code ?? "signal"}): ${stderr.trim()}`));
               return;
             }
             try {
               resolve(parseReviewerOutput(reviewer, stdout));
             } catch {
-              reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
+              reject(new ReviewRuntimeError(classifyExit(reviewer, stdout, stderr, "invalid_output"), `${reviewer} returned invalid review output`));
             }
           });
         });
@@ -33184,6 +33234,7 @@ __export(exports_job, {
   reviewJobStatus: () => reviewJobStatus,
   relayManagedWorkerStderr: () => relayManagedWorkerStderr,
   readReviewRouteProofs: () => readReviewRouteProofs,
+  hasIndependentVerdict: () => hasIndependentVerdict,
   executableRedGate: () => executableRedGate,
   completeReviewJob: () => completeReviewJob,
   cancelReviewJob: () => cancelReviewJob
@@ -33253,15 +33304,16 @@ function unsignedRecord(record2) {
   const { integrity: _integrity, ...unsigned } = record2;
   return unsigned;
 }
-function recordIntegrity(cwd, record2) {
-  return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync9.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record2))).digest("hex");
+function recordIntegrity(cwd, record2, readOnly = false) {
+  const key = readOnly ? decodeIntegrityKey(readFileSync32(integrityKeyPath(), "utf8")) : readOrCreateIntegrityKey();
+  return createHmac("sha256", key).update(realpathSync9.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record2))).digest("hex");
 }
-function hasValidIntegrity(cwd, record2) {
+function hasValidIntegrity(cwd, record2, readOnly = false) {
   if (record2.integrity === undefined || !/^[a-f\d]{64}$/u.test(record2.integrity))
     return false;
   try {
     const actual = Buffer.from(record2.integrity, "hex");
-    const expected = Buffer.from(recordIntegrity(cwd, record2), "hex");
+    const expected = Buffer.from(recordIntegrity(cwd, record2, readOnly), "hex");
     return timingSafeEqual(actual, expected);
   } catch {
     return false;
@@ -33382,9 +33434,9 @@ function ledgerFingerprintContext(cwd, targets, context, execution) {
     missing
   };
 }
-function fingerprint(cwd, kind, targets, context = [], execution) {
+function fingerprint(cwd, kind, targets, context = [], execution, readOnly = false) {
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
-  const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
+  const prepared = (readOnly ? prepareReviewPacketReadOnly : prepareReviewPacket)(cwd, kind, targets, ledger.context, {
     allowMissingExecutableRedAttestation: true
   });
   try {
@@ -33592,9 +33644,9 @@ function isCompletedReviewData(data, state) {
 function hasReviewerIdentity(reviewer) {
   return typeof reviewer.dispatch_id === "string" && reviewer.dispatch_id.length > 0 && ["claude", "codex", "opencode"].includes(String(reviewer.reviewer_agent));
 }
-function readJob(cwd, id) {
+function readJob(cwd, id, readOnly = false) {
   const parsed2 = JSON.parse(readFileSync32(jobPath(cwd, id), "utf8"));
-  if (!isReviewJobRecord(parsed2) || parsed2.id !== id || !hasValidIntegrity(cwd, parsed2))
+  if (!isReviewJobRecord(parsed2) || parsed2.id !== id || !hasValidIntegrity(cwd, parsed2, readOnly))
     throw new Error("invalid review job record");
   return parsed2;
 }
@@ -33651,21 +33703,26 @@ function staleResult(record2) {
     data: { command: "review status", status: "stale", review_id: record2.id }
   });
 }
-function currentResult(cwd, record2) {
+function currentResult(cwd, record2, readOnly = false) {
   if (isActiveJobPastDeadline(record2))
-    return failTimedOutJob(cwd, record2);
+    return readOnly ? failedJobResult(record2, {
+      code: "REVIEW_WORKER_TIMED_OUT",
+      message: "The background review worker exceeded its deadline before recording a result."
+    }) : failTimedOutJob(cwd, record2);
   if (record2.state === "launching") {
     if (record2.pid !== undefined && processExists(record2.pid))
       return pendingResult(record2);
-    return failExitedJob(cwd, record2);
+    return readOnly ? failedJobResult(record2, {
+      code: "REVIEW_WORKER_EXITED",
+      message: "The background review worker exited before recording a result."
+    }) : failExitedJob(cwd, record2);
   }
   if (record2.state === "running") {
-    if (workerDefinitelyMismatches(record2)) {
+    if (!readOnly && workerDefinitelyMismatches(record2))
       return failExitedJob(cwd, record2);
-    }
     return pendingResult(record2);
   }
-  return terminalResult(cwd, record2);
+  return terminalResult(cwd, record2, readOnly);
 }
 function isActiveJobPastDeadline(record2) {
   if (record2.state !== "launching" && record2.state !== "running")
@@ -33673,12 +33730,15 @@ function isActiveJobPastDeadline(record2) {
   const deadline = record2.deadline_at === undefined ? NaN : Date.parse(record2.deadline_at);
   return Number.isFinite(deadline) && Date.now() >= deadline;
 }
-function failActiveJob(cwd, record2, error2) {
-  const failed = createResult({
+function failedJobResult(record2, error2) {
+  return createResult({
     state: "failed",
     errors: [{ code: error2.code, message: error2.message, retryable: true }],
     data: { command: "review status", status: "failed", review_id: record2.id }
   });
+}
+function failActiveJob(cwd, record2, error2) {
+  const failed = failedJobResult(record2, error2);
   const latest = updateActiveJob(cwd, record2.id, (current) => ({
     ...current,
     state: "failed",
@@ -33702,8 +33762,8 @@ function failExitedJob(cwd, record2) {
     message: "The background review worker exited before recording a result."
   });
 }
-function terminalResult(cwd, record2) {
-  if (!hasValidIntegrity(cwd, record2))
+function terminalResult(cwd, record2, readOnly = false) {
+  if (!hasValidIntegrity(cwd, record2, readOnly))
     return invalidJobResult(record2.id);
   if (record2.state === "canceled") {
     return createResult({
@@ -33715,7 +33775,7 @@ function terminalResult(cwd, record2) {
     });
   }
   try {
-    if (fingerprint(cwd, record2.kind, record2.targets, record2.context, record2.execution) !== record2.source_fingerprint)
+    if (fingerprint(cwd, record2.kind, record2.targets, record2.context, record2.execution, readOnly) !== record2.source_fingerprint)
       return staleResult(record2);
   } catch {
     return staleResult(record2);
@@ -34151,17 +34211,20 @@ function reusableApprovedExecutableRedJob(cwd, sourceFingerprint) {
   }
   return;
 }
-function hasIndependentApproval(data) {
+function hasIndependentVerdict(data) {
   const reviewerOutput = data?.reviewer_output;
   const actualReviewer = data?.actual_reviewer;
   return [
-    data?.status === "approved",
+    data?.status === "approved" || data?.status === "changes_requested",
     data?.independence === "cross-agent",
     typeof data?.author_agent === "string",
     ["claude", "codex", "opencode"].includes(actualReviewer),
     data?.author_agent !== actualReviewer,
     reviewerOutput?.reviewer_agent === actualReviewer
   ].every(Boolean);
+}
+function hasIndependentApproval(data) {
+  return data?.status === "approved" && hasIndependentVerdict(data);
 }
 function hasFailingExecutionAttestation(attestation, sourceFingerprint) {
   const expectedFailure = attestation?.expected_failure;
@@ -34241,7 +34304,7 @@ function isActiveReviewJob(record2) {
     return processExists(record2.pid);
   return record2.state === "running" && inspectReviewWorker(record2.pid, record2.id) !== "mismatch";
 }
-function reviewJobStatus(cwd, requestedId) {
+function reviewJobStatus(cwd, requestedId, readOnly = false) {
   let id;
   try {
     id = requestedId ?? latestJobId(cwd);
@@ -34259,7 +34322,7 @@ function reviewJobStatus(cwd, requestedId) {
   }
   let record2;
   try {
-    record2 = readJob(cwd, id);
+    record2 = readJob(cwd, id, readOnly);
   } catch {
     const exists3 = isJobId(id) && existsSync15(jobPath(cwd, id));
     return createResult({
@@ -34275,7 +34338,7 @@ function reviewJobStatus(cwd, requestedId) {
     });
   }
   try {
-    const result = currentResult(cwd, record2);
+    const result = currentResult(cwd, record2, readOnly);
     return { ...result, effects: { ...result.effects, network: [] } };
   } catch {
     return createResult({
@@ -55929,7 +55992,7 @@ var init_plugin_runtime_authority = () => {};
 
 // src/review/login-guidance.ts
 function adaptReviewerLoginGuidance(content) {
-  const handoff = "run its exact recovery command in a visible interactive terminal and keep it open. " + "Capture the exact HTTPS URL printed by the reviewer CLI and any Codex device code. " + "Call `mcp__safeword_review__show_reviewer_login` with the same project root and review_id. " + "The MCP Apps view requests that the host open the URL. If the host cannot show the view, " + "try the local OS default URL opener with that URL as one argument; if blocked, show the " + "clickable link and code in chat. The user completes sign-in and pastes any Claude code " + "into the waiting terminal.";
+  const handoff = "call `mcp__safeword_review__start_reviewer_login` with the same project root and review_id. " + "It launches only the assigned reviewer CLI outside the author shell sandbox and asks the OS default browser to open its exact HTTPS URL without a shell. " + "If that opener cannot start, the MCP Apps view requests a host browser open. " + "If neither opens the page, show the exact clickable link and any Codex device code in chat. " + "The user completes the vendor sign-in flow.";
   return content.replaceAll(/execute its exact recovery command;\s+the\s+user's browser or device flow may need to complete\./gu, () => handoff).replaceAll(/execute its exact recovery command and\s+rerun the same coordinator command once after authentication succeeds\./gu, () => `${handoff} Rerun the same coordinator command once after authentication succeeds.`);
 }
 
@@ -56280,7 +56343,7 @@ ${adaptSkillBody(body, skill, knownSkillNames, referenceNames, { version: versio
   }));
   return [...skillAssets, ...referenceAssets];
 }
-var import_yaml3, CODEX_MARKETPLACE_NAME = "safeword", CODEX_PLUGIN_NAME = "safeword", PACKAGED_SKILL_REFERENCES, FRONTMATTER, SUPPORTED_SOURCE_METADATA, SCRIPT_REWRITES, NAMESPACE_ROOT_INVOCATION_PREFIX = 'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"', NAMESPACE_ROOT_KEY, NAMESPACE_ROOT_BASENAME, TRAILING_OPERAND, CODEX_REVIEW_ROUTE = "On Codex, start quality, scenario, and plan reviews with the bundled `mcp__safeword_review__start_review` tool, passing the absolute project root, review kind, relative target paths, and relative context paths. Poll `mcp__safeword_review__review_status` with the project root and returned review_id until the result is terminal. The tool returns the coordinator verdict and stores a signed receipt under `.safeword/state/reviews` for the normal stamp gate; reviewed source files remain unchanged. The user can approve only `start_review` once with `safeword codex install --approve-reviews` and restart Codex. If the MCP tool is unavailable or fails to start, report the route unavailable; never request an out-of-sandbox rule or approval escalation.";
+var import_yaml3, CODEX_MARKETPLACE_NAME = "safeword", CODEX_PLUGIN_NAME = "safeword", PACKAGED_SKILL_REFERENCES, FRONTMATTER, SUPPORTED_SOURCE_METADATA, SCRIPT_REWRITES, NAMESPACE_ROOT_INVOCATION_PREFIX = 'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"', NAMESPACE_ROOT_KEY, NAMESPACE_ROOT_BASENAME, TRAILING_OPERAND, CODEX_REVIEW_ROUTE = "On Codex, start quality, scenario, and plan reviews with the bundled `mcp__safeword_review__start_review` tool, passing the absolute project root, review kind, relative target paths, and relative context paths. Poll `mcp__safeword_review__review_status` with the project root and returned review_id until the result is terminal. The tool returns the coordinator verdict and stores a signed receipt under `.safeword/state/reviews` for the normal stamp gate; reviewed source files remain unchanged. The user can approve only `start_review` and `start_reviewer_login` once with `safeword codex install --approve-reviews` and restart Codex. If the MCP tool is unavailable or fails to start, report the route unavailable; never request an out-of-sandbox rule or approval escalation.";
 var init_catalogue = __esm(() => {
   init_plugin_runtime_authority();
   import_yaml3 = __toESM(require_dist(), 1);
@@ -72521,7 +72584,7 @@ function claudeScopeOption() {
 function approveReviewsOption() {
   return {
     flags: "--approve-reviews",
-    description: "Once, approve only the Safeword start_review MCP tool in this Codex profile"
+    description: "Once, approve only Safeword review and reviewer sign-in MCP tools in this Codex profile"
   };
 }
 function planConfirmationOptions(descriptions) {
