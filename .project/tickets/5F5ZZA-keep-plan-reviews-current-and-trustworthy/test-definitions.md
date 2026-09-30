@@ -401,9 +401,25 @@ the remaining accepted partitions and actual lifecycle boundary are proved.
 
 ### Scenario: Local dispatch enforces canonical contract identity
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+An installed Claude plugin copy starts with an authenticated current
+Implementation approval. The canonical copy permits the phase transition;
+deleting a shared clause while retaining its version label initially produced
+a generic missing-review denial. Independent executable RED review
+`26cae83f-eb23-4ccd-861d-d7d288f17b88` approved that failure. The phase
+hook now checks the installed authoring contract before reading the review
+stamp. Both outline rows pass (2 scenarios, 100 steps). The adjacent context
+outline passes (7 scenarios, 350 steps), as do the owning hook integration
+tests (31 tests). No separate refactor was needed.
+
+Commit-history correction: the immutable checkbox rows below cite the
+original combined local commit, which was replaced before publication to
+separate the TDD steps. The proof-only RED commit is `9221612ef`; the
+subsequent minimal GREEN commit is `b73b7ee89`. The independent RED receipt
+above and passing command results apply to those same source bytes.
+
+- [x] RED 9e0f7c2fc
+- [x] GREEN 9e0f7c2fc
+- [x] REFACTOR skip: no structural change remained after the minimal gate fix
 
 ### Scenario: Cosmetic canonical changes preserve review currency but require copy reconciliation
 
