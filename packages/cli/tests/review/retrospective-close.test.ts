@@ -18,7 +18,7 @@ const claimPath = '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly
 const proofPath = '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/proof.json';
 const observationPath =
   '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/observation.json';
-const replay = vi.hoisted(() => ({ state: 'healthy', calls: 0 }));
+const replay = vi.hoisted(() => ({ state: 'healthy', calls: 0, root: '', request: undefined }));
 
 vi.mock('../../src/review/job.js', async importOriginal => {
   const actual = await importOriginal<typeof ReviewJob>();
@@ -30,8 +30,10 @@ vi.mock('../../src/review/job.js', async importOriginal => {
 });
 
 vi.mock('../../src/review/retrospective-gate.js', () => ({
-  retrospectiveGate: () => {
+  retrospectiveGate: (root: string, request: unknown) => {
     replay.calls += 1;
+    replay.root = root;
+    replay.request = request;
     return { state: replay.state };
   },
 }));
@@ -92,6 +94,8 @@ describe('retrospective closing replay record', () => {
   beforeEach(() => {
     replay.state = 'healthy';
     replay.calls = 0;
+    replay.root = '';
+    replay.request = undefined;
     root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-close-test-'));
     previousKeyRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
     process.env.SAFEWORD_REVIEW_KEY_ROOT = nodePath.join(root, 'profile-state');
@@ -113,6 +117,14 @@ describe('retrospective closing replay record', () => {
     );
     expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
     expect(replay.calls).toBe(1);
+    expect(replay.root).toBe(root);
+    expect(replay.request).toEqual({
+      ticketId: 'CKWE2D',
+      ledger: RETROSPECTIVE_LEDGER,
+      scenario: 'A nested project uses its committed generated marker',
+      eligibilityId,
+      proofId,
+    });
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('healthy');
     expect(retrospectiveCloseGate(root, 'OTHER1', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
@@ -135,10 +147,14 @@ describe('retrospective closing replay record', () => {
     'packages/cli/src/review/packet.ts',
     'packages/cli/tests/proof.test.ts',
     'packages/cli/src/review/scope.ts',
+    claimPath,
+    proofPath,
+    observationPath,
+    `.safeword/state/reviews/${eligibilityId}.json`,
     `.safeword/state/reviews/${proofId}.json`,
   ])('rejects a changed proof input: %s', path => {
     expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
-    put(root, path, 'changed\n');
+    put(root, path, path.endsWith('.json') ? '{"changed":true}' : 'changed\n');
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
     );
