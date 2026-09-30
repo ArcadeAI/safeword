@@ -141,6 +141,21 @@ describe('evaluateDoneEvidence', () => {
     expect(verdict.reason).toContain('scenarios');
   });
 
+  it('does not count a checked VERIFIED row with invented review IDs as completion', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      '### Scenario: historical behavior\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n- [x] VERIFIED eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222\n',
+    );
+    const verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: ticketDirectory,
+      ticketType: 'feature',
+    });
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reason).toContain('VERIFIED historical behavior');
+  });
+
   it('allows a feature close when verify.md and all scenarios are complete', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
     writeFileSync(

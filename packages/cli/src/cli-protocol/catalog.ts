@@ -655,6 +655,34 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
+  command('review gate retrospective', 'Check CKWE2D retrospective receipts', 'observe', {
+    syntax: 'retrospective',
+    commandOptions: [
+      { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
+      { flags: '--scenario <name>', description: 'Exact scenario heading' },
+      { flags: '--ledger <path>', description: 'Project-relative scenario ledger' },
+      { flags: '--eligibility <id>', description: 'Independent historical eligibility review' },
+      { flags: '--proof <id>', description: 'Independent passing/mutation proof review' },
+    ],
+    fixture: {
+      argv: [
+        'review',
+        'gate',
+        'retrospective',
+        '--ticket',
+        'OTHER1',
+        '--scenario',
+        'Example',
+        '--ledger',
+        '.project/tickets/OTHER1/test-definitions.md',
+        '--eligibility',
+        '00000000-0000-0000-0000-000000000001',
+        '--proof',
+        '00000000-0000-0000-0000-000000000002',
+      ],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
   command('review cancel', 'Cancel a durable independent review', 'mutate', {
     syntax: 'cancel [review-id]',
     fixture: {

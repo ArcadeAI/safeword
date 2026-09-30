@@ -18,6 +18,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { formatDependencyRecovery, getDependencyReadiness } from './dependency-readiness.js';
+import { parseRetrospectiveAnnotation } from './retrospective-annotation.js';
+import { retrospectiveGateDenial } from './retrospective-gate.js';
 import { analyzeScenarioFormat } from './scenario-format.js';
 import { runTests } from './test-runner.js';
 
@@ -25,6 +27,48 @@ import { runTests } from './test-runner.js';
 const PR_SCOPE_LINE_PATTERN = /^\*\*PR Scope:\*\*\s*(?<status>.+)$/im;
 const FEATURE_SOURCE_PATTERN = /^\s*(?:\*\*)?Feature source:(?:\*\*)?\s*`(?<path>[^`]+)`/im;
 const FEATURE_SOURCE_LABEL_PATTERN = /^\s*(?:\*\*)?Feature source:/im;
+
+function verifiedScenarioView(
+  projectDir: string,
+  ticketDir: string,
+  content: string,
+): { content: string; error?: string } {
+  const ticketId = nodePath.basename(ticketDir).split('-', 1)[0] ?? '';
+  const ledger = nodePath.relative(projectDir, nodePath.join(ticketDir, 'test-definitions.md'));
+  const verified = new Set<string>();
+  const lines = content.split('\n');
+  let scenario: string | undefined;
+  for (const line of lines) {
+    const heading = /^#{2,3}\s+Scenario:\s*(.+)$/u.exec(line);
+    if (/^#{1,3}\s+/u.test(line)) scenario = heading?.[1]?.trim();
+    const annotation = parseRetrospectiveAnnotation(line);
+    if (annotation?.kind === 'invalid') return { content, error: annotation.reason };
+    if (annotation?.kind !== 'claim') continue;
+    if (scenario === undefined || verified.has(scenario))
+      return { content, error: 'Each VERIFIED row needs one unique scenario heading.' };
+    const denial = retrospectiveGateDenial(projectDir, {
+      ticketId,
+      scenario,
+      ledger,
+      eligibilityId: annotation.eligibilityId,
+      proofId: annotation.proofId,
+    });
+    if (denial !== undefined) return { content, error: `VERIFIED ${scenario}: ${denial}` };
+    verified.add(scenario);
+  }
+  scenario = undefined;
+  const visible = lines.filter(line => {
+    const heading = /^#{2,3}\s+Scenario:\s*(.+)$/u.exec(line);
+    if (/^#{1,3}\s+/u.test(line)) scenario = heading?.[1]?.trim();
+    if (/^\s*- \[ \] VERIFIED\b/u.test(line)) return false;
+    return !(
+      scenario !== undefined &&
+      verified.has(scenario) &&
+      /^\s*- \[[ xX]\] (?:RED|GREEN|REFACTOR)\b/u.test(line)
+    );
+  });
+  return { content: visible.join('\n') };
+}
 
 export interface VerifyArtifactStatus {
   ok: boolean;
@@ -183,7 +227,9 @@ export function checkFeatureScenarios(projectDir: string, ticketDir: string): Do
         'Feature scenario evidence could not be read. Restore test-definitions.md before marking done.',
     };
   }
-  const { checked, unchecked, isUnrecognized } = analyzeScenarioFormat(testDefinitions);
+  const retrospective = verifiedScenarioView(projectDir, ticketDir, testDefinitions);
+  if (retrospective.error !== undefined) return { ok: false, reason: retrospective.error };
+  const { checked, unchecked, isUnrecognized } = analyzeScenarioFormat(retrospective.content);
   if (isUnrecognized) {
     return {
       ok: false,

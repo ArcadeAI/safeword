@@ -199,19 +199,26 @@ describe('generated review targets', () => {
       data?: { excluded_targets?: string[] };
       errors?: { code: string }[];
     };
-    expect(envelope.data?.excluded_targets).toEqual(['generated/output.js']);
-    expect(result.exitCode, result.stdout).toBe(0);
-    expect(envelope.errors).toEqual([]);
-    const prompt = readFileSync(promptLog, 'utf8');
+    const prompt = existsSync(promptLog) ? readFileSync(promptLog, 'utf8') : '';
     const packetMarker = '\n{"schema_version":';
     const packetStart = prompt.lastIndexOf(packetMarker);
-    expect(packetStart).toBeGreaterThanOrEqual(0);
-    const packet = JSON.parse(prompt.slice(packetStart + 1).trimEnd()) as {
-      logical_files: { path: string; content: string }[];
-    };
-    expect(packet.logical_files).toEqual([
-      { path: 'authored.md', content: 'review this authored change\n' },
-    ]);
+    const packet =
+      packetStart === -1
+        ? undefined
+        : (JSON.parse(prompt.slice(packetStart + 1).trimEnd()) as {
+            logical_files: { path: string; content: string }[];
+          });
+    expect({
+      excludedTargets: envelope.data?.excluded_targets,
+      exitCode: result.exitCode,
+      errors: envelope.errors,
+      reviewerFiles: packet?.logical_files,
+    }).toEqual({
+      excludedTargets: ['generated/output.js'],
+      exitCode: 0,
+      errors: [],
+      reviewerFiles: [{ path: 'authored.md', content: 'review this authored change\n' }],
+    });
   });
 
   it('does not apply a repository-root generated marker to a nested project target', async () => {

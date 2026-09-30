@@ -330,7 +330,9 @@ export function runRetrospectiveProof(
       !mutated.failure.includes(request.mutation.expectedFailure) ||
       !mutated.failure.includes(request.mutation.assertionLocation)
     ) {
-      throw new Error('The mutation did not fail at the declared scenario assertion.');
+      throw new Error(
+        `The mutation did not fail at the declared scenario assertion: ${mutated.failure.slice(0, 1000)}`,
+      );
     }
     return {
       commit,

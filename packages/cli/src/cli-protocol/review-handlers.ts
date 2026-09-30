@@ -36,7 +36,7 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
         {
           code: 'REVIEW_KIND_INVALID',
           message:
-            'Review kind must be quality-review, scenario-gate, plan-implementation, executable-red, or retrospective-eligibility.',
+            'Review kind must be quality-review, scenario-gate, plan-implementation, executable-red, retrospective-eligibility, or retrospective-proof.',
           retryable: false,
         },
       ],
@@ -81,6 +81,27 @@ export async function executableRedGateHandler(invocation: CommandInvocation): P
     );
   const { executableRedGate } = await import('../review/job.js');
   return executableRedGate(invocation.cwd, scenario, ledger);
+}
+
+export async function retrospectiveGateHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { ticket, scenario, ledger, eligibility, proof } = invocation.options;
+  if (
+    [ticket, scenario, ledger, eligibility, proof].some(
+      value => typeof value !== 'string' || value.trim() === '',
+    )
+  )
+    return invalidOperand(
+      'review gate retrospective',
+      'Ticket, scenario, ledger, eligibility, and proof are required.',
+    );
+  const { retrospectiveGate } = await import('../review/retrospective-gate.js');
+  return retrospectiveGate(invocation.cwd, {
+    ticketId: ticket as string,
+    scenario: scenario as string,
+    ledger: ledger as string,
+    eligibilityId: eligibility as string,
+    proofId: proof as string,
+  });
 }
 
 function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | undefined {

@@ -1341,6 +1341,26 @@ function hasCurrentFingerprint(cwd: string, record: ReviewJobRecord): boolean {
   }
 }
 
+/** Authenticated review identity for the CKWE2D migration gate. */
+export function approvedRetrospectiveReview(
+  cwd: string,
+  id: string,
+  kind: 'retrospective-eligibility' | 'retrospective-proof',
+): readonly string[] | undefined {
+  try {
+    const record = readJob(cwd, id);
+    const data = record.result?.data as Record<string, unknown> | undefined;
+    return record.kind === kind &&
+      record.state === 'completed' &&
+      hasCurrentFingerprint(cwd, record) &&
+      hasIndependentApproval(data)
+      ? record.targets
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function approvedExecutableRedGateResult(
   record: ReviewJobRecord,
   scenario: string,
