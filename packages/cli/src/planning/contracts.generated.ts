@@ -4,6 +4,7 @@ import type { PlanningAuthorCopyIdentity, PlanningContract, PlanningPhase } from
 export const PLANNING_CONTRACTS = {
   "product-plan": {
     "phase": "product-plan",
+    "sharedAuthorityDigest": "094aa621afe3cb37e48dc4aebad92e76462f1505b06e61d3c1924aa96a13a38d",
     "purpose": "Define the accepted behavior and its product boundaries.",
     "entryCriteria": "Feature intake with the user's goal and current project context; a child also names its declared parent job and milestone.",
     "requiredContent": "The owning Product Plan or child Contribution, accepted Rules, scope and exclusions, observable done state, personas and affected surfaces. Keep supported facts, assumptions, and unresolved decisions distinct.",
@@ -15,6 +16,7 @@ export const PLANNING_CONTRACTS = {
   },
   "plan-implementation": {
     "phase": "plan-implementation",
+    "sharedAuthorityDigest": "094aa621afe3cb37e48dc4aebad92e76462f1505b06e61d3c1924aa96a13a38d",
     "purpose": "Decide a coherent implementation approach within accepted behavior.",
     "entryCriteria": "Accepted Product Plan Rules and scenarios, with current ticket and project boundaries, principles, personas, affected surfaces, dimensions when present, configured architecture records, and triggered data guidance.",
     "requiredContent": "Approach decisions, affected contracts and surfaces, concrete failure behavior, proof strategy and confidence limits, risks, rollout and rollback, recorded choices, and applicable architecture and data consequences.",
@@ -26,6 +28,7 @@ export const PLANNING_CONTRACTS = {
   },
   "plan-execution": {
     "phase": "plan-execution",
+    "sharedAuthorityDigest": "094aa621afe3cb37e48dc4aebad92e76462f1505b06e61d3c1924aa96a13a38d",
     "purpose": "Turn the accepted approach into startable, dependency-ordered delivery.",
     "entryCriteria": "Current accepted Implementation Plan and scenarios, with current ticket and project boundaries, principles, personas, affected surfaces, dimensions when present, configured architecture records, and triggered data guidance.",
     "requiredContent": "Startable tasks and prerequisites, dependency order, concrete proof specifications, pull-request slicing, reviewed delivery obligations, honest evidence classes, and explicit pending human authority.",
