@@ -1,5 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { frontmatterOf } from '../../templates/hooks/lib/phase-provenance.js';
@@ -12,6 +20,7 @@ import {
 import { parseRetrospectiveAnnotation } from './retrospective-annotation.js';
 import { retrospectiveGate, type RetrospectiveGateRequest } from './retrospective-gate.js';
 import {
+  checkRetrospectiveHistory,
   RETROSPECTIVE_FEATURE,
   RETROSPECTIVE_LEDGER,
   RETROSPECTIVE_TICKET,
@@ -35,8 +44,15 @@ function result(
   status: 'approved' | 'blocked',
   reason: string,
 ): CliResult {
+  const wroteRecord = command === 'review attest retrospective-close' && status === 'approved';
+  let state: CliResult['state'] = 'healthy';
+  if (status === 'blocked') state = 'action_required';
+  else if (wroteRecord) state = 'changed';
   return createResult({
-    state: status === 'approved' ? 'healthy' : 'action_required',
+    state,
+    effects: wroteRecord
+      ? { files: [{ kind: 'review-record', target: RECORD_PATH, operation: 'write' }] }
+      : undefined,
     findings: [
       {
         code:
@@ -169,6 +185,22 @@ function inputDigests(root: string, paths: readonly string[]): Record<string, st
   return Object.fromEntries(paths.map(path => [path, sha256(readFileSync(contained(root, path)))]));
 }
 
+function historyStillReachable(root: string, claims: readonly RetrospectiveGateRequest[]): boolean {
+  const ids = new Set(claims.map(claim => claim.eligibilityId));
+  for (const id of ids) {
+    const [target] = reviewedTargets(root, id, 'retrospective-eligibility');
+    if (target === undefined) return false;
+    const eligibility = JSON.parse(readFileSync(contained(root, target), 'utf8')) as {
+      ticketId: string;
+      cutoff: string;
+      baseline: string;
+      rationale: string;
+    };
+    if (!checkRetrospectiveHistory(root, eligibility).eligibleForReview) return false;
+  }
+  return true;
+}
+
 function unsigned(record: CloseRecord): Omit<CloseRecord, 'integrity'> {
   // eslint-disable-next-line sonarjs/no-unused-vars -- typed omission of the signature
   const { integrity: _integrity, ...body } = record;
@@ -241,6 +273,9 @@ export function retrospectiveCloseGate(root: string, ticketId: string, ledger: s
     if (ticketId !== RETROSPECTIVE_TICKET || ledger !== RETROSPECTIVE_LEDGER) {
       throw new Error('Only the CKWE2D ledger may use retrospective closing proof.');
     }
+    if (!existsSync(nodePath.join(root, RECORD_PATH))) {
+      throw new Error('No retrospective closing record exists.');
+    }
     const record = JSON.parse(
       readFileSync(nodePath.join(root, RECORD_PATH), 'utf8'),
     ) as CloseRecord;
@@ -259,6 +294,9 @@ export function retrospectiveCloseGate(root: string, ticketId: string, ledger: s
     const paths = inputPaths(root, claims);
     if (JSON.stringify(record.inputs) !== JSON.stringify(inputDigests(root, paths))) {
       throw new Error('Retrospective proof inputs changed after closing proof.');
+    }
+    if (!historyStillReachable(root, claims)) {
+      throw new Error('The fixed historical cutoff or baseline is no longer reachable.');
     }
     return result(
       'review gate retrospective-close',

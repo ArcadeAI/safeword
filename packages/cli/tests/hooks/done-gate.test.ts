@@ -181,7 +181,7 @@ describe('evaluateDoneEvidence', () => {
       ticketType: 'feature',
     });
     expect(verdict.ok).toBe(false);
-    expect(verdict.reason).toContain('VERIFIED historical behavior');
+    expect(verdict.reason).toContain('VERIFIED closing proof');
   });
 
   it('allows a feature close when verify.md and all scenarios are complete', () => {

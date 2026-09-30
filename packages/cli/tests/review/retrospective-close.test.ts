@@ -9,6 +9,7 @@ import {
   attestRetrospectiveClose,
   retrospectiveCloseGate,
 } from '../../src/review/retrospective-close.js';
+import type * as History from '../../src/review/retrospective-history.js';
 import { RETROSPECTIVE_LEDGER } from '../../src/review/retrospective-history.js';
 
 const eligibilityId = '70d17bbe-4174-4f02-a45f-5e58e3990761';
@@ -30,6 +31,11 @@ vi.mock('../../src/review/job.js', async importOriginal => {
 vi.mock('../../src/review/retrospective-gate.js', () => ({
   retrospectiveGate: () => ({ state: 'healthy' }),
 }));
+
+vi.mock('../../src/review/retrospective-history.js', async importOriginal => {
+  const actual = await importOriginal<typeof History>();
+  return { ...actual, checkRetrospectiveHistory: () => ({ eligibleForReview: true }) };
+});
 
 function put(root: string, relative: string, content: string): void {
   const path = nodePath.join(root, relative);
@@ -99,7 +105,7 @@ describe('retrospective closing replay record', () => {
     expect(attestRetrospectiveClose(root, 'OTHER1', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
     );
-    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('healthy');
+    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('healthy');
     expect(retrospectiveCloseGate(root, 'OTHER1', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
@@ -107,7 +113,7 @@ describe('retrospective closing replay record', () => {
   });
 
   it('rejects a changed support file and a changed review record', () => {
-    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('healthy');
+    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
     put(root, 'packages/cli/src/review/scope.ts', 'export const support = false;\n');
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
@@ -120,14 +126,14 @@ describe('retrospective closing replay record', () => {
   });
 
   it('rejects a changed ledger and a forged closing record', () => {
-    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('healthy');
+    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
     const recordPath = nodePath.join(root, '.safeword/state/reviews/retrospective-close.json');
     const record = JSON.parse(readFileSync(recordPath, 'utf8')) as { claimPath: string };
     writeFileSync(recordPath, JSON.stringify({ ...record, claimPath: 'forged.json' }));
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
     );
-    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('healthy');
+    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
     put(root, RETROSPECTIVE_LEDGER, '### Scenario: changed\n- [ ] VERIFIED\n');
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
