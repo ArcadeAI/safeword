@@ -78,6 +78,43 @@ describe('retrospective baseline blobs', () => {
     }
   });
 
+  it('checks reviewer-visible excerpts against the committed baseline bytes', () => {
+    const history = fixture();
+    try {
+      expect(
+        validateBaselineBlobClaims(history.root, history.baseline, [
+          { ...history.claim, baselineExcerpts: ['export const behavior = true;'] },
+        ]),
+      ).toEqual({ valid: true });
+      expect(
+        validateBaselineBlobClaims(history.root, history.baseline, [
+          { ...history.claim, baselineExcerpts: ['export const behavior = false;'] },
+        ]),
+      ).toEqual({
+        valid: false,
+        reason: 'Baseline excerpts for src/behavior.ts do not match Git.',
+      });
+      expect(
+        validateBaselineBlobClaims(history.root, history.baseline, [
+          { ...history.claim, currentBlobSha: '0'.repeat(40) },
+        ]),
+      ).toEqual({
+        valid: false,
+        reason: 'Current blob src/behavior.ts does not match its claimed digest.',
+      });
+      expect(
+        validateBaselineBlobClaims(history.root, history.baseline, [
+          { ...history.claim, currentExcerpts: ['export const behavior = false;'] },
+        ]),
+      ).toEqual({
+        valid: false,
+        reason: 'Current excerpts for src/behavior.ts do not match the file.',
+      });
+    } finally {
+      history.cleanup();
+    }
+  });
+
   it('rejects path traversal and a missing current mapping', () => {
     const history = fixture();
     try {

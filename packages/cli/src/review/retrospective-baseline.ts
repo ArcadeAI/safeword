@@ -1,11 +1,14 @@
 import { spawnSync } from 'node:child_process';
-import { lstatSync, realpathSync } from 'node:fs';
+import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 export interface BaselineBlobClaim {
   readonly baselinePath: string;
   readonly currentPath: string;
   readonly blobSha: string;
+  readonly currentBlobSha?: string;
+  readonly baselineExcerpts?: readonly string[];
+  readonly currentExcerpts?: readonly string[];
 }
 
 export interface BaselineBlobResult {
@@ -86,6 +89,31 @@ function regularBlobSha(metadata: string | undefined): string | undefined {
   return type === 'blob' && SHA.test(sha ?? '') ? sha : undefined;
 }
 
+function excerptError(
+  projectRoot: string,
+  baseline: string,
+  claim: BaselineBlobClaim,
+): string | undefined {
+  if (claim.baselineExcerpts !== undefined) {
+    if (claim.baselineExcerpts.length === 0 || claim.baselineExcerpts.some(excerpt => !excerpt))
+      return `Baseline excerpts for ${claim.baselinePath} are missing.`;
+    const source = git(projectRoot, ['show', `${baseline}:${claim.baselinePath}`]);
+    if (
+      source.status !== 0 ||
+      claim.baselineExcerpts.some(excerpt => !source.stdout.includes(excerpt))
+    )
+      return `Baseline excerpts for ${claim.baselinePath} do not match Git.`;
+  }
+  if (claim.currentExcerpts !== undefined) {
+    if (claim.currentExcerpts.length === 0 || claim.currentExcerpts.some(excerpt => !excerpt))
+      return `Current excerpts for ${claim.currentPath} are missing.`;
+    const source = readFileSync(nodePath.join(projectRoot, claim.currentPath), 'utf8');
+    if (claim.currentExcerpts.some(excerpt => !source.includes(excerpt)))
+      return `Current excerpts for ${claim.currentPath} do not match the file.`;
+  }
+  return undefined;
+}
+
 function claimError(
   projectRoot: string,
   baseline: string,
@@ -95,12 +123,21 @@ function claimError(
     return 'An implementation path is not a safe project-relative path.';
   if (!currentFileInside(projectRoot, claim.currentPath))
     return `Current implementation file ${claim.currentPath} is unavailable.`;
+  if (claim.currentBlobSha !== undefined) {
+    const current = git(projectRoot, ['hash-object', '--', claim.currentPath]);
+    if (
+      !SHA.test(claim.currentBlobSha) ||
+      current.status !== 0 ||
+      current.stdout.trim() !== claim.currentBlobSha
+    )
+      return `Current blob ${claim.currentPath} does not match its claimed digest.`;
+  }
   if (
     !SHA.test(claim.blobSha) ||
     committedBlob(projectRoot, baseline, claim.baselinePath) !== claim.blobSha
   )
     return `Baseline blob ${claim.baselinePath} does not match its claimed digest.`;
-  return undefined;
+  return excerptError(projectRoot, baseline, claim);
 }
 
 /** Blob identity and path containment only; an independent reviewer judges historical behavior. */

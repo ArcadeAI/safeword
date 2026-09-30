@@ -54,7 +54,13 @@ function claimMatchesMigration(claim: EligibilityClaim): boolean {
     claim.featurePath === RETROSPECTIVE_FEATURE &&
     claim.cutoff === RETROSPECTIVE_CUTOFF &&
     Array.isArray(claim.scenarios) &&
-    Array.isArray(claim.blobs)
+    Array.isArray(claim.blobs) &&
+    claim.blobs.every(
+      blob =>
+        typeof blob.currentBlobSha === 'string' &&
+        Array.isArray(blob.baselineExcerpts) &&
+        blob.baselineExcerpts.length > 0,
+    )
   );
 }
 
