@@ -445,6 +445,18 @@ trusted checker and Product author copy. The complete 5F5ZZA feature reports
 warnings. This is not whole-scenario completion: Product and Execution
 reviewer-copy actor paths and the remaining R5 partitions are still open.
 
+Follow-on dispatch RED: in
+`packages/cli/tests/integration/installed-planning-copy-admission.test.ts`,
+re-run a real copied CLI review after its prior authenticated approval and a
+generated reviewer-rubric drift. The current dispatch launches the reviewer
+and returns generic `changes_requested` findings instead of a typed
+`canonical_contract_copy_mismatch` before any review request. Run
+`scripts/dev bun run --cwd packages/cli test
+tests/integration/installed-planning-copy-admission.test.ts`; expected failure:
+`review dispatch must refuse stale reviewer bytes before launch`. The intended
+GREEN calls the exact reviewer-copy preflight from packet construction and
+leaves prior authenticated approval currency separate from copy admission.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR

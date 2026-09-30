@@ -427,7 +427,7 @@ describe('Execution Plan review-contract identity', () => {
     ['missing-author', 'authoring contract copy'],
     ['edited-author', 'authoring contract copy'],
     ['missing-reviewer', 'generated reviewer contract copy'],
-    ['stale-reviewer', 'stale generated reviewer contract'],
+    ['stale-reviewer', 'generated reviewer contract copy'],
     ['stale-slicing-contract', 'canonical contract-byte identity'],
     ['incomplete-pair', 'canonical contract-byte identity'],
     ['stale-delivery-taxonomy', 'canonical delivery-contract identity'],

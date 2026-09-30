@@ -53454,6 +53454,7 @@ function packagedExecutionPlanAuthorRubric() {
 }
 function packagedPlanContract(kind) {
   const authorRubric = kind === "plan-execution" ? packagedExecutionPlanAuthorRubric() : packagedPlanAuthorRubric();
+  assertActivePlanningReviewerCopy(kind);
   const reviewerRubric = kind === "plan-execution" ? EXECUTION_PLAN_REVIEW_RUBRIC : PLAN_REVIEW_RUBRIC;
   return assemblePlanContract(authorRubric, reviewerRubric);
 }
@@ -53493,17 +53494,33 @@ function ownedPlanningTicket(root, target) {
   return planningTicketOwner(metadata, nodePath52.basename(ticketDirectory), nodePath52.relative(root, ticketPath));
 }
 function packagedProductPlanContract() {
-  return assemblePlanContract(extractProductPlanReviewRubric(packagedPlanningAuthor("product-plan")), PRODUCT_PLAN_REVIEW_RUBRIC);
+  const authorRubric = extractProductPlanReviewRubric(packagedPlanningAuthor("product-plan"));
+  assertActivePlanningReviewerCopy("product-plan");
+  return assemblePlanContract(authorRubric, PRODUCT_PLAN_REVIEW_RUBRIC);
 }
-function packetPlanContract(kind, configured, productTarget, cwd, targets) {
+function fingerprintPlanContract(phase) {
+  const reviewer = {
+    "product-plan": PRODUCT_PLAN_REVIEW_RUBRIC,
+    "plan-implementation": PLAN_REVIEW_RUBRIC,
+    "plan-execution": EXECUTION_PLAN_REVIEW_RUBRIC
+  }[phase];
+  return assemblePlanContract(reviewer, reviewer);
+}
+function isOwnedPlanningTarget(cwd, targets, expected) {
+  const target = targets.length === 1 ? targets[0] : undefined;
+  return target !== undefined && nodePath52.basename(target) === expected && ownedPlanningTicket(cwd, target);
+}
+function packetPlanContract(kind, configured, productTarget, options) {
   if (productTarget)
-    return { planning_phase: "product-plan", plan_contract: packagedProductPlanContract() };
+    return {
+      planning_phase: "product-plan",
+      plan_contract: options.fingerprintOnly ? fingerprintPlanContract("product-plan") : packagedProductPlanContract()
+    };
   if (kind !== "plan-implementation" && kind !== "plan-execution")
     return {};
-  const canonical = packagedPlanContract(kind);
-  const target = targets.length === 1 ? targets[0] : undefined;
   const expected = kind === "plan-implementation" ? "impl-plan.md" : "execution-plan.md";
-  const planningTarget = target !== undefined && nodePath52.basename(target) === expected && ownedPlanningTicket(cwd, target);
+  const planningTarget = isOwnedPlanningTarget(options.cwd, options.targets, expected);
+  const canonical = options.fingerprintOnly && planningTarget ? fingerprintPlanContract(kind) : packagedPlanContract(kind);
   return {
     ...planningTarget && { planning_phase: kind },
     plan_contract: configured ?? canonical
@@ -53690,7 +53707,11 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
     deliveryDefinition = retainedDeliveryDefinition(kind, logicalFiles, canonicalRoot);
-    planningContract = packetPlanContract(kind, execution.planContract, productPlan, canonicalRoot, targets);
+    planningContract = packetPlanContract(kind, execution.planContract, productPlan, {
+      cwd: canonicalRoot,
+      targets,
+      fingerprintOnly: execution.fingerprintOnly === true
+    });
     planningContext = resolvePlanningRoleContext(canonicalRoot, kind, planningContract.planning_phase, logicalFiles, contextFiles);
     const additional = planningRoleSources(canonicalRoot, planningContext, seen);
     requirePacketFileCount(targets.length + context.length + additional.length);
@@ -57357,7 +57378,7 @@ function ledgerFingerprintContext(cwd, targets, context, execution) {
   };
 }
 function fingerprint(cwd, kind, targets, context = [], execution) {
-  return reviewInputs(cwd, kind, targets, context, execution).sourceFingerprint;
+  return reviewInputs(cwd, kind, targets, context, { execution, fingerprintOnly: true }).sourceFingerprint;
 }
 function planningFingerprintContext(packet, reviewIdentity) {
   if (reviewIdentity === undefined)
@@ -57367,10 +57388,12 @@ function planningFingerprintContext(packet, reviewIdentity) {
 function planningIdentityFingerprint(identity2) {
   return identity2 === undefined ? "" : `planning-review-identity-v1\x00${JSON.stringify(identity2)}\x00`;
 }
-function reviewInputs(cwd, kind, targets, context = [], execution) {
+function reviewInputs(cwd, kind, targets, context, options) {
+  const execution = options.execution;
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
   const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
-    allowMissingExecutableRedAttestation: true
+    allowMissingExecutableRedAttestation: true,
+    fingerprintOnly: options.fingerprintOnly
   });
   try {
     const reviewIdentity = createPlanningReviewIdentity(prepared.packet);
@@ -57971,7 +57994,7 @@ function canonicalReviewTargets(identity2, requested) {
 }
 async function startReviewJob(input) {
   const context = input.context ?? [];
-  const { sourceFingerprint, reviewIdentity } = reviewInputs(input.cwd, input.kind, input.targets, context, input.execution);
+  const { sourceFingerprint, reviewIdentity } = reviewInputs(input.cwd, input.kind, input.targets, context, { execution: input.execution, fingerprintOnly: false });
   const targets = canonicalReviewTargets(reviewIdentity, input.targets);
   mkdirSync13(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
   const reserved = withFileLock(nodePath55.join(jobsDirectory(input.cwd), "start.lock"), () => {

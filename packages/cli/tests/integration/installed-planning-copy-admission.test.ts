@@ -386,6 +386,31 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
     },
   );
 
+  it(
+    'refuses to reuse an approved review after the reviewer copy drifts',
+    { timeout: 90_000 },
+    () => {
+      const installed = fixture();
+      alterReviewerCopy(installed.distribution);
+      const repeated = installed.run([
+        'review',
+        'run',
+        'plan-implementation',
+        `.project/tickets/${folder}/impl-plan.md`,
+        '--context',
+        `.project/tickets/${folder}/spec.md`,
+      ]);
+      expect(repeated.status).not.toBe(0);
+      const output = JSON.parse(repeated.stdout) as { effects?: { network?: unknown[] } };
+      expect(
+        output.effects?.network,
+        'review dispatch must refuse stale reviewer bytes before launch',
+      ).toEqual([]);
+      expect(repeated.stdout).toContain('canonical_contract_copy_mismatch');
+      expect(repeated.stdout).toContain('src/review/plan-rubric.generated.ts');
+    },
+  );
+
   it.each([
     ['public approval', 'comment drift'],
     ['public approval', 'missing copy'],

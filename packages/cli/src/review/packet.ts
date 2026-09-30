@@ -548,6 +548,8 @@ interface ReviewPacketExecution {
   readonly planContract?: PlanContractPair;
   /** Fingerprint preparation only: no review is dispatched from this packet. */
   readonly allowMissingExecutableRedAttestation?: boolean;
+  /** Currency uses semantic contract identity; copy integrity is checked at dispatch and admission. */
+  readonly fingerprintOnly?: boolean;
 }
 
 function checkedExecutionAttestation(
@@ -627,6 +629,7 @@ export function packagedPlanContract(
 ): PlanContractPair {
   const authorRubric =
     kind === 'plan-execution' ? packagedExecutionPlanAuthorRubric() : packagedPlanAuthorRubric();
+  assertActivePlanningReviewerCopy(kind);
   const reviewerRubric =
     kind === 'plan-execution' ? EXECUTION_PLAN_REVIEW_RUBRIC : PLAN_REVIEW_RUBRIC;
   return assemblePlanContract(authorRubric, reviewerRubric);
@@ -672,9 +675,26 @@ function ownedPlanningTicket(root: string, target: string): boolean {
 }
 
 function packagedProductPlanContract(): PlanContractPair {
-  return assemblePlanContract(
-    extractProductPlanReviewRubric(packagedPlanningAuthor('product-plan')),
-    PRODUCT_PLAN_REVIEW_RUBRIC,
+  const authorRubric = extractProductPlanReviewRubric(packagedPlanningAuthor('product-plan'));
+  assertActivePlanningReviewerCopy('product-plan');
+  return assemblePlanContract(authorRubric, PRODUCT_PLAN_REVIEW_RUBRIC);
+}
+
+function fingerprintPlanContract(phase: PlanningPhase): PlanContractPair {
+  const reviewer = {
+    'product-plan': PRODUCT_PLAN_REVIEW_RUBRIC,
+    'plan-implementation': PLAN_REVIEW_RUBRIC,
+    'plan-execution': EXECUTION_PLAN_REVIEW_RUBRIC,
+  }[phase];
+  return assemblePlanContract(reviewer, reviewer);
+}
+
+function isOwnedPlanningTarget(cwd: string, targets: readonly string[], expected: string): boolean {
+  const target = targets.length === 1 ? targets[0] : undefined;
+  return (
+    target !== undefined &&
+    nodePath.basename(target) === expected &&
+    ownedPlanningTicket(cwd, target)
   );
 }
 
@@ -682,19 +702,22 @@ function packetPlanContract(
   kind: ReviewKind,
   configured: PlanContractPair | undefined,
   productTarget: boolean,
-  cwd: string,
-  targets: readonly string[],
+  options: { cwd: string; targets: readonly string[]; fingerprintOnly: boolean },
 ): Pick<ReviewPacket, 'planning_phase' | 'plan_contract'> {
   if (productTarget)
-    return { planning_phase: 'product-plan', plan_contract: packagedProductPlanContract() };
+    return {
+      planning_phase: 'product-plan',
+      plan_contract: options.fingerprintOnly
+        ? fingerprintPlanContract('product-plan')
+        : packagedProductPlanContract(),
+    };
   if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
-  const canonical = packagedPlanContract(kind);
-  const target = targets.length === 1 ? targets[0] : undefined;
   const expected = kind === 'plan-implementation' ? 'impl-plan.md' : 'execution-plan.md';
-  const planningTarget =
-    target !== undefined &&
-    nodePath.basename(target) === expected &&
-    ownedPlanningTicket(cwd, target);
+  const planningTarget = isOwnedPlanningTarget(options.cwd, options.targets, expected);
+  const canonical =
+    options.fingerprintOnly && planningTarget
+      ? fingerprintPlanContract(kind)
+      : packagedPlanContract(kind);
   return {
     ...(planningTarget && { planning_phase: kind }),
     plan_contract: configured ?? canonical,
@@ -931,13 +954,11 @@ function prepareReviewPacketUnsafe(
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
     deliveryDefinition = retainedDeliveryDefinition(kind, logicalFiles, canonicalRoot);
-    planningContract = packetPlanContract(
-      kind,
-      execution.planContract,
-      productPlan,
-      canonicalRoot,
+    planningContract = packetPlanContract(kind, execution.planContract, productPlan, {
+      cwd: canonicalRoot,
       targets,
-    );
+      fingerprintOnly: execution.fingerprintOnly === true,
+    });
     planningContext = resolvePlanningRoleContext(
       canonicalRoot,
       kind,

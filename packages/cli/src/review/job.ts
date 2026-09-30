@@ -195,7 +195,8 @@ function fingerprint(
   context: readonly string[] = [],
   execution?: RedExecutionRequest,
 ): string {
-  return reviewInputs(cwd, kind, targets, context, execution).sourceFingerprint;
+  return reviewInputs(cwd, kind, targets, context, { execution, fingerprintOnly: true })
+    .sourceFingerprint;
 }
 
 function planningFingerprintContext(
@@ -218,15 +219,17 @@ function reviewInputs(
   cwd: string,
   kind: ReviewKind,
   targets: readonly string[],
-  context: readonly string[] = [],
-  execution?: RedExecutionRequest,
+  context: readonly string[],
+  options: { execution?: RedExecutionRequest; fingerprintOnly: boolean },
 ): { readonly sourceFingerprint: string; readonly reviewIdentity?: PlanningReviewIdentity } {
+  const execution = options.execution;
   // A GREEN receipt is bound to the reviewed scenario's ledger block, not just
   // its human-readable label. Other scenarios share this progress ledger, so
   // their later GREEN/REFACTOR updates are outputs rather than proof inputs.
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
   const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
     allowMissingExecutableRedAttestation: true,
+    fingerprintOnly: options.fingerprintOnly,
   });
   try {
     const reviewIdentity = createPlanningReviewIdentity(prepared.packet);
@@ -1086,7 +1089,7 @@ export async function startReviewJob(input: {
     input.kind,
     input.targets,
     context,
-    input.execution,
+    { execution: input.execution, fingerprintOnly: false },
   );
   const targets = canonicalReviewTargets(reviewIdentity, input.targets);
   mkdirSync(jobsDirectory(input.cwd), { recursive: true, mode: 0o700 });
