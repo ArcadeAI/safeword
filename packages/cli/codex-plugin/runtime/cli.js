@@ -52150,6 +52150,30 @@ function productPersonaInventory(content) {
     visit(node);
   return inventories.length === 1 ? inventories[0] ?? "" : "";
 }
+function personaNamePosition(text, name) {
+  for (let index = text.indexOf(name);index >= 0; index = text.indexOf(name, index + 1)) {
+    const before = text[index - 1] ?? "";
+    const after = text[index + name.length] ?? "";
+    if (!/[\p{L}\p{N}-]/u.test(before) && !/[\p{L}\p{N}-]/u.test(after))
+      return index;
+  }
+  return -1;
+}
+function namedPersonaCodes(inventory, personas) {
+  const names = new Set;
+  const remaining = inventory.toLocaleLowerCase().split("");
+  const longestFirst = personas.toSorted((a, b) => b.name.length - a.name.length);
+  for (const persona of longestFirst) {
+    const name = persona.name.toLocaleLowerCase();
+    let index = personaNamePosition(remaining.join(""), name);
+    while (index !== -1) {
+      names.add(persona.code);
+      remaining.fill(" ", index, index + name.length);
+      index = personaNamePosition(remaining.join(""), name);
+    }
+  }
+  return names;
+}
 function planningPersonaIdentity(packet, content) {
   const spec = planningRoleContent(packet, "rules");
   const feature = planningRoleContent(packet, "scenarios");
@@ -52179,8 +52203,9 @@ function planningPersonaIdentity(packet, content) {
     }
   }
   let inventoryMatched = false;
+  const namedPersonas = namedPersonaCodes(inventory, personas);
   for (const persona of personas) {
-    const named = inventory.toLocaleLowerCase().includes(persona.name.toLocaleLowerCase());
+    const named = namedPersonas.has(persona.code);
     if (!named && !inventory.includes(`(${persona.code})`))
       continue;
     references.add(persona.code);
