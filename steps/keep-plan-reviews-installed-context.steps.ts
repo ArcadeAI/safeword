@@ -33,6 +33,9 @@ interface InstalledContextState {
   overrideState: string;
   runtimeRoot?: string;
   gate?: ReturnType<typeof spawnSync>;
+  authorGate?: ReturnType<typeof spawnSync>;
+  reviewDispatch?: ReturnType<typeof spawnSync>;
+  contractCase?: 'reviewer-drift' | 'canonical';
 }
 const states = new WeakMap<SafewordWorld, InstalledContextState>();
 
@@ -244,6 +247,196 @@ Given(
       'The installed contract must contain the canonical clause.',
     );
     writeFileSync(contractPath, original.replace(clause, ''));
+  },
+);
+
+Given(
+  /^the installed authoring contract (deletes one clause but retains the canonical version label|differs from the canonical source only in whitespace or comments|is absent)$/,
+  function (this: SafewordWorld, contractState: string) {
+    establishApprovedPlanningContext.call(this, 'current');
+    const state = states.get(this);
+    assert.ok(state);
+    state.runtimeRoot = mkdtempSync(path.join(tmpdir(), 'safeword-r5-installed-plugin-'));
+    cpSync(pluginRoot, state.runtimeRoot, { recursive: true });
+    const contractPath = path.join(state.runtimeRoot, 'skills/bdd/PLAN_IMPLEMENTATION.md');
+    if (contractState === 'is absent') {
+      rmSync(contractPath);
+      return;
+    }
+    const original = readFileSync(contractPath, 'utf8');
+    if (contractState === 'differs from the canonical source only in whitespace or comments') {
+      writeFileSync(contractPath, `<!-- editorial -->\n${original}`);
+      return;
+    }
+    const clause = 'Accepted scope and exclusions belong to the user.';
+    assert.ok(original.includes(clause));
+    writeFileSync(contractPath, original.replace(clause, ''));
+  },
+);
+
+Given(
+  /^the (generated reviewer rubric deletes one clause but retains the canonical version label|authoring contract and reviewer rubric both match the exact canonical bytes)$/,
+  function (this: SafewordWorld, contractState: string) {
+    establishApprovedPlanningContext.call(this, 'current');
+    const state = states.get(this);
+    assert.ok(state);
+    state.runtimeRoot = mkdtempSync(path.join(tmpdir(), 'safeword-r5-installed-plugin-'));
+    cpSync(pluginRoot, state.runtimeRoot, { recursive: true });
+    state.contractCase =
+      contractState ===
+      'generated reviewer rubric deletes one clause but retains the canonical version label'
+        ? 'reviewer-drift'
+        : 'canonical';
+    if (state.contractCase === 'canonical') return;
+    const runtime = path.join(state.runtimeRoot, 'runtime/cli.js');
+    const source = readFileSync(runtime, 'utf8');
+    const start = source.indexOf('var PLAN_REVIEW_RUBRIC = `');
+    const end = source.indexOf('PLAN_REVIEW_RUBRIC_SHA256', start);
+    const clause = 'Accepted scope and exclusions belong to the user.';
+    const clauseIndex = source.indexOf(clause, start);
+    assert.ok(start >= 0 && clauseIndex > start && clauseIndex < end);
+    writeFileSync(
+      runtime,
+      source.slice(0, clauseIndex) + source.slice(clauseIndex + clause.length),
+    );
+  },
+);
+
+When(
+  'the content identity of every generated contract copy is recomputed',
+  function (this: SafewordWorld) {
+    const state = states.get(this);
+    assert.ok(state?.runtimeRoot);
+    const hook = path.join(state.runtimeRoot, 'runtime/hooks/pre-tool-quality.ts');
+    state.authorGate = spawnSync('bun', [hook], {
+      cwd: state.root,
+      encoding: 'utf8',
+      timeout: 60_000,
+      input: JSON.stringify({
+        session_id: 'r3-installed',
+        tool_name: 'Edit',
+        tool_input: {
+          file_path: path.join(state.root, ticketRoot, 'impl-plan.md'),
+          old_string: 'Use the current review receipt',
+          new_string: 'Use the authenticated current review receipt',
+        },
+      }),
+      env: {
+        ...process.env,
+        PATH: `${state.reviewer}:${process.env.PATH ?? ''}`,
+        CLAUDE_PROJECT_DIR: state.root,
+        CLAUDE_PLUGIN_ROOT: state.runtimeRoot,
+        CLAUDE_SESSION_ID: 'r3-installed',
+      },
+    });
+    state.gate = spawnSync('bun', [hook], {
+      cwd: state.root,
+      encoding: 'utf8',
+      timeout: 60_000,
+      input: JSON.stringify({
+        session_id: 'r3-installed',
+        tool_name: 'Edit',
+        tool_input: {
+          file_path: path.join(state.root, ticketRoot, 'ticket.md'),
+          old_string: 'phase: plan-implementation',
+          new_string: 'phase: plan-execution',
+        },
+      }),
+      env: {
+        ...process.env,
+        PATH: `${state.reviewer}:${process.env.PATH ?? ''}`,
+        CLAUDE_PROJECT_DIR: state.root,
+        CLAUDE_PLUGIN_ROOT: state.runtimeRoot,
+        CLAUDE_SESSION_ID: 'r3-installed',
+      },
+    });
+    if (state.contractCase) {
+      state.reviewDispatch = spawnSync(
+        'bun',
+        [
+          path.join(state.runtimeRoot, 'runtime/cli.js'),
+          'review',
+          'run',
+          'plan-implementation',
+          `${ticketRoot}/impl-plan.md`,
+          '--json',
+          '--no-input',
+        ],
+        {
+          cwd: state.root,
+          encoding: 'utf8',
+          timeout: 60_000,
+          env: {
+            ...process.env,
+            PATH: `${state.reviewer}:${process.env.PATH ?? ''}`,
+            CLAUDE_PROJECT_DIR: state.root,
+            CLAUDE_PLUGIN_ROOT: state.runtimeRoot,
+            CLAUDE_SESSION_ID: 'r3-installed',
+            SAFEWORD_AGENT_RUNTIME: 'claude',
+          },
+        },
+      );
+    }
+  },
+);
+
+Then(
+  /^authoring and approval are blocked until (?:the exact canonical contract bytes|the canonical contract) (?:are|is) restored$/,
+  function (this: SafewordWorld) {
+    const state = states.get(this);
+    assert.ok(state?.authorGate && state.gate);
+    for (const result of [state.authorGate, state.gate]) {
+      assert.equal(result.status, 0, result.stderr);
+      const output = JSON.parse(result.stdout) as {
+        hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
+      };
+      assert.equal(output.hookSpecificOutput?.permissionDecision, 'deny');
+      assert.match(
+        output.hookSpecificOutput?.permissionDecisionReason ?? '',
+        /(?:canonical_contract_copy_mismatch|missing_generated_contract_copy)/,
+      );
+    }
+  },
+);
+
+Then(
+  'review dispatch and approval are blocked until the exact canonical contract bytes are restored',
+  function (this: SafewordWorld) {
+    const state = states.get(this);
+    assert.ok(state?.reviewDispatch && state.gate);
+    assert.notEqual(state.reviewDispatch.status, 0);
+    const dispatch = JSON.parse(state.reviewDispatch.stdout) as {
+      findings?: Array<{ code?: string; message?: string }>;
+    };
+    assert.ok(
+      dispatch.findings?.some(finding =>
+        /reviewer contract|canonical contract/.test(finding.message ?? ''),
+      ),
+      state.reviewDispatch.stdout,
+    );
+    assert.equal(state.gate.status, 0, state.gate.stderr);
+    assert.notEqual(state.gate.stdout.trim(), '', 'approval gate allowed a stale reviewer copy');
+    const approval = JSON.parse(state.gate.stdout) as {
+      hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
+    };
+    assert.equal(approval.hookSpecificOutput?.permissionDecision, 'deny');
+    assert.match(
+      approval.hookSpecificOutput?.permissionDecisionReason ?? '',
+      /canonical_contract_copy_mismatch.*plan-rubric\.generated\.ts/su,
+    );
+  },
+);
+
+Then(
+  'both copies recompute to the same identity and contract identity does not block authoring, dispatch, or approval',
+  function (this: SafewordWorld) {
+    const state = states.get(this);
+    assert.ok(state?.authorGate && state.reviewDispatch && state.gate);
+    assert.equal(state.authorGate.status, 0, state.authorGate.stderr);
+    assert.equal(state.authorGate.stdout.trim(), '', state.authorGate.stdout);
+    assert.equal(state.reviewDispatch.status, 0, state.reviewDispatch.stdout);
+    assert.equal(state.gate.status, 0, state.gate.stderr);
+    assert.equal(state.gate.stdout.trim(), '', state.gate.stdout);
   },
 );
 

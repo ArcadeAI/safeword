@@ -171,6 +171,19 @@ installed-dispatch outline or full feature verification, so R/G/R remains open.
 
 ### Scenario: Installed contract identity controls authoring and approval
 
+Current actor-facing RED loop: run the five outline rows directly through
+`features/keep-plan-reviews-current-and-trustworthy.feature` with
+`NODE_OPTIONS='--import tsx' scripts/dev node node_modules/.bin/cucumber-js
+features/keep-plan-reviews-current-and-trustworthy.feature --name 'Installed
+contract identity controls authoring and approval'`. The installed Claude
+plugin copy supplies real authoring and phase hooks plus the real review CLI;
+only the external reviewer process is a fixture. Four rows pass. The reviewer
+rubric drift row fails at the approval gate with
+`approval gate allowed a stale reviewer copy`, although dispatch already
+refuses the altered generated rubric. The intended GREEN checks both
+boundaries in that same row. The complete outline remains unchecked until all
+five rows pass and the independent executable proof review approves it.
+
 Supporting complete-author dispatch loop: install a copied actual CLI package,
 change only a comment outside the reviewer-safe block in its Implementation or
 Execution authoring asset, and invoke real `review run` with an approving fake
