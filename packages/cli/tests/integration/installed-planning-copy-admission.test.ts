@@ -64,7 +64,8 @@ process.stdin.on('end', () => {
   const packet = JSON.parse(input.slice(input.lastIndexOf('{"schema_version":1')));
   console.log(JSON.stringify({ structured_output: {
     schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude',
-    verdict: 'approve', summary: 'Fixture approval.', findings: []
+    verdict: 'approve', summary: 'Fixture approval.', findings: [],
+    evidence_records: { schema_version: 1, records: [] }
   }}));
 });
 `,
