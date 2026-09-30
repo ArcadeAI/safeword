@@ -18,7 +18,12 @@ const claimPath = '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly
 const proofPath = '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/proof.json';
 const observationPath =
   '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/observation.json';
-const replay = vi.hoisted(() => ({ state: 'healthy', calls: 0, root: '', request: undefined }));
+const replay = vi.hoisted<{
+  state: 'healthy' | 'action_required';
+  calls: number;
+  root: string;
+  request: unknown;
+}>(() => ({ state: 'healthy', calls: 0, root: '', request: undefined }));
 
 vi.mock('../../src/review/job.js', async importOriginal => {
   const actual = await importOriginal<typeof ReviewJob>();
