@@ -429,6 +429,22 @@ hook and tests with no errors. This remains supporting installed-authoring
 evidence; full reviewer-copy and host admission coverage, and the Cucumber
 outline, are still open.
 
+Bounded reviewer-copy approval loop (2026-09-30): proof commit `075dec464`
+made all five outline rows executable. Four passed; the reviewer-rubric drift
+row failed because the installed phase gate allowed an earlier approval even
+though new review dispatch refused the altered rubric. Independent executable
+RED review `6d0dad7c-0263-4d40-b674-f8b3dfdc46eb` approved that exact
+actor-facing failure. Commit `1c168fa35` checks generated reviewer bytes
+against their sealed digest in the trusted planning preflight and public
+Implementation approval. The five direct rows now pass (250 steps), as do
+18 installed admission tests including Cursor and public approval, and all
+46 adjacent transition-gate tests after their fixture was supplied with the
+trusted checker and Product author copy. The complete 5F5ZZA feature reports
+42 passed, 128 undefined, and zero failed. External quality review
+`f8148ffa-452e-44a9-bebc-e9274cbdb119` approved with nonblocking scope
+warnings. This is not whole-scenario completion: Product and Execution
+reviewer-copy actor paths and the remaining R5 partitions are still open.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
