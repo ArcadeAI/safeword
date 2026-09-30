@@ -117,6 +117,7 @@ describe('retrospective closing replay record', () => {
     expect(retrospectiveCloseGate(root, 'OTHER1', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
     );
+    expect(retrospectiveCloseGate(root, 'CKWE2D', 'other-ledger.md').state).toBe('action_required');
   });
 
   it('does not write a closing record when the two-copy replay fails', () => {
@@ -130,14 +131,14 @@ describe('retrospective closing replay record', () => {
     );
   });
 
-  it('rejects a changed support file and a changed review record', () => {
+  it.each([
+    'packages/cli/src/review/packet.ts',
+    'packages/cli/tests/proof.test.ts',
+    'packages/cli/src/review/scope.ts',
+    `.safeword/state/reviews/${proofId}.json`,
+  ])('rejects a changed proof input: %s', path => {
     expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
-    put(root, 'packages/cli/src/review/scope.ts', 'export const support = false;\n');
-    expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
-      'action_required',
-    );
-    put(root, 'packages/cli/src/review/scope.ts', 'export const support = true;\n');
-    put(root, `.safeword/state/reviews/${proofId}.json`, '{"changed":true}');
+    put(root, path, 'changed\n');
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
     );
@@ -153,6 +154,14 @@ describe('retrospective closing replay record', () => {
     );
     expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
     put(root, RETROSPECTIVE_LEDGER, '### Scenario: changed\n- [ ] VERIFIED\n');
+    expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
+      'action_required',
+    );
+  });
+
+  it('binds the closing record to the profile review key', () => {
+    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
+    process.env.SAFEWORD_REVIEW_KEY_ROOT = nodePath.join(root, 'different-profile-state');
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
     );
