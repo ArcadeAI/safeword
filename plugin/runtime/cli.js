@@ -52011,12 +52011,15 @@ function productParentContextIdentity(packet) {
   identities.set(parent.path, identity({ version: 1, sections: normalizeNodes([...selected, ...definitions]) }));
   return identities;
 }
+function productFrameParagraphText(node) {
+  return normalizeChildren(node).map((child) => headingText(child)).join("");
+}
 function validatePlanningProductFrame(content) {
   const frame = requiredSection(parseMarkdown(content), 2, "Product Bet");
   const counts = new Map;
   const visit = (node) => {
     if (node.type === "paragraph") {
-      const text = normalizeChildren(node).map((child) => headingText(child)).join("");
+      const text = productFrameParagraphText(node);
       const colon = text.indexOf(":");
       const label = text.slice(0, colon);
       if (productFrameFields.includes(label)) {
@@ -52139,10 +52142,10 @@ function productPersonaInventory(content) {
   const frame = requiredSection(parseMarkdown(content), 2, "Product Bet");
   const inventories = [];
   const visit = (node) => {
-    if (node.type === "listItem") {
-      const first = node.children?.find((child) => child.type === "paragraph");
-      if (first !== undefined && headingText(first).startsWith("Persona outcome inventory:"))
-        inventories.push(headingText(node));
+    if (node.type === "paragraph") {
+      const text = productFrameParagraphText(node);
+      if (text.startsWith("Persona outcome inventory:"))
+        inventories.push(text);
     }
     const children = node.children ?? [];
     for (const child of children)
@@ -52150,7 +52153,7 @@ function productPersonaInventory(content) {
   };
   for (const node of frame)
     visit(node);
-  return inventories.length === 1 ? inventories[0] ?? "" : "";
+  return inventories.length === 1 ? inventories[0] : undefined;
 }
 function personaNamePosition(text, name) {
   for (let index = text.indexOf(name);index >= 0; index = text.indexOf(name, index + 1)) {
@@ -52195,7 +52198,7 @@ function planningPersonaIdentity(packet, content) {
     return [];
   }));
   const personas = resolvePersonaCodes(parsePersonas(content));
-  let inventory = "";
+  let inventory;
   if (project !== "") {
     try {
       inventory = productPersonaInventory(project);
@@ -52204,16 +52207,18 @@ function planningPersonaIdentity(packet, content) {
       throw new PlanningContextError("project", path7 ?? "spec.md");
     }
   }
+  if (project !== "" && inventory === undefined)
+    return artifactIdentity(content);
   let inventoryMatched = false;
-  const namedPersonas = namedPersonaCodes(inventory, personas);
+  const namedPersonas = namedPersonaCodes(inventory ?? "", personas);
   for (const persona of personas) {
     const named = namedPersonas.has(persona.code);
-    if (!named && !inventory.includes(`(${persona.code})`))
+    if (!named && !inventory?.includes(`(${persona.code})`))
       continue;
     references.add(persona.code);
     inventoryMatched = true;
   }
-  if (references.size === 0 || inventory !== "" && !inventoryMatched)
+  if (references.size === 0 || inventory !== undefined && !inventoryMatched)
     return artifactIdentity(content);
   const lines = content.split(`
 `);

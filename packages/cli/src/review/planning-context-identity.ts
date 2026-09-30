@@ -304,14 +304,18 @@ const productFrameFields = [
   'Project non-goals',
 ];
 
+function productFrameParagraphText(node: MarkdownNode): string {
+  return normalizeChildren(node)
+    .map(child => headingText(child))
+    .join('');
+}
+
 export function validatePlanningProductFrame(content: string): void {
   const frame = requiredSection(parseMarkdown(content), 2, 'Product Bet');
   const counts = new Map<string, number>();
   const visit = (node: MarkdownNode): void => {
     if (node.type === 'paragraph') {
-      const text = normalizeChildren(node)
-        .map(child => headingText(child))
-        .join('');
+      const text = productFrameParagraphText(node);
       const colon = text.indexOf(':');
       const label = text.slice(0, colon);
       if (productFrameFields.includes(label)) {
@@ -446,20 +450,19 @@ function planningRoleContent(
   );
 }
 
-function productPersonaInventory(content: string): string {
+function productPersonaInventory(content: string): string | undefined {
   const frame = requiredSection(parseMarkdown(content), 2, 'Product Bet');
   const inventories: string[] = [];
   const visit = (node: MarkdownNode): void => {
-    if (node.type === 'listItem') {
-      const first = node.children?.find(child => child.type === 'paragraph');
-      if (first !== undefined && headingText(first).startsWith('Persona outcome inventory:'))
-        inventories.push(headingText(node));
+    if (node.type === 'paragraph') {
+      const text = productFrameParagraphText(node);
+      if (text.startsWith('Persona outcome inventory:')) inventories.push(text);
     }
     const children = node.children ?? [];
     for (const child of children) visit(child);
   };
   for (const node of frame) visit(node);
-  return inventories.length === 1 ? (inventories[0] ?? '') : '';
+  return inventories.length === 1 ? inventories[0] : undefined;
 }
 
 function personaNamePosition(text: string, name: string): number {
@@ -513,7 +516,7 @@ function planningPersonaIdentity(packet: ReviewPacket, content: string): string 
     }),
   );
   const personas = resolvePersonaCodes(parsePersonas(content));
-  let inventory = '';
+  let inventory: string | undefined;
   if (project !== '') {
     try {
       inventory = productPersonaInventory(project);
@@ -524,15 +527,16 @@ function planningPersonaIdentity(packet: ReviewPacket, content: string): string 
       throw new PlanningContextError('project', path ?? 'spec.md');
     }
   }
+  if (project !== '' && inventory === undefined) return artifactIdentity(content);
   let inventoryMatched = false;
-  const namedPersonas = namedPersonaCodes(inventory, personas);
+  const namedPersonas = namedPersonaCodes(inventory ?? '', personas);
   for (const persona of personas) {
     const named = namedPersonas.has(persona.code);
-    if (!named && !inventory.includes(`(${persona.code})`)) continue;
+    if (!named && !inventory?.includes(`(${persona.code})`)) continue;
     references.add(persona.code);
     inventoryMatched = true;
   }
-  if (references.size === 0 || (inventory !== '' && !inventoryMatched))
+  if (references.size === 0 || (inventory !== undefined && !inventoryMatched))
     return artifactIdentity(content);
   const lines = content.split('\n');
   const selected = personas.flatMap((persona, index) => {

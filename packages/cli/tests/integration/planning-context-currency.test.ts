@@ -175,6 +175,27 @@ describe('semantic planning context currency through public review status', () =
     );
     expect(await review.status()).toBe('stale');
   });
+  it('tracks a persona named only in a paragraph-form Product Bet inventory', async () => {
+    const review = await fixture(project => {
+      const specification = nodePath.join(project, parentSpec);
+      writeFileSync(
+        specification,
+        readFileSync(specification, 'utf8').replace(
+          '- **Persona outcome inventory:** Builder receives approval or a named refusal.',
+          '\n**Persona outcome inventory:** Builder receives approval; Reviewer checks the result.\n',
+        ),
+      );
+      const personas = nodePath.join(project, '.project/personas.md');
+      writeFileSync(
+        personas,
+        `${readFileSync(personas, 'utf8')}\n## Reviewer (RV)\n\n**Role:** Checks the result.\n`,
+      );
+    });
+    review.edit('.project/personas.md', text =>
+      text.replace('Checks the result.', 'Accepts an unchecked result.'),
+    );
+    expect(await review.status()).toBe('stale');
+  });
   it('keeps approval when an unrelated persona name overlaps the referenced persona', async () => {
     const review = await fixture(project => {
       const personas = nodePath.join(project, '.project/personas.md');
