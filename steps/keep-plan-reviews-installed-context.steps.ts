@@ -1,6 +1,14 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -23,6 +31,7 @@ interface InstalledContextState {
   root: string;
   reviewer: string;
   overrideState: string;
+  runtimeRoot?: string;
   gate?: ReturnType<typeof spawnSync>;
 }
 const states = new WeakMap<SafewordWorld, InstalledContextState>();
@@ -93,124 +102,148 @@ After(function (this: SafewordWorld) {
   if (state) {
     rmSync(state.root, { recursive: true, force: true });
     rmSync(state.reviewer, { recursive: true, force: true });
+    if (state.runtimeRoot) rmSync(state.runtimeRoot, { recursive: true, force: true });
   }
   states.delete(this);
 });
 
+function establishApprovedPlanningContext(this: SafewordWorld, overrideState: string) {
+  const root = fixtureProject();
+  const reviewer = createTrustedReviewerDirectory('safeword-r3-reviewer-');
+  states.set(this, { root, reviewer, overrideState });
+  const install = spawnSync(
+    'bun',
+    [
+      path.join(packageRoot, 'src/cli.ts'),
+      'install',
+      '--agents=claude',
+      '--no-input',
+      '--no-modify',
+      '--json',
+      '--cwd',
+      root,
+    ],
+    {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 60_000,
+      env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
+    },
+  );
+  const installOutput = JSON.parse(install.stdout) as { errors: unknown[] };
+  assert.deepEqual(installOutput.errors, [], `${install.stdout}\n${install.stderr}`);
+  const override = 'docs/principles.md';
+  mkdirSync(path.join(root, 'docs'));
+  writeFileSync(path.join(root, override), '# Project principles\n\nKeep approval current.\n');
+  configure(root, override);
+  reviewerExecutable(reviewer);
+  const environment = {
+    ...process.env,
+    PATH: `${reviewer}:${process.env.PATH ?? ''}`,
+    CLAUDE_PROJECT_DIR: root,
+    CLAUDE_PLUGIN_ROOT: pluginRoot,
+    CLAUDE_SESSION_ID: 'r3-installed',
+    SAFEWORD_AGENT_RUNTIME: 'claude',
+  };
+  const reviewed = spawnSync(
+    'bun',
+    [
+      path.join(packageRoot, 'src/cli.ts'),
+      'review',
+      'run',
+      'plan-implementation',
+      `${ticketRoot}/impl-plan.md`,
+      '--json',
+      '--no-input',
+    ],
+    { cwd: root, encoding: 'utf8', timeout: 60_000, env: environment },
+  );
+  assert.equal(reviewed.status, 0, `${reviewed.stdout}\n${reviewed.stderr}`);
+  const result = JSON.parse(reviewed.stdout) as { data: { status: string; review_id: string } };
+  assert.equal(result.data.status, 'approved');
+  const stamp = spawnSync(
+    'bun',
+    [
+      path.join(pluginRoot, 'runtime/hooks/write-review-stamp.ts'),
+      '--ticket',
+      ticketFolder,
+      '--author-agent',
+      'claude',
+      '--reviewer-agent',
+      'opencode',
+      '--independence',
+      'reduced',
+      '--review-id',
+      result.data.review_id,
+      'impl-plan',
+    ],
+    { cwd: root, encoding: 'utf8', timeout: 60_000, env: environment },
+  );
+  assert.equal(stamp.status, 0, `${stamp.stdout}\n${stamp.stderr}`);
+  const phaseStamp = spawnSync(
+    'bun',
+    [
+      path.join(pluginRoot, 'runtime/hooks/write-review-stamp.ts'),
+      '--ticket',
+      ticketFolder,
+      '--author-agent',
+      'claude',
+      '--reviewer-agent',
+      'opencode',
+      '--independence',
+      'reduced',
+      '--review-id',
+      result.data.review_id,
+      '--phase',
+      'plan-implementation',
+    ],
+    { cwd: root, encoding: 'utf8', timeout: 60_000, env: environment },
+  );
+  assert.equal(phaseStamp.status, 0, `${phaseStamp.stdout}\n${phaseStamp.stderr}`);
+  const current = spawnSync(
+    'bun',
+    [path.join(packageRoot, 'src/cli.ts'), 'review', 'status', result.data.review_id, '--json'],
+    { cwd: root, encoding: 'utf8', timeout: 60_000, env: environment },
+  );
+  const currentStatus = JSON.parse(current.stdout) as { data: { status: string } };
+  assert.equal(currentStatus.data.status, 'approved', `${current.stdout}\n${current.stderr}`);
+  if (overrideState === 'blank') writeFileSync(path.join(root, override), ' \n');
+  if (overrideState.startsWith('stale')) {
+    const configPath = path.join(root, '.safeword/config.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        ...config,
+        pathLineage: { principles: { packagedSourceVersion: '0.0.0' } },
+      }),
+    );
+  }
+}
+
 Given(
   /^a planning phase with a current approving receipt has a required project-knowledge override that is (.+)$/,
-  function (this: SafewordWorld, overrideState: string) {
-    const root = fixtureProject();
-    const reviewer = createTrustedReviewerDirectory('safeword-r3-reviewer-');
-    states.set(this, { root, reviewer, overrideState });
-    const install = spawnSync(
-      'bun',
-      [
-        path.join(packageRoot, 'src/cli.ts'),
-        'install',
-        '--agents=claude',
-        '--no-input',
-        '--no-modify',
-        '--json',
-        '--cwd',
-        root,
-      ],
-      {
-        cwd: root,
-        encoding: 'utf8',
-        timeout: 60_000,
-        env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
-      },
+  establishApprovedPlanningContext,
+);
+
+Given(
+  /^a planning phase with a current approving receipt has an installed authoring contract that (.+)$/,
+  function (this: SafewordWorld, contractState: string) {
+    establishApprovedPlanningContext.call(this, 'current');
+    const state = states.get(this);
+    assert.ok(state);
+    state.runtimeRoot = mkdtempSync(path.join(tmpdir(), 'safeword-r5-installed-plugin-'));
+    cpSync(pluginRoot, state.runtimeRoot, { recursive: true });
+    if (contractState === 'matches the exact canonical bytes') return;
+    assert.equal(contractState, 'deletes one clause but retains the canonical version label');
+    const contractPath = path.join(state.runtimeRoot, 'skills/bdd/PLAN_IMPLEMENTATION.md');
+    const original = readFileSync(contractPath, 'utf8');
+    const clause = 'Accepted scope and exclusions belong to the user.';
+    assert.ok(
+      original.includes(clause),
+      'The installed contract must contain the canonical clause.',
     );
-    const installOutput = JSON.parse(install.stdout) as { errors: unknown[] };
-    assert.deepEqual(installOutput.errors, [], `${install.stdout}\n${install.stderr}`);
-    const override = 'docs/principles.md';
-    mkdirSync(path.join(root, 'docs'));
-    writeFileSync(path.join(root, override), '# Project principles\n\nKeep approval current.\n');
-    configure(root, override);
-    reviewerExecutable(reviewer);
-    const environment = {
-      ...process.env,
-      PATH: `${reviewer}:${process.env.PATH ?? ''}`,
-      CLAUDE_PROJECT_DIR: root,
-      CLAUDE_PLUGIN_ROOT: pluginRoot,
-      CLAUDE_SESSION_ID: 'r3-installed',
-      SAFEWORD_AGENT_RUNTIME: 'claude',
-    };
-    const reviewed = spawnSync(
-      'bun',
-      [
-        path.join(packageRoot, 'src/cli.ts'),
-        'review',
-        'run',
-        'plan-implementation',
-        `${ticketRoot}/impl-plan.md`,
-        '--json',
-        '--no-input',
-      ],
-      { cwd: root, encoding: 'utf8', timeout: 60_000, env: environment },
-    );
-    assert.equal(reviewed.status, 0, `${reviewed.stdout}\n${reviewed.stderr}`);
-    const result = JSON.parse(reviewed.stdout) as { data: { status: string; review_id: string } };
-    assert.equal(result.data.status, 'approved');
-    const stamp = spawnSync(
-      'bun',
-      [
-        path.join(pluginRoot, 'runtime/hooks/write-review-stamp.ts'),
-        '--ticket',
-        ticketFolder,
-        '--author-agent',
-        'claude',
-        '--reviewer-agent',
-        'opencode',
-        '--independence',
-        'reduced',
-        '--review-id',
-        result.data.review_id,
-        'impl-plan',
-      ],
-      { cwd: root, encoding: 'utf8', timeout: 60_000, env: environment },
-    );
-    assert.equal(stamp.status, 0, `${stamp.stdout}\n${stamp.stderr}`);
-    const phaseStamp = spawnSync(
-      'bun',
-      [
-        path.join(pluginRoot, 'runtime/hooks/write-review-stamp.ts'),
-        '--ticket',
-        ticketFolder,
-        '--author-agent',
-        'claude',
-        '--reviewer-agent',
-        'opencode',
-        '--independence',
-        'reduced',
-        '--review-id',
-        result.data.review_id,
-        '--phase',
-        'plan-implementation',
-      ],
-      { cwd: root, encoding: 'utf8', timeout: 60_000, env: environment },
-    );
-    assert.equal(phaseStamp.status, 0, `${phaseStamp.stdout}\n${phaseStamp.stderr}`);
-    const current = spawnSync(
-      'bun',
-      [path.join(packageRoot, 'src/cli.ts'), 'review', 'status', result.data.review_id, '--json'],
-      { cwd: root, encoding: 'utf8', timeout: 60_000, env: environment },
-    );
-    const currentStatus = JSON.parse(current.stdout) as { data: { status: string } };
-    assert.equal(currentStatus.data.status, 'approved', `${current.stdout}\n${current.stderr}`);
-    if (overrideState === 'blank') writeFileSync(path.join(root, override), ' \n');
-    if (overrideState.startsWith('stale')) {
-      const configPath = path.join(root, '.safeword/config.json');
-      const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
-      writeFileSync(
-        configPath,
-        JSON.stringify({
-          ...config,
-          pathLineage: { principles: { packagedSourceVersion: '0.0.0' } },
-        }),
-      );
-    }
+    writeFileSync(contractPath, original.replace(clause, ''));
   },
 );
 
@@ -220,7 +253,7 @@ When(
     const state = states.get(this);
     assert.ok(state);
     const ticketPath = path.join(state.root, ticketRoot, 'ticket.md');
-    const hook = path.join(pluginRoot, 'runtime/hooks/pre-tool-quality.ts');
+    const hook = path.join(state.runtimeRoot ?? pluginRoot, 'runtime/hooks/pre-tool-quality.ts');
     assert.ok(existsSync(hook));
     state.gate = spawnSync('bun', [hook], {
       cwd: state.root,
@@ -239,7 +272,7 @@ When(
         ...process.env,
         PATH: `${state.reviewer}:${process.env.PATH ?? ''}`,
         CLAUDE_PROJECT_DIR: state.root,
-        CLAUDE_PLUGIN_ROOT: pluginRoot,
+        CLAUDE_PLUGIN_ROOT: state.runtimeRoot ?? pluginRoot,
         CLAUDE_SESSION_ID: 'r3-installed',
       },
     });
@@ -252,6 +285,28 @@ Then('the phase transition proceeds', function (this: SafewordWorld) {
   assert.equal(gate.status, 0, `${gate.stdout}\n${gate.stderr}`);
   assert.equal(gate.stdout.trim(), '', gate.stdout);
 });
+
+Then(
+  'the phase remains blocked with canonical contract reconciliation named',
+  function (this: SafewordWorld) {
+    const gate = states.get(this)?.gate;
+    assert.ok(gate);
+    assert.equal(gate.status, 0, gate.stderr);
+    const output = JSON.parse(gate.stdout) as {
+      hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
+    };
+    assert.equal(output.hookSpecificOutput?.permissionDecision, 'deny');
+    const reason = output.hookSpecificOutput?.permissionDecisionReason ?? '';
+    assert.ok(
+      reason.includes('canonical_contract_copy_mismatch'),
+      `Canonical contract reconciliation was not named at the installed phase gate. Actual reason: ${reason}`,
+    );
+    assert.ok(
+      reason.includes('skills/bdd/PLAN_IMPLEMENTATION.md'),
+      `The installed authoring contract path was not named at the phase gate. Actual reason: ${reason}`,
+    );
+  },
+);
 
 Then(
   'the phase remains blocked with override reconciliation named',
