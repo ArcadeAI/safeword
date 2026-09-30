@@ -124,7 +124,7 @@ function claimError(
   if (!currentFileInside(projectRoot, claim.currentPath))
     return `Current implementation file ${claim.currentPath} is unavailable.`;
   if (claim.currentBlobSha !== undefined) {
-    const current = git(projectRoot, ['hash-object', '--', claim.currentPath]);
+    const current = git(projectRoot, ['hash-object', '--no-filters', '--', claim.currentPath]);
     if (
       !SHA.test(claim.currentBlobSha) ||
       current.status !== 0 ||

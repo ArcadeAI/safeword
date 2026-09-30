@@ -35414,7 +35414,7 @@ function claimError(projectRoot, baseline, claim) {
   if (!currentFileInside(projectRoot, claim.currentPath))
     return `Current implementation file ${claim.currentPath} is unavailable.`;
   if (claim.currentBlobSha !== undefined) {
-    const current = git2(projectRoot, ["hash-object", "--", claim.currentPath]);
+    const current = git2(projectRoot, ["hash-object", "--no-filters", "--", claim.currentPath]);
     if (!SHA.test(claim.currentBlobSha) || current.status !== 0 || current.stdout.trim() !== claim.currentBlobSha)
       return `Current blob ${claim.currentPath} does not match its claimed digest.`;
   }
@@ -35829,8 +35829,10 @@ function verifiedProof(root, targets, request, eligibility) {
   const reviewed = JSON.parse(readFileSync33(nodePath49.join(root, targets[1] ?? ""), "utf8"));
   if (proofRequest.ticketId !== RETROSPECTIVE_TICKET || proofRequest.scenario !== request.scenario || eligibility.blobs.every((blob) => blob.currentPath !== proofRequest.implementationPath) || JSON.stringify(reviewed.request) !== JSON.stringify(proofRequest))
     return false;
+  if (!hasDiscriminatingOutcome(reviewed, proofRequest.testFullName))
+    return false;
   const rerun = runRetrospectiveProof(root, proofRequest);
-  return hasDiscriminatingOutcome(reviewed, proofRequest.testFullName) && stableObservation(reviewed) === stableObservation(rerun);
+  return stableObservation(reviewed) === stableObservation(rerun);
 }
 function retrospectiveGate(root, request) {
   if (request.ticketId !== RETROSPECTIVE_TICKET || request.ledger !== RETROSPECTIVE_LEDGER)

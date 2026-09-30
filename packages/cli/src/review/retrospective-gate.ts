@@ -186,11 +186,9 @@ function verifiedProof(
     JSON.stringify(reviewed.request) !== JSON.stringify(proofRequest)
   )
     return false;
+  if (!hasDiscriminatingOutcome(reviewed, proofRequest.testFullName)) return false;
   const rerun = runRetrospectiveProof(root, proofRequest);
-  return (
-    hasDiscriminatingOutcome(reviewed, proofRequest.testFullName) &&
-    stableObservation(reviewed) === stableObservation(rerun)
-  );
+  return stableObservation(reviewed) === stableObservation(rerun);
 }
 
 /** This gate never treats a review verdict or author JSON as execution evidence. */
