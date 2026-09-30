@@ -395,6 +395,16 @@ now accepts the canonical digest and serves both phases, avoiding duplicated
 verification logic. Whole-scenario RED/GREEN/REFACTOR checkboxes remain open until
 the remaining accepted partitions and actual lifecycle boundary are proved.
 
+Supporting authoring-boundary loop (2026-09-30): commit `942d31c22` proves an
+installed Cursor plan edit incorrectly proceeds with a drifted author copy,
+while the canonical copy remains writable. Independent executable RED review
+`269663de-d568-40ed-b65a-883ea456babf` approved that bounded failure. Commit
+`5cf0d963e` reuses the trusted copy checker before edits to Product,
+Implementation, and Execution plan artifacts. The owning file passes 9 tests;
+the adjacent phase-gate pair passes 33. The full 5F5ZZA feature still reports
+37 passed, 133 undefined, and no failed scenarios. This proves one installed
+authoring path, not every copy or the complete outline.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
