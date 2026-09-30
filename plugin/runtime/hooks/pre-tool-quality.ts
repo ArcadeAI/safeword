@@ -315,8 +315,7 @@ function safewordCliCommand(
   }
 }
 
-function assertCursorPlanningContractCopy(ticket: string, phase: string): void {
-  if (process.env.SAFEWORD_AGENT_RUNTIME !== 'cursor') return;
+function assertPlanningContractCopy(ticket: string, phase: string): void {
   const configured = safewordCliCommand();
   if (configured === 'project-writable') {
     deny(
@@ -1033,7 +1032,7 @@ if (isCanonicalTicketEdit) {
     proposedPhase === 'plan-execution'
   ) {
     const ticketDirectory = nodePath.dirname(editedFile);
-    assertCursorPlanningContractCopy(nodePath.basename(ticketDirectory), 'plan-implementation');
+    assertPlanningContractCopy(nodePath.basename(ticketDirectory), 'plan-implementation');
     const verdict = evaluateExecutionPlanningEntry(ticketDirectory, { projectDirectory });
     if (!verdict.ok) deny(verdict.reason, verdict.remediation);
 
