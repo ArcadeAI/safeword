@@ -188,7 +188,7 @@ function verifiedProof(
     return false;
   const rerun = runRetrospectiveProof(root, proofRequest);
   return (
-    hasDiscriminatingOutcome(rerun, proofRequest.testFullName) &&
+    hasDiscriminatingOutcome(reviewed, proofRequest.testFullName) &&
     stableObservation(reviewed) === stableObservation(rerun)
   );
 }

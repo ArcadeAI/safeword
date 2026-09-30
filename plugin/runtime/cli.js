@@ -35830,7 +35830,7 @@ function verifiedProof(root, targets, request, eligibility) {
   if (proofRequest.ticketId !== RETROSPECTIVE_TICKET || proofRequest.scenario !== request.scenario || eligibility.blobs.every((blob) => blob.currentPath !== proofRequest.implementationPath) || JSON.stringify(reviewed.request) !== JSON.stringify(proofRequest))
     return false;
   const rerun = runRetrospectiveProof(root, proofRequest);
-  return hasDiscriminatingOutcome(rerun, proofRequest.testFullName) && stableObservation(reviewed) === stableObservation(rerun);
+  return hasDiscriminatingOutcome(reviewed, proofRequest.testFullName) && stableObservation(reviewed) === stableObservation(rerun);
 }
 function retrospectiveGate(root, request) {
   if (request.ticketId !== RETROSPECTIVE_TICKET || request.ledger !== RETROSPECTIVE_LEDGER)
