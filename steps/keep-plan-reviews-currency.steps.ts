@@ -216,6 +216,12 @@ When(
       ),
       mutate(
         state,
+        '.project/tickets/CTX123-current-context/spec.md',
+        'Only current approval advances.',
+        'Only current approval\nadvances.',
+      ),
+      mutate(
+        state,
         'features/current-context.feature',
         'Feature: Trust current approval',
         '# editorial\nFeature: Trust current approval',

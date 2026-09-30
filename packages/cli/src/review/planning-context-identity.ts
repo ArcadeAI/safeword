@@ -505,10 +505,12 @@ function namedPersonaCodes(
   const longestFirst = personas.toSorted((a, b) => b.name.length - a.name.length);
   for (const persona of longestFirst) {
     const name = persona.name.toLocaleLowerCase();
-    const index = personaNamePosition(remaining.join(''), name);
-    if (index === -1) continue;
-    names.add(persona.code);
-    remaining.fill(' ', index, index + name.length);
+    let index = personaNamePosition(remaining.join(''), name);
+    while (index !== -1) {
+      names.add(persona.code);
+      remaining.fill(' ', index, index + name.length);
+      index = personaNamePosition(remaining.join(''), name);
+    }
   }
   return names;
 }
