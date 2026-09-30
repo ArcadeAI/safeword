@@ -194,8 +194,58 @@ When(
   function (this: SafewordWorld) {
     const state = states.get(this);
     assert.ok(state);
+    state.retainFailure = 'bound context cosmetic change made review stale';
     state.statuses = [
+      mutate(
+        state,
+        '.project/tickets/CTX123-current-context/ticket.md',
+        '# Ticket',
+        '# Ticket\n\n<!-- editorial -->',
+      ),
+      mutate(
+        state,
+        '.project/tickets/CTX123-current-context/spec.md',
+        '## Product Bet\n\n',
+        '## Product Bet\n\n<!-- editorial -->\n\n',
+      ),
+      mutate(
+        state,
+        '.project/tickets/CTX123-current-context/spec.md',
+        '#### approval.BU1.R1 — Preserve approval\n\n',
+        '#### approval.BU1.R1 — Preserve approval\n\n<!-- editorial -->\n\n',
+      ),
+      mutate(
+        state,
+        'features/current-context.feature',
+        'Feature: Trust current approval',
+        '# editorial\nFeature: Trust current approval',
+      ),
+      mutate(
+        state,
+        '.project/tickets/CTX123-current-context/dimensions.md',
+        '# Dimensions\n\n',
+        '# Dimensions\n\n<!-- editorial -->\n\n',
+      ),
       mutate(state, '.project/principles.md', '# Principles', '<!-- editorial -->\n\n# Principles'),
+      mutate(
+        state,
+        '.project/personas.md',
+        '## Builder (BU)\n\n',
+        '## Builder (BU)\n\n<!-- editorial -->\n\n',
+      ),
+      mutate(
+        state,
+        '.project/surfaces.md',
+        '## Safeword CLI\n\n',
+        '## Safeword CLI\n\n<!-- editorial -->\n\n',
+      ),
+      mutate(
+        state,
+        '.project/architecture.md',
+        '# Approval architecture\n\n',
+        '# Approval architecture\n\n<!-- editorial -->\n\n',
+      ),
+      appendAndCheck(state, '.safeword/guides/data-architecture-guide.md', '<!-- editorial -->'),
     ];
   },
 );
