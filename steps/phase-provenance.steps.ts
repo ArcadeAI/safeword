@@ -527,7 +527,7 @@ Then('the denial lists the canonical phases', function (this: ProvenanceWorld) {
     'implement',
     'verify',
   ]) {
-    assert.match(text, new RegExp(phase));
+    assert.match(text, new RegExp(`\\b${phase}\\b`, 'u'));
   }
   assert.match(text, /\bdone\b/);
 });
