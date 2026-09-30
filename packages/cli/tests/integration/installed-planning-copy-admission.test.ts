@@ -249,10 +249,15 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
     },
   );
 
-  it.each(['public approval', 'installed hook'] as const)(
-    'refuses project-copy drift at %s after an authenticated review',
+  it.each([
+    ['public approval', 'comment drift'],
+    ['public approval', 'missing copy'],
+    ['installed hook', 'comment drift'],
+    ['installed hook', 'missing copy'],
+  ] as const)(
+    'refuses %s with %s after an authenticated review',
     { timeout: 90_000 },
-    boundary => {
+    (boundary, copyState) => {
       const project = fixture();
       const canonical =
         boundary === 'public approval'
@@ -275,10 +280,12 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
         driftProject.project,
         '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md',
       );
-      writeFileSync(
-        asset,
-        `<!-- installed-copy drift outside reviewer block -->\n${readFileSync(asset, 'utf8')}`,
-      );
+      if (copyState === 'missing copy') rmSync(asset);
+      else
+        writeFileSync(
+          asset,
+          `<!-- installed-copy drift outside reviewer block -->\n${readFileSync(asset, 'utf8')}`,
+        );
       const drifted =
         boundary === 'public approval'
           ? driftProject.run(['ticket', 'approve-plan', 'CPY123'])
@@ -292,7 +299,11 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
         refused,
         'installed lifecycle must refuse project author-copy drift after authenticated approval',
       ).toBe(true);
-      expect(`${drifted.stdout}\n${drifted.stderr}`).toContain('canonical_contract_copy_mismatch');
+      expect(`${drifted.stdout}\n${drifted.stderr}`).toContain(
+        copyState === 'missing copy'
+          ? 'missing_generated_contract_copy'
+          : 'canonical_contract_copy_mismatch',
+      );
       expect(`${drifted.stdout}\n${drifted.stderr}`).toContain(
         '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md',
       );
