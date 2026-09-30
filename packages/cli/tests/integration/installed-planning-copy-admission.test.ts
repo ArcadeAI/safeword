@@ -171,6 +171,56 @@ process.stdin.on('end', () => {
 }
 
 describe('Cursor installed planning copy admission', () => {
+  it.each(['canonical', 'comment drift'] as const)(
+    'checks %s authoring copy before an installed plan edit',
+    { timeout: 90_000 },
+    state => {
+      const installed = fixture();
+      const asset = nodePath.join(installed.project, '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md');
+      if (state === 'comment drift') {
+        writeFileSync(asset, `<!-- authoring-copy drift -->\n${readFileSync(asset, 'utf8')}`);
+      }
+      const planPath = nodePath.join(installed.project, '.project/tickets', folder, 'impl-plan.md');
+      const edited = spawnSync(
+        'bun',
+        [nodePath.join(installed.project, '.safeword/hooks/pre-tool-quality.ts')],
+        {
+          cwd: installed.project,
+          encoding: 'utf8',
+          timeout: 15_000,
+          env: installed.environment,
+          input: JSON.stringify({
+            tool_name: 'Edit',
+            tool_input: {
+              file_path: planPath,
+              old_string: 'Preserve accepted behavior through one implementation.',
+              new_string: 'Preserve accepted behavior through one reviewed implementation.',
+            },
+          }),
+        },
+      );
+      expect(edited.status, `${edited.stdout}\n${edited.stderr}`).toBe(0);
+      if (state === 'canonical') {
+        expect(edited.stdout.trim(), 'canonical authoring must remain available').toBe('');
+      } else {
+        expect(
+          edited.stdout.trim(),
+          'installed plan authoring must refuse a drifted contract copy before the edit',
+        ).not.toBe('');
+        const output = JSON.parse(edited.stdout) as {
+          hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
+        };
+        expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
+        expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
+          'canonical_contract_copy_mismatch',
+        );
+        expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
+          '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md',
+        );
+      }
+    },
+  );
+
   it.each([
     { state: 'canonical', permission: 'allow' },
     { state: 'comment drift', permission: 'deny' },
