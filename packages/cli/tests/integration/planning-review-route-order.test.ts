@@ -66,7 +66,7 @@ writeFileSync(${JSON.stringify(marker)}, 'yes');
 ${agent === 'codex' && codexFails ? 'process.exit(7);' : ''}
 function reviewOutput(packet) {
   writeFileSync(${JSON.stringify(packetPath)}, JSON.stringify(packet));
-  return { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: '${agent}', verdict: 'approve', summary: 'Review approved.', findings: [] };
+  return { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: '${agent}', verdict: 'approve', summary: 'Review approved.', findings: [], evidence_records: { schema_version: 1, records: [] } };
 }
 ${review}
 `;

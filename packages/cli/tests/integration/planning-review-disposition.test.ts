@@ -91,6 +91,7 @@ process.stdin.on('end', () => {
       ? 'The user decline for ' + packet.review_disposition_context.records[0].message + ' is ' + packet.review_disposition_context.records[0].boundary_status + ' in ticket context.'
       : 'The accepted boundary remains intact.',
     findings: [{ severity: 'warning', message: ${JSON.stringify(suggestion)} }],
+    evidence_records: { schema_version: 1, records: [] },
   } }));
 });
 `,

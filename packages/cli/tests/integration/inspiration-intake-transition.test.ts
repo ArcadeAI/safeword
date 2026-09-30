@@ -11,7 +11,13 @@ import {
   inspirationActivationLines,
   validProductInspirationLines,
 } from '../fixtures/inspiration.js';
-import { expectHookAllow, expectHookDeny, type HookResult, writeGateConfig } from '../helpers';
+import {
+  createCurrentPlanningCheckerStub,
+  expectHookAllow,
+  expectHookDeny,
+  type HookResult,
+  writeGateConfig,
+} from '../helpers';
 
 const HOOK_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
 const CODEX_HOOK_PATH = nodePath.resolve(
@@ -91,7 +97,12 @@ describe('activated intake inspiration transition wiring', () => {
     return writeThroughCodex(ticketFile, content, 'inspiration-codex-write');
   }
 
-  function writeThroughCodex(filePath: string, content: string, sessionId: string): HookResult {
+  function writeThroughCodex(
+    filePath: string,
+    content: string,
+    sessionId: string,
+    checkerCli?: string,
+  ): HookResult {
     const result = spawnSync('bun', [CODEX_HOOK_PATH], {
       cwd: projectRoot,
       input: JSON.stringify({
@@ -100,7 +111,11 @@ describe('activated intake inspiration transition wiring', () => {
         tool_input: { file_path: filePath, content },
       }),
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: projectRoot,
+        ...(checkerCli !== undefined && { SAFEWORD_PLUGIN_CLI: checkerCli }),
+      },
     });
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
@@ -205,10 +220,20 @@ describe('activated intake inspiration transition wiring', () => {
       '<!-- safeword:inspiration-contract:v1 -->\n',
       '',
     );
-    expectHookDeny(
-      writeThroughCodex(specFile, specWithoutSignal, 'inspiration-remove-last-signal'),
-      'last inspiration-contract activation signal',
-    );
+    const checker = createCurrentPlanningCheckerStub();
+    try {
+      expectHookDeny(
+        writeThroughCodex(
+          specFile,
+          specWithoutSignal,
+          'inspiration-remove-last-signal',
+          checker.cli,
+        ),
+        'last inspiration-contract activation signal',
+      );
+    } finally {
+      rmSync(checker.directory, { recursive: true, force: true });
+    }
     expectHookDeny(advanceThroughCodex(), 'all three');
   });
 
