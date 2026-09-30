@@ -72,7 +72,7 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-async function fixture() {
+async function fixture(prepare?: (project: string) => void) {
   const project = createTemporaryDirectory();
   projects.push(project);
   await createConfiguredProject(project);
@@ -96,6 +96,7 @@ async function fixture() {
     nodePath.join(project, target),
     '# Feature Contribution: Current review\n\n<!-- safeword:product-plan-contract:v1 -->\n\n## Parent References\n\n- **Parent:** PRT123\n- **Parent job:** trust.BU1\n- **Milestone:** M1\n\n## Contribution\n\nPreserve current approval.\n\n## Rules\n\n#### trust.BU1.CHD123.R1 — Preserve approval\n\nOnly current approval advances.\n\n## Surfaces\n\nAffected:\n- Safeword CLI\n',
   );
+  prepare?.(project);
   const reviewer = createTrustedReviewerDirectory('safeword-context-currency-');
   const capture = nodePath.join(reviewer, 'packet.json');
   writeFileSync(
@@ -146,6 +147,29 @@ describe('semantic planning context currency through public review status', () =
   it('retains an unchanged authenticated approval as a control', async () => {
     const review = await fixture();
     expect(await review.status()).toBe('approved');
+  });
+  it('keeps approval when an unrelated persona name overlaps the referenced persona', async () => {
+    const review = await fixture(project => {
+      const personas = nodePath.join(project, '.project/personas.md');
+      writeFileSync(
+        personas,
+        `${readFileSync(personas, 'utf8').replace('## Builder (BU)', '## Non-Technical Builder (BU)')}\n## Technical Builder (TB)\n\n**Role:** An unrelated technical contributor.\n**Context:** Does not request this approval.\n`,
+      );
+      const specification = nodePath.join(project, parentSpec);
+      writeFileSync(
+        specification,
+        readFileSync(specification, 'utf8').replace(
+          'Builder receives approval or a named refusal.',
+          'Non-Technical Builder receives approval or a named refusal.',
+        ),
+      );
+    });
+    review.edit('.project/personas.md', text =>
+      text.replace('An unrelated technical contributor.', 'An unrelated technical reader.'),
+    );
+    expect(await review.status(), 'unrelated overlapping persona changed review currency').toBe(
+      'approved',
+    );
   });
   it.each([
     [
