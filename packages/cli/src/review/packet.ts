@@ -44,11 +44,17 @@ import { type PlanningRoleContext, resolvePlanningRoleContext } from './planning
 import { planningTicketOwner } from './planning-ticket-owner.js';
 export { ReviewPacketError } from './packet-error.js';
 export { PlanningContextError } from './planning-context-error.js';
-import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
+import {
+  EXECUTION_PLAN_REVIEW_RUBRIC,
+  EXECUTION_PLAN_REVIEW_RUBRIC_SHA256,
+} from './execution-plan-rubric.generated.js';
 import { extractExecutionPlanReviewRubric } from './execution-plan-rubric.js';
-import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
+import { PLAN_REVIEW_RUBRIC, PLAN_REVIEW_RUBRIC_SHA256 } from './plan-rubric.generated.js';
 import { extractPlanReviewRubric } from './plan-rubric.js';
-import { PRODUCT_PLAN_REVIEW_RUBRIC } from './product-plan-rubric.generated.js';
+import {
+  PRODUCT_PLAN_REVIEW_RUBRIC,
+  PRODUCT_PLAN_REVIEW_RUBRIC_SHA256,
+} from './product-plan-rubric.generated.js';
 import { extractProductPlanReviewRubric } from './product-plan-rubric.js';
 
 const MAX_FILE_COUNT = 64;
@@ -298,6 +304,7 @@ export class PlanningContractCopyError extends ReviewPacketError {
     readonly code: 'canonical_contract_copy_mismatch' | 'missing_generated_contract_copy',
     readonly phase: PlanningPhase,
     readonly contractPath: string,
+    readonly copy: 'authoring' | 'reviewer' = 'authoring',
   ) {
     const generator = {
       'product-plan': 'generate:planning-contracts',
@@ -305,7 +312,7 @@ export class PlanningContractCopyError extends ReviewPacketError {
       'plan-execution': 'generate:execution-plan-rubric',
     }[phase];
     super(
-      `The ${phase} authoring contract copy at ${contractPath} ${code === 'missing_generated_contract_copy' ? 'is unavailable' : 'differs from the canonical contract-byte identity'}. Restore the packaged decision-quality contract by reinstalling or reconciling the intact Safeword distribution and retry. For source builds, restore the canonical authoring contract, run \`bun run ${generator}\` and \`bun run fix:generated-surfaces\`, then rebuild and reinstall.`,
+      `The ${phase} ${copy === 'reviewer' ? 'generated reviewer' : 'authoring'} contract copy at ${contractPath} ${code === 'missing_generated_contract_copy' ? 'is unavailable' : 'differs from the canonical contract-byte identity'}. Restore the packaged decision-quality contract by reinstalling or reconciling the intact Safeword distribution and retry. For source builds, restore the canonical contract, run \`bun run ${generator}\` and \`bun run fix:generated-surfaces\`, then rebuild and reinstall.`,
     );
   }
 }
@@ -356,6 +363,34 @@ export function assertActivePlanningAuthorCopy(cwd: string, phase: PlanningPhase
     relativePath: cursorPlanningContractPath(template),
     sha256: identity.sha256,
   });
+}
+
+export function assertActivePlanningReviewerCopy(phase: PlanningPhase): void {
+  const reviewer = {
+    'product-plan': {
+      bytes: PRODUCT_PLAN_REVIEW_RUBRIC,
+      sha256: PRODUCT_PLAN_REVIEW_RUBRIC_SHA256,
+      path: 'src/review/product-plan-rubric.generated.ts',
+    },
+    'plan-implementation': {
+      bytes: PLAN_REVIEW_RUBRIC,
+      sha256: PLAN_REVIEW_RUBRIC_SHA256,
+      path: 'src/review/plan-rubric.generated.ts',
+    },
+    'plan-execution': {
+      bytes: EXECUTION_PLAN_REVIEW_RUBRIC,
+      sha256: EXECUTION_PLAN_REVIEW_RUBRIC_SHA256,
+      path: 'src/review/execution-plan-rubric.generated.ts',
+    },
+  }[phase];
+  if (digest(reviewer.bytes) !== reviewer.sha256) {
+    throw new PlanningContractCopyError(
+      'canonical_contract_copy_mismatch',
+      phase,
+      reviewer.path,
+      'reviewer',
+    );
+  }
 }
 
 interface CapturedFile {

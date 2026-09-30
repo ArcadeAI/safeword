@@ -158,7 +158,7 @@ describe('implementation planning transition gates (wired)', () => {
         },
       }),
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot, SAFEWORD_PLUGIN_CLI: PACKAGED_CLI },
     });
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
@@ -176,7 +176,7 @@ describe('implementation planning transition gates (wired)', () => {
         },
       }),
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot, SAFEWORD_PLUGIN_CLI: PACKAGED_CLI },
     });
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
@@ -323,8 +323,15 @@ describe('implementation planning transition gates (wired)', () => {
     writeFileSync(
       nodePath.join(pluginRoot, 'runtime', 'cli.js'),
       [
+        "import { spawnSync } from 'node:child_process';",
         "import { readFileSync } from 'node:fs';",
         "import nodePath from 'node:path';",
+        `if (process.argv.includes('planning-contract-check')) {
+  const checked = spawnSync('bun', [${JSON.stringify(PACKAGED_CLI)}, ...process.argv.slice(2)], { encoding: 'utf8', env: process.env });
+  process.stdout.write(checked.stdout ?? '');
+  process.stderr.write(checked.stderr ?? '');
+  process.exit(checked.status ?? 1);
+}`,
         "process.stdout.write(readFileSync(nodePath.join(import.meta.dirname, '..', 'response.json'), 'utf8'));",
       ].join('\n'),
     );
@@ -338,6 +345,10 @@ describe('implementation planning transition gates (wired)', () => {
       readFileSync(
         nodePath.resolve(__dirname, '../../templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
       ),
+    );
+    writeFileSync(
+      nodePath.join(planningContracts, 'DISCOVERY.md'),
+      readFileSync(nodePath.resolve(__dirname, '../../templates/skills/bdd/DISCOVERY.md')),
     );
     ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
   });

@@ -53097,6 +53097,7 @@ __export(exports_packet, {
   prepareReviewPacket: () => prepareReviewPacket,
   planningPacketError: () => planningPacketError,
   packagedPlanContract: () => packagedPlanContract,
+  assertActivePlanningReviewerCopy: () => assertActivePlanningReviewerCopy,
   assertActivePlanningAuthorCopy: () => assertActivePlanningAuthorCopy,
   assemblePlanContract: () => assemblePlanContract,
   ReviewPacketError: () => ReviewPacketError,
@@ -53300,6 +53301,28 @@ function assertActivePlanningAuthorCopy(cwd, phase) {
     relativePath: cursorPlanningContractPath(template),
     sha256: identity2.sha256
   });
+}
+function assertActivePlanningReviewerCopy(phase) {
+  const reviewer = {
+    "product-plan": {
+      bytes: PRODUCT_PLAN_REVIEW_RUBRIC,
+      sha256: PRODUCT_PLAN_REVIEW_RUBRIC_SHA256,
+      path: "src/review/product-plan-rubric.generated.ts"
+    },
+    "plan-implementation": {
+      bytes: PLAN_REVIEW_RUBRIC,
+      sha256: PLAN_REVIEW_RUBRIC_SHA256,
+      path: "src/review/plan-rubric.generated.ts"
+    },
+    "plan-execution": {
+      bytes: EXECUTION_PLAN_REVIEW_RUBRIC,
+      sha256: EXECUTION_PLAN_REVIEW_RUBRIC_SHA256,
+      path: "src/review/execution-plan-rubric.generated.ts"
+    }
+  }[phase];
+  if (digest3(reviewer.bytes) !== reviewer.sha256) {
+    throw new PlanningContractCopyError("canonical_contract_copy_mismatch", phase, reviewer.path, "reviewer");
+  }
 }
 function requireScenarioTicketSpec(kind, contextFiles) {
   if (kind !== "scenario-gate")
@@ -53753,16 +53776,18 @@ var init_packet = __esm(() => {
     code;
     phase;
     contractPath;
-    constructor(code, phase, contractPath) {
+    copy;
+    constructor(code, phase, contractPath, copy = "authoring") {
       const generator = {
         "product-plan": "generate:planning-contracts",
         "plan-implementation": "generate:plan-rubric",
         "plan-execution": "generate:execution-plan-rubric"
       }[phase];
-      super(`The ${phase} authoring contract copy at ${contractPath} ${code === "missing_generated_contract_copy" ? "is unavailable" : "differs from the canonical contract-byte identity"}. Restore the packaged decision-quality contract by reinstalling or reconciling the intact Safeword distribution and retry. For source builds, restore the canonical authoring contract, run \`bun run ${generator}\` and \`bun run fix:generated-surfaces\`, then rebuild and reinstall.`);
+      super(`The ${phase} ${copy === "reviewer" ? "generated reviewer" : "authoring"} contract copy at ${contractPath} ${code === "missing_generated_contract_copy" ? "is unavailable" : "differs from the canonical contract-byte identity"}. Restore the packaged decision-quality contract by reinstalling or reconciling the intact Safeword distribution and retry. For source builds, restore the canonical contract, run \`bun run ${generator}\` and \`bun run fix:generated-surfaces\`, then rebuild and reinstall.`);
       this.code = code;
       this.phase = phase;
       this.contractPath = contractPath;
+      this.copy = copy;
     }
   };
 });
@@ -80636,6 +80661,7 @@ function currentApprovalResult(context, achievedIndependence) {
 }
 async function approve(context, noInput) {
   assertActivePlanningAuthorCopy(context.cwd, "plan-implementation");
+  assertActivePlanningReviewerCopy("plan-implementation");
   const executionDiscovery = currentExecutionDiscovery(context);
   if (executionDiscovery !== undefined) {
     return applyExecutionDiscovery(context, executionDiscovery);
@@ -80957,6 +80983,7 @@ function checkPlanningContractCopy(cwd, ticket, phase) {
   }
   try {
     assertActivePlanningAuthorCopy(cwd, phase);
+    assertActivePlanningReviewerCopy(phase);
     return createResult({
       state: "healthy",
       data: { command: "ticket planning-contract-check", status: "current", planning_phase: phase }

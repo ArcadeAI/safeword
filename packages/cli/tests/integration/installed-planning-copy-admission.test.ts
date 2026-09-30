@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -200,6 +201,24 @@ function alterAuthorCopy(asset: string, state: 'canonical' | 'comment drift' | '
   else if (state === 'missing copy') rmSync(asset);
 }
 
+function alterReviewerCopy(distribution: string) {
+  const files = readdirSync(nodePath.join(distribution, 'dist')).filter(file =>
+    file.endsWith('.js'),
+  );
+  const runtime = files
+    .map(file => nodePath.join(distribution, 'dist', file))
+    .find(file => readFileSync(file, 'utf8').includes('var PLAN_REVIEW_RUBRIC = '));
+  if (runtime === undefined) throw new Error('Copied distribution lacks its reviewer rubric');
+  const source = readFileSync(runtime, 'utf8');
+  const start = source.indexOf('var PLAN_REVIEW_RUBRIC = ');
+  const end = source.indexOf('PLAN_REVIEW_RUBRIC_SHA256', start);
+  const clause = 'Accepted scope and exclusions belong to the user.';
+  const clauseIndex = source.indexOf(clause, start);
+  expect(clauseIndex).toBeGreaterThan(start);
+  expect(clauseIndex).toBeLessThan(end);
+  writeFileSync(runtime, source.slice(0, clauseIndex) + source.slice(clauseIndex + clause.length));
+}
+
 describe('Cursor installed planning copy admission', () => {
   it.each(
     authoringPhases.flatMap(phase =>
@@ -274,6 +293,7 @@ describe('Cursor installed planning copy admission', () => {
   it.each([
     { state: 'canonical', permission: 'allow' },
     { state: 'comment drift', permission: 'deny' },
+    { state: 'reviewer rubric drift', permission: 'deny' },
     { state: 'project-writable cached runtime', permission: 'deny' },
   ] as const)(
     'checks $state at the installed Cursor adapter without plugin variables',
@@ -310,7 +330,7 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
       const asset = nodePath.join(installed.project, '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md');
       if (state === 'comment drift') {
         writeFileSync(asset, `<!-- cached-runtime copy drift -->\n${readFileSync(asset, 'utf8')}`);
-      }
+      } else if (state === 'reviewer rubric drift') alterReviewerCopy(installed.distribution);
       const environment: NodeJS.ProcessEnv = { ...installed.environment, CODEX_HOME: cacheHome };
       delete environment.SAFEWORD_PLUGIN_CLI;
       delete environment.CLAUDE_PLUGIN_ROOT;
@@ -344,8 +364,25 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
       if (state === 'comment drift') {
         expect(checked.stdout).toContain('canonical_contract_copy_mismatch');
         expect(checked.stdout).toContain('.safeword/skills/bdd/PLAN_IMPLEMENTATION.md');
+      } else if (state === 'reviewer rubric drift') {
+        expect(checked.stdout).toContain('canonical_contract_copy_mismatch');
+        expect(checked.stdout).toContain('src/review/plan-rubric.generated.ts');
       }
       expect(existsSync(marker), 'project-writable authority must never execute').toBe(false);
+    },
+  );
+
+  it(
+    'refuses public plan approval when the generated reviewer rubric drifts',
+    { timeout: 90_000 },
+    () => {
+      const installed = fixture();
+      alterReviewerCopy(installed.distribution);
+      const approval = installed.run(['ticket', 'approve-plan', 'CPY123']);
+      expect(approval.status).not.toBe(0);
+      expect(approval.stdout).toContain('canonical_contract_copy_mismatch');
+      expect(approval.stdout).toContain('src/review/plan-rubric.generated.ts');
+      expect(readFileSync(installed.ticketPath, 'utf8')).toContain('phase: plan-implementation');
     },
   );
 

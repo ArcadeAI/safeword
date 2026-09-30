@@ -15,7 +15,11 @@ import { evaluateExecutionPlanningEntry } from '../../templates/hooks/lib/plan-g
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { appendDesignDecision, currentDesignDecision } from '../review/approval-ledger.js';
 import { reviewJobStatus } from '../review/job.js';
-import { assertActivePlanningAuthorCopy, PlanningContractCopyError } from '../review/packet.js';
+import {
+  assertActivePlanningAuthorCopy,
+  assertActivePlanningReviewerCopy,
+  PlanningContractCopyError,
+} from '../review/packet.js';
 import { phaseReviewAdmission } from '../review/phase-admission.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
@@ -494,6 +498,7 @@ function currentApprovalResult(
 
 async function approve(context: ApprovalContext, noInput: boolean): Promise<CliResult> {
   assertActivePlanningAuthorCopy(context.cwd, 'plan-implementation');
+  assertActivePlanningReviewerCopy('plan-implementation');
   const executionDiscovery = currentExecutionDiscovery(context);
   if (executionDiscovery !== undefined) {
     return applyExecutionDiscovery(context, executionDiscovery);
