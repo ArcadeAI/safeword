@@ -19,7 +19,10 @@ describe('retrospective ledger annotation', () => {
   it('does not mistake ordinary GREEN or prose for VERIFIED', () => {
     expect(parseRetrospectiveAnnotation('- [x] GREEN abc1234')).toBeUndefined();
     expect(parseRetrospectiveAnnotation('The scenario was VERIFIED in prose.')).toBeUndefined();
-    expect(parseRetrospectiveAnnotation('  - [x] VERIFIED by hand')).toBeUndefined();
+    expect(parseRetrospectiveAnnotation('  - [x] VERIFIED by hand')).toEqual({
+      kind: 'invalid',
+      reason: 'VERIFIED needs distinct eligibility and proof receipt IDs.',
+    });
     expect(parseRetrospectiveAnnotation('- [x] Verified by hand')).toBeUndefined();
   });
 

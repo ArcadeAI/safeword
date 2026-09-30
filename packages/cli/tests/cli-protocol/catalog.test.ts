@@ -136,6 +136,7 @@ describe('CLI command catalog', () => {
       'review run',
       'review status',
       'review gate executable-red',
+      'review gate retrospective',
       'review cancel',
       'review routes set',
       'review routes list',
