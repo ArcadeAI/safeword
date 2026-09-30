@@ -6,6 +6,10 @@
       "sha256": "ad9e9f9b372f196486a0341e2f3630a3f1027a285c43143c1847b5f89702b45d"
     },
     {
+      "path": ".mcp.json",
+      "sha256": "46811dfea29e6adfae9ceb02ee5f82c420ac440d916fcc04bb7ad0fee5380d7f"
+    },
+    {
       "path": "agents/safeword-retro-filer.md",
       "sha256": "27aaba757efed1bd1f169e5477cab588ca911c9f9052038db845f025b48d63a4"
     },
@@ -139,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "42d74cbe1439af181cc5e0ece6a4d7e9bf8de4705f6dae280078f247c985b15a"
+      "sha256": "fd3c9133f81610571783a538b714fe42761225a5d78dd8654bcf1ff2de9e891a"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "8bdc0f835c0d0d5823348592e4e77805dec921a4b18fc6b25525a7bbd3cc7195"
+      "sha256": "9fa3a2f6dbd307cffc23469c73bb52491050fe1963d40c79835446f26505e67e"
     },
     {
       "path": "runtime/event-groups.json",
@@ -610,6 +614,10 @@
       "sha256": "a0d6e63d0bbb8cbc8e223f07ce74db1340257a4af9eb94a554eb9d5cbc4a8f52"
     },
     {
+      "path": "runtime/review-mcp.js",
+      "sha256": "262b8b07ccc7a2b4ded6137251b3fb7f68665179524ae71c82cc5938a8453e46"
+    },
+    {
       "path": "skills/audit/SKILL.md",
       "sha256": "8715d6aeed2e6e2dcaf840ab9c76c52a8dd38f498d220502e9178af7096ca686"
     },
@@ -623,7 +631,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "2ef9cca7fa3f312d4bf15a4c33e66a32247730529193f6720a7f29ba40f0a709"
+      "sha256": "76933726dd5a99a9aecaecae9059d3bb678d33d27b185e809ba9273de69672ba"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -639,7 +647,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "1ab3c7cb20825261b2e59148a9f842775a0d1417b01cb1d89657f270eac58474"
+      "sha256": "23fc3cf41d22152cccbdf77db000ada4f2c6bc65d5bc9f4a67830cd21f5ee018"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -695,7 +703,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "19557310027a2dbc0ff859378ffa3848df9843768a74f3246c30f89c5b47a5a9"
+      "sha256": "69fe969e65867d975c0123f7a0226dd58f7363fb9b51bb943e48911ae260b597"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -711,7 +719,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "485c3c8db45a7d9c0172b0e813eb8722215f2a06864927d889ab987761d81776"
+      "sha256": "f1f702a33ec040d7165d2bbdbdd784d7edbf2ffe7e95756e681310c43d47661d"
     },
     {
       "path": "skills/self-review/SKILL.md",
