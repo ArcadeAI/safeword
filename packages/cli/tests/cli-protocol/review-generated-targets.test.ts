@@ -195,12 +195,21 @@ describe('generated review targets', () => {
       },
     );
 
+    const envelope = JSON.parse(result.stdout) as {
+      data?: { excluded_targets?: string[] };
+    };
+    expect(envelope.data?.excluded_targets).toEqual(['generated/output.js']);
     expect(result.exitCode, result.stdout).toBe(0);
-    const envelope = JSON.parse(result.stdout) as { data: { excluded_targets: string[] } };
-    expect(envelope.data.excluded_targets).toEqual(['generated/output.js']);
     const prompt = readFileSync(promptLog, 'utf8');
-    expect(prompt).toContain('review this authored change');
-    expect(prompt).not.toContain('generated/output.js');
+    const packetMarker = '\n{"schema_version":';
+    const packetStart = prompt.lastIndexOf(packetMarker);
+    expect(packetStart).toBeGreaterThanOrEqual(0);
+    const packet = JSON.parse(prompt.slice(packetStart + 1).trimEnd()) as {
+      logical_files: { path: string; content: string }[];
+    };
+    expect(packet.logical_files).toEqual([
+      { path: 'authored.md', content: 'review this authored change\n' },
+    ]);
   });
 
   it('does not apply a repository-root generated marker to a nested project target', async () => {
@@ -1030,8 +1039,10 @@ exec "${gitExecutable}" "$@"
     expect(result.exitCode).not.toBe(0);
     const envelope = JSON.parse(result.stdout) as {
       data: { excluded_targets?: string[]; status?: string };
+      errors: { code: string }[];
     };
-    expect(envelope.data.status).not.toBe('approved');
+    expect(envelope.errors[0]?.code).toBe('REVIEW_ROUTES_EXHAUSTED');
+    expect(result.stderr).toBe('');
     expect(envelope.data.excluded_targets).toEqual(['large.js']);
   });
 

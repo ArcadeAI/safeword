@@ -1740,10 +1740,21 @@ async function runReviewCore(input: ReviewRunInput): Promise<CliResult> {
 
 export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const { result, scope } = await withReviewScope(() => runReviewCore(input));
-  if (scope.excludedTargets === undefined) return result;
-  const data = result.data as Record<string, unknown> | undefined;
+  const exhausted = result.findings.find(finding => finding.code === 'REVIEW_ROUTES_EXHAUSTED');
+  const publicResult =
+    exhausted === undefined || result.errors.some(error => error.code === exhausted.code)
+      ? result
+      : {
+          ...result,
+          errors: [
+            ...result.errors,
+            { code: exhausted.code, message: exhausted.message, retryable: true },
+          ],
+        };
+  if (scope.excludedTargets === undefined) return publicResult;
+  const data = publicResult.data as Record<string, unknown> | undefined;
   return {
-    ...result,
+    ...publicResult,
     data: { ...data, excluded_targets: scope.excludedTargets },
   };
 }
