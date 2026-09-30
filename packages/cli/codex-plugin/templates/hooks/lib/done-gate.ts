@@ -36,11 +36,14 @@ function verifiedScenarioView(
   const ticketId = nodePath.basename(ticketDir).split('-', 1)[0] ?? '';
   const ledger = nodePath.relative(projectDir, nodePath.join(ticketDir, 'test-definitions.md'));
   const verified = new Set<string>();
+  const ordinary = new Set<string>();
   const lines = content.split('\n');
   let scenario: string | undefined;
   for (const line of lines) {
-    const heading = /^#{2,3}\s+Scenario:\s*(.+)$/u.exec(line);
-    if (/^#{1,3}\s+/u.test(line)) scenario = heading?.[1]?.trim();
+    const heading = /^#{2,6}\s+Scenario:\s*(.+)$/u.exec(line);
+    if (/^#{1,6}\s+/u.test(line)) scenario = heading?.[1]?.trim();
+    if (scenario !== undefined && /^\s*- \[[ xX]\] (?:RED|GREEN|REFACTOR)\b/u.test(line))
+      ordinary.add(scenario);
     const annotation = parseRetrospectiveAnnotation(line);
     if (annotation?.kind === 'invalid') return { content, error: annotation.reason };
     if (annotation?.kind !== 'claim') continue;
@@ -58,9 +61,10 @@ function verifiedScenarioView(
   }
   scenario = undefined;
   const visible = lines.filter(line => {
-    const heading = /^#{2,3}\s+Scenario:\s*(.+)$/u.exec(line);
-    if (/^#{1,3}\s+/u.test(line)) scenario = heading?.[1]?.trim();
-    if (/^\s*- \[ \] VERIFIED\b/u.test(line)) return false;
+    const heading = /^#{2,6}\s+Scenario:\s*(.+)$/u.exec(line);
+    if (/^#{1,6}\s+/u.test(line)) scenario = heading?.[1]?.trim();
+    if (scenario !== undefined && /^\s*- \[ \] VERIFIED\b/u.test(line) && ordinary.has(scenario))
+      return false;
     return !(
       scenario !== undefined &&
       verified.has(scenario) &&

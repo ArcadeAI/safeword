@@ -3,7 +3,7 @@ export type RetrospectiveAnnotation =
   | { readonly kind: 'invalid'; readonly reason: string }
   | { readonly kind: 'claim'; readonly eligibilityId: string; readonly proofId: string };
 
-const ROW = /^- \[([ xX])\] VERIFIED(?:\s|$)/u;
+const ROW = /^\s*- \[([ xX])\] VERIFIED(?:\s|$)/u;
 const UUID = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 
 function receiptIds(annotation: string): { eligibilityId: string; proofId: string } | undefined {

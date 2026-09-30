@@ -63,7 +63,9 @@ function matchingScenario(
   heading: string,
 ): { readonly heading: string; readonly bodySha256: string } | undefined {
   const matches = claim.scenarios.filter(item => item.heading === heading);
-  return matches.length === 1 ? matches[0] : undefined;
+  return matches.length === 1 && /^[a-f\d]{64}$/u.test(matches[0]?.bodySha256 ?? '')
+    ? matches[0]
+    : undefined;
 }
 
 function ticketNamesClaim(root: string, claimPath: string): boolean {

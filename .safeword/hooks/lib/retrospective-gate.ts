@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync, realpathSync } from 'node:fs';
+import { realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 export interface RetrospectiveGateClaim {
@@ -14,19 +14,7 @@ function trustedCommand(projectRoot: string): readonly [string, ...string[]] | u
   const explicit = process.env.SAFEWORD_PLUGIN_CLI?.trim();
   const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT?.trim();
   const candidate = explicit || (pluginRoot ? nodePath.join(pluginRoot, 'runtime', 'cli.js') : '');
-  if (candidate === '') {
-    try {
-      const version = readFileSync(
-        nodePath.join(projectRoot, '.safeword', 'version'),
-        'utf8',
-      ).trim();
-      return /^\d+\.\d+\.\d+$/u.test(version)
-        ? ['bunx', '--bun', `safeword@${version}`]
-        : undefined;
-    } catch {
-      return undefined;
-    }
-  }
+  if (candidate === '') return undefined;
   try {
     const cli = realpathSync.native(candidate);
     const project = realpathSync.native(projectRoot);

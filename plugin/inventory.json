@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f867c68c2b7c0ed37f43d61ceb5945a81e957c8d6b8b19f43fa70aa938205ae5"
+      "sha256": "457f1f371dec5043c60ba9bfbd6565479bef0aff19a4af74cf5c37920df8e14b"
     },
     {
       "path": "runtime/dispatch.js",
@@ -223,7 +223,7 @@
     },
     {
       "path": "runtime/hooks/lib/done-gate.ts",
-      "sha256": "8a3948e138b30cbfb5943dfd0c3248d36da7c23b3a82feadec3e2e7761391ca5"
+      "sha256": "aecebd948165b43a9feb3fd8a22c6dcc3c96778cc13cd278df5e7ae48b3a65cd"
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
@@ -383,11 +383,11 @@
     },
     {
       "path": "runtime/hooks/lib/retrospective-annotation.ts",
-      "sha256": "5843a8732d4ca51ddcc7f28c432f99e96b56879746528263b67fcd135ae9cfce"
+      "sha256": "ca9955e1b3a1f2485f52f7451cec84af4ff6804e68ff797205bddcc798bba73b"
     },
     {
       "path": "runtime/hooks/lib/retrospective-gate.ts",
-      "sha256": "e6530c0a79ffa39c54cfc3fca999901d942f2096a8ae2ca21ca30e3f769eea7d"
+      "sha256": "8630675c9408021b7154e36f79cbfb21a201464cad97df4c23554bc9c70b07f9"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
@@ -1167,7 +1167,7 @@
     },
     {
       "path": "templates/hooks/lib/done-gate.ts",
-      "sha256": "8a3948e138b30cbfb5943dfd0c3248d36da7c23b3a82feadec3e2e7761391ca5"
+      "sha256": "aecebd948165b43a9feb3fd8a22c6dcc3c96778cc13cd278df5e7ae48b3a65cd"
     },
     {
       "path": "templates/hooks/lib/drain-retro-spool.ts",
@@ -1323,11 +1323,11 @@
     },
     {
       "path": "templates/hooks/lib/retrospective-annotation.ts",
-      "sha256": "5843a8732d4ca51ddcc7f28c432f99e96b56879746528263b67fcd135ae9cfce"
+      "sha256": "ca9955e1b3a1f2485f52f7451cec84af4ff6804e68ff797205bddcc798bba73b"
     },
     {
       "path": "templates/hooks/lib/retrospective-gate.ts",
-      "sha256": "e6530c0a79ffa39c54cfc3fca999901d942f2096a8ae2ca21ca30e3f769eea7d"
+      "sha256": "8630675c9408021b7154e36f79cbfb21a201464cad97df4c23554bc9c70b07f9"
     },
     {
       "path": "templates/hooks/lib/review-ledger.ts",

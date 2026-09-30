@@ -141,6 +141,34 @@ describe('evaluateDoneEvidence', () => {
     expect(verdict.reason).toContain('scenarios');
   });
 
+  it('does not hide an unchecked fourth-level scenario after a VERIFIED row', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      '### Scenario: historical\n- [x] VERIFIED eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222\n#### Scenario: pending\n- [ ] RED\n',
+    );
+    const verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: ticketDirectory,
+      ticketType: 'feature',
+    });
+    expect(verdict.ok).toBe(false);
+  });
+
+  it('counts an unchecked VERIFIED-only scenario as unfinished', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      '### Scenario: done\n- [x] GREEN abc1234\n### Scenario: pending\n- [ ] VERIFIED\n',
+    );
+    const verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: ticketDirectory,
+      ticketType: 'feature',
+    });
+    expect(verdict.ok).toBe(false);
+  });
+
   it('does not count a checked VERIFIED row with invented review IDs as completion', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
     writeFileSync(

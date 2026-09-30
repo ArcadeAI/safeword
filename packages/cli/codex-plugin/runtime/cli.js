@@ -35731,7 +35731,7 @@ function claimMatchesMigration(claim) {
 }
 function matchingScenario(claim, heading) {
   const matches = claim.scenarios.filter((item) => item.heading === heading);
-  return matches.length === 1 ? matches[0] : undefined;
+  return matches.length === 1 && /^[a-f\d]{64}$/u.test(matches[0]?.bodySha256 ?? "") ? matches[0] : undefined;
 }
 function ticketNamesClaim(root, claimPath) {
   const ticketPath = nodePath49.join(root, nodePath49.dirname(RETROSPECTIVE_LEDGER), "ticket.md");
@@ -67534,7 +67534,7 @@ function parseRetrospectiveAnnotation(line) {
 }
 var ROW, UUID3;
 var init_retrospective_annotation = __esm(() => {
-  ROW = /^- \[([ xX])\] VERIFIED(?:\s|$)/u;
+  ROW = /^\s*- \[([ xX])\] VERIFIED(?:\s|$)/u;
   UUID3 = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 });
 
