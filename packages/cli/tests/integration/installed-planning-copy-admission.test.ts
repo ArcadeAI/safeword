@@ -246,9 +246,14 @@ describe('Cursor installed planning copy admission', () => {
           'installed plan authoring must refuse a drifted contract copy before the edit',
         ).not.toBe('');
         const output = JSON.parse(edited.stdout) as {
+          systemMessage?: string;
           hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
         };
         expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
+        expect(
+          output.systemMessage,
+          'a blocked author should see the contract mismatch without another command',
+        ).toContain('canonical_contract_copy_mismatch');
         expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
           'canonical_contract_copy_mismatch',
         );
