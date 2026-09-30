@@ -170,17 +170,55 @@ process.stdin.on('end', () => {
   return { project, ticketPath, run, advance, root, distribution, environment };
 }
 
+const authoringPhases = [
+  {
+    phase: 'product-plan',
+    artifact: 'spec.md',
+    contract: 'DISCOVERY.md',
+    oldString: 'Product Plan',
+    ticketPhase: 'intake',
+  },
+  {
+    phase: 'plan-implementation',
+    artifact: 'impl-plan.md',
+    contract: 'PLAN_IMPLEMENTATION.md',
+    oldString: 'Preserve accepted behavior through one implementation.',
+    ticketPhase: 'plan-implementation',
+  },
+  {
+    phase: 'plan-execution',
+    artifact: 'execution-plan.md',
+    contract: 'PLAN_EXECUTION.md',
+    oldString: 'One step.',
+    ticketPhase: 'plan-execution',
+  },
+] as const;
+
 describe('Cursor installed planning copy admission', () => {
-  it.each(['canonical', 'comment drift'] as const)(
-    'checks %s authoring copy before an installed plan edit',
+  it.each(
+    authoringPhases.flatMap(phase =>
+      (['canonical', 'comment drift'] as const).map(state => ({ ...phase, state })),
+    ),
+  )(
+    'checks $phase authoring copy with $state before an installed $artifact edit',
     { timeout: 90_000 },
-    state => {
+    ({ phase, artifact, contract, oldString, ticketPhase, state }) => {
       const installed = fixture();
-      const asset = nodePath.join(installed.project, '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md');
+      if (ticketPhase !== 'plan-implementation') {
+        writeFileSync(
+          installed.ticketPath,
+          readFileSync(installed.ticketPath, 'utf8')
+            .split('phase: plan-implementation')
+            .join(`phase: ${ticketPhase}`),
+        );
+      }
+      const asset = nodePath.join(installed.project, '.safeword/skills/bdd', contract);
       if (state === 'comment drift') {
         writeFileSync(asset, `<!-- authoring-copy drift -->\n${readFileSync(asset, 'utf8')}`);
       }
-      const planPath = nodePath.join(installed.project, '.project/tickets', folder, 'impl-plan.md');
+      const planPath = nodePath.join(installed.project, '.project/tickets', folder, artifact);
+      if (artifact === 'execution-plan.md')
+        writeFileSync(planPath, '# Execution Plan\n\nOne step.\n');
       const edited = spawnSync(
         'bun',
         [nodePath.join(installed.project, '.safeword/hooks/pre-tool-quality.ts')],
@@ -193,8 +231,8 @@ describe('Cursor installed planning copy admission', () => {
             tool_name: 'Edit',
             tool_input: {
               file_path: planPath,
-              old_string: 'Preserve accepted behavior through one implementation.',
-              new_string: 'Preserve accepted behavior through one reviewed implementation.',
+              old_string: oldString,
+              new_string: `${oldString} reviewed`,
             },
           }),
         },
@@ -214,8 +252,9 @@ describe('Cursor installed planning copy admission', () => {
         expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
           'canonical_contract_copy_mismatch',
         );
+        expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(phase);
         expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
-          '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md',
+          `.safeword/skills/bdd/${contract}`,
         );
       }
     },
