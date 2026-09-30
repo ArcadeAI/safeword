@@ -440,7 +440,11 @@ function runPreTool(
 ): HookVerdict {
   const stdout = execFileSync('bun', [PRE_TOOL_HOOK], {
     cwd: PROJECT_ROOT,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: world.projectDirectory },
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: world.projectDirectory,
+      SAFEWORD_PLUGIN_CLI: nodePath.join(CODEX_PLUGIN_ROOT, 'runtime', 'cli.js'),
+    },
     input: JSON.stringify({ session_id: sessionId, tool_name: toolName, tool_input: toolInput }),
     encoding: 'utf8',
   });
@@ -601,7 +605,11 @@ function assertInstalledPlanGateIsLive(world: PlanWorld): void {
     [world.installedCliPath, 'hook', 'codex', 'pre-tool-use', '--plugin-hook'],
     {
       cwd: world.projectDirectory,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: world.projectDirectory },
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: world.projectDirectory,
+        SAFEWORD_PLUGIN_CLI: world.installedCliPath,
+      },
       input: JSON.stringify({
         hook_event_name: 'PreToolUse',
         session_id: SESSION_ID,
