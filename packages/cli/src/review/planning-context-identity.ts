@@ -667,7 +667,7 @@ export function createPlanningReviewIdentity(
     targets: packet.logical_files.map(file => ({
       path: file.path,
       digest:
-        reviewKind === 'plan-execution'
+        reviewKind === 'plan-execution' && file.path === packet.logical_files[0]?.path
           ? (packet.execution_plan_normalized_digest ?? sha256(file.content))
           : sha256(file.content),
     })),

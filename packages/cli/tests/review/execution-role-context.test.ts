@@ -153,6 +153,32 @@ describe('Execution planning role context', () => {
     );
     expect(identity(root)).not.toEqual(before);
   });
+  it('binds an additional Execution review target to its own exact bytes', () => {
+    const prepared = prepareReviewPacket(
+      project(),
+      'plan-execution',
+      [target],
+      [upstream, feature],
+    );
+    try {
+      const auxiliary = { path: 'docs/review-note.md', content: 'Current authorization note.\n' };
+      const packet = {
+        ...prepared.packet,
+        logical_files: [...prepared.packet.logical_files, auxiliary],
+      };
+      const before = createPlanningReviewIdentity(packet);
+      const after = createPlanningReviewIdentity({
+        ...packet,
+        logical_files: [
+          ...prepared.packet.logical_files,
+          { ...auxiliary, content: 'Changed authorization note.\n' },
+        ],
+      });
+      expect(after).not.toEqual(before);
+    } finally {
+      prepared.cleanup();
+    }
+  });
   it('stales after a decision in the accepted Implementation Plan changes', () => {
     const root = project();
     const before = identity(root);

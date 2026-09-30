@@ -52325,7 +52325,7 @@ function createPlanningReviewIdentity(packet) {
     absences: context.absences.map((absence) => snapshotOnlyUpstream && absence.authority === upstreamPath ? { ...absence, reason: "Declared in the accepted Implementation Plan." } : absence),
     targets: packet.logical_files.map((file) => ({
       path: file.path,
-      digest: reviewKind === "plan-execution" ? packet.execution_plan_normalized_digest ?? sha2565(file.content) : sha2565(file.content)
+      digest: reviewKind === "plan-execution" && file.path === packet.logical_files[0]?.path ? packet.execution_plan_normalized_digest ?? sha2565(file.content) : sha2565(file.content)
     })),
     canonical_contract_digest: contractDigest
   };
