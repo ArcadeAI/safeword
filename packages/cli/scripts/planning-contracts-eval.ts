@@ -211,7 +211,8 @@ function main(): void {
     : planningContractCases;
   if (cases.length === 0) throw new Error(`Unknown planning eval case: ${selectedId}`);
   const reportPath = selectedId
-    ? nodePath.join(nodePath.dirname(outputPath), `planning-contracts-eval-${selectedId}.json`)
+    ? (process.env.SAFEWORD_PLANNING_EVAL_OUTPUT ??
+      nodePath.join(nodePath.dirname(outputPath), `planning-contracts-eval-${selectedId}.json`))
     : outputPath;
   const results: Record<string, unknown>[] = [];
   for (const evaluationCase of cases) {
