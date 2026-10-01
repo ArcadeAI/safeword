@@ -841,7 +841,7 @@ admission. Keep the full scenario unchecked until its remaining boundaries pass.
 
 ### Scenario: Plan completeness is bidirectional
 
-- [ ] RED
+- [x] RED ddaebbdb0cc9de196ac06ab6671c6493101b6d85
 - [ ] GREEN
 - [ ] REFACTOR
 
