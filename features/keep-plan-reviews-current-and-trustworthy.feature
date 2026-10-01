@@ -462,7 +462,7 @@ Feature: Keep plan reviews current and trustworthy
         | Execution Plan | passed verification and merge authority |
 
     Scenario: A planning approval may claim its own bounded state
-      Given an Implementation Plan has passed its own review
+      Given a coherent Implementation Plan has passed its own design review
       When a judged semantic reviewer evaluation checks a receipt claiming only the accepted coherent implementation design
       Then the receipt is accepted as a bounded Implementation Plan approval
 

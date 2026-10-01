@@ -96,6 +96,21 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     forbidden_scope_expansion: 'Do not invent new delivery or merge policy.',
   },
   {
+    id: 'r10-bounded-implementation-approval',
+    rule: 'R10',
+    kind: 'plan-implementation',
+    planning_phase: 'plan-implementation',
+    accepted_boundary: accepted,
+    context:
+      'The Implementation Plan passed its own design review; implementation and release remain unverified.',
+    reviewed_plan: `${completeImplementationPlan} Approval receipt: this review accepts the coherent implementation design only. It does not certify implementation, verification, release, or merge.`,
+    expected_verdict: 'approve',
+    allowed_finding_authority:
+      'The approval claims only the accepted design state and no downstream state.',
+    forbidden_scope_expansion:
+      'Do not demand implementation or release proof from this planning review.',
+  },
+  {
     id: 'r11-optional-architecture',
     rule: 'R11',
     kind: 'plan-implementation',

@@ -50,3 +50,28 @@ Then(
     assertPlanningEval(this, 'request_changes', finding);
   },
 );
+
+Given(
+  'a coherent Implementation Plan has passed its own design review',
+  function (this: SafewordWorld) {
+    const evaluationCase = selectPlanningEval(this, 'r10-bounded-implementation-approval');
+    assert.match(evaluationCase.context, /passed its own design review/iu);
+  },
+);
+
+When(
+  'a judged semantic reviewer evaluation checks a receipt claiming only the accepted coherent implementation design',
+  { timeout: 240_000 },
+  function (this: SafewordWorld) {
+    const evaluationCase = selectedPlanningEval(this);
+    assert.match(evaluationCase.reviewed_plan, /accepts the coherent implementation design only/iu);
+    runPlanningEval(this);
+  },
+);
+
+Then(
+  'the receipt is accepted as a bounded Implementation Plan approval',
+  function (this: SafewordWorld) {
+    assertPlanningEval(this, 'approve');
+  },
+);
