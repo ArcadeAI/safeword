@@ -29,8 +29,20 @@ describe('executable feature-source TDD documentation (ZA0JQR)', () => {
 
       expect(tdd).toContain('preliminary RED');
       expect(tdd).toContain(
+        'Verify preliminary RED on the reported step status, not the exit code alone',
+      );
+      expect(tdd).toContain(
         'Bind the scenario steps before requesting the independent executable RED review',
       );
     },
   );
+
+  it('makes undefined or pending steps an explicit executable-RED review refusal', () => {
+    const rubric = readFileSync(
+      nodePath.join(repoRoot, 'packages/cli/templates/skills/tdd-review/SKILL.md'),
+      'utf8',
+    );
+
+    expect(rubric).toContain('undefined or pending Cucumber steps');
+  });
 });

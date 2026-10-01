@@ -3612,7 +3612,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/review-spec/SKILL.md": "2841aece00db9df62bdd0b6a8be303172d40726d1883cef5515e114e62446a2e",
         ".claude/skills/self-review/SKILL.md": "7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
-        ".claude/skills/tdd-review/SKILL.md": "322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43",
+        ".claude/skills/tdd-review/SKILL.md": "7069137b66d521c45413da8e42e4aeba7c548b80b8e2897a97287dbd58b91ad5",
         ".claude/skills/testing/SKILL.md": "fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686",
         ".claude/skills/ticket-system/SKILL.md": "765e4118b54e7e4984da4268244b45b5dc6d57b221964563d49076ac49cc9b7a",
         ".claude/skills/verify/SKILL.md": "d64a482998e9a546bbb6b7b6dbb1373a9153a9e806419098892744c92d614d04"
@@ -32128,8 +32128,9 @@ support files. Approval requires all of the following:
 - the observed failure is the intended missing behavior at that boundary.
 
 Request changes when the failure is caused by syntax, imports, fixtures, configuration,
-infrastructure, an unrelated actor-boundary assertion, a passing command, timeout, or signal. Do
-not infer execution from cached suite status or the author's account. Explain the mismatch and name
+undefined or pending Cucumber steps, infrastructure, an unrelated actor-boundary assertion,
+a passing command, timeout, or signal. Do not infer execution from cached suite status or the
+author's account. Explain the mismatch and name
 the exact proof or environment correction to make before retrying.`;
 
 // src/review/scenario-rubric.generated.ts
