@@ -793,7 +793,7 @@ admission. Keep the full scenario unchecked until its remaining boundaries pass.
 
 ### Scenario: A planning approval may claim its own bounded state
 
-- [ ] RED
+- [x] RED f6469b7a6
 - [ ] GREEN
 - [ ] REFACTOR
 
