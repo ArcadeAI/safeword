@@ -39,6 +39,11 @@ describe('planning contracts eval contract', () => {
     );
     expect(planningContractCases.filter(item => item.rule === 'R7')).toHaveLength(3);
     expect(
+      planningContractCases
+        .filter(item => item.rule === 'R10' && item.expected_verdict === 'request_changes')
+        .map(item => item.planning_phase),
+    ).toEqual(['product-plan', 'plan-implementation', 'plan-execution']);
+    expect(
       planningContractCases.filter(item => item.rule === 'R13').map(item => item.expected_verdict),
     ).toEqual(['request_changes', 'request_changes', 'approve']);
     expect(planningContractCases.map(item => item.id)).toEqual([
