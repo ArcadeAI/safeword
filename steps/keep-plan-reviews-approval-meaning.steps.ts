@@ -17,9 +17,9 @@ const cases = {
 } as const;
 
 const namedClaims: Record<string, RegExp> = {
-  'r10-downstream-claim': /technical feasibility|approved design/iu,
-  'r10-implementation-downstream-claim': /completed implementation|release approval/iu,
-  'r10-execution-downstream-claim': /passed verification|merge authority/iu,
+  'r10-downstream-claim': /technical feasibility and approved design/iu,
+  'r10-implementation-downstream-claim': /completed implementation and release approval/iu,
+  'r10-execution-downstream-claim': /passed verification and merge authority/iu,
 };
 
 Given(

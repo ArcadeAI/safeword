@@ -4,6 +4,10 @@ const accepted =
   'Ticket scope: require explicit user authorization before account changes. Ticket exclusion: no automatic account migration. Project non-goal: no background account mutation. Parent milestone: safe manual approval.';
 const completeImplementationPlan =
   'Architecture: one manual account-change endpoint checks a consent token linked to the requesting user and target account before any write. Data: account records remain the source of truth; denied, expired, or mismatched tokens cause no mutation. Product personas use the same authorized flow. Measurement: record authorized, denied, and failed attempts without exposing tokens. Decision: use the existing consent-token API rather than a new event bus because it already enforces the accepted boundary; the choice is reversible at the endpoint. Proof: integration tests cover valid approval, denial, expiry, and no-write on failure at the real endpoint. Rollout: enable the check before accepting changes; rollback disables the new endpoint. Automatic migration and background mutation remain excluded.';
+const completeProductPlan =
+  'Product Plan: people may change an account only after explicit consent from its owner. Rule: deny absent, expired, or mismatched consent without changing the account; automatic migration and background mutation are excluded. Observable done state: an authorized change succeeds and a denied change leaves the account intact. Technical Builder and Non-Technical Builder each see the request, approval, refusal, failure, and recovery state; both can retry a denied request after obtaining fresh consent. Affected surface: the manual account-change flow and its approval receipt. Known fact: account changes require explicit authorization. Assumption: the existing consent-token API can support the approved experience. Unresolved product decision: exact approval copy remains with the product owner. This review accepts behavior for scenario definition only.';
+const completeExecutionPlan =
+  'Execution Plan: first bind consent-token scenarios to the real account-change boundary, then implement authorization before writes, then verify valid approval, denial, expiry, mismatched owner, and no-write failures. The API check depends on the accepted Implementation Plan; proof depends on the API check. PR slice one contains the authorization check and focused integration proof; PR slice two contains customer-facing approval copy and acceptance proof. The proof invokes the real endpoint with owned and unowned tokens and records the resulting account state. Pending human authority: product owner approves final copy and a maintainer decides merge after verification. Automatic migration and background mutation remain excluded. This review accepts startable delivery only.';
 
 export const planningContractCases: readonly PlanningContractCase[] = [
   {
@@ -59,12 +63,25 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     accepted_boundary: accepted,
     context:
       'The Product Plan passed its own behavior review; design and delivery remain unreviewed.',
-    reviewed_plan:
-      'Product Plan defines manual authorization behavior. Approval of this Product Plan also certifies technical feasibility and approved design.',
+    reviewed_plan: `${completeProductPlan} Approval of this Product Plan also certifies technical feasibility and approved design.`,
     expected_verdict: 'request_changes',
     allowed_finding_authority:
       'Product approval cannot claim downstream design, verification, or merge.',
     forbidden_scope_expansion: 'The reviewer must not propose a replacement design.',
+  },
+  {
+    id: 'r10-bounded-product-approval',
+    rule: 'R10',
+    kind: 'quality-review',
+    planning_phase: 'product-plan',
+    accepted_boundary: accepted,
+    context:
+      'The Product Plan passed its own behavior review; design and delivery remain unreviewed.',
+    reviewed_plan: completeProductPlan,
+    expected_verdict: 'approve',
+    allowed_finding_authority:
+      'Product approval claims only behavior ready for scenario definition.',
+    forbidden_scope_expansion: 'Do not demand design or delivery proof from Product review.',
   },
   {
     id: 'r10-implementation-downstream-claim',
@@ -88,12 +105,25 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     accepted_boundary: accepted,
     context:
       'The Execution Plan passed its own startability review; verification and merge remain pending.',
-    reviewed_plan:
-      'Execution Plan approval receipt: delivery tasks and proof are startable. This approval also certifies passed verification and merge authority.',
+    reviewed_plan: `${completeExecutionPlan} Approval of this Execution Plan also certifies passed verification and merge authority.`,
     expected_verdict: 'request_changes',
     allowed_finding_authority:
       'Execution Plan approval cannot claim passed verification or grant merge authority.',
     forbidden_scope_expansion: 'Do not invent new delivery or merge policy.',
+  },
+  {
+    id: 'r10-bounded-execution-approval',
+    rule: 'R10',
+    kind: 'plan-execution',
+    planning_phase: 'plan-execution',
+    accepted_boundary: accepted,
+    context:
+      'The Execution Plan passed its own startability review; verification and merge remain pending.',
+    reviewed_plan: completeExecutionPlan,
+    expected_verdict: 'approve',
+    allowed_finding_authority: 'Execution approval claims only startable delivery.',
+    forbidden_scope_expansion:
+      'Do not demand completed verification or merge authority from this review.',
   },
   {
     id: 'r10-bounded-implementation-approval',

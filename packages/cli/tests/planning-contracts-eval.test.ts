@@ -43,6 +43,23 @@ describe('planning contracts eval contract', () => {
         .filter(item => item.rule === 'R10' && item.expected_verdict === 'request_changes')
         .map(item => item.planning_phase),
     ).toEqual(['product-plan', 'plan-implementation', 'plan-execution']);
+    for (const phase of ['product-plan', 'plan-implementation', 'plan-execution']) {
+      const negative = planningContractCases.find(
+        item =>
+          item.rule === 'R10' &&
+          item.planning_phase === phase &&
+          item.expected_verdict === 'request_changes',
+      );
+      const control = planningContractCases.find(
+        item =>
+          item.rule === 'R10' &&
+          item.planning_phase === phase &&
+          item.expected_verdict === 'approve',
+      );
+      const basePlan = (plan: string | undefined) =>
+        plan?.split(/Approval (?:receipt:|of )/u, 1)[0]?.trim();
+      expect(basePlan(negative?.reviewed_plan)).toBe(basePlan(control?.reviewed_plan));
+    }
     expect(
       planningContractCases.filter(item => item.rule === 'R13').map(item => item.expected_verdict),
     ).toEqual(['request_changes', 'request_changes', 'approve']);
