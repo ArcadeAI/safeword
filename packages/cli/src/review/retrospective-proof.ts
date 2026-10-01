@@ -200,6 +200,7 @@ function runTest(
   const cwd = nodePath.join(copy, 'packages/cli');
   const executable = argv[0];
   if (executable === undefined) throw new Error('Proof command is empty.');
+  rmSync(nodePath.join(cwd, REPORT), { force: true });
   const result = spawnSync(executable, argv.slice(1), {
     cwd,
     env: Object.fromEntries(
