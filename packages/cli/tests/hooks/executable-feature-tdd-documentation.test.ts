@@ -21,4 +21,16 @@ describe('executable feature-source TDD documentation (ZA0JQR)', () => {
     expect(scenarios).toContain('implementation stubs');
     expect(scenarios).toContain('acceptance proof');
   });
+
+  it.each(bddSkillCopies)(
+    '%s separates preliminary wiring RED from the reviewed proof',
+    skillDirectory => {
+      const tdd = readFileSync(nodePath.join(skillDirectory, 'TDD.md'), 'utf8');
+
+      expect(tdd).toContain('preliminary RED');
+      expect(tdd).toContain(
+        'Bind the scenario steps before requesting the independent executable RED review',
+      );
+    },
+  );
 });
