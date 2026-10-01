@@ -789,7 +789,7 @@ admission. Keep the full scenario unchecked until its remaining boundaries pass.
 
 - [x] RED ddaebbdb0cc9de196ac06ab6671c6493101b6d85
 - [x] GREEN 4b71e1817
-- [ ] REFACTOR
+- [x] REFACTOR skip: the shared judged-eval harness was extracted at its second use; no further cleanup is needed
 
 ### Scenario: A planning approval may claim its own bounded state
 
