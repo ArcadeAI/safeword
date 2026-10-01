@@ -158,6 +158,6 @@ describe('selected parent Markdown context meaning', () => {
   it('refuses duplicate definitions for a selected reference', () => {
     expect(() =>
       parentIdentity(`${parentContext}\n## Notes\n\n${definition}${definition}`),
-    ).toThrow('missing or duplicate referenced link definitions');
+    ).toThrow('missing or duplicate referenced definitions');
   });
 });

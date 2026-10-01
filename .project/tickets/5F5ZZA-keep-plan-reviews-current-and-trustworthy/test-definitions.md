@@ -69,6 +69,12 @@ crosses installed CLI dispatch.
 - [ ] GREEN
 - [ ] REFACTOR
 
+The three R1 feature scenarios now execute against a fresh source distribution,
+real contract generators, and the installed project's `install`/`upgrade` CLI
+boundary. Targeted Cucumber result: 3 scenarios and 141 steps passed. This is
+the public reconciliation proof for R1; the R/G/R checkboxes remain open until
+the scenario review and final feature verification are recorded.
+
 ## Rule: plan-implementability.TBU4.5F5ZZA.R2 — Each review receives its complete phase context
 
 ### Scenario: A review packet cannot omit required phase context
@@ -91,17 +97,49 @@ variants at packet preparation for fast diagnosis; it does not substitute for
 the installed primary boundary. These controls still do not prove the remaining
 phase roles, semantic identity, native host parity, or receipt admission.
 
+The R2 packet-completeness outline now runs nine examples through real packet
+preparation. The targeted Cucumber run passed 9 scenarios and 432 steps,
+including the accepted Implementation Plan, triggered data guidance, and
+justified data/dimensions absences. The installed-hook and complete role-inventory
+outlines remain open, so the rule's R/G/R boxes stay unchecked.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Installed dispatch cannot bypass packet completeness
 
+The four examples now run a native plugin review hook against a fresh
+CLI-installed local project and real configuration. Product and Implementation
+use Claude Code; Execution uses a fresh Codex plugin profile installed from this
+checkout, so admitted Claude Opus is a genuinely independent reviewer of the
+Codex-authored plan. Only the external reviewer executable is a fixture.
+Missing personas and the accepted Implementation Plan refuse before reviewer
+execution; complete Implementation and Execution packets reach the reviewer
+process. The stronger Execution case initially failed because the changed
+canonical rubric invalidated its prior admission digest, then because a Claude
+author had no admitted independent Execution route. A live 63-case Claude Opus
+matrix refreshed the admission and regenerated both plugin runtimes; three
+exact-word cue misses were confirmed semantically by a separate calibrated
+Claude Sonnet judge and remain visible in `execution-plan-admission-eval.json`.
+The four installed examples pass 192/192 steps; the combined R2 selection
+passes 16 scenarios and 768 steps. Full feature verification remains open.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Canonical phase entry requirements bind every required input
+
+The three phase examples now execute fresh packet preparation with each named
+input removed separately: ticket, Product frame and epistemic state, numbered
+Rules, declared parent and milestone, principles, personas, surfaces, and (for
+downstream plans) scenarios, present dimensions, applicable architecture and
+data guidance, and the accepted Implementation Plan. The first run exposed a
+real gap: deleting all Rules still entered review. The resolver now refuses
+that case with the `rules` role named. Targeted Cucumber result: 3 scenarios,
+144 steps passed. This packet-boundary proof does not replace the separate
+installed-dispatch outline or full feature verification, so R/G/R remains open.
 
 - [ ] RED
 - [ ] GREEN
@@ -111,13 +149,13 @@ phase roles, semantic identity, native host parity, or receipt admission.
 
 ### Scenario: Context resolution distinguishes defaults from broken overrides
 
-- [ ] RED
+- [x] RED b1d1740cc
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Local dispatch enforces required context resolution
 
-- [ ] RED
+- [x] RED f44d0b9e4
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -125,13 +163,26 @@ phase roles, semantic identity, native host parity, or receipt admission.
 
 ### Scenario: Context identity ignores cosmetic and unrelated edits
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1ec6d2e09
+- [x] GREEN fd833c0fe
+- [x] REFACTOR 6569bc614
 
 ## Rule: plan-implementability.TBU4.5F5ZZA.R5 — Contract identity binds exact canonical bytes
 
 ### Scenario: Installed contract identity controls authoring and approval
+
+Current actor-facing RED loop: run the five outline rows directly through
+`features/keep-plan-reviews-current-and-trustworthy.feature` with
+`NODE_OPTIONS='--import tsx' scripts/dev node node_modules/.bin/cucumber-js
+features/keep-plan-reviews-current-and-trustworthy.feature --name 'Installed
+contract identity controls authoring and approval'`. The installed Claude
+plugin copy supplies real authoring and phase hooks plus the real review CLI;
+only the external reviewer process is a fixture. Four rows pass. The reviewer
+rubric drift row fails at the approval gate with
+`approval gate allowed a stale reviewer copy`, although dispatch already
+refuses the altered generated rubric. The intended GREEN checks both
+boundaries in that same row. The complete outline remains unchecked until all
+five rows pass and the independent executable proof review approves it.
 
 Supporting complete-author dispatch loop: install a copied actual CLI package,
 change only a comment outside the reviewer-safe block in its Implementation or
@@ -357,21 +408,123 @@ now accepts the canonical digest and serves both phases, avoiding duplicated
 verification logic. Whole-scenario RED/GREEN/REFACTOR checkboxes remain open until
 the remaining accepted partitions and actual lifecycle boundary are proved.
 
+Supporting authoring-boundary loop (2026-09-30): commit `942d31c22` proves an
+installed Cursor plan edit incorrectly proceeds with a drifted author copy,
+while the canonical copy remains writable. Independent executable RED review
+`269663de-d568-40ed-b65a-883ea456babf` approved that bounded failure. Commit
+`5cf0d963e` reuses the trusted copy checker before edits to Product,
+Implementation, and Execution plan artifacts. The owning file passes 9 tests;
+the adjacent phase-gate pair passes 33. The full 5F5ZZA feature still reports
+37 passed, 133 undefined, and no failed scenarios. This proves one installed
+authoring path, not every copy or the complete outline.
+
+Follow-on authoring proof covers canonical, changed, and absent copies for all
+three planning artifacts in one installed Cursor fixture (`91e56c16e`,
+`fec12370a`). A separate RED review
+`96c0e718-786a-4bce-964d-3a332fe99cd5` approved the observed missing
+human-facing refusal; commits `d2cbc2784` and `b3e615904` make the named
+copy finding visible to the author. All 16 owning tests and lint pass. External
+quality review `61ae018b-ab43-44e1-b6dd-e9647da18fe2` approved the current
+hook and tests with no errors. This remains supporting installed-authoring
+evidence; full reviewer-copy and host admission coverage, and the Cucumber
+outline, are still open.
+
+Bounded reviewer-copy approval loop (2026-09-30): proof commit `075dec464`
+made all five outline rows executable. Four passed; the reviewer-rubric drift
+row failed because the installed phase gate allowed an earlier approval even
+though new review dispatch refused the altered rubric. Independent executable
+RED review `6d0dad7c-0263-4d40-b674-f8b3dfdc46eb` approved that exact
+actor-facing failure. Commit `1c168fa35` checks generated reviewer bytes
+against their sealed digest in the trusted planning preflight and public
+Implementation approval. The five direct rows now pass (250 steps), as do
+18 installed admission tests including Cursor and public approval, and all
+46 adjacent transition-gate tests after their fixture was supplied with the
+trusted checker and Product author copy. The complete 5F5ZZA feature reports
+42 passed, 128 undefined, and zero failed. External quality review
+`f8148ffa-452e-44a9-bebc-e9274cbdb119` approved with nonblocking scope
+warnings. This is not whole-scenario completion: Product and Execution
+reviewer-copy actor paths and the remaining R5 partitions are still open.
+
+Follow-on dispatch RED: in
+`packages/cli/tests/integration/installed-planning-copy-admission.test.ts`,
+re-run a real copied CLI review after its prior authenticated approval and a
+generated reviewer-rubric drift. The current dispatch launches the reviewer
+and returns generic `changes_requested` findings instead of a typed
+`canonical_contract_copy_mismatch` before any review request. Run
+`scripts/dev bun run --cwd packages/cli test
+tests/integration/installed-planning-copy-admission.test.ts`; expected failure:
+`review dispatch must refuse stale reviewer bytes before launch`. The intended
+GREEN calls the exact reviewer-copy preflight from packet construction and
+leaves prior authenticated approval currency separate from copy admission.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Local dispatch enforces canonical contract identity
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+An installed Claude plugin copy starts with an authenticated current
+Implementation approval. The canonical copy permits the phase transition;
+deleting a shared clause while retaining its version label initially produced
+a generic missing-review denial. Independent executable RED review
+`26cae83f-eb23-4ccd-861d-d7d288f17b88` approved that failure. The phase
+hook now checks the installed authoring contract before reading the review
+stamp. Both outline rows pass (2 scenarios, 100 steps). The adjacent context
+outline passes (7 scenarios, 350 steps), as do the owning hook integration
+tests (31 tests). No separate refactor was needed.
+
+Commit-history correction: the immutable checkbox rows below cite the
+original combined local commit, which was replaced before publication to
+separate the TDD steps. The proof-only RED commit is `9221612ef`; the
+subsequent minimal GREEN commit is `b73b7ee89`. The independent RED receipt
+above and passing command results apply to those same source bytes.
+
+- [x] RED 9e0f7c2fc
+- [x] GREEN 9e0f7c2fc
+- [x] REFACTOR skip: no structural change remained after the minimal gate fix
+
+Corrective R/G/R cycle for the split commits; the historical rows above remain
+unaltered.
+
+- [x] RED 9221612ef
+- [x] GREEN b73b7ee89
+- [x] REFACTOR skip: the minimal shared hook check needed no further restructuring
 
 ### Scenario: Cosmetic canonical changes preserve review currency but require copy reconciliation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+Actor-facing RED loop: start with an authenticated current Implementation
+review, copy the installed Claude plugin, change a comment in its canonical
+author source, and update the copied runtime's generated author identity to
+the corresponding new bytes while leaving the installed author copy old.
+Before the mutation, the same copied runtime and plugin root must report the
+receipt approved; the author and reviewer projections must remain unchanged
+by the appended editorial comment. This controls for changing binaries or
+plugin roots during the proof.
+Invoke actual `review status` and the installed phase hook with the same
+project and copied distribution. The hook must refuse the stale copy, but
+`review status` currently returns `REVIEW_STALE` before it can compare semantic
+dependencies because packet preparation insists on exact installed author
+bytes. The intended failure is the `REVIEW_STALE` status after a comment-only
+canonical edit; the corrected behavior keeps the authenticated receipt current
+while admission still names `canonical_contract_copy_mismatch`. Run
+`NODE_OPTIONS='--import tsx' scripts/dev node node_modules/.bin/cucumber-js
+features/keep-plan-reviews-current-and-trustworthy.feature --name 'Cosmetic
+canonical changes preserve review currency but require copy reconciliation'`.
+
+- [x] RED e81dbf2a1
+- [x] GREEN 1d9c54b2d
+- [x] REFACTOR skip: the status-only fingerprint and exact dispatch check needed no further restructuring
+
+GREEN implementation is committed at `1d9c54b2d` and passed the focused R5
+scenario, full acceptance with zero failures, and independent quality review.
+The historical RED receipt went stale when RED was recorded in this ledger.
+Commit `6cc4953c0` strengthened the actor proof to read receipt status after
+the installed phase hook, then the exact pre-fix production bytes from
+`e81dbf2a1` reproduced the intended failure in this checkout. Independent
+executable RED review `07cb4cc1-1de0-49fd-8f31-e7f0fdf1b2aa` approved the
+replay. Restoring current source made all 50 scenario steps pass, and the
+receipt gate authorized GREEN before its checkbox was checked. The wider R5
+scenario and remaining Product/Execution actor paths are still open.
 
 ## Rule: plan-implementability.TBU4.5F5ZZA.R6 — Review fallback is bounded and honestly labeled
 
@@ -634,13 +787,13 @@ admission. Keep the full scenario unchecked until its remaining boundaries pass.
 
 ### Scenario: A planning approval cannot claim its downstream state
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED ddaebbdb0cc9de196ac06ab6671c6493101b6d85
+- [x] GREEN 4b71e1817
+- [x] REFACTOR skip: the shared judged-eval harness was extracted at its second use; no further cleanup is needed
 
 ### Scenario: A planning approval may claim its own bounded state
 
-- [ ] RED
+- [x] RED f6469b7a6
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -688,9 +841,9 @@ admission. Keep the full scenario unchecked until its remaining boundaries pass.
 
 ### Scenario: Plan completeness is bidirectional
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED ddaebbdb0cc9de196ac06ab6671c6493101b6d85
+- [x] GREEN 481b2cc76
+- [x] REFACTOR 118e2a384
 
 ### Scenario: The installed Implementation Plan gate enforces bidirectional scope completeness
 
@@ -751,3 +904,7 @@ admission. Keep the full scenario unchecked until its remaining boundaries pass.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario

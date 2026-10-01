@@ -128,7 +128,7 @@ process.stdin.on('end', () => {
   writeFileSync(${JSON.stringify(capture)}, input);
   const packet = JSON.parse(input.trim().split('\n').pop());
   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
-    reviewer_agent: 'claude', verdict: 'approve', summary: 'The supplied plan is otherwise reviewable.', findings: [] } }));
+    reviewer_agent: 'claude', verdict: 'approve', summary: 'The supplied plan is otherwise reviewable.', findings: [], evidence_records: { schema_version: 1, records: [] } } }));
 });
 `,
     { mode: 0o755 },

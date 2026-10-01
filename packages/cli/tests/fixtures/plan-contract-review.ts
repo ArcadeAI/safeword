@@ -47,6 +47,7 @@ try {
       verdict: 'approve',
       summary: 'The supplied plan is otherwise reviewable.',
       findings: [],
+      evidence_records: { schema_version: 1, records: [] },
     };
     const outputPath = nodePath.join(trustedBin, 'review-output.json');
     const inputPath = nodePath.join(trustedBin, 'received-prompt.txt');

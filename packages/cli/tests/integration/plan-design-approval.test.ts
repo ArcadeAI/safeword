@@ -533,7 +533,7 @@ dispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\([^"
 if printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
   review_record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
   if [ -n "$review_record" ]; then
-    printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"replan approved","findings":[],"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$review_record"
+    printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"replan approved","findings":[],"evidence_records":{"schema_version":1,"records":[]},"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$review_record"
     exit 0
   fi
   if printf '%s' "$payload" | /usr/bin/grep -Fq 'Accepted authorization approach changed'; then
@@ -541,15 +541,15 @@ if printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
   else
     destination=plan-execution
   fi
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"implementation discovery","findings":[{"severity":"error","message":"Repair the affected plan."}],"planning_destination":"%s","execution_plan_record":null}\n' "$dispatch_id" "$destination"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"implementation discovery","findings":[{"severity":"error","message":"Repair the affected plan."}],"evidence_records":{"schema_version":1,"records":[]},"planning_destination":"%s","execution_plan_record":null}\n' "$dispatch_id" "$destination"
   exit 0
 fi
 if [ "${'$'}{SAFEWORD_REVIEW_FAKE_VERDICT:-approve}" = "request_changes" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan is blocked","findings":[{"severity":"error","message":"Authorization boundary is missing."}]}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan is blocked","findings":[{"severity":"error","message":"Authorization boundary is missing."}],"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id"
 elif [ "${'$'}{SAFEWORD_REVIEW_FAKE_FINDING:-}" = "1" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"plan is approved with advice","findings":[{"severity":"warning","message":"Consider documenting the optional recovery example."}]}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"plan is approved with advice","findings":[{"severity":"warning","message":"Consider documenting the optional recovery example."}],"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id"
 else
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"plan is approved","findings":[]}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"plan is approved","findings":[],"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id"
 fi
 `,
     { mode: 0o755 },

@@ -177,33 +177,33 @@ if [ -n "$env_log" ]; then
   if printenv SAFEWORD_REVIEW_PROGRESS >/dev/null 2>&1; then printf 'progress=present\n' >> "$env_log"; else printf 'progress=absent\n' >> "$env_log"; fi
 fi
 if [ "$identity" = "missing" ]; then
-  result=$(printf '{"schema_version":1,"dispatch_id":"%s","verdict":"%s","summary":"%s","findings":[]}' "$dispatch_id" "$verdict" "$summary")
+  result=$(printf '{"schema_version":1,"dispatch_id":"%s","verdict":"%s","summary":"%s","findings":[],"evidence_records":{"schema_version":1,"records":[]}}' "$dispatch_id" "$verdict" "$summary")
   if [ "${agent}" = "opencode" ]; then printf '{"type":"text","part":{"type":"text","time":{"end":1},"text":"%s"}}\n' "$(printf '%s' "$result" | sed 's/"/\\"/g')"; else printf '%s\n' "$result"; fi
 elif [ "$identity" = "contradictory" ]; then
-  result=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"other","verdict":"%s","summary":"%s","findings":[]}' "$dispatch_id" "$verdict" "$summary")
+  result=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"other","verdict":"%s","summary":"%s","findings":[],"evidence_records":{"schema_version":1,"records":[]}}' "$dispatch_id" "$verdict" "$summary")
   if [ "${agent}" = "opencode" ]; then printf '{"type":"text","part":{"type":"text","time":{"end":1},"text":"%s"}}\n' "$(printf '%s' "$result" | sed 's/"/\\"/g')"; else printf '%s\n' "$result"; fi
 elif [ "$identity" = "dispatch" ]; then
-  result=$(printf '{"schema_version":1,"dispatch_id":"different-dispatch","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[]}' "$verdict" "$summary")
+  result=$(printf '{"schema_version":1,"dispatch_id":"different-dispatch","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[],"evidence_records":{"schema_version":1,"records":[]}}' "$verdict" "$summary")
   if [ "${agent}" = "opencode" ]; then
     printf '{"type":"text","part":{"type":"text","time":{"end":1},"text":"%s"}}\n' "$(printf '%s' "$result" | sed 's/"/\\"/g')"
   else
     printf '%s\n' "$result"
   fi
 elif [ -n "$execution_plan_record" ] && [ -n "$finding" ] && [ -n "$finding_second" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"},{"severity":"error","message":"%s"}],"planning_destination":"%s","execution_plan_record":%s}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$finding_second" "$planning_destination" "$execution_plan_record"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"},{"severity":"error","message":"%s"}],"planning_destination":"%s","execution_plan_record":%s,"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$finding_second" "$planning_destination" "$execution_plan_record"
 elif [ -n "$finding" ] && [ -n "$finding_second" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"},{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$finding_second"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"},{"severity":"error","message":"%s"}],"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$finding_second"
 elif [ -n "$execution_plan_record" ] && [ -n "$finding" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}],"planning_destination":"%s","execution_plan_record":%s}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$planning_destination" "$execution_plan_record"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}],"planning_destination":"%s","execution_plan_record":%s,"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$planning_destination" "$execution_plan_record"
 elif [ -n "$execution_plan_record" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[],"planning_destination":"%s","execution_plan_record":%s}\n' "$dispatch_id" "$verdict" "$summary" "$planning_destination" "$execution_plan_record"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[],"planning_destination":"%s","execution_plan_record":%s,"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id" "$verdict" "$summary" "$planning_destination" "$execution_plan_record"
 elif [ -n "$finding" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$verdict" "$summary" "$finding"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}],"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id" "$verdict" "$summary" "$finding"
 elif [ "${agent}" = "opencode" ]; then
-  result=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"opencode","verdict":"%s","summary":"%s","findings":[]}' "$dispatch_id" "$verdict" "$summary")
+  result=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"opencode","verdict":"%s","summary":"%s","findings":[],"evidence_records":{"schema_version":1,"records":[]}}' "$dispatch_id" "$verdict" "$summary")
   printf '{"type":"text","part":{"type":"text","time":{"end":1},"text":"%s"}}\n' "$(printf '%s' "$result" | sed 's/"/\\"/g')"
 else
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[]}\n' "$dispatch_id" "$verdict" "$summary"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[],"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id" "$verdict" "$summary"
 fi
 `,
     { mode: 0o755 },

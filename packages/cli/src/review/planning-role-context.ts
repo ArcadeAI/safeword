@@ -5,6 +5,7 @@ import { PLANNING_DATA_GUIDE_PATH } from '../schema.js';
 import { listArchitectureRecords } from '../utils/architecture-records.js';
 import { resolveConfiguredPath } from '../utils/configured-paths.js';
 import { collectExecutableFeatureFiles, featureSourceFileName } from '../utils/feature-source.js';
+import { parseCriteriaIdsByJtbd } from '../utils/scenario-coverage.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 import type { ReviewKind, ReviewPacket } from './contract.js';
 import {
@@ -55,6 +56,12 @@ function captured(
   const file = files.find(value => value.path === path);
   if (file === undefined || file.content.trim() === '') throw new PlanningContextError(role, path);
   return file;
+}
+
+function requirePlanningRules(project: CapturedFile): void {
+  for (const criteria of parseCriteriaIdsByJtbd(project.content).values())
+    if (criteria.ruleIds.length > 0) return;
+  throw new PlanningContextError('rules', project.path);
 }
 
 function sectionSkip(plan: CapturedFile, role: 'architecture' | 'data'): string | undefined {
@@ -241,6 +248,7 @@ export function resolvePlanningRoleContext(
   } catch {
     throw new PlanningContextError('project', project.path);
   }
+  requirePlanningRules(project);
   const dependencies: PlanningContextDependency[] = [
     { role: 'ticket', path: ticketPath },
     { role: 'project', path: project.path },
@@ -306,6 +314,7 @@ function resolveExecutionRoleContext(
   } catch {
     throw new PlanningContextError('project', project.path);
   }
+  requirePlanningRules(project);
   const upstreamPath = nodePath.join(directory, 'impl-plan.md');
   const upstream = captured(files, 'accepted-upstream-plan', upstreamPath);
   const dependencies: PlanningContextDependency[] = [
@@ -423,6 +432,7 @@ function resolveProductRoleContext(
   } catch {
     throw new PlanningContextError('project', project.path);
   }
+  requirePlanningRules(project);
   return {
     schema_version: 1,
     ticket_id: ticket.id,

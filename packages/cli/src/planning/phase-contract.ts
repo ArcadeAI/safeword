@@ -1,3 +1,5 @@
+import { sharedAuthorityDigest } from './shared-clause-integrity.js';
+
 export type PlanningPhase = 'product-plan' | 'plan-implementation' | 'plan-execution';
 
 export interface PlanningAuthorCopyIdentity {
@@ -20,8 +22,7 @@ const fieldLabels = {
 
 type DecisionFields = Readonly<Record<keyof typeof fieldLabels, string>>;
 
-export type PlanningContract = DecisionFields &
-  (
+export type PlanningContract = DecisionFields & { readonly sharedAuthorityDigest: string } & (
     | { readonly phase: 'product-plan' | 'plan-implementation' }
     | {
         readonly phase: 'plan-execution';
@@ -39,18 +40,29 @@ export class InvalidInvalidationContractError extends Error {
   }
 }
 
+function continuesDecisionField(line: string, blank: boolean): boolean {
+  return /^[ \t]/u.test(line) || (!blank && !/^(?:#{1,6}\s|-\s)/u.test(line));
+}
+
+// eslint-disable-next-line complexity -- Markdown field continuation has explicit boundary states.
 function decisionField(source: string, label: string): string {
   const declarations: string[][] = [];
   let current: string[] | undefined;
-  for (const line of source.split('\n')) {
+  let blank = false;
+  for (const line of source.replaceAll(/<!--[\s\S]*?-->/gu, '').split('\n')) {
     const declaration = /^- \*\*([^:]+):\*\*(.*)$/u.exec(line);
     if (declaration?.[1] === label) {
       current = [declaration[2] ?? ''];
       declarations.push(current);
-    } else if (current !== undefined && /^[ \t]/u.test(line)) {
+      blank = false;
+    } else if (current !== undefined && line.trim() === '') {
+      blank = true;
+    } else if (current !== undefined && continuesDecisionField(line, blank)) {
       current.push(line.trim());
+      blank = false;
     } else {
       current = undefined;
+      blank = false;
     }
   }
   const [parts = []] = declarations;
@@ -71,6 +83,7 @@ function executionInvalidationField(source: string): string {
 
 /** Read the closed eight-field grammar inside a phase owner's reviewer-safe block. */
 export function parsePlanningContract(phase: PlanningPhase, source: string): PlanningContract {
+  const sharedAuthority = sharedAuthorityDigest(source);
   const fields = Object.fromEntries(
     Object.entries(fieldLabels).map(([field, label]) => [
       field,
@@ -79,7 +92,8 @@ export function parsePlanningContract(phase: PlanningPhase, source: string): Pla
         : decisionField(source, label),
     ]),
   ) as DecisionFields;
-  if (phase !== 'plan-execution') return { phase, ...fields };
+  if (phase !== 'plan-execution')
+    return { phase, sharedAuthorityDigest: sharedAuthority, ...fields };
   const declarations = fields.invalidation
     .matchAll(/upstreamImplementationInvalidation:\s*([^\s`]*)/gu)
     .toArray();
@@ -90,5 +104,10 @@ export function parsePlanningContract(phase: PlanningPhase, source: string): Pla
   ) {
     throw new InvalidInvalidationContractError();
   }
-  return { phase, ...fields, upstreamImplementationInvalidation: mode };
+  return {
+    phase,
+    sharedAuthorityDigest: sharedAuthority,
+    ...fields,
+    upstreamImplementationInvalidation: mode,
+  };
 }

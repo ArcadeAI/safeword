@@ -181,6 +181,7 @@ process.stdin.on('end', () => {
     planning_destination: 'plan-execution',
     summary: 'approved',
     findings: [],
+    evidence_records: { schema_version: 1, records: [] },
     execution_plan_record: {
       slicing_decision: 'one_pull_request',
       rationale: 'One coherent change.',
@@ -426,7 +427,7 @@ describe('Execution Plan review-contract identity', () => {
     ['missing-author', 'authoring contract copy'],
     ['edited-author', 'authoring contract copy'],
     ['missing-reviewer', 'generated reviewer contract copy'],
-    ['stale-reviewer', 'stale generated reviewer contract'],
+    ['stale-reviewer', 'generated reviewer contract copy'],
     ['stale-slicing-contract', 'canonical contract-byte identity'],
     ['incomplete-pair', 'canonical contract-byte identity'],
     ['stale-delivery-taxonomy', 'canonical delivery-contract identity'],

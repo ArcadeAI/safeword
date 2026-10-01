@@ -78,6 +78,25 @@ interface ReviewFinding {
   readonly message: string;
 }
 
+export interface ReviewEvidenceRecordV1 {
+  readonly source_identity: string;
+  readonly checked_version: string;
+  readonly source_version: string;
+  readonly target_version: string;
+  readonly supported_claim: string;
+  readonly license_identifier: string;
+  readonly attribution_notice: string;
+  readonly redistribution_limit: string;
+  readonly security_limit: string;
+  readonly privacy_limit: string;
+  readonly reuse_limit: string;
+}
+
+export interface ReviewEvidenceRecordsV1 {
+  readonly schema_version: 1;
+  readonly records: readonly ReviewEvidenceRecordV1[];
+}
+
 export interface ExecutionPlanSlice {
   readonly name: string;
   readonly purpose: string;
@@ -150,6 +169,7 @@ export interface ReviewerOutput {
   readonly verdict: 'approve' | 'request_changes';
   readonly summary: string;
   readonly findings: readonly ReviewFinding[];
+  readonly evidence_records?: ReviewEvidenceRecordsV1;
   readonly planning_destination?: 'plan-execution' | 'plan-implementation';
   readonly execution_plan_record?: ExecutionPlanRecord | null;
 }
@@ -161,6 +181,7 @@ export interface UnverifiedReviewerOutput {
   readonly verdict: 'approve' | 'request_changes';
   readonly summary: string;
   readonly findings: readonly ReviewFinding[];
+  readonly evidence_records?: unknown;
   readonly planning_destination?: unknown;
   readonly execution_plan_record?: unknown;
 }

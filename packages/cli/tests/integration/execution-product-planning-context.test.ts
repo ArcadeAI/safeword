@@ -105,7 +105,7 @@ process.stdin.on('end', () => {
   const packet = JSON.parse(input.trim().split('\n').pop());
   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
-    reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [], planning_destination: 'plan-execution',
+    reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [], evidence_records: { schema_version: 1, records: [] }, planning_destination: 'plan-execution',
     execution_plan_record: { slicing_decision: 'one_pull_request', rationale: 'One coherent change.',
       slices: [{ name: 'Complete delivery', purpose: 'Deliver the reviewed plan.', boundary: 'The accepted CLI boundary.', prerequisites: [], proof: 'The installed CLI review passes.', completion_signal: 'The review is approved.', relies_on_unmerged_successor: false }],
       obligation_owners: [{ obligation: 'Accepted behavior', slices: ['Complete delivery'] }],

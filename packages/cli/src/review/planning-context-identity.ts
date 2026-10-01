@@ -14,6 +14,7 @@ import { parsePersonas, resolvePersonaCodes } from '../utils/personas.js';
 import { parseAffectedSurfaceReferences, surfaceSlug } from '../utils/scenario-coverage.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 import type { ReviewPacket } from './contract.js';
+import { isPlanEvidenceRecord, type PlanEvidenceRecordV1 } from './evidence-record.js';
 import { PlanningContextError } from './planning-context-error.js';
 import type { PlanningReviewIdentity } from './planning-role-context.js';
 import { scenarioReviewRubric } from './review-rubric.js';
@@ -25,32 +26,6 @@ interface MarkdownNode {
   readonly children?: readonly MarkdownNode[];
   readonly [key: string]: unknown;
 }
-
-const nodeTypes = new Set([
-  'root',
-  'blockquote',
-  'break',
-  'code',
-  'definition',
-  'emphasis',
-  'heading',
-  'html',
-  'image',
-  'imageReference',
-  'inlineCode',
-  'link',
-  'linkReference',
-  'list',
-  'listItem',
-  'paragraph',
-  'strong',
-  'text',
-  'thematicBreak',
-  'delete',
-  'table',
-  'tableRow',
-  'tableCell',
-]);
 
 function parseMarkdown(content: string): readonly MarkdownNode[] {
   // The public built-in parser consumes source only; its shared TypeScript
@@ -113,9 +88,9 @@ function normalizeChildren(node: MarkdownNode): MarkdownNode[] {
 }
 
 function normalizeNode(node: MarkdownNode): MarkdownNode | undefined {
-  if (!nodeTypes.has(node.type))
-    throw new Error(`Unsupported planning Markdown node: ${node.type}`);
   if (node.type === 'html' && onlyComments(node.value ?? '')) return undefined;
+  if (node.type === 'frontMatter')
+    return { type: node.type, language: node.language, value: node.value };
   const layoutFields = new Set(['position', 'children']);
   if (node.type === 'list' || node.type === 'listItem') layoutFields.add('spread');
   const properties = Object.fromEntries(
@@ -255,25 +230,26 @@ function referencedDefinitions(nodes: readonly MarkdownNode[], retained: readonl
       (node.type === 'linkReference' || node.type === 'imageReference') &&
       typeof node.identifier === 'string'
     )
-      references.add(node.identifier);
+      references.add(`definition:${node.identifier}`);
+    if (node.type === 'footnoteReference' && typeof node.identifier === 'string')
+      references.add(`footnoteDefinition:${node.identifier}`);
     const children = node.children ?? [];
     for (const child of children) visit(child);
   };
   for (const node of retained) visit(node);
   const definitions = nodes.filter(
     node =>
-      node.type === 'definition' &&
+      (node.type === 'definition' || node.type === 'footnoteDefinition') &&
       typeof node.identifier === 'string' &&
-      references.has(node.identifier),
+      references.has(`${node.type}:${node.identifier}`),
   );
   if (
     [...references].some(
-      reference => definitions.filter(node => node.identifier === reference).length !== 1,
+      reference =>
+        definitions.filter(node => `${node.type}:${node.identifier}` === reference).length !== 1,
     )
   ) {
-    throw new Error(
-      'Planning parent context has missing or duplicate referenced link definitions.',
-    );
+    throw new Error('Planning parent context has missing or duplicate referenced definitions.');
   }
   return definitions;
 }
@@ -328,14 +304,18 @@ const productFrameFields = [
   'Project non-goals',
 ];
 
+function productFrameParagraphText(node: MarkdownNode): string {
+  return normalizeChildren(node)
+    .map(child => headingText(child))
+    .join('');
+}
+
 export function validatePlanningProductFrame(content: string): void {
   const frame = requiredSection(parseMarkdown(content), 2, 'Product Bet');
   const counts = new Map<string, number>();
   const visit = (node: MarkdownNode): void => {
     if (node.type === 'paragraph') {
-      const text = normalizeChildren(node)
-        .map(child => headingText(child))
-        .join('');
+      const text = productFrameParagraphText(node);
       const colon = text.indexOf(':');
       const label = text.slice(0, colon);
       if (productFrameFields.includes(label)) {
@@ -416,6 +396,33 @@ export function planningEvidenceReferences(content: string): string[] {
   return references;
 }
 
+function parsePlanEvidenceRecord(node: MarkdownNode | undefined): PlanEvidenceRecordV1 {
+  if (node?.type !== 'code' || node.lang !== 'json')
+    throw new Error('PlanEvidenceRecordV1 requires an immediately following JSON block.');
+  let candidate: unknown;
+  try {
+    candidate = JSON.parse(node.value ?? '') as unknown;
+  } catch {
+    throw new Error('PlanEvidenceRecordV1 contains invalid JSON.');
+  }
+  if (!isPlanEvidenceRecord(candidate))
+    throw new Error('PlanEvidenceRecordV1 is missing required evidence or reuse limits.');
+  return candidate;
+}
+
+export function planningEvidenceRecords(content: string): PlanEvidenceRecordV1[] {
+  const nodes = parseMarkdown(content);
+  const records: PlanEvidenceRecordV1[] = [];
+  let inDecisions = false;
+  for (const [index, node] of nodes.entries()) {
+    if (node.type !== 'heading') continue;
+    if ((node.depth ?? 0) <= 2) inDecisions = node.depth === 2 && headingText(node) === 'Decisions';
+    if (!inDecisions || headingText(node) !== 'PlanEvidenceRecordV1') continue;
+    records.push(parsePlanEvidenceRecord(nodes[index + 1]));
+  }
+  return records;
+}
+
 function gherkinIdentity(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(child => gherkinIdentity(child));
   if (value === null || typeof value !== 'object') return value;
@@ -443,20 +450,47 @@ function planningRoleContent(
   );
 }
 
-function productPersonaInventory(content: string): string {
+function productPersonaInventory(content: string): string | undefined {
   const frame = requiredSection(parseMarkdown(content), 2, 'Product Bet');
   const inventories: string[] = [];
   const visit = (node: MarkdownNode): void => {
-    if (node.type === 'listItem') {
-      const first = node.children?.find(child => child.type === 'paragraph');
-      if (first !== undefined && headingText(first).startsWith('Persona outcome inventory:'))
-        inventories.push(headingText(node));
+    if (node.type === 'paragraph') {
+      const text = productFrameParagraphText(node);
+      if (text.startsWith('Persona outcome inventory:')) inventories.push(text);
     }
     const children = node.children ?? [];
     for (const child of children) visit(child);
   };
   for (const node of frame) visit(node);
-  return inventories.length === 1 ? (inventories[0] ?? '') : '';
+  return inventories.length === 1 ? inventories[0] : undefined;
+}
+
+function personaNamePosition(text: string, name: string): number {
+  for (let index = text.indexOf(name); index >= 0; index = text.indexOf(name, index + 1)) {
+    const before = text[index - 1] ?? '';
+    const after = text[index + name.length] ?? '';
+    if (!/[\p{L}\p{N}-]/u.test(before) && !/[\p{L}\p{N}-]/u.test(after)) return index;
+  }
+  return -1;
+}
+
+function namedPersonaCodes(
+  inventory: string,
+  personas: ReturnType<typeof resolvePersonaCodes>,
+): ReadonlySet<string> {
+  const names = new Set<string>();
+  const remaining = inventory.toLocaleLowerCase().split('');
+  const longestFirst = personas.toSorted((a, b) => b.name.length - a.name.length);
+  for (const persona of longestFirst) {
+    const name = persona.name.toLocaleLowerCase();
+    let index = personaNamePosition(remaining.join(''), name);
+    while (index !== -1) {
+      names.add(persona.code);
+      remaining.fill(' ', index, index + name.length);
+      index = personaNamePosition(remaining.join(''), name);
+    }
+  }
+  return names;
 }
 
 // eslint-disable-next-line complexity -- References and inventory are independent semantic selectors.
@@ -474,14 +508,15 @@ function planningPersonaIdentity(packet: ReviewPacket, content: string): string 
       ...lineage.rule,
     ].flatMap(reference => {
       const jtbd = reference.replace(/\.(?:AC|R)\d+$/u, '');
-      return jtbd.split('.').flatMap(part => {
+      for (const part of jtbd.split('.')) {
         const match = /^([A-Z]{2,4})\d+$/u.exec(part);
-        return match?.[1] === undefined ? [] : [match[1]];
-      });
+        if (match?.[1] !== undefined) return [match[1]];
+      }
+      return [];
     }),
   );
   const personas = resolvePersonaCodes(parsePersonas(content));
-  let inventory = '';
+  let inventory: string | undefined;
   if (project !== '') {
     try {
       inventory = productPersonaInventory(project);
@@ -492,14 +527,16 @@ function planningPersonaIdentity(packet: ReviewPacket, content: string): string 
       throw new PlanningContextError('project', path ?? 'spec.md');
     }
   }
+  if (project !== '' && inventory === undefined) return artifactIdentity(content);
   let inventoryMatched = false;
+  const namedPersonas = namedPersonaCodes(inventory ?? '', personas);
   for (const persona of personas) {
-    const named = inventory.toLocaleLowerCase().includes(persona.name.toLocaleLowerCase());
-    if (!named && !inventory.includes(`(${persona.code})`)) continue;
+    const named = namedPersonas.has(persona.code);
+    if (!named && !inventory?.includes(`(${persona.code})`)) continue;
     references.add(persona.code);
     inventoryMatched = true;
   }
-  if (references.size === 0 || (inventory !== '' && !inventoryMatched))
+  if (references.size === 0 || (inventory !== undefined && !inventoryMatched))
     return artifactIdentity(content);
   const lines = content.split('\n');
   const selected = personas.flatMap((persona, index) => {
@@ -516,7 +553,10 @@ function planningPersonaIdentity(packet: ReviewPacket, content: string): string 
   // Legacy inventories may use a display-only code shape. Keep the complete
   // inventory in currency when references cannot be resolved unambiguously.
   if (selected.length !== references.size) return artifactIdentity(content);
-  return identity({ version: 1, selected });
+  const preamble = semanticMarkdownIdentity(
+    lines.slice(0, (personas[0]?.lineNumber ?? 1) - 1).join('\n'),
+  );
+  return identity({ version: 1, preamble, selected });
 }
 
 function planningSurfaceIdentity(packet: ReviewPacket, content: string): string {
@@ -546,7 +586,8 @@ function planningSurfaceIdentity(packet: ReviewPacket, content: string): string 
   });
   if (selected.length !== references.size)
     throw new Error('Scenario references missing or ambiguous surface inventory entries.');
-  return identity({ version: 1, selected });
+  const preamble = identity(normalizeNodes(nodes.slice(0, headings[0]?.index ?? 0)));
+  return identity({ version: 1, preamble, selected });
 }
 
 function sha256(content: string): string {
@@ -626,7 +667,7 @@ export function createPlanningReviewIdentity(
     targets: packet.logical_files.map(file => ({
       path: file.path,
       digest:
-        reviewKind === 'plan-execution'
+        reviewKind === 'plan-execution' && file.path === packet.logical_files[0]?.path
           ? (packet.execution_plan_normalized_digest ?? sha256(file.content))
           : sha256(file.content),
     })),

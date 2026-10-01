@@ -9,9 +9,9 @@
     "codex-check": "d46da3030e2e935c9cca9b4466ea955b3aa0ad2f253d292cbbecfa59d673ce1d",
     "codex-upgrade": "345215295fc06225e8eb1a600e7129708d463736d079e125781dcb956d238a31",
     "codex-uninstall": "324e6790338fc0633848d8e6c5dc6e55d0d7c38cbf3fbe9cafaf18a154aa734b",
-    "cursor-install": "9c1bcbd9d73cbd9b27a2229f5d8a4a5447555d05361cdaff4e41e16d5e1723ee",
-    "cursor-check": "71053934f3f6e435b14faaa0be4ed0648bae22fc39ce2abddb056533a7745506",
-    "cursor-upgrade": "d33e85f6e4ce564b4a04518aafe0f42d1a033076e05ad4192f20f23c669e5921",
-    "cursor-uninstall": "85f02f37dcb769560e3b058ed4b82fbe375c9784cbb4530944de218988c73270"
+    "cursor-install": "de4b30cc389e0d0148b005459e6406f8b679d43092a1929da61c199ec8c61ded",
+    "cursor-check": "a9235170841a2f2f969d647771fb534477d2fded5a4bac9f6e1bb69359affd47",
+    "cursor-upgrade": "1ca6fad077a6a35206492dae6b57228f43e315f8fa8a4bada11c3d2fe1678258",
+    "cursor-uninstall": "cb343ca0c9c54a2eb2e4e3ce6f8ce514a845d332b04aa1ff11f5b410a990daef"
   }
 }

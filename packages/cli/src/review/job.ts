@@ -39,12 +39,14 @@ import {
 import { hostContinuationCompletion } from './coordinator.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
 import { prepareReviewPacket } from './packet.js';
+import { PlanningContextError } from './planning-context-error.js';
 import {
   createPlanningReviewIdentity,
   productParentContextIdentity,
 } from './planning-context-identity.js';
 import { isPlanningReviewIdentity, type PlanningReviewIdentity } from './planning-role-context.js';
 import {
+  hasRequiredPlanningEvidence,
   hasValidReviewerOutputBody,
   reconcilePlanContract,
   reviewWorkerRunBoundMs,
@@ -193,7 +195,8 @@ function fingerprint(
   context: readonly string[] = [],
   execution?: RedExecutionRequest,
 ): string {
-  return reviewInputs(cwd, kind, targets, context, execution).sourceFingerprint;
+  return reviewInputs(cwd, kind, targets, context, { execution, fingerprintOnly: true })
+    .sourceFingerprint;
 }
 
 function planningFingerprintContext(
@@ -216,15 +219,17 @@ function reviewInputs(
   cwd: string,
   kind: ReviewKind,
   targets: readonly string[],
-  context: readonly string[] = [],
-  execution?: RedExecutionRequest,
+  context: readonly string[],
+  options: { execution?: RedExecutionRequest; fingerprintOnly: boolean },
 ): { readonly sourceFingerprint: string; readonly reviewIdentity?: PlanningReviewIdentity } {
+  const execution = options.execution;
   // A GREEN receipt is bound to the reviewed scenario's ledger block, not just
   // its human-readable label. Other scenarios share this progress ledger, so
   // their later GREEN/REFACTOR updates are outputs rather than proof inputs.
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
   const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
     allowMissingExecutableRedAttestation: true,
+    fingerprintOnly: options.fingerprintOnly,
   });
   try {
     const reviewIdentity = createPlanningReviewIdentity(prepared.packet);
@@ -776,10 +781,23 @@ function reviewStatusCommand(id: string): string {
   return `${shellQuote(process.execPath)} ${shellQuote(cliEntrypoint())} review status ${id}`;
 }
 
-function staleResult(record: ReviewJobRecord): CliResult {
+function staleResult(record: ReviewJobRecord, contextError?: PlanningContextError): CliResult {
   return createResult({
     state: 'action_required',
     findings: [
+      ...(contextError === undefined
+        ? []
+        : [
+            {
+              code: contextError.code,
+              message: contextError.message,
+              severity: 'error' as const,
+              metadata: {
+                context_role: contextError.contextRole,
+                context_path: contextError.contextPath,
+              },
+            },
+          ]),
       {
         code: 'REVIEW_STALE',
         message: 'The reviewed source changed after this review started; run a fresh review.',
@@ -878,8 +896,8 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
       record.source_fingerprint
     )
       return staleResult(record);
-  } catch {
-    return staleResult(record);
+  } catch (error) {
+    return staleResult(record, error instanceof PlanningContextError ? error : undefined);
   }
   if (record.result !== undefined) return withReviewProvenance(record, record.result);
   return createResult({
@@ -1071,7 +1089,7 @@ export async function startReviewJob(input: {
     input.kind,
     input.targets,
     context,
-    input.execution,
+    { execution: input.execution, fingerprintOnly: false },
   );
   const targets = canonicalReviewTargets(reviewIdentity, input.targets);
   mkdirSync(jobsDirectory(input.cwd), { recursive: true, mode: 0o700 });
@@ -1308,7 +1326,15 @@ function validatedHostOutput(
   packet: Record<string, unknown>,
   author: unknown,
 ): ReviewerOutput | undefined {
-  if (!hasValidReviewerOutputBody(value, kind)) return undefined;
+  if (
+    !hasValidReviewerOutputBody(value, kind) ||
+    !hasRequiredPlanningEvidence(
+      value,
+      kind,
+      packet.planning_phase as ReviewPacket['planning_phase'],
+    )
+  )
+    return undefined;
   const reviewer = value as ReviewerOutput;
   if (reviewer.dispatch_id !== packet.dispatch_id || reviewer.reviewer_agent !== author)
     return undefined;

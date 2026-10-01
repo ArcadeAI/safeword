@@ -86,7 +86,7 @@ process.stdin.on('end', () => {
   const packet = JSON.parse(input.trim().split('\n').pop());
   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
-    reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [] } }));
+    reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [], evidence_records: { schema_version: 1, records: [] } } }));
 });
 `,
     { mode: 0o755 },

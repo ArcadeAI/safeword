@@ -1,0 +1,640 @@
+import { strict as assert } from 'node:assert';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+import { After, Given, Then, When } from '@cucumber/cucumber';
+
+import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../packages/cli/src/review/execution-plan-conformance.js';
+import { prepareReviewPacket } from '../packages/cli/src/review/packet.js';
+import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
+import { writePlanningInventories } from '../packages/cli/tests/planning-fixtures.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
+} from '../packages/cli/tests/review-fixtures.js';
+import type { SafewordWorld } from './world.js';
+
+type Phase = 'Product Plan' | 'Implementation Plan' | 'Execution Plan';
+interface ContextState {
+  phase: Phase;
+  packetState: string;
+  root?: string;
+  codexHome?: string;
+  packet?: ReturnType<typeof prepareReviewPacket>['packet'];
+  failure?: unknown;
+  roleFailures?: { role: string; failure: unknown }[];
+  installed?: { result: ReturnType<typeof spawnSync>; capture: string };
+}
+
+const states = new WeakMap<SafewordWorld, ContextState>();
+const ticketDirectory = '.project/tickets/CTX123-current-context';
+const packageRoot = path.resolve(import.meta.dirname, '../packages/cli');
+const executionCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+  value => value.id === 'one-coherent-change',
+);
+assert.ok(executionCase, 'The canonical Execution Plan fixture must exist.');
+
+function createProject(): string {
+  const root = mkdtempSync(path.join(tmpdir(), 'safeword-4200-context-'));
+  writePlanningInventories(root);
+  const ticket = path.join(root, ticketDirectory);
+  mkdirSync(ticket, { recursive: true });
+  mkdirSync(path.join(root, 'features'));
+  writeFileSync(
+    path.join(ticket, 'ticket.md'),
+    `---\nid: CTX123\ntype: feature\nphase: intake\nstatus: in_progress\nproduct_plan_contract: v1\nscope: preserve authenticated approval\nout_of_scope: new approval authority\ndone_when: current context reaches review\nphase_anchors:\n  - scenario-gate: features/current-context.feature\n---\n# Ticket\n`,
+  );
+  writeFileSync(
+    path.join(ticket, 'spec.md'),
+    `# Product Plan: Preserve approval\n\n<!-- safeword:product-plan-contract:v1 -->\n\n## Product Bet\n\n- **Expected outcome:** Builders advance with current approval.\n- **Persona outcome inventory:** Builder receives approval or a named refusal.\n- **Known facts:** Approval authenticates the current source.\n- **Assumptions:** Review latency is acceptable.\n- **Unresolved product decisions:** none\n- **Success threshold:** Current approval advances.\n- **Project non-goals:** No new approval authority.\n\n## Jobs To Be Done\n\n### approval.BU1 — Trust approval\n\n**Persona:** Builder (BU)\n\n> When I request approval, I want current evidence, so I can trust advancement.\n\n#### approval.BU1.R1 — Preserve approval\n\nOnly current approval advances.\n\n## Surfaces\n\nAffected:\n- Safeword CLI\n`,
+  );
+  writeFileSync(
+    path.join(ticket, 'impl-plan.md'),
+    '# Implementation Plan\n\n## Approach\n\nPreserve authenticated approval.\n\n## Architecture applicability\n\nskip: No durable architecture records apply.\n\n## Data applicability\n\nskip: No product data is stored.\n',
+  );
+  writeFileSync(path.join(ticket, 'execution-plan.md'), executionCase.execution_plan);
+  writeFileSync(
+    path.join(root, 'features/current-context.feature'),
+    '@approval.BU1.R1 @surface.safeword-cli\nFeature: Trust current approval\n  Scenario: Approval\n    Given a current review\n    When the Builder requests approval\n    Then the current context reaches review\n',
+  );
+  return root;
+}
+
+function target(phase: Phase): {
+  kind: 'quality-review' | 'plan-implementation' | 'plan-execution';
+  path: string;
+} {
+  if (phase === 'Product Plan')
+    return { kind: 'quality-review', path: `${ticketDirectory}/spec.md` };
+  if (phase === 'Implementation Plan')
+    return { kind: 'plan-implementation', path: `${ticketDirectory}/impl-plan.md` };
+  return { kind: 'plan-execution', path: `${ticketDirectory}/execution-plan.md` };
+}
+
+function current(world: SafewordWorld): ContextState {
+  const state = states.get(world);
+  assert.ok(state, 'The scenario must select a planning phase and packet state.');
+  return state;
+}
+
+function replaceFile(root: string, file: string, before: string, after: string): void {
+  const source = path.join(root, file);
+  const content = readFileSync(source, 'utf8');
+  assert.ok(content.includes(before), `${file} must contain the fixture text being changed.`);
+  writeFileSync(source, content.replace(before, after));
+}
+
+function missingEntryCases(phase: Phase): { role: string; remove: (root: string) => void }[] {
+  const shared = [
+    {
+      role: 'ticket',
+      remove: (root: string) => rmSync(path.join(root, ticketDirectory, 'ticket.md')),
+    },
+    {
+      role: 'project',
+      remove: (root: string) =>
+        replaceFile(root, `${ticketDirectory}/spec.md`, '**Expected outcome:**', '**Other:**'),
+    },
+    {
+      role: 'rules',
+      remove: (root: string) => {
+        const source = `${ticketDirectory}/spec.md`;
+        const content = readFileSync(path.join(root, source), 'utf8');
+        writeFileSync(
+          path.join(root, source),
+          content.replace(/## Jobs To Be Done[\s\S]*?(?=## Surfaces)/u, ''),
+        );
+      },
+    },
+    {
+      role: 'parent',
+      remove: (root: string) =>
+        replaceFile(
+          root,
+          `${ticketDirectory}/ticket.md`,
+          'id: CTX123',
+          'id: CTX123\nparent: PAR123',
+        ),
+    },
+    {
+      role: 'milestone',
+      remove: (root: string) => {
+        const parent = path.join(root, '.project/tickets/PAR123-parent-context');
+        mkdirSync(parent, { recursive: true });
+        writeFileSync(path.join(parent, 'ticket.md'), '---\nid: PAR123\ntype: epic\n---\n');
+        writeFileSync(
+          path.join(parent, 'spec.md'),
+          readFileSync(path.join(root, ticketDirectory, 'spec.md')),
+        );
+        replaceFile(
+          root,
+          `${ticketDirectory}/ticket.md`,
+          'id: CTX123',
+          'id: CTX123\nparent: PAR123\nparent_job: approval.BU1',
+        );
+      },
+    },
+    ...(['principles', 'personas', 'surfaces'] as const).map(role => ({
+      role,
+      remove: (root: string) => rmSync(path.join(root, `.project/${role}.md`)),
+    })),
+  ];
+  if (phase === 'Product Plan')
+    return [
+      ...shared,
+      {
+        role: 'project',
+        remove: (root: string) =>
+          replaceFile(
+            root,
+            `${ticketDirectory}/spec.md`,
+            '**Assumptions:**',
+            '**Other assumptions:**',
+          ),
+      },
+    ];
+  const downstream = [
+    {
+      role: 'scenarios',
+      remove: (root: string) => rmSync(path.join(root, 'features/current-context.feature')),
+    },
+    {
+      role: 'dimensions',
+      remove: (root: string) =>
+        writeFileSync(path.join(root, ticketDirectory, 'dimensions.md'), ''),
+    },
+    {
+      role: 'architecture',
+      remove: (root: string) =>
+        replaceFile(
+          root,
+          `${ticketDirectory}/impl-plan.md`,
+          'skip: No durable architecture records apply.',
+          'An architecture record applies.',
+        ),
+    },
+    {
+      role: 'data',
+      remove: (root: string) =>
+        replaceFile(
+          root,
+          `${ticketDirectory}/impl-plan.md`,
+          'skip: No product data is stored.',
+          'Product data is stored.',
+        ),
+    },
+  ];
+  if (phase === 'Execution Plan')
+    downstream.push({
+      role: 'accepted-upstream-plan',
+      remove: (root: string) => rmSync(path.join(root, ticketDirectory, 'impl-plan.md')),
+    });
+  return [...shared, ...downstream];
+}
+
+After(function (this: SafewordWorld) {
+  const state = states.get(this);
+  if (state?.root) rmSync(state.root, { recursive: true, force: true });
+  if (state?.codexHome) rmSync(state.codexHome, { recursive: true, force: true });
+  states.delete(this);
+  cleanupTrustedReviewerDirectories();
+});
+
+Given(
+  /^a (Product Plan|Implementation Plan|Execution Plan) review packet (.+)$/,
+  function (this: SafewordWorld, phase: Phase, packetState: string) {
+    states.set(this, { phase, packetState });
+  },
+);
+
+Given(
+  /^the canonical (Product Plan|Implementation Plan|Execution Plan) contract requires (.+) as review entry context$/,
+  function (this: SafewordWorld, phase: Phase, inventory: string) {
+    assert.ok(inventory.includes('ticket') && inventory.includes('principles'));
+    states.set(this, { phase, packetState: 'missing each required entry role' });
+  },
+);
+
+When(
+  'review dispatch receives a packet missing any listed required role',
+  function (this: SafewordWorld) {
+    const state = current(this);
+    state.roleFailures = missingEntryCases(state.phase).map(({ role, remove }) => {
+      const root = createProject();
+      try {
+        remove(root);
+        const selected = target(state.phase);
+        const context =
+          state.phase === 'Execution Plan' && role !== 'scenarios'
+            ? ['features/current-context.feature']
+            : [];
+        try {
+          const prepared = prepareReviewPacket(root, selected.kind, [selected.path], context);
+          prepared.cleanup();
+          return { role, failure: undefined };
+        } catch (failure) {
+          return { role, failure };
+        }
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
+  },
+);
+
+Then('dispatch is blocked with the missing role named', function (this: SafewordWorld) {
+  const failures = current(this).roleFailures;
+  assert.ok(failures);
+  for (const { role, failure } of failures) {
+    if (role === 'scenarios' && current(this).phase === 'Execution Plan') {
+      assert.match(String(failure), /approved \.feature scenarios as context/u);
+      continue;
+    }
+    assert.equal(
+      (failure as { code?: string } | undefined)?.code,
+      'missing_planning_context',
+      `${role}: ${String(failure)}`,
+    );
+    assert.equal((failure as { contextRole?: string }).contextRole, role);
+  }
+});
+
+When('review dispatch is prepared', function (this: SafewordWorld) {
+  const state = current(this);
+  const root = createProject();
+  state.root = root;
+  if (state.packetState === 'omits one required current input')
+    rmSync(path.join(root, '.project/personas.md'));
+  if (state.packetState === 'omits the accepted Implementation Plan')
+    rmSync(path.join(root, ticketDirectory, 'impl-plan.md'));
+  if (state.packetState === 'omits a conditionally required input whose trigger applies') {
+    const planPath = path.join(root, ticketDirectory, 'impl-plan.md');
+    writeFileSync(
+      planPath,
+      readFileSync(planPath, 'utf8').replace(
+        'skip: No product data is stored.',
+        'Product data is stored; review the data guide.',
+      ),
+    );
+  }
+  const selected = target(state.phase);
+  const context =
+    state.phase === 'Execution Plan'
+      ? [
+          ...(state.packetState === 'omits the accepted Implementation Plan'
+            ? []
+            : [`${ticketDirectory}/impl-plan.md`]),
+          'features/current-context.feature',
+        ]
+      : [];
+  try {
+    const prepared = prepareReviewPacket(root, selected.kind, [selected.path], context);
+    state.packet = prepared.packet;
+    prepared.cleanup();
+  } catch (error) {
+    state.failure = error;
+  }
+});
+
+When(
+  'the native plugin review hook dispatches from an installed local project with real configuration and collaborators, mocking only the reviewer process boundary',
+  function (this: SafewordWorld) {
+    const state = current(this);
+    const root = createProject();
+    state.root = root;
+    writeFileSync(
+      path.join(root, 'package.json'),
+      '{"name":"review-context-fixture","private":true}\n',
+    );
+    const codexHost = state.phase === 'Execution Plan';
+    if (codexHost) state.codexHome = mkdtempSync(path.join(tmpdir(), 'safeword-r2-codex-'));
+    if (state.codexHome) {
+      const environment = { ...process.env, CODEX_HOME: state.codexHome };
+      const marketplace = spawnSync(
+        'codex',
+        ['plugin', 'marketplace', 'add', path.resolve(packageRoot, '../..'), '--json'],
+        { encoding: 'utf8', timeout: 60_000, env: environment },
+      );
+      assert.equal(marketplace.status, 0, `${marketplace.stdout}\n${marketplace.stderr}`);
+      const plugin = spawnSync('codex', ['plugin', 'add', 'safeword@safeword', '--json'], {
+        encoding: 'utf8',
+        timeout: 60_000,
+        env: environment,
+      });
+      assert.equal(plugin.status, 0, `${plugin.stdout}\n${plugin.stderr}`);
+    }
+    const installed = spawnSync(
+      'bun',
+      [
+        path.join(packageRoot, 'src/cli.ts'),
+        'install',
+        codexHost ? '--agents=codex' : '--agents=claude',
+        '--no-input',
+        '--no-modify',
+        '--json',
+        '--cwd',
+        root,
+      ],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        timeout: 60_000,
+        env: {
+          ...process.env,
+          ...(state.codexHome && { CODEX_HOME: state.codexHome }),
+          SAFEWORD_SKIP_INSTALL: '1',
+          SAFEWORD_SKIP_SKILLS: '1',
+        },
+      },
+    );
+    const installOutput = JSON.parse(installed.stdout) as { errors: unknown[] };
+    assert.deepEqual(installOutput.errors, [], `${installed.stdout}\n${installed.stderr}`);
+    const pluginRoot = codexHost
+      ? path.join(packageRoot, 'codex-plugin')
+      : path.resolve(import.meta.dirname, '../plugin');
+    const hook = path.join(
+      pluginRoot,
+      codexHost ? 'templates/hooks/run-review.ts' : 'runtime/hooks/run-review.ts',
+    );
+    assert.ok(existsSync(hook), 'The review must launch through the native plugin hook.');
+    const configPath = path.join(root, '.safeword/config.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        ...config,
+        crossAgentReview: 'prefer',
+        crossAgentReviewRoutes: codexHost
+          ? { codex: [{ reviewer: 'claude', model: 'opus' }] }
+          : { claude: [{ reviewer: 'opencode' }] },
+      }),
+    );
+    if (state.packetState === 'omits the current personas inventory')
+      rmSync(path.join(root, '.project/personas.md'));
+    if (state.packetState === 'omits the accepted Implementation Plan')
+      rmSync(path.join(root, ticketDirectory, 'impl-plan.md'));
+    const reviewer = createTrustedReviewerDirectory('safeword-r2-installed-');
+    const capture = path.join(reviewer, 'packet.json');
+    writeFileSync(
+      path.join(reviewer, codexHost ? 'claude' : 'opencode'),
+      codexHost
+        ? String.raw`#!${process.execPath}
+const { writeFileSync } = require('node:fs');
+if (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }
+if (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }
+let input = ''; process.stdin.setEncoding('utf8');
+process.stdin.on('data', chunk => { input += chunk; });
+process.stdin.on('end', () => {
+  const packet = JSON.parse(input.trim().split('\n').pop());
+  writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
+  const output = { schema_version: 1, dispatch_id: packet.dispatch_id,
+    reviewer_agent: 'claude', verdict: 'request_changes', summary: 'Fixture observed the actual packet.',
+    findings: [{ severity: 'error', message: 'Fixture stops at the reviewer process boundary.' }],
+    evidence_records: { schema_version: 1, records: [] },
+    planning_destination: 'plan-execution', execution_plan_record: null };
+  console.log(JSON.stringify({ type: 'assistant', message: { model: 'claude-opus-5' } }));
+  console.log(JSON.stringify({ type: 'result', subtype: 'success', structured_output: output,
+    modelUsage: { 'claude-opus-5': { canonicalModel: 'claude-opus-5', provider: 'firstParty' } } }));
+});
+`
+        : String.raw`#!${process.execPath}
+const { writeFileSync } = require('node:fs');
+if (process.argv.includes('--version')) { console.log('opencode 1.0.0'); process.exit(0); }
+if (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.opencode)}); process.exit(0); }
+let input = ''; process.stdin.setEncoding('utf8');
+process.stdin.on('data', chunk => { input += chunk; });
+process.stdin.on('end', () => {
+  const packet = JSON.parse(input.trim().split('\n').pop());
+  writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
+  const output = { schema_version: 1, dispatch_id: packet.dispatch_id,
+    reviewer_agent: 'opencode', verdict: 'request_changes', summary: 'Fixture observed the actual packet.',
+    findings: [{ severity: 'error', message: 'Fixture stops at the reviewer process boundary.' }],
+    evidence_records: { schema_version: 1, records: [] },
+    ...(packet.kind === 'plan-execution' ? { planning_destination: 'plan-execution', execution_plan_record: null } : {}) };
+  console.log(JSON.stringify({ type: 'text', part: { type: 'text', time: { end: 1 }, text: JSON.stringify(output) } }));
+});
+`,
+      { mode: 0o755 },
+    );
+    const bun = spawnSync('which', ['bun'], { encoding: 'utf8' });
+    assert.equal(bun.status, 0);
+    const selected = target(state.phase);
+    const context =
+      state.phase === 'Execution Plan' ? ['--context', 'features/current-context.feature'] : [];
+    const result = spawnSync(
+      'bun',
+      [hook, 'review', 'run', selected.kind, selected.path, ...context, '--json', '--no-input'],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        timeout: 60_000,
+        env: {
+          ...process.env,
+          PATH: `${reviewer}:${path.dirname(bun.stdout.trim())}:/usr/bin:/bin`,
+          ...(state.codexHome && { CODEX_HOME: state.codexHome }),
+          CLAUDE_PROJECT_DIR: root,
+          CLAUDE_PLUGIN_ROOT: pluginRoot,
+          SAFEWORD_AGENT_RUNTIME: codexHost ? 'codex' : 'claude',
+          SAFEWORD_AUTHOR_MODEL: codexHost ? 'gpt-6-astra' : 'claude-opus-5',
+        },
+      },
+    );
+    state.installed = { result, capture };
+  },
+);
+
+Then(
+  'dispatch remains blocked until the current personas inventory is included',
+  function (this: SafewordWorld) {
+    const installed = current(this).installed;
+    assert.ok(installed);
+    assert.notEqual(installed.result.status, 0);
+    assert.ok(
+      !existsSync(installed.capture),
+      'The reviewer must not run for a missing persona role.',
+    );
+    const output = JSON.parse(installed.result.stdout) as {
+      findings: { code: string; metadata?: { context_role?: string } }[];
+    };
+    assert.ok(
+      output.findings.some(
+        finding =>
+          finding.code === 'missing_planning_context' &&
+          finding.metadata?.context_role === 'personas',
+      ),
+    );
+  },
+);
+
+Then(
+  'dispatch remains blocked until the accepted Implementation Plan is included',
+  function (this: SafewordWorld) {
+    const installed = current(this).installed;
+    assert.ok(installed);
+    assert.notEqual(installed.result.status, 0);
+    assert.ok(
+      !existsSync(installed.capture),
+      'The reviewer must not run without the accepted plan.',
+    );
+    assert.match(installed.result.stdout, /impl-plan\.md/u);
+  },
+);
+
+Then('dispatch is blocked until that current context is included', function (this: SafewordWorld) {
+  const state = current(this);
+  assert.equal(state.packet, undefined, 'An incomplete packet must not enter review.');
+  const expectedRole =
+    state.packetState === 'omits a conditionally required input whose trigger applies'
+      ? 'data'
+      : state.packetState === 'omits the accepted Implementation Plan'
+        ? 'accepted-upstream-plan'
+        : 'personas';
+  if (expectedRole === 'accepted-upstream-plan') {
+    assert.match(String(state.failure), /impl-plan\.md/u);
+    return;
+  }
+  assert.equal((state.failure as { code?: string })?.code, 'missing_planning_context');
+  assert.equal((state.failure as { contextRole?: string })?.contextRole, expectedRole);
+});
+
+Then('dispatch proceeds to the semantic reviewer', function (this: SafewordWorld) {
+  const state = current(this);
+  if (state.installed) {
+    assert.ok(
+      existsSync(state.installed.capture),
+      `${state.installed.result.stdout}\n${state.installed.result.stderr}`,
+    );
+    const packet = JSON.parse(readFileSync(state.installed.capture, 'utf8')) as ReturnType<
+      typeof prepareReviewPacket
+    >['packet'];
+    const required = state.phase === 'Execution Plan' ? 'accepted-upstream-plan' : 'personas';
+    assert.ok(
+      packet.planning_context?.dependencies.some(dependency => dependency.role === required),
+    );
+    return;
+  }
+  assert.equal(state.failure, undefined, String(state.failure));
+  assert.equal(
+    state.packet?.planning_phase,
+    target(state.phase).kind === 'quality-review' ? 'product-plan' : target(state.phase).kind,
+  );
+  assert.ok(
+    state.packet?.planning_context,
+    'The reviewer packet must carry resolved planning roles.',
+  );
+  const absences = state.packet.planning_context.absences;
+  if (
+    state.packetState ===
+    'omits a conditionally required input whose trigger does not apply and records the justified absence'
+  )
+    assert.ok(
+      absences.some(value => value.role === 'data' && value.reason.includes('No product data')),
+    );
+  if (
+    state.packetState === 'omits an optional supporting input while including every required input'
+  )
+    assert.ok(
+      absences.some(value => value.role === 'dimensions' && value.reason.includes('no dimensions')),
+    );
+});
+
+Given(
+  /^a planning phase has a required project-knowledge input that is (.+), where stale means its reconciliation lineage names a superseded packaged-source version$/,
+  function (this: SafewordWorld, sourceState: string) {
+    const root = createProject();
+    states.set(this, { phase: 'Product Plan', packetState: sourceState, root });
+    if (sourceState === 'not configured') return;
+
+    const relative = 'docs/principles.md';
+    const configured = path.join(root, relative);
+    mkdirSync(path.dirname(configured), { recursive: true });
+    if (sourceState === 'configured but unreadable') {
+      mkdirSync(configured);
+    } else if (sourceState.includes('only whitespace or comment changes')) {
+      writeFileSync(
+        configured,
+        `${readFileSync(path.join(root, '.project/principles.md'), 'utf8')}\n<!-- cosmetic -->\n`,
+      );
+    } else {
+      writeFileSync(
+        configured,
+        sourceState === 'configured but blank'
+          ? ' \n'
+          : '# Project principles\n\nKeep the blue recovery button visible.\n',
+      );
+    }
+    const stale = sourceState.includes('stale');
+    const tracked =
+      stale ||
+      sourceState.includes('current reconciliation lineage') ||
+      sourceState.startsWith('configured and current');
+    mkdirSync(path.join(root, '.safeword'), { recursive: true });
+    writeFileSync(
+      path.join(root, '.safeword/config.json'),
+      JSON.stringify({
+        paths: { principles: relative },
+        ...(tracked && {
+          pathLineage: {
+            principles: { packagedSourceVersion: stale ? '0.0.0' : SAFEWORD_SCHEMA.version },
+          },
+        }),
+      }),
+    );
+  },
+);
+
+When('a plan review packet is resolved', function (this: SafewordWorld) {
+  const state = current(this);
+  assert.ok(state.root);
+  try {
+    const prepared = prepareReviewPacket(
+      state.root,
+      'quality-review',
+      [`${ticketDirectory}/spec.md`],
+      [],
+    );
+    state.packet = prepared.packet;
+    prepared.cleanup();
+  } catch (failure) {
+    state.failure = failure;
+  }
+});
+
+Then('the installed default is included', function (this: SafewordWorld) {
+  const state = current(this);
+  assert.equal(state.failure, undefined, String(state.failure));
+  assert.ok(state.packet?.context_files?.some(file => file.path === '.project/principles.md'));
+});
+
+Then(
+  'the project source is included with that project-specific content',
+  function (this: SafewordWorld) {
+    const state = current(this);
+    assert.equal(state.failure, undefined, String(state.failure));
+    assert.ok(
+      state.packet?.context_files?.some(
+        file =>
+          file.path === 'docs/principles.md' &&
+          file.content.includes('Keep the blue recovery button visible.'),
+      ),
+    );
+  },
+);
+
+Then('dispatch is blocked with reconciliation named', function (this: SafewordWorld) {
+  const state = current(this);
+  assert.equal(state.packet, undefined, 'Stale planning override produced a review packet');
+  assert.equal((state.failure as { code?: string })?.code, 'missing_planning_context');
+  assert.equal((state.failure as { contextRole?: string })?.contextRole, 'principles');
+  assert.match(String(state.failure), /reconcil/iu);
+  assert.match(String(state.failure), /paths\.principles/u);
+});
+
+Then('the project source is included and dispatch is not blocked', function (this: SafewordWorld) {
+  const state = current(this);
+  assert.equal(state.failure, undefined, String(state.failure));
+  assert.ok(state.packet?.context_files?.some(file => file.path === 'docs/principles.md'));
+});

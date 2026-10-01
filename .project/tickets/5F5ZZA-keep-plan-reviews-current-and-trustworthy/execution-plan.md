@@ -449,7 +449,7 @@ reopening its authority.
 8. REFACTOR: Remove redundant rubric prose after parity. Keep deterministic
    boundary tests separate from model evals and evals out of default fast tests.
 9. Run:
-   `bun run test tests/integration/planning-evidence-boundary.test.ts tests/integration/planning-scope-review.test.ts tests/integration/planning-documentation.test.ts tests/hooks/product-plan-contract.test.ts tests/review/plan-state-truthfulness.test.ts`.
+   `bun run test tests/integration/planning-evidence-boundary.test.ts tests/integration/planning-scope-review.test.ts tests/integration/planning-documentation.test.ts tests/hooks/product-plan-contract.test.ts tests/integration/plan-state-truthfulness.test.ts`.
 10. Add the aggregate `test:eval:planning-reviews` script, then run it to prove
     both the reviewer-capability catalogue and semantic planning contracts.
 11. Run:
