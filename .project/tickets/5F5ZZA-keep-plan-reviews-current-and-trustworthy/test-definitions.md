@@ -788,7 +788,7 @@ admission. Keep the full scenario unchecked until its remaining boundaries pass.
 ### Scenario: A planning approval cannot claim its downstream state
 
 - [x] RED ddaebbdb0cc9de196ac06ab6671c6493101b6d85
-- [ ] GREEN
+- [x] GREEN 4b71e1817
 - [ ] REFACTOR
 
 ### Scenario: A planning approval may claim its own bounded state
