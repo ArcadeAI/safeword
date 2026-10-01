@@ -57,13 +57,43 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     kind: 'quality-review',
     planning_phase: 'product-plan',
     accepted_boundary: accepted,
-    context: 'The Product Plan is at intake, before scenarios or design.',
+    context:
+      'The Product Plan passed its own behavior review; design and delivery remain unreviewed.',
     reviewed_plan:
-      'Product Plan defines manual authorization behavior. Approval of this Product Plan also certifies the design, implementation, verification, and merge.',
+      'Product Plan defines manual authorization behavior. Approval of this Product Plan also certifies technical feasibility and approved design.',
     expected_verdict: 'request_changes',
     allowed_finding_authority:
       'Product approval cannot claim downstream design, verification, or merge.',
     forbidden_scope_expansion: 'The reviewer must not propose a replacement design.',
+  },
+  {
+    id: 'r10-implementation-downstream-claim',
+    rule: 'R10',
+    kind: 'plan-implementation',
+    planning_phase: 'plan-implementation',
+    accepted_boundary: accepted,
+    context:
+      'The Implementation Plan passed its own design review; implementation and release remain unverified.',
+    reviewed_plan: `${completeImplementationPlan} Approval receipt: this accepted design also certifies completed implementation and release approval.`,
+    expected_verdict: 'request_changes',
+    allowed_finding_authority:
+      'Implementation Plan approval cannot certify completed implementation or release approval.',
+    forbidden_scope_expansion: 'Do not invent additional implementation or release requirements.',
+  },
+  {
+    id: 'r10-execution-downstream-claim',
+    rule: 'R10',
+    kind: 'plan-execution',
+    planning_phase: 'plan-execution',
+    accepted_boundary: accepted,
+    context:
+      'The Execution Plan passed its own startability review; verification and merge remain pending.',
+    reviewed_plan:
+      'Execution Plan approval receipt: delivery tasks and proof are startable. This approval also certifies passed verification and merge authority.',
+    expected_verdict: 'request_changes',
+    allowed_finding_authority:
+      'Execution Plan approval cannot claim passed verification or grant merge authority.',
+    forbidden_scope_expansion: 'Do not invent new delivery or merge policy.',
   },
   {
     id: 'r11-optional-architecture',
