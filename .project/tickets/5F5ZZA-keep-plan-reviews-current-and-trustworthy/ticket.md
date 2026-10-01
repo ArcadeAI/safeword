@@ -47,6 +47,8 @@ parent_contract_digest: 2afd2f5559eafea9bd752ac826b46fa98e80a30ccdf6bed76a16ff7f
 
 ## Work Log
 
+- 2026-10-01T04:31:55Z Root feature acceptance after the R13 loop: 170 scenarios, 46 passed, 124 undefined, 0 failed. The 3 judged R13 rows passed, while the installed-host R13 sibling and other unfinished rows remain visible. The pinned aggregate eval passed 14/14 fixtures, and the targeted eval-contract test passed 2/2. This is partial acceptance evidence only; PR 5 stays Draft.
+
 - 2026-10-01T04:18:57Z PR 5 R13 GREEN: Independent executable-RED review `a3bae8e8-8580-4cce-9895-af7284aca3b1` approved the exact three-row Cucumber failure on the committed RED snapshot, with the RED ledger annotation already present. The current-branch GREEN gate confirmed that receipt. Commit `481b2cc76` connects the three rows to the pinned live reviewer/judge evaluator and isolates its temporary report. The post-format Cucumber run passed all 3 rows (153 steps including shared hooks). R13's installed-host sibling scenario and the rest of the feature remain unfinished.
 
 - 2026-10-01T04:04:52Z PR 5 R13 executable RED review `098d8ae1-538a-4e54-b255-273afb51b227` independently approved the three undefined root Cucumber rows at the pre-GREEN checkout. Its narrow proof target stayed current when the evaluator script and step definitions were added, and a live Cucumber run passed all three rows. Marking RED in the ledger afterward invalidated that receipt, so a new review at the committed RED snapshot was required before GREEN could be recorded.
