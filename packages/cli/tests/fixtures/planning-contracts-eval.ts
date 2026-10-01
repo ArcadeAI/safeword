@@ -134,6 +134,19 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     forbidden_scope_expansion: 'Do not authorize migration based on reviewer preference.',
   },
   {
+    id: 'r13-conforming-boundary',
+    rule: 'R13',
+    kind: 'plan-implementation',
+    planning_phase: 'plan-implementation',
+    accepted_boundary: accepted,
+    context: 'All binding scope sources are present.',
+    reviewed_plan: completeImplementationPlan,
+    expected_verdict: 'approve',
+    allowed_finding_authority:
+      'The plan covers explicit authorization and excludes automatic migration, so scope completeness has no blocking finding.',
+    forbidden_scope_expansion: 'Do not require automatic migration or unrelated capability.',
+  },
+  {
     id: 'r14-declined-strengthening',
     rule: 'R14',
     kind: 'plan-implementation',

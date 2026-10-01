@@ -1,7 +1,7 @@
 {
   "version": 1,
   "rubric_digest": "2b86e288fac6ee06d61db02c73b886499a3dff4c37d5cf45578ed9ee24e7ff7a",
-  "corpus_digest": "cf9037aa6b71e5de6425b57251e2698d9fdb8788a18dce486890bd8179d14e0a",
+  "corpus_digest": "ecbd585b0040527e4207ea7d3726b2e6d7ed2cb7c07ee5e5187c419dbee6eaf0",
   "reviewer_model": "claude-opus-5",
   "judge_model": "claude-sonnet-5",
   "judge_rubric_version": 1,
