@@ -130,6 +130,7 @@ Feature: Keep plan reviews current and trustworthy
         | the installed authoring contract differs from the canonical source only in whitespace or comments | authoring and approval are blocked until the exact canonical contract bytes are restored |
         | the installed authoring contract is absent | authoring and approval are blocked until the canonical contract is restored |
         | the generated reviewer rubric deletes one clause but retains the canonical version label | review dispatch and approval are blocked until the exact canonical contract bytes are restored |
+        | the generated reviewer rubric is absent | review dispatch and approval are blocked until the canonical contract is restored |
         | the authoring contract and reviewer rubric both match the exact canonical bytes | both copies recompute to the same identity and contract identity does not block authoring, dispatch, or approval |
 
     @surface.claude-code
@@ -187,6 +188,7 @@ Feature: Keep plan reviews current and trustworthy
         | a different agent in the same process using a model at least as capable as the author | independent approval is refused |
         | the authoring agent in the same process | independent approval is refused |
         | a different agent using a weaker model than the author | independent approval is refused |
+        | a different agent when the author model cannot be verified | independent approval is refused |
 
     Scenario Outline: Route selection derives independence from configured model capability
       Given the real review route registry and project configuration select <reviewer_capability>
@@ -197,6 +199,7 @@ Feature: Keep plan reviews current and trustworthy
         | reviewer_capability | selection_result |
         | a reviewer model at least as capable as the verified author model | that route is attempted as an independent review |
         | a reviewer model weaker than the verified author model | that route is not attempted as independent and selection continues to the next permitted route |
+        | a reviewer model with unavailable, stale, or conflicting pair capability | that route is not attempted as independent and selection continues to the next permitted route |
 
     Scenario Outline: Exhausted routes advance through the fallback ladder in order
       Given every route before <next_tier> was attempted and returned a typed failure
