@@ -35577,6 +35577,7 @@ function runTest(copy, argv, fullName, expectedStatus) {
   const executable = argv[0];
   if (executable === undefined)
     throw new Error("Proof command is empty.");
+  rmSync9(nodePath48.join(cwd, REPORT), { force: true });
   const result = spawnSync9(executable, argv.slice(1), {
     cwd,
     env: Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("SAFEWORD_REVIEW_"))),
