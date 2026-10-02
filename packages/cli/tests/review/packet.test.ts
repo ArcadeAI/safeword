@@ -510,4 +510,42 @@ describe('review packet containment and change accounting', () => {
       '1048576-byte limit',
     );
   });
+
+  it('reports the first supplied failure when serialized overhead crosses the aggregate limit', () => {
+    const project = temporaryDirectory();
+    const targets = Array.from({ length: 4 }, (_, index) => `input-${index}.md`);
+    for (const target of targets) {
+      writeFileSync(nodePath.join(project, target), 'x'.repeat(262_120));
+    }
+    writeFileSync(nodePath.join(project, 'unmarked.js'), 'x'.repeat(256 * 1024 + 1));
+    writeFileSync(
+      nodePath.join(project, '.gitattributes'),
+      'generated/** linguist-generated=true\n',
+    );
+    for (const args of [
+      ['init', '-q'],
+      ['add', '.gitattributes'],
+      [
+        '-c',
+        'commit.gpgsign=false',
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-qm',
+        'fixture',
+      ],
+    ]) {
+      const result = spawnSync('git', args, { cwd: project, encoding: 'utf8' });
+      expect(result.status, result.stderr).toBe(0);
+    }
+
+    expect(() =>
+      prepareReviewPacket(project, 'quality-review', [...targets, 'unmarked.js']),
+    ).toThrow('1048576-byte limit');
+    expect(() =>
+      prepareReviewPacket(project, 'quality-review', ['unmarked.js', ...targets]),
+    ).toThrow('262144-byte limit');
+  });
 });

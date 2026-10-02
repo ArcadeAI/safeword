@@ -31716,6 +31716,24 @@ import {
 } from "fs";
 import { tmpdir as tmpdir3 } from "os";
 import nodePath44 from "path";
+function serializedOverflowIndex(kind, files, executionAttestation) {
+  const logicalFiles = [];
+  const contextFiles = [];
+  for (const entry of files) {
+    (entry.context ? contextFiles : logicalFiles).push(entry.file);
+    const packet = {
+      schema_version: 1,
+      dispatch_id: "00000000-0000-0000-0000-000000000000",
+      kind,
+      logical_files: logicalFiles,
+      ...contextFiles.length > 0 && { context_files: contextFiles },
+      ...executionAttestation !== undefined && { execution_attestation: executionAttestation }
+    };
+    if (Buffer.byteLength(JSON.stringify(packet), "utf8") > MAX_PACKET_BYTES)
+      return entry.index;
+  }
+  return;
+}
 function gitEnvironment(alternateObjects) {
   return {
     PATH: process.env.PATH,
@@ -31994,6 +32012,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
   const workspace = mkdtempSync5(nodePath44.join(tmpdir3(), "safeword-review-"));
   const tracked = [];
   const oversized = [];
+  const captured = [];
   const targetErrors = [];
   const excludedTargets = [];
   const expectedSnapshotEntries = new Set;
@@ -32048,7 +32067,9 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
         }
         expectedSnapshotEntries.add(`file:${relative}`);
         tracked.push({ source, snapshot, sha256: digest2(bytes), device, inode });
-        return [{ path: toReviewPath(relative), content }];
+        const file = { path: toReviewPath(relative), content };
+        captured.push({ index: offset + index, context: !allowGenerated, file });
+        return [file];
       } catch (error2) {
         targetErrors.push({ index: offset + index, error: error2 });
         return [];
@@ -32078,6 +32099,13 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     logicalFiles = captureFiles(uniqueTargets, true, 0);
     contextFiles = captureFiles(context, false, uniqueTargets.length);
     requireStableSources(canonicalRoot, tracked);
+    const overflowIndex = serializedOverflowIndex(kind, captured, executionAttestation);
+    if (overflowIndex !== undefined) {
+      targetErrors.push({
+        index: overflowIndex,
+        error: new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE")
+      });
+    }
     let marked;
     try {
       marked = generatedTargets(canonicalRoot, oversized);

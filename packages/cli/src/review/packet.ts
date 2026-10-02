@@ -70,6 +70,34 @@ interface OversizedFile {
   readonly size: number;
 }
 
+interface CapturedPacketFile {
+  readonly index: number;
+  readonly context: boolean;
+  readonly file: { readonly path: string; readonly content: string };
+}
+
+function serializedOverflowIndex(
+  kind: ReviewKind,
+  files: readonly CapturedPacketFile[],
+  executionAttestation: RedExecutionAttestation | undefined,
+): number | undefined {
+  const logicalFiles: CapturedPacketFile['file'][] = [];
+  const contextFiles: CapturedPacketFile['file'][] = [];
+  for (const entry of files) {
+    (entry.context ? contextFiles : logicalFiles).push(entry.file);
+    const packet = {
+      schema_version: 1,
+      dispatch_id: '00000000-0000-0000-0000-000000000000',
+      kind,
+      logical_files: logicalFiles,
+      ...(contextFiles.length > 0 && { context_files: contextFiles }),
+      ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),
+    };
+    if (Buffer.byteLength(JSON.stringify(packet), 'utf8') > MAX_PACKET_BYTES) return entry.index;
+  }
+  return undefined;
+}
+
 function gitEnvironment(alternateObjects?: string): NodeJS.ProcessEnv {
   return {
     PATH: process.env.PATH,
@@ -492,6 +520,7 @@ function prepareReviewPacketUnsafe(
   const workspace = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-'));
   const tracked: CapturedFile[] = [];
   const oversized: OversizedFile[] = [];
+  const captured: CapturedPacketFile[] = [];
   const targetErrors: { index: number; error: unknown }[] = [];
   const excludedTargets: string[] = [];
   const expectedSnapshotEntries = new Set<string>();
@@ -573,7 +602,9 @@ function prepareReviewPacketUnsafe(
           }
           expectedSnapshotEntries.add(`file:${relative}`);
           tracked.push({ source, snapshot, sha256: digest(bytes), device, inode });
-          return [{ path: toReviewPath(relative), content }];
+          const file = { path: toReviewPath(relative), content };
+          captured.push({ index: offset + index, context: !allowGenerated, file });
+          return [file];
         } catch (error) {
           targetErrors.push({ index: offset + index, error });
           return [];
@@ -604,6 +635,16 @@ function prepareReviewPacketUnsafe(
     logicalFiles = captureFiles(uniqueTargets, true, 0);
     contextFiles = captureFiles(context, false, uniqueTargets.length);
     requireStableSources(canonicalRoot, tracked);
+    const overflowIndex = serializedOverflowIndex(kind, captured, executionAttestation);
+    if (overflowIndex !== undefined) {
+      targetErrors.push({
+        index: overflowIndex,
+        error: new ReviewPacketError(
+          `Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`,
+          'REVIEW_PACKET_TOO_LARGE',
+        ),
+      });
+    }
     let marked: Set<string>;
     try {
       marked = generatedTargets(canonicalRoot, oversized);
