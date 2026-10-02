@@ -75,7 +75,7 @@ function isSerializedCoverage(value: unknown): boolean {
   if (value.status === 'integrity_reviewed') return hasExactKeys(value, ['path', 'status']);
   return (
     value.status === 'skipped' &&
-    value.skipReason === 'non_text' &&
+    (value.skipReason === 'non_text' || value.skipReason === 'generated') &&
     hasExactKeys(value, ['path', 'skipReason', 'status'])
   );
 }

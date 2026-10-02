@@ -39,10 +39,11 @@ describe('review-pr inspect command wiring', () => {
       JSON.stringify({
         prReview: {
           enabled: true,
+          generatedFilesCheck: 'Dogfood parity',
           maxTotalBytes: 1024,
           model: 'gpt-test',
           provider: 'openai',
-          requiredChecks: [{ context: 'build' }],
+          requiredChecks: [{ context: 'build' }, { context: 'Dogfood parity' }],
         },
       }),
     );
@@ -64,8 +65,12 @@ describe('review-pr inspect command wiring', () => {
             kind: 'text',
             path: 'policies/deprecated.flux',
           },
+          { kind: 'generated', path: 'plugin/runtime/cli.js' },
         ],
-        checks: [{ conclusion: 'success', name: 'build', status: 'completed' }],
+        checks: [
+          { conclusion: 'success', name: 'build', status: 'completed' },
+          { conclusion: 'success', name: 'Dogfood parity', status: 'completed' },
+        ],
         headSha: 'a'.repeat(40),
         markerReceiptExists: false,
         pullState: 'ready',
@@ -98,12 +103,44 @@ describe('review-pr inspect command wiring', () => {
       }),
     );
     expect(receiptOf(result)).toMatchObject({
-      checks: [{ name: 'build', status: 'success' }],
+      checks: [
+        { name: 'build', status: 'success' },
+        { name: 'Dogfood parity', status: 'success' },
+      ],
+      coverage: [
+        { path: 'policies/access.flux', status: 'integrity_reviewed' },
+        { path: 'policies/deprecated.flux', status: 'integrity_reviewed' },
+        { path: 'plugin/runtime/cli.js', skipReason: 'generated', status: 'skipped' },
+      ],
       reviewedSha: 'a'.repeat(40),
       route: 'needs_human',
       tokenUsage: { input: 123, output: 45 },
     });
     expect(JSON.parse(readFileSync(outputPath, 'utf8'))).toEqual(result);
+
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({
+        prReview: {
+          enabled: true,
+          maxTotalBytes: 1024,
+          model: 'gpt-test',
+          provider: 'openai',
+          requiredChecks: [{ context: 'build' }, { context: 'Dogfood parity' }],
+        },
+      }),
+    );
+    const withoutGeneratedAuthority = await inspectPullRequestCommand({
+      cwd,
+      inputPath,
+      outputPath,
+      provider,
+    });
+    expect(receiptOf(withoutGeneratedAuthority)).toMatchObject({
+      missingEvidence: ['plugin/runtime/cli.js'],
+      route: 'needs_human',
+      runState: 'incomplete',
+    });
   });
 
   it.each([
@@ -259,7 +296,7 @@ describe('review-pr inspect command wiring', () => {
     });
   });
 
-  it('uses the same cumulative byte budget for provider evidence and receipt coverage', async () => {
+  it('reviews every bounded file in separate passes and fails closed if a later pass fails', async () => {
     const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-budget-'));
     directories.push(cwd);
     mkdirSync(nodePath.join(cwd, '.safeword'));
@@ -315,11 +352,39 @@ describe('review-pr inspect command wiring', () => {
         model: 'gpt-test',
       }),
     );
+    expect(provider).toHaveBeenCalledTimes(2);
+    expect(provider).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        evidence: [{ content: overBudgetContent, path: 'src/over-budget.ts' }],
+      }),
+    );
     expect(receiptOf(result)).toMatchObject({
+      coverage: [
+        { path: 'src/first.ts', status: 'integrity_reviewed' },
+        { path: 'src/over-budget.ts', status: 'integrity_reviewed' },
+      ],
+      missingEvidence: [],
+      route: 'looks_ready',
+      runState: 'complete',
+    });
+
+    const brokenProvider = vi
+      .fn()
+      .mockResolvedValueOnce({ findings: [], tokenUsage: {} })
+      .mockRejectedValueOnce(new Error('provider unavailable'));
+    const broken = await inspectPullRequestCommand({
+      cwd,
+      inputPath,
+      outputPath,
+      provider: brokenProvider,
+    });
+    expect(brokenProvider).toHaveBeenCalledTimes(2);
+    expect(receiptOf(broken)).toMatchObject({
       coverage: [{ path: 'src/first.ts', status: 'integrity_reviewed' }],
       missingEvidence: ['src/over-budget.ts'],
       route: 'needs_human',
-      runState: 'incomplete',
+      runState: 'failed',
+      unknowns: ['review provider failed'],
     });
   });
 

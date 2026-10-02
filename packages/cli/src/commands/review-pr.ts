@@ -62,7 +62,7 @@ interface InspectionInput {
         kind: 'text';
         path: string;
       }
-    | { kind: 'non_text'; path: string }
+    | { kind: 'generated' | 'non_text'; path: string }
     | { kind: 'unreadable_text'; path: string }
   )[];
   checks: { conclusion: string | null; name: string; status: string }[];
@@ -76,6 +76,7 @@ interface InspectionInput {
 
 interface InspectionConfig {
   enabled: true;
+  generatedFilesCheck?: string;
   maxTotalBytes: number;
   model: string;
   provider: 'openai';
@@ -113,6 +114,30 @@ function validRequiredChecks(value: unknown): boolean {
   );
 }
 
+function validGeneratedCheck(config: Record<string, unknown>): boolean {
+  if (config.generatedFilesCheck === undefined) return true;
+  return (
+    typeof config.generatedFilesCheck === 'string' &&
+    Array.isArray(config.requiredChecks) &&
+    config.requiredChecks.some(
+      check => isRecord(check) && check.context === config.generatedFilesCheck,
+    )
+  );
+}
+
+function validInspectionConfig(config: Record<string, unknown>): boolean {
+  return (
+    config.enabled === true &&
+    config.provider === 'openai' &&
+    typeof config.model === 'string' &&
+    config.model.length > 0 &&
+    Number.isSafeInteger(config.maxTotalBytes) &&
+    (config.maxTotalBytes as number) > 0 &&
+    validGeneratedCheck(config) &&
+    validRequiredChecks(config.requiredChecks)
+  );
+}
+
 function hasValidInputEnvelope(raw: Record<string, unknown>): raw is InspectionInputEnvelope {
   const validHead = typeof raw.headSha === 'string' && /^[a-f\d]{40,64}$/u.test(raw.headSha);
   const validState = isPullState(raw.pullState);
@@ -135,15 +160,7 @@ function parseConfig(cwd: string): InspectionConfig {
     throw new Error('review-pr: .safeword/config.json must define prReview');
   }
   const config = raw.prReview;
-  if (
-    config.enabled !== true ||
-    config.provider !== 'openai' ||
-    typeof config.model !== 'string' ||
-    config.model.length === 0 ||
-    !Number.isSafeInteger(config.maxTotalBytes) ||
-    (config.maxTotalBytes as number) <= 0 ||
-    !validRequiredChecks(config.requiredChecks)
-  ) {
+  if (!validInspectionConfig(config)) {
     throw new Error('review-pr: prReview configuration is incomplete or invalid');
   }
   return config as unknown as InspectionConfig;
@@ -161,10 +178,10 @@ function decodeFullContent(encoded: string): string | undefined {
 
 function isNonTextArtifact(
   artifact: unknown,
-): artifact is { kind: 'non_text' | 'unreadable_text'; path: string } {
+): artifact is { kind: 'generated' | 'non_text' | 'unreadable_text'; path: string } {
   return (
     isRecord(artifact) &&
-    (artifact.kind === 'non_text' || artifact.kind === 'unreadable_text') &&
+    (['generated', 'non_text', 'unreadable_text'] as unknown[]).includes(artifact.kind) &&
     typeof artifact.path === 'string'
   );
 }
@@ -367,23 +384,34 @@ function boundedTextEvidence(
 ): {
   context: { content: string; path: string }[];
   evidence: { content: string; path: string }[];
-} {
+}[] {
   let usedBytes = 0;
-  const context: { content: string; path: string }[] = [];
-  const evidence: { content: string; path: string }[] = [];
+  const batches: {
+    context: { content: string; path: string }[];
+    evidence: { content: string; path: string }[];
+  }[] = [];
+  let context: { content: string; path: string }[] = [];
+  let evidence: { content: string; path: string }[] = [];
   for (const artifact of artifacts) {
     if (artifact.kind !== 'text' || artifact.contextUnavailable) continue;
     const byteLength =
       Buffer.byteLength(artifact.content, 'utf8') +
       (artifact.fullContent === undefined ? 0 : Buffer.byteLength(artifact.fullContent, 'utf8'));
-    if (usedBytes + byteLength > maxTotalBytes) continue;
+    if (byteLength > maxTotalBytes) continue;
+    if (usedBytes + byteLength > maxTotalBytes) {
+      batches.push({ context, evidence });
+      context = [];
+      evidence = [];
+      usedBytes = 0;
+    }
     usedBytes += byteLength;
     evidence.push({ content: artifact.content, path: artifact.path });
     if (artifact.fullContent !== undefined) {
       context.push({ content: artifact.fullContent, path: artifact.path });
     }
   }
-  return { context, evidence };
+  if (evidence.length > 0) batches.push({ context, evidence });
+  return batches;
 }
 
 /**
@@ -393,9 +421,17 @@ function boundedTextEvidence(
  */
 function receiptEvidence(
   artifacts: InspectionInput['artifacts'],
+  generatedCheckPassed: boolean,
+  reviewedPaths?: ReadonlySet<string>,
 ): NonNullable<AdvisoryInspection['artifacts']> {
   return artifacts.map(artifact => {
+    if (artifact.kind === 'generated' && !generatedCheckPassed) {
+      return { kind: 'unreadable_text' as const, path: artifact.path };
+    }
     if (artifact.kind !== 'text') return { kind: artifact.kind, path: artifact.path };
+    if (reviewedPaths !== undefined && !reviewedPaths.has(artifact.path)) {
+      return { kind: 'unreadable_text' as const, path: artifact.path };
+    }
     if (artifact.contextUnavailable) {
       return { kind: 'unreadable_text' as const, path: artifact.path };
     }
@@ -422,21 +458,38 @@ export async function inspectPullRequestCommand(
     return { ...artifact, path: sanitizedPath.value };
   });
   const prerequisite = resolvePrerequisiteState(config, input);
+  const generatedCheckPassed =
+    config.generatedFilesCheck !== undefined &&
+    receiptChecks(config, input).some(
+      check => check.name === config.generatedFilesCheck && check.status === 'success',
+    );
   let published: PublishedReceipt | undefined;
 
   await reviewPullRequest({
     inspect: async () => {
+      const reviewedPaths = new Set<string>();
       try {
-        const textEvidence = boundedTextEvidence(input.artifacts, config.maxTotalBytes);
-        const noReviewableEvidence = textEvidence.evidence.length === 0;
-        const review = noReviewableEvidence
-          ? { findings: [], tokenUsage: {} }
-          : await (options.provider ?? productionProvider)({
+        const batches = boundedTextEvidence(input.artifacts, config.maxTotalBytes);
+        const noReviewableEvidence = batches.length === 0;
+        const reviews: ModelReviewResult[] = [];
+        for (const batch of batches) {
+          reviews.push(
+            await (options.provider ?? productionProvider)({
               apiKey: process.env.OPENAI_API_KEY,
-              ...(textEvidence.context.length > 0 && { context: textEvidence.context }),
-              evidence: textEvidence.evidence,
+              ...(batch.context.length > 0 && { context: batch.context }),
+              evidence: batch.evidence,
               model: config.model,
-            });
+            }),
+          );
+          for (const artifact of batch.evidence) reviewedPaths.add(artifact.path);
+        }
+        const review = {
+          findings: reviews.flatMap(result => result.findings),
+          tokenUsage: {
+            input: reviews.reduce((total, result) => total + (result.tokenUsage.input ?? 0), 0),
+            output: reviews.reduce((total, result) => total + (result.tokenUsage.output ?? 0), 0),
+          },
+        };
         const receiptFindings = review.findings.map(finding => {
           const path = redactCredentials(finding.path, credentials);
           const consequence = redactCredentials(finding.consequence, credentials);
@@ -453,7 +506,7 @@ export async function inspectPullRequestCommand(
           };
         });
         return {
-          artifacts: receiptEvidence(receiptArtifacts),
+          artifacts: receiptEvidence(receiptArtifacts, generatedCheckPassed),
           checks: receiptChecks(config, input),
           consequentialFindings: receiptFindings.filter(finding => finding.consequential).length,
           findings: receiptFindings,
@@ -471,7 +524,7 @@ export async function inspectPullRequestCommand(
         };
       } catch {
         return {
-          artifacts: receiptEvidence(receiptArtifacts),
+          artifacts: receiptEvidence(receiptArtifacts, generatedCheckPassed, reviewedPaths),
           checks: receiptChecks(config, input),
           consequentialFindings: 0,
           maxTotalBytes: config.maxTotalBytes,

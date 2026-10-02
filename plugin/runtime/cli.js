@@ -35975,8 +35975,11 @@ function resolveEvidence(inspection) {
   const coverage = [...inspection.coverage ?? []];
   const missingEvidence = [];
   const artifacts = inspection.artifacts ?? [];
-  let usedBytes = 0;
   for (const artifact of artifacts) {
+    if (artifact.kind === "generated") {
+      coverage.push({ path: artifact.path, skipReason: "generated", status: "skipped" });
+      continue;
+    }
     if (artifact.kind === "non_text") {
       coverage.push({ path: artifact.path, skipReason: "non_text", status: "skipped" });
       continue;
@@ -35985,11 +35988,10 @@ function resolveEvidence(inspection) {
       missingEvidence.push(artifact.path);
       continue;
     }
-    if (inspection.maxTotalBytes !== undefined && usedBytes + artifact.byteLength > inspection.maxTotalBytes) {
+    if (inspection.maxTotalBytes !== undefined && artifact.byteLength > inspection.maxTotalBytes) {
       missingEvidence.push(artifact.path);
       continue;
     }
-    usedBytes += artifact.byteLength;
     coverage.push({ path: artifact.path, status: "integrity_reviewed" });
   }
   return {
@@ -36115,6 +36117,14 @@ function isPullState(value) {
 function validRequiredChecks(value) {
   return value === undefined || Array.isArray(value) && value.every((check) => isRecord7(check) && typeof check.context === "string" && check.context.length > 0);
 }
+function validGeneratedCheck(config) {
+  if (config.generatedFilesCheck === undefined)
+    return true;
+  return typeof config.generatedFilesCheck === "string" && Array.isArray(config.requiredChecks) && config.requiredChecks.some((check) => isRecord7(check) && check.context === config.generatedFilesCheck);
+}
+function validInspectionConfig(config) {
+  return config.enabled === true && config.provider === "openai" && typeof config.model === "string" && config.model.length > 0 && Number.isSafeInteger(config.maxTotalBytes) && config.maxTotalBytes > 0 && validGeneratedCheck(config) && validRequiredChecks(config.requiredChecks);
+}
 function hasValidInputEnvelope(raw) {
   const validHead = typeof raw.headSha === "string" && /^[a-f\d]{40,64}$/u.test(raw.headSha);
   const validState = isPullState(raw.pullState);
@@ -36126,7 +36136,7 @@ function parseConfig(cwd) {
     throw new Error("review-pr: .safeword/config.json must define prReview");
   }
   const config = raw.prReview;
-  if (config.enabled !== true || config.provider !== "openai" || typeof config.model !== "string" || config.model.length === 0 || !Number.isSafeInteger(config.maxTotalBytes) || config.maxTotalBytes <= 0 || !validRequiredChecks(config.requiredChecks)) {
+  if (!validInspectionConfig(config)) {
     throw new Error("review-pr: prReview configuration is incomplete or invalid");
   }
   return config;
@@ -36142,7 +36152,7 @@ function decodeFullContent(encoded) {
   }
 }
 function isNonTextArtifact(artifact) {
-  return isRecord7(artifact) && (artifact.kind === "non_text" || artifact.kind === "unreadable_text") && typeof artifact.path === "string";
+  return isRecord7(artifact) && ["generated", "non_text", "unreadable_text"].includes(artifact.kind) && typeof artifact.path === "string";
 }
 function isTextArtifact(artifact) {
   return isRecord7(artifact) && artifact.kind === "text" && typeof artifact.content === "string" && typeof artifact.path === "string" && artifact.path.length > 0;
@@ -36267,26 +36277,41 @@ function receiptChecks(config, input) {
 }
 function boundedTextEvidence(artifacts, maxTotalBytes) {
   let usedBytes = 0;
-  const context = [];
-  const evidence = [];
+  const batches = [];
+  let context = [];
+  let evidence = [];
   for (const artifact of artifacts) {
     if (artifact.kind !== "text" || artifact.contextUnavailable)
       continue;
     const byteLength = Buffer.byteLength(artifact.content, "utf8") + (artifact.fullContent === undefined ? 0 : Buffer.byteLength(artifact.fullContent, "utf8"));
-    if (usedBytes + byteLength > maxTotalBytes)
+    if (byteLength > maxTotalBytes)
       continue;
+    if (usedBytes + byteLength > maxTotalBytes) {
+      batches.push({ context, evidence });
+      context = [];
+      evidence = [];
+      usedBytes = 0;
+    }
     usedBytes += byteLength;
     evidence.push({ content: artifact.content, path: artifact.path });
     if (artifact.fullContent !== undefined) {
       context.push({ content: artifact.fullContent, path: artifact.path });
     }
   }
-  return { context, evidence };
+  if (evidence.length > 0)
+    batches.push({ context, evidence });
+  return batches;
 }
-function receiptEvidence(artifacts) {
+function receiptEvidence(artifacts, generatedCheckPassed, reviewedPaths) {
   return artifacts.map((artifact) => {
+    if (artifact.kind === "generated" && !generatedCheckPassed) {
+      return { kind: "unreadable_text", path: artifact.path };
+    }
     if (artifact.kind !== "text")
       return { kind: artifact.kind, path: artifact.path };
+    if (reviewedPaths !== undefined && !reviewedPaths.has(artifact.path)) {
+      return { kind: "unreadable_text", path: artifact.path };
+    }
     if (artifact.contextUnavailable) {
       return { kind: "unreadable_text", path: artifact.path };
     }
@@ -36308,18 +36333,32 @@ async function inspectPullRequestCommand(options) {
     return { ...artifact, path: sanitizedPath.value };
   });
   const prerequisite = resolvePrerequisiteState(config, input);
+  const generatedCheckPassed = config.generatedFilesCheck !== undefined && receiptChecks(config, input).some((check) => check.name === config.generatedFilesCheck && check.status === "success");
   let published;
   await reviewPullRequest({
     inspect: async () => {
+      const reviewedPaths = new Set;
       try {
-        const textEvidence = boundedTextEvidence(input.artifacts, config.maxTotalBytes);
-        const noReviewableEvidence = textEvidence.evidence.length === 0;
-        const review = noReviewableEvidence ? { findings: [], tokenUsage: {} } : await (options.provider ?? productionProvider)({
-          apiKey: process10.env.OPENAI_API_KEY,
-          ...textEvidence.context.length > 0 && { context: textEvidence.context },
-          evidence: textEvidence.evidence,
-          model: config.model
-        });
+        const batches = boundedTextEvidence(input.artifacts, config.maxTotalBytes);
+        const noReviewableEvidence = batches.length === 0;
+        const reviews = [];
+        for (const batch of batches) {
+          reviews.push(await (options.provider ?? productionProvider)({
+            apiKey: process10.env.OPENAI_API_KEY,
+            ...batch.context.length > 0 && { context: batch.context },
+            evidence: batch.evidence,
+            model: config.model
+          }));
+          for (const artifact of batch.evidence)
+            reviewedPaths.add(artifact.path);
+        }
+        const review = {
+          findings: reviews.flatMap((result) => result.findings),
+          tokenUsage: {
+            input: reviews.reduce((total, result) => total + (result.tokenUsage.input ?? 0), 0),
+            output: reviews.reduce((total, result) => total + (result.tokenUsage.output ?? 0), 0)
+          }
+        };
         const receiptFindings = review.findings.map((finding) => {
           const path7 = redactCredentials(finding.path, credentials);
           const consequence = redactCredentials(finding.consequence, credentials);
@@ -36335,7 +36374,7 @@ async function inspectPullRequestCommand(options) {
           };
         });
         return {
-          artifacts: receiptEvidence(receiptArtifacts),
+          artifacts: receiptEvidence(receiptArtifacts, generatedCheckPassed),
           checks: receiptChecks(config, input),
           consequentialFindings: receiptFindings.filter((finding) => finding.consequential).length,
           findings: receiptFindings,
@@ -36350,7 +36389,7 @@ async function inspectPullRequestCommand(options) {
         };
       } catch {
         return {
-          artifacts: receiptEvidence(receiptArtifacts),
+          artifacts: receiptEvidence(receiptArtifacts, generatedCheckPassed, reviewedPaths),
           checks: receiptChecks(config, input),
           consequentialFindings: 0,
           maxTotalBytes: config.maxTotalBytes,
@@ -36598,7 +36637,24 @@ function renderFinding(finding) {
 function renderCoverage(entry) {
   if (entry.status === "integrity_reviewed")
     return `${entry.path}: integrity-reviewed`;
-  const reason = entry.skipReason === "non_text" ? "non-text" : "unknown";
+  let reason;
+  switch (entry.skipReason) {
+    case undefined: {
+      reason = "unknown";
+      break;
+    }
+    case "non_text": {
+      reason = "non-text";
+      break;
+    }
+    case "generated": {
+      reason = "generated (parity checked)";
+      break;
+    }
+    default: {
+      reason = "unknown";
+    }
+  }
   return `${entry.path}: skipped (${reason})`;
 }
 function incompleteFindingsCaveat(runState) {
@@ -36690,7 +36746,7 @@ function isSerializedCoverage(value) {
     return false;
   if (value.status === "integrity_reviewed")
     return hasExactKeys3(value, ["path", "status"]);
-  return value.status === "skipped" && value.skipReason === "non_text" && hasExactKeys3(value, ["path", "skipReason", "status"]);
+  return value.status === "skipped" && (value.skipReason === "non_text" || value.skipReason === "generated") && hasExactKeys3(value, ["path", "skipReason", "status"]);
 }
 function isTokenUsage(value) {
   if (isRecord8(value) && Object.keys(value).some((key) => key !== "input" && key !== "output")) {
