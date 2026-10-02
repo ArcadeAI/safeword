@@ -161,6 +161,56 @@ describe('review-pr inspect command wiring', () => {
   });
 
   it.each([
+    ['pending', 'in_progress', 'success', 'prerequisites_pending'],
+    ['failed', 'completed', 'failure', 'prerequisites_failed'],
+  ] as const)(
+    'does not issue a generated-skip receipt when parity is %s',
+    async (_case, status, conclusion, expectedStatus) => {
+      const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-generated-parity-'));
+      directories.push(cwd);
+      mkdirSync(nodePath.join(cwd, '.safeword'));
+      writeFileSync(
+        nodePath.join(cwd, '.safeword', 'config.json'),
+        JSON.stringify({
+          prReview: {
+            enabled: true,
+            generatedFilesCheck: 'Dogfood parity',
+            maxTotalBytes: 1024,
+            model: 'gpt-test',
+            provider: 'openai',
+            requiredChecks: [{ context: 'Dogfood parity' }],
+          },
+        }),
+      );
+      const inputPath = nodePath.join(cwd, 'inspection-input.json');
+      const outputPath = nodePath.join(cwd, 'inspection-result.json');
+      writeFileSync(
+        inputPath,
+        JSON.stringify({
+          artifacts: [textArtifact(), { kind: 'generated', path: 'plugin/runtime/cli.js' }],
+          checks: [{ conclusion, name: 'Dogfood parity', status }],
+          headSha: 'a'.repeat(40),
+          markerReceiptExists: false,
+          pullState: 'ready',
+          schemaVersion: 1,
+          statuses: [],
+        }),
+      );
+
+      const provider = vi.fn();
+      const result = await inspectPullRequestCommand({
+        cwd,
+        inputPath,
+        outputPath,
+        provider,
+      });
+
+      expect(provider).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ kind: 'receipt', receipt: { status: expectedStatus } });
+    },
+  );
+
+  it.each([
     ['missing context', [textArtifact()], ['policies/access.flux']],
     [
       'explicitly unavailable context',
