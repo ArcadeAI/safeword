@@ -220,7 +220,7 @@ describe('generated Codex plugin catalogue', () => {
     }
   });
 
-  it('rewrites run-review.ts invocations to the bundled Codex plugin CLI', () => {
+  it('rewrites review dispatch to the bundled Codex MCP tool', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-run-review-'));
     const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
     try {
@@ -242,11 +242,9 @@ describe('generated Codex plugin catalogue', () => {
         ].join('\n'),
       );
 
-      // The managed-progress prefix carries what the run-review.ts wrapper set
-      // in the child environment: without it a multi-minute review runs silent.
       const generated = generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3');
       expect(generated[0]?.content).toContain(
-        'SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" review run quality-review changed-file [more-changed-files...] --agent-handoff --json',
+        'Call `mcp__safeword_review__start_review` with `kind: "quality-review"`, the absolute project root, relative targets, and relative context.',
       );
       expect(generated[0]?.content).not.toContain('.safeword/hooks/run-review.ts');
     } finally {

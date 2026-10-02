@@ -220,6 +220,19 @@ export async function installLifecycle(
     });
   }
   const { agents } = parsed.selection;
+  if (invocation.options.approveReviews === true && !agents.includes('codex')) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message: '--approve-reviews requires --agents=codex',
+          retryable: false,
+        },
+      ],
+      data: { command: 'install' },
+    });
+  }
   const scope = lifecycleScope(invocation.options.scope, 'install', agents);
   if (!scope.ok) return scope.result;
   if (scope.value === 'project') {

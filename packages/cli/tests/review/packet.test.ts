@@ -13,7 +13,7 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { RedExecutionAttestation } from '../../src/review/contract.js';
-import { prepareReviewPacket } from '../../src/review/packet.js';
+import { prepareReviewPacket, prepareReviewPacketReadOnly } from '../../src/review/packet.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -58,6 +58,18 @@ afterEach(() => {
 });
 
 describe('review packet containment and change accounting', () => {
+  it('captures bounded source bytes for status without materializing a snapshot', () => {
+    const root = temporaryDirectory();
+    writeFileSync(nodePath.join(root, 'proof.md'), 'review me\n');
+
+    const prepared = prepareReviewPacketReadOnly(root, 'quality-review', ['proof.md']);
+
+    expect(prepared.workspace).toBe('');
+    expect(prepared.packet.logical_files).toEqual([{ path: 'proof.md', content: 'review me\n' }]);
+    expect(prepared.sourceChanged()).toBe(false);
+    prepared.cleanup();
+  });
+
   it('refuses executable RED review without Safeword execution evidence', () => {
     const root = temporaryDirectory();
     writeFileSync(nodePath.join(root, 'proof.md'), 'missing behavior\n');

@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 import { parse, stringify } from 'yaml';
 
 import { assertNativePluginRuntimeAuthority } from '../plugin-runtime-authority.js';
+import { adaptReviewerLoginGuidance } from '../review/login-guidance.js';
 
 export interface GeneratedPluginAsset {
   relativePath: string;
@@ -351,11 +352,46 @@ function adaptWorkflowMarkdown(
   markdown: string,
   knownSkillNames: ReadonlySet<string>,
   version: string,
+  reviewRoute: 'mcp' | 'cli',
 ): string {
   let adapted = adaptCodexWorkflowInvocations(markdown, knownSkillNames);
   adapted = adaptCodexNativeRuntimeInvocations(adapted, version);
+  if (reviewRoute === 'mcp') {
+    adapted = adaptCodexReviewInstructions(adapted);
+    adapted = adaptReviewerLoginGuidance(adapted);
+  }
 
   return formatMarkdownTables(adapted);
+}
+
+const CODEX_REVIEW_ROUTE =
+  'On Codex, start quality, scenario, and plan reviews with the bundled `mcp__safeword_review__start_review` tool, passing the absolute project root, review kind, relative target paths, and relative context paths. Poll `mcp__safeword_review__review_status` with the project root and returned review_id until the result is terminal. The tool returns the coordinator verdict and stores a signed receipt under `.safeword/state/reviews` for the normal stamp gate; reviewed source files remain unchanged. The user can approve only `start_review` and `start_reviewer_login` once with `safeword codex install --approve-reviews` and restart Codex. If the MCP tool is unavailable or fails to start, report the route unavailable; never request an out-of-sandbox rule or approval escalation.';
+
+function adaptCodexReviewInstructions(markdown: string): string {
+  let adapted = markdown.replaceAll(
+    /(?<indent>^[ \t]*)```bash\r?\n[^\n]*review run (?<kind>quality-review|scenario-gate|plan-implementation)[^\n]*\n[ \t]*```/gmu,
+    (_match, indent: string, kind: string) =>
+      `${indent}Call \`mcp__safeword_review__start_review\` with \`kind: "${kind}"\`, the absolute project root, relative targets, and relative context.${kind === 'scenario-gate' ? ' Include spec.md and ticket.md in context so the reviewer can check out_of_scope.' : ''}`,
+  );
+  let start = adapted.search(/On\s+Codex,\s+`review run` for `quality-review`/u);
+  while (start !== -1) {
+    const tail = adapted.slice(start);
+    const ending =
+      /If the dispatch rule is\s+absent or does not match, report the route as\s+unavailable instead of asking\s+the\s+user\./u.exec(
+        tail,
+      );
+    if (ending?.index === undefined) throw new Error('Codex review guidance has no rule ending');
+    const end = start + ending.index + ending[0].length;
+    const old = adapted.slice(start, end);
+    const redStart = old.indexOf('Executable RED stays sandboxed');
+    const redGuidance =
+      redStart === -1
+        ? ''
+        : ` Executable RED remains a CLI command inside the normal workspace sandbox, including every status retry; never escalate that command. ${old.slice(redStart, ending.index).trim()} If that route is unavailable, report it instead of asking for an approval escalation.`;
+    adapted = `${adapted.slice(0, start)}${CODEX_REVIEW_ROUTE}${redGuidance}${adapted.slice(end)}`;
+    start = adapted.search(/On\s+Codex,\s+`review run` for `quality-review`/u);
+  }
+  return adapted;
 }
 
 function adaptReferenceDestination(
@@ -436,7 +472,7 @@ function adaptSkillBody(
   skill: string,
   knownSkillNames: ReadonlySet<string>,
   referenceNames: string[],
-  version: string,
+  options: { version: string; reviewRoute: 'mcp' | 'cli' },
 ): string {
   // Canonical skills have one blank line after frontmatter. The generated
   // frontmatter supplies that separator, so avoid duplicating it here.
@@ -445,7 +481,7 @@ function adaptSkillBody(
   adapted = adaptPackagedTemplatePaths(adapted, referenceNames);
   adapted = adaptReferenceLinks(adapted, referenceNames);
 
-  return adaptWorkflowMarkdown(adapted, knownSkillNames, version);
+  return adaptWorkflowMarkdown(adapted, knownSkillNames, options.version, options.reviewRoute);
 }
 
 function tableCells(line: string): string[] {
@@ -546,6 +582,7 @@ function formatMarkdownTables(markdown: string): string {
 export function generateCodexPluginAssets(
   canonicalSkillsDirectory: string,
   version: string,
+  reviewRoute: 'mcp' | 'cli' = 'mcp',
 ): GeneratedPluginAsset[] {
   const canonicalAssets: CanonicalSkillAsset[] = markdownFiles(canonicalSkillsDirectory).map(
     relativePath => ({ relativePath, ...canonicalSkillPath(relativePath) }),
@@ -580,7 +617,7 @@ export function generateCodexPluginAssets(
       );
       return {
         relativePath: nodePath.join('skills', skill, 'references', filename),
-        content: adaptWorkflowMarkdown(adaptedContent, knownSkillNames, version),
+        content: adaptWorkflowMarkdown(adaptedContent, knownSkillNames, version, reviewRoute),
       };
     }
 
@@ -592,12 +629,17 @@ export function generateCodexPluginAssets(
       content: `---\n${stringify({
         name: skill,
         description: adaptCodexWorkflowInvocations(description, knownSkillNames),
-      }).trimEnd()}\n---\n\n${adaptSkillBody(body, skill, knownSkillNames, referenceNames, version)}`,
+      }).trimEnd()}\n---\n\n${adaptSkillBody(body, skill, knownSkillNames, referenceNames, { version, reviewRoute })}`,
     };
   });
   const referenceAssets = packagedReferences.map(({ skill, filename, source }) => ({
     relativePath: nodePath.join('skills', skill, 'references', filename),
-    content: adaptWorkflowMarkdown(readFileSync(source, 'utf8'), knownSkillNames, version),
+    content: adaptWorkflowMarkdown(
+      readFileSync(source, 'utf8'),
+      knownSkillNames,
+      version,
+      reviewRoute,
+    ),
   }));
   return [...skillAssets, ...referenceAssets];
 }

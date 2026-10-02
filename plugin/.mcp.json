@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "safeword_review": {
+      "command": "bun",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/runtime/review-mcp.js",
+        "--claude"
+      ]
+    }
+  }
+}

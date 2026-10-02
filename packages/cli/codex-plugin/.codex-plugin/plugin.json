@@ -10,6 +10,7 @@
   "license": "MIT",
   "keywords": ["safeword", "codex", "bdd", "tdd", "agent-workflow"],
   "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
   "hooks": "./hooks.json",
   "interface": {
     "displayName": "Safeword",

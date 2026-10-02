@@ -122,7 +122,7 @@ function scopedInstallAlias(name: string, agent: 'claude' | 'codex'): CommandDef
       {
         promptPolicy: canonical.promptPolicy,
         networkPolicy: canonical.networkPolicy,
-        commandOptions: agent === 'claude' ? [claudeScopeOption()] : [],
+        commandOptions: agent === 'claude' ? [claudeScopeOption()] : [approveReviewsOption()],
         // The retained spelling keeps its shipped safety guarantee: profile-only
         // installation that leaves the repository untouched (main's Rule
         // codex-plugin-install.TBU1.R2). `install --agents=<agent>` is the
@@ -167,6 +167,14 @@ function claudeScopeOption(): CommandDefinition['registration']['options'][numbe
   };
 }
 
+function approveReviewsOption(): CommandDefinition['registration']['options'][number] {
+  return {
+    flags: '--approve-reviews',
+    description:
+      'Once, approve only Safeword review and reviewer sign-in MCP tools in this Codex profile',
+  };
+}
+
 /**
  * The `--yes` / `--plan <id>` pair every confirm-policy command carries. The
  * descriptions differ per command; the flag spellings and the plan-identity
@@ -208,6 +216,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     commandOptions: [
       agentSelectionOption(),
       claudeScopeOption(),
+      approveReviewsOption(),
       { flags: '--no-modify', description: 'Do not edit the project ESLint configuration' },
       {
         flags: '--migrate-namespace',
