@@ -93,6 +93,59 @@ describe('dogfood review policy', () => {
     }
   });
 
+  it('ignores a successful edited-event run without an advisory artifact', () => {
+    const publisher = YAML.parse(readFileSync(dogfoodPublisherPath, 'utf8')) as {
+      jobs: { 'discover-event-result': { steps: { id?: string; run?: string }[] } };
+    };
+    const script = publisher.jobs['discover-event-result'].steps.find(
+      step => step.id === 'artifact',
+    )?.run;
+    expect(script).toBeDefined();
+
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-artifacts-'));
+    try {
+      const output = nodePath.join(root, 'output');
+      const runWith = (names: string) => {
+        writeFileSync(output, '');
+        const result = spawnSync(
+          'bash',
+          [
+            '-e',
+            '-o',
+            'pipefail',
+            '-c',
+            `gh() { printf '%s\\n' "$SAFEWORD_ARTIFACT_NAMES"; }\n${script}`,
+          ],
+          {
+            cwd: root,
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              GITHUB_OUTPUT: output,
+              GITHUB_REPOSITORY: 'ArcadeAI/safeword',
+              SAFEWORD_ARTIFACT_NAMES: names,
+              SAFEWORD_RUN_ID: '1',
+            },
+          },
+        );
+        return { result, output: readFileSync(output, 'utf8') };
+      };
+
+      const empty = runWith('');
+      expect(empty.result.status, empty.result.stderr).toBe(0);
+      expect(empty.output).toBe('pull_number=\nhas_result=false\n');
+
+      const one = runWith('safeword-pr-review-42');
+      expect(one.result.status, one.result.stderr).toBe(0);
+      expect(one.output).toBe('pull_number=42\nhas_result=true\n');
+
+      const ambiguous = runWith('safeword-pr-review-1\nsafeword-pr-review-2');
+      expect(ambiguous.result.status).not.toBe(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('classifies generated paths using Git attributes and preserves authored exceptions', () => {
     const workflow = YAML.parse(readFileSync(dogfoodWorkerPath, 'utf8')) as {
       jobs: { inspect: { steps: { name?: string; run?: string }[] } };
