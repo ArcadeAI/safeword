@@ -94,14 +94,6 @@ describe('dogfood review policy', () => {
   });
 
   it('does not suppress a review for an incomplete or stale receipt on the same head', () => {
-    const worker = readFileSync(dogfoodWorkerPath, 'utf8');
-    const filter = /reviewed_receipt_sha="\$\(jq -r '([\s\S]*?)' comments\.json\)"/u.exec(
-      worker,
-    )?.[1];
-    expect(filter).toBeDefined();
-    if (!filter) throw new Error('missing reviewer receipt filter');
-    expect(worker.split(String.raw`select(contains("\nRun state: complete\n"))`)).toHaveLength(3);
-
     const sha = 'a'.repeat(40);
     const receipt = (state: string) => [
       {
@@ -109,20 +101,30 @@ describe('dogfood review policy', () => {
         body: `<!-- safeword:pr-review-receipt:v1 -->\nReviewed revision: ${sha}\nRun state: ${state}\nRoute: needs a human`,
       },
     ];
-    for (const state of ['not_ready', 'stale', 'incomplete']) {
-      const result = spawnSync('jq', ['-r', filter], {
+    for (const path of [dogfoodWorkerPath, workerPath]) {
+      const worker = readFileSync(path, 'utf8');
+      const filter = /reviewed_receipt_sha="\$\(jq -r '([\s\S]*?)' comments\.json\)"/u.exec(
+        worker,
+      )?.[1];
+      expect(filter).toBeDefined();
+      if (!filter) throw new Error(`missing reviewer receipt filter in ${path}`);
+      expect(worker.split(String.raw`select(contains("\nRun state: complete\n"))`)).toHaveLength(3);
+
+      for (const state of ['not_ready', 'stale', 'incomplete']) {
+        const result = spawnSync('jq', ['-r', filter], {
+          encoding: 'utf8',
+          input: JSON.stringify(receipt(state)),
+        });
+        expect(result.status, result.stderr).toBe(0);
+        expect(result.stdout.trim()).toBe('');
+      }
+      const complete = spawnSync('jq', ['-r', filter], {
         encoding: 'utf8',
-        input: JSON.stringify(receipt(state)),
+        input: JSON.stringify(receipt('complete')),
       });
-      expect(result.status, result.stderr).toBe(0);
-      expect(result.stdout.trim()).toBe('');
+      expect(complete.status, complete.stderr).toBe(0);
+      expect(complete.stdout.trim()).toBe(sha);
     }
-    const complete = spawnSync('jq', ['-r', filter], {
-      encoding: 'utf8',
-      input: JSON.stringify(receipt('complete')),
-    });
-    expect(complete.status, complete.stderr).toBe(0);
-    expect(complete.stdout.trim()).toBe(sha);
   });
 
   it('ignores a successful edited-event run without an advisory artifact', () => {
