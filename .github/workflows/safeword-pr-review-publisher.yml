@@ -26,7 +26,13 @@ jobs:
         run: |
           artifact_names="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SAFEWORD_RUN_ID/artifacts" --jq '.artifacts[].name')"
           pull_number="$(printf '%s\n' "$artifact_names" | sed -nE 's/^safeword-pr-review(-context)?-([0-9]+)$/\2/p' | sort -u)"
-          if [ "$(printf '%s\n' "$pull_number" | sed '/^$/d' | wc -l)" != 1 ]; then
+          pull_count="$(printf '%s\n' "$pull_number" | sed '/^$/d' | wc -l)"
+          if [ "$pull_count" -eq 0 ]; then
+            echo 'pull_number=' >> "$GITHUB_OUTPUT"
+            echo 'has_result=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$pull_count" -ne 1 ]; then
             echo '::error::event run did not identify exactly one pull request'
             exit 1
           fi
