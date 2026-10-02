@@ -84,6 +84,16 @@ describe('validateLedger — Rule 3 (per-scenario SHA validity)', () => {
     expect(validateLedger(c, allReachable).ok).toBe(true);
   });
 
+  it('keeps a preceding scenario collision when a fourth-level heading claims VERIFIED', () => {
+    const c = content(
+      '### Scenario: first\n- [x] RED abc1234\n- [x] GREEN abc1234\n- [x] REFACTOR 9abcdef\n#### Scenario: second\n- [x] VERIFIED eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222',
+    );
+    const result = validateLedger(c, allReachable);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).toContain('first');
+    expect(result.errors.join('\n')).toMatch(/colli[sz]/i);
+  });
+
   it('rejects a malformed VERIFIED row before it can substitute for R/G/R', () => {
     const c = content(
       '### Scenario: historical behavior\n\n- [x] VERIFIED eligibility=HEAD proof=HEAD',

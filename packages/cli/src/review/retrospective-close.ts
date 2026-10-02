@@ -102,15 +102,23 @@ function ticketClaim(root: string): string {
   return ticket.retrospective_claim;
 }
 
-// eslint-disable-next-line complexity -- Each branch rejects ambiguous closing evidence.
+// eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Ledger claims require distinct headings and receipts.
 function claimsFromLedger(root: string): RetrospectiveGateRequest[] {
   const content = readFileSync(contained(root, RETROSPECTIVE_LEDGER), 'utf8');
   const claims: RetrospectiveGateRequest[] = [];
   const seen = new Set<string>();
+  const headings = new Set<string>();
+  let duplicateHeading = false;
   let scenario: string | undefined;
   for (const line of content.split('\n')) {
     const heading = /^#{2,6} Scenario: (.+)$/u.exec(line);
-    if (/^#{1,6}\s+/u.test(line)) scenario = heading?.[1]?.trim();
+    if (/^#{1,6}\s+/u.test(line)) {
+      scenario = heading?.[1]?.trim();
+      if (scenario !== undefined) {
+        if (headings.has(scenario)) duplicateHeading = true;
+        headings.add(scenario);
+      }
+    }
     const annotation = parseRetrospectiveAnnotation(line);
     if (annotation?.kind === 'invalid') throw new Error(annotation.reason);
     if (annotation?.kind !== 'claim') continue;
@@ -127,6 +135,7 @@ function claimsFromLedger(root: string): RetrospectiveGateRequest[] {
     });
   }
   if (claims.length === 0) throw new Error('No checked VERIFIED rows need closing proof.');
+  if (duplicateHeading) throw new Error('VERIFIED requires unique scenario headings.');
   return claims;
 }
 
@@ -178,7 +187,7 @@ function inputPaths(root: string, claims: readonly RetrospectiveGateRequest[]): 
   for (const claim of claims) {
     for (const path of claimInputPaths(root, claim)) paths.add(path);
   }
-  return [...paths].toSorted((left, right) => left.localeCompare(right));
+  return [...paths].toSorted((left, right) => left.localeCompare(right, 'en'));
 }
 
 function inputDigests(root: string, paths: readonly string[]): Record<string, string> {

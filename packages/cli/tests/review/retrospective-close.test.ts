@@ -148,6 +148,18 @@ describe('retrospective closing replay record', () => {
     );
   });
 
+  it('refuses to attest a VERIFIED row when the ledger duplicates its scenario heading', () => {
+    put(
+      root,
+      RETROSPECTIVE_LEDGER,
+      `### Scenario: duplicate\n- [x] VERIFIED eligibility=${eligibilityId} proof=${proofId}\n### Scenario: duplicate\n- [ ] RED\n`,
+    );
+    const verdict = attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER);
+    expect(verdict.state).toBe('action_required');
+    expect(verdict.findings[0]?.message).toContain('unique scenario headings');
+    expect(replay.calls).toBe(0);
+  });
+
   it.each([
     'packages/cli/src/review/packet.ts',
     'packages/cli/tests/proof.test.ts',

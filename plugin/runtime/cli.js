@@ -36029,12 +36029,20 @@ function claimsFromLedger(root) {
   const content = readFileSync34(contained(root, RETROSPECTIVE_LEDGER), "utf8");
   const claims = [];
   const seen = new Set;
+  const headings = new Set;
+  let duplicateHeading = false;
   let scenario;
   for (const line of content.split(`
 `)) {
     const heading = /^#{2,6} Scenario: (.+)$/u.exec(line);
-    if (/^#{1,6}\s+/u.test(line))
+    if (/^#{1,6}\s+/u.test(line)) {
       scenario = heading?.[1]?.trim();
+      if (scenario !== undefined) {
+        if (headings.has(scenario))
+          duplicateHeading = true;
+        headings.add(scenario);
+      }
+    }
     const annotation = parseRetrospectiveAnnotation(line);
     if (annotation?.kind === "invalid")
       throw new Error(annotation.reason);
@@ -36054,6 +36062,8 @@ function claimsFromLedger(root) {
   }
   if (claims.length === 0)
     throw new Error("No checked VERIFIED rows need closing proof.");
+  if (duplicateHeading)
+    throw new Error("VERIFIED requires unique scenario headings.");
   return claims;
 }
 function reviewedTargets(root, id, kind) {
@@ -36094,7 +36104,7 @@ function inputPaths(root, claims) {
     for (const path7 of claimInputPaths(root, claim))
       paths.add(path7);
   }
-  return [...paths].toSorted((left, right) => left.localeCompare(right));
+  return [...paths].toSorted((left, right) => left.localeCompare(right, "en"));
 }
 function inputDigests(root, paths) {
   return Object.fromEntries(paths.map((path7) => [path7, sha2565(readFileSync34(contained(root, path7)))]));
@@ -67901,7 +67911,7 @@ function parseLedger2(content) {
   let current;
   let crossScenario;
   for (const line of lines) {
-    const scenarioMatch = /^#{2,3}\s+Scenario:\s*(.+)$/.exec(line);
+    const scenarioMatch = /^#{2,6}\s+Scenario:\s*(.+)$/.exec(line);
     if (scenarioMatch) {
       current = { name: (scenarioMatch[1] ?? "").trim() };
       scenarios.push(current);

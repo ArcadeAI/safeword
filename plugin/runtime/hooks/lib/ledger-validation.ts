@@ -38,7 +38,7 @@ function parseLedger(content: string): {
   let crossScenario: CheckboxAnnotation | undefined;
 
   for (const line of lines) {
-    const scenarioMatch = /^#{2,3}\s+Scenario:\s*(.+)$/.exec(line);
+    const scenarioMatch = /^#{2,6}\s+Scenario:\s*(.+)$/.exec(line);
     if (scenarioMatch) {
       current = { name: (scenarioMatch[1] ?? '').trim() };
       scenarios.push(current);

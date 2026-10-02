@@ -37,11 +37,19 @@ function verifiedScenarioView(
   const ledger = nodePath.relative(projectDir, nodePath.join(ticketDir, 'test-definitions.md'));
   const verified = new Set<string>();
   const ordinary = new Set<string>();
+  const headings = new Set<string>();
+  let duplicateHeading = false;
   const lines = content.split('\n');
   let scenario: string | undefined;
   for (const line of lines) {
     const heading = /^#{2,6}\s+Scenario:\s*(.+)$/u.exec(line);
-    if (/^#{1,6}\s+/u.test(line)) scenario = heading?.[1]?.trim();
+    if (/^#{1,6}\s+/u.test(line)) {
+      scenario = heading?.[1]?.trim();
+      if (scenario !== undefined) {
+        if (headings.has(scenario)) duplicateHeading = true;
+        headings.add(scenario);
+      }
+    }
     if (scenario !== undefined && /^\s*- \[[ xX]\] (?:RED|GREEN|REFACTOR)\b/u.test(line))
       ordinary.add(scenario);
     const annotation = parseRetrospectiveAnnotation(line);
@@ -52,6 +60,7 @@ function verifiedScenarioView(
     verified.add(scenario);
   }
   if (verified.size > 0) {
+    if (duplicateHeading) return { content, error: 'VERIFIED requires unique scenario headings.' };
     const denial = retrospectiveCloseDenial(projectDir, ticketId, ledger);
     if (denial !== undefined) return { content, error: `VERIFIED closing proof: ${denial}` };
   }

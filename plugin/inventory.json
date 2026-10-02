@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "1515a5ae982a99e8ac22a19bb0e9503c2c63bd948f8ba1bba19aab3ede9ccd51"
+      "sha256": "0438bbcd3b547aa25e56fc6bae734edd0fd167c7cc7da28875ecc52349bd3b3d"
     },
     {
       "path": "runtime/dispatch.js",
@@ -223,7 +223,7 @@
     },
     {
       "path": "runtime/hooks/lib/done-gate.ts",
-      "sha256": "d1c02b428d37173ed7cc76ed8cf9e18385a8aa9c2b0dda0ad4db25ea6d352b54"
+      "sha256": "d1674db6d0e82ea6f998033aa92065f12eade1550aeae48cdd87681032df82dd"
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
@@ -271,7 +271,7 @@
     },
     {
       "path": "runtime/hooks/lib/ledger-validation.ts",
-      "sha256": "b7b1377e05629b6f735b49c4cf84c4079b08d123b1648e686c46f1fca7bbf5c6"
+      "sha256": "a3135b8ad2f2aa35e244ffaf8661c7e53acc1cd9f311d733666c1c0139af6761"
     },
     {
       "path": "runtime/hooks/lib/lint-config.ts",
@@ -1167,7 +1167,7 @@
     },
     {
       "path": "templates/hooks/lib/done-gate.ts",
-      "sha256": "d1c02b428d37173ed7cc76ed8cf9e18385a8aa9c2b0dda0ad4db25ea6d352b54"
+      "sha256": "d1674db6d0e82ea6f998033aa92065f12eade1550aeae48cdd87681032df82dd"
     },
     {
       "path": "templates/hooks/lib/drain-retro-spool.ts",
@@ -1215,7 +1215,7 @@
     },
     {
       "path": "templates/hooks/lib/ledger-validation.ts",
-      "sha256": "b7b1377e05629b6f735b49c4cf84c4079b08d123b1648e686c46f1fca7bbf5c6"
+      "sha256": "a3135b8ad2f2aa35e244ffaf8661c7e53acc1cd9f311d733666c1c0139af6761"
     },
     {
       "path": "templates/hooks/lib/lint-config.ts",
