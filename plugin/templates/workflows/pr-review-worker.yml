@@ -66,7 +66,7 @@ jobs:
             [ .[] |
               select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- safeword:pr-review-receipt:v1 -->"))) |
               .body |
-              select(contains("\nRoute:")) |
+              select(contains("\nRun state: complete\n")) |
               capture("Reviewed revision: (?<sha>[0-9a-f]{40,64})").sha
             ] | last // empty
           ' comments.json)"
@@ -122,7 +122,7 @@ jobs:
               headSha: $pr.head.sha,
               pullState: (if $pr.merged then "merged" elif $pr.state == "closed" then "closed" elif $pr.draft then "draft" else "ready" end),
               markerReceiptExists: ($owned | length > 0),
-              reviewedReceiptSha: ([$owned[].body | select(contains("\nRoute:")) | capture("Reviewed revision: (?<sha>[0-9a-f]{40,64})").sha] | last // null),
+              reviewedReceiptSha: ([$owned[].body | select(contains("\nRun state: complete\n")) | capture("Reviewed revision: (?<sha>[0-9a-f]{40,64})").sha] | last // null),
               artifacts: [$files[0][] |
                 if .patch != null then
                   ({kind: "text", path: .filename, content: .patch}
