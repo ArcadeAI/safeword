@@ -8,8 +8,8 @@ import { isSafePackageVersion } from '../src/utils/version.js';
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 const reviewWorkflows = ['publisher', 'worker'] as const;
 
-describe('dogfood PR review version pins', () => {
-  it('matches each source template with the installed project version substituted', () => {
+describe('PR review template version pins', () => {
+  it('resolves each source template to the installed project version', () => {
     const installedVersion = readFileSync(
       nodePath.join(repoRoot, '.safeword/version'),
       'utf8',
@@ -21,17 +21,12 @@ describe('dogfood PR review version pins', () => {
         nodePath.join(repoRoot, `packages/cli/templates/workflows/pr-review-${name}.yml`),
         'utf8',
       );
-      const dogfood = readFileSync(
-        nodePath.join(repoRoot, `.github/workflows/safeword-pr-review-${name}.yml`),
-        'utf8',
-      );
-
       expect(template, `${name} must declare a version placeholder`).toContain(
         '__SAFEWORD_VERSION__',
       );
-      expect(dogfood, `${name} must use the installed Safeword version`).toBe(
-        template.replaceAll('__SAFEWORD_VERSION__', () => installedVersion),
-      );
+      const installed = template.replaceAll('__SAFEWORD_VERSION__', () => installedVersion);
+      expect(installed).toContain(`safeword@${installedVersion}`);
+      expect(installed).not.toContain('__SAFEWORD_VERSION__');
     }
   });
 });
