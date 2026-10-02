@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -51,11 +59,38 @@ describe('dogfood review policy', () => {
     const trustedRuntime = 'contents/plugin/runtime/cli.js?ref=$GITHUB_SHA';
     expect(worker.split(trustedRuntime)).toHaveLength(4);
     expect(publisher.split(trustedRuntime)).toHaveLength(2);
+    const trustedPackage = 'contents/plugin/package.json?ref=$GITHUB_SHA';
+    expect(worker.split(trustedPackage)).toHaveLength(4);
+    expect(publisher.split(trustedPackage)).toHaveLength(2);
+    expect(`${worker}\n${publisher}`).not.toContain('trusted-reviewer.js');
+    expect(`${worker}\n${publisher}`).toContain('bun plugin/runtime/cli.js');
     expect(worker).not.toMatch(/contents\/plugin\/runtime\/cli\.js\?ref=(?!\$GITHUB_SHA)/u);
     expect(publisher).not.toMatch(/contents\/plugin\/runtime\/cli\.js\?ref=(?!\$GITHUB_SHA)/u);
     const trustedBunVersion = 'contents/package.json?ref=$GITHUB_SHA';
     expect(worker.split(trustedBunVersion)).toHaveLength(4);
     expect(publisher.split(trustedBunVersion)).toHaveLength(2);
+  });
+
+  it('runs the trusted bundle with its package metadata in the downloaded layout', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-trusted-reviewer-'));
+    try {
+      const plugin = nodePath.join(root, 'plugin');
+      const runtime = nodePath.join(plugin, 'runtime');
+      mkdirSync(runtime, { recursive: true });
+      copyFileSync(dogfoodBundlePath, nodePath.join(runtime, 'cli.js'));
+      copyFileSync(
+        nodePath.join(import.meta.dirname, '../../../../plugin/package.json'),
+        nodePath.join(plugin, 'package.json'),
+      );
+      const result = spawnSync('bun', [nodePath.join(runtime, 'cli.js'), '--version'], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout.trim()).toBe(VERSION);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('classifies generated paths using Git attributes and preserves authored exceptions', () => {
