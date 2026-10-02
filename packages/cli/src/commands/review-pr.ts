@@ -77,6 +77,7 @@ interface InspectionInput {
 interface InspectionConfig {
   enabled: true;
   generatedFilesCheck?: string;
+  maxPasses?: number;
   maxTotalBytes: number;
   model: string;
   provider: 'openai';
@@ -125,6 +126,10 @@ function validGeneratedCheck(config: Record<string, unknown>): boolean {
   );
 }
 
+function validPassCount(value: unknown): boolean {
+  return value === undefined || (Number.isSafeInteger(value) && (value as number) > 0);
+}
+
 function validInspectionConfig(config: Record<string, unknown>): boolean {
   return (
     config.enabled === true &&
@@ -133,6 +138,7 @@ function validInspectionConfig(config: Record<string, unknown>): boolean {
     config.model.length > 0 &&
     Number.isSafeInteger(config.maxTotalBytes) &&
     (config.maxTotalBytes as number) > 0 &&
+    validPassCount(config.maxPasses) &&
     validGeneratedCheck(config) &&
     validRequiredChecks(config.requiredChecks)
   );
@@ -233,6 +239,14 @@ function parseInput(inputPath: string): InspectionInput {
   }
 
   const artifacts = raw.artifacts.map(artifact => parseArtifact(artifact));
+  if (
+    raw.expectedArtifactCount !== undefined &&
+    (!Number.isSafeInteger(raw.expectedArtifactCount) ||
+      (raw.expectedArtifactCount as number) < 0 ||
+      raw.expectedArtifactCount !== artifacts.length)
+  ) {
+    throw new Error('review-pr: pull request artifact count is incomplete or invalid');
+  }
   const checks = raw.checks.map(check => {
     if (
       !isRecord(check) ||
@@ -341,13 +355,19 @@ function evaluateCheckRun(
 }
 
 function evaluatePrerequisite(context: string, input: InspectionInput): PrerequisiteState {
-  const check = input.checks.find(candidate => candidate.name === context);
-  const checkState = evaluateCheckRun(check);
-  if (checkState) return checkState;
-  const status = input.statuses.find(candidate => candidate.context === context);
-  if (status?.state === 'success') return 'passed';
-  if (status?.state === 'failure' || status?.state === 'error') return 'failed';
-  return 'pending';
+  const checks = input.checks.filter(candidate => candidate.name === context);
+  if (checks.length > 0) {
+    const states = checks.map(check => evaluateCheckRun(check));
+    if (states.includes('failed')) return 'failed';
+    return states.every(state => state === 'passed') ? 'passed' : 'pending';
+  }
+  const statuses = input.statuses.filter(candidate => candidate.context === context);
+  if (statuses.some(status => status.state === 'failure' || status.state === 'error')) {
+    return 'failed';
+  }
+  return statuses.length > 0 && statuses.every(status => status.state === 'success')
+    ? 'passed'
+    : 'pending';
 }
 
 function resolvePrerequisiteState(
@@ -381,6 +401,7 @@ function receiptChecks(
 function boundedTextEvidence(
   artifacts: InspectionInput['artifacts'],
   maxTotalBytes: number,
+  maxPasses: number,
 ): {
   context: { content: string; path: string }[];
   evidence: { content: string; path: string }[];
@@ -400,6 +421,7 @@ function boundedTextEvidence(
     if (byteLength > maxTotalBytes) continue;
     if (usedBytes + byteLength > maxTotalBytes) {
       batches.push({ context, evidence });
+      if (batches.length >= maxPasses) return batches;
       context = [];
       evidence = [];
       usedBytes = 0;
@@ -449,6 +471,7 @@ export async function inspectPullRequestCommand(
   options: InspectPullRequestCommandOptions,
 ): Promise<InspectionHandoff> {
   const config = parseConfig(options.cwd);
+  const maxPasses = config.maxPasses ?? 8;
   const input = parseInput(options.inputPath);
   const credentials = credentialValues(process.env);
   let credentialRedacted = false;
@@ -460,16 +483,17 @@ export async function inspectPullRequestCommand(
   const prerequisite = resolvePrerequisiteState(config, input);
   const generatedCheckPassed =
     config.generatedFilesCheck !== undefined &&
-    receiptChecks(config, input).some(
-      check => check.name === config.generatedFilesCheck && check.status === 'success',
-    );
+    input.checks.some(check => check.name === config.generatedFilesCheck) &&
+    input.checks
+      .filter(check => check.name === config.generatedFilesCheck)
+      .every(check => check.status === 'completed' && check.conclusion === 'success');
   let published: PublishedReceipt | undefined;
 
   await reviewPullRequest({
     inspect: async () => {
       const reviewedPaths = new Set<string>();
       try {
-        const batches = boundedTextEvidence(input.artifacts, config.maxTotalBytes);
+        const batches = boundedTextEvidence(input.artifacts, config.maxTotalBytes, maxPasses);
         const noReviewableEvidence = batches.length === 0;
         const reviews: ModelReviewResult[] = [];
         for (const batch of batches) {
@@ -506,7 +530,7 @@ export async function inspectPullRequestCommand(
           };
         });
         return {
-          artifacts: receiptEvidence(receiptArtifacts, generatedCheckPassed),
+          artifacts: receiptEvidence(receiptArtifacts, generatedCheckPassed, reviewedPaths),
           checks: receiptChecks(config, input),
           consequentialFindings: receiptFindings.filter(finding => finding.consequential).length,
           findings: receiptFindings,

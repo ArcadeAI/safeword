@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -16,6 +17,14 @@ const dogfoodRouterPath = nodePath.join(
   import.meta.dirname,
   '../../../../.github/workflows/safeword-pr-review.yml',
 );
+const dogfoodWorkerPath = nodePath.join(
+  import.meta.dirname,
+  '../../../../.github/workflows/safeword-pr-review-worker.yml',
+);
+const dogfoodPublisherPath = nodePath.join(
+  import.meta.dirname,
+  '../../../../.github/workflows/safeword-pr-review-publisher.yml',
+);
 const dogfoodBundlePath = nodePath.join(import.meta.dirname, '../../../../plugin/runtime/cli.js');
 const publisherPath = nodePath.join(templatesDirectory, 'pr-review-publisher.yml');
 const workerPath = nodePath.join(templatesDirectory, 'pr-review-worker.yml');
@@ -24,6 +33,73 @@ const installedWorkflowPaths = [
   '.github/workflows/safeword-pr-review-publisher.yml',
   '.github/workflows/safeword-pr-review-worker.yml',
 ] as const;
+
+describe('dogfood review policy', () => {
+  it('uses trusted base attributes and runtime without checking out pull-request code', () => {
+    const worker = readFileSync(dogfoodWorkerPath, 'utf8');
+    const publisher = readFileSync(dogfoodPublisherPath, 'utf8');
+    expect(`${worker}\n${publisher}`).not.toMatch(/actions\/checkout|gh pr checkout|git fetch/);
+    expect(worker).toContain('contents/.gitattributes?ref=$GITHUB_SHA');
+    expect(worker).toContain('jq length pull-files.json');
+    expect(worker).toContain('jq -r .changed_files pull.json');
+    expect(worker).toContain('expectedArtifactCount: $pr.changed_files');
+    expect(worker).toContain('git/trees/$GITHUB_SHA?recursive=1');
+    expect(worker).toContain("'check-attr', '-z', '--stdin', 'linguist-generated'");
+    expect(worker).toContain('{kind: "generated", path: .filename}');
+    expect(worker).toContain('contents/.safeword/config.json?ref=$GITHUB_SHA');
+    expect(worker).toContain('if [ "$latest_head_sha" != "$head_sha" ]');
+    const trustedRuntime = 'contents/plugin/runtime/cli.js?ref=$GITHUB_SHA';
+    expect(worker.split(trustedRuntime)).toHaveLength(4);
+    expect(publisher.split(trustedRuntime)).toHaveLength(2);
+    expect(worker).not.toMatch(/contents\/plugin\/runtime\/cli\.js\?ref=(?!\$GITHUB_SHA)/u);
+    expect(publisher).not.toMatch(/contents\/plugin\/runtime\/cli\.js\?ref=(?!\$GITHUB_SHA)/u);
+    const trustedBunVersion = 'contents/package.json?ref=$GITHUB_SHA';
+    expect(worker.split(trustedBunVersion)).toHaveLength(4);
+    expect(publisher.split(trustedBunVersion)).toHaveLength(2);
+  });
+
+  it('classifies generated paths using Git attributes and preserves authored exceptions', () => {
+    const workflow = YAML.parse(readFileSync(dogfoodWorkerPath, 'utf8')) as {
+      jobs: { inspect: { steps: { name?: string; run?: string }[] } };
+    };
+    const assembly = workflow.jobs.inspect.steps.find(
+      step => step.name === 'Assemble exact-head evidence as JSON',
+    )?.run;
+    const classifier = assembly?.match(/node --input-type=module <<'NODE'\n([\s\S]*?)\nNODE/u)?.[1];
+    expect(classifier).toBeDefined();
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-pr-review-attributes-'));
+    try {
+      const attributes = nodePath.join(root, 'trusted-attributes');
+      mkdirSync(attributes);
+      const initialized = spawnSync('git', ['init', '--quiet', attributes], { encoding: 'utf8' });
+      expect(initialized.status, initialized.stderr).toBe(0);
+      writeFileSync(
+        nodePath.join(attributes, '.gitattributes'),
+        'generated/** linguist-generated=true\nbare/** linguist-generated\nplugin/** linguist-generated=true\nplugin/README.md -linguist-generated\n',
+      );
+      writeFileSync(
+        nodePath.join(root, 'pull-files.json'),
+        JSON.stringify(
+          ['generated/a.js', 'bare/b.js', 'plugin/README.md', 'src/authored.ts'].map(filename => ({
+            filename,
+          })),
+        ),
+      );
+      const classified = spawnSync('node', ['--input-type=module'], {
+        cwd: root,
+        encoding: 'utf8',
+        input: classifier,
+      });
+      expect(classified.status, classified.stderr).toBe(0);
+      const generated = JSON.parse(
+        readFileSync(nodePath.join(root, 'generated-paths.json'), 'utf8'),
+      );
+      expect(generated).toEqual(['generated/a.js', 'bare/b.js']);
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+  });
+});
 
 const projectType = {
   astro: false,

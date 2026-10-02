@@ -36122,8 +36122,11 @@ function validGeneratedCheck(config) {
     return true;
   return typeof config.generatedFilesCheck === "string" && Array.isArray(config.requiredChecks) && config.requiredChecks.some((check) => isRecord7(check) && check.context === config.generatedFilesCheck);
 }
+function validPassCount(value) {
+  return value === undefined || Number.isSafeInteger(value) && value > 0;
+}
 function validInspectionConfig(config) {
-  return config.enabled === true && config.provider === "openai" && typeof config.model === "string" && config.model.length > 0 && Number.isSafeInteger(config.maxTotalBytes) && config.maxTotalBytes > 0 && validGeneratedCheck(config) && validRequiredChecks(config.requiredChecks);
+  return config.enabled === true && config.provider === "openai" && typeof config.model === "string" && config.model.length > 0 && Number.isSafeInteger(config.maxTotalBytes) && config.maxTotalBytes > 0 && validPassCount(config.maxPasses) && validGeneratedCheck(config) && validRequiredChecks(config.requiredChecks);
 }
 function hasValidInputEnvelope(raw) {
   const validHead = typeof raw.headSha === "string" && /^[a-f\d]{40,64}$/u.test(raw.headSha);
@@ -36188,6 +36191,9 @@ function parseInput(inputPath) {
     throw new Error("review-pr: invalid inspection input");
   }
   const artifacts = raw.artifacts.map((artifact) => parseArtifact(artifact));
+  if (raw.expectedArtifactCount !== undefined && (!Number.isSafeInteger(raw.expectedArtifactCount) || raw.expectedArtifactCount < 0 || raw.expectedArtifactCount !== artifacts.length)) {
+    throw new Error("review-pr: pull request artifact count is incomplete or invalid");
+  }
   const checks = raw.checks.map((check) => {
     if (!isRecord7(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string") {
       throw new Error("review-pr: invalid check-run sample");
@@ -36243,16 +36249,18 @@ function evaluateCheckRun(check) {
   return PASSING_CHECK_CONCLUSIONS.has(check.conclusion) ? "passed" : "pending";
 }
 function evaluatePrerequisite(context, input) {
-  const check = input.checks.find((candidate) => candidate.name === context);
-  const checkState = evaluateCheckRun(check);
-  if (checkState)
-    return checkState;
-  const status = input.statuses.find((candidate) => candidate.context === context);
-  if (status?.state === "success")
-    return "passed";
-  if (status?.state === "failure" || status?.state === "error")
+  const checks = input.checks.filter((candidate) => candidate.name === context);
+  if (checks.length > 0) {
+    const states = checks.map((check) => evaluateCheckRun(check));
+    if (states.includes("failed"))
+      return "failed";
+    return states.every((state) => state === "passed") ? "passed" : "pending";
+  }
+  const statuses = input.statuses.filter((candidate) => candidate.context === context);
+  if (statuses.some((status) => status.state === "failure" || status.state === "error")) {
     return "failed";
-  return "pending";
+  }
+  return statuses.length > 0 && statuses.every((status) => status.state === "success") ? "passed" : "pending";
 }
 function resolvePrerequisiteState(config, input) {
   if (config.requiredChecks === undefined)
@@ -36275,7 +36283,7 @@ function receiptChecks(config, input) {
     return { name: required.context, status: state === "passed" ? "success" : state };
   });
 }
-function boundedTextEvidence(artifacts, maxTotalBytes) {
+function boundedTextEvidence(artifacts, maxTotalBytes, maxPasses) {
   let usedBytes = 0;
   const batches = [];
   let context = [];
@@ -36288,6 +36296,8 @@ function boundedTextEvidence(artifacts, maxTotalBytes) {
       continue;
     if (usedBytes + byteLength > maxTotalBytes) {
       batches.push({ context, evidence });
+      if (batches.length >= maxPasses)
+        return batches;
       context = [];
       evidence = [];
       usedBytes = 0;
@@ -36324,6 +36334,7 @@ function receiptEvidence(artifacts, generatedCheckPassed, reviewedPaths) {
 }
 async function inspectPullRequestCommand(options) {
   const config = parseConfig(options.cwd);
+  const maxPasses = config.maxPasses ?? 8;
   const input = parseInput(options.inputPath);
   const credentials = credentialValues(process10.env);
   let credentialRedacted = false;
@@ -36333,13 +36344,13 @@ async function inspectPullRequestCommand(options) {
     return { ...artifact, path: sanitizedPath.value };
   });
   const prerequisite = resolvePrerequisiteState(config, input);
-  const generatedCheckPassed = config.generatedFilesCheck !== undefined && receiptChecks(config, input).some((check) => check.name === config.generatedFilesCheck && check.status === "success");
+  const generatedCheckPassed = config.generatedFilesCheck !== undefined && input.checks.some((check) => check.name === config.generatedFilesCheck) && input.checks.filter((check) => check.name === config.generatedFilesCheck).every((check) => check.status === "completed" && check.conclusion === "success");
   let published;
   await reviewPullRequest({
     inspect: async () => {
       const reviewedPaths = new Set;
       try {
-        const batches = boundedTextEvidence(input.artifacts, config.maxTotalBytes);
+        const batches = boundedTextEvidence(input.artifacts, config.maxTotalBytes, maxPasses);
         const noReviewableEvidence = batches.length === 0;
         const reviews = [];
         for (const batch of batches) {
@@ -36374,7 +36385,7 @@ async function inspectPullRequestCommand(options) {
           };
         });
         return {
-          artifacts: receiptEvidence(receiptArtifacts, generatedCheckPassed),
+          artifacts: receiptEvidence(receiptArtifacts, generatedCheckPassed, reviewedPaths),
           checks: receiptChecks(config, input),
           consequentialFindings: receiptFindings.filter((finding) => finding.consequential).length,
           findings: receiptFindings,

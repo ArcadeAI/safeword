@@ -18,6 +18,7 @@
     "provider": "openai",
     "model": "gpt-5.5",
     "maxTotalBytes": 400000,
+    "maxPasses": 8,
     "generatedFilesCheck": "Dogfood parity",
     "requiredChecks": [
       {

@@ -141,6 +141,23 @@ describe('review-pr inspect command wiring', () => {
       route: 'needs_human',
       runState: 'incomplete',
     });
+
+    const conflictingInput = JSON.parse(readFileSync(inputPath, 'utf8')) as {
+      checks: { conclusion: string; name: string; status: string }[];
+    };
+    conflictingInput.checks.push({
+      conclusion: 'failure',
+      name: 'Dogfood parity',
+      status: 'completed',
+    });
+    writeFileSync(inputPath, JSON.stringify(conflictingInput));
+    const conflictingCheck = await inspectPullRequestCommand({
+      cwd,
+      inputPath,
+      outputPath,
+      provider,
+    });
+    expect(receiptOf(conflictingCheck)).toMatchObject({ status: 'prerequisites_failed' });
   });
 
   it.each([
@@ -385,6 +402,45 @@ describe('review-pr inspect command wiring', () => {
       route: 'needs_human',
       runState: 'failed',
       unknowns: ['review provider failed'],
+    });
+
+    const shortInput = JSON.parse(readFileSync(inputPath, 'utf8')) as Record<string, unknown>;
+    shortInput.expectedArtifactCount = 3;
+    writeFileSync(inputPath, JSON.stringify(shortInput));
+    const countProvider = vi.fn();
+    await expect(
+      inspectPullRequestCommand({ cwd, inputPath, outputPath, provider: countProvider }),
+    ).rejects.toThrow('pull request artifact count is incomplete');
+    expect(countProvider).not.toHaveBeenCalled();
+
+    shortInput.expectedArtifactCount = 2;
+    writeFileSync(inputPath, JSON.stringify(shortInput));
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({
+        prReview: {
+          enabled: true,
+          maxPasses: 1,
+          maxTotalBytes: 100,
+          model: 'gpt-test',
+          provider: 'openai',
+          requiredChecks: [],
+        },
+      }),
+    );
+    const onePassProvider = vi.fn().mockResolvedValue({ findings: [], tokenUsage: {} });
+    const limited = await inspectPullRequestCommand({
+      cwd,
+      inputPath,
+      outputPath,
+      provider: onePassProvider,
+    });
+    expect(onePassProvider).toHaveBeenCalledTimes(1);
+    expect(receiptOf(limited)).toMatchObject({
+      coverage: [{ path: 'src/first.ts', status: 'integrity_reviewed' }],
+      missingEvidence: ['src/over-budget.ts'],
+      route: 'needs_human',
+      runState: 'incomplete',
     });
   });
 

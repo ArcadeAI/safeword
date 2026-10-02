@@ -50,7 +50,14 @@ jobs:
       issues: write
       pull-requests: write
     steps:
+      - name: Read the trusted Bun version declaration
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/package.json?ref=$GITHUB_SHA" > package.json
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
       - name: Invalidate any obsolete advisory route
         env:
           GH_TOKEN: ${{ github.token }}
@@ -66,10 +73,11 @@ jobs:
           name: safeword-pr-review-${{ needs.discover-event-result.outputs.pull_number }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
+          path: advisory-handoff
       - name: Publish one ordinary pull-request comment
         if: needs.discover-event-result.outputs.has_result == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
           SAFEWORD_PR_NUMBER: ${{ needs.discover-event-result.outputs.pull_number }}
-        run: bun trusted-reviewer.js --no-input --json review-pr publish advisory-result.json
+        run: bun trusted-reviewer.js --no-input --json review-pr publish advisory-handoff/advisory-result.json
