@@ -35938,7 +35938,7 @@ function receiptIds(annotation) {
 function parseRetrospectiveAnnotation(line) {
   const row = ROW.exec(line);
   if (row === null)
-    return;
+    return NONCANONICAL_ROW.test(line) ? { kind: "invalid", reason: "VERIFIED row must use the canonical checkbox spacing." } : undefined;
   const checked = row[1]?.toLowerCase() === "x";
   if (!checked)
     return { kind: "unchecked" };
@@ -35951,9 +35951,10 @@ function parseRetrospectiveAnnotation(line) {
   }
   return { kind: "claim", ...receipts };
 }
-var ROW, UUID3;
+var ROW, NONCANONICAL_ROW, UUID3;
 var init_retrospective_annotation = __esm(() => {
   ROW = /^\s*- \[([ xX])\] VERIFIED(?:\s|$)/u;
+  NONCANONICAL_ROW = /^\s*- \[[ xX]\]\s+VERIFIED\b/u;
   UUID3 = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 });
 
