@@ -34,8 +34,8 @@ exact schema entries, see `.project/guides/schema-registration-guide.md`.
      `CURSOR_RULE_WRAPPERS` entry so a rule is generated.
    - **Action skill** (manual-only — `disable-model-invocation: true` in its
      frontmatter, e.g. `verify`, `audit`, `explain`): add it to
-     `CURSOR_ACTION_SKILLS` so it gets a `.cursor/commands/<name>.md` command
-     instead of a rule.
+     `CURSOR_ACTION_SKILLS` (no rule) and add a `CURSOR_COMMAND_WRAPPERS` entry
+     so `.cursor/commands/<name>.md` is generated.
 
 5. **Regenerate the plugins.** Run `bun run fix:generated-surfaces` from
    `packages/cli` so the Claude plugin, Codex plugin, historical catalogue, and
