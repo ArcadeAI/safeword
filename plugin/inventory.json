@@ -23,15 +23,15 @@
     },
     {
       "path": "resources/guides/architecture-guide.md",
-      "sha256": "cbe4ce94473b817406d767dea82c3032e4f8e4e3d76684f8c4620355238ffa7a"
+      "sha256": "9d0da6ba79eaf288d788e78f3b6cfaa45850cdc33578a3226f95d7e661c266bf"
     },
     {
       "path": "resources/guides/cold-start-check.md",
-      "sha256": "d03211425d967504004ec94b3d59abb84b5fbf9d5759cf049513a55e6f69e4ec"
+      "sha256": "495917599088bc48662b92220fe4480ad9d146c8e67e58b2af52d42e12be2640"
     },
     {
       "path": "resources/guides/context-files-guide.md",
-      "sha256": "33bafdccd942b223950651c5d1787ca55f96eaf1ff1b514edbd6185f15edd17c"
+      "sha256": "70a0ddff6bd1ad7cd5697a23016420b82265581653c32b9e8a84373147a403b6"
     },
     {
       "path": "resources/guides/data-architecture-guide.md",
@@ -43,7 +43,7 @@
     },
     {
       "path": "resources/guides/learning-extraction.md",
-      "sha256": "b6608ece8abcd30fcb93a37db49aa82bba6ccf8dec4dc9df8f7ec7da5f89df0c"
+      "sha256": "35b82657cbea2fa0195391f2033ad9ec0635567a32f1330badfc13077ebc961a"
     },
     {
       "path": "resources/guides/llm-evals-guide.md",
@@ -55,11 +55,11 @@
     },
     {
       "path": "resources/guides/planning-guide.md",
-      "sha256": "1714ad37d3c06879887e09b705d18d4f7e5b71b27b4bbc1dabb8f8d04ce04f2d"
+      "sha256": "c9a74af6256c44b6c55a139405c9d4686caa13a7b263532873136f188a897483"
     },
     {
       "path": "resources/guides/retro.md",
-      "sha256": "b0ebf3b8971c52e107f7ea9c656316f31594f2cafc601813dc3f850a8eccc09b"
+      "sha256": "da732f2fffc1388201365cb4d418c340747627a50756025f9d999be86cdb6371"
     },
     {
       "path": "resources/guides/self-report-filing.md",
@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "a1bd8b7a54461970b0c001be2f1a4980bbf3d07e5149a47c2d4602e4f608306f"
+      "sha256": "7e5faa70bf92fb368ff9ea2ae48ba6ac1eae9e39b6b809e677553bbdedfca354"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -743,7 +743,7 @@
     },
     {
       "path": "templates/AGENTS.md",
-      "sha256": "471c6cb5c41a48214aa9bdfefcc52fcafb295d98831a1ad6dec88f86ec255804"
+      "sha256": "3f09667e90af599baac44fe5588b20682b23a8b705a81c681b6f2e89434f8f25"
     },
     {
       "path": "templates/agents/safeword-retro-filer.md",
@@ -979,15 +979,15 @@
     },
     {
       "path": "templates/guides/architecture-guide.md",
-      "sha256": "426f37f29e2b2486d61ec0930ff24c80372a6f860327d05c6f544c78e6df0368"
+      "sha256": "1275b2a42b34b18238cf87ac1310d8f1e321ec6690503f638f7da161edc54a4c"
     },
     {
       "path": "templates/guides/cold-start-check.md",
-      "sha256": "d03211425d967504004ec94b3d59abb84b5fbf9d5759cf049513a55e6f69e4ec"
+      "sha256": "495917599088bc48662b92220fe4480ad9d146c8e67e58b2af52d42e12be2640"
     },
     {
       "path": "templates/guides/context-files-guide.md",
-      "sha256": "7f711cc2076e529394262fce269bcb621eddf8b15bcacde9e5d16f407c40a971"
+      "sha256": "9ffef0a42b58bc1157e0896e80c39958e436b56dbc2d1b29a33ee1f48185c030"
     },
     {
       "path": "templates/guides/data-architecture-guide.md",
@@ -999,7 +999,7 @@
     },
     {
       "path": "templates/guides/learning-extraction.md",
-      "sha256": "3d6e627b8455f231f17753fd5389e1ae0982335811a5e8447fd9ad582d0e4f4b"
+      "sha256": "f7cebad40f6b1f4f61cec68535a4424bfecb795366384b37138570b716aa5965"
     },
     {
       "path": "templates/guides/llm-evals-guide.md",
@@ -1011,11 +1011,11 @@
     },
     {
       "path": "templates/guides/planning-guide.md",
-      "sha256": "2571f241f6de8b768d0aa324c612c6ff268ce512c0979b51c3a589212a4fa52a"
+      "sha256": "bb5ceede9cb8fdec4d6da5d224806fea541a3eae47ec66b58b368f25031dadfd"
     },
     {
       "path": "templates/guides/retro.md",
-      "sha256": "b0ebf3b8971c52e107f7ea9c656316f31594f2cafc601813dc3f850a8eccc09b"
+      "sha256": "da732f2fffc1388201365cb4d418c340747627a50756025f9d999be86cdb6371"
     },
     {
       "path": "templates/guides/self-report-filing.md",
@@ -1555,7 +1555,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "2a10ebc38c3778c68d7ea82daeabec341759f249839915fcf73efa523976a2ab"
+      "sha256": "8c667e7f2ca822b0bee3709f30729f76bdb5bc8528f1f29a0b67063ddfe5c09c"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",

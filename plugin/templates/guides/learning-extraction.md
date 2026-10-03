@@ -45,7 +45,9 @@ Extract after experiencing ANY of these:
 
 1. Explicit user instruction (highest priority)
 2. Project `<namespace-root>/learnings/` (project-specific)
-3. Project `./SAFEWORD.md` → Common Gotchas (inline reference)
+3. Project context file (`./AGENTS.md` or `./CLAUDE.md`) → short gotchas and pointers
+
+`.safeword/SAFEWORD.md` is owned by safeword and overwritten on install — never add project content to it.
 
 ---
 
@@ -116,14 +118,14 @@ Just learned something valuable
 ├─ Choose destination:
 │  │
 │  ├─ Architectural? (why we chose X over Y)
-│  │  └─ YES → Add to: SAFEWORD.md "Architecture Decisions"
+│  │  └─ YES → Record per architecture-guide.md (ticket note, ARCHITECTURE.md, or ADR)
 │  │
 │  ├─ Short gotcha? (1-2 sentences + code snippet)
-│  │  └─ YES → Add to: SAFEWORD.md "Common Gotchas"
+│  │  └─ YES → Add to: project AGENTS.md / CLAUDE.md "Common Gotchas"
 │  │
 │  └─ Needs examples/explanation?
 │     └─ YES → Extract to: <namespace-root>/learnings/[concept].md
-│        Then cross-reference in SAFEWORD.md
+│        (INDEX.md regenerates automatically)
 ```
 
 ---
@@ -134,10 +136,12 @@ Just learned something valuable
 
 **Use when:** Pattern applies to 2+ features/files, needs explanation
 
-**Structure:**
+**Structure:** Line 3 must start with `Covers:` — `safeword project sync-learnings` (run automatically when a learning changes) silently leaves files without it out of `INDEX.md`.
 
 ```markdown
 # [Concept Name]
+
+Covers: comma-separated keywords agents will search for
 
 **Principle:** One-sentence summary
 
@@ -192,21 +196,17 @@ Actual: [What happened]
 - Old broken code
 + New fixed code
 ```
-````
 
 ## Lesson
 
 [One-sentence takeaway]
-
-````text
+````
 
 ---
 
-## SAFEWORD.md Integration
+## Project Context File Integration
 
-After creating a learning file, cross-reference it in SAFEWORD.md.
-
-After extracting to `<namespace-root>/learnings/`, add cross-reference in SAFEWORD.md:
+`<namespace-root>/learnings/INDEX.md` is the generated catalog — no manual cross-reference is required. For a gotcha every session should see, add a one-line pointer to the project's own context file (`./AGENTS.md` or `./CLAUDE.md`), never to `.safeword/SAFEWORD.md`:
 
 ```markdown
 ## Common Gotchas
@@ -217,9 +217,10 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 - **Electron Renderer Context** - Renderer = browser, not Node.js; use `split(/[/\\]/)` for paths → `<namespace-root>/learnings/electron-contexts.md`
 
 **Additional gotchas:**
+
 - Tab state timing: Add tab first (trigger render), wait 50ms, load content
 - File validation: Whitelist extensions before operations
-````
+```
 
 **Pattern:** Bold name + one-sentence summary + optional link
 
@@ -227,13 +228,13 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 
 ## Examples: What Goes Where
 
-### ✅ Project Architecture (SAFEWORD.md)
+### ✅ Project Architecture (architecture record)
 
 **Learning:** "Why Zustand over Redux?"
 
-**Why SAFEWORD.md:** Architectural decision unique to this project
+**Why an architecture record:** Architectural decision unique to this project
 
-**Location:** `SAFEWORD.md` → Architecture Decisions section
+**Location:** `ARCHITECTURE.md` decision section (or an ADR) — see `architecture-guide.md`
 
 ```markdown
 ### Why Zustand over Redux/MobX?
@@ -261,7 +262,7 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 
 **File:** `<namespace-root>/learnings/persistent-ui.md`
 
-**Cross-ref:** Link from `SAFEWORD.md` → Common Gotchas
+**Cross-ref:** Listed in the generated `INDEX.md`; optionally a one-line pointer in project `AGENTS.md` / `CLAUDE.md`
 
 ---
 
@@ -273,7 +274,7 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 
 **File:** `<namespace-root>/learnings/archive/electron-build-forgotten.md`
 
-**Note:** Short gotcha goes in SAFEWORD.md: "Electron tests use built files - run `bun run build` first"
+**Note:** Short gotcha goes in project `AGENTS.md` / `CLAUDE.md`: "Electron tests use built files - run `bun run build` first"
 
 ---
 
@@ -341,13 +342,13 @@ and when a just-finished feature might have surfaced something reusable.
 2. **Assess scope** - Forward-looking? (YES) Global or project? (Project)
 3. **Choose location** - Needs examples → `<namespace-root>/learnings/race-conditions.md`
 4. **Extract** - Use template, write before/after examples
-5. **Cross-reference** - Add to SAFEWORD.md Common Gotchas
+5. **Cross-reference** - Optional one-line pointer in project `AGENTS.md` / `CLAUDE.md`
 
 ### After Completing Feature
 
 1. **Review** - Did we learn anything reusable?
 2. **Extract** - If the signals are there (repeated failed attempts, non-obvious pattern)
-3. **Update** - Add SAFEWORD.md cross-reference if needed
+3. **Update** - Add a project `AGENTS.md` / `CLAUDE.md` pointer if needed
 4. **Commit** - Include learning in commit message
 
 ---
@@ -388,7 +389,7 @@ and when a just-finished feature might have surfaced something reusable.
 
 - Remove when technology deprecated or pattern no longer used
 - Archive instead of delete (move to archive/ with "OBSOLETE:" prefix)
-- Update SAFEWORD.md references to point to replacement learning
+- Update project context-file pointers to the replacement learning
 - Example: "React class components gotchas" → OBSOLETE when project migrates to hooks
 
 ❌ **Verification stamps on project state**
@@ -404,12 +405,12 @@ The `post-tool-sync-learnings` hook flags `✅ Verified` and `Verified by …` s
 
 ## Quick Reference
 
-| Situation             | Location                                        | Example                          |
-| --------------------- | ----------------------------------------------- | -------------------------------- |
-| Architecture decision | `SAFEWORD.md` → Architecture                    | Why Zustand? Why Electron-only?  |
-| Short gotcha          | `SAFEWORD.md` → Gotchas                         | "Validate paths before file ops" |
-| Detailed gotcha       | `<namespace-root>/learnings/` + SAFEWORD.md ref | Persistent UI, race conditions   |
-| One-time bug          | `<namespace-root>/learnings/archive/`           | Forgot to build before testing   |
+| Situation             | Location                                         | Example                          |
+| --------------------- | ------------------------------------------------ | -------------------------------- |
+| Architecture decision | `ARCHITECTURE.md` / ADR (architecture-guide.md)  | Why Zustand? Why Electron-only?  |
+| Short gotcha          | Project `AGENTS.md` / `CLAUDE.md` → Gotchas      | "Validate paths before file ops" |
+| Detailed gotcha       | `<namespace-root>/learnings/` (`Covers:` line 3) | Persistent UI, race conditions   |
+| One-time bug          | `<namespace-root>/learnings/archive/`            | Forgot to build before testing   |
 
 ---
 

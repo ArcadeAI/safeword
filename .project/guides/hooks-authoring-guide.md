@@ -48,7 +48,18 @@ How to write hooks for Claude Code and Cursor that enforce quality gates and aut
 
 ---
 
-## Configuration
+## Registering a Safeword Hook
+
+Don't hand-edit `.claude/settings.json` or `.cursor/hooks.json` in this repo — they are generated. A new safeword hook touches these places:
+
+1. **Script:** author it in `packages/cli/templates/hooks/<name>.ts` (shared helpers in `hooks/lib/`, Cursor adapters in `hooks/cursor/`, Codex adapters in `hooks/codex/`).
+2. **Schema:** add a `.safeword/hooks/<name>.ts` → `hooks/<name>.ts` entry to `ownedFiles` in `packages/cli/src/schema.ts` (see the [Schema Registration Guide](./schema-registration-guide.md)).
+3. **Claude event wiring:** add it to `SETTINGS_HOOKS` in `packages/cli/src/templates/config.ts` using the `"$CLAUDE_PROJECT_DIR"/.safeword/hooks/...` form. The `.claude/settings.json` `jsonMerges` entry installs it, and `src/claude-plugin/hook-manifest.ts` derives the Claude plugin's `plugin/hooks/hooks.json` from the same object.
+4. **Cursor event wiring:** add it to `CURSOR_HOOKS` in the same file (merged into `.cursor/hooks.json`).
+5. **Codex:** Codex hooks run from the plugin — `packages/cli/codex-plugin/hooks.json` calls `safeword hook codex <event>` (`src/commands/codex-hook.ts`), which runs the `hooks/codex/*` adapters. Extend those for Codex parity.
+6. **Regenerate and sync:** `bun packages/cli/scripts/check-generated-surfaces.ts --fix` (plugin manifests and runtimes), then `bun run safeword install` (or copy to `.safeword/hooks/`) for the dogfood copy; `bun scripts/parity-check.ts` confirms template ↔ dogfood parity.
+
+The host formats below are for reference when reading the generated output.
 
 ### Claude Code (settings.json)
 
@@ -61,7 +72,7 @@ How to write hooks for Claude Code and Cursor that enforce quality gates and aut
         "hooks": [
           {
             "type": "command",
-            "command": "bun .claude/hooks/validate.ts",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/validate.ts",
             "timeout": 60
           }
         ]
@@ -70,7 +81,9 @@ How to write hooks for Claude Code and Cursor that enforce quality gates and aut
     "Stop": [
       {
         "matcher": "*",
-        "hooks": [{ "type": "command", "command": "bun .claude/hooks/quality.ts" }]
+        "hooks": [
+          { "type": "command", "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/quality.ts" }
+        ]
       }
     ]
   }
@@ -87,8 +100,8 @@ How to write hooks for Claude Code and Cursor that enforce quality gates and aut
 {
   "version": 1,
   "hooks": {
-    "afterFileEdit": [{ "command": "./.cursor/hooks/format.sh" }],
-    "stop": [{ "command": "bun test" }]
+    "afterFileEdit": [{ "command": "bun ./.safeword/hooks/cursor/after-file-edit.ts" }],
+    "stop": [{ "command": "bun ./.safeword/hooks/cursor/stop.ts" }]
   }
 }
 ```
@@ -147,7 +160,8 @@ process.exit(0);
 #!/usr/bin/env bun
 import { $ } from 'bun';
 
-const test = await $`bun test`.quiet().nothrow();
+// This repo uses Vitest: `bun run test` (package script), never `bun test` (Bun's runner)
+const test = await $`bun run test`.quiet().nothrow();
 if (test.exitCode !== 0) {
   console.error('Tests failed. Fix before completing.');
   process.exit(2);
@@ -179,7 +193,7 @@ process.exit(0);
 3. **Quote shell variables** — `"$file_path"` not `$file_path` (prevents injection).
 4. **Handle missing input** — `if (!input) process.exit(0);`
 5. **stderr for debug, stdout for user** — Debug logs go to stderr.
-6. **Test independently** — `echo '{"tool_name":"Edit"}' | bun hook.ts && echo $?`
+6. **Test independently** — `echo '{"tool_name":"Edit"}' | bun packages/cli/templates/hooks/<name>.ts; echo $?`, then add Vitest coverage under `packages/cli/tests/hooks/` and run it with `bun run test tests/hooks/<name>.test.ts` from `packages/cli`
 
 ---
 
