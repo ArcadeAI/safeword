@@ -13,8 +13,10 @@ pointer; this is the occasional deep check.
 
 ## When it runs
 
-- **Offered at the Intake Exit step** for a feature whose intake brief records a
-  one-way-door (or cross-cutting) Reversibility — see the BDD intake flow.
+- **Offered at the Intake Exit step** only when the feature's recorded
+  Reversibility says one-way — a data model, public API, or migration. A missing
+  or `skip:` Reversibility means no offer; intake does not re-judge it at exit.
+  See the bdd skill's `DISCOVERY.md` (Intake exit).
 - **On demand**, any time the builder asks for it — explicitly, regardless of the
   reversibility read. Run it even when the auto-offer would not fire (e.g. a
   two-way-door brief) if the builder wants the sufficiency signal independent of

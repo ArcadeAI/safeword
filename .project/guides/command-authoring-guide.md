@@ -62,6 +62,8 @@ How to write slash commands for Claude Code and Cursor that are discoverable, fo
 
 **Namespacing:** Claude Code supports subdirectories for namespaced commands (e.g., `frontend/component.md` → `/frontend:component`). Cursor does not support subdirectories—all commands must be in the root `.cursor/commands/` directory.
 
+**In safeword:** Claude-side slash commands are skills (`templates/skills/{name}/SKILL.md` creates `/{name}`), so safeword ships no `.claude/commands/` files — the old ones are listed in `deprecatedFiles`. Commands exist only for Cursor, under `.cursor/commands/`.
+
 ---
 
 ## Format
@@ -355,12 +357,10 @@ Before publishing a command:
 
 ## Schema Registration (SAFEWORD-specific)
 
-**Every new command template MUST be registered in `packages/cli/src/schema.ts`.**
+Safeword commands are **Cursor-only thin wrappers** that point at a skill (`Read and follow the instructions in .safeword/skills/{name}/SKILL.md`). Most are **generated**:
 
-```typescript
-// In ownedFiles:
-'.claude/commands/{name}.md': { template: 'commands/{name}.md' },
-'.cursor/commands/{name}.md': { template: 'commands/{name}.md' },
-```
+1. Add a `CURSOR_COMMAND_WRAPPERS` entry (name, description, `skillPath`) in `packages/cli/src/cursor-wrappers.ts`. `CURSOR_COMMAND_WRAPPER_OWNED_FILES` in schema.ts registers `.cursor/commands/{name}.md` → `commands/{name}.md` automatically.
+2. Run `bun run generate:cursor-wrappers` from `packages/cli` to write `templates/commands/{name}.md` and the dogfood `.cursor/commands/{name}.md`. Never hand-edit a generated wrapper.
+3. Run `bun packages/cli/scripts/check-generated-surfaces.ts --fix` so the plugins stay current, then `bun run test tests/schema.test.ts` from `packages/cli`.
 
-Commands typically share the same template file for both platforms (Cursor ignores frontmatter).
+A few hand-authored commands (`explain`, `verify`, `self-review`, `review-spec`, `cleanup-zombies`, `lint`) keep explicit `'.cursor/commands/{name}.md': { template: 'commands/{name}.md' }` entries in `ownedFiles`. See the [Schema Registration Guide](./schema-registration-guide.md).
