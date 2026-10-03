@@ -1038,9 +1038,16 @@ if (
       const ticketFolder = nodePath.basename(nodePath.dirname(editedFile));
       const ticketId = ticketFolder.split('-', 1)[0] ?? '';
       const ledger = nodePath.relative(canonicalProjectDirectory, editedFile);
+      const scenario = /^Scenario: (.+)$/u.exec(transition.scenario)?.[1];
+      if (scenario === undefined) {
+        deny(
+          'Cannot mark VERIFIED without a standard Scenario heading.',
+          'Keep this row under a unique `### Scenario: <title>` heading and retry.',
+        );
+      }
       const gateDenial = retrospectiveGateDenial(projectDirectory, {
         ticketId,
-        scenario: transition.scenario,
+        scenario,
         ledger,
         eligibilityId: parsed.eligibilityId,
         proofId: parsed.proofId,

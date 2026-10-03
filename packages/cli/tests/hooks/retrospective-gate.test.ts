@@ -4,7 +4,10 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { retrospectiveCloseDenial } from '../../templates/hooks/lib/retrospective-gate.js';
+import {
+  retrospectiveCloseDenial,
+  retrospectiveGateDenial,
+} from '../../templates/hooks/lib/retrospective-gate.js';
 
 const ledger =
   '.project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/test-definitions.md';
@@ -73,5 +76,27 @@ describe('installed retrospective closing gate', () => {
   it('rejects a project-writable CLI even when it prints approval', () => {
     stub(project, envelope());
     expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeDefined();
+  });
+
+  it('checks every identity returned for a VERIFIED row', () => {
+    const claim = {
+      ticketId: 'CKWE2D',
+      scenario: 'example',
+      ledger,
+      eligibilityId: '11111111-1111-4111-8111-111111111111',
+      proofId: '22222222-2222-4222-8222-222222222222',
+    };
+    const response = (data: Record<string, string>, state = 'healthy') =>
+      stub(outside, JSON.stringify({ state, data }));
+    response({ ...claim, status: 'approved' });
+    expect(retrospectiveGateDenial(project, claim)).toBeUndefined();
+    response({ ...claim, status: 'approved' }, 'action_required');
+    expect(retrospectiveGateDenial(project, claim)).toBeDefined();
+    for (const field of Object.keys(claim) as (keyof typeof claim)[]) {
+      response({ ...claim, [field]: 'wrong', status: 'approved' });
+      expect(retrospectiveGateDenial(project, claim)).toBeDefined();
+    }
+    stub(project, JSON.stringify({ state: 'healthy', data: { ...claim, status: 'approved' } }));
+    expect(retrospectiveGateDenial(project, claim)).toBeDefined();
   });
 });

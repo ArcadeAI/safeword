@@ -44,9 +44,9 @@ describe('retrospective proof boundary', () => {
   });
 
   it('rejects a subdirectory as the source of a proof', () => {
-    expect(() => runRetrospectiveProof(process.cwd(), request)).toThrow(
-      'Retrospective proof requires the Git repository root.',
-    );
+    expect(() =>
+      runRetrospectiveProof(path.resolve(import.meta.dirname, '../..'), request),
+    ).toThrow('Retrospective proof requires the Git repository root.');
   });
 
   it('uses fresh passing and mutated reports rather than a committed report', () => {
@@ -87,6 +87,7 @@ describe('retrospective proof boundary', () => {
       writeFileSync(
         fakeBun,
         `#!/bin/sh
+if [ -n "$GIT_DIR" ]; then exit 3; fi
 if grep -q 'behavior = true' src/example.ts; then
   cat > ${report} <<'JSON'
 {"numPassedTests":1,"numFailedTests":0,"testResults":[{"assertionResults":[{"fullName":"selected test","status":"passed"}]}]}
@@ -132,7 +133,16 @@ exit 1
       };
       expect(() => runRetrospectiveProof(root, proofRequest)).toThrow('ENOENT');
       process.env.RETRO_FIXTURE_EMIT_MUTANT = '1';
-      const observation = runRetrospectiveProof(root, proofRequest);
+      const observation = (() => {
+        const previousGitDirectory = process.env.GIT_DIR;
+        try {
+          process.env.GIT_DIR = path.join(root, 'wrong-repository');
+          return runRetrospectiveProof(root, proofRequest);
+        } finally {
+          if (previousGitDirectory === undefined) delete process.env.GIT_DIR;
+          else process.env.GIT_DIR = previousGitDirectory;
+        }
+      })();
       const digest = (value: string): string => createHash('sha256').update(value).digest('hex');
       expect(observation.commit).toBe(
         execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
@@ -163,7 +173,8 @@ exit 1
       ).toThrow('The mutation did not fail at the declared scenario assertion');
     } finally {
       process.env.PATH = originalPath;
-      process.env.RETRO_FIXTURE_EMIT_MUTANT = originalEmitMutant;
+      if (originalEmitMutant === undefined) delete process.env.RETRO_FIXTURE_EMIT_MUTANT;
+      else process.env.RETRO_FIXTURE_EMIT_MUTANT = originalEmitMutant;
       rmSync(root, { recursive: true, force: true });
     }
   });

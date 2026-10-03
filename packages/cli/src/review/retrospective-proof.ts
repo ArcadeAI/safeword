@@ -204,7 +204,9 @@ function runTest(
   const result = spawnSync(executable, argv.slice(1), {
     cwd,
     env: Object.fromEntries(
-      Object.entries(process.env).filter(([name]) => !name.startsWith('SAFEWORD_REVIEW_')),
+      Object.entries(process.env).filter(
+        ([name]) => !name.startsWith('SAFEWORD_REVIEW_') && !name.startsWith('GIT_'),
+      ),
     ),
     encoding: 'utf8',
     timeout: TEST_TIMEOUT_MS,

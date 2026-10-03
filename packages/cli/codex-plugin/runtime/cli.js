@@ -3629,7 +3629,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "875033c110c36013140975192cb5b340ddaeb2c3f20b4aea70a8ba5fa6f5b8b7",
+        ".safeword/hooks/pre-tool-quality.ts": "78f4af402e98924eb4a57fa2c443136c36a574b429c9c266afa640c72ba7d750",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -35608,7 +35608,7 @@ function runTest(copy, argv, fullName, expectedStatus) {
   rmSync9(nodePath48.join(cwd, REPORT), { force: true });
   const result = spawnSync9(executable, argv.slice(1), {
     cwd,
-    env: Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("SAFEWORD_REVIEW_"))),
+    env: Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("SAFEWORD_REVIEW_") && !name.startsWith("GIT_"))),
     encoding: "utf8",
     timeout: TEST_TIMEOUT_MS,
     maxBuffer: MAX_PROCESS_OUTPUT,

@@ -11,7 +11,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, symlinkSync, unlinkSync } from 'node:fs';
+import { readFileSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -217,7 +217,10 @@ function runCodexPatchHook(cwd: string, patch: string, gateCli: string): HookRes
 }
 
 /** Build a temp project with a ticket folder + test-definitions.md initial content. */
-function setupProject(initialTestDefinitions: string): {
+function setupProject(
+  initialTestDefinitions: string,
+  ticketId = 'TST001',
+): {
   cwd: string;
   testDefinitionsPath: string;
 } {
@@ -228,10 +231,10 @@ function setupProject(initialTestDefinitions: string): {
   // CREATE of test-definitions.md) doesn't interfere with our EDIT tests.
   writeTestFile(
     cwd,
-    '.safeword-project/tickets/TST001/ticket.md',
+    `.safeword-project/tickets/${ticketId}/ticket.md`,
     [
       '---',
-      'id: TST001',
+      `id: ${ticketId}`,
       'slug: write-time-gate-fixture',
       'type: feature',
       'phase: implement',
@@ -246,11 +249,11 @@ function setupProject(initialTestDefinitions: string): {
 
   const testDefinitionsPath = nodePath.join(
     cwd,
-    '.safeword-project/tickets/TST001/test-definitions.md',
+    `.safeword-project/tickets/${ticketId}/test-definitions.md`,
   );
   writeTestFile(
     cwd,
-    '.safeword-project/tickets/TST001/test-definitions.md',
+    `.safeword-project/tickets/${ticketId}/test-definitions.md`,
     initialTestDefinitions,
   );
   return { cwd, testDefinitionsPath };
@@ -287,13 +290,64 @@ describe('write-time annotation gate', () => {
     it('rejects retrospective proof on an unrelated ticket despite plausible receipt IDs', () => {
       const setup = setupProject('### Scenario: example\n\n- [ ] VERIFIED\n');
       projectDirectory = setup.cwd;
+      const gateDirectory = createTemporaryDirectory();
+      gateDirectories.push(gateDirectory);
+      const gateCli = nodePath.join(gateDirectory, 'cli.js');
+      writeFileSync(
+        gateCli,
+        `const ticket = process.argv[process.argv.indexOf('--ticket') + 1]; console.log(JSON.stringify({ state: ticket === 'CKWE2D' ? 'healthy' : 'action_required', findings: ticket === 'CKWE2D' ? [] : [{ message: 'Ticket is not eligible for retrospective proof.' }], data: { status: ticket === 'CKWE2D' ? 'approved' : 'blocked' } }));\n`,
+      );
       const result = runEditHook(
         setup.cwd,
         setup.testDefinitionsPath,
         '- [ ] VERIFIED',
-        '- [x] VERIFIED eligibility: 11111111-1111-4111-8111-111111111111 proof: 22222222-2222-4222-8222-222222222222',
+        '- [x] VERIFIED eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222',
+        { SAFEWORD_PLUGIN_CLI: gateCli },
       );
-      expectHookDeny(result, 'Cannot mark VERIFIED');
+      expectHookDeny(result, 'Ticket is not eligible for retrospective proof.');
+    });
+
+    it('checks a valid VERIFIED edit against the installed gate and exact receipt identity', () => {
+      const setup = setupProject('### Scenario: example\n\n- [ ] VERIFIED\n', 'CKWE2D');
+      projectDirectory = setup.cwd;
+      const gateDirectory = createTemporaryDirectory();
+      gateDirectories.push(gateDirectory);
+      const gateCli = nodePath.join(gateDirectory, 'cli.js');
+      const eligibilityId = '11111111-1111-4111-8111-111111111111';
+      const proofId = '22222222-2222-4222-8222-222222222222';
+      const ledger = '.safeword-project/tickets/CKWE2D/test-definitions.md';
+      const run = () =>
+        runEditHook(
+          setup.cwd,
+          setup.testDefinitionsPath,
+          '- [ ] VERIFIED',
+          `- [x] VERIFIED eligibility=${eligibilityId} proof=${proofId}`,
+          { SAFEWORD_PLUGIN_CLI: gateCli },
+        );
+      const reply = (data: Record<string, string>, state = 'healthy') => {
+        writeFileSync(
+          gateCli,
+          `process.stdout.write(${JSON.stringify(JSON.stringify({ state, data }))});\n`,
+        );
+      };
+      const identity = {
+        status: 'approved',
+        ticketId: 'CKWE2D',
+        scenario: 'example',
+        ledger,
+        eligibilityId,
+        proofId,
+      };
+
+      reply(identity, 'action_required');
+      expectHookDeny(run(), 'Cannot mark VERIFIED');
+      for (const field of ['ticketId', 'scenario', 'ledger', 'eligibilityId', 'proofId'] as const) {
+        reply({ ...identity, [field]: 'wrong' });
+        expectHookDeny(run(), 'Cannot mark VERIFIED');
+      }
+      reply(identity);
+      const approved = run();
+      expectHookAllow(approved);
     });
 
     it('Scenario 1: valid SHA annotation passes the write-time hook', () => {
