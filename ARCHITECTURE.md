@@ -231,45 +231,45 @@ Therefore a reverse-written `ARCHITECTURE.md` must start from every generated no
 
 The generated package leaf is the current structural inventory. These purposes explain how its top-level modules fit together:
 
-| Module                        | Responsibility                                                                                                                          |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `boundary`                    | Evaluates architectural boundary evidence and dependency policy                                                                         |
-| `claude-plugin`               | Native Claude plugin delivery, execution proof, historical ownership classification, legacy contraction                                 |
-| `cli.ts`                      | Executable composition root that registers public, compatibility, and hidden hook commands                                              |
-| `cli-protocol`                | Typed command catalogue, policy, plan/result envelopes, rendering, and execution adapters                                               |
-| `codex-plugin`                | Profile plugin catalogue, installation, proof, legacy authority, migration, finalization, and recovery                                  |
-| `commands`                    | Domain command handlers for removal, project workflows, Codex, tickets, and retros (install/status/doctor live in `lifecycle`)          |
-| `cursor-wrappers.ts`          | Generates thin Cursor command/rule wrappers from canonical workflow templates                                                           |
-| `health.ts`                   | Aggregates configuration, path, coverage, version, and integration health findings                                                      |
-| `index.ts`                    | Stable library exports for version, detection, reconciliation, and ESLint consumers                                                     |
-| `learning-sync`               | Builds deterministic discovery indexes over project learnings                                                                           |
-| `lifecycle`                   | Unified install, plan, status, doctor, and uninstall across the project and selected agent integrations (registry in `integrations.ts`) |
-| `opencode`                    | OpenCode profile discovery, bounded evidence records, and collision-safe reconciliation                                                 |
-| `owned-paths.ts`              | Derives writable top-level path prefixes from the schema                                                                                |
-| `packs`                       | Detects languages and installs language-native files, packages, and setup behavior                                                      |
-| `parity.ts`                   | Enforces template/dogfood/generated catalogue pairs and one-way content contracts                                                       |
-| `plugin-bundle.ts`            | Normalizes generated plugin JavaScript so machine-specific Bun paths do not change bundle bytes or hashes                               |
-| `plugin-runtime-authority.ts` | Enforces packaged-runtime authority for native plugin workflow assets                                                                   |
-| `pr-review`                   | Reviews pull-request evidence, applies conservative routing, and separates model inspection from merge-neutral GitHub publication       |
-| `presets`                     | Publishes conditional TypeScript/JavaScript ESLint presets                                                                              |
-| `project-runtime-helpers.ts`  | Dependency-free inventory of helpers the packaged project runtime may execute                                                           |
-| `project-state.ts`            | Exposes lazy transient-state ignore management to the packaged CLI runtime                                                              |
-| `reconcile.ts`                | Computes and executes idempotent file, JSON, text-patch, permission, and dependency plans                                               |
-| `retro`                       | Sanitizes, deduplicates, triages, reconciles, and files retrospective findings                                                          |
-| `review`                      | Coordinates independent adversarial reviews across Claude and Codex: runtime discovery, neutral packets, policy, fallback, provenance   |
-| `schema.ts`                   | Single source of truth for owned, managed, preserved, deprecated, merged, and patched assets                                            |
-| `self-report-capture.ts`      | Accepts bounded CLI-side self-observation events for retrospective analysis                                                             |
-| `skills`                      | Installs optional third-party language coding skills without owning Safeword workflows                                                  |
-| `templates`                   | Produces dynamic configuration and legacy-cleanup content used by reconciliation                                                        |
-| `test-execution`              | Resolves local versus remote-preferred test execution, including private worktree configuration and fail-closed validation              |
-| `test-plan`                   | Resolves and renders the canonical test/build/typecheck/BDD/dependency plan for a project                                               |
-| `ticket-create`               | Routes ticket creation between local identifiers and issue-first tracker identities                                                     |
-| `ticket-sync`                 | Builds active and completed ticket-corpus discovery indexes                                                                             |
-| `tracker-connect`             | Configures tracker identity, credentials, secret storage, and handoff state                                                             |
-| `tracker-sync`                | Plans and applies one-way projection from local tickets to GitHub or Linear                                                             |
-| `upstream-monitor`            | Tracks upstream agent-CLI release signals, and issues gating workaround removal, for review                                             |
-| `utils`                       | Shared architecture, manifest, filesystem, Git, path, detection, Gherkin, and ticket primitives                                         |
-| `version.ts`                  | Reads the release version from package metadata                                                                                         |
+| Module                        | Responsibility                                                                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `boundary`                    | Evaluates architectural boundary evidence and dependency policy                                                                                  |
+| `claude-plugin`               | Native Claude plugin delivery, execution proof, historical ownership classification, legacy contraction                                          |
+| `cli.ts`                      | Executable composition root that registers public, compatibility, and hidden hook commands                                                       |
+| `cli-protocol`                | Typed command catalogue, policy, plan/result envelopes, rendering, and execution adapters                                                        |
+| `codex-plugin`                | Profile plugin catalogue, installation, proof, legacy authority, migration, finalization, and recovery                                           |
+| `commands`                    | Domain command handlers for removal, project workflows, Codex, tickets, and retros (install/status/doctor live in `lifecycle`)                   |
+| `cursor-wrappers.ts`          | Generates thin Cursor command/rule wrappers from canonical workflow templates                                                                    |
+| `health.ts`                   | Aggregates configuration, path, coverage, version, and integration health findings                                                               |
+| `index.ts`                    | Stable library exports for version, detection, reconciliation, and ESLint consumers                                                              |
+| `learning-sync`               | Builds deterministic discovery indexes over project learnings                                                                                    |
+| `lifecycle`                   | Unified install, plan, status, doctor, and uninstall across the project and selected agent integrations (registry in `integrations.ts`)          |
+| `opencode`                    | OpenCode profile discovery, bounded evidence records, and collision-safe reconciliation                                                          |
+| `owned-paths.ts`              | Derives writable top-level path prefixes from the schema                                                                                         |
+| `packs`                       | Detects languages and installs language-native files, packages, and setup behavior                                                               |
+| `parity.ts`                   | Enforces template/dogfood/generated catalogue pairs and one-way content contracts                                                                |
+| `plugin-bundle.ts`            | Normalizes generated plugin JavaScript so machine-specific Bun paths do not change bundle bytes or hashes                                        |
+| `plugin-runtime-authority.ts` | Enforces packaged-runtime authority for native plugin workflow assets                                                                            |
+| `pr-review`                   | Reviews pull-request evidence, applies conservative routing, and separates model inspection from merge-neutral GitHub publication                |
+| `presets`                     | Publishes conditional TypeScript/JavaScript ESLint presets                                                                                       |
+| `project-runtime-helpers.ts`  | Dependency-free inventory of helpers the packaged project runtime may execute                                                                    |
+| `project-state.ts`            | Exposes lazy transient-state ignore management to the packaged CLI runtime                                                                       |
+| `reconcile.ts`                | Computes and executes idempotent file, JSON, text-patch, permission, and dependency plans                                                        |
+| `retro`                       | Sanitizes, deduplicates, triages, reconciles, and files retrospective findings                                                                   |
+| `review`                      | Coordinates independent adversarial reviews across Claude, Codex, and OpenCode: runtime discovery, neutral packets, policy, fallback, provenance |
+| `schema.ts`                   | Single source of truth for owned, managed, preserved, deprecated, merged, and patched assets                                                     |
+| `self-report-capture.ts`      | Accepts bounded CLI-side self-observation events for retrospective analysis                                                                      |
+| `skills`                      | Installs optional third-party language coding skills without owning Safeword workflows                                                           |
+| `templates`                   | Produces dynamic configuration and legacy-cleanup content used by reconciliation                                                                 |
+| `test-execution`              | Resolves local versus remote-preferred test execution, including private worktree configuration and fail-closed validation                       |
+| `test-plan`                   | Resolves and renders the canonical test/build/typecheck/BDD/dependency plan for a project                                                        |
+| `ticket-create`               | Routes ticket creation between local identifiers and issue-first tracker identities                                                              |
+| `ticket-sync`                 | Builds active and completed ticket-corpus discovery indexes                                                                                      |
+| `tracker-connect`             | Configures tracker identity, credentials, secret storage, and handoff state                                                                      |
+| `tracker-sync`                | Plans and applies one-way projection from local tickets to GitHub or Linear                                                                      |
+| `upstream-monitor`            | Tracks upstream agent-CLI release signals, and issues gating workaround removal, for review                                                      |
+| `utils`                       | Shared architecture, manifest, filesystem, Git, path, detection, Gherkin, and ticket primitives                                                  |
+| `version.ts`                  | Reads the release version from package metadata                                                                                                  |
 
 Shipped assets live beside the source: `templates/` is the canonical project-local payload, while `codex-plugin/` is the generated profile-scoped Codex plugin bundle. The generated native Claude plugin lives at the repo-root `plugin/` (see [Monorepo Structure](#monorepo-structure)). `packages/cli/architecture.generated.md` remains the source of structural truth when this table is reviewed.
 
