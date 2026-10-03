@@ -2587,6 +2587,12 @@ export async function deliverRelayRequests(
     now: () => number;
     overallDeadlineMs?: number;
     relayUrl: string;
+    /**
+     * Arms the per-attempt abort timer and returns its cancel. Defaults to a
+     * real unref'd `setTimeout`. Supplied together with `monotonicNow` it puts
+     * the attempt deadline on the same virtual timeline as the drain budget.
+     */
+    setTimer?: (callback: () => void, delayMs: number) => () => void;
   },
 ): Promise<{
   accepted: number;
@@ -2598,6 +2604,15 @@ export async function deliverRelayRequests(
   const relayOrigin = normalizeRelayOrigin(options.relayUrl);
   if (relayOrigin === undefined) throw new Error('invalid relay URL');
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
+  const setTimer =
+    options.setTimer ??
+    ((callback: () => void, delayMs: number) => {
+      const timer = setTimeout(callback, delayMs);
+      timer.unref();
+      return () => {
+        clearTimeout(timer);
+      };
+    });
   const wallClockNow = options.now();
   const {
     active: initial,
@@ -2654,10 +2669,9 @@ export async function deliverRelayRequests(
       remainingOverallMs - RELAY_CLEANUP_RESERVE_MS,
     );
     const controller = new AbortController();
-    const timer = setTimeout(() => {
+    const cancelTimer = setTimer(() => {
       controller.abort();
     }, attemptDeadlineMs);
-    timer.unref();
     try {
       let response: Response;
       try {
@@ -2704,7 +2718,7 @@ export async function deliverRelayRequests(
         throw error;
       }
     } finally {
-      clearTimeout(timer);
+      cancelTimer();
     }
   }
   const finalFilenames = await sortedFilenames(directory);
