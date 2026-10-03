@@ -220,6 +220,12 @@ describe('detectInspirationArtifactWrite', () => {
     `cp /tmp/spec.md ${TICKET_DIRECTORY}`,
     `git status && sed -i 's/v1/v0/' ${TICKET}; echo done`,
     'echo legacy > .safeword-project/tickets/INS001-gate/spec.md',
+    // Script code fed on stdin (#5248): the same writes as `-c`, minus the flag.
+    `python3 - <<'EOF'\nfrom pathlib import Path\nPath("${TICKET}").write_text("legacy")\nEOF`,
+    `python3 <<EOF\nopen("${SPEC}", "w").write("legacy")\nEOF`,
+    `node <<< 'require("fs").writeFileSync("${TICKET}", "x")'`,
+    `echo 'open("${SPEC}", "w")' | python3 -`,
+    `/usr/bin/env python3 - <<'PY'\nopen("${TICKET}", "w")\nPY`,
   ])('characterizes every supported protected write shape: %s', command => {
     expect(detectInspirationArtifactWrite(command)).toBeDefined();
   });
@@ -231,6 +237,8 @@ describe('detectInspirationArtifactWrite', () => {
     `mv -t /backup ${TICKET}`,
     `cp --target-directory=/tmp ${SPEC}`,
     'sed -n 1,20p README.md',
+    `python3 scripts/report.py ${TICKET}`,
+    `python3 - <<'EOF'\nprint("unrelated")\nEOF\ncat ${TICKET}`,
   ])('allows a read-only command: %s', command => {
     expect(detectInspirationArtifactWrite(command)).toBeUndefined();
   });
