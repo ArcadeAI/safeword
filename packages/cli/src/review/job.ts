@@ -127,6 +127,27 @@ function withRecordIntegrity(cwd: string, record: ReviewJobRecord): ReviewJobRec
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
 
+/** Bind a completed CKWE2D replay to the same profile-owned review key. */
+export function retrospectiveCloseTag(cwd: string, content: string): string {
+  return createHmac('sha256', readOrCreateIntegrityKey())
+    .update(realpathSync.native(cwd))
+    .update('\0retrospective-close\0')
+    .update(content)
+    .digest('hex');
+}
+
+export function validRetrospectiveCloseTag(cwd: string, content: string, tag: string): boolean {
+  if (!/^[a-f\d]{64}$/u.test(tag)) return false;
+  try {
+    return timingSafeEqual(
+      Buffer.from(tag, 'hex'),
+      Buffer.from(retrospectiveCloseTag(cwd, content), 'hex'),
+    );
+  } catch {
+    return false;
+  }
+}
+
 interface LedgerFingerprintContext {
   readonly context: readonly string[];
   readonly missing: boolean;
@@ -1338,6 +1359,26 @@ function hasCurrentFingerprint(cwd: string, record: ReviewJobRecord): boolean {
     );
   } catch {
     return false;
+  }
+}
+
+/** Authenticated review identity for the CKWE2D migration gate. */
+export function approvedRetrospectiveReview(
+  cwd: string,
+  id: string,
+  kind: 'retrospective-eligibility' | 'retrospective-proof',
+): readonly string[] | undefined {
+  try {
+    const record = readJob(cwd, id);
+    const data = record.result?.data as Record<string, unknown> | undefined;
+    return record.kind === kind &&
+      record.state === 'completed' &&
+      hasCurrentFingerprint(cwd, record) &&
+      hasIndependentApproval(data)
+      ? record.targets
+      : undefined;
+  } catch {
+    return undefined;
   }
 }
 

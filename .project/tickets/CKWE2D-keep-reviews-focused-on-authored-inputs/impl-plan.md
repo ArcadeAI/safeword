@@ -29,10 +29,25 @@ reviewer subprocess.
      check-attr --source=<HEAD-commit> -z --stdin linguist-generated
    ```
 
-   Supply the real object database only as Git's alternate object directory,
-   with system/global attributes disabled and NUL-terminated project-relative
-   paths. Resolve `<platform-null-device>` to `/dev/null` on POSIX and `NUL` on
-   Windows. Require a Git version that supports `check-attr --source`; an older
+   Run no Git child process at all when every target is within the individual
+   byte limit: HEAD resolution, object-directory discovery, and `check-attr`
+   are all lazy and occur only after at least one oversized regular contained
+   candidate has been identified. Resolve the project `HEAD` commit and its
+   object directory with direct Git children running from the canonical
+   project root in an explicit allowlist-only environment. Never spread `process.env` into any Git child: omit inherited
+   `GIT_DIR`, `GIT_COMMON_DIR`, `GIT_INDEX_FILE`, `GIT_WORK_TREE`,
+   `GIT_CONFIG_*`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`, and other Git override
+   variables. Supply only a controlled executable search path, the process
+   platform essentials needed to launch Git, and explicit isolation settings:
+   `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=<platform-null-device>`, and
+   `GIT_ATTR_NOSYSTEM=1`; supply `GIT_ALTERNATE_OBJECT_DIRECTORIES` only to the
+   isolated bare lookup child with the resolved real object directory. The
+   committed-HEAD resolution uses the same isolation. Git's own repository
+   `.git/config` remains readable for locating worktrees and objects, but no
+   inherited environment or global/system configuration may redirect which
+   committed tree or attributes are classified. Supply NUL-terminated
+   project-relative paths. Resolve `<platform-null-device>` to `/dev/null` on
+   POSIX and `NUL` on Windows. Require a Git version that supports `check-attr --source`; an older
    or incompatible executable fails closed through the typed lookup error.
    The temporary bare Git directory has no project `info/attributes`; the
    `--source` tree makes committed
@@ -40,20 +55,28 @@ reviewer subprocess.
    (`path`, `linguist-generated`, `value`) and retain only literal `true`.
    Compare each bounded eligible snapshot's digest immediately before this
    lookup, so a same-size, timestamp-restored replacement cannot reach Git.
-   Re-`lstat` and re-resolve every oversized candidate after the lookup; reject
-   an inode/type replacement (including atomically replaced, same-sized,
-   timestamp-restored regular
-   replacement) or a newly escaping path before finalizing an
-   exclusion, still without reading candidate bytes.
+   Re-`lstat` and re-resolve every oversized candidate after the lookup;
+   compare the captured device, inode, regular-file type, and byte size, and
+   reject any mismatch (including a same-inode truncate or append, or an
+   atomically replaced, same-sized, timestamp-restored file) or newly escaping
+   path before finalizing an exclusion, still without reading candidate bytes.
    A typed packet failure owns every stable public code. Primary proof: focused
    `packet.test.ts` cases using temporary Git repositories and byte buffers for
    the exact tuple grammar, multibyte limits, aliases, special paths, malformed
    output, `.git/info`, working-tree, global, and seeded system-attribute
    isolation (including an assertion that the child receives
    `GIT_ATTR_NOSYSTEM=1`), committed-tree lookup, timeout and output limits,
-   eligible-target lookup avoidance, a sparse target whose content read count
-   remains zero, post-lookup target replacement, hard-link path semantics, and
-   order-independent error priority.
+   eligible-target lookup avoidance (asserting zero Git child processes of
+   any kind for an all-eligible review, including a non-Git project and an
+   uncommitted repository), a sparse target whose content read count remains
+   zero, post-lookup target replacement, hard-link path semantics, and
+   order-independent error priority. Seed hostile `GIT_COMMON_DIR`,
+   `GIT_DIR`, `GIT_INDEX_FILE`, `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_*`,
+   `GIT_CONFIG_GLOBAL`, and `GIT_ALTERNATE_OBJECT_DIRECTORIES` in the parent
+   process and prove committed-tree classification still wins; assert the
+   allowlist environment on both the HEAD-resolution and classification child.
+   Separately prove that an in-place same-inode size change after lookup fails
+   with `REVIEW_TARGET_CHANGED` before reviewer launch.
    These pure-ish integration tests are the fastest way to prove the exhaustive
    parser/limit matrix.
 2. **Build the reduced packet without bypasses.** Keep normal valid targets in
@@ -66,21 +89,55 @@ reviewer subprocess.
    scope; every result after reviewer launch retains the finalized scope.
    Primary proof: packet tests plus a command integration fixture that
    records both packet content and whether a reviewer process was launched.
-3. **Make typed preflight failures public.** Have the public review handler
-   translate packet failures into canonical failed result envelopes. Every
-   coordinator result after the packet has finalized—approved, changes
-   requested, timeout, route exhaustion, or degraded fallback—
-   adds exact `data.excluded_targets` and a scoped explanation. Failed preflight
-   results never expose partial exclusions.
-   Primary proof: command integration tests invoke the built CLI with `--json`
-   and assert stdout, stderr, exit status, `errors[0].code`, ordered data, and
-   reviewer-launch logs.
-4. **Propagate reduced scope through every successful route.** Reuse one result
-   projection helper from primary, alternate-model, and degraded fallback
-   success paths. Supporting proof: coordinator tests exercise the primary and
-   fallback result shapes so a route cannot drop exclusions.
-5. **Dogfood and document the policy.** Mark `plugin/runtime/**` as
-   `linguist-generated=true`, assert the shipped attribute through Git, and add
+   Assert first-supplied canonical survivor order and one aggregate count for
+   each repeated eligible target and lexical alias. Assert lexical normalization
+   occurs before intermediate symlink traversal for both in-project and
+   outside-pointing links in `link/../generated/output.js`, and reject
+   `link/generated/output.js` when `link` is an intermediate symlink
+   directory resolving outside the project, before any Git lookup.
+3. **Make typed preflight failures public and update the published contract.**
+   Have the public review handler translate packet failures into canonical
+   failed result envelopes. Every coordinator result after packet
+   finalization adds exact `data.excluded_targets` and a scoped explanation,
+   regardless of verdict or route state. This includes approval, changes
+   requested, timeout, route exhaustion, degraded fallback, recoverable
+   authentication handoff, configured-model rejection, invalid reviewer output,
+   and source or snapshot drift after preparation. Failed preflight results
+   never expose partial exclusions.
+   Update `packages/cli/schemas/cli-result-v1.schema.json` and the `review run`
+   entry in `packages/cli/src/cli-protocol/catalog.ts` to describe the new
+   result field and stable `REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE` and
+   `REVIEW_NO_ELIGIBLE_TARGETS` errors. The v1 schema review-result branch
+   requires `data.excluded_targets` when packet scope has finalized, including
+   an explicit empty array; preflight failures retain no such field. Primary
+   proof: command integration
+   tests invoke the built CLI with `--json` and assert stdout, stderr, exit
+   status, `errors[0].code`, ordered data, and reviewer-launch logs. Validate
+   successful non-empty and zero-exclusion (`excluded_targets: []`) envelopes
+   and each new failure-code envelope against the published v1 JSON Schema;
+   catalog tests assert the
+   public command documents these contract additions.
+4. **Project reduced scope at one coordinator return boundary.** Every packet
+   preparation records its finalized ordered exclusions in run-local state;
+   the one `runReview` return wrapper projects that state onto its result,
+   including primary, alternate-model, ranked, degraded, authentication,
+   invalid-output, timeout, route-exhaustion, configuration-failure, and
+   post-preparation source/snapshot-drift paths. Preflight throws before a
+   packet finalizes and therefore bypasses the projection. No route-specific
+   result constructor applies or removes scope. Supporting proof: coordinator
+   tests force each named outcome independently with a finalized packet and
+   assert an exact non-empty exclusion list; a separate in-limit approval
+   asserts the field is present as `[]`. A branch-coverage check lists every
+   return from the coordinator and fails if any post-finalization return
+   bypasses the wrapper. Command tests cover approval, authentication handoff,
+   and post-launch route failure envelopes.
+5. **Dogfood and document the policy.** Keep both `plugin/runtime/**` and
+   `packages/cli/codex-plugin/runtime/**` marked
+   `linguist-generated=true`. Include a fixture project with an oversized
+   unmarked `plugin/runtime/cli.js` and prove it still fails with
+   `REVIEW_TARGET_TOO_LARGE` before reviewer launch. Run the public review command with each oversized
+   shipped runtime beside an authored target and assert that it reviews the
+   authored target while reporting the generated exclusion. Add
    the CLI reference note that an explicitly generated oversized artifact is
    excluded and reported rather than silently reviewed. Run the generated
    plugin parity check after the source changes. This covers Safeword CLI,
@@ -100,8 +157,13 @@ read.
 The feature file remains the behavior source; its dense byte, process, and
 security matrix is proven by focused Vitest command and packet tests rather
 than duplicating process fixtures in Cucumber step glue. Add `@proof.vitest`
-before GREEN so the normal Cucumber lane does not treat the deliberate
-Vitest-backed scenarios as undefined steps.
+only after the accepted scenario has an exact Vitest path and test-name
+binding in `test-definitions.md`; retain Cucumber glue for any scenario
+without an executable binding. Before GREEN, check all 46 scenario definitions
+and every outline row have a matching executable proof, including both lexical
+normalization/symlink rows, the unmarked runtime-shaped negative control, and
+repeated/aliased eligible-target ordering and aggregate-count proofs. A missing
+binding fails the scenario ledger check instead of silently skipping a scenario.
 
 ## Decisions
 

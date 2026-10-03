@@ -58,6 +58,38 @@ describe('CLI result protocol', () => {
     }
   });
 
+  it('requires a typed exclusion list on a completed review result', () => {
+    const schemaPath = nodePath.resolve(
+      import.meta.dirname,
+      '../../schemas/cli-result-v1.schema.json',
+    );
+    const validate = new Ajv({ allErrors: true }).compile(
+      JSON.parse(readFileSync(schemaPath, 'utf8')),
+    );
+    const envelope = (state: 'healthy' | 'failed', data: Record<string, unknown>): unknown => {
+      const result = createResult({ state, data });
+      return JSON.parse(renderJsonResult(result));
+    };
+    expect(
+      validate(
+        envelope('healthy', { command: 'review run', status: 'approved', excluded_targets: [] }),
+      ),
+    ).toBe(true);
+    expect(validate(envelope('healthy', { command: 'review run', status: 'approved' }))).toBe(
+      false,
+    );
+    expect(
+      validate(
+        envelope('healthy', {
+          command: 'review run',
+          status: 'changes_requested',
+          excluded_targets: 'bad',
+        }),
+      ),
+    ).toBe(false);
+    expect(validate(envelope('failed', { command: 'review run', status: 'blocked' }))).toBe(true);
+  });
+
   it.each([
     ['healthy', 0],
     ['changed', 0],

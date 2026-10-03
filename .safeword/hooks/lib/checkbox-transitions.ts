@@ -164,7 +164,9 @@ function findTransitions(
   // phase transition and therefore is not immutable completion credit here.
   for (const oldState of oldStates.filter(
     state =>
-      ['RED', 'GREEN', 'REFACTOR'].includes(state.step) && state.checked && state.annotation !== '',
+      ['RED', 'GREEN', 'REFACTOR', 'VERIFIED'].includes(state.step) &&
+      state.checked &&
+      state.annotation !== '',
   )) {
     const preservedIndex = newStates.findIndex(
       (newState, index) =>
