@@ -51,6 +51,10 @@ describe('detectLedgerWrite', () => {
       ['cp destination', `cp /tmp/forged.md ${LEDGER}`],
       ['truncate', `truncate -s 0 ${LEDGER}`],
       ['inline interpreter invocation', `bun -e 'require("fs").appendFileSync("${LEDGER}", "x")'`],
+      [
+        'stdin-fed interpreter (#5248)',
+        `python3 - <<'EOF'\nopen("${LEDGER}", "a").write("x")\nEOF`,
+      ],
       ['combined redirection (&>)', `echo '- [x] RED' &> ${LEDGER}`],
       ['clobbering redirection (>|)', `echo '- [x] RED' >| ${LEDGER}`],
       [
@@ -226,6 +230,10 @@ describe('detectInspirationArtifactWrite', () => {
     `node <<< 'require("fs").writeFileSync("${TICKET}", "x")'`,
     `echo 'open("${SPEC}", "w")' | python3 -`,
     `/usr/bin/env python3 - <<'PY'\nopen("${TICKET}", "w")\nPY`,
+    // The body is read from raw text: an apostrophe must not hide later lines.
+    `python3 - <<'EOF'\n# it's a rewrite\nopen("${SPEC}", "w")\nEOF`,
+    // `<<-` strips leading tabs from the closing delimiter.
+    `python3 - <<-EOF\n\topen("${TICKET}", "w")\n\tEOF`,
   ])('characterizes every supported protected write shape: %s', command => {
     expect(detectInspirationArtifactWrite(command)).toBeDefined();
   });
@@ -239,6 +247,8 @@ describe('detectInspirationArtifactWrite', () => {
     'sed -n 1,20p README.md',
     `python3 scripts/report.py ${TICKET}`,
     `python3 - <<'EOF'\nprint("unrelated")\nEOF\ncat ${TICKET}`,
+    // A script file reads stdin as data, not code.
+    `python3 scripts/report.py <<'EOF'\n${TICKET}\nEOF`,
   ])('allows a read-only command: %s', command => {
     expect(detectInspirationArtifactWrite(command)).toBeUndefined();
   });
