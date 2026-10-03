@@ -14,6 +14,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
+import { publishReceipt, renderReceipt } from '../../src/pr-review/publish.js';
 import { reconcile } from '../../src/reconcile.js';
 import type { ProjectContext, SafewordSchema } from '../../src/schema.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
@@ -93,15 +94,35 @@ describe('dogfood review policy', () => {
     }
   });
 
-  it('does not suppress a review for an incomplete or stale receipt on the same head', () => {
+  it('does not suppress a review for an incomplete or stale receipt on the same head', async () => {
     const sha = 'a'.repeat(40);
     type Receipt = { user: { login: string }; body: string };
-    const receipt = (state: string): [Receipt] => [
-      {
-        user: { login: 'github-actions[bot]' },
-        body: `<!-- safeword:pr-review-receipt:v1 -->\nReviewed revision: ${sha}\nRun state: ${state}\nRoute: needs a human`,
-      },
-    ];
+    const receipt = async (state: 'complete' | 'stale' | 'incomplete'): Promise<[Receipt]> => {
+      let body = '';
+      await publishReceipt(
+        {
+          listComments: () => Promise.resolve([]),
+          createComment: published => {
+            body = published;
+            return Promise.resolve();
+          },
+          updateComment: () => Promise.reject(new Error('unexpected receipt update')),
+          deleteComment: () => Promise.reject(new Error('unexpected receipt deletion')),
+        },
+        renderReceipt({
+          checks: [],
+          findingCounts: { consequential: 0, nonConsequential: 0 },
+          reviewedSha: sha,
+          reviewers: [],
+          route: 'needs_human',
+          runState: state,
+          skippedChecks: [],
+          tokenUsage: {},
+          unknowns: [],
+        }),
+      );
+      return [{ user: { login: 'github-actions[bot]' }, body }];
+    };
     for (const path of [dogfoodWorkerPath, workerPath]) {
       const worker = readFileSync(path, 'utf8');
       const filter = /reviewed_receipt_sha="\$\(jq -r '([\s\S]*?)' comments\.json\)"/u.exec(
@@ -114,26 +135,31 @@ describe('dogfood review policy', () => {
       expect(fullReceiptFilter).toBeDefined();
       if (!fullReceiptFilter) throw new Error(`missing full reviewer receipt filter in ${path}`);
 
-      for (const state of ['not_ready', 'stale', 'incomplete']) {
+      for (const state of ['stale', 'incomplete'] as const) {
         const result = spawnSync('jq', ['-r', filter], {
           encoding: 'utf8',
-          input: JSON.stringify(receipt(state)),
+          input: JSON.stringify(await receipt(state)),
         });
         expect(result.status, result.stderr).toBe(0);
         expect(result.stdout.trim()).toBe('');
       }
+      const notReady = await receipt('stale');
+      notReady[0].body = notReady[0].body.replace('Run state: stale', 'Run state: not_ready');
+      expect(notReady[0].body).toContain('Run state: not_ready');
+      const draft = spawnSync('jq', ['-r', filter], {
+        encoding: 'utf8',
+        input: JSON.stringify(notReady),
+      });
+      expect(draft.status, draft.stderr).toBe(0);
+      expect(draft.stdout.trim()).toBe('');
       const complete = spawnSync('jq', ['-r', filter], {
         encoding: 'utf8',
-        input: JSON.stringify(receipt('complete')),
+        input: JSON.stringify(await receipt('complete')),
       });
       expect(complete.status, complete.stderr).toBe(0);
       expect(complete.stdout.trim()).toBe(sha);
 
-      const currentReceipt = receipt('complete');
-      currentReceipt[0].body = currentReceipt[0].body.replace(
-        '\nReviewed revision:',
-        '\nAdvisory only: this review needs human approval.\nReviewed revision:',
-      );
+      const currentReceipt = await receipt('complete');
       const current = spawnSync('jq', ['-r', filter], {
         encoding: 'utf8',
         input: JSON.stringify(currentReceipt),
@@ -141,7 +167,21 @@ describe('dogfood review policy', () => {
       expect(current.status, current.stderr).toBe(0);
       expect(current.stdout.trim()).toBe(sha);
 
-      const mixed = [...receipt('complete'), ...receipt('incomplete')];
+      const fullComplete = spawnSync(
+        'jq',
+        [
+          '-n',
+          '--argjson',
+          'owned',
+          JSON.stringify(currentReceipt),
+          `{reviewedReceiptSha: ${fullReceiptFilter}}`,
+        ],
+        { encoding: 'utf8' },
+      );
+      expect(fullComplete.status, fullComplete.stderr).toBe(0);
+      expect(JSON.parse(fullComplete.stdout).reviewedReceiptSha).toBe(sha);
+
+      const mixed = [...currentReceipt, ...(await receipt('incomplete'))];
       const early = spawnSync('jq', ['-r', filter], {
         encoding: 'utf8',
         input: JSON.stringify(mixed),
@@ -163,8 +203,8 @@ describe('dogfood review policy', () => {
       expect(full.status, full.stderr).toBe(0);
       expect(JSON.parse(full.stdout).reviewedReceiptSha).toBeNull();
 
-      const misleading = receipt('stale');
-      misleading[0].body += '\nReview text follows:\nRun state: complete\n';
+      const misleading = await receipt('stale');
+      misleading[0].body += `\nReview text follows:\n${currentReceipt[0].body}\n`;
       const misleadingEarly = spawnSync('jq', ['-r', filter], {
         encoding: 'utf8',
         input: JSON.stringify(misleading),
