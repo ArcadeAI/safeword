@@ -1342,6 +1342,27 @@ async function removeDuplicateClaimIfMatching(
   await removeIfPresent(claimPath);
 }
 
+/**
+ * True when the request's source is durably acknowledged: the relay owns it, so it
+ * must never be sent again.
+ * The per-request ack file is removed once acknowledgement finishes, so it cannot
+ * stop a stale copy: a persistence that snapshotted before a delivery claimed the
+ * request can re-create `<id>.materializing` after the claim frees that name, and
+ * that copy outlives the acknowledgement. The source acknowledgement does not.
+ * @param projectDirectory
+ * @param bytes
+ */
+async function sourceAlreadyAcknowledged(
+  projectDirectory: string,
+  bytes: Buffer,
+): Promise<boolean> {
+  const request = parseDurableRequest({ bytes });
+  return (
+    request !== undefined &&
+    (await exists(sourceAcknowledgementPath(projectDirectory, request.sourceKey)))
+  );
+}
+
 async function claimSpecificRelayRequest(
   projectDirectory: string,
   requestId: string,
@@ -1367,7 +1388,12 @@ async function claimSpecificRelayRequest(
         await removeIfPresent(claimed);
         return undefined;
       }
-      return { bytes: await readFile(claimed), path: claimed, requestId };
+      const bytes = await readFile(claimed);
+      if (await sourceAlreadyAcknowledged(projectDirectory, bytes)) {
+        await removeIfPresent(claimed);
+        return undefined;
+      }
+      return { bytes, path: claimed, requestId };
     } catch (error) {
       if (errorCode(error) !== 'ENOENT') throw error;
     }
