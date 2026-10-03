@@ -84,16 +84,23 @@ function measurementRelay(
   };
 }
 
+/**
+ * The production relay latency: resolves after `milliseconds` of real time and
+ * rejects as soon as `signal` aborts, as a real transport abandons a request.
+ */
+export async function waitForRelayLatency(
+  milliseconds: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  await delay(milliseconds, undefined, { signal });
+}
+
 /** Drains a durable 300-draft backlog against a fixed-latency relay and reports throughput. */
 export async function measureRelayDrainThroughput(
   clock: RelayDrainClock = {},
 ): Promise<RelayDrainMeasurement> {
   const monotonicNow = clock.monotonicNow ?? (() => performance.now());
-  const wait =
-    clock.wait ??
-    (async (milliseconds: number, signal?: AbortSignal) => {
-      await delay(milliseconds, undefined, { signal });
-    });
+  const wait = clock.wait ?? waitForRelayLatency;
   const spool = await mkdtemp(path.join(tmpdir(), 'safeword-relay-drain-'));
   try {
     const persistence = await persistRelayDraftBatch(spool, measurementDrafts());

@@ -10,6 +10,7 @@ import {
   measureRelayDrainThroughput,
   RELAY_LATENCY_MS,
   type RelayDrainMeasurement,
+  waitForRelayLatency,
 } from '../../scripts/relay-drain-measurement.js';
 import { validateRelayReadiness } from '../../src/retro/relay-readiness.js';
 import {
@@ -121,6 +122,25 @@ describe('relay drain-throughput measurement producer', () => {
     expect(await readinessValidation(artifact)).toEqual({ enabled: true });
   });
 
+  // The production wait is the one path the virtual tests never exercise. Its
+  // timing is checked from below only: a slow machine can make a wait longer,
+  // never shorter, so these cannot fail for want of a fast runner.
+  it('holds each real relay round trip for the full latency', async () => {
+    const started = performance.now();
+    await waitForRelayLatency(RELAY_LATENCY_MS);
+
+    // Timers may fire a fraction of a millisecond early from clock rounding.
+    expect(performance.now() - started).toBeGreaterThanOrEqual(RELAY_LATENCY_MS - 1);
+  });
+
+  it('abandons a real relay round trip as soon as the attempt aborts', async () => {
+    const controller = new AbortController();
+    const pending = waitForRelayLatency(60_000, controller.signal);
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
   // The CLI is release tooling that measures the real machine, so its output
   // is checked for shape only. A count or duration bound here would be a
   // statement about the runner's speed, which is exactly what flaked before.
@@ -162,5 +182,12 @@ describe('relay drain-throughput measurement producer', () => {
     expect(artifact.result.acceptedCount).toBeLessThanOrEqual(artifact.result.backlogSize);
     expect(Number.isFinite(artifact.result.durationMs)).toBe(true);
     expect(artifact.result.durationMs).toBeGreaterThan(0);
+    // Every accepted request waited out the real latency in sequence, so the
+    // drain cannot be shorter than that. A lower bound only: a slow runner
+    // lengthens the drain and never trips it, while a relay that skipped its
+    // latency would report many acceptances in almost no time.
+    expect(artifact.result.durationMs).toBeGreaterThanOrEqual(
+      artifact.result.acceptedCount * (RELAY_LATENCY_MS - 1),
+    );
   });
 });
