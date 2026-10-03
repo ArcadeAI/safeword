@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "c1d347a35701e279a1602adb1ce829a96386224db04a695b96a01af4395e9efc"
+      "sha256": "d0a74f3d014727e3816efc361bc5f0d85a9249da8ab98fe57ceab146e4b1b4e6"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "8bdc0f835c0d0d5823348592e4e77805dec921a4b18fc6b25525a7bbd3cc7195"
+      "sha256": "4cda4349b22b6b41731d0b0a1449c6938e019a83c8c3be0f573b3979cfed94e4"
     },
     {
       "path": "runtime/event-groups.json",
@@ -183,7 +183,7 @@
     },
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "cba3f5899aa07a11d97cee0e89294854efee26cd7149cbfc61e9fa446996fc57"
+      "sha256": "1d31c735a8902f02d73f77f92d1b1eac36a468fec30be09aa5c23e4b71628bbc"
     },
     {
       "path": "runtime/hooks/lib/blocked-on-gate.ts",
@@ -287,7 +287,7 @@
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
-      "sha256": "c825515275e8be629bdabb993e9099af19697a20137957fc36adfc40853833b8"
+      "sha256": "897f43d5a5d0676b1f61bce32a67f0d22636e368b19836535faa98259c70f8fd"
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
@@ -491,7 +491,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "f469c548028e0f661a54277648ad0d5a713f86041f3e5a90a4c0063ea1311c84"
+      "sha256": "ec8b55076f315c615dd50390bac63ce7d57b3d31e460a40a3bca361e2654ce74"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1119,7 +1119,7 @@
     },
     {
       "path": "templates/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "cba3f5899aa07a11d97cee0e89294854efee26cd7149cbfc61e9fa446996fc57"
+      "sha256": "1d31c735a8902f02d73f77f92d1b1eac36a468fec30be09aa5c23e4b71628bbc"
     },
     {
       "path": "templates/hooks/lib/blocked-on-gate.ts",
@@ -1223,7 +1223,7 @@
     },
     {
       "path": "templates/hooks/lib/namespace-root.ts",
-      "sha256": "c825515275e8be629bdabb993e9099af19697a20137957fc36adfc40853833b8"
+      "sha256": "897f43d5a5d0676b1f61bce32a67f0d22636e368b19836535faa98259c70f8fd"
     },
     {
       "path": "templates/hooks/lib/parse-annotation.ts",
@@ -1423,7 +1423,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "711a8fb4bec4e56db830ed326d01062b1fc27795e0e27f31f2efac77db0a4236"
+      "sha256": "f8cbdae92606c881869334b7730cbcaff25a36c5e30ef8d68571d450d25e1507"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
