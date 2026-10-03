@@ -55,6 +55,10 @@ describe('detectLedgerWrite', () => {
         'stdin-fed interpreter (#5248)',
         `python3 - <<'EOF'\nopen("${LEDGER}", "a").write("x")\nEOF`,
       ],
+      [
+        'stdin-fed interpreter with script arguments',
+        `python3 - tick <<'EOF'\nopen("${LEDGER}", "a").write("x")\nEOF`,
+      ],
       ['combined redirection (&>)', `echo '- [x] RED' &> ${LEDGER}`],
       ['clobbering redirection (>|)', `echo '- [x] RED' >| ${LEDGER}`],
       [
@@ -234,6 +238,9 @@ describe('detectInspirationArtifactWrite', () => {
     `python3 - <<'EOF'\n# it's a rewrite\nopen("${SPEC}", "w")\nEOF`,
     // `<<-` strips leading tabs from the closing delimiter.
     `python3 - <<-EOF\n\topen("${TICKET}", "w")\n\tEOF`,
+    // Words after an explicit stdin selector are the script's argv, not a script file.
+    `python3 - rewrite --force <<'EOF'\nopen("${SPEC}", "w")\nEOF`,
+    `bash -s rewrite <<'EOF'\nprintf x | dd of="${TICKET}"\nEOF`,
   ])('characterizes every supported protected write shape: %s', command => {
     expect(detectInspirationArtifactWrite(command)).toBeDefined();
   });

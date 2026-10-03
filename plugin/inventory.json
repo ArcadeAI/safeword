@@ -183,7 +183,7 @@
     },
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "13d17f59fb807f79673056039ff9c341a5ef6fa6a9a48e4cf8603014e4278da3"
+      "sha256": "2b2da8ff67c84f079bbb89894782b482ef92b813efe118c217712827b38e4716"
     },
     {
       "path": "runtime/hooks/lib/blocked-on-gate.ts",
@@ -1119,7 +1119,7 @@
     },
     {
       "path": "templates/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "13d17f59fb807f79673056039ff9c341a5ef6fa6a9a48e4cf8603014e4278da3"
+      "sha256": "2b2da8ff67c84f079bbb89894782b482ef92b813efe118c217712827b38e4716"
     },
     {
       "path": "templates/hooks/lib/blocked-on-gate.ts",
