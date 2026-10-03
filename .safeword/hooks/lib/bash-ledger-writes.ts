@@ -277,49 +277,60 @@ function readsScriptFromStdin(commandWord: string, rest: string[]): boolean {
 }
 
 /**
- * The heredoc body that follows `segmentText`, read from the raw command: the
- * segment splitter tracks quotes across lines, so an apostrophe in the body
- * would blur segment edges. Ends at the delimiter line (leading tabs allowed
- * for `<<-`); an unterminated or unlocatable body falls back to the rest.
+ * The heredoc body of the segment starting at `segmentStart`, read from the raw
+ * command: the segment splitter tracks quotes across lines, so an apostrophe
+ * in the body would blur segment edges. Ends at the delimiter line (leading
+ * tabs allowed for `<<-`); an unlocatable segment falls back to the whole
+ * command, an unterminated body to the rest of it.
  */
-function heredocBody(
-  command: string,
-  segmentText: string,
-  searchFrom: number,
-  delimiter: string,
-): string {
-  const start = command.indexOf(segmentText, searchFrom);
-  const bodyStart = start === -1 ? -1 : command.indexOf('\n', start);
+function heredocBody(command: string, segmentStart: number, delimiter: string): string {
+  const bodyStart = segmentStart === -1 ? -1 : command.indexOf('\n', segmentStart);
   if (bodyStart === -1) return command;
   const lines = command.slice(bodyStart + 1).split('\n');
   const end = lines.findIndex(line => line.replace(/^\t+/, '').trimEnd() === delimiter);
   return (end === -1 ? lines : lines.slice(0, end)).join('\n');
 }
 
+/** A segment's text plus the heredoc body it feeds to stdin, if any. */
+function segmentWithStdin(command: string, segment: ShellCommandSegment, start: number): string {
+  const delimiter = heredocDelimiter(parseShellWords(segment.command));
+  return delimiter === undefined
+    ? segment.command
+    : `${segment.command}\n${heredocBody(command, start, delimiter)}`;
+}
+
+function isPipe(operator: ShellCommandSegment['operatorAfter']): boolean {
+  return operator === '|' || operator === '|&';
+}
+
 /**
- * The script source of an interpreter that reads its code from stdin: the
- * here-string, the heredoc body, or the upstream pipeline segment.
+ * Everything that can reach a stdin-reading interpreter as code: its own
+ * here-string or heredoc, and every earlier stage of its pipeline together
+ * with their heredoc bodies (`cat <<EOF | python3 -`). Undefined when the
+ * interpreter runs a script file instead.
  */
 function stdinScriptSource(
-  segment: ShellCommandSegment,
-  upstream: ShellCommandSegment | undefined,
   command: string,
-  searchFrom: number,
+  segments: ShellCommandSegment[],
+  starts: number[],
+  index: number,
 ): string | undefined {
-  const words = parseShellWords(segment.command);
+  const words = parseShellWords(segments[index]?.command ?? '');
   const commandIndex = commandWordIndex(words);
   const commandWord = nodePath.basename(words[commandIndex] ?? '');
-  const rest = words.slice(commandIndex + 1);
-  if (!INLINE_INTERPRETERS.has(commandWord) || !readsScriptFromStdin(commandWord, rest)) {
+  if (
+    !INLINE_INTERPRETERS.has(commandWord) ||
+    !readsScriptFromStdin(commandWord, words.slice(commandIndex + 1))
+  ) {
     return undefined;
   }
 
-  if (rest.some(word => word.startsWith('<<<'))) return segment.command;
-  const delimiter = heredocDelimiter(rest);
-  if (delimiter !== undefined) return heredocBody(command, segment.command, searchFrom, delimiter);
-  return upstream?.operatorAfter === '|' || upstream?.operatorAfter === '|&'
-    ? upstream.command
-    : undefined;
+  let first = index;
+  while (first > 0 && isPipe(segments[first - 1]?.operatorAfter)) first -= 1;
+  return segments
+    .slice(first, index + 1)
+    .map((segment, offset) => segmentWithStdin(command, segment, starts[first + offset] ?? -1))
+    .join('\n');
 }
 
 function detectStdinScriptWrite(
@@ -339,25 +350,33 @@ function detectStdinScriptWrite(
   return undefined;
 }
 
+/** Where each segment starts in the raw command (-1 when it cannot be located). */
+function segmentStarts(command: string, segments: ShellCommandSegment[]): number[] {
+  let cursor = 0;
+  return segments.map(segment => {
+    const start = command.indexOf(segment.command, cursor);
+    if (start !== -1) cursor = start + segment.command.length;
+    return start;
+  });
+}
+
 function detectProtectedWrite(
   command: string,
   descriptor: ProtectedWriteDescriptor,
 ): ProtectedWriteDetection | undefined {
   const segments = parseShellCommandList(command);
-  let searchFrom = 0;
+  const starts = segmentStarts(command, segments);
   for (const [index, segment] of segments.entries()) {
     const detection = detectProtectedWriteInSegment(segment.command, descriptor);
     if (detection !== undefined) return detection;
 
-    const source = stdinScriptSource(segment, segments[index - 1], command, searchFrom);
+    const source = stdinScriptSource(command, segments, starts, index);
     if (source !== undefined) {
       const words = parseShellWords(segment.command);
       const commandWord = nodePath.basename(words[commandWordIndex(words)] ?? '');
       const stdinWrite = detectStdinScriptWrite(source, commandWord, descriptor);
       if (stdinWrite !== undefined) return stdinWrite;
     }
-    const found = command.indexOf(segment.command, searchFrom);
-    if (found !== -1) searchFrom = found + segment.command.length;
   }
   return undefined;
 }
