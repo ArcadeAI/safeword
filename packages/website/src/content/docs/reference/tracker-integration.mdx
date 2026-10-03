@@ -37,6 +37,10 @@ reports `Not connected` and exits 1; the printed Arcade OAuth handoff does not e
 this release. The saved config is sufficient for the portable path, and `--plan` can start without a
 sidecar. Credentials stay outside config and are never written to logs.
 
+After a successful connection, `tracker connect` offers (default no) to keep coding agents from
+indexing the generated ticket files: it appends the namespace root to `.cursorindexingignore` and
+marks its `INDEX*.md` files `linguist-generated` in `.gitattributes`.
+
 :::note[GitHub live sync; Linear portable sync]
 **GitHub** supports both the one-command live sync and the portable transport. **Linear** supports
 tracker identity (`connect linear` and adopting an existing issue with `--issue`) plus sync through
@@ -68,6 +72,10 @@ safeword tracker sync
 This GitHub path walks your active tickets and creates/updates their issues (and closes the issue
 when a ticket is terminal). It is safe to run repeatedly. Run it whenever you want the tracker
 refreshed — or automate it in CI so nobody has to remember.
+
+If the tracker-map sidecar (`.safeword/tracker-map.json`) is missing or corrupt on a configured
+project, sync refuses rather than blindly re-creating issues. Pass `--reset-tracker-map` to rebuild
+it from an empty map.
 
 #### Automate in CI (GitHub Actions)
 
