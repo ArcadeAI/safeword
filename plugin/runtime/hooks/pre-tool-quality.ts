@@ -51,6 +51,7 @@ import {
   hasSafewordProjectMarker,
   isNamespacePath,
   resolveNamespaceRoot,
+  resolveOwningProjectDirectory,
 } from './lib/namespace-root.ts';
 import { reviewKindForPhase } from './lib/review-receipt.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
@@ -179,8 +180,7 @@ function isMissingFrontmatterField(value: string | string[] | undefined): boolea
 // Keep the host-provided spelling as the session identity: state files are keyed
 // by that exact string. Use the canonical form only for filesystem containment
 // and relative-path comparisons (`/var` and `/private/var` alias on macOS).
-const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const canonicalProjectDirectory = realpathSync(projectDirectory);
+const launchProjectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
 // Tier 1 (per-asset) is off unless `.safeword/config.json` sets `reviewGate: true`
 // — it is per-asset, so it has no phase to select on and stays all-or-nothing.
@@ -391,6 +391,14 @@ function canonicalPathForGate(path: string, seen = new Set<string>()): string {
 }
 const editedFile =
   requestedEditedFile === '' ? requestedEditedFile : canonicalPathForGate(requestedEditedFile);
+
+// An edit inside another enrolled git worktree (e.g. `.claude/worktrees/<name>`
+// after the session entered it) is gated against that worktree's tickets,
+// config, and state — not the launch checkout's (#5247).
+const projectDirectory = EDIT_TOOLS.includes(tool)
+  ? resolveOwningProjectDirectory(launchProjectDirectory, editedFile)
+  : launchProjectDirectory;
+const canonicalProjectDirectory = realpathSync(projectDirectory);
 
 // ---------------------------------------------------------------------------
 // Bash gates:
