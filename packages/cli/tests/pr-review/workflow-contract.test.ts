@@ -108,7 +108,10 @@ describe('dogfood review policy', () => {
       )?.[1];
       expect(filter).toBeDefined();
       if (!filter) throw new Error(`missing reviewer receipt filter in ${path}`);
-      expect(worker.split(String.raw`select(contains("\nRun state: complete\n"))`)).toHaveLength(3);
+      const fullReceiptFilter =
+        /reviewedReceiptSha: (\(\(\[\$owned\[\]\.body\][^\n]+),\n\s*artifacts:/u.exec(worker)?.[1];
+      expect(fullReceiptFilter).toBeDefined();
+      if (!fullReceiptFilter) throw new Error(`missing full reviewer receipt filter in ${path}`);
 
       for (const state of ['not_ready', 'stale', 'incomplete']) {
         const result = spawnSync('jq', ['-r', filter], {
@@ -124,6 +127,28 @@ describe('dogfood review policy', () => {
       });
       expect(complete.status, complete.stderr).toBe(0);
       expect(complete.stdout.trim()).toBe(sha);
+
+      const mixed = [...receipt('complete'), ...receipt('incomplete')];
+      const early = spawnSync('jq', ['-r', filter], {
+        encoding: 'utf8',
+        input: JSON.stringify(mixed),
+      });
+      expect(early.status, early.stderr).toBe(0);
+      expect(early.stdout.trim()).toBe('');
+
+      const full = spawnSync(
+        'jq',
+        [
+          '-n',
+          '--argjson',
+          'owned',
+          JSON.stringify(mixed),
+          `{reviewedReceiptSha: ${fullReceiptFilter}}`,
+        ],
+        { encoding: 'utf8' },
+      );
+      expect(full.status, full.stderr).toBe(0);
+      expect(JSON.parse(full.stdout).reviewedReceiptSha).toBeNull();
     }
   });
 

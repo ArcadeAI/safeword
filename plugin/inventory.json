@@ -1719,7 +1719,7 @@
     },
     {
       "path": "templates/workflows/pr-review-worker.yml",
-      "sha256": "c486b371721c91c6e472f5ec94d64719d0b9034da85c268650d08de4d650713c"
+      "sha256": "f7a65faef5fcc4dfb18d170341c21f2f3cdadb13f279ea01e1db264f28d062e1"
     },
     {
       "path": "templates/workflows/pr-review.yml",
