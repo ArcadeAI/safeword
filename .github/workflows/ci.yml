@@ -108,7 +108,18 @@ jobs:
       - name: Block high and critical advisories
         # Lower-severity advisories stay visible to local and repository audits
         # without letting an unpatchable development-only advisory halt delivery.
-        run: bun audit --audit-level high
+        # Ignored advisories have no patched release (fix=null upstream).
+        # Remove each once a fix ships:
+        # - GHSA-vfj7-8cjw-p6xm: braces <=3.0.3. Reaches the published CLI via
+        #   @next/eslint-plugin-next → fast-glob → micromatch; exploiting it needs
+        #   attacker-controlled glob patterns, which come from the project's own
+        #   lint config.
+        # - GHSA-ch52-4w7c-c8xp: http-cache-semantics <=4.2.0. Docs website build
+        #   only (astro); never shipped.
+        run: >-
+          bun audit --audit-level high
+          --ignore GHSA-vfj7-8cjw-p6xm
+          --ignore GHSA-ch52-4w7c-c8xp
 
   test:
     name: test (node ${{ matrix.node-version }})
