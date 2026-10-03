@@ -57,6 +57,23 @@ async function readinessValidation(artifact: RelayDrainMeasurement) {
   });
 }
 
+function runMeasurementCli(): RelayDrainMeasurement {
+  const directory = mkdtempSync(path.join(tmpdir(), 'relay-drain-measurement-'));
+  directories.push(directory);
+  const output = path.join(directory, 'drain-throughput.json');
+  const result = spawnSync(
+    'bun',
+    [path.join(packageRoot, 'scripts/measure-relay-drain-throughput.ts'), '--output', output],
+    { cwd: packageRoot, encoding: 'utf8', timeout: 10_000 },
+  );
+  expect(
+    result.error,
+    `failed to start bun: ${result.error?.message ?? 'unknown error'}`,
+  ).toBeUndefined();
+  expect(result.status, result.stderr).toBe(0);
+  return JSON.parse(readFileSync(output, 'utf8')) as RelayDrainMeasurement;
+}
+
 /**
  * One virtual timeline for everything delivery times: the drain budget clock,
  * each attempt's abort timer, and the simulated relay latency. A wait advances
@@ -135,35 +152,19 @@ describe('relay drain-throughput measurement producer', () => {
 
   it('abandons a real relay round trip as soon as the attempt aborts', async () => {
     const controller = new AbortController();
-    const pending = waitForRelayLatency(60_000, controller.signal);
+    // Long enough that a wait which ignored the abort would resolve and fail
+    // the assertion below, short enough to fail fast rather than time out.
+    const pending = waitForRelayLatency(2000, controller.signal);
     controller.abort();
 
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
   });
 
   // The CLI is release tooling that measures the real machine, so its output
-  // is checked for shape only. A count or duration bound here would be a
-  // statement about the runner's speed, which is exactly what flaked before.
+  // is never asserted against a machine-speed threshold.
   it('writes a well-formed artifact from the command line', () => {
-    const directory = mkdtempSync(path.join(tmpdir(), 'relay-drain-measurement-'));
-    directories.push(directory);
-    const output = path.join(directory, 'drain-throughput.json');
-    const result = spawnSync(
-      'bun',
-      [path.join(packageRoot, 'scripts/measure-relay-drain-throughput.ts'), '--output', output],
-      {
-        cwd: packageRoot,
-        encoding: 'utf8',
-        timeout: 10_000,
-      },
-    );
+    const artifact = runMeasurementCli();
 
-    expect(
-      result.error,
-      `failed to start bun: ${result.error?.message ?? 'unknown error'}`,
-    ).toBeUndefined();
-    expect(result.status, result.stderr).toBe(0);
-    const artifact = JSON.parse(readFileSync(output, 'utf8')) as RelayDrainMeasurement;
     expect(artifact).toMatchObject({
       metric: 'drainThroughput',
       repository: 'ArcadeAI/safeword',
@@ -182,6 +183,11 @@ describe('relay drain-throughput measurement producer', () => {
     expect(artifact.result.acceptedCount).toBeLessThanOrEqual(artifact.result.backlogSize);
     expect(Number.isFinite(artifact.result.durationMs)).toBe(true);
     expect(artifact.result.durationMs).toBeGreaterThan(0);
+  });
+
+  it('cannot report draining faster than the real relay latency allows', () => {
+    const artifact = runMeasurementCli();
+
     // Every accepted request waited out the real latency in sequence, so the
     // drain cannot be shorter than that. A lower bound only: a slow runner
     // lengthens the drain and never trips it, while a relay that skipped its
