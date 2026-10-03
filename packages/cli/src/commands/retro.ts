@@ -979,7 +979,16 @@ function resolveRelayReadiness(
   });
 }
 
-// eslint-disable-next-line complexity -- Readiness, injected tests, and production config remain fail-closed branches.
+/** Overrides a composition may lay over either relay route, configured or environment-derived. */
+function relayRouteOverrides(
+  composition: RetroReadinessComposition,
+): Partial<Pick<RelayRoute, 'deadlineMs' | 'fetch'>> {
+  return {
+    ...(composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs }),
+    ...(composition.fetch && { fetch: composition.fetch }),
+  };
+}
+
 async function resolveRetroRelayRoute(input: {
   composition?: RetroReadinessComposition;
   environment: NodeJS.ProcessEnv;
@@ -995,8 +1004,7 @@ async function resolveRetroRelayRoute(input: {
     return {
       route: {
         ...config,
-        ...(composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs }),
-        ...(composition.fetch && { fetch: composition.fetch }),
+        ...relayRouteOverrides(composition),
         readiness,
       },
     };
@@ -1006,8 +1014,7 @@ async function resolveRetroRelayRoute(input: {
   return {
     route: {
       ...resolved.config,
-      ...(composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs }),
-      ...(composition.fetch && { fetch: composition.fetch }),
+      ...relayRouteOverrides(composition),
       readiness,
     },
   };

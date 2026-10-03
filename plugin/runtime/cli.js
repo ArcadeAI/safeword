@@ -30831,6 +30831,12 @@ function resolveRelayReadiness(composition, manifest) {
     readArtifactAtCommit: composition.readArtifactAtCommit ?? (() => Promise.resolve(undefined))
   });
 }
+function relayRouteOverrides(composition) {
+  return {
+    ...composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs },
+    ...composition.fetch && { fetch: composition.fetch }
+  };
+}
 async function resolveRetroRelayRoute(input) {
   const composition = input.composition ?? {};
   const manifest = composition.manifest ?? CHECKED_IN_RELAY_READINESS;
@@ -30844,8 +30850,7 @@ async function resolveRetroRelayRoute(input) {
     return {
       route: {
         ...config,
-        ...composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs },
-        ...composition.fetch && { fetch: composition.fetch },
+        ...relayRouteOverrides(composition),
         readiness
       }
     };
@@ -30856,8 +30861,7 @@ async function resolveRetroRelayRoute(input) {
   return {
     route: {
       ...resolved.config,
-      ...composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs },
-      ...composition.fetch && { fetch: composition.fetch },
+      ...relayRouteOverrides(composition),
       readiness
     }
   };
