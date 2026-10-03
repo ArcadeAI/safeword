@@ -800,6 +800,13 @@ type RelayRoute = NonNullable<RetroDependencies['relay']>;
 interface RetroReadinessComposition {
   buildCommit?: string;
   configuration?: () => Omit<RelayRoute, 'readiness'> | undefined;
+  /**
+   * Per-request relay deadline. Production leaves it unset and keeps the short
+   * hook-latency default. Integration tests that drive a real local relay over
+   * HTTP raise it, because there the deadline is incidental to what they prove
+   * and a contended runner would otherwise cut a healthy round trip short.
+   */
+  deadlineMs?: number;
   fetch?: typeof fetch;
   isAncestor?: (ancestor: string, descendant: string) => Promise<boolean>;
   manifest?: RelayReadinessManifest | typeof CHECKED_IN_RELAY_READINESS;
@@ -988,6 +995,7 @@ async function resolveRetroRelayRoute(input: {
     return {
       route: {
         ...config,
+        ...(composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs }),
         ...(composition.fetch && { fetch: composition.fetch }),
         readiness,
       },
@@ -998,6 +1006,7 @@ async function resolveRetroRelayRoute(input: {
   return {
     route: {
       ...resolved.config,
+      ...(composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs }),
       ...(composition.fetch && { fetch: composition.fetch }),
       readiness,
     },

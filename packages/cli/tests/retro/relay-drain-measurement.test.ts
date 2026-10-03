@@ -7,10 +7,11 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
-  MAX_DRAIN_DURATION_MS,
-  MIN_DRAIN_ACCEPTED_COUNT,
-  validateRelayReadiness,
-} from '../../src/retro/relay-readiness.js';
+  measureRelayDrainThroughput,
+  RELAY_LATENCY_MS,
+  type RelayDrainMeasurement,
+} from '../../scripts/relay-drain-measurement.js';
+import { validateRelayReadiness } from '../../src/retro/relay-readiness.js';
 import {
   relayReadinessMeasurementContent,
   validRelayReadinessManifest,
@@ -24,8 +25,83 @@ afterEach(() => {
   directories.length = 0;
 });
 
+async function readinessValidation(artifact: RelayDrainMeasurement) {
+  const manifest = validRelayReadinessManifest();
+  const closedAt = new Date(new Date(artifact.measuredAt).getTime() - 1000).toISOString();
+  manifest.reviewedAt = artifact.measuredAt;
+  for (const prerequisite of manifest.prerequisites) prerequisite.closedAt = closedAt;
+  for (const measurement of Object.values(manifest.measurements)) {
+    measurement.measuredAt = artifact.measuredAt;
+  }
+  manifest.measurements.drainThroughput.sampleSize = artifact.sampleSize;
+  const artifactContent = new Map<string, string>();
+  for (const [metric, measurement] of Object.entries(manifest.measurements)) {
+    const content =
+      metric === 'drainThroughput'
+        ? `${JSON.stringify(artifact, undefined, 2)}\n`
+        : relayReadinessMeasurementContent(manifest, measurement.path);
+    measurement.sha256 = createHash('sha256').update(content).digest('hex');
+    artifactContent.set(measurement.path, content);
+  }
+  return validateRelayReadiness(manifest, {
+    buildCommit: 'b'.repeat(40),
+    isAncestor: () => Promise.resolve(true),
+    now: new Date(artifact.measuredAt),
+    readArtifactAtCommit: (_commit, artifactPath) => {
+      const content = artifactContent.get(artifactPath);
+      if (content === undefined) return Promise.resolve(undefined);
+      const sha256 = createHash('sha256').update(content).digest('hex');
+      return Promise.resolve({ content, sha256 });
+    },
+  });
+}
+
 describe('relay drain-throughput measurement producer', () => {
-  it('writes a bounded artifact with validator-compatible schema', async () => {
+  // The producer's logic is proven on a virtual clock. On real time, how many
+  // drafts drain inside the 750 ms budget is a property of the machine, not the
+  // code: a contended CI runner has completed as few as one, which failed
+  // assertions with nothing wrong in the producer. Here every relay round trip
+  // costs exactly RELAY_LATENCY_MS of virtual time and nothing else moves.
+  it('drains exactly the drafts whose round trip fits before the cleanup reserve', async () => {
+    let elapsed = 0;
+    const artifact = await measureRelayDrainThroughput({
+      monotonicNow: () => elapsed,
+      wait: milliseconds => {
+        elapsed += milliseconds;
+        return Promise.resolve();
+      },
+    });
+
+    // 750 ms budget, 80 ms per delivery, and the drain stops once 100 ms or
+    // less of cleanup reserve would remain. The ninth starts at 640 ms with
+    // 110 ms left; a tenth would start at 720 ms with only 30 ms left.
+    expect(artifact.result).toEqual({
+      acceptedCount: 9,
+      backlogSize: 300,
+      durationMs: 9 * RELAY_LATENCY_MS,
+      overallDeadlineMs: 750,
+      relayLatencyMs: RELAY_LATENCY_MS,
+      requestDeadlineMs: 500,
+    });
+  });
+
+  it('produces evidence the release readiness validator accepts', async () => {
+    let elapsed = 0;
+    const artifact = await measureRelayDrainThroughput({
+      monotonicNow: () => elapsed,
+      wait: milliseconds => {
+        elapsed += milliseconds;
+        return Promise.resolve();
+      },
+    });
+
+    expect(await readinessValidation(artifact)).toEqual({ enabled: true });
+  });
+
+  // The CLI is release tooling that measures the real machine, so its output
+  // is checked for shape only. A count or duration bound here would be a
+  // statement about the runner's speed, which is exactly what flaked before.
+  it('writes a well-formed artifact from the command line', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'relay-drain-measurement-'));
     directories.push(directory);
     const output = path.join(directory, 'drain-throughput.json');
@@ -44,101 +120,24 @@ describe('relay drain-throughput measurement producer', () => {
       `failed to start bun: ${result.error?.message ?? 'unknown error'}`,
     ).toBeUndefined();
     expect(result.status, result.stderr).toBe(0);
-    const writtenArtifact = readFileSync(output, 'utf8');
-    const artifact = JSON.parse(writtenArtifact) as {
-      measuredAt: string;
-      metric: string;
-      repository: string;
-      result: {
-        acceptedCount: number;
-        backlogSize: number;
-        durationMs: number;
-        overallDeadlineMs: number;
-        requestDeadlineMs: number;
-        relayLatencyMs: number;
-      };
-      sampleSize: number;
-      version: number;
-    };
+    const artifact = JSON.parse(readFileSync(output, 'utf8')) as RelayDrainMeasurement;
     expect(artifact).toMatchObject({
       metric: 'drainThroughput',
       repository: 'ArcadeAI/safeword',
       result: {
         backlogSize: 300,
         overallDeadlineMs: 750,
+        relayLatencyMs: RELAY_LATENCY_MS,
         requestDeadlineMs: 500,
-        relayLatencyMs: 80,
       },
       sampleSize: 300,
       version: 2,
     });
     expect(new Date(artifact.measuredAt).toISOString()).toBe(artifact.measuredAt);
-    // The lower bound is NOT `expectedSequentialCompletions - 2`. That asked a
-    // shared CI runner to sustain near-ideal sequential throughput against real
-    // `setTimeout` latency, so ordinary runner contention failed it with nothing
-    // wrong with the producer (observed: 5 accepted against a floor of 7). What
-    // this test actually promises is in its name — validator-compatible bytes —
-    // and the validator's own MIN_DRAIN_ACCEPTED_COUNT is the floor that keeps a
-    // degenerate measurement from passing. Assert that floor explicitly here so
-    // the intent is visible, and let the validateRelayReadiness call below prove
-    // the whole artifact end to end.
-    expect(
-      artifact.result.acceptedCount,
-      'a degenerate drain measurement is not usable readiness evidence',
-    ).toBeGreaterThanOrEqual(MIN_DRAIN_ACCEPTED_COUNT);
+    expect(Number.isSafeInteger(artifact.result.acceptedCount)).toBe(true);
+    expect(artifact.result.acceptedCount).toBeGreaterThanOrEqual(0);
     expect(artifact.result.acceptedCount).toBeLessThanOrEqual(artifact.result.backlogSize);
-    expect(artifact.result.durationMs).toBeGreaterThan(0);
     expect(Number.isFinite(artifact.result.durationMs)).toBe(true);
-    expect(
-      artifact.result.durationMs,
-      'the real drain must remain bounded even when runner contention misses readiness',
-    ).toBeLessThan(MAX_DRAIN_DURATION_MS * 5);
-    expect(artifact.result.requestDeadlineMs).toBeLessThanOrEqual(
-      artifact.result.overallDeadlineMs,
-    );
-
-    const manifest = validRelayReadinessManifest();
-    const closedAt = new Date(new Date(artifact.measuredAt).getTime() - 1000).toISOString();
-    manifest.reviewedAt = artifact.measuredAt;
-    for (const prerequisite of manifest.prerequisites) prerequisite.closedAt = closedAt;
-    for (const measurement of Object.values(manifest.measurements)) {
-      measurement.measuredAt = artifact.measuredAt;
-    }
-    manifest.measurements.drainThroughput.sampleSize = artifact.sampleSize;
-    // Real elapsed time is evidence and may legitimately fail the production
-    // readiness threshold on a contended runner. Normalize only that field to
-    // prove the producer's schema still crosses the validator boundary; the
-    // real timing and count bounds remain asserted above with CI contention
-    // headroom that still catches an unbounded drain.
-    const validatorArtifact = {
-      ...artifact,
-      result: {
-        ...artifact.result,
-        durationMs: Math.min(artifact.result.durationMs, MAX_DRAIN_DURATION_MS - 1),
-      },
-    };
-    const validatorArtifactContent = `${JSON.stringify(validatorArtifact, undefined, 2)}\n`;
-    const artifactContent = new Map<string, string>();
-    for (const [metric, measurement] of Object.entries(manifest.measurements)) {
-      const content =
-        metric === 'drainThroughput'
-          ? validatorArtifactContent
-          : relayReadinessMeasurementContent(manifest, measurement.path);
-      measurement.sha256 = createHash('sha256').update(content).digest('hex');
-      artifactContent.set(measurement.path, content);
-    }
-
-    const validation = await validateRelayReadiness(manifest, {
-      buildCommit: 'b'.repeat(40),
-      isAncestor: () => Promise.resolve(true),
-      now: new Date(artifact.measuredAt),
-      readArtifactAtCommit: (_commit, artifactPath) => {
-        const content = artifactContent.get(artifactPath);
-        if (content === undefined) return Promise.resolve(undefined);
-        const sha256 = createHash('sha256').update(content).digest('hex');
-        return Promise.resolve({ content, sha256 });
-      },
-    });
-    expect(validation).toEqual({ enabled: true });
+    expect(artifact.result.durationMs).toBeGreaterThan(0);
   });
 });
