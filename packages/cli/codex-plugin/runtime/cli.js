@@ -28793,6 +28793,10 @@ async function removeDuplicateClaimIfMatching(claimPath, siblingPath, recoveryOp
   }
   await removeIfPresent(claimPath);
 }
+async function sourceAlreadyAcknowledged(projectDirectory, bytes) {
+  const request = parseDurableRequest({ bytes });
+  return request !== undefined && await exists2(sourceAcknowledgementPath(projectDirectory, request.sourceKey));
+}
 async function claimSpecificRelayRequest(projectDirectory, requestId, options) {
   if (!CLAIM_ID_PATTERN.test(options.claimId))
     throw new Error("invalid relay claim identity");
@@ -28812,7 +28816,12 @@ async function claimSpecificRelayRequest(projectDirectory, requestId, options) {
         await removeIfPresent(claimed);
         return;
       }
-      return { bytes: await readFile2(claimed), path: claimed, requestId };
+      const bytes = await readFile2(claimed);
+      if (await sourceAlreadyAcknowledged(projectDirectory, bytes)) {
+        await removeIfPresent(claimed);
+        return;
+      }
+      return { bytes, path: claimed, requestId };
     } catch (error2) {
       if (errorCode2(error2) !== "ENOENT")
         throw error2;
