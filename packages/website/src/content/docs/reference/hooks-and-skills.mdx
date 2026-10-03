@@ -7,20 +7,28 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## Slash Commands
 
-Quick actions you type in your agent. Cursor keeps the short command names below. Claude Code uses native namespaced forms such as `/safeword:bdd` and `/safeword:verify`; Codex uses plugin-scoped skills such as `safeword:bdd` and `safeword:verify`.
+Quick actions you type in your agent. Cursor keeps the short command names below. Claude Code uses native namespaced forms such as `/safeword:bdd` and `/safeword:verify`; Codex uses plugin-scoped skills such as `safeword:bdd`; OpenCode uses `/safeword-bdd`.
 
-| Command            | What it does                              |
-| ------------------ | ----------------------------------------- |
-| `/lint`            | Fix code style issues                     |
-| `/audit`           | Find dead code and architecture drift     |
-| `/quality-review`  | Deep review against latest research       |
-| `/cleanup-zombies` | Clean current-project zombie processes    |
-| `/closeout`        | Safely clean up a merged delivery session |
-| `/bdd`             | Start BDD workflow (includes TDD)         |
-| `/debug`           | Start structured debugging workflow       |
-| `/refactor`        | Start safe refactoring workflow           |
-| `/spike`           | Run a bounded disposable experiment       |
-| `/verify`          | Run completion checklist for current task |
+| Command            | What it does                                                    |
+| ------------------ | --------------------------------------------------------------- |
+| `/audit`           | Find dead code and architecture drift                           |
+| `/bdd`             | Start BDD workflow (includes TDD)                               |
+| `/cleanup-zombies` | Clean current-project zombie processes                          |
+| `/closeout`        | Safely clean up a merged delivery session                       |
+| `/debug`           | Start structured debugging workflow                             |
+| `/demand-research` | Test whether a proposed product bet has credible demand         |
+| `/explain`         | Plain-English version of a block, verdict, or current state     |
+| `/lint`            | Fix code style issues                                           |
+| `/pr-readiness`    | Prepare a pull request for review and decide if it leaves Draft |
+| `/quality-review`  | Deep review against latest research                             |
+| `/refactor`        | Start safe refactoring workflow                                 |
+| `/retro`           | Run a session retrospective on demand                           |
+| `/review-spec`     | Author or review a ticket's scenarios                           |
+| `/spike`           | Run a bounded disposable experiment                             |
+| `/testing`         | Test-writing guidance (Cursor; Claude loads it automatically)   |
+| `/verify`          | Run completion checklist for current task                       |
+
+Claude Code and Codex also expose `brainstorm`, `elicit`, and `figure-it-out` as skills; Cursor gets them as rules.
 
 ---
 
@@ -32,13 +40,18 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
   <TabItem label="Claude Code">
     Safeword's Claude Code support is plugin-backed. Run `safeword install`, then `/reload-plugins` to activate the project-scoped default in the current task. Use `--scope user` for intentional profile-wide activation. Project reconciliation does not install the plugin payload by itself.
 
-    | When                    | What happens                                        |
-    | ----------------------- | --------------------------------------------------- |
-    | Session starts          | Verifies AGENTS.md link, shows version, checks lint |
-    | You submit a prompt     | Adds timestamp, reminds agent to ask questions      |
-    | Agent edits a file      | Runs the appropriate linter, enforces quality gates  |
-    | Agent edits Go/Python/TS/Rust | Points it at that language's coding-skill (first edit per scenario) |
-    | You stop the session    | Corrects an incomplete substantive terminal handoff once; optional review remains separately configurable |
+    | When                  | What happens |
+    | --------------------- | ------------ |
+    | Session starts        | Checks Bun, prepares missing dependencies, injects `SAFEWORD.md` and the reply format, reports the version, checks lint config, heals generated architecture docs, records the session model, and loads the re-entry brief; re-injects context after compaction |
+    | You submit a prompt   | Adds a timestamp, reminds the agent to ask questions, and nudges pending retro filing |
+    | Before a file edit    | Enforces phase, TDD, LOC, review, and done gates; asks before changing protected quality config |
+    | Before a Bash command | Enforces the same gates plus dependency readiness; repairs a flipped `core.bare`, restages a stale architecture doc on commit, and warns before switching to a stale branch |
+    | After a file edit     | Lints the file, updates quality state, points the agent at the language coding-skill (first Go/Python/TS/Rust edit per scenario), warns on bypass patterns, refreshes the learnings index, and stamps phase changes in the work log |
+    | After a Bash command  | Updates quality state and dependency readiness |
+    | You stop the session  | Runs evidence gates and corrects an incomplete terminal handoff once (end-of-session review is opt-in), writes the re-entry brief, surfaces self-reports, and starts retro capture and filing |
+    | Session ends          | Cleans up old per-session quality state |
+
+    The manifests are `hooks/hooks.json` and `runtime/event-groups.json` inside the installed plugin.
 
     ### Plugin lifecycle
 
@@ -50,7 +63,10 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     | When                    | What happens                    |
     | ----------------------- | ------------------------------- |
-    | Agent edits a file      | Runs the appropriate linter     |
+    | Session starts          | Injects `SAFEWORD.md` and checks for Safeword upgrades |
+    | Before a file write     | Enforces phase, LOC, and done gates (Cursor's `stop` cannot block, so closing a ticket is gated here) |
+    | Before a shell command  | Blocks a REFACTOR commit that touches test files |
+    | Agent edits a file      | Runs the appropriate linter and updates quality state |
     | Agent edits Go/Python/TS/Rust | Coding-skill nudge (dormant — Cursor bug #534) |
     | You stop the session    | Corrects an incomplete substantive terminal handoff once; optional review remains separately configurable |
 
@@ -66,6 +82,13 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     | Quality Reviewing | Check against latest research and documentation          |
     | Testing           | Behavioral testing principles and test type selection    |
     | Ticket System     | Context anchoring with tickets and work logs             |
+    | Brainstorming     | Divergent exploration before committing to a direction   |
+    | Elicitation       | Ask for what only you know before guessing at intent     |
+    | Figure It Out     | Research and debate real decisions before committing     |
+    | Demand Research   | Check that a product bet has credible demand             |
+    | TDD Review        | Quality check after each RED, GREEN, and REFACTOR step   |
+    | PR Readiness      | Keep pull requests Draft until evidence is complete      |
+    | Finish Review, Retro Filer | Internal review fallback and retro filing       |
     | BDD (8 rules)     | Full feature workflow from discovery through TDD to done |
 
     ### Customizing hooks and rules
@@ -128,12 +151,12 @@ If a linter isn't installed, it's silently skipped.
 
 When safeword converges a project with `install`, it installs a small third-party **coding-skill** for each language it detects, and nudges your agent toward that skill the first time you edit the language in a scenario.
 
-| Language   | Skill source (MIT)         |
-| ---------- | -------------------------- |
-| Go         | `jeffallan/golang-pro`     |
-| Python     | `jeffallan/python-pro`     |
-| TypeScript | `jeffallan/typescript-pro` |
-| Rust       | `leonardomso/rust-skills`  |
+| Language   | Skill source (MIT)                           |
+| ---------- | -------------------------------------------- |
+| Go         | `jeffallan/claude-skills` (`golang-pro`)     |
+| Python     | `jeffallan/claude-skills` (`python-pro`)     |
+| TypeScript | `jeffallan/claude-skills` (`typescript-pro`) |
+| Rust       | `leonardomso/rust-skills`                    |
 
 Language coding-skills install into `.claude/skills/` and, where supported by the agent, `.agents/skills/` via the `npx skills` CLI. These are third-party language helpers, not Safeword Codex workflow aliases. The install is **best-effort** — a missing network or installer error degrades to a warning and never blocks install. It runs once; later install runs skip it when the skill is already present.
 
@@ -186,14 +209,26 @@ shared common directory. It creates that receipt only after every applicable
 post-merge lane passes on a clean exact PR head, accepts it for 24 hours, and
 rejects stale, malformed, dirty-state, or wrong-head proof.
 
-| Skill             | Triggers on                                                                                                         |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
-| BDD Orchestration | "add", "implement", "build", "feature", "iteration", "story", "phase", "resume", "continue" (includes TDD workflow) |
-| Debugging         | "debug", "fix this error", "test is failing"                                                                        |
-| Quality Reviewing | "review", "check security", "verify versions"                                                                       |
-| Refactoring       | "refactor", "clean up", "extract", "rename"                                                                         |
-| Testing           | "write tests", "add tests", "test this", "improve coverage" (also invoked by other skills internally)               |
-| Ticket System     | "create ticket", "work log", "resume", ticket ID references (context anchoring for complex work)                    |
+| Skill                 | Triggers on                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| BDD Orchestration     | "add", "implement", "build", "feature", "iteration", "story", "phase", "resume", "continue" (includes TDD workflow) |
+| Debugging             | "debug", "fix this error", "test is failing"                                                                        |
+| Quality Reviewing     | "review", "check security", "verify versions"                                                                       |
+| Refactoring           | "refactor", "clean up", "extract", "rename"                                                                         |
+| Testing               | "write tests", "add tests", "test this", "improve coverage" (also invoked by other skills internally)               |
+| Ticket System         | "create ticket", "work log", "resume", ticket ID references (context anchoring for complex work)                    |
+| Audit                 | "audit", architecture or dead-code checks                                                                           |
+| Brainstorm            | "explore options", "think through", weighing approaches before committing                                           |
+| Elicit                | Context only you know, before the agent guesses at intent                                                           |
+| Figure It Out         | A real decision with several plausible approaches (library, architecture, API design)                               |
+| Demand Research       | An unresolved demand claim behind a product bet                                                                     |
+| PR Readiness          | Creating or rewriting a PR description, marking it ready, responding to review                                      |
+| Review Spec           | Authoring or reviewing a ticket's `.feature` scenarios                                                              |
+| Verify                | Finishing a ticket, checking acceptance criteria                                                                    |
+| Closeout, Retro       | Wrapping up a merged delivery; running a retrospective                                                              |
+| Lint, Cleanup Zombies | Style violations after implementation; blocked ports or hanging processes                                           |
+
+`explain` and `spike` run only when you invoke them. `self-review`, `tdd-review`, `finish-review`, and `retro-filer` are internal: other workflows run them, and they are hidden from Claude's slash menu.
 
 ### BDD Orchestration
 
@@ -223,7 +258,7 @@ Deep review that checks your code against latest research using web search.
 
 Your agent will check against official library docs, look for known security issues, and verify you're using current versions.
 
-Quality review, the BDD scenario gate, and implementation-plan review share the same `safeword review run` coordinator. Positional files are the bounded work product; `--context <paths...>` adds bounded supporting evidence without making it review targets. The coordinator snapshots and integrity-checks both roles, treats their contents as untrusted, sends Claude-authored work to headless Codex (and Codex-authored work to headless Claude), validates the returned JSON and reviewer identity, and records raw machine provenance as `cross-agent`, `degraded`, or `none`. Human output presents validated cross-agent results as independent coverage and permitted same-agent results as standard coverage. Discovery, unsupported capabilities, compatibility-probe timeout, launch failure, authentication, and runtime failure remain distinct typed outcomes with targeted recovery guidance.
+Quality review, the BDD scenario gate, and implementation-plan review share the same `safeword review run` coordinator. Positional files are the bounded work product; `--context <paths...>` adds bounded supporting evidence without making it review targets. The coordinator snapshots and integrity-checks both roles, treats their contents as untrusted, sends Claude-authored work to headless Codex (and Codex-authored work to headless Claude), tries OpenCode when that independent route is exhausted, validates the returned JSON and reviewer identity, and records raw machine provenance as `cross-agent`, `degraded`, or `none`. Human output presents validated cross-agent results as independent coverage and permitted same-agent results as standard coverage. Discovery, unsupported capabilities, compatibility-probe timeout, launch failure, authentication, and runtime failure remain distinct typed outcomes with targeted recovery guidance.
 
 BDD workflows can also request `review run executable-red` before production implementation.
 Safeword executes structured JSON argv without a shell, captures bounded output plus full-stream
@@ -242,7 +277,7 @@ output; use the returned status command to collect the terminal result. Quiet
 mode suppresses the progress. Direct callers of
 `safeword review run --json` retain the existing silent-stderr contract.
 
-The coordinator tries the opposite agent's default and configured alternate model before same-agent headless review. If every CLI route fails, foreground agent workflows can continue once through the internal `finish-review` skill: first one host-native fresh-context reviewer, then one bounded main-thread self-review. This continuation is best-effort because only the foreground host can invoke its session agent. It is reported as supplemental feedback with its live-worktree source limits; it never becomes completed standard or independent machine coverage, never creates an independent stamp, and cannot satisfy `crossAgentReview: "require"`. Project-owned Claude assets make the fresh-context route available in Claude Code Cloud even when no external agent CLI is installed. See [Configuration](/reference/configuration#review-gates).
+The coordinator tries the opposite agent's default and configured alternate model, then OpenCode, before same-agent headless review; OpenCode-authored work goes to Claude and then Codex. If every CLI route fails, foreground agent workflows can continue once through the internal `finish-review` skill: first one host-native fresh-context reviewer, then one bounded main-thread self-review. This continuation is best-effort because only the foreground host can invoke its session agent. It is reported as supplemental feedback with its live-worktree source limits; it never becomes completed standard or independent machine coverage, never creates an independent stamp, and cannot satisfy `crossAgentReview: "require"`. The Claude plugin's bundled `safeword-reviewer` agent makes the fresh-context route available in Claude Code Cloud even when no external agent CLI is installed. See [Configuration](/reference/configuration#review-gates).
 
 ### Refactoring
 

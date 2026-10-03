@@ -3,7 +3,7 @@
   "assets": [
     {
       "path": ".claude-plugin/plugin.json",
-      "sha256": "ad9e9f9b372f196486a0341e2f3630a3f1027a285c43143c1847b5f89702b45d"
+      "sha256": "50c0bf8e78b2579814bb351b0ca648796ef8eb9defaf86d29cd80d0ac353c851"
     },
     {
       "path": "agents/safeword-retro-filer.md",
