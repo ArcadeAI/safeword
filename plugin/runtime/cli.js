@@ -16097,7 +16097,8 @@ var init_schema = __esm(() => {
     "skill-invocations.log",
     "re-entry.md",
     "dependency-readiness.json",
-    "readiness-ticket.json"
+    "readiness-ticket.json",
+    "closeout-session-binding.json"
   ];
   SAFEWORD_TRANSIENT_PATHS = [
     "**/architecture.generated.md",
