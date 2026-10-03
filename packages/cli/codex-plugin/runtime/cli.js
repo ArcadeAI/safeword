@@ -29641,6 +29641,13 @@ async function deliverRelayRequests(projectDirectory, options) {
   if (relayOrigin === undefined)
     throw new Error("invalid relay URL");
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
+  const setTimer = options.setTimer ?? ((callback, delayMs) => {
+    const timer = setTimeout(callback, delayMs);
+    timer.unref();
+    return () => {
+      clearTimeout(timer);
+    };
+  });
   const wallClockNow = options.now();
   const {
     active: initial,
@@ -29691,10 +29698,9 @@ async function deliverRelayRequests(projectDirectory, options) {
     }
     const attemptDeadlineMs = Math.min(options.deadlineMs, remainingOverallMs - RELAY_CLEANUP_RESERVE_MS);
     const controller = new AbortController;
-    const timer = setTimeout(() => {
+    const cancelTimer = setTimer(() => {
       controller.abort();
     }, attemptDeadlineMs);
-    timer.unref();
     try {
       let response;
       try {
@@ -29736,7 +29742,7 @@ async function deliverRelayRequests(projectDirectory, options) {
         throw error2;
       }
     } finally {
-      clearTimeout(timer);
+      cancelTimer();
     }
   }
   const finalFilenames = await sortedFilenames(directory);

@@ -43,7 +43,10 @@ export interface RelayDrainMeasurement {
  */
 export interface RelayDrainClock {
   monotonicNow?: () => number;
-  wait?: (milliseconds: number) => Promise<void>;
+  /** Arms delivery's per-attempt abort timer; see `deliverRelayRequests`. */
+  setTimer?: (callback: () => void, delayMs: number) => () => void;
+  /** Simulated relay latency. Must reject once `signal` aborts. */
+  wait?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
 }
 
 function measurementDrafts() {
@@ -59,9 +62,14 @@ function measurementDrafts() {
   }));
 }
 
-function measurementRelay(wait: (milliseconds: number) => Promise<void>): typeof fetch {
+function measurementRelay(
+  wait: (milliseconds: number, signal?: AbortSignal) => Promise<void>,
+): typeof fetch {
   return async (_input, init) => {
-    await wait(RELAY_LATENCY_MS);
+    // Honor cancellation like a real transport. Ignoring the abort would let a
+    // request that overran its attempt deadline still count as accepted, and
+    // the readiness evidence would overstate throughput.
+    await wait(RELAY_LATENCY_MS, init?.signal ?? undefined);
     const request = JSON.parse(
       Buffer.from(init?.body as Uint8Array).toString('utf8'),
     ) as RelayDraftRequest;
@@ -83,8 +91,8 @@ export async function measureRelayDrainThroughput(
   const monotonicNow = clock.monotonicNow ?? (() => performance.now());
   const wait =
     clock.wait ??
-    (async (milliseconds: number) => {
-      await delay(milliseconds);
+    (async (milliseconds: number, signal?: AbortSignal) => {
+      await delay(milliseconds, undefined, { signal });
     });
   const spool = await mkdtemp(path.join(tmpdir(), 'safeword-relay-drain-'));
   try {
@@ -100,6 +108,7 @@ export async function measureRelayDrainThroughput(
       fetch: measurementRelay(wait),
       monotonicNow,
       now: Date.now,
+      ...(clock.setTimer && { setTimer: clock.setTimer }),
       overallDeadlineMs: DRAIN_BUDGET_MS,
       relayUrl: 'https://relay.invalid',
     });

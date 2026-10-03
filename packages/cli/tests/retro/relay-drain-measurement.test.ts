@@ -56,29 +56,59 @@ async function readinessValidation(artifact: RelayDrainMeasurement) {
   });
 }
 
+/**
+ * One virtual timeline for everything delivery times: the drain budget clock,
+ * each attempt's abort timer, and the simulated relay latency. A wait advances
+ * the clock and fires any timer that falls due on the way, in order, so an
+ * attempt whose deadline lands inside its round trip is aborted exactly as a
+ * real transport would be.
+ */
+function virtualTimeline() {
+  let now = 0;
+  const timers: { at: number; callback: () => void; live: boolean }[] = [];
+  return {
+    monotonicNow: () => now,
+    setTimer: (callback: () => void, delayMs: number) => {
+      const timer = { at: now + delayMs, callback, live: true };
+      timers.push(timer);
+      return () => {
+        timer.live = false;
+      };
+    },
+    wait: (milliseconds: number, signal?: AbortSignal) => {
+      const until = now + milliseconds;
+      const due = timers
+        .filter(timer => timer.live && timer.at <= until)
+        .toSorted((left, right) => left.at - right.at);
+      for (const timer of due) {
+        timer.live = false;
+        now = timer.at;
+        timer.callback();
+        if (signal?.aborted === true) return Promise.reject(new Error('relay attempt aborted'));
+      }
+      now = until;
+      return Promise.resolve();
+    },
+  };
+}
+
 describe('relay drain-throughput measurement producer', () => {
   // The producer's logic is proven on a virtual clock. On real time, how many
   // drafts drain inside the 750 ms budget is a property of the machine, not the
   // code: a contended CI runner has completed as few as one, which failed
   // assertions with nothing wrong in the producer. Here every relay round trip
   // costs exactly RELAY_LATENCY_MS of virtual time and nothing else moves.
-  it('drains exactly the drafts whose round trip fits before the cleanup reserve', async () => {
-    let elapsed = 0;
-    const artifact = await measureRelayDrainThroughput({
-      monotonicNow: () => elapsed,
-      wait: milliseconds => {
-        elapsed += milliseconds;
-        return Promise.resolve();
-      },
-    });
+  it('drains exactly the drafts whose round trip fits inside its attempt deadline', async () => {
+    const artifact = await measureRelayDrainThroughput(virtualTimeline());
 
-    // 750 ms budget, 80 ms per delivery, and the drain stops once 100 ms or
-    // less of cleanup reserve would remain. The ninth starts at 640 ms with
-    // 110 ms left; a tenth would start at 720 ms with only 30 ms left.
+    // Each attempt may run for min(500, remaining − 100) ms. Attempt k starts
+    // at 80k ms, so it is allowed 650 − 80k: the eighth (k = 7) gets 90 ms and
+    // completes; the ninth (k = 8) gets only 10 ms and is aborted at 650 ms,
+    // leaving exactly the 100 ms cleanup reserve, so the drain stops there.
     expect(artifact.result).toEqual({
-      acceptedCount: 9,
+      acceptedCount: 8,
       backlogSize: 300,
-      durationMs: 9 * RELAY_LATENCY_MS,
+      durationMs: 650,
       overallDeadlineMs: 750,
       relayLatencyMs: RELAY_LATENCY_MS,
       requestDeadlineMs: 500,
@@ -86,14 +116,7 @@ describe('relay drain-throughput measurement producer', () => {
   });
 
   it('produces evidence the release readiness validator accepts', async () => {
-    let elapsed = 0;
-    const artifact = await measureRelayDrainThroughput({
-      monotonicNow: () => elapsed,
-      wait: milliseconds => {
-        elapsed += milliseconds;
-        return Promise.resolve();
-      },
-    });
+    const artifact = await measureRelayDrainThroughput(virtualTimeline());
 
     expect(await readinessValidation(artifact)).toEqual({ enabled: true });
   });
