@@ -330,6 +330,76 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(retroAgentForRuntime('cursor')).toBe('cursor');
   });
 
+  // A failed `safeword retro run` exits 1 and writes its result to stderr, per
+  // the CLI protocol. Closeout must read that result instead of guessing from
+  // the exit code — otherwise every failed retro reads as an extraction failure.
+  describe('classifying a failed retro run from its own result', () => {
+    function boundRetroFailure(failed: { stderr: string }) {
+      const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-failed-'));
+      const transcript = nodePath.join(root, 'transcript.jsonl');
+      writeFileSync(transcript, `${JSON.stringify({ session_id: 'claude-42', cwd: root })}\n`);
+      try {
+        return runBoundRetro(
+          root,
+          { runtime: 'claude', id: 'claude-42', projectRoot: root, transcriptPath: transcript },
+          () => ({ status: 1, stdout: '', stderr: failed.stderr }),
+        );
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    }
+
+    it('reports a filing failure when the failed run says durable work remains', () => {
+      const result = boundRetroFailure({
+        stderr: JSON.stringify({
+          state: 'failed',
+          data: { command: 'retro run', agent_filing_needed: true },
+          errors: [
+            {
+              code: 'RETRO_COMMAND_FAILED',
+              message:
+                'retro relay has server-owned rejected request r-1; inspect relay operations and logs',
+            },
+          ],
+        }),
+      });
+
+      expect(result).toMatchObject({ complete: false, failure: 'filing' });
+    });
+
+    it('still reports an extraction failure when the failed run says extraction failed', () => {
+      const result = boundRetroFailure({
+        stderr: JSON.stringify({
+          state: 'failed',
+          data: { command: 'retro run', agent_filing_needed: false },
+          errors: [{ code: 'RETRO_COMMAND_FAILED', message: 'retro extraction failed: no output' }],
+        }),
+      });
+
+      expect(result).toMatchObject({ complete: false, failure: 'extraction' });
+    });
+
+    it('does not mistake protocol field names for an extraction failure', () => {
+      // The structured body may name extraction-related fields; only the
+      // reported error messages describe what actually failed.
+      const result = boundRetroFailure({
+        stderr: JSON.stringify({
+          state: 'failed',
+          data: { command: 'retro run', agent_filing_needed: true, extraction: 'succeeded' },
+          errors: [{ code: 'RETRO_COMMAND_FAILED', message: 'retro relay delivery failed' }],
+        }),
+      });
+
+      expect(result).toMatchObject({ complete: false, failure: 'filing' });
+    });
+
+    it('keeps the previous diagnosis when a failed run leaves no readable result', () => {
+      const result = boundRetroFailure({ stderr: 'safeword: unexpected crash' });
+
+      expect(result).toMatchObject({ complete: false, failure: 'extraction' });
+    });
+  });
+
   it.each(['claude', 'codex', 'cursor'] as const)(
     'passes the bound %s runtime to the real retro command boundary',
     runtime => {
