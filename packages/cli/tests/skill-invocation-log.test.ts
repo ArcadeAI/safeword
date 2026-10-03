@@ -161,9 +161,8 @@ describe('skill-invocation log: README guidance (HMZSCD)', () => {
   });
 
   it('documents the current Bun helper permission instead of stale inline shell fragments', () => {
-    expect(readme).toContain(
-      '"allow": ["Bash(bun */.safeword/hooks/record-skill-invocation.ts*)"]',
-    );
+    expect(readme).toContain('"allow": ["Bash(bun *record-skill-invocation.ts*)"]');
+    expect(readme).toContain('/runtime/hooks/record-skill-invocation.ts');
     expect(readme).toContain('record-skill-invocation.ts');
     expect(readme).toContain('Claude Code evaluates compound bash commands per subcommand');
     expect(readme).not.toContain('Bash(node -e:*)');
