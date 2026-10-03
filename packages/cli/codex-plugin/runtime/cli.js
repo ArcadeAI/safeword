@@ -30838,6 +30838,7 @@ async function resolveRetroRelayRoute(input) {
     return {
       route: {
         ...config,
+        ...composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs },
         ...composition.fetch && { fetch: composition.fetch },
         readiness
       }
@@ -30849,6 +30850,7 @@ async function resolveRetroRelayRoute(input) {
   return {
     route: {
       ...resolved.config,
+      ...composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs },
       ...composition.fetch && { fetch: composition.fetch },
       readiness
     }
