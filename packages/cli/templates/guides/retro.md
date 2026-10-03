@@ -14,10 +14,9 @@ there is nothing for a human to pre-approve.
 
 ## Why a fresh-context reader (not your own memory)
 
-Do **not** extract from your own working memory of the session. Safeword's own
-learning (`natural-vs-self-report-gates.md`) measured agent self-report ~40% less
-reliable than evidence-grounded signals, and self-correction has a large
-in-context blind spot. So the reliable path is to **mine the transcript with a
+Do **not** extract from your own working memory of the session. Agent
+self-report is markedly less reliable than evidence-grounded signals, and
+self-correction has a large in-context blind spot. So the reliable path is to **mine the transcript with a
 fresh context** that hasn't lived the session:
 
 - **Claude Code / Cursor:** spawn a fresh subagent (e.g. `context: fork`) whose

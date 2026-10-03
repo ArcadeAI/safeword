@@ -4,6 +4,8 @@ How to call LLMs effectively: API patterns, structured outputs, caching, context
 
 **Related:** For writing documentation that LLMs will read, see [LLM Writing Guide](../../.safeword/guides/llm-writing-guide.md)
 
+**Scope in safeword:** Safeword's own reviews do not call model APIs — `safeword review run` spawns a reviewer CLI (`claude`, `codex`, or `opencode`) as a subprocess, routed by `crossAgentReviewRoutes` (`packages/cli/src/review/route-config.ts`). This guide applies only to code that calls a model API or SDK directly (e.g. `packages/cli/src/pr-review/providers/`). Its examples are generic and come from another project.
+
 ---
 
 ## Structured Outputs
