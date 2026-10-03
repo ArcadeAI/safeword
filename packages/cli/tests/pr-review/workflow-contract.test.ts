@@ -95,7 +95,8 @@ describe('dogfood review policy', () => {
 
   it('does not suppress a review for an incomplete or stale receipt on the same head', () => {
     const sha = 'a'.repeat(40);
-    const receipt = (state: string) => [
+    type Receipt = { user: { login: string }; body: string };
+    const receipt = (state: string): [Receipt] => [
       {
         user: { login: 'github-actions[bot]' },
         body: `<!-- safeword:pr-review-receipt:v1 -->\nReviewed revision: ${sha}\nRun state: ${state}\nRoute: needs a human`,
@@ -128,6 +129,18 @@ describe('dogfood review policy', () => {
       expect(complete.status, complete.stderr).toBe(0);
       expect(complete.stdout.trim()).toBe(sha);
 
+      const currentReceipt = receipt('complete');
+      currentReceipt[0].body = currentReceipt[0].body.replace(
+        '\nReviewed revision:',
+        '\nAdvisory only: this review needs human approval.\nReviewed revision:',
+      );
+      const current = spawnSync('jq', ['-r', filter], {
+        encoding: 'utf8',
+        input: JSON.stringify(currentReceipt),
+      });
+      expect(current.status, current.stderr).toBe(0);
+      expect(current.stdout.trim()).toBe(sha);
+
       const mixed = [...receipt('complete'), ...receipt('incomplete')];
       const early = spawnSync('jq', ['-r', filter], {
         encoding: 'utf8',
@@ -149,6 +162,29 @@ describe('dogfood review policy', () => {
       );
       expect(full.status, full.stderr).toBe(0);
       expect(JSON.parse(full.stdout).reviewedReceiptSha).toBeNull();
+
+      const misleading = receipt('stale');
+      misleading[0].body += '\nReview text follows:\nRun state: complete\n';
+      const misleadingEarly = spawnSync('jq', ['-r', filter], {
+        encoding: 'utf8',
+        input: JSON.stringify(misleading),
+      });
+      expect(misleadingEarly.status, misleadingEarly.stderr).toBe(0);
+      expect(misleadingEarly.stdout.trim()).toBe('');
+
+      const misleadingFull = spawnSync(
+        'jq',
+        [
+          '-n',
+          '--argjson',
+          'owned',
+          JSON.stringify(misleading),
+          `{reviewedReceiptSha: ${fullReceiptFilter}}`,
+        ],
+        { encoding: 'utf8' },
+      );
+      expect(misleadingFull.status, misleadingFull.stderr).toBe(0);
+      expect(JSON.parse(misleadingFull.stdout).reviewedReceiptSha).toBeNull();
     }
   });
 

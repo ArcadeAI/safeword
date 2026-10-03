@@ -67,9 +67,7 @@ jobs:
               select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- safeword:pr-review-receipt:v1 -->"))) |
               .body
             ] | last // "") as $latest |
-            if ($latest | contains("\nRun state: complete\n")) then
-              $latest | capture("Reviewed revision: (?<sha>[0-9a-f]{40,64})").sha
-            else empty end
+            [$latest | capture("^<!-- safeword:pr-review-receipt:v1 -->\n(?:Advisory only:[^\n]*\n)?Reviewed revision: (?<sha>[0-9a-f]{40,64})\nRun state: complete\n").sha] | first // empty
           ' comments.json)"
           if [ "$reviewed_receipt_sha" = "$head_sha" ]; then
             jq -n --slurpfile pull pull.json --arg reviewedReceiptSha "$reviewed_receipt_sha" '
@@ -123,7 +121,7 @@ jobs:
               headSha: $pr.head.sha,
               pullState: (if $pr.merged then "merged" elif $pr.state == "closed" then "closed" elif $pr.draft then "draft" else "ready" end),
               markerReceiptExists: ($owned | length > 0),
-              reviewedReceiptSha: (([$owned[].body] | last // "") as $latest | if ($latest | contains("\nRun state: complete\n")) then $latest | capture("Reviewed revision: (?<sha>[0-9a-f]{40,64})").sha else null end),
+              reviewedReceiptSha: (([$owned[].body] | last // "") as $latest | [$latest | capture("^<!-- safeword:pr-review-receipt:v1 -->\n(?:Advisory only:[^\n]*\n)?Reviewed revision: (?<sha>[0-9a-f]{40,64})\nRun state: complete\n").sha] | first // null),
               artifacts: [$files[0][] |
                 if .patch != null then
                   ({kind: "text", path: .filename, content: .patch}
