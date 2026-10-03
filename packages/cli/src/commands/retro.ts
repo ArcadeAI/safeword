@@ -272,23 +272,25 @@ async function runRelayRetro(
   const unresolvedTerminal = (delivery.serverReportedTerminalReceipts ?? []).find(
     receipt => receipt.state !== 'tombstone' || receipt.issueNumber === undefined,
   );
-  if (unresolvedTerminal !== undefined) {
-    return {
-      agentFilingNeeded: false,
-      drops,
-      errorMessage: `retro relay has server-owned ${unresolvedTerminal.state} request ${unresolvedTerminal.requestId}; inspect relay operations and logs`,
-      ok: false,
-      relay: relayOutcome,
-      result: emptyTriageResult(),
-    };
-  }
-  return {
+  // Both endings describe the same drained spool, so they share one account of
+  // it. A server-owned terminal receipt makes the run fail visibly, but it says
+  // nothing about the rest of the batch: drafts still queued or dead-lettered
+  // locally are durable work that remains either way. (Direct filing is never
+  // reached on this route, so reporting them cannot duplicate the request.)
+  const drained = {
     agentFilingNeeded: delivery.retryable > 0 || delivery.deadLetteredThisRun > 0,
     drops,
-    ok: true,
     relay: relayOutcome,
     result: emptyTriageResult(),
   };
+  if (unresolvedTerminal !== undefined) {
+    return {
+      ...drained,
+      errorMessage: `retro relay has server-owned ${unresolvedTerminal.state} request ${unresolvedTerminal.requestId}; inspect relay operations and logs`,
+      ok: false,
+    };
+  }
+  return { ...drained, ok: true };
 }
 
 function relayDeliveryFailureOutcome(

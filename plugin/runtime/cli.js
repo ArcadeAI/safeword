@@ -30412,23 +30412,20 @@ async function runRelayRetro(encounters, drops, options) {
     };
   }
   const unresolvedTerminal = (delivery.serverReportedTerminalReceipts ?? []).find((receipt) => receipt.state !== "tombstone" || receipt.issueNumber === undefined);
-  if (unresolvedTerminal !== undefined) {
-    return {
-      agentFilingNeeded: false,
-      drops,
-      errorMessage: `retro relay has server-owned ${unresolvedTerminal.state} request ${unresolvedTerminal.requestId}; inspect relay operations and logs`,
-      ok: false,
-      relay: relayOutcome,
-      result: emptyTriageResult()
-    };
-  }
-  return {
+  const drained = {
     agentFilingNeeded: delivery.retryable > 0 || delivery.deadLetteredThisRun > 0,
     drops,
-    ok: true,
     relay: relayOutcome,
     result: emptyTriageResult()
   };
+  if (unresolvedTerminal !== undefined) {
+    return {
+      ...drained,
+      errorMessage: `retro relay has server-owned ${unresolvedTerminal.state} request ${unresolvedTerminal.requestId}; inspect relay operations and logs`,
+      ok: false
+    };
+  }
+  return { ...drained, ok: true };
 }
 function relayDeliveryFailureOutcome(error2, drops, persistence, spoolFailed) {
   const persistenceError = spoolFailed > 0 ? `${relayPersistenceErrorMessage(persistence, spoolFailed)}; ` : "";
