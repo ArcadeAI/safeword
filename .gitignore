@@ -47,6 +47,8 @@ brand/
 .safeword-coverage-bin-*/
 .project/readiness-ticket.json
 .project/closeout-session-binding.json
+.project/codex-review-stamp-identity.json
+.project/cursor-review-stamp-identity.json
 .safeword-project/quality-state*.json
 .safeword-project/cursor-run-identity.json
 .safeword-project/codex-run-identity.json
@@ -56,6 +58,8 @@ brand/
 .safeword-project/dependency-readiness.json
 .safeword-project/readiness-ticket.json
 .safeword-project/closeout-session-binding.json
+.safeword-project/codex-review-stamp-identity.json
+.safeword-project/cursor-review-stamp-identity.json
 
 # Go build artifacts from experiments (produced by test runs)
 experiments/**/checker

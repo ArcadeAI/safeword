@@ -16098,7 +16098,9 @@ var init_schema = __esm(() => {
     "re-entry.md",
     "dependency-readiness.json",
     "readiness-ticket.json",
-    "closeout-session-binding.json"
+    "closeout-session-binding.json",
+    "codex-review-stamp-identity.json",
+    "cursor-review-stamp-identity.json"
   ];
   SAFEWORD_TRANSIENT_PATHS = [
     "**/architecture.generated.md",
