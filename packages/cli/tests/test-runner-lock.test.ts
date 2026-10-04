@@ -11,6 +11,7 @@ import {
 import { mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -235,6 +236,78 @@ async function expectSimultaneousRecoveryIsSerialized(
   expect(activeCommands).toBe(0);
   expect(maximumActiveCommands).toBe(1);
 }
+
+// Preloaded into a runner to pause it at one exact step of transition
+// recovery, so a test can interleave two contenders deterministically.
+// `stale` pauses after judging the recovery marker abandoned, right before
+// claiming it; `holder` pauses right after publishing its own live marker.
+const recoveryRacePreload = `
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+import path from 'node:path';
+
+const { SAFEWORD_RACE_RECOVERY: recovery, SAFEWORD_RACE_ROLE: role, SAFEWORD_RACE_SIGNALS: signals } = process.env;
+const ownerPath = path.join(recovery, 'owner.json');
+const original = { ...fs };
+const signal = name => original.writeFileSync(path.join(signals, name), '');
+function waitFor(name) {
+  const deadline = Date.now() + 10_000;
+  while (!original.existsSync(path.join(signals, name)) && Date.now() < deadline) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+  }
+}
+
+if (role === 'stale') {
+  let state = 'observing';
+  // The claim is the first move of the shared marker or its owner file; the
+  // next move or link after it ends the contender's reaction to the claim.
+  const pauseAroundClaim = operation => (from, to) => {
+    if (state === 'observing' && (from === recovery || from === ownerPath)) {
+      state = 'resuming';
+      signal('stale-paused');
+      waitFor('release-stale');
+      return operation(from, to);
+    }
+    if (state !== 'resuming') return operation(from, to);
+    state = 'done';
+    try {
+      return operation(from, to);
+    } finally {
+      signal('stale-resumed');
+    }
+  };
+  fs.renameSync = pauseAroundClaim(original.renameSync);
+  fs.linkSync = pauseAroundClaim(original.linkSync);
+}
+
+if (role === 'holder') {
+  let held = false;
+  const holdAfterPublishing = target => {
+    if (held || target !== ownerPath) return;
+    held = true;
+    const published = original.readFileSync(ownerPath, 'utf8');
+    signal('holder-holds');
+    waitFor('release-holder');
+    let current;
+    try {
+      current = original.readFileSync(ownerPath, 'utf8');
+    } catch {}
+    signal(current === published ? 'holder-intact' : 'holder-lost');
+  };
+  fs.writeFileSync = (target, ...rest) => {
+    const result = original.writeFileSync(target, ...rest);
+    holdAfterPublishing(target);
+    return result;
+  };
+  fs.linkSync = (existing, target) => {
+    const result = original.linkSync(existing, target);
+    holdAfterPublishing(target);
+    return result;
+  };
+}
+
+syncBuiltinESMExports();
+`;
 
 describe('package test runner lock (379)', () => {
   it('runs the real packaged CLI from the isolated snapshot', () => {
@@ -1266,6 +1339,68 @@ describe('package test runner lock (379)', () => {
       },
       seedLegacyOwnerFile,
     );
+  });
+
+  it('keeps a live recovery marker when a stale contender reclaims after it (#419)', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory, 80);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    const transitionDirectory = `${lockDirectory}.transition`;
+    const recoveryDirectory = nodePath.join(transitionDirectory, 'recovery');
+    const signalDirectory = nodePath.join(temporaryDirectory, 'signals');
+    const preloadPath = nodePath.join(temporaryDirectory, 'recovery-race-preload.mjs');
+    const deadPid = 2_147_483_647;
+    await mkdir(signalDirectory);
+    writeFileSync(preloadPath, recoveryRacePreload);
+    await seedOwnerFile(lockDirectory, { createdAt: new Date().toISOString(), pid: deadPid });
+    await seedLegacyOwnerFile(transitionDirectory, {
+      createdAt: new Date().toISOString(),
+      pid: deadPid,
+    });
+    await seedLegacyOwnerFile(recoveryDirectory, {
+      createdAt: new Date().toISOString(),
+      kind: 'safeword-package-test-transition-recovery',
+      pid: deadPid,
+      token: 'dead-recovery',
+    });
+    const environmentFor = (role: string) => ({
+      ...process.env,
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${pathToFileURL(preloadPath).href}`,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_RACE_RECOVERY: recoveryDirectory,
+      SAFEWORD_RACE_ROLE: role,
+      SAFEWORD_RACE_SIGNALS: signalDirectory,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '10000',
+    });
+    const signalPath = (name: string) => nodePath.join(signalDirectory, name);
+
+    // Both contenders judge the same dead marker abandoned; the holder wins
+    // and publishes a live marker before the stale contender acts.
+    const stale = runNodeScript(runnerPath, ['tests/stale.test.ts'], environmentFor('stale'));
+    await waitForPath(signalPath('stale-paused'));
+    const holder = runNodeScript(runnerPath, ['tests/holder.test.ts'], environmentFor('holder'));
+    await waitForPath(signalPath('holder-holds'));
+    writeFileSync(signalPath('release-stale'), '');
+    await waitForPath(signalPath('stale-resumed'));
+    writeFileSync(signalPath('release-holder'), '');
+    const results = await Promise.all([stale, holder]);
+
+    expect(existsSync(signalPath('holder-lost'))).toBe(false);
+    expect(existsSync(signalPath('holder-intact'))).toBe(true);
+    expect(
+      results.map(result => result.status),
+      JSON.stringify(results),
+    ).toEqual([0, 0]);
+    const events = readEvents(logPath);
+    let activeCommands = 0;
+    let maximumActiveCommands = 0;
+    for (const event of events) {
+      activeCommands += event.includes(':start:') ? 1 : -1;
+      maximumActiveCommands = Math.max(maximumActiveCommands, activeCommands);
+    }
+    expect(events).toHaveLength(8);
+    expect(maximumActiveCommands).toBe(1);
   });
 
   it('rebases repo-root-relative test paths onto the package root (#723)', async () => {

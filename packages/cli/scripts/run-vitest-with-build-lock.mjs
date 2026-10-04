@@ -5,6 +5,7 @@ import {
   copyFileSync,
   cpSync,
   existsSync,
+  linkSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -149,7 +150,15 @@ function isRecognizedTransitionOwner(owner) {
 
 function readOwnerAt(path) {
   try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8'));
+    return parseOwner(readFileSync(path, 'utf8'));
+  } catch {
+    return { owner: {}, readable: false, valid: false };
+  }
+}
+
+function parseOwner(text) {
+  try {
+    const parsed = JSON.parse(text);
     const owner =
       typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
     const readable = isUsableOwnerPid(owner.pid) || hasUsableOwnerTimestamp(owner.createdAt);
@@ -328,8 +337,9 @@ function lockTransitionIsAbandoned(unreadableFallback) {
   return unreadableTransitionIsAgedSafewordResidue();
 }
 
-function transitionRecoveryIsAbandoned() {
-  const { owner, readable } = readOwnerAt(transitionRecoveryOwnerPath);
+function transitionRecoveryIsAbandoned(ownerText) {
+  const { owner, readable } =
+    ownerText === false ? { owner: {}, readable: false } : parseOwner(ownerText);
   if (owner.kind === transitionRecoveryOwnerKind && isUsableOwnerPid(owner.pid))
     return !isProcessAlive(owner.pid);
   if (readable) return false;
@@ -342,39 +352,86 @@ function transitionRecoveryIsAbandoned() {
   }
 }
 
-function removeAbandonedTransitionRecovery() {
-  if (!transitionRecoveryIsAbandoned()) return false;
-
-  const abandonedRecoveryDirectory = `${transitionRecoveryDirectory}.abandoned-${randomUUID()}`;
+function readTransitionRecoveryOwnerText() {
   try {
-    renameSync(transitionRecoveryDirectory, abandonedRecoveryDirectory);
+    return readFileSync(transitionRecoveryOwnerPath, 'utf8');
   } catch (error) {
     if (error?.code === 'ENOENT') return false;
     throw error;
   }
-  rmSync(abandonedRecoveryDirectory, { force: true, recursive: true });
-  return true;
+}
+
+function publishTransitionRecoveryOwner(token) {
+  // Link a fully written file into place: contenders never observe partial
+  // metadata, and at most one process can publish an owner per marker.
+  const pendingOwnerPath = `${transitionRecoveryOwnerPath}.pending-${randomUUID()}`;
+  try {
+    writeFileSync(
+      pendingOwnerPath,
+      `${JSON.stringify({ createdAt: new Date().toISOString(), kind: transitionRecoveryOwnerKind, pid: process.pid, token })}\n`,
+    );
+    linkSync(pendingOwnerPath, transitionRecoveryOwnerPath);
+    return true;
+  } catch (error) {
+    if (error?.code === 'EEXIST' || error?.code === 'ENOENT') return false;
+    throw error;
+  } finally {
+    rmSync(pendingOwnerPath, { force: true });
+  }
+}
+
+function tryAdoptAbandonedTransitionRecovery(token) {
+  const observedOwnerText = readTransitionRecoveryOwnerText();
+  if (!transitionRecoveryIsAbandoned(observedOwnerText)) return false;
+
+  if (observedOwnerText !== false) {
+    // Claim the observed owner file rather than the shared directory. Only one
+    // contender can move it, and the moved bytes prove whether it is the
+    // abandoned owner we judged or a live owner published since (#419).
+    const claimedOwnerPath = `${transitionRecoveryOwnerPath}.reclaim-${randomUUID()}`;
+    try {
+      renameSync(transitionRecoveryOwnerPath, claimedOwnerPath);
+      if (readFileSync(claimedOwnerPath, 'utf8') !== observedOwnerText) {
+        linkSync(claimedOwnerPath, transitionRecoveryOwnerPath);
+        rmSync(claimedOwnerPath, { force: true });
+        return false;
+      }
+    } catch (error) {
+      if (error?.code === 'ENOENT' || error?.code === 'EEXIST') return false;
+      throw error;
+    }
+    rmSync(claimedOwnerPath, { force: true });
+  }
+  // Adopt the marker in place. The directory is never moved, so a live
+  // holder's marker cannot be displaced by a contender's stale observation.
+  return publishTransitionRecoveryOwner(token);
 }
 
 function tryEnterTransitionRecovery(token) {
   try {
     mkdirSync(transitionRecoveryDirectory);
-    writeFileSync(
-      transitionRecoveryOwnerPath,
-      `${JSON.stringify({ createdAt: new Date().toISOString(), kind: transitionRecoveryOwnerKind, pid: process.pid, token })}\n`,
-    );
-    return true;
   } catch (error) {
-    if (error?.code === 'EEXIST') {
-      return removeAbandonedTransitionRecovery() && tryEnterTransitionRecovery(token);
-    }
-    rmSync(transitionRecoveryDirectory, { force: true, recursive: true });
+    if (error?.code === 'EEXIST') return tryAdoptAbandonedTransitionRecovery(token);
     if (error?.code === 'ENOENT' || error?.code === 'EINVAL') return false;
     throw error;
   }
+  // A failed publish leaves an ownerless marker that ages out; removing it by
+  // path could delete a marker another contender adopted meanwhile.
+  return publishTransitionRecoveryOwner(token);
 }
 
 function leaveTransitionRecovery(token) {
+  // A contender checking whether our marker is abandoned holds the owner file
+  // aside only until it restores it; wait that out rather than strand the marker.
+  for (
+    let waitedMilliseconds = 0;
+    waitedMilliseconds < 1000 &&
+    existsSync(transitionRecoveryDirectory) &&
+    !existsSync(transitionRecoveryOwnerPath);
+    waitedMilliseconds += 10
+  ) {
+    sleep(10);
+  }
   const { owner } = readOwnerAt(transitionRecoveryOwnerPath);
   if (owner.pid !== process.pid || owner.token !== token) return false;
   const releasedRecoveryDirectory = `${transitionRecoveryDirectory}.released-${randomUUID()}`;
