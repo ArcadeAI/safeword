@@ -753,10 +753,21 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
  * Name the review behind a terminal verdict (ticket PB1GMZ). The agent that
  * stamps a phase or artifact has to cite the review that approved it, and until
  * this the happy path was the one result that never carried its own id — only
- * the pending and failed paths did. `kind` and `targets` come from the same
- * integrity-checked record, so a stamp can be bound to what was actually
- * reviewed rather than to the agent's account of it.
+ * the pending and failed paths did. `kind` and effective targets come from
+ * the integrity-checked record and its excluded-target report, so a stamp
+ * names what the reviewer actually saw.
  */
+function effectiveReviewTargets(record: ReviewJobRecord): readonly string[] | undefined {
+  const data = record.result?.data;
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return record.targets;
+  const excluded = (data as Record<string, unknown>).excluded_targets;
+  if (excluded === undefined) return record.targets;
+  if (!Array.isArray(excluded) || excluded.some(target => typeof target !== 'string'))
+    return undefined;
+  const excludedPaths = new Set<string>(excluded);
+  return record.targets.filter(target => !excludedPaths.has(target));
+}
+
 function withReviewProvenance(record: ReviewJobRecord, result: CliResult): CliResult {
   const data =
     typeof result.data === 'object' && result.data !== null && !Array.isArray(result.data)
@@ -768,7 +779,7 @@ function withReviewProvenance(record: ReviewJobRecord, result: CliResult): CliRe
       ...data,
       review_id: record.id,
       review_kind: record.kind,
-      review_targets: record.targets,
+      review_targets: effectiveReviewTargets(record) ?? [],
     },
   };
 }
@@ -1375,7 +1386,7 @@ export function approvedRetrospectiveReview(
       record.state === 'completed' &&
       hasCurrentFingerprint(cwd, record) &&
       hasIndependentApproval(data)
-      ? record.targets
+      ? effectiveReviewTargets(record)
       : undefined;
   } catch {
     return undefined;

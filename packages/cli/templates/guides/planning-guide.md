@@ -8,21 +8,23 @@ How to write specs, user stories, and test definitions before implementation.
 
 **Triage first — the first matching row sets the level:**
 
-| Question                                 | Level       | Artifacts                                                        |
-| ---------------------------------------- | ----------- | ---------------------------------------------------------------- |
-| User-facing feature with business value? | **feature** | Feature Spec + Test Definitions + Impl Plan (+ Design Doc if 3+) |
-| Bug, improvement, internal, or refactor? | **task**    | Task Spec with inline tests                                      |
-| Typo, config, or trivial change?         | **patch**   | Minimal Task Spec, existing tests                                |
+| Question                                 | Level       | Artifacts                                                                                   |
+| ---------------------------------------- | ----------- | ------------------------------------------------------------------------------------------- |
+| User-facing feature with business value? | **feature** | Product Plan spec + Dimensions + Test Definitions + Impl Plan + Verify (+ Design Doc if 3+) |
+| Bug, improvement, internal, or refactor? | **task**    | Task Spec with inline tests                                                                 |
+| Typo, config, or trivial change?         | **patch**   | Minimal Task Spec, existing tests                                                           |
 
 **Location:** `<namespace-root>/tickets/{ID}-{slug}/`
 
 Ticket artifacts live in the ticket folder:
 
-- `ticket.md` - Ticket definition
+- `ticket.md` - Ticket definition, including its `## Work Log` (longer scratch logs go in `.safeword/logs/`)
+- `spec.md` - Product Plan, auto-created at intake (features only; child features use `child-spec-template.md`)
+- `dimensions.md` - Behavioral dimensions and partitions, required before `test-definitions.md` for features (or `skip: <reason>`)
 - `test-definitions.md` - R/G/R ledger for BDD scenarios
-- `spec.md` - Feature spec, auto-created at intake (features only)
 - `impl-plan.md` - Implementation design record for new-flow features — authored during the plan-implementation phase (after scenarios validate, before TDD), scaffolded from `.safeword/templates/impl-plan-template.md`; the plan gate blocks `implement` until it parses valid (see the bdd skill's `PLAN_IMPLEMENTATION.md`)
 - `design.md` - Design doc (complex features)
+- `verify.md` - Verification evidence written by `/verify`; the done gate requires it
 
 Executable BDD scenarios live at `features/<slug>.feature` (or under the
 configured `paths.features` directory), rooted at the app or package that owns
@@ -254,14 +256,14 @@ Before `test-definitions.md` can be created, the ticket frontmatter must contain
 
 ### Canonical format
 
-Rule grouping (Gherkin 6+ `Rule:` keyword + Matt Wynne's Example Mapping) wraps nested `Scenario`s in the feature lane's `<slug>.feature`. Each scenario carries lineage as `@<jtbd>.R#` (numbered Rule; legacy specs use `@<jtbd>.AC#`). test-definitions.md is the R/G/R ledger: it lists the same scenario names with `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — `parseTddStep` in `hooks/lib/active-ticket.ts` parses them to inject TDD-step guidance during implement.
+Rule grouping (Gherkin 6+ `Rule:` keyword + Matt Wynne's Example Mapping) wraps nested `Scenario`s in the feature lane's `<slug>.feature`. Each `Rule:` block carries lineage as a `@<jtbd>.R#` tag that its scenarios inherit (legacy specs tag each scenario `@<jtbd>.AC#`); scenario names stay plain English. test-definitions.md is the R/G/R ledger: it lists the same scenario names with `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — `parseTddStep` in `hooks/lib/active-ticket.ts` parses them to inject TDD-step guidance during implement.
 
 ```gherkin
 Feature: Init dry-run
 
-  Rule: Dry-run shows expected output
+  @init-dry-run.TB1.R1
+  Rule: init-dry-run.TB1.R1 — dry-run shows expected output
 
-    @init-dry-run.TB1.AC1
     Scenario: Empty directory lists would-be files
       Given an empty target directory
       When user runs `init --dry-run`
@@ -275,7 +277,7 @@ Feature source: `features/init-dry-run.feature`
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: Dry-run shows expected output
+## Rule: init-dry-run.TB1.R1 — dry-run shows expected output
 
 ### Scenario: Empty directory lists would-be files
 

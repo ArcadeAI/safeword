@@ -3585,7 +3585,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/agents/safeword-retro-filer.md": "008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904",
         ".claude/agents/safeword-reviewer.md": "13333228aa180c0ff040ccfe4e16058147fadc596b51df0d6d73caeb01755470",
         ".claude/skills/audit/SKILL.md": "4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880",
-        ".claude/skills/bdd/DISCOVERY.md": "c88ae677ac877afca87745f13403f06e7c2dab86efc7934979d430e03837bf76",
+        ".claude/skills/bdd/DISCOVERY.md": "1dd29f815c358ab6e215fa5d0e2db1fe6ab26d93df0b151a53908370331b09ed",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "21afe725904a8ac20d72b3c71f9e6670f06d4036fee58af829b352862578094c",
         ".claude/skills/bdd/SCENARIOS.md": "33b7033c37619a202908f58157a2d353074c8bce415be9c13daa2f5b0edfe20d",
@@ -3629,7 +3629,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "78f4af402e98924eb4a57fa2c443136c36a574b429c9c266afa640c72ba7d750",
+        ".safeword/hooks/pre-tool-quality.ts": "3c2076859e59b02c4a76fb1a18efd01190c92298a4294577f0b196b1430a362f",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -16097,7 +16097,10 @@ var init_schema = __esm(() => {
     "skill-invocations.log",
     "re-entry.md",
     "dependency-readiness.json",
-    "readiness-ticket.json"
+    "readiness-ticket.json",
+    "closeout-session-binding.json",
+    "codex-review-stamp-identity.json",
+    "cursor-review-stamp-identity.json"
   ];
   SAFEWORD_TRANSIENT_PATHS = [
     "**/architecture.generated.md",
@@ -28812,6 +28815,10 @@ async function removeDuplicateClaimIfMatching(claimPath, siblingPath, recoveryOp
   }
   await removeIfPresent(claimPath);
 }
+async function sourceAlreadyAcknowledged(projectDirectory, bytes) {
+  const request = parseDurableRequest({ bytes });
+  return request !== undefined && await exists2(sourceAcknowledgementPath(projectDirectory, request.sourceKey));
+}
 async function claimSpecificRelayRequest(projectDirectory, requestId, options) {
   if (!CLAIM_ID_PATTERN.test(options.claimId))
     throw new Error("invalid relay claim identity");
@@ -28831,7 +28838,12 @@ async function claimSpecificRelayRequest(projectDirectory, requestId, options) {
         await removeIfPresent(claimed);
         return;
       }
-      return { bytes: await readFile2(claimed), path: claimed, requestId };
+      const bytes = await readFile2(claimed);
+      if (await sourceAlreadyAcknowledged(projectDirectory, bytes)) {
+        await removeIfPresent(claimed);
+        return;
+      }
+      return { bytes, path: claimed, requestId };
     } catch (error2) {
       if (errorCode2(error2) !== "ENOENT")
         throw error2;
@@ -29660,6 +29672,13 @@ async function deliverRelayRequests(projectDirectory, options) {
   if (relayOrigin === undefined)
     throw new Error("invalid relay URL");
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
+  const setTimer = options.setTimer ?? ((callback, delayMs) => {
+    const timer = setTimeout(callback, delayMs);
+    timer.unref();
+    return () => {
+      clearTimeout(timer);
+    };
+  });
   const wallClockNow = options.now();
   const {
     active: initial,
@@ -29710,10 +29729,9 @@ async function deliverRelayRequests(projectDirectory, options) {
     }
     const attemptDeadlineMs = Math.min(options.deadlineMs, remainingOverallMs - RELAY_CLEANUP_RESERVE_MS);
     const controller = new AbortController;
-    const timer = setTimeout(() => {
+    const cancelTimer = setTimer(() => {
       controller.abort();
     }, attemptDeadlineMs);
-    timer.unref();
     try {
       let response;
       try {
@@ -29755,7 +29773,7 @@ async function deliverRelayRequests(projectDirectory, options) {
         throw error2;
       }
     } finally {
-      clearTimeout(timer);
+      cancelTimer();
     }
   }
   const finalFilenames = await sortedFilenames(directory);
@@ -30425,23 +30443,20 @@ async function runRelayRetro(encounters, drops, options) {
     };
   }
   const unresolvedTerminal = (delivery.serverReportedTerminalReceipts ?? []).find((receipt) => receipt.state !== "tombstone" || receipt.issueNumber === undefined);
-  if (unresolvedTerminal !== undefined) {
-    return {
-      agentFilingNeeded: false,
-      drops,
-      errorMessage: `retro relay has server-owned ${unresolvedTerminal.state} request ${unresolvedTerminal.requestId}; inspect relay operations and logs`,
-      ok: false,
-      relay: relayOutcome,
-      result: emptyTriageResult()
-    };
-  }
-  return {
+  const drained = {
     agentFilingNeeded: delivery.retryable > 0 || delivery.deadLetteredThisRun > 0,
     drops,
-    ok: true,
     relay: relayOutcome,
     result: emptyTriageResult()
   };
+  if (unresolvedTerminal !== undefined) {
+    return {
+      ...drained,
+      errorMessage: `retro relay has server-owned ${unresolvedTerminal.state} request ${unresolvedTerminal.requestId}; inspect relay operations and logs`,
+      ok: false
+    };
+  }
+  return { ...drained, ok: true };
 }
 function relayDeliveryFailureOutcome(error2, drops, persistence, spoolFailed) {
   const persistenceError = spoolFailed > 0 ? `${relayPersistenceErrorMessage(persistence, spoolFailed)}; ` : "";
@@ -30844,6 +30859,12 @@ function resolveRelayReadiness(composition, manifest) {
     readArtifactAtCommit: composition.readArtifactAtCommit ?? (() => Promise.resolve(undefined))
   });
 }
+function relayRouteOverrides(composition) {
+  return {
+    ...composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs },
+    ...composition.fetch && { fetch: composition.fetch }
+  };
+}
 async function resolveRetroRelayRoute(input) {
   const composition = input.composition ?? {};
   const manifest = composition.manifest ?? CHECKED_IN_RELAY_READINESS;
@@ -30857,7 +30878,7 @@ async function resolveRetroRelayRoute(input) {
     return {
       route: {
         ...config,
-        ...composition.fetch && { fetch: composition.fetch },
+        ...relayRouteOverrides(composition),
         readiness
       }
     };
@@ -30868,7 +30889,7 @@ async function resolveRetroRelayRoute(input) {
   return {
     route: {
       ...resolved.config,
-      ...composition.fetch && { fetch: composition.fetch },
+      ...relayRouteOverrides(composition),
       readiness
     }
   };
@@ -34003,6 +34024,18 @@ function terminalResult(cwd, record) {
     data: { command: "review status", status: "failed", review_id: record.id }
   });
 }
+function effectiveReviewTargets(record) {
+  const data = record.result?.data;
+  if (typeof data !== "object" || data === null || Array.isArray(data))
+    return record.targets;
+  const excluded = data.excluded_targets;
+  if (excluded === undefined)
+    return record.targets;
+  if (!Array.isArray(excluded) || excluded.some((target) => typeof target !== "string"))
+    return;
+  const excludedPaths = new Set(excluded);
+  return record.targets.filter((target) => !excludedPaths.has(target));
+}
 function withReviewProvenance(record, result) {
   const data = typeof result.data === "object" && result.data !== null && !Array.isArray(result.data) ? result.data : {};
   return {
@@ -34011,7 +34044,7 @@ function withReviewProvenance(record, result) {
       ...data,
       review_id: record.id,
       review_kind: record.kind,
-      review_targets: record.targets
+      review_targets: effectiveReviewTargets(record) ?? []
     }
   };
 }
@@ -34478,7 +34511,7 @@ function approvedRetrospectiveReview(cwd, id, kind) {
   try {
     const record = readJob(cwd, id);
     const data = record.result?.data;
-    return record.kind === kind && record.state === "completed" && hasCurrentFingerprint(cwd, record) && hasIndependentApproval(data) ? record.targets : undefined;
+    return record.kind === kind && record.state === "completed" && hasCurrentFingerprint(cwd, record) && hasIndependentApproval(data) ? effectiveReviewTargets(record) : undefined;
   } catch {
     return;
   }

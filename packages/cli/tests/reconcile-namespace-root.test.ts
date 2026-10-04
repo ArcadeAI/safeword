@@ -28,6 +28,7 @@ const ANCHORED_TRANSIENT_PATTERNS = [
   '/skill-invocations.log',
   '/re-entry.md',
   '/dependency-readiness.json',
+  '/closeout-session-binding.json',
 ];
 
 // Assert a per-root .gitignore carries every transient pattern, root-anchored,

@@ -22,6 +22,29 @@ export function hasSafewordProjectMarker(projectDirectory: string): boolean {
 }
 
 /**
+ * The Safeword checkout that owns `filePath`: its nearest enclosing git
+ * working tree, when that tree is enrolled. Hosts keep CLAUDE_PROJECT_DIR at
+ * the launch checkout after a session enters a git worktree, so gates that
+ * read a ticket's sibling artifacts must root at the edited file's own tree
+ * (#5247). Falls back to `launchDirectory` for files outside any enrolled tree.
+ */
+export function resolveOwningProjectDirectory(launchDirectory: string, filePath: string): string {
+  if (filePath === '') return launchDirectory;
+  let directory = nodePath.dirname(filePath);
+  for (;;) {
+    if (existsSync(nodePath.join(directory, '.git'))) {
+      const owns = hasSafewordProjectMarker(directory);
+      return owns && nodePath.resolve(directory) !== nodePath.resolve(launchDirectory)
+        ? directory
+        : launchDirectory;
+    }
+    const parent = nodePath.dirname(directory);
+    if (parent === directory) return launchDirectory;
+    directory = parent;
+  }
+}
+
+/**
  * The raw non-empty `paths.<key>` string from `.safeword/config.json`, or
  * `undefined` (unset, empty, non-string, or missing/unparseable config).
  * Shared by the hook-side path resolvers (projectRoot here, architecture in

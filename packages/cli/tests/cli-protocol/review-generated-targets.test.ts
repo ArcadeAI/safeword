@@ -772,8 +772,11 @@ exec "${gitExecutable}" "$@"
       );
 
       expect(result.exitCode, result.stdout).toBe(0);
-      const envelope = JSON.parse(result.stdout) as { data: { excluded_targets: string[] } };
+      const envelope = JSON.parse(result.stdout) as {
+        data: { excluded_targets: string[]; review_targets: string[] };
+      };
       expect(envelope.data.excluded_targets).toEqual([runtime]);
+      expect(envelope.data.review_targets).toEqual(['README.md']);
       const prompt = readFileSync(promptLog, 'utf8');
       expect(prompt).toContain('# SAFEWORD - AI Agent Configuration CLI');
       expect(prompt).not.toContain(runtime);
