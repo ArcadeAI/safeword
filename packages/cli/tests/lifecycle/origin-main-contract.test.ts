@@ -12,6 +12,7 @@ import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { lifecycleFixtureTemplatesDigest } from '../../scripts/lib/lifecycle-fixture-templates-digest.js';
 import type { CommandInvocation } from '../../src/cli-protocol/handler.js';
 import { type CliResult, createResult } from '../../src/cli-protocol/result.js';
 import { installLifecycle, uninstallLifecycle } from '../../src/lifecycle/commands.js';
@@ -143,6 +144,9 @@ const CONTRACT_CASES = [
   'cursor-check',
   'cursor-uninstall',
 ] as const;
+
+const REGENERATE_HINT =
+  'If intentional, run `bun packages/cli/scripts/check-generated-surfaces.ts --fix` from the repo root and commit the fixture diff.';
 
 type Integration = 'claude' | 'codex' | 'cursor';
 type Operation = 'install' | 'upgrade' | 'check' | 'uninstall';
@@ -308,7 +312,15 @@ beforeAll(async () => {
   }
   writeFileSync(
     nodePath.join(FIXTURE_ROOT, 'manifest.json'),
-    `${JSON.stringify({ originMainCommit: ORIGIN_MAIN_COMMIT, fixtures }, undefined, 2)}\n`,
+    `${JSON.stringify(
+      {
+        originMainCommit: ORIGIN_MAIN_COMMIT,
+        templatesSha256: lifecycleFixtureTemplatesDigest(),
+        fixtures,
+      },
+      undefined,
+      2,
+    )}\n`,
   );
 });
 
@@ -319,6 +331,16 @@ afterAll(() => {
 describe('origin/main integration contracts', () => {
   it('does not invoke a package manager through execFileSync', () => {
     expect(packageManagerCalls).toEqual([]);
+  });
+
+  it('records the templates these fixtures were generated from', () => {
+    const manifest = JSON.parse(
+      readFileSync(nodePath.join(FIXTURE_ROOT, 'manifest.json'), 'utf8'),
+    ) as { readonly templatesSha256?: string };
+    expect(
+      manifest.templatesSha256,
+      `packages/cli/templates/ changed since these fixtures were generated. ${REGENERATE_HINT}`,
+    ).toBe(lifecycleFixtureTemplatesDigest());
   });
 
   it.each(CONTRACT_CASES)('SWM1.R3.S04 preserves %s byte-for-byte', contractCase => {
@@ -332,6 +354,16 @@ describe('origin/main integration contracts', () => {
     };
     expect(manifest.originMainCommit).toBe(ORIGIN_MAIN_COMMIT);
     expect(sha256(expected)).toBe(manifest.fixtures[contractCase]);
-    expect(actualFixtures.get(contractCase)).toBe(expected);
+    const actual = actualFixtures.get(contractCase) ?? '';
+    const resultDigest = (content: string): unknown =>
+      (JSON.parse(content) as { readonly result_sha256: string }).result_sha256;
+    expect(
+      resultDigest(actual),
+      `${contractCase} lifecycle result changed: this is a behavior change, not template drift. Inspect it before regenerating. ${REGENERATE_HINT}`,
+    ).toBe(resultDigest(expected));
+    expect(
+      actual,
+      `${contractCase} installed tree changed (usually a template edit). ${REGENERATE_HINT}`,
+    ).toBe(expected);
   });
 });

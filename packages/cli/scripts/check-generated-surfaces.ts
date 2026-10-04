@@ -11,11 +11,13 @@
  *   3. Claude historical catalogue + plugin release contract
  *                                -> bun run generate:claude-historical-catalogue
  *   4. Cursor wrappers           -> bun run generate:cursor-wrappers
+ *   5. Lifecycle origin-main fixtures (tree hashes move with templates, #5312)
+ *                                -> SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES=1 bun run test <contract>
  *
  * (Byte-identical template mirrors are already covered by parity-check.ts.)
  */
 import { execFile } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -25,6 +27,7 @@ import {
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
 } from '../src/cursor-wrappers.js';
+import { lifecycleFixtureTemplatesDigest } from './lib/lifecycle-fixture-templates-digest.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -45,7 +48,12 @@ function runBunScript(
   });
 }
 
-type Failure = { readonly surface: string; readonly fix: string; readonly detail: string };
+type Failure = {
+  readonly surface: string;
+  readonly fix: string;
+  readonly detail: string;
+  readonly fixLabel?: string;
+};
 
 /**
  * Bun prints a code frame and stack around the generator's own error. Keep the
@@ -137,6 +145,49 @@ function checkCursorWrappers(): Failure | undefined {
   };
 }
 
+const LIFECYCLE_CONTRACT = 'tests/lifecycle/origin-main-contract.test.ts';
+const LIFECYCLE_FIXTURE_ROOT = path.join(cliRoot, 'tests/fixtures/lifecycle-origin-main');
+const LIFECYCLE_FIXTURE_FIX = `SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES=1 bun run test ${LIFECYCLE_CONTRACT}`;
+
+/**
+ * The contract itself needs vitest mocks, so the fast check compares the
+ * templates digest the fixtures were generated from instead of re-running it.
+ */
+function checkLifecycleFixtures(): Failure | undefined {
+  const manifest = JSON.parse(
+    readFileSync(path.join(LIFECYCLE_FIXTURE_ROOT, 'manifest.json'), 'utf8'),
+  ) as { readonly templatesSha256?: string };
+  if (manifest.templatesSha256 === lifecycleFixtureTemplatesDigest()) return undefined;
+  return {
+    surface: 'Lifecycle origin-main fixtures',
+    fix: LIFECYCLE_FIXTURE_FIX,
+    detail:
+      'packages/cli/templates/ changed since tests/fixtures/lifecycle-origin-main was generated',
+  };
+}
+
+/** Behavior digests per contract case; these must not move with a template edit. */
+function lifecycleResultDigests(): Record<string, string> {
+  return Object.fromEntries(
+    readdirSync(LIFECYCLE_FIXTURE_ROOT)
+      .filter(name => name.endsWith('.json') && name !== 'manifest.json')
+      .map(name => {
+        const fixture = JSON.parse(
+          readFileSync(path.join(LIFECYCLE_FIXTURE_ROOT, name), 'utf8'),
+        ) as { readonly result_sha256: string };
+        return [name, fixture.result_sha256];
+      }),
+  );
+}
+
+function runLifecycleContract(update: boolean): ReturnType<typeof execFileAsync> {
+  return execFileAsync('node', ['scripts/run-vitest-with-build-lock.mjs', LIFECYCLE_CONTRACT], {
+    cwd: cliRoot,
+    env: { ...bunEnvironment, SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES: update ? '1' : '' },
+    maxBuffer: 16 * 1024 * 1024,
+  });
+}
+
 /**
  * One ordering edge is load-bearing: the catalogue writes
  * src/claude-plugin/historical-catalogue.generated.ts, which is bundled into
@@ -144,7 +195,8 @@ function checkCursorWrappers(): Failure | undefined {
  * comes out stale again, which reads like the fix did not work. The Cursor
  * wrappers are independent (the catalogue only fingerprints `.claude/**`
  * assets, and the plugin catalogue skips the cursor host directory); they run
- * first only for a stable, reproducible sequence.
+ * first only for a stable, reproducible sequence. The lifecycle fixtures run
+ * last: the Cursor wrappers write into templates/, which the fixtures hash.
  */
 const GENERATORS_IN_ORDER = [
   'generate-cursor-wrappers.ts',
@@ -153,10 +205,19 @@ const GENERATORS_IN_ORDER = [
   'generate-codex-plugin.ts',
 ] as const;
 
+const changedLifecycleResults: string[] = [];
+
 if (process.argv.includes('--fix')) {
   for (const script of GENERATORS_IN_ORDER) {
     console.log(`→ ${script}`);
     await runBunScript(script);
+  }
+  console.log(`→ ${LIFECYCLE_CONTRACT} (update, then verify)`);
+  const resultsBefore = lifecycleResultDigests();
+  await runLifecycleContract(true);
+  await runLifecycleContract(false);
+  for (const [name, digest] of Object.entries(lifecycleResultDigests())) {
+    if (resultsBefore[name] !== digest) changedLifecycleResults.push(name);
   }
 }
 
@@ -179,15 +240,31 @@ const surfaceResults = await Promise.all([
     fix: 'bun run generate:claude-historical-catalogue',
   }),
   Promise.resolve(checkCursorWrappers()),
+  Promise.resolve(checkLifecycleFixtures()),
 ]);
 
 const failures = surfaceResults.filter((failure): failure is Failure => failure !== undefined);
 
+// A template edit should only move tree hashes. Regenerated result hashes mean
+// lifecycle behavior changed, which --fix must surface rather than silently accept.
+if (changedLifecycleResults.length > 0) {
+  failures.push({
+    surface: 'Lifecycle origin-main fixtures: result_sha256 changed (behavior change)',
+    fix: 'git diff tests/fixtures/lifecycle-origin-main',
+    fixLabel: 'Inspect',
+    detail: [
+      'Regenerated, but these lifecycle results changed, not just the installed tree.',
+      'Confirm the behavior change is intended and explain it in the PR before committing:',
+      ...changedLifecycleResults.map(name => `  - ${name}`),
+    ].join('\n'),
+  });
+}
+
 if (failures.length > 0) {
   console.error('Generated surface check failed:\n');
-  for (const { surface, fix, detail } of failures) {
+  for (const { surface, fix, detail, fixLabel = 'If stale, regenerate' } of failures) {
     console.error(`✗ ${surface}`);
-    console.error(`  If stale, regenerate: (cd packages/cli && ${fix})`);
+    console.error(`  ${fixLabel}: (cd packages/cli && ${fix})`);
     if (detail) {
       console.error(
         detail
@@ -206,6 +283,6 @@ if (failures.length > 0) {
 
 console.log(
   process.argv.includes('--fix')
-    ? 'Regenerated all 4 surfaces and verified them. Stage the result.'
-    : 'All 4 generated surfaces current.',
+    ? 'Regenerated all 5 surfaces and verified them. Stage the result.'
+    : 'All 5 generated surfaces current.',
 );
