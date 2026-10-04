@@ -1171,6 +1171,69 @@ describe('retro command configuration, extraction, egress, and relay execution',
     },
   );
 
+  it.each([
+    ['queued for retry', 503, { retryable: 1, deadLetteredThisRun: 0 }],
+    ['dead-lettered locally', 400, { retryable: 0, deadLetteredThisRun: 1 }],
+  ] as const)(
+    'still reports durable work %s when a server-owned receipt shares the batch',
+    async (_label, leftBehindStatus, leftBehind) => {
+      // The terminal-receipt branch must not hide durable work left behind by the
+      // rest of the batch: `agentFilingNeeded` means "durable work remains", and a
+      // server-owned failure says nothing about the other drafts. It never triggers
+      // direct filing — the relay route returns before native filing can run — so
+      // reporting the queued draft cannot duplicate the server-owned request.
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-terminal-mixed-'));
+      const transport = new FakeGitHub();
+      const rejected = rawFinding({ title: 'Server rejects this finding' });
+      const queued = rawFinding({
+        repro: 'queued repro',
+        title: 'Relay is briefly unavailable for this finding',
+        what_happened: 'A second finding happened.',
+      });
+      const send = vi.fn<typeof fetch>((_input, init) => {
+        const request = JSON.parse(Buffer.from(init?.body as Uint8Array).toString('utf8')) as {
+          requestId: string;
+          title: string;
+        };
+        if (request.title === queued.title) {
+          return Promise.resolve(new Response(undefined, { status: leftBehindStatus }));
+        }
+        return Promise.resolve(
+          Response.json({
+            receiptId: `receipt-${request.requestId}`,
+            requestId: request.requestId,
+            state: 'rejected',
+          }),
+        );
+      });
+      try {
+        const outcome = await runRetro(
+          { transcript: '/tmp/session.jsonl' },
+          dependencies({
+            extract: () => Promise.resolve([rejected, queued]),
+            projectDirectory,
+            relay: {
+              credential: 'swc_test',
+              fetch: send,
+              installationId: 42,
+              readiness: { enabled: true },
+              relayUrl: 'https://relay.invalid',
+              repository: 'arcadeai/safeword',
+            },
+            transport,
+          }),
+        );
+
+        expect(outcome.relay).toMatchObject(leftBehind);
+        expect(outcome).toMatchObject({ agentFilingNeeded: true, ok: false });
+        expect(outcome.errorMessage).toContain('server-owned rejected');
+        expect(transport.calls.createIssue).toBe(0);
+      } finally {
+        rmSync(projectDirectory, { recursive: true, force: true });
+      }
+    },
+  );
+
   it('completes when a server tombstone names its resolved issue', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-tombstone-'));
     try {

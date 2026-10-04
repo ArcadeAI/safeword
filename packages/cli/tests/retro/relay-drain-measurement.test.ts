@@ -7,9 +7,12 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
-  MIN_DRAIN_ACCEPTED_COUNT,
-  validateRelayReadiness,
-} from '../../src/retro/relay-readiness.js';
+  measureRelayDrainThroughput,
+  RELAY_LATENCY_MS,
+  type RelayDrainMeasurement,
+  waitForRelayLatency,
+} from '../../scripts/relay-drain-measurement.js';
+import { validateRelayReadiness } from '../../src/retro/relay-readiness.js';
 import {
   relayReadinessMeasurementContent,
   validRelayReadinessManifest,
@@ -23,105 +26,174 @@ afterEach(() => {
   directories.length = 0;
 });
 
-describe('relay drain-throughput measurement producer', () => {
-  it('writes exact validator-compatible evidence bytes', async () => {
-    const directory = mkdtempSync(path.join(tmpdir(), 'relay-drain-measurement-'));
-    directories.push(directory);
-    const output = path.join(directory, 'drain-throughput.json');
-    const result = spawnSync(
-      'bun',
-      [path.join(packageRoot, 'scripts/measure-relay-drain-throughput.ts'), '--output', output],
-      {
-        cwd: packageRoot,
-        encoding: 'utf8',
-        timeout: 10_000,
-      },
-    );
+async function readinessValidation(artifact: RelayDrainMeasurement) {
+  const manifest = validRelayReadinessManifest();
+  const closedAt = new Date(new Date(artifact.measuredAt).getTime() - 1000).toISOString();
+  manifest.reviewedAt = artifact.measuredAt;
+  for (const prerequisite of manifest.prerequisites) prerequisite.closedAt = closedAt;
+  for (const measurement of Object.values(manifest.measurements)) {
+    measurement.measuredAt = artifact.measuredAt;
+  }
+  manifest.measurements.drainThroughput.sampleSize = artifact.sampleSize;
+  const artifactContent = new Map<string, string>();
+  for (const [metric, measurement] of Object.entries(manifest.measurements)) {
+    const content =
+      metric === 'drainThroughput'
+        ? `${JSON.stringify(artifact, undefined, 2)}\n`
+        : relayReadinessMeasurementContent(manifest, measurement.path);
+    measurement.sha256 = createHash('sha256').update(content).digest('hex');
+    artifactContent.set(measurement.path, content);
+  }
+  return validateRelayReadiness(manifest, {
+    buildCommit: 'b'.repeat(40),
+    isAncestor: () => Promise.resolve(true),
+    now: new Date(artifact.measuredAt),
+    readArtifactAtCommit: (_commit, artifactPath) => {
+      const content = artifactContent.get(artifactPath);
+      if (content === undefined) return Promise.resolve(undefined);
+      const sha256 = createHash('sha256').update(content).digest('hex');
+      return Promise.resolve({ content, sha256 });
+    },
+  });
+}
 
-    expect(result.error, `${result.stderr}\n${result.stdout}`).toBeUndefined();
-    expect(result.status, result.stderr).toBe(0);
-    const writtenArtifact = readFileSync(output, 'utf8');
-    const artifact = JSON.parse(writtenArtifact) as {
-      measuredAt: string;
-      metric: string;
-      repository: string;
-      result: {
-        acceptedCount: number;
-        backlogSize: number;
-        durationMs: number;
-        overallDeadlineMs: number;
-        requestDeadlineMs: number;
-        relayLatencyMs: number;
+function runMeasurementCli(): RelayDrainMeasurement {
+  const directory = mkdtempSync(path.join(tmpdir(), 'relay-drain-measurement-'));
+  directories.push(directory);
+  const output = path.join(directory, 'drain-throughput.json');
+  const result = spawnSync(
+    'bun',
+    [path.join(packageRoot, 'scripts/measure-relay-drain-throughput.ts'), '--output', output],
+    { cwd: packageRoot, encoding: 'utf8', timeout: 10_000 },
+  );
+  expect(
+    result.error,
+    `failed to start bun: ${result.error?.message ?? 'unknown error'}`,
+  ).toBeUndefined();
+  expect(result.status, result.stderr).toBe(0);
+  return JSON.parse(readFileSync(output, 'utf8')) as RelayDrainMeasurement;
+}
+
+/**
+ * One virtual timeline for everything delivery times: the drain budget clock,
+ * each attempt's abort timer, and the simulated relay latency. A wait advances
+ * the clock and fires any timer that falls due on the way, in order, so an
+ * attempt whose deadline lands inside its round trip is aborted exactly as a
+ * real transport would be.
+ */
+function virtualTimeline() {
+  let now = 0;
+  const timers: { at: number; callback: () => void; live: boolean }[] = [];
+  return {
+    monotonicNow: () => now,
+    setTimer: (callback: () => void, delayMs: number) => {
+      const timer = { at: now + delayMs, callback, live: true };
+      timers.push(timer);
+      return () => {
+        timer.live = false;
       };
-      sampleSize: number;
-      version: number;
-    };
+    },
+    wait: (milliseconds: number, signal?: AbortSignal) => {
+      const until = now + milliseconds;
+      const due = timers
+        .filter(timer => timer.live && timer.at <= until)
+        .toSorted((left, right) => left.at - right.at);
+      for (const timer of due) {
+        timer.live = false;
+        now = timer.at;
+        timer.callback();
+        if (signal?.aborted === true) return Promise.reject(new Error('relay attempt aborted'));
+      }
+      now = until;
+      return Promise.resolve();
+    },
+  };
+}
+
+describe('relay drain-throughput measurement producer', () => {
+  // The producer's logic is proven on a virtual clock. On real time, how many
+  // drafts drain inside the 750 ms budget is a property of the machine, not the
+  // code: a contended CI runner has completed as few as one, which failed
+  // assertions with nothing wrong in the producer. Here every relay round trip
+  // costs exactly RELAY_LATENCY_MS of virtual time and nothing else moves.
+  it('drains exactly the drafts whose round trip fits inside its attempt deadline', async () => {
+    const artifact = await measureRelayDrainThroughput(virtualTimeline());
+
+    // Each attempt may run for min(500, remaining − 100) ms. Attempt k starts
+    // at 80k ms, so it is allowed 650 − 80k: the eighth (k = 7) gets 90 ms and
+    // completes; the ninth (k = 8) gets only 10 ms and is aborted at 650 ms,
+    // leaving exactly the 100 ms cleanup reserve, so the drain stops there.
+    expect(artifact.result).toEqual({
+      acceptedCount: 8,
+      backlogSize: 300,
+      durationMs: 650,
+      overallDeadlineMs: 750,
+      relayLatencyMs: RELAY_LATENCY_MS,
+      requestDeadlineMs: 500,
+    });
+  });
+
+  it('produces evidence the release readiness validator accepts', async () => {
+    const artifact = await measureRelayDrainThroughput(virtualTimeline());
+
+    expect(await readinessValidation(artifact)).toEqual({ enabled: true });
+  });
+
+  // The production wait is the one path the virtual tests never exercise. Its
+  // timing is checked from below only: a slow machine can make a wait longer,
+  // never shorter, so these cannot fail for want of a fast runner.
+  it('holds each real relay round trip for the full latency', async () => {
+    const started = performance.now();
+    await waitForRelayLatency(RELAY_LATENCY_MS);
+
+    // Timers may fire a fraction of a millisecond early from clock rounding.
+    expect(performance.now() - started).toBeGreaterThanOrEqual(RELAY_LATENCY_MS - 1);
+  });
+
+  it('abandons a real relay round trip as soon as the attempt aborts', async () => {
+    const controller = new AbortController();
+    // Long enough that a wait which ignored the abort would resolve and fail
+    // the assertion below, short enough to fail fast rather than time out.
+    const pending = waitForRelayLatency(2000, controller.signal);
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  // The CLI is release tooling that measures the real machine, so its output
+  // is never asserted against a machine-speed threshold.
+  it('writes a well-formed artifact from the command line', () => {
+    const artifact = runMeasurementCli();
+
     expect(artifact).toMatchObject({
       metric: 'drainThroughput',
       repository: 'ArcadeAI/safeword',
       result: {
         backlogSize: 300,
         overallDeadlineMs: 750,
+        relayLatencyMs: RELAY_LATENCY_MS,
         requestDeadlineMs: 500,
-        relayLatencyMs: 80,
       },
       sampleSize: 300,
       version: 2,
     });
     expect(new Date(artifact.measuredAt).toISOString()).toBe(artifact.measuredAt);
-    const expectedSequentialCompletions = Math.floor(
-      artifact.result.overallDeadlineMs / artifact.result.relayLatencyMs,
+    expect(Number.isSafeInteger(artifact.result.acceptedCount)).toBe(true);
+    expect(artifact.result.acceptedCount).toBeGreaterThanOrEqual(0);
+    expect(artifact.result.acceptedCount).toBeLessThanOrEqual(artifact.result.backlogSize);
+    expect(Number.isFinite(artifact.result.durationMs)).toBe(true);
+    expect(artifact.result.durationMs).toBeGreaterThan(0);
+  });
+
+  it('cannot report draining faster than the real relay latency allows', () => {
+    const artifact = runMeasurementCli();
+
+    // Every accepted request waited out the real latency in sequence, so the
+    // drain cannot be shorter than that. A lower bound only: a slow runner
+    // lengthens the drain and never trips it, while a relay that skipped its
+    // latency would report many acceptances in almost no time.
+    expect(artifact.result.durationMs).toBeGreaterThanOrEqual(
+      artifact.result.acceptedCount * (RELAY_LATENCY_MS - 1),
     );
-    // The upper bound is a correctness property: exceeding it would mean the
-    // overall deadline failed to bound the drain, which no amount of machine
-    // speed can excuse.
-    expect(
-      artifact.result.acceptedCount,
-      'the drain measurement must remain bounded by its configured deadline',
-    ).toBeLessThanOrEqual(expectedSequentialCompletions + 1);
-    // The lower bound is NOT `expectedSequentialCompletions - 2`. That asked a
-    // shared CI runner to sustain near-ideal sequential throughput against real
-    // `setTimeout` latency, so ordinary runner contention failed it with nothing
-    // wrong with the producer (observed: 5 accepted against a floor of 7). What
-    // this test actually promises is in its name — validator-compatible bytes —
-    // and the validator's own MIN_DRAIN_ACCEPTED_COUNT is the floor that keeps a
-    // degenerate measurement from passing. Assert that floor explicitly here so
-    // the intent is visible, and let the validateRelayReadiness call below prove
-    // the whole artifact end to end.
-    expect(
-      artifact.result.acceptedCount,
-      'a degenerate drain measurement is not usable readiness evidence',
-    ).toBeGreaterThanOrEqual(MIN_DRAIN_ACCEPTED_COUNT);
-
-    const manifest = validRelayReadinessManifest();
-    const closedAt = new Date(new Date(artifact.measuredAt).getTime() - 1000).toISOString();
-    manifest.reviewedAt = artifact.measuredAt;
-    for (const prerequisite of manifest.prerequisites) prerequisite.closedAt = closedAt;
-    for (const measurement of Object.values(manifest.measurements)) {
-      measurement.measuredAt = artifact.measuredAt;
-    }
-    manifest.measurements.drainThroughput.sampleSize = artifact.sampleSize;
-    const artifactContent = new Map<string, string>();
-    for (const [metric, measurement] of Object.entries(manifest.measurements)) {
-      const content =
-        metric === 'drainThroughput'
-          ? writtenArtifact
-          : relayReadinessMeasurementContent(manifest, measurement.path);
-      measurement.sha256 = createHash('sha256').update(content).digest('hex');
-      artifactContent.set(measurement.path, content);
-    }
-
-    const validation = await validateRelayReadiness(manifest, {
-      buildCommit: 'b'.repeat(40),
-      isAncestor: () => Promise.resolve(true),
-      now: new Date(artifact.measuredAt),
-      readArtifactAtCommit: (_commit, artifactPath) => {
-        const content = artifactContent.get(artifactPath);
-        if (content === undefined) return Promise.resolve(undefined);
-        const sha256 = createHash('sha256').update(content).digest('hex');
-        return Promise.resolve({ content, sha256 });
-      },
-    });
-    expect(validation).toEqual({ enabled: true });
   });
 });
