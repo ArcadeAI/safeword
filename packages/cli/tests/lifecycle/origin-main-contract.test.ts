@@ -12,7 +12,11 @@ import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { lifecycleFixtureTemplatesDigest } from '../../scripts/lib/lifecycle-fixtures.js';
+import {
+  isLifecycleFixtureStale,
+  LIFECYCLE_FIXTURE_ROOT as FIXTURE_ROOT,
+  lifecycleFixtureTemplatesDigest,
+} from '../../scripts/lib/lifecycle-fixtures.js';
 import type { CommandInvocation } from '../../src/cli-protocol/handler.js';
 import { type CliResult, createResult } from '../../src/cli-protocol/result.js';
 import { installLifecycle, uninstallLifecycle } from '../../src/lifecycle/commands.js';
@@ -128,7 +132,6 @@ vi.mock('../../src/codex-plugin/operations.js', () => ({
   },
 }));
 
-const FIXTURE_ROOT = nodePath.join(import.meta.dirname, '../fixtures/lifecycle-origin-main');
 const ORIGIN_MAIN_COMMIT = 'f22e2997ba8ef68d3d198ca2d937bfbf35fdab87';
 const CONTRACT_CASES = [
   'claude-install',
@@ -334,13 +337,10 @@ describe('origin/main integration contracts', () => {
   });
 
   it('records the templates these fixtures were generated from', () => {
-    const manifest = JSON.parse(
-      readFileSync(nodePath.join(FIXTURE_ROOT, 'manifest.json'), 'utf8'),
-    ) as { readonly templatesSha256?: string };
     expect(
-      manifest.templatesSha256,
+      isLifecycleFixtureStale(),
       `packages/cli/templates/ changed since these fixtures were generated. ${REGENERATE_HINT}`,
-    ).toBe(lifecycleFixtureTemplatesDigest());
+    ).toBe(false);
   });
 
   it.each(CONTRACT_CASES)('SWM1.R3.S04 preserves %s byte-for-byte', contractCase => {
