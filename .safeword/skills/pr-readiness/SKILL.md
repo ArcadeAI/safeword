@@ -24,6 +24,9 @@ material push. Apply or answer every finding.
 Changing Draft/Ready state requires explicit authority in the current user
 request for that exact change. Otherwise observe and report state only.
 
+After creating a Draft pull request for evidence, return directly to the next
+unfinished delivery step instead of reporting the change ready for review.
+
 ## Seven hard Ready-for-Review gates
 
 Evaluate every gate. Missing, stale, unknown, pending, skipped without an

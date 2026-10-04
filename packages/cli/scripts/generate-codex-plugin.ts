@@ -7,7 +7,6 @@ import {
   adaptCodexWorkflowInvocations,
   writeCodexPluginCatalogue,
 } from '../src/codex-plugin/catalogue.js';
-import { PROJECT_RUNTIME_SCRIPT_PATHS } from '../src/project-runtime-helpers.js';
 import { VERSION } from '../src/version.js';
 import { generatePlanRubric } from './generate-plan-rubric.js';
 import { generateQualityRubric } from './generate-quality-rubric.js';
@@ -30,7 +29,8 @@ const outputRelativeToShippedRoot =
 if (
   outputRelativeToShippedRoot !== undefined &&
   (outputRelativeToShippedRoot === '' ||
-    (!outputRelativeToShippedRoot.startsWith(`..${nodePath.sep}`) &&
+    (outputRelativeToShippedRoot !== '..' &&
+      !outputRelativeToShippedRoot.startsWith(`..${nodePath.sep}`) &&
       !nodePath.isAbsolute(outputRelativeToShippedRoot)))
 ) {
   throw new Error('Custom output must be outside the checked-in Codex plugin directory');
@@ -96,20 +96,13 @@ async function generatePlugin(
     readFileSync(handbookSource, 'utf8'),
     knownSkillNames,
   );
-  mkdirSync(templatesDirectory, { recursive: true });
-  writeFileSync(nodePath.join(templatesDirectory, 'SAFEWORD.md'), handbook);
-  cpSync(
-    nodePath.join(packageRoot, 'templates/hooks'),
-    nodePath.join(templatesDirectory, 'hooks'),
-    {
-      recursive: true,
-    },
-  );
-  for (const relativePath of PROJECT_RUNTIME_SCRIPT_PATHS) {
-    const destination = nodePath.join(generatedRoot, relativePath);
-    mkdirSync(nodePath.dirname(destination), { recursive: true });
-    cpSync(nodePath.join(packageRoot, relativePath), destination);
-  }
+  // runtime/cli.js is the same standalone bundle shipped by npm and expects
+  // the canonical flat templates/ tree. Native skills remain separately
+  // adapted at plugin root; this copy exists for CLI resource consumers.
+  cpSync(nodePath.join(packageRoot, 'templates'), templatesDirectory, { recursive: true });
+  const resourcesDirectory = nodePath.join(generatedRoot, 'resources');
+  mkdirSync(resourcesDirectory, { recursive: true });
+  writeFileSync(nodePath.join(resourcesDirectory, 'SAFEWORD.md'), handbook);
 
   if (includeAuthoredFiles) {
     manifest.version = options.effectiveVersion;

@@ -23,6 +23,7 @@ import { parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { hasInspirationActivationCandidate } from './lib/inspiration.ts';
 import { classifyAnnotation, isValidSha, isValidSkipReason } from './lib/parse-annotation.ts';
+import { classifyPrReadinessCommand, evaluatePrReadiness } from './lib/pr-readiness-guard.ts';
 import {
   AUTHOR_MODEL_ENV,
   detectPhaseAdvance,
@@ -46,7 +47,12 @@ import {
   readSessionState,
   recordFailure,
 } from './lib/quality-state.ts';
-import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
+import {
+  hasSafewordProjectMarker,
+  isNamespacePath,
+  resolveNamespaceRoot,
+  resolveOwningProjectDirectory,
+} from './lib/namespace-root.ts';
 import { reviewKindForPhase } from './lib/review-receipt.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
@@ -142,17 +148,18 @@ function withOrderingNote(context: string): string {
   return `${context} ${APPLY_PATCH_ORDERING_NOTE}`;
 }
 
-function deny(reason: string, additionalContext?: string): never {
+function deny(reason: string, additionalContext?: string, exposeReasonToUser = false): never {
+  const fullReason = `${reason}\n\n${EXPLAIN_HINT}`;
   const output: Record<string, unknown> = {
     // systemMessage is the top-level field Claude Code surfaces to the USER
     // (permissionDecisionReason goes to the model and can be swallowed before the
     // user sees it — issue #17356). The hint rides both: the reason for the model
     // + Codex adapter, systemMessage for the human. Augment, never replace.
-    systemMessage: EXPLAIN_HINT,
+    systemMessage: exposeReasonToUser ? fullReason : EXPLAIN_HINT,
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',
-      permissionDecisionReason: `${reason}\n\n${EXPLAIN_HINT}`,
+      permissionDecisionReason: fullReason,
       ...(additionalContext ? { additionalContext } : {}),
     },
   };
@@ -173,8 +180,7 @@ function isMissingFrontmatterField(value: string | string[] | undefined): boolea
 // Keep the host-provided spelling as the session identity: state files are keyed
 // by that exact string. Use the canonical form only for filesystem containment
 // and relative-path comparisons (`/var` and `/private/var` alias on macOS).
-const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const canonicalProjectDirectory = realpathSync(projectDirectory);
+const launchProjectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
 // Tier 1 (per-asset) is off unless `.safeword/config.json` sets `reviewGate: true`
 // — it is per-asset, so it has no phase to select on and stays all-or-nothing.
@@ -386,6 +392,14 @@ function canonicalPathForGate(path: string, seen = new Set<string>()): string {
 const editedFile =
   requestedEditedFile === '' ? requestedEditedFile : canonicalPathForGate(requestedEditedFile);
 
+// An edit inside another enrolled git worktree (e.g. `.claude/worktrees/<name>`
+// after the session entered it) is gated against that worktree's tickets,
+// config, and state — not the launch checkout's (#5247).
+const projectDirectory = EDIT_TOOLS.includes(tool)
+  ? resolveOwningProjectDirectory(launchProjectDirectory, editedFile)
+  : launchProjectDirectory;
+const canonicalProjectDirectory = realpathSync(projectDirectory);
+
 // ---------------------------------------------------------------------------
 // Bash gates:
 // 1. Ledger write gate (ticket W42G34, #644 G3): shell commands may not write
@@ -406,6 +420,15 @@ const editedFile =
 
 if (tool === 'Bash') {
   const command = input.tool_input?.command ?? '';
+  if (
+    hasSafewordProjectMarker(projectDirectory) &&
+    classifyPrReadinessCommand(command) === 'ready'
+  ) {
+    const readiness = evaluatePrReadiness(projectDirectory, input.session_id);
+    if (!readiness.ok) {
+      deny(readiness.reason ?? 'This change is not finished.', undefined, true);
+    }
+  }
   const ledgerWrite = detectLedgerWrite(command);
   if (ledgerWrite) {
     deny(

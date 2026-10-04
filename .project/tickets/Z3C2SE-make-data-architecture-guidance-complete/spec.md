@@ -6,7 +6,7 @@
 
 - **Problem / Why now:** A downstream eventing plan followed the current guide but still needed repeated review to surface ownership, scope binding, lifecycle, encryption, migration, version-sensitive behavior, and independent proof. The relational-first checklist is simultaneously incomplete for high-risk systems and irrelevant for simpler or non-relational systems.
 - **Expected outcome:** A context-free author or reviewer identifies every applicable consequential data contract, records evidence that can falsify it, and omits storage-specific ceremony that the system does not need.
-- **Success threshold:** One current content-bound context-free result for each of nine representative cases matches its deterministic expected/forbidden decision-ID and proof-fact-ID rubric with no extra decisions or claims, and a generated-manifest result fails when the guide's independent-proof module is ablated; every record binds model, prompt, response, and guide hash without claiming first-try or repeated-run reliability; the supported install/generation checks keep the canonical, `.safeword`, and Claude guide copies coherent, keep Codex copy-free, and resolve each generated planning link to its owned/shared guide path.
+- **Success threshold:** One current content-bound context-free result for each of nine representative cases matches its deterministic expected/forbidden decision-ID and proof-fact-ID rubric with no extra decisions or claims, and a generated-manifest result fails when the guide's independent-proof module is ablated; every record binds model, prompt, response, and guide hash without claiming first-try or repeated-run reliability; the supported install/generation checks keep the canonical, `.safeword`, Claude-native, and embedded CLI template copies coherent, keep Codex free of a competing host-native copy, and resolve each generated planning link to its owned/shared guide path.
 - **Project non-goals:** Prescribing a database or provider; requiring production credentials, secrets, customer data, full DDL, or raw query-plan dumps in architecture documents (the relational module records the bounded environment/query/threshold facts needed to validate a claim, not a dump); moving implementation ownership into architecture; duplicating issues #4200 or #4210.
 
 ## Jobs To Be Done
@@ -57,12 +57,14 @@
 ## Surfaces
 
 Affected:
+
 - Claude Code
 - OpenAI Codex
 - Cursor
 - Safeword CLI
 
 Unaffected:
+
 - OpenCode — issue #4560 does not add or change an OpenCode guide or planning reference.
 - Claude Code Cloud — it consumes the same generated Claude plugin resource as local Claude Code.
 - Claude Code on the Web — it consumes the Claude Code Cloud plugin resource rather than a distinct guide copy.

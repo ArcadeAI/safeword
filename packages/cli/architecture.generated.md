@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c
+fingerprint: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e
 ---
 
 # Architecture
@@ -9,7 +9,7 @@ fingerprint: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c
 
 ### boundary
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/boundary`
 
@@ -17,7 +17,7 @@ Evaluates architectural boundary evidence and dependency-policy compliance.
 
 ### claude-plugin
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/claude-plugin`
 
@@ -25,7 +25,7 @@ Owns native Claude plugin delivery, exact execution proof, historical ownership 
 
 ### cli
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/cli.ts`
 
@@ -33,7 +33,7 @@ Composes the executable and registers public, compatibility, and hidden hook com
 
 ### cli-protocol
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/cli-protocol`
 
@@ -41,7 +41,7 @@ Defines the typed command catalogue, effect policy, plans, results, rendering, a
 
 ### codex-plugin
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/codex-plugin`
 
@@ -49,7 +49,7 @@ Owns Codex profile-plugin installation, proof, legacy authority, migration, fina
 
 ### commands
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/commands`
 
@@ -57,7 +57,7 @@ Implements domain handlers for removal, project workflows, tickets, Codex, and r
 
 ### cursor-wrappers
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/cursor-wrappers.ts`
 
@@ -65,7 +65,7 @@ Generates thin Cursor command and rule wrappers from canonical workflow template
 
 ### health
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/health.ts`
 
@@ -75,7 +75,7 @@ Config-health verification core (ticket 3293WH).
 
 ### index
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/index.ts`
 
@@ -83,7 +83,7 @@ Exposes the stable library API for version, detection, reconciliation, and ESLin
 
 ### learning-sync
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/learning-sync`
 
@@ -93,7 +93,7 @@ Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the `*.md
 
 ### lifecycle
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/lifecycle`
 
@@ -101,7 +101,7 @@ Orchestrates the unified install, plan, status, doctor, and uninstall lifecycle 
 
 ### opencode
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/opencode`
 
@@ -109,7 +109,7 @@ Owns OpenCode profile discovery, bounded evidence records, and collision-safe re
 
 ### owned-paths
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/owned-paths.ts`
 
@@ -119,7 +119,7 @@ Derive the set of top-level path prefixes that safeword may write to, sourced fr
 
 ### packs
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/packs`
 
@@ -127,15 +127,24 @@ Detects supported languages and supplies their files, packages, and setup behavi
 
 ### parity
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/parity.ts`
 
 Checks canonical templates, dogfood mirrors, generated catalogues, and one-way content contracts for drift.
 
+### plugin-bundle
+
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
+
+`src/plugin-bundle.ts`
+
+Normalizes generated plugin JavaScript so machine-specific Bun install paths do not change bundle
+bytes or integrity hashes.
+
 ### plugin-runtime-authority
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/plugin-runtime-authority.ts`
 
@@ -145,7 +154,7 @@ Enforces packaged-runtime authority for native plugin workflow assets.
 
 ### pr-review
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/pr-review`
 
@@ -153,7 +162,7 @@ Reviews pull-request evidence, applies conservative routing, and separates model
 
 ### presets
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/presets`
 
@@ -161,7 +170,7 @@ Publishes conditional JavaScript and TypeScript ESLint presets through the packa
 
 ### project-runtime-helpers
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/project-runtime-helpers.ts`
 
@@ -171,7 +180,7 @@ Dependency-free inventory of helpers the packaged project runtime may execute.
 
 ### project-state
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/project-state.ts`
 
@@ -181,7 +190,7 @@ Exposes lazy transient-state ignore management to the packaged CLI runtime.
 
 ### reconcile
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/reconcile.ts`
 
@@ -191,7 +200,7 @@ Reconciliation Engine
 
 ### retro
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/retro`
 
@@ -199,7 +208,7 @@ Sanitizes, deduplicates, triages, reconciles, and files retrospective findings.
 
 ### review
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/review`
 
@@ -207,7 +216,7 @@ Coordinates independent adversarial reviews across Claude and Codex, including r
 
 ### schema
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/schema.ts`
 
@@ -217,7 +226,7 @@ SAFEWORD Schema - Single Source of Truth
 
 ### self-report-capture
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/self-report-capture.ts`
 
@@ -227,7 +236,7 @@ CLI-side self-observation producer (ticket 5XXQQZ, issues #345 / #720).
 
 ### skills
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/skills`
 
@@ -235,7 +244,7 @@ Installs optional third-party language coding skills without owning Safeword wor
 
 ### templates
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/templates`
 
@@ -243,7 +252,7 @@ Builds dynamic configuration and legacy-cleanup content consumed by reconciliati
 
 ### test-execution
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/test-execution`
 
@@ -253,7 +262,7 @@ Resolves Safeword's local versus remote-preferred test-execution choice, includi
 
 ### test-plan
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/test-plan`
 
@@ -261,7 +270,7 @@ Resolves and renders the canonical test, build, typecheck, BDD, and dependency p
 
 ### ticket-create
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/ticket-create`
 
@@ -271,7 +280,7 @@ Route `ticket new` between the local-id path and issue-first creation (KKNFZA TB
 
 ### ticket-sync
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/ticket-sync`
 
@@ -281,7 +290,7 @@ Ticket sync — generates capability-discovery indexes over the ticket corpus: `
 
 ### tracker-connect
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/tracker-connect`
 
@@ -291,7 +300,7 @@ The connect orchestration (2TK5AD) — the single flow `setup` and `connect` bot
 
 ### tracker-sync
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/tracker-sync`
 
@@ -301,7 +310,7 @@ The sync-tracker orchestrator — the single call site that projects the ticket 
 
 ### upstream-monitor
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/upstream-monitor`
 
@@ -309,7 +318,7 @@ Tracks upstream Claude Code, Codex CLI, and Cursor release signals for compatibi
 
 ### utils
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/utils`
 
@@ -317,7 +326,7 @@ Provides shared architecture, manifest, filesystem, Git, path, detection, Gherki
 
 ### version
 
-<!-- reconciled: b674d2cdff51a61a79d08cca62dde6439d284915cb3bbc911385281907d8122c -->
+<!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
 
 `src/version.ts`
 

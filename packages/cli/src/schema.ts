@@ -306,6 +306,10 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'skill-invocations.log',
   're-entry.md',
   'dependency-readiness.json',
+  'readiness-ticket.json',
+  'closeout-session-binding.json',
+  'codex-review-stamp-identity.json',
+  'cursor-review-stamp-identity.json',
 ];
 
 /**
@@ -815,6 +819,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/branch-staleness.ts': { template: 'hooks/lib/branch-staleness.ts' },
     '.safeword/hooks/lib/blocked-on-gate.ts': { template: 'hooks/lib/blocked-on-gate.ts' },
     '.safeword/hooks/lib/closeout-binding.ts': { template: 'hooks/lib/closeout-binding.ts' },
+    '.safeword/hooks/lib/closest-base-ref.ts': { template: 'hooks/lib/closest-base-ref.ts' },
     '.safeword/hooks/lib/cursor-run-identity.ts': {
       template: 'hooks/lib/cursor-run-identity.ts',
     },
@@ -862,6 +867,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/review-ledger.ts': { template: 'hooks/lib/review-ledger.ts' },
     '.safeword/hooks/lib/review-receipt.ts': { template: 'hooks/lib/review-receipt.ts' },
     '.safeword/hooks/lib/read-receipt.ts': { template: 'hooks/lib/read-receipt.ts' },
+    '.safeword/hooks/lib/pr-readiness-guard.ts': {
+      template: 'hooks/lib/pr-readiness-guard.ts',
+    },
     '.safeword/hooks/lib/verify-stamp-claims.ts': { template: 'hooks/lib/verify-stamp-claims.ts' },
     '.safeword/hooks/lib/lint-config.ts': { template: 'hooks/lib/lint-config.ts' },
     '.safeword/hooks/lib/typecheck-gate.ts': { template: 'hooks/lib/typecheck-gate.ts' },

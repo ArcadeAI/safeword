@@ -98,7 +98,7 @@ export function defineGeneratedRubric(
 }
 
 /** Reconcile one generated runtime rubric and report its stable CLI result. */
-export function runGeneratedRubric(options: GeneratedRubricOptions): GeneratedFileReconciliation {
+function runGeneratedRubric(options: GeneratedRubricOptions): GeneratedFileReconciliation {
   const outputPath = generatedOutputPath(options.defaultOutputPath, options.generatorEntrypoint);
   const reconciliation = reconcileGeneratedFile({
     check: options.check,

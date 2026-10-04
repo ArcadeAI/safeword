@@ -61,6 +61,8 @@
     "generate:claude-historical-catalogue": "bun scripts/generate-claude-historical-catalogue.ts",
     "check:claude-historical-catalogue": "bun scripts/generate-claude-historical-catalogue.ts --check",
     "check:claude-plugin": "bun scripts/check-claude-plugin-release.ts",
+    "check:generated-surfaces": "bun scripts/check-generated-surfaces.ts",
+    "fix:generated-surfaces": "bun scripts/check-generated-surfaces.ts --fix",
     "check:pr-review-workflows": "bun scripts/check-pr-review-workflows.ts",
     "check:cli-contract": "bun scripts/check-cli-contract.ts",
     "generate:cli-reference": "bun scripts/generate-cli-reference.ts",

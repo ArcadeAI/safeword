@@ -88,6 +88,37 @@ If no E2E infrastructure exists, build skeleton first: thinnest slice proving ar
 
 Pick first unchecked scenario from test-definitions. Cycle through RED (failing test, commit) → GREEN (minimal code to pass, commit) → REFACTOR (if needed, commit).
 
+After an approved RED, continue directly into implementation without asking whether to proceed.
+After GREEN, continue through refactor and then start the next incomplete scenario without asking whether to proceed.
+When a required dependency is already authorized by the manifest but missing locally, restore it and rerun the failed check without asking whether to continue.
+
+A genuine boundary retains the blocked step and gives its exact recovery action before the evidence:
+
+When reporting a boundary to a Non-Technical Builder, name the exact decision needed to resume in plain language and omit internal workflow-stage names.
+
+- At an authority boundary during implementation, stop at implementation without advancing; request the required human decision.
+- At an authority boundary during verification, stop at verification without advancing; request the required human decision, then report the blocking evidence.
+- At a safety boundary during verification, stop at verification without advancing; approve the exact risky operation, then report the blocking evidence.
+- When verification requires a dependency absent from the manifest, stop at verification without advancing and ask the builder to authorize the dependency change.
+- When a manifest-authorized dependency cannot be restored automatically, treat it as a dependency boundary. At a dependency boundary during verification, stop at verification without advancing; restore the required dependency, then report the blocking evidence.
+- At a scope boundary during verification, stop at verification without advancing; decide the proposed scope change, then report the blocking evidence.
+
+Resume from an authority boundary according to its recorded recovery state:
+
+| Interrupted step | Recovery state                    | Next-step directive                                                      |
+| ---------------- | --------------------------------- | ------------------------------------------------------------------------ |
+| implementation   | the required decision outstanding | `Implementation remains blocked — make the required decision to resume.` |
+| implementation   | the required decision completed   | `Resume implementation work.`                                            |
+| verification     | the required decision outstanding | `Verification remains blocked — make the required decision to resume.`   |
+| verification     | the required decision completed   | `Resume verification work.`                                              |
+
+An unsuccessful TDD step stays at the failing step and reports its evidence:
+
+| Unhealthy outcome | Next-step directive                                                         | Do not advance to |
+| ----------------- | --------------------------------------------------------------------------- | ----------------- |
+| RED proof passes  | `RED — failing evidence: proof passed instead of exposing missing behavior` | `implementation`  |
+| GREEN check fails | `GREEN — failing evidence: required check failed`                           | `refactor`        |
+
 ### Trusted executable RED review
 
 Before production implementation begins for a new or changed primary proof, self-check the proof
@@ -245,6 +276,9 @@ catch cross-module regressions.
 Assess: duplication, unclear naming, excessive length? If yes, refactor (small changes directly, structural changes via `/refactor`). If no, proceed to next scenario.
 
 ## Implement exit: whole-ticket quality review + refactor
+
+After the final scenario, continue in order through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure without asking whether to proceed.
+After recorded ticket closure, continue into PR-readiness classification without invoking GitHub CLI Ready promotion, and request the builder's explicit authorization for that state change.
 
 All scenarios green → before reconciling the plan, do one pass over the **whole ticket** (not a single loop). Skip it only when the ticket has a single RGR loop — there's nothing to cross.
 

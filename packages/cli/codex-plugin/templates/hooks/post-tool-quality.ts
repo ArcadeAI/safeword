@@ -9,6 +9,7 @@ import nodePath from 'node:path';
 
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { ensureTransientStateIgnore } from './lib/project-state.ts';
+import { finalizeReadinessReceipt } from './lib/pr-readiness-guard.ts';
 import { getQualityMessage } from './lib/quality.ts';
 import {
   getStateFilePath,
@@ -141,10 +142,18 @@ if (!currentHead) {
 }
 
 // Check if commit happened (gate clears)
-if (state.lastCommitHash !== currentHead) {
+const headChanged = state.lastCommitHash !== currentHead;
+if (headChanged) {
   state.locSinceCommit = 0;
   state.lastCommitHash = currentHead;
   state.gate = null;
+  if (
+    state.readinessReceiptPending === true &&
+    state.recentCompletedTicket &&
+    finalizeReadinessReceipt(projectDirectory, state.recentCompletedTicket)
+  ) {
+    state.readinessReceiptPending = false;
+  }
 }
 
 // Count LOC
@@ -187,6 +196,37 @@ function frontmatterField(content: string, field: string): string | undefined {
   return content.match(new RegExp(`^${field}:\\s*(\\S+)`, 'm'))?.[1];
 }
 
+function ticketStatusAtHead(ticketFile: string): string | undefined {
+  const relativePath = nodePath.relative(projectDirectory, ticketFile);
+  if (relativePath === '..' || relativePath.startsWith(`..${nodePath.sep}`)) return undefined;
+  try {
+    const content = execFileSync(
+      'git',
+      ['show', `HEAD:${relativePath.split(nodePath.sep).join('/')}`],
+      {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      },
+    );
+    return frontmatterField(content, 'status');
+  } catch {
+    return undefined;
+  }
+}
+
+function completedTicketIdForVerifyArtifact(filePath: string): string | undefined {
+  if (!isNamespacePath(filePath, 'tickets/') || nodePath.basename(filePath) !== 'verify.md') {
+    return undefined;
+  }
+  const ticketFile = boundTicketFileForArtifact(filePath);
+  if (ticketFile === undefined || !existsSync(ticketFile)) return undefined;
+  const content = readFileSync(ticketFile, 'utf8');
+  return frontmatterField(content, 'status') === 'done'
+    ? frontmatterField(content, 'id')
+    : undefined;
+}
+
 // Active ticket binding (phase/TDD step no longer cached — derived at read time)
 // Exact-basename match (#673): a suffix check would let decoys like
 // `sub-ticket.md` shadow the folder's canonical ticket.md and bind to a
@@ -200,13 +240,34 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
 
     // Track active ticket
     const ticketId = frontmatterField(content, 'id');
+    const wasActiveTicket = ticketId !== undefined && state.activeTicket === ticketId;
     if (ticketId !== undefined) {
       state.activeTicket = ticketId;
     }
 
     // Auto-clear binding when ticket reaches done or backlog
     const ticketStatus = frontmatterField(content, 'status');
+    if (
+      ticketStatus !== undefined &&
+      ticketStatus !== 'done' &&
+      ticketId !== undefined &&
+      state.recentCompletedTicket === ticketId
+    ) {
+      delete state.recentCompletedTicket;
+      state.readinessReceiptPending = false;
+    }
     if (ticketStatus === 'done' || ticketStatus === 'backlog') {
+      if (ticketStatus === 'done' && ticketId !== undefined) {
+        const previousStatus = ticketStatusAtHead(fullPath);
+        const completedSinceHead = previousStatus !== undefined && previousStatus !== 'done';
+        state.recentCompletedTicket = ticketId;
+        // A closing edit may be the first ticket event observed in a resumed
+        // session. Arm the receipt from the durable done state itself rather
+        // than requiring a prior in-memory binding. The committed ticket must
+        // actually be unfinished so merely observing an old done ticket cannot
+        // bless an unrelated HEAD.
+        if (wasActiveTicket || completedSinceHead) state.readinessReceiptPending = true;
+      }
       state.activeTicket = null;
     }
 
@@ -246,6 +307,22 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
       }
     }
   }
+}
+
+// Re-running verification on an already-closed ticket deliberately refreshes
+// the exact current HEAD without requiring a follow-up commit. A later unrelated
+// commit remains stale because only this explicit verification edit may refresh.
+const completedVerifyTicket = completedTicketIdForVerifyArtifact(editedFile);
+const receiptTicket =
+  state.recentCompletedTicket ?? (state.activeTicket === null ? completedVerifyTicket : undefined);
+if (
+  receiptTicket &&
+  completedVerifyTicket === receiptTicket &&
+  (state.activeTicket === null || state.activeTicket === receiptTicket) &&
+  finalizeReadinessReceipt(projectDirectory, receiptTicket)
+) {
+  state.recentCompletedTicket = receiptTicket;
+  state.readinessReceiptPending = false;
 }
 
 // Novel-claim nudge: append the edited learnings file to the per-session

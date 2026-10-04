@@ -52,16 +52,8 @@ fi
 # config, that entry doesn't reliably resolve when committing from a worktree,
 # so bare `lint-staged` fails even though the binary exists on disk. The
 # explicit path has no PATH dependency.
-node_modules/.bin/lint-staged
+node_modules/.bin/lint-staged || exit 1
 
-# Template->mirror auto-heal (#768/#1146): lint-staged's `prettier --write` above
-# reformats packages/cli/templates/** but NOT the .claude/.agents/.safeword/.cursor
-# mirrors (they are prettier-ignored), silently desyncing the pair. Re-sync the
-# mirrors from the just-formatted templates and stage them — the same
-# auto-fix-and-restage model lint-staged already uses for eslint/prettier. Only
-# runs when a template is staged; parity:fix touches schema-registered pairs
-# only (repo-local skills like versioning have no template and are untouched).
-# Bypassable with --no-verify.
 PARITY_MIRROR_DIRS=".claude .agents .cursor .safeword packages/cli/codex-plugin"
 
 # Pre-existing working-tree changes in the mirror dirs — unstaged tracked edits
@@ -103,6 +95,15 @@ if git diff --cached --name-only | grep -q '^packages/cli/templates/'; then
       done
     fi
   fi
+fi
+
+# Generated-surface gate (#4701): a single template/mirror edit invalidates the
+# Codex plugin, the Claude plugin runtime, the Claude historical catalogue, and
+# the Cursor wrappers. Each used to be found only by its own 10-25 minute test
+# run. Check all four here (~10s) whenever a template or mirror is staged.
+# Bypassable with --no-verify.
+if git diff --cached --name-only | grep -qE '^(packages/cli/templates/|packages/cli/codex-plugin/|packages/cli/src/cursor-wrappers\.ts|plugin/|\.claude/|\.agents/|\.cursor/|\.safeword/)'; then
+  bun packages/cli/scripts/check-generated-surfaces.ts || exit 1
 fi
 
 # Boundary reconciliation gate (CDRJTW, #810 slice 1): warn-and-record over

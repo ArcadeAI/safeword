@@ -36,10 +36,14 @@ async function loadConfigModule(relativePath: string): Promise<CucumberConfigMod
 
 describe('Cucumber config targeted path handling', () => {
   it('keeps the package-local BDD lane complete for Cucumber and Vitest-backed features', () => {
+    const packageJson = JSON.parse(
+      readFileSync(nodePath.join(REPO_ROOT, 'package.json'), 'utf8'),
+    ) as { scripts?: Record<string, string> };
     const cliPackageJson = JSON.parse(
       readFileSync(nodePath.join(REPO_ROOT, 'packages/cli/package.json'), 'utf8'),
     ) as { scripts?: Record<string, string> };
 
+    expect(packageJson.scripts?.['test:bdd']).toMatch(/^bun run --cwd packages\/cli build && /u);
     expect(cliPackageJson.scripts?.['test:bdd']).toBe(
       'bun run test:bdd:acceptance && bun run test:bdd:proof',
     );

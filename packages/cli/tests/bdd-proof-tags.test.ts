@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -88,20 +89,14 @@ function proofManifestPaths(): string[] {
 }
 
 function onDiskProofManifestPaths(): string[] {
-  const manifests: string[] = [];
-  const visit = (directory: string): void => {
-    const entries = readdirSync(nodePath.join(REPO_ROOT, directory), { withFileTypes: true });
-    for (const entry of entries) {
-      const relativePath = nodePath.posix.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        if (!defaultExcludedPathSegments.has(entry.name)) visit(relativePath);
-      } else if (entry.name.endsWith('.bdd-proof.json')) {
-        manifests.push(relativePath);
-      }
-    }
-  };
-  visit('.');
-  return manifests.toSorted((left, right) => left.localeCompare(right));
+  return execFileSync(
+    'git',
+    ['ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', '*.bdd-proof.json'],
+    { cwd: REPO_ROOT, encoding: 'utf8' },
+  )
+    .split('\0')
+    .filter(path => path !== '')
+    .toSorted((left, right) => left.localeCompare(right));
 }
 
 function readProofManifest(relativePath: string): ScenarioProofManifest {

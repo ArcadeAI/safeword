@@ -17,17 +17,20 @@ Safeword configures AI coding agents with proven development workflows:
 ### Recommended CLI lifecycle
 
 ```bash
-safeword claude install
+bunx safeword@latest install --agents=claude
 # Or, to enable Safeword across every project in this Claude profile:
-safeword claude install --scope user
+bunx safeword@latest install --agents=claude --scope user
 # In Claude Code:
 /reload-plugins
-safeword claude status
+bunx safeword@latest claude status
 ```
+
+Use `@next` instead of `@latest` for 1.0 release candidates; `@latest` still
+resolves to the 0.x line.
 
 The installer pins the official release at project scope by default and records
 the declaration in `.claude/settings.json`. Explicit `--scope user` activation
-instead writes the Claude profile and leaves the repository unchanged. Status
+instead writes the Claude profile and leaves the repository unchanged. `safeword claude status`
 reports one effective project installation when project and user declarations
 resolve to the exact same verified payload. Different versions or cache payloads
 remain a visible `scope-overlap`; neither declaration is removed automatically.
@@ -54,19 +57,20 @@ canonical project root.
 
 Project state is still created explicitly:
 
-- `safeword install` — create or reconcile project-owned state and install Claude and Codex
+- `bunx safeword@latest install` — create or reconcile project-owned state and install Claude and Codex
 - `/safeword:bdd`, `/safeword:debug`, and the other namespaced skills — run native workflows
 
 For a legacy project, the first successful `UserPromptSubmit` handled by the
 exact plugin automatically removes only byte-for-byte released Safeword assets
 and exact historical hook entries. Unknown content is preserved and reported
-once per session. These commands remain available for inspection and recovery:
+once per session. `safeword claude status` and `safeword claude cleanup` remain available for
+inspection and recovery:
 
 ```bash
-safeword claude status
-safeword claude cleanup
+bunx safeword@latest claude status
+bunx safeword@latest claude cleanup
 # Run the exact --yes --plan command returned by the preview.
-safeword claude recover # only when status says recovery-required
+bunx safeword@latest claude recover # only when status says recovery-required
 ```
 
 Legacy protection stays authoritative until exact plugin execution is proven.
@@ -100,4 +104,4 @@ cache; uninstalling the plugin removes that Claude delivery surface.
 
 - [Website](https://safeword.dev)
 - [GitHub](https://github.com/ArcadeAI/safeword)
-- [CLI documentation](https://github.com/ArcadeAI/safeword/tree/main/packages/cli)
+- [CLI documentation](https://safeword.dev/reference/cli/)

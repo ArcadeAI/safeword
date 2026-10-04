@@ -51,6 +51,10 @@ export interface AdvisoryFinding {
 
 export type ArtifactEvidence =
   | {
+      kind: 'generated';
+      path: string;
+    }
+  | {
       kind: 'non_text';
       path: string;
     }
@@ -71,7 +75,7 @@ export type ArtifactCoverage =
     }
   | {
       path: string;
-      skipReason: 'non_text';
+      skipReason: 'generated' | 'non_text';
       status: 'skipped';
     };
 
@@ -144,9 +148,11 @@ function resolveEvidence(inspection: AdvisoryInspection): ResolvedEvidence {
   const coverage: ArtifactCoverage[] = [...(inspection.coverage ?? [])];
   const missingEvidence: string[] = [];
   const artifacts = inspection.artifacts ?? [];
-  let usedBytes = 0;
-
   for (const artifact of artifacts) {
+    if (artifact.kind === 'generated') {
+      coverage.push({ path: artifact.path, skipReason: 'generated', status: 'skipped' });
+      continue;
+    }
     if (artifact.kind === 'non_text') {
       coverage.push({ path: artifact.path, skipReason: 'non_text', status: 'skipped' });
       continue;
@@ -156,14 +162,10 @@ function resolveEvidence(inspection: AdvisoryInspection): ResolvedEvidence {
       continue;
     }
 
-    if (
-      inspection.maxTotalBytes !== undefined &&
-      usedBytes + artifact.byteLength > inspection.maxTotalBytes
-    ) {
+    if (inspection.maxTotalBytes !== undefined && artifact.byteLength > inspection.maxTotalBytes) {
       missingEvidence.push(artifact.path);
       continue;
     }
-    usedBytes += artifact.byteLength;
     coverage.push({ path: artifact.path, status: 'integrity_reviewed' });
   }
 

@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
   realpathSync,
   rmSync,
   statSync,
@@ -38,7 +39,7 @@ const [currentMajor = '0', currentMinor = '0'] =
   currentCliVersion.split('+', 1)[0]?.split('.') ?? [];
 const incompatibleReleaseVersion = `${currentMajor}.${Number(currentMinor) + 1}.0+codex.test`;
 
-function treeDigest(root: string): string {
+function treeDigest(root: string, ignoredPaths: readonly string[] = []): string {
   const hash = createHash('sha256');
   const visit = (directory: string): void => {
     const entries = readdirSync(directory, { withFileTypes: true }).toSorted((left, right) =>
@@ -46,8 +47,11 @@ function treeDigest(root: string): string {
     );
     for (const entry of entries) {
       const path = nodePath.join(directory, entry.name);
-      hash.update(nodePath.relative(root, path));
+      const relativePath = nodePath.relative(root, path);
+      if (ignoredPaths.includes(relativePath)) continue;
+      hash.update(relativePath);
       if (entry.isDirectory()) visit(path);
+      else if (entry.isSymbolicLink()) hash.update(readlinkSync(path));
       else hash.update(readFileSync(path));
     }
   };
@@ -184,9 +188,39 @@ describe('Codex plugin release contract', () => {
         expect(runtime.status, runtime.stderr).toBe(0);
         expect(runtime.stdout.trim()).toBe(effectiveVersion);
 
+        for (const relativePath of [
+          'templates/SAFEWORD.md',
+          'templates/spec-template.md',
+          'templates/skills/bdd/SKILL.md',
+          'templates/hooks/pre-tool-quality.ts',
+          'templates/workflows/remote-tests.yml',
+        ]) {
+          expect(existsSync(nodePath.join(output, relativePath))).toBe(true);
+        }
+        expect(readFileSync(nodePath.join(output, 'templates/SAFEWORD.md'))).toEqual(
+          readFileSync(nodePath.join(root, 'templates/SAFEWORD.md')),
+        );
+        expect(readFileSync(nodePath.join(output, 'resources/SAFEWORD.md'), 'utf8')).toContain(
+          '$safeword:figure-it-out',
+        );
+
         const codexHome = nodePath.join(fixture, 'codex-home');
         const project = nodePath.join(fixture, 'project');
         mkdirSync(project);
+        const ticket = spawnSync(
+          'bun',
+          [runtimePath, 'ticket', 'new', 'plugin-resource-proof', '--type=feature'],
+          { cwd: project, encoding: 'utf8' },
+        );
+        expect(ticket.status, `${ticket.stdout}${ticket.stderr}`).toBe(0);
+        expect(ticket.stdout).toContain('Changed: yes');
+        const install = spawnSync(
+          'bun',
+          [runtimePath, 'install', '--agents=none', '--no-input', '--offline'],
+          { cwd: project, encoding: 'utf8' },
+        );
+        expect(install.status, `${install.stdout}${install.stderr}`).toBe(0);
+        expect(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md'))).toBe(true);
         const sessionStart = spawnSync(
           'bun',
           [runtimePath, 'hook', 'codex', 'session-start', '--plugin-hook'],
@@ -294,6 +328,30 @@ describe('Codex plugin release contract', () => {
     }
   });
 
+  it('treats the plugin parent as outside the checked-in plugin directory', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const packageVersion = (
+      JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8')) as { version: string }
+    ).version;
+    const generation = spawnSync(
+      'bun',
+      [
+        'scripts/generate-codex-plugin.ts',
+        '--version',
+        `${packageVersion.split('+', 1)[0]}+codex.test`,
+        '--output',
+        root,
+      ],
+      { cwd: root, encoding: 'utf8' },
+    );
+
+    expect(generation.status).not.toBe(0);
+    expect(generation.stderr).toContain(`Output already exists: ${root}`);
+    expect(generation.stderr).not.toContain(
+      'Custom output must be outside the checked-in Codex plugin directory',
+    );
+  });
+
   it('keeps default generation deterministic at the package version', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
     const generation = spawnSync('bun', ['scripts/generate-codex-plugin.ts', '--check'], {
@@ -329,7 +387,11 @@ describe('Codex plugin release contract', () => {
       'quality-rubric.generated.ts',
       'red-rubric.generated.ts',
     ].map(file => nodePath.join(root, 'src/review', file));
-    const before = protectedTrees.map(treeDigest);
+    const protectedTreeDigests = (): string[] =>
+      protectedTrees.map(tree =>
+        treeDigest(tree, tree === nodePath.join(repoRoot, '.claude') ? ['worktrees'] : []),
+      );
+    const before = protectedTreeDigests();
     const beforeGeneratedMtimes = protectedGeneratedFiles.map(file => statSync(file).mtimeMs);
     try {
       const generation = spawnSync(
@@ -340,7 +402,7 @@ describe('Codex plugin release contract', () => {
 
       expect(generation.status, generation.stderr).toBe(0);
       expect(treeDigest(output)).not.toBe(treeDigest(nodePath.join(root, 'codex-plugin')));
-      expect(protectedTrees.map(treeDigest)).toEqual(before);
+      expect(protectedTreeDigests()).toEqual(before);
       expect(protectedGeneratedFiles.map(file => statSync(file).mtimeMs)).toEqual(
         beforeGeneratedMtimes,
       );
@@ -434,24 +496,6 @@ describe('Codex plugin release contract', () => {
       rmSync(fixture, { recursive: true, force: true });
     }
   }, 30_000);
-
-  it('records the independently adoptable task-bound Codex plugin-root contract', () => {
-    const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
-    const ticketRelativePath = '0HZBXF-keep-cachebusted-codex-plugins-operational/design.md';
-    const activeDesignPath = nodePath.join(repoRoot, '.project/tickets', ticketRelativePath);
-    const designPath = existsSync(activeDesignPath)
-      ? activeDesignPath
-      : nodePath.join(repoRoot, '.project/tickets/completed', ticketRelativePath);
-    const design = readFileSync(designPath, 'utf8');
-    const upstreamContract = design
-      .split('## Upstream Codex contract\n', 2)[1]
-      ?.split('\n## ', 1)[0];
-
-    expect(upstreamContract).toContain('task-bound `PLUGIN_ROOT`');
-    expect(upstreamContract).toContain('exact immutable plugin directory');
-    expect(upstreamContract).toContain('Host adoption is a non-dependency for this delivery');
-    expect(upstreamContract).toContain('independently adoptable later');
-  });
 
   it('runs every hook through the bundled plugin CLI', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
