@@ -12,6 +12,7 @@ import { readRepoFile as read } from './helpers';
 const GUIDE = 'packages/cli/templates/guides/cold-start-check.md';
 const DISCOVERY = 'packages/cli/templates/skills/bdd/DISCOVERY.md';
 const SAFEWORD = 'packages/cli/templates/SAFEWORD.md';
+const SPEC_TEMPLATE = 'packages/cli/templates/spec-template.md';
 
 const loadGuide = (): string => read(GUIDE).toLowerCase();
 const loadDiscovery = (): string => read(DISCOVERY).toLowerCase();
@@ -46,6 +47,11 @@ describe('cold-start check — offered only on irreversible work (@NTB1.AC1)', (
     const discovery = loadDiscovery();
     expect(discovery).toContain('skip:');
     expect(discovery).toMatch(/skip[^.]*no offer|no offer[^.]*skip/);
+  });
+
+  it('the spec template records the Reversibility field the offer reads', () => {
+    const productBet = read(SPEC_TEMPLATE).split('## Jobs To Be Done', 1)[0] ?? '';
+    expect(productBet).toMatch(/^- \*\*Reversibility:\*\* .*one-way.*skip:/m);
   });
 
   it('reads the recorded Reversibility field and forbids re-judging it at exit', () => {

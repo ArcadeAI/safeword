@@ -28,7 +28,7 @@ describe('advisory review evidence floor', () => {
     });
   });
 
-  it('reviews artifacts in order until the total budget is exhausted', async () => {
+  it('accounts for every file that fits a bounded pass', async () => {
     let publishedReceipt: PublishedReceipt | undefined;
 
     await reviewPullRequest({
@@ -56,10 +56,13 @@ describe('advisory review evidence floor', () => {
     });
 
     expect(publishedReceipt).toMatchObject({
-      coverage: [{ path: 'src/large.ts', status: 'integrity_reviewed' }],
-      missingEvidence: ['src/small.ts'],
-      route: 'needs_human',
-      runState: 'incomplete',
+      coverage: [
+        { path: 'src/large.ts', status: 'integrity_reviewed' },
+        { path: 'src/small.ts', status: 'integrity_reviewed' },
+      ],
+      missingEvidence: [],
+      route: 'looks_ready',
+      runState: 'complete',
     });
   });
 });

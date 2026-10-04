@@ -51,6 +51,18 @@ describe('detectLedgerWrite', () => {
       ['cp destination', `cp /tmp/forged.md ${LEDGER}`],
       ['truncate', `truncate -s 0 ${LEDGER}`],
       ['inline interpreter invocation', `bun -e 'require("fs").appendFileSync("${LEDGER}", "x")'`],
+      [
+        'stdin-fed interpreter (#5248)',
+        `python3 - <<'EOF'\nopen("${LEDGER}", "a").write("x")\nEOF`,
+      ],
+      [
+        'stdin-fed interpreter with script arguments',
+        `python3 - tick <<'EOF'\nopen("${LEDGER}", "a").write("x")\nEOF`,
+      ],
+      [
+        'upstream heredoc piped into an interpreter',
+        `cat <<'PY' | python3 -\nopen("${LEDGER}", "a").write("x")\nPY`,
+      ],
       ['combined redirection (&>)', `echo '- [x] RED' &> ${LEDGER}`],
       ['clobbering redirection (>|)', `echo '- [x] RED' >| ${LEDGER}`],
       [
@@ -220,6 +232,22 @@ describe('detectInspirationArtifactWrite', () => {
     `cp /tmp/spec.md ${TICKET_DIRECTORY}`,
     `git status && sed -i 's/v1/v0/' ${TICKET}; echo done`,
     'echo legacy > .safeword-project/tickets/INS001-gate/spec.md',
+    // Script code fed on stdin (#5248): the same writes as `-c`, minus the flag.
+    `python3 - <<'EOF'\nfrom pathlib import Path\nPath("${TICKET}").write_text("legacy")\nEOF`,
+    `python3 <<EOF\nopen("${SPEC}", "w").write("legacy")\nEOF`,
+    `node <<< 'require("fs").writeFileSync("${TICKET}", "x")'`,
+    `echo 'open("${SPEC}", "w")' | python3 -`,
+    `/usr/bin/env python3 - <<'PY'\nopen("${TICKET}", "w")\nPY`,
+    // The body is read from raw text: an apostrophe must not hide later lines.
+    `python3 - <<'EOF'\n# it's a rewrite\nopen("${SPEC}", "w")\nEOF`,
+    // `<<-` strips leading tabs from the closing delimiter.
+    `python3 - <<-EOF\n\topen("${TICKET}", "w")\n\tEOF`,
+    // Words after an explicit stdin selector are the script's argv, not a script file.
+    `python3 - rewrite --force <<'EOF'\nopen("${SPEC}", "w")\nEOF`,
+    `bash -s rewrite <<'EOF'\nprintf x | dd of="${TICKET}"\nEOF`,
+    // Upstream heredocs and multi-stage pipelines feed the interpreter too.
+    `cat <<'PY' | python3 -\nopen("${SPEC}", "w").write("legacy")\nPY`,
+    String.raw`printf '%s' 'open("${TICKET}", "w")' | tr -d '\r' | python3`,
   ])('characterizes every supported protected write shape: %s', command => {
     expect(detectInspirationArtifactWrite(command)).toBeDefined();
   });
@@ -231,6 +259,10 @@ describe('detectInspirationArtifactWrite', () => {
     `mv -t /backup ${TICKET}`,
     `cp --target-directory=/tmp ${SPEC}`,
     'sed -n 1,20p README.md',
+    `python3 scripts/report.py ${TICKET}`,
+    `python3 - <<'EOF'\nprint("unrelated")\nEOF\ncat ${TICKET}`,
+    // A script file reads stdin as data, not code.
+    `python3 scripts/report.py <<'EOF'\n${TICKET}\nEOF`,
   ])('allows a read-only command: %s', command => {
     expect(detectInspirationArtifactWrite(command)).toBeUndefined();
   });
