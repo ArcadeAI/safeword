@@ -176,21 +176,24 @@ Blog posts, tweets, marketing, and "I remember reading…" don't count for any t
 
 Read the matching guide when its trigger fires:
 
-| Trigger                                                             | Guide                                                                  |
-| ------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Starting a feature/task OR writing specs/test-definitions           | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/planning-guide.md`           |
-| Choosing proof scope during planning, doing TDD, or a test failing  | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/testing-guide.md`            |
-| Creating or updating a design doc                                   | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/design-doc-guide.md`         |
-| Making a significant structural/shared-contract decision or ADR     | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/architecture-guide.md`       |
-| Understanding the generated `architecture.generated.md` doc         | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/architecture-guide.md`       |
-| Changing data contracts, ownership, lifecycle, or cross-system flow | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/data-architecture-guide.md`  |
-| Changing an interface or access rule                                | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/interface-contract-guide.md` |
-| Planning live transition, material failure, or reversal             | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/release-recovery-guide.md`   |
-| Designing measurement for a Product promise or decision signal      | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/measurement-design-guide.md` |
-| Writing learnings or agent config (CLAUDE.md, .cursor/rules)        | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/llm-writing-guide.md`        |
-| Updating CLAUDE.md, SAFEWORD.md, or any context file                | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/context-files-guide.md`      |
-| Hit the same bug repeatedly or discovered an undocumented gotcha    | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/learning-extraction.md`      |
-| Process hanging, port in use, or zombie process suspected           | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/zombie-process-cleanup.md`   |
+| Trigger                                                             | Guide                                                                       |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Starting a feature/task OR writing specs/test-definitions           | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/planning-guide.md`                |
+| Choosing proof scope during planning, doing TDD, or a test failing  | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/testing-guide.md`                 |
+| Deciding when a check runs (smoke, live, or release)                | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/verification-lanes-guide.md`      |
+| Building or evaluating an AI/LLM feature                            | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/llm-evals-guide.md`               |
+| Changing a skill prompt and proving it improved                     | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/skill-eval-optimization-guide.md` |
+| Creating or updating a design doc                                   | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/design-doc-guide.md`              |
+| Making a significant structural/shared-contract decision or ADR     | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/architecture-guide.md`            |
+| Understanding the generated `architecture.generated.md` doc         | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/architecture-guide.md`            |
+| Changing data contracts, ownership, lifecycle, or cross-system flow | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/data-architecture-guide.md`       |
+| Changing an interface or access rule                                | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/interface-contract-guide.md`      |
+| Planning live transition, material failure, or reversal             | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/release-recovery-guide.md`        |
+| Designing measurement for a Product promise or decision signal      | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/measurement-design-guide.md`      |
+| Writing learnings or agent config (CLAUDE.md, .cursor/rules)        | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/llm-writing-guide.md`             |
+| Updating CLAUDE.md, SAFEWORD.md, or any context file                | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/context-files-guide.md`           |
+| Hit the same bug repeatedly or discovered an undocumented gotcha    | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/learning-extraction.md`           |
+| Process hanging, port in use, or zombie process suspected           | `"${CLAUDE_PLUGIN_ROOT}"/resources/guides/zombie-process-cleanup.md`        |
 
 ---
 
@@ -210,12 +213,14 @@ Read the matching guide when its trigger fires:
 
 ## Enforcement
 
-Safeword runs hooks each turn to track your phase and TDD step. Four gates hard-block:
+Safeword runs hooks each turn to track your phase and TDD step. A feature moves through intake, behavior definition, scenario review, planning, implementation, verification, and done. The main hard blocks:
 
-- **Phase gate** — can't start TDD without `test-definitions.md`; can't create `test-definitions.md` without `scope` / `out_of_scope` / `done_when` in ticket frontmatter.
+- **Scenario prerequisites** — `test-definitions.md` needs `scope` / `out_of_scope` / `done_when` in ticket frontmatter; features also need reviewed behavior and dimensions.
+- **Phase review** — leaving a phase needs independent review unless the configured review gate excludes that exit.
 - **Planning gates** — a new-flow feature can't enter `plan-execution` without a current reviewed Implementation Plan, or enter `implement` without a current reviewed Execution Plan. It can't reach `verify`/`done` until the Implementation Plan is reconciled to `implemented`.
+- **Ledger** — each RED/GREEN/REFACTOR checkbox needs its required proof; a REFACTOR commit can't touch tests.
 - **LOC gate** — commit every ~400 lines of project code (blast-radius control).
-- **Done gate** — can't close a ticket without `verify.md` in the ticket folder.
+- **Done gate** — can't close a ticket without current verification evidence in `verify.md`; features need every scenario accounted for and no `@wip` scenario left.
 
 The prompt hook injects your current phase each turn as a reminder.
 

@@ -1696,7 +1696,7 @@ function assertGeneratedReviewPackages(): void {
   assert.deepEqual(
     claudeAssets
       .map(asset => asset.relativePath)
-      .filter(path => /skills\/(?:finish-review|quality-review)\//u.test(path))
+      .filter(path => /^skills\/(?:finish-review|quality-review)\//u.test(path))
       .toSorted((left, right) => left.localeCompare(right)),
     expectedClaudeReviewPaths,
   );
@@ -1733,7 +1733,7 @@ function assertReviewInventory(): void {
   assert.deepEqual(
     inventory.assets
       .map(asset => asset.path)
-      .filter(path => /skills\/(?:finish-review|quality-review)\//u.test(path))
+      .filter(path => /^skills\/(?:finish-review|quality-review)\//u.test(path))
       .toSorted((left, right) => left.localeCompare(right)),
     expectedClaudeReviewPaths,
   );

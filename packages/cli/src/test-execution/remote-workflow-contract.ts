@@ -13,6 +13,8 @@ const FULL_SHA = /^[0-9a-f]{40}$/u;
 const CHECKOUT = 'actions/checkout';
 const CHECKOUT_ACTION = 'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0';
 const SETUP_NODE_ACTION = 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020';
+const SETUP_BUN_ACTION = 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6';
+const SETUP_UV_ACTION = 'astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7';
 const INPUT_SHA = '${{ inputs.target_sha }}';
 const INPUT_LANE = '${{ inputs.lane }}';
 const RESULT_FILE = 'safeword-remote-test-result.json';
@@ -94,10 +96,10 @@ function checkoutViolations(checkout: Mapping | undefined): string[] {
   return [
     ...(with_?.['persist-credentials'] === false ? [] : ['checkout_credentials']),
     ...(with_?.ref === INPUT_SHA ? [] : ['exact_checkout_ref']),
-    ...(with_?.['fetch-depth'] === 1 ? [] : ['shallow_checkout']),
+    ...(with_?.['fetch-depth'] === 0 ? [] : ['full_history_checkout']),
     ...(hasExactEntries(with_, {
       ref: INPUT_SHA,
-      'fetch-depth': 1,
+      'fetch-depth': 0,
       'persist-credentials': false,
     })
       ? []
@@ -145,6 +147,16 @@ const STEP_SHAPES: StepShape[] = [
     uses: SETUP_NODE_ACTION,
     keys: ['name', 'uses', 'with'],
     with: { 'node-version': 24 },
+  },
+  {
+    uses: SETUP_BUN_ACTION,
+    keys: ['name', 'uses', 'with'],
+    with: { 'bun-version-file': 'package.json' },
+  },
+  {
+    uses: SETUP_UV_ACTION,
+    keys: ['name', 'uses', 'with'],
+    with: { 'version-file': 'pyproject.toml', 'enable-cache': true },
   },
   { id: 'tests', keys: ['name', 'id', 'env', 'run'] },
   { id: 'report', keys: ['name', 'id', 'if', 'env', 'run'] },

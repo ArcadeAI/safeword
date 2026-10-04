@@ -1,23 +1,9 @@
 import nodePath from 'node:path';
 
+import { normalizePluginBundle } from '../../src/plugin-bundle.js';
 import { requirePinnedBunVersion } from '../bun-version.js';
 
-const BUN_INSTALL_INSTANCE_PATH =
-  /([/\\]node_modules[/\\]\.bun[/\\][^/\\\r\n]+)\+[0-9a-f]{16}([/\\]node_modules[/\\])/giu;
-
-/**
- * Bun includes content-addressed install instance suffixes in bundle source comments.
- * They vary between otherwise equivalent installs, so remove them before sealing a
- * generated plugin catalogue. Trailing whitespace is also normalized so generated
- * artifacts remain diff-clean and byte-stable across the shared Bun build.
- */
-export function normalizePluginCliBundle(bundle: string): string {
-  return bundle
-    .replaceAll(BUN_INSTALL_INSTANCE_PATH, '$1$2')
-    .split('\n')
-    .map(line => line.trimEnd())
-    .join('\n');
-}
+export { normalizePluginBundle as normalizePluginCliBundle } from '../../src/plugin-bundle.js';
 
 export async function buildPluginCliBundle(
   packageRoot: string,
@@ -50,5 +36,5 @@ export async function buildPluginCliBundle(
   if (!result.success || result.outputs.length !== 1 || result.outputs[0] === undefined) {
     throw new Error(`Failed to bundle the ${pluginName} plugin CLI: ${result.logs.join('\n')}`);
   }
-  return normalizePluginCliBundle(await result.outputs[0].text());
+  return normalizePluginBundle(await result.outputs[0].text());
 }
