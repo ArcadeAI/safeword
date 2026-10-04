@@ -16,6 +16,15 @@ import {
 } from '../../templates/hooks/lib/namespace-root.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
+// `.git` is a directory in a main checkout and a file in a linked worktree;
+// the resolvers only need it to exist.
+function tree(path: string, { enrolled }: { enrolled: boolean }): string {
+  mkdirSync(nodePath.join(path, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(path, '.git'), 'gitdir: elsewhere\n');
+  if (enrolled) writeFileSync(nodePath.join(path, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
+  return path;
+}
+
 describe('isNamespacePath (TAGWZ8)', () => {
   it('matches the default root, absolute and relative', () => {
     expect(isNamespacePath('/repo/.project/tickets/T/ticket.md', 'tickets/')).toBe(true);
@@ -45,15 +54,6 @@ describe('resolveOwningProjectDirectory (#5247)', () => {
   let root: string;
   let launch: string;
   const ticket = (treeRoot: string) => nodePath.join(treeRoot, '.project/tickets/T1-x/ticket.md');
-
-  // `.git` is a directory in a main checkout and a file in a linked worktree;
-  // the resolver only needs it to exist.
-  function tree(path: string, { enrolled }: { enrolled: boolean }): string {
-    mkdirSync(nodePath.join(path, '.safeword'), { recursive: true });
-    writeFileSync(nodePath.join(path, '.git'), 'gitdir: elsewhere\n');
-    if (enrolled) writeFileSync(nodePath.join(path, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
-    return path;
-  }
 
   beforeEach(() => {
     root = createTemporaryDirectory();
@@ -98,16 +98,9 @@ describe('resolveWorkingProjectDirectory (#5361)', () => {
   let root: string;
   let launch: string;
 
-  function enrolledTree(path: string): string {
-    mkdirSync(nodePath.join(path, '.safeword'), { recursive: true });
-    writeFileSync(nodePath.join(path, '.git'), 'gitdir: elsewhere\n');
-    writeFileSync(nodePath.join(path, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
-    return path;
-  }
-
   beforeEach(() => {
     root = createTemporaryDirectory();
-    launch = enrolledTree(nodePath.join(root, 'launch'));
+    launch = tree(nodePath.join(root, 'launch'), { enrolled: true });
   });
 
   afterEach(() => {
@@ -115,7 +108,7 @@ describe('resolveWorkingProjectDirectory (#5361)', () => {
   });
 
   it('roots a helper run from inside a worktree at that worktree', () => {
-    const worktree = enrolledTree(nodePath.join(launch, '.claude/worktrees/wt'));
+    const worktree = tree(nodePath.join(launch, '.claude/worktrees/wt'), { enrolled: true });
     const nested = nodePath.join(worktree, 'packages/cli');
     mkdirSync(nested, { recursive: true });
     expect(resolveWorkingProjectDirectory(launch, worktree)).toBe(worktree);

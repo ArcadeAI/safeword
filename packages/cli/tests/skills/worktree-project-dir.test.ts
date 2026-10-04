@@ -15,13 +15,25 @@ const skillPath = (name: string) =>
   nodePath.join(import.meta.dirname, '../../templates/skills', name, 'SKILL.md');
 
 // The PROJECT_DIR assignment as it appears in the skill's executable blocks.
-function projectDirAssignment(skill: string): string {
+function projectDirectoryAssignment(skill: string): string {
   const line = readFileSync(skillPath(skill), 'utf8')
     .split('\n')
     .find(candidate => candidate.startsWith('PROJECT_DIR="$(top='));
   if (line === undefined) throw new Error(`${skill}: no worktree-aware PROJECT_DIR block`);
   return line;
 }
+
+describe('every skill PROJECT_DIR resolution is worktree-aware (#5361)', () => {
+  const worktreeAware = /"\$\(top=\$\(git rev-parse[^\n]*?\$PWD\}\}"; fi\)"/g;
+
+  for (const skill of ['audit', 'verify']) {
+    it(`/${skill} leaves no bare CLAUDE_PROJECT_DIR resolution outside the worktree-aware form`, () => {
+      const content = readFileSync(skillPath(skill), 'utf8');
+      expect(content.match(worktreeAware)?.length ?? 0).toBeGreaterThan(0);
+      expect(content.replaceAll(worktreeAware, '')).not.toContain('CLAUDE_PROJECT_DIR');
+    });
+  }
+});
 
 describe('skill PROJECT_DIR resolution in a worktree (#5361)', () => {
   let root: string;
@@ -49,7 +61,7 @@ describe('skill PROJECT_DIR resolution in a worktree (#5361)', () => {
   function resolve(skill: string, cwd: string, env: Record<string, string>): string {
     const result = spawnSync(
       'bash',
-      ['-c', `${projectDirAssignment(skill)}\nprintf %s "$PROJECT_DIR"`],
+      ['-c', `${projectDirectoryAssignment(skill)}\nprintf %s "$PROJECT_DIR"`],
       {
         cwd,
         env: { PATH: process.env.PATH ?? '', ...env },
@@ -75,6 +87,10 @@ describe('skill PROJECT_DIR resolution in a worktree (#5361)', () => {
 
     it(`/${skill} honours CLAUDE_PROJECT_DIR when cwd is outside any enrolled tree`, () => {
       expect(resolve(skill, root, { CLAUDE_PROJECT_DIR: launch })).toBe(launch);
+    });
+
+    it(`/${skill} falls back to the working directory with no CLAUDE_PROJECT_DIR and no git tree`, () => {
+      expect(resolve(skill, root, {})).toBe(root);
     });
   }
 });
