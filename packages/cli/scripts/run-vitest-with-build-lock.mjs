@@ -703,10 +703,9 @@ function removePackageSnapshot(snapshotRoot) {
 
 let lockToken;
 let packageSnapshot;
-let status = 1;
+let status;
 try {
   lockToken = acquireLock();
-  if (!lockToken) status = lockBusyExitCode;
   if (lockToken) {
     status = run('bun', ['run', 'build']);
     if (status === 0) {
@@ -716,6 +715,8 @@ try {
         SAFEWORD_TEST_CLI_ROOT: packageSnapshot,
       });
     }
+  } else {
+    status = lockBusyExitCode;
   }
 } finally {
   if (packageSnapshot) removePackageSnapshot(packageSnapshot);
