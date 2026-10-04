@@ -8,7 +8,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/agents/safeword-reviewer.md':
         '13333228aa180c0ff040ccfe4e16058147fadc596b51df0d6d73caeb01755470',
       '.claude/skills/audit/SKILL.md':
-        '5a6653c969c5623bebf8c5b630ef18e91294718be41cbb09d149f462d5524423',
+        'ce7d604ff6016eaf614a9e02918089ba021b15ddae11bcad47218c7c2a078077',
       '.claude/skills/bdd/DISCOVERY.md':
         '1dd29f815c358ab6e215fa5d0e2db1fe6ab26d93df0b151a53908370331b09ed',
       '.claude/skills/bdd/DONE.md':
@@ -70,7 +70,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/ticket-system/SKILL.md':
         '765e4118b54e7e4984da4268244b45b5dc6d57b221964563d49076ac49cc9b7a',
       '.claude/skills/verify/SKILL.md':
-        '5ef5bacadcdd5166a3679e0ee6e62a5c8ed9342b91bb3954bf6a0e9dcb8687b8',
+        'd6b1f8cfa6ad1ccc5fd84a8b7f96cf3a13e13561088eb1de9a5b0ee5045759c5',
     },
     hook_files: {
       '.safeword/hooks/post-tool-bypass-warn.ts':

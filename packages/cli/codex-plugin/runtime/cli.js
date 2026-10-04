@@ -3584,7 +3584,7 @@ var init_historical_catalogue_generated = __esm(() => {
       files: {
         ".claude/agents/safeword-retro-filer.md": "008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904",
         ".claude/agents/safeword-reviewer.md": "13333228aa180c0ff040ccfe4e16058147fadc596b51df0d6d73caeb01755470",
-        ".claude/skills/audit/SKILL.md": "5a6653c969c5623bebf8c5b630ef18e91294718be41cbb09d149f462d5524423",
+        ".claude/skills/audit/SKILL.md": "ce7d604ff6016eaf614a9e02918089ba021b15ddae11bcad47218c7c2a078077",
         ".claude/skills/bdd/DISCOVERY.md": "1dd29f815c358ab6e215fa5d0e2db1fe6ab26d93df0b151a53908370331b09ed",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "21afe725904a8ac20d72b3c71f9e6670f06d4036fee58af829b352862578094c",
@@ -3615,7 +3615,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/tdd-review/SKILL.md": "322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43",
         ".claude/skills/testing/SKILL.md": "fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686",
         ".claude/skills/ticket-system/SKILL.md": "765e4118b54e7e4984da4268244b45b5dc6d57b221964563d49076ac49cc9b7a",
-        ".claude/skills/verify/SKILL.md": "5ef5bacadcdd5166a3679e0ee6e62a5c8ed9342b91bb3954bf6a0e9dcb8687b8"
+        ".claude/skills/verify/SKILL.md": "d6b1f8cfa6ad1ccc5fd84a8b7f96cf3a13e13561088eb1de9a5b0ee5045759c5"
       },
       hook_files: {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",

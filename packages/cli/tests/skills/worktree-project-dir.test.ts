@@ -14,18 +14,18 @@ import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.j
 const skillPath = (name: string) =>
   nodePath.join(import.meta.dirname, '../../templates/skills', name, 'SKILL.md');
 
+// The worktree-aware command substitution, whether Prettier left it on one line
+// (inline blocks) or split it across several (fenced blocks).
+const worktreeAware = /"\$\(\s*top=\$\(git rev-parse[\s\S]*?\$PWD\}\}"; fi\s*\)"/g;
+
 // The PROJECT_DIR assignment as it appears in the skill's executable blocks.
 function projectDirectoryAssignment(skill: string): string {
-  const line = readFileSync(skillPath(skill), 'utf8')
-    .split('\n')
-    .find(candidate => candidate.startsWith('PROJECT_DIR="$(top='));
-  if (line === undefined) throw new Error(`${skill}: no worktree-aware PROJECT_DIR block`);
-  return line;
+  const match = readFileSync(skillPath(skill), 'utf8').match(worktreeAware);
+  if (match === null) throw new Error(`${skill}: no worktree-aware PROJECT_DIR block`);
+  return `PROJECT_DIR=${match[0]}`;
 }
 
 describe('every skill PROJECT_DIR resolution is worktree-aware (#5361)', () => {
-  const worktreeAware = /"\$\(top=\$\(git rev-parse[^\n]*?\$PWD\}\}"; fi\)"/g;
-
   for (const skill of ['audit', 'verify']) {
     it(`/${skill} leaves no bare CLAUDE_PROJECT_DIR resolution outside the worktree-aware form`, () => {
       const content = readFileSync(skillPath(skill), 'utf8');

@@ -29,7 +29,10 @@ This skill is required before marking a feature ticket done. The line below appe
 If no `[skill-invocation-log] verify ✓` line appears above, run this fallback before continuing:
 
 ```bash
-PROJECT_DIR="$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"
 ```
 
@@ -48,7 +51,10 @@ ticket remains relevant after its status changes during closeout; a changed
 `done` ticket remains eligible.
 
 ```bash
-PROJECT_DIR="$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --
 ```
 
@@ -92,7 +98,10 @@ command.
 **Run the block below verbatim, as ONE bash invocation.** Do not extract or paraphrase individual commands — the CLI resolver, the generator exit-code check inside `run_plan`, and the git preflight are load-bearing (regressions 487, 375, and 469 each came from a hand-rolled variant of this block).
 
 ```bash
-PROJECT_DIR="$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 cd "$PROJECT_DIR" || exit 1
 
 # Local evidence preflight: many repo tests create throwaway git repos. Some

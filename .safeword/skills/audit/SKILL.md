@@ -21,7 +21,10 @@ This skill is required before marking a feature ticket done. The line below appe
 If no `[skill-invocation-log] audit ✓` line appears above, run this fallback before continuing:
 
 ```bash
-PROJECT_DIR="$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}"
 ```
 
@@ -68,7 +71,10 @@ that ref. An invalid ref stops the audit instead of silently widening its scope.
 ```bash
 # Ensure we're in the project root regardless of prior CWD state, then load the
 # same scope contract every executable audit block uses.
-PROJECT_DIR="$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 cd "$PROJECT_DIR" || exit 1
 source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
 audit_scope_initialize "$PROJECT_DIR" || exit $?
@@ -559,7 +565,10 @@ For each changed config file, check:
 Changed project learnings in the resolved namespace root's `learnings/*.md` must have a `Covers:` line on line 3 — the auto-generated `INDEX.md` is built from these lines, and files without them don't appear in the index. In a repository audit, check every learning as before.
 
 ```bash
-PROJECT_DIR="$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
@@ -699,7 +708,10 @@ contract testable without turning semantic review into shell heuristics.
 
 ```bash
 # principle-trace-check — E010 objective trace integrity only.
-PROJECT_DIR="$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 TICKET_PATH="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-verify-ticket.ts" "$PROJECT_DIR")"
 ticket_status=$?
 if [ "$ticket_status" -ne 0 ]; then
@@ -723,8 +735,14 @@ below verbatim, as ONE bash invocation.**
 ````bash
 # domain-docs-check — read-only reconciliation of the namespace domain docs.
 # Class-2: observable facts only. Emits W008 (empty). Never writes the tree.
-cd "$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)" || exit 1
-PROJECT_DIR="$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)"
+cd "$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)" || exit 1
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 
