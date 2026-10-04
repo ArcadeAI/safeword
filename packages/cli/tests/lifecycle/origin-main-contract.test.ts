@@ -12,7 +12,7 @@ import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { lifecycleFixtureTemplatesDigest } from '../../scripts/lib/lifecycle-fixture-templates-digest.js';
+import { lifecycleFixtureTemplatesDigest } from '../../scripts/lib/lifecycle-fixtures.js';
 import type { CommandInvocation } from '../../src/cli-protocol/handler.js';
 import { type CliResult, createResult } from '../../src/cli-protocol/result.js';
 import { installLifecycle, uninstallLifecycle } from '../../src/lifecycle/commands.js';

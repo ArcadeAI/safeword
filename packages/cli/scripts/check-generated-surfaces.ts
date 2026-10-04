@@ -17,7 +17,7 @@
  * (Byte-identical template mirrors are already covered by parity-check.ts.)
  */
 import { execFile } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -27,7 +27,11 @@ import {
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
 } from '../src/cursor-wrappers.js';
-import { lifecycleFixtureTemplatesDigest } from './lib/lifecycle-fixture-templates-digest.js';
+import {
+  changedLifecycleResults,
+  isLifecycleFixtureStale,
+  lifecycleResultDigests,
+} from './lib/lifecycle-fixtures.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -146,38 +150,17 @@ function checkCursorWrappers(): Failure | undefined {
 }
 
 const LIFECYCLE_CONTRACT = 'tests/lifecycle/origin-main-contract.test.ts';
-const LIFECYCLE_FIXTURE_ROOT = path.join(cliRoot, 'tests/fixtures/lifecycle-origin-main');
 const LIFECYCLE_FIXTURE_FIX = `SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES=1 bun run test ${LIFECYCLE_CONTRACT}`;
 
-/**
- * The contract itself needs vitest mocks, so the fast check compares the
- * templates digest the fixtures were generated from instead of re-running it.
- */
+// The contract needs vitest mocks, so check the recorded templates digest instead.
 function checkLifecycleFixtures(): Failure | undefined {
-  const manifest = JSON.parse(
-    readFileSync(path.join(LIFECYCLE_FIXTURE_ROOT, 'manifest.json'), 'utf8'),
-  ) as { readonly templatesSha256?: string };
-  if (manifest.templatesSha256 === lifecycleFixtureTemplatesDigest()) return undefined;
+  if (!isLifecycleFixtureStale()) return undefined;
   return {
     surface: 'Lifecycle origin-main fixtures',
     fix: LIFECYCLE_FIXTURE_FIX,
     detail:
       'packages/cli/templates/ changed since tests/fixtures/lifecycle-origin-main was generated',
   };
-}
-
-/** Behavior digests per contract case; these must not move with a template edit. */
-function lifecycleResultDigests(): Record<string, string> {
-  return Object.fromEntries(
-    readdirSync(LIFECYCLE_FIXTURE_ROOT)
-      .filter(name => name.endsWith('.json') && name !== 'manifest.json')
-      .map(name => {
-        const fixture = JSON.parse(
-          readFileSync(path.join(LIFECYCLE_FIXTURE_ROOT, name), 'utf8'),
-        ) as { readonly result_sha256: string };
-        return [name, fixture.result_sha256];
-      }),
-  );
 }
 
 function runLifecycleContract(update: boolean): ReturnType<typeof execFileAsync> {
@@ -205,7 +188,7 @@ const GENERATORS_IN_ORDER = [
   'generate-codex-plugin.ts',
 ] as const;
 
-const changedLifecycleResults: string[] = [];
+let changedResults: string[] = [];
 
 if (process.argv.includes('--fix')) {
   for (const script of GENERATORS_IN_ORDER) {
@@ -216,9 +199,7 @@ if (process.argv.includes('--fix')) {
   const resultsBefore = lifecycleResultDigests();
   await runLifecycleContract(true);
   await runLifecycleContract(false);
-  for (const [name, digest] of Object.entries(lifecycleResultDigests())) {
-    if (resultsBefore[name] !== digest) changedLifecycleResults.push(name);
-  }
+  changedResults = changedLifecycleResults(resultsBefore, lifecycleResultDigests());
 }
 
 const surfaceResults = await Promise.all([
@@ -247,7 +228,7 @@ const failures = surfaceResults.filter((failure): failure is Failure => failure 
 
 // A template edit should only move tree hashes. Regenerated result hashes mean
 // lifecycle behavior changed, which --fix must surface rather than silently accept.
-if (changedLifecycleResults.length > 0) {
+if (changedResults.length > 0) {
   failures.push({
     surface: 'Lifecycle origin-main fixtures: result_sha256 changed (behavior change)',
     fix: 'git diff tests/fixtures/lifecycle-origin-main',
@@ -255,7 +236,7 @@ if (changedLifecycleResults.length > 0) {
     detail: [
       'Regenerated, but these lifecycle results changed, not just the installed tree.',
       'Confirm the behavior change is intended and explain it in the PR before committing:',
-      ...changedLifecycleResults.map(name => `  - ${name}`),
+      ...changedResults.map(name => `  - ${name}`),
     ].join('\n'),
   });
 }
