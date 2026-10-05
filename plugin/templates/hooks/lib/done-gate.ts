@@ -17,7 +17,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { balancedFenceBodyLines } from './checkbox-transitions.js';
 import { formatDependencyRecovery, getDependencyReadiness } from './dependency-readiness.js';
+import { parseRetrospectiveAnnotation } from './retrospective-annotation.js';
+import { retrospectiveCloseDenial } from './retrospective-gate.js';
 import { analyzeScenarioFormat } from './scenario-format.js';
 import { runTests } from './test-runner.js';
 
@@ -25,6 +28,61 @@ import { runTests } from './test-runner.js';
 const PR_SCOPE_LINE_PATTERN = /^\*\*PR Scope:\*\*\s*(?<status>.+)$/im;
 const FEATURE_SOURCE_PATTERN = /^\s*(?:\*\*)?Feature source:(?:\*\*)?\s*`(?<path>[^`]+)`/im;
 const FEATURE_SOURCE_LABEL_PATTERN = /^\s*(?:\*\*)?Feature source:/im;
+
+function verifiedScenarioView(
+  projectDir: string,
+  ticketDir: string,
+  content: string,
+): { content: string; error?: string } {
+  const ticketId = nodePath.basename(ticketDir).split('-', 1)[0] ?? '';
+  const ledger = nodePath.relative(projectDir, nodePath.join(ticketDir, 'test-definitions.md'));
+  const verified = new Set<string>();
+  const ordinary = new Set<string>();
+  const headings = new Set<string>();
+  let duplicateHeading = false;
+  const rawLines = content.split('\n');
+  const fenced = balancedFenceBodyLines(rawLines);
+  const lines = rawLines.filter((_line, index) => !fenced.has(index));
+  let scenario: string | undefined;
+  for (const line of lines) {
+    const heading = /^#{2,6}\s+Scenario:\s*(.+)$/u.exec(line);
+    if (/^#{1,6}\s+/u.test(line)) {
+      scenario = heading?.[1]?.trim();
+      if (scenario !== undefined) {
+        if (headings.has(scenario)) duplicateHeading = true;
+        headings.add(scenario);
+      }
+    }
+    if (scenario !== undefined && /^\s*- \[[ xX]\] (?:RED|GREEN|REFACTOR)\b/u.test(line))
+      ordinary.add(scenario);
+    const annotation = parseRetrospectiveAnnotation(line);
+    if (annotation?.kind === 'invalid') return { content, error: annotation.reason };
+    if (annotation?.kind !== 'claim') continue;
+    if (scenario === undefined || verified.has(scenario))
+      return { content, error: 'Each VERIFIED row needs one unique scenario heading.' };
+    verified.add(scenario);
+  }
+  if (verified.size > 0) {
+    if (duplicateHeading) return { content, error: 'VERIFIED requires unique scenario headings.' };
+    const denial = retrospectiveCloseDenial(projectDir, ticketId, ledger);
+    if (denial !== undefined) return { content, error: `VERIFIED closing proof: ${denial}` };
+  }
+  scenario = undefined;
+  const visible = rawLines.filter((line, index) => {
+    // Examples earn no completion credit, but cannot conceal unfinished work.
+    if (fenced.has(index)) return /^\s*- \[ \]/u.test(line);
+    const heading = /^#{2,6}\s+Scenario:\s*(.+)$/u.exec(line);
+    if (/^#{1,6}\s+/u.test(line)) scenario = heading?.[1]?.trim();
+    if (scenario !== undefined && /^\s*- \[ \] VERIFIED\b/u.test(line) && ordinary.has(scenario))
+      return false;
+    return !(
+      scenario !== undefined &&
+      verified.has(scenario) &&
+      /^\s*- \[[ xX]\] (?:RED|GREEN|REFACTOR)\b/u.test(line)
+    );
+  });
+  return { content: visible.join('\n') };
+}
 
 export interface VerifyArtifactStatus {
   ok: boolean;
@@ -183,7 +241,9 @@ export function checkFeatureScenarios(projectDir: string, ticketDir: string): Do
         'Feature scenario evidence could not be read. Restore test-definitions.md before marking done.',
     };
   }
-  const { checked, unchecked, isUnrecognized } = analyzeScenarioFormat(testDefinitions);
+  const retrospective = verifiedScenarioView(projectDir, ticketDir, testDefinitions);
+  if (retrospective.error !== undefined) return { ok: false, reason: retrospective.error };
+  const { checked, unchecked, isUnrecognized } = analyzeScenarioFormat(retrospective.content);
   if (isUnrecognized) {
     return {
       ok: false,
