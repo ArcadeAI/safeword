@@ -283,12 +283,14 @@ describe('implementation planning transition gates (wired)', () => {
     };
     expect(
       spawnSync('bun', [STAMP_PATH, ...commonArguments, 'impl-plan'], {
+        cwd: projectRoot,
         encoding: 'utf8',
         env: environment,
       }).status,
     ).toBe(0);
     expect(
       spawnSync('bun', [STAMP_PATH, ...commonArguments, '--phase', 'plan-implementation'], {
+        cwd: projectRoot,
         encoding: 'utf8',
         env: environment,
       }).status,
