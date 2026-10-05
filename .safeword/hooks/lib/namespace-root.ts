@@ -86,7 +86,7 @@ export function resolveToolProjectDirectory(
 const EDIT_TOOL_NAMES = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 
 // Compare real paths so a canonicalized spelling of the launch checkout
-// (macOS \ vs \) still resolves to the launch spelling.
+// (macOS `/var` vs `/private/var`) still resolves to the launch spelling.
 function isSameDirectory(left: string, right: string): boolean {
   if (nodePath.resolve(left) === nodePath.resolve(right)) return true;
   try {
