@@ -3621,7 +3621,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
         ".safeword/hooks/post-tool-dependency-readiness.ts": "21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4",
         ".safeword/hooks/post-tool-lint.ts": "f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa",
-        ".safeword/hooks/post-tool-quality.ts": "86b21bd8a6e4fdf39c12107a605dcf729674f46d109ee180cfc342fc07ff451e",
+        ".safeword/hooks/post-tool-quality.ts": "eb8226888626244f196409a3fafea98c5c83908165a3ada1e6394fa745e4fbad",
         ".safeword/hooks/post-tool-skill-nudge.ts": "a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4",
         ".safeword/hooks/post-tool-sync-learnings.ts": "bc272acc87b1d52db960b2c96ac36ea553e21fdf161122312b74cd61157acb82",
         ".safeword/hooks/post-tool-work-log.ts": "f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978",
@@ -3629,7 +3629,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "f077f23a907fa5ad8cd0ea05c44c01e10ae96390cdcd979540aecd0e81414111",
+        ".safeword/hooks/pre-tool-quality.ts": "8a8bcb71e0718a9609091eb06e310aea939028b0d9c3d4245da2ea5ae3f1fcbd",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -67257,7 +67257,7 @@ var init_namespace_root = __esm(() => {
 });
 
 // templates/hooks/lib/namespace-root.ts
-import { existsSync as existsSync53, readFileSync as readFileSync75, statSync as statSync9 } from "fs";
+import { existsSync as existsSync53, lstatSync as lstatSync28, readFileSync as readFileSync75, readlinkSync as readlinkSync5, realpathSync as realpathSync20, statSync as statSync9 } from "fs";
 import nodePath121 from "path";
 function hasSafewordProjectMarker2(projectDirectory) {
   return existsSync53(nodePath121.join(projectDirectory, ".safeword", "SAFEWORD.md"));
@@ -67307,8 +67307,10 @@ function resolveNamespaceRoot2(projectDirectory) {
     return legacyRoot;
   return defaultRoot;
 }
-var NAMESPACE_ROOT_DEFAULT2 = ".project", NAMESPACE_ROOT_LEGACY2 = ".safeword-project";
-var init_namespace_root2 = () => {};
+var NAMESPACE_ROOT_DEFAULT2 = ".project", NAMESPACE_ROOT_LEGACY2 = ".safeword-project", EDIT_TOOL_NAMES;
+var init_namespace_root2 = __esm(() => {
+  EDIT_TOOL_NAMES = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
+});
 
 // templates/hooks/lib/project-knowledge.ts
 import { readFileSync as readFileSync76, statSync as statSync10 } from "fs";
@@ -67759,7 +67761,7 @@ var exports_drain_retro_spool = {};
 __export(exports_drain_retro_spool, {
   drainRetroSpool: () => drainRetroSpool
 });
-import { existsSync as existsSync58, lstatSync as lstatSync28, realpathSync as realpathSync20 } from "fs";
+import { existsSync as existsSync58, lstatSync as lstatSync29, realpathSync as realpathSync21 } from "fs";
 import nodePath128 from "path";
 function drainRetroSpool(inputPath, mode = "drain") {
   const spoolPath2 = nodePath128.resolve(inputPath);
@@ -67775,13 +67777,13 @@ function drainRetroSpool(inputPath, mode = "drain") {
   const sessionId = nodePath128.basename(spoolPath2, ".jsonl");
   const ackPath2 = ackFilePath(projectDirectory, sessionId);
   const protectedPaths = [safewordDirectory, draftsDirectory, spoolPath2, ackPath2];
-  if (protectedPaths.some((path8) => existsSync58(path8) && lstatSync28(path8).isSymbolicLink())) {
+  if (protectedPaths.some((path8) => existsSync58(path8) && lstatSync29(path8).isSymbolicLink())) {
     return {
       state: "refused",
       message: "Refusing a symlinked retro spool or acknowledgement path"
     };
   }
-  if (existsSync58(spoolPath2) && (!existsSync58(draftsDirectory) || nodePath128.dirname(realpathSync20(spoolPath2)) !== realpathSync20(draftsDirectory))) {
+  if (existsSync58(spoolPath2) && (!existsSync58(draftsDirectory) || nodePath128.dirname(realpathSync21(spoolPath2)) !== realpathSync21(draftsDirectory))) {
     return {
       state: "refused",
       message: "Refusing a retro spool outside its canonical drafts directory"

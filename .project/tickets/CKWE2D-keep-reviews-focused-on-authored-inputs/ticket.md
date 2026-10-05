@@ -37,6 +37,8 @@ last_modified: 2026-09-28T02:18:43Z
 
 ## Work Log
 
+- 2026-10-05T05:50:00Z Resumed after Codex restart in the required writable workspace. Pending activation still names rc.5; protection is unverified. Incorporated main 8dca2a09 additively; generated conflicts resolved through the supported five-surface fixer, with no lifecycle result-hash changes. Independent combined-hook review 9d0e8b84-bd4e-4ced-b885-5c047fd61e09 approved without errors. Focused checks passed 173/173; frozen full CLI verification passed 607 files / 10412 tests (14 expected skips). Lint, Gherkin lint, typecheck, five generated surfaces, and 268 parity pairs / 11 contracts passed. Pushed-head CI/advisory, live Codex checks, stable publication/install, and the 46 historical proofs remain pending. Both tickets remain implement; untracked authored files and historical symlink evidence are preserved.
+
 - 2026-10-05T02:18:00Z Current-head Node 24 CI passed 10365 tests but failed three Cursor lifecycle tree snapshots. Root cause: the reviewed uppercase VERIFIED parser change in c6c9d0205 changed installed Cursor hook bytes after the earlier snapshot refresh. Reproduced the same three failures locally, with the exact Linux tree digest; this rules out a platform-specific digest. All result digests matched, ruling out changed lifecycle output. Regenerated through SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES=1; only the three Cursor tree digests and their manifest hashes changed. Normal update-disabled verification is required before pushing. Runtime source, historical scenario annotations, and both implement phases remain unchanged.
 
 - 2026-08-12T15:10:06.430Z Started: Created ticket CKWE2D
