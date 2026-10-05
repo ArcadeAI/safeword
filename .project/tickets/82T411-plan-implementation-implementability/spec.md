@@ -183,9 +183,9 @@
 
 #### plan-implementability.TBU1.R14 — Implementation Planning derives the material decision dimensions required inside the accepted scope boundary, makes them concrete with alternatives and failure cases, exposes their consequences and tradeoffs, and converges on explicit choices before Execution Planning; ideas beyond that boundary are dropped or surfaced as user-owned scope decisions rather than silently incorporated
 
-#### plan-implementability.TBU1.R15 — On upgrade, a feature not yet in implementation enters the new planning flow; an existing legacy implementation plan becomes the draft Implementation Plan and must satisfy the new decision contract before an Execution Plan is created, while a ticket already in implementation or later under a previously accepted plan is not retroactively blocked unless it returns to planning
+#### plan-implementability.TBU1.R15 — On upgrade, a feature not yet in implementation enters the new planning flow; an existing legacy implementation plan becomes the draft Implementation Plan, and material decisions in an existing `design.md` are reconciled into that draft before review while the original remains historical evidence rather than a second plan of record; the draft must satisfy the new decision contract before an Execution Plan is created, while a ticket already in implementation or later under a previously accepted plan is not retroactively blocked unless it returns to planning
 
-#### plan-implementability.TBU1.R16 — The existing optional human design-approval gate applies once, after the Implementation Plan passes semantic review and before Execution Planning begins; it does not add a second approval after the Execution Plan, and cloud or headless sessions preserve today's nonblocking behavior by recording pending approval and surfacing the reviewed approach in reviewable output
+#### plan-implementability.TBU1.R16 — The existing optional human design-approval gate applies after the Implementation Plan passes semantic review and before Execution Planning begins; approval belongs to the exact reviewed Implementation Plan and its accepted upstream context, so a material change requires renewed approval, but the unchanged plan never requires a second approval after the Execution Plan; cloud or headless sessions preserve today's nonblocking behavior by recording pending approval and surfacing the reviewed approach in reviewable output
 
 #### plan-implementability.TBU1.R17 — The Implementation Plan review receipt records an explicit pass or fail for focused 30–60 minute decision reviewability and, on failure, names the execution detail, missing summary, or disproportionate depth that obscures a decision
 
@@ -288,8 +288,8 @@
 
 #### plan-implementability.TBU3.R12 — A newly discovered in-scope product-behavior decision returns to behavior definition, an implementation-design decision returns to Implementation Planning, and a sequencing-only change returns to Execution Planning; an idea outside accepted scope is dropped or offered as a user-owned scope decision rather than automatically promoting or expanding the work
 
-<!-- R13 was retired after its responsibility moved to the feature Delivery
-     Checklist; stable Rule IDs are not renumbered. -->
+<!-- R13 was retired: feature TDD sequencing moved to TBU2.R16, and proof
+     obligations moved to the feature Delivery Checklist. Rule IDs stay stable. -->
 
 #### plan-implementability.TBU3.R14 — Structural enforcement may verify work type, required artifacts, and observable proof facts, but does not claim that a task or patch classification is semantically correct
 
@@ -309,7 +309,7 @@
 
 #### plan-implementability.TBU4.R3 — Implementation Plan review receives the current accepted behavior, Rules, scenarios, dimensions, scope boundary, applicable principles, personas, surfaces, architecture records or generated architecture snapshot when present, and data guidance; Execution Plan review receives that context plus the accepted Implementation Plan, and an optional generated snapshot may add context but its absence cannot fail an otherwise complete review
 
-#### plan-implementability.TBU4.R4 — Every review requires the nonblank ticket boundary, current spec Rules, accepted scenarios, canonical phase contract, resolved principles, personas and surfaces inventories, and the plan under review; the resolver uses a configured project source when present and otherwise supplies the installed default, while a configured but blank, unreadable, or stale override blocks review; an Implementation Plan review additionally requires current dimensions when that artifact exists, applicable data guidance when R6 triggers, and configured architecture records when they exist or a justified no-record skip, while an Execution Plan review additionally requires the accepted Implementation Plan; missing required input prevents approval and requires redispatch rather than a reduced-context pass
+#### plan-implementability.TBU4.R4 — Every review requires the nonblank ticket boundary, current spec Rules, accepted scenarios, canonical phase contract, resolved principles, personas and surfaces inventories, and the plan under review; the resolver uses a configured project source when present and otherwise supplies the installed default, while a configured but blank, unreadable, or stale override blocks review; both phase reviews additionally require current dimensions when that artifact exists, applicable data guidance when R6 triggers, and configured architecture records when they exist or a justified no-record skip; Execution Plan review also requires the accepted Implementation Plan; missing required input prevents approval and requires redispatch rather than a reduced-context pass
 
 #### plan-implementability.TBU4.R5 — Each author and reviewer checks both directions of completeness: what required decision or work is missing, and what proposed decision or work exceeds the accepted scope boundary
 
@@ -383,7 +383,8 @@
   decision conversation support those contracts; the Execution Plan contract also owns the feature Delivery Checklist and coherent,
   independently reviewable pull-request slicing for large contributions.
 - **Non-goals:** Installed-host delivery beyond the Safeword CLI contract demo,
-  migration of existing tickets, and task or patch routing changes.
+  migration of in-flight feature tickets, and task or patch routing changes;
+  the versioned Product Plan transition in TBU4.R17 remains in M1.
 
 ### M2 — Deliver and enforce the workflow everywhere Safeword runs
 
@@ -443,8 +444,9 @@ Affected:
 - Claude Code
 - Claude Code Cloud
 - OpenAI Codex
-- OpenCode — profile catalogue only; Desktop remains advisory until native hook
-  dispatch is independently proven
+- OpenAI Codex Cloud — advisory guidance label only: it reads repository `AGENTS.md` without the local Codex plugin or planning hooks, so it must not claim review or approval; the label is verified at the CLI generated-guidance boundary, and complete workflow support needs a separate delivery contract
+- OpenCode — advisory profile catalogue only, not an authoritative planning
+  host until native hook dispatch is independently proven
 - Cursor
 - Cursor Cloud Agents
 
@@ -452,12 +454,7 @@ Unaffected:
 
 - Claude Code on the Web — no browser-entry-point behavior changes; shared
   ephemeral-runtime behavior is proven at the Claude Code Cloud boundary
-- OpenAI Codex Cloud — it reads repository `AGENTS.md` but does not receive the
-  packaged local Codex plugin or lifecycle hooks that own these planning phases;
-  guidance delivered there must label the workflow advisory and must not claim
-  a review or approval. The advisory label is verified at the CLI's generated
-  guidance boundary; no Cloud planning gate is claimed. Extending the complete
-  workflow requires a separate delivery contract
+
 - Closeout Cleanup Guard — this feature does not change destructive closeout
   authorization or cleanup targets
 - Retro Filer — this feature does not change retrospective transport or spool
