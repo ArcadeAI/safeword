@@ -45,7 +45,7 @@ describe('generated OpenCode profile plugin', () => {
     writeFileSync(nodePath.join(profile, 'package.json'), '{"type":"module"}\n');
     writeFileSync(
       dispatcher,
-      `import { appendFileSync } from 'node:fs';\nlet raw = '';\nprocess.stdin.setEncoding('utf8');\nfor await (const chunk of process.stdin) raw += chunk;\nappendFileSync(${JSON.stringify(invocations)}, raw + '\\n');\nconst envelope = JSON.parse(raw);\nif (JSON.stringify(envelope.tool_input).includes('deny')) {\n  process.stdout.write(JSON.stringify({ schema_version: 1, decision: 'deny', reason: 'Safeword denied this operation.' }));\n  process.exitCode = 2;\n}\n`,
+      `import { appendFileSync } from 'node:fs';\nlet raw = '';\nprocess.stdin.setEncoding('utf8');\nfor await (const chunk of process.stdin) raw += chunk;\nappendFileSync(${JSON.stringify(invocations)}, raw + '\\n');\nconst envelope = JSON.parse(raw);\nif (/VERIFIED|status:/.test(JSON.stringify(envelope.tool_input))) await new Promise(resolve => setTimeout(resolve, 2200));\nif (JSON.stringify(envelope.tool_input).includes('deny')) {\n  process.stdout.write(JSON.stringify({ schema_version: 1, decision: 'deny', reason: 'Safeword denied this operation.' }));\n  process.exitCode = 2;\n}\n`,
     );
 
     const pluginBytes = generateOpenCodeProfilePlugin();
@@ -105,6 +105,18 @@ describe('generated OpenCode profile plugin', () => {
         { file_path: 'allow-write', content: 'new file' },
       ],
       ['write', { filePath: 'deny-write' }, 'Write', { file_path: 'deny-write' }],
+      [
+        'write',
+        { filePath: 'test-definitions.md', content: '- [x] VERIFIED' },
+        'Write',
+        { file_path: 'test-definitions.md', content: '- [x] VERIFIED' },
+      ],
+      [
+        'write',
+        { filePath: 'ticket.md', content: 'status: "done"' },
+        'Write',
+        { file_path: 'ticket.md', content: 'status: "done"' },
+      ],
       ['patch', { patchText }, 'apply_patch', { command: patchText }],
       [
         'patch',

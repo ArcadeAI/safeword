@@ -1,4 +1,9 @@
 import type { Effect } from '../cli-protocol/result.js';
+import { SAFEWORD_SCHEMA } from '../schema.js';
+
+export function codexMarketplaceReplacementOperation(): string {
+  return SAFEWORD_SCHEMA.version.includes('-') ? 'prerelease-tag' : 'stable-channel';
+}
 
 export type CodexMigrationErrorCode =
   | 'PLUGIN_INSTALL_FAILED'
@@ -92,7 +97,7 @@ export function codexProfileFailureDestructiveEffects(error: unknown): Effect[] 
         {
           kind: 'replace',
           target: 'Safeword Codex marketplace',
-          operation: 'stable-channel',
+          operation: codexMarketplaceReplacementOperation(),
         },
       ]
     : [];

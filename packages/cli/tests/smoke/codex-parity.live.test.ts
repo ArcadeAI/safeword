@@ -2,17 +2,20 @@
  * Live Codex plugin smoke (ticket CXP9LM / GitHub #394).
  *
  * This opt-in test proves the installed plugin is a real cache copy of a
- * Bun-packed archive. It uses a local Bunx shim only to dispatch the pinned
- * package command to this checkout's built CLI; no npm registry package is
- * involved.
+ * Bun-packed archive. Its cached bundled runtime dispatches every hook;
+ * exact cached hook commands bind that runtime, and a local Bunx tripwire
+ * rejects any Bunx invocation. The migration smoke tests the pushed branch
+ * unless SAFEWORD_CODEX_MIGRATION_SOURCE supplies another marketplace source.
  *
  * Run with:
  *
  *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 SAFEWORD_CODEX_SMOKE_MODEL=gpt-5.6-terra bun run --cwd packages/cli test:smoke:live
  *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 SAFEWORD_RUN_CODEX_MIGRATION_SMOKE=1 bun run --cwd packages/cli test:smoke:live
+ * Set SMOKE_CODEX_AUTH_HOME to the signed-in profile when it is not ~/.codex.
  */
 
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import {
   cpSync,
   existsSync,
@@ -46,10 +49,6 @@ import {
 import { extractPackedCliPackage, packCliPackage } from '../helpers/codex-plugin-package.js';
 
 const CLI_ROOT = nodePath.resolve(import.meta.dirname, '../..');
-const CLI_PATH = nodePath.join(CLI_ROOT, 'dist/cli.js');
-const LIVE_MARKETPLACE_NAME = 'safeword-live-smoke';
-const BUNX_SHIM_LOG = 'bunx-safeword-invocations.log';
-const WORKFLOW_DIRECTORIES = ['.agents', '.codex', '.safeword'] as const;
 const MINIMUM_CODEX_VERSION = [0, 144, 5] as const;
 
 function supportedCodexVersion(output: string): boolean {
@@ -139,14 +138,14 @@ function createFixture(): string {
 }
 
 function createAuthenticatedCodexHome(): string {
-  const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-home-'));
   const sourceAuthPath = nodePath.join(
-    process.env.CODEX_HOME ?? nodePath.join(homedir(), '.codex'),
+    process.env.SMOKE_CODEX_AUTH_HOME ?? nodePath.join(homedir(), '.codex'),
     'auth.json',
   );
   if (!existsSync(sourceAuthPath)) {
     throw new Error('live smoke requires an authenticated Codex CLI');
   }
+  const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-home-'));
   cpSync(sourceAuthPath, nodePath.join(codexHome, 'auth.json'));
   return codexHome;
 }
@@ -163,11 +162,14 @@ function migrationMarketplaceSource(): string {
   return `ArcadeAI/safeword@${ref}`;
 }
 
-function withEnvironment<T>(environment: NodeJS.ProcessEnv, callback: () => T): T {
+async function withEnvironment<T>(
+  environment: NodeJS.ProcessEnv,
+  callback: () => Promise<T>,
+): Promise<T> {
   const previous = new Map(Object.keys(environment).map(key => [key, process.env[key]] as const));
   Object.assign(process.env, environment);
   try {
-    return callback();
+    return await callback();
   } finally {
     for (const [key, value] of previous) {
       if (value === undefined) Reflect.deleteProperty(process.env, key);
@@ -207,19 +209,15 @@ function createMarketplace(root: string, extractedPackage: string): string {
   return marketplaceRoot;
 }
 
-function writeBunxShim(root: string, version: string): string {
+function writeBunxShim(root: string): string {
   const binDirectory = nodePath.join(root, 'bin');
   const shimPath = nodePath.join(binDirectory, 'bunx');
   mkdirSync(binDirectory, { recursive: true });
   writeFileSync(
     shimPath,
-    `#!/bin/sh
+    String.raw`#!/bin/sh
 set -eu
-if [ "\${1:-}" = "--bun" ] && [ "\${2:-}" = "safeword@${version}" ]; then
-  printf '%s\\n' "$*" >> "$SAFEWORD_BUNX_SHIM_LOG"
-  shift 2
-  exec "${process.execPath}" "${CLI_PATH}" "$@"
-fi
+printf '%s\n' "$*" >> "$SAFEWORD_BUNX_SHIM_LOG"
 exit 1
 `,
     { mode: 0o755 },
@@ -267,6 +265,8 @@ function runUntrustedPluginCheck(
     [
       'exec',
       '--json',
+      '-m',
+      process.env.SAFEWORD_CODEX_SMOKE_MODEL ?? DEFAULT_CODEX_ACTIVATION_CHECK_MODEL,
       '--dangerously-bypass-approvals-and-sandbox',
       '-C',
       projectRoot,
@@ -287,18 +287,39 @@ function runCachedSkillProbe(
     [
       'exec',
       '--json',
+      '-m',
+      process.env.SAFEWORD_CODEX_SMOKE_MODEL ?? DEFAULT_CODEX_ACTIVATION_CHECK_MODEL,
       '--dangerously-bypass-approvals-and-sandbox',
       '-C',
       projectRoot,
-      'Use $safeword:bdd. Reply with exactly SAFEWORD_CACHE_SKILL_READY. Do not use tools.',
+      'Use $safeword:bdd. Reply only with its cache smoke verification phrase. Do not use tools.',
     ],
     { cwd: projectRoot, env: environment, timeout: 180_000 },
   );
   assertSuccess(result, 'codex exec cached skill probe');
-  return `${result.stdout}\n${result.stderr}`;
+  const messages = result.stdout
+    .trim()
+    .split('\n')
+    .map(
+      line =>
+        JSON.parse(line) as {
+          type: string;
+          item?: { type: string; text?: string };
+        },
+    );
+  const finalMessage = messages.findLast(
+    message => message.type === 'item.completed' && message.item?.type === 'agent_message',
+  );
+  return finalMessage?.item?.text?.trim() ?? '';
 }
 
 const CODEX = resolveCodex();
+if (process.env.SAFEWORD_RUN_CODEX_LIVE_SMOKE === '1' && CODEX === undefined) {
+  throw new Error(`Live smoke requires Codex ${MINIMUM_CODEX_VERSION.join('.')} or newer.`);
+}
+const LIVE_MARKETPLACE_NAME = 'safeword-live-smoke';
+const BUNX_SHIM_LOG = 'bunx-safeword-invocations.log';
+const WORKFLOW_DIRECTORIES = ['.agents', '.codex', '.safeword'] as const;
 const CAN_RUN = process.env.SAFEWORD_RUN_CODEX_LIVE_SMOKE === '1' && CODEX !== undefined;
 const CAN_RUN_MIGRATION = CAN_RUN && process.env.SAFEWORD_RUN_CODEX_MIGRATION_SMOKE === '1';
 const KEEP_LIVE_FIXTURE = process.env.SAFEWORD_KEEP_CODEX_LIVE_FIXTURE === '1';
@@ -325,7 +346,7 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
 
     projectRoot = createFixture();
     codexHome = createAuthenticatedCodexHome();
-    bunxBinDirectory = writeBunxShim(codexHome, packageVersion());
+    bunxBinDirectory = writeBunxShim(codexHome);
     packDestination = nodePath.join(codexHome, 'packed-plugin');
     mkdirSync(packDestination, { recursive: true });
     const archive = packCliPackage(CLI_ROOT, packDestination);
@@ -340,13 +361,14 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
 
   afterAll(() => {
     if (KEEP_LIVE_FIXTURE) {
+      if (codexHome !== undefined) rmSync(nodePath.join(codexHome, 'auth.json'), { force: true });
       process.stdout.write(
         `Preserved Codex trust fixture:\nCODEX_HOME=${codexHome}\nPROJECT_ROOT=${projectRoot}\nINSTALLED_PATH=${installedPath}\nBUNX_LOG=${nodePath.join(codexHome, BUNX_SHIM_LOG)}\n`,
       );
       return;
     }
-    rmSync(projectRoot, { recursive: true, force: true });
-    rmSync(codexHome, { recursive: true, force: true });
+    if (projectRoot !== undefined) rmSync(projectRoot, { recursive: true, force: true });
+    if (codexHome !== undefined) rmSync(codexHome, { recursive: true, force: true });
   });
 
   it(`loads the complete plugin from Codex ${MINIMUM_CODEX_VERSION.join('.')}+ cache after every source is removed`, () => {
@@ -360,7 +382,9 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
     assertNoProjectWorkflowTree(projectRoot);
 
     const cachedPluginPath = assertCachedCodexPlugin(CLI_ROOT, codexHome, installedPath);
-    expect(cachedPluginPath).not.toContain(nodePath.join(codexHome, 'packed-plugin'));
+    expect(readFileSync(nodePath.join(cachedPluginPath, 'hooks.json'), 'utf8')).toBe(
+      readFileSync(nodePath.join(CLI_ROOT, 'codex-plugin/hooks.json'), 'utf8'),
+    );
 
     const shimLog = nodePath.join(codexHome, BUNX_SHIM_LOG);
     const environment = {
@@ -369,16 +393,25 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
       PATH: `${bunxBinDirectory}:${process.env.PATH ?? ''}`,
     };
 
+    const marker = writeCodexActivationMarker(environment, new Date());
     runUntrustedPluginCheck(CODEX, projectRoot, environment);
-    expect(existsSync(shimLog)).toBe(false);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/hook-proof-v2'))).toBe(false);
 
-    const skillOutput = runCachedSkillProbe(CODEX, projectRoot, environment);
-    expect(skillOutput).toContain('SAFEWORD_CACHE_SKILL_READY');
-    expect(existsSync(shimLog)).toBe(false);
+    // Catalogue bytes were verified above. Only this disposable cached skill
+    // receives a random phrase; neither the prompt nor checkout contains it.
+    const skillPath = nodePath.join(cachedPluginPath, 'skills/bdd/SKILL.md');
+    const skillSource = readFileSync(skillPath, 'utf8');
+    const phrase = randomUUID();
+    try {
+      writeFileSync(skillPath, `${skillSource}\nCache smoke verification phrase: ${phrase}\n`);
+      expect(runCachedSkillProbe(CODEX, projectRoot, environment)).toBe(phrase);
+    } finally {
+      writeFileSync(skillPath, skillSource);
+    }
+    expect(existsSync(nodePath.join(codexHome, 'safeword/hook-proof-v2'))).toBe(false);
 
     // A headless process proves cache dispatch and all hook evidence, but it is
     // not a restarted Desktop app-server and therefore must leave activation pending.
-    const marker = writeCodexActivationMarker(environment, new Date());
     const model = process.env.SAFEWORD_CODEX_SMOKE_MODEL ?? DEFAULT_CODEX_ACTIVATION_CHECK_MODEL;
     const activation = runHeadlessCodexActivationCheck({
       codexBinary: CODEX,
@@ -389,10 +422,19 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
       model,
     });
     expect(activation).toMatchObject({ activation: 'pending', model });
-    const shimOutput = readFileSync(shimLog, 'utf8');
+    // Pending activation intentionally withholds current-profile credit. Check
+    // the individual cache hook observations, not that filtered status view.
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
-      expect(shimOutput).toContain(`--bun safeword@${packageVersion()} hook codex ${event}`);
+      const proof = JSON.parse(
+        readFileSync(nodePath.join(codexHome, 'safeword/hook-proof-v2', `${event}.json`), 'utf8'),
+      );
+      expect(proof).toMatchObject({
+        event,
+        plugin_version: packageVersion(),
+        activation_id: marker.activation_id,
+      });
     }
+    expect(existsSync(shimLog)).toBe(false);
     assertNoProjectWorkflowTree(projectRoot);
   }, 600_000);
 });
@@ -411,13 +453,14 @@ describe.skipIf(!CAN_RUN_MIGRATION)('live smoke: Codex public migration', () => 
 
   afterAll(() => {
     if (KEEP_LIVE_FIXTURE) {
+      if (codexHome !== undefined) rmSync(nodePath.join(codexHome, 'auth.json'), { force: true });
       process.stdout.write(
         `Preserved Codex migration fixture:\nCODEX_HOME=${codexHome}\nPROJECT_ROOT=${projectRoot}\n`,
       );
       return;
     }
-    rmSync(projectRoot, { recursive: true, force: true });
-    rmSync(codexHome, { recursive: true, force: true });
+    if (projectRoot !== undefined) rmSync(projectRoot, { recursive: true, force: true });
+    if (codexHome !== undefined) rmSync(codexHome, { recursive: true, force: true });
   });
 
   it('installs and verifies the marketplace plugin without deleting unreviewed legacy hooks', async () => {
@@ -443,5 +486,5 @@ describe.skipIf(!CAN_RUN_MIGRATION)('live smoke: Codex public migration', () => 
     });
     assertSuccess(pluginList, 'codex plugin list');
     assertSafeWordPluginEnabled(pluginList.stdout);
-  });
+  }, 600_000);
 });
