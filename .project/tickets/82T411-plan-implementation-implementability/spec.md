@@ -183,9 +183,9 @@
 
 #### plan-implementability.TBU1.R14 — Implementation Planning derives the material decision dimensions required inside the accepted scope boundary, makes them concrete with alternatives and failure cases, exposes their consequences and tradeoffs, and converges on explicit choices before Execution Planning; ideas beyond that boundary are dropped or surfaced as user-owned scope decisions rather than silently incorporated
 
-#### plan-implementability.TBU1.R15 — On upgrade, a feature not yet in implementation enters the new planning flow; an existing legacy implementation plan becomes the draft Implementation Plan, and material decisions in an existing `design.md` are reconciled into that draft before review while the original remains historical evidence rather than a second plan of record; the draft must satisfy the new decision contract before an Execution Plan is created, while a ticket already in implementation or later under a previously accepted plan is not retroactively blocked unless it returns to planning
+#### plan-implementability.TBU1.R15 — On any planning-contract upgrade, a feature not yet in implementation enters the current planning flow; an existing legacy implementation plan becomes the draft Implementation Plan, and material decisions in an existing `design.md` are reconciled into that draft before review while the original remains historical evidence rather than a second plan of record; the draft must satisfy the current decision contract before an Execution Plan is created, while a ticket already in implementation or later under a previously accepted plan continues under that accepted contract version until it returns to planning, when current contracts apply
 
-#### plan-implementability.TBU1.R16 — The existing optional human design-approval gate applies after the Implementation Plan passes semantic review and before Execution Planning begins; approval belongs to the exact reviewed Implementation Plan and its accepted upstream context, so a material change requires renewed approval, but the unchanged plan never requires a second approval after the Execution Plan; cloud or headless sessions preserve today's nonblocking behavior by recording pending approval and surfacing the reviewed approach in reviewable output
+#### plan-implementability.TBU1.R16 — The existing optional human design-approval gate applies after the Implementation Plan passes semantic review and before Execution Planning begins; approval belongs to the exact reviewed Implementation Plan, current contract, and accepted upstream context, so a material change while planning requires renewed approval, but the unchanged plan never requires a second approval after the Execution Plan; a ticket already implementing under R15 keeps its accepted approval until it returns to planning; cloud or headless sessions preserve today's nonblocking behavior by recording pending approval and surfacing the reviewed approach in reviewable output
 
 #### plan-implementability.TBU1.R17 — The Implementation Plan review receipt records an explicit pass or fail for focused 30–60 minute decision reviewability and, on failure, names the execution detail, missing summary, or disproportionate depth that obscures a decision
 
@@ -221,7 +221,7 @@
 > concrete Execution Plan, so each step can begin in order without reopening or
 > silently inventing the design.
 
-#### plan-implementability.TBU2.R1 — Execution planning begins only from the current Implementation Plan after it passes the required semantic review under its canonical decision-quality contract and the review receipt records the achieved independence level
+#### plan-implementability.TBU2.R1 — Execution planning begins only from the current Implementation Plan after it passes the required semantic review under its canonical decision-quality contract, the review receipt records the achieved independence level, and the optional human gate in TBU1.R16 is satisfied when enabled or recorded pending on a nonblocking headless surface
 
 #### plan-implementability.TBU2.R2 — An agent given only the accepted context and plans can start every execution step without inventing a behavior-shaping contract
 
@@ -241,7 +241,7 @@
 
 #### plan-implementability.TBU2.R10 — The Execution Plan maps every accepted scenario, decision, proof, affected surface, migration, rollout, rollback, and documentation obligation to dependency-ordered work with a concrete completion signal
 
-#### plan-implementability.TBU2.R11 — Changing load-bearing behavior or scope context invalidates the Implementation Plan review and every dependent Execution Plan review; changing canonical contract bytes invalidates reviews of that phase and dependent downstream reviews; changing an accepted Implementation Plan invalidates both plan reviews; changing only an Execution Plan invalidates only its own review
+#### plan-implementability.TBU2.R11 — During planning, changing load-bearing behavior or scope context invalidates the Implementation Plan review and every dependent Execution Plan review; changing canonical contract bytes invalidates reviews of that phase and dependent downstream reviews; changing an accepted Implementation Plan invalidates both plan reviews and any enabled human approval under TBU1.R16; changing only an Execution Plan invalidates only its own review; an already implementing ticket follows the accepted-version exception in TBU1.R15 until it returns to planning
 
 #### plan-implementability.TBU2.R12 — The Execution Plan distinguishes current implementation from target work and records whether each obligation has current-revision real-boundary proof, reusable earlier-revision proof, partial or structural proof, or no proof
 
@@ -253,7 +253,7 @@
 
 #### plan-implementability.TBU2.R16 — Execution Planning supplies rather than replaces feature TDD by ordering the concrete test and build work that implementation executes through RED, GREEN, and REFACTOR
 
-#### plan-implementability.TBU2.R17 — When implementation discovers or makes a decision that changes the accepted approach, Safeword preserves still-valid completed work and evidence, returns to Implementation Planning, revises and re-reviews the exact Implementation Plan, refreshes and re-reviews the dependent Execution Plan, and then resumes implementation from the first invalidated obligation; when the change affects only execution sequencing or mechanics, Safeword returns only to Execution Planning, revises and re-reviews that plan, and resumes without invalidating the accepted design
+#### plan-implementability.TBU2.R17 — When implementation discovers or makes a decision that changes the accepted approach, Safeword preserves still-valid completed work and evidence, returns to Implementation Planning, revises and re-reviews the exact Implementation Plan, renews enabled human approval under TBU1.R16 or records it pending on a nonblocking headless surface, refreshes and re-reviews the dependent Execution Plan, and then resumes implementation from the first invalidated obligation; when the change affects only execution sequencing or mechanics, Safeword returns only to Execution Planning, revises and re-reviews that plan, and resumes without invalidating the accepted design
 
 ### plan-implementability.TBU3 — Keep small work small without hiding decisions
 
@@ -319,9 +319,9 @@
 
 #### plan-implementability.TBU4.R8 — Guidance from architecture, data, testing, domain knowledge, and reviewers supplies candidate decisions inside the accepted boundary, not authority to expand it
 
-#### plan-implementability.TBU4.R9 — Review provenance binds the review kind, ticket, achieved independence level, exact reviewed plan bytes, exact canonical phase-contract digest, and semantically normalized ticket-relevant slices of every other load-bearing context input; normalization ignores formatting, comments, and unrelated persona or surface entries but not changed Rules, applicable principles, referenced personas, affected surfaces, accepted decisions, or scope; any contract-byte change or semantic change to other bound context invalidates that review and downstream reviews that relied on it
+#### plan-implementability.TBU4.R9 — Review provenance binds the review kind, ticket, achieved independence level, exact reviewed plan bytes, exact canonical phase-contract digest, and semantically normalized ticket-relevant slices of every other load-bearing context input; normalization ignores formatting, comments, and unrelated persona or surface entries but not changed Rules, applicable principles, referenced personas, affected surfaces, accepted decisions, or scope; any contract-byte change or semantic change to other bound context invalidates that review and downstream reviews that relied on it for a future planning transition, subject to the accepted-version exception for tickets already implementing under TBU1.R15
 
-#### plan-implementability.TBU4.R10 — The exact bytes inside the packaged canonical contract markers are authoritative; generated reviewer rubrics and reconciled authoring copies carry a content-derived cryptographic digest that the gate recomputes from their contract bytes, and a version label alone cannot satisfy the check, so any missing, edited, stale, or mismatched copy blocks authoring or approval with a recovery path to regenerate or reconcile it
+#### plan-implementability.TBU4.R10 — The exact bytes inside the packaged canonical contract markers are authoritative; generated reviewer rubrics and reconciled authoring copies carry a content-derived cryptographic digest that the gate recomputes from their contract bytes, and a version label alone cannot satisfy the check, so any missing, edited, stale, or mismatched copy blocks authoring, approval, and release validation with a recovery path to regenerate or reconcile it
 
 #### plan-implementability.TBU4.R11 — The review coordinator attempts cross-agent independent semantic review first; only a typed exhaustion of every independent route permits the established best-available fallback to satisfy the phase gate, and its receipt records the actual reviewer and reduced independence without calling the result independent or weakening the semantic contract
 
@@ -430,8 +430,9 @@
 - **Implementation replan:** During implementation, the user or agent reaches a
   new decision that changes the accepted approach or planned execution. If it
   changes the approach, Safeword returns to Implementation Planning, updates
-  and re-reviews that plan, then refreshes and re-reviews the dependent
-  Execution Plan. If it changes only execution sequencing or mechanics,
+  and re-reviews that plan, renews enabled human approval or records it
+  pending on a nonblocking headless surface, then refreshes and re-reviews the
+  dependent Execution Plan. If it changes only execution sequencing or mechanics,
   Safeword returns directly to Execution Planning. In both cases, valid
   completed work and evidence are preserved, and implementation resumes from
   the first affected obligation under current approvals.
@@ -440,15 +441,14 @@
 
 Affected:
 
-- Safeword CLI
-- Claude Code
-- Claude Code Cloud
-- OpenAI Codex
+- Safeword CLI — authoritative planning gate
+- Claude Code — authoritative local planning gate
+- Claude Code Cloud — affected cloud delivery; authoritative only where M2 proves the same lifecycle gate, otherwise a justified advisory skip under TBU1.R24
+- OpenAI Codex — authoritative local planning gate
 - OpenAI Codex Cloud — advisory guidance label only: it reads repository `AGENTS.md` without the local Codex plugin or planning hooks, so it must not claim review or approval; the label is verified at the CLI generated-guidance boundary, and complete workflow support needs a separate delivery contract
-- OpenCode — advisory profile catalogue only, not an authoritative planning
-  host until native hook dispatch is independently proven
-- Cursor
-- Cursor Cloud Agents
+- OpenCode — advisory profile catalogue only, not an authoritative planning host until native hook dispatch is independently proven
+- Cursor — authoritative local planning gate
+- Cursor Cloud Agents — affected cloud delivery; authoritative only where M2 proves the same lifecycle gate, otherwise a justified advisory skip under TBU1.R24
 
 Unaffected:
 
