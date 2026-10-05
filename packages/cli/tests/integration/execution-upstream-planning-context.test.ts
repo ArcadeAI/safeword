@@ -212,6 +212,13 @@ describe('owned Execution review resolves accepted upstream plan', () => {
       };
       expect(status(), 'the unchanged copied runtime retains the real approval').toBe('approved');
       expect(status(implementationReviewId)).toBe('approved');
+      const author = nodePath.join(distribution, 'templates/skills/bdd/PLAN_IMPLEMENTATION.md');
+      writeFileSync(
+        author,
+        `${readFileSync(author, 'utf8')}\n<!-- Unrelated authoring note. -->\n`,
+      );
+      expect(status(), 'outside-marker authoring notes retain Execution approval').toBe('approved');
+      expect(status(implementationReviewId)).toBe('approved');
       const bundle = readFileSync(runtime, 'utf8');
       const start = bundle.indexOf(`var ${prefix}_REVIEW_RUBRIC = \``);
       const end = bundle.indexOf(`${prefix}_REVIEW_RUBRIC_SHA256`, start);

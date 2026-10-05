@@ -272,6 +272,20 @@ describe('Execution planning role context', () => {
       prepared.cleanup();
     }
   });
+  it('refuses an Execution identity without its upstream canonical contract', () => {
+    const root = project();
+    const prepared = prepareReviewPacket(root, 'plan-execution', [target], [upstream, feature]);
+    try {
+      expect(() =>
+        createPlanningReviewIdentity({
+          ...prepared.packet,
+          upstream_plan_contract: undefined,
+        }),
+      ).toThrow('accepted-upstream-plan');
+    } finally {
+      prepared.cleanup();
+    }
+  });
   it('rejects an Execution identity that marks the upstream plan absent', () => {
     const root = project();
     const reviewIdentity = identity(root);
