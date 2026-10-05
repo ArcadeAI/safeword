@@ -180,7 +180,7 @@ planning approval.
 Corrective cycle for the parent-aligned canonical-byte row. The historical rows
 above remain immutable and do not complete this changed primary proof.
 
-- [ ] RED
+- [x] RED 5b965631f3417952425f2549aca7e1ca6c422b7e
 - [ ] GREEN
 - [ ] REFACTOR
 
