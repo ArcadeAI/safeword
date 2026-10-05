@@ -52475,7 +52475,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
     deliveryDefinition = retainedDeliveryDefinition(kind, logicalFiles, canonicalRoot);
-    planningContract = packetPlanContract(kind, execution.planContract, productPlan, canonicalRoot, targets);
+    planningContract = packetPlanContract(kind, execution.planContract, productPlan, canonicalRoot, uniqueTargets);
     planningContext = resolvePlanningRoleContext(canonicalRoot, kind, planningContract.planning_phase, logicalFiles, contextFiles);
     const additional = planningRoleSources(canonicalRoot, planningContext, seen);
     requirePacketFileCount(uniqueTargets.length + context.length + additional.length);
@@ -88499,7 +88499,9 @@ async function reviewRunHandler(invocation) {
   }
   if (process.env.SAFEWORD_REVIEW_WORKER === "1")
     return runReviewWorker(invocation);
-  const targets = Array.isArray(rawTargets) ? rawTargets.filter((target) => typeof target === "string") : [];
+  const targets = Array.isArray(rawTargets) ? [
+    ...new Map(rawTargets.filter((target) => typeof target === "string").map((target) => [nodePath62.resolve(invocation.cwd, target), target])).values()
+  ] : [];
   const context = reviewContext(invocation.options.context);
   if (rawKind === "plan-implementation" || rawKind === "plan-execution") {
     const targetFailure = invalidPlanningTarget(invocation.cwd, rawKind, targets);

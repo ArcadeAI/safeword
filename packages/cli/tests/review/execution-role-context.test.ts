@@ -97,6 +97,22 @@ afterEach(() => {
 });
 
 describe('Execution planning role context', () => {
+  it.each([
+    ['plan-implementation', upstream],
+    ['plan-execution', target],
+  ] as const)('retains the owned %s context when target spellings repeat', (kind, plan) => {
+    const prepared = prepareReviewPacket(project(), kind, [plan, `./${plan}`], [feature]);
+    try {
+      expect(prepared.packet.planning_phase).toBe(kind);
+      expect(prepared.packet.planning_context?.dependencies.map(row => row.role)).toEqual(
+        expect.arrayContaining(['ticket', 'project', 'rules', 'scenarios']),
+      );
+      expect(isPlanningReviewIdentity(createPlanningReviewIdentity(prepared.packet))).toBe(true);
+    } finally {
+      prepared.cleanup();
+    }
+  });
+
   it('derives the owned role graph including its accepted Implementation Plan', () => {
     const prepared = prepareReviewPacket(
       project(),

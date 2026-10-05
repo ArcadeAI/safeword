@@ -1250,7 +1250,7 @@ function prepareReviewPacketUnsafe(
       execution.planContract,
       productPlan,
       canonicalRoot,
-      targets,
+      uniqueTargets,
     );
     planningContext = resolvePlanningRoleContext(
       canonicalRoot,
