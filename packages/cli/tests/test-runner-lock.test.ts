@@ -15,12 +15,16 @@ import { pathToFileURL } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { defaultMaximumLockWaitMilliseconds } from '../scripts/lib/test-lock-config.mjs';
+import {
+  defaultMaximumLockWaitMilliseconds,
+  lockBusyExitCode,
+} from '../scripts/lib/test-lock-config.mjs';
 import {
   environmentPathKey,
   resolveTestRunnerInvocation,
   resolveWindowsVitest,
 } from '../scripts/test-runner-executable.mjs';
+import { verificationCommandFailure } from '../templates/scripts/closeout-cleanup.ts';
 
 const cliRoot = nodePath.resolve(import.meta.dirname, '..');
 const runnerPath = nodePath.join(cliRoot, 'scripts/run-vitest-with-build-lock.mjs');
@@ -851,7 +855,8 @@ describe('package test runner lock (379)', () => {
     const [ownerResult, waiterResult] = await Promise.all([ownerRun, waiterRun]);
 
     expect(ownerResult.status).toBe(0);
-    expect(waiterResult.status).toBe(1);
+    // A busy lock is not a test failure: callers recognise this exit code (#5311).
+    expect(waiterResult.status).toBe(lockBusyExitCode);
     const waitStatuses = waitStatusLines(waiterResult.stderr);
     expect(owner.checkoutRoot).toMatch(/checkout-a$/);
     expect(waitStatuses).toEqual([
@@ -861,8 +866,32 @@ describe('package test runner lock (379)', () => {
       `Waiting for safeword package test lock (200ms elapsed; owner PID ${owner.pid}; checkout ${owner.checkoutRoot}).`,
     ]);
     expect(waiterResult.stderr).toContain(
-      `Could not acquire safeword package test lock at ${lockDirectory} after waiting 250ms; no test was started.`,
+      `Safeword package test lock busy: could not acquire ${lockDirectory} after waiting 250ms; no test was started.`,
     );
+  });
+
+  it('reports a busy lock to the closeout guard as contention, not a failed test (#5311)', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    await seedOwnerFile(lockDirectory, { createdAt: new Date().toISOString(), pid: process.pid });
+
+    const result = await runNodeScript(runnerPath, ['tests/blocked.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
+    });
+    const closeoutReport = verificationCommandFailure('bun run test', cliRoot, {
+      status: result.status ?? 1,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      timedOut: false,
+    });
+
+    expect(existsSync(logPath)).toBe(false);
+    expect(closeoutReport).toContain('the shared safeword package test lock is busy');
+    expect(closeoutReport).not.toContain('failed in');
   });
 
   it('reports available fields when incomplete owner metadata has a usable staleness signal', async () => {
@@ -883,7 +912,7 @@ describe('package test runner lock (379)', () => {
         SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '100',
       });
 
-      expect(result.status).toBe(1);
+      expect(result.status).toBe(lockBusyExitCode);
       expect(result.stderr).toContain(expectedOwnerDetail);
       expect(result.stderr).toContain('checkout unavailable');
       expect(result.stderr).toContain('after waiting 220ms; no test was started.');
@@ -938,7 +967,7 @@ describe('package test runner lock (379)', () => {
         SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
       });
 
-      expect(result.status).toBe(1);
+      expect(result.status).toBe(lockBusyExitCode);
       expect(existsSync(lockDirectory)).toBe(true);
       if (seeded) expect(readFileSync(sentinel, 'utf8')).toBe('user data');
       expect(existsSync(logPath)).toBe(false);
@@ -961,7 +990,7 @@ describe('package test runner lock (379)', () => {
     });
 
     const unsafeStatuses = waitStatusLines(unsafeInterval.stderr);
-    expect(unsafeInterval.status).toBe(1);
+    expect(unsafeInterval.status).toBe(lockBusyExitCode);
     expect(unsafeStatuses).toHaveLength(2);
 
     await seedOwnerFile(lockDirectory, owner);
@@ -977,7 +1006,7 @@ describe('package test runner lock (379)', () => {
       },
     );
 
-    expect(malformedInterval.status).toBe(1);
+    expect(malformedInterval.status).toBe(lockBusyExitCode);
     expect(waitStatusLines(malformedInterval.stderr)).toHaveLength(0);
 
     await seedOwnerFile(lockDirectory, owner);
@@ -989,7 +1018,7 @@ describe('package test runner lock (379)', () => {
       SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '0',
     });
 
-    expect(zeroInterval.status).toBe(1);
+    expect(zeroInterval.status).toBe(lockBusyExitCode);
     expect(waitStatusLines(zeroInterval.stderr)).toHaveLength(0);
   });
 
@@ -1062,7 +1091,7 @@ describe('package test runner lock (379)', () => {
       SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
     });
 
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(lockBusyExitCode);
     expect(result.stderr).toContain('after waiting 0ms; no test was started.');
     expect(existsSync(logPath)).toBe(false);
     expect(existsSync(lockDirectory)).toBe(true);
@@ -1087,7 +1116,7 @@ describe('package test runner lock (379)', () => {
       SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
     });
 
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(lockBusyExitCode);
     expect(existsSync(logPath)).toBe(false);
     expect(existsSync(lockDirectory)).toBe(true);
   });
@@ -1123,7 +1152,7 @@ describe('package test runner lock (379)', () => {
       SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
     });
 
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(lockBusyExitCode);
     expect(existsSync(logPath)).toBe(false);
     expect(existsSync(lockDirectory)).toBe(true);
   });
@@ -1302,7 +1331,7 @@ describe('package test runner lock (379)', () => {
         SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
       });
 
-      expect(result.status).toBe(1);
+      expect(result.status).toBe(lockBusyExitCode);
       if (seeded) expect(readFileSync(sentinel, 'utf8')).toBe('user data');
       expect(existsSync(transitionDirectory)).toBe(true);
       expect(existsSync(logPath)).toBe(false);
@@ -1365,7 +1394,7 @@ describe('package test runner lock (379)', () => {
       SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
     });
 
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(lockBusyExitCode);
     expect(existsSync(recoveryDirectory)).toBe(true);
     expect(existsSync(logPath)).toBe(false);
   });
@@ -1386,7 +1415,7 @@ describe('package test runner lock (379)', () => {
       SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
     });
 
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(lockBusyExitCode);
     expect(result.stderr).toContain('after waiting 0ms; no test was started.');
     expect(existsSync(logPath)).toBe(false);
     expect(existsSync(lockDirectory)).toBe(true);
@@ -1522,8 +1551,8 @@ describe('package test runner lock (379)', () => {
       SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
     });
 
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain('Could not acquire safeword package test lock');
+    expect(result.status).toBe(lockBusyExitCode);
+    expect(result.stderr).toContain('Safeword package test lock busy');
     expect(result.stderr).toContain(
       `The active owner is PID ${process.pid} in /worktrees/full-suite.`,
     );
