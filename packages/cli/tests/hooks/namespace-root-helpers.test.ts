@@ -5,7 +5,7 @@
  * resolveToolProjectDirectory.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -110,6 +110,17 @@ describe('resolveOwningProjectDirectory (#5247)', () => {
           cwd: nodePath.join(worktree, 'packages/cli'),
         }),
       ).toBe(worktree);
+    });
+
+    it('roots a shell cwd reached through a symlink at the worktree it lands in', () => {
+      const worktree = tree(nodePath.join(launch, '.claude/worktrees/wt'), { enrolled: true });
+      mkdirSync(nodePath.join(worktree, 'packages'), { recursive: true });
+      const alias = nodePath.join(launch, 'work-link');
+      symlinkSync(nodePath.join(worktree, 'packages'), alias);
+
+      expect(
+        resolveToolProjectDirectory(launch, { tool: 'Bash', editedFile: '', cwd: alias }),
+      ).toBe(realpathSync(worktree));
     });
 
     it('keeps the launch checkout for shells in it, without a cwd, or in unenrolled trees', () => {

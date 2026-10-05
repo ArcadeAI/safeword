@@ -75,10 +75,13 @@ export function resolveToolProjectDirectory(
     return resolveOwningProjectDirectory(launchDirectory, call.editedFile);
   }
   if (call.tool === 'Bash' && call.cwd !== undefined && call.cwd !== '') {
-    return resolveWorkingProjectDirectory(
-      launchDirectory,
-      nodePath.resolve(launchDirectory, call.cwd),
-    );
+    // A cwd reached through a symlink belongs to the tree it lands in, not the
+    // tree its lexical ancestors sit in. Keep the host spelling unless the real
+    // path names a different owner.
+    const cwd = nodePath.resolve(launchDirectory, call.cwd);
+    const lexicalOwner = resolveWorkingProjectDirectory(launchDirectory, cwd);
+    const realOwner = resolveWorkingProjectDirectory(launchDirectory, canonicalPathForGate(cwd));
+    return isSameDirectory(lexicalOwner, realOwner) ? lexicalOwner : realOwner;
   }
   return launchDirectory;
 }

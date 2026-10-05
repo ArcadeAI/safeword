@@ -379,6 +379,19 @@ describe('pull-request readiness from a session inside a nested worktree', () =>
     expect(output).toEqual({});
   });
 
+  it('gates the worktree the shell is in when its cwd is reached through a symlink', () => {
+    const session = worktreeSession();
+    mkdirSync(nodePath.join(session.worktreeDirectory, 'packages'), { recursive: true });
+    // Lexically under the unfinished launch checkout, really inside the worktree.
+    const aliasedShellDirectory = nodePath.join(session.launchDirectory, 'work-link');
+    symlinkSync(nodePath.join(session.worktreeDirectory, 'packages'), aliasedShellDirectory);
+    closeTicketInWorktree(session);
+
+    const output = runReadyFromLaunch(session.launchDirectory, aliasedShellDirectory);
+
+    expect(output).toEqual({});
+  });
+
   it('still denies Ready when the shell works in the unfinished launch checkout', () => {
     const session = worktreeSession();
     closeTicketInWorktree(session);

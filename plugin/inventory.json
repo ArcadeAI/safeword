@@ -287,7 +287,7 @@
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
-      "sha256": "8d05e1773588f6d501591f6daadb507606c1a1502c937159cf41ca37ab095bf7"
+      "sha256": "33b1d9df8a5eeab59b8a21810d6a17fafa624f97a8ca179b125faf5ecfe1d519"
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
@@ -1223,7 +1223,7 @@
     },
     {
       "path": "templates/hooks/lib/namespace-root.ts",
-      "sha256": "8d05e1773588f6d501591f6daadb507606c1a1502c937159cf41ca37ab095bf7"
+      "sha256": "33b1d9df8a5eeab59b8a21810d6a17fafa624f97a8ca179b125faf5ecfe1d519"
     },
     {
       "path": "templates/hooks/lib/parse-annotation.ts",
