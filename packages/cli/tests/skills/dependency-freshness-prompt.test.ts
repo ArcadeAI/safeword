@@ -72,7 +72,7 @@ describe('dependency freshness instructions', () => {
     );
 
     expect(commands).toEqual([
-      'bun "${PLUGIN_ROOT}/runtime/cli.js" hook codex user-prompt-submit --plugin-hook',
+      'bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js" hook codex user-prompt-submit --plugin-hook',
     ]);
     expect(content).not.toContain('bunx');
     expect(content).not.toContain('npx');
