@@ -212,7 +212,7 @@ describe('evaluateDoneEvidence', () => {
     });
     expect(verdict).toEqual({
       ok: false,
-      reason: 'VERIFIED row must use the canonical checkbox spacing.',
+      reason: 'VERIFIED row must use uppercase VERIFIED and the canonical checkbox spacing.',
     });
   });
 

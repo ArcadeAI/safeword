@@ -163,7 +163,8 @@ function dispatch(identity, envelope, directory) {
   const inputText = Object.values(envelope.tool_input).filter(value => typeof value === 'string').join('\n');
   const timeoutMilliseconds = /ticket\.md/u.test(inputText) && /status:\s*['"]?done\b/u.test(inputText)
     ? 90_000
-    : /\bVERIFIED\b/u.test(inputText) ? 30_000 : 2_000;
+    // VERIFIED replays two bounded three-minute tests plus archive preparation.
+    : /\bVERIFIED\b/iu.test(inputText) ? 600_000 : 2_000;
   return new Promise((resolve, reject) => {
     const child = spawn(identity.runtime_path, [identity.dispatcher_path], {
       cwd: directory,

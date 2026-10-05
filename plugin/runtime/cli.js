@@ -35545,6 +35545,7 @@ import { spawnSync as spawnSync9 } from "child_process";
 import { createHash as createHash19 } from "crypto";
 import {
   existsSync as existsSync16,
+  lstatSync as lstatSync12,
   mkdirSync as mkdirSync14,
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync32,
@@ -35670,12 +35671,24 @@ function runTest(copy, argv, fullName, expectedStatus) {
   };
 }
 function requireArchivedSource(copy, path7, source) {
-  if (!readFileSync32(nodePath48.join(copy, path7)).equals(source)) {
+  if (!readProofInput(copy, path7).equals(source)) {
     throw new Error("Archived implementation differs from the committed source.");
   }
 }
+function readProofInput(root, path7) {
+  const parts = path7.split("/");
+  let candidate = root;
+  for (const [index, part] of parts.entries()) {
+    candidate = nodePath48.join(candidate, part);
+    const stat3 = lstatSync12(candidate);
+    if (stat3.isSymbolicLink() || (index === parts.length - 1 ? !stat3.isFile() : !stat3.isDirectory())) {
+      throw new Error(`Proof input must be a regular file without symlink components: ${path7}`);
+    }
+  }
+  return readFileSync32(candidate);
+}
 function archiveDigests(copy, paths) {
-  return Object.fromEntries(paths.map((path7) => [path7, sha2564(readFileSync32(nodePath48.join(copy, path7)))]));
+  return Object.fromEntries(paths.map((path7) => [path7, sha2564(readProofInput(copy, path7))]));
 }
 function requireDigests(actual, expected, message) {
   if (JSON.stringify(actual) !== JSON.stringify(expected))
@@ -35696,13 +35709,13 @@ function runRetrospectiveProof(projectRoot, request) {
   const inputs = [request.testFile, request.implementationPath, ...request.supportFiles];
   const supportSha256 = {};
   for (const path7 of inputs) {
-    const bytes = readFileSync32(nodePath48.join(root, path7));
+    const bytes = readProofInput(root, path7);
     const committed = git3(root, ["show", `HEAD:${path7}`]);
     if (!bytes.equals(committed))
       throw new Error(`Proof input differs from HEAD: ${path7}`);
     supportSha256[path7] = sha2564(bytes);
   }
-  const sourceBytes = readFileSync32(nodePath48.join(root, request.implementationPath));
+  const sourceBytes = readProofInput(root, request.implementationPath);
   const source = sourceBytes.toString("utf8");
   if (!Buffer.from(source, "utf8").equals(sourceBytes)) {
     throw new Error("Retrospective proof implementation must be valid UTF-8.");
@@ -35975,7 +35988,10 @@ function receiptIds(annotation) {
 function parseRetrospectiveAnnotation(line) {
   const row = ROW.exec(line);
   if (row === null)
-    return NONCANONICAL_ROW.test(line) ? { kind: "invalid", reason: "VERIFIED row must use the canonical checkbox spacing." } : undefined;
+    return NONCANONICAL_ROW.test(line) ? {
+      kind: "invalid",
+      reason: "VERIFIED row must use uppercase VERIFIED and the canonical checkbox spacing."
+    } : undefined;
   const checked = row[1]?.toLowerCase() === "x";
   if (!checked)
     return { kind: "unchecked" };
@@ -35991,7 +36007,7 @@ function parseRetrospectiveAnnotation(line) {
 var ROW, NONCANONICAL_ROW, UUID3;
 var init_retrospective_annotation = __esm(() => {
   ROW = /^\s*- \[([ xX])\] VERIFIED(?:\s|$)/u;
-  NONCANONICAL_ROW = /^\s*- \[[ xX]\]\s+VERIFIED\b/u;
+  NONCANONICAL_ROW = /^\s*- \[[ xX]\]\s+VERIFIED\b/iu;
   UUID3 = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 });
 
@@ -42735,7 +42751,7 @@ var init_main = __esm(() => {
 });
 
 // src/claude-plugin/cleanup-target.ts
-import { existsSync as existsSync30, lstatSync as lstatSync12 } from "fs";
+import { existsSync as existsSync30, lstatSync as lstatSync13 } from "fs";
 import nodePath66 from "path";
 function containedClaudeCleanupPath(cwd, relative) {
   if (relative === "" || nodePath66.isAbsolute(relative) || relative.split(/[\\/]/u).includes("..")) {
@@ -42755,7 +42771,7 @@ function assertSafeClaudeCleanupTarget(cwd, relative) {
     cursor = nodePath66.join(cursor, segment);
     if (!existsSync30(cursor))
       continue;
-    const metadata = lstatSync12(cursor);
+    const metadata = lstatSync13(cursor);
     if (metadata.isSymbolicLink()) {
       throw new Error(`Unsafe symlinked Claude cleanup target: ${relative}`);
     }
@@ -42768,7 +42784,7 @@ function assertSafeClaudeCleanupTarget(cwd, relative) {
 var init_cleanup_target = () => {};
 
 // src/claude-plugin/legacy-classifier.ts
-import { existsSync as existsSync31, lstatSync as lstatSync13, readFileSync as readFileSync49 } from "fs";
+import { existsSync as existsSync31, lstatSync as lstatSync14, readFileSync as readFileSync49 } from "fs";
 import nodePath67 from "path";
 function referencesLegacyHook(value) {
   if (typeof value === "string")
@@ -42788,7 +42804,7 @@ function observeFiles(cwd) {
       continue;
     try {
       const safePath2 = assertSafeClaudeCleanupTarget(cwd, relativePath);
-      const regular = lstatSync13(safePath2).isFile();
+      const regular = lstatSync14(safePath2).isFile();
       if (regular && isAcceptedHistoricalFile(relativePath, readFileSync49(safePath2))) {
         recognizedFiles.push(relativePath);
       } else {
@@ -42805,7 +42821,7 @@ function observeSettings(cwd) {
   const settingsPath = nodePath67.join(cwd, ".claude/settings.json");
   if (!existsSync31(settingsPath))
     return { recognizedHooks: [], conflictingHooks: [] };
-  if (!lstatSync13(settingsPath).isFile()) {
+  if (!lstatSync14(settingsPath).isFile()) {
     return {
       recognizedHooks: [],
       conflictingHooks: [],
@@ -42861,7 +42877,7 @@ import {
   closeSync as closeSync7,
   constants as fsConstants2,
   fstatSync as fstatSync5,
-  lstatSync as lstatSync14,
+  lstatSync as lstatSync15,
   openSync as openSync7,
   readdirSync as readdirSync16,
   readSync as readSync3,
@@ -42888,12 +42904,12 @@ function readSmallDescriptor(descriptor) {
 function readSmallMetadataFile(path7) {
   let descriptor;
   try {
-    const linkedBefore = lstatSync14(path7);
+    const linkedBefore = lstatSync15(path7);
     if (!isSmallRegularMetadata(linkedBefore))
       return;
     descriptor = openSync7(path7, fsConstants2.O_RDONLY | fsConstants2.O_NONBLOCK | (fsConstants2.O_NOFOLLOW ?? 0));
     const opened = fstatSync5(descriptor);
-    const linkedAfter = lstatSync14(path7);
+    const linkedAfter = lstatSync15(path7);
     if (!isSameSmallMetadata(linkedBefore, opened, linkedAfter))
       return;
     const content = readSmallDescriptor(descriptor);
@@ -42925,7 +42941,7 @@ function leaseMarkerPid(name) {
 }
 function vanishedDuringScan(path7) {
   try {
-    lstatSync14(path7);
+    lstatSync15(path7);
     return false;
   } catch (error2) {
     return error2.code === "ENOENT";
@@ -42954,7 +42970,7 @@ function isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry) {
   return /^\d{13}\n?$/u.test(readSmallMetadataFile(physicalPath) ?? "");
 }
 function directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot) {
-  const metadata = lstatSync14(physicalDirectory);
+  const metadata = lstatSync15(physicalDirectory);
   const canonical = realpathSync13(physicalDirectory);
   const insideRoot = canonical === canonicalRoot || canonical.startsWith(`${canonicalRoot}${nodePath68.sep}`);
   if (!metadata.isDirectory() || !insideRoot) {
@@ -43374,7 +43390,7 @@ var init_python = __esm(() => {
 // src/packs/rust/setup.ts
 import {
   existsSync as existsSync33,
-  lstatSync as lstatSync15,
+  lstatSync as lstatSync16,
   readdirSync as readdirSync17,
   readFileSync as readFileSync51,
   realpathSync as realpathSync14,
@@ -43400,7 +43416,7 @@ function containedWorkspaceMember(cwd, member) {
 function isSafeCargoManifest(cwd, cargoPath) {
   if (!existsSync33(cargoPath))
     return false;
-  const stat3 = lstatSync15(cargoPath);
+  const stat3 = lstatSync16(cargoPath);
   return stat3.isFile() && !stat3.isSymbolicLink() && isContainedPath(realpathSync14(cwd), realpathSync14(cargoPath));
 }
 function detectWorkspaceType(cargoContent) {
@@ -43772,7 +43788,7 @@ var init_workspaces = __esm(() => {
 });
 
 // src/reconcile.ts
-import { lstatSync as lstatSync16, readdirSync as readdirSync20, readlinkSync as readlinkSync2, unlinkSync as unlinkSync5 } from "fs";
+import { lstatSync as lstatSync17, readdirSync as readdirSync20, readlinkSync as readlinkSync2, unlinkSync as unlinkSync5 } from "fs";
 import nodePath76 from "path";
 function getConditionalPackages(conditionalPackages, projectType) {
   const packages = [];
@@ -43992,7 +44008,7 @@ function planExistingFilesRemoval(files, cwd) {
 }
 function lstatIfExists(path7) {
   try {
-    return lstatSync16(path7);
+    return lstatSync17(path7);
   } catch (error2) {
     const code = error2.code;
     if (code === "ENOENT" || code === "ENOTDIR")
@@ -44391,7 +44407,7 @@ function executePlan(plan, ctx) {
 }
 function observePath(path7) {
   try {
-    const stat3 = lstatSync16(path7);
+    const stat3 = lstatSync17(path7);
     if (stat3.isSymbolicLink())
       return `link:${stat3.mode}:${readlinkSync2(path7)}`;
     if (stat3.isDirectory())
@@ -56092,7 +56108,7 @@ import {
   closeSync as closeSync8,
   cpSync as cpSync2,
   existsSync as existsSync40,
-  lstatSync as lstatSync17,
+  lstatSync as lstatSync18,
   mkdtempSync as mkdtempSync8,
   openSync as openSync8,
   readFileSync as readFileSync54,
@@ -56255,7 +56271,7 @@ function recordMarketplaceSafetyEffects(effects, scope, options) {
 }
 function enableMarketplaceAutoUpdate(cwd, scope, effects) {
   const path8 = scopedSettingsPath(cwd, scope);
-  const metadata = lstatSync17(path8);
+  const metadata = lstatSync18(path8);
   if (!metadata.isFile()) {
     invalidScopeSettings(scope, `settings are not a regular file: ${path8}`);
   }
@@ -56475,7 +56491,7 @@ function readMarketplaceRegistry() {
   if (!existsSync40(path8)) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude reported the Safeword marketplace but its marketplace registry is missing.");
   }
-  const metadata = lstatSync17(path8);
+  const metadata = lstatSync18(path8);
   if (!metadata.isFile()) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude marketplace registry is not a regular file.");
   }
@@ -56493,7 +56509,7 @@ function readMarketplaceRegistry() {
 function captureFile(path8) {
   if (!existsSync40(path8))
     return { path: path8 };
-  const metadata = lstatSync17(path8);
+  const metadata = lstatSync18(path8);
   if (!metadata.isFile()) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", `Claude profile metadata is not a regular file: ${path8}`);
   }
@@ -56509,7 +56525,7 @@ function restoreFile(snapshot2) {
 function replaceStaleMarketplace(cwd, scope, effects) {
   const effectStart = effects.length;
   const settingsPath = scopedSettingsPath(cwd, scope);
-  const settingsMetadata = lstatSync17(settingsPath);
+  const settingsMetadata = lstatSync18(settingsPath);
   if (!settingsMetadata.isFile()) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", `Claude ${scope}-scope settings are not a regular file.`);
   }
@@ -56521,7 +56537,7 @@ function replaceStaleMarketplace(cwd, scope, effects) {
   }
   const configDirectory = claudeConfigDirectory();
   const marketplacePath = nodePath86.join(configDirectory, "plugins/marketplaces", MARKETPLACE_NAME);
-  if (!existsSync40(marketplacePath) || canonicalDirectory(registryEntry.installLocation) !== canonicalDirectory(marketplacePath) || !lstatSync17(marketplacePath).isDirectory()) {
+  if (!existsSync40(marketplacePath) || canonicalDirectory(registryEntry.installLocation) !== canonicalDirectory(marketplacePath) || !lstatSync18(marketplacePath).isDirectory()) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude marketplace checkout is missing or outside the expected profile location.");
   }
   const installedPlugins = captureFile(nodePath86.join(configDirectory, "plugins/installed_plugins.json"));
@@ -56637,7 +56653,7 @@ function assertInstalledAsset(installPath, asset) {
     throw new TypeError("installed inventory contains an unsafe asset");
   }
   const path8 = nodePath86.join(installPath, asset.path);
-  if (!lstatSync17(path8).isFile() || fileSha256(path8) !== asset.sha256) {
+  if (!lstatSync18(path8).isFile() || fileSha256(path8) !== asset.sha256) {
     throw new TypeError(`installed asset failed integrity validation: ${asset.path}`);
   }
 }
@@ -56654,7 +56670,7 @@ function assertRequiredNativeAssets(assets) {
   }
 }
 function validateNativePayload(plugin) {
-  if (typeof plugin.installPath !== "string" || !lstatSync17(plugin.installPath).isDirectory()) {
+  if (typeof plugin.installPath !== "string" || !lstatSync18(plugin.installPath).isDirectory()) {
     throw new TypeError("installed plugin path is missing");
   }
   const identityPath = nodePath86.join(plugin.installPath, "identity.json");
@@ -58075,7 +58091,8 @@ function dispatch(identity, envelope, directory) {
   const inputText = Object.values(envelope.tool_input).filter(value => typeof value === 'string').join('\n');
   const timeoutMilliseconds = /ticket\.md/u.test(inputText) && /status:\s*['"]?done\b/u.test(inputText)
     ? 90_000
-    : /\bVERIFIED\b/u.test(inputText) ? 30_000 : 2_000;
+    // VERIFIED replays two bounded three-minute tests plus archive preparation.
+    : /\bVERIFIED\b/iu.test(inputText) ? 600_000 : 2_000;
   return new Promise((resolve, reject) => {
     const child = spawn(identity.runtime_path, [identity.dispatcher_path], {
       cwd: directory,
@@ -58193,7 +58210,7 @@ __export(exports_profile2, {
 import { createHash as createHash29 } from "crypto";
 import {
   existsSync as existsSync43,
-  lstatSync as lstatSync18,
+  lstatSync as lstatSync19,
   readdirSync as readdirSync28,
   readFileSync as readFileSync57,
   realpathSync as realpathSync16,
@@ -58240,7 +58257,7 @@ function observeFile2(path8) {
   if (!existsSync43(path8))
     return { kind: "absent" };
   try {
-    if (!lstatSync18(path8).isFile())
+    if (!lstatSync19(path8).isFile())
       return { kind: "collision" };
     return { kind: "file", bytes: readFileSync57(path8) };
   } catch {
@@ -59173,7 +59190,7 @@ __export(exports_conformance, {
 });
 import { spawnSync as spawnSync15 } from "child_process";
 import { createHash as createHash30 } from "crypto";
-import { accessSync as accessSync3, constants as constants4, lstatSync as lstatSync19, readFileSync as readFileSync59, realpathSync as realpathSync17, statSync as statSync7 } from "fs";
+import { accessSync as accessSync3, constants as constants4, lstatSync as lstatSync20, readFileSync as readFileSync59, realpathSync as realpathSync17, statSync as statSync7 } from "fs";
 import nodePath94 from "path";
 function resolveExecutable(environment) {
   const extensions = process.platform === "win32" ? (environment.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";") : [""];
@@ -59238,7 +59255,7 @@ function installedProfile(environment) {
     return;
   const paths = openCodeProfilePaths(root);
   try {
-    if (!lstatSync19(paths.plugin).isFile() || !lstatSync19(paths.identity).isFile())
+    if (!lstatSync20(paths.plugin).isFile() || !lstatSync20(paths.identity).isFile())
       return;
     const identity = parseOpenCodeIdentity(JSON.parse(readFileSync59(paths.identity, "utf8")));
     if (identity?.safeword_version !== VERSION)
@@ -60162,7 +60179,7 @@ var init_doctor = __esm(() => {
 
 // src/cli-protocol/reconciliation.ts
 import { createHash as createHash31 } from "crypto";
-import { lstatSync as lstatSync20, readdirSync as readdirSync29, readFileSync as readFileSync60, readlinkSync as readlinkSync3 } from "fs";
+import { lstatSync as lstatSync21, readdirSync as readdirSync29, readFileSync as readFileSync60, readlinkSync as readlinkSync3 } from "fs";
 import nodePath95 from "path";
 function actionTargets(action) {
   return action.type === "chmod" ? action.paths : [action.path];
@@ -60191,7 +60208,7 @@ function filesystemNodeType(stat3) {
 }
 function hashPath(hash, absolutePath, relativePath, readFile3) {
   try {
-    const stat3 = lstatSync20(absolutePath);
+    const stat3 = lstatSync21(absolutePath);
     hashField(hash, "node-type", filesystemNodeType(stat3));
     hashField(hash, "relative-path", relativePath);
     hashField(hash, "mode", stat3.mode.toString());
@@ -60944,7 +60961,7 @@ import {
   cpSync as cpSync4,
   existsSync as existsSync46,
   fstatSync as fstatSync6,
-  lstatSync as lstatSync21,
+  lstatSync as lstatSync22,
   mkdirSync as mkdirSync21,
   openSync as openSync9,
   readdirSync as readdirSync31,
@@ -60956,7 +60973,7 @@ import {
 } from "fs";
 import nodePath102 from "path";
 function validateNamespaceTree(root, label) {
-  if (lstatSync21(root).isSymbolicLink()) {
+  if (lstatSync22(root).isSymbolicLink()) {
     throw new Error(`${label} is a symlink: ${root}`);
   }
   const visit3 = (directory) => {
@@ -60978,14 +60995,14 @@ function validateNamespaceTree(root, label) {
 function validateDirectoryRoot(path8, label) {
   if (!existsSync46(path8))
     return;
-  const metadata = lstatSync21(path8);
+  const metadata = lstatSync22(path8);
   if (metadata.isSymbolicLink())
     throw new Error(`${label} is a symlink: ${path8}`);
   if (!metadata.isDirectory())
     throw new Error(`${label} is not a directory: ${path8}`);
 }
 function conflictArchivePath(source, relative) {
-  const metadata = lstatSync21(source);
+  const metadata = lstatSync22(source);
   const digest4 = createHash32("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync63(source)).digest("hex");
   return nodePath102.join(".safeword", "namespace-migration-conflicts-v1", digest4, relative);
 }
@@ -61031,11 +61048,11 @@ function mergeLegacyDirectory(cwd, hooks) {
       const source = nodePath102.join(from, entry.name);
       const target = nodePath102.join(current, child);
       if (entry.isDirectory()) {
-        if (existsSync46(target) && !lstatSync21(target).isDirectory()) {
+        if (existsSync46(target) && !lstatSync22(target).isDirectory()) {
           throw new NamespaceStructuralCollisionError(`Cannot merge project namespaces: directory ${child} conflicts with a file.`);
         }
         validateMergeShape(source, child);
-      } else if (existsSync46(target) && !lstatSync21(target).isFile()) {
+      } else if (existsSync46(target) && !lstatSync22(target).isFile()) {
         throw new NamespaceStructuralCollisionError(`Cannot merge project namespaces: file ${child} conflicts with a directory.`);
       }
     }
@@ -61144,7 +61161,7 @@ function isGitTracked(cwd) {
 function readSafeNamespaceConfig(path8) {
   let descriptor;
   try {
-    const before = lstatSync21(path8);
+    const before = lstatSync22(path8);
     if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1 || before.size > MAX_NAMESPACE_CONFIG_BYTES) {
       return;
     }
@@ -61704,7 +61721,7 @@ import {
   constants as fsConstants4,
   existsSync as existsSync48,
   fstatSync as fstatSync7,
-  lstatSync as lstatSync22,
+  lstatSync as lstatSync23,
   openSync as openSync10,
   readdirSync as readdirSync34,
   readFileSync as readFileSync67,
@@ -62012,7 +62029,7 @@ function plannedVersionMarkerEffects(cwd, repair) {
     return [];
   const target = ".safeword/version";
   const path8 = nodePath108.join(cwd, target);
-  const metadata = lstatSync22(path8, { throwIfNoEntry: false });
+  const metadata = lstatSync23(path8, { throwIfNoEntry: false });
   if (metadata?.isFile() !== true || metadata.isSymbolicLink())
     return [];
   const version2 = readFileSync67(path8, "utf8").trim();
@@ -62274,12 +62291,12 @@ function readProjectVersionDescriptor(descriptor) {
 function readProjectVersionFile(path8, allowMultipleLinks) {
   let descriptor;
   try {
-    const before = lstatSync22(path8);
+    const before = lstatSync23(path8);
     if (!isSafeProjectVersionMetadata(before, allowMultipleLinks))
       return;
     descriptor = openSync10(path8, fsConstants4.O_RDONLY | fsConstants4.O_NONBLOCK | (fsConstants4.O_NOFOLLOW ?? 0));
     const opened = fstatSync7(descriptor);
-    const after = lstatSync22(path8);
+    const after = lstatSync23(path8);
     if (!isSameProjectVersionFile(before, opened, after) || !isSafeProjectVersionMetadata(opened, allowMultipleLinks)) {
       return;
     }
@@ -62292,7 +62309,7 @@ function readProjectVersionFile(path8, allowMultipleLinks) {
   }
 }
 function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) {
-  const metadata = lstatSync22(projectVersionPath, { throwIfNoEntry: false });
+  const metadata = lstatSync23(projectVersionPath, { throwIfNoEntry: false });
   if (metadata === undefined) {
     return { kind: "version", value: "0.0.0", replaceEntry: false };
   }
@@ -62347,7 +62364,7 @@ function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) 
 }
 function checkProjectVersion(cwd, repairVersionMarker) {
   const safewordDirectoryPath = nodePath108.join(cwd, ".safeword");
-  const safewordDirectoryMetadata = lstatSync22(safewordDirectoryPath, {
+  const safewordDirectoryMetadata = lstatSync23(safewordDirectoryPath, {
     throwIfNoEntry: false
   });
   if (safewordDirectoryMetadata?.isDirectory() !== true) {
@@ -62477,7 +62494,7 @@ function snapshotFiles(cwd, targets) {
   const visit3 = (absolutePath) => {
     if (!existsSync48(absolutePath))
       return;
-    const stat3 = lstatSync22(absolutePath);
+    const stat3 = lstatSync23(absolutePath);
     const relativePath = nodePath108.relative(cwd, absolutePath);
     if (stat3.isSymbolicLink()) {
       snapshot2.set(relativePath, `link:${readlinkSync4(absolutePath)}`);
@@ -63503,7 +63520,7 @@ import {
   fstatSync as fstatSync8,
   fsyncSync as fsyncSync3,
   ftruncateSync,
-  lstatSync as lstatSync23,
+  lstatSync as lstatSync24,
   mkdirSync as mkdirSync22,
   openSync as openSync11,
   readFileSync as readFileSync68,
@@ -63599,7 +63616,7 @@ function entryFor(cwd, mutation) {
   const path8 = assertSafeClaudeCleanupTarget(cwd, mutation.path);
   const before = readFileSync68(path8);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
-  const mode = lstatSync23(path8).mode & 511;
+  const mode = lstatSync24(path8).mode & 511;
   return {
     path: mutation.path,
     before_sha256: sha2568(before),
@@ -63626,14 +63643,14 @@ function isValidOpenCleanupTarget(snapshot2) {
 function openCleanupTarget(root, relative, flags) {
   const path8 = assertSafeClaudeCleanupTarget(root, relative);
   const parentPath = nodePath109.dirname(path8);
-  const targetBefore = lstatSync23(path8);
-  const parentBefore = lstatSync23(parentPath);
+  const targetBefore = lstatSync24(path8);
+  const parentBefore = lstatSync24(parentPath);
   const parentDescriptor = openSync11(parentPath, fsConstants5.O_RDONLY | (fsConstants5.O_DIRECTORY ?? 0) | (fsConstants5.O_NOFOLLOW ?? 0));
   let descriptor;
   try {
     descriptor = openSync11(path8, flags | (fsConstants5.O_NOFOLLOW ?? 0));
-    const targetAfter = lstatSync23(path8);
-    const parentAfter = lstatSync23(parentPath);
+    const targetAfter = lstatSync24(path8);
+    const parentAfter = lstatSync24(parentPath);
     const opened = fstatSync8(descriptor);
     const openedParent = fstatSync8(parentDescriptor);
     if (!isValidOpenCleanupTarget({
@@ -63663,7 +63680,7 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
   mkdirSync22(quarantineDirectory, { recursive: true, mode: 448 });
   beforeQuarantine?.();
   renameSync13(opened.path, safeQuarantinePath);
-  const quarantined = lstatSync23(safeQuarantinePath);
+  const quarantined = lstatSync24(safeQuarantinePath);
   const descriptor = fstatSync8(opened.descriptor);
   if (!sameFile(quarantined, descriptor) || descriptor.size !== opened.target.size) {
     throw new Error("Claude cleanup quarantined a replacement target; retained it for recovery.");
@@ -63674,8 +63691,8 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
 }
 function revalidateOpenTarget(root, relative, opened) {
   const path8 = assertSafeClaudeCleanupTarget(root, relative);
-  const target = lstatSync23(path8);
-  const parent = lstatSync23(nodePath109.dirname(path8));
+  const target = lstatSync24(path8);
+  const parent = lstatSync24(nodePath109.dirname(path8));
   const descriptor = fstatSync8(opened.descriptor);
   if (path8 !== opened.path || !sameFile(opened.target, descriptor) || !sameFile(descriptor, target) || !sameFile(opened.parent, parent) || descriptor.size !== opened.target.size || descriptor.nlink !== 1) {
     throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
@@ -63983,10 +64000,10 @@ function isSafeTransactionMetadata(metadata) {
 function readTransactionBytes(path8) {
   let descriptor;
   try {
-    const before = lstatSync23(path8);
+    const before = lstatSync24(path8);
     descriptor = openSync11(path8, fsConstants5.O_RDONLY | fsConstants5.O_NONBLOCK | (fsConstants5.O_NOFOLLOW ?? 0));
     const opened = fstatSync8(descriptor);
-    const after = lstatSync23(path8);
+    const after = lstatSync24(path8);
     if (!isTransactionFile(before, opened, after))
       throw new Error("Unsafe transaction file.");
     const buffer = Buffer.alloc(MAX_CLAUDE_TRANSACTION_BYTES + 1);
@@ -63998,7 +64015,7 @@ function readTransactionBytes(path8) {
       offset += count;
     }
     const final = fstatSync8(descriptor);
-    if (offset > MAX_CLAUDE_TRANSACTION_BYTES || !isTransactionFile(before, final, lstatSync23(path8))) {
+    if (offset > MAX_CLAUDE_TRANSACTION_BYTES || !isTransactionFile(before, final, lstatSync24(path8))) {
       throw new Error("Unsafe transaction file.");
     }
     return buffer.subarray(0, offset);
@@ -64172,7 +64189,7 @@ function pendingRecoveryEntries(projectRoot, transaction) {
   for (const entry of transaction.entries) {
     if (entry.quarantine_path !== undefined) {
       const quarantine = assertSafeClaudeCleanupTarget(projectRoot, entry.quarantine_path);
-      if (existsSync49(quarantine) && lstatSync23(quarantine).size > 0) {
+      if (existsSync49(quarantine) && lstatSync24(quarantine).size > 0) {
         throw new Error(`Claude recovery preserved unverified bytes at ${entry.quarantine_path}; inspect and move or remove that file before retrying recovery`);
       }
     }
@@ -64389,7 +64406,7 @@ import {
   closeSync as closeSync12,
   constants as constants5,
   fstatSync as fstatSync9,
-  lstatSync as lstatSync24,
+  lstatSync as lstatSync25,
   openSync as openSync12,
   readFileSync as readFileSync69,
   realpathSync as realpathSync18
@@ -64505,7 +64522,7 @@ function parsePersonalPreference(content, path8) {
 function readPersonalExecutionPreference(cwd) {
   const path8 = personalPath(cwd);
   try {
-    const metadata = lstatSync24(path8, { throwIfNoEntry: false });
+    const metadata = lstatSync25(path8, { throwIfNoEntry: false });
     if (metadata === undefined)
       return { path: path8 };
     const fileError = validatePersonalFile(metadata, path8);
@@ -64788,7 +64805,7 @@ import {
   fstatSync as fstatSync10,
   fsyncSync as fsyncSync4,
   linkSync as linkSync3,
-  lstatSync as lstatSync25,
+  lstatSync as lstatSync26,
   mkdirSync as mkdirSync23,
   openSync as openSync13,
   readFileSync as readFileSync70,
@@ -64937,7 +64954,7 @@ var nodeRemoteWorkflowFs;
 var init_remote_workflow_fs = __esm(() => {
   nodeRemoteWorkflowFs = {
     privatePath: (directory) => nodePath111.join(directory, `.safeword-${randomUUID14()}`),
-    lstat: (path8) => lstatSync25(path8, { throwIfNoEntry: false }),
+    lstat: (path8) => lstatSync26(path8, { throwIfNoEntry: false }),
     mkdir: mkdirSync23,
     openRead: (path8) => openSync13(path8, constants6.O_RDONLY | constants6.O_NONBLOCK | (constants6.O_NOFOLLOW ?? 0)),
     openPrivate: (path8) => openSync13(path8, "wx", 420),
@@ -65539,13 +65556,13 @@ var init_shell_segments = __esm(() => {
 
 // src/test-plan/resolve.ts
 import { spawnSync as spawnSync17 } from "child_process";
-import { existsSync as existsSync50, lstatSync as lstatSync26, readFileSync as readFileSync71 } from "fs";
+import { existsSync as existsSync50, lstatSync as lstatSync27, readFileSync as readFileSync71 } from "fs";
 import nodePath115 from "path";
 import process17 from "process";
 function directManifestIndex(directory) {
   return new Map([...TREE_MANIFESTS].filter((name) => {
     try {
-      return lstatSync26(nodePath115.join(directory, name)).isFile();
+      return lstatSync27(nodePath115.join(directory, name)).isFile();
     } catch {
       return false;
     }
@@ -67609,7 +67626,7 @@ var exports_drain_retro_spool = {};
 __export(exports_drain_retro_spool, {
   drainRetroSpool: () => drainRetroSpool
 });
-import { existsSync as existsSync58, lstatSync as lstatSync27, realpathSync as realpathSync19 } from "fs";
+import { existsSync as existsSync58, lstatSync as lstatSync28, realpathSync as realpathSync19 } from "fs";
 import nodePath128 from "path";
 function drainRetroSpool(inputPath, mode = "drain") {
   const spoolPath2 = nodePath128.resolve(inputPath);
@@ -67625,7 +67642,7 @@ function drainRetroSpool(inputPath, mode = "drain") {
   const sessionId = nodePath128.basename(spoolPath2, ".jsonl");
   const ackPath2 = ackFilePath(projectDirectory, sessionId);
   const protectedPaths = [safewordDirectory, draftsDirectory, spoolPath2, ackPath2];
-  if (protectedPaths.some((path8) => existsSync58(path8) && lstatSync27(path8).isSymbolicLink())) {
+  if (protectedPaths.some((path8) => existsSync58(path8) && lstatSync28(path8).isSymbolicLink())) {
     return {
       state: "refused",
       message: "Refusing a symlinked retro spool or acknowledgement path"

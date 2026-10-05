@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -238,15 +239,29 @@ function runTest(
 }
 
 function requireArchivedSource(copy: string, path: string, source: Buffer): void {
-  if (!readFileSync(nodePath.join(copy, path)).equals(source)) {
+  if (!readProofInput(copy, path).equals(source)) {
     throw new Error('Archived implementation differs from the committed source.');
   }
 }
 
+function readProofInput(root: string, path: string): Buffer {
+  const parts = path.split('/');
+  let candidate = root;
+  for (const [index, part] of parts.entries()) {
+    candidate = nodePath.join(candidate, part);
+    const stat = lstatSync(candidate);
+    if (
+      stat.isSymbolicLink() ||
+      (index === parts.length - 1 ? !stat.isFile() : !stat.isDirectory())
+    ) {
+      throw new Error(`Proof input must be a regular file without symlink components: ${path}`);
+    }
+  }
+  return readFileSync(candidate);
+}
+
 function archiveDigests(copy: string, paths: readonly string[]): Record<string, string> {
-  return Object.fromEntries(
-    paths.map(path => [path, sha256(readFileSync(nodePath.join(copy, path)))]),
-  );
+  return Object.fromEntries(paths.map(path => [path, sha256(readProofInput(copy, path))]));
 }
 
 function requireDigests(
@@ -279,12 +294,12 @@ export function runRetrospectiveProof(
   const inputs = [request.testFile, request.implementationPath, ...request.supportFiles];
   const supportSha256: Record<string, string> = {};
   for (const path of inputs) {
-    const bytes = readFileSync(nodePath.join(root, path));
+    const bytes = readProofInput(root, path);
     const committed = git(root, ['show', `HEAD:${path}`]);
     if (!bytes.equals(committed)) throw new Error(`Proof input differs from HEAD: ${path}`);
     supportSha256[path] = sha256(bytes);
   }
-  const sourceBytes = readFileSync(nodePath.join(root, request.implementationPath));
+  const sourceBytes = readProofInput(root, request.implementationPath);
   const source = sourceBytes.toString('utf8');
   if (!Buffer.from(source, 'utf8').equals(sourceBytes)) {
     throw new Error('Retrospective proof implementation must be valid UTF-8.');

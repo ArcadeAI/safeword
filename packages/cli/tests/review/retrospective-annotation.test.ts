@@ -23,8 +23,21 @@ describe('retrospective ledger annotation', () => {
       kind: 'invalid',
       reason: 'VERIFIED needs distinct eligibility and proof receipt IDs.',
     });
-    expect(parseRetrospectiveAnnotation('- [x] Verified by hand')).toBeUndefined();
+    expect(parseRetrospectiveAnnotation('- [x] Verified by hand')).toMatchObject({
+      kind: 'invalid',
+    });
   });
+
+  it.each(['verified', 'Verified', 'VeRiFiEd'])(
+    'rejects noncanonical %s rather than hiding it from the closing gate',
+    label => {
+      expect(
+        parseRetrospectiveAnnotation(
+          `- [x] ${label} eligibility=${eligibilityId} proof=${proofId}`,
+        ),
+      ).toMatchObject({ kind: 'invalid' });
+    },
+  );
 
   it('accepts ordinary whitespace between receipt fields but keeps unchecked rows uncredited', () => {
     expect(

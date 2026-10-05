@@ -4,7 +4,7 @@ export type RetrospectiveAnnotation =
   | { readonly kind: 'claim'; readonly eligibilityId: string; readonly proofId: string };
 
 const ROW = /^\s*- \[([ xX])\] VERIFIED(?:\s|$)/u;
-const NONCANONICAL_ROW = /^\s*- \[[ xX]\]\s+VERIFIED\b/u;
+const NONCANONICAL_ROW = /^\s*- \[[ xX]\]\s+VERIFIED\b/iu;
 const UUID = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 
 function receiptIds(annotation: string): { eligibilityId: string; proofId: string } | undefined {
@@ -24,7 +24,10 @@ export function parseRetrospectiveAnnotation(line: string): RetrospectiveAnnotat
   const row = ROW.exec(line);
   if (row === null)
     return NONCANONICAL_ROW.test(line)
-      ? { kind: 'invalid', reason: 'VERIFIED row must use the canonical checkbox spacing.' }
+      ? {
+          kind: 'invalid',
+          reason: 'VERIFIED row must use uppercase VERIFIED and the canonical checkbox spacing.',
+        }
       : undefined;
   const checked = row[1]?.toLowerCase() === 'x';
   if (!checked) return { kind: 'unchecked' };

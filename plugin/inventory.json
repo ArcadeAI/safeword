@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "ba22f0bd8980fa2a7e44ede7484c3d1886c66f91c1878c3a7416cd6c48891c0b"
+      "sha256": "ae9d9b4a11aca10752c16c7875fe0612069968e80e2e8b830622c3bc3a6f466e"
     },
     {
       "path": "runtime/dispatch.js",
@@ -383,7 +383,7 @@
     },
     {
       "path": "runtime/hooks/lib/retrospective-annotation.ts",
-      "sha256": "83cce7118594b4439de4d1acd3e76aeab90b4d9d643719336c49e41217a44d42"
+      "sha256": "6dab8396e39bf1cb6500c25cb47147f4b6749292ea4844c6d8b4c0eddc4c404e"
     },
     {
       "path": "runtime/hooks/lib/retrospective-gate.ts",
@@ -1323,7 +1323,7 @@
     },
     {
       "path": "templates/hooks/lib/retrospective-annotation.ts",
-      "sha256": "83cce7118594b4439de4d1acd3e76aeab90b4d9d643719336c49e41217a44d42"
+      "sha256": "6dab8396e39bf1cb6500c25cb47147f4b6749292ea4844c6d8b4c0eddc4c404e"
     },
     {
       "path": "templates/hooks/lib/retrospective-gate.ts",

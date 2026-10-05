@@ -1,6 +1,14 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -47,6 +55,43 @@ describe('retrospective proof boundary', () => {
     expect(() =>
       runRetrospectiveProof(path.resolve(import.meta.dirname, '../..'), request),
     ).toThrow('Retrospective proof requires the Git repository root.');
+  });
+
+  it('rejects a committed implementation symlink before reading or mutating its external target', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-symlink-proof-'));
+    const temporary = realpathSync.native(directory);
+    const root = path.join(temporary, 'repository');
+    const outside = path.join(temporary, 'outside.ts');
+    try {
+      mkdirSync(path.dirname(path.join(root, request.implementationPath)), { recursive: true });
+      mkdirSync(path.dirname(path.join(root, request.testFile)), { recursive: true });
+      writeFileSync(outside, outside);
+      symlinkSync(outside, path.join(root, request.implementationPath));
+      writeFileSync(path.join(root, request.testFile), '// selected test\n');
+      execFileSync('git', ['init', '-q', root]);
+      execFileSync('git', ['-C', root, 'add', '.']);
+      execFileSync('git', [
+        '-C',
+        root,
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-qm',
+        'fixture',
+      ]);
+      expect(() =>
+        runRetrospectiveProof(root, {
+          ...request,
+          supportFiles: [request.testFile],
+          mutation: { ...request.mutation, before: outside, after: 'changed' },
+        }),
+      ).toThrow('Proof input must be a regular file without symlink components');
+      expect(readFileSync(outside, 'utf8')).toBe(outside);
+    } finally {
+      rmSync(temporary, { recursive: true, force: true });
+    }
   });
 
   it('uses fresh passing and mutated reports rather than a committed report', () => {
