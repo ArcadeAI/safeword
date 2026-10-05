@@ -36,7 +36,7 @@ parent_job: plan-implementability.TBU4
 milestone: M2
 created: 2026-09-08T17:36:34.390Z
 last_modified: 2026-09-26T06:34:59Z
-parent_contract_digest: 2afd2f5559eafea9bd752ac826b46fa98e80a30ccdf6bed76a16ff7f30bcec20
+parent_contract_digest: fc6cd57babcd3fefc8a71c2f100683aa98d4589e1b14abfe46f8b4226e2be25f
 ---
 
 # Keep plan reviews current and trustworthy
@@ -106,6 +106,61 @@ parent_contract_digest: 2afd2f5559eafea9bd752ac826b46fa98e80a30ccdf6bed76a16ff7f
 ## Root Cause (PR 4 Claude Product review identity)
 
 ### Resume checkpoint — 2026-10-05 UTC
+
+Latest continuation: the user explicitly authorized the repository coordinator
+with “use it”. Fresh source scenario review
+`0e39c39d-5062-4520-a437-cca4d1ad9a0e`, Implementation review
+`79321e32-0731-4057-a457-4e9d5a4fe76d`, and Execution review
+`1463a44e-55a7-42bb-832b-7ae5dd811bcd` passed and were stamped through the
+native-installed isolated development verifier. Their achieved planning
+independence was `reduced` (author capability unknown), not cross-model proof.
+The normal source coding-authorization command returned authorized before
+production edits. Plan repairs clarify existing upstream data applicability,
+existing PID/inode lock recovery, historical versus corrective tasks, and
+disposition proof ownership; they add no new lock protocol or product authority.
+
+Committed RED evidence is `5b965631f`; the R9 production correction is
+`bf758b53f52d40f3d7288f285937dcb717554a26`. It rejects own-review-only declarations
+and deletes snapshot-only upstream currency. Both real reconciliation scenarios
+passed 106/106 steps; 30 relevant lower-level tests passed while the separate
+R4 corrective test remained RED. Current R4 and R8 production corrections are
+uncommitted: identity now binds the exact bounded reviewer-contract SHA, and the
+handbook/BDD entry points explicitly distinguish supported from advisory
+surfaces. All four generated surfaces are current. The copied-runtime R4 proof
+no longer edits the unused, tree-shaken typed-contract table; baseline approval,
+semantic/cosmetic mutations, and stale-status assertions remain exercised.
+
+Current combined verification: 60/60 targeted tests pass; 19 real CLI/installed
+scenarios pass all 990 steps. The entire root feature reports 173 scenarios:
+57 passed, 116 undefined; 8998 steps: 8650 passed, 7 skipped, 341 undefined;
+no scenario failed. This is still incomplete acceptance. Full-repository
+acceptance was not rerun: its last recorded census remains 2378 scenarios,
+1833 passed, 3 skipped, 541 undefined, and one unrelated failure. The original
+six-failure/585-unfinished history and deferred R7 obligation remain preserved.
+Source quality review `abad7409-798a-4748-8222-bc2d74d2bb24` approved the ten
+scoped source/test targets with cross-agent provenance and no blocking findings.
+
+The installed personal runtime rejects the same executable RED receipt that
+the source verifier accepts (current R9 receipt
+`718d5877-ba9f-4d4e-afd5-76fc1a4933ef`). Automatic approval review rejected the
+GREEN checkbox edit; the checkbox remains unchecked. The normal source
+`codex migrate` command was healthy/no-op and did not align the verifier.
+Dogfood source installation copied the two guidance mirrors but stopped on an
+existing Claude marketplace source conflict. Incidental version/gitignore
+changes were restored; no personal marketplace settings were changed.
+A decision is pending on installing this branch's generated development plugin
+into the shared Codex profile and restarting. That affects other chats and
+removes the installed MCP review bridge; only the repository coordinator is
+authorized for this epic. Do not bypass the hook or reinterpret its rejection.
+
+Remote snapshot: all 14 PRs remain open Draft; published heads do not include
+these local changes. Their checks reported no pending/failing entries, while
+PR #5170 now reports a merge conflict. No merge or promotion occurred. After
+the verifier is aligned, refresh proof receipts against their actual current
+inputs, complete honest ledger tracking, place fixes in their owning slices,
+resolve #5170's conflict, run required acceptance/evals/live/release checks,
+and obtain current exact-head review/CI. Neither the 116 undefined feature
+scenarios nor the user-owned R7 deferral may be hidden or called complete.
 
 Current continuation checkpoint: R9's authorized correction now has real RED
 proof: the targeted three-file run reported 52 passing and two failing tests
@@ -204,3 +259,85 @@ Product Plan reviews use `quality-review`, but the Claude adapter selected strea
 ## Root Cause (PR 4 Codex Execution review timeouts)
 
 The Execution Plan output schema contained `oneOf` for proof invocations. The Codex app-server accepted the turn request, but its model endpoint rejected the nested schema with `invalid_json_schema` because `oneOf` is unsupported. The adapter ignored the resulting `turn/completed` event with `status: failed`, turning a roughly four-second schema rejection into a worker timeout. An event trace captured both the rejection and failed completion; replacing `oneOf` with equivalent `anyOf` yielded a completed live Execution review. The competing hypotheses of a slow model and an unsupported pinned Codex model were ruled out: the rejection occurred before generation, while the same pinned model completed after the schema change.
+
+## Main integration checkpoint (2026-10-05)
+
+Main through `e7a8c12c0a523091c4629419ce5877c7a08bb6da` is integrated
+locally across the planning and Execution stacks and Product branch. The
+executable-RED helper also passed generated verification and now includes that
+main snapshot in committed local merges. No PR has been pushed, promoted, or
+merged on GitHub in this pass.
+
+Cross-agent Claude quality review `518f8165-14ed-4cc6-bb73-e224e46d98bb`
+found inconsistent duplicate-target admission: packet deduplication could omit
+the planning phase and role context. Three new regressions failed on the old
+code, then passed after normalizing public target paths before admission and
+passing unique packet targets to the planning-contract resolver. Broader
+validation passed (197 tests, typecheck). Fresh cross-agent Claude review
+`f8d97eb9-e959-4fbe-95f6-e05360e2e3b1` approved the source with three
+nonblocking cleanup/error-reporting warnings. The correction has also been
+copied to its owning PR3 slice; that slice passed 194 tests and typecheck.
+Slice generation/commit and descendant integration remain pending.
+
+The focused root check initially reported 28 scenarios: six passed, 15 failed,
+seven undefined. All 15 failures were installer fixtures inheriting the personal
+Claude marketplace version. Isolating their Claude profiles retained the real
+installer and assertions: nine installed-contract scenarios/468 steps and six
+cosmetic-context scenarios/312 steps now pass. The seven undefined scenarios
+remain unfinished; these narrower results do not replace full acceptance.
+Two gated guidance scenarios/104 steps also pass with an isolated profile.
+
+Dependencies were refreshed using the repository-pinned toolchain. Corrective
+R4/R8 edits and their changed fixtures remain uncommitted; their previous RED
+receipts must be refreshed before marking corrective GREEN evidence. Personal
+plugin activation, exact-head reviews and CI, PR ownership of corrections,
+deferred R7 proof, and full acceptance remain outstanding. The last pre-main
+full census still had one failure and 541 undefined scenarios; no new full
+census has been run since integration.
+
+Root generation verified all five surfaces; installed mirrors passed parity.
+The native marketplace installed the current local generated 1.0.0 plugin.
+Its copied runtime and the generated runtime both hash to
+`c4a013a6fd6f0f60dfdda8df0f98bec4bd4a5e9f3d4ee6c182c7046a8d760a07`.
+Source status reports protected using the 18:18 lifecycle proof, which predates
+this replacement. That does not establish activation of the new bytes. The
+project plugin-setup skill requires a full Codex restart before resuming and
+checking real lifecycle protection. Do not synthesize a new proof or treat
+same-version proof reuse as fresh activation.
+
+Post-restart check at 2026-10-05 19:27 UTC reports native 1.0.0 protection
+with fresh lifecycle evidence recorded at 19:27:45 UTC. The activation blocker
+is resolved. The active edit gate correctly requires fresh phase admission.
+Scenario review `dd1c3ce9-1d88-48f0-a2ff-24574088048a` approved with warnings;
+its confirmed reviewer was Claude `claude-opus-5-5`, with reduced independence
+because author capability was unknown. Recording only the review ID was
+insufficient: admission also compares the stamp's author, reviewer, and achieved
+independence against the authenticated receipt. Recording those actual fields
+made scenario admission pass. Implementation and Execution approval remain
+stale and are being refreshed through the installed coordinator.
+
+Owning PR3 quality review `f4a6620c-b0de-44bd-a717-770d88502df2` approved the
+duplicate-target correction without errors. Its optional positive CLI case and
+spelling/help suggestions remain nonblocking. The commit hook rejected the
+temporary iterator spread under `unicorn/prefer-iterator-to-array`; use
+`Array.from` to retain supported runtime compatibility. The attempted edit was
+blocked before application by stale phase admission. No hooks were bypassed.
+
+Current blocker after restart: scenario review
+`9916ac23-6d0d-4050-85a3-034097efcf28` requests the inherited R9 downstream
+canonical-contract invalidation proof. Neither the proposed two outline rows
+nor the return to `scenario-gate` was applied: the implementation-exit gate
+requires coverage of every branch change. Scoped cross-agent quality review
+`c92994f8-4a03-41b3-9f07-00bc08ec7796` approved, but its phase stamp was
+rejected for incomplete coverage. A supported coordinator attempt with all
+621 current work files returned `REVIEW_PACKET_TOO_LARGE` (64-file limit).
+The parent reconciliation was completed only after inspecting the main diff:
+the parent adds an explanatory persona-inventory label, with no changed Rules
+or outcomes. No guard was weakened. A checked, unapplied temporary config patch
+at `/tmp/4200-one-time-scenario-return.patch` excludes only the `implement`
+exit from reviewGate. User approval is requested solely to apply it, return
+to scenario repair, and immediately restore the original config before other
+edits. Earlier approving phase receipts are historical evidence, not current
+coding authorization; ticket progress notes and parent reconciliation changed
+their bound ticket identity. PR3's four-file correction remains staged and
+uncommitted after the lint rejection; the root corrections remain uncommitted.

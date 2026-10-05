@@ -99,8 +99,9 @@ The real reconciliation rejection proof covers both undecidable declarations
 and the unsupported own-review-only declaration before any installed contract
 bytes change. It names the Execution phase and canonical source path. A semantic
 accepted Implementation Plan change invalidates its own approval and the
-dependent Execution approval. The old snapshot-only branch is a corrective
-defect, not an accepted exception. The user authorized parent alignment on
+dependent Execution approval. The historical snapshot-only defect was removed
+in bf758b53f52d40f3d7288f285937dcb717554a26; it is not an accepted exception.
+The user authorized parent alignment on
 2026-10-04 PDT by delegating the stated choice. No general dependency graph is
 introduced.
 
@@ -448,13 +449,39 @@ verification remain in the ledger.
 
 ### Known corrective gaps in the stacked implementation
 
-The exact bounded canonical-contract identity above is the proposed correction,
-not the current implemented behavior: whitespace or comment changes inside that
-contract still retain approval. Implementation Planning owns the corrected identity decision; the existing
-ledger owns its proof and current result. No production correction has yet been made.
+Execution review must also bind the exact canonical Implementation reviewer
+contract on which its accepted upstream plan depends. Capture that upstream
+contract during packet preparation, using the same canonical-copy validation
+and fingerprint path as the existing own-phase contract. Include its reviewer
+digest in the existing accepted-upstream-plan dependency projection alongside
+the upstream plan's semantic identity. Keep the own-phase contract digest
+unchanged. Missing upstream contract identity cannot become Execution approval.
+No new persisted dependency graph, receipt field, or approval authority is
+needed. Extending the receipt schema would make this dependency more explicit
+but adds validation and migration without improving the accepted outcome;
+hashing the whole Implementation authoring file would unnecessarily invalidate
+reviews after edits outside its canonical markers. SHA-256 retains the existing
+byte hashing primitive documented at https://nodejs.org/api/crypto.html.
 
-R8 also remains proposed where installed repository/profile guidance omits the
-explicit advisory-only planning direction. The ledger owns its current proof.
+The riskiest assumption is that dispatch and current-status reconstruction
+capture the same upstream canonical contract. R9's two canonical-contract rows
+must prove the real coordinator-to-status-to-admission boundary: an
+Implementation contract-byte change invalidates both reviews, while an
+Execution-only contract-byte change invalidates only Execution. Mock only the
+reviewer process; a packet-only assertion is supporting proof, not acceptance.
+
+The exact bounded canonical-contract identity decision (R4) has an uncommitted
+production correction in the current worktree. Its earlier RED receipt became
+stale after fixture changes; refresh authentic RED before claiming GREEN.
+R8's explicit advisory-only guidance correction is also present but uncommitted,
+with the same proof-refresh obligation. Neither correction is completed delivery.
+
+R9's rejection of unsupported invalidation directions and removal of the
+snapshot-only upstream exception are committed at
+bf758b53f52d40f3d7288f285937dcb717554a26. Current-main verification and placement
+in the owning PR slices remain pending. The upstream canonical-contract
+dependency correction described above is still proposed and has no production
+implementation or passing proof. The ledger owns detailed proof state.
 The Execution Plan retains current live model-confirmation and package-release
 proof obligations; historical confirmed models and deterministic fixtures cannot
 claim those current boundaries. These gaps are unfinished delivery, not accepted

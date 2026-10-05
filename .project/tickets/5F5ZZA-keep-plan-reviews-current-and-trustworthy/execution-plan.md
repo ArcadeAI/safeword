@@ -27,8 +27,13 @@ coordinator and job store, an append-only review ledger, and phase admission.
 The stacked branches now implement the planning-context resolver, semantic
 review identity, generated shared contracts, and authenticated reduced-
 independence receipt path. Implementation does not establish current acceptance:
-the corrective R4 exact-contract, R8 guidance, and R9 unsupported-direction cases are RED, and the
-checklist below remains open until its current proof is recorded.
+R4 exact-contract and R8 guidance corrections are uncommitted and need fresh
+RED evidence after fixture changes before GREEN can be claimed. R9's
+unsupported-direction rejection and semantic upstream correction are committed
+at bf758b53f52d40f3d7288f285937dcb717554a26, with current-main verification and
+owning-slice placement pending. R9's upstream canonical-contract dependency
+correction is not implemented. The checklist stays open until current proof is
+recorded.
 
 During this ticket's Implementation Plan approval, an approved cross-agent
 review with warnings still failed `ticket approve-plan`. Phase admission
@@ -47,21 +52,22 @@ to manufacture fresh REDs for implemented behavior. Their current status is:
 | Slice | Implemented behavior to characterize and verify | Open corrective work |
 | --- | --- | --- |
 | PR 1 | Both approval/rejection tasks and their production fix | Exact-head final review and current validation |
-| PR 2 | Shared generation and installed-copy integrity | Task 2: reject unsupported own-review-only declarations |
-| PR 3 | Context resolution, semantic currency, disposition recording | Task 2: remove snapshot-only upstream exception; task 3: bind exact bounded contract bytes |
+| PR 2 | Shared generation and installed-copy integrity; unsupported-direction rejection committed on the stack | Task 2: place the correction in its owning slice and verify current main |
+| PR 3 | Context resolution, semantic currency, disposition recording; semantic upstream correction committed on the stack | Tasks 2–3: place existing corrections, refresh exact-contract proof, and implement upstream canonical-contract dependency |
 | PR 4 | Fallback routing, installed gates, capability corpus | Task 3: installed advisory guidance; live model confirmation and release proof |
 | PR 5 | Evidence records and scope judgment | Current nondeferred acceptance, evals, and exact-head review; R7 host retrieval remains deferred |
 
 For implemented tasks, run the named command as characterization; passing is
 the expected outcome. Historical RED/GREEN evidence stays in the ledger. A new
 failure is investigated rather than relabeled as the original RED. Only the
-corrective partitions above enter a new RED/GREEN/REFACTOR loop. Start with
-PR 2's R9 rejection: `scripts/dev bun run --cwd packages/cli test
+corrective partitions above enter a new RED/GREEN/REFACTOR loop. Characterize
+PR 2's implemented R9 rejection: `scripts/dev bun run --cwd packages/cli test
  tests/integration/planning-contract-generation.test.ts -t "unsupported own-review-only"`
-currently fails with `real CLI reconciliation must reject an invalid Execution
-invalidation contract`. PR 3's upstream exception correction fails in
-`tests/review/execution-role-context.test.ts` with unchanged identity after a
-semantic upstream edit.
+must reject the invalid contract. PR 3's implemented semantic upstream correction
+must change identity after a semantic upstream edit in
+`tests/review/execution-role-context.test.ts`. These are characterization runs,
+not new RED claims. The unimplemented upstream contract-byte dependency enters
+the new paired R9 RED loop.
 
 R4's primary corrective RED runs from the root:
 
@@ -264,6 +270,16 @@ reopening its authority.
    and unreferenced persona edits retain approval. No fourth planning contract
    or new inventory authority is introduced.
    Exercise the canonical R9 dependency direction with the same mechanics.
+   Add paired canonical-contract mutations through the real coordinator,
+   status, stamp, and admission entry points: changing Implementation contract
+   bytes stales both receipts; changing only Execution contract bytes stales
+   only Execution. Capture an authentic failing RED before adding the upstream
+   canonical contract to the existing accepted-upstream dependency projection.
+   Packet-level paired mutation checks in
+   `tests/review/execution-role-context.test.ts` support this integration proof;
+   they do not replace it. Retain outside-marker cosmetic stability and reject
+   missing upstream canonical identity. This correction belongs to PR 3's
+   existing context/currency task, with no new approval store or schema version.
    A semantic upstream Implementation change must stale both reviews under
    `both_plan_reviews`; the upstream role remains required and currency-bearing.
    Reconciliation must reject `implementation_review_only` before changing

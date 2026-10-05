@@ -373,6 +373,8 @@ Feature: Keep plan reviews current and trustworthy
         | change_description | invalidated_reviews |
         | accepted behavior | both plan reviews are invalidated |
         | accepted scope | both plan reviews are invalidated |
+        | canonical Implementation Planning contract bytes change | both plan reviews are invalidated |
+        | only canonical Execution Planning contract bytes change | only the Execution Plan review is invalidated |
         | only the accepted Implementation Plan's formatting bytes | only the Implementation Plan review is invalidated and the Execution Plan review remains current |
         | only the Execution Plan bytes, including formatting-only bytes outside normalized checklist progress cells | only the Execution Plan review is invalidated |
         | only whitespace inside a reviewed Execution Plan checklist row's normalized progress cells | neither plan review is invalidated |
