@@ -27,6 +27,10 @@ const deliveryInventory: DataArchitectureDeliveryInventory = {
   claudePlanningSourcePath: 'resources/SAFEWORD.md',
   claudePlanningTarget: '"${CLAUDE_PLUGIN_ROOT}"/resources/guides/data-architecture-guide.md',
   projectPlanningTarget: './.safeword/guides/data-architecture-guide.md',
+  runtimeTemplateGuidePaths: {
+    claude: 'templates/guides/data-architecture-guide.md',
+    codex: 'templates/guides/data-architecture-guide.md',
+  },
   claudePathSubstitution: {
     from: '@.safeword/guides/',
     to: '@"${CLAUDE_PLUGIN_ROOT}"/resources/guides/',
@@ -104,7 +108,7 @@ function deliveryFixture(): DataArchitectureDeliveryInput {
     },
     codex: {
       assets: codexAssets,
-      planningSourcePath: 'templates/SAFEWORD.md',
+      planningSourcePath: 'resources/SAFEWORD.md',
     },
     cursor: {
       assets: {
@@ -141,6 +145,38 @@ describe('data architecture guide delivery', () => {
   });
 
   it.each([
+    {
+      diagnostic:
+        'Claude runtime template guide content differs at templates/guides/data-architecture-guide.md.',
+      drift: 'Claude runtime template guide body drift',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        claude: {
+          ...input.claude,
+          assets: {
+            ...input.claude.assets,
+            [input.inventory.runtimeTemplateGuidePaths.claude]:
+              `${input.claude.assets[input.inventory.runtimeTemplateGuidePaths.claude]}\nDRIFT`,
+          },
+        },
+      }),
+    },
+    {
+      diagnostic:
+        'Codex runtime template guide content differs at templates/guides/data-architecture-guide.md.',
+      drift: 'Codex runtime template guide body drift',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        codex: {
+          ...input.codex,
+          assets: {
+            ...input.codex.assets,
+            [input.inventory.runtimeTemplateGuidePaths.codex]:
+              `${input.codex.assets[input.inventory.runtimeTemplateGuidePaths.codex]}\nDRIFT`,
+          },
+        },
+      }),
+    },
     {
       diagnostic: 'Managed guide is missing at .safeword/guides/data-architecture-guide.md.',
       drift: 'a missing managed guide copy',
@@ -409,7 +445,7 @@ describe('data architecture guide delivery', () => {
         assets: {
           ...input.codex.assets,
           'guides/data-architecture-guide.md': input.canonicalGuide,
-          'templates/guides/data-architecture-guide.md': input.canonicalGuide,
+          'runtime/guides/data-architecture-guide.md': input.canonicalGuide,
         },
       },
       openCode: {
@@ -424,7 +460,7 @@ describe('data architecture guide delivery', () => {
     expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         'Codex contains an unexpected guide copy at guides/data-architecture-guide.md.',
-        'Codex contains an unexpected guide copy at templates/guides/data-architecture-guide.md.',
+        'Codex contains an unexpected guide copy at runtime/guides/data-architecture-guide.md.',
         'OpenCode contains an unexpected delivery-specific guide reference at AGENTS.md.',
         'OpenCode contains an unexpected delivery-specific guide reference at SAFEWORD.md.',
       ]),

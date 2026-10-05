@@ -1146,7 +1146,7 @@ When('the generated repo files are inspected', function (this: CodexPluginMigrat
   const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
   this.codexPluginInspectedText = [
     collectTree(repoRoot).join('\n'),
-    collectMarkdownText(SAFEWORD_CODEX_PLUGIN_ROOT),
+    collectMarkdownText(nodePath.join(SAFEWORD_CODEX_PLUGIN_ROOT, 'skills')),
   ].join('\n');
 });
 

@@ -26,6 +26,13 @@ import { resolveRunIdentity } from '../hooks/lib/run-identity.ts';
 
 export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
 export const VERIFICATION_COMMAND_TIMEOUT_MS = 60 * 60 * 1000;
+// Unattended verification may queue behind another checkout's package tests
+// (#5311). Give up on the lock well before the command timeout so contention
+// surfaces as a busy lock rather than a killed command.
+export const SHARED_TEST_LOCK_WAIT_MS = VERIFICATION_COMMAND_TIMEOUT_MS / 2;
+// Safeword's package test runner exits with EX_TEMPFAIL when its lock is busy.
+const SHARED_TEST_LOCK_BUSY_EXIT_CODE = 75;
+const SHARED_TEST_LOCK_BUSY_MARKER = 'Safeword package test lock busy';
 
 export interface PullRequestIdentity {
   url: string;
@@ -80,7 +87,7 @@ export interface CloseoutObservation {
     pendingDrafts: number;
     evidenceHash: string;
     spoolPath?: string;
-    failure?: 'extraction' | 'filing' | 'unknown';
+    failure?: 'extraction' | 'filing' | 'growth' | 'unknown';
   };
 }
 
@@ -153,6 +160,8 @@ function collectPrerequisiteBlockers(
     advise(plan, 'retrospective extraction failed; resolve the extraction failure');
   } else if (observation.retro.failure === 'filing') {
     advise(plan, 'retrospective filing failed; resolve the filing failure');
+  } else if (observation.retro.failure === 'growth') {
+    advise(plan, 'the session transcript changed during retrospective extraction; retry preview');
   } else if (!observation.retro.complete) {
     advise(plan, 'the current session retrospective is incomplete');
   }
@@ -532,6 +541,21 @@ function verificationDiagnostic(result: VerificationProcessResult): string {
   return boundedOutputTail(combined);
 }
 
+export function verificationCommandFailure(
+  command: string,
+  cwd: string,
+  result: VerificationProcessResult,
+): string {
+  const diagnostic = verificationDiagnostic(result);
+  if (
+    result.status === SHARED_TEST_LOCK_BUSY_EXIT_CODE &&
+    diagnostic.includes(SHARED_TEST_LOCK_BUSY_MARKER)
+  ) {
+    return `command \`${command}\` did not start in ${cwd}: the shared safeword package test lock is busy (another checkout is running package tests); re-run closeout once it finishes`;
+  }
+  return `command \`${command}\` failed in ${cwd} (exit ${result.status})${diagnostic ? `: ${diagnostic}` : ''}`;
+}
+
 function run(
   command: string,
   arguments_: string[],
@@ -590,7 +614,10 @@ export function runVerificationCommand(
     const child = spawn(command, [], {
       cwd,
       detached: process.platform !== 'win32',
-      env: process.env,
+      env: {
+        SAFEWORD_TEST_LOCK_MAX_WAIT_MS: String(SHARED_TEST_LOCK_WAIT_MS),
+        ...process.env,
+      },
       shell: true,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
@@ -808,6 +835,21 @@ function json<T>(result: ProcessResult): T | undefined {
   }
 }
 
+/**
+ * Reads a safeword CLI result. The CLI writes its result to stdout when the
+ * command succeeds and to stderr when it fails (state `failed`, exit 1), so a
+ * failed run still carries its own diagnosis. Unlike `json`, which serves
+ * external tools whose failures carry no structured result, this reads the
+ * failure channel too.
+ */
+function safewordResult<T>(result: ProcessResult): T | undefined {
+  try {
+    return JSON.parse(result.status === 0 ? result.stdout : result.stderr) as T;
+  } catch {
+    return undefined;
+  }
+}
+
 function resolveRepositoryRoot(cwd: string): string | undefined {
   const result = git(cwd, 'rev-parse', '--show-toplevel');
   return result.status === 0 ? result.stdout.trim() || undefined : undefined;
@@ -1011,7 +1053,7 @@ function runBoundRetroWindows(
   } finally {
     if (existsSync(sealedPath)) unlinkSync(sealedPath);
   }
-  const result = json<{
+  const result = safewordResult<{
     state?: string;
     data?: { agent_filing_needed?: boolean };
     errors?: { message?: string }[];
@@ -1030,16 +1072,26 @@ function runBoundRetroWindows(
   );
   const complete =
     successful && agentFilingNeeded === false && pendingDrafts === 0 && !transcriptAdvanced;
-  const errorText = [result?.errors?.map(error => error.message ?? '').join('\n'), retro.stderr]
+  // When a failed run's structured result was read from stderr, that stderr is
+  // the result itself: classify from its error messages alone, so a field name
+  // in the body can never pass for a description of what failed.
+  const failedWithResult = retro.status !== 0 && result !== undefined;
+  const errorText = [
+    result?.errors?.map(error => error.message ?? '').join('\n'),
+    failedWithResult ? undefined : retro.stderr,
+  ]
     .filter(Boolean)
     .join('\n');
-  const failure = classifyRetroFailure({
-    complete,
-    errorText,
-    processStatus: retro.status,
-    agentFilingNeeded: result?.data?.agent_filing_needed,
-    pendingDrafts,
-  });
+  const failure =
+    successful && agentFilingNeeded === false && pendingDrafts === 0 && transcriptAdvanced
+      ? 'growth'
+      : classifyRetroFailure({
+          complete,
+          errorText,
+          processStatus: retro.status,
+          agentFilingNeeded: result?.data?.agent_filing_needed,
+          pendingDrafts,
+        });
   if (successful && (!agentFilingNeeded || pendingDrafts > 0)) {
     writeRetroReceipt(root, {
       runtime: binding.runtime,
@@ -1192,6 +1244,13 @@ function hasMeaningfulTranscriptGrowth(
       ].includes(payloadType);
     const sameTurnBookkeeping = isSameTurnBookkeeping(record, activeTurnId);
     const hostLifecycle = record.type === 'event_msg' && record.payload?.type === 'token_count';
+    const sameTurnReasoningCompletion =
+      activeTurnId !== undefined &&
+      record.type === 'event_msg' &&
+      record.payload?.type === 'item_completed' &&
+      record.payload.turn_id === activeTurnId &&
+      record.payload.item?.type === 'Reasoning';
+    const tokenUsage = record.type === 'token_usage_record';
     // Codex currently writes an event and canonical response with identical text.
     // If that host invariant changes, fail closed and re-extract the unmatched record.
     const commentary = sameTurnMessageText(record, activeTurnId);
@@ -1206,6 +1265,8 @@ function hasMeaningfulTranscriptGrowth(
       toolLifecycle ||
       sameTurnBookkeeping ||
       hostLifecycle ||
+      sameTurnReasoningCompletion ||
+      tokenUsage ||
       pairedCommentary ||
       duplicateCommentary
     );
@@ -1220,6 +1281,8 @@ interface CodexTranscriptRecord {
     phase?: unknown;
     message?: unknown;
     content?: unknown;
+    turn_id?: unknown;
+    item?: { type?: unknown };
     internal_chat_message_metadata_passthrough?: { turn_id?: unknown };
   };
 }
@@ -1528,12 +1591,8 @@ async function verificationFailuresForKind(
       continue;
     }
     const result = await runVerificationCommand(entry.command, entry.cwd);
-    if (result.status !== 0) {
-      const diagnostic = verificationDiagnostic(result);
-      failures.push(
-        `command \`${entry.command}\` failed in ${entry.cwd} (exit ${result.status})${diagnostic ? `: ${diagnostic}` : ''}`,
-      );
-    }
+    if (result.status !== 0)
+      failures.push(verificationCommandFailure(entry.command, entry.cwd, result));
     if (git(root, 'rev-parse', 'HEAD').stdout.trim() !== expectedOid) {
       failures.push(`HEAD changed while \`${entry.command}\` ran in ${entry.cwd}`);
     }

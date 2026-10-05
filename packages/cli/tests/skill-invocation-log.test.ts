@@ -127,7 +127,11 @@ describe('skill-invocation log: helper invocation in /verify and /audit (147)', 
       // The harness does not always set CLAUDE_PROJECT_DIR; when unset, a bare
       // $(pwd) fallback wrote the log to a stray <cwd>/.safeword-project. The
       // fix falls back to the git toplevel instead.
-      expect(content).toMatch(/CLAUDE_PROJECT_DIR:-\$\(git rev-parse --show-toplevel/);
+      // /audit and /verify use the worktree-aware form (#5361), whose own
+      // fallback is still the git toplevel, then $PWD.
+      expect(content).toMatch(
+        /CLAUDE_PROJECT_DIR:-(\$\(git rev-parse --show-toplevel|\$\{top:-\$PWD\})/,
+      );
       expect(content).not.toMatch(/CLAUDE_PROJECT_DIR:-\$\(pwd\)/);
     });
 
@@ -161,9 +165,8 @@ describe('skill-invocation log: README guidance (HMZSCD)', () => {
   });
 
   it('documents the current Bun helper permission instead of stale inline shell fragments', () => {
-    expect(readme).toContain(
-      '"allow": ["Bash(bun */.safeword/hooks/record-skill-invocation.ts*)"]',
-    );
+    expect(readme).toContain('"allow": ["Bash(bun *record-skill-invocation.ts*)"]');
+    expect(readme).toContain('/runtime/hooks/record-skill-invocation.ts');
     expect(readme).toContain('record-skill-invocation.ts');
     expect(readme).toContain('Claude Code evaluates compound bash commands per subcommand');
     expect(readme).not.toContain('Bash(node -e:*)');

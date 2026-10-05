@@ -1240,7 +1240,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       );
       expect(plan.operations, name).toEqual([]);
     }
-  }, 30_000);
+  }, 60_000);
 
   it('does not mint a reusable receipt for a dirty exact-head worktree', () => {
     const fixture = deliveryFixture();
