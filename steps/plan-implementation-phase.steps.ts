@@ -855,17 +855,24 @@ Given(
     const missingPluginRoot = nodePath.join(this.projectDirectory!, 'missing-codex-plugin');
     cpSync(CODEX_PLUGIN_ROOT, controlPluginRoot, { recursive: true });
     cpSync(CODEX_PLUGIN_ROOT, missingPluginRoot, { recursive: true });
-    const missingContractPath = nodePath.join(
-      missingPluginRoot,
+    let removedCopies = 0;
+    for (const relativePath of [
+      'templates/skills/bdd/PLAN_IMPLEMENTATION.md',
+      'skills/bdd/PLAN_IMPLEMENTATION.md',
       'skills/bdd/references/PLAN_IMPLEMENTATION.md',
-    );
-    const withContract = readFileSync(missingContractPath, 'utf8');
-    const withoutContract = withContract.replace(
-      /<!-- SAFEWORD:PLAN_RUBRIC_START -->[\s\S]*?<!-- SAFEWORD:PLAN_RUBRIC_END -->/u,
-      '',
-    );
-    assert.notEqual(withoutContract, withContract, 'the packaged contract fixture was not removed');
-    writeFileSync(missingContractPath, withoutContract);
+    ]) {
+      const contractPath = nodePath.join(missingPluginRoot, relativePath);
+      if (!existsSync(contractPath)) continue;
+      const withContract = readFileSync(contractPath, 'utf8');
+      const withoutContract = withContract.replace(
+        /<!-- SAFEWORD:PLAN_RUBRIC_START -->[\s\S]*?<!-- SAFEWORD:PLAN_RUBRIC_END -->/u,
+        '',
+      );
+      assert.notEqual(withoutContract, withContract, `${relativePath} had no contract to remove`);
+      writeFileSync(contractPath, withoutContract);
+      removedCopies += 1;
+    }
+    assert.ok(removedCopies > 0, 'the installed plugin had no packaged contract fixture');
     this.controlInstalledCliPath = nodePath.join(controlPluginRoot, 'runtime/cli.js');
     this.installedCliPath = nodePath.join(missingPluginRoot, 'runtime/cli.js');
 
