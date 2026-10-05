@@ -2853,7 +2853,11 @@ Then(
       assert.ok(text.includes('designApprovalGate'), path);
       assert.match(text, /absent or off/i, path);
       assert.match(text, /advances autonomously|without human approval/i, path);
-      assert.match(text, /Execution Planning|phase: plan-execution/i, path);
+      assert.match(
+        text,
+        /configuration-derived `not required` result sets `phase: plan-execution`/i,
+        path,
+      );
     });
   },
 );
