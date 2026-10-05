@@ -269,14 +269,10 @@ Before publishing a skill:
 
 Without schema registration, templates are orphaned and never installed by `safeword install` or `safeword upgrade`.
 
-**For new skills:**
+**For new skills** (no `safeword-` prefix on skill directories):
 
-1. Add to `ownedFiles`:
-   - `.claude/skills/safeword-{name}/SKILL.md` → `skills/safeword-{name}/SKILL.md`
-   - `.cursor/rules/safeword-{name}.mdc` → `cursor/rules/safeword-{name}.mdc`
-
-2. For new commands:
-   - `.claude/commands/{name}.md` → `commands/{name}.md`
-   - `.cursor/commands/{name}.md` → `commands/{name}.md`
+1. Add `.claude/skills/{name}/SKILL.md` → `skills/{name}/SKILL.md` to `ownedFiles`, and `{name}/SKILL.md` to `CURSOR_SHARED_SKILL_FILES` (Cursor reads `.safeword/skills/`).
+2. Add a Cursor wrapper in `src/cursor-wrappers.ts` — a `CURSOR_RULE_WRAPPERS` entry for a model-invocable skill or a `CURSOR_COMMAND_WRAPPERS` entry for an action skill — plus its `SKILL_CURSOR_PAIRS` entry, then run `bun run generate:cursor-wrappers`. The `.cursor/rules/*.mdc` and `templates/commands/*.md` wrappers are generated; never hand-write them. Claude gets no `.claude/commands/` file — skills create their own slash commands.
+3. Regenerate the Claude and Codex plugins (Codex parity comes from `templates/skills/`): `bun packages/cli/scripts/check-generated-surfaces.ts --fix`.
 
 See [Schema Registration Guide](./../guides/schema-registration-guide.md) for the full list of template types and their schema mappings.

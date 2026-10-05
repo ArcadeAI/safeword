@@ -5,7 +5,7 @@ description: How safeword moves your agent from a vague ask to verified, done wo
 
 import { Aside } from '@astrojs/starlight/components';
 
-Every safeword session runs through the same five phases, in order. Each phase has an exit you have to meet before the next one starts — and three of those exits are **hard gates** the agent can't talk its way past.
+Every safeword session runs through the same five phases, in order. Each phase has an exit you have to meet before the next one starts — and **hard gates** (listed below) stop the agent talking its way past them.
 
 ```mermaid
 flowchart TD
@@ -29,7 +29,7 @@ flowchart TD
     feature --> phase0["Phase 0 spec:<br/>Intake Brief → Jobs To Be Done → Product Inspiration → Rules → scope"]
     phase0 --> g1{{"Phase gate:<br/>scope / out_of_scope / done_when"}}
     g1 --> scenarios["Define-behavior scenarios"]
-    scenarios --> g2{{"Phase gate:<br/>test-definitions.md exists"}}
+    scenarios --> g2{{"Phase gate:<br/>.feature scenarios + test-definitions.md ledger"}}
     g2 --> sgate["Scenario gate:<br/>adversarial scenario review"]
     sgate --> plan["Plan implementation:<br/>impl-plan.md — proof plan, build order, ADRs"]
     plan --> g2b{{"Plan gate:<br/>valid impl-plan.md before TDD"}}
@@ -58,12 +58,13 @@ The agent sizes the work — it doesn't announce a label, it just picks the righ
 - **patch** — one file, no real behavior change. Fix it directly.
 - **task** — one or two files, one testable behavior. Test-driven.
 - **feature** — three or more files, new state, or multiple user flows. Behavior-first.
+- **epic** — work too big for one feature (several user stories or a vague scope) is split into an epic whose child feature tickets link back with `parent:`.
 
 ## 3 · Build
 
 - **patch** goes straight to the fix.
 - **task** runs the TDD loop: a failing test (RED), the minimum code to pass (GREEN), then cleanup (REFACTOR).
-- **feature** writes define-behavior scenarios first, validates them at the scenario gate, then captures Implementation Inspiration from current, comparable, version-matched primary sources before selecting the plan (`impl-plan.md` — evidence, proof plan, build order, and architecture decisions). It then implements each scenario through the same TDD loop.
+- **feature** writes define-behavior scenarios first (saved to `features/<slug>.feature`, with `test-definitions.md` as the RED/GREEN/REFACTOR progress ledger), validates them at the scenario gate, then captures Implementation Inspiration from current, comparable, version-matched primary sources before selecting the plan (`impl-plan.md` — evidence, proof plan, build order, and architecture decisions). It then implements each scenario through the same TDD loop.
 
 ## 4 · Verify
 
@@ -74,9 +75,10 @@ The agent runs the relevant tests itself after every fix, task, or feature. It n
 A ticket can't close until `verify.md` exists in its folder — the artifact the `/verify` skill produces. No artifact, no done.
 
 <Aside type="caution" title="The gates hard-block">
-Safeword runs hooks every turn to track which phase the agent is in. Four of them stop work cold rather than warn:
+Safeword runs hooks every turn to track which phase the agent is in. These gates stop work cold rather than warn:
 
-- **Phase gate** — can't start TDD without `test-definitions.md`; can't write that file without `scope` / `out_of_scope` / `done_when` in the ticket.
+- **Phase gate** — can't start TDD without `test-definitions.md`; can't write that file without `scope` / `out_of_scope` / `done_when` in the ticket, and a feature also needs `spec.md` and `dimensions.md` first.
+- **Phase-exit review gate** — on by default: changing a ticket's `phase:` is blocked until the phase being left has an independent review stamp (or a logged skip reason). Narrow or disable it with `reviewGate` — see [Configuration](/reference/configuration#review-gates).
 - **Inspiration gates** — newly scaffolded features can't leave intake or planning without a current reference record (or a specific unsuccessful-search record). External material is treated as untrusted evidence: it cannot replace requirements, disclose private context, or authorize execution or copying.
 - **Plan gate** — a feature can't enter the implement phase without a valid `impl-plan.md` (written in the plan-implementation phase), and can't reach verify until that plan is reconciled against what actually shipped.
 - **LOC gate** — commit roughly every 400 lines of project code, so no single change grows an unreviewable blast radius.

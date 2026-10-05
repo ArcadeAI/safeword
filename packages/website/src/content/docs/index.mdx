@@ -1,6 +1,6 @@
 ---
 title: The first coding agent discipline system
-description: The first coding agent discipline system for Cursor, Claude Code, and Codex
+description: The first coding agent discipline system for Claude Code, Codex, Cursor, and OpenCode
 template: splash
 hero:
   tagline: Your agent doesn't get to finish until the tests pass.
@@ -12,7 +12,8 @@ hero:
 
 <p class="hero-subtitle">
   <span>
-    Safeword is the first coding agent discipline system for Cursor, Claude Code, and Codex.
+    Safeword is the first coding agent discipline system for Claude Code, Codex, Cursor, and
+    OpenCode.
   </span>
   <br />
   <span class="hero-subtitle-detail">
@@ -35,7 +36,7 @@ Your senior engineers stop trusting it. Your vibe-coders can't tell working code
 
 ## The Fix
 
-**Automatic Enforcement** — Every edit gets linted. Every session ends with review. Your agent can't skip it.
+**Automatic Enforcement** — Every edit gets linted. Every phase exit needs an independent review. Your agent can't skip it.
 
 **Strict Quality** — Code, architecture, docs, dependencies. Nothing slips through.
 
@@ -51,13 +52,13 @@ Your senior engineers stop trusting it. Your vibe-coders can't tell working code
 bunx safeword@latest install
 ```
 
-Works with **Cursor**, **Claude Code**, and **Codex**. Auto-detects **TypeScript**, **Python** (beta), **Go** (beta), **Rust** (beta), **SQL/dbt** (beta).
+Works with **Claude Code**, **Codex**, **Cursor**, and **OpenCode**. Requires Node (22.22.3+, 24.16+, or 26.3+) and Bun. Auto-detects **TypeScript**, **Python** (beta), **Go** (beta), **Rust** (beta), **SQL/dbt** (beta).
 
 ---
 
 ## What Happens
 
-Safeword adds configuration files, hooks, and skills to your project — it never modifies your application code. Commits to your repo — your team gets discipline the moment they pull.
+Safeword adds project configuration and linting setup to your repo, and delivers its skills and hooks through each agent's native plugin — it never modifies your application code. Commit the project configuration — your team gets discipline the moment they pull.
 
 Under the hood, your agent now moves through five phases — clarify, classify, build, verify, done — with gates that stop it skipping straight to "done." See [The Workflow](/getting-started/workflow).
 

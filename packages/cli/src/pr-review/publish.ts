@@ -50,7 +50,7 @@ export interface ReceiptView {
 
 export interface ReceiptCoverageView {
   path: string;
-  skipReason?: 'non_text';
+  skipReason?: 'generated' | 'non_text';
   status: 'integrity_reviewed' | 'skipped';
 }
 
@@ -90,7 +90,24 @@ function renderFinding(finding: ReceiptFindingView): string[] {
 
 function renderCoverage(entry: ReceiptCoverageView): string {
   if (entry.status === 'integrity_reviewed') return `${entry.path}: integrity-reviewed`;
-  const reason = entry.skipReason === 'non_text' ? 'non-text' : 'unknown';
+  let reason: string;
+  switch (entry.skipReason) {
+    case undefined: {
+      reason = 'unknown';
+      break;
+    }
+    case 'non_text': {
+      reason = 'non-text';
+      break;
+    }
+    case 'generated': {
+      reason = 'generated (parity checked)';
+      break;
+    }
+    default: {
+      reason = 'unknown';
+    }
+  }
   return `${entry.path}: skipped (${reason})`;
 }
 

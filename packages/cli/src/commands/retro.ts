@@ -272,23 +272,25 @@ async function runRelayRetro(
   const unresolvedTerminal = (delivery.serverReportedTerminalReceipts ?? []).find(
     receipt => receipt.state !== 'tombstone' || receipt.issueNumber === undefined,
   );
-  if (unresolvedTerminal !== undefined) {
-    return {
-      agentFilingNeeded: false,
-      drops,
-      errorMessage: `retro relay has server-owned ${unresolvedTerminal.state} request ${unresolvedTerminal.requestId}; inspect relay operations and logs`,
-      ok: false,
-      relay: relayOutcome,
-      result: emptyTriageResult(),
-    };
-  }
-  return {
+  // Both endings describe the same drained spool, so they share one account of
+  // it. A server-owned terminal receipt makes the run fail visibly, but it says
+  // nothing about the rest of the batch: drafts still queued or dead-lettered
+  // locally are durable work that remains either way. (Direct filing is never
+  // reached on this route, so reporting them cannot duplicate the request.)
+  const drained = {
     agentFilingNeeded: delivery.retryable > 0 || delivery.deadLetteredThisRun > 0,
     drops,
-    ok: true,
     relay: relayOutcome,
     result: emptyTriageResult(),
   };
+  if (unresolvedTerminal !== undefined) {
+    return {
+      ...drained,
+      errorMessage: `retro relay has server-owned ${unresolvedTerminal.state} request ${unresolvedTerminal.requestId}; inspect relay operations and logs`,
+      ok: false,
+    };
+  }
+  return { ...drained, ok: true };
 }
 
 function relayDeliveryFailureOutcome(
@@ -800,6 +802,13 @@ type RelayRoute = NonNullable<RetroDependencies['relay']>;
 interface RetroReadinessComposition {
   buildCommit?: string;
   configuration?: () => Omit<RelayRoute, 'readiness'> | undefined;
+  /**
+   * Per-request relay deadline. Production leaves it unset and keeps the short
+   * hook-latency default. Integration tests that drive a real local relay over
+   * HTTP raise it, because there the deadline is incidental to what they prove
+   * and a contended runner would otherwise cut a healthy round trip short.
+   */
+  deadlineMs?: number;
   fetch?: typeof fetch;
   isAncestor?: (ancestor: string, descendant: string) => Promise<boolean>;
   manifest?: RelayReadinessManifest | typeof CHECKED_IN_RELAY_READINESS;
@@ -972,7 +981,16 @@ function resolveRelayReadiness(
   });
 }
 
-// eslint-disable-next-line complexity -- Readiness, injected tests, and production config remain fail-closed branches.
+/** Overrides a composition may lay over either relay route, configured or environment-derived. */
+function relayRouteOverrides(
+  composition: RetroReadinessComposition,
+): Partial<Pick<RelayRoute, 'deadlineMs' | 'fetch'>> {
+  return {
+    ...(composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs }),
+    ...(composition.fetch && { fetch: composition.fetch }),
+  };
+}
+
 async function resolveRetroRelayRoute(input: {
   composition?: RetroReadinessComposition;
   environment: NodeJS.ProcessEnv;
@@ -988,7 +1006,7 @@ async function resolveRetroRelayRoute(input: {
     return {
       route: {
         ...config,
-        ...(composition.fetch && { fetch: composition.fetch }),
+        ...relayRouteOverrides(composition),
         readiness,
       },
     };
@@ -998,7 +1016,7 @@ async function resolveRetroRelayRoute(input: {
   return {
     route: {
       ...resolved.config,
-      ...(composition.fetch && { fetch: composition.fetch }),
+      ...relayRouteOverrides(composition),
       readiness,
     },
   };

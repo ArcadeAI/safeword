@@ -434,6 +434,7 @@ async function runInstalledSurface(
       projectDirectory: project,
       relay: {
         buildCommit,
+        deadlineMs: REAL_RELAY_DEADLINE_MS,
         fetch: relayFetch,
         isAncestor: () => Promise.resolve(true),
         manifest: readinessManifest,
@@ -474,6 +475,14 @@ const retryableRelayOutcome = {
   retryable: 1,
   spoolFailed: 0,
 };
+
+// These tests drive a real local relay over HTTP — signature checks, SQLite,
+// the filing collaborator. The production 500 ms per-request deadline is a
+// hook-latency budget, not what any test here proves, and a contended CI
+// runner can push a healthy round trip past it: the draft is then correctly
+// re-queued and the test reports `accepted: 0`. A deadline far beyond any
+// healthy round trip keeps that incidental race out of every test below.
+const REAL_RELAY_DEADLINE_MS = 10_000;
 
 const acceptedRelayOutcome = {
   accepted: 1,
