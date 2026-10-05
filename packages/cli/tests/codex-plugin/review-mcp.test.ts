@@ -72,6 +72,15 @@ describe('Codex review MCP boundary', () => {
       reviewer_output: { reviewer_agent: 'claude' },
     };
     expect(hasIndependentVerdict(verdict)).toBe(true);
+    expect(
+      hasIndependentVerdict({
+        ...verdict,
+        actual_reviewer: 'codex',
+        reviewer_output: { reviewer_agent: 'codex' },
+      }),
+    ).toBe(false);
+    expect(hasIndependentVerdict({ ...verdict, status: 'pending' })).toBe(false);
+    expect(hasIndependentVerdict({ ...verdict, independence: 'degraded' })).toBe(false);
     expect(hasIndependentVerdict({ ...verdict, actual_reviewer: 'codex' })).toBe(false);
     expect(
       hasIndependentVerdict({ ...verdict, reviewer_output: { reviewer_agent: 'codex' } }),
@@ -85,6 +94,10 @@ describe('Codex review MCP boundary', () => {
   });
 
   it('starts the generated plugin server from the packaged manifest', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-mcp-packaged-'));
+    roots.push(root);
+    mkdirSync(nodePath.join(root, '.safeword'));
+    writeFileSync(nodePath.join(root, '.safeword', 'config.json'), '{}');
     const pluginRoot = nodePath.resolve(import.meta.dirname, '../../codex-plugin');
     const manifest = JSON.parse(readFileSync(nodePath.join(pluginRoot, '.mcp.json'), 'utf8')) as {
       mcpServers: { safeword_review: { args: string[]; cwd: string } };
@@ -101,12 +114,31 @@ describe('Codex review MCP boundary', () => {
     const launched = spawnSync('bun', server.args, {
       cwd: pluginRoot,
       encoding: 'utf8',
-      input: `${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' })}\n`,
+      input: `${[
+        { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+        {
+          jsonrpc: '2.0',
+          id: 2,
+          method: 'tools/call',
+          params: {
+            name: 'start_review',
+            arguments: { project_root: root, kind: 'executable-red', targets: ['proof.ts'] },
+          },
+        },
+      ]
+        .map(request => JSON.stringify(request))
+        .join('\n')}\n`,
       timeout: 5000,
     });
     expect(launched.status).toBe(0);
     expect(launched.stderr).toBe('');
-    const response = JSON.parse(launched.stdout.trim()) as {
+    const responses = launched.stdout.trim().split('\n');
+    expect(responses).toHaveLength(2);
+    const [listResponse, callResponse] = responses;
+    if (listResponse === undefined || callResponse === undefined) {
+      throw new Error('Packaged MCP server did not answer both requests');
+    }
+    const response = JSON.parse(listResponse) as {
       result: { tools: { name: string }[] };
     };
     expect(response.result.tools.map(tool => tool.name)).toEqual([
@@ -115,6 +147,10 @@ describe('Codex review MCP boundary', () => {
       'start_reviewer_login',
       'show_reviewer_login',
     ]);
+    expect(payload(JSON.parse(callResponse) as Record<string, unknown>)).toMatchObject({
+      error: expect.stringContaining('kind must be'),
+    });
+    expect(readdirSync(nodePath.join(root, '.safeword'))).not.toContain('state');
   });
 
   it('exposes bounded review and sign-in display tools, excluding executable RED', async () => {
@@ -194,6 +230,7 @@ describe('Codex review MCP boundary', () => {
         }),
       ),
     ).toMatchObject({ error: expect.stringContaining('not waiting') });
+    expect(readdirSync(nodePath.join(root, '.safeword'))).not.toContain('state');
   });
 
   it('returns a terminal coordinator result with a signed review receipt', async () => {
@@ -242,12 +279,12 @@ describe('Codex review MCP boundary', () => {
       payload(await call(7, 'review_status', { project_root: root, review_id: id })).status,
     ).toBe('stale');
     writeFileSync(nodePath.join(root, 'target.md'), 'Synthetic target\n');
+    expect(
+      payload(await call(7, 'review_status', { project_root: root, review_id: id })).status,
+    ).toBe('existing_route');
     const receiptPath = nodePath.join(root, '.safeword/state/reviews', `${id}.json`);
     const receipt = JSON.parse(readFileSync(receiptPath, 'utf8')) as Record<string, unknown>;
-    writeFileSync(
-      receiptPath,
-      `${JSON.stringify({ ...receipt, state: 'completed', integrity: '0'.repeat(64) })}\n`,
-    );
+    writeFileSync(receiptPath, `${JSON.stringify({ ...receipt, integrity: '0'.repeat(64) })}\n`);
     const tampered = payload(await call(8, 'review_status', { project_root: root, review_id: id }));
     expect(tampered.independent).toBe(false);
     expect(tampered.status).toBe('failed');

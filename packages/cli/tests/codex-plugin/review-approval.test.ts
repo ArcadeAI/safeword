@@ -2,6 +2,7 @@ import { lstatSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import { parse } from 'smol-toml';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { enableCodexReviewApproval } from '../../src/codex-plugin/review-approval.js';
@@ -26,12 +27,37 @@ describe('one-time Codex review-tool approval', () => {
     writeFileSync(config, '# customer comment\n[mcp_servers.github]\ncommand = "gh"\n', {
       mode: 0o600,
     });
-    const notice = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const original = readFileSync(config, 'utf8');
+    const notice = vi.spyOn(process.stderr, 'write').mockImplementation(() => {
+      expect(readFileSync(config, 'utf8')).toBe(original);
+      return true;
+    });
     expect(enableCodexReviewApproval({ CODEX_HOME: home })).toBe(true);
     expect(notice).toHaveBeenCalledWith(
       expect.stringContaining('packet contents go to the assigned reviewer provider'),
     );
+    expect(notice).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Both the review worker and assigned vendor login CLI run outside the author shell sandbox',
+      ),
+    );
+    expect(notice).toHaveBeenCalledWith(expect.stringContaining('login may open its sign-in URL'));
     const first = readFileSync(config, 'utf8');
+    expect(parse(first)).toEqual({
+      mcp_servers: { github: { command: 'gh' } },
+      plugins: {
+        'safeword@safeword': {
+          mcp_servers: {
+            safeword_review: {
+              tools: {
+                start_review: { approval_mode: 'approve' },
+                start_reviewer_login: { approval_mode: 'approve' },
+              },
+            },
+          },
+        },
+      },
+    });
     expect(first).toContain('# customer comment\n[mcp_servers.github]\ncommand = "gh"');
     expect(first).toContain(
       '[plugins."safeword@safeword".mcp_servers.safeword_review.tools.start_review]\napproval_mode = "approve"',
@@ -77,13 +103,18 @@ describe('one-time Codex review-tool approval', () => {
   });
 
   it.each([
+    '[plugins."safeword@safeword".mcp_servers.safeword_review.tools.start_review]\napproval_mode = "deny"\n',
     '[plugins."safeword@safeword"]\napproval_mode = "prompt"\n',
     '[plugins."safeword@safeword".mcp_servers.safeword_review]\napproval_mode = "deny"\n',
-  ])('preserves a parent approval policy without adding tool grants', policy => {
+    '[plugins."safeword@safeword".mcp_servers.safeword_review.tools.start_reviewer_login]\napproval_mode = "deny"\n',
+    '[plugins."safeword@safeword".mcp_servers.safeword_review.tools.start_reviewer_login]\napproval_mode = "prompt"\n',
+  ])('preserves a conflicting approval policy without adding tool grants', policy => {
     const home = codexHome();
     const config = nodePath.join(home, 'config.toml');
     writeFileSync(config, policy);
-    expect(() => enableCodexReviewApproval({ CODEX_HOME: home })).toThrow('review policy');
+    expect(() => enableCodexReviewApproval({ CODEX_HOME: home })).toThrow(
+      /review(?:-tool)? policy/,
+    );
     expect(readFileSync(config, 'utf8')).toBe(policy);
   });
 });

@@ -1,4 +1,6 @@
-# Cucumber has no process-level MCP host step definitions. `bun run test` binds
+# Cucumber excludes this @manual feature; a passing acceptance count does not
+# include these scenarios. There are no process-level MCP host step definitions.
+# `bun run test` binds
 # R1 tool/input limits in codex-plugin/review-mcp.test.ts and review/packet.test.ts;
 # R2 approval/guidance in codex-plugin/review-approval.test.ts and
 # review/surface-parity.test.ts; R3 signed/stale proof in review/job.test.ts and
@@ -80,7 +82,7 @@ Feature: Run independent Codex reviews after one narrow approval
     Scenario: Coordinator policy opt-out blocks provider dispatch
       Given cross-agent review is disabled in the project configuration
       When Codex starts the Safeword review through MCP
-      Then the coordinator reports a blocked review without provider dispatch
+      Then the coordinator reports a non-independent existing-route result without provider dispatch
 
     Scenario Outline: Packet size follows the coordinator boundary
       Given a review packet is <size_class> the coordinator packet limit
@@ -149,7 +151,8 @@ Feature: Run independent Codex reviews after one narrow approval
     Scenario: One explicit review approval changes only the review and reviewer-login tools
       Given the Safeword plugin is installed in a Codex profile with the workspace sandbox enabled
       When the user explicitly chooses --approve-reviews
-      Then Safeword explains before writing that packets go to the reviewer provider and the assigned login CLI runs outside the author shell sandbox
+      Then Safeword explains before writing that packets go to the reviewer provider and both review workers and the assigned login CLI run outside the author shell sandbox
+      And it explains that login may open its sign-in URL
       And only the Safeword start_review and start_reviewer_login tools gain persistent approval
       And pre-existing unrelated Codex configuration remains byte-for-byte unchanged
       And the workspace sandbox remains enabled
