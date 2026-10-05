@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "4d5b9c7d5a84fe4bbd6f28109a2e4363c09e4266fabb3666ceb32eedef0dafcc"
+      "sha256": "f9c148db9c709de5fe6362d4993bde74ac787d1947f5c379f70591c3bb833a35"
     },
     {
       "path": "runtime/dispatch.js",
@@ -287,7 +287,7 @@
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
-      "sha256": "67db2d2613a5b9a03972362118c194229d0e46998f8e97066cff88efeb46bacc"
+      "sha256": "f521d754f12aebc1fc4d3e80cb4ab3c7ac41cca049f6083b139ead7258b0d3bd"
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
@@ -1223,7 +1223,7 @@
     },
     {
       "path": "templates/hooks/lib/namespace-root.ts",
-      "sha256": "67db2d2613a5b9a03972362118c194229d0e46998f8e97066cff88efeb46bacc"
+      "sha256": "f521d754f12aebc1fc4d3e80cb4ab3c7ac41cca049f6083b139ead7258b0d3bd"
     },
     {
       "path": "templates/hooks/lib/parse-annotation.ts",
