@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "952b1d2f6daebefbf2902a61cba82763d832e4f3b2a02a24c3da8dd6094adf2c"
+      "sha256": "34516ee6bc547f18935365dd7cec5b5dd1f72b2a72139ade221276f905a80418"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "edb8f75863bb8ea7007f7d55fed9dd2b1e0466081836d0677743db728f2fc661"
+      "sha256": "16a24c3551cfc376887cf659900d86b6040ec7065ca5d67a2e3cf3747cb2d3f6"
     },
     {
       "path": "runtime/event-groups.json",
@@ -287,7 +287,7 @@
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
-      "sha256": "897f43d5a5d0676b1f61bce32a67f0d22636e368b19836535faa98259c70f8fd"
+      "sha256": "e245165146a04eac020831a992856e056466d79d59019219bd7913085147a5a1"
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
@@ -615,11 +615,11 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "a0d6e63d0bbb8cbc8e223f07ce74db1340257a4af9eb94a554eb9d5cbc4a8f52"
+      "sha256": "fa1f2c69dc727365a8b82c6cad30253d33d336cc3047bc59f661d157da755cef"
     },
     {
       "path": "skills/audit/SKILL.md",
-      "sha256": "8715d6aeed2e6e2dcaf840ab9c76c52a8dd38f498d220502e9178af7096ca686"
+      "sha256": "55c4b60acf84c81e535adcda970978d30dbb1893d41902a1a0cde2209148214d"
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
@@ -743,7 +743,7 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "e65acf5fd52b5a5f7291a8f491fc6827dff6967529793804ddb917a86de64e49"
+      "sha256": "0601f5f8399a04199c87442a47ec111d486ed1b3426b5425e6a256fc4efbabc8"
     },
     {
       "path": "templates/.jscpd.json",
@@ -1231,7 +1231,7 @@
     },
     {
       "path": "templates/hooks/lib/namespace-root.ts",
-      "sha256": "897f43d5a5d0676b1f61bce32a67f0d22636e368b19836535faa98259c70f8fd"
+      "sha256": "e245165146a04eac020831a992856e056466d79d59019219bd7913085147a5a1"
     },
     {
       "path": "templates/hooks/lib/parse-annotation.ts",
@@ -1555,7 +1555,7 @@
     },
     {
       "path": "templates/hooks/write-review-stamp.ts",
-      "sha256": "a0d6e63d0bbb8cbc8e223f07ce74db1340257a4af9eb94a554eb9d5cbc4a8f52"
+      "sha256": "fa1f2c69dc727365a8b82c6cad30253d33d336cc3047bc59f661d157da755cef"
     },
     {
       "path": "templates/personas-template.md",
@@ -1591,7 +1591,7 @@
     },
     {
       "path": "templates/skills/audit/SKILL.md",
-      "sha256": "4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880"
+      "sha256": "ce7d604ff6016eaf614a9e02918089ba021b15ddae11bcad47218c7c2a078077"
     },
     {
       "path": "templates/skills/bdd/DISCOVERY.md",
@@ -1715,7 +1715,7 @@
     },
     {
       "path": "templates/skills/verify/SKILL.md",
-      "sha256": "d64a482998e9a546bbb6b7b6dbb1373a9153a9e806419098892744c92d614d04"
+      "sha256": "d6b1f8cfa6ad1ccc5fd84a8b7f96cf3a13e13561088eb1de9a5b0ee5045759c5"
     },
     {
       "path": "templates/spec-template.md",
