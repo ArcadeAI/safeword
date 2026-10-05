@@ -17,6 +17,7 @@ import type {
   RedExecutionRequest,
   ReviewKind,
 } from '../review/contract.js';
+import type { ReviewPacketError as ReviewPacketErrorType } from '../review/packet.js';
 import { ReviewConfigReadError, ReviewUserConfigPathError } from '../review/preferences.js';
 import { ReviewRouteConfigError } from '../review/route-config.js';
 import type { CommandInvocation } from './handler.js';
@@ -35,7 +36,7 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
         {
           code: 'REVIEW_KIND_INVALID',
           message:
-            'Review kind must be quality-review, scenario-gate, plan-implementation, plan-execution, or executable-red.',
+            'Review kind must be quality-review, scenario-gate, plan-implementation, plan-execution, executable-red, retrospective-eligibility, or retrospective-proof.',
           retryable: false,
         },
       ],
@@ -66,6 +67,63 @@ export async function executableRedGateHandler(invocation: CommandInvocation): P
     );
   const { executableRedGate } = await import('../review/job.js');
   return executableRedGate(invocation.cwd, scenario, ledger);
+}
+
+export async function retrospectiveGateHandler(invocation: CommandInvocation): Promise<CliResult> {
+  return retrospectiveHandler(invocation, false);
+}
+
+export async function retrospectiveAttestHandler(
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  return retrospectiveHandler(invocation, true);
+}
+
+async function retrospectiveHandler(
+  invocation: CommandInvocation,
+  replay: boolean,
+): Promise<CliResult> {
+  const command = replay ? 'review attest retrospective' : 'review gate retrospective';
+  const { ticket, scenario, ledger, eligibility, proof } = invocation.options;
+  if (
+    [ticket, scenario, ledger, eligibility, proof].some(
+      value => typeof value !== 'string' || value.trim() === '',
+    )
+  )
+    return invalidOperand(
+      command,
+      'Ticket, scenario, ledger, eligibility, and proof are required.',
+    );
+  const { retrospectiveGate, attestRetrospectiveRow } =
+    await import('../review/retrospective-gate.js');
+  const check = replay ? attestRetrospectiveRow : retrospectiveGate;
+  return check(invocation.cwd, {
+    ticketId: ticket as string,
+    scenario: scenario as string,
+    ledger: ledger as string,
+    eligibilityId: eligibility as string,
+    proofId: proof as string,
+  });
+}
+
+export async function retrospectiveCloseAttestHandler(
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const { ticket, ledger } = invocation.options;
+  if (typeof ticket !== 'string' || typeof ledger !== 'string')
+    return invalidOperand('review attest retrospective-close', 'Ticket and ledger are required.');
+  const { attestRetrospectiveClose } = await import('../review/retrospective-close.js');
+  return attestRetrospectiveClose(invocation.cwd, ticket, ledger);
+}
+
+export async function retrospectiveCloseGateHandler(
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const { ticket, ledger } = invocation.options;
+  if (typeof ticket !== 'string' || typeof ledger !== 'string')
+    return invalidOperand('review gate retrospective-close', 'Ticket and ledger are required.');
+  const { retrospectiveCloseGate } = await import('../review/retrospective-close.js');
+  return retrospectiveCloseGate(invocation.cwd, ticket, ledger);
 }
 
 function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | undefined {
@@ -456,8 +514,7 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
           },
     );
   } catch (error) {
-    const packetError = error instanceof ReviewPacketError;
-    result = reviewExecutionFailure(error, packetError);
+    result = reviewExecutionFailure(error, ReviewPacketError);
   }
   try {
     completeReviewJob(invocation.cwd, id, result);
@@ -477,9 +534,13 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
   return result;
 }
 
-function reviewExecutionFailure(error: unknown, packetError: boolean): CliResult {
+function reviewExecutionFailure(
+  error: unknown,
+  PacketError: typeof ReviewPacketErrorType,
+): CliResult {
+  const packetError = error instanceof PacketError;
   return failedReviewWorker({
-    code: packetError ? 'REVIEW_PACKET_INVALID' : 'REVIEW_WORKER_FAILED',
+    code: packetError ? error.code : 'REVIEW_WORKER_FAILED',
     message: error instanceof Error ? error.message : 'The review worker failed.',
     retryable: !packetError,
   });
@@ -506,17 +567,17 @@ async function startReviewInBackground(
       progress: invocation.progress,
     });
   } catch (error) {
-    const packetError = error instanceof ReviewPacketError;
-    return reviewStartFailure(error, packetError);
+    return reviewStartFailure(error, ReviewPacketError);
   }
 }
 
-function reviewStartFailure(error: unknown, packetError: boolean): CliResult {
+function reviewStartFailure(error: unknown, PacketError: typeof ReviewPacketErrorType): CliResult {
+  const packetError = error instanceof PacketError;
   return createResult({
     state: 'failed',
     errors: [
       {
-        code: packetError ? 'REVIEW_PACKET_INVALID' : 'REVIEW_JOB_START_FAILED',
+        code: packetError ? error.code : 'REVIEW_JOB_START_FAILED',
         message: error instanceof Error ? error.message : 'The review job could not be started.',
         retryable: !packetError,
       },

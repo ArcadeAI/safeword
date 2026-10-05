@@ -23,6 +23,9 @@ import {
   isNamespacePath,
   NAMESPACE_ROOT_DEFAULT,
   NAMESPACE_ROOT_LEGACY,
+  canonicalEditTarget,
+  canonicalPathForGate,
+  resolveToolProjectDirectory,
 } from './lib/namespace-root.ts';
 import { resolveRunIdentity } from './lib/run-identity.ts';
 import { installCrashCapture } from './lib/self-report.ts';
@@ -31,6 +34,7 @@ installCrashCapture('post-tool-quality');
 
 interface HookInput {
   session_id?: string;
+  cwd?: string;
   tool_name?: string;
   tool_input?: {
     file_path?: string;
@@ -42,7 +46,7 @@ interface HookInput {
   };
 }
 
-const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const launchProjectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
 // Read hook input from stdin
 let input: HookInput;
@@ -51,6 +55,21 @@ try {
 } catch {
   process.exit(0);
 }
+
+const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
+// Real path of the edit target, as pre-tool-quality gates it: an alias (e.g. a
+// symlink into a worktree's ticket folder) is owned and recognized by where it
+// lands. Learnings tracking keeps the host spelling, which Stop matches against
+// git status paths.
+const canonicalEditedFile = canonicalEditTarget(editedFile, input.cwd);
+// Same resolution as pre-tool-quality: state and the readiness receipt land in
+// the enrolled worktree the session is working in, which is where the
+// PR-readiness gate reads them (not the launch checkout).
+const projectDirectory = resolveToolProjectDirectory(launchProjectDirectory, {
+  tool: input.tool_name ?? '',
+  editedFile: canonicalEditedFile,
+  cwd: input.cwd,
+});
 
 // Profile plugins may run in any repository. Project state is only meaningful
 // after explicit Safeword enrollment; observing a tool must never enroll one.
@@ -69,7 +88,6 @@ const stateFile = getStateFilePath(
     ? resolveRunIdentity(input, { runtime: 'codex' })
     : input.session_id,
 );
-const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
 
 // Load or create state
 function loadState(): QualityState {
@@ -197,7 +215,12 @@ function frontmatterField(content: string, field: string): string | undefined {
 }
 
 function ticketStatusAtHead(ticketFile: string): string | undefined {
-  const relativePath = nodePath.relative(projectDirectory, ticketFile);
+  // Both sides canonical: ticketFile comes from the canonical edit path, and
+  // macOS aliases `/var` to `/private/var`.
+  const relativePath = nodePath.relative(
+    canonicalPathForGate(projectDirectory),
+    canonicalPathForGate(ticketFile),
+  );
   if (relativePath === '..' || relativePath.startsWith(`..${nodePath.sep}`)) return undefined;
   try {
     const content = execFileSync(
@@ -231,10 +254,13 @@ function completedTicketIdForVerifyArtifact(filePath: string): string | undefine
 // Exact-basename match (#673): a suffix check would let decoys like
 // `sub-ticket.md` shadow the folder's canonical ticket.md and bind to a
 // stray/absent id instead of falling through to the artifact branch.
-if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) === 'ticket.md') {
-  const fullPath = editedFile.startsWith('/')
-    ? editedFile
-    : nodePath.join(projectDirectory, editedFile);
+if (
+  isNamespacePath(canonicalEditedFile, 'tickets/') &&
+  nodePath.basename(canonicalEditedFile) === 'ticket.md'
+) {
+  const fullPath = canonicalEditedFile.startsWith('/')
+    ? canonicalEditedFile
+    : nodePath.join(projectDirectory, canonicalEditedFile);
   if (existsSync(fullPath)) {
     const content = readFileSync(fullPath, 'utf8');
 
@@ -280,7 +306,10 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
       state.lastReviewedPhase = phase;
     }
   }
-} else if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('.md')) {
+} else if (
+  isNamespacePath(canonicalEditedFile, 'tickets/') &&
+  canonicalEditedFile.endsWith('.md')
+) {
   // Broadened binding write-site (#630): a session resuming an in_progress
   // ticket usually edits its artifacts (spec.md, test-definitions.md, …)
   // without touching ticket.md, so artifact edits must also bind — otherwise
@@ -293,7 +322,7 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
   // Epics never bind (the stamp helper's in_progress scan excludes them). The
   // per-phase review trigger deliberately stays ticket.md-scoped, and a custom
   // paths.projectRoot shares isNamespacePath's default/legacy-root-only limit.
-  const ticketFile = boundTicketFileForArtifact(editedFile);
+  const ticketFile = boundTicketFileForArtifact(canonicalEditedFile);
   if (ticketFile !== undefined && existsSync(ticketFile)) {
     const content = readFileSync(ticketFile, 'utf8');
     const id = frontmatterField(content, 'id');
@@ -312,7 +341,7 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
 // Re-running verification on an already-closed ticket deliberately refreshes
 // the exact current HEAD without requiring a follow-up commit. A later unrelated
 // commit remains stale because only this explicit verification edit may refresh.
-const completedVerifyTicket = completedTicketIdForVerifyArtifact(editedFile);
+const completedVerifyTicket = completedTicketIdForVerifyArtifact(canonicalEditedFile);
 const receiptTicket =
   state.recentCompletedTicket ?? (state.activeTicket === null ? completedVerifyTicket : undefined);
 if (
