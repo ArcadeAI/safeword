@@ -457,6 +457,16 @@ tests/integration/installed-planning-copy-admission.test.ts`; expected failure:
 GREEN calls the exact reviewer-copy preflight from packet construction and
 leaves prior authenticated approval currency separate from copy admission.
 
+Absent-reviewer-copy characterization (2026-10-04): the final R5 outline row
+now empties only the generated reviewer rubric in a copied installed plugin,
+retaining its sealed digest. Real review dispatch and the installed phase gate
+both refuse the copy and name restoration of the packaged contract. The canonical
+and tampered-copy controls remain active. All six outline examples pass (306
+steps), and the complete R5 group passes nine scenarios (459 steps). External
+Claude's focused review confirmed the fixture boundary and requested a recovery
+instruction assertion, now included in both outputs. This proves existing
+behavior; it does not invent a production RED/GREEN cycle or complete the feature.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
