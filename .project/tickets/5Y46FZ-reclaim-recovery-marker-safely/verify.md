@@ -16,3 +16,5 @@
 **Evidence limits:** ⚠️ The supply-chain lane exited non-zero on existing advisories (bun audit: braces, fast-uri, http-cache-semantics, dompurify; pip-audit: urllib3 2.7.0). No dependency files changed and the CI Dependency audit passes, so this says nothing about this change.
 
 Quality review: Codex cross-agent review approved after four rounds. The one finding outside this diff, an active-snapshot cleanup test that can't catch regressions, is tracked as a separate follow-up.
+
+Audit passed with warnings — diff scope (4 files): no dependency violations, generated config current, no docs or domain-doc drift. One test-quality warning remains: the race preload is coupled to protocol internals (`.pending-` names, `owner-<n>.json`), which is inherent to pausing at exact protocol steps. Fixed during the audit: the preload's `waitFor` now fails loudly on timeout, and the expected event counts are explained in a comment.

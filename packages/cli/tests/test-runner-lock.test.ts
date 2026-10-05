@@ -267,7 +267,8 @@ const instanceOf = target => {
 const signal = name => original.writeFileSync(path.join(signals, name), '');
 function waitFor(name) {
   const deadline = Date.now() + 10_000;
-  while (!original.existsSync(path.join(signals, name)) && Date.now() < deadline) {
+  while (!original.existsSync(path.join(signals, name))) {
+    if (Date.now() >= deadline) throw new Error('race signal never arrived: ' + name);
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
   }
 }
@@ -427,6 +428,8 @@ async function prepareRecoveryRace() {
         SAFEWORD_TEST_LOCK_DIR: lockDirectory,
         SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '10000',
       }),
+    // Each runner logs build start/end and vitest start/end exactly once, so
+    // a serialized run of N runners has 4N events and never two active.
     summarize(results: { stderr: string; status: number | null }[]) {
       const events = readEvents(logPath);
       let activeCommands = 0;
