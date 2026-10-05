@@ -17,7 +17,13 @@ values intentionally do not change the contract.
 `originMainCommit` records the original contract lineage, not the source revision of
 every subsequently regenerated snapshot. Git history supplies update provenance.
 
-To update intentionally, from the repository root run:
+`templatesSha256` digests `packages/cli/templates/` as of the last regeneration, so the
+pre-commit generated-surface gate can flag stale fixtures without running vitest. After
+a template edit, `bun packages/cli/scripts/check-generated-surfaces.ts --fix` regenerates
+and verifies these fixtures, and fails if any `result_sha256` moved: template edits
+should only move `tree_sha256`.
+
+To update manually, from the repository root run:
 
 ```sh
 SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES=1 bun run test tests/lifecycle/origin-main-contract.test.ts
