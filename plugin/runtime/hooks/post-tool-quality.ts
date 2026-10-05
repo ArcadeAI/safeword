@@ -23,6 +23,7 @@ import {
   isNamespacePath,
   NAMESPACE_ROOT_DEFAULT,
   NAMESPACE_ROOT_LEGACY,
+  canonicalPathForGate,
   resolveToolProjectDirectory,
 } from './lib/namespace-root.ts';
 import { resolveRunIdentity } from './lib/run-identity.ts';
@@ -60,7 +61,9 @@ const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_pat
 // PR-readiness gate reads them (not the launch checkout).
 const projectDirectory = resolveToolProjectDirectory(launchProjectDirectory, {
   tool: input.tool_name ?? '',
-  editedFile,
+  // Canonical only for ownership, as in pre-tool-quality; state keeps the
+  // host-provided spelling.
+  editedFile: editedFile === '' ? editedFile : canonicalPathForGate(editedFile),
   cwd: input.cwd,
 });
 

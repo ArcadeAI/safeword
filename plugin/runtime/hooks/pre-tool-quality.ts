@@ -4,7 +4,7 @@
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -51,6 +51,7 @@ import {
   hasSafewordProjectMarker,
   isNamespacePath,
   resolveNamespaceRoot,
+  canonicalPathForGate,
   resolveToolProjectDirectory,
 } from './lib/namespace-root.ts';
 import { reviewKindForPhase } from './lib/review-receipt.ts';
@@ -371,25 +372,6 @@ try {
 
 const tool = input.tool_name ?? '';
 const requestedEditedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
-function canonicalPathForGate(path: string, seen = new Set<string>()): string {
-  if (seen.has(path)) return path;
-  seen.add(path);
-  try {
-    return realpathSync(path);
-  } catch {
-    try {
-      if (lstatSync(path).isSymbolicLink()) {
-        const target = readlinkSync(path);
-        return canonicalPathForGate(nodePath.resolve(nodePath.dirname(path), target), seen);
-      }
-    } catch {
-      // The requested path itself may not exist yet.
-    }
-    const parent = nodePath.dirname(path);
-    if (parent === path) return path;
-    return nodePath.join(canonicalPathForGate(parent, seen), nodePath.basename(path));
-  }
-}
 const editedFile =
   requestedEditedFile === '' ? requestedEditedFile : canonicalPathForGate(requestedEditedFile);
 

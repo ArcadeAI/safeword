@@ -1,7 +1,7 @@
 /** Integration proof for the local Ready boundary (ticket PY73VN). */
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -303,12 +303,17 @@ function runClaudeHookFromLaunch(
 }
 
 /** Close the worktree's ticket with valid verification, as a session inside it would. */
-function closeTicketInWorktree({ launchDirectory, worktreeDirectory }: WorktreeSession): void {
+function closeTicketInWorktree(
+  { launchDirectory, worktreeDirectory }: WorktreeSession,
+  editedTicketDirectory = nodePath.join(worktreeDirectory, nodePath.dirname(TICKET_PATH)),
+): void {
   const observeEdit = (editedPath: string) =>
     runClaudeHookFromLaunch(POST_TOOL_QUALITY, launchDirectory, {
       cwd: worktreeDirectory,
       tool_name: 'Edit',
-      tool_input: { file_path: nodePath.join(worktreeDirectory, editedPath) },
+      tool_input: {
+        file_path: nodePath.join(editedTicketDirectory, nodePath.basename(editedPath)),
+      },
     });
   writeTestFile(worktreeDirectory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
   observeEdit(VERIFY_PATH);
@@ -335,6 +340,23 @@ describe('pull-request readiness from a session inside a nested worktree', () =>
   it('allows Ready when the shell works in a worktree whose ticket is verified done', () => {
     const session = worktreeSession();
     closeTicketInWorktree(session);
+
+    const output = runReadyFromLaunch(session.launchDirectory, session.worktreeDirectory);
+
+    expect(output).toEqual({});
+  });
+
+  it('allows Ready when the worktree ticket was closed through a symlink in the launch checkout', () => {
+    const session = worktreeSession();
+    const linkedTicketDirectory = nodePath.join(
+      session.launchDirectory,
+      '.project/tickets/WT-linked',
+    );
+    symlinkSync(
+      nodePath.join(session.worktreeDirectory, nodePath.dirname(TICKET_PATH)),
+      linkedTicketDirectory,
+    );
+    closeTicketInWorktree(session, linkedTicketDirectory);
 
     const output = runReadyFromLaunch(session.launchDirectory, session.worktreeDirectory);
 

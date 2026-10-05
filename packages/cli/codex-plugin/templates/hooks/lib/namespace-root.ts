@@ -10,7 +10,7 @@
 // customer repos with no import path to the CLI. A differential test pins
 // the two copies against shared fixtures (P58R22 pattern).
 
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 export const NAMESPACE_ROOT_DEFAULT = '.project';
@@ -31,6 +31,32 @@ export function hasSafewordProjectMarker(projectDirectory: string): boolean {
 export function resolveOwningProjectDirectory(launchDirectory: string, filePath: string): string {
   if (filePath === '') return launchDirectory;
   return resolveDirectoryOwner(launchDirectory, nodePath.dirname(filePath));
+}
+
+/**
+ * The real path of a tool's target file, resolving symlinks even when the
+ * file itself does not exist yet. Pre- and post-tool hooks both canonicalize
+ * before resolving ownership, so a path reached through a symlink into an
+ * enrolled worktree is gated and recorded in that same worktree.
+ */
+export function canonicalPathForGate(path: string, seen = new Set<string>()): string {
+  if (seen.has(path)) return path;
+  seen.add(path);
+  try {
+    return realpathSync(path);
+  } catch {
+    try {
+      if (lstatSync(path).isSymbolicLink()) {
+        const target = readlinkSync(path);
+        return canonicalPathForGate(nodePath.resolve(nodePath.dirname(path), target), seen);
+      }
+    } catch {
+      // The requested path itself may not exist yet.
+    }
+    const parent = nodePath.dirname(path);
+    if (parent === path) return path;
+    return nodePath.join(canonicalPathForGate(parent, seen), nodePath.basename(path));
+  }
 }
 
 /**
@@ -59,14 +85,23 @@ export function resolveToolProjectDirectory(
 
 const EDIT_TOOL_NAMES = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 
+// Compare real paths so a canonicalized spelling of the launch checkout
+// (macOS \ vs \) still resolves to the launch spelling.
+function isSameDirectory(left: string, right: string): boolean {
+  if (nodePath.resolve(left) === nodePath.resolve(right)) return true;
+  try {
+    return realpathSync(left) === realpathSync(right);
+  } catch {
+    return false;
+  }
+}
+
 function resolveDirectoryOwner(launchDirectory: string, startDirectory: string): string {
   let directory = startDirectory;
   for (;;) {
     if (existsSync(nodePath.join(directory, '.git'))) {
       const owns = hasSafewordProjectMarker(directory);
-      return owns && nodePath.resolve(directory) !== nodePath.resolve(launchDirectory)
-        ? directory
-        : launchDirectory;
+      return owns && !isSameDirectory(directory, launchDirectory) ? directory : launchDirectory;
     }
     const parent = nodePath.dirname(directory);
     if (parent === directory) return launchDirectory;
