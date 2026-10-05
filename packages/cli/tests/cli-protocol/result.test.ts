@@ -66,7 +66,10 @@ describe('CLI result protocol', () => {
     const validate = new Ajv({ allErrors: true }).compile(
       JSON.parse(readFileSync(schemaPath, 'utf8')),
     );
-    const envelope = (state: 'healthy' | 'failed', data: Record<string, unknown>): unknown => {
+    const envelope = (
+      state: 'healthy' | 'failed' | 'action_required',
+      data: Record<string, unknown>,
+    ): unknown => {
       const result = createResult({ state, data });
       return JSON.parse(renderJsonResult(result));
     };
@@ -88,6 +91,14 @@ describe('CLI result protocol', () => {
       ),
     ).toBe(false);
     expect(validate(envelope('failed', { command: 'review run', status: 'blocked' }))).toBe(true);
+    const changesRequested = { command: 'review run', status: 'changes_requested' };
+    expect(validate(envelope('action_required', changesRequested))).toBe(false);
+    expect(
+      validate(envelope('action_required', { ...changesRequested, excluded_targets: 'bad' })),
+    ).toBe(false);
+    expect(
+      validate(envelope('action_required', { ...changesRequested, excluded_targets: [] })),
+    ).toBe(true);
   });
 
   it.each([

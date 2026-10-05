@@ -84,3 +84,43 @@ and failed on a transient missing chunk, not a policy assertion; serialize
 subsequent dist consumers. Release found one dogfood mirror drift because the
 normal installer intentionally preserves legacy Codex hook assets. The
 supported parity fixer reconciled that mirror from the source template.
+
+## Configured advisory at 3fd81e7fb
+
+The configured review completed at the exact head, with all seven required
+checks green and no unknowns or missing evidence. Its ten findings were
+inspected individually:
+
+- Child startup: the bridge inherits the packaged/snapshot cwd from runHookFile,
+  not project cwd. The actual composed runtime experiments and exact-ref live
+  Codex smoke passed. Project dotenv and preload cannot affect that child.
+- Project routing: the outer handler resolves the host cwd/host project identity
+  and supplies CLAUDE_PROJECT_DIR. The repaired translation preserves cwd for
+  relative edit paths. Returning to project startup cwd would restore the bypass.
+- Native compatibility: OpenAI Codex rust-v0.140.0's published input schemas
+  require string cwd for all five dispatched events. Exact-ref real Codex smoke
+  also passed on the supported 0.144.5+ host. The payload field is not synthetic.
+- Stale source proof: retrospective-proof.ts includes testFile,
+  implementationPath, supportFiles, lockfile and manifests in supportSha256.
+  currentReplayRecord rechecks every entry. The implementation is already bound.
+- Remote version selection: the target is a trusted project checkout and the
+  user explicitly requires its installed Safeword version. This optional remote
+  execution workflow is not a hostile-target verifier or prepublication gate.
+- Runtime override: native Codex overwrites SAFEWORD_PLUGIN_CLI with its actual
+  argv identity; Claude dispatch overwrites it with the verified runtime path.
+  Isolated startup prevents project dotenv injection. OpenCode retains its
+  host-profile reentrant identity. Same-user profile modification is outside
+  the project-content boundary; arbitrary temporary unit fixtures earn no proof.
+- Result schema: exclusion requirements are independent of envelope state.
+  Added explicit action_required/changes_requested positive and negative cases.
+- OpenCode timeout: vitest.config.ts sets 60000ms, not the claimed 5000ms.
+  The intentional delays test the supported deadline; both CI suites passed.
+- CLI documentation: corrected the obsolete bunx description to the cached
+  bundled runtime and isolated startup command.
+
+Primary host schema authority:
+https://github.com/openai/codex/tree/rust-v0.140.0/codex-rs/hooks/schema/generated
+
+The documentation and coverage edits introduce no runtime behavior. They need
+focused verification, review, commit/push and fresh CI/advisory before merge.
+No ticket phase or historical proof row changes.

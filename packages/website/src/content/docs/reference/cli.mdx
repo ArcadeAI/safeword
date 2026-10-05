@@ -535,8 +535,10 @@ PreToolUse or command-interception hook. At task start the bootstrap exits
 successfully and is silent only when exact profile, project, version, and task
 proof exists. Otherwise it emits a prominent warning, explains that work may
 continue without Safeword protection, and gives one recovery action. Plugin
-hooks use version-pinned `bunx --bun safeword@<version>` commands; they never
-use npx or bypass Codex hook trust.
+hooks run the cached bundled CLI with
+`bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js"`.
+The host payload identifies the project directory. These hooks never install
+packages at runtime or bypass Codex hook trust.
 
 Installing the plugin does not enroll repositories. Project-scoped Codex gates
 and state activate only after `safeword install` creates
