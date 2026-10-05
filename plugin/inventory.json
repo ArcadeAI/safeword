@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "649fa9122378acdbadbe0380f3621c88aaeb7b6fdb23666326a1816bbb514f71"
+      "sha256": "a0bc4505b8fbf92bd2e81630e012080b0bb81f050d37ab71f0cc53100eed7669"
     },
     {
       "path": "runtime/dispatch.js",
@@ -387,7 +387,7 @@
     },
     {
       "path": "runtime/hooks/lib/retrospective-gate.ts",
-      "sha256": "7c96838305c1d7c520b44d274f63fce45b85b66d730a6419fbcc7da470b58db1"
+      "sha256": "c408a3a94a240be25802df86704edd3789518837d3367ffd052edb5e56074ad6"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
@@ -1327,7 +1327,7 @@
     },
     {
       "path": "templates/hooks/lib/retrospective-gate.ts",
-      "sha256": "7c96838305c1d7c520b44d274f63fce45b85b66d730a6419fbcc7da470b58db1"
+      "sha256": "c408a3a94a240be25802df86704edd3789518837d3367ffd052edb5e56074ad6"
     },
     {
       "path": "templates/hooks/lib/review-ledger.ts",

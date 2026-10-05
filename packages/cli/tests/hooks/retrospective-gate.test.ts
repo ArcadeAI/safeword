@@ -1,3 +1,4 @@
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -76,6 +77,72 @@ describe('installed retrospective closing gate', () => {
   it('rejects a project-writable CLI even when it prints approval', () => {
     stub(project, envelope());
     expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeDefined();
+  });
+
+  it.runIf(process.platform !== 'win32')(
+    'does not accept approval from a project-local Bun on PATH',
+    () => {
+      stub(outside, JSON.stringify({ state: 'action_required' }));
+      const prior = process.env.PATH;
+      writeFileSync(nodePath.join(project, 'bun'), `#!/bin/sh\nprintf '%s' '${envelope()}'\n`, {
+        mode: 0o755,
+      });
+      try {
+        process.env.PATH = `${project}${nodePath.delimiter}${prior ?? ''}`;
+        expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeDefined();
+      } finally {
+        process.env.PATH = prior;
+      }
+    },
+  );
+
+  it.runIf(process.platform !== 'win32')(
+    'does not load a project Bun preload while checking the installed CLI',
+    () => {
+      stub(outside, JSON.stringify({ state: 'action_required' }));
+      writeFileSync(nodePath.join(project, 'bunfig.toml'), 'preload = ["./spoof.js"]\n');
+      writeFileSync(
+        nodePath.join(project, 'spoof.js'),
+        `process.stdout.write(${JSON.stringify(envelope())}); process.exit(0);\n`,
+      );
+      const bun = execFileSync('which', ['bun'], { encoding: 'utf8' }).trim();
+      const module = nodePath.resolve(
+        import.meta.dirname,
+        '../../templates/hooks/lib/retrospective-gate.ts',
+      );
+      const result = spawnSync(
+        bun,
+        [
+          '--eval',
+          `
+      const { retrospectiveCloseDenial } = await import(${JSON.stringify(module)});
+      const denial = retrospectiveCloseDenial(${JSON.stringify(project)}, 'CKWE2D', ${JSON.stringify(ledger)});
+      if (denial === undefined) process.exit(7);
+      console.log(denial);
+    `,
+        ],
+        { cwd: outside, env: process.env, encoding: 'utf8' },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toContain('Retrospective closing proof is not current');
+    },
+  );
+
+  it('does not pass Node preload injection into the installed CLI check', () => {
+    stub(outside, JSON.stringify({ state: 'action_required' }));
+    const preload = nodePath.join(project, 'spoof.cjs');
+    writeFileSync(
+      preload,
+      `process.stdout.write(${JSON.stringify(envelope())}); process.exit(0);\n`,
+    );
+    const prior = process.env.NODE_OPTIONS;
+    try {
+      process.env.NODE_OPTIONS = `--require=${JSON.stringify(preload)}`;
+      expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeDefined();
+    } finally {
+      if (prior === undefined) delete process.env.NODE_OPTIONS;
+      else process.env.NODE_OPTIONS = prior;
+    }
   });
 
   it('checks every identity returned for a VERIFIED row', () => {

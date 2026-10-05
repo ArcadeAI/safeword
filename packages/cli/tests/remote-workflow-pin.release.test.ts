@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -24,13 +32,19 @@ function testCommand(): string {
 function runWithProjectVersion(version?: string): {
   status: number | null;
   args: string | undefined;
+  sideEffect: boolean;
 } {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-remote-version-'));
   try {
     const bin = nodePath.join(root, 'bin');
     mkdirSync(bin);
     mkdirSync(nodePath.join(root, '.safeword'));
-    if (version !== undefined) writeFileSync(nodePath.join(root, '.safeword/version'), version);
+    const sentinel = nodePath.join(root, 'unsafe-side-effect');
+    if (version !== undefined)
+      writeFileSync(
+        nodePath.join(root, '.safeword/version'),
+        version.replace('/tmp/unsafe', () => sentinel),
+      );
     const log = nodePath.join(root, 'npx-args');
     const npx = nodePath.join(bin, 'npx');
     writeFileSync(npx, '#!/bin/sh\nprintf "%s\\n" "$@" > "$SAFEWORD_NPX_LOG"\n');
@@ -46,8 +60,8 @@ function runWithProjectVersion(version?: string): {
         SAFEWORD_NPX_LOG: log,
       },
     });
-    const args = result.status === 0 ? readFileSync(log, 'utf8') : undefined;
-    return { status: result.status, args };
+    const args = existsSync(log) ? readFileSync(log, 'utf8') : undefined;
+    return { status: result.status, args, sideEffect: existsSync(sentinel) };
   } finally {
     rmSync(root, { force: true, recursive: true });
   }
@@ -57,6 +71,7 @@ describe('remote-test workflow version selection', () => {
   it.each(['0.85.0', '1.0.0-rc.5'])('runs the checked-out project version %s', version => {
     expect(runWithProjectVersion(`${version}\n`)).toEqual({
       status: 0,
+      sideEffect: false,
       args: `--yes\nsafeword@${version}\nproject\ntest\n--lane\ndone\n--execution\nlocal\n--prepare-remote\n`,
     });
   });
@@ -64,7 +79,11 @@ describe('remote-test workflow version selection', () => {
   it.each([undefined, 'latest\n', '0.85.0;touch /tmp/unsafe\n'])(
     'fails closed for an absent or unsafe version marker',
     version => {
-      expect(runWithProjectVersion(version)).toEqual({ status: 1, args: undefined });
+      expect(runWithProjectVersion(version)).toEqual({
+        status: 1,
+        args: undefined,
+        sideEffect: false,
+      });
     },
   );
 });

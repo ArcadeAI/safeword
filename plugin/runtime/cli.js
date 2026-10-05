@@ -35544,11 +35544,14 @@ var init_retrospective_prerequisites = __esm(() => {
 import { spawnSync as spawnSync9 } from "child_process";
 import { createHash as createHash19 } from "crypto";
 import {
+  accessSync as accessSync3,
+  constants as constants4,
   existsSync as existsSync16,
   lstatSync as lstatSync12,
   mkdirSync as mkdirSync14,
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync32,
+  realpathSync as realpathSync11,
   rmSync as rmSync9,
   symlinkSync,
   writeFileSync as writeFileSync14
@@ -35601,8 +35604,8 @@ function git3(root, args) {
   }
   return result.stdout;
 }
-function snapshot(root, destination) {
-  const archive = git3(root, ["archive", "--format=tar", "HEAD"]);
+function snapshot(root, destination, commit) {
+  const archive = git3(root, ["archive", "--format=tar", commit]);
   const extract = spawnSync9("tar", ["-xf", "-", "-C", destination], {
     input: archive,
     encoding: "buffer",
@@ -35612,15 +35615,34 @@ function snapshot(root, destination) {
   if (extract.error !== undefined || extract.status !== 0) {
     throw new Error("Retrospective proof could not create an isolated source copy.");
   }
+}
+function installProofDependencies(passing, mutated, executable) {
+  const result = spawnSync9(executable, ["install", "--frozen-lockfile", "--ignore-scripts"], {
+    cwd: passing,
+    env: proofEnvironment(executable),
+    encoding: "utf8",
+    timeout: TEST_TIMEOUT_MS,
+    maxBuffer: MAX_PROCESS_OUTPUT,
+    windowsHide: true
+  });
+  if (result.error !== undefined || result.status !== 0) {
+    throw new Error("Could not install retrospective proof dependencies from the frozen lockfile.");
+  }
   for (const relative of ["node_modules", "packages/cli/node_modules"]) {
-    const dependencyRoot = nodePath48.join(root, relative);
+    const dependencyRoot = nodePath48.join(passing, relative);
     if (!existsSync16(dependencyRoot)) {
       if (relative === "node_modules")
         throw new Error(`Missing proof dependency: ${relative}`);
       continue;
     }
-    symlinkSync(dependencyRoot, nodePath48.join(destination, relative), "dir");
+    symlinkSync(dependencyRoot, nodePath48.join(mutated, relative), "dir");
   }
+}
+function proofEnvironment(executable) {
+  return Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("SAFEWORD_REVIEW_") && !name.startsWith("GIT_")).map(([name, value]) => [
+    name,
+    name === "PATH" ? `${nodePath48.dirname(executable)}${nodePath48.delimiter}${value ?? ""}` : value
+  ]));
 }
 function assertionFromReport(path7, fullName, expectedStatus) {
   const report = JSON.parse(readFileSync32(path7, "utf8"));
@@ -35638,6 +35660,28 @@ function assertionFromReport(path7, fullName, expectedStatus) {
   }
   return { report, assertion: selected[0] };
 }
+function projectPath(root, candidate) {
+  const relative = nodePath48.relative(root, candidate);
+  return relative === "" || relative !== ".." && !relative.startsWith(`..${nodePath48.sep}`) && !nodePath48.isAbsolute(relative);
+}
+function proofBun(root) {
+  const project = realpathSync11.native(root);
+  const directories = (process.env.PATH ?? "").split(nodePath48.delimiter);
+  for (const directory of directories) {
+    const candidate = nodePath48.resolve(root, directory, process.platform === "win32" ? "bun.exe" : "bun");
+    if (!existsSync16(candidate))
+      continue;
+    const canonical = realpathSync11.native(candidate);
+    if (projectPath(root, candidate) || projectPath(project, candidate) || projectPath(project, canonical)) {
+      throw new Error("Bun executable must be outside the project.");
+    }
+    try {
+      accessSync3(canonical, constants4.X_OK);
+      return canonical;
+    } catch {}
+  }
+  throw new Error("An installed Bun executable is required for retrospective proof.");
+}
 function runTest(copy, argv, fullName, expectedStatus) {
   const cwd = nodePath48.join(copy, "packages/cli");
   const executable = argv[0];
@@ -35646,7 +35690,7 @@ function runTest(copy, argv, fullName, expectedStatus) {
   rmSync9(nodePath48.join(cwd, REPORT), { force: true });
   const result = spawnSync9(executable, argv.slice(1), {
     cwd,
-    env: Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("SAFEWORD_REVIEW_") && !name.startsWith("GIT_"))),
+    env: proofEnvironment(executable),
     encoding: "utf8",
     timeout: TEST_TIMEOUT_MS,
     maxBuffer: MAX_PROCESS_OUTPUT,
@@ -35712,11 +35756,20 @@ function runRetrospectiveProof(projectRoot, request) {
     throw new Error("Retrospective proof requires the Git repository root.");
   }
   const commit = currentProofCommit(root);
-  const inputs = [request.testFile, request.implementationPath, ...request.supportFiles];
+  const inputs = [
+    ...new Set([
+      request.testFile,
+      request.implementationPath,
+      ...request.supportFiles,
+      "bun.lock",
+      "package.json",
+      "packages/cli/package.json"
+    ])
+  ];
   const supportSha256 = {};
   for (const path7 of inputs) {
     const bytes = readProofInput(root, path7);
-    const committed = git3(root, ["show", `HEAD:${path7}`]);
+    const committed = git3(root, ["show", `${commit}:${path7}`]);
     if (!bytes.equals(committed))
       throw new Error(`Proof input differs from HEAD: ${path7}`);
     supportSha256[path7] = sha2564(bytes);
@@ -35731,7 +35784,7 @@ function runRetrospectiveProof(projectRoot, request) {
   }
   const mutant = source.replace(request.mutation.before, () => request.mutation.after);
   const argv = [
-    "bun",
+    proofBun(root),
     "run",
     "test",
     request.testFile.slice("packages/cli/".length),
@@ -35746,8 +35799,8 @@ function runRetrospectiveProof(projectRoot, request) {
     const mutatedCopy = nodePath48.join(temporary, "mutated");
     mkdirSync14(passingCopy);
     mkdirSync14(mutatedCopy);
-    snapshot(root, passingCopy);
-    snapshot(root, mutatedCopy);
+    snapshot(root, passingCopy, commit);
+    snapshot(root, mutatedCopy, commit);
     requireArchivedSource(passingCopy, request.implementationPath, sourceBytes);
     requireArchivedSource(mutatedCopy, request.implementationPath, sourceBytes);
     const passingDigests = archiveDigests(passingCopy, inputs);
@@ -35756,6 +35809,7 @@ function runRetrospectiveProof(projectRoot, request) {
     const mutatedSupportSha256 = archiveDigests(mutatedCopy, inputs);
     const expectedMutated = { ...supportSha256, [request.implementationPath]: sha2564(mutant) };
     requireDigests(mutatedSupportSha256, expectedMutated, "Mutated proof inputs differ beyond the declared mutation.");
+    installProofDependencies(passingCopy, mutatedCopy, argv[0]);
     runTest(passingCopy, argv, request.testFullName, "passed");
     const mutated = runTest(mutatedCopy, argv, request.testFullName, "failed");
     if (!mutated.failure.includes(request.mutation.expectedFailure) || !mutated.failure.includes(request.mutation.assertionLocation)) {
@@ -36104,7 +36158,7 @@ import {
   existsSync as existsSync17,
   mkdirSync as mkdirSync15,
   readFileSync as readFileSync34,
-  realpathSync as realpathSync11,
+  realpathSync as realpathSync12,
   renameSync as renameSync8,
   rmSync as rmSync10,
   writeFileSync as writeFileSync15
@@ -36141,8 +36195,8 @@ function sha2565(bytes) {
 function contained(root, relative) {
   if (relative === "" || nodePath50.isAbsolute(relative) || relative.split("/").some((part) => ["", ".", ".."].includes(part)))
     throw new Error("Retrospective close input escapes the project.");
-  const canonicalRoot = realpathSync11.native(root);
-  const canonical = realpathSync11.native(nodePath50.join(root, relative));
+  const canonicalRoot = realpathSync12.native(root);
+  const canonical = realpathSync12.native(nodePath50.join(root, relative));
   const inside2 = nodePath50.relative(canonicalRoot, canonical);
   if (inside2.startsWith(`..${nodePath50.sep}`) || ["..", ""].includes(inside2) || nodePath50.isAbsolute(inside2)) {
     throw new Error("Retrospective close input escapes the project.");
@@ -36478,7 +36532,7 @@ __export(exports_red_execution, {
 });
 import { spawn as spawn3, spawnSync as spawnSync11 } from "child_process";
 import { createHash as createHash23 } from "crypto";
-import { realpathSync as realpathSync12 } from "fs";
+import { realpathSync as realpathSync13 } from "fs";
 import nodePath52 from "path";
 function terminateProofTree(child) {
   if (process.platform === "win32" && child.pid !== undefined) {
@@ -36499,14 +36553,14 @@ function terminateProofTree(child) {
   child.kill("SIGKILL");
 }
 function containedWorkingDirectory(root, requested) {
-  const canonicalRoot = realpathSync12.native(root);
-  const canonicalCwd = realpathSync12.native(nodePath52.resolve(canonicalRoot, requested));
+  const canonicalRoot = realpathSync13.native(root);
+  const canonicalCwd = realpathSync13.native(nodePath52.resolve(canonicalRoot, requested));
   const relative = nodePath52.relative(canonicalRoot, canonicalCwd);
   if (relative === ".." || relative.startsWith(`..${nodePath52.sep}`) || nodePath52.isAbsolute(relative))
     throw new Error("RED proof working directory must stay inside the reviewed project");
   return canonicalCwd;
 }
-function proofEnvironment() {
+function proofEnvironment2() {
   return Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("SAFEWORD_REVIEW_")));
 }
 function environmentIdentity(environment) {
@@ -36564,7 +36618,7 @@ async function executeRedProof(input) {
   const started = Date.now();
   const stdout = new StreamEvidence(input.request.expectedFailure);
   const stderr = new StreamEvidence(input.request.expectedFailure);
-  const environment = proofEnvironment();
+  const environment = proofEnvironment2();
   const termination = await new Promise((resolve, reject) => {
     let timedOut = false;
     const child = spawn3(input.request.argv[0], input.request.argv.slice(1), {
@@ -42961,7 +43015,7 @@ import {
   openSync as openSync7,
   readdirSync as readdirSync16,
   readSync as readSync3,
-  realpathSync as realpathSync13
+  realpathSync as realpathSync14
 } from "fs";
 import nodePath68 from "path";
 function isSmallRegularMetadata(metadata) {
@@ -43051,7 +43105,7 @@ function isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry) {
 }
 function directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot) {
   const metadata = lstatSync15(physicalDirectory);
-  const canonical = realpathSync13(physicalDirectory);
+  const canonical = realpathSync14(physicalDirectory);
   const insideRoot = canonical === canonicalRoot || canonical.startsWith(`${canonicalRoot}${nodePath68.sep}`);
   if (!metadata.isDirectory() || !insideRoot) {
     throw new Error(`Claude plugin cache traversal escaped its root: ${logicalDirectory || "."}`);
@@ -43060,7 +43114,7 @@ function directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot) {
 }
 function claudeNativePayloadFiles(root) {
   const files = [];
-  const canonicalRoot = realpathSync13(root);
+  const canonicalRoot = realpathSync14(root);
   const visit3 = (physicalDirectory, logicalDirectory) => {
     const before = directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot);
     const entries = readdirSync16(physicalDirectory, { withFileTypes: true });
@@ -43473,7 +43527,7 @@ import {
   lstatSync as lstatSync16,
   readdirSync as readdirSync17,
   readFileSync as readFileSync51,
-  realpathSync as realpathSync14,
+  realpathSync as realpathSync15,
   writeFileSync as writeFileSync23
 } from "fs";
 import nodePath72 from "path";
@@ -43488,7 +43542,7 @@ function containedWorkspaceMember(cwd, member) {
   const candidate = nodePath72.resolve(root, member);
   if (!isContainedPath(root, candidate))
     return;
-  if (existsSync33(candidate) && !isContainedPath(realpathSync14(root), realpathSync14(candidate))) {
+  if (existsSync33(candidate) && !isContainedPath(realpathSync15(root), realpathSync15(candidate))) {
     return;
   }
   return nodePath72.relative(root, candidate);
@@ -43497,7 +43551,7 @@ function isSafeCargoManifest(cwd, cargoPath) {
   if (!existsSync33(cargoPath))
     return false;
   const stat3 = lstatSync16(cargoPath);
-  return stat3.isFile() && !stat3.isSymbolicLink() && isContainedPath(realpathSync14(cwd), realpathSync14(cargoPath));
+  return stat3.isFile() && !stat3.isSymbolicLink() && isContainedPath(realpathSync15(cwd), realpathSync15(cargoPath));
 }
 function detectWorkspaceType(cargoContent) {
   const hasWorkspace = hasExactTableHeader(cargoContent, "workspace");
@@ -57101,7 +57155,7 @@ __export(exports_status, {
   observeClaudeStatus: () => observeClaudeStatus,
   equivalentClaudeInstallations: () => equivalentClaudeInstallations
 });
-import { existsSync as existsSync41, readFileSync as readFileSync55, realpathSync as realpathSync15 } from "fs";
+import { existsSync as existsSync41, readFileSync as readFileSync55, realpathSync as realpathSync16 } from "fs";
 import nodePath87 from "path";
 function jsonObject(path8) {
   try {
@@ -57138,7 +57192,7 @@ function proofIsCurrent(plugin, cwd) {
   let canonicalRoot;
   let canonicalProjectRoot;
   try {
-    canonicalRoot = realpathSync15(plugin.installPath);
+    canonicalRoot = realpathSync16(plugin.installPath);
     canonicalProjectRoot = canonicalClaudeProjectRoot(cwd);
   } catch {
     return false;
@@ -57233,7 +57287,7 @@ function equivalentClaudeInstallations(installations) {
       return false;
     }
     try {
-      return realpathSync15(left.installPath) === realpathSync15(right.installPath);
+      return realpathSync16(left.installPath) === realpathSync16(right.installPath);
     } catch {
       return false;
     }
@@ -58292,7 +58346,7 @@ import {
   lstatSync as lstatSync19,
   readdirSync as readdirSync28,
   readFileSync as readFileSync57,
-  realpathSync as realpathSync16,
+  realpathSync as realpathSync17,
   rmdirSync as rmdirSync5,
   rmSync as rmSync14
 } from "fs";
@@ -58538,7 +58592,7 @@ function hasPassingConformance(directory, identity, opencodeVersion) {
 function observeProtectionEvidence(paths, identity, input) {
   let expectedProjectSha256;
   try {
-    expectedProjectSha256 = input.projectDirectory === undefined ? undefined : sha2566(realpathSync16(input.projectDirectory));
+    expectedProjectSha256 = input.projectDirectory === undefined ? undefined : sha2566(realpathSync17(input.projectDirectory));
   } catch {
     expectedProjectSha256 = "";
   }
@@ -59269,7 +59323,7 @@ __export(exports_conformance, {
 });
 import { spawnSync as spawnSync15 } from "child_process";
 import { createHash as createHash31 } from "crypto";
-import { accessSync as accessSync3, constants as constants4, lstatSync as lstatSync20, readFileSync as readFileSync59, realpathSync as realpathSync17, statSync as statSync7 } from "fs";
+import { accessSync as accessSync4, constants as constants5, lstatSync as lstatSync20, readFileSync as readFileSync59, realpathSync as realpathSync18, statSync as statSync7 } from "fs";
 import nodePath94 from "path";
 function resolveExecutable(environment) {
   const extensions = process.platform === "win32" ? (environment.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";") : [""];
@@ -59278,8 +59332,8 @@ function resolveExecutable(environment) {
     for (const extension of extensions) {
       const candidate = nodePath94.resolve(directory, `opencode${extension.toLowerCase()}`);
       try {
-        accessSync3(candidate, process.platform === "win32" ? constants4.F_OK : constants4.X_OK);
-        const resolved = realpathSync17(candidate);
+        accessSync4(candidate, process.platform === "win32" ? constants5.F_OK : constants5.X_OK);
+        const resolved = realpathSync18(candidate);
         if (statSync7(resolved).isFile())
           return resolved;
       } catch {}
@@ -64483,12 +64537,12 @@ var init_cleanup_command = __esm(() => {
 import { spawnSync as spawnSync16 } from "child_process";
 import {
   closeSync as closeSync12,
-  constants as constants5,
+  constants as constants6,
   fstatSync as fstatSync9,
   lstatSync as lstatSync25,
   openSync as openSync12,
   readFileSync as readFileSync69,
-  realpathSync as realpathSync18
+  realpathSync as realpathSync19
 } from "fs";
 import nodePath110 from "path";
 function parseRemoteSetup(value) {
@@ -64549,8 +64603,8 @@ function validatePersonalFile(metadata, path8) {
   return;
 }
 function validatePersonalDirectory(cwd, path8) {
-  const expectedDirectory = nodePath110.join(realpathSync18(cwd), ".safeword");
-  if (realpathSync18(nodePath110.dirname(path8)) !== expectedDirectory) {
+  const expectedDirectory = nodePath110.join(realpathSync19(cwd), ".safeword");
+  if (realpathSync19(nodePath110.dirname(path8)) !== expectedDirectory) {
     return { path: path8, error: "must remain inside the project Safeword directory" };
   }
   return;
@@ -64572,8 +64626,8 @@ function validateGitPrivacy(cwd, path8) {
   return;
 }
 function readPersonalFile(path8) {
-  const noFollow = constants5.O_NOFOLLOW ?? 0;
-  const descriptor = openSync12(path8, constants5.O_RDONLY | noFollow);
+  const noFollow = constants6.O_NOFOLLOW ?? 0;
+  const descriptor = openSync12(path8, constants6.O_RDONLY | noFollow);
   try {
     const fileError = validatePersonalFile(fstatSync9(descriptor), path8);
     if (fileError !== undefined)
@@ -64880,7 +64934,7 @@ var init_remote_workflow_contract = __esm(() => {
 import { randomUUID as randomUUID14 } from "crypto";
 import {
   closeSync as closeSync13,
-  constants as constants6,
+  constants as constants7,
   fstatSync as fstatSync10,
   fsyncSync as fsyncSync4,
   linkSync as linkSync3,
@@ -65035,7 +65089,7 @@ var init_remote_workflow_fs = __esm(() => {
     privatePath: (directory) => nodePath111.join(directory, `.safeword-${randomUUID14()}`),
     lstat: (path8) => lstatSync26(path8, { throwIfNoEntry: false }),
     mkdir: mkdirSync23,
-    openRead: (path8) => openSync13(path8, constants6.O_RDONLY | constants6.O_NONBLOCK | (constants6.O_NOFOLLOW ?? 0)),
+    openRead: (path8) => openSync13(path8, constants7.O_RDONLY | constants7.O_NONBLOCK | (constants7.O_NOFOLLOW ?? 0)),
     openPrivate: (path8) => openSync13(path8, "wx", 420),
     fstat: fstatSync10,
     read: (descriptor) => readFileSync70(descriptor, "utf8"),
@@ -67705,7 +67759,7 @@ var exports_drain_retro_spool = {};
 __export(exports_drain_retro_spool, {
   drainRetroSpool: () => drainRetroSpool
 });
-import { existsSync as existsSync58, lstatSync as lstatSync28, realpathSync as realpathSync19 } from "fs";
+import { existsSync as existsSync58, lstatSync as lstatSync28, realpathSync as realpathSync20 } from "fs";
 import nodePath128 from "path";
 function drainRetroSpool(inputPath, mode = "drain") {
   const spoolPath2 = nodePath128.resolve(inputPath);
@@ -67727,7 +67781,7 @@ function drainRetroSpool(inputPath, mode = "drain") {
       message: "Refusing a symlinked retro spool or acknowledgement path"
     };
   }
-  if (existsSync58(spoolPath2) && (!existsSync58(draftsDirectory) || nodePath128.dirname(realpathSync19(spoolPath2)) !== realpathSync19(draftsDirectory))) {
+  if (existsSync58(spoolPath2) && (!existsSync58(draftsDirectory) || nodePath128.dirname(realpathSync20(spoolPath2)) !== realpathSync20(draftsDirectory))) {
     return {
       state: "refused",
       message: "Refusing a retro spool outside its canonical drafts directory"
@@ -68068,7 +68122,23 @@ var init_dependency_readiness = __esm(() => {
 });
 
 // templates/hooks/lib/retrospective-gate.ts
-var init_retrospective_gate2 = () => {};
+var RUNTIME_ENVIRONMENT;
+var init_retrospective_gate2 = __esm(() => {
+  RUNTIME_ENVIRONMENT = new Set([
+    "PATH",
+    "HOME",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "SystemRoot",
+    "XDG_STATE_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "CODEX_HOME",
+    "NODE_ENV",
+    "SAFEWORD_REVIEW_KEY_ROOT"
+  ].map((name) => name.toUpperCase()));
+});
 // templates/hooks/lib/test-runner.ts
 var BDD_TEST_TIMEOUT_MS, projectDir;
 var init_test_runner = __esm(() => {

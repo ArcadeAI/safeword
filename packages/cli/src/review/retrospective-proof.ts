@@ -1,11 +1,14 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  accessSync,
+  constants,
   existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -145,8 +148,8 @@ function git(root: string, args: readonly string[]): Buffer {
   return result.stdout;
 }
 
-function snapshot(root: string, destination: string): void {
-  const archive = git(root, ['archive', '--format=tar', 'HEAD']);
+function snapshot(root: string, destination: string, commit: string): void {
+  const archive = git(root, ['archive', '--format=tar', commit]);
   const extract = spawnSync('tar', ['-xf', '-', '-C', destination], {
     input: archive,
     encoding: 'buffer',
@@ -156,14 +159,42 @@ function snapshot(root: string, destination: string): void {
   if (extract.error !== undefined || extract.status !== 0) {
     throw new Error('Retrospective proof could not create an isolated source copy.');
   }
+}
+
+/** Bootstrap once from archived manifests; never borrow checkout node_modules. */
+function installProofDependencies(passing: string, mutated: string, executable: string): void {
+  const result = spawnSync(executable, ['install', '--frozen-lockfile', '--ignore-scripts'], {
+    cwd: passing,
+    env: proofEnvironment(executable),
+    encoding: 'utf8',
+    timeout: TEST_TIMEOUT_MS,
+    maxBuffer: MAX_PROCESS_OUTPUT,
+    windowsHide: true,
+  });
+  if (result.error !== undefined || result.status !== 0) {
+    throw new Error('Could not install retrospective proof dependencies from the frozen lockfile.');
+  }
   for (const relative of ['node_modules', 'packages/cli/node_modules']) {
-    const dependencyRoot = nodePath.join(root, relative);
+    const dependencyRoot = nodePath.join(passing, relative);
     if (!existsSync(dependencyRoot)) {
       if (relative === 'node_modules') throw new Error(`Missing proof dependency: ${relative}`);
       continue;
     }
-    symlinkSync(dependencyRoot, nodePath.join(destination, relative), 'dir');
+    symlinkSync(dependencyRoot, nodePath.join(mutated, relative), 'dir');
   }
+}
+
+function proofEnvironment(executable: string): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(process.env)
+      .filter(([name]) => !name.startsWith('SAFEWORD_REVIEW_') && !name.startsWith('GIT_'))
+      .map(([name, value]) => [
+        name,
+        name === 'PATH'
+          ? `${nodePath.dirname(executable)}${nodePath.delimiter}${value ?? ''}`
+          : value,
+      ]),
+  );
 }
 
 function assertionFromReport(
@@ -191,6 +222,45 @@ function assertionFromReport(
   return { report, assertion: selected[0] };
 }
 
+function projectPath(root: string, candidate: string): boolean {
+  const relative = nodePath.relative(root, candidate);
+  return (
+    relative === '' ||
+    (relative !== '..' &&
+      !relative.startsWith(`..${nodePath.sep}`) &&
+      !nodePath.isAbsolute(relative))
+  );
+}
+
+/** Resolve Bun outside the project; committed test scripts still require review. */
+function proofBun(root: string): string {
+  const project = realpathSync.native(root);
+  const directories = (process.env.PATH ?? '').split(nodePath.delimiter);
+  for (const directory of directories) {
+    const candidate = nodePath.resolve(
+      root,
+      directory,
+      process.platform === 'win32' ? 'bun.exe' : 'bun',
+    );
+    if (!existsSync(candidate)) continue;
+    const canonical = realpathSync.native(candidate);
+    if (
+      projectPath(root, candidate) ||
+      projectPath(project, candidate) ||
+      projectPath(project, canonical)
+    ) {
+      throw new Error('Bun executable must be outside the project.');
+    }
+    try {
+      accessSync(canonical, constants.X_OK);
+      return canonical;
+    } catch {
+      /* Continue past a non-executable PATH entry. */
+    }
+  }
+  throw new Error('An installed Bun executable is required for retrospective proof.');
+}
+
 // eslint-disable-next-line complexity -- Every branch validates a separate test outcome.
 function runTest(
   copy: string,
@@ -204,11 +274,7 @@ function runTest(
   rmSync(nodePath.join(cwd, REPORT), { force: true });
   const result = spawnSync(executable, argv.slice(1), {
     cwd,
-    env: Object.fromEntries(
-      Object.entries(process.env).filter(
-        ([name]) => !name.startsWith('SAFEWORD_REVIEW_') && !name.startsWith('GIT_'),
-      ),
-    ),
+    env: proofEnvironment(executable),
     encoding: 'utf8',
     timeout: TEST_TIMEOUT_MS,
     maxBuffer: MAX_PROCESS_OUTPUT,
@@ -298,11 +364,20 @@ export function runRetrospectiveProof(
     throw new Error('Retrospective proof requires the Git repository root.');
   }
   const commit = currentProofCommit(root);
-  const inputs = [request.testFile, request.implementationPath, ...request.supportFiles];
+  const inputs = [
+    ...new Set([
+      request.testFile,
+      request.implementationPath,
+      ...request.supportFiles,
+      'bun.lock',
+      'package.json',
+      'packages/cli/package.json',
+    ]),
+  ];
   const supportSha256: Record<string, string> = {};
   for (const path of inputs) {
     const bytes = readProofInput(root, path);
-    const committed = git(root, ['show', `HEAD:${path}`]);
+    const committed = git(root, ['show', `${commit}:${path}`]);
     if (!bytes.equals(committed)) throw new Error(`Proof input differs from HEAD: ${path}`);
     supportSha256[path] = sha256(bytes);
   }
@@ -316,7 +391,7 @@ export function runRetrospectiveProof(
   }
   const mutant = source.replace(request.mutation.before, () => request.mutation.after);
   const argv = [
-    'bun',
+    proofBun(root),
     'run',
     'test',
     request.testFile.slice('packages/cli/'.length),
@@ -324,15 +399,15 @@ export function runRetrospectiveProof(
     exactSelection(request.testFullName),
     '--reporter=json',
     `--outputFile=${REPORT}`,
-  ];
+  ] as const;
   const temporary = mkdtempSync(nodePath.join(tmpdir(), 'safeword-retrospective-proof-'));
   try {
     const passingCopy = nodePath.join(temporary, 'passing');
     const mutatedCopy = nodePath.join(temporary, 'mutated');
     mkdirSync(passingCopy);
     mkdirSync(mutatedCopy);
-    snapshot(root, passingCopy);
-    snapshot(root, mutatedCopy);
+    snapshot(root, passingCopy, commit);
+    snapshot(root, mutatedCopy, commit);
     requireArchivedSource(passingCopy, request.implementationPath, sourceBytes);
     requireArchivedSource(mutatedCopy, request.implementationPath, sourceBytes);
     const passingDigests = archiveDigests(passingCopy, inputs);
@@ -349,6 +424,7 @@ export function runRetrospectiveProof(
       expectedMutated,
       'Mutated proof inputs differ beyond the declared mutation.',
     );
+    installProofDependencies(passingCopy, mutatedCopy, argv[0]);
     runTest(passingCopy, argv, request.testFullName, 'passed');
     const mutated = runTest(mutatedCopy, argv, request.testFullName, 'failed');
     if (

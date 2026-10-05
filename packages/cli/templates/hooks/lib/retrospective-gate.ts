@@ -18,17 +18,44 @@ function trustedCommand(projectRoot: string): readonly [string, ...string[]] | u
   try {
     const cli = realpathSync.native(candidate);
     const project = realpathSync.native(projectRoot);
-    const relative = nodePath.relative(project, cli);
-    const inside =
-      relative === '' ||
-      (relative !== '..' &&
-        !relative.startsWith(`..${nodePath.sep}`) &&
-        !nodePath.isAbsolute(relative));
+    const runtime = realpathSync.native(process.execPath);
+    const inside = [cli, runtime].some(path => {
+      const relative = nodePath.relative(project, path);
+      return (
+        relative === '' ||
+        (relative !== '..' &&
+          !relative.startsWith(`..${nodePath.sep}`) &&
+          !nodePath.isAbsolute(relative))
+      );
+    });
     if (inside) return undefined;
-    return ['bun', cli];
+    return process.versions.bun === undefined ? [runtime, cli] : [runtime, '--no-env-file', cli];
   } catch {
     return undefined;
   }
+}
+
+const RUNTIME_ENVIRONMENT = new Set(
+  [
+    'PATH',
+    'HOME',
+    'USERPROFILE',
+    'APPDATA',
+    'LOCALAPPDATA',
+    'SystemRoot',
+    'XDG_STATE_HOME',
+    'XDG_CONFIG_HOME',
+    'XDG_CACHE_HOME',
+    'CODEX_HOME',
+    'NODE_ENV',
+    'SAFEWORD_REVIEW_KEY_ROOT',
+  ].map(name => name.toUpperCase()),
+);
+
+function runtimeEnvironment(): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => RUNTIME_ENVIRONMENT.has(name.toUpperCase())),
+  );
 }
 
 /** Invoke the installed runtime, never a project-writable source file. */
@@ -61,7 +88,13 @@ export function retrospectiveGateDenial(
       '--proof',
       claim.proofId,
     ],
-    { cwd: projectRoot, encoding: 'utf8', timeout: 30_000, maxBuffer: 1024 * 1024 },
+    {
+      cwd: nodePath.dirname(prefix.at(-1) ?? executable),
+      env: runtimeEnvironment(),
+      encoding: 'utf8',
+      timeout: 30_000,
+      maxBuffer: 1024 * 1024,
+    },
   );
   try {
     const parsed = JSON.parse(result.stdout) as {
@@ -114,7 +147,13 @@ export function retrospectiveCloseDenial(
       '--ledger',
       ledger,
     ],
-    { cwd: projectRoot, encoding: 'utf8', timeout: 10_000, maxBuffer: 1024 * 1024 },
+    {
+      cwd: nodePath.dirname(prefix.at(-1) ?? executable),
+      env: runtimeEnvironment(),
+      encoding: 'utf8',
+      timeout: 10_000,
+      maxBuffer: 1024 * 1024,
+    },
   );
   try {
     const parsed = JSON.parse(result.stdout) as {

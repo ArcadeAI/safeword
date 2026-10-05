@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { parseDocument } from 'yaml';
 
+import { SAFEWORD_SCHEMA } from '../src/schema.js';
+import { createProjectContext } from '../src/utils/context.js';
 import { isSafePackageVersion } from '../src/utils/version.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
@@ -24,8 +27,23 @@ describe('PR review template version pins', () => {
       expect(template, `${name} must declare a version placeholder`).toContain(
         '__SAFEWORD_VERSION__',
       );
-      const installed = template.replaceAll('__SAFEWORD_VERSION__', () => installedVersion);
-      expect(installed).toContain(`safeword@${installedVersion}`);
+      const installed = SAFEWORD_SCHEMA.managedFiles[
+        `.github/workflows/safeword-pr-review-${name}.yml`
+      ]?.generator?.(createProjectContext(repoRoot));
+      expect(installed).toBeDefined();
+      const document = parseDocument(installed ?? '').toJS() as {
+        jobs: Record<string, { steps?: { run?: string }[] }>;
+      };
+      const invocations = Object.values(document.jobs).flatMap(job =>
+        (job.steps ?? []).flatMap(step =>
+          (step.run ?? '')
+            .matchAll(/(?:npx|bunx)(?:\s+--[\w-]+)*\s+safeword(?:@(\S+))?/gu)
+            .map(match => match[1])
+            .toArray(),
+        ),
+      );
+      expect(invocations.length).toBeGreaterThan(0);
+      expect(invocations.every(version => version === installedVersion)).toBe(true);
       expect(installed).not.toContain('__SAFEWORD_VERSION__');
     }
   });
