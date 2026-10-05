@@ -47699,7 +47699,7 @@ function parsePlanningContract(phase, source) {
     return { phase, ...fields };
   const declarations = fields.invalidation.matchAll(/upstreamImplementationInvalidation:\s*([^\s`]*)/gu).toArray();
   const mode = declarations[0]?.[1];
-  if (declarations.length !== 1 || mode !== "both_plan_reviews" && mode !== "implementation_review_only") {
+  if (declarations.length !== 1 || mode !== "both_plan_reviews") {
     throw new InvalidInvalidationContractError;
   }
   return { phase, ...fields, upstreamImplementationInvalidation: mode };
