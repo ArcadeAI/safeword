@@ -194,6 +194,8 @@ export interface ReviewPacket {
   }[];
   /** Exact author/reviewer planning obligations carried through semantic review. */
   readonly plan_contract?: PlanContractPair;
+  /** Canonical Implementation contract required by an owned Execution review. */
+  readonly upstream_plan_contract?: PlanContractPair;
   /** Trusted normalized definition the plan-execution reviewer must retain exactly. */
   readonly execution_plan_delivery_definition?: ExecutionPlanDeliveryDefinition;
   /** Trusted digest of the whole Execution Plan with ordinary progress normalized out. */

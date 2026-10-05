@@ -1,9 +1,13 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
+import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
+import { PLAN_REVIEW_RUBRIC } from '../../src/review/plan-rubric.generated.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import {
@@ -105,14 +109,19 @@ process.stdin.on('data', chunk => { input += chunk; });
 process.stdin.on('end', () => {
   const packet = JSON.parse(input.trim().split('\n').pop());
   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
-  console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
+  const output = { structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
     reviewer_agent: 'claude', verdict: 'approve', summary: 'Fixture approves the supplied packet.', findings: [], planning_destination: 'plan-execution',
     execution_plan_record: { slicing_decision: 'one_pull_request', rationale: 'One coherent change.',
       slices: [{ name: 'Complete delivery', purpose: 'Deliver the reviewed plan.', boundary: 'The accepted CLI boundary.', prerequisites: [], proof: 'The installed CLI review passes.', completion_signal: 'The review is approved.', relies_on_unmerged_successor: false }],
       obligation_owners: [{ obligation: 'Accepted behavior', slices: ['Complete delivery'] }],
       decision_statuses: [{ decision: 'Keep the accepted approach.', status: 'unchanged' }],
       accepted_scenarios_covered: true, accepted_approach_preserved: true,
-      normalized_plan_digest: packet.execution_plan_normalized_digest, delivery_definition: packet.execution_plan_delivery_definition }  } }));
+      normalized_plan_digest: packet.execution_plan_normalized_digest, delivery_definition: packet.execution_plan_delivery_definition }  } };
+  if (packet.kind !== 'plan-execution') {
+    delete output.structured_output.planning_destination;
+    delete output.structured_output.execution_plan_record;
+  }
+  console.log(JSON.stringify(output));
 });
 `,
     { mode: 0o755 },
@@ -132,7 +141,7 @@ process.stdin.on('end', () => {
     ],
     { cwd: project, env: { PATH: `${reviewer}:/usr/bin:/bin`, SAFEWORD_AGENT_RUNTIME: 'codex' } },
   );
-  return { capture, result };
+  return { capture, result, project, reviewer };
 }
 
 function capturedPacket(capture: string) {
@@ -141,6 +150,102 @@ function capturedPacket(capture: string) {
 }
 
 describe('owned Execution review resolves accepted upstream plan', () => {
+  it.each([
+    {
+      phase: 'Implementation',
+      rubric: PLAN_REVIEW_RUBRIC,
+      prefix: 'PLAN',
+      implementationStatus: 'stale',
+    },
+    {
+      phase: 'Execution',
+      rubric: EXECUTION_PLAN_REVIEW_RUBRIC,
+      prefix: 'EXECUTION_PLAN',
+      implementationStatus: 'approved',
+    },
+  ])(
+    'stales only dependent approvals after canonical $phase contract bytes change',
+    async ({ rubric, prefix, implementationStatus }) => {
+      const { result, project, reviewer } = await review();
+      expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
+      const reviewId = JSON.parse(result.stdout).data.review_id;
+      const implementationReview = await runCli(
+        [
+          'review',
+          'run',
+          'plan-implementation',
+          implementationPath,
+          '--context',
+          specPath,
+          '--cwd',
+          project,
+          '--json',
+          '--no-input',
+        ],
+        {
+          cwd: project,
+          env: { PATH: `${reviewer}:/usr/bin:/bin`, SAFEWORD_AGENT_RUNTIME: 'codex' },
+        },
+      );
+      expect(implementationReview.exitCode, implementationReview.stdout).toBe(0);
+      const implementationReviewId = JSON.parse(implementationReview.stdout).data.review_id;
+      const distribution = createTemporaryDirectory();
+      projects.push(distribution);
+      cpSync(nodePath.resolve(import.meta.dirname, '../../../../plugin'), distribution, {
+        recursive: true,
+      });
+      const runtime = nodePath.join(distribution, 'runtime/cli.js');
+      const status = (id = reviewId) => {
+        const response = spawnSync(
+          'bun',
+          [runtime, 'review', 'status', id, '--cwd', project, '--json'],
+          {
+            cwd: project,
+            encoding: 'utf8',
+            timeout: 30_000,
+            env: { ...process.env, CLAUDE_PLUGIN_ROOT: distribution },
+          },
+        );
+        const envelope = JSON.parse(response.stdout);
+        expect(envelope.errors, `${response.stdout}\n${response.stderr}`).toEqual([]);
+        return envelope.data.status;
+      };
+      expect(status(), 'the unchanged copied runtime retains the real approval').toBe('approved');
+      expect(status(implementationReviewId)).toBe('approved');
+      const author = nodePath.join(distribution, 'templates/skills/bdd/PLAN_IMPLEMENTATION.md');
+      writeFileSync(
+        author,
+        `${readFileSync(author, 'utf8')}\n<!-- Unrelated authoring note. -->\n`,
+      );
+      expect(status(), 'outside-marker authoring notes retain Execution approval').toBe('approved');
+      expect(status(implementationReviewId)).toBe('approved');
+      const bundle = readFileSync(runtime, 'utf8');
+      const start = bundle.indexOf(`var ${prefix}_REVIEW_RUBRIC = \``);
+      const end = bundle.indexOf(`${prefix}_REVIEW_RUBRIC_SHA256`, start);
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+      const before = '- **Purpose:**';
+      const after = '- **Purpose:**   ';
+      const block = bundle.slice(start, end);
+      expect(block).toContain(before);
+      const digest = (value: string) => createHash('sha256').update(value).digest('hex');
+      const oldHash = digest(rubric);
+      const newHash = digest(rubric.replace(before, () => after));
+      expect(bundle).toContain(`${prefix}_REVIEW_RUBRIC_SHA256 = "${oldHash}"`);
+      writeFileSync(
+        runtime,
+        (bundle.slice(0, start) + block.replace(before, () => after) + bundle.slice(end)).replace(
+          `${prefix}_REVIEW_RUBRIC_SHA256 = "${oldHash}"`,
+          () => `${prefix}_REVIEW_RUBRIC_SHA256 = "${newHash}"`,
+        ),
+      );
+      expect(
+        status(),
+        'Execution approval must depend on the upstream canonical contract bytes',
+      ).toBe('stale');
+      expect(status(implementationReviewId)).toBe(implementationStatus);
+    },
+  );
   it('preserves the explicit upstream plan as a passing control', async () => {
     const { result, capture } = await review(true, true);
     expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
