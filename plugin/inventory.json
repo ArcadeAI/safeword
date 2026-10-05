@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "a7eaaf779648e28a97e7431d35b39330e495f69985ed8e94e2ef9fd792d7544a"
+      "sha256": "1c96247dda37adf8caf396dcb77ad8692b9eba129e17a2081b0808a39f63344d"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "c075c8f1d18d039c3be387d49f604df21aa46a6328fd452eb4f875392750b1d5"
+      "sha256": "f2f381da437a4d2bf933bdf5b03223a0c8aa3893ffe46bd9575d46723668f720"
     },
     {
       "path": "runtime/event-groups.json",
@@ -619,7 +619,7 @@
     },
     {
       "path": "skills/audit/SKILL.md",
-      "sha256": "55c4b60acf84c81e535adcda970978d30dbb1893d41902a1a0cde2209148214d"
+      "sha256": "5150538ef9cf5932420de5ab413980a23bf82f087461296a74c4f29f8bf9087b"
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
@@ -1591,7 +1591,7 @@
     },
     {
       "path": "templates/skills/audit/SKILL.md",
-      "sha256": "ce7d604ff6016eaf614a9e02918089ba021b15ddae11bcad47218c7c2a078077"
+      "sha256": "02c6353beb320c6370788c7845ec193ec08532f05ed6f6174585aa8a68456470"
     },
     {
       "path": "templates/skills/bdd/DISCOVERY.md",

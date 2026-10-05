@@ -335,15 +335,16 @@ $GO_MODULE_DIRS
 EOF
   fi
 
-  # 1d. Architecture - Rust. Cargo rejects circular crate deps and rustc forbids
-  # mutually-recursive modules, so a compiling project cannot contain cycles — no
-  # check needed. No mature standard tool enforces directional layer boundaries in
-  # Rust (cargo-modules only visualizes); teams enforce boundaries structurally via
-  # separate crates + visibility. (cargo-deny covers dependency supply-chain —
+  # 1d. Architecture - Rust. Cargo rejects circular CRATE dependencies, so a green
+  # build proves the crate graph is acyclic. It does NOT cover modules: sibling
+  # modules inside one crate may `use` each other, so module cycles compile and no
+  # standard tool reports them (cargo-modules only visualizes). No mature tool
+  # enforces directional layer boundaries either; teams enforce them structurally
+  # via separate crates + visibility. (cargo-deny covers dependency supply-chain —
   # advisories/licenses/bans — a different axis, not architecture.)
   if [ -n "$RUST_CRATE_DIRS" ]; then
     while IFS= read -r crate_dir; do
-      [ -n "$crate_dir" ] && echo "Rust architecture — $crate_dir: crate/module cycles are compiler-guaranteed absent (a passing build proves it); no standard layer-boundary tool exists — enforce structurally via crates."
+      [ -n "$crate_dir" ] && echo "Rust architecture — $crate_dir: crate dependency cycles are compiler-guaranteed absent (a passing build proves it). Manual evidence required: module cycles inside a crate are NOT checked (modules may reference each other and still compile); review module structure by hand or inspect it with 'cargo modules dependencies'. No standard layer-boundary tool exists — enforce structurally via crates."
     done << EOF
 $RUST_CRATE_DIRS
 EOF
