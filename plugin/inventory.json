@@ -1059,7 +1059,7 @@
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality-helpers.ts",
-      "sha256": "4b707b4acacdb50e44a2f4cf00e01df4b533f549b9a5cd7919b5a348cd3fdeec"
+      "sha256": "e72c428d3e65058048ed78fabc6882c1c479873ea0d966678877fc2075b008a7"
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality.ts",

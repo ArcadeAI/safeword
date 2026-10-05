@@ -58,3 +58,29 @@ payload repair; the tests passed in this Mac's non-UTC local timezone.
 Both tickets remain `implement`, ledger 3/49; historical evidence is unchanged.
 Fresh pushed-head CI/advisory, real Codex cache/migration proof, post-merge CI,
 stable publication and installation remain pending.
+
+## Relative-path regression found by CI
+
+At e1daa47ab, Node 24 CI exposed dropped cwd in the Codex-to-Claude bridge.
+Relative edit paths resolved against the isolated child runtime directory.
+Four existing acceptance scenarios and two helper tests failed before repair.
+The bridge now preserves explicit host cwd and supplies the trusted project
+directory when the payload omits it. Independent review
+719cafb6-0f21-47dd-b0a0-1027613e5749 approved with no errors.
+Frozen full verification passed 609 files / 10431 tests (14 expected skips).
+Full acceptance passed 595/596; the remaining old manifest command assertion
+was corrected to require both startup isolation flags.
+
+Review 2bc74083-6f0f-4c56-b943-66d6a6e20740 reviewed the entire existing
+acceptance step file and flagged its inherited map-row assertion as too weak.
+The current edit changes only the native-command regex at the manifest step;
+it strengthens that assertion and does not alter map-row behavior. That
+inherited concern is outside the startup/routing repair and does not establish
+a changed release behavior. Existing unit contracts check event bindings.
+Do not expand this repair into unrelated step-file restructuring.
+
+The first focused acceptance retry overlapped a release wrapper's dist rebuild
+and failed on a transient missing chunk, not a policy assertion; serialize
+subsequent dist consumers. Release found one dogfood mirror drift because the
+normal installer intentionally preserves legacy Codex hook assets. The
+supported parity fixer reconciled that mirror from the source template.
