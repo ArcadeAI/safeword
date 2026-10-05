@@ -28,9 +28,9 @@ import {
   renderCursorRuleWrapper,
 } from '../src/cursor-wrappers.js';
 import {
-  changedLifecycleResults,
-  isLifecycleFixtureStale,
-  lifecycleResultDigests,
+  LIFECYCLE_FIXTURE_ROOT,
+  lifecycleFixtureFailure,
+  regenerateLifecycleFixtures,
 } from './lib/lifecycle-fixtures.js';
 
 const execFileAsync = promisify(execFile);
@@ -150,18 +150,9 @@ function checkCursorWrappers(): Failure | undefined {
 }
 
 const LIFECYCLE_CONTRACT = 'tests/lifecycle/origin-main-contract.test.ts';
-const LIFECYCLE_FIXTURE_FIX = `SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES=1 bun run test ${LIFECYCLE_CONTRACT}`;
-
-// The contract needs vitest mocks, so check the recorded templates digest instead.
-function checkLifecycleFixtures(): Failure | undefined {
-  if (!isLifecycleFixtureStale()) return undefined;
-  return {
-    surface: 'Lifecycle origin-main fixtures',
-    fix: LIFECYCLE_FIXTURE_FIX,
-    detail:
-      'packages/cli/templates/ changed since tests/fixtures/lifecycle-origin-main was generated',
-  };
-}
+// The contract needs vitest mocks, so the check compares the recorded templates
+// digest instead. The override lets the gate's own test point at a scratch copy.
+const lifecycleFixtureRoot = process.env.SAFEWORD_LIFECYCLE_FIXTURE_ROOT ?? LIFECYCLE_FIXTURE_ROOT;
 
 function runLifecycleContract(update: boolean): ReturnType<typeof execFileAsync> {
   return execFileAsync('node', ['scripts/run-vitest-with-build-lock.mjs', LIFECYCLE_CONTRACT], {
@@ -188,7 +179,7 @@ const GENERATORS_IN_ORDER = [
   'generate-codex-plugin.ts',
 ] as const;
 
-let changedResults: string[] = [];
+let changedLifecycleResults: string[] = [];
 
 if (process.argv.includes('--fix')) {
   for (const script of GENERATORS_IN_ORDER) {
@@ -196,10 +187,10 @@ if (process.argv.includes('--fix')) {
     await runBunScript(script);
   }
   console.log(`→ ${LIFECYCLE_CONTRACT} (update, then verify)`);
-  const resultsBefore = lifecycleResultDigests();
-  await runLifecycleContract(true);
-  await runLifecycleContract(false);
-  changedResults = changedLifecycleResults(resultsBefore, lifecycleResultDigests());
+  changedLifecycleResults = await regenerateLifecycleFixtures(
+    runLifecycleContract,
+    lifecycleFixtureRoot,
+  );
 }
 
 const surfaceResults = await Promise.all([
@@ -221,25 +212,10 @@ const surfaceResults = await Promise.all([
     fix: 'bun run generate:claude-historical-catalogue',
   }),
   Promise.resolve(checkCursorWrappers()),
-  Promise.resolve(checkLifecycleFixtures()),
+  Promise.resolve(lifecycleFixtureFailure(changedLifecycleResults, lifecycleFixtureRoot)),
 ]);
 
 const failures = surfaceResults.filter((failure): failure is Failure => failure !== undefined);
-
-// A template edit should only move tree hashes. Regenerated result hashes mean
-// lifecycle behavior changed, which --fix must surface rather than silently accept.
-if (changedResults.length > 0) {
-  failures.push({
-    surface: 'Lifecycle origin-main fixtures: result_sha256 changed (behavior change)',
-    fix: 'git diff tests/fixtures/lifecycle-origin-main',
-    fixLabel: 'Inspect',
-    detail: [
-      'Regenerated, but these lifecycle results changed, not just the installed tree.',
-      'Confirm the behavior change is intended and explain it in the PR before committing:',
-      ...changedResults.map(name => `  - ${name}`),
-    ].join('\n'),
-  });
-}
 
 if (failures.length > 0) {
   console.error('Generated surface check failed:\n');

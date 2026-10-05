@@ -76,3 +76,54 @@ export function changedLifecycleResults(
     .filter(name => before[name] !== after[name])
     .toSorted((left, right) => left.localeCompare(right));
 }
+
+const LIFECYCLE_CONTRACT = 'tests/lifecycle/origin-main-contract.test.ts';
+
+export interface LifecycleFixtureFailure {
+  readonly surface: string;
+  readonly fix: string;
+  readonly detail: string;
+  readonly fixLabel?: string;
+}
+
+/**
+ * The gate's verdict for this surface. Regenerated result hashes mean lifecycle
+ * behavior changed, which --fix must surface rather than silently accept; a
+ * template edit should only ever move tree hashes.
+ */
+export function lifecycleFixtureFailure(
+  changedResults: readonly string[],
+  fixtureRoot = LIFECYCLE_FIXTURE_ROOT,
+  templatesRoot = TEMPLATES_ROOT,
+): LifecycleFixtureFailure | undefined {
+  if (changedResults.length > 0) {
+    return {
+      surface: 'Lifecycle origin-main fixtures: result_sha256 changed (behavior change)',
+      fix: 'git diff tests/fixtures/lifecycle-origin-main',
+      fixLabel: 'Inspect',
+      detail: [
+        'Regenerated, but these lifecycle results changed, not just the installed tree.',
+        'Confirm the behavior change is intended and explain it in the PR before committing:',
+        ...changedResults.map(name => `  - ${name}`),
+      ].join('\n'),
+    };
+  }
+  if (!isLifecycleFixtureStale(fixtureRoot, templatesRoot)) return undefined;
+  return {
+    surface: 'Lifecycle origin-main fixtures',
+    fix: `SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES=1 bun run test ${LIFECYCLE_CONTRACT}`,
+    detail:
+      'packages/cli/templates/ changed since tests/fixtures/lifecycle-origin-main was generated',
+  };
+}
+
+/** Run the contract in update mode, verify it, and name every case whose result moved. */
+export async function regenerateLifecycleFixtures(
+  runContract: (update: boolean) => Promise<unknown>,
+  fixtureRoot = LIFECYCLE_FIXTURE_ROOT,
+): Promise<string[]> {
+  const before = lifecycleResultDigests(fixtureRoot);
+  await runContract(true);
+  await runContract(false);
+  return changedLifecycleResults(before, lifecycleResultDigests(fixtureRoot));
+}
