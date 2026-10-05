@@ -26,6 +26,10 @@ const VERIFY_COMMAND =
   'observed_sha="$(git rev-parse HEAD)"\n' +
   'echo "observed_sha=$observed_sha" >> "$GITHUB_OUTPUT"\n' +
   '[[ "$observed_sha" == "$TARGET_SHA" ]]\n';
+const TEST_COMMAND =
+  'version="$(cat .safeword/version)"\n' +
+  '[[ "$version" =~ ^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$ ]] || exit 1\n' +
+  'npx --yes "safeword@$version" project test --lane "$LANE" --execution local --prepare-remote\n';
 // Recompute with SHA-256 over the exact report step `run` string in remote-tests.yml.
 const REPORT_COMMAND_SHA256 = 'b1cba179d7c3921553cb748e1c1759e2711f7aeef977317ec71515c6bd3608c9';
 
@@ -217,10 +221,7 @@ function commandViolations(steps: Mapping[]): string[] {
     ...(stepById(steps, 'validate')?.run === VALIDATE_COMMAND ? [] : ['fixed_validation']),
     ...(stepById(steps, 'verify')?.run === VERIFY_COMMAND ? [] : ['fixed_revision_verification']),
   ];
-  return testRun ===
-    'npx --yes safeword@0.83.1 project test --lane "$LANE" --execution local --prepare-remote'
-    ? violations
-    : [...violations, 'fixed_test_command'];
+  return testRun === TEST_COMMAND ? violations : [...violations, 'fixed_test_command'];
 }
 
 function executionViolations(steps: Mapping[]): string[] {
