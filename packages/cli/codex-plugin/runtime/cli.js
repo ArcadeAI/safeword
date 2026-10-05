@@ -35593,7 +35593,7 @@ function validateRequest(request) {
   }
 }
 function git3(root, args) {
-  const result = spawnSync9("git", ["--no-replace-objects", "-C", root, ...args], {
+  const result = spawnSync9(proofExecutable(root, "git", "Git"), ["--no-replace-objects", "-C", root, ...args], {
     encoding: "buffer",
     timeout: 30000,
     maxBuffer: 128 * 1024 * 1024,
@@ -35606,7 +35606,7 @@ function git3(root, args) {
 }
 function snapshot(root, destination, commit) {
   const archive = git3(root, ["archive", "--format=tar", commit]);
-  const extract = spawnSync9("tar", ["-xf", "-", "-C", destination], {
+  const extract = spawnSync9(proofExecutable(root, "tar", "Tar"), ["-xf", "-", "-C", destination], {
     input: archive,
     encoding: "buffer",
     timeout: 30000,
@@ -35664,23 +35664,23 @@ function projectPath(root, candidate) {
   const relative = nodePath48.relative(root, candidate);
   return relative === "" || relative !== ".." && !relative.startsWith(`..${nodePath48.sep}`) && !nodePath48.isAbsolute(relative);
 }
-function proofBun(root) {
+function proofExecutable(root, name, label) {
   const project = realpathSync11.native(root);
   const directories = (process.env.PATH ?? "").split(nodePath48.delimiter);
   for (const directory of directories) {
-    const candidate = nodePath48.resolve(root, directory, process.platform === "win32" ? "bun.exe" : "bun");
+    const candidate = nodePath48.resolve(root, directory, process.platform === "win32" ? `${name}.exe` : name);
     if (!existsSync16(candidate))
       continue;
     const canonical = realpathSync11.native(candidate);
     if (projectPath(root, candidate) || projectPath(project, candidate) || projectPath(project, canonical)) {
-      throw new Error("Bun executable must be outside the project.");
+      throw new Error(`${label} executable must be outside the project.`);
     }
     try {
       accessSync3(canonical, constants4.X_OK);
       return canonical;
     } catch {}
   }
-  throw new Error("An installed Bun executable is required for retrospective proof.");
+  throw new Error(`An installed ${label} executable is required for retrospective proof.`);
 }
 function runTest(copy, argv, fullName, expectedStatus) {
   const cwd = nodePath48.join(copy, "packages/cli");
@@ -35784,7 +35784,7 @@ function runRetrospectiveProof(projectRoot, request) {
   }
   const mutant = source.replace(request.mutation.before, () => request.mutation.after);
   const argv = [
-    proofBun(root),
+    proofExecutable(root, "bun", "Bun"),
     "run",
     "test",
     request.testFile.slice("packages/cli/".length),
@@ -36142,6 +36142,33 @@ var init_retrospective_annotation = __esm(() => {
   UUID3 = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 });
 
+// templates/hooks/lib/checkbox-transitions.ts
+function balancedFenceBodyLines(lines) {
+  const bodyLines = new Set;
+  let fence;
+  for (const [index, line] of lines.entries()) {
+    const marker = /^\s*(?<fence>`{3,}|~{3,})/u.exec(line)?.groups?.fence;
+    if (fence === undefined) {
+      if (marker !== undefined) {
+        fence = { character: marker[0], length: marker.length, body: [] };
+      }
+      continue;
+    }
+    if (marker !== undefined && marker[0] === fence.character && marker.length >= fence.length) {
+      for (const bodyLine of fence.body)
+        bodyLines.add(bodyLine);
+      fence = undefined;
+      continue;
+    }
+    fence.body.push(index);
+  }
+  return bodyLines;
+}
+var init_checkbox_transitions = __esm(() => {
+  init_parse_annotation();
+  init_retrospective_annotation();
+});
+
 // src/review/retrospective-annotation.ts
 var init_retrospective_annotation2 = __esm(() => {
   init_retrospective_annotation();
@@ -36217,8 +36244,12 @@ function claimsFromLedger(root) {
   const headings = new Set;
   let duplicateHeading = false;
   let scenario;
-  for (const line of content.split(`
-`)) {
+  const lines = content.split(`
+`);
+  const fenced = balancedFenceBodyLines(lines);
+  for (const [index, line] of lines.entries()) {
+    if (fenced.has(index))
+      continue;
     const heading = /^#{2,6} Scenario: (.+)$/u.exec(line);
     if (/^#{1,6}\s+/u.test(line)) {
       scenario = heading?.[1]?.trim();
@@ -36386,6 +36417,7 @@ function retrospectiveCloseGate(root, ticketId, ledger) {
 }
 var RECORD_PATH = ".safeword/state/reviews/retrospective-close.json", TICKET_PATH;
 var init_retrospective_close = __esm(() => {
+  init_checkbox_transitions();
   init_phase_provenance();
   init_result();
   init_job();
@@ -68169,6 +68201,7 @@ function checkVerifyArtifact(content) {
 }
 var PR_SCOPE_LINE_PATTERN;
 var init_done_gate = __esm(() => {
+  init_checkbox_transitions();
   init_dependency_readiness();
   init_retrospective_annotation();
   init_retrospective_gate2();

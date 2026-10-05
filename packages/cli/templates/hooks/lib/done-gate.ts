@@ -17,6 +17,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { balancedFenceBodyLines } from './checkbox-transitions.js';
 import { formatDependencyRecovery, getDependencyReadiness } from './dependency-readiness.js';
 import { parseRetrospectiveAnnotation } from './retrospective-annotation.js';
 import { retrospectiveCloseDenial } from './retrospective-gate.js';
@@ -39,7 +40,9 @@ function verifiedScenarioView(
   const ordinary = new Set<string>();
   const headings = new Set<string>();
   let duplicateHeading = false;
-  const lines = content.split('\n');
+  const rawLines = content.split('\n');
+  const fenced = balancedFenceBodyLines(rawLines);
+  const lines = rawLines.filter((_line, index) => !fenced.has(index));
   let scenario: string | undefined;
   for (const line of lines) {
     const heading = /^#{2,6}\s+Scenario:\s*(.+)$/u.exec(line);
@@ -65,7 +68,9 @@ function verifiedScenarioView(
     if (denial !== undefined) return { content, error: `VERIFIED closing proof: ${denial}` };
   }
   scenario = undefined;
-  const visible = lines.filter(line => {
+  const visible = rawLines.filter((line, index) => {
+    // Examples earn no completion credit, but cannot conceal unfinished work.
+    if (fenced.has(index)) return /^\s*- \[ \]/u.test(line);
     const heading = /^#{2,6}\s+Scenario:\s*(.+)$/u.exec(line);
     if (/^#{1,6}\s+/u.test(line)) scenario = heading?.[1]?.trim();
     if (scenario !== undefined && /^\s*- \[ \] VERIFIED\b/u.test(line) && ordinary.has(scenario))

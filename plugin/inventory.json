@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "85918640f27794da22651a01b4d0c4e73a85eea7b1630bc0fe0ba742840199e3"
+      "sha256": "e1170e6a1a13806fbe3f1a9da9be1095f76a57ea62afb09d1151dd1947e574e8"
     },
     {
       "path": "runtime/dispatch.js",
@@ -195,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "e66e34af83fa961c2ba6f410a0a1c35c15f9053004a424a9b3d3c150447da304"
+      "sha256": "60f4ec6b1d19d96b9969e436963b5d79ef5d282783ceb4d117e236ab16f73a84"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
@@ -223,7 +223,7 @@
     },
     {
       "path": "runtime/hooks/lib/done-gate.ts",
-      "sha256": "d1674db6d0e82ea6f998033aa92065f12eade1550aeae48cdd87681032df82dd"
+      "sha256": "7ae0babe0c1435a4f64eb36f600b614ed4776520b30a0cd352a7e09f1362702e"
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
@@ -1139,7 +1139,7 @@
     },
     {
       "path": "templates/hooks/lib/checkbox-transitions.ts",
-      "sha256": "e66e34af83fa961c2ba6f410a0a1c35c15f9053004a424a9b3d3c150447da304"
+      "sha256": "60f4ec6b1d19d96b9969e436963b5d79ef5d282783ceb4d117e236ab16f73a84"
     },
     {
       "path": "templates/hooks/lib/closeout-binding.ts",
@@ -1167,7 +1167,7 @@
     },
     {
       "path": "templates/hooks/lib/done-gate.ts",
-      "sha256": "d1674db6d0e82ea6f998033aa92065f12eade1550aeae48cdd87681032df82dd"
+      "sha256": "7ae0babe0c1435a4f64eb36f600b614ed4776520b30a0cd352a7e09f1362702e"
     },
     {
       "path": "templates/hooks/lib/drain-retro-spool.ts",

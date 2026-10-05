@@ -41,7 +41,7 @@ interface CheckboxState extends CheckboxTransition {
   checked: boolean;
 }
 
-function balancedFenceBodyLines(lines: readonly string[]): Set<number> {
+export function balancedFenceBodyLines(lines: readonly string[]): Set<number> {
   const bodyLines = new Set<number>();
   let fence: { character: '`' | '~'; length: number; body: number[] } | undefined;
   for (const [index, line] of lines.entries()) {

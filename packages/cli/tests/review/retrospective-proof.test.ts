@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -15,6 +16,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  currentProofCommit,
   type RetrospectiveProofRequest,
   runRetrospectiveProof,
 } from '../../src/review/retrospective-proof.js';
@@ -36,6 +38,32 @@ const request: RetrospectiveProofRequest = {
 };
 
 describe('retrospective proof boundary', () => {
+  it.runIf(process.platform !== 'win32')(
+    'rejects project-controlled Git before inspecting proof history',
+    () => {
+      const temporary = mkdtempSync(path.join(tmpdir(), 'safeword-proof-git-'));
+      const root = realpathSync.native(temporary);
+      const originalPath = process.env.PATH;
+      const bin = path.join(root, 'node_modules', '.bin');
+      const sentinel = path.join(root, 'executed');
+      try {
+        mkdirSync(bin, { recursive: true });
+        const shim = path.join(bin, 'git');
+        writeFileSync(shim, `#!/bin/sh\ntouch "${sentinel}"\n`);
+        chmodSync(shim, 0o755);
+        process.env.PATH = `${bin}${path.delimiter}${originalPath ?? ''}`;
+        expect(() => currentProofCommit(root)).toThrow(
+          'Git executable must be outside the project.',
+        );
+        expect(() => readFileSync(sentinel)).toThrow();
+      } finally {
+        if (originalPath === undefined) delete process.env.PATH;
+        else process.env.PATH = originalPath;
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
+
   it('rejects other tickets before Git inspection or test execution', () => {
     expect(() =>
       runRetrospectiveProof('/not/a/repository', { ...request, ticketId: 'OTHER1' }),

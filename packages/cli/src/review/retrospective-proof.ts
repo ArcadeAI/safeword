@@ -134,14 +134,18 @@ function validateRequest(request: RetrospectiveProofRequest): void {
 }
 
 function git(root: string, args: readonly string[]): Buffer {
-  const result = spawnSync('git', ['--no-replace-objects', '-C', root, ...args], {
-    encoding: 'buffer',
-    timeout: 30_000,
-    maxBuffer: 128 * 1024 * 1024,
-    env: Object.fromEntries(
-      Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')),
-    ),
-  });
+  const result = spawnSync(
+    proofExecutable(root, 'git', 'Git'),
+    ['--no-replace-objects', '-C', root, ...args],
+    {
+      encoding: 'buffer',
+      timeout: 30_000,
+      maxBuffer: 128 * 1024 * 1024,
+      env: Object.fromEntries(
+        Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')),
+      ),
+    },
+  );
   if (result.error !== undefined || result.status !== 0 || !Buffer.isBuffer(result.stdout)) {
     throw new Error('Retrospective proof could not inspect committed Git source.');
   }
@@ -150,7 +154,7 @@ function git(root: string, args: readonly string[]): Buffer {
 
 function snapshot(root: string, destination: string, commit: string): void {
   const archive = git(root, ['archive', '--format=tar', commit]);
-  const extract = spawnSync('tar', ['-xf', '-', '-C', destination], {
+  const extract = spawnSync(proofExecutable(root, 'tar', 'Tar'), ['-xf', '-', '-C', destination], {
     input: archive,
     encoding: 'buffer',
     timeout: 30_000,
@@ -232,15 +236,15 @@ function projectPath(root: string, candidate: string): boolean {
   );
 }
 
-/** Resolve Bun outside the project; committed test scripts still require review. */
-function proofBun(root: string): string {
+/** Resolve proof tooling outside the project; committed test scripts still require review. */
+function proofExecutable(root: string, name: string, label: string): string {
   const project = realpathSync.native(root);
   const directories = (process.env.PATH ?? '').split(nodePath.delimiter);
   for (const directory of directories) {
     const candidate = nodePath.resolve(
       root,
       directory,
-      process.platform === 'win32' ? 'bun.exe' : 'bun',
+      process.platform === 'win32' ? `${name}.exe` : name,
     );
     if (!existsSync(candidate)) continue;
     const canonical = realpathSync.native(candidate);
@@ -249,7 +253,7 @@ function proofBun(root: string): string {
       projectPath(project, candidate) ||
       projectPath(project, canonical)
     ) {
-      throw new Error('Bun executable must be outside the project.');
+      throw new Error(`${label} executable must be outside the project.`);
     }
     try {
       accessSync(canonical, constants.X_OK);
@@ -258,7 +262,7 @@ function proofBun(root: string): string {
       /* Continue past a non-executable PATH entry. */
     }
   }
-  throw new Error('An installed Bun executable is required for retrospective proof.');
+  throw new Error(`An installed ${label} executable is required for retrospective proof.`);
 }
 
 // eslint-disable-next-line complexity -- Every branch validates a separate test outcome.
@@ -391,7 +395,7 @@ export function runRetrospectiveProof(
   }
   const mutant = source.replace(request.mutation.before, () => request.mutation.after);
   const argv = [
-    proofBun(root),
+    proofExecutable(root, 'bun', 'Bun'),
     'run',
     'test',
     request.testFile.slice('packages/cli/'.length),

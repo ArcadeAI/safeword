@@ -250,6 +250,36 @@ describe('evaluateDoneEvidence', () => {
     }
   });
 
+  it.each([
+    '### Scenario: complete\n- [x] GREEN abc1234\n```markdown\n### Scenario: unfinished\n- [ ] RED\n```\n',
+    '```markdown\n### Scenario: example\n- [x] GREEN abc1234\n```\n',
+  ])('does not let fenced rows hide unfinished work or earn completion credit', ledger => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(nodePath.join(ticketDirectory, 'test-definitions.md'), ledger);
+    expect(
+      evaluateDoneEvidence({
+        projectDir: projectDirectory,
+        ticketDir: ticketDirectory,
+        ticketType: 'feature',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('ignores a fenced VERIFIED example when evaluating completed live evidence', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      '### Scenario: live behavior\n- [x] RED abc1234\n- [x] GREEN abc1234\n- [x] REFACTOR skip: none\n```markdown\n- [x] VERIFIED eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222\n```\n',
+    );
+    expect(
+      evaluateDoneEvidence({
+        projectDir: projectDirectory,
+        ticketDir: ticketDirectory,
+        ticketType: 'feature',
+      }),
+    ).toEqual({ ok: true });
+  });
+
   it('allows a feature close when verify.md and all scenarios are complete', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
     writeFileSync(

@@ -124,3 +124,60 @@ https://github.com/openai/codex/tree/rust-v0.140.0/codex-rs/hooks/schema/generat
 The documentation and coverage edits introduce no runtime behavior. They need
 focused verification, review, commit/push and fresh CI/advisory before merge.
 No ticket phase or historical proof row changes.
+
+## Final advisory follow-up: proof tools and fenced examples
+
+The completed scheduled advisory at f2b (run 37298654062) inspected the exact
+revision with all seven prerequisites green and no unknown or missing evidence.
+Its executable finding was reproduced: a project `node_modules/.bin/git` shim
+actually ran during `currentProofCommit`. The new regression failed before the
+repair (`/tmp/pr5151-proof-tools-red.log`). The existing outside-project Bun
+resolver now also resolves Git and Tar by canonical executable path. Targeted
+proof and close checks passed 21/21. Independent Claude review
+`e18dafa3-0d9a-4e89-aa49-cee17f94d825` approved without blocking errors. The
+review's inherited archive-attribute, verbose-output and workspace-link limits
+remain disclosed; this repair does not expand into a general process sandbox.
+
+The fenced VERIFIED finding did not establish an invented-receipt bypass:
+closing attestation still verifies independent reviews and hashes the ledger.
+It did reveal a real false rejection: a completed live scenario containing a
+fenced example incorrectly invoked the retrospective gate. A new regression
+failed (`/tmp/pr5151-fenced-evidence-red.log`). Done evaluation and retrospective
+close now reuse the edit gate's balanced-fence parser. The targeted checks passed
+43/43. Unclosed fences retain the existing fail-closed edit-parser semantics.
+
+The public schema's blocked-result distinction is intentional: preflight failures
+may precede packet finalization and omit reduced-scope information. Finalized
+route failures receive `excluded_targets` in `runReview` through `withReviewScope`;
+the existing real CLI regression explicitly asserts this on
+`REVIEW_ROUTES_EXHAUSTED`. Requiring it on every blocked result would incorrectly
+reject genuine preflight failures. No new protocol marker is warranted here.
+
+The remote shell-contract fixture is POSIX-only, matching the shipped Ubuntu
+workflow and all configured CI lanes; no Windows CI lane is claimed. Windows
+execution of that fixture remains a disclosed limitation. The alleged missing
+historical v11 workflow is present at `tests/fixtures/remote-workflow-v11.yml`;
+current CI and release-contract checks passed. Previously answered native cwd,
+proof-input digests and project-installed remote version findings remain governed
+by the concrete evidence above. Tickets remain implement; ledger remains 3/49.
+
+The first fence repair passed the full suite (609 files, 10433 tests, 14 expected
+skips), but independent review d13dbf12-ba25-436d-8ae9-300abae65b29 correctly
+requested changes: stripping all fence bodies could hide unfinished rows.
+That snapshot is not the final verification claim. A genuine new regression
+failed in `/tmp/pr5151-fenced-completeness-red.log`. The corrected view excludes
+fenced claims and checked example rows from credit while retaining every fenced
+unchecked row, independent of surrounding verified headings. Targeted proof,
+close and done checks passed 50/50 in
+`/tmp/pr5151-fenced-completeness-green.log`. The existing balanced-fence parsing
+semantics are retained; this change does not implement a new Markdown parser.
+
+Final corrected snapshot: 609 files and 10435 tests passed, with 14 expected
+conditional skips (`/tmp/pr5151-evidence-full-corrected.log`). Lint and typecheck
+passed (`/tmp/pr5151-evidence-lint-corrected.log`). Independent Claude review
+1af71c85-6921-42f8-9d32-1130692d7992 approved without blocking errors. Its
+nonblocking limits remain explicit: repo-local Git configuration belongs to the
+same-user trusted boundary; fenced unchecked examples deliberately block closure;
+Tar uses the shared outside-project resolver without a separate Tar-only fixture;
+legacy heading-spacing and Markdown-rendering differences fail closed. No claim
+of a general process sandbox or completion of the 46 historical proofs is made.

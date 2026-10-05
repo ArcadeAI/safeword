@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
+import { balancedFenceBodyLines } from '../../templates/hooks/lib/checkbox-transitions.js';
 import { frontmatterOf } from '../../templates/hooks/lib/phase-provenance.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import {
@@ -115,7 +116,10 @@ function claimsFromLedger(root: string): RetrospectiveGateRequest[] {
   const headings = new Set<string>();
   let duplicateHeading = false;
   let scenario: string | undefined;
-  for (const line of content.split('\n')) {
+  const lines = content.split('\n');
+  const fenced = balancedFenceBodyLines(lines);
+  for (const [index, line] of lines.entries()) {
+    if (fenced.has(index)) continue;
     const heading = /^#{2,6} Scenario: (.+)$/u.exec(line);
     if (/^#{1,6}\s+/u.test(line)) {
       scenario = heading?.[1]?.trim();
