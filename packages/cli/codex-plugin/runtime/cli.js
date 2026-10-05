@@ -65848,7 +65848,7 @@ function readConfiguredPathValue(projectDirectory, key) {
   } catch {
     return;
   }
-  const raw = parsed2.paths?.[key];
+  const raw = parsed2?.paths?.[key];
   if (typeof raw !== "string" || raw.length === 0)
     return;
   return raw;
