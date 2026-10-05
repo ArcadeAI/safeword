@@ -45,6 +45,19 @@ export function resolveOwningProjectDirectory(launchDirectory: string, filePath:
 }
 
 /**
+ * The Safeword checkout the process is working in: `launchDirectory`, unless
+ * `workingDirectory` sits inside a different enrolled git working tree (a
+ * worktree the session entered). Helpers a skill or agent shells out to get
+ * no edited file to root at, so they root at their own cwd (#5361).
+ */
+export function resolveWorkingProjectDirectory(
+  launchDirectory: string,
+  workingDirectory: string,
+): string {
+  return resolveOwningProjectDirectory(launchDirectory, nodePath.join(workingDirectory, 'cwd'));
+}
+
+/**
  * The raw non-empty `paths.<key>` string from `.safeword/config.json`, or
  * `undefined` (unset, empty, non-string, or missing/unparseable config).
  * Shared by the hook-side path resolvers (projectRoot here, architecture in
