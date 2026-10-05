@@ -39,6 +39,8 @@ Safeword's generated config uses [`defineConfig`](https://eslint.org/docs/latest
 | `turbo`                      | Add Turborepo support                                                                                |
 | `cli`                        | CLI tools, build tools, scripts — disables security rules that flag dynamic paths and shell commands |
 | `relaxedTypes`               | JSON/YAML parsing, API clients, config files — disables strict TypeScript rules for untyped data     |
+| `bunTest`                    | Declares Bun's injected `bun:test` globals in JS test files                                          |
+| `vendoredIgnores`            | Ignores Safeword's vendored `.safeword/**` files and generated `.dependency-cruiser.cjs`             |
 
 Apply the `cli` and `relaxedTypes` presets globally by adding them to the array:
 
@@ -88,7 +90,7 @@ Safeword auto-detects your stack and configures linting accordingly:
 | Rust (beta)    | clippy            | rustc         | —                  |
 | SQL/dbt (beta) | SQLFluff          | —             | —                  |
 
-Detection is stored in `.safeword/config.json`. To force a refresh, delete that file and run `safeword install` again.
+Detected packs are recorded in `installedPacks` in `.safeword/config.json`. Every `safeword install` re-detects languages and adds packs for newly detected ones, so after adding a language just run `safeword install` again — don't delete `config.json`, which also holds your other settings and project UUID.
 
 Edit-time linting uses the generated language-pack config when it exists. For JavaScript/TypeScript, Python, Go, and Rust, a missing config falls back to the tool's defaults and reports once per session that Safeword rules are not active. SQLFluff runs only when its generated config exists. The lint hook never repairs a pack, runs installation, stages files, or creates a commit. Version convergence remains the responsibility of the session-start updater; to repair a missing pack manually, run `safeword install`.
 
@@ -128,7 +130,7 @@ To disable a specific hook, remove the safeword hook entry from that agent's con
 
 Independent-review requirements on top of the always-on gates.
 
-Work moves through phases — `intake`, `define-behavior`, `scenario-gate`, `plan-implementation`, `implement`, `verify`, `done` — and a phase change is an edit to `phase:` in the ticket's `ticket.md`. The phase-exit review gate reads that edit before it lands and blocks it until the phase you are leaving carries an independent review stamp (a fresh-context reviewer, logged via `write-review-stamp.ts --phase <phase>`), or an explicitly logged skip reason.
+Work moves through phases — `intake`, `define-behavior`, `scenario-gate`, `plan-implementation`, `implement`, `verify`, `done` — and a phase change is an edit to `phase:` in the ticket's `ticket.md`. The phase-exit review gate reads that edit before it lands and blocks it until the phase you are leaving carries an independent review stamp (written after a fresh-context review run via `safeword review run`), or an explicitly logged skip reason.
 
 **This gate is on at every exit by default**, including on a fresh install with no `reviewGate` key. Choose which exits it guards:
 
@@ -234,13 +236,15 @@ worker workflows:
 }
 ```
 
-| Key              | Meaning                                                                                                                                         |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `enabled`        | Must be `true` before install generates the workflows.                                                                                          |
-| `provider`       | Currently `openai`.                                                                                                                             |
-| `model`          | Non-empty OpenAI Responses model name.                                                                                                          |
-| `maxTotalBytes`  | Positive integer cap applied cumulatively in GitHub's file order. Text beyond the cap is reported as missing evidence and forces `needs_human`. |
-| `requiredChecks` | Exact check-run names or commit-status contexts. `[]` means no prerequisites; omission is an unconfigured, route-free result.                   |
+| Key                   | Meaning                                                                                                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabled`             | Must be `true` before install generates the workflows.                                                                                                          |
+| `provider`            | Currently `openai`.                                                                                                                                             |
+| `model`               | Non-empty OpenAI Responses model name.                                                                                                                          |
+| `maxTotalBytes`       | Positive integer byte budget per model pass, filled in GitHub's file order. Text that fits in no pass is reported as missing evidence and forces `needs_human`. |
+| `maxPasses`           | Optional positive integer (default `8`): how many budget-sized model passes one review may use.                                                                 |
+| `requiredChecks`      | Exact check-run names or commit-status contexts. `[]` means no prerequisites; omission is an unconfigured, route-free result.                                   |
+| `generatedFilesCheck` | Optional name of a check in `requiredChecks` that validates generated files. When it passes, generated files count as covered instead of unreadable evidence.   |
 
 Create a GitHub environment named `safeword-pr-review-model` and store
 `OPENAI_API_KEY` there. Do not add deployment protection rules, a wait timer, or
@@ -293,14 +297,28 @@ a required disposable-repository release smoke before enabling this feature.
 
 When enabled, the agent presents the reviewed plan (riskiest assumption, build order, decisions) and waits for approval before entering the implement phase. In headless/cloud sessions the pending approval is recorded in the ticket work log and the plan surfaces in the session's reviewable output instead of stalling the run.
 
+### Other settings
+
+All keys live in `.safeword/config.json`; missing or malformed values keep the default.
+
+| Key                                       | Default                   | Effect                                                                                                                                                                                              |
+| ----------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `autoUpgrade`                             | `true`                    | Session start applies patch and minor Safeword upgrades and only notifies about majors. `false`, the `SAFEWORD_NO_AUTO_UPGRADE` environment variable, or `CI` disables it.                          |
+| `architectureDocEnforcement`              | `false` on fresh installs | When `true` (or absent on older installs), the commit hook restages a stale generated architecture doc and `safeword project architecture --check` fails on drift. Explicit generation always runs. |
+| `testExecution`                           | `local`                   | `local` or `remote-preferred` for `safeword project test`; a git-ignored `.safeword/config.local.json` can set a personal preference, and `--execution` overrides both.                             |
+| `remoteTest.setupCommand`                 | —                         | Setup command for the managed remote-test workflow (`safeword project test-execution remote setup`).                                                                                                |
+| `selfReport.capture` / `surface` / `file` | `true` / `true` / `true`  | Capture sanitized Safeword failures, surface them at Stop, and file them upstream autonomously. Set `file: false` for watch-only.                                                                   |
+| `publicRetrospectiveCollection`           | `true`                    | Send sanitized retro findings to Safeword's collector. Toggle with `safeword project public-retros off\|on`.                                                                                        |
+| `projectUUID`                             | generated at install      | Random project identifier sent with public retros; contains no account or machine identity.                                                                                                         |
+
 ## Customizing Without Losing Upgrades
 
 Safeword has two types of files:
 
 **Overwritten on upgrade** (you shouldn't edit these directly):
 
-- `.safeword/hooks/*`, `.safeword/guides/*`, `.safeword/templates/*`
-- `.cursor/rules/*`, `.cursor/commands/*`
+- Claude Code, Codex, and OpenCode workflows, hooks, guides, and templates live in each agent's versioned plugin delivery — never in your repo, so there is nothing project-local to edit
+- With Cursor selected: `.safeword/hooks/*`, `.safeword/guides/*`, `.safeword/templates/*`, `.safeword/skills/*`, `.cursor/rules/*`, `.cursor/commands/*`
 
 **Never overwritten** (safe to customize):
 
@@ -314,10 +332,10 @@ Safeword has two types of files:
 
 **Partially updated** (your customizations preserved, safeword keys re-merged):
 
-- `AGENTS.md`, `CLAUDE.md` — safeword link block re-ensured, your content preserved
+- `AGENTS.md`, `CLAUDE.md` — cleanup only: install removes an obsolete Safeword link block left by older releases and never adds one; `.safeword/SAFEWORD.md` reaches agents through a SessionStart hook
 - `.cursor/hooks.json` — safeword hooks updated, your custom hooks preserved
 - `package.json` — lint/format/`test:bdd` scripts and devDependencies merged (every project; created minimal + private if missing)
-- `.mcp.json`, `.cursor/mcp.json` — MCP server config merged
+- `.mcp.json` (and `.cursor/mcp.json` with Cursor) — MCP server config merged
 - `biome.json` — safeword ignore patterns merged (if Biome detected)
 
 **To customize something that gets overwritten:**
@@ -401,7 +419,7 @@ Put custom content in your namespace root (`.project/` by default):
 - Project-specific guides
 - Team conventions
 
-This folder is yours—Safeword will never modify it.
+This folder is yours — Safeword preserves authored content. The exceptions are generated indexes: `safeword project sync-tickets` and `safeword project sync-learnings` (the latter also from an edit hook) regenerate `tickets/INDEX.md`, `tickets/INDEX-completed.md`, and `learnings/INDEX.md`, and hooks keep transient state such as `skill-invocations.log` here.
 
 ## Tracker Integration (`ticketBridge`)
 
@@ -423,6 +441,8 @@ Mirror local tickets one-way into GitHub Issues or Linear. Off by default; confi
 | `provider` | `none` · `github` · `linear` | Which tracker to mirror to. `none` (default) is inert.                                                                                     |
 | `body`     | `minimal` · `full`           | Issue body egress. `minimal` (default) = title/status/labels/back-link only; `full` opts in to the ticket body and warns on a public repo. |
 | `target`   | `{ repo }` / `{ team }`      | GitHub repo (`owner/name`) or Linear team.                                                                                                 |
+
+`target.workspace` and `defaultAssignee` are accepted but not used yet.
 
 Credentials resolve from the OS keychain or an environment variable only — never from this file.
 

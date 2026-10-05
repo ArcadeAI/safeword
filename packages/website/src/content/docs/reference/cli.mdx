@@ -110,6 +110,8 @@ bunx safeword@latest install
 
 # Preview removal, then run the exact confirmation command Safeword prints
 bunx safeword@latest uninstall
+# Also remove unmodified tooling configuration and supporting packages
+bunx safeword@latest uninstall --full
 ```
 
 `install` handles first-time installation and upgrades through the same
@@ -228,12 +230,14 @@ safeword project public-retros off|on
 safeword project lint-gherkin [files...]
 
 safeword tracker connect <provider>
-safeword tracker sync [--plan | --apply-results <file>]
+safeword tracker sync [--plan | --apply-results <file>] [--reset-tracker-map]
 
 safeword ticket list
-safeword ticket new <slug> [--type <type>] [--title <title>]
+safeword ticket new <slug> [--type patch|task|feature|epic] [--title <title>]
+  [--goal <goal>] [--why <why>] [--parent <epicId>] [--milestone <id>]
+  [--parent-job <id>] [--issue <key>]
 
-safeword review run <kind> <targets...>
+safeword review run <kind> <targets...> [--context <paths...>]
 
 safeword retro run
 safeword retro signals
@@ -242,10 +246,12 @@ safeword retro-relay-retry [request-id]
 safeword retro-relay-discard <request-id> [--confirm]
 ```
 
-`review run` keeps Claude-authored work on Codex first and Codex-authored work
-on Claude first. If that preferred independent route is exhausted, a compatible
-OpenCode 1.x CLI is tried before same-author degraded review. OpenCode-authored
-work is sent to Claude and then Codex; OpenCode self-review is never accepted as
+`review run` kinds are `quality-review`, `scenario-gate`, `plan-implementation`,
+`plan-execution`, and `executable-red`. It keeps Claude-authored work on Codex
+first and Codex-authored work on Claude first. If that preferred independent
+route is exhausted, a compatible OpenCode 1.x CLI is tried before same-author
+degraded review. OpenCode-authored work is sent to Claude and then Codex;
+OpenCode self-review is never accepted as
 independent evidence. OpenCode is invoked one-shot with JSON events, a stdin
 prompt, `--pure`, deny-all tool permissions, and the shared review deadline and
 integrity checks.

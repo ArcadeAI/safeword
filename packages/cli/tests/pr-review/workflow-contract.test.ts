@@ -1,10 +1,20 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
+import { publishReceipt, renderReceipt } from '../../src/pr-review/publish.js';
 import { reconcile } from '../../src/reconcile.js';
 import type { ProjectContext, SafewordSchema } from '../../src/schema.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
@@ -16,6 +26,14 @@ const dogfoodRouterPath = nodePath.join(
   import.meta.dirname,
   '../../../../.github/workflows/safeword-pr-review.yml',
 );
+const dogfoodWorkerPath = nodePath.join(
+  import.meta.dirname,
+  '../../../../.github/workflows/safeword-pr-review-worker.yml',
+);
+const dogfoodPublisherPath = nodePath.join(
+  import.meta.dirname,
+  '../../../../.github/workflows/safeword-pr-review-publisher.yml',
+);
 const dogfoodBundlePath = nodePath.join(import.meta.dirname, '../../../../plugin/runtime/cli.js');
 const publisherPath = nodePath.join(templatesDirectory, 'pr-review-publisher.yml');
 const workerPath = nodePath.join(templatesDirectory, 'pr-review-worker.yml');
@@ -24,6 +42,287 @@ const installedWorkflowPaths = [
   '.github/workflows/safeword-pr-review-publisher.yml',
   '.github/workflows/safeword-pr-review-worker.yml',
 ] as const;
+
+describe('dogfood review policy', () => {
+  it('uses trusted base attributes and runtime without checking out pull-request code', () => {
+    const worker = readFileSync(dogfoodWorkerPath, 'utf8');
+    const publisher = readFileSync(dogfoodPublisherPath, 'utf8');
+    expect(`${worker}\n${publisher}`).not.toMatch(/actions\/checkout|gh pr checkout|git fetch/);
+    expect(worker).toContain('contents/.gitattributes?ref=$GITHUB_SHA');
+    expect(worker).toContain('jq length pull-files.json');
+    expect(worker).toContain('jq -r .changed_files pull.json');
+    expect(worker).toContain('expectedArtifactCount: $pr.changed_files');
+    expect(worker).toContain('git/trees/$GITHUB_SHA?recursive=1');
+    expect(worker).toContain("'check-attr', '-z', '--stdin', 'linguist-generated'");
+    expect(worker).toContain('{kind: "generated", path: .filename}');
+    expect(worker).toContain('contents/.safeword/config.json?ref=$GITHUB_SHA');
+    expect(worker).toContain('if [ "$latest_head_sha" != "$head_sha" ]');
+    const trustedRuntime = 'contents/plugin/runtime/cli.js?ref=$GITHUB_SHA';
+    expect(worker.split(trustedRuntime)).toHaveLength(4);
+    expect(publisher.split(trustedRuntime)).toHaveLength(2);
+    const trustedPackage = 'contents/plugin/package.json?ref=$GITHUB_SHA';
+    expect(worker.split(trustedPackage)).toHaveLength(4);
+    expect(publisher.split(trustedPackage)).toHaveLength(2);
+    expect(`${worker}\n${publisher}`).not.toContain('trusted-reviewer.js');
+    expect(`${worker}\n${publisher}`).toContain('bun plugin/runtime/cli.js');
+    expect(worker).not.toMatch(/contents\/plugin\/runtime\/cli\.js\?ref=(?!\$GITHUB_SHA)/u);
+    expect(publisher).not.toMatch(/contents\/plugin\/runtime\/cli\.js\?ref=(?!\$GITHUB_SHA)/u);
+    const trustedBunVersion = 'contents/package.json?ref=$GITHUB_SHA';
+    expect(worker.split(trustedBunVersion)).toHaveLength(4);
+    expect(publisher.split(trustedBunVersion)).toHaveLength(2);
+  });
+
+  it('runs the trusted bundle with its package metadata in the downloaded layout', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-trusted-reviewer-'));
+    try {
+      const plugin = nodePath.join(root, 'plugin');
+      const runtime = nodePath.join(plugin, 'runtime');
+      mkdirSync(runtime, { recursive: true });
+      copyFileSync(dogfoodBundlePath, nodePath.join(runtime, 'cli.js'));
+      copyFileSync(
+        nodePath.join(import.meta.dirname, '../../../../plugin/package.json'),
+        nodePath.join(plugin, 'package.json'),
+      );
+      const result = spawnSync('bun', [nodePath.join(runtime, 'cli.js'), '--version'], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout.trim()).toBe(VERSION);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not suppress a review for an incomplete or stale receipt on the same head', async () => {
+    const sha = 'a'.repeat(40);
+    type Receipt = { user: { login: string }; body: string };
+    const receipt = async (state: 'complete' | 'stale' | 'incomplete'): Promise<[Receipt]> => {
+      let body = '';
+      await publishReceipt(
+        {
+          listComments: () => Promise.resolve([]),
+          createComment: published => {
+            body = published;
+            return Promise.resolve();
+          },
+          updateComment: () => Promise.reject(new Error('unexpected receipt update')),
+          deleteComment: () => Promise.reject(new Error('unexpected receipt deletion')),
+        },
+        renderReceipt({
+          checks: [],
+          findingCounts: { consequential: 0, nonConsequential: 0 },
+          reviewedSha: sha,
+          reviewers: [],
+          route: 'needs_human',
+          runState: state,
+          skippedChecks: [],
+          tokenUsage: {},
+          unknowns: [],
+        }),
+      );
+      return [{ user: { login: 'github-actions[bot]' }, body }];
+    };
+    for (const path of [dogfoodWorkerPath, workerPath]) {
+      const worker = readFileSync(path, 'utf8');
+      const filter = /reviewed_receipt_sha="\$\(jq -r '([\s\S]*?)' comments\.json\)"/u.exec(
+        worker,
+      )?.[1];
+      expect(filter).toBeDefined();
+      if (!filter) throw new Error(`missing reviewer receipt filter in ${path}`);
+      const fullReceiptFilter =
+        /reviewedReceiptSha: (\(\(\[\$owned\[\]\.body\][^\n]+),\n\s*artifacts:/u.exec(worker)?.[1];
+      expect(fullReceiptFilter).toBeDefined();
+      if (!fullReceiptFilter) throw new Error(`missing full reviewer receipt filter in ${path}`);
+
+      for (const state of ['stale', 'incomplete'] as const) {
+        const result = spawnSync('jq', ['-r', filter], {
+          encoding: 'utf8',
+          input: JSON.stringify(await receipt(state)),
+        });
+        expect(result.status, result.stderr).toBe(0);
+        expect(result.stdout.trim()).toBe('');
+      }
+      const notReady = await receipt('stale');
+      notReady[0].body = notReady[0].body.replace('Run state: stale', 'Run state: not_ready');
+      expect(notReady[0].body).toContain('Run state: not_ready');
+      const draft = spawnSync('jq', ['-r', filter], {
+        encoding: 'utf8',
+        input: JSON.stringify(notReady),
+      });
+      expect(draft.status, draft.stderr).toBe(0);
+      expect(draft.stdout.trim()).toBe('');
+      const complete = spawnSync('jq', ['-r', filter], {
+        encoding: 'utf8',
+        input: JSON.stringify(await receipt('complete')),
+      });
+      expect(complete.status, complete.stderr).toBe(0);
+      expect(complete.stdout.trim()).toBe(sha);
+
+      const currentReceipt = await receipt('complete');
+      const current = spawnSync('jq', ['-r', filter], {
+        encoding: 'utf8',
+        input: JSON.stringify(currentReceipt),
+      });
+      expect(current.status, current.stderr).toBe(0);
+      expect(current.stdout.trim()).toBe(sha);
+
+      const fullComplete = spawnSync(
+        'jq',
+        [
+          '-n',
+          '--argjson',
+          'owned',
+          JSON.stringify(currentReceipt),
+          `{reviewedReceiptSha: ${fullReceiptFilter}}`,
+        ],
+        { encoding: 'utf8' },
+      );
+      expect(fullComplete.status, fullComplete.stderr).toBe(0);
+      expect(JSON.parse(fullComplete.stdout).reviewedReceiptSha).toBe(sha);
+
+      const mixed = [...currentReceipt, ...(await receipt('incomplete'))];
+      const early = spawnSync('jq', ['-r', filter], {
+        encoding: 'utf8',
+        input: JSON.stringify(mixed),
+      });
+      expect(early.status, early.stderr).toBe(0);
+      expect(early.stdout.trim()).toBe('');
+
+      const full = spawnSync(
+        'jq',
+        [
+          '-n',
+          '--argjson',
+          'owned',
+          JSON.stringify(mixed),
+          `{reviewedReceiptSha: ${fullReceiptFilter}}`,
+        ],
+        { encoding: 'utf8' },
+      );
+      expect(full.status, full.stderr).toBe(0);
+      expect(JSON.parse(full.stdout).reviewedReceiptSha).toBeNull();
+
+      const misleading = await receipt('stale');
+      misleading[0].body += `\nReview text follows:\n${currentReceipt[0].body}\n`;
+      const misleadingEarly = spawnSync('jq', ['-r', filter], {
+        encoding: 'utf8',
+        input: JSON.stringify(misleading),
+      });
+      expect(misleadingEarly.status, misleadingEarly.stderr).toBe(0);
+      expect(misleadingEarly.stdout.trim()).toBe('');
+
+      const misleadingFull = spawnSync(
+        'jq',
+        [
+          '-n',
+          '--argjson',
+          'owned',
+          JSON.stringify(misleading),
+          `{reviewedReceiptSha: ${fullReceiptFilter}}`,
+        ],
+        { encoding: 'utf8' },
+      );
+      expect(misleadingFull.status, misleadingFull.stderr).toBe(0);
+      expect(JSON.parse(misleadingFull.stdout).reviewedReceiptSha).toBeNull();
+    }
+  });
+
+  it('ignores a successful edited-event run without an advisory artifact', () => {
+    const publisher = YAML.parse(readFileSync(dogfoodPublisherPath, 'utf8')) as {
+      jobs: { 'discover-event-result': { steps: { id?: string; run?: string }[] } };
+    };
+    const script = publisher.jobs['discover-event-result'].steps.find(
+      step => step.id === 'artifact',
+    )?.run;
+    expect(script).toBeDefined();
+
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-artifacts-'));
+    try {
+      const output = nodePath.join(root, 'output');
+      const runWith = (names: string) => {
+        writeFileSync(output, '');
+        const result = spawnSync(
+          'bash',
+          [
+            '-e',
+            '-o',
+            'pipefail',
+            '-c',
+            `gh() { printf '%s\\n' "$SAFEWORD_ARTIFACT_NAMES"; }\n${script}`,
+          ],
+          {
+            cwd: root,
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              GITHUB_OUTPUT: output,
+              GITHUB_REPOSITORY: 'ArcadeAI/safeword',
+              SAFEWORD_ARTIFACT_NAMES: names,
+              SAFEWORD_RUN_ID: '1',
+            },
+          },
+        );
+        return { result, output: readFileSync(output, 'utf8') };
+      };
+
+      const empty = runWith('');
+      expect(empty.result.status, empty.result.stderr).toBe(0);
+      expect(empty.output).toBe('pull_number=\nhas_result=false\n');
+
+      const one = runWith('safeword-pr-review-42');
+      expect(one.result.status, one.result.stderr).toBe(0);
+      expect(one.output).toBe('pull_number=42\nhas_result=true\n');
+
+      const ambiguous = runWith('safeword-pr-review-1\nsafeword-pr-review-2');
+      expect(ambiguous.result.status).not.toBe(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('classifies generated paths using Git attributes and preserves authored exceptions', () => {
+    const workflow = YAML.parse(readFileSync(dogfoodWorkerPath, 'utf8')) as {
+      jobs: { inspect: { steps: { name?: string; run?: string }[] } };
+    };
+    const assembly = workflow.jobs.inspect.steps.find(
+      step => step.name === 'Assemble exact-head evidence as JSON',
+    )?.run;
+    const classifier = assembly?.match(/node --input-type=module <<'NODE'\n([\s\S]*?)\nNODE/u)?.[1];
+    expect(classifier).toBeDefined();
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-pr-review-attributes-'));
+    try {
+      const attributes = nodePath.join(root, 'trusted-attributes');
+      mkdirSync(attributes);
+      const initialized = spawnSync('git', ['init', '--quiet', attributes], { encoding: 'utf8' });
+      expect(initialized.status, initialized.stderr).toBe(0);
+      writeFileSync(
+        nodePath.join(attributes, '.gitattributes'),
+        'generated/** linguist-generated=true\nbare/** linguist-generated\nplugin/** linguist-generated=true\nplugin/README.md -linguist-generated\n',
+      );
+      writeFileSync(
+        nodePath.join(root, 'pull-files.json'),
+        JSON.stringify(
+          ['generated/a.js', 'bare/b.js', 'plugin/README.md', 'src/authored.ts'].map(filename => ({
+            filename,
+          })),
+        ),
+      );
+      const classified = spawnSync('node', ['--input-type=module'], {
+        cwd: root,
+        encoding: 'utf8',
+        input: classifier,
+      });
+      expect(classified.status, classified.stderr).toBe(0);
+      const generated = JSON.parse(
+        readFileSync(nodePath.join(root, 'generated-paths.json'), 'utf8'),
+      );
+      expect(generated).toEqual(['generated/a.js', 'bare/b.js']);
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+  });
+});
 
 const projectType = {
   astro: false,
