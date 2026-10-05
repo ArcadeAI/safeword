@@ -22,6 +22,7 @@ import process from 'node:process';
 
 import {
   defaultMaximumLockWaitMilliseconds,
+  lockBusyExitCode,
   resolveSafeIntegerEnvironmentVariable,
 } from './lib/test-lock-config.mjs';
 import { environmentPathKey, resolveTestRunnerInvocation } from './test-runner-executable.mjs';
@@ -499,7 +500,7 @@ function acquireLock() {
       const ownerPid = pid === undefined ? 'unavailable' : `PID ${pid}`;
       const ownerCheckout = checkoutRoot ?? 'an unavailable checkout';
       console.error(
-        `Could not acquire safeword package test lock at ${lockDirectory} after waiting ${formatElapsedWait(maximumLockWaitMilliseconds)}; no test was started. The active owner is ${ownerPid} in ${ownerCheckout}. A transition may be blocked at ${transitionDirectory}. Re-run after it finishes, set SAFEWORD_TEST_LOCK_MAX_WAIT_MS to a larger positive millisecond value, or remove either directory only if you are sure no package test is running.`,
+        `Safeword package test lock busy: could not acquire ${lockDirectory} after waiting ${formatElapsedWait(maximumLockWaitMilliseconds)}; no test was started. The active owner is ${ownerPid} in ${ownerCheckout}. A transition may be blocked at ${transitionDirectory}. Re-run after it finishes, set SAFEWORD_TEST_LOCK_MAX_WAIT_MS to a larger positive millisecond value, or remove either directory only if you are sure no package test is running.`,
       );
       return false;
     }
@@ -702,7 +703,7 @@ function removePackageSnapshot(snapshotRoot) {
 
 let lockToken;
 let packageSnapshot;
-let status = 1;
+let status;
 try {
   lockToken = acquireLock();
   if (lockToken) {
@@ -714,6 +715,8 @@ try {
         SAFEWORD_TEST_CLI_ROOT: packageSnapshot,
       });
     }
+  } else {
+    status = lockBusyExitCode;
   }
 } finally {
   if (packageSnapshot) removePackageSnapshot(packageSnapshot);
