@@ -814,6 +814,21 @@ function json<T>(result: ProcessResult): T | undefined {
   }
 }
 
+/**
+ * Reads a safeword CLI result. The CLI writes its result to stdout when the
+ * command succeeds and to stderr when it fails (state `failed`, exit 1), so a
+ * failed run still carries its own diagnosis. Unlike `json`, which serves
+ * external tools whose failures carry no structured result, this reads the
+ * failure channel too.
+ */
+function safewordResult<T>(result: ProcessResult): T | undefined {
+  try {
+    return JSON.parse(result.status === 0 ? result.stdout : result.stderr) as T;
+  } catch {
+    return undefined;
+  }
+}
+
 function resolveRepositoryRoot(cwd: string): string | undefined {
   const result = git(cwd, 'rev-parse', '--show-toplevel');
   return result.status === 0 ? result.stdout.trim() || undefined : undefined;
@@ -1017,7 +1032,7 @@ function runBoundRetroWindows(
   } finally {
     if (existsSync(sealedPath)) unlinkSync(sealedPath);
   }
-  const result = json<{
+  const result = safewordResult<{
     state?: string;
     data?: { agent_filing_needed?: boolean };
     errors?: { message?: string }[];
@@ -1036,7 +1051,14 @@ function runBoundRetroWindows(
   );
   const complete =
     successful && agentFilingNeeded === false && pendingDrafts === 0 && !transcriptAdvanced;
-  const errorText = [result?.errors?.map(error => error.message ?? '').join('\n'), retro.stderr]
+  // When a failed run's structured result was read from stderr, that stderr is
+  // the result itself: classify from its error messages alone, so a field name
+  // in the body can never pass for a description of what failed.
+  const failedWithResult = retro.status !== 0 && result !== undefined;
+  const errorText = [
+    result?.errors?.map(error => error.message ?? '').join('\n'),
+    failedWithResult ? undefined : retro.stderr,
+  ]
     .filter(Boolean)
     .join('\n');
   const failure =

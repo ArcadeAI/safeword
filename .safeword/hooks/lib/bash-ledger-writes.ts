@@ -15,6 +15,8 @@
 //   - shell variables and parameter expansion (`f=<ledger>; sed -i … "$f"`)
 //   - `eval`, command substitution (`$(…)`), and arithmetic/brace expansion
 //   - script files (`bash tick-boxes.sh`) and functions that embed the path
+//     (script code an interpreter reads from stdin — a heredoc, here-string,
+//     or pipe into `python3 -` — IS scanned, like `-c` inline code)
 //   - `dd of=<ledger>`, `ln -f`, and exotic writers not in the shape list below
 //   - a redirection glued to the previous token with no space (`echo x>ledger`);
 //     only space-separated or fd-prefixed `>`/`>>` operators are tokenized
@@ -31,7 +33,12 @@
 import nodePath from 'node:path';
 
 import { isNamespacePath } from './namespace-root.js';
-import { commandWordIndex, parseShellWords, splitShellSegments } from './shell-segments.js';
+import {
+  commandWordIndex,
+  parseShellCommandList,
+  parseShellWords,
+  type ShellCommandSegment,
+} from './shell-segments.js';
 
 export interface ProtectedWriteDetection {
   /** Human-readable write shape, used in the denial message. */
@@ -233,13 +240,143 @@ function detectProtectedWriteInSegment(
   return undefined;
 }
 
+/** Shells whose `-s` flag reads commands from stdin and passes later words as `$@`. */
+const STDIN_FLAG_SHELLS = new Set(['bash', 'sh', 'zsh']);
+
+/** A heredoc operator (`<<`, `<<-`) and its delimiter, standalone or fused (`<<EOF`). */
+function heredocDelimiter(words: string[]): string | undefined {
+  for (let index = 0; index < words.length; index += 1) {
+    const match = /^<<-?(?!<)(?<fused>.*)$/.exec(words[index] ?? '');
+    if (match === null) continue;
+    const delimiter = match.groups?.fused === '' ? words[index + 1] : match.groups?.fused;
+    if (delimiter !== undefined && delimiter !== '') return delimiter;
+  }
+  return undefined;
+}
+
+const REDIRECTION_OPERATOR = /^(?:<<-?|<<<|\d*[<>]|&>)$/;
+const FUSED_REDIRECTION = /^(?:\d*[<>]|&>)/;
+
+/**
+ * True when an interpreter's argv names no script file, so it executes code
+ * from stdin. An explicit stdin selector (`python3 -`, `bash -s`) ends the
+ * scan: later words are the stdin script's own argv. `python3 report.py <<EOF`
+ * (stdin as data) is therefore not treated as code.
+ */
+function readsScriptFromStdin(commandWord: string, rest: string[]): boolean {
+  for (let wordIndex = 0; wordIndex < rest.length; wordIndex += 1) {
+    const word = rest[wordIndex] ?? '';
+    if (REDIRECTION_OPERATOR.test(word)) {
+      wordIndex += 1; // the operator's separate target/delimiter word
+      continue;
+    }
+    if (word === '-' || (word === '-s' && STDIN_FLAG_SHELLS.has(commandWord))) return true;
+    if (!word.startsWith('-') && !FUSED_REDIRECTION.test(word)) return false;
+  }
+  return true;
+}
+
+/**
+ * The heredoc body of the segment starting at `segmentStart`, read from the raw
+ * command: the segment splitter tracks quotes across lines, so an apostrophe
+ * in the body would blur segment edges. Ends at the delimiter line (leading
+ * tabs allowed for `<<-`); an unlocatable segment falls back to the whole
+ * command, an unterminated body to the rest of it.
+ */
+function heredocBody(command: string, segmentStart: number, delimiter: string): string {
+  const bodyStart = segmentStart === -1 ? -1 : command.indexOf('\n', segmentStart);
+  if (bodyStart === -1) return command;
+  const lines = command.slice(bodyStart + 1).split('\n');
+  const end = lines.findIndex(line => line.replace(/^\t+/, '').trimEnd() === delimiter);
+  return (end === -1 ? lines : lines.slice(0, end)).join('\n');
+}
+
+/** A segment's text plus the heredoc body it feeds to stdin, if any. */
+function segmentWithStdin(command: string, segment: ShellCommandSegment, start: number): string {
+  const delimiter = heredocDelimiter(parseShellWords(segment.command));
+  return delimiter === undefined
+    ? segment.command
+    : `${segment.command}\n${heredocBody(command, start, delimiter)}`;
+}
+
+function isPipe(operator: ShellCommandSegment['operatorAfter']): boolean {
+  return operator === '|' || operator === '|&';
+}
+
+/**
+ * Everything that can reach a stdin-reading interpreter as code: its own
+ * here-string or heredoc, and every earlier stage of its pipeline together
+ * with their heredoc bodies (`cat <<EOF | python3 -`). Undefined when the
+ * interpreter runs a script file instead.
+ */
+function stdinScriptSource(
+  command: string,
+  segments: ShellCommandSegment[],
+  starts: number[],
+  index: number,
+): string | undefined {
+  const words = parseShellWords(segments[index]?.command ?? '');
+  const commandIndex = commandWordIndex(words);
+  const commandWord = nodePath.basename(words[commandIndex] ?? '');
+  if (
+    !INLINE_INTERPRETERS.has(commandWord) ||
+    !readsScriptFromStdin(commandWord, words.slice(commandIndex + 1))
+  ) {
+    return undefined;
+  }
+
+  let first = index;
+  while (first > 0 && isPipe(segments[first - 1]?.operatorAfter)) first -= 1;
+  return segments
+    .slice(first, index + 1)
+    .map((segment, offset) => segmentWithStdin(command, segment, starts[first + offset] ?? -1))
+    .join('\n');
+}
+
+function detectStdinScriptWrite(
+  source: string,
+  commandWord: string,
+  descriptor: ProtectedWriteDescriptor,
+): ProtectedWriteDetection | undefined {
+  for (const token of source.split(/[^\w./-]+/)) {
+    const embedded = descriptor.embeddedPath(token);
+    if (embedded !== undefined) {
+      return {
+        shape: `stdin ${commandWord} code naming the ${descriptor.inlineSubject}`,
+        path: embedded,
+      };
+    }
+  }
+  return undefined;
+}
+
+/** Where each segment starts in the raw command (-1 when it cannot be located). */
+function segmentStarts(command: string, segments: ShellCommandSegment[]): number[] {
+  let cursor = 0;
+  return segments.map(segment => {
+    const start = command.indexOf(segment.command, cursor);
+    if (start !== -1) cursor = start + segment.command.length;
+    return start;
+  });
+}
+
 function detectProtectedWrite(
   command: string,
   descriptor: ProtectedWriteDescriptor,
 ): ProtectedWriteDetection | undefined {
-  for (const segment of splitShellSegments(command)) {
-    const detection = detectProtectedWriteInSegment(segment, descriptor);
+  const segments = parseShellCommandList(command);
+  const starts = segmentStarts(command, segments);
+  for (const [index, segment] of segments.entries()) {
+    const detection = detectProtectedWriteInSegment(segment.command, descriptor);
     if (detection !== undefined) return detection;
+
+    const source = stdinScriptSource(command, segments, starts, index);
+    if (source !== undefined) {
+      const words = parseShellWords(segment.command);
+      const commandWord = nodePath.basename(words[commandWordIndex(words)] ?? '');
+      const stdinWrite = detectStdinScriptWrite(source, commandWord, descriptor);
+      if (stdinWrite !== undefined) return stdinWrite;
+    }
   }
   return undefined;
 }

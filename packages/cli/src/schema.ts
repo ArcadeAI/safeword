@@ -307,6 +307,9 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   're-entry.md',
   'dependency-readiness.json',
   'readiness-ticket.json',
+  'closeout-session-binding.json',
+  'codex-review-stamp-identity.json',
+  'cursor-review-stamp-identity.json',
 ];
 
 /**
