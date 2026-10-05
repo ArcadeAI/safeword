@@ -259,7 +259,7 @@ export type DecisionBriefVerdict = keyof DecisionBriefGrammar['variants'];
 export type DecisionBriefViolation =
   | { kind: 'verdict-count'; count: number }
   | { kind: 'labels-before-verdict'; verdict: DecisionBriefVerdict }
-  | { kind: 'label-sequence'; verdict: DecisionBriefVerdict };
+  | { kind: 'label-sequence'; verdict: DecisionBriefVerdict; observed: string[] };
 
 interface MarkdownParagraph {
   text: string;
@@ -738,7 +738,11 @@ export function evaluateDecisionBriefCompliance(
   if (!compliant) {
     return result(
       false,
-      { kind: 'label-sequence', verdict },
+      {
+        kind: 'label-sequence',
+        verdict,
+        observed: labels.map(label => label ?? UNLABELED_PARAGRAPH),
+      },
       labels.includes(terminalLabel) ? undefined : ['terminal paragraph'],
     );
   }
@@ -783,6 +787,42 @@ function renderDecisionBriefShapes(
     .join('\n\n');
 }
 
+const UNLABELED_PARAGRAPH = '(unlabeled paragraph)';
+
+/** Plain-words meaning of each requirement, so a correction says what to change. */
+const TERMINAL_HANDOFF_REQUIREMENT_MEANING: Record<TerminalHandoffRequirement, string> = {
+  'concrete choice': 'exactly one Choice: clause naming the actual choice',
+  recommendation: 'exactly one Recommendation: clause naming the recommended option',
+  'controlling reason': 'exactly one Reason: clause with the controlling reason',
+  'material tradeoff or consequences': 'exactly one Impact: clause with the tradeoff',
+  'exact reply': 'exactly one Reply: clause with the words the reader can send back',
+  'one concrete action': 'exactly one Action: and one Object:, naming a specific step and thing',
+  'one essential reason': 'at most one Reason:, starting "Required because"',
+  'concise action form': 'no Choice, Recommendation, Impact, or Reply when Open is none',
+  'no extra context':
+    'Action, Object, and Reason must each be a single sentence, with nothing before Action',
+  'terminal paragraph': 'the brief must end with its Next (or Need) paragraph',
+  'plain-language meaning': 'write each Term as `Term: name = plain-language meaning`',
+  'canonical Open route': 'Open must be exactly `human: <one choice>` or `none`',
+};
+
+/** Decision-form meanings that differ from the action-form defaults above. */
+const DECISION_REQUIREMENT_MEANING: Partial<Record<TerminalHandoffRequirement, string>> = {
+  'no extra context': 'start the paragraph with Choice:, with no text before it',
+};
+
+function explainRequirements(
+  requirements: readonly TerminalHandoffRequirement[],
+  form: TerminalHandoffForm,
+): string {
+  const meaningOf = (requirement: TerminalHandoffRequirement): string =>
+    (form === 'decision' ? DECISION_REQUIREMENT_MEANING[requirement] : undefined) ??
+    TERMINAL_HANDOFF_REQUIREMENT_MEANING[requirement];
+  return `What that means: ${requirements
+    .map(requirement => `${requirement} = ${meaningOf(requirement)}`)
+    .join('; ')}.`;
+}
+
 /** Evidence request for generic work that has no trustworthy BDD phase. */
 export const GENERIC_REVIEW_EVIDENCE =
   'Work update: CONFIDENT names what changed, what was checked, and the concrete result.';
@@ -808,8 +848,11 @@ function describeDecisionBriefViolation(
     };
   }
   if (violation?.kind === 'label-sequence') {
+    const expected = grammar.variants[violation.verdict].paragraphs
+      .map(paragraph => (paragraph.optional ? `${paragraph.label} (optional)` : paragraph.label))
+      .join(', ');
     return {
-      problem: `${violation.verdict} has missing, extra, or out-of-order decision-brief labels.`,
+      problem: `${violation.verdict} has missing, extra, or out-of-order decision-brief labels. Found: ${violation.observed.join(', ')}. Expected: ${expected}. Keep each label in one paragraph; lists, tables, or extra paragraphs inside the brief break it.`,
       verdicts: [violation.verdict],
     };
   }
@@ -830,7 +873,7 @@ export function renderDecisionBriefCorrection(
   grammar = DECISION_BRIEF_GRAMMAR,
 ): string {
   if (!evaluation.violation && evaluation.requirements && evaluation.requirements.length > 0) {
-    const header = `${evaluation.contractVersion} correction. Missing: ${evaluation.requirements.join(', ')}.`;
+    const header = `${evaluation.contractVersion} correction. Missing: ${evaluation.requirements.join(', ')}. ${explainRequirements(evaluation.requirements, evaluation.form)}`;
     const actionShape = `**Next:** Action: <imperative>. Object: <specific object>. Reason: Required because <essential reason>.`;
     const decisionShape = `**Next:** Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>.\n\nFor BLOCKED, use the same five roles after **Need:**.`;
     const termShape = evaluation.requirements.includes('plain-language meaning')

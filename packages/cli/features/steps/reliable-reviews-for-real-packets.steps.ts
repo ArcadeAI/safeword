@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -316,6 +316,27 @@ Given('a review packet larger than the accepted maximum', function (this: Safewo
   const current = state(this);
   installReviewer(current, 'codex', 'answers');
   writeFileSync(nodePath.join(current.project, 'review-input.md'), 'x'.repeat(1024 * 1024 + 1));
+  writeFileSync(
+    nodePath.join(current.project, '.gitattributes'),
+    'other/** linguist-generated=true\n',
+  );
+  execFileSync('git', ['init', '-q'], { cwd: current.project });
+  execFileSync('git', ['add', '.gitattributes'], { cwd: current.project });
+  execFileSync(
+    'git',
+    [
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit',
+      '-qm',
+      'fixture',
+    ],
+    { cwd: current.project },
+  );
 });
 
 Given('an explicitly configured attempt deadline', function (this: SafewordWorld) {
@@ -615,7 +636,7 @@ Then('the command rejects the packet through a typed result', function (this: Sa
   assert.equal(result.state, 'failed');
   assert.equal(
     (result as { errors?: { code: string }[] }).errors?.[0]?.code,
-    'REVIEW_PACKET_INVALID',
+    'REVIEW_TARGET_TOO_LARGE',
   );
   assert.equal(result.data.status, 'blocked');
   assert.equal(result.recovery.length, 1);

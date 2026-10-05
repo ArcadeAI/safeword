@@ -36,6 +36,10 @@ Affected:
 - Claude Code — invokes the independent-review workflow.
 - OpenAI Codex — invokes the independent-review workflow.
 
+skip: Claude Code and OpenAI Codex host-level scenarios; both invoke the same
+Safeword CLI review command, whose public result and packet are exercised here.
+Generated-host parity is checked during implementation verification.
+
 Unaffected:
 
 - Cursor — it consumes the same CLI contract but has no host-specific code path in this change.
@@ -51,14 +55,21 @@ Unaffected:
   missing, duplicate, or malformed records are a lookup failure.
 - **Canonical target path:** The lexical, normalized project-relative path
   obtained from a supplied target before any filesystem operation. This one
-  identity is used for containment, validation, capture, Git lookup,
-  deduplication, reviewer packet paths, and reporting. Distinct hard links
+  identity is used for validation, capture, Git lookup, deduplication,
+  reviewer packet paths, and reporting. Containment first rejects lexical
+  escapes and then resolves the normalized target against the project root;
+  any final or intermediate symlink leading outside the root is rejected.
+  Symlink components removed by lexical normalization are not traversed. Distinct hard links
   remain distinct target paths; only duplicate lexical paths and lexical
-  aliases collapse.
+  aliases collapse. Git lookup prefixes this identity with the project's
+  repository-relative directory when the project sits below the Git root;
+  reviewer paths and `excluded_targets` remain project-relative.
 - **Reduced scope:** The eligible targets actually presented to a reviewer after explicitly generated oversized targets are omitted.
-- **Individual packet limit:** At most 262144 bytes of a target's raw file
-  contents. The existing 1048576-byte aggregate limit likewise measures the
-  raw contents of all eligible targets, not packet framing.
+- **Packet byte limits:** Each target's raw file contents are at most 262144
+  bytes. Eligible raw contents together must fit within 1048576 bytes, and the
+  serialized reviewer packet (including paths and metadata) independently must
+  fit within 1048576 bytes. Whichever existing bound is reached first applies;
+  omitting generated targets changes neither limit.
 
 ## Product Inspiration
 
