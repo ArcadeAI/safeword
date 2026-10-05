@@ -4,6 +4,11 @@ Feature source: `features/plan-implementation-phase.feature`
 
 test-definitions.md is the R/G/R ledger.
 
+Migration note: the RED/GREEN commits below prove the original implementation
+gate and five-phase jump. Commit bdfdfb232 retargeted these assertions to
+Execution Planning and six phases; its targeted acceptance run passed, but it
+was an assertion migration, not a new RED/GREEN cycle for that behavior.
+
 ## Rule: plan-implementation-phase.TB1.R1 — a new-flow feature cannot enter Execution Planning without a valid implementation plan
 
 ### Scenario: Feature with a valid plan advances into Execution Planning

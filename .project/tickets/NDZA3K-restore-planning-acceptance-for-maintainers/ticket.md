@@ -33,7 +33,9 @@ the second design-document lane replaced by the approved single-plan design.
 A broad `an Implementation Plan has (.+)` step also claims an unfinished
 review scenario outside its two supported states, misreporting missing steps
 as an `unknown receipt presentation` assertion. Narrowing it preserves the
-missing scenario instead of inventing a passing fixture.
+missing scenario instead of inventing a passing fixture. The stop fixture also
+disables terminal handoff correction because it supplies planning state rather
+than a final reply; that separate check otherwise masks the planning verdict.
 
 Confirmed by the current-head CI log and local reproduction of all three
 provenance failures. Migrated fixtures and assertions make the four affected
@@ -57,5 +59,5 @@ remain unfinished work, not environment failure or proof of completion.
 
 - Discovery: configured dry-run preserves 585 undefined scenarios; discovery is not execution proof. No scenarios were skipped or supplied placeholder steps.
 - CLI suite: 642 files passed; 10,566 tests passed and 13 skipped. CLI typecheck, changed Gherkin lint, formatting, and diff whitespace checks passed.
-- Independent Claude reviews `afdca9a3-3ded-41a5-8602-dfb6381044d3`, `206f8536-ce9b-44ac-9747-ef1ab617040a`, `4d041573-451e-4097-84ec-22a0b5bf70d3`, `203bc4b8-6522-4a95-907e-ddd02cd25156`, and `f7c3d0a6-d82e-4873-b8bf-60cf112b4aa0` requested changes. Fixed incomplete phase lists, a permissive stop assertion, ADR scaffold coverage, the stale documentation-task ownership claim, and weak denial/guide assertions. Exact missing-phase extraction rejects a mutation that omits a phase even when recovery advice lists it. Changed guide checks bind the instruction itself rather than unrelated keywords. Final review remains pending; this ticket is not complete.
+- Independent Claude reviews `afdca9a3-3ded-41a5-8602-dfb6381044d3`, `206f8536-ce9b-44ac-9747-ef1ab617040a`, `4d041573-451e-4097-84ec-22a0b5bf70d3`, `203bc4b8-6522-4a95-907e-ddd02cd25156`, and `f7c3d0a6-d82e-4873-b8bf-60cf112b4aa0` requested changes. Fixed incomplete phase lists, a permissive stop assertion, ADR scaffold coverage, the stale documentation-task ownership claim, and weak denial/guide assertions. Exact missing-phase extraction rejects a mutation that omits a phase even when recovery advice lists it. Changed guide checks bind the instruction itself rather than unrelated keywords. The current review found no blocking code defect and requested an evidence correction, now applied. This ticket remains in progress pending final verification.
 - Full configured acceptance lane: 2372 scenarios (1778 passed, 3 skipped, 585 undefined, 6 failed); 110463 steps (108693 passed, 5 skipped, 1759 undefined, 6 failed). Failures are four automatic-Claude-migration scenarios, one contract-drift scenario, and one native-plugin generation scenario. These are outside this fixture repair; the full lane is not green.
