@@ -1,9 +1,12 @@
+import { spawnSync } from 'node:child_process';
 import {
+  linkSync,
   mkdirSync,
   mkdtempSync,
   renameSync,
   rmSync,
   symlinkSync,
+  truncateSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -14,7 +17,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { DELIVERY_CHECKLIST_CATEGORIES } from '../../src/execution-plan/delivery-checklist.js';
 import type { RedExecutionAttestation } from '../../src/review/contract.js';
-import { prepareReviewPacket } from '../../src/review/packet.js';
+import { prepareReviewPacket, toReviewPath } from '../../src/review/packet.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -120,6 +123,12 @@ describe('review packet containment and change accounting', () => {
     } finally {
       prepared.cleanup();
     }
+  });
+
+  it('uses forward slashes for Git attribute paths on Windows', () => {
+    expect(toReviewPath(String.raw`generated\nested\output.js`, nodePath.win32.sep)).toBe(
+      'generated/nested/output.js',
+    );
   });
 
   it('refuses executable RED review without Safeword execution evidence', () => {
@@ -355,6 +364,23 @@ describe('review packet containment and change accounting', () => {
     prepared.cleanup();
   });
 
+  it('detects a parent symlink escape even when it reaches the same file through a hard link', () => {
+    const project = temporaryDirectory();
+    const outside = temporaryDirectory();
+    const directory = nodePath.join(project, 'inside');
+    mkdirSync(directory);
+    const source = nodePath.join(directory, 'input.md');
+    writeFileSync(source, 'same bytes\n');
+    linkSync(source, nodePath.join(outside, 'input.md'));
+    const prepared = prepareReviewPacket(project, 'quality-review', ['inside/input.md']);
+
+    renameSync(directory, nodePath.join(project, 'moved'));
+    symlinkSync(outside, directory);
+
+    expect(prepared.sourceChanged()).toBe(true);
+    prepared.cleanup();
+  });
+
   it('detects files newly created inside the disposable snapshot', () => {
     const project = temporaryDirectory();
     writeFileSync(nodePath.join(project, 'input.md'), 'original\n');
@@ -367,6 +393,17 @@ describe('review packet containment and change accounting', () => {
     prepared.cleanup();
   });
 
+  it('treats an oversized reviewer snapshot as changed without digesting it', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'input.md'), 'original\n');
+    const prepared = prepareReviewPacket(project, 'quality-review', ['input.md']);
+
+    truncateSync(nodePath.join(prepared.workspace, 'input.md'), 8 * 1024 * 1024 * 1024);
+
+    expect(prepared.snapshotChanged()).toBe(true);
+    prepared.cleanup();
+  });
+
   it('treats an unreadable snapshot traversal as reviewer mutation', () => {
     const project = temporaryDirectory();
     writeFileSync(nodePath.join(project, 'input.md'), 'original\n');
@@ -376,13 +413,93 @@ describe('review packet containment and change accounting', () => {
     expect(prepared.snapshotChanged()).toBe(true);
   });
 
-  it('rejects an individual target that is too large for a bounded review', () => {
+  it('refuses an oversized target when the project has no committed generated marker source', () => {
     const project = temporaryDirectory();
     writeFileSync(nodePath.join(project, 'large.md'), 'x'.repeat(256 * 1024 + 1));
 
     expect(() => prepareReviewPacket(project, 'quality-review', ['large.md'])).toThrow(
+      'Git attributes could not be resolved',
+    );
+  });
+
+  it('retains the size limit for an oversized target without a committed generated marker', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, '.gitattributes'), 'other/** linguist-generated=true\n');
+    writeFileSync(nodePath.join(project, 'large.md'), 'x'.repeat(256 * 1024 + 1));
+    for (const args of [
+      ['init', '-q'],
+      ['add', '.gitattributes'],
+      [
+        '-c',
+        'commit.gpgsign=false',
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-qm',
+        'fixture',
+      ],
+    ]) {
+      const result = spawnSync('git', args, { cwd: project, encoding: 'utf8' });
+      expect(result.status, result.stderr).toBe(0);
+    }
+
+    expect(() => prepareReviewPacket(project, 'quality-review', ['large.md'])).toThrow(
       '262144-byte limit',
     );
+  });
+
+  it('does not stale an authored review when an excluded generated output changes later', () => {
+    const project = temporaryDirectory();
+    writeFileSync(
+      nodePath.join(project, '.gitattributes'),
+      'generated/** linguist-generated=true\n',
+    );
+    writeFileSync(nodePath.join(project, 'authored.md'), 'review me\n');
+    mkdirSync(nodePath.join(project, 'generated'));
+    const generated = nodePath.join(project, 'generated', 'output.js');
+    writeFileSync(generated, 'x'.repeat(256 * 1024 + 1));
+    for (const args of [
+      ['init', '-q'],
+      ['add', '.gitattributes'],
+      [
+        '-c',
+        'commit.gpgsign=false',
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-qm',
+        'fixture',
+      ],
+    ]) {
+      const result = spawnSync('git', args, { cwd: project, encoding: 'utf8' });
+      expect(result.status, result.stderr).toBe(0);
+    }
+
+    const prepared = prepareReviewPacket(project, 'quality-review', [
+      'authored.md',
+      'generated/output.js',
+    ]);
+    try {
+      expect(prepared.excludedTargets).toEqual(['generated/output.js']);
+      writeFileSync(generated, 'y'.repeat(256 * 1024 + 2));
+      expect(prepared.sourceChanged()).toBe(false);
+    } finally {
+      prepared.cleanup();
+    }
+  });
+
+  it('reports an oversized context file with a typed size-limit error', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'authored.md'), 'review me\n');
+    writeFileSync(nodePath.join(project, 'large.md'), 'x'.repeat(256 * 1024 + 1));
+
+    expect(() =>
+      prepareReviewPacket(project, 'quality-review', ['authored.md'], ['large.md']),
+    ).toThrow(expect.objectContaining({ code: 'REVIEW_TARGET_TOO_LARGE' }));
   });
 
   it('rejects more files than a bounded review can safely carry', () => {
@@ -390,6 +507,22 @@ describe('review packet containment and change accounting', () => {
     const targets = Array.from({ length: 65 }, (_, index) => `input-${index}.md`);
 
     expect(() => prepareReviewPacket(project, 'quality-review', targets)).toThrow('64-file limit');
+  });
+
+  it('counts repeated target spellings once toward the file limit', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'input.md'), 'review me\n');
+
+    const prepared = prepareReviewPacket(
+      project,
+      'quality-review',
+      Array.from({ length: 65 }, () => 'input.md'),
+    );
+    try {
+      expect(prepared.packet.logical_files).toHaveLength(1);
+    } finally {
+      prepared.cleanup();
+    }
   });
 
   it('applies the file-count bound across targets and supporting context', () => {
@@ -538,5 +671,43 @@ describe('review packet containment and change accounting', () => {
     expect(() => prepareReviewPacket(project, 'quality-review', targets)).toThrow(
       '1048576-byte limit',
     );
+  });
+
+  it('reports the first supplied failure when serialized overhead crosses the aggregate limit', () => {
+    const project = temporaryDirectory();
+    const targets = Array.from({ length: 4 }, (_, index) => `input-${index}.md`);
+    for (const target of targets) {
+      writeFileSync(nodePath.join(project, target), 'x'.repeat(262_120));
+    }
+    writeFileSync(nodePath.join(project, 'unmarked.js'), 'x'.repeat(256 * 1024 + 1));
+    writeFileSync(
+      nodePath.join(project, '.gitattributes'),
+      'generated/** linguist-generated=true\n',
+    );
+    for (const args of [
+      ['init', '-q'],
+      ['add', '.gitattributes'],
+      [
+        '-c',
+        'commit.gpgsign=false',
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-qm',
+        'fixture',
+      ],
+    ]) {
+      const result = spawnSync('git', args, { cwd: project, encoding: 'utf8' });
+      expect(result.status, result.stderr).toBe(0);
+    }
+
+    expect(() =>
+      prepareReviewPacket(project, 'quality-review', [...targets, 'unmarked.js']),
+    ).toThrow('1048576-byte limit');
+    expect(() =>
+      prepareReviewPacket(project, 'quality-review', ['unmarked.js', ...targets]),
+    ).toThrow('262144-byte limit');
   });
 });

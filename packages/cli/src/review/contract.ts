@@ -9,7 +9,9 @@ export type ReviewKind =
   | 'plan-implementation'
   | 'plan-execution'
   | 'delivery-compatibility'
-  | 'executable-red';
+  | 'executable-red'
+  | 'retrospective-eligibility'
+  | 'retrospective-proof';
 export type ReviewPolicy = 'prefer' | 'require' | 'off';
 export type RedEvidenceClass =
   'pure-contract' | 'simulated-host' | 'local-live-host' | 'external-live-host';
@@ -231,6 +233,8 @@ const REVIEW_KINDS = new Set<ReviewKind>([
   'plan-execution',
   'delivery-compatibility',
   'executable-red',
+  'retrospective-eligibility',
+  'retrospective-proof',
 ]);
 
 export function isReviewKind(value: unknown): value is ReviewKind {

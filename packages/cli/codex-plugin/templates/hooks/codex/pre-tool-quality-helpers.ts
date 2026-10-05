@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
 export interface CodexHookInput {
+  cwd?: string;
   session_id?: string;
   tool_name?: string;
   tool_input?: {
@@ -16,6 +17,7 @@ export interface CodexHookInput {
 }
 
 export interface ClaudeHookInput {
+  cwd?: string;
   session_id?: string;
   hook_event_name: 'PreToolUse';
   tool_name: 'Bash' | 'Edit' | 'Write' | 'MultiEdit' | 'NotebookEdit';
@@ -32,7 +34,7 @@ export interface ClaudeHookInput {
 export function runClaudeHookAsCodex(claudeHookPath: string, translated: ClaudeHookInput) {
   return spawnSync('bun', [claudeHookPath], {
     cwd: process.cwd(),
-    input: JSON.stringify(translated),
+    input: JSON.stringify({ cwd: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(), ...translated }),
     encoding: 'utf8',
     env: {
       ...process.env,
@@ -60,6 +62,7 @@ export function translateCodexInputToClaudeInputs(input: CodexHookInput): Claude
     return [
       {
         session_id: input.session_id,
+        ...(input.cwd && { cwd: input.cwd }),
         hook_event_name: 'PreToolUse',
         tool_name: toolName as ClaudeHookInput['tool_name'],
         tool_input: input.tool_input ?? {},
@@ -71,6 +74,7 @@ export function translateCodexInputToClaudeInputs(input: CodexHookInput): Claude
 
   return extractPatchTargets(input.tool_input?.command ?? '').map(patchTarget => ({
     session_id: input.session_id,
+    ...(input.cwd && { cwd: input.cwd }),
     hook_event_name: 'PreToolUse',
     tool_name: patchTarget.toolName,
     tool_input: {

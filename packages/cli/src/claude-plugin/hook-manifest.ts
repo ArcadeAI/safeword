@@ -19,7 +19,8 @@ import { SETTINGS_HOOKS } from '../templates/config.js';
 
 const PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
 const PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks';
-const PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js';
+const PLUGIN_DISPATCH =
+  'bun --no-env-file --cwd "${CLAUDE_PLUGIN_ROOT}" "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js';
 const EVENT_GROUP_EVENTS = new Set(['SessionStart', 'UserPromptSubmit']);
 
 export function pluginEventGroupEvents(): string[] {
