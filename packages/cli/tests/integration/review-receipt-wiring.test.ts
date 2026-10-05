@@ -85,6 +85,7 @@ describe('review-receipt wiring (write-review-stamp.ts ↔ review status --json)
 
   function runStamp(...args: string[]): { status: number | null; stdout: string; stderr: string } {
     const result = spawnSync('bun', [STAMP_PATH, ...args], {
+      cwd: projectRoot,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
       env: {
