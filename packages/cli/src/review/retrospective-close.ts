@@ -18,7 +18,7 @@ import {
   validRetrospectiveCloseTag,
 } from './job.js';
 import { parseRetrospectiveAnnotation } from './retrospective-annotation.js';
-import { retrospectiveGate, type RetrospectiveGateRequest } from './retrospective-gate.js';
+import { attestRetrospectiveRow, type RetrospectiveGateRequest } from './retrospective-gate.js';
 import {
   checkRetrospectiveHistory,
   RETROSPECTIVE_FEATURE,
@@ -231,7 +231,7 @@ export function attestRetrospectiveClose(
     const paths = inputPaths(root, claims);
     const before = inputDigests(root, paths);
     for (const claim of claims) {
-      if (retrospectiveGate(root, claim).state !== 'healthy') {
+      if (attestRetrospectiveRow(root, claim).state !== 'changed') {
         throw new Error(`Retrospective proof did not reproduce for ${claim.scenario}.`);
       }
     }

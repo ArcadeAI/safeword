@@ -35676,6 +35676,8 @@ function requireArchivedSource(copy, path7, source) {
   }
 }
 function readProofInput(root, path7) {
+  if (!safePath(path7))
+    throw new Error("Proof input path escapes the project.");
   const parts = path7.split("/");
   let candidate = root;
   for (const [index, part] of parts.entries()) {
@@ -35829,9 +35831,11 @@ var init_retrospective_scenario_body = () => {};
 // src/review/retrospective-gate.ts
 var exports_retrospective_gate = {};
 __export(exports_retrospective_gate, {
-  retrospectiveGate: () => retrospectiveGate
+  retrospectiveGate: () => retrospectiveGate,
+  attestRetrospectiveRow: () => attestRetrospectiveRow
 });
 import { spawnSync as spawnSync10 } from "child_process";
+import { createHash as createHash21 } from "crypto";
 import { readFileSync as readFileSync33 } from "fs";
 import nodePath49 from "path";
 function deny(reason) {
@@ -35915,19 +35919,70 @@ function hasDiscriminatingOutcome(observation, testFullName) {
   const { passing, mutated } = observation;
   return passing.exitCode === 0 && passing.passedTests === 1 && passing.failedTests === 0 && passing.test === testFullName && mutated.exitCode !== 0 && mutated.passedTests === 0 && mutated.failedTests === 1 && mutated.test === testFullName;
 }
-function verifiedProof(root, targets, request, eligibility) {
-  if (targets.length !== 2 || targets.some((path7) => !path7.endsWith(".json")))
+function verifiedProof(root, targets, request, eligibility, replay) {
+  if (targets.length !== 2 || targets.some((path8) => !path8.endsWith(".json")))
     return false;
   const proofRequest = JSON.parse(readFileSync33(nodePath49.join(root, targets[0] ?? ""), "utf8"));
   const reviewed = JSON.parse(readFileSync33(nodePath49.join(root, targets[1] ?? ""), "utf8"));
-  if (proofRequest.ticketId !== RETROSPECTIVE_TICKET || proofRequest.scenario !== request.scenario || eligibility.blobs.every((blob) => blob.currentPath !== proofRequest.implementationPath) || JSON.stringify(reviewed.request) !== JSON.stringify(proofRequest))
+  if (!matchingProofRequest(proofRequest, reviewed, request, eligibility))
     return false;
   if (!hasDiscriminatingOutcome(reviewed, proofRequest.testFullName))
     return false;
+  const content = `retrospective-row-v1\x00${rowIdentity(request)}\x00${stableObservation(reviewed)}`;
+  const path7 = rowRecordPath(root, request);
+  if (!replay) {
+    return currentReplayRecord(root, path7, content, reviewed.supportSha256);
+  }
   const rerun = runRetrospectiveProof(root, proofRequest);
-  return stableObservation(reviewed) === stableObservation(rerun);
+  if (stableObservation(reviewed) !== stableObservation(rerun))
+    return false;
+  writeDurableFile(path7, `${retrospectiveCloseTag(root, content)}
+`, { mode: 384 });
+  return true;
 }
-function retrospectiveGate(root, request) {
+function matchingProofRequest(proof, reviewed, request, eligibility) {
+  return proof.ticketId === RETROSPECTIVE_TICKET && proof.scenario === request.scenario && eligibility.blobs.some((blob) => blob.currentPath === proof.implementationPath) && JSON.stringify(reviewed.request) === JSON.stringify(proof);
+}
+function currentReplayRecord(root, path7, content, inputs) {
+  const integrity = readFileSync33(path7, "utf8").trim();
+  return validRetrospectiveCloseTag(root, content, integrity) && Object.entries(inputs).every(([input, digest3]) => createHash21("sha256").update(readProofInput(root, input)).digest("hex") === digest3);
+}
+function rowRecordPath(root, request) {
+  const identity = createHash21("sha256").update(rowIdentity(request)).digest("hex");
+  return nodePath49.join(root, ".safeword/state/reviews", `retrospective-row-${identity}.tag`);
+}
+function rowIdentity(request) {
+  return JSON.stringify([
+    request.ticketId,
+    request.ledger,
+    request.scenario,
+    request.eligibilityId,
+    request.proofId
+  ]);
+}
+function attestRetrospectiveRow(root, request) {
+  const result = retrospectiveGate(root, request, true);
+  const approved = result.state === "healthy";
+  return createResult({
+    state: approved ? "changed" : result.state,
+    findings: result.findings,
+    effects: approved ? {
+      files: [
+        {
+          kind: "review-record",
+          target: nodePath49.relative(root, rowRecordPath(root, request)),
+          operation: "write"
+        }
+      ]
+    } : undefined,
+    data: {
+      command: "review attest retrospective",
+      status: approved ? "approved" : "blocked",
+      ...request
+    }
+  });
+}
+function retrospectiveGate(root, request, replay = false) {
   if (request.ticketId !== RETROSPECTIVE_TICKET || request.ledger !== RETROSPECTIVE_LEDGER)
     return deny("Only CKWE2D may use retrospective receipts.");
   if (request.eligibilityId === request.proofId)
@@ -35940,8 +35995,8 @@ function retrospectiveGate(root, request) {
     const eligibility = verifiedEligibility(root, eligibilityTargets, request);
     if (eligibility === undefined)
       return deny("Historical eligibility no longer matches the cutoff and scenario.");
-    if (!verifiedProof(root, proofTargets, request, eligibility))
-      return deny("The reviewed passing/mutation proof is stale or does not reproduce.");
+    if (!verifiedProof(root, proofTargets, request, eligibility, replay))
+      return deny("The reviewed proof is stale. Run review attest retrospective before checking the row.");
     return createResult({
       state: "healthy",
       findings: [
@@ -35958,12 +36013,13 @@ function retrospectiveGate(root, request) {
       }
     });
   } catch {
-    return deny("Retrospective evidence is missing, invalid, or could not be reproduced.");
+    return deny("Retrospective evidence is missing or invalid. Run review attest retrospective before checking the row.");
   }
 }
 var init_retrospective_gate = __esm(() => {
   init_phase_provenance();
   init_result();
+  init_durable_write();
   init_job();
   init_retrospective_history();
   init_retrospective_prerequisites();
@@ -36022,7 +36078,7 @@ __export(exports_retrospective_close, {
   retrospectiveCloseGate: () => retrospectiveCloseGate,
   attestRetrospectiveClose: () => attestRetrospectiveClose
 });
-import { createHash as createHash21, randomUUID as randomUUID10 } from "crypto";
+import { createHash as createHash22, randomUUID as randomUUID10 } from "crypto";
 import {
   existsSync as existsSync17,
   mkdirSync as mkdirSync15,
@@ -36059,7 +36115,7 @@ function result(command, status, reason) {
   });
 }
 function sha2565(bytes) {
-  return createHash21("sha256").update(bytes).digest("hex");
+  return createHash22("sha256").update(bytes).digest("hex");
 }
 function contained(root, relative) {
   if (relative === "" || nodePath50.isAbsolute(relative) || relative.split("/").some((part) => ["", ".", ".."].includes(part)))
@@ -36189,7 +36245,7 @@ function attestRetrospectiveClose(root, ticketId, ledger) {
     const paths = inputPaths(root, claims);
     const before = inputDigests(root, paths);
     for (const claim of claims) {
-      if (retrospectiveGate(root, claim).state !== "healthy") {
+      if (attestRetrospectiveRow(root, claim).state !== "changed") {
         throw new Error(`Retrospective proof did not reproduce for ${claim.scenario}.`);
       }
     }
@@ -36397,7 +36453,7 @@ __export(exports_red_execution, {
   executeRedProof: () => executeRedProof
 });
 import { spawn as spawn3, spawnSync as spawnSync11 } from "child_process";
-import { createHash as createHash22 } from "crypto";
+import { createHash as createHash23 } from "crypto";
 import { realpathSync as realpathSync12 } from "fs";
 import nodePath52 from "path";
 function terminateProofTree(child) {
@@ -36431,7 +36487,7 @@ function proofEnvironment() {
 }
 function environmentIdentity(environment) {
   const entries = Object.entries(environment).toSorted(([left], [right]) => left.localeCompare(right));
-  const sha2566 = createHash22("sha256").update(JSON.stringify(entries)).digest("hex");
+  const sha2566 = createHash23("sha256").update(JSON.stringify(entries)).digest("hex");
   return {
     sha256: sha2566,
     variable_count: entries.length,
@@ -36444,7 +36500,7 @@ function environmentIdentity(environment) {
 
 class StreamEvidence {
   expected;
-  #hash = createHash22("sha256");
+  #hash = createHash23("sha256");
   #chunks = [];
   #retained = 0;
   #bytes = 0;
@@ -40983,7 +41039,7 @@ function readFrontmatterScalar(content, field) {
 }
 
 // src/utils/product-plan-contract.ts
-import { createHash as createHash23 } from "crypto";
+import { createHash as createHash24 } from "crypto";
 import { existsSync as existsSync28, readdirSync as readdirSync14, readFileSync as readFileSync46 } from "fs";
 import nodePath63 from "path";
 function sectionAfterHeading(content, level, id) {
@@ -41049,7 +41105,7 @@ function canonicalizeContractValue(value) {
 }
 function digestParentContract(values) {
   const canonical = CONTRACT_KEYS.map((key) => [key, canonicalizeContractValue(values[key])]);
-  return createHash23("sha256").update(JSON.stringify(canonical)).digest("hex");
+  return createHash24("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
 function resolveTicketDirectory(cwd, ticketId) {
   const root = resolveTicketsDirectory(cwd);
@@ -43071,7 +43127,7 @@ var init_project_root = __esm(() => {
 });
 
 // src/claude-plugin/plugin-data.ts
-import { createHash as createHash24 } from "crypto";
+import { createHash as createHash25 } from "crypto";
 import { homedir as homedir7 } from "os";
 import nodePath69 from "path";
 function claudeConfigDirectory(environment = process.env) {
@@ -43088,7 +43144,7 @@ function claudePluginDataDirectory(environment = process.env) {
   return nodePath69.join(claudeConfigDirectory(environment), CLAUDE_MIGRATION_SCHEMA.data.pluginsRoot, claudePluginDataId());
 }
 function claudeProjectDigest(canonicalProjectRoot) {
-  return createHash24("sha256").update(canonicalProjectRoot).digest("hex");
+  return createHash25("sha256").update(canonicalProjectRoot).digest("hex");
 }
 function claudeProofDirectory(environment = process.env) {
   return nodePath69.join(claudePluginDataDirectory(environment), CLAUDE_MIGRATION_SCHEMA.data.proofs);
@@ -43103,7 +43159,7 @@ var init_plugin_data = __esm(() => {
 });
 
 // src/claude-plugin/migration-state.ts
-import { createHash as createHash25, randomUUID as randomUUID11 } from "crypto";
+import { createHash as createHash26, randomUUID as randomUUID11 } from "crypto";
 import { cpSync, existsSync as existsSync32, mkdirSync as mkdirSync18, readFileSync as readFileSync50, renameSync as renameSync11, rmSync as rmSync11 } from "fs";
 import nodePath70 from "path";
 function createClaudePluginMode(marker) {
@@ -43114,7 +43170,7 @@ function createClaudePluginMode(marker) {
   };
 }
 function digest3(value) {
-  return createHash25("sha256").update(value).digest("hex");
+  return createHash26("sha256").update(value).digest("hex");
 }
 function relocateLegacyState(from, to, rename2 = renameSync11, copy = (source, destination) => {
   cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
@@ -43201,7 +43257,7 @@ function claudeWatchedSettingsDigest(cwd) {
     nodePath70.join(cwd, ".claude/settings.json"),
     nodePath70.join(configDirectory, "settings.json")
   ];
-  const hash = createHash25("sha256");
+  const hash = createHash26("sha256");
   for (const path7 of paths) {
     hash.update(path7);
     hash.update("\x00");
@@ -45082,9 +45138,9 @@ var init_detect = __esm(() => {
 });
 
 // src/utils/cucumber-template-revisions.ts
-import { createHash as createHash26 } from "crypto";
+import { createHash as createHash27 } from "crypto";
 function isShippedCucumberTemplateRevision(content) {
-  const hash = createHash26("sha256").update(content).digest("hex");
+  const hash = createHash27("sha256").update(content).digest("hex");
   return CUCUMBER_TEMPLATE_REVISION_HASHES.has(hash);
 }
 var CUCUMBER_TEMPLATE_REVISION_HASHES;
@@ -56103,7 +56159,7 @@ __export(exports_profile, {
   claudeInstallRequiresMutation: () => claudeInstallRequiresMutation
 });
 import { spawnSync as spawnSync13 } from "child_process";
-import { createHash as createHash27 } from "crypto";
+import { createHash as createHash28 } from "crypto";
 import {
   closeSync as closeSync8,
   cpSync as cpSync2,
@@ -56646,7 +56702,7 @@ function convergePlugin(cwd, scope, effects) {
   }
 }
 function fileSha256(path8) {
-  return createHash27("sha256").update(readFileSync54(path8)).digest("hex");
+  return createHash28("sha256").update(readFileSync54(path8)).digest("hex");
 }
 function assertInstalledAsset(installPath, asset) {
   if (typeof asset.path !== "string" || nodePath86.isAbsolute(asset.path) || asset.path.split(/[\\/]/u).includes("..") || typeof asset.sha256 !== "string") {
@@ -56658,7 +56714,7 @@ function assertInstalledAsset(installPath, asset) {
   }
 }
 function assertInstalledIdentity(identity, inventory, inventoryContent) {
-  if (identity.schema_version !== 1 || identity.plugin_version !== VERSION || identity.inventory_sha256 !== createHash27("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
+  if (identity.schema_version !== 1 || identity.plugin_version !== VERSION || identity.inventory_sha256 !== createHash28("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
     throw new TypeError("installed identity or inventory is inconsistent");
   }
 }
@@ -56957,7 +57013,7 @@ var init_profile = __esm(() => {
 });
 
 // src/claude-plugin/hook-manifest.ts
-import { createHash as createHash28 } from "crypto";
+import { createHash as createHash29 } from "crypto";
 function adaptHookValue(value) {
   if (typeof value === "string") {
     return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
@@ -57007,7 +57063,7 @@ function pluginHookManifest() {
 `;
 }
 function currentClaudePluginHookManifestSha256() {
-  return createHash28("sha256").update(pluginHookManifest()).digest("hex");
+  return createHash29("sha256").update(pluginHookManifest()).digest("hex");
 }
 var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js', EVENT_GROUP_EVENTS;
 var init_hook_manifest = __esm(() => {
@@ -58091,8 +58147,7 @@ function dispatch(identity, envelope, directory) {
   const inputText = Object.values(envelope.tool_input).filter(value => typeof value === 'string').join('\n');
   const timeoutMilliseconds = /ticket\.md/u.test(inputText) && /status:\s*['"]?done\b/u.test(inputText)
     ? 90_000
-    // VERIFIED replays two bounded three-minute tests plus archive preparation.
-    : /\bVERIFIED\b/iu.test(inputText) ? 600_000 : 2_000;
+    : /\bVERIFIED\b/iu.test(inputText) ? 30_000 : 2_000;
   return new Promise((resolve, reject) => {
     const child = spawn(identity.runtime_path, [identity.dispatcher_path], {
       cwd: directory,
@@ -58207,7 +58262,7 @@ __export(exports_profile2, {
   installOpenCodeProfile: () => installOpenCodeProfile,
   generateOpenCodeProfilePlugin: () => generateOpenCodeProfilePlugin
 });
-import { createHash as createHash29 } from "crypto";
+import { createHash as createHash30 } from "crypto";
 import {
   existsSync as existsSync43,
   lstatSync as lstatSync19,
@@ -58265,7 +58320,7 @@ function observeFile2(path8) {
   }
 }
 function sha2566(value) {
-  return createHash29("sha256").update(value).digest("hex");
+  return createHash30("sha256").update(value).digest("hex");
 }
 function packagedDispatcherPath() {
   const moduleDirectory = import.meta.dirname;
@@ -59189,7 +59244,7 @@ __export(exports_conformance, {
   observeOpenCodeVersion: () => observeOpenCodeVersion
 });
 import { spawnSync as spawnSync15 } from "child_process";
-import { createHash as createHash30 } from "crypto";
+import { createHash as createHash31 } from "crypto";
 import { accessSync as accessSync3, constants as constants4, lstatSync as lstatSync20, readFileSync as readFileSync59, realpathSync as realpathSync17, statSync as statSync7 } from "fs";
 import nodePath94 from "path";
 function resolveExecutable(environment) {
@@ -59244,7 +59299,7 @@ function profileRemediation() {
   });
 }
 function sha2567(value) {
-  return createHash30("sha256").update(value).digest("hex");
+  return createHash31("sha256").update(value).digest("hex");
 }
 function installedProfile(environment) {
   const root = resolveOpenCodeConfigRoot({
@@ -60178,7 +60233,7 @@ var init_doctor = __esm(() => {
 });
 
 // src/cli-protocol/reconciliation.ts
-import { createHash as createHash31 } from "crypto";
+import { createHash as createHash32 } from "crypto";
 import { lstatSync as lstatSync21, readdirSync as readdirSync29, readFileSync as readFileSync60, readlinkSync as readlinkSync3 } from "fs";
 import nodePath95 from "path";
 function actionTargets(action) {
@@ -60229,7 +60284,7 @@ function hashPath(hash, absolutePath, relativePath, readFile3) {
   }
 }
 function preconditionDigestForPaths(cwd, paths, readFile3 = readFileForDigest) {
-  const hash = createHash31("sha256");
+  const hash = createHash32("sha256");
   const targets = [...new Set(paths)].toSorted((left, right) => left.localeCompare(right));
   for (const target of targets) {
     hashField(hash, "target", target);
@@ -60954,7 +61009,7 @@ To wire the warn-only boundary gate, add under repos:
 
 // src/utils/namespace-migration.ts
 import { execSync } from "child_process";
-import { createHash as createHash32 } from "crypto";
+import { createHash as createHash33 } from "crypto";
 import {
   closeSync as closeSync9,
   constants as fsConstants3,
@@ -61003,7 +61058,7 @@ function validateDirectoryRoot(path8, label) {
 }
 function conflictArchivePath(source, relative) {
   const metadata = lstatSync22(source);
-  const digest4 = createHash32("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync63(source)).digest("hex");
+  const digest4 = createHash33("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync63(source)).digest("hex");
   return nodePath102.join(".safeword", "namespace-migration-conflicts-v1", digest4, relative);
 }
 function plannedNamespaceMigrationFiles(cwd) {
@@ -61715,7 +61770,7 @@ var init_vendored_ignores_nudge = __esm(() => {
 });
 
 // src/lifecycle/project-install.ts
-import { createHash as createHash33 } from "crypto";
+import { createHash as createHash34 } from "crypto";
 import {
   closeSync as closeSync10,
   constants as fsConstants4,
@@ -62016,7 +62071,7 @@ function setupPreconditionDigest(cwd, reconciliationDigest, effects, context, op
     ...effects.files.map((effect) => effect.target),
     ...effects.destructive.map((effect) => effect.target)
   ].filter((target) => !target.includes(" \u2192 "));
-  return createHash33("sha256").update(JSON.stringify([
+  return createHash34("sha256").update(JSON.stringify([
     reconciliationDigest,
     effects,
     JSON.stringify(context, (_key, value) => typeof value === "string" ? value.replaceAll(cwd, "<project>") : value),
@@ -63019,7 +63074,7 @@ __export(exports_commands, {
   planLifecycle: () => planLifecycle,
   installLifecycle: () => installLifecycle
 });
-import { createHash as createHash34 } from "crypto";
+import { createHash as createHash35 } from "crypto";
 function activationActionsFor(surface) {
   if (surface.name === "claude" && surface.result.changed)
     return ["run /reload-plugins"];
@@ -63211,7 +63266,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
   };
   const integrationSurfaces = observedSurfaces.filter((surface) => selected.has(surface.name));
   const surfaces = [{ name: "project", effects: project.plan.effects }, ...integrationSurfaces];
-  const preconditionDigest2 = createHash34("sha256").update(JSON.stringify([
+  const preconditionDigest2 = createHash35("sha256").update(JSON.stringify([
     project.plan.preconditionDigest,
     agents,
     scope,
@@ -63511,7 +63566,7 @@ __export(exports_cleanup, {
   claudeLegacyMutations: () => claudeLegacyMutations,
   claudeCleanupPreconditionDigest: () => claudeCleanupPreconditionDigest
 });
-import { createHash as createHash35, randomUUID as randomUUID13 } from "crypto";
+import { createHash as createHash36, randomUUID as randomUUID13 } from "crypto";
 import {
   closeSync as closeSync11,
   constants as fsConstants5,
@@ -63531,7 +63586,7 @@ import {
 } from "fs";
 import nodePath109 from "path";
 function sha2568(content) {
-  return createHash35("sha256").update(content).digest("hex");
+  return createHash36("sha256").update(content).digest("hex");
 }
 function containsJsonComments(content) {
   let found = false;
@@ -64568,7 +64623,7 @@ function resolveExecutionMode(input) {
 }
 
 // src/test-execution/remote-workflow-contract.ts
-import { createHash as createHash36 } from "crypto";
+import { createHash as createHash37 } from "crypto";
 function mapping(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
 }
@@ -64712,7 +64767,7 @@ function hasFixedUpload(steps) {
 }
 function resultViolations(steps) {
   const reportRun = stepById(steps, "report")?.run;
-  const reportValid = typeof reportRun === "string" && createHash36("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
+  const reportValid = typeof reportRun === "string" && createHash37("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
   return reportValid && hasFixedUpload(steps) ? [] : ["fixed_result_protocol"];
 }
 function hasSecretsKey(value) {
@@ -64970,7 +65025,7 @@ var init_remote_workflow_fs = __esm(() => {
 });
 
 // src/test-execution/remote-workflow-state.ts
-import { createHash as createHash37 } from "crypto";
+import { createHash as createHash38 } from "crypto";
 import nodePath112 from "path";
 function observationError(error2, path8) {
   const code = filesystemErrorCode(error2);
@@ -64985,7 +65040,7 @@ function normalizeLineEndings2(content) {
 `);
 }
 function workflowDigest(content) {
-  return createHash37("sha256").update(normalizeLineEndings2(content)).digest("hex");
+  return createHash38("sha256").update(normalizeLineEndings2(content)).digest("hex");
 }
 function readOpenedWorkflow(descriptor, filesystem) {
   const metadata = filesystem.fstat(descriptor);
@@ -72608,11 +72663,19 @@ async function executableRedGateHandler(invocation) {
   return executableRedGate2(invocation.cwd, scenario, ledger);
 }
 async function retrospectiveGateHandler(invocation) {
+  return retrospectiveHandler(invocation, false);
+}
+async function retrospectiveAttestHandler(invocation) {
+  return retrospectiveHandler(invocation, true);
+}
+async function retrospectiveHandler(invocation, replay) {
+  const command = replay ? "review attest retrospective" : "review gate retrospective";
   const { ticket, scenario, ledger, eligibility, proof } = invocation.options;
   if ([ticket, scenario, ledger, eligibility, proof].some((value) => typeof value !== "string" || value.trim() === ""))
-    return invalidOperand("review gate retrospective", "Ticket, scenario, ledger, eligibility, and proof are required.");
-  const { retrospectiveGate: retrospectiveGate2 } = await Promise.resolve().then(() => (init_retrospective_gate(), exports_retrospective_gate));
-  return retrospectiveGate2(invocation.cwd, {
+    return invalidOperand(command, "Ticket, scenario, ledger, eligibility, and proof are required.");
+  const { retrospectiveGate: retrospectiveGate2, attestRetrospectiveRow: attestRetrospectiveRow2 } = await Promise.resolve().then(() => (init_retrospective_gate(), exports_retrospective_gate));
+  const check = replay ? attestRetrospectiveRow2 : retrospectiveGate2;
+  return check(invocation.cwd, {
     ticketId: ticket,
     scenario,
     ledger,
@@ -73734,6 +73797,7 @@ var HANDLERS = {
   "review run": reviewRunHandler,
   "review gate executable-red": executableRedGateHandler,
   "review gate retrospective": retrospectiveGateHandler,
+  "review attest retrospective": retrospectiveAttestHandler,
   "review attest retrospective-close": retrospectiveCloseAttestHandler,
   "review gate retrospective-close": retrospectiveCloseGateHandler,
   "review status": reviewStatusHandler,
@@ -74263,6 +74327,34 @@ var CANONICAL_COMMANDS = [
       argv: [
         "review",
         "gate",
+        "retrospective",
+        "--ticket",
+        "OTHER1",
+        "--scenario",
+        "Example",
+        "--ledger",
+        ".project/tickets/OTHER1/test-definitions.md",
+        "--eligibility",
+        "00000000-0000-0000-0000-000000000001",
+        "--proof",
+        "00000000-0000-0000-0000-000000000002"
+      ],
+      environment: MACHINE_ENVIRONMENT
+    }
+  }),
+  command("review attest retrospective", "Replay one CKWE2D proof before checking its row", "mutate", {
+    syntax: "retrospective",
+    commandOptions: [
+      { flags: "--ticket <id>", description: "Ticket claiming retrospective completion" },
+      { flags: "--scenario <name>", description: "Exact scenario heading" },
+      { flags: "--ledger <path>", description: "Project-relative scenario ledger" },
+      { flags: "--eligibility <id>", description: "Independent historical eligibility review" },
+      { flags: "--proof <id>", description: "Independent passing/mutation proof review" }
+    ],
+    fixture: {
+      argv: [
+        "review",
+        "attest",
         "retrospective",
         "--ticket",
         "OTHER1",

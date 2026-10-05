@@ -1,10 +1,16 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { frontmatterOf } from '../../templates/hooks/lib/phase-provenance.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { approvedRetrospectiveReview } from './job.js';
+import { writeDurableFile } from '../codex-plugin/durable-write.js';
+import {
+  approvedRetrospectiveReview,
+  retrospectiveCloseTag,
+  validRetrospectiveCloseTag,
+} from './job.js';
 import { type BaselineBlobClaim } from './retrospective-baseline.js';
 import {
   RETROSPECTIVE_CUTOFF,
@@ -14,6 +20,7 @@ import {
 } from './retrospective-history.js';
 import { checkRetrospectivePrerequisites } from './retrospective-prerequisites.js';
 import {
+  readProofInput,
   type RetrospectiveProofObservation,
   type RetrospectiveProofRequest,
   runRetrospectiveProof,
@@ -171,6 +178,7 @@ function verifiedProof(
   targets: readonly string[],
   request: RetrospectiveGateRequest,
   eligibility: EligibilityClaim,
+  replay: boolean,
 ): boolean {
   if (targets.length !== 2 || targets.some(path => !path.endsWith('.json'))) return false;
   const proofRequest = JSON.parse(
@@ -179,20 +187,96 @@ function verifiedProof(
   const reviewed = JSON.parse(
     readFileSync(nodePath.join(root, targets[1] ?? ''), 'utf8'),
   ) as RetrospectiveProofObservation;
-  if (
-    proofRequest.ticketId !== RETROSPECTIVE_TICKET ||
-    proofRequest.scenario !== request.scenario ||
-    eligibility.blobs.every(blob => blob.currentPath !== proofRequest.implementationPath) ||
-    JSON.stringify(reviewed.request) !== JSON.stringify(proofRequest)
-  )
-    return false;
+  if (!matchingProofRequest(proofRequest, reviewed, request, eligibility)) return false;
   if (!hasDiscriminatingOutcome(reviewed, proofRequest.testFullName)) return false;
+  const content = `retrospective-row-v1\0${rowIdentity(request)}\0${stableObservation(reviewed)}`;
+  const path = rowRecordPath(root, request);
+  if (!replay) {
+    return currentReplayRecord(root, path, content, reviewed.supportSha256);
+  }
   const rerun = runRetrospectiveProof(root, proofRequest);
-  return stableObservation(reviewed) === stableObservation(rerun);
+  if (stableObservation(reviewed) !== stableObservation(rerun)) return false;
+  writeDurableFile(path, `${retrospectiveCloseTag(root, content)}\n`, { mode: 0o600 });
+  return true;
+}
+
+function matchingProofRequest(
+  proof: RetrospectiveProofRequest,
+  reviewed: RetrospectiveProofObservation,
+  request: RetrospectiveGateRequest,
+  eligibility: EligibilityClaim,
+): boolean {
+  return (
+    proof.ticketId === RETROSPECTIVE_TICKET &&
+    proof.scenario === request.scenario &&
+    eligibility.blobs.some(blob => blob.currentPath === proof.implementationPath) &&
+    JSON.stringify(reviewed.request) === JSON.stringify(proof)
+  );
+}
+
+function currentReplayRecord(
+  root: string,
+  path: string,
+  content: string,
+  inputs: Readonly<Record<string, string>>,
+): boolean {
+  const integrity = readFileSync(path, 'utf8').trim();
+  return (
+    validRetrospectiveCloseTag(root, content, integrity) &&
+    Object.entries(inputs).every(
+      ([input, digest]) =>
+        createHash('sha256').update(readProofInput(root, input)).digest('hex') === digest,
+    )
+  );
+}
+
+function rowRecordPath(root: string, request: RetrospectiveGateRequest): string {
+  const identity = createHash('sha256').update(rowIdentity(request)).digest('hex');
+  return nodePath.join(root, '.safeword/state/reviews', `retrospective-row-${identity}.tag`);
+}
+
+function rowIdentity(request: RetrospectiveGateRequest): string {
+  return JSON.stringify([
+    request.ticketId,
+    request.ledger,
+    request.scenario,
+    request.eligibilityId,
+    request.proofId,
+  ]);
+}
+
+/** Replay outside the host's edit-hook deadline, then bind the exact reviewed inputs. */
+export function attestRetrospectiveRow(root: string, request: RetrospectiveGateRequest): CliResult {
+  const result = retrospectiveGate(root, request, true);
+  const approved = result.state === 'healthy';
+  return createResult({
+    state: approved ? 'changed' : result.state,
+    findings: result.findings,
+    effects: approved
+      ? {
+          files: [
+            {
+              kind: 'review-record',
+              target: nodePath.relative(root, rowRecordPath(root, request)),
+              operation: 'write',
+            },
+          ],
+        }
+      : undefined,
+    data: {
+      command: 'review attest retrospective',
+      status: approved ? 'approved' : 'blocked',
+      ...request,
+    },
+  });
 }
 
 /** This gate never treats a review verdict or author JSON as execution evidence. */
-export function retrospectiveGate(root: string, request: RetrospectiveGateRequest): CliResult {
+export function retrospectiveGate(
+  root: string,
+  request: RetrospectiveGateRequest,
+  replay = false,
+): CliResult {
   if (request.ticketId !== RETROSPECTIVE_TICKET || request.ledger !== RETROSPECTIVE_LEDGER)
     return deny('Only CKWE2D may use retrospective receipts.');
   if (request.eligibilityId === request.proofId)
@@ -209,8 +293,10 @@ export function retrospectiveGate(root: string, request: RetrospectiveGateReques
     const eligibility = verifiedEligibility(root, eligibilityTargets, request);
     if (eligibility === undefined)
       return deny('Historical eligibility no longer matches the cutoff and scenario.');
-    if (!verifiedProof(root, proofTargets, request, eligibility))
-      return deny('The reviewed passing/mutation proof is stale or does not reproduce.');
+    if (!verifiedProof(root, proofTargets, request, eligibility, replay))
+      return deny(
+        'The reviewed proof is stale. Run review attest retrospective before checking the row.',
+      );
     return createResult({
       state: 'healthy',
       findings: [
@@ -227,6 +313,8 @@ export function retrospectiveGate(root: string, request: RetrospectiveGateReques
       },
     });
   } catch {
-    return deny('Retrospective evidence is missing, invalid, or could not be reproduced.');
+    return deny(
+      'Retrospective evidence is missing or invalid. Run review attest retrospective before checking the row.',
+    );
   }
 }

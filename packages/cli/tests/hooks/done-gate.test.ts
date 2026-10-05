@@ -199,22 +199,25 @@ describe('evaluateDoneEvidence', () => {
     expect(verdict).toEqual({ ok: false, reason: 'VERIFIED requires unique scenario headings.' });
   });
 
-  it('rejects a checked VERIFIED row with noncanonical spacing before counting completion', () => {
-    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
-    writeFileSync(
-      nodePath.join(ticketDirectory, 'test-definitions.md'),
-      '### Scenario: historical behavior\n- [x]  VERIFIED eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222\n',
-    );
-    const verdict = evaluateDoneEvidence({
-      projectDir: projectDirectory,
-      ticketDir: ticketDirectory,
-      ticketType: 'feature',
-    });
-    expect(verdict).toEqual({
-      ok: false,
-      reason: 'VERIFIED row must use uppercase VERIFIED and the canonical checkbox spacing.',
-    });
-  });
+  it.each([' VERIFIED', 'verified', 'Verified'])(
+    'rejects noncanonical %s before counting completion',
+    label => {
+      writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'test-definitions.md'),
+        `### Scenario: historical behavior\n- [x] ${label} eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222\n`,
+      );
+      const verdict = evaluateDoneEvidence({
+        projectDir: projectDirectory,
+        ticketDir: ticketDirectory,
+        ticketType: 'feature',
+      });
+      expect(verdict).toEqual({
+        ok: false,
+        reason: 'VERIFIED row must use uppercase VERIFIED and the canonical checkbox spacing.',
+      });
+    },
+  );
 
   it('accepts a CKWE2D VERIFIED scenario only after the installed closing gate approves', () => {
     ticketDirectory = nodePath.join(projectDirectory, '.project', 'tickets', 'CKWE2D-x');

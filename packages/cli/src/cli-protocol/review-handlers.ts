@@ -84,6 +84,20 @@ export async function executableRedGateHandler(invocation: CommandInvocation): P
 }
 
 export async function retrospectiveGateHandler(invocation: CommandInvocation): Promise<CliResult> {
+  return retrospectiveHandler(invocation, false);
+}
+
+export async function retrospectiveAttestHandler(
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  return retrospectiveHandler(invocation, true);
+}
+
+async function retrospectiveHandler(
+  invocation: CommandInvocation,
+  replay: boolean,
+): Promise<CliResult> {
+  const command = replay ? 'review attest retrospective' : 'review gate retrospective';
   const { ticket, scenario, ledger, eligibility, proof } = invocation.options;
   if (
     [ticket, scenario, ledger, eligibility, proof].some(
@@ -91,11 +105,13 @@ export async function retrospectiveGateHandler(invocation: CommandInvocation): P
     )
   )
     return invalidOperand(
-      'review gate retrospective',
+      command,
       'Ticket, scenario, ledger, eligibility, and proof are required.',
     );
-  const { retrospectiveGate } = await import('../review/retrospective-gate.js');
-  return retrospectiveGate(invocation.cwd, {
+  const { retrospectiveGate, attestRetrospectiveRow } =
+    await import('../review/retrospective-gate.js');
+  const check = replay ? attestRetrospectiveRow : retrospectiveGate;
+  return check(invocation.cwd, {
     ticketId: ticket as string,
     scenario: scenario as string,
     ledger: ledger as string,

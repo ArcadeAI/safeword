@@ -19,11 +19,11 @@ const proofPath = '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly
 const observationPath =
   '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/observation.json';
 const replay = vi.hoisted<{
-  state: 'healthy' | 'action_required';
+  state: 'changed' | 'action_required';
   calls: number;
   root: string;
   request: unknown;
-}>(() => ({ state: 'healthy', calls: 0, root: '', request: undefined }));
+}>(() => ({ state: 'changed', calls: 0, root: '', request: undefined }));
 
 vi.mock('../../src/review/job.js', async importOriginal => {
   const actual = await importOriginal<typeof ReviewJob>();
@@ -35,7 +35,7 @@ vi.mock('../../src/review/job.js', async importOriginal => {
 });
 
 vi.mock('../../src/review/retrospective-gate.js', () => ({
-  retrospectiveGate: (root: string, request: unknown) => {
+  attestRetrospectiveRow: (root: string, request: unknown) => {
     replay.calls += 1;
     replay.root = root;
     replay.request = request;
@@ -97,7 +97,7 @@ describe('retrospective closing replay record', () => {
   let previousKeyRoot: string | undefined;
 
   beforeEach(() => {
-    replay.state = 'healthy';
+    replay.state = 'changed';
     replay.calls = 0;
     replay.root = '';
     replay.request = undefined;

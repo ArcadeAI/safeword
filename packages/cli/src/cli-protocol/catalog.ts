@@ -683,6 +683,39 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
+  command(
+    'review attest retrospective',
+    'Replay one CKWE2D proof before checking its row',
+    'mutate',
+    {
+      syntax: 'retrospective',
+      commandOptions: [
+        { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
+        { flags: '--scenario <name>', description: 'Exact scenario heading' },
+        { flags: '--ledger <path>', description: 'Project-relative scenario ledger' },
+        { flags: '--eligibility <id>', description: 'Independent historical eligibility review' },
+        { flags: '--proof <id>', description: 'Independent passing/mutation proof review' },
+      ],
+      fixture: {
+        argv: [
+          'review',
+          'attest',
+          'retrospective',
+          '--ticket',
+          'OTHER1',
+          '--scenario',
+          'Example',
+          '--ledger',
+          '.project/tickets/OTHER1/test-definitions.md',
+          '--eligibility',
+          '00000000-0000-0000-0000-000000000001',
+          '--proof',
+          '00000000-0000-0000-0000-000000000002',
+        ],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('review attest retrospective-close', 'Replay CKWE2D proofs for closing', 'mutate', {
     syntax: 'retrospective-close',
     commandOptions: [

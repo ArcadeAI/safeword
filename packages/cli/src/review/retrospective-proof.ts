@@ -244,7 +244,8 @@ function requireArchivedSource(copy: string, path: string, source: Buffer): void
   }
 }
 
-function readProofInput(root: string, path: string): Buffer {
+export function readProofInput(root: string, path: string): Buffer {
+  if (!safePath(path)) throw new Error('Proof input path escapes the project.');
   const parts = path.split('/');
   let candidate = root;
   for (const [index, part] of parts.entries()) {

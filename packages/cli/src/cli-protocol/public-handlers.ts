@@ -24,6 +24,7 @@ import {
 } from './retro-handlers.js';
 import {
   executableRedGateHandler,
+  retrospectiveAttestHandler,
   retrospectiveCloseAttestHandler,
   retrospectiveCloseGateHandler,
   retrospectiveGateHandler,
@@ -485,6 +486,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'review run': reviewRunHandler,
   'review gate executable-red': executableRedGateHandler,
   'review gate retrospective': retrospectiveGateHandler,
+  'review attest retrospective': retrospectiveAttestHandler,
   'review attest retrospective-close': retrospectiveCloseAttestHandler,
   'review gate retrospective-close': retrospectiveCloseGateHandler,
   'review status': reviewStatusHandler,
