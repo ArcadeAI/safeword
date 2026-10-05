@@ -39,10 +39,11 @@ describe('review-pr inspect command wiring', () => {
       JSON.stringify({
         prReview: {
           enabled: true,
+          generatedFilesCheck: 'Dogfood parity',
           maxTotalBytes: 1024,
           model: 'gpt-test',
           provider: 'openai',
-          requiredChecks: [{ context: 'build' }],
+          requiredChecks: [{ context: 'build' }, { context: 'Dogfood parity' }],
         },
       }),
     );
@@ -64,8 +65,12 @@ describe('review-pr inspect command wiring', () => {
             kind: 'text',
             path: 'policies/deprecated.flux',
           },
+          { kind: 'generated', path: 'plugin/runtime/cli.js' },
         ],
-        checks: [{ conclusion: 'success', name: 'build', status: 'completed' }],
+        checks: [
+          { conclusion: 'success', name: 'build', status: 'completed' },
+          { conclusion: 'success', name: 'Dogfood parity', status: 'completed' },
+        ],
         headSha: 'a'.repeat(40),
         markerReceiptExists: false,
         pullState: 'ready',
@@ -98,13 +103,112 @@ describe('review-pr inspect command wiring', () => {
       }),
     );
     expect(receiptOf(result)).toMatchObject({
-      checks: [{ name: 'build', status: 'success' }],
+      checks: [
+        { name: 'build', status: 'success' },
+        { name: 'Dogfood parity', status: 'success' },
+      ],
+      coverage: [
+        { path: 'policies/access.flux', status: 'integrity_reviewed' },
+        { path: 'policies/deprecated.flux', status: 'integrity_reviewed' },
+        { path: 'plugin/runtime/cli.js', skipReason: 'generated', status: 'skipped' },
+      ],
       reviewedSha: 'a'.repeat(40),
       route: 'needs_human',
       tokenUsage: { input: 123, output: 45 },
     });
     expect(JSON.parse(readFileSync(outputPath, 'utf8'))).toEqual(result);
+
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({
+        prReview: {
+          enabled: true,
+          maxTotalBytes: 1024,
+          model: 'gpt-test',
+          provider: 'openai',
+          requiredChecks: [{ context: 'build' }, { context: 'Dogfood parity' }],
+        },
+      }),
+    );
+    const withoutGeneratedAuthority = await inspectPullRequestCommand({
+      cwd,
+      inputPath,
+      outputPath,
+      provider,
+    });
+    expect(receiptOf(withoutGeneratedAuthority)).toMatchObject({
+      missingEvidence: ['plugin/runtime/cli.js'],
+      route: 'needs_human',
+      runState: 'incomplete',
+    });
+
+    const conflictingInput = JSON.parse(readFileSync(inputPath, 'utf8')) as {
+      checks: { conclusion: string; name: string; status: string }[];
+    };
+    conflictingInput.checks.push({
+      conclusion: 'failure',
+      name: 'Dogfood parity',
+      status: 'completed',
+    });
+    writeFileSync(inputPath, JSON.stringify(conflictingInput));
+    const conflictingCheck = await inspectPullRequestCommand({
+      cwd,
+      inputPath,
+      outputPath,
+      provider,
+    });
+    expect(receiptOf(conflictingCheck)).toMatchObject({ status: 'prerequisites_failed' });
   });
+
+  it.each([
+    ['pending', 'in_progress', 'success', 'prerequisites_pending'],
+    ['failed', 'completed', 'failure', 'prerequisites_failed'],
+  ] as const)(
+    'does not issue a generated-skip receipt when parity is %s',
+    async (_case, status, conclusion, expectedStatus) => {
+      const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-generated-parity-'));
+      directories.push(cwd);
+      mkdirSync(nodePath.join(cwd, '.safeword'));
+      writeFileSync(
+        nodePath.join(cwd, '.safeword', 'config.json'),
+        JSON.stringify({
+          prReview: {
+            enabled: true,
+            generatedFilesCheck: 'Dogfood parity',
+            maxTotalBytes: 1024,
+            model: 'gpt-test',
+            provider: 'openai',
+            requiredChecks: [{ context: 'Dogfood parity' }],
+          },
+        }),
+      );
+      const inputPath = nodePath.join(cwd, 'inspection-input.json');
+      const outputPath = nodePath.join(cwd, 'inspection-result.json');
+      writeFileSync(
+        inputPath,
+        JSON.stringify({
+          artifacts: [textArtifact(), { kind: 'generated', path: 'plugin/runtime/cli.js' }],
+          checks: [{ conclusion, name: 'Dogfood parity', status }],
+          headSha: 'a'.repeat(40),
+          markerReceiptExists: false,
+          pullState: 'ready',
+          schemaVersion: 1,
+          statuses: [],
+        }),
+      );
+
+      const provider = vi.fn();
+      const result = await inspectPullRequestCommand({
+        cwd,
+        inputPath,
+        outputPath,
+        provider,
+      });
+
+      expect(provider).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ kind: 'receipt', receipt: { status: expectedStatus } });
+    },
+  );
 
   it.each([
     ['missing context', [textArtifact()], ['policies/access.flux']],
@@ -259,7 +363,7 @@ describe('review-pr inspect command wiring', () => {
     });
   });
 
-  it('uses the same cumulative byte budget for provider evidence and receipt coverage', async () => {
+  it('reviews every bounded file in separate passes and fails closed if a later pass fails', async () => {
     const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-budget-'));
     directories.push(cwd);
     mkdirSync(nodePath.join(cwd, '.safeword'));
@@ -315,7 +419,74 @@ describe('review-pr inspect command wiring', () => {
         model: 'gpt-test',
       }),
     );
+    expect(provider).toHaveBeenCalledTimes(2);
+    expect(provider).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        evidence: [{ content: overBudgetContent, path: 'src/over-budget.ts' }],
+      }),
+    );
     expect(receiptOf(result)).toMatchObject({
+      coverage: [
+        { path: 'src/first.ts', status: 'integrity_reviewed' },
+        { path: 'src/over-budget.ts', status: 'integrity_reviewed' },
+      ],
+      missingEvidence: [],
+      route: 'looks_ready',
+      runState: 'complete',
+    });
+
+    const brokenProvider = vi
+      .fn()
+      .mockResolvedValueOnce({ findings: [], tokenUsage: {} })
+      .mockRejectedValueOnce(new Error('provider unavailable'));
+    const broken = await inspectPullRequestCommand({
+      cwd,
+      inputPath,
+      outputPath,
+      provider: brokenProvider,
+    });
+    expect(brokenProvider).toHaveBeenCalledTimes(2);
+    expect(receiptOf(broken)).toMatchObject({
+      coverage: [{ path: 'src/first.ts', status: 'integrity_reviewed' }],
+      missingEvidence: ['src/over-budget.ts'],
+      route: 'needs_human',
+      runState: 'failed',
+      unknowns: ['review provider failed'],
+    });
+
+    const shortInput = JSON.parse(readFileSync(inputPath, 'utf8')) as Record<string, unknown>;
+    shortInput.expectedArtifactCount = 3;
+    writeFileSync(inputPath, JSON.stringify(shortInput));
+    const countProvider = vi.fn();
+    await expect(
+      inspectPullRequestCommand({ cwd, inputPath, outputPath, provider: countProvider }),
+    ).rejects.toThrow('pull request artifact count is incomplete');
+    expect(countProvider).not.toHaveBeenCalled();
+
+    shortInput.expectedArtifactCount = 2;
+    writeFileSync(inputPath, JSON.stringify(shortInput));
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({
+        prReview: {
+          enabled: true,
+          maxPasses: 1,
+          maxTotalBytes: 100,
+          model: 'gpt-test',
+          provider: 'openai',
+          requiredChecks: [],
+        },
+      }),
+    );
+    const onePassProvider = vi.fn().mockResolvedValue({ findings: [], tokenUsage: {} });
+    const limited = await inspectPullRequestCommand({
+      cwd,
+      inputPath,
+      outputPath,
+      provider: onePassProvider,
+    });
+    expect(onePassProvider).toHaveBeenCalledTimes(1);
+    expect(receiptOf(limited)).toMatchObject({
       coverage: [{ path: 'src/first.ts', status: 'integrity_reviewed' }],
       missingEvidence: ['src/over-budget.ts'],
       route: 'needs_human',

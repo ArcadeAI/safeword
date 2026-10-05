@@ -176,21 +176,24 @@ Blog posts, tweets, marketing, and "I remember reading…" don't count for any t
 
 Read the matching guide when its trigger fires:
 
-| Trigger                                                             | Guide                                            |
-| ------------------------------------------------------------------- | ------------------------------------------------ |
-| Starting a feature/task OR writing specs/test-definitions           | `./.safeword/guides/planning-guide.md`           |
-| Choosing proof scope during planning, doing TDD, or a test failing  | `./.safeword/guides/testing-guide.md`            |
-| Creating or updating a design doc                                   | `./.safeword/guides/design-doc-guide.md`         |
-| Making a significant structural/shared-contract decision or ADR     | `./.safeword/guides/architecture-guide.md`       |
-| Understanding the generated `architecture.generated.md` doc         | `./.safeword/guides/architecture-guide.md`       |
-| Changing data contracts, ownership, lifecycle, or cross-system flow | `./.safeword/guides/data-architecture-guide.md`  |
-| Changing an interface or access rule                                | `./.safeword/guides/interface-contract-guide.md` |
-| Planning live transition, material failure, or reversal             | `./.safeword/guides/release-recovery-guide.md`   |
-| Designing measurement for a Product promise or decision signal      | `./.safeword/guides/measurement-design-guide.md` |
-| Writing learnings or agent config (CLAUDE.md, .cursor/rules)        | `./.safeword/guides/llm-writing-guide.md`        |
-| Updating CLAUDE.md, SAFEWORD.md, or any context file                | `./.safeword/guides/context-files-guide.md`      |
-| Hit the same bug repeatedly or discovered an undocumented gotcha    | `./.safeword/guides/learning-extraction.md`      |
-| Process hanging, port in use, or zombie process suspected           | `./.safeword/guides/zombie-process-cleanup.md`   |
+| Trigger                                                             | Guide                                                 |
+| ------------------------------------------------------------------- | ----------------------------------------------------- |
+| Starting a feature/task OR writing specs/test-definitions           | `./.safeword/guides/planning-guide.md`                |
+| Choosing proof scope during planning, doing TDD, or a test failing  | `./.safeword/guides/testing-guide.md`                 |
+| Deciding when a check runs (smoke, live, or release)                | `./.safeword/guides/verification-lanes-guide.md`      |
+| Building or evaluating an AI/LLM feature                            | `./.safeword/guides/llm-evals-guide.md`               |
+| Changing a skill prompt and proving it improved                     | `./.safeword/guides/skill-eval-optimization-guide.md` |
+| Creating or updating a design doc                                   | `./.safeword/guides/design-doc-guide.md`              |
+| Making a significant structural/shared-contract decision or ADR     | `./.safeword/guides/architecture-guide.md`            |
+| Understanding the generated `architecture.generated.md` doc         | `./.safeword/guides/architecture-guide.md`            |
+| Changing data contracts, ownership, lifecycle, or cross-system flow | `./.safeword/guides/data-architecture-guide.md`       |
+| Changing an interface or access rule                                | `./.safeword/guides/interface-contract-guide.md`      |
+| Planning live transition, material failure, or reversal             | `./.safeword/guides/release-recovery-guide.md`        |
+| Designing measurement for a Product promise or decision signal      | `./.safeword/guides/measurement-design-guide.md`      |
+| Writing learnings or agent config (CLAUDE.md, .cursor/rules)        | `./.safeword/guides/llm-writing-guide.md`             |
+| Updating CLAUDE.md, SAFEWORD.md, or any context file                | `./.safeword/guides/context-files-guide.md`           |
+| Hit the same bug repeatedly or discovered an undocumented gotcha    | `./.safeword/guides/learning-extraction.md`           |
+| Process hanging, port in use, or zombie process suspected           | `./.safeword/guides/zombie-process-cleanup.md`        |
 
 ---
 
@@ -210,12 +213,14 @@ Read the matching guide when its trigger fires:
 
 ## Enforcement
 
-Safeword runs hooks each turn to track your phase and TDD step. Four gates hard-block:
+Safeword runs hooks each turn to track your phase and TDD step. A feature moves through intake, behavior definition, scenario review, planning, implementation, verification, and done. The main hard blocks:
 
-- **Phase gate** — can't start TDD without `test-definitions.md`; can't create `test-definitions.md` without `scope` / `out_of_scope` / `done_when` in ticket frontmatter.
+- **Scenario prerequisites** — `test-definitions.md` needs `scope` / `out_of_scope` / `done_when` in ticket frontmatter; features also need reviewed behavior and dimensions.
+- **Phase review** — leaving a phase needs independent review unless the configured review gate excludes that exit.
 - **Planning gates** — a new-flow feature can't enter `plan-execution` without a current reviewed Implementation Plan, or enter `implement` without a current reviewed Execution Plan. It can't reach `verify`/`done` until the Implementation Plan is reconciled to `implemented`.
+- **Ledger** — each RED/GREEN/REFACTOR checkbox needs its required proof; a REFACTOR commit can't touch tests.
 - **LOC gate** — commit every ~400 lines of project code (blast-radius control).
-- **Done gate** — can't close a ticket without `verify.md` in the ticket folder.
+- **Done gate** — can't close a ticket without current verification evidence in `verify.md`; features need every scenario accounted for and no `@wip` scenario left.
 
 The prompt hook injects your current phase each turn as a reminder.
 

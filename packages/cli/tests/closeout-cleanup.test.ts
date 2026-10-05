@@ -12,7 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { rememberCloseoutBinding } from '../templates/hooks/lib/closeout-binding.ts';
 import {
@@ -43,9 +43,11 @@ import {
   runBoundRetro,
   runVerificationCommand,
   safewordCliCommand,
+  SHARED_TEST_LOCK_WAIT_MS,
   transcriptMatchesBinding,
   VERIFICATION_COMMAND_TIMEOUT_MS,
   VERIFICATION_OUTPUT_LIMIT_BYTES,
+  verificationCommandFailure,
   workingStateHash,
 } from '../templates/scripts/closeout-cleanup.ts';
 
@@ -188,6 +190,46 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(VERIFICATION_COMMAND_TIMEOUT_MS).toBe(60 * 60 * 1000);
   });
 
+  it.skipIf(process.platform === 'win32')(
+    'lets unattended verification wait for the shared package test lock (#5311)',
+    async () => {
+      const printWait = 'printf %s "$SAFEWORD_TEST_LOCK_MAX_WAIT_MS"';
+      try {
+        vi.stubEnv('SAFEWORD_TEST_LOCK_MAX_WAIT_MS', undefined);
+        const defaulted = await runVerificationCommand(printWait, repoRoot);
+        vi.stubEnv('SAFEWORD_TEST_LOCK_MAX_WAIT_MS', '1234');
+        const explicit = await runVerificationCommand(printWait, repoRoot);
+
+        expect(defaulted).toMatchObject({ status: 0, stdout: String(SHARED_TEST_LOCK_WAIT_MS) });
+        expect(explicit).toMatchObject({ status: 0, stdout: '1234' });
+        expect(SHARED_TEST_LOCK_WAIT_MS).toBeLessThan(VERIFICATION_COMMAND_TIMEOUT_MS);
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
+
+  it('reports a busy shared test lock as lock contention, not a test failure (#5311)', () => {
+    const busy = verificationCommandFailure('bun run test', '/repo', {
+      status: 75,
+      stdout: '',
+      stderr: 'Safeword package test lock busy: could not acquire /tmp/lock; no test was started.',
+      timedOut: false,
+    });
+    const unrelated = verificationCommandFailure('make test', '/repo', {
+      status: 75,
+      stdout: '',
+      stderr: 'temporary failure',
+      timedOut: false,
+    });
+
+    expect(busy).toMatch(
+      /^command `bun run test` did not start in \/repo: the shared safeword package test lock is busy/,
+    );
+    expect(busy).not.toContain('failed in');
+    expect(unrelated).toBe('command `make test` failed in /repo (exit 75): temporary failure');
+  });
+
   it('captures a bounded diagnostic tail from a failed verification command', async () => {
     const executable = JSON.stringify(process.execPath);
     const result = await runVerificationCommand(
@@ -328,6 +370,76 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(retroAgentForRuntime('claude')).toBe('claude');
     expect(retroAgentForRuntime('codex')).toBe('codex');
     expect(retroAgentForRuntime('cursor')).toBe('cursor');
+  });
+
+  // A failed `safeword retro run` exits 1 and writes its result to stderr, per
+  // the CLI protocol. Closeout must read that result instead of guessing from
+  // the exit code — otherwise every failed retro reads as an extraction failure.
+  describe('classifying a failed retro run from its own result', () => {
+    function boundRetroFailure(failed: { stderr: string }) {
+      const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-failed-'));
+      const transcript = nodePath.join(root, 'transcript.jsonl');
+      writeFileSync(transcript, `${JSON.stringify({ session_id: 'claude-42', cwd: root })}\n`);
+      try {
+        return runBoundRetro(
+          root,
+          { runtime: 'claude', id: 'claude-42', projectRoot: root, transcriptPath: transcript },
+          () => ({ status: 1, stdout: '', stderr: failed.stderr }),
+        );
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    }
+
+    it('reports a filing failure when the failed run says durable work remains', () => {
+      const result = boundRetroFailure({
+        stderr: JSON.stringify({
+          state: 'failed',
+          data: { command: 'retro run', agent_filing_needed: true },
+          errors: [
+            {
+              code: 'RETRO_COMMAND_FAILED',
+              message:
+                'retro relay has server-owned rejected request r-1; inspect relay operations and logs',
+            },
+          ],
+        }),
+      });
+
+      expect(result).toMatchObject({ complete: false, failure: 'filing' });
+    });
+
+    it('still reports an extraction failure when the failed run says extraction failed', () => {
+      const result = boundRetroFailure({
+        stderr: JSON.stringify({
+          state: 'failed',
+          data: { command: 'retro run', agent_filing_needed: false },
+          errors: [{ code: 'RETRO_COMMAND_FAILED', message: 'retro extraction failed: no output' }],
+        }),
+      });
+
+      expect(result).toMatchObject({ complete: false, failure: 'extraction' });
+    });
+
+    it('does not mistake protocol field names for an extraction failure', () => {
+      // The structured body may name extraction-related fields; only the
+      // reported error messages describe what actually failed.
+      const result = boundRetroFailure({
+        stderr: JSON.stringify({
+          state: 'failed',
+          data: { command: 'retro run', agent_filing_needed: true, extraction: 'succeeded' },
+          errors: [{ code: 'RETRO_COMMAND_FAILED', message: 'retro relay delivery failed' }],
+        }),
+      });
+
+      expect(result).toMatchObject({ complete: false, failure: 'filing' });
+    });
+
+    it('keeps the previous diagnosis when a failed run leaves no readable result', () => {
+      const result = boundRetroFailure({ stderr: 'safeword: unexpected crash' });
+
+      expect(result).toMatchObject({ complete: false, failure: 'extraction' });
+    });
   });
 
   it.each(['claude', 'codex', 'cursor'] as const)(

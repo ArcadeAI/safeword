@@ -12,6 +12,16 @@
 
 ## Quick Start (30 seconds)
 
+**Prerequisites:**
+
+- Node `^22.22.3`, `^24.16.0`, or `>=26.3.0`
+- [Bun](https://bun.sh) — Safeword's hooks run with Bun
+- Claude Code 2.1.170 or newer, if you use the Claude Code plugin
+
+**1.0 prereleases:** `safeword@latest` still resolves to the 0.x line. Release
+candidates publish to the npm `next` tag; replace `@latest` with `@next` in the
+commands below to try them.
+
 **1. Install in your project and native agent profiles:**
 
 ```bash
@@ -117,16 +127,16 @@ legacy content is preserved and reported instead.
 
 **Result**: Your project now has:
 
-- `.safeword/SAFEWORD.md` - Global patterns and workflows
-- `.safeword/guides/`, `.safeword/skills/`, and `.safeword/hooks/` - Cursor's complete project-local workflow authority, only when Cursor is selected
+- `.safeword/SAFEWORD.md` - Global patterns and workflows, injected into each session by a SessionStart hook
+- `.safeword/config.json` - Project configuration and detected language packs
+- `.mcp.json` - context7 and Playwright MCP servers
+- `.safeword/guides/`, `.safeword/templates/`, `.safeword/skills/`, and `.safeword/hooks/` - Cursor's project-local workflow runtime (only with `--agents=cursor`)
 - `.claude/settings.json` - Project-scoped Safeword Claude activation when Claude is selected
-- Safeword Claude plugin - Native workflows and hooks cached by Claude; use `safeword install --agents=claude --scope user` for profile-wide activation
+- Safeword Claude plugin - Native skills, hooks, agents, guides, and templates cached by Claude; use `safeword install --agents=claude --scope user` for profile-wide activation
 - `.codex/config.toml` - Project bootstrap that enrolls each Codex profile at task start
 - Safeword Codex plugin - Profile-scoped skills and hooks following the verified `stable` channel
-- Safeword OpenCode profile delivery - Native plugin, commands, agents, and skills with activation and conformance evidence
-- `.cursor/hooks.json` - Hook configuration for Cursor
-- `.cursor/rules/` - Behavior rules for Cursor
-- `.cursor/commands/` - Slash commands for Cursor
+- Safeword OpenCode profile delivery - Native plugin, commands, agents, and skills with activation and conformance evidence (only with `--agents=opencode`)
+- `.cursor/hooks.json`, `.cursor/rules/`, `.cursor/commands/`, `.cursor/mcp.json` - Cursor hooks, rules, slash commands, and MCP config (only with `--agents=cursor`)
 
 **Commit these to your repo** for team consistency.
 
@@ -142,7 +152,7 @@ legacy content is preserved and reported instead.
 
 **AI guardrails, not human blockers** — Hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex / OpenCode events). They never run during normal human development. In repos that already use husky, install appends one warn-only line to `pre-commit`/`pre-push` (the boundary evidence check — it reports, never blocks, and `safeword uninstall --agents=none` removes it); safeword never installs a hook manager or blocks a commit.
 
-**Use in CI if you want** — Safeword adds `lint`, `format`, and `test:bdd` scripts to your `package.json`. You can wire these into your CI pipeline or precommit hooks — but it's your choice, not forced.
+**Use in CI if you want** — Safeword adds `lint`, `lint:gherkin`, `format`, `format:check`, and `test:bdd` scripts to your `package.json` (the format scripts only when no other formatter is detected). You can wire these into your CI pipeline or precommit hooks — but it's your choice, not forced.
 
 **Privacy-bounded public retros** — Each project gets a random UUID generated
 locally during setup; it requires no account or registration. An eligible local
@@ -175,7 +185,7 @@ That command records `publicRetrospectiveCollection: false` in
 
 ## How It Works
 
-Every session moves through five phases, in order — and four hard gates stop your agent skipping ahead:
+Every session moves through five phases, in order — and hard gates stop your agent skipping ahead:
 
 ```mermaid
 flowchart TD
@@ -199,7 +209,7 @@ flowchart TD
     feature --> phase0["Phase 0 spec:<br/>Jobs To Be Done → Product Inspiration → Rules → scope"]
     phase0 --> g1{{"Phase gate:<br/>scope / out_of_scope / done_when"}}
     g1 --> scenarios["Define-behavior scenarios"]
-    scenarios --> g2{{"Phase gate:<br/>test-definitions.md exists"}}
+    scenarios --> g2{{"Phase gate:<br/>.feature scenarios + test-definitions.md ledger"}}
     g2 --> plan["Plan: author impl-plan.md"]
     plan --> g4{{"Plan gate:<br/>impl-plan.md valid"}}
     g4 --> build
@@ -218,6 +228,7 @@ flowchart TD
 - **Classify** — sizes the work as a **patch** (fix directly), **task** (TDD), or **feature** (BDD).
 - **Build** — patches go straight to the fix; tasks and features run the RED → GREEN → REFACTOR loop, with features defining behavior scenarios and an implementation plan first. After a successful GREEN, the agent continues through refactor and the next incomplete scenario without a routine handoff.
 - **Verify** — after the final scenario, the agent continues through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure, stopping only at a real authority, safety, dependency, or scope boundary.
+- **Review** — every ticket phase exit needs an independent review stamp by default (`reviewGate`); an end-of-session review prompt is opt-in (`stopQualityReview: true`).
 - **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket. Draft pull requests remain available for CI or review evidence, but Claude Code, Codex, and Cursor block first-class GitHub CLI Ready commands until the ticket is verified done; Ready promotion still requires your explicit authorization.
 
 Project state remains local in `.safeword/` and the configured namespace root. Claude Code, Codex, and OpenCode load framework workflows from versioned profile deliveries; Cursor keeps its project-local rules and hooks. Missing transient state and its precise ignore rule are created on first use after enrollment, without running installation. Guides, principles, and learnings remain authored in-repo and are never invented by that lazy initialization.
@@ -230,7 +241,7 @@ Safeword is built for people who ship software by directing an AI agent but don'
 
 - **When the agent gets stopped.** Safeword blocks the agent when it tries to skip a step — shipping code with no tests, or closing work it hasn't verified. A block is safeword protecting you, not an error: the message says what's needed and the next action to clear it.
 - **The end-of-turn verdict.** When the agent finishes a stretch of work it ends with a plain-English call — **CONFIDENT** (here's what I did and what's next) or **BLOCKED** (here's the one decision I need from you). A decision names the choice, recommendation, reason, impact, and exact reply in its final paragraph, so you can act without reconstructing the conversation. Claude Code, Codex, and Cursor ask the agent to rewrite an incomplete substantive handoff once; set `terminalHandoffCorrection: false` in `.safeword/config.json` only if you need to disable that presentation correction.
-- **`/explain`.** Any time a message doesn't make sense — a block, a verdict, or "where are we?" — type `/explain` for a plain-English version: what it means and what to do next. Works in Claude Code, Cursor, and Codex.
+- **`/explain`.** Any time a message doesn't make sense — a block, a verdict, or "where are we?" — type `/explain` for a plain-English version: what it means and what to do next. Works in Cursor (`/explain`), Claude Code (`/safeword:explain`), Codex (`safeword:explain`), and OpenCode (`/safeword-explain`).
 
 You direct in plain language; safeword keeps the agent honest. Auditing the code is the job it's doing for you.
 
@@ -243,15 +254,16 @@ Key directories created in your project:
 - `.safeword/SAFEWORD.md` and `.safeword/config.json` - Shared project enrollment and configuration
 - `<namespace-root>/tickets/` - Tickets for complex/multi-step work (context anchors)
 - `.safeword/guides/`, `.safeword/templates/`, and `.safeword/hooks/` - Cursor's project-local workflow runtime, only when Cursor is selected
-- Safeword Claude plugin, `.cursor/rules/` - Selected agent capabilities
-- Safeword Codex plugin - Profile-scoped workflow skills and hooks
-- `.cursor/commands/` - Slash commands for Cursor
+- Safeword Claude, Codex, and OpenCode plugins - Profile-scoped workflow skills, hooks, guides, and templates
+- `.cursor/rules/`, `.cursor/commands/` - Cursor rules and slash commands, only when Cursor is selected
 
 ---
 
 ## Core Guides
 
-**Purpose**: Reusable methodology applicable to all projects
+**Purpose**: Reusable methodology applicable to all projects. Guides and templates ship
+inside each agent's plugin; Cursor installs them under `.safeword/guides/` and
+`.safeword/templates/`.
 
 | Guide                           | Purpose                                                            | When to Read            |
 | ------------------------------- | ------------------------------------------------------------------ | ----------------------- |
@@ -260,6 +272,7 @@ Key directories created in your project:
 | **llm-evals-guide.md**          | AI output evaluation design, scorers, datasets, and cost controls  | Testing AI behavior     |
 | **verification-lanes-guide.md** | Smoke, live-fire, release, migration, static, and slow/perf lanes  | Choosing test cadence   |
 | **learning-extraction.md**      | Extract learnings from debugging, recognition triggers             | After complex debugging |
+| **cold-start-check.md**         | Hand a spec to a fresh agent to test whether it can plan from it   | Before one-way features |
 
 ---
 
@@ -280,10 +293,13 @@ Key directories created in your project:
 
 **Purpose**: Working with LLMs and documentation structure
 
-| Guide                         | Purpose                                                           | When to Read                    |
-| ----------------------------- | ----------------------------------------------------------------- | ------------------------------- |
-| **llm-writing-guide.md**      | Writing docs that LLMs follow (MECE, examples, context placement) | Writing skills, commands, hooks |
-| **zombie-process-cleanup.md** | Port-based cleanup, multi-project isolation                       | Managing dev servers            |
+| Guide                                | Purpose                                                           | When to Read                    |
+| ------------------------------------ | ----------------------------------------------------------------- | ------------------------------- |
+| **llm-writing-guide.md**             | Writing docs that LLMs follow (MECE, examples, context placement) | Writing skills, commands, hooks |
+| **skill-eval-optimization-guide.md** | Evidence-based evaluation of a skill prompt change                | Changing a skill's prompt       |
+| **zombie-process-cleanup.md**        | Port-based cleanup, multi-project isolation                       | Managing dev servers            |
+| **retro.md**                         | Transcript-mining session retrospective                           | `/retro` or session wind-down   |
+| **self-report-filing.md**            | Filing sanitized self-report signals upstream                     | When Stop surfaces signals      |
 
 ---
 
@@ -291,19 +307,21 @@ Key directories created in your project:
 
 **Purpose**: Fillable structures for feature documentation
 
-| Template                        | Purpose                                                                   | Used By             |
-| ------------------------------- | ------------------------------------------------------------------------- | ------------------- |
-| **spec-template.md**            | Feature spec (JTBD + Numbered Rules) — scaffolded automatically at intake | SAFEWORD.md         |
-| **feature-spec-template.md**    | Legacy manual feature spec (user stories); superseded by spec-template.md | planning-guide.md   |
-| **task-spec-template.md**       | Bug, improvement, refactor, or internal task                              | planning-guide.md   |
-| **test-definitions-feature.md** | BDD scenarios (Rule + Scenario + G/W/T + R/G/R)                           | planning-guide.md   |
-| **design-doc-template.md**      | Design doc structure (architecture, components)                           | design-doc-guide.md |
-| **architecture-template.md**    | Living architecture decision structure                                    | planning-guide.md   |
-| **adr-template.md**             | Standalone record for a structural or hard-to-reverse decision            | planning-guide.md   |
-| **impl-plan-template.md**       | Feature implementation plan, authored before TDD starts                   | planning-guide.md   |
-| **ticket-template.md**          | Context anchor for complex/multi-step work                                | SAFEWORD.md         |
-| **work-log-template.md**        | Scratch pad and working memory during execution                           | SAFEWORD.md         |
-| **tripwire-template.md**        | Upstream-workaround tripwire (header + pinned-version test)               | testing-guide.md    |
+| Template                                                    | Purpose                                                                   | Used By                      |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------- |
+| **spec-template.md**                                        | Feature spec (JTBD + Numbered Rules) — scaffolded automatically at intake | `safeword ticket new`        |
+| **child-spec-template.md**                                  | Feature spec linked to a parent epic's Product Plan                       | `ticket new --parent`        |
+| **feature-spec-template.md**                                | Legacy manual feature spec (user stories); superseded by spec-template.md | — (legacy)                   |
+| **task-spec-template.md**                                   | Bug, improvement, refactor, or internal task                              | planning-guide.md            |
+| **test-definitions-feature.md**                             | R/G/R progress ledger; scenarios live in `features/<slug>.feature`        | planning-guide.md            |
+| **design-doc-template.md**                                  | Design doc structure (architecture, components)                           | design-doc-guide.md          |
+| **architecture-template.md**                                | Living architecture decision structure                                    | planning-guide.md            |
+| **adr-template.md**                                         | Standalone record for a structural or hard-to-reverse decision            | bdd skill (plan)             |
+| **impl-plan-template.md**                                   | Feature implementation plan, authored before TDD starts                   | bdd skill, planning-guide.md |
+| **ticket-template.md**                                      | Context anchor for complex/multi-step work                                | ticket-system skill          |
+| **work-log-template.md**                                    | Scratch pad and working memory during execution                           | planning-guide.md            |
+| **tripwire-template.md**                                    | Upstream-workaround tripwire (header + pinned-version test)               | testing-guide.md             |
+| **principles / personas / glossary / surfaces-template.md** | Project knowledge, scaffolded once into `<namespace-root>/`               | `safeword install`           |
 
 ---
 
@@ -337,8 +355,11 @@ Key directories created in your project:
 ├── tickets/
 │   ├── 7K9M3P-login-bug/
 │   │   ├── ticket.md           # Ticket definition (frontmatter + work log)
-│   │   ├── test-definitions.md # BDD scenarios (Given/When/Then)
 │   │   ├── spec.md             # Feature spec, auto-created at intake (features only)
+│   │   ├── dimensions.md       # Behavioral dimensions (features only)
+│   │   ├── test-definitions.md # R/G/R progress ledger; scenarios live in features/<slug>.feature
+│   │   ├── impl-plan.md        # Implementation plan (features only)
+│   │   ├── verify.md           # Completion evidence written by /verify
 │   │   └── design.md           # Design doc for complex features (optional)
 │   └── completed/              # Archive for done tickets
 ├── learnings/                  # Extracted knowledge (gotchas, discoveries)
@@ -386,30 +407,33 @@ and evidence remediation. When a Codex session is bound to an in-progress
 done-phase ticket and shared evidence passes, Stop also marks that ticket done;
 it never stages, commits, or opens a PR.
 
-**Skills** (in `.claude/skills/`): On-demand workflows for planning, BDD/TDD, debugging, elicitation, architecture exploration, review, refactoring, verification, retrospectives, linting, testing, ticket management, and safe session closeout. The directory is the source of truth; generated Codex equivalents use the `safeword:<skill>` namespace. Internal `finish-review` guidance is not a user command: class-1 review workflows (those requiring independent/cross-model review, as opposed to class-2's self-verifiable checks) invoke it only after the CLI coordinator returns typed route exhaustion.
+**Skills**: On-demand workflows for planning, BDD/TDD, debugging, elicitation, architecture exploration, review, refactoring, verification, retrospectives, linting, testing, ticket management, and safe session closeout. Claude Code gets them from the Safeword plugin as `/safeword:<skill>`, Codex as `safeword:<skill>`, OpenCode as `/safeword-<skill>`, and Cursor as rules plus `.cursor/commands/`. The source of truth is `packages/cli/templates/skills/`; the plugin catalogues are generated from it. `finish-review` is internal: class-1 review workflows (those requiring independent/cross-model review, as opposed to class-2's self-verifiable checks) invoke it only after the CLI coordinator returns typed route exhaustion. Claude hides it from the slash menu; Cursor ships a `/finish-review` command file for that same fallback.
 
 Review keeps the existing Claude↔Codex pairing first, then tries OpenCode as a
 second independent runtime before same-agent headless review. OpenCode-authored
 work routes to Claude and then Codex, so OpenCode self-review is never counted
 as independent. If those routes cannot complete, a foreground agent makes one
-best-effort fresh-context host review and then one bounded self-review. For
-planning reviews, those fallback tiers use the coordinator's immutable packet;
-an admitted approval records the actual reviewer and `reduced independence`
-after stronger routes are exhausted. `require` remains blocked. Other review
-kinds retain their own gate requirements. Project-owned Claude reviewer assets
-also support Claude Code Cloud when no external agent CLI is available.
+best-effort fresh-context host review and then one bounded self-review. Those
+last two routes are feedback, not independent evidence: `require` stays
+blocked. For non-planning reviews they read the live worktree, so source
+integrity was not revalidated; the bundled Claude reviewer also supports
+Claude Code Cloud when no external agent CLI is available. Planning fallbacks
+instead use the coordinator's immutable packet. After stronger routes are
+exhausted, `prefer` may admit their completed review with the actual reviewer
+and `reduced independence` recorded on the receipt; other review kinds retain
+their own gates.
+
 Cursor-authored planning work tries Claude and Codex as external reviewers;
 Cursor itself has no headless reviewer route. If those routes fail under
 `prefer`, the Cursor host can review the same sealed packet and record a
 reduced-independence receipt. A current receipt is still required at the phase
 gate. Cursor cannot satisfy `require` until trusted exact author-model metadata
-is available.
-The stock reviewer routes are attempted in their configured order, but an
-unselected runtime-default model cannot earn a qualified cross-agent comparison.
-Projects that select `require` must configure exact reviewer model selectors in
-`crossAgentReviewRoutes` and use a currently qualified author/reviewer pair;
-otherwise the review remains blocked. `prefer` can admit the completed review
-with its actual reviewer and reduced independence.
+is available. The stock reviewer routes are attempted in configured order, but
+an unselected runtime-default model cannot earn a qualified cross-agent
+comparison. Projects that select `require` must configure exact reviewer model
+selectors in `crossAgentReviewRoutes` and use a currently qualified
+author/reviewer pair; otherwise the review remains blocked.
+
 The opt-in `architectureReviewGate` separately requires verified independent
 design review before implementation finishes. A reduced planning receipt does
 not clear it. Hosts without trusted exact author-model metadata cannot
@@ -435,20 +459,28 @@ use an enforced host for an authoritative planning approval.
 
 **Language coding-skills** (auto-installed per language): when safeword detects a Go, Python, TypeScript, or Rust project, `install` installs a small third-party coding-skill for that language (via `npx skills`, into `.claude/skills/` and, where supported by the agent, `.agents/skills/`). These are third-party language helpers, not Safeword Codex workflow files. The Claude Code on-edit nudge points the agent at the matching skill the first time you edit that language in a scenario; Cursor's adapter is dormant pending platform bug #534. Best-effort — a missing network or installer error degrades to a warning, never blocks install. Note: frontier models already write most core idioms unaided, so this is a light nudge, not a transformation.
 
-**Commands**: Cursor gets explicit command files in `.cursor/commands/`; Claude Code exposes slash-command behavior through skills. Codex uses plugin-scoped skills such as `safeword:bdd` rather than repo-scoped command files.
+**Commands**: Cursor gets explicit command files in `.cursor/commands/` (names below). Claude Code exposes the same workflows as `/safeword:<name>`, Codex as `safeword:<name>`, and OpenCode as `/safeword-<name>`.
 
 - `/audit` - Run architecture and dead code analysis
 - `/bdd` - Force BDD flow for current task
 - `/cleanup-zombies` - Preview or kill current-project zombie processes
+- `/closeout` - Verify, explicitly authorized merge and cleanup, capture retro learning, and remove exact branch/worktree targets
 - `/debug` - Four-phase debugging framework
+- `/demand-research` - Test whether a proposed product bet has credible demand
 - `/explain` - Plain-English version of any safeword block, verdict, or your current state
 - `/lint` - Run linters and formatters
+- `/pr-readiness` - Prepare a pull request for human review and decide whether it may leave Draft
 - `/quality-review` - Deep code review with web research
-- `/closeout` - Verify, explicitly authorized merge and cleanup, capture retro learning, and remove exact branch/worktree targets
 - `/refactor` - Systematic refactoring with small-step discipline
+- `/retro` - Run a session retrospective on demand
+- `/review-spec` - Author or review a ticket's scenarios
 - `/spike` - Resolve one build-only kill-risk with a bounded disposable experiment
-- `/testing` - Test writing guidance and best practices
+- `/testing` - Test writing guidance (Cursor command; Claude Code loads the skill automatically)
 - `/verify` - Verify ticket criteria (tests, build, lint, scenarios, dep drift)
+
+Claude Code and Codex also expose `brainstorm`, `elicit`, and `figure-it-out` as skills (rules in
+Cursor). `self-review`, `tdd-review`, `finish-review`, `retro-filer`, and `ticket-system` run inside
+other workflows rather than as user commands.
 
 Closeout can resume after its topic worktree has already been removed. The
 guard stores a private 24-hour receipt in Git's shared common directory only
@@ -464,7 +496,7 @@ Every retrospective outcome is advisory for cleanup, including missing identity,
 incomplete extraction, malformed output, filing failures, and pending drafts. The
 result still reports when cleanup could discard captured but unfiled learning.
 
-**MCP Servers** (in `.mcp.json` / `.cursor/mcp.json`): Auto-configured integrations
+**MCP Servers** (in `.mcp.json`, plus `.cursor/mcp.json` when Cursor is selected): Auto-configured integrations
 
 - **context7** - Up-to-date library documentation lookup
 - **playwright** - Browser automation for testing
@@ -483,17 +515,19 @@ bunx safeword@latest plan
 # Converge Safeword in the current project and selected integrations
 bunx safeword@latest install
 
-# Project and tracker workflows
-bunx safeword@latest project sync-config
-bunx safeword@latest project architecture
-bunx safeword@latest tracker sync
-
-# Preview removal, then run the exact confirmation command Safeword prints
+# Preview removal, then run the exact confirmation command Safeword prints.
+# Add --full to also remove unmodified tooling config and supporting packages.
 bunx safeword@latest uninstall
 
 # Discover the stable agent interface
 bunx safeword@latest capabilities --json --no-input
 ```
+
+Beyond the lifecycle commands, the CLI groups its workflows under `project`
+(config, architecture, indexes, codify, tests, Gherkin lint), `ticket`,
+`tracker`, `review`, `retro`, `claude`, and `codex`, plus `conformance`
+for OpenCode. The [CLI reference](https://safeword.dev/reference/cli/) lists
+every command, and `--help` on any command shows its options.
 
 Global `--json`, `--no-input`, `--cwd`, `--quiet`, `--offline`, and
 `--verbose` options work before or after public commands. The former `check`,
@@ -510,9 +544,10 @@ npm OIDC with provenance. See the `versioning` skill for the complete procedure;
 local `bun publish` is defense-in-depth recovery tooling, not the release path.
 
 When a release changes the native Claude plugin or a source asset it bundles,
-run `bun run --cwd packages/cli generate:claude-release-assets` before merging
-the version bump. It refreshes the historical catalogue first, then rebuilds
-the plugin that embeds it; commit the resulting source and `plugin/` changes.
+run `bun run --cwd packages/cli fix:generated-surfaces` before merging the
+version bump. It refreshes the historical catalogue first, then rebuilds the
+Claude and Codex plugins that embed it and the Cursor wrappers; commit the
+resulting source and `plugin/` changes.
 
 When a release changes the native Claude plugin or its profile installer, stable
 publication also requires the previous-stable-to-candidate upgrade in the
@@ -535,8 +570,11 @@ Safeword.
 
 ### Check for Existing Learnings
 
+The namespace root is `.project/` by default (see
+[Customizing File Locations](#customizing-file-locations)):
+
 ```bash
-ls < namespace-root > /learnings/
+ls .project/learnings/
 ```
 
 ### Extract New Learning
@@ -585,11 +623,13 @@ failure, findings, and unresolved unknowns all route to a human. Binary files
 with recognized binary extensions are recorded as skipped; a binary-only change
 cannot look ready.
 
-Safeword runs this as one `pull_request_target` workflow — so it always runs
-with base-branch privileges, even for fork PRs — split into privilege-scoped
-jobs: an inspection job reads the PR's data (never its code) and calls the
-model without any GitHub write permission, and a separate publisher job posts
-the result without ever touching the model secret. GitHub currently requires
+Safeword installs three workflows: `safeword-pr-review.yml`, a
+`pull_request_target` router (so it always runs with base-branch privileges,
+even for fork PRs) that also runs a five-minute sweep and the readiness status;
+`safeword-pr-review-worker.yml`, a reusable workflow whose inspection job reads
+the PR's data (never its code) and calls the model without any GitHub write
+permission; and `safeword-pr-review-publisher.yml`, which posts event-triggered
+results without ever touching the model secret. GitHub currently requires
 `pull-requests: write` for an ordinary pull-request conversation comment, so the
 publisher is additionally constrained by Safeword's fixed issue-comment-only
 boundary and the compatibility smoke verifies that it creates no review, check,
@@ -712,7 +752,7 @@ No. Safeword is a process overlay — it adds quality enforcement (BDD/TDD, lint
 No. Current releases neither create `CLAUDE.md` nor add Safeword imports to it. Install may remove an obsolete Safeword import block created by an older release, while preserving the rest of the customer-owned file.
 
 **What packages does it install?**
-For JS/TS projects: ESLint, Prettier, supporting plugins, and `jiti` for TypeScript ESLint config loading — all as `devDependencies` (the `-D` flag). These are code quality tools, not application dependencies. Python, Go, and Rust (beta) use their language-native linters (ruff, golangci-lint, clippy).
+For JS/TS projects: ESLint, Prettier, supporting plugins, and `jiti` for TypeScript ESLint config loading — all as `devDependencies` (the `-D` flag). These are code quality tools, not application dependencies. Python, Go, Rust, and SQL/dbt (beta) use their language-native linters (ruff, golangci-lint, clippy, SQLFluff).
 
 **I use Biome, dprint, oxfmt, or deno fmt — is that a problem?**
 No. Safeword detects a non-Prettier formatter (`biome.json`, `dprint.json`, `.oxfmtrc.*`, `deno.json`) and steps aside: it skips Prettier at install **and** its auto-format hook leaves all formatting to your tool — agent edits are never run through Prettier, for any file type (JS/TS, JSON, CSS, YAML). Files your formatter doesn't cover are left untouched rather than Prettier-formatted. ESLint still runs, because those formatters don't cover security scanning (`eslint-plugin-security`), cyclomatic complexity (`sonarjs`), or framework rules (React hooks, Next.js, Astro); safeword's ESLint config disables formatting rules, so it lints without fighting your formatter.
@@ -721,17 +761,17 @@ No. Safeword detects a non-Prettier formatter (`biome.json`, `dprint.json`, `.ox
 No. Commit the Safeword project configuration your team uses, including the Claude declaration and Codex SessionStart hooks. Claude keeps each user's payload cache locally. Codex enrolls every teammate's separate profile automatically and prepares missing dependencies in trusted fresh worktrees; startup warnings remain advisory. The linting devDependencies also install with the normal package-manager workflow.
 
 **Will it interfere with my development workflow?**
-No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally. In husky repos, install appends one warn-only boundary-check line to `pre-commit`/`pre-push` — it reports workflow-evidence gaps, never blocks a commit, and `safeword uninstall --agents=none` removes it. Safeword never installs a hook manager. It also adds `lint`, `format`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.
+No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally. In husky repos, install appends one warn-only boundary-check line to `pre-commit`/`pre-push` — it reports workflow-evidence gaps, never blocks a commit, and `safeword uninstall --agents=none` removes it. Safeword never installs a hook manager. It also adds `lint`, `lint:gherkin`, `format`, `format:check`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.
 
 **What Claude Code permissions does safeword need?**
-Safeword's feature-ticket done-gate verifies that `/verify` and `/audit` were actually invoked by reading a session-scoped log written via bash injection at the top of each skill. If Claude Code denies that bash injection, feature tickets hard-block at done-phase.
+Safeword's done gate verifies that required skills were actually invoked by reading a session-scoped log written via bash injection at the top of each skill: `/verify` and `/audit` for feature tickets, plus `/quality-review` for any ticket that needs the whole-ticket cross-scenario pass. If Claude Code denies that bash injection, those tickets hard-block at done-phase.
 
-To pre-approve the injection without prompts (recommended for headless / non-interactive sessions), add these patterns to `.claude/settings.json`:
+To pre-approve the injection without prompts (recommended for headless / non-interactive sessions), add this pattern to `.claude/settings.json`:
 
 ```json
 {
   "permissions": {
-    "allow": ["Bash(bun */.safeword/hooks/record-skill-invocation.ts*)"]
+    "allow": ["Bash(bun *record-skill-invocation.ts*)"]
   }
 }
 ```
@@ -739,7 +779,7 @@ To pre-approve the injection without prompts (recommended for headless / non-int
 This pre-approves the current safeword helper invocation:
 
 - Claude Code evaluates compound bash commands per subcommand, so the allow rule only needs to cover the Bun helper that writes the log.
-- `Bash(bun */.safeword/hooks/record-skill-invocation.ts*)` matches Bun running safeword's installed invocation logger from the project `.safeword/hooks/` directory.
+- `Bash(bun *record-skill-invocation.ts*)` matches Bun running the plugin's invocation logger (`${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts`) as well as the project-local `.safeword/hooks/` copy that legacy installs use.
 - No `node -e`, `mkdir -p`, or `echo` allow rule is needed for the current injection. The helper performs the write itself, and Claude Code treats `echo` plus read-only `git` forms as read-only commands.
 
 The injection itself resolves the project namespace root and writes timestamped lines to `<namespace-root>/skill-invocations.log` — no network calls, no file mutation outside that path. Feature-ticket done gates require this session-scoped proof. Task and patch tickets can still use `verify.md` when session-scoped invocation proof is unavailable and not required by the gate.
@@ -824,7 +864,7 @@ fail the proof. They never count as a passing fallback.
 ```bash
 # From the repo root
 bun run test:all # Unit suite, then acceptance tests
-bun run test:bdd # Acceptance lane only (root only; packages/cli is narrower)
+bun run test:bdd # Build, then the acceptance lane plus BDD proof-tag check
 
 # From packages/cli
 # Important: Use `bun run test` (Vitest), NOT `bun test` (Bun's runner)
@@ -840,24 +880,25 @@ Follow the `versioning` skill: merge the release bump, tag the merge commit, and
 let `.github/workflows/release.yml` publish through npm OIDC. Do not run a normal
 release from a developer checkout.
 
-### CLI Parity (Claude Code / Cursor / Codex)
+### CLI Parity (Claude Code / Cursor / Codex / OpenCode)
 
-The CLI installs matching workflow capabilities for Claude Code, Cursor, and Codex using each agent's native surface.
+The CLI installs matching workflow capabilities for each agent using its native surface.
 
-**Source of truth:** `packages/cli/src/schema.ts`
+**Source of truth:** `packages/cli/src/schema.ts` (project files) and `packages/cli/templates/` (workflow content)
 
 **Parity tests:** `packages/cli/tests/schema.test.ts`
 
-| Agent       | Workflow Surface                         | Commands / Hooks                                                    |
-| ----------- | ---------------------------------------- | ------------------------------------------------------------------- |
-| Claude Code | `.claude/skills/*`                       | Skills expose slash-command behavior                                |
-| Cursor      | `.cursor/rules/{safeword-*,bdd-*}.mdc`   | `.cursor/commands/*.md`, `.cursor/hooks.json`                       |
-| Codex       | Codex plugin skills (`safeword:<skill>`) | Plugin hooks call the CLI bundled with the installed plugin version |
+| Agent       | Workflow Surface                               | Commands / Hooks                                                    |
+| ----------- | ---------------------------------------------- | ------------------------------------------------------------------- |
+| Claude Code | Claude plugin skills (`plugin/skills/*`)       | `/safeword:<skill>`; `plugin/hooks/hooks.json`                      |
+| Cursor      | `.cursor/rules/{safeword-*,bdd-*}.mdc`         | `.cursor/commands/*.md`, `.cursor/hooks.json`                       |
+| Codex       | Codex plugin skills (`safeword:<skill>`)       | Plugin hooks call the CLI bundled with the installed plugin version |
+| OpenCode    | Profile-delivered skills (`/safeword-<skill>`) | Profile plugin, commands, and agents                                |
 
 **Editing skills:**
 
 1. Edit canonical workflow templates in `packages/cli/templates/skills/` and Cursor rules in `packages/cli/templates/cursor/rules/`
-2. Run `bun run --cwd packages/cli generate:codex-plugin` to regenerate the checked-in Codex plugin catalogue
+2. Run `bun run --cwd packages/cli fix:generated-surfaces` to regenerate the historical catalogue, Claude plugin, Codex plugin, and Cursor wrappers in a safe order (`check:generated-surfaces` reports staleness without writing)
 3. Run the catalogue, package, cache, and parity tests
 4. Run `bunx safeword install` to sync the project plus Claude Code and Codex; add `--agents=claude,codex,cursor` when explicitly testing Cursor assets
 
@@ -868,7 +909,7 @@ needs SemVer build metadata:
 
 ```bash
 bun packages/cli/scripts/generate-codex-plugin.ts \
-  --version 0.83.1+codex.20260909051010 \
+  --version "<package-version>+codex.<timestamp>" \
   --output /fresh/path/safeword-codex-plugin
 ```
 

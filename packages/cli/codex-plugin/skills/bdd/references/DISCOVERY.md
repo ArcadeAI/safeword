@@ -71,8 +71,10 @@ Keep the five template sections and no others.
 
 ### Product Bet
 
-Capture Problem / Why now, Expected outcome, Success threshold, and Project
-non-goals. Why now carries only decision-bearing evidence. The success threshold
+Capture Problem / Why now, Expected outcome, Success threshold, Project
+non-goals, and Reversibility. Reversibility records whether the work is a
+one-way door (data model, public API, or migration) or two-way; the intake-exit
+cold-start offer reads it. Why now carries only decision-bearing evidence. The success threshold
 is falsifiable; use an observable outcome when no honest metric exists. A
 restated template prompt is not a threshold: rewrite it until the claimed
 outcome could be disproven.

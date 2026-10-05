@@ -48,6 +48,14 @@ import {
   validRelayReadinessManifest as validManifest,
 } from '../helpers/relay-readiness.js';
 
+// These tests are about what delivery does, not how long it takes. Left on the
+// real monotonic clock, the drain's overall budget — as little as 275 ms here —
+// is spent by real filesystem work, so a contended CI runner breaks out before
+// the first claim completes and a correct delivery reports `accepted: 0`.
+// Freezing the clock keeps the budget intact; tests that are about the budget
+// inject their own advancing clock instead.
+const frozenDrainClock = () => 0;
+
 const directories: string[] = [];
 const READINESS_BUILD_COMMIT = 'b'.repeat(40);
 const READINESS_NOW = new Date('2026-07-26T12:00:00.000Z');
@@ -2063,6 +2071,7 @@ describe('immutable relay delivery spool', () => {
       const outcome = await deliverRelayRequests(project, {
         credential: 'swc_client_secret',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch: () =>
           Promise.resolve(
             Response.json(
@@ -2100,6 +2109,7 @@ describe('immutable relay delivery spool', () => {
     const outcome = await deliverRelayRequests(project, {
       credential: 'swc_client_secret',
       deadlineMs: 25,
+      monotonicNow: frozenDrainClock,
       fetch: () =>
         Promise.resolve(
           Response.json(
@@ -2145,6 +2155,7 @@ describe('immutable relay delivery spool', () => {
       const outcome = await deliverRelayRequests(project, {
         credential: 'swc_client_secret',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch: () =>
           Promise.resolve(
             Response.json(
@@ -2184,6 +2195,7 @@ describe('immutable relay delivery spool', () => {
     await deliverRelayRequests(project, {
       credential: 'swc_client_secret',
       deadlineMs: 25,
+      monotonicNow: frozenDrainClock,
       fetch: (_input, init) => {
         observedHeaders = new Headers(init?.headers);
         return Promise.resolve(
@@ -2232,6 +2244,7 @@ describe('immutable relay delivery spool', () => {
     await deliverRelayRequests(project, {
       credential: 'swc_client_secret',
       deadlineMs: 25,
+      monotonicNow: frozenDrainClock,
       fetch: acceptedRelayFetch(submitted => {
         attempted.push(submitted.requestId);
       }),
@@ -2264,6 +2277,7 @@ describe('immutable relay delivery spool', () => {
     const outcome = await deliverRelayRequests(project, {
       credential: 'swc_client_secret',
       deadlineMs: 25,
+      monotonicNow: frozenDrainClock,
       fetch: acceptedRelayFetch(),
       now: Date.now,
       overallDeadlineMs: 1000,
@@ -2415,6 +2429,7 @@ describe('immutable relay delivery spool', () => {
       deliverRelayRequests(project, {
         credential: 'swc_client_secret',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch: () => Promise.resolve(Response.json({ supportedVersion: '2' }, { status: 400 })),
         now: Date.now,
         relayUrl: 'https://relay.invalid',
@@ -2431,6 +2446,7 @@ describe('immutable relay delivery spool', () => {
       deliverRelayRequests(project, {
         credential: 'swc_client_secret',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch: () =>
           Promise.resolve(
             Response.json({
@@ -2501,6 +2517,7 @@ describe('immutable relay delivery spool', () => {
     const outcome = await deliverRelayRequests(project, {
       credential: 'swc_client_secret',
       deadlineMs: 25,
+      monotonicNow: frozenDrainClock,
       fetch: send,
       now: () => createdAt + 24 * 60 * 60 * 1000,
       relayUrl: 'https://relay.invalid',
@@ -2535,6 +2552,7 @@ describe('immutable relay delivery spool', () => {
       deliverRelayRequests(project, {
         credential: 'swc_client_secret',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch: send,
         now: () => createdAt + 24 * 60 * 60 * 1000,
         relayUrl: 'https://relay.invalid',
@@ -2570,6 +2588,7 @@ describe('immutable relay delivery spool', () => {
       deliverRelayRequests(project, {
         credential: 'swc_client_secret',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch: send,
         now: Date.now,
         relayUrl: 'https://relay.invalid',
@@ -2583,6 +2602,7 @@ describe('immutable relay delivery spool', () => {
       deliverRelayRequests(project, {
         credential: 'swc_client_secret',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch: send,
         now: Date.now,
         relayUrl: 'https://relay.invalid',
@@ -2751,6 +2771,7 @@ describe('immutable relay delivery spool', () => {
       deliverRelayRequests(project, {
         credential: 'swc_client_secret',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch: () => Promise.resolve(Response.json({ error: 'forbidden' }, { status: 403 })),
         now: Date.now,
         relayUrl: 'https://relay.invalid',
@@ -2767,6 +2788,7 @@ describe('immutable relay delivery spool', () => {
       deliverRelayRequests(project, {
         credential: 'swc_client_secret',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch: () => Promise.resolve(Response.json({ error: 'busy' }, { status: 429 })),
         now: Date.now,
         relayUrl: 'https://relay.invalid',
@@ -2788,6 +2810,7 @@ describe('immutable relay delivery spool', () => {
       deliverRelayRequests(project, {
         credential: 'expired-client-credential',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch: () => Promise.resolve(Response.json({ error: 'unauthorized' }, { status: 401 })),
         now: Date.now,
         relayUrl: 'https://relay.invalid',
@@ -2807,6 +2830,7 @@ describe('immutable relay delivery spool', () => {
       deliverRelayRequests(project, {
         credential: 'swc_client_secret',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch,
         now: Date.now,
         relayUrl: 'not a URL',
@@ -2834,6 +2858,7 @@ describe('immutable relay delivery spool', () => {
       deliverRelayRequests(project, {
         credential: 'swc_client_secret',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch: acceptedRelayFetch(),
         now: Date.now,
         relayUrl: 'https://relay.invalid',
@@ -2860,6 +2885,7 @@ describe('immutable relay delivery spool', () => {
       deliverRelayRequests(project, {
         credential: 'swc_client_secret',
         deadlineMs: 25,
+        monotonicNow: frozenDrainClock,
         fetch: acceptedRelayFetch(),
         now: Date.now,
         relayUrl: 'https://relay.invalid',
@@ -2878,6 +2904,7 @@ describe('immutable relay delivery spool', () => {
     await deliverRelayRequests(project, {
       credential: 'swc_client_secret',
       deadlineMs: 25,
+      monotonicNow: frozenDrainClock,
       fetch: () => Promise.resolve(new Response(undefined, { status: 503 })),
       now: Date.now,
       relayUrl: 'https://relay.invalid',
@@ -2984,6 +3011,7 @@ describe('immutable relay delivery spool', () => {
     await deliverRelayRequests(project, {
       credential: 'swc_client_secret',
       deadlineMs: 25,
+      monotonicNow: frozenDrainClock,
       fetch: send,
       now: Date.now,
       relayUrl: 'https://relay.invalid/',
@@ -3000,6 +3028,7 @@ describe('immutable relay delivery spool', () => {
     const outcome = await deliverRelayRequests(project, {
       credential: 'swc_client_secret',
       deadlineMs: 500,
+      monotonicNow: frozenDrainClock,
       fetch: () =>
         Promise.resolve(
           Response.json({
@@ -3147,6 +3176,65 @@ describe('immutable relay delivery spool', () => {
     expect(send.mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(send.mock.calls.length).toBeLessThanOrEqual(2);
     expect(outcome.retryable).toBe(3);
+  });
+
+  it('never resends a request whose source was acknowledged while a stale writer recreated it', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'stale-writer-source', title: 'Stale writer draft' });
+    const relayDirectory = path.join(project, '.safeword', 'retro-drafts', 'relay');
+    const requestFiles = () =>
+      readdirSync(relayDirectory).filter(filename => !filename.startsWith('source-'));
+    const sent: string[] = [];
+    const inFlight = deferred<undefined>();
+    const releaseResponse = deferred<undefined>();
+    const options = (send: typeof fetch) => ({
+      credential: 'swc_client_secret',
+      deadlineMs: 5000,
+      fetch: send,
+      monotonicNow: () => 0,
+      now: Date.now,
+      relayUrl: 'https://relay.invalid',
+    });
+    const recordSent = (submitted: RelayDraftRequest) => {
+      sent.push(submitted.requestId);
+    };
+    const respondAfterRelease = acceptedRelayFetch(recordSent);
+    const heldFetch: typeof fetch = async (input, init) => {
+      const response = respondAfterRelease(input, init);
+      inFlight.resolve(undefined);
+      await releaseResponse.promise;
+      return response;
+    };
+
+    // The stale writer snapshots "nothing materialized". Before it acts, another
+    // writer materializes the draft and a delivery claims it, which frees the
+    // `.materializing` name the stale writer is about to create.
+    let firstDelivery: ReturnType<typeof deliverRelayRequests> | undefined;
+    await persistRelayDraftBatch(project, [draft], {
+      faults: {
+        afterStateSnapshot: async () => {
+          if (firstDelivery !== undefined) return;
+          await persistRelayDraftBatch(project, [draft]);
+          firstDelivery = deliverRelayRequests(project, options(heldFetch));
+          await inFlight.promise;
+        },
+      },
+    });
+    // Precondition: the stale writer left a second copy beside the claimed one.
+    const [claimedCopy, staleCopy] = requestFiles().toSorted((left, right) =>
+      left.localeCompare(right),
+    );
+    const requestId = staleCopy?.replace(/\.materializing\.json$/u, '');
+    expect(staleCopy).toBe(`${requestId}.materializing.json`);
+    expect(claimedCopy?.startsWith(`${requestId}.claim.`)).toBe(true);
+    releaseResponse.resolve(undefined);
+    await firstDelivery;
+
+    const later = await deliverRelayRequests(project, options(acceptedRelayFetch(recordSent)));
+
+    expect(sent).toEqual([requestId]);
+    expect(later.accepted).toBe(0);
+    expect(requestFiles()).toEqual([]);
   });
 });
 

@@ -3,7 +3,7 @@
   "assets": [
     {
       "path": ".claude-plugin/plugin.json",
-      "sha256": "ad9e9f9b372f196486a0341e2f3630a3f1027a285c43143c1847b5f89702b45d"
+      "sha256": "50c0bf8e78b2579814bb351b0ca648796ef8eb9defaf86d29cd80d0ac353c851"
     },
     {
       "path": "agents/safeword-retro-filer.md",
@@ -27,11 +27,11 @@
     },
     {
       "path": "resources/guides/cold-start-check.md",
-      "sha256": "d03211425d967504004ec94b3d59abb84b5fbf9d5759cf049513a55e6f69e4ec"
+      "sha256": "495917599088bc48662b92220fe4480ad9d146c8e67e58b2af52d42e12be2640"
     },
     {
       "path": "resources/guides/context-files-guide.md",
-      "sha256": "33bafdccd942b223950651c5d1787ca55f96eaf1ff1b514edbd6185f15edd17c"
+      "sha256": "70a0ddff6bd1ad7cd5697a23016420b82265581653c32b9e8a84373147a403b6"
     },
     {
       "path": "resources/guides/data-architecture-guide.md",
@@ -47,7 +47,7 @@
     },
     {
       "path": "resources/guides/learning-extraction.md",
-      "sha256": "b6608ece8abcd30fcb93a37db49aa82bba6ccf8dec4dc9df8f7ec7da5f89df0c"
+      "sha256": "35b82657cbea2fa0195391f2033ad9ec0635567a32f1330badfc13077ebc961a"
     },
     {
       "path": "resources/guides/llm-evals-guide.md",
@@ -63,7 +63,7 @@
     },
     {
       "path": "resources/guides/planning-guide.md",
-      "sha256": "0e5180d2c73d079e3c4660cf6f5928bd1f4a973edfdad3faca8a072100c6759b"
+      "sha256": "cc22996fc32f45f565be3cee69f12be9b233743a3ecb54b4a4cd5071821670ed"
     },
     {
       "path": "resources/guides/release-recovery-guide.md",
@@ -71,7 +71,7 @@
     },
     {
       "path": "resources/guides/retro.md",
-      "sha256": "b0ebf3b8971c52e107f7ea9c656316f31594f2cafc601813dc3f850a8eccc09b"
+      "sha256": "da732f2fffc1388201365cb4d418c340747627a50756025f9d999be86cdb6371"
     },
     {
       "path": "resources/guides/self-report-filing.md",
@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "53ef3d8ef19a29615fbada2087e1b37429a3fe38df0f326ca71b3180343f4d07"
+      "sha256": "8a0e3b614c5a21579b6a45245c2c418d57b2bf54c6a146cb7dffde9d80af1ba8"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -111,7 +111,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "fdb2054a39998662de9db394d4fd149c298ef1b26a6c64a0339af9e729e55b9d"
+      "sha256": "78a110f48ca40f1025ef37f4852efca9006f6c62249cec698b3e5c4b6c7a824f"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b8fc37d212fc011118cb1ae019c829f99b775a3501ae6d32721ba438c77f4158"
+      "sha256": "8729ea852ef052869739f84f349a7ba9c9dcda5dcd5e6c0cd12d10759c7142d4"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "4c30dda69331d3e8c7bb575e3a5757acc8cd7c915373fd2d5029204bfa7291ea"
+      "sha256": "308b5e0636869c680213daa938f6875fde8eae911c57b3924da7072a0b164618"
     },
     {
       "path": "runtime/event-groups.json",
@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "cba3f5899aa07a11d97cee0e89294854efee26cd7149cbfc61e9fa446996fc57"
+      "sha256": "1d31c735a8902f02d73f77f92d1b1eac36a468fec30be09aa5c23e4b71628bbc"
     },
     {
       "path": "runtime/hooks/lib/blocked-on-gate.ts",
@@ -303,7 +303,7 @@
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
-      "sha256": "c825515275e8be629bdabb993e9099af19697a20137957fc36adfc40853833b8"
+      "sha256": "e245165146a04eac020831a992856e056466d79d59019219bd7913085147a5a1"
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
@@ -507,7 +507,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "fdf61b808b2d46e83ba50ea91e289621128bf8052f6d3fd299a55168358cfa4e"
+      "sha256": "1567d40dfed127074e9aa663467cf74c061a0e2d0b8cd1dc92343c580ec0ae32"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -623,15 +623,15 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "a91e362aa8570313f14a7cba38091cecb1b86a21a927aaf9006c4eb8f575122b"
+      "sha256": "38f47423d4a7e5db3be0df7e7dd7e5d15bfaf5ca4b4185930eaf345fda8cf567"
     },
     {
       "path": "skills/audit/SKILL.md",
-      "sha256": "8715d6aeed2e6e2dcaf840ab9c76c52a8dd38f498d220502e9178af7096ca686"
+      "sha256": "55c4b60acf84c81e535adcda970978d30dbb1893d41902a1a0cde2209148214d"
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "36352987da069694865e95943a71fff0e93e2e48e36734f6f28c3c8a5ca19c40"
+      "sha256": "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -755,7 +755,7 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "e65acf5fd52b5a5f7291a8f491fc6827dff6967529793804ddb917a86de64e49"
+      "sha256": "0601f5f8399a04199c87442a47ec111d486ed1b3426b5425e6a256fc4efbabc8"
     },
     {
       "path": "templates/.jscpd.json",
@@ -763,7 +763,7 @@
     },
     {
       "path": "templates/AGENTS.md",
-      "sha256": "471c6cb5c41a48214aa9bdfefcc52fcafb295d98831a1ad6dec88f86ec255804"
+      "sha256": "3f09667e90af599baac44fe5588b20682b23a8b705a81c681b6f2e89434f8f25"
     },
     {
       "path": "templates/agents/safeword-retro-filer.md",
@@ -1011,11 +1011,11 @@
     },
     {
       "path": "templates/guides/cold-start-check.md",
-      "sha256": "d03211425d967504004ec94b3d59abb84b5fbf9d5759cf049513a55e6f69e4ec"
+      "sha256": "495917599088bc48662b92220fe4480ad9d146c8e67e58b2af52d42e12be2640"
     },
     {
       "path": "templates/guides/context-files-guide.md",
-      "sha256": "7f711cc2076e529394262fce269bcb621eddf8b15bcacde9e5d16f407c40a971"
+      "sha256": "9ffef0a42b58bc1157e0896e80c39958e436b56dbc2d1b29a33ee1f48185c030"
     },
     {
       "path": "templates/guides/data-architecture-guide.md",
@@ -1031,7 +1031,7 @@
     },
     {
       "path": "templates/guides/learning-extraction.md",
-      "sha256": "3d6e627b8455f231f17753fd5389e1ae0982335811a5e8447fd9ad582d0e4f4b"
+      "sha256": "f7cebad40f6b1f4f61cec68535a4424bfecb795366384b37138570b716aa5965"
     },
     {
       "path": "templates/guides/llm-evals-guide.md",
@@ -1047,7 +1047,7 @@
     },
     {
       "path": "templates/guides/planning-guide.md",
-      "sha256": "78b90be7b37ebc085cc25e8ac98fde61a7ea53f42decc4afc144201ff8eae43e"
+      "sha256": "dbc991902b81107c1fca888475dc0ba770175e946a094e74e33bb1b1d0942152"
     },
     {
       "path": "templates/guides/release-recovery-guide.md",
@@ -1055,7 +1055,7 @@
     },
     {
       "path": "templates/guides/retro.md",
-      "sha256": "b0ebf3b8971c52e107f7ea9c656316f31594f2cafc601813dc3f850a8eccc09b"
+      "sha256": "da732f2fffc1388201365cb4d418c340747627a50756025f9d999be86cdb6371"
     },
     {
       "path": "templates/guides/self-report-filing.md",
@@ -1159,7 +1159,7 @@
     },
     {
       "path": "templates/hooks/lib/bash-ledger-writes.ts",
-      "sha256": "cba3f5899aa07a11d97cee0e89294854efee26cd7149cbfc61e9fa446996fc57"
+      "sha256": "1d31c735a8902f02d73f77f92d1b1eac36a468fec30be09aa5c23e4b71628bbc"
     },
     {
       "path": "templates/hooks/lib/blocked-on-gate.ts",
@@ -1263,7 +1263,7 @@
     },
     {
       "path": "templates/hooks/lib/namespace-root.ts",
-      "sha256": "c825515275e8be629bdabb993e9099af19697a20137957fc36adfc40853833b8"
+      "sha256": "e245165146a04eac020831a992856e056466d79d59019219bd7913085147a5a1"
     },
     {
       "path": "templates/hooks/lib/parse-annotation.ts",
@@ -1463,7 +1463,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "ead8506d15cd9f09dcac62412bb593e09d144c103d5d5d5f0f82ee6422419456"
+      "sha256": "3391a04bb1102cbdff6c53e92cb34ed0640b95ad8a3cf693556de676d2d90b00"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1579,7 +1579,7 @@
     },
     {
       "path": "templates/hooks/write-review-stamp.ts",
-      "sha256": "a91e362aa8570313f14a7cba38091cecb1b86a21a927aaf9006c4eb8f575122b"
+      "sha256": "38f47423d4a7e5db3be0df7e7dd7e5d15bfaf5ca4b4185930eaf345fda8cf567"
     },
     {
       "path": "templates/personas-template.md",
@@ -1595,7 +1595,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "c9ea88f7b46f2b756e98267b53c59a8dacef35827c2ef94bf8e0b21fdfc0283d"
+      "sha256": "44fa498fd42413551bf4e43808d5b047ea61c8ceade40f30844a5c4c44e91025"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",
@@ -1611,15 +1611,15 @@
     },
     {
       "path": "templates/scripts/closeout-cleanup.ts",
-      "sha256": "fc7b39a0cd4861f5a6c75a755beb3663ac1dd6d796a7df142b17b638087022a5"
+      "sha256": "a7955b0f4948b6ba6833d902bd84e6e5d081ab4af3b909d8604b86f17dde7309"
     },
     {
       "path": "templates/skills/audit/SKILL.md",
-      "sha256": "4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880"
+      "sha256": "ce7d604ff6016eaf614a9e02918089ba021b15ddae11bcad47218c7c2a078077"
     },
     {
       "path": "templates/skills/bdd/DISCOVERY.md",
-      "sha256": "5f742ac7c7a84fd3448208366d9872d01bf33dadca34c8e60d39640a7823cc3c"
+      "sha256": "9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557"
     },
     {
       "path": "templates/skills/bdd/DONE.md",
@@ -1743,11 +1743,11 @@
     },
     {
       "path": "templates/skills/verify/SKILL.md",
-      "sha256": "d64a482998e9a546bbb6b7b6dbb1373a9153a9e806419098892744c92d614d04"
+      "sha256": "d6b1f8cfa6ad1ccc5fd84a8b7f96cf3a13e13561088eb1de9a5b0ee5045759c5"
     },
     {
       "path": "templates/spec-template.md",
-      "sha256": "ab78e651d4ea149d153603d9c2db4c68025d1a406632dff9414759f7a95eb57e"
+      "sha256": "3b57423be698eb75f6b536c1a14be33e0df4f9e4d2fa5d7395fd491a471e6c9d"
     },
     {
       "path": "templates/statusline/reentry.ts",
@@ -1763,7 +1763,7 @@
     },
     {
       "path": "templates/workflows/pr-review-worker.yml",
-      "sha256": "10bc3975dae08ad2f5991a0dc7d06594b3c6241cb1d6a6c2d3f225dfdd853ad9"
+      "sha256": "f03e0e570921b230384d73ff549e9fd461dc5598e301be9319a9c5ce4a14177b"
     },
     {
       "path": "templates/workflows/pr-review.yml",

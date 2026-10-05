@@ -1898,6 +1898,83 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
 
+    describe('9.18: a ticket edited inside a nested git worktree (#5247)', () => {
+      const ticketRelative = '.safeword-project/tickets/099-test/ticket.md';
+      let worktreeDirectory: string;
+
+      beforeEach(() => {
+        writeTestFile(
+          projectDirectory,
+          ticketRelative,
+          [
+            '---',
+            'id: 099',
+            'type: feature',
+            'phase: intake',
+            'scope: Build morning digest',
+            'out_of_scope: Real-time alerts',
+            'done_when: Daily digest delivered',
+            '---',
+            '# Test',
+          ].join('\n'),
+        );
+        execSync('git add . && git commit -m "intake ticket"', {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        });
+        worktreeDirectory = nodePath.join(projectDirectory, '.claude/worktrees/wt');
+        execSync(`git worktree add -q -b wt "${worktreeDirectory}"`, {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        });
+      });
+
+      function writeReadyArtifacts(root: string): void {
+        writeTestFile(
+          root,
+          '.safeword-project/tickets/099-test/spec.md',
+          '# Spec\n\n## Jobs To Be Done\n\nskip: ready fixture; JTBD/AC content covered elsewhere\n',
+        );
+        writeTestFile(
+          root,
+          '.safeword-project/tickets/099-test/dimensions.md',
+          'skip: single behavioral dimension, no partitioning to enumerate\n',
+        );
+      }
+
+      function advanceWorktreeTicket() {
+        // The host keeps CLAUDE_PROJECT_DIR at the launch checkout after a
+        // session enters a worktree; the edited file is the worktree's copy.
+        return runPreToolQuality(
+          projectDirectory,
+          'Edit',
+          nodePath.join(worktreeDirectory, ticketRelative),
+          'test-session',
+          { old_string: 'phase: intake', new_string: 'phase: define-behavior' },
+        );
+      }
+
+      it('checks readiness against the worktree that holds the edited ticket', () => {
+        writeReadyArtifacts(worktreeDirectory);
+
+        const result = advanceWorktreeTicket();
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toBe('');
+      });
+
+      it('does not borrow readiness from the launch checkout', () => {
+        writeReadyArtifacts(projectDirectory);
+
+        const result = advanceWorktreeTicket();
+
+        expect(result.status).toBe(0);
+        const output = JSON.parse(result.stdout);
+        expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+        expect(output.hookSpecificOutput.permissionDecisionReason).toContain('dimensions.md');
+      });
+    });
+
     it('9.17: does not apply feature readiness to task phase advance', () => {
       const ticketPath = nodePath.join(
         projectDirectory,

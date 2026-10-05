@@ -158,6 +158,7 @@ Defines the canonical shared and phase-specific planning contracts, their genera
 Normalizes generated plugin JavaScript so machine-specific Bun install paths do not change bundle
 bytes or integrity hashes.
 
+
 ### plugin-runtime-authority
 
 <!-- reconciled: eff5d1e48255e97fd29df86a785e239189e44dda27a869021a161295f7f45667 -->
@@ -228,7 +229,11 @@ Sanitizes, deduplicates, triages, reconciles, and files retrospective findings.
 
 `src/review`
 
-Coordinates independent adversarial reviews across Claude and Codex, including runtime discovery, neutral packet construction, policy enforcement, fallback handling, and provenance.
+Coordinates independent adversarial reviews across Claude and Codex, including planning judgments, runtime discovery, neutral packet construction, policy enforcement, fallback handling, and provenance.
+
+`src/review`
+
+Coordinates independent adversarial reviews, including planning contract judgments, runtime discovery, neutral packet construction, policy enforcement, fallback handling, and provenance.
 
 ### schema
 
