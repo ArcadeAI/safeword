@@ -5,7 +5,7 @@
 
 ## Learnings (33)
 
-- **Adding a Skill — Parity Checklist** — new safeword skill, template+dogfood parity, SAFEWORD_SCHEMA, cursor pair, action-skill decision.
+- **Adding a Skill — Parity Checklist** — new safeword skill, template+dogfood parity, SAFEWORD_SCHEMA, cursor wrappers, action-skill decision, generated surfaces.
   → `.project/learnings/adding-a-skill-checklist.md`
 - **AI Agent Behavior Research** — agent TDD, verification, enforcement layers.
   → `.project/learnings/agent-behavior-research.md`

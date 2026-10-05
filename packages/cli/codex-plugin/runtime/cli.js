@@ -3584,8 +3584,8 @@ var init_historical_catalogue_generated = __esm(() => {
       files: {
         ".claude/agents/safeword-retro-filer.md": "008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904",
         ".claude/agents/safeword-reviewer.md": "13333228aa180c0ff040ccfe4e16058147fadc596b51df0d6d73caeb01755470",
-        ".claude/skills/audit/SKILL.md": "4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880",
-        ".claude/skills/bdd/DISCOVERY.md": "c88ae677ac877afca87745f13403f06e7c2dab86efc7934979d430e03837bf76",
+        ".claude/skills/audit/SKILL.md": "ce7d604ff6016eaf614a9e02918089ba021b15ddae11bcad47218c7c2a078077",
+        ".claude/skills/bdd/DISCOVERY.md": "1dd29f815c358ab6e215fa5d0e2db1fe6ab26d93df0b151a53908370331b09ed",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "21afe725904a8ac20d72b3c71f9e6670f06d4036fee58af829b352862578094c",
         ".claude/skills/bdd/SCENARIOS.md": "33b7033c37619a202908f58157a2d353074c8bce415be9c13daa2f5b0edfe20d",
@@ -3615,7 +3615,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/tdd-review/SKILL.md": "322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43",
         ".claude/skills/testing/SKILL.md": "fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686",
         ".claude/skills/ticket-system/SKILL.md": "765e4118b54e7e4984da4268244b45b5dc6d57b221964563d49076ac49cc9b7a",
-        ".claude/skills/verify/SKILL.md": "d64a482998e9a546bbb6b7b6dbb1373a9153a9e806419098892744c92d614d04"
+        ".claude/skills/verify/SKILL.md": "d6b1f8cfa6ad1ccc5fd84a8b7f96cf3a13e13561088eb1de9a5b0ee5045759c5"
       },
       hook_files: {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
@@ -3629,7 +3629,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "711a8fb4bec4e56db830ed326d01062b1fc27795e0e27f31f2efac77db0a4236",
+        ".safeword/hooks/pre-tool-quality.ts": "f8cbdae92606c881869334b7730cbcaff25a36c5e30ef8d68571d450d25e1507",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -16097,7 +16097,10 @@ var init_schema = __esm(() => {
     "skill-invocations.log",
     "re-entry.md",
     "dependency-readiness.json",
-    "readiness-ticket.json"
+    "readiness-ticket.json",
+    "closeout-session-binding.json",
+    "codex-review-stamp-identity.json",
+    "cursor-review-stamp-identity.json"
   ];
   SAFEWORD_TRANSIENT_PATHS = [
     "**/architecture.generated.md",
@@ -28894,6 +28897,10 @@ async function removeDuplicateClaimIfMatching(claimPath, siblingPath, recoveryOp
   }
   await removeIfPresent(claimPath);
 }
+async function sourceAlreadyAcknowledged(projectDirectory, bytes) {
+  const request = parseDurableRequest({ bytes });
+  return request !== undefined && await exists2(sourceAcknowledgementPath(projectDirectory, request.sourceKey));
+}
 async function claimSpecificRelayRequest(projectDirectory, requestId, options) {
   if (!CLAIM_ID_PATTERN.test(options.claimId))
     throw new Error("invalid relay claim identity");
@@ -28913,7 +28920,12 @@ async function claimSpecificRelayRequest(projectDirectory, requestId, options) {
         await removeIfPresent(claimed);
         return;
       }
-      return { bytes: await readFile2(claimed), path: claimed, requestId };
+      const bytes = await readFile2(claimed);
+      if (await sourceAlreadyAcknowledged(projectDirectory, bytes)) {
+        await removeIfPresent(claimed);
+        return;
+      }
+      return { bytes, path: claimed, requestId };
     } catch (error2) {
       if (errorCode2(error2) !== "ENOENT")
         throw error2;
@@ -29742,6 +29754,13 @@ async function deliverRelayRequests(projectDirectory, options) {
   if (relayOrigin === undefined)
     throw new Error("invalid relay URL");
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
+  const setTimer = options.setTimer ?? ((callback, delayMs) => {
+    const timer = setTimeout(callback, delayMs);
+    timer.unref();
+    return () => {
+      clearTimeout(timer);
+    };
+  });
   const wallClockNow = options.now();
   const {
     active: initial,
@@ -29792,10 +29811,9 @@ async function deliverRelayRequests(projectDirectory, options) {
     }
     const attemptDeadlineMs = Math.min(options.deadlineMs, remainingOverallMs - RELAY_CLEANUP_RESERVE_MS);
     const controller = new AbortController;
-    const timer = setTimeout(() => {
+    const cancelTimer = setTimer(() => {
       controller.abort();
     }, attemptDeadlineMs);
-    timer.unref();
     try {
       let response;
       try {
@@ -29837,7 +29855,7 @@ async function deliverRelayRequests(projectDirectory, options) {
         throw error2;
       }
     } finally {
-      clearTimeout(timer);
+      cancelTimer();
     }
   }
   const finalFilenames = await sortedFilenames(directory);
@@ -30507,23 +30525,20 @@ async function runRelayRetro(encounters, drops, options) {
     };
   }
   const unresolvedTerminal = (delivery.serverReportedTerminalReceipts ?? []).find((receipt) => receipt.state !== "tombstone" || receipt.issueNumber === undefined);
-  if (unresolvedTerminal !== undefined) {
-    return {
-      agentFilingNeeded: false,
-      drops,
-      errorMessage: `retro relay has server-owned ${unresolvedTerminal.state} request ${unresolvedTerminal.requestId}; inspect relay operations and logs`,
-      ok: false,
-      relay: relayOutcome,
-      result: emptyTriageResult()
-    };
-  }
-  return {
+  const drained = {
     agentFilingNeeded: delivery.retryable > 0 || delivery.deadLetteredThisRun > 0,
     drops,
-    ok: true,
     relay: relayOutcome,
     result: emptyTriageResult()
   };
+  if (unresolvedTerminal !== undefined) {
+    return {
+      ...drained,
+      errorMessage: `retro relay has server-owned ${unresolvedTerminal.state} request ${unresolvedTerminal.requestId}; inspect relay operations and logs`,
+      ok: false
+    };
+  }
+  return { ...drained, ok: true };
 }
 function relayDeliveryFailureOutcome(error2, drops, persistence, spoolFailed) {
   const persistenceError = spoolFailed > 0 ? `${relayPersistenceErrorMessage(persistence, spoolFailed)}; ` : "";
@@ -30926,6 +30941,12 @@ function resolveRelayReadiness(composition, manifest) {
     readArtifactAtCommit: composition.readArtifactAtCommit ?? (() => Promise.resolve(undefined))
   });
 }
+function relayRouteOverrides(composition) {
+  return {
+    ...composition.deadlineMs !== undefined && { deadlineMs: composition.deadlineMs },
+    ...composition.fetch && { fetch: composition.fetch }
+  };
+}
 async function resolveRetroRelayRoute(input) {
   const composition = input.composition ?? {};
   const manifest = composition.manifest ?? CHECKED_IN_RELAY_READINESS;
@@ -30939,7 +30960,7 @@ async function resolveRetroRelayRoute(input) {
     return {
       route: {
         ...config,
-        ...composition.fetch && { fetch: composition.fetch },
+        ...relayRouteOverrides(composition),
         readiness
       }
     };
@@ -30950,7 +30971,7 @@ async function resolveRetroRelayRoute(input) {
   return {
     route: {
       ...resolved.config,
-      ...composition.fetch && { fetch: composition.fetch },
+      ...relayRouteOverrides(composition),
       readiness
     }
   };
@@ -36081,8 +36102,11 @@ function resolveEvidence(inspection) {
   const coverage = [...inspection.coverage ?? []];
   const missingEvidence = [];
   const artifacts = inspection.artifacts ?? [];
-  let usedBytes = 0;
   for (const artifact of artifacts) {
+    if (artifact.kind === "generated") {
+      coverage.push({ path: artifact.path, skipReason: "generated", status: "skipped" });
+      continue;
+    }
     if (artifact.kind === "non_text") {
       coverage.push({ path: artifact.path, skipReason: "non_text", status: "skipped" });
       continue;
@@ -36091,11 +36115,10 @@ function resolveEvidence(inspection) {
       missingEvidence.push(artifact.path);
       continue;
     }
-    if (inspection.maxTotalBytes !== undefined && usedBytes + artifact.byteLength > inspection.maxTotalBytes) {
+    if (inspection.maxTotalBytes !== undefined && artifact.byteLength > inspection.maxTotalBytes) {
       missingEvidence.push(artifact.path);
       continue;
     }
-    usedBytes += artifact.byteLength;
     coverage.push({ path: artifact.path, status: "integrity_reviewed" });
   }
   return {
@@ -36221,6 +36244,17 @@ function isPullState(value) {
 function validRequiredChecks(value) {
   return value === undefined || Array.isArray(value) && value.every((check) => isRecord7(check) && typeof check.context === "string" && check.context.length > 0);
 }
+function validGeneratedCheck(config) {
+  if (config.generatedFilesCheck === undefined)
+    return true;
+  return typeof config.generatedFilesCheck === "string" && Array.isArray(config.requiredChecks) && config.requiredChecks.some((check) => isRecord7(check) && check.context === config.generatedFilesCheck);
+}
+function validPassCount(value) {
+  return value === undefined || Number.isSafeInteger(value) && value > 0;
+}
+function validInspectionConfig(config) {
+  return config.enabled === true && config.provider === "openai" && typeof config.model === "string" && config.model.length > 0 && Number.isSafeInteger(config.maxTotalBytes) && config.maxTotalBytes > 0 && validPassCount(config.maxPasses) && validGeneratedCheck(config) && validRequiredChecks(config.requiredChecks);
+}
 function hasValidInputEnvelope(raw) {
   const validHead = typeof raw.headSha === "string" && /^[a-f\d]{40,64}$/u.test(raw.headSha);
   const validState = isPullState(raw.pullState);
@@ -36232,7 +36266,7 @@ function parseConfig(cwd) {
     throw new Error("review-pr: .safeword/config.json must define prReview");
   }
   const config = raw.prReview;
-  if (config.enabled !== true || config.provider !== "openai" || typeof config.model !== "string" || config.model.length === 0 || !Number.isSafeInteger(config.maxTotalBytes) || config.maxTotalBytes <= 0 || !validRequiredChecks(config.requiredChecks)) {
+  if (!validInspectionConfig(config)) {
     throw new Error("review-pr: prReview configuration is incomplete or invalid");
   }
   return config;
@@ -36248,7 +36282,7 @@ function decodeFullContent(encoded) {
   }
 }
 function isNonTextArtifact(artifact) {
-  return isRecord7(artifact) && (artifact.kind === "non_text" || artifact.kind === "unreadable_text") && typeof artifact.path === "string";
+  return isRecord7(artifact) && ["generated", "non_text", "unreadable_text"].includes(artifact.kind) && typeof artifact.path === "string";
 }
 function isTextArtifact(artifact) {
   return isRecord7(artifact) && artifact.kind === "text" && typeof artifact.content === "string" && typeof artifact.path === "string" && artifact.path.length > 0;
@@ -36284,6 +36318,9 @@ function parseInput(inputPath) {
     throw new Error("review-pr: invalid inspection input");
   }
   const artifacts = raw.artifacts.map((artifact) => parseArtifact(artifact));
+  if (raw.expectedArtifactCount !== undefined && (!Number.isSafeInteger(raw.expectedArtifactCount) || raw.expectedArtifactCount < 0 || raw.expectedArtifactCount !== artifacts.length)) {
+    throw new Error("review-pr: pull request artifact count is incomplete or invalid");
+  }
   const checks = raw.checks.map((check) => {
     if (!isRecord7(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string") {
       throw new Error("review-pr: invalid check-run sample");
@@ -36339,16 +36376,18 @@ function evaluateCheckRun(check) {
   return PASSING_CHECK_CONCLUSIONS.has(check.conclusion) ? "passed" : "pending";
 }
 function evaluatePrerequisite(context, input) {
-  const check = input.checks.find((candidate) => candidate.name === context);
-  const checkState = evaluateCheckRun(check);
-  if (checkState)
-    return checkState;
-  const status = input.statuses.find((candidate) => candidate.context === context);
-  if (status?.state === "success")
-    return "passed";
-  if (status?.state === "failure" || status?.state === "error")
+  const checks = input.checks.filter((candidate) => candidate.name === context);
+  if (checks.length > 0) {
+    const states = checks.map((check) => evaluateCheckRun(check));
+    if (states.includes("failed"))
+      return "failed";
+    return states.every((state) => state === "passed") ? "passed" : "pending";
+  }
+  const statuses = input.statuses.filter((candidate) => candidate.context === context);
+  if (statuses.some((status) => status.state === "failure" || status.state === "error")) {
     return "failed";
-  return "pending";
+  }
+  return statuses.length > 0 && statuses.every((status) => status.state === "success") ? "passed" : "pending";
 }
 function resolvePrerequisiteState(config, input) {
   if (config.requiredChecks === undefined)
@@ -36371,28 +36410,45 @@ function receiptChecks(config, input) {
     return { name: required.context, status: state === "passed" ? "success" : state };
   });
 }
-function boundedTextEvidence(artifacts, maxTotalBytes) {
+function boundedTextEvidence(artifacts, maxTotalBytes, maxPasses) {
   let usedBytes = 0;
-  const context = [];
-  const evidence = [];
+  const batches = [];
+  let context = [];
+  let evidence = [];
   for (const artifact of artifacts) {
     if (artifact.kind !== "text" || artifact.contextUnavailable)
       continue;
     const byteLength = Buffer.byteLength(artifact.content, "utf8") + (artifact.fullContent === undefined ? 0 : Buffer.byteLength(artifact.fullContent, "utf8"));
-    if (usedBytes + byteLength > maxTotalBytes)
+    if (byteLength > maxTotalBytes)
       continue;
+    if (usedBytes + byteLength > maxTotalBytes) {
+      batches.push({ context, evidence });
+      if (batches.length >= maxPasses)
+        return batches;
+      context = [];
+      evidence = [];
+      usedBytes = 0;
+    }
     usedBytes += byteLength;
     evidence.push({ content: artifact.content, path: artifact.path });
     if (artifact.fullContent !== undefined) {
       context.push({ content: artifact.fullContent, path: artifact.path });
     }
   }
-  return { context, evidence };
+  if (evidence.length > 0)
+    batches.push({ context, evidence });
+  return batches;
 }
-function receiptEvidence(artifacts) {
+function receiptEvidence(artifacts, generatedCheckPassed, reviewedPaths) {
   return artifacts.map((artifact) => {
+    if (artifact.kind === "generated" && !generatedCheckPassed) {
+      return { kind: "unreadable_text", path: artifact.path };
+    }
     if (artifact.kind !== "text")
       return { kind: artifact.kind, path: artifact.path };
+    if (reviewedPaths !== undefined && !reviewedPaths.has(artifact.path)) {
+      return { kind: "unreadable_text", path: artifact.path };
+    }
     if (artifact.contextUnavailable) {
       return { kind: "unreadable_text", path: artifact.path };
     }
@@ -36405,6 +36461,7 @@ function receiptEvidence(artifacts) {
 }
 async function inspectPullRequestCommand(options) {
   const config = parseConfig(options.cwd);
+  const maxPasses = config.maxPasses ?? 8;
   const input = parseInput(options.inputPath);
   const credentials = credentialValues(process10.env);
   let credentialRedacted = false;
@@ -36414,18 +36471,32 @@ async function inspectPullRequestCommand(options) {
     return { ...artifact, path: sanitizedPath.value };
   });
   const prerequisite = resolvePrerequisiteState(config, input);
+  const generatedCheckPassed = config.generatedFilesCheck !== undefined && input.checks.some((check) => check.name === config.generatedFilesCheck) && input.checks.filter((check) => check.name === config.generatedFilesCheck).every((check) => check.status === "completed" && check.conclusion === "success");
   let published;
   await reviewPullRequest({
     inspect: async () => {
+      const reviewedPaths = new Set;
       try {
-        const textEvidence = boundedTextEvidence(input.artifacts, config.maxTotalBytes);
-        const noReviewableEvidence = textEvidence.evidence.length === 0;
-        const review = noReviewableEvidence ? { findings: [], tokenUsage: {} } : await (options.provider ?? productionProvider)({
-          apiKey: process10.env.OPENAI_API_KEY,
-          ...textEvidence.context.length > 0 && { context: textEvidence.context },
-          evidence: textEvidence.evidence,
-          model: config.model
-        });
+        const batches = boundedTextEvidence(input.artifacts, config.maxTotalBytes, maxPasses);
+        const noReviewableEvidence = batches.length === 0;
+        const reviews = [];
+        for (const batch of batches) {
+          reviews.push(await (options.provider ?? productionProvider)({
+            apiKey: process10.env.OPENAI_API_KEY,
+            ...batch.context.length > 0 && { context: batch.context },
+            evidence: batch.evidence,
+            model: config.model
+          }));
+          for (const artifact of batch.evidence)
+            reviewedPaths.add(artifact.path);
+        }
+        const review = {
+          findings: reviews.flatMap((result) => result.findings),
+          tokenUsage: {
+            input: reviews.reduce((total, result) => total + (result.tokenUsage.input ?? 0), 0),
+            output: reviews.reduce((total, result) => total + (result.tokenUsage.output ?? 0), 0)
+          }
+        };
         const receiptFindings = review.findings.map((finding) => {
           const path7 = redactCredentials(finding.path, credentials);
           const consequence = redactCredentials(finding.consequence, credentials);
@@ -36441,7 +36512,7 @@ async function inspectPullRequestCommand(options) {
           };
         });
         return {
-          artifacts: receiptEvidence(receiptArtifacts),
+          artifacts: receiptEvidence(receiptArtifacts, generatedCheckPassed, reviewedPaths),
           checks: receiptChecks(config, input),
           consequentialFindings: receiptFindings.filter((finding) => finding.consequential).length,
           findings: receiptFindings,
@@ -36456,7 +36527,7 @@ async function inspectPullRequestCommand(options) {
         };
       } catch {
         return {
-          artifacts: receiptEvidence(receiptArtifacts),
+          artifacts: receiptEvidence(receiptArtifacts, generatedCheckPassed, reviewedPaths),
           checks: receiptChecks(config, input),
           consequentialFindings: 0,
           maxTotalBytes: config.maxTotalBytes,
@@ -36704,7 +36775,24 @@ function renderFinding(finding) {
 function renderCoverage(entry) {
   if (entry.status === "integrity_reviewed")
     return `${entry.path}: integrity-reviewed`;
-  const reason = entry.skipReason === "non_text" ? "non-text" : "unknown";
+  let reason;
+  switch (entry.skipReason) {
+    case undefined: {
+      reason = "unknown";
+      break;
+    }
+    case "non_text": {
+      reason = "non-text";
+      break;
+    }
+    case "generated": {
+      reason = "generated (parity checked)";
+      break;
+    }
+    default: {
+      reason = "unknown";
+    }
+  }
   return `${entry.path}: skipped (${reason})`;
 }
 function incompleteFindingsCaveat(runState) {
@@ -36796,7 +36884,7 @@ function isSerializedCoverage(value) {
     return false;
   if (value.status === "integrity_reviewed")
     return hasExactKeys3(value, ["path", "status"]);
-  return value.status === "skipped" && value.skipReason === "non_text" && hasExactKeys3(value, ["path", "skipReason", "status"]);
+  return value.status === "skipped" && (value.skipReason === "non_text" || value.skipReason === "generated") && hasExactKeys3(value, ["path", "skipReason", "status"]);
 }
 function isTokenUsage(value) {
   if (isRecord8(value) && Object.keys(value).some((key) => key !== "input" && key !== "output")) {

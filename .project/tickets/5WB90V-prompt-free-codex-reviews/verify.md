@@ -1,5 +1,12 @@
 # Verification — 2026-09-30
 
+## Main sync — 2026-10-04
+
+- Merged `origin/main` at `f3324523d8fa71117dab7d0f8da693969e8d3281`. The only conflicts were generated Claude `identity.json` and `inventory.json`; all five generated surfaces were regenerated from the combined source and verified.
+- No incoming changes touched the core review coordinator, MCP interface, or approval implementation. Main fixes worktree selection for review stamps, audit, and verify; improves unattended test-lock waiting; and adds lifecycle-fixture drift checks. These changes support this feature's verification without changing its review/login behavior.
+- Frozen dependency install and CLI build passed. Focused merge verification passed 162 tests in 12 files covering review tools, approval, login process/UI, receipt/stamp wiring, worktree resolution, test locks, and lifecycle generation.
+- Main's lockfile updates remove the prior brace-expansion/undici findings. The current JavaScript audit still reports two high advisories inherited from main: `http-cache-semantics` via Astro and `braces` via lint tooling. The historical TDD ledger and graphical MCP Apps evidence gaps remain unchanged.
+
 ## Test quality assessment — 2026-10-04
 
 - BDD scenarios describe the accepted behavior and rejection paths, but the feature-level `@manual` tag excludes every scenario in this feature from Cucumber. The 596 passing acceptance scenarios are repository regression evidence, not execution of this feature. The feature header now states this explicitly.

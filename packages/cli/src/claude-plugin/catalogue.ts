@@ -443,7 +443,7 @@ function pluginManifest(): string {
     {
       name: 'safeword',
       description:
-        'AI coding agent workflows: BDD, auto-linting, quality reviews, debugging, and refactoring. Start a new session to auto-install, or run /safeword:setup.',
+        'AI coding agent workflows: BDD, auto-linting, quality reviews, debugging, and refactoring. Run safeword install in a project to enroll it.',
       author: { name: 'safeword' },
       homepage: 'https://safeword.dev',
       repository: 'https://github.com/ArcadeAI/safeword',

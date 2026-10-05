@@ -8,6 +8,7 @@
 - **Expected outcome:** <observable business or user outcome>
 - **Success threshold:** <falsifiable threshold; use an observable outcome when no honest metric exists>
 - **Project non-goals:** <explicit boundaries>
+- **Reversibility:** <two-way | one-way: data model, public API, or migration | skip: reason>
 
 ## Jobs To Be Done
 

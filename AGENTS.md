@@ -8,7 +8,7 @@ A CLI tool that installs AI coding agent configurations into projects. **This re
 
 2. **Reconciliation Over Copy**: The CLI computes diffs between installed and template versions, enabling clean upgrades without clobbering user changes.
 
-3. **Agent Parity**: Claude Code, Cursor, and Codex expose the same Safeword workflows through host-native skills, commands/rules, and hooks. Schema, catalogue, and parity tests enforce the shared contract.
+3. **Agent Parity**: Claude Code, Cursor, Codex, and OpenCode expose the same Safeword workflows through host-native skills, commands/rules, and hooks. Schema, catalogue, and parity tests enforce the shared contract.
 
 4. **Dogfooding**: This repo runs safeword on itself. Template changes are tested in real usage before release.
 
@@ -101,18 +101,20 @@ Claude Code has three mechanisms for controlling agent behavior. Understanding t
 
 **Decision**: Source templates in `packages/cli/templates/`, installed configs in `.safeword/`.
 
-**Why**: Clear separation between "what we ship" and "what's installed". Enables `bunx safeword install` to sync changes.
+**Why**: Clear separation between "what we ship" and "what's installed". Enables `bun run safeword install` (root script; runs the local CLI source) to sync changes.
 
 ## Directory Roles
 
 See `ARCHITECTURE.md` for full structure including all packages and templates.
 
-| Directory                 | Role                                          |
-| ------------------------- | --------------------------------------------- |
-| `packages/cli/`           | CLI source code                               |
-| `packages/cli/templates/` | Source templates (what CLI installs)          |
-| `.safeword/`              | Installed config (dogfooding, tracked in git) |
-| `.claude/`, `.cursor/`    | IDE-specific configs synced from templates    |
+| Directory                    | Role                                             |
+| ---------------------------- | ------------------------------------------------ |
+| `packages/cli/`              | CLI source code                                  |
+| `packages/cli/templates/`    | Source templates (what CLI installs)             |
+| `.safeword/`                 | Installed config (dogfooding, tracked in git)    |
+| `.claude/`, `.cursor/`       | IDE-specific configs synced from templates       |
+| `plugin/`                    | Generated native Claude plugin (never hand-edit) |
+| `packages/cli/codex-plugin/` | Generated Codex plugin bundle (never hand-edit)  |
 
 ## Project-Specific Content
 
@@ -134,17 +136,24 @@ Use for project-owned tickets, learnings, and supporting product context. Instal
 
 ### Version Management
 
-When bumping the CLI version, update all **five release-tracked artifacts**:
+When bumping the CLI version, hand-edit the **three version sources**, then regenerate the **generated carriers**:
+
+Hand-edited:
 
 1. `packages/cli/package.json` — source of truth for npm
 2. `.claude-plugin/marketplace.json` → `plugins[0].version` — source of truth for Claude Code plugin
 3. `packages/cli/codex-plugin/.codex-plugin/plugin.json` → `version` — source of truth for Codex plugin
-4. `packages/cli/codex-plugin/package.json` — **generated** identity for the bundled Codex CLI runtime
-5. `packages/cli/codex-plugin/skills/**` and `runtime/cli.js` — **generated**, never hand-edited. Regenerate with `bun run generate:codex-plugin` from `packages/cli`
 
-Artifacts 4 and 5 are easy to miss because they are generated rather than edited: Codex's skills have no project-local `.safeword/hooks` to call, so their review and helper invocations address the versioned bundled runtime in the Codex plugin cache. A bump that skips regeneration ships skills pointing at the previous version or a stale runtime identity. `test:release` fails loudly on the mismatch, so this is a checklist gap rather than a release risk.
+Generated (never hand-edited):
 
-Do NOT add version to `plugin/.claude-plugin/plugin.json` — per Claude Code docs, relative-path plugins use the marketplace entry only. Pre-commit and release-contract tests block a mismatch between the CLI, plugin manifests, and Codex hook commands.
+4. Codex: `packages/cli/codex-plugin/package.json` (bundled runtime identity), `codex-plugin/skills/**`, and `codex-plugin/runtime/cli.js` — `bun run generate:codex-plugin`
+5. Claude: `plugin/package.json` → `version`, `plugin/identity.json` → `plugin_version` (plus its inventory and hook-manifest digests), and `plugin/runtime/cli.js` — `bun run generate:claude-plugin`
+
+Run both generators from `packages/cli`; `bun run fix:generated-surfaces` regenerates every generated surface in the safe order (see gotcha 9). The generated carriers are easy to miss: Codex's skills have no project-local `.safeword/hooks` to call, so their review and helper invocations address the versioned bundled runtime in the plugin cache, and a bump that skips regeneration ships stale runtime identity.
+
+Guards: `scripts/check-version-sync.ts` (pre-commit) blocks a mismatch between the CLI, Claude marketplace, Codex plugin, and Codex runtime versions; it also requires the Codex marketplace identity in `.agents/plugins/marketplace.json` to stay `safeword`/`safeword` and each `codex-plugin/hooks.json` event to bind its bundled `${PLUGIN_ROOT}/runtime/cli.js` command (both version-independent). `packages/cli/scripts/check-claude-plugin-release.ts` (`bun run check:claude-plugin`, CI) blocks drift between the CLI version, marketplace version, and `identity.json`, plus stale digests. `test:release` also fails loudly, so a skipped step is a checklist gap rather than a release risk.
+
+Do NOT add version to `plugin/.claude-plugin/plugin.json` — per Claude Code docs, relative-path plugins use the marketplace entry only.
 
 ### Releasing
 
@@ -187,13 +196,13 @@ Write ticket names that describe **user value**, not implementation.
 
 ## Common Gotchas
 
-1. **templates/ vs .safeword/**: Edit `packages/cli/templates/` first, then `bunx safeword install` to sync. Never edit `.safeword/` directly for framework changes.
+1. **templates/ vs .safeword/**: Edit `packages/cli/templates/` first, then `bun run safeword install` from the repo root to sync (it runs the local CLI source, so no rebuild or published version is involved). Never edit `.safeword/` directly for framework changes.
 
 2. **Schema registration**: Every file in `packages/cli/templates/` MUST have an entry in `packages/cli/src/schema.ts`. Without it, the file exists but never gets installed. Run `bun run test -- --testNamePattern="should have entry"` to verify.
 
 3. **`bun test` vs `bun run test`**: This project uses Vitest. Always use `bun run test` (runs package.json script) not `bun test` (runs Bun's built-in test runner, which will fail on Vitest tests). Also: `vitest` is only installed in `packages/cli/node_modules/.bin`, so a bare `npx vitest run …` works **from `packages/cli`**, not the repo root (from root it fails `vitest: not found` — issue #723). From the root, target package tests with `bun run test tests/path/to/file.test.ts` (paths are `packages/cli`-relative; forwarded through the build-lock wrapper, which rebuilds `dist/` first).
 
-4. **Hook paths**: Always use `"$CLAUDE_PROJECT_DIR"/.safeword/hooks/...` format (quoted variable) for Claude Code hooks.
+4. **Hook paths**: In project-level Claude settings (this repo's dogfood `.claude/settings.json` and legacy project delivery), use the quoted `"$CLAUDE_PROJECT_DIR"/.safeword/hooks/...` form. The native plugin's generated `plugin/hooks/hooks.json` instead routes every event through `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js` — change its generator, not the file.
 
 5. **Monorepo publishing**: `workspace:^` resolves at `bun install` time, not publish time. For 0.x packages, `^0.6.0` excludes 0.7.0. Run `bun install` after version bumps, or use explicit versions for cross-package deps.
 
@@ -203,4 +212,4 @@ Write ticket names that describe **user value**, not implementation.
 
 8. **Suppress markdownlint with the block form, never `disable-next-line`**: prettier puts a blank line after an HTML comment block, so `<!-- markdownlint-disable-next-line RULE -->` ends up covering that blank line and suppressing nothing. Use `<!-- markdownlint-disable RULE -->` / `<!-- markdownlint-enable RULE -->` around the offending lines instead — it is insensitive to blank lines. Pre-commit now lints after formatting, so an inert directive fails the commit with the rule it was meant to suppress (#3740).
 
-9. **A template edit invalidates four generated surfaces**: changing anything under `packages/cli/templates/` (or a mirror) leaves the Codex plugin, the Claude plugin runtime, the Claude historical catalogue, and the Cursor wrappers stale — each otherwise surfaces only as a long, unrelated-looking test failure (a stale catalogue alone cascaded into 65 failures across `tests/claude-plugin/**` and the BDD lane). The pre-commit gate `bun packages/cli/scripts/check-generated-surfaces.ts` (also `bun run check:generated-surfaces` from `packages/cli`) checks all four in ~10s and names the generator to run. `bun packages/cli/scripts/check-generated-surfaces.ts --fix` (or `bun run fix:generated-surfaces`) regenerates all four in a safe order. The one ordering rule that matters: the historical catalogue must run BEFORE `generate:claude-plugin` and `generate:codex-plugin`, because its generated file is bundled into each plugin's `runtime/cli.js` — regenerate a plugin first and it is stale again. The Cursor wrappers are independent of the other three. Byte-identical mirrors are a separate concern, handled by `parity-check.ts`.
+9. **A template edit invalidates five generated surfaces**: changing anything under `packages/cli/templates/` (or a mirror) leaves the Codex plugin, the Claude plugin runtime, the Claude historical catalogue, the Cursor wrappers, and the lifecycle origin-main fixtures (`packages/cli/tests/fixtures/lifecycle-origin-main/`, whose tree hashes cover installed template bytes) stale — each otherwise surfaces only as a long, unrelated-looking test failure (a stale catalogue alone cascaded into 65 failures across `tests/claude-plugin/**` and the BDD lane). The pre-commit gate `bun packages/cli/scripts/check-generated-surfaces.ts` (also `bun run check:generated-surfaces` from `packages/cli`) checks all five in ~10s and names the generator to run (the lifecycle fixtures are checked via a templates digest in their `manifest.json`, not by running vitest). `bun packages/cli/scripts/check-generated-surfaces.ts --fix` (or `bun run fix:generated-surfaces`) regenerates all five in a safe order; it fails if a regenerated lifecycle fixture's `result_sha256` moved, because that is a behavior change to inspect and explain, not template drift. The one ordering rule that matters: the historical catalogue must run BEFORE `generate:claude-plugin` and `generate:codex-plugin`, because its generated file is bundled into each plugin's `runtime/cli.js` — regenerate a plugin first and it is stale again. The Cursor wrappers are independent of the plugins and catalogue, but write into `templates/`, so the lifecycle fixtures regenerate last. Byte-identical mirrors are a separate concern, handled by `parity-check.ts`.
