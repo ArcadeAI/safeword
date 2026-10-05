@@ -4,7 +4,7 @@
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -51,7 +51,8 @@ import {
   hasSafewordProjectMarker,
   isNamespacePath,
   resolveNamespaceRoot,
-  resolveOwningProjectDirectory,
+  canonicalEditTarget,
+  resolveToolProjectDirectory,
 } from './lib/namespace-root.ts';
 import { reviewKindForPhase } from './lib/review-receipt.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
@@ -67,6 +68,7 @@ const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
 interface HookInput {
   session_id?: string;
   transcript_path?: string;
+  cwd?: string;
   tool_name?: string;
   tool_input?: {
     file_path?: string;
@@ -370,34 +372,18 @@ try {
 
 const tool = input.tool_name ?? '';
 const requestedEditedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
-function canonicalPathForGate(path: string, seen = new Set<string>()): string {
-  if (seen.has(path)) return path;
-  seen.add(path);
-  try {
-    return realpathSync(path);
-  } catch {
-    try {
-      if (lstatSync(path).isSymbolicLink()) {
-        const target = readlinkSync(path);
-        return canonicalPathForGate(nodePath.resolve(nodePath.dirname(path), target), seen);
-      }
-    } catch {
-      // The requested path itself may not exist yet.
-    }
-    const parent = nodePath.dirname(path);
-    if (parent === path) return path;
-    return nodePath.join(canonicalPathForGate(parent, seen), nodePath.basename(path));
-  }
-}
-const editedFile =
-  requestedEditedFile === '' ? requestedEditedFile : canonicalPathForGate(requestedEditedFile);
+const editedFile = canonicalEditTarget(requestedEditedFile, input.cwd);
 
-// An edit inside another enrolled git worktree (e.g. `.claude/worktrees/<name>`
+// Work inside another enrolled git worktree (e.g. `.claude/worktrees/<name>`
 // after the session entered it) is gated against that worktree's tickets,
-// config, and state — not the launch checkout's (#5247).
-const projectDirectory = EDIT_TOOLS.includes(tool)
-  ? resolveOwningProjectDirectory(launchProjectDirectory, editedFile)
-  : launchProjectDirectory;
+// config, and state — not the launch checkout's. Edits resolve from the edited
+// file (#5247); shell commands from the shell's cwd, so the PR-readiness gate
+// reads the receipt post-tool-quality wrote for that same worktree.
+const projectDirectory = resolveToolProjectDirectory(launchProjectDirectory, {
+  tool,
+  editedFile,
+  cwd: input.cwd,
+});
 const canonicalProjectDirectory = realpathSync(projectDirectory);
 
 // ---------------------------------------------------------------------------
@@ -454,12 +440,18 @@ if (tool === 'Bash') {
     enforceRefactorCommitGate(input.session_id);
   }
   if (
-    commandInvokesCloseoutCleanup(command, process.env.CLAUDE_PLUGIN_ROOT, projectDirectory) &&
+    // Closeout runs against the launch checkout (it removes the worktree), so
+    // its session binding stays there regardless of the shell's cwd.
+    commandInvokesCloseoutCleanup(
+      command,
+      process.env.CLAUDE_PLUGIN_ROOT,
+      launchProjectDirectory,
+    ) &&
     (process.env.SAFEWORD_AGENT_RUNTIME === undefined ||
       process.env.SAFEWORD_AGENT_RUNTIME === 'claude')
   ) {
     rememberCloseoutBinding({
-      projectDirectory,
+      projectDirectory: launchProjectDirectory,
       runtime: 'claude',
       id: input.session_id,
       transcriptPath: input.transcript_path,
