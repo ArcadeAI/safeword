@@ -368,8 +368,14 @@ function transitionRecoveryOwnerPathFor(generation) {
 
 function readTransitionRecoveryOwners() {
   // Owner files are never removed while a marker exists. owner-1 fixes the
-  // marker's instance; the highest owner of that instance is authoritative.
-  // A legacy owner.json stands in when no numbered owner exists yet.
+  // marker's instance, and the highest owner of that instance is
+  // authoritative. Until owner-1 exists the marker has no numbered owner, so
+  // only a legacy owner.json can stand in.
+  const anchor = readTextIfPresent(transitionRecoveryOwnerPathFor(1));
+  if (anchor === false) {
+    return { authority: readTextIfPresent(transitionRecoveryOwnerPath), nextGeneration: 1 };
+  }
+  const { instance } = parseOwner(anchor).owner;
   let entries;
   try {
     entries = readdirSync(transitionRecoveryDirectory);
@@ -381,18 +387,20 @@ function readTransitionRecoveryOwners() {
     .map(entry => Number(/^owner-(\d+)\.json$/u.exec(entry)?.[1] ?? 0))
     .filter(generation => generation > 0)
     .toSorted((left, right) => left - right);
-  if (generations.length === 0) {
-    return { authority: readTextIfPresent(transitionRecoveryOwnerPath), nextGeneration: 1 };
-  }
   const owners = generations.map(generation =>
     readTextIfPresent(transitionRecoveryOwnerPathFor(generation)),
   );
-  const { instance } = parseOwner(owners[0]).owner;
   return {
-    authority: owners.findLast(text => parseOwner(text).owner.instance === instance) ?? false,
+    authority: owners.findLast(text => parseOwner(text).owner.instance === instance) ?? anchor,
     instance,
     nextGeneration: generations.at(-1) + 1,
   };
+}
+
+function holdsTransitionRecovery(token) {
+  const { authority } = readTransitionRecoveryOwners();
+  const { owner } = authority === false ? { owner: {} } : parseOwner(authority);
+  return owner.pid === process.pid && owner.token === token;
 }
 
 function publishTransitionRecoveryOwner(token, generation, instance) {
@@ -417,14 +425,13 @@ function publishTransitionRecoveryOwner(token, generation, instance) {
 function tryAdoptAbandonedTransitionRecovery(token) {
   const { authority, instance, nextGeneration } = readTransitionRecoveryOwners();
   if (!transitionRecoveryIsAbandoned(authority)) return false;
-  // Supersede the abandoned owner instead of removing it, so a stale judgement
-  // can only lose the exclusive link to a newer owner. If the marker was
-  // replaced since we looked, our owner names the old instance and is ignored
-  // (#419).
-  const claimedInstance = instance ?? randomUUID();
+  // Supersede the abandoned owner instead of removing it, then confirm we are
+  // the authoritative owner. A stale judgement either loses the exclusive link
+  // or publishes an owner that is ignored: an older generation, or an owner
+  // of a marker instance that has since been replaced (#419).
   return (
-    publishTransitionRecoveryOwner(token, nextGeneration, claimedInstance) &&
-    readTransitionRecoveryOwners().instance === claimedInstance
+    publishTransitionRecoveryOwner(token, nextGeneration, instance ?? randomUUID()) &&
+    holdsTransitionRecovery(token)
   );
 }
 
@@ -438,13 +445,11 @@ function tryEnterTransitionRecovery(token) {
   }
   // A failed publish leaves an ownerless marker that ages out; removing it by
   // path could delete a marker another contender adopted meanwhile.
-  return publishTransitionRecoveryOwner(token, 1, randomUUID());
+  return publishTransitionRecoveryOwner(token, 1, randomUUID()) && holdsTransitionRecovery(token);
 }
 
 function leaveTransitionRecovery(token) {
-  const { authority } = readTransitionRecoveryOwners();
-  const { owner } = authority === false ? { owner: {} } : parseOwner(authority);
-  if (owner.pid !== process.pid || owner.token !== token) return false;
+  if (!holdsTransitionRecovery(token)) return false;
   const releasedRecoveryDirectory = `${transitionRecoveryDirectory}.released-${randomUUID()}`;
   try {
     renameSync(transitionRecoveryDirectory, releasedRecoveryDirectory);
