@@ -14,6 +14,7 @@ import {
   parseTddStep,
 } from './lib/active-ticket.ts';
 import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-ledger-writes.ts';
+import { retrospectiveGateDenial } from './lib/retrospective-gate.ts';
 import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
@@ -77,7 +78,7 @@ interface HookInput {
     new_string?: string;
     replace_all?: boolean;
     content?: string;
-    edits?: Array<{ old_string?: string; new_string?: string }>;
+    edits?: Array<{ old_string?: string; new_string?: string; replace_all?: boolean }>;
     command?: string;
   };
 }
@@ -993,6 +994,12 @@ if (
     );
   }
   const transitions = collectNewTransitions(input, editedFile);
+  if (transitions.some(transition => transition.editReconstructionFailed === true)) {
+    deny(
+      'Cannot reconstruct the exact MultiEdit ledger changes.',
+      'Use an unambiguous replacement or explicit replace_all so every checkbox transition can be checked.',
+    );
+  }
   const relabeledEvidence = transitions.find(transition => transition.evidenceModeChanged === true);
   if (relabeledEvidence !== undefined) {
     deny(
@@ -1012,12 +1019,55 @@ if (
       'Split the edit so each GREEN transition receives one bounded executable-RED receipt check. This prevents a multi-replacement edit from outliving the host hook timeout.',
     );
   }
+  if (
+    transitions.filter(
+      transition => transition.step === 'VERIFIED' && transition.historicalEvidenceRemoved !== true,
+    ).length > 1
+  ) {
+    deny(
+      'Cannot mark more than one VERIFIED row in one tool call.',
+      'Check each scenario separately so its independent receipts and current proof are verified at the edit boundary.',
+    );
+  }
   for (const transition of transitions) {
     if (transition.historicalEvidenceRemoved === true) {
       deny(
         `Cannot move, rewrite, uncheck, or remove a ${transition.step} row that already carries historical evidence.`,
         `Keep the checked ${transition.step} row and its scenario binding intact. If you are renaming a scenario while checking another row, split those changes into separate edits.`,
       );
+    }
+    if (transition.step === 'VERIFIED') {
+      const parsed = transition.retrospective;
+      if (parsed?.kind !== 'claim' || transition.scenario === undefined) {
+        deny(
+          'Cannot mark VERIFIED without one scenario and two distinct review receipts.',
+          'Use the exact `VERIFIED eligibility=<review-id> proof=<review-id>` row after both independent reviews complete.',
+        );
+      }
+      const ticketFolder = nodePath.basename(nodePath.dirname(editedFile));
+      const ticketId = ticketFolder.split('-', 1)[0] ?? '';
+      const ledger = nodePath.relative(canonicalProjectDirectory, editedFile);
+      const scenario = /^Scenario: (.+)$/u.exec(transition.scenario)?.[1];
+      if (scenario === undefined) {
+        deny(
+          'Cannot mark VERIFIED without a standard Scenario heading.',
+          'Keep this row under a unique `### Scenario: <title>` heading and retry.',
+        );
+      }
+      const gateDenial = retrospectiveGateDenial(projectDirectory, {
+        ticketId,
+        scenario,
+        ledger,
+        eligibilityId: parsed.eligibilityId,
+        proofId: parsed.proofId,
+      });
+      if (gateDenial !== undefined) {
+        deny(
+          `Cannot mark VERIFIED: ${gateDenial}`,
+          'Restore an unchecked VERIFIED row, complete both independent reviews, and rerun the current retrospective proof gate.',
+        );
+      }
+      continue;
     }
     if (transition.annotation === '') {
       deny(

@@ -141,6 +141,145 @@ describe('evaluateDoneEvidence', () => {
     expect(verdict.reason).toContain('scenarios');
   });
 
+  it('does not hide an unchecked fourth-level scenario after a completed row', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      '### Scenario: historical\n- [x] GREEN\n#### Scenario: pending\n- [ ] RED\n',
+    );
+    const verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: ticketDirectory,
+      ticketType: 'feature',
+    });
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reason).toContain('scenarios');
+  });
+
+  it('counts an unchecked VERIFIED-only scenario as unfinished', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      '### Scenario: done\n- [x] GREEN abc1234\n### Scenario: pending\n- [ ] VERIFIED\n',
+    );
+    const verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: ticketDirectory,
+      ticketType: 'feature',
+    });
+    expect(verdict.ok).toBe(false);
+  });
+
+  it('does not count a checked VERIFIED row with invented review IDs as completion', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      '### Scenario: historical behavior\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n- [x] VERIFIED eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222\n',
+    );
+    const verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: ticketDirectory,
+      ticketType: 'feature',
+    });
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reason).toContain('VERIFIED closing proof');
+  });
+
+  it('rejects duplicate scenario headings when one claims VERIFIED', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      '### Scenario: duplicate\n- [x] VERIFIED eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222\n### Scenario: duplicate\n- [ ] RED\n',
+    );
+    const verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: ticketDirectory,
+      ticketType: 'feature',
+    });
+    expect(verdict).toEqual({ ok: false, reason: 'VERIFIED requires unique scenario headings.' });
+  });
+
+  it.each([' VERIFIED', 'verified', 'Verified'])(
+    'rejects noncanonical %s before counting completion',
+    label => {
+      writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'test-definitions.md'),
+        `### Scenario: historical behavior\n- [x] ${label} eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222\n`,
+      );
+      const verdict = evaluateDoneEvidence({
+        projectDir: projectDirectory,
+        ticketDir: ticketDirectory,
+        ticketType: 'feature',
+      });
+      expect(verdict).toEqual({
+        ok: false,
+        reason: 'VERIFIED row must use uppercase VERIFIED and the canonical checkbox spacing.',
+      });
+    },
+  );
+
+  it('accepts a CKWE2D VERIFIED scenario only after the installed closing gate approves', () => {
+    ticketDirectory = nodePath.join(projectDirectory, '.project', 'tickets', 'CKWE2D-x');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      '### Scenario: historical behavior\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n- [x] VERIFIED eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222\n',
+    );
+    const pluginDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retrospective-done-cli-'));
+    const previousPluginCli = process.env.SAFEWORD_PLUGIN_CLI;
+    try {
+      const stub = nodePath.join(pluginDirectory, 'cli.js');
+      writeFileSync(
+        stub,
+        `process.stdout.write(JSON.stringify({state:'healthy',data:{status:'approved',ticketId:'CKWE2D',ledger:'.project/tickets/CKWE2D-x/test-definitions.md'}}));\n`,
+      );
+      process.env.SAFEWORD_PLUGIN_CLI = stub;
+      expect(
+        evaluateDoneEvidence({
+          projectDir: projectDirectory,
+          ticketDir: ticketDirectory,
+          ticketType: 'feature',
+        }),
+      ).toEqual({ ok: true });
+    } finally {
+      if (previousPluginCli === undefined) delete process.env.SAFEWORD_PLUGIN_CLI;
+      else process.env.SAFEWORD_PLUGIN_CLI = previousPluginCli;
+      rmSync(pluginDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    '### Scenario: complete\n- [x] GREEN abc1234\n```markdown\n### Scenario: unfinished\n- [ ] RED\n```\n',
+    '```markdown\n### Scenario: example\n- [x] GREEN abc1234\n```\n',
+  ])('does not let fenced rows hide unfinished work or earn completion credit', ledger => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(nodePath.join(ticketDirectory, 'test-definitions.md'), ledger);
+    expect(
+      evaluateDoneEvidence({
+        projectDir: projectDirectory,
+        ticketDir: ticketDirectory,
+        ticketType: 'feature',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('ignores a fenced VERIFIED example when evaluating completed live evidence', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      '### Scenario: live behavior\n- [x] RED abc1234\n- [x] GREEN abc1234\n- [x] REFACTOR skip: none\n```markdown\n- [x] VERIFIED eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222\n```\n',
+    );
+    expect(
+      evaluateDoneEvidence({
+        projectDir: projectDirectory,
+        ticketDir: ticketDirectory,
+        ticketType: 'feature',
+      }),
+    ).toEqual({ ok: true });
+  });
+
   it('allows a feature close when verify.md and all scenarios are complete', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
     writeFileSync(

@@ -2,9 +2,8 @@ import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
 export interface CodexHookInput {
-  session_id?: string;
-  /** Codex sends the session's working directory on every hook. */
   cwd?: string;
+  session_id?: string;
   tool_name?: string;
   tool_input?: {
     command?: string;
@@ -18,9 +17,8 @@ export interface CodexHookInput {
 }
 
 export interface ClaudeHookInput {
-  session_id?: string;
-  /** Where the work happens; the shared hooks root at the worktree that owns it (#5392). */
   cwd?: string;
+  session_id?: string;
   hook_event_name: 'PreToolUse';
   tool_name: 'Bash' | 'Edit' | 'Write' | 'MultiEdit' | 'NotebookEdit';
   tool_input: NonNullable<CodexHookInput['tool_input']>;
@@ -36,7 +34,7 @@ export interface ClaudeHookInput {
 export function runClaudeHookAsCodex(claudeHookPath: string, translated: ClaudeHookInput) {
   return spawnSync('bun', [claudeHookPath], {
     cwd: process.cwd(),
-    input: JSON.stringify(translated),
+    input: JSON.stringify({ cwd: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(), ...translated }),
     encoding: 'utf8',
     env: {
       ...process.env,
@@ -64,7 +62,7 @@ export function translateCodexInputToClaudeInputs(input: CodexHookInput): Claude
     return [
       {
         session_id: input.session_id,
-        cwd: input.cwd,
+        ...(input.cwd && { cwd: input.cwd }),
         hook_event_name: 'PreToolUse',
         tool_name: toolName as ClaudeHookInput['tool_name'],
         tool_input: input.tool_input ?? {},
@@ -76,7 +74,7 @@ export function translateCodexInputToClaudeInputs(input: CodexHookInput): Claude
 
   return extractPatchTargets(input.tool_input?.command ?? '').map(patchTarget => ({
     session_id: input.session_id,
-    cwd: input.cwd,
+    ...(input.cwd && { cwd: input.cwd }),
     hook_event_name: 'PreToolUse',
     tool_name: patchTarget.toolName,
     tool_input: {
