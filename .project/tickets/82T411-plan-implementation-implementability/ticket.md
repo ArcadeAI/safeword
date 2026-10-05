@@ -31,9 +31,9 @@ done_when:
   - the Implementation Plan review receipt explicitly passes or fails whether its decision summary supports a focused 30–60 minute review and names any execution detail that obscures a decision
   - a required semantic review confirms that the Execution Plan maps every accepted obligation to dependency-ordered work whose first step can start without inventing or changing a decision
   - author and reviewer inputs carry a digest of the same canonical contract bytes, and missing, edited, or mismatched contracts or required context cannot produce approval
-  - changing canonical phase-contract bytes invalidates reviews approved against older bytes, with a plain explanation of which plan needs a fresh review
+  - changing canonical phase-contract bytes invalidates planning reviews approved against older bytes and any dependent human design approval, with a plain explanation of what needs fresh review or approval; tickets already implementing under an accepted version continue until they return to planning
   - plan authoring and semantic review load one portable writing guide, Product and Implementation Planning share one decision-conversation method, and versioned Product Plan transitions preserve complete accepted prior work while blocking partial or mixed states
-  - changing accepted scope, behavior, an Implementation Plan, or an Execution Plan invalidates exactly the reviews that depend on that change
+  - changing accepted scope, behavior, an Implementation Plan, or an Execution Plan invalidates exactly the reviews and enabled human design approval that depend on that change
   - feature, task, and patch routing keeps small work lightweight while promoting unresolved consequential in-scope decisions to the appropriate feature phase
   - acceptance scenarios prove the workflow and recovery behavior on every affected surface or record a specific justified skip at the real surface boundary
   - every new block or invalidation tells a non-technical builder in plain language what failed, why work stopped, and the one concrete action that resumes it
