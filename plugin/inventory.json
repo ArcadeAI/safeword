@@ -15,11 +15,11 @@
     },
     {
       "path": "hooks/hooks.json",
-      "sha256": "b4d236bcd133dd42fe0c63c76a0d406e3149e453838b132531125961fdef6775"
+      "sha256": "566e99f2ec53278b400dae1e54085940594048f0423787cc6863f3f543422756"
     },
     {
       "path": "package.json",
-      "sha256": "cb7aceb61a243ab262fca740fb356cf5a9943e7f7ef304403052839faa723270"
+      "sha256": "3b3db27e0f83fc08a1e47861c47620b4a13c943c78073768585815bd3ed1206c"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -99,7 +99,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "dfafa9aa5bd34dfc98c9c0b1d428fd9bf096d3fb9b2306205782394f826c8ebb"
+      "sha256": "78a110f48ca40f1025ef37f4852efca9006f6c62249cec698b3e5c4b6c7a824f"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "11e1541e9fdb3e071960aa7f4bbc82ecde05f77f06caae28a7db4a620f8d6ef2"
+      "sha256": "e1170e6a1a13806fbe3f1a9da9be1095f76a57ea62afb09d1151dd1947e574e8"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "d9114735d164fb06b0fe4226c48710f9f0eda1f9cd87322a7a33264b56d84e53"
+      "sha256": "f2f381da437a4d2bf933bdf5b03223a0c8aa3893ffe46bd9575d46723668f720"
     },
     {
       "path": "runtime/event-groups.json",
@@ -195,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "3f149e94a5eddd2f087d86bd0a05ec2532ae28db3543b8b670c6307252860db5"
+      "sha256": "60f4ec6b1d19d96b9969e436963b5d79ef5d282783ceb4d117e236ab16f73a84"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
@@ -211,7 +211,7 @@
     },
     {
       "path": "runtime/hooks/lib/cursor-state.ts",
-      "sha256": "6d80d1d6a6f13e1a61b8cff9800e9955cfff10040d127ae25a8160b2b799c3cb"
+      "sha256": "cdc0a5c678cc062fbad56b80f2bdae5e927a574aaac99fdae8b6c364b9830ef1"
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
@@ -223,7 +223,7 @@
     },
     {
       "path": "runtime/hooks/lib/done-gate.ts",
-      "sha256": "ea0acfed5fafc861a4ecb77001ceaa5af7193c6e05335a897a59a0824be4d45b"
+      "sha256": "7ae0babe0c1435a4f64eb36f600b614ed4776520b30a0cd352a7e09f1362702e"
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
@@ -271,7 +271,7 @@
     },
     {
       "path": "runtime/hooks/lib/ledger-validation.ts",
-      "sha256": "eb62e4c3280b82ad7f3e3535aacd0aa9f494d80f53b826786278a5803c17298b"
+      "sha256": "a3135b8ad2f2aa35e244ffaf8661c7e53acc1cd9f311d733666c1c0139af6761"
     },
     {
       "path": "runtime/hooks/lib/lint-config.ts",
@@ -287,7 +287,7 @@
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
-      "sha256": "897f43d5a5d0676b1f61bce32a67f0d22636e368b19836535faa98259c70f8fd"
+      "sha256": "f521d754f12aebc1fc4d3e80cb4ab3c7ac41cca049f6083b139ead7258b0d3bd"
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
@@ -295,7 +295,7 @@
     },
     {
       "path": "runtime/hooks/lib/parse-annotation.ts",
-      "sha256": "80d13a21c57c51cd9b1d2f3fc5b20bdf9bedf82615130af2cad9f96fbe9cd78b"
+      "sha256": "9f3d0096cf023e0a8a439dff97fb74b2e2d978a82b0f6b876b278b10fdae6db8"
     },
     {
       "path": "runtime/hooks/lib/phase-provenance.ts",
@@ -335,7 +335,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "02c5de5fa183b4de29bbdcfcaf570398a69543a265b6c7199974937d1280129e"
+      "sha256": "0934ed8d8e108050267d3d8d5b4d313ec13ba84c0c942f8d4c3c0cb8cc9434d5"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -380,6 +380,14 @@
     {
       "path": "runtime/hooks/lib/retro-trigger.ts",
       "sha256": "90b533fdbf9ca6e6af8603488a483750e858696b9f540b5ec1bde98d2906368f"
+    },
+    {
+      "path": "runtime/hooks/lib/retrospective-annotation.ts",
+      "sha256": "6dab8396e39bf1cb6500c25cb47147f4b6749292ea4844c6d8b4c0eddc4c404e"
+    },
+    {
+      "path": "runtime/hooks/lib/retrospective-gate.ts",
+      "sha256": "c408a3a94a240be25802df86704edd3789518837d3367ffd052edb5e56074ad6"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
@@ -459,7 +467,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "86b21bd8a6e4fdf39c12107a605dcf729674f46d109ee180cfc342fc07ff451e"
+      "sha256": "eb8226888626244f196409a3fafea98c5c83908165a3ada1e6394fa745e4fbad"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -491,7 +499,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "ec8b55076f315c615dd50390bac63ce7d57b3d31e460a40a3bca361e2654ce74"
+      "sha256": "6530382d0117872d47fe59c79f90e57afa1c8bed6b14baadc017b28eea4b6d96"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -607,11 +615,11 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "a0d6e63d0bbb8cbc8e223f07ce74db1340257a4af9eb94a554eb9d5cbc4a8f52"
+      "sha256": "fa1f2c69dc727365a8b82c6cad30253d33d336cc3047bc59f661d157da755cef"
     },
     {
       "path": "skills/audit/SKILL.md",
-      "sha256": "8715d6aeed2e6e2dcaf840ab9c76c52a8dd38f498d220502e9178af7096ca686"
+      "sha256": "5150538ef9cf5932420de5ab413980a23bf82f087461296a74c4f29f8bf9087b"
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
@@ -735,7 +743,7 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "e65acf5fd52b5a5f7291a8f491fc6827dff6967529793804ddb917a86de64e49"
+      "sha256": "0601f5f8399a04199c87442a47ec111d486ed1b3426b5425e6a256fc4efbabc8"
     },
     {
       "path": "templates/.jscpd.json",
@@ -1051,7 +1059,7 @@
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality-helpers.ts",
-      "sha256": "4b707b4acacdb50e44a2f4cf00e01df4b533f549b9a5cd7919b5a348cd3fdeec"
+      "sha256": "e72c428d3e65058048ed78fabc6882c1c479873ea0d966678877fc2075b008a7"
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality.ts",
@@ -1067,15 +1075,15 @@
     },
     {
       "path": "templates/hooks/cursor/before-shell-execution.ts",
-      "sha256": "0b58b05da4de5a4f764d3703aa3128ec08dc77da2af011ddb9d4431fca47bd1c"
+      "sha256": "14d2bf5e1bf53db68ea9052675827b976909463afbccb8f4f658f92601a15344"
     },
     {
       "path": "templates/hooks/cursor/gate-adapter.ts",
-      "sha256": "70f4ed8e28438363f29b1f8e12340dc806c77f79f6bd49d3b63d844e1ca74b6b"
+      "sha256": "3c6a1f0d8d04d7e7888630f27772e448fa5082417d4c0b6f79d212161da0c1ce"
     },
     {
       "path": "templates/hooks/cursor/post-tool-quality.ts",
-      "sha256": "356f014b7a530dc1d3246a87c2d91109335b6c28f799f441cf3fc16b41836864"
+      "sha256": "e683b3e2f144269bb34f414d4bb32498c7c365b6a6c6cc2a0971fedf18609a14"
     },
     {
       "path": "templates/hooks/cursor/post-tool-skill-nudge.ts",
@@ -1131,7 +1139,7 @@
     },
     {
       "path": "templates/hooks/lib/checkbox-transitions.ts",
-      "sha256": "3f149e94a5eddd2f087d86bd0a05ec2532ae28db3543b8b670c6307252860db5"
+      "sha256": "60f4ec6b1d19d96b9969e436963b5d79ef5d282783ceb4d117e236ab16f73a84"
     },
     {
       "path": "templates/hooks/lib/closeout-binding.ts",
@@ -1147,7 +1155,7 @@
     },
     {
       "path": "templates/hooks/lib/cursor-state.ts",
-      "sha256": "6d80d1d6a6f13e1a61b8cff9800e9955cfff10040d127ae25a8160b2b799c3cb"
+      "sha256": "cdc0a5c678cc062fbad56b80f2bdae5e927a574aaac99fdae8b6c364b9830ef1"
     },
     {
       "path": "templates/hooks/lib/dependency-readiness.ts",
@@ -1159,7 +1167,7 @@
     },
     {
       "path": "templates/hooks/lib/done-gate.ts",
-      "sha256": "ea0acfed5fafc861a4ecb77001ceaa5af7193c6e05335a897a59a0824be4d45b"
+      "sha256": "7ae0babe0c1435a4f64eb36f600b614ed4776520b30a0cd352a7e09f1362702e"
     },
     {
       "path": "templates/hooks/lib/drain-retro-spool.ts",
@@ -1207,7 +1215,7 @@
     },
     {
       "path": "templates/hooks/lib/ledger-validation.ts",
-      "sha256": "eb62e4c3280b82ad7f3e3535aacd0aa9f494d80f53b826786278a5803c17298b"
+      "sha256": "a3135b8ad2f2aa35e244ffaf8661c7e53acc1cd9f311d733666c1c0139af6761"
     },
     {
       "path": "templates/hooks/lib/lint-config.ts",
@@ -1223,11 +1231,11 @@
     },
     {
       "path": "templates/hooks/lib/namespace-root.ts",
-      "sha256": "897f43d5a5d0676b1f61bce32a67f0d22636e368b19836535faa98259c70f8fd"
+      "sha256": "f521d754f12aebc1fc4d3e80cb4ab3c7ac41cca049f6083b139ead7258b0d3bd"
     },
     {
       "path": "templates/hooks/lib/parse-annotation.ts",
-      "sha256": "80d13a21c57c51cd9b1d2f3fc5b20bdf9bedf82615130af2cad9f96fbe9cd78b"
+      "sha256": "9f3d0096cf023e0a8a439dff97fb74b2e2d978a82b0f6b876b278b10fdae6db8"
     },
     {
       "path": "templates/hooks/lib/phase-provenance.ts",
@@ -1267,7 +1275,7 @@
     },
     {
       "path": "templates/hooks/lib/quality.ts",
-      "sha256": "02c5de5fa183b4de29bbdcfcaf570398a69543a265b6c7199974937d1280129e"
+      "sha256": "0934ed8d8e108050267d3d8d5b4d313ec13ba84c0c942f8d4c3c0cb8cc9434d5"
     },
     {
       "path": "templates/hooks/lib/re-entry.ts",
@@ -1312,6 +1320,14 @@
     {
       "path": "templates/hooks/lib/retro-trigger.ts",
       "sha256": "87d86f6c27a309482f35ccf2e812ff831490b5c3cd8e8bf50a55ebbf2c8770d1"
+    },
+    {
+      "path": "templates/hooks/lib/retrospective-annotation.ts",
+      "sha256": "6dab8396e39bf1cb6500c25cb47147f4b6749292ea4844c6d8b4c0eddc4c404e"
+    },
+    {
+      "path": "templates/hooks/lib/retrospective-gate.ts",
+      "sha256": "c408a3a94a240be25802df86704edd3789518837d3367ffd052edb5e56074ad6"
     },
     {
       "path": "templates/hooks/lib/review-ledger.ts",
@@ -1391,7 +1407,7 @@
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",
-      "sha256": "86b21bd8a6e4fdf39c12107a605dcf729674f46d109ee180cfc342fc07ff451e"
+      "sha256": "eb8226888626244f196409a3fafea98c5c83908165a3ada1e6394fa745e4fbad"
     },
     {
       "path": "templates/hooks/post-tool-skill-nudge.ts",
@@ -1423,7 +1439,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "f8cbdae92606c881869334b7730cbcaff25a36c5e30ef8d68571d450d25e1507"
+      "sha256": "8a8bcb71e0718a9609091eb06e310aea939028b0d9c3d4245da2ea5ae3f1fcbd"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1539,7 +1555,7 @@
     },
     {
       "path": "templates/hooks/write-review-stamp.ts",
-      "sha256": "a0d6e63d0bbb8cbc8e223f07ce74db1340257a4af9eb94a554eb9d5cbc4a8f52"
+      "sha256": "fa1f2c69dc727365a8b82c6cad30253d33d336cc3047bc59f661d157da755cef"
     },
     {
       "path": "templates/personas-template.md",
@@ -1571,11 +1587,11 @@
     },
     {
       "path": "templates/scripts/closeout-cleanup.ts",
-      "sha256": "ea7052546620c2036a2f3ca54576bdd28741caeeb441d0ced532d8853bed68eb"
+      "sha256": "a7955b0f4948b6ba6833d902bd84e6e5d081ab4af3b909d8604b86f17dde7309"
     },
     {
       "path": "templates/skills/audit/SKILL.md",
-      "sha256": "4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880"
+      "sha256": "02c6353beb320c6370788c7845ec193ec08532f05ed6f6174585aa8a68456470"
     },
     {
       "path": "templates/skills/bdd/DISCOVERY.md",
@@ -1699,7 +1715,7 @@
     },
     {
       "path": "templates/skills/verify/SKILL.md",
-      "sha256": "d64a482998e9a546bbb6b7b6dbb1373a9153a9e806419098892744c92d614d04"
+      "sha256": "d6b1f8cfa6ad1ccc5fd84a8b7f96cf3a13e13561088eb1de9a5b0ee5045759c5"
     },
     {
       "path": "templates/spec-template.md",
@@ -1727,7 +1743,7 @@
     },
     {
       "path": "templates/workflows/remote-tests.yml",
-      "sha256": "5dfede6aee873fab6d61ab3d9dccc653527f5f3eae95724f28fdf2740110741b"
+      "sha256": "06334293ca35675e5fb3f42282c7a9a341345c4d88701356d8108ff56a35212e"
     }
   ]
 }

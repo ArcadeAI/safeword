@@ -3,6 +3,10 @@ export interface CodexPluginHookEntry {
   matcher?: string;
 }
 
+export function codexPluginHookCommand(event: string): string {
+  return `bun --no-env-file --cwd "\${PLUGIN_ROOT}" "\${PLUGIN_ROOT}/runtime/cli.js" hook codex ${event} --plugin-hook`;
+}
+
 /** Return every command configured by a Codex plugin hook manifest. */
 export function codexPluginHookCommands(hooks: Record<string, CodexPluginHookEntry[]>): string[] {
   return Object.values(hooks).flatMap(entries =>
@@ -21,7 +25,9 @@ export function assertBundledHookCommand(command: string): void {
     throw new Error('Safeword plugin hooks must not install packages at runtime');
   }
   if (
-    !/^bun "\$\{PLUGIN_ROOT\}\/runtime\/cli\.js" hook codex [a-z-]+ --plugin-hook$/u.test(command)
+    !/^bun --no-env-file --cwd "\$\{PLUGIN_ROOT\}" "\$\{PLUGIN_ROOT\}\/runtime\/cli\.js" hook codex [a-z-]+ --plugin-hook$/u.test(
+      command,
+    )
   ) {
     throw new Error('Safeword plugin hooks must use the bundled Safeword Codex hook command form');
   }

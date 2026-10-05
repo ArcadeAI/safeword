@@ -12,7 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { rememberCloseoutBinding } from '../templates/hooks/lib/closeout-binding.ts';
 import {
@@ -43,9 +43,11 @@ import {
   runBoundRetro,
   runVerificationCommand,
   safewordCliCommand,
+  SHARED_TEST_LOCK_WAIT_MS,
   transcriptMatchesBinding,
   VERIFICATION_COMMAND_TIMEOUT_MS,
   VERIFICATION_OUTPUT_LIMIT_BYTES,
+  verificationCommandFailure,
   workingStateHash,
 } from '../templates/scripts/closeout-cleanup.ts';
 
@@ -186,6 +188,46 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
 
   it('allows an hour for a project verification command to finish', () => {
     expect(VERIFICATION_COMMAND_TIMEOUT_MS).toBe(60 * 60 * 1000);
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'lets unattended verification wait for the shared package test lock (#5311)',
+    async () => {
+      const printWait = 'printf %s "$SAFEWORD_TEST_LOCK_MAX_WAIT_MS"';
+      try {
+        vi.stubEnv('SAFEWORD_TEST_LOCK_MAX_WAIT_MS', undefined);
+        const defaulted = await runVerificationCommand(printWait, repoRoot);
+        vi.stubEnv('SAFEWORD_TEST_LOCK_MAX_WAIT_MS', '1234');
+        const explicit = await runVerificationCommand(printWait, repoRoot);
+
+        expect(defaulted).toMatchObject({ status: 0, stdout: String(SHARED_TEST_LOCK_WAIT_MS) });
+        expect(explicit).toMatchObject({ status: 0, stdout: '1234' });
+        expect(SHARED_TEST_LOCK_WAIT_MS).toBeLessThan(VERIFICATION_COMMAND_TIMEOUT_MS);
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
+
+  it('reports a busy shared test lock as lock contention, not a test failure (#5311)', () => {
+    const busy = verificationCommandFailure('bun run test', '/repo', {
+      status: 75,
+      stdout: '',
+      stderr: 'Safeword package test lock busy: could not acquire /tmp/lock; no test was started.',
+      timedOut: false,
+    });
+    const unrelated = verificationCommandFailure('make test', '/repo', {
+      status: 75,
+      stdout: '',
+      stderr: 'temporary failure',
+      timedOut: false,
+    });
+
+    expect(busy).toMatch(
+      /^command `bun run test` did not start in \/repo: the shared safeword package test lock is busy/,
+    );
+    expect(busy).not.toContain('failed in');
+    expect(unrelated).toBe('command `make test` failed in /repo (exit 75): temporary failure');
   });
 
   it('captures a bounded diagnostic tail from a failed verification command', async () => {
