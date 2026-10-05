@@ -26,6 +26,13 @@ import { resolveRunIdentity } from '../hooks/lib/run-identity.ts';
 
 export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
 export const VERIFICATION_COMMAND_TIMEOUT_MS = 60 * 60 * 1000;
+// Unattended verification may queue behind another checkout's package tests
+// (#5311). Give up on the lock well before the command timeout so contention
+// surfaces as a busy lock rather than a killed command.
+export const SHARED_TEST_LOCK_WAIT_MS = VERIFICATION_COMMAND_TIMEOUT_MS / 2;
+// Safeword's package test runner exits with EX_TEMPFAIL when its lock is busy.
+const SHARED_TEST_LOCK_BUSY_EXIT_CODE = 75;
+const SHARED_TEST_LOCK_BUSY_MARKER = 'Safeword package test lock busy';
 
 export interface PullRequestIdentity {
   url: string;
@@ -534,6 +541,21 @@ function verificationDiagnostic(result: VerificationProcessResult): string {
   return boundedOutputTail(combined);
 }
 
+export function verificationCommandFailure(
+  command: string,
+  cwd: string,
+  result: VerificationProcessResult,
+): string {
+  const diagnostic = verificationDiagnostic(result);
+  if (
+    result.status === SHARED_TEST_LOCK_BUSY_EXIT_CODE &&
+    diagnostic.includes(SHARED_TEST_LOCK_BUSY_MARKER)
+  ) {
+    return `command \`${command}\` did not start in ${cwd}: the shared safeword package test lock is busy (another checkout is running package tests); re-run closeout once it finishes`;
+  }
+  return `command \`${command}\` failed in ${cwd} (exit ${result.status})${diagnostic ? `: ${diagnostic}` : ''}`;
+}
+
 function run(
   command: string,
   arguments_: string[],
@@ -592,7 +614,10 @@ export function runVerificationCommand(
     const child = spawn(command, [], {
       cwd,
       detached: process.platform !== 'win32',
-      env: process.env,
+      env: {
+        SAFEWORD_TEST_LOCK_MAX_WAIT_MS: String(SHARED_TEST_LOCK_WAIT_MS),
+        ...process.env,
+      },
       shell: true,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
@@ -1566,12 +1591,8 @@ async function verificationFailuresForKind(
       continue;
     }
     const result = await runVerificationCommand(entry.command, entry.cwd);
-    if (result.status !== 0) {
-      const diagnostic = verificationDiagnostic(result);
-      failures.push(
-        `command \`${entry.command}\` failed in ${entry.cwd} (exit ${result.status})${diagnostic ? `: ${diagnostic}` : ''}`,
-      );
-    }
+    if (result.status !== 0)
+      failures.push(verificationCommandFailure(entry.command, entry.cwd, result));
     if (git(root, 'rev-parse', 'HEAD').stdout.trim() !== expectedOid) {
       failures.push(`HEAD changed while \`${entry.command}\` ran in ${entry.cwd}`);
     }
