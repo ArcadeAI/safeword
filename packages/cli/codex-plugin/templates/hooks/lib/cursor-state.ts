@@ -5,6 +5,9 @@
 // pick it up:
 //   - the *edited* marker: after-file-edit writes it, stop reads it, to know the
 //     session made edits;
+//   - the *shell cwd* stash: beforeShellExecution writes the directory a shell
+//     command runs in, postToolUse reads it, because Cursor's postToolUse payload
+//     carries no cwd and the gates must root at the worktree the shell is in;
 //   - the *transcript* stash: Cursor delivers transcript_path only in hook
 //     payloads (never env), so the constantly-firing hooks stash it for `/retro`
 //     to resolve THIS session's transcript (RTSK9C / #624).
@@ -12,7 +15,7 @@
 // Every file shares one key (the run-storage key, with a stable fallback) so the
 // writer and reader of a given file can never drift.
 
-import { closeSync, constants, fchmodSync, openSync, writeFileSync } from 'node:fs';
+import { closeSync, constants, fchmodSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { getRunStorageKey, resolveRunIdentity } from './run-identity.js';
 
@@ -21,6 +24,7 @@ const CURSOR_EDITED_MARKER_PREFIX = '/tmp/safeword-cursor-edited-';
 const CURSOR_IDENTITY_STASH_PREFIX = '/tmp/safeword-cursor-conversation-';
 const CURSOR_PROJECT_STASH_PREFIX = '/tmp/safeword-cursor-project-';
 const CURSOR_TRANSCRIPT_STASH_PREFIX = '/tmp/safeword-cursor-transcript-';
+const CURSOR_SHELL_CWD_STASH_PREFIX = '/tmp/safeword-cursor-shell-cwd-';
 
 interface CursorStateInput {
   transcript_path?: unknown;
@@ -52,6 +56,32 @@ export function cursorConversationStashPath(input: CursorStateInput): string {
 /** Path of the project-directory stash paired with the transcript stash. */
 export function cursorProjectStashPath(input: CursorStateInput): string {
   return `${CURSOR_PROJECT_STASH_PREFIX}${cursorStateKey(input)}`;
+}
+
+/** Path of the stash holding the directory this conversation's last shell ran in. */
+export function cursorShellCwdStashPath(input: CursorStateInput): string {
+  return `${CURSOR_SHELL_CWD_STASH_PREFIX}${cursorStateKey(input)}`;
+}
+
+/** Remember where this conversation's shell command runs. Best-effort, like every stash. */
+export function stashCursorShellCwd(input: CursorStateInput & { cwd?: unknown }): void {
+  const cwd = typeof input.cwd === 'string' ? input.cwd.trim() : '';
+  if (cwd.length === 0) return;
+  try {
+    writePrivateState(cursorShellCwdStashPath(input), cwd);
+  } catch {
+    // Best-effort stash — never block the hook.
+  }
+}
+
+/** The directory this conversation's last shell command ran in, if one was stashed. */
+export function readCursorShellCwd(input: CursorStateInput): string | undefined {
+  try {
+    const cwd = readFileSync(cursorShellCwdStashPath(input), 'utf8').trim();
+    return cwd.length > 0 ? cwd : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**

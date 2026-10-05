@@ -211,7 +211,7 @@
     },
     {
       "path": "runtime/hooks/lib/cursor-state.ts",
-      "sha256": "6d80d1d6a6f13e1a61b8cff9800e9955cfff10040d127ae25a8160b2b799c3cb"
+      "sha256": "06b9800652323e143713207f14631b232a80e9dd3885622df1b62199c047d18f"
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
@@ -1051,7 +1051,7 @@
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality-helpers.ts",
-      "sha256": "4b707b4acacdb50e44a2f4cf00e01df4b533f549b9a5cd7919b5a348cd3fdeec"
+      "sha256": "de2d38f2d63c32bc1153a57195d7907aebca527315e62968932d178661938bdf"
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality.ts",
@@ -1067,15 +1067,15 @@
     },
     {
       "path": "templates/hooks/cursor/before-shell-execution.ts",
-      "sha256": "0b58b05da4de5a4f764d3703aa3128ec08dc77da2af011ddb9d4431fca47bd1c"
+      "sha256": "14d2bf5e1bf53db68ea9052675827b976909463afbccb8f4f658f92601a15344"
     },
     {
       "path": "templates/hooks/cursor/gate-adapter.ts",
-      "sha256": "70f4ed8e28438363f29b1f8e12340dc806c77f79f6bd49d3b63d844e1ca74b6b"
+      "sha256": "3c6a1f0d8d04d7e7888630f27772e448fa5082417d4c0b6f79d212161da0c1ce"
     },
     {
       "path": "templates/hooks/cursor/post-tool-quality.ts",
-      "sha256": "356f014b7a530dc1d3246a87c2d91109335b6c28f799f441cf3fc16b41836864"
+      "sha256": "e683b3e2f144269bb34f414d4bb32498c7c365b6a6c6cc2a0971fedf18609a14"
     },
     {
       "path": "templates/hooks/cursor/post-tool-skill-nudge.ts",
@@ -1147,7 +1147,7 @@
     },
     {
       "path": "templates/hooks/lib/cursor-state.ts",
-      "sha256": "6d80d1d6a6f13e1a61b8cff9800e9955cfff10040d127ae25a8160b2b799c3cb"
+      "sha256": "06b9800652323e143713207f14631b232a80e9dd3885622df1b62199c047d18f"
     },
     {
       "path": "templates/hooks/lib/dependency-readiness.ts",
