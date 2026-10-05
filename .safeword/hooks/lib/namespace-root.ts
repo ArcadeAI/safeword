@@ -49,7 +49,10 @@ export function resolveToolProjectDirectory(
     return resolveOwningProjectDirectory(launchDirectory, call.editedFile);
   }
   if (call.tool === 'Bash' && call.cwd !== undefined && call.cwd !== '') {
-    return resolveDirectoryOwner(launchDirectory, nodePath.resolve(launchDirectory, call.cwd));
+    return resolveWorkingProjectDirectory(
+      launchDirectory,
+      nodePath.resolve(launchDirectory, call.cwd),
+    );
   }
   return launchDirectory;
 }
@@ -69,6 +72,19 @@ function resolveDirectoryOwner(launchDirectory: string, startDirectory: string):
     if (parent === directory) return launchDirectory;
     directory = parent;
   }
+}
+
+/**
+ * The Safeword checkout the process is working in: `launchDirectory`, unless
+ * `workingDirectory` sits inside a different enrolled git working tree (a
+ * worktree the session entered). Helpers a skill or agent shells out to get
+ * no edited file to root at, so they root at their own cwd (#5361).
+ */
+export function resolveWorkingProjectDirectory(
+  launchDirectory: string,
+  workingDirectory: string,
+): string {
+  return resolveOwningProjectDirectory(launchDirectory, nodePath.join(workingDirectory, 'cwd'));
 }
 
 /**
