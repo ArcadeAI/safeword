@@ -357,3 +357,61 @@ describe('terminal handoff contract', () => {
     expect(correction).not.toContain('Choice:');
   });
 });
+
+describe('terminal handoff corrections name the exact problem', () => {
+  it('lists the labels it found and the order it expects when the sequence is wrong', () => {
+    const evaluation = quality.evaluateDecisionBriefCompliance(
+      [
+        '**CONFIDENT** — The docs are fixed.',
+        '**Decided:** Split the work into three PRs.',
+        '1. First PR.',
+        '**Open:** none.',
+        '**Next:** Action: Open the PRs. Object: the three docs branches.',
+      ].join('\n\n'),
+    );
+
+    const correction = quality.renderDecisionBriefCorrection(evaluation, 'Evidence stays intact.');
+
+    expect(correction).toContain('CONFIDENT has missing, extra, or out-of-order');
+    expect(correction).toContain(
+      'Found: Decided, (unlabeled paragraph), Open, Next. Expected: Decided, Rejected (optional), Open, Next.',
+    );
+    expect(correction).toContain('Keep each label in one paragraph');
+  });
+
+  it('explains each missing requirement in plain words', () => {
+    const evaluation = quality.evaluateDecisionBriefCompliance(
+      [
+        '**CONFIDENT** — Cleanup is running.',
+        '**Decided:** Apply only blocker-free plans.',
+        '**Open:** none.',
+        '**Next:** Action: Read the preview. If it is clean, apply it. Object: the merged PR branches.',
+      ].join('\n\n'),
+    );
+
+    const correction = quality.renderDecisionBriefCorrection(evaluation, 'Evidence stays intact.');
+
+    expect(correction).toContain('Missing: no extra context.');
+    expect(correction).toContain(
+      'no extra context = Action, Object, and Reason must each be a single sentence, with nothing before Action',
+    );
+  });
+
+  it('explains extra context for a decision as prose before Choice, not Action clauses', () => {
+    const evaluation = quality.evaluateDecisionBriefCompliance(
+      [
+        '**CONFIDENT** — The release channel requires a human choice.',
+        '**Decided:** Keep the release scoped to one channel.',
+        '**Open:** human: choose the release channel.',
+        '**Next:** Here is the situation. Choice: beta or stable. Recommendation: choose beta. Reason: beta limits exposure. Impact: beta delays stable by one day. Reply: `beta` or `stable`.',
+      ].join('\n\n'),
+    );
+
+    const correction = quality.renderDecisionBriefCorrection(evaluation, 'Evidence stays intact.');
+
+    expect(correction).toContain(
+      'no extra context = start the paragraph with Choice:, with no text before it',
+    );
+    expect(correction).not.toContain('Action, Object, and Reason must each be');
+  });
+});

@@ -71,7 +71,7 @@ describe('proactive decision-brief contract', () => {
     );
 
     expect(commands).toEqual([
-      'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js SessionStart --event-group',
+      'bun --no-env-file --cwd "${CLAUDE_PLUGIN_ROOT}" "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js SessionStart --event-group',
     ]);
   });
 

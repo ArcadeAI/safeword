@@ -329,7 +329,7 @@ describe('install plan completeness', () => {
       {
         kind: 'replace',
         target: 'Safeword Codex marketplace',
-        operation: 'stable-channel',
+        operation: VERSION.includes('-') ? 'prerelease-tag' : 'stable-channel',
       },
     ]);
 
@@ -350,7 +350,7 @@ describe('install plan completeness', () => {
     expect(installEnvelope.effects.destructive).toContainEqual({
       kind: 'replace',
       target: 'Safeword Codex marketplace',
-      operation: 'stable-channel',
+      operation: VERSION.includes('-') ? 'prerelease-tag' : 'stable-channel',
     });
     for (const category of [
       'files',
@@ -567,7 +567,7 @@ describe('install plan completeness', () => {
     expect(envelope.effects.destructive).toContainEqual({
       kind: 'replace',
       target: 'Safeword Codex marketplace',
-      operation: 'stable-channel',
+      operation: VERSION.includes('-') ? 'prerelease-tag' : 'stable-channel',
     });
     const plannedConfig = new Set(
       (planEnvelope.data.plan.effects.configuration ?? []).map(effectIdentity),

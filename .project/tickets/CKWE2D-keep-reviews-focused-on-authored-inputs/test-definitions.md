@@ -11,6 +11,12 @@ builder-visible command path with a real temporary project and fake reviewer.
 
 ### Scenario: Generated artifacts one byte over the per-target packet limit leave authored input reviewable and visible
 
+- [x] RED 5ade00069
+- [x] GREEN 8a3b80703
+- [x] REFACTOR skip: no behavior-preserving extraction is safe until the remaining Git failure contracts are implemented
+
+### Scenario: A nested project uses its committed generated marker
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
@@ -63,7 +69,85 @@ builder-visible command path with a real temporary project and fake reviewer.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An oversized generated sparse target is omitted without reading or decoding its bytes
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Generated omission retains a review exactly at the aggregate packet limit
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Git attribute lookup safely keeps generated paths project-relative
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Git attribute lookup preserves special generated paths as one literal NUL-delimited stdin value
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Git attribute lookup preserves a generated filename containing an actual newline code point
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Project Git info attributes cannot override a committed generated marker
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Attribute classification ignores a working-tree marker removal
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Hostile project Git configuration and inherited environment cannot redirect committed classification
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Distinct hard-linked generated targets remain distinct exclusions
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The CLI returns the reduced scope in its JSON stdout envelope
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A reviewer failure after packet finalization reports the reduced scope
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A committed marker selects an arbitrary generated path
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: focused-review.TBU1.R2
+
+### Scenario: A nested project does not inherit an unrelated root marker
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: A non-true generated attribute does not launch a reviewer
 
@@ -101,13 +185,7 @@ builder-visible command path with a real temporary project and fake reviewer.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An oversized generated sparse target is omitted without reading or decoding its bytes
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An oversized generated target changed after metadata validation fails before omission
+### Scenario: An oversized generated target changed after classification fails before omission
 
 - [ ] RED
 - [ ] GREEN
@@ -149,6 +227,12 @@ builder-visible command path with a real temporary project and fake reviewer.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An earlier target failure outranks a later Git attribute failure
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: The public CLI reports each preflight failure as a JSON envelope
 
 - [ ] RED
@@ -161,65 +245,7 @@ builder-visible command path with a real temporary project and fake reviewer.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Generated omission retains a review exactly at the aggregate packet limit
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: Generated omission cannot weaken the aggregate packet limit
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: focused-review.SWM1.R1
-
-### Scenario: All generated oversized targets stop before reviewer launch
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An empty submitted target list stops before reviewer launch
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: focused-review.SWM1.R2
-
-### Scenario: A Git-marked generated target is selected without a path heuristic
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Git attribute lookup safely keeps generated paths project-relative
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Git attribute lookup preserves special generated paths as one literal NUL-delimited stdin value
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Git attribute lookup preserves a generated filename containing an actual newline code point
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Project Git info attributes cannot override a committed generated marker
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Attribute classification ignores a working-tree marker removal
 
 - [ ] RED
 - [ ] GREEN
@@ -237,43 +263,47 @@ builder-visible command path with a real temporary project and fake reviewer.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Hostile project Git configuration and inherited environment cannot redirect committed classification
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Distinct hard-linked generated targets remain distinct exclusions
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: The CLI returns the reduced scope in its JSON stdout envelope
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A reviewer failure after packet finalization reports the reduced scope
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: A target outside the project cannot reach Git attribute lookup
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A project-relative symlink escaping the project cannot reach Git attribute lookup
+### Scenario: A final-component symlink escaping the project cannot reach Git attribute lookup
+
+- [x] RED bda48ce26
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An intermediate symlink directory escaping the project cannot reach Git attribute lookup
+
+- [x] RED 1eb8ee36f
+- [x] GREEN f74fe196b
+- [x] REFACTOR skip: the shared containment checks remain adjacent to file capture until the remaining typed packet errors are covered
+
+### Scenario: An unmarked runtime-shaped path cannot be excluded by its filename
+
+- [x] RED c77a0dc30
+- [x] GREEN affd3f97d
+- [x] REFACTOR skip: typed preflight errors are kept adjacent until the remaining error codes and precedence rules are covered
+
+## Rule: focused-review.SWM1.R1
+
+### Scenario: All generated oversized targets stop before reviewer launch
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Safeword's generated plugin runtime declares the same marker
+### Scenario: An empty submitted target list stops before reviewer launch
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: focused-review.SWM1.R2
+
+### Scenario: A maintainer can review authored input alongside Safeword's generated runtime
 
 - [ ] RED
 - [ ] GREEN

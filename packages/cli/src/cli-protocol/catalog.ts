@@ -653,58 +653,63 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
-  command('review run', 'Run an independent adversarial review', 'mutate', {
-    networkPolicy: 'declared',
-    syntax: 'run <kind> <targets...>',
-    commandOptions: [
-      {
-        flags: '--context <paths...>',
-        description: 'Bounded supporting evidence that is not work under review',
+  command(
+    'review run',
+    'Run an independent adversarial review; report data.excluded_targets and REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE or REVIEW_NO_ELIGIBLE_TARGETS errors',
+    'mutate',
+    {
+      networkPolicy: 'declared',
+      syntax: 'run <kind> [targets...]',
+      commandOptions: [
+        {
+          flags: '--context <paths...>',
+          description: 'Bounded supporting evidence that is not work under review',
+        },
+        {
+          flags: '--agent-handoff',
+          description: 'Treat action-required output as a successful author-agent handoff',
+        },
+        {
+          flags: '--worker-job-id <id>',
+          description: 'Internal detached-worker identity',
+          hidden: true,
+        },
+        {
+          flags: '--scenario <name>',
+          description: 'Exact scenario identity covered by this RED proof',
+        },
+        {
+          flags: '--ledger <path>',
+          description: 'Project-relative test-definitions ledger containing the scenario',
+        },
+        {
+          flags: '--proof-cwd <path>',
+          description: 'Project-contained working directory for the RED proof',
+        },
+        {
+          flags: '--evidence-class <class>',
+          description: 'pure-contract, simulated-host, local-live-host, or external-live-host',
+        },
+        {
+          flags: '--expected-failure <literal>',
+          description: 'Literal output that identifies the intended RED failure',
+        },
+        {
+          flags: '--execution-timeout <milliseconds>',
+          description: 'Bounded RED proof execution time',
+        },
+        {
+          flags: '--execute <json-argv>',
+          description: 'Exact JSON argv array; runs directly without a shell',
+        },
+      ],
+      exitPolicy: { actionRequiredAsSuccessOption: 'agentHandoff' },
+      fixture: {
+        argv: ['review', 'run', 'quality-review', 'fixture'],
+        environment: MACHINE_ENVIRONMENT,
       },
-      {
-        flags: '--agent-handoff',
-        description: 'Treat action-required output as a successful author-agent handoff',
-      },
-      {
-        flags: '--worker-job-id <id>',
-        description: 'Internal detached-worker identity',
-        hidden: true,
-      },
-      {
-        flags: '--scenario <name>',
-        description: 'Exact scenario identity covered by this RED proof',
-      },
-      {
-        flags: '--ledger <path>',
-        description: 'Project-relative test-definitions ledger containing the scenario',
-      },
-      {
-        flags: '--proof-cwd <path>',
-        description: 'Project-contained working directory for the RED proof',
-      },
-      {
-        flags: '--evidence-class <class>',
-        description: 'pure-contract, simulated-host, local-live-host, or external-live-host',
-      },
-      {
-        flags: '--expected-failure <literal>',
-        description: 'Literal output that identifies the intended RED failure',
-      },
-      {
-        flags: '--execution-timeout <milliseconds>',
-        description: 'Bounded RED proof execution time',
-      },
-      {
-        flags: '--execute <json-argv>',
-        description: 'Exact JSON argv array; runs directly without a shell',
-      },
-    ],
-    exitPolicy: { actionRequiredAsSuccessOption: 'agentHandoff' },
-    fixture: {
-      argv: ['review', 'run', 'quality-review', 'fixture'],
-      environment: MACHINE_ENVIRONMENT,
     },
-  }),
+  ),
   command('review status', 'Collect a durable independent review', 'mutate', {
     syntax: 'status [review-id]',
     fixture: {
@@ -733,6 +738,105 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         'Scenario: fixture',
         '--ledger',
         '.project/tickets/FIXTURE/test-definitions.md',
+      ],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('review gate retrospective', 'Check CKWE2D retrospective receipts', 'observe', {
+    syntax: 'retrospective',
+    commandOptions: [
+      { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
+      { flags: '--scenario <name>', description: 'Exact scenario heading' },
+      { flags: '--ledger <path>', description: 'Project-relative scenario ledger' },
+      { flags: '--eligibility <id>', description: 'Independent historical eligibility review' },
+      { flags: '--proof <id>', description: 'Independent passing/mutation proof review' },
+    ],
+    fixture: {
+      argv: [
+        'review',
+        'gate',
+        'retrospective',
+        '--ticket',
+        'OTHER1',
+        '--scenario',
+        'Example',
+        '--ledger',
+        '.project/tickets/OTHER1/test-definitions.md',
+        '--eligibility',
+        '00000000-0000-0000-0000-000000000001',
+        '--proof',
+        '00000000-0000-0000-0000-000000000002',
+      ],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command(
+    'review attest retrospective',
+    'Replay one CKWE2D proof before checking its row',
+    'mutate',
+    {
+      syntax: 'retrospective',
+      commandOptions: [
+        { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
+        { flags: '--scenario <name>', description: 'Exact scenario heading' },
+        { flags: '--ledger <path>', description: 'Project-relative scenario ledger' },
+        { flags: '--eligibility <id>', description: 'Independent historical eligibility review' },
+        { flags: '--proof <id>', description: 'Independent passing/mutation proof review' },
+      ],
+      fixture: {
+        argv: [
+          'review',
+          'attest',
+          'retrospective',
+          '--ticket',
+          'OTHER1',
+          '--scenario',
+          'Example',
+          '--ledger',
+          '.project/tickets/OTHER1/test-definitions.md',
+          '--eligibility',
+          '00000000-0000-0000-0000-000000000001',
+          '--proof',
+          '00000000-0000-0000-0000-000000000002',
+        ],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command('review attest retrospective-close', 'Replay CKWE2D proofs for closing', 'mutate', {
+    syntax: 'retrospective-close',
+    commandOptions: [
+      { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
+      { flags: '--ledger <path>', description: 'Project-relative scenario ledger' },
+    ],
+    fixture: {
+      argv: [
+        'review',
+        'attest',
+        'retrospective-close',
+        '--ticket',
+        'OTHER1',
+        '--ledger',
+        '.project/tickets/OTHER1/test-definitions.md',
+      ],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('review gate retrospective-close', 'Check current CKWE2D closing proof', 'observe', {
+    syntax: 'retrospective-close',
+    commandOptions: [
+      { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
+      { flags: '--ledger <path>', description: 'Project-relative scenario ledger' },
+    ],
+    fixture: {
+      argv: [
+        'review',
+        'gate',
+        'retrospective-close',
+        '--ticket',
+        'OTHER1',
+        '--ledger',
+        '.project/tickets/OTHER1/test-definitions.md',
       ],
       environment: MACHINE_ENVIRONMENT,
     },
@@ -1066,6 +1170,7 @@ export const commandFamilies = [
   { route: 'claude', description: 'Manage the Safeword Claude plugin', visibility: 'public' },
   { route: 'ticket', description: 'Manage project tickets', visibility: 'public' },
   { route: 'review', description: 'Run independent adversarial reviews', visibility: 'public' },
+  { route: 'review attest', description: 'Attest reviewed evidence', visibility: 'public' },
   { route: 'review gate', description: 'Check review admission gates', visibility: 'public' },
   { route: 'review routes', description: 'Manage ranked review routes', visibility: 'public' },
   {

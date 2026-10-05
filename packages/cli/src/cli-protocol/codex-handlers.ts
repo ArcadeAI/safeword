@@ -18,6 +18,7 @@ import type {
 } from '../codex-plugin/legacy-global-guidance.js';
 import { CODEX_REVIEW_THEN_RESTART_ACTION } from '../codex-plugin/migration.js';
 import {
+  codexMarketplaceReplacementOperation,
   CodexMigrationError,
   codexProfileFailureDestructiveEffects,
   codexProfileFailureEffects,
@@ -425,7 +426,7 @@ function runCodexInstall(
             {
               kind: 'replace',
               target: 'Safeword Codex marketplace',
-              operation: 'stable-channel',
+              operation: codexMarketplaceReplacementOperation(),
             },
           ]
         : [],
