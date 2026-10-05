@@ -379,6 +379,17 @@ describe('pull-request readiness from a session inside a nested worktree', () =>
     expect(output).toEqual({});
   });
 
+  it('records a worktree ticket closed through edit targets relative to the session cwd', () => {
+    const session = worktreeSession();
+    // Relative to the worktree cwd; the hook process itself runs in the
+    // unfinished launch checkout, which holds the same relative path.
+    closeTicketInWorktree(session, nodePath.dirname(TICKET_PATH));
+
+    const output = runReadyFromLaunch(session.launchDirectory, session.worktreeDirectory);
+
+    expect(output).toEqual({});
+  });
+
   it('gates the worktree the shell is in when its cwd is reached through a symlink', () => {
     const session = worktreeSession();
     mkdirSync(nodePath.join(session.worktreeDirectory, 'packages'), { recursive: true });

@@ -60,6 +60,16 @@ export function canonicalPathForGate(path: string, seen = new Set<string>()): st
 }
 
 /**
+ * The real path of an edit target as the host meant it: a relative target is
+ * relative to the session's reported `cwd` (which may be a worktree), not to
+ * the hook process's cwd (the launch checkout). Empty stays empty.
+ */
+export function canonicalEditTarget(filePath: string, cwd: string | undefined): string {
+  if (filePath === '') return filePath;
+  return canonicalPathForGate(nodePath.resolve(cwd || process.cwd(), filePath));
+}
+
+/**
  * The project a hook should gate or record against for one tool call. Edits
  * resolve from the edited file (#5247); shell commands have no edited file, so
  * they resolve from the host-reported shell `cwd` — otherwise a session inside

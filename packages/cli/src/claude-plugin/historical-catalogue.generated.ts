@@ -80,7 +80,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-lint.ts':
         'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
       '.safeword/hooks/post-tool-quality.ts':
-        'a9a923e308ecbe7d74cdd09b711030c96ed90f51b02a366d32ae6a218f70b078',
+        'eb8226888626244f196409a3fafea98c5c83908165a3ada1e6394fa745e4fbad',
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
       '.safeword/hooks/post-tool-sync-learnings.ts':
@@ -96,7 +96,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '279433af8ee9b05d82840056b6c3130c14b034a4954b0e18bb92c9a00914cee9',
+        'fa110efe57e671689df3106483771c92c826ddd21edd1b9714ea5cb6ab6bec5b',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
