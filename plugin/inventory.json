@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "361057ba08f7b09114ffd0b6679257436d72181f3c82f860c9c369478c7a4c15"
+      "sha256": "80a390e91ce960d1da4d0515645c7c951ade644fe54987b954eb2df6272d55c6"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "793ece8dd3b18a40242849e0d5dd88ed7ee50abe4b07a7879c1b45d4db41eefa"
+      "sha256": "31297b83cef068da70892ba3742e0fe1b3deb0c79cfa5a6d709205133b6dc3f7"
     },
     {
       "path": "runtime/event-groups.json",
@@ -622,6 +622,10 @@
       "sha256": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60"
     },
     {
+      "path": "skills/bdd/PLAN_EXECUTION.md",
+      "sha256": "0da3f86a94bdd05e28dec68ec374795fcab4e458f93953ba6cbdf49220907b73"
+    },
+    {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
       "sha256": "2ef9cca7fa3f312d4bf15a4c33e66a32247730529193f6720a7f29ba40f0a709"
     },
@@ -944,6 +948,10 @@
     {
       "path": "templates/doc-templates/design-doc-template.md",
       "sha256": "f97e6bc9cea5f2ced442655a6eb253bf2984444cd56a3a19fe0d06bab6274fd8"
+    },
+    {
+      "path": "templates/doc-templates/execution-plan-template.md",
+      "sha256": "4cc6ed5bf9dc8cad6215856c02b1dd75733b8e180ac220025b5b9ee60a1756ea"
     },
     {
       "path": "templates/doc-templates/feature-spec-template.md",
@@ -1584,6 +1592,10 @@
     {
       "path": "templates/skills/bdd/DONE.md",
       "sha256": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60"
+    },
+    {
+      "path": "templates/skills/bdd/PLAN_EXECUTION.md",
+      "sha256": "0da3f86a94bdd05e28dec68ec374795fcab4e458f93953ba6cbdf49220907b73"
     },
     {
       "path": "templates/skills/bdd/PLAN_IMPLEMENTATION.md",

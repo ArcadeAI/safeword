@@ -3587,6 +3587,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/audit/SKILL.md": "ce7d604ff6016eaf614a9e02918089ba021b15ddae11bcad47218c7c2a078077",
         ".claude/skills/bdd/DISCOVERY.md": "1dd29f815c358ab6e215fa5d0e2db1fe6ab26d93df0b151a53908370331b09ed",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
+        ".claude/skills/bdd/PLAN_EXECUTION.md": "0da3f86a94bdd05e28dec68ec374795fcab4e458f93953ba6cbdf49220907b73",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "21afe725904a8ac20d72b3c71f9e6670f06d4036fee58af829b352862578094c",
         ".claude/skills/bdd/SCENARIOS.md": "33b7033c37619a202908f58157a2d353074c8bce415be9c13daa2f5b0edfe20d",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
@@ -16037,6 +16038,7 @@ var init_schema = __esm(() => {
     "bdd/SKILL.md",
     "bdd/DISCOVERY.md",
     "bdd/PLAN_IMPLEMENTATION.md",
+    "bdd/PLAN_EXECUTION.md",
     "bdd/SCENARIOS.md",
     "bdd/TDD.md",
     "bdd/DONE.md",
@@ -16580,6 +16582,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/templates/impl-plan-template.md": {
         template: "doc-templates/impl-plan-template.md"
       },
+      ".safeword/templates/execution-plan-template.md": {
+        template: "doc-templates/execution-plan-template.md"
+      },
       ".safeword/templates/adr-template.md": {
         template: "doc-templates/adr-template.md"
       },
@@ -16643,6 +16648,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       },
       ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": {
         template: "skills/bdd/PLAN_IMPLEMENTATION.md"
+      },
+      ".claude/skills/bdd/PLAN_EXECUTION.md": {
+        template: "skills/bdd/PLAN_EXECUTION.md"
       },
       ".claude/skills/bdd/SCENARIOS.md": {
         template: "skills/bdd/SCENARIOS.md"

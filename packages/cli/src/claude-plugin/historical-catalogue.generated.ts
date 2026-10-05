@@ -13,6 +13,8 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
         '1dd29f815c358ab6e215fa5d0e2db1fe6ab26d93df0b151a53908370331b09ed',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
+      '.claude/skills/bdd/PLAN_EXECUTION.md':
+        '0da3f86a94bdd05e28dec68ec374795fcab4e458f93953ba6cbdf49220907b73',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
         '21afe725904a8ac20d72b3c71f9e6670f06d4036fee58af829b352862578094c',
       '.claude/skills/bdd/SCENARIOS.md':

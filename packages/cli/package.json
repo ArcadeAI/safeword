@@ -54,6 +54,8 @@
     "generate:claude-plugin": "bun scripts/generate-claude-plugin.ts",
     "generate:scenario-rubric": "bun scripts/generate-scenario-rubric.ts",
     "generate:plan-rubric": "bun scripts/generate-plan-rubric.ts",
+    "generate:execution-plan-rubric": "bun scripts/generate-execution-plan-rubric.ts",
+    "generate:delivery-compatibility-rubric": "bun scripts/generate-delivery-compatibility-rubric.ts",
     "generate:quality-rubric": "bun scripts/generate-quality-rubric.ts",
     "generate:red-rubric": "bun scripts/generate-red-rubric.ts",
     "data-architecture:record": "bun scripts/data-architecture-eval.ts record",
