@@ -27,11 +27,7 @@ import {
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
 } from '../src/cursor-wrappers.js';
-import {
-  LIFECYCLE_FIXTURE_ROOT,
-  lifecycleFixtureFailure,
-  regenerateLifecycleFixtures,
-} from './lib/lifecycle-fixtures.js';
+import { LIFECYCLE_FIXTURE_ROOT, lifecycleFixtureSurface } from './lib/lifecycle-fixtures.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -149,18 +145,8 @@ function checkCursorWrappers(): Failure | undefined {
   };
 }
 
-const LIFECYCLE_CONTRACT = 'tests/lifecycle/origin-main-contract.test.ts';
-// The contract needs vitest mocks, so the check compares the recorded templates
-// digest instead. The override lets the gate's own test point at a scratch copy.
+// The override lets the gate's own test point at a scratch fixture copy.
 const lifecycleFixtureRoot = process.env.SAFEWORD_LIFECYCLE_FIXTURE_ROOT ?? LIFECYCLE_FIXTURE_ROOT;
-
-function runLifecycleContract(update: boolean): ReturnType<typeof execFileAsync> {
-  return execFileAsync('node', ['scripts/run-vitest-with-build-lock.mjs', LIFECYCLE_CONTRACT], {
-    cwd: cliRoot,
-    env: { ...bunEnvironment, SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES: update ? '1' : '' },
-    maxBuffer: 16 * 1024 * 1024,
-  });
-}
 
 /**
  * One ordering edge is load-bearing: the catalogue writes
@@ -179,19 +165,21 @@ const GENERATORS_IN_ORDER = [
   'generate-codex-plugin.ts',
 ] as const;
 
-let changedLifecycleResults: string[] = [];
+const fixMode = process.argv.includes('--fix');
 
-if (process.argv.includes('--fix')) {
+if (fixMode) {
   for (const script of GENERATORS_IN_ORDER) {
     console.log(`→ ${script}`);
     await runBunScript(script);
   }
-  console.log(`→ ${LIFECYCLE_CONTRACT} (update, then verify)`);
-  changedLifecycleResults = await regenerateLifecycleFixtures(
-    runLifecycleContract,
-    lifecycleFixtureRoot,
-  );
+  console.log('→ lifecycle origin-main fixtures (update, then verify)');
 }
+
+// Runs after the generators: the Cursor wrappers write into templates/, which it hashes.
+const lifecycleFailure = await lifecycleFixtureSurface({
+  fix: fixMode,
+  fixtureRoot: lifecycleFixtureRoot,
+});
 
 const surfaceResults = await Promise.all([
   checkScript({
@@ -212,7 +200,7 @@ const surfaceResults = await Promise.all([
     fix: 'bun run generate:claude-historical-catalogue',
   }),
   Promise.resolve(checkCursorWrappers()),
-  Promise.resolve(lifecycleFixtureFailure(changedLifecycleResults, lifecycleFixtureRoot)),
+  Promise.resolve(lifecycleFailure),
 ]);
 
 const failures = surfaceResults.filter((failure): failure is Failure => failure !== undefined);
@@ -239,7 +227,7 @@ if (failures.length > 0) {
 }
 
 console.log(
-  process.argv.includes('--fix')
+  fixMode
     ? 'Regenerated all 5 surfaces and verified them. Stage the result.'
     : 'All 5 generated surfaces current.',
 );

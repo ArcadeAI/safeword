@@ -4,11 +4,14 @@
  * templates digest it was generated from; the generated-surface gate compares
  * it in milliseconds instead of running the vitest contract.
  */
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import { promisify } from 'node:util';
 
-const TEMPLATES_ROOT = nodePath.resolve(import.meta.dirname, '../../templates');
+const CLI_ROOT = nodePath.resolve(import.meta.dirname, '../..');
+const TEMPLATES_ROOT = nodePath.join(CLI_ROOT, 'templates');
 export const LIFECYCLE_FIXTURE_ROOT = nodePath.resolve(
   import.meta.dirname,
   '../../tests/fixtures/lifecycle-origin-main',
@@ -91,7 +94,7 @@ export interface LifecycleFixtureFailure {
  * behavior changed, which --fix must surface rather than silently accept; a
  * template edit should only ever move tree hashes.
  */
-export function lifecycleFixtureFailure(
+function lifecycleFixtureFailure(
   changedResults: readonly string[],
   fixtureRoot = LIFECYCLE_FIXTURE_ROOT,
   templatesRoot = TEMPLATES_ROOT,
@@ -118,7 +121,7 @@ export function lifecycleFixtureFailure(
 }
 
 /** Run the contract in update mode, verify it, and name every case whose result moved. */
-export async function regenerateLifecycleFixtures(
+async function regenerateLifecycleFixtures(
   runContract: (update: boolean) => Promise<unknown>,
   fixtureRoot = LIFECYCLE_FIXTURE_ROOT,
 ): Promise<string[]> {
@@ -126,4 +129,37 @@ export async function regenerateLifecycleFixtures(
   await runContract(true);
   await runContract(false);
   return changedLifecycleResults(before, lifecycleResultDigests(fixtureRoot));
+}
+
+type ContractRunner = (update: boolean) => Promise<unknown>;
+
+const runContractWithVitest: ContractRunner = update =>
+  promisify(execFile)('node', ['scripts/run-vitest-with-build-lock.mjs', LIFECYCLE_CONTRACT], {
+    cwd: CLI_ROOT,
+    env: {
+      ...process.env,
+      PATH: `${nodePath.dirname(process.execPath)}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES: update ? '1' : '',
+    },
+    maxBuffer: 16 * 1024 * 1024,
+  });
+
+/**
+ * The whole lifecycle surface of the generated-surface gate: in --fix mode,
+ * regenerate and verify the fixtures first; then report stale fixtures or any
+ * behavior change the regeneration exposed.
+ */
+export async function lifecycleFixtureSurface({
+  fix,
+  fixtureRoot = LIFECYCLE_FIXTURE_ROOT,
+  templatesRoot = TEMPLATES_ROOT,
+  runContract = runContractWithVitest,
+}: {
+  readonly fix: boolean;
+  readonly fixtureRoot?: string;
+  readonly templatesRoot?: string;
+  readonly runContract?: ContractRunner;
+}): Promise<LifecycleFixtureFailure | undefined> {
+  const changedResults = fix ? await regenerateLifecycleFixtures(runContract, fixtureRoot) : [];
+  return lifecycleFixtureFailure(changedResults, fixtureRoot, templatesRoot);
 }
