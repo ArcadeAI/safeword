@@ -11,6 +11,7 @@ import {
 import { mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -238,6 +239,213 @@ async function expectSimultaneousRecoveryIsSerialized(
   expect(events).toHaveLength(contenderCount * 4);
   expect(activeCommands).toBe(0);
   expect(maximumActiveCommands).toBe(1);
+}
+
+// Preloaded into a runner to pause it at one exact step of transition
+// recovery, so a test can interleave contenders deterministically. `stale`
+// pauses after judging the recovery marker abandoned, right before claiming
+// it; `holder` pauses right after its Nth owner publish, or right before it
+// (SAFEWORD_RACE_HOLD, e.g. `after:1` (default) or `before:2`); `third`
+// reports once it has inspected the marker's owner.
+const recoveryRacePreload = String.raw`
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+import path from 'node:path';
+
+const { SAFEWORD_RACE_RECOVERY: recovery, SAFEWORD_RACE_ROLE: role, SAFEWORD_RACE_SIGNALS: signals } = process.env;
+const original = { ...fs };
+const inRecovery = target => typeof target === 'string' && path.dirname(target) === recovery;
+const ownerGeneration = target => {
+  const match = inRecovery(target) && /^owner(?:-(\d+))?\.json$/u.exec(path.basename(target));
+  return match ? Number(match[1] ?? 0) : -1;
+};
+const instanceOf = target => {
+  try {
+    return JSON.parse(original.readFileSync(target, 'utf8')).instance;
+  } catch {}
+};
+const signal = name => original.writeFileSync(path.join(signals, name), '');
+function waitFor(name) {
+  const deadline = Date.now() + 10_000;
+  while (!original.existsSync(path.join(signals, name))) {
+    if (Date.now() >= deadline) throw new Error('race signal never arrived: ' + name);
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+  }
+}
+
+if (role === 'stale') {
+  let state = 'observing';
+  const pause = () => {
+    signal('stale-paused');
+    waitFor('release-stale');
+  };
+  // The claim moves the shared marker away, or writes then links a new owner.
+  fs.renameSync = (from, to) => {
+    if (state !== 'observing' || from !== recovery) return original.renameSync(from, to);
+    state = 'done';
+    pause();
+    try {
+      return original.renameSync(from, to);
+    } finally {
+      signal('stale-resumed');
+    }
+  };
+  fs.writeFileSync = (target, ...rest) => {
+    if (state === 'observing' && inRecovery(target) && path.basename(target).includes('.pending-')) {
+      state = 'claiming';
+      pause();
+    }
+    return original.writeFileSync(target, ...rest);
+  };
+  fs.linkSync = (from, to) => {
+    if (state === 'claiming' && ownerGeneration(to) >= 0) state = 'settling';
+    return original.linkSync(from, to);
+  };
+  // After linking, the contender either acts as holder (releasing the marker)
+  // or backs off and retries the transition; either way it has settled.
+  const originalRename = fs.renameSync;
+  fs.renameSync = (from, to) => {
+    if (state === 'settling' && from === recovery) {
+      state = 'done';
+      signal('stale-resumed');
+    }
+    return originalRename(from, to);
+  };
+  fs.mkdirSync = (target, ...rest) => {
+    if (state === 'settling' && target === path.dirname(recovery)) {
+      state = 'done';
+      signal('stale-resumed');
+    }
+    return original.mkdirSync(target, ...rest);
+  };
+}
+
+if (role === 'holder') {
+  const [holdWhen, holdAt] = (process.env.SAFEWORD_RACE_HOLD ?? 'after:1').split(':');
+  let publications = 0;
+  let pendingWrites = 0;
+  // Before publishing, the holder has created the marker but owns nothing yet;
+  // it is intact only if nobody moved that marker meanwhile.
+  fs.writeFileSync = (target, ...rest) => {
+    const pending = inRecovery(target) && path.basename(target).includes('.pending-');
+    if (pending && holdWhen === 'before' && ++pendingWrites === Number(holdAt)) {
+      const marker = original.statSync(recovery).ino;
+      signal('holder-holds');
+      waitFor('release-holder');
+      let current;
+      try {
+        current = original.statSync(recovery).ino;
+      } catch {}
+      signal(current === marker ? 'holder-intact' : 'holder-lost');
+    }
+    const result = original.writeFileSync(target, ...rest);
+    holdAfterPublishing(target);
+    return result;
+  };
+  const holdAfterPublishing = target => {
+    const generation = ownerGeneration(target);
+    if (holdWhen !== 'after' || generation < 0 || ++publications !== Number(holdAt)) return;
+    const published = original.readFileSync(target, 'utf8');
+    const instance = instanceOf(target);
+    signal('holder-holds');
+    waitFor('release-holder');
+    let current;
+    let superseded = false;
+    try {
+      current = original.readFileSync(target, 'utf8');
+      superseded = original
+        .readdirSync(recovery)
+        .map(entry => path.join(recovery, entry))
+        .some(entry => ownerGeneration(entry) > generation && instanceOf(entry) === instance);
+    } catch {}
+    signal(current === published && !superseded ? 'holder-intact' : 'holder-lost');
+  };
+  fs.linkSync = (existing, target) => {
+    const result = original.linkSync(existing, target);
+    holdAfterPublishing(target);
+    return result;
+  };
+}
+
+if (role === 'third') {
+  let looked = false;
+  fs.readFileSync = (target, ...rest) => {
+    const result = original.readFileSync(target, ...rest);
+    if (!looked && ownerGeneration(target) >= 0) {
+      looked = true;
+      signal('third-looked');
+    }
+    return result;
+  };
+}
+
+syncBuiltinESMExports();
+`;
+
+async function prepareRecoveryRace() {
+  const temporaryDirectory = makeTemporaryDirectory();
+  const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory, 80);
+  const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+  const transitionDirectory = `${lockDirectory}.transition`;
+  const recoveryDirectory = nodePath.join(transitionDirectory, 'recovery');
+  const signalDirectory = nodePath.join(temporaryDirectory, 'signals');
+  const preloadPath = nodePath.join(temporaryDirectory, 'recovery-race-preload.mjs');
+  const deadPid = 2_147_483_647;
+  await mkdir(signalDirectory);
+  writeFileSync(preloadPath, recoveryRacePreload);
+  await seedOwnerFile(lockDirectory, { createdAt: new Date().toISOString(), pid: deadPid });
+  await seedLegacyOwnerFile(transitionDirectory, {
+    createdAt: new Date().toISOString(),
+    pid: deadPid,
+  });
+  await mkdir(recoveryDirectory);
+  writeFileSync(
+    nodePath.join(recoveryDirectory, 'owner-1.json'),
+    `${JSON.stringify({
+      createdAt: new Date().toISOString(),
+      instance: 'dead-instance',
+      kind: 'safeword-package-test-transition-recovery',
+      pid: deadPid,
+      token: 'dead-recovery',
+    })}\n`,
+  );
+  const signalPath = (name: string) => nodePath.join(signalDirectory, name);
+
+  return {
+    signalPath,
+    release: (name: string) => {
+      writeFileSync(signalPath(name), '');
+    },
+    start: (role: string, environment: NodeJS.ProcessEnv = {}) =>
+      runNodeScript(runnerPath, [`tests/${role}.test.ts`], {
+        ...process.env,
+        ...environment,
+        NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${pathToFileURL(preloadPath).href}`,
+        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        SAFEWORD_RACE_RECOVERY: recoveryDirectory,
+        SAFEWORD_RACE_ROLE: role,
+        SAFEWORD_RACE_SIGNALS: signalDirectory,
+        SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+        SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '10000',
+      }),
+    // Each runner logs build start/end and vitest start/end exactly once, so
+    // a serialized run of N runners has 4N events and never two active.
+    summarize(results: { stderr: string; status: number | null }[]) {
+      const events = readEvents(logPath);
+      let activeCommands = 0;
+      let maximumActiveCommands = 0;
+      for (const event of events) {
+        activeCommands += event.includes(':start:') ? 1 : -1;
+        maximumActiveCommands = Math.max(maximumActiveCommands, activeCommands);
+      }
+      return {
+        eventCount: events.length,
+        maximumActiveCommands,
+        statuses: results.map(result => result.status),
+        stderr: results.map(result => result.stderr),
+      };
+    },
+  };
 }
 
 describe('package test runner lock (379)', () => {
@@ -1295,6 +1503,79 @@ describe('package test runner lock (379)', () => {
       },
       seedLegacyOwnerFile,
     );
+  });
+
+  it('keeps a live recovery marker when a stale contender reclaims after it (#419)', async () => {
+    const race = await prepareRecoveryRace();
+
+    // Both contenders judge the same dead marker abandoned; the holder wins
+    // and publishes a live owner before the stale contender acts. A third
+    // contender inspects the live marker meanwhile and must not adopt it.
+    const stale = race.start('stale');
+    await waitForPath(race.signalPath('stale-paused'));
+    const holder = race.start('holder');
+    await waitForPath(race.signalPath('holder-holds'));
+    const third = race.start('third');
+    await waitForPath(race.signalPath('third-looked'));
+    race.release('release-stale');
+    await waitForPath(race.signalPath('stale-resumed'));
+    race.release('release-holder');
+    const results = await Promise.all([stale, holder, third]);
+
+    expect(existsSync(race.signalPath('holder-lost'))).toBe(false);
+    expect(existsSync(race.signalPath('holder-intact'))).toBe(true);
+    expect(race.summarize(results)).toMatchObject({
+      eventCount: 12,
+      maximumActiveCommands: 1,
+      statuses: [0, 0, 0],
+    });
+  });
+
+  it('keeps a live recovery marker when the marker is replaced during a stale reclaim (#419)', async () => {
+    const race = await prepareRecoveryRace();
+
+    // The holder reclaims the dead marker, releases it, and holds a freshly
+    // created marker while the stale contender still acts on what it saw in
+    // the replaced one.
+    const stale = race.start('stale');
+    await waitForPath(race.signalPath('stale-paused'));
+    const holder = race.start('holder', { SAFEWORD_RACE_HOLD: 'after:2' });
+    await waitForPath(race.signalPath('holder-holds'));
+    race.release('release-stale');
+    await waitForPath(race.signalPath('stale-resumed'));
+    race.release('release-holder');
+    const results = await Promise.all([stale, holder]);
+
+    expect(existsSync(race.signalPath('holder-lost'))).toBe(false);
+    expect(existsSync(race.signalPath('holder-intact'))).toBe(true);
+    expect(race.summarize(results)).toMatchObject({
+      eventCount: 8,
+      maximumActiveCommands: 1,
+      statuses: [0, 0],
+    });
+  });
+
+  it('keeps a replacement marker from a stale reclaim before its creator publishes (#419)', async () => {
+    const race = await prepareRecoveryRace();
+
+    // The holder reclaims the dead marker, releases it, and pauses after
+    // creating a fresh marker but before publishing its first owner.
+    const stale = race.start('stale');
+    await waitForPath(race.signalPath('stale-paused'));
+    const holder = race.start('holder', { SAFEWORD_RACE_HOLD: 'before:2' });
+    await waitForPath(race.signalPath('holder-holds'));
+    race.release('release-stale');
+    await waitForPath(race.signalPath('stale-resumed'));
+    race.release('release-holder');
+    const results = await Promise.all([stale, holder]);
+
+    expect(existsSync(race.signalPath('holder-lost'))).toBe(false);
+    expect(existsSync(race.signalPath('holder-intact'))).toBe(true);
+    expect(race.summarize(results)).toMatchObject({
+      eventCount: 8,
+      maximumActiveCommands: 1,
+      statuses: [0, 0],
+    });
   });
 
   it('rebases repo-root-relative test paths onto the package root (#723)', async () => {
