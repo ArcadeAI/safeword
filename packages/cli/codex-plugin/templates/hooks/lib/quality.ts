@@ -806,9 +806,20 @@ const TERMINAL_HANDOFF_REQUIREMENT_MEANING: Record<TerminalHandoffRequirement, s
   'canonical Open route': 'Open must be exactly `human: <one choice>` or `none`',
 };
 
-function explainRequirements(requirements: readonly TerminalHandoffRequirement[]): string {
+/** Decision-form meanings that differ from the action-form defaults above. */
+const DECISION_REQUIREMENT_MEANING: Partial<Record<TerminalHandoffRequirement, string>> = {
+  'no extra context': 'start the paragraph with Choice:, with no text before it',
+};
+
+function explainRequirements(
+  requirements: readonly TerminalHandoffRequirement[],
+  form: TerminalHandoffForm,
+): string {
+  const meaningOf = (requirement: TerminalHandoffRequirement): string =>
+    (form === 'decision' ? DECISION_REQUIREMENT_MEANING[requirement] : undefined) ??
+    TERMINAL_HANDOFF_REQUIREMENT_MEANING[requirement];
   return `What that means: ${requirements
-    .map(requirement => `${requirement} = ${TERMINAL_HANDOFF_REQUIREMENT_MEANING[requirement]}`)
+    .map(requirement => `${requirement} = ${meaningOf(requirement)}`)
     .join('; ')}.`;
 }
 
@@ -862,7 +873,7 @@ export function renderDecisionBriefCorrection(
   grammar = DECISION_BRIEF_GRAMMAR,
 ): string {
   if (!evaluation.violation && evaluation.requirements && evaluation.requirements.length > 0) {
-    const header = `${evaluation.contractVersion} correction. Missing: ${evaluation.requirements.join(', ')}. ${explainRequirements(evaluation.requirements)}`;
+    const header = `${evaluation.contractVersion} correction. Missing: ${evaluation.requirements.join(', ')}. ${explainRequirements(evaluation.requirements, evaluation.form)}`;
     const actionShape = `**Next:** Action: <imperative>. Object: <specific object>. Reason: Required because <essential reason>.`;
     const decisionShape = `**Next:** Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>.\n\nFor BLOCKED, use the same five roles after **Need:**.`;
     const termShape = evaluation.requirements.includes('plain-language meaning')

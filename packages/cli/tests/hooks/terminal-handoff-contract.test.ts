@@ -396,4 +396,22 @@ describe('terminal handoff corrections name the exact problem', () => {
       'no extra context = Action, Object, and Reason must each be a single sentence, with nothing before Action',
     );
   });
+
+  it('explains extra context for a decision as prose before Choice, not Action clauses', () => {
+    const evaluation = quality.evaluateDecisionBriefCompliance(
+      [
+        '**CONFIDENT** — The release channel requires a human choice.',
+        '**Decided:** Keep the release scoped to one channel.',
+        '**Open:** human: choose the release channel.',
+        '**Next:** Here is the situation. Choice: beta or stable. Recommendation: choose beta. Reason: beta limits exposure. Impact: beta delays stable by one day. Reply: `beta` or `stable`.',
+      ].join('\n\n'),
+    );
+
+    const correction = quality.renderDecisionBriefCorrection(evaluation, 'Evidence stays intact.');
+
+    expect(correction).toContain(
+      'no extra context = start the paragraph with Choice:, with no text before it',
+    );
+    expect(correction).not.toContain('Action, Object, and Reason must each be');
+  });
 });
