@@ -12,8 +12,18 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   isNamespacePath,
   resolveOwningProjectDirectory,
+  resolveWorkingProjectDirectory,
 } from '../../templates/hooks/lib/namespace-root.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
+
+// `.git` is a directory in a main checkout and a file in a linked worktree;
+// the resolvers only need it to exist.
+function tree(path: string, { enrolled }: { enrolled: boolean }): string {
+  mkdirSync(nodePath.join(path, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(path, '.git'), 'gitdir: elsewhere\n');
+  if (enrolled) writeFileSync(nodePath.join(path, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
+  return path;
+}
 
 describe('isNamespacePath (TAGWZ8)', () => {
   it('matches the default root, absolute and relative', () => {
@@ -44,15 +54,6 @@ describe('resolveOwningProjectDirectory (#5247)', () => {
   let root: string;
   let launch: string;
   const ticket = (treeRoot: string) => nodePath.join(treeRoot, '.project/tickets/T1-x/ticket.md');
-
-  // `.git` is a directory in a main checkout and a file in a linked worktree;
-  // the resolver only needs it to exist.
-  function tree(path: string, { enrolled }: { enrolled: boolean }): string {
-    mkdirSync(nodePath.join(path, '.safeword'), { recursive: true });
-    writeFileSync(nodePath.join(path, '.git'), 'gitdir: elsewhere\n');
-    if (enrolled) writeFileSync(nodePath.join(path, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
-    return path;
-  }
 
   beforeEach(() => {
     root = createTemporaryDirectory();
@@ -90,5 +91,32 @@ describe('resolveOwningProjectDirectory (#5247)', () => {
       launch,
     );
     expect(resolveOwningProjectDirectory(launch, '')).toBe(launch);
+  });
+});
+
+describe('resolveWorkingProjectDirectory (#5361)', () => {
+  let root: string;
+  let launch: string;
+
+  beforeEach(() => {
+    root = createTemporaryDirectory();
+    launch = tree(nodePath.join(root, 'launch'), { enrolled: true });
+  });
+
+  afterEach(() => {
+    removeTemporaryDirectory(root);
+  });
+
+  it('roots a helper run from inside a worktree at that worktree', () => {
+    const worktree = tree(nodePath.join(launch, '.claude/worktrees/wt'), { enrolled: true });
+    const nested = nodePath.join(worktree, 'packages/cli');
+    mkdirSync(nested, { recursive: true });
+    expect(resolveWorkingProjectDirectory(launch, worktree)).toBe(worktree);
+    expect(resolveWorkingProjectDirectory(launch, nested)).toBe(worktree);
+  });
+
+  it('keeps the launch checkout when run from it or from outside any tree', () => {
+    expect(resolveWorkingProjectDirectory(launch, launch)).toBe(launch);
+    expect(resolveWorkingProjectDirectory(launch, root)).toBe(launch);
   });
 });
