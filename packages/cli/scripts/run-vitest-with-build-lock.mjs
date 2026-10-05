@@ -352,25 +352,44 @@ function transitionRecoveryIsAbandoned(ownerText) {
   }
 }
 
-function readTransitionRecoveryOwnerText() {
+function readCurrentTransitionRecoveryOwner() {
+  // The highest-numbered owner file is authoritative; a legacy owner.json is
+  // generation zero. Owner files are never removed while the marker exists.
+  let entries;
   try {
-    return readFileSync(transitionRecoveryOwnerPath, 'utf8');
+    entries = readdirSync(transitionRecoveryDirectory);
   } catch (error) {
-    if (error?.code === 'ENOENT') return false;
+    if (error?.code === 'ENOENT') return { generation: 0, text: false };
+    throw error;
+  }
+  const generation = Math.max(
+    0,
+    ...entries.map(entry => Number(/^owner-(\d+)\.json$/u.exec(entry)?.[1] ?? 0)),
+  );
+  try {
+    return { generation, text: readFileSync(transitionRecoveryOwnerPathFor(generation), 'utf8') };
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { generation, text: false };
     throw error;
   }
 }
 
-function publishTransitionRecoveryOwner(token) {
+function transitionRecoveryOwnerPathFor(generation) {
+  return generation === 0
+    ? transitionRecoveryOwnerPath
+    : nodePath.join(transitionRecoveryDirectory, `owner-${generation}.json`);
+}
+
+function publishTransitionRecoveryOwner(token, generation) {
   // Link a fully written file into place: contenders never observe partial
-  // metadata, and at most one process can publish an owner per marker.
+  // metadata, and at most one process can publish each generation.
   const pendingOwnerPath = `${transitionRecoveryOwnerPath}.pending-${randomUUID()}`;
   try {
     writeFileSync(
       pendingOwnerPath,
       `${JSON.stringify({ createdAt: new Date().toISOString(), kind: transitionRecoveryOwnerKind, pid: process.pid, token })}\n`,
     );
-    linkSync(pendingOwnerPath, transitionRecoveryOwnerPath);
+    linkSync(pendingOwnerPath, transitionRecoveryOwnerPathFor(generation));
     return true;
   } catch (error) {
     if (error?.code === 'EEXIST' || error?.code === 'ENOENT') return false;
@@ -380,41 +399,13 @@ function publishTransitionRecoveryOwner(token) {
   }
 }
 
-function claimObservedTransitionRecoveryOwner(observedOwnerText) {
-  // Claim the observed owner file rather than the shared directory. Only one
-  // contender can move it, and the moved bytes prove whether it is the
-  // abandoned owner we judged or a live owner published since (#419).
-  const claimedOwnerPath = `${transitionRecoveryOwnerPath}.reclaim-${randomUUID()}`;
-  try {
-    renameSync(transitionRecoveryOwnerPath, claimedOwnerPath);
-    if (readFileSync(claimedOwnerPath, 'utf8') !== observedOwnerText) {
-      linkSync(claimedOwnerPath, transitionRecoveryOwnerPath);
-      rmSync(claimedOwnerPath, { force: true });
-      return false;
-    }
-  } catch (error) {
-    if (error?.code === 'ENOENT' || error?.code === 'EEXIST') return false;
-    throw error;
-  }
-  rmSync(claimedOwnerPath, { force: true });
-  return true;
-}
-
 function tryAdoptAbandonedTransitionRecovery(token) {
-  const observedOwnerText = readTransitionRecoveryOwnerText();
-  if (observedOwnerText !== false) {
-    // Our own marker can outlive a failed leave while a contender briefly held
-    // its owner file aside; re-entering must not wait on ourselves.
-    const { owner } = parseOwner(observedOwnerText);
-    if (owner.pid === process.pid && owner.token === token) return true;
-  }
-  if (!transitionRecoveryIsAbandoned(observedOwnerText)) return false;
-  if (observedOwnerText !== false && !claimObservedTransitionRecoveryOwner(observedOwnerText)) {
-    return false;
-  }
-  // Adopt the marker in place. The directory is never moved, so a live
-  // holder's marker cannot be displaced by a contender's stale observation.
-  return publishTransitionRecoveryOwner(token);
+  const { generation, text } = readCurrentTransitionRecoveryOwner();
+  if (!transitionRecoveryIsAbandoned(text)) return false;
+  // Supersede the abandoned owner instead of removing it. If another contender
+  // published this generation since we looked, our link fails: a stale
+  // judgement can only lose to a newer owner, never displace one (#419).
+  return publishTransitionRecoveryOwner(token, generation + 1);
 }
 
 function tryEnterTransitionRecovery(token) {
@@ -427,22 +418,12 @@ function tryEnterTransitionRecovery(token) {
   }
   // A failed publish leaves an ownerless marker that ages out; removing it by
   // path could delete a marker another contender adopted meanwhile.
-  return publishTransitionRecoveryOwner(token);
+  return publishTransitionRecoveryOwner(token, 1);
 }
 
 function leaveTransitionRecovery(token) {
-  // A contender checking whether our marker is abandoned holds the owner file
-  // aside only until it restores it; wait that out rather than strand the marker.
-  for (
-    let waitedMilliseconds = 0;
-    waitedMilliseconds < 1000 &&
-    existsSync(transitionRecoveryDirectory) &&
-    !existsSync(transitionRecoveryOwnerPath);
-    waitedMilliseconds += 10
-  ) {
-    sleep(10);
-  }
-  const { owner } = readOwnerAt(transitionRecoveryOwnerPath);
+  const { text } = readCurrentTransitionRecoveryOwner();
+  const { owner } = text === false ? { owner: {} } : parseOwner(text);
   if (owner.pid !== process.pid || owner.token !== token) return false;
   const releasedRecoveryDirectory = `${transitionRecoveryDirectory}.released-${randomUUID()}`;
   try {
