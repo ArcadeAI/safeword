@@ -2863,6 +2863,11 @@ Then(
       assert.ok(text.includes('designApprovalGate'), path);
       assert.match(text, /absent or off/i, path);
       assert.match(text, /advances autonomously|without human approval/i, path);
+      assert.match(
+        text,
+        /configuration-derived `not required` result sets `phase: plan-execution`/i,
+        path,
+      );
     });
   },
 );
@@ -2873,7 +2878,7 @@ Then(
     eachDoc(this.docs, (text, path) => {
       assert.ok(text.includes('designApprovalGate'), path);
       assert.match(text, /user's digest-bound approval or decline before changing phase/i, path);
-      assert.match(text, /successful approval[\s\S]*sets `phase: plan-execution`/i, path);
+      assert.match(text, /successful approval[\s\S]{0,200}?sets `phase: plan-execution`/i, path);
       assert.match(
         text,
         /Declined, pending, invalid, or stale evidence remains in Implementation\s+Planning/i,
