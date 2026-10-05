@@ -36,6 +36,7 @@ import {
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
 import {
+  codexMarketplaceReplacementOperation,
   CodexMigrationError,
   codexProfileFailureDestructiveEffects,
   codexProfileFailureEffects,
@@ -288,7 +289,7 @@ function plannedCodexProfileInstallEffects(): Effects {
       {
         kind: 'replace',
         target: 'Safeword Codex marketplace',
-        operation: 'stable-channel',
+        operation: codexMarketplaceReplacementOperation(),
       },
     ],
   };
@@ -1510,7 +1511,7 @@ function migrateLegacyCodexDuringSetup(
       completedEffects.destructive.push({
         kind: 'replace',
         target: 'Safeword Codex marketplace',
-        operation: 'stable-channel',
+        operation: codexMarketplaceReplacementOperation(),
       });
     }
     return [

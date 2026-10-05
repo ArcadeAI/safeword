@@ -32,6 +32,7 @@ type AdditionalContextHookEvent = 'PostToolUse' | 'SessionStart' | 'UserPromptSu
 type SupportedCodexHookEvent = CodexPluginHookEvent;
 
 interface CodexHookInput {
+  cwd?: string;
   hook_event_name?: string;
   session_id?: string;
   tool_name?: string;
@@ -113,6 +114,7 @@ function parseCodexHookInput(raw: string): CodexHookInput | undefined {
     if (typeof value !== 'object' || value === null) return undefined;
     const input = value as Record<string, unknown>;
     return {
+      cwd: optionalString(input, 'cwd'),
       hook_event_name: optionalString(input, 'hook_event_name'),
       session_id: optionalString(input, 'session_id'),
       tool_name: optionalString(input, 'tool_name'),
@@ -370,22 +372,33 @@ function resolvePackagedHook(relativePath: string): string | undefined {
   return findPackagedTemplate(nodePath.join('hooks', relativePath));
 }
 
+function hookRuntime(hookPath: string): { runtime: string; args: string[] } {
+  const isBun = process.versions.bun !== undefined;
+  const runtime =
+    process.env.SAFEWORD_AGENT_RUNTIME === 'opencode' || isBun ? process.execPath : 'bun';
+  const args = runtime === process.execPath && !isBun ? [hookPath] : ['--no-env-file', hookPath];
+  return { runtime, args };
+}
+
 function runHookFile(
   hookPath: string,
   rawInput: string,
   projectDirectory: string,
   packagedContextPath = '',
 ): HookProcessResult {
-  const runtime = process.env.SAFEWORD_AGENT_RUNTIME === 'opencode' ? process.execPath : 'bun';
-  const result = spawnSync(runtime, [hookPath], {
-    cwd: projectDirectory,
+  const { runtime, args } = hookRuntime(hookPath);
+  const result = spawnSync(runtime, args, {
+    cwd: nodePath.dirname(hookPath),
     input: rawInput,
     encoding: 'utf8',
     env: {
       ...process.env,
       CLAUDE_PROJECT_DIR: projectDirectory,
       SAFEWORD_AGENT_RUNTIME: process.env.SAFEWORD_AGENT_RUNTIME ?? 'codex',
-      SAFEWORD_PLUGIN_CLI: process.env.SAFEWORD_PLUGIN_CLI ?? process.argv[1],
+      SAFEWORD_PLUGIN_CLI:
+        process.env.SAFEWORD_AGENT_RUNTIME === 'opencode'
+          ? (process.env.SAFEWORD_PLUGIN_CLI ?? process.argv[1])
+          : process.argv[1],
       SAFEWORD_PACKAGED_CONTEXT_PATH: packagedContextPath,
     },
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -931,6 +944,20 @@ const CODEX_HOOK_RUNNERS: Record<SupportedCodexHookEvent, (project: string) => P
   'user-prompt-submit': runUserPromptSubmit,
 };
 
+function requireNativeProject(
+  input: CodexHookInput | undefined,
+  event: SupportedCodexHookEvent,
+): void {
+  if (
+    input?.cwd?.trim() ||
+    process.env.CLAUDE_PROJECT_DIR?.trim() ||
+    hasSafewordProjectMarker(process.cwd())
+  )
+    return;
+  process.stderr.write('Safeword: Native hook input is missing its project directory.\n');
+  process.exit(event === 'pre-tool-use' ? 2 : 0);
+}
+
 export async function codexHook(
   event: string,
   options: { pluginHook?: boolean } = {},
@@ -940,11 +967,12 @@ export async function codexHook(
     process.stderr.write(`Safeword ignored unknown Codex hook event: ${event}\n`);
     return;
   }
-  const projectDirectory = resolveCodexProjectDirectory();
+  // Native commands start outside project configuration; the host supplies cwd.
+  const input = options.pluginHook === true ? parseCodexHookInput(await readStdin()) : undefined;
+  const projectDirectory = resolveCodexProjectDirectory(input?.cwd ?? process.cwd());
   if (options.pluginHook === true) {
+    requireNativeProject(input, normalized);
     try {
-      const rawInput = await readStdin();
-      const input = parseCodexHookInput(rawInput);
       recordCodexHookProof(normalized, process.env, new Date(), {
         projectDirectory,
         sessionId: input?.session_id,

@@ -42,6 +42,7 @@ import {
   runBoundMs,
   runHeadlessReviewerWithProvenance,
 } from './runtime.js';
+import { withReviewScope } from './scope.js';
 
 /** The command runner owns reporter shutdown; review routing only updates it. */
 type ReviewProgress = Pick<ProgressReporter, 'start' | 'heartbeat'>;
@@ -2110,7 +2111,7 @@ function runAfterPrimaryFailure(
 }
 
 // eslint-disable-next-line complexity -- The Cursor author is routed through planning only; legacy non-planning dispatch remains separate.
-export async function runReview(input: ReviewRunInput): Promise<CliResult> {
+async function runReviewCore(input: ReviewRunInput): Promise<CliResult> {
   const author = resolveRunIdentity({}, { env: process.env }).runtime;
   const policy = readReviewPolicy(input.cwd);
   if (policy === 'off') return policyOffResult(input, author);
@@ -2314,4 +2315,25 @@ function rankedReviewRoutes(
     input.kind,
     configured ?? builtInReviewRoutes(input.cwd, author),
   );
+}
+
+export async function runReview(input: ReviewRunInput): Promise<CliResult> {
+  const { result, scope } = await withReviewScope(() => runReviewCore(input));
+  const exhausted = result.findings.find(finding => finding.code === 'REVIEW_ROUTES_EXHAUSTED');
+  const publicResult =
+    exhausted === undefined || result.errors.some(error => error.code === exhausted.code)
+      ? result
+      : {
+          ...result,
+          errors: [
+            ...result.errors,
+            { code: exhausted.code, message: exhausted.message, retryable: true },
+          ],
+        };
+  if (scope.excludedTargets === undefined) return publicResult;
+  const data = publicResult.data as Record<string, unknown> | undefined;
+  return {
+    ...publicResult,
+    data: { ...data, excluded_targets: scope.excludedTargets },
+  };
 }

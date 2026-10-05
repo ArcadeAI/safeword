@@ -54,6 +54,13 @@ function publishedCapabilitiesData(): {
 }
 
 describe('CLI command catalog', () => {
+  it('publishes the generated-review scope and failure codes', () => {
+    const review = publicCommands.find(command => command.name === 'review run');
+    expect(review?.description).toContain('data.excluded_targets');
+    expect(review?.description).toContain('REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE');
+    expect(review?.description).toContain('REVIEW_NO_ELIGIBLE_TARGETS');
+  });
+
   it('declares the optional network used to inspect configured reviewer catalogues', () => {
     expect(commandCatalog.find(command => command.name === 'status')?.networkPolicy).toBe(
       'declared',
@@ -148,6 +155,10 @@ describe('CLI command catalog', () => {
       'review status',
       'review continue',
       'review gate executable-red',
+      'review gate retrospective',
+      'review attest retrospective',
+      'review attest retrospective-close',
+      'review gate retrospective-close',
       'review cancel',
       'review routes set',
       'review routes list',

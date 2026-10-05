@@ -229,7 +229,7 @@ describe('Codex plugin release contract', () => {
             cwd: project,
             encoding: 'utf8',
             env: { ...process.env, CLAUDE_PROJECT_DIR: '', CODEX_HOME: codexHome },
-            input: JSON.stringify({ session_id: `effective-version-${versionKind}` }),
+            input: JSON.stringify({ cwd: project, session_id: `effective-version-${versionKind}` }),
           },
         );
         expect(sessionStart.status, sessionStart.stderr).toBe(0);
@@ -476,7 +476,7 @@ describe('Codex plugin release contract', () => {
           cwd: project,
           encoding: 'utf8',
           env: environment,
-          input: JSON.stringify({ session_id: 'cachebusted-status' }),
+          input: JSON.stringify({ cwd: project, session_id: 'cachebusted-status' }),
         },
       );
       expect(sessionStart.status, sessionStart.stderr).toBe(0);
@@ -520,11 +520,11 @@ describe('Codex plugin release contract', () => {
     expect(runtimePackage.version).toBe(version);
     const commands = codexPluginHookCommands(hooks.hooks);
     expect(commands).toEqual([
-      'bun "${PLUGIN_ROOT}/runtime/cli.js" hook codex session-start --plugin-hook',
-      'bun "${PLUGIN_ROOT}/runtime/cli.js" hook codex pre-tool-use --plugin-hook',
-      'bun "${PLUGIN_ROOT}/runtime/cli.js" hook codex post-tool-use --plugin-hook',
-      'bun "${PLUGIN_ROOT}/runtime/cli.js" hook codex user-prompt-submit --plugin-hook',
-      'bun "${PLUGIN_ROOT}/runtime/cli.js" hook codex stop --plugin-hook',
+      'bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js" hook codex session-start --plugin-hook',
+      'bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js" hook codex pre-tool-use --plugin-hook',
+      'bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js" hook codex post-tool-use --plugin-hook',
+      'bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js" hook codex user-prompt-submit --plugin-hook',
+      'bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js" hook codex stop --plugin-hook',
     ]);
     for (const command of commands) {
       expect(() => {
@@ -584,7 +584,7 @@ describe('Codex plugin release contract', () => {
     }).toThrow('must not install packages');
     expect(() => {
       assertBundledHookCommand(
-        'bun "${PLUGIN_ROOT}/runtime/cli.js" hook codex session-start --dangerously-bypass-hook-trust',
+        'bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js" hook codex session-start --dangerously-bypass-hook-trust',
       );
     }).toThrow('must not bypass');
   });
@@ -684,7 +684,7 @@ describe('Codex plugin release contract', () => {
           cwd: unenrolledProject,
           encoding: 'utf8',
           env: environment,
-          input: JSON.stringify({ session_id: 'release-contract' }),
+          input: JSON.stringify({ cwd: unenrolledProject, session_id: 'release-contract' }),
         },
       );
       expect(sessionStart.status, sessionStart.stderr).toBe(0);
@@ -833,7 +833,10 @@ describe('Codex plugin release contract', () => {
           cwd: unenrolledProject,
           encoding: 'utf8',
           env: environment,
-          input: JSON.stringify({ session_id: 'cachebusted-release-contract' }),
+          input: JSON.stringify({
+            cwd: unenrolledProject,
+            session_id: 'cachebusted-release-contract',
+          }),
         },
       );
       expect(cachebustedSessionStart.status, cachebustedSessionStart.stderr).toBe(0);

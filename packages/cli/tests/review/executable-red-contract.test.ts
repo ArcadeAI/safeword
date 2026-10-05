@@ -10,4 +10,8 @@ describe('executable RED review contract', () => {
   it('accepts plan-execution as a receipt kind', () => {
     expect(isReviewKind('plan-execution')).toBe(true);
   });
+
+  it('accepts retrospective eligibility as a distinct review kind', () => {
+    expect(isReviewKind('retrospective-eligibility')).toBe(true);
+  });
 });

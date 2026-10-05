@@ -165,7 +165,7 @@ describe('public CLI documentation', () => {
       expect(compatibilitySection, route).toContain(`| ${displayedRoute}`);
       expect(compatibilitySection, replacement).toContain(`\`${replacement}\``);
     }
-    expect(reference).toContain('safeword review run <kind> <targets...>');
+    expect(reference).toContain('safeword review run <kind> <targets...> [--context <paths...>]');
     expect(reference).toContain('safeword retro-relay-retry [request-id]');
     expect(reference).toContain('safeword retro-relay-discard <request-id> [--confirm]');
     expect(reference).toContain('### safeword codex clean-guidance');

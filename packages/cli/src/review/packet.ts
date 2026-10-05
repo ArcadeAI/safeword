@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
@@ -10,6 +11,7 @@ import {
   openSync,
   readdirSync,
   readFileSync,
+  readSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -49,6 +51,7 @@ import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { extractPlanReviewRubric } from './plan-rubric.js';
 import { PRODUCT_PLAN_REVIEW_RUBRIC } from './product-plan-rubric.generated.js';
 import { extractProductPlanReviewRubric } from './product-plan-rubric.js';
+import { recordFinalizedScope } from './scope.js';
 
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
@@ -64,6 +67,7 @@ const HIGH_CONFIDENCE_SECRET_PATTERNS = [
 
 export interface PreparedReviewPacket {
   readonly packet: ReviewPacket;
+  readonly excludedTargets: readonly string[];
   readonly sourceRoot: string;
   readonly workspace: string;
   readonly sourceChanged: () => boolean;
@@ -344,6 +348,226 @@ interface CapturedFile {
   readonly sha256: string;
   readonly device: number;
   readonly inode: number;
+}
+
+interface OversizedFile {
+  readonly index: number;
+  readonly source: string;
+  readonly relative: string;
+  readonly device: number;
+  readonly inode: number;
+  readonly size: number;
+}
+
+interface CapturedPacketFile {
+  readonly index: number;
+  readonly context: boolean;
+  readonly file: { readonly path: string; readonly content: string };
+}
+
+function serializedOverflowIndex(
+  kind: ReviewKind,
+  files: readonly CapturedPacketFile[],
+  executionAttestation: RedExecutionAttestation | undefined,
+): number | undefined {
+  const logicalFiles: CapturedPacketFile['file'][] = [];
+  const contextFiles: CapturedPacketFile['file'][] = [];
+  for (const entry of files) {
+    (entry.context ? contextFiles : logicalFiles).push(entry.file);
+    const packet = {
+      schema_version: 1,
+      dispatch_id: '00000000-0000-0000-0000-000000000000',
+      kind,
+      logical_files: logicalFiles,
+      ...(contextFiles.length > 0 && { context_files: contextFiles }),
+      ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),
+    };
+    if (Buffer.byteLength(JSON.stringify(packet), 'utf8') > MAX_PACKET_BYTES) return entry.index;
+  }
+  return undefined;
+}
+
+function gitEnvironment(alternateObjects?: string): NodeJS.ProcessEnv {
+  return {
+    PATH: process.env.PATH,
+    ...(process.platform === 'win32' && { SystemRoot: process.env.SystemRoot }),
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_ATTR_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
+    ...(alternateObjects !== undefined && { GIT_ALTERNATE_OBJECT_DIRECTORIES: alternateObjects }),
+  };
+}
+
+function gitOutput(args: readonly string[], env: NodeJS.ProcessEnv): Buffer {
+  const result = spawnSync('git', [...args], {
+    env,
+    encoding: 'buffer',
+    timeout: 5000,
+    maxBuffer: 256 * 1024,
+  });
+  if (result.status !== 0 || result.error !== undefined || !Buffer.isBuffer(result.stdout)) {
+    throw new ReviewPacketError(
+      'Git attributes could not be resolved for an oversized review target',
+      'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+    );
+  }
+  return result.stdout;
+}
+
+function readRepoPrefix(root: string, env: NodeJS.ProcessEnv): string {
+  const output = new TextDecoder('utf-8', { fatal: true }).decode(
+    gitOutput(['-C', root, 'rev-parse', '--show-prefix'], env),
+  );
+  const prefix = output.slice(0, -1);
+  if (
+    !output.endsWith('\n') ||
+    prefix.startsWith('/') ||
+    (prefix !== '' && !prefix.endsWith('/')) ||
+    prefix.split('/').includes('..')
+  ) {
+    throw new ReviewPacketError(
+      'Git attributes could not be resolved for an oversized review target',
+      'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+    );
+  }
+  return prefix;
+}
+
+// The Git process and its exact binary response are one fail-closed trust boundary.
+// eslint-disable-next-line complexity -- Each process and tuple check rejects unsafe classification.
+function generatedTargets(root: string, files: readonly OversizedFile[]): Set<string> {
+  if (files.length === 0) return new Set();
+  try {
+    const env = gitEnvironment();
+    const commit = gitOutput(['-C', root, 'rev-parse', '--verify', 'HEAD^{commit}'], env)
+      .toString('utf8')
+      .trim();
+    if (!/^[0-9a-f]{40,64}$/u.test(commit)) {
+      throw new ReviewPacketError(
+        'Git attributes could not be resolved for an oversized review target',
+        'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+      );
+    }
+    const objectsPath = gitOutput(['-C', root, 'rev-parse', '--git-path', 'objects'], env)
+      .toString('utf8')
+      .trim();
+    const objects = realpathSync(nodePath.resolve(root, objectsPath));
+    const repoPrefix = readRepoPrefix(root, env);
+    const repoPaths = files.map(file => `${repoPrefix}${file.relative}`);
+    const isolatedGit = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-git-'));
+    try {
+      const bare = nodePath.join(isolatedGit, 'bare');
+      const emptyTemplate = nodePath.join(isolatedGit, 'template');
+      mkdirSync(emptyTemplate);
+      gitOutput(['init', '--bare', '-q', `--template=${emptyTemplate}`, bare], env);
+      const result = spawnSync(
+        'git',
+        [
+          '--git-dir',
+          bare,
+          '-c',
+          `core.attributesFile=${process.platform === 'win32' ? 'NUL' : '/dev/null'}`,
+          'check-attr',
+          `--source=${commit}`,
+          '-z',
+          '--stdin',
+          'linguist-generated',
+        ],
+        {
+          env: gitEnvironment(objects),
+          input: Buffer.from(`${repoPaths.join('\0')}\0`),
+          encoding: 'buffer',
+          timeout: 5000,
+          maxBuffer: 256 * 1024,
+        },
+      );
+      if (result.status !== 0 || result.error !== undefined || !Buffer.isBuffer(result.stdout)) {
+        throw new ReviewPacketError(
+          'Git attributes could not be resolved for an oversized review target',
+          'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+        );
+      }
+      const fields = new TextDecoder('utf-8', { fatal: true }).decode(result.stdout).split('\0');
+      if (fields.pop() !== '' || fields.length !== files.length * 3) {
+        throw new ReviewPacketError(
+          'Git attributes returned an invalid response',
+          'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+        );
+      }
+      const marked = new Set<string>();
+      for (const [index, file] of files.entries()) {
+        const offset = index * 3;
+        if (fields[offset] !== repoPaths[index] || fields[offset + 1] !== 'linguist-generated') {
+          throw new ReviewPacketError(
+            'Git attributes returned an invalid response',
+            'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+          );
+        }
+        if (fields[offset + 2] === 'true') marked.add(file.relative);
+      }
+      return marked;
+    } finally {
+      rmSync(isolatedGit, { recursive: true, force: true });
+    }
+  } catch (error) {
+    if (error instanceof ReviewPacketError) throw error;
+    throw new ReviewPacketError(
+      'Git attributes could not be resolved for an oversized review target',
+      'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+    );
+  }
+}
+
+function oversizedState(root: string, file: OversizedFile): 'same' | 'outside' | 'changed' {
+  try {
+    const observed = lstatSync(file.source);
+    if (escapes(root, realpathSync(file.source))) return 'outside';
+    if (
+      !observed.isFile() ||
+      observed.dev !== file.device ||
+      observed.ino !== file.inode ||
+      observed.size !== file.size
+    )
+      return 'changed';
+    return 'same';
+  } catch {
+    return 'changed';
+  }
+}
+
+function collectOversizedOutcomes(
+  root: string,
+  files: readonly OversizedFile[],
+  marked: ReadonlySet<string>,
+  errors: { index: number; error: unknown }[],
+  excluded: string[],
+): void {
+  for (const file of files) {
+    const state = oversizedState(root, file);
+    if (state !== 'same') {
+      errors.push({
+        index: file.index,
+        error: new ReviewPacketError(
+          state === 'outside'
+            ? `Review target escapes the project: ${file.relative}`
+            : `Review target changed while it was being classified: ${file.relative}`,
+          state === 'outside' ? 'REVIEW_TARGET_OUTSIDE_PROJECT' : 'REVIEW_TARGET_CHANGED',
+        ),
+      });
+      continue;
+    }
+    if (!marked.has(file.relative)) {
+      errors.push({
+        index: file.index,
+        error: new ReviewPacketError(
+          `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${file.relative}`,
+          'REVIEW_TARGET_TOO_LARGE',
+        ),
+      });
+      continue;
+    }
+    excluded.push(file.relative);
+  }
 }
 
 function requireScenarioTicketSpec(
@@ -647,26 +871,43 @@ function packetPlanContract(
 }
 
 function fileDigest(path: string): string | undefined {
+  let descriptor: number | undefined;
   try {
-    return digest(readFileSync(path));
+    descriptor = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    const stat = fstatSync(descriptor);
+    if (!stat.isFile() || stat.size > MAX_FILE_BYTES) return undefined;
+    const bytes = readBounded(descriptor, MAX_FILE_BYTES);
+    return bytes === undefined ? undefined : digest(bytes);
   } catch {
     // Integrity checks fail closed: deletion and unreadability both mean the
     // source can no longer be proven equal to the captured packet.
     return undefined;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
   }
 }
 
-function sourceFileChanged(file: CapturedFile): boolean {
+function readBounded(descriptor: number, maxBytes: number): Buffer | undefined {
+  const buffer = Buffer.allocUnsafe(maxBytes + 1);
+  let length = 0;
+  while (length < buffer.length) {
+    // eslint-disable-next-line unicorn/no-null -- Node uses null for the descriptor's current position.
+    const read = readSync(descriptor, buffer, length, buffer.length - length, null);
+    if (read === 0) return buffer.subarray(0, length);
+    length += read;
+  }
+  return undefined;
+}
+
+function sourceFileChanged(root: string, file: CapturedFile): boolean {
   let descriptor: number | undefined;
   try {
     descriptor = openSync(file.source, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
     const current = fstatSync(descriptor);
-    return (
-      !current.isFile() ||
-      current.dev !== file.device ||
-      current.ino !== file.inode ||
-      digest(readFileSync(descriptor)) !== file.sha256
-    );
+    if (!current.isFile() || current.dev !== file.device || current.ino !== file.inode) return true;
+    if (escapes(root, realpathSync(file.source))) return true;
+    const bytes = readBounded(descriptor, MAX_FILE_BYTES);
+    return bytes === undefined || digest(bytes) !== file.sha256;
   } catch {
     return true;
   } finally {
@@ -674,6 +915,22 @@ function sourceFileChanged(file: CapturedFile): boolean {
   }
 }
 
+function requireStableSources(root: string, files: readonly CapturedFile[]): void {
+  if (files.some(file => sourceFileChanged(root, file))) {
+    throw new ReviewPacketError(
+      'Review target changed after packet capture',
+      'REVIEW_TARGET_CHANGED',
+    );
+  }
+}
+
+function throwFirstTargetError(errors: { index: number; error: unknown }[]): void {
+  if (errors.length === 0) return;
+  errors.sort((left, right) => left.index - right.index);
+  throw errors[0]?.error;
+}
+
+// eslint-disable-next-line complexity -- Each validation rejects a distinct unsafe capture state.
 function readContainedText(
   root: string,
   source: string,
@@ -688,25 +945,53 @@ function readContainedText(
   const descriptor = openSync(source, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
   try {
     const opened = fstatSync(descriptor);
-    if (!opened.isFile()) throw new Error(`Review target is not a regular file: ${target}`);
+    if (!opened.isFile()) {
+      throw new ReviewPacketError(
+        `Review target is not a regular file: ${target}`,
+        'REVIEW_TARGET_NOT_REGULAR',
+      );
+    }
     if (opened.size > MAX_FILE_BYTES) {
-      throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+      throw new ReviewPacketError(
+        `Review target changed while it was being captured: ${target}`,
+        'REVIEW_TARGET_CHANGED',
+      );
     }
     if (opened.size > packetBytesRemaining) {
-      throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
+      throw new ReviewPacketError(
+        `Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`,
+        'REVIEW_PACKET_TOO_LARGE',
+      );
     }
     const resolved = realpathSync(source);
-    if (escapes(root, resolved)) throw new Error(`Review target escapes the project: ${target}`);
+    if (escapes(root, resolved)) {
+      throw new ReviewPacketError(
+        `Review target escapes the project: ${target}`,
+        'REVIEW_TARGET_OUTSIDE_PROJECT',
+      );
+    }
     const observed = lstatSync(resolved);
     if (opened.dev !== observed.dev || opened.ino !== observed.ino) {
-      throw new Error(`Review target changed while it was being captured: ${target}`);
+      throw new ReviewPacketError(
+        `Review target changed while it was being captured: ${target}`,
+        'REVIEW_TARGET_CHANGED',
+      );
     }
-    const bytes = readFileSync(descriptor);
+    const bytes = readBounded(descriptor, MAX_FILE_BYTES);
+    if (bytes?.byteLength !== opened.size) {
+      throw new ReviewPacketError(
+        `Review target changed while it was being captured: ${target}`,
+        'REVIEW_TARGET_CHANGED',
+      );
+    }
     let content: string;
     try {
       content = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
     } catch {
-      throw new Error(`Review target is not valid UTF-8 text: ${target}`);
+      throw new ReviewPacketError(
+        `Review target is not valid UTF-8 text: ${target}`,
+        'REVIEW_TARGET_INVALID_TEXT',
+      );
     }
     if (HIGH_CONFIDENCE_SECRET_PATTERNS.some(pattern => pattern.test(content))) {
       throw new Error(
@@ -724,6 +1009,10 @@ function escapes(root: string, candidate: string): boolean {
   return (
     relative === '..' || relative.startsWith(`..${nodePath.sep}`) || nodePath.isAbsolute(relative)
   );
+}
+
+export function toReviewPath(relative: string, separator = nodePath.sep): string {
+  return relative.split(separator).join('/');
 }
 
 function snapshotEntries(root: string, directory = root): string[] {
@@ -787,6 +1076,8 @@ function packetDispositionContext(
   }
 }
 
+// Keep validation, generated classification, and packet capture in one atomic preflight.
+// eslint-disable-next-line complexity -- A partial packet must never escape this boundary.
 function prepareReviewPacketUnsafe(
   cwd: string,
   kind: ReviewKind,
@@ -794,13 +1085,14 @@ function prepareReviewPacketUnsafe(
   context: readonly string[] = [],
   execution: ReviewPacketExecution = {},
 ): PreparedReviewPacket {
-  if (targets.length + context.length > MAX_FILE_COUNT) {
-    throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
-  }
   const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot = realpathSync(cwd);
   const workspace = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-'));
   const tracked: CapturedFile[] = [];
+  const oversized: OversizedFile[] = [];
+  const captured: CapturedPacketFile[] = [];
+  const targetErrors: { index: number; error: unknown }[] = [];
+  const excludedTargets: string[] = [];
   const expectedSnapshotEntries = new Set<string>();
   let logicalFiles: { path: string; content: string }[];
   let contextFiles: { path: string; content: string }[];
@@ -809,44 +1101,87 @@ function prepareReviewPacketUnsafe(
   let planningContext: PlanningRoleContext | undefined;
   try {
     let packetBytes = 0;
-    const captureFiles = (files: readonly string[]): { path: string; content: string }[] =>
-      files.map(target => {
-        const source = nodePath.resolve(canonicalRoot, target);
-        const relative = nodePath.relative(canonicalRoot, source);
-        if (escapes(canonicalRoot, source)) {
-          throw new Error(`Review target escapes the project: ${target}`);
+    const captureFiles = (
+      files: readonly string[],
+      allowGenerated: boolean,
+      offset: number,
+    ): { path: string; content: string }[] =>
+      files.flatMap((target, index) => {
+        try {
+          const source = nodePath.resolve(canonicalRoot, target);
+          const relative = nodePath.relative(canonicalRoot, source);
+          if (escapes(canonicalRoot, source)) {
+            throw new ReviewPacketError(
+              `Review target escapes the project: ${target}`,
+              'REVIEW_TARGET_OUTSIDE_PROJECT',
+            );
+          }
+          const stats = lstatSync(source);
+          if (escapes(canonicalRoot, realpathSync(source))) {
+            throw new ReviewPacketError(
+              `Review target escapes the project: ${target}`,
+              'REVIEW_TARGET_OUTSIDE_PROJECT',
+            );
+          }
+          if (!stats.isFile()) {
+            throw new ReviewPacketError(
+              `Review target is not a regular file: ${target}`,
+              'REVIEW_TARGET_NOT_REGULAR',
+            );
+          }
+          if (stats.size > MAX_FILE_BYTES) {
+            if (!allowGenerated) {
+              throw new ReviewPacketError(
+                `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`,
+                'REVIEW_TARGET_TOO_LARGE',
+              );
+            }
+            oversized.push({
+              index: offset + index,
+              source,
+              relative: toReviewPath(relative),
+              device: stats.dev,
+              inode: stats.ino,
+              size: stats.size,
+            });
+            return [];
+          }
+          // A hard link inside the project is intentionally treated as a regular
+          // in-project file; containment is path-based, and its bytes are copied.
+          const { bytes, content, device, inode } = readContainedText(
+            canonicalRoot,
+            source,
+            target,
+            MAX_PACKET_BYTES - packetBytes,
+          );
+          const fileBytes = bytes.byteLength;
+          if (fileBytes > MAX_FILE_BYTES) {
+            throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+          }
+          packetBytes += fileBytes;
+          if (packetBytes > MAX_PACKET_BYTES) {
+            throw new ReviewPacketError(
+              `Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`,
+              'REVIEW_PACKET_TOO_LARGE',
+            );
+          }
+          const snapshot = nodePath.join(workspace, relative);
+          mkdirSync(nodePath.dirname(snapshot), { recursive: true });
+          writeFileSync(snapshot, bytes, { mode: 0o600 });
+          let parent = nodePath.dirname(relative);
+          while (parent !== '.') {
+            expectedSnapshotEntries.add(`directory:${parent}`);
+            parent = nodePath.dirname(parent);
+          }
+          expectedSnapshotEntries.add(`file:${relative}`);
+          tracked.push({ source, snapshot, sha256: digest(bytes), device, inode });
+          const file = { path: toReviewPath(relative), content };
+          captured.push({ index: offset + index, context: !allowGenerated, file });
+          return [file];
+        } catch (error) {
+          targetErrors.push({ index: offset + index, error });
+          return [];
         }
-        const stats = lstatSync(source);
-        if (!stats.isFile()) {
-          throw new Error(`Review target is not a regular file: ${target}`);
-        }
-        // A hard link inside the project is intentionally treated as a regular
-        // in-project file; containment is path-based, and its bytes are copied.
-        const { bytes, content, device, inode } = readContainedText(
-          canonicalRoot,
-          source,
-          target,
-          MAX_PACKET_BYTES - packetBytes,
-        );
-        const fileBytes = bytes.byteLength;
-        if (fileBytes > MAX_FILE_BYTES) {
-          throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
-        }
-        packetBytes += fileBytes;
-        if (packetBytes > MAX_PACKET_BYTES) {
-          throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
-        }
-        const snapshot = nodePath.join(workspace, relative);
-        mkdirSync(nodePath.dirname(snapshot), { recursive: true });
-        writeFileSync(snapshot, bytes, { mode: 0o600 });
-        let parent = nodePath.dirname(relative);
-        while (parent !== '.') {
-          expectedSnapshotEntries.add(`directory:${parent}`);
-          parent = nodePath.dirname(parent);
-        }
-        expectedSnapshotEntries.add(`file:${relative}`);
-        tracked.push({ source, snapshot, sha256: digest(bytes), device, inode });
-        return { path: relative, content };
       });
     const seen = new Set<string>();
     const rejectDuplicate = (target: string): void => {
@@ -856,12 +1191,56 @@ function prepareReviewPacketUnsafe(
       }
       seen.add(relative);
     };
-    for (const target of targets) rejectDuplicate(target);
-    logicalFiles = captureFiles(targets);
+    const uniqueTargets: string[] = [];
+    for (const target of targets) {
+      const relative = nodePath.relative(canonicalRoot, nodePath.resolve(canonicalRoot, target));
+      if (seen.has(relative)) continue;
+      rejectDuplicate(target);
+      uniqueTargets.push(target);
+    }
+    logicalFiles = captureFiles(uniqueTargets, true, 0);
     const productPlan = productPlanWorkTarget(canonicalRoot, kind, logicalFiles);
-    context = resolvedPlanningContext(canonicalRoot, kind, targets, context, productPlan);
+    context = resolvedPlanningContext(canonicalRoot, kind, uniqueTargets, context, productPlan);
     for (const target of context) rejectDuplicate(target);
-    contextFiles = captureFiles(context);
+    if (uniqueTargets.length + context.length > MAX_FILE_COUNT) {
+      throw new ReviewPacketError(
+        `Review packet exceeds the ${MAX_FILE_COUNT}-file limit`,
+        'REVIEW_PACKET_TOO_LARGE',
+      );
+    }
+    contextFiles = captureFiles(context, false, uniqueTargets.length);
+    requireStableSources(canonicalRoot, tracked);
+    const overflowIndex = serializedOverflowIndex(kind, captured, executionAttestation);
+    if (overflowIndex !== undefined) {
+      targetErrors.push({
+        index: overflowIndex,
+        error: new ReviewPacketError(
+          `Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`,
+          'REVIEW_PACKET_TOO_LARGE',
+        ),
+      });
+    }
+    let marked: Set<string>;
+    try {
+      marked = generatedTargets(canonicalRoot, oversized);
+    } catch (error) {
+      const firstOversizedIndex = oversized[0]?.index ?? Infinity;
+      const earlierFailure = targetErrors
+        .filter(failure => failure.index < firstOversizedIndex)
+        .toSorted((left, right) => left.index - right.index)[0];
+      throw earlierFailure?.error ?? error;
+    }
+    collectOversizedOutcomes(canonicalRoot, oversized, marked, targetErrors, excludedTargets);
+    requireStableSources(canonicalRoot, tracked);
+    throwFirstTargetError(targetErrors);
+    if (logicalFiles.length === 0) {
+      throw new ReviewPacketError(
+        targets.length === 0
+          ? 'Review has no submitted targets'
+          : 'Review has no eligible targets after generated outputs are excluded',
+        'REVIEW_NO_ELIGIBLE_TARGETS',
+      );
+    }
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
@@ -881,8 +1260,10 @@ function prepareReviewPacketUnsafe(
       contextFiles,
     );
     const additional = planningRoleSources(canonicalRoot, planningContext, seen);
-    requirePacketFileCount(targets.length + context.length + additional.length);
-    contextFiles.push(...captureFiles(additional));
+    requirePacketFileCount(uniqueTargets.length + context.length + additional.length);
+    contextFiles.push(...captureFiles(additional, false, uniqueTargets.length + context.length));
+    requireStableSources(canonicalRoot, tracked);
+    throwFirstTargetError(targetErrors);
   } catch (error) {
     rmSync(workspace, { recursive: true, force: true });
     throw error;
@@ -902,14 +1283,18 @@ function prepareReviewPacketUnsafe(
   };
   if (Buffer.byteLength(JSON.stringify(packet), 'utf8') > MAX_PACKET_BYTES) {
     rmSync(workspace, { recursive: true, force: true });
-    throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
+    throw new ReviewPacketError(
+      `Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`,
+      'REVIEW_PACKET_TOO_LARGE',
+    );
   }
   return {
     packet,
+    excludedTargets,
     sourceRoot: canonicalRoot,
     workspace,
     sourceChanged: () =>
-      tracked.some(file => sourceFileChanged(file)) ||
+      tracked.some(file => sourceFileChanged(canonicalRoot, file)) ||
       designApprovalConfigChanged(kind, canonicalRoot, deliveryDefinition),
     snapshotChanged: () => {
       if (tracked.some(file => fileDigest(file.snapshot) !== file.sha256)) return true;
@@ -937,7 +1322,9 @@ export function prepareReviewPacket(
   execution: ReviewPacketExecution = {},
 ): PreparedReviewPacket {
   try {
-    return prepareReviewPacketUnsafe(cwd, kind, targets, context, execution);
+    const prepared = prepareReviewPacketUnsafe(cwd, kind, targets, context, execution);
+    recordFinalizedScope(prepared.excludedTargets);
+    return prepared;
   } catch (error) {
     if (error instanceof ReviewPacketError) throw error;
     const message = error instanceof Error ? error.message : '';
