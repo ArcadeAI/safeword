@@ -18,11 +18,13 @@ How to write specs, user stories, and test definitions before implementation.
 
 Ticket artifacts live in the ticket folder:
 
-- `ticket.md` - Ticket definition
+- `ticket.md` - Ticket definition and work log
+- `dimensions.md` - behavioral dimensions and partitions for features
 - `test-definitions.md` - R/G/R ledger for BDD scenarios
-- `spec.md` - Feature spec, auto-created at intake (features only)
+- `spec.md` - Product Plan, auto-created at intake (features only)
 - `impl-plan.md` - reviewed approach decisions for new-flow features — architecture, contracts, tradeoffs, risks, rollout, and proof boundaries; authored during `plan-implementation` from `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md`
 - `execution-plan.md` - reviewed dependency order, concrete proof work, pull-request slices, and delivery checklist; authored during `plan-execution` from `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/execution-plan-template.md`; coding stays locked until this plan is current and approved
+- `verify.md` - verification evidence required before the ticket is done
 
 Executable BDD scenarios live at `features/<slug>.feature` (or under the
 configured `paths.features` directory), rooted at the app or package that owns

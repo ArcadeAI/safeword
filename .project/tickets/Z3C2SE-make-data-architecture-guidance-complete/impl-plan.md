@@ -38,7 +38,7 @@ Build five slices, keeping nondeterministic recording outside the normal test ru
 4. **Supported delivery.** Reconcile the canonical template into `.safeword`, run the existing
    Claude generator, and add one independent literal inventory test covering canonical, installed,
    and Claude paths; byte identity; allowed literal Claude path substitution; planning-link
-   ownership; no Codex copy; and OpenCode catalogue absence. The existing planning routes remain
+   ownership; no competing Codex host-native copy; byte-identical embedded CLI template copies; and OpenCode catalogue absence. The existing planning routes remain
    unchanged: the current planning template already invokes the data guide and host generators adapt
    that reference. The literal inventory requires exactly one emitted planning reference for Claude,
    Codex, and Cursor and no OpenCode delivery-owned reference, mapping each referenced host to its one permitted
@@ -77,7 +77,7 @@ Affected surfaces:
 | --- | --- |
 | Safeword CLI | Real schema reconciliation installs the canonical guide and focused package scripts verify corpus records |
 | Claude Code | Generated plugin resource equals the canonical guide except for the independently specified path substitution; generated planning links resolve |
-| OpenAI Codex | Installed `.safeword` guide and generated planning route resolve; generated Codex catalogue contains no guide copy |
+| OpenAI Codex | Installed `.safeword` guide and generated planning route resolve; the plugin's embedded CLI carries a byte-identical canonical template but the generated Codex catalogue contains no competing host-native guide copy |
 | Cursor | Installed `.safeword` guide and generated planning route resolve through schema/install integration |
 | OpenCode | Explicit unaffected proof: profile catalogue contains neither a data-architecture guide copy nor a delivery-specific planning path; shared workflow prose may name the guide |
 

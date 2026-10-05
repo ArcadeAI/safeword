@@ -324,6 +324,9 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   're-entry.md',
   'dependency-readiness.json',
   'readiness-ticket.json',
+  'closeout-session-binding.json',
+  'codex-review-stamp-identity.json',
+  'cursor-review-stamp-identity.json',
 ];
 
 /**
@@ -833,6 +836,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/branch-staleness.ts': { template: 'hooks/lib/branch-staleness.ts' },
     '.safeword/hooks/lib/blocked-on-gate.ts': { template: 'hooks/lib/blocked-on-gate.ts' },
     '.safeword/hooks/lib/closeout-binding.ts': { template: 'hooks/lib/closeout-binding.ts' },
+    '.safeword/hooks/lib/closest-base-ref.ts': { template: 'hooks/lib/closest-base-ref.ts' },
     '.safeword/hooks/lib/cursor-run-identity.ts': {
       template: 'hooks/lib/cursor-run-identity.ts',
     },
