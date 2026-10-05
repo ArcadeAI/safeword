@@ -71,6 +71,7 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
 
   function runStamp(...args: string[]): HookResult {
     const result = spawnSync('bun', [STAMP_PATH, ...args], {
+      cwd: projectRoot,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot, CLAUDE_SESSION_ID: 'sess-1' },
@@ -85,6 +86,7 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     delete env.CODEX_THREAD_ID;
 
     const result = spawnSync('bun', [STAMP_PATH, ...args], {
+      cwd: projectRoot,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
       env,
@@ -99,6 +101,7 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     env.CODEX_THREAD_ID = threadId;
 
     const result = spawnSync('bun', [STAMP_PATH, ...args], {
+      cwd: projectRoot,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
       env,
@@ -106,12 +109,12 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
 
-  function runGate(): HookResult {
+  function runGate(targetTicketDirectory: string = ticketDirectory): HookResult {
     const result = spawnSync('bun', [GATE_PATH], {
       input: JSON.stringify({
         tool_name: 'Write',
         tool_input: {
-          file_path: nodePath.join(ticketDirectory, 'test-definitions.md'),
+          file_path: nodePath.join(targetTicketDirectory, 'test-definitions.md'),
           content: '# Test Definitions\n',
         },
       }),
@@ -180,6 +183,41 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expect(stamp.stdout).toContain('✓');
 
     expectHookAllow(runGate());
+  });
+
+  it('stamps a ticket that exists only in a worktree the session entered (#5361)', () => {
+    const worktree = nodePath.join(projectRoot, '.claude', 'worktrees', 'wt');
+    const worktreeTicket = nodePath.join(worktree, '.safeword-project', 'tickets', 'WT0001');
+    mkdirSync(worktreeTicket, { recursive: true });
+    mkdirSync(nodePath.join(worktree, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(worktree, '.git'), 'gitdir: elsewhere\n');
+    writeFileSync(nodePath.join(worktree, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
+    writeFileSync(
+      nodePath.join(worktree, '.safeword', 'config.json'),
+      JSON.stringify({ reviewGate: true }),
+    );
+    writeFileSync(nodePath.join(worktreeTicket, 'ticket.md'), `---\n${TICKET_FRONTMATTER}\n---\n`);
+    writeFileSync(nodePath.join(worktreeTicket, 'spec.md'), SPEC);
+    writeFileSync(nodePath.join(worktreeTicket, 'dimensions.md'), 'skip: one obvious dimension');
+    writeFileSync(nodePath.join(worktree, '.safeword-project', 'personas.md'), PERSONAS);
+
+    expectHookDeny(runGate(worktreeTicket), 'not been reviewed');
+
+    // The host leaves CLAUDE_PROJECT_DIR at the launch checkout; the agent's
+    // shell sits in the worktree.
+    const result = spawnSync('bun', [STAMP_PATH, '--ticket', 'WT0001', 'spec'], {
+      cwd: worktree,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot, CLAUDE_SESSION_ID: 'sess-1' },
+    });
+
+    expect(result.stderr + result.stdout).toContain('✓');
+    expectHookAllow(runGate(worktreeTicket));
+    expect(result.status).toBe(0);
+    const worktreeLog = nodePath.join(worktree, '.safeword-project', 'skill-invocations.log');
+    expect(readFileSync(worktreeLog, 'utf8')).toContain('WT0001');
+    expect(readLog()).not.toContain('WT0001');
   });
 
   it.each(['-h', '--help'])('%s prints usage without requiring operational state', helpFlag => {
