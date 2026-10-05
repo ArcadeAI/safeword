@@ -240,7 +240,8 @@ async function expectSimultaneousRecoveryIsSerialized(
 // Preloaded into a runner to pause it at one exact step of transition
 // recovery, so a test can interleave two contenders deterministically.
 // `stale` pauses after judging the recovery marker abandoned, right before
-// claiming it; `holder` pauses right after publishing its own live marker.
+// claiming it (and, with SAFEWORD_RACE_HOLD_CLAIM, again while holding the
+// claimed owner file); `holder` pauses right after publishing its own marker.
 const recoveryRacePreload = `
 import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
@@ -266,7 +267,12 @@ if (role === 'stale') {
       state = 'resuming';
       signal('stale-paused');
       waitFor('release-stale');
-      return operation(from, to);
+      const result = operation(from, to);
+      if (process.env.SAFEWORD_RACE_HOLD_CLAIM === '1') {
+        signal('stale-claimed');
+        waitFor('release-claim');
+      }
+      return result;
     }
     if (state !== 'resuming') return operation(from, to);
     state = 'done';
@@ -308,6 +314,68 @@ if (role === 'holder') {
 
 syncBuiltinESMExports();
 `;
+
+const serializedPair = { eventCount: 8, maximumActiveCommands: 1, statuses: [0, 0] };
+
+async function prepareRecoveryRace(extraEnvironment: NodeJS.ProcessEnv = {}) {
+  const temporaryDirectory = makeTemporaryDirectory();
+  const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory, 80);
+  const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+  const transitionDirectory = `${lockDirectory}.transition`;
+  const recoveryDirectory = nodePath.join(transitionDirectory, 'recovery');
+  const signalDirectory = nodePath.join(temporaryDirectory, 'signals');
+  const preloadPath = nodePath.join(temporaryDirectory, 'recovery-race-preload.mjs');
+  const deadPid = 2_147_483_647;
+  await mkdir(signalDirectory);
+  writeFileSync(preloadPath, recoveryRacePreload);
+  await seedOwnerFile(lockDirectory, { createdAt: new Date().toISOString(), pid: deadPid });
+  await seedLegacyOwnerFile(transitionDirectory, {
+    createdAt: new Date().toISOString(),
+    pid: deadPid,
+  });
+  await seedLegacyOwnerFile(recoveryDirectory, {
+    createdAt: new Date().toISOString(),
+    kind: 'safeword-package-test-transition-recovery',
+    pid: deadPid,
+    token: 'dead-recovery',
+  });
+  const signalPath = (name: string) => nodePath.join(signalDirectory, name);
+
+  return {
+    signalPath,
+    lockOwnerText: () => readFileSync(nodePath.join(lockDirectory, 'owner.json'), 'utf8'),
+    release: (name: string) => {
+      writeFileSync(signalPath(name), '');
+    },
+    start: (role: string) =>
+      runNodeScript(runnerPath, [`tests/${role}.test.ts`], {
+        ...process.env,
+        ...extraEnvironment,
+        NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${pathToFileURL(preloadPath).href}`,
+        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        SAFEWORD_RACE_RECOVERY: recoveryDirectory,
+        SAFEWORD_RACE_ROLE: role,
+        SAFEWORD_RACE_SIGNALS: signalDirectory,
+        SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+        SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '10000',
+      }),
+    summarize(results: { stderr: string; status: number | null }[]) {
+      const events = readEvents(logPath);
+      let activeCommands = 0;
+      let maximumActiveCommands = 0;
+      for (const event of events) {
+        activeCommands += event.includes(':start:') ? 1 : -1;
+        maximumActiveCommands = Math.max(maximumActiveCommands, activeCommands);
+      }
+      return {
+        eventCount: events.length,
+        maximumActiveCommands,
+        statuses: results.map(result => result.status),
+        stderr: results.map(result => result.stderr),
+      };
+    },
+  };
+}
 
 describe('package test runner lock (379)', () => {
   it('runs the real packaged CLI from the isolated snapshot', () => {
@@ -1342,66 +1410,46 @@ describe('package test runner lock (379)', () => {
   });
 
   it('keeps a live recovery marker when a stale contender reclaims after it (#419)', async () => {
-    const temporaryDirectory = makeTemporaryDirectory();
-    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory, 80);
-    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
-    const transitionDirectory = `${lockDirectory}.transition`;
-    const recoveryDirectory = nodePath.join(transitionDirectory, 'recovery');
-    const signalDirectory = nodePath.join(temporaryDirectory, 'signals');
-    const preloadPath = nodePath.join(temporaryDirectory, 'recovery-race-preload.mjs');
-    const deadPid = 2_147_483_647;
-    await mkdir(signalDirectory);
-    writeFileSync(preloadPath, recoveryRacePreload);
-    await seedOwnerFile(lockDirectory, { createdAt: new Date().toISOString(), pid: deadPid });
-    await seedLegacyOwnerFile(transitionDirectory, {
-      createdAt: new Date().toISOString(),
-      pid: deadPid,
-    });
-    await seedLegacyOwnerFile(recoveryDirectory, {
-      createdAt: new Date().toISOString(),
-      kind: 'safeword-package-test-transition-recovery',
-      pid: deadPid,
-      token: 'dead-recovery',
-    });
-    const environmentFor = (role: string) => ({
-      ...process.env,
-      NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${pathToFileURL(preloadPath).href}`,
-      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-      SAFEWORD_RACE_RECOVERY: recoveryDirectory,
-      SAFEWORD_RACE_ROLE: role,
-      SAFEWORD_RACE_SIGNALS: signalDirectory,
-      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
-      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '10000',
-    });
-    const signalPath = (name: string) => nodePath.join(signalDirectory, name);
+    const race = await prepareRecoveryRace();
 
     // Both contenders judge the same dead marker abandoned; the holder wins
     // and publishes a live marker before the stale contender acts.
-    const stale = runNodeScript(runnerPath, ['tests/stale.test.ts'], environmentFor('stale'));
-    await waitForPath(signalPath('stale-paused'));
-    const holder = runNodeScript(runnerPath, ['tests/holder.test.ts'], environmentFor('holder'));
-    await waitForPath(signalPath('holder-holds'));
-    writeFileSync(signalPath('release-stale'), '');
-    await waitForPath(signalPath('stale-resumed'));
-    writeFileSync(signalPath('release-holder'), '');
+    const stale = race.start('stale');
+    await waitForPath(race.signalPath('stale-paused'));
+    const holder = race.start('holder');
+    await waitForPath(race.signalPath('holder-holds'));
+    race.release('release-stale');
+    await waitForPath(race.signalPath('stale-resumed'));
+    race.release('release-holder');
     const results = await Promise.all([stale, holder]);
 
-    expect(existsSync(signalPath('holder-lost'))).toBe(false);
-    expect(existsSync(signalPath('holder-intact'))).toBe(true);
-    expect(
-      results.map(result => result.status),
-      JSON.stringify(results),
-    ).toEqual([0, 0]);
-    const events = readEvents(logPath);
-    let activeCommands = 0;
-    let maximumActiveCommands = 0;
-    for (const event of events) {
-      activeCommands += event.includes(':start:') ? 1 : -1;
-      maximumActiveCommands = Math.max(maximumActiveCommands, activeCommands);
-    }
-    expect(events).toHaveLength(8);
-    expect(maximumActiveCommands).toBe(1);
+    expect(existsSync(race.signalPath('holder-lost'))).toBe(false);
+    expect(existsSync(race.signalPath('holder-intact'))).toBe(true);
+    expect(race.summarize(results)).toMatchObject(serializedPair);
   });
+
+  it('lets a holder finish when a stale contender holds its owner file past the leave wait (#419)', async () => {
+    const race = await prepareRecoveryRace({ SAFEWORD_RACE_HOLD_CLAIM: '1' });
+
+    const stale = race.start('stale');
+    await waitForPath(race.signalPath('stale-paused'));
+    const holder = race.start('holder');
+    await waitForPath(race.signalPath('holder-holds'));
+    race.release('release-stale');
+    await waitForPath(race.signalPath('stale-claimed'));
+    // The holder tries to leave while its owner file is held aside and gives
+    // up after its one-second wait; it must still recognize the restored
+    // marker as its own instead of waiting on itself until timeout.
+    race.release('release-holder');
+    // Taking the package lock happens only after the failed leave returns.
+    await expect
+      .poll(() => race.lockOwnerText(), { interval: 10, timeout: 10_000 })
+      .not.toContain('2147483647');
+    race.release('release-claim');
+    const results = await Promise.all([stale, holder]);
+
+    expect(race.summarize(results)).toMatchObject(serializedPair);
+  }, 120_000);
 
   it('rebases repo-root-relative test paths onto the package root (#723)', async () => {
     const temporaryDirectory = makeTemporaryDirectory();

@@ -380,27 +380,37 @@ function publishTransitionRecoveryOwner(token) {
   }
 }
 
+function claimObservedTransitionRecoveryOwner(observedOwnerText) {
+  // Claim the observed owner file rather than the shared directory. Only one
+  // contender can move it, and the moved bytes prove whether it is the
+  // abandoned owner we judged or a live owner published since (#419).
+  const claimedOwnerPath = `${transitionRecoveryOwnerPath}.reclaim-${randomUUID()}`;
+  try {
+    renameSync(transitionRecoveryOwnerPath, claimedOwnerPath);
+    if (readFileSync(claimedOwnerPath, 'utf8') !== observedOwnerText) {
+      linkSync(claimedOwnerPath, transitionRecoveryOwnerPath);
+      rmSync(claimedOwnerPath, { force: true });
+      return false;
+    }
+  } catch (error) {
+    if (error?.code === 'ENOENT' || error?.code === 'EEXIST') return false;
+    throw error;
+  }
+  rmSync(claimedOwnerPath, { force: true });
+  return true;
+}
+
 function tryAdoptAbandonedTransitionRecovery(token) {
   const observedOwnerText = readTransitionRecoveryOwnerText();
-  if (!transitionRecoveryIsAbandoned(observedOwnerText)) return false;
-
   if (observedOwnerText !== false) {
-    // Claim the observed owner file rather than the shared directory. Only one
-    // contender can move it, and the moved bytes prove whether it is the
-    // abandoned owner we judged or a live owner published since (#419).
-    const claimedOwnerPath = `${transitionRecoveryOwnerPath}.reclaim-${randomUUID()}`;
-    try {
-      renameSync(transitionRecoveryOwnerPath, claimedOwnerPath);
-      if (readFileSync(claimedOwnerPath, 'utf8') !== observedOwnerText) {
-        linkSync(claimedOwnerPath, transitionRecoveryOwnerPath);
-        rmSync(claimedOwnerPath, { force: true });
-        return false;
-      }
-    } catch (error) {
-      if (error?.code === 'ENOENT' || error?.code === 'EEXIST') return false;
-      throw error;
-    }
-    rmSync(claimedOwnerPath, { force: true });
+    // Our own marker can outlive a failed leave while a contender briefly held
+    // its owner file aside; re-entering must not wait on ourselves.
+    const { owner } = parseOwner(observedOwnerText);
+    if (owner.pid === process.pid && owner.token === token) return true;
+  }
+  if (!transitionRecoveryIsAbandoned(observedOwnerText)) return false;
+  if (observedOwnerText !== false && !claimObservedTransitionRecoveryOwner(observedOwnerText)) {
+    return false;
   }
   // Adopt the marker in place. The directory is never moved, so a live
   // holder's marker cannot be displaced by a contender's stale observation.
