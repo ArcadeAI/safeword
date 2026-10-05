@@ -83,6 +83,7 @@ When(
     const environment = {
       ...process.env,
       CODEX_HOME: path.join(state.root, 'codex'),
+      CLAUDE_CONFIG_DIR: path.join(state.root, 'claude'),
       OPENCODE_CONFIG_DIR: path.join(state.root, 'opencode'),
       SAFEWORD_SKIP_INSTALL: '1',
       SAFEWORD_SKIP_SKILLS: '1',

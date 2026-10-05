@@ -7,8 +7,6 @@ import path from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
-import { PLANNING_CONTRACTS } from '../packages/cli/src/planning/contracts.generated.js';
-import { parsePlanningContract } from '../packages/cli/src/planning/phase-contract.js';
 import { extractPlanReviewRubric } from '../packages/cli/src/review/plan-rubric.js';
 import { reviewJobStatus } from '../packages/cli/src/review/job.js';
 import { createTrustedReviewerDirectory } from '../packages/cli/tests/review-fixtures.js';
@@ -114,16 +112,6 @@ function statusWithContractSource(state: CurrencyState, before: string, after: s
     const oldHash = createHash('sha256').update(rubric).digest('hex');
     const newHash = createHash('sha256').update(changed).digest('hex');
     assert.ok(bundle.includes(`PLAN_REVIEW_RUBRIC_SHA256 = "${oldHash}"`));
-    const contractStart = bundle.indexOf('PLANNING_CONTRACTS = {');
-    const contractEnd = bundle.indexOf('\n  };', contractStart);
-    assert.ok(contractStart >= 0 && contractEnd > contractStart);
-    const contracts = {
-      ...PLANNING_CONTRACTS,
-      'plan-implementation': parsePlanningContract(
-        'plan-implementation',
-        source.replace(before, after),
-      ),
-    };
     const updated = (
       bundle.slice(0, start) +
       block.replace(before, after) +
@@ -132,11 +120,7 @@ function statusWithContractSource(state: CurrencyState, before: string, after: s
       `PLAN_REVIEW_RUBRIC_SHA256 = "${oldHash}"`,
       `PLAN_REVIEW_RUBRIC_SHA256 = "${newHash}"`,
     );
-    const oldContracts = bundle.slice(contractStart, contractEnd + '\n  };'.length);
-    writeFileSync(
-      runtime,
-      updated.replace(oldContracts, `PLANNING_CONTRACTS = ${JSON.stringify(contracts)};`),
-    );
+    writeFileSync(runtime, updated);
     return status();
   } finally {
     rmSync(distribution, { recursive: true, force: true });
@@ -166,7 +150,12 @@ Given(
         cwd: root,
         encoding: 'utf8',
         timeout: 60_000,
-        env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
+        env: {
+          ...process.env,
+          CLAUDE_CONFIG_DIR: path.join(root, 'claude'),
+          SAFEWORD_SKIP_INSTALL: '1',
+          SAFEWORD_SKIP_SKILLS: '1',
+        },
       },
     );
     const installation = JSON.parse(installed.stdout) as { errors: unknown[] };

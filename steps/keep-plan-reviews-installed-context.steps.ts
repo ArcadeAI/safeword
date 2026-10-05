@@ -157,7 +157,12 @@ function establishApprovedPlanningContext(this: SafewordWorld, overrideState: st
       cwd: root,
       encoding: 'utf8',
       timeout: 60_000,
-      env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
+      env: {
+        ...process.env,
+        CLAUDE_CONFIG_DIR: path.join(root, 'claude'),
+        SAFEWORD_SKIP_INSTALL: '1',
+        SAFEWORD_SKIP_SKILLS: '1',
+      },
     },
   );
   const installOutput = JSON.parse(install.stdout) as { errors: unknown[] };
