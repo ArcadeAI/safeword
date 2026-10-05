@@ -314,6 +314,31 @@ describe('resolve-verify-ticket', () => {
     expect(result.stdout.trim()).toBe(ticketPath);
   });
 
+  it.each(['local', 'remote'] as const)(
+    'selects the current ticket when the %s default ref is closer to HEAD',
+    closerReference => {
+      const baseline = git('rev-parse', 'HEAD');
+      writeTicket('OLD1234-unrelated-ticket', 'OLD1234');
+      commitAll('older default-branch ticket');
+      const newer = git('rev-parse', 'HEAD');
+      git('checkout', '-b', 'feature/verify-ticket');
+      if (closerReference === 'remote') {
+        git('update-ref', 'refs/heads/main', baseline);
+        git('update-ref', 'refs/remotes/origin/main', newer);
+      } else {
+        git('update-ref', 'refs/remotes/origin/main', baseline);
+      }
+      git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main');
+      const currentTicket = writeTicket('NOW1234-current-ticket', 'NOW1234');
+      commitAll('current feature ticket');
+
+      const result = runResolver();
+
+      expect(result.status).toBe(0);
+      expect(result.stdout.trim()).toBe(currentTicket);
+    },
+  );
+
   it('fails closed when committed work has no discoverable base', () => {
     git('branch', '-M', 'trunk');
     git('checkout', '-b', 'feature/verify-ticket');
