@@ -109,6 +109,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
   function stampPhase(phase: string, skipReason?: string): void {
     const skip = skipReason === undefined ? [] : ['--skip', skipReason];
     spawnSync('bun', [STAMP_PATH, '--phase', phase, ...skip], {
+      cwd: projectRoot,
       encoding: 'utf8',
       env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot, CLAUDE_SESSION_ID: 'sess-1' },
     });
@@ -161,6 +162,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
         phase,
       ],
       {
+        cwd: projectRoot,
         encoding: 'utf8',
         env: {
           ...process.env,
