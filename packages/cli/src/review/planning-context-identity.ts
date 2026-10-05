@@ -4,7 +4,6 @@ import nodePath from 'node:path';
 import { parsers } from 'prettier/plugins/markdown';
 
 import { PLANNING_CONTRACTS } from '../planning/contracts.generated.js';
-import type { UpstreamImplementationInvalidation } from '../planning/phase-contract.js';
 import {
   parseFeature,
   parseFeatureLineageReferences,
@@ -626,22 +625,12 @@ export function createPlanningReviewIdentity(
     const owner = parent ?? project;
     throw new PlanningContextError(owner?.role ?? 'project', owner?.path ?? 'spec.md');
   }
-  const snapshotOnlyUpstream =
-    packet.planning_phase === 'plan-execution' &&
-    (PLANNING_CONTRACTS['plan-execution']
-      .upstreamImplementationInvalidation as UpstreamImplementationInvalidation) ===
-      'implementation_review_only';
-  const upstreamPath = context.dependencies.find(
-    dependency => dependency.role === 'accepted-upstream-plan',
-  )?.path;
   const dependencies = context.dependencies.map(dependency => {
     const file = files.find(value => value.path === dependency.path);
     if (file === undefined) throw new PlanningContextError(dependency.role, dependency.path);
     try {
       const semantic =
-        (snapshotOnlyUpstream && dependency.path === upstreamPath && 'upstream-present') ||
-        selected?.get(file.path) ||
-        semanticRoleIdentity(packet, dependency.role, file.content);
+        selected?.get(file.path) || semanticRoleIdentity(packet, dependency.role, file.content);
       return { ...dependency, semantic_digest: sha256(semantic) };
     } catch (error) {
       if (error instanceof PlanningContextError) throw error;
@@ -659,11 +648,6 @@ export function createPlanningReviewIdentity(
     ...context,
     review_kind: reviewKind,
     dependencies,
-    absences: context.absences.map(absence =>
-      snapshotOnlyUpstream && absence.authority === upstreamPath
-        ? { ...absence, reason: 'Declared in the accepted Implementation Plan.' }
-        : absence,
-    ),
     targets: packet.logical_files.map(file => ({
       path: file.path,
       digest:

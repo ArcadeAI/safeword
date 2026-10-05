@@ -52316,14 +52316,12 @@ function createPlanningReviewIdentity(packet) {
     const owner = parent ?? project;
     throw new PlanningContextError(owner?.role ?? "project", owner?.path ?? "spec.md");
   }
-  const snapshotOnlyUpstream = packet.planning_phase === "plan-execution" && PLANNING_CONTRACTS["plan-execution"].upstreamImplementationInvalidation === "implementation_review_only";
-  const upstreamPath = context.dependencies.find((dependency) => dependency.role === "accepted-upstream-plan")?.path;
   const dependencies = context.dependencies.map((dependency) => {
     const file = files.find((value) => value.path === dependency.path);
     if (file === undefined)
       throw new PlanningContextError(dependency.role, dependency.path);
     try {
-      const semantic = snapshotOnlyUpstream && dependency.path === upstreamPath && "upstream-present" || selected?.get(file.path) || semanticRoleIdentity(packet, dependency.role, file.content);
+      const semantic = selected?.get(file.path) || semanticRoleIdentity(packet, dependency.role, file.content);
       return { ...dependency, semantic_digest: sha2565(semantic) };
     } catch (error2) {
       if (error2 instanceof PlanningContextError)
@@ -52343,7 +52341,6 @@ function createPlanningReviewIdentity(packet) {
     ...context,
     review_kind: reviewKind,
     dependencies,
-    absences: context.absences.map((absence) => snapshotOnlyUpstream && absence.authority === upstreamPath ? { ...absence, reason: "Declared in the accepted Implementation Plan." } : absence),
     targets: packet.logical_files.map((file) => ({
       path: file.path,
       digest: reviewKind === "plan-execution" && file.path === packet.logical_files[0]?.path ? packet.execution_plan_normalized_digest ?? sha2565(file.content) : sha2565(file.content)
@@ -65786,7 +65783,7 @@ function parsePlanningContract(phase, source) {
     return { phase, sharedAuthorityDigest: sharedAuthority, ...fields };
   const declarations = fields.invalidation.matchAll(/upstreamImplementationInvalidation:\s*([^\s`]*)/gu).toArray();
   const mode = declarations[0]?.[1];
-  if (declarations.length !== 1 || mode !== "both_plan_reviews" && mode !== "implementation_review_only") {
+  if (declarations.length !== 1 || mode !== "both_plan_reviews") {
     throw new InvalidInvalidationContractError;
   }
   return {

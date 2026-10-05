@@ -7,7 +7,7 @@ export interface PlanningAuthorCopyIdentity {
   readonly sha256: string;
 }
 
-export type UpstreamImplementationInvalidation = 'both_plan_reviews' | 'implementation_review_only';
+export type UpstreamImplementationInvalidation = 'both_plan_reviews';
 
 const fieldLabels = {
   purpose: 'Purpose',
@@ -98,10 +98,7 @@ export function parsePlanningContract(phase: PlanningPhase, source: string): Pla
     .matchAll(/upstreamImplementationInvalidation:\s*([^\s`]*)/gu)
     .toArray();
   const mode = declarations[0]?.[1];
-  if (
-    declarations.length !== 1 ||
-    (mode !== 'both_plan_reviews' && mode !== 'implementation_review_only')
-  ) {
+  if (declarations.length !== 1 || mode !== 'both_plan_reviews') {
     throw new InvalidInvalidationContractError();
   }
   return {
