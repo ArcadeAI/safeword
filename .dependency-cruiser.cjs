@@ -156,6 +156,8 @@ module.exports = {
         'packages/cli/templates/',
         // Generated Codex plugin mirrors canonical templates and runtime assets
         'packages/cli/codex-plugin/',
+        // Generated Claude plugin templates are package data, not import roots
+        'plugin/templates/',
         // Build/dev scripts, not production code
         'scripts/',
         // Astro generates this directory

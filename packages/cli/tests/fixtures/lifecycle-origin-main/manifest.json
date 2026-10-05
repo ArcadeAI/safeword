@@ -1,17 +1,17 @@
 {
   "originMainCommit": "f22e2997ba8ef68d3d198ca2d937bfbf35fdab87",
   "fixtures": {
-    "claude-install": "a9b6d053b99a5a878a8b23a75c414352b14f940f5d046f7aee5b4b386f928dd4",
-    "claude-check": "c43ae5729456705fe53a618de9bba6bcb7444edf80b390a774155e32e0b1a57e",
-    "claude-upgrade": "a398bc81836228ca4a193eba1b6131d9d38cc28682a21119fcdbccc1a0d361a0",
+    "claude-install": "19c150ddc4d9bc9d6f153b70b3f819ccaba10bb51fa516fbb74d2253b88f831f",
+    "claude-check": "b52aef17fd1cf6e40bb2cb480527bb93724e679c50457f48d7bf9432d34ad805",
+    "claude-upgrade": "e166dc323b3689e24224e951f55b23abdded662c19fb61ed93a3ba54333d2e2b",
     "claude-uninstall": "7226020783f1892d66c22a55058088052e8bd94c759167623deb97fa6bcbbf38",
-    "codex-install": "2fd0109156f1c857bd69dad2c2ec82bfa0d328edc54b73e4267bae30df569817",
-    "codex-check": "d46da3030e2e935c9cca9b4466ea955b3aa0ad2f253d292cbbecfa59d673ce1d",
-    "codex-upgrade": "345215295fc06225e8eb1a600e7129708d463736d079e125781dcb956d238a31",
+    "codex-install": "808ba8a88762eaeb712f6a38c5d784f6f940d3a0d6814eff9c9e5ba644872bd3",
+    "codex-check": "a0eed18c0714e90ec8bdad8d6c6e7f04b4ce1026b73a24e38cf779f018ac8861",
+    "codex-upgrade": "1d009c751b57159674a50d17ebf9c67c39bf620ae333d76dad05b4f4dcd4c6e1",
     "codex-uninstall": "324e6790338fc0633848d8e6c5dc6e55d0d7c38cbf3fbe9cafaf18a154aa734b",
-    "cursor-install": "c61b671d9ed9138e65c52d378b71822f91cc78e50ce9eeb3d1c852e92345d099",
-    "cursor-check": "d3385face642d71a5f765c4fcc6c06725fd236b54b4cd861794230a4ad13e7d0",
-    "cursor-upgrade": "1698150b32151bbbc5c28675b8bb70a16396ee5b52613a0c00326b37e8366846",
-    "cursor-uninstall": "85f02f37dcb769560e3b058ed4b82fbe375c9784cbb4530944de218988c73270"
+    "cursor-install": "9a1788b602afe7e7d89fb141b1ed1c41cb6dad93b03d837208a381a440fe8f83",
+    "cursor-check": "1729f6020cd382b3a7f5fc5b71b81e8299fd763cf46560e3c0f20894b2e1d25a",
+    "cursor-upgrade": "67a93b73bb427d3446d1a42c484e0fffee1339c6d5296facac47c071b593cff8",
+    "cursor-uninstall": "cb343ca0c9c54a2eb2e4e3ce6f8ce514a845d332b04aa1ff11f5b410a990daef"
   }
 }

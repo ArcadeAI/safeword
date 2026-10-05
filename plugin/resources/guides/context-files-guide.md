@@ -417,12 +417,10 @@ Brief description. Current status.
 - ✅ **Resource references** - Links to rulebooks, docs, standards
 - ✅ **Concrete** - Specific guidelines, not vague advice
 
-**Integration with auto-quality-review hook:**
-
-- Hook prompts: "Does it adhere to... domain requirements?"
-- Claude checks CLAUDE.md/AGENTS.md for Domain Requirements section
-- If present → Reviews against documented principles
-- If absent → Infers domain from context as usual
+**How it gets used:** No hook checks this section automatically. Agents read
+it as part of the context file, and reviews (`/quality-review`, phase reviews)
+can judge work against it — when it's absent, they infer the domain from
+context.
 
 ---
 
