@@ -32,6 +32,8 @@ export interface CursorBaseInput {
 
 /** Cursor `preToolUse` payload (generic across all tool types). */
 export interface CursorPreToolInput extends CursorBaseInput {
+  /** Sent on preToolUse; absent on postToolUse. */
+  cwd?: string;
   tool_name?: string;
   tool_input?: Record<string, unknown>;
 }
@@ -45,6 +47,8 @@ export interface CursorShellInput extends CursorBaseInput {
 /** The Claude-shaped input understood by `pre-tool-quality.ts`. */
 export interface ClaudeGateInput {
   session_id?: string;
+  /** Where the work happens; the shared hooks root at the worktree that owns it (#5392). */
+  cwd?: string;
   hook_event_name: 'PreToolUse' | 'PostToolUse';
   tool_name: string;
   tool_input: Record<string, unknown>;
