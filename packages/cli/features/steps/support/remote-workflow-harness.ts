@@ -90,7 +90,9 @@ function createNonTipCheckout(root: string): {
   git(source, 'config', 'user.email', 'remote-tests@example.com');
   git(source, 'config', 'user.name', 'Remote tests');
   writeFileSync(nodePath.join(source, 'fixture.txt'), 'requested\n');
-  git(source, 'add', 'fixture.txt');
+  mkdirSync(nodePath.join(source, '.safeword'));
+  writeFileSync(nodePath.join(source, '.safeword/version'), '0.85.0\n');
+  git(source, 'add', 'fixture.txt', '.safeword/version');
   git(source, 'commit', '-q', '-m', 'requested');
   const requestedSha = git(source, 'rev-parse', 'HEAD');
   writeFileSync(nodePath.join(source, 'fixture.txt'), 'later tip\n');

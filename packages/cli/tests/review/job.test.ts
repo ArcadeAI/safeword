@@ -21,6 +21,7 @@ import { createResult } from '../../src/cli-protocol/result.js';
 import { DELIVERY_CHECKLIST_CATEGORIES } from '../../src/execution-plan/delivery-checklist.js';
 import type { RedExecutionRequest } from '../../src/review/contract.js';
 import {
+  approvedRetrospectiveReview,
   cancelReviewJob,
   completeReviewJob,
   executableRedGate,
@@ -402,6 +403,32 @@ describe('durable review jobs', () => {
       review_kind: 'quality-review',
       review_targets: ['input.md'],
     });
+  });
+
+  it('does not credit an excluded generated target as independently reviewed', async () => {
+    const cwd = project();
+    writeFileSync(nodePath.join(cwd, 'generated.md'), 'generated\n');
+    const excludingWorker = COMPLETE_WORKER.replace(
+      "actual_reviewer: 'codex', independence: 'cross-agent',",
+      "actual_reviewer: 'codex', independence: 'cross-agent', excluded_targets: ['generated.md'],",
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, excludingWorker));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+
+    const result = await startReviewJob({
+      cwd,
+      kind: 'retrospective-eligibility',
+      targets: [
+        'input.md',
+        'generated.md',
+        './generated.md',
+        nodePath.join(realpathSync(cwd), 'generated.md'),
+      ],
+    });
+
+    expect(result.data).toMatchObject({ review_targets: ['input.md'] });
+    const id = (result.data as { review_id: string }).review_id;
+    expect(approvedRetrospectiveReview(cwd, id, 'retrospective-eligibility')).toEqual(['input.md']);
   });
 
   it('keeps plan-execution approval current through ordinary checklist progress', async () => {

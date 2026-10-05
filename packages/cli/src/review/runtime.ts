@@ -42,6 +42,8 @@ export {
   executionPlanReviewRubric,
   planReviewRubric,
   qualityReviewRubric,
+  retrospectiveEligibilityRubric,
+  retrospectiveProofRubric,
   scenarioReviewRubric,
 } from './review-rubric.js';
 
