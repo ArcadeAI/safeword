@@ -15,7 +15,7 @@
     },
     {
       "path": "hooks/hooks.json",
-      "sha256": "b4d236bcd133dd42fe0c63c76a0d406e3149e453838b132531125961fdef6775"
+      "sha256": "566e99f2ec53278b400dae1e54085940594048f0423787cc6863f3f543422756"
     },
     {
       "path": "package.json",
@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "1c96247dda37adf8caf396dcb77ad8692b9eba129e17a2081b0808a39f63344d"
+      "sha256": "85918640f27794da22651a01b4d0c4e73a85eea7b1630bc0fe0ba742840199e3"
     },
     {
       "path": "runtime/dispatch.js",

@@ -57143,7 +57143,7 @@ function pluginHookManifest() {
 function currentClaudePluginHookManifestSha256() {
   return createHash29("sha256").update(pluginHookManifest()).digest("hex");
 }
-var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js', EVENT_GROUP_EVENTS;
+var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun --no-env-file --cwd "${CLAUDE_PLUGIN_ROOT}" "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js', EVENT_GROUP_EVENTS;
 var init_hook_manifest = __esm(() => {
   init_config();
   EVENT_GROUP_EVENTS = new Set(["SessionStart", "UserPromptSubmit"]);
@@ -68682,6 +68682,7 @@ function parseCodexHookInput(raw) {
       return;
     const input = value;
     return {
+      cwd: optionalString(input, "cwd"),
       hook_event_name: optionalString(input, "hook_event_name"),
       session_id: optionalString(input, "session_id"),
       tool_name: optionalString(input, "tool_name"),
@@ -68899,17 +68900,23 @@ function findPackagedTemplate(relativePath) {
 function resolvePackagedHook(relativePath) {
   return findPackagedTemplate(nodePath134.join("hooks", relativePath));
 }
+function hookRuntime(hookPath) {
+  const isBun = process22.versions.bun !== undefined;
+  const runtime = process22.env.SAFEWORD_AGENT_RUNTIME === "opencode" || isBun ? process22.execPath : "bun";
+  const args = runtime === process22.execPath && !isBun ? [hookPath] : ["--no-env-file", hookPath];
+  return { runtime, args };
+}
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
-  const runtime = process22.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? process22.execPath : "bun";
-  const result2 = spawnSync21(runtime, [hookPath], {
-    cwd: projectDirectory,
+  const { runtime, args } = hookRuntime(hookPath);
+  const result2 = spawnSync21(runtime, args, {
+    cwd: nodePath134.dirname(hookPath),
     input: rawInput,
     encoding: "utf8",
     env: {
       ...process22.env,
       CLAUDE_PROJECT_DIR: projectDirectory,
       SAFEWORD_AGENT_RUNTIME: process22.env.SAFEWORD_AGENT_RUNTIME ?? "codex",
-      SAFEWORD_PLUGIN_CLI: process22.env.SAFEWORD_PLUGIN_CLI ?? process22.argv[1],
+      SAFEWORD_PLUGIN_CLI: process22.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? process22.env.SAFEWORD_PLUGIN_CLI ?? process22.argv[1] : process22.argv[1],
       SAFEWORD_PACKAGED_CONTEXT_PATH: packagedContextPath
     },
     stdio: ["pipe", "pipe", "pipe"]
@@ -69284,6 +69291,13 @@ async function runStop(projectDirectory) {
   }
   emitStopNoop();
 }
+function requireNativeProject(input, event) {
+  if (input?.cwd?.trim() || process22.env.CLAUDE_PROJECT_DIR?.trim() || hasSafewordProjectMarker(process22.cwd()))
+    return;
+  process22.stderr.write(`Safeword: Native hook input is missing its project directory.
+`);
+  process22.exit(event === "pre-tool-use" ? 2 : 0);
+}
 async function codexHook(event, options = {}) {
   const normalized = normalizeEvent(event);
   if (normalized === undefined) {
@@ -69291,11 +69305,11 @@ async function codexHook(event, options = {}) {
 `);
     return;
   }
-  const projectDirectory = resolveCodexProjectDirectory();
+  const input = options.pluginHook === true ? parseCodexHookInput(await readStdin()) : undefined;
+  const projectDirectory = resolveCodexProjectDirectory(input?.cwd ?? process22.cwd());
   if (options.pluginHook === true) {
+    requireNativeProject(input, normalized);
     try {
-      const rawInput = await readStdin();
-      const input = parseCodexHookInput(rawInput);
       recordCodexHookProof(normalized, process22.env, new Date, {
         projectDirectory,
         sessionId: input?.session_id
