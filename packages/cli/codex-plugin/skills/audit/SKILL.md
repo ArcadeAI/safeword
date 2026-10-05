@@ -15,12 +15,15 @@ Run a diff-scoped code audit. Execute checks and report results by severity.
 
 This skill is required before marking a feature ticket done. The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify $safeword:audit was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids from the runtime environment, and on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper — so on all three runtimes the fallback runs without hand-picking an id. Hand-writing audit results cannot produce this feature-gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`PROJECT_DIR="$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] audit ✓` line appears above, run this fallback before continuing:
 
 ```bash
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}"
 ```
 
@@ -67,7 +70,10 @@ that ref. An invalid ref stops the audit instead of silently widening its scope.
 ```bash
 # Ensure we're in the project root regardless of prior CWD state, then load the
 # same scope contract every executable audit block uses.
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 cd "$PROJECT_DIR" || exit 1
 source /dev/stdin <<< "$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project audit-scope)"
 audit_scope_initialize "$PROJECT_DIR" || exit $?
@@ -558,7 +564,10 @@ For each changed config file, check:
 Changed project learnings in the resolved namespace root's `learnings/*.md` must have a `Covers:` line on line 3 — the auto-generated `INDEX.md` is built from these lines, and files without them don't appear in the index. In a repository audit, check every learning as before.
 
 ```bash
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 source /dev/stdin <<< "$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project audit-scope)"
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR")"
@@ -698,7 +707,10 @@ contract testable without turning semantic review into shell heuristics.
 
 ```bash
 # principle-trace-check — E010 objective trace integrity only.
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 TICKET_PATH="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --)"
 ticket_status=$?
 if [ "$ticket_status" -ne 0 ]; then
@@ -722,8 +734,14 @@ below verbatim, as ONE bash invocation.**
 ````bash
 # domain-docs-check — read-only reconciliation of the namespace domain docs.
 # Class-2: observable facts only. Emits W008 (empty). Never writes the tree.
-cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+cd "$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)" || exit 1
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 source /dev/stdin <<< "$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project audit-scope)"
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 

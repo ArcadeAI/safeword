@@ -127,7 +127,11 @@ describe('skill-invocation log: helper invocation in /verify and /audit (147)', 
       // The harness does not always set CLAUDE_PROJECT_DIR; when unset, a bare
       // $(pwd) fallback wrote the log to a stray <cwd>/.safeword-project. The
       // fix falls back to the git toplevel instead.
-      expect(content).toMatch(/CLAUDE_PROJECT_DIR:-\$\(git rev-parse --show-toplevel/);
+      // /audit and /verify use the worktree-aware form (#5361), whose own
+      // fallback is still the git toplevel, then $PWD.
+      expect(content).toMatch(
+        /CLAUDE_PROJECT_DIR:-(\$\(git rev-parse --show-toplevel|\$\{top:-\$PWD\})/,
+      );
       expect(content).not.toMatch(/CLAUDE_PROJECT_DIR:-\$\(pwd\)/);
     });
 
