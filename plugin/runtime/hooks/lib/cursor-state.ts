@@ -15,7 +15,15 @@
 // Every file shares one key (the run-storage key, with a stable fallback) so the
 // writer and reader of a given file can never drift.
 
-import { closeSync, constants, fchmodSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  constants,
+  fchmodSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 
 import { getRunStorageKey, resolveRunIdentity } from './run-identity.js';
 
@@ -63,11 +71,18 @@ export function cursorShellCwdStashPath(input: CursorStateInput): string {
   return `${CURSOR_SHELL_CWD_STASH_PREFIX}${cursorStateKey(input)}`;
 }
 
-/** Remember where this conversation's shell command runs. Best-effort, like every stash. */
+/**
+ * Remember where this conversation's shell command runs. A command without a
+ * cwd clears the stash, so its postToolUse cannot inherit an earlier command's
+ * worktree while its gate ran against the launch checkout. Best-effort.
+ */
 export function stashCursorShellCwd(input: CursorStateInput & { cwd?: unknown }): void {
   const cwd = typeof input.cwd === 'string' ? input.cwd.trim() : '';
-  if (cwd.length === 0) return;
   try {
+    if (cwd.length === 0) {
+      rmSync(cursorShellCwdStashPath(input), { force: true });
+      return;
+    }
     writePrivateState(cursorShellCwdStashPath(input), cwd);
   } catch {
     // Best-effort stash — never block the hook.

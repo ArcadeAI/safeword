@@ -211,7 +211,7 @@
     },
     {
       "path": "runtime/hooks/lib/cursor-state.ts",
-      "sha256": "06b9800652323e143713207f14631b232a80e9dd3885622df1b62199c047d18f"
+      "sha256": "b133166e2f7b4c7348fbe20c8a015c9a358fbe0d1892fad4e0bc0f96bfee727c"
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
@@ -1147,7 +1147,7 @@
     },
     {
       "path": "templates/hooks/lib/cursor-state.ts",
-      "sha256": "06b9800652323e143713207f14631b232a80e9dd3885622df1b62199c047d18f"
+      "sha256": "b133166e2f7b4c7348fbe20c8a015c9a358fbe0d1892fad4e0bc0f96bfee727c"
     },
     {
       "path": "templates/hooks/lib/dependency-readiness.ts",
