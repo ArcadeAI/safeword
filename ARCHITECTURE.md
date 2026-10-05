@@ -1,7 +1,7 @@
 # Safeword Architecture
 
 **Version:** 1.25
-**Last Updated:** 2026-09-25
+**Last Updated:** 2026-10-02
 **Status:** Production
 
 ---
@@ -30,21 +30,21 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 
 ### Tech Stack
 
-| Category        | Choice             | Rationale                                                                              |
-| --------------- | ------------------ | -------------------------------------------------------------------------------------- |
-| CLI Runtime     | Bun                | Fast startup, TypeScript native                                                        |
-| Relay Runtime   | Node 24 LTS        | Built-in SQLite support for the separately deployed relay without a native npm addon   |
-| Package Manager | npm/bun            | Standard for JS ecosystem                                                              |
-| JS Linting      | ESLint             | Industry standard, extensive rule set                                                  |
-| Python Linting  | Ruff               | Fast, replaces flake8/black/isort                                                      |
-| Go Linting      | golangci-lint      | Aggregates 100+ linters, fast                                                          |
-| Rust Linting    | clippy             | 750+ lints, pedantic by default                                                        |
-| Rust Formatting | rustfmt            | Deterministic, gofmt-style formatting                                                  |
-| SQL Linting     | SQLFluff           | dbt-aware, Jinja templater support                                                     |
-| Type Checking   | tsc / mypy         | Native type checkers for each language                                                 |
-| Arch Validation | dependency-cruiser | Circular dep detection, layer rules (JS/TS)                                            |
-| Arch Validation | import-linter      | Python cycle guard (acyclic_siblings) + layer contracts, scaffolded by the Python pack |
-| Docs Rendering  | Astro/Mermaid      | Starlight documentation with versioned diagrams                                        |
+| Category        | Choice                     | Rationale                                                                                                            |
+| --------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| CLI Runtime     | Bun                        | Fast startup, TypeScript native                                                                                      |
+| Relay Runtime   | Node 22.23+, 24.18+, 26.5+ | Built-in `node:sqlite` for the separately deployed relay without a native npm addon (`packages/retro-relay` engines) |
+| Package Manager | npm/bun                    | Standard for JS ecosystem                                                                                            |
+| JS Linting      | ESLint                     | Industry standard, extensive rule set                                                                                |
+| Python Linting  | Ruff                       | Fast, replaces flake8/black/isort                                                                                    |
+| Go Linting      | golangci-lint              | Aggregates 100+ linters, fast                                                                                        |
+| Rust Linting    | clippy                     | 750+ lints, pedantic by default                                                                                      |
+| Rust Formatting | rustfmt                    | Deterministic, gofmt-style formatting                                                                                |
+| SQL Linting     | SQLFluff                   | dbt-aware, Jinja templater support                                                                                   |
+| Type Checking   | tsc / mypy                 | Native type checkers for each language                                                                               |
+| Arch Validation | dependency-cruiser         | Circular dep detection, layer rules (JS/TS)                                                                          |
+| Arch Validation | import-linter              | Python cycle guard (acyclic_siblings) + layer contracts, scaffolded by the Python pack                               |
+| Docs Rendering  | Astro/Mermaid              | Starlight documentation with versioned diagrams                                                                      |
 
 ---
 
@@ -56,7 +56,7 @@ packages/
 ├── retro-collector/ # Credential-free public retrospective intake
 ├── retro-relay/    # Private retry-safe GitHub filing service
 └── website/        # Documentation site (Astro/Starlight)
-plugin/             # Claude Code plugin (commands, hooks) — not a workspace package; distributed via .claude-plugin/marketplace.json
+plugin/             # Generated native Claude Code plugin — not a workspace package; distributed via .claude-plugin/marketplace.json
 ```
 
 | Package                     | Purpose                                                 | Published As |
@@ -67,6 +67,15 @@ plugin/             # Claude Code plugin (commands, hooks) — not a workspace p
 | `packages/website/`         | Documentation website                                   | Private      |
 
 ESLint configs are bundled in the main package and accessed via `import safeword from "safeword/eslint"`.
+
+`plugin/` is generated by `packages/cli/scripts/generate-claude-plugin.ts` (`bun run generate:claude-plugin`) and never hand-edited. It contains `agents/`, `hooks/hooks.json` (each event runs `${CLAUDE_PLUGIN_ROOT}/runtime/dispatch.js`), `skills/`, `runtime/` (bundled `cli.js`, `dispatch.js`, event groups, hook scripts), `resources/`, the full canonical `templates/` tree, `package.json`, and the `identity.json` / `inventory.json` integrity manifests. It ships no commands.
+
+### CLI-side retrospective flow
+
+1. **Extract.** At Stop, `templates/hooks/stop-retro.ts` runs once per substantial session, out of band, as `safeword retro run --auto-extract` (a headless child guarded against recursion). `src/retro` sanitizes, deduplicates, and triages findings, then spools sealed post-egress drafts.
+2. **File.** `templates/hooks/stop-retro-filing.ts` emits one Stop `decision: "block"` continuation that asks the agent to dispatch the shipped `safeword-retro-filer` subagent with the spool path. The subagent files each draft upstream and drains the spool (ack file plus `drain-retro-spool.ts`); a per-batch attempt cap and the prompt nudge are the backstops.
+3. **Public collector route.** `src/retro/public-config.ts` enables it only when `.safeword/config.json` has a valid `projectUUID` and `publicRetrospectiveCollection` is not `false` (`safeword project public-retros on|off` toggles it). `src/commands/retro.ts` builds the public source and delivery.
+4. **Relay route.** `src/commands/retro.ts` also carries the relay seam (`retro/relay-delivery.ts`, `retro/relay-readiness.ts`). The public CLI leaves it unpopulated while checked-in relay readiness is disabled (see below).
 
 ### Public retrospective collector boundary
 
@@ -222,37 +231,47 @@ Therefore a reverse-written `ARCHITECTURE.md` must start from every generated no
 
 The generated package leaf is the current structural inventory. These purposes explain how its top-level modules fit together:
 
-| Module                   | Responsibility                                                                                         |
-| ------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `boundary`               | Evaluates architectural boundary evidence and dependency policy                                        |
-| `cli.ts`                 | Executable composition root that registers public, compatibility, and hidden hook commands             |
-| `cli-protocol`           | Typed command catalogue, policy, plan/result envelopes, rendering, and execution adapters              |
-| `codex-plugin`           | Profile plugin catalogue, installation, proof, legacy authority, migration, finalization, and recovery |
-| `commands`               | Domain command handlers for setup, status, removal, project workflows, Codex, tickets, and retros      |
-| `cursor-wrappers.ts`     | Generates thin Cursor command/rule wrappers from canonical workflow templates                          |
-| `health.ts`              | Aggregates configuration, path, coverage, version, and integration health findings                     |
-| `index.ts`               | Stable library exports for version, detection, reconciliation, and ESLint consumers                    |
-| `learning-sync`          | Builds deterministic discovery indexes over project learnings                                          |
-| `owned-paths.ts`         | Derives writable top-level path prefixes from the schema                                               |
-| `packs`                  | Detects languages and installs language-native files, packages, and setup behavior                     |
-| `parity.ts`              | Enforces template/dogfood/generated catalogue pairs and one-way content contracts                      |
-| `presets`                | Publishes conditional TypeScript/JavaScript ESLint presets                                             |
-| `reconcile.ts`           | Computes and executes idempotent file, JSON, text-patch, permission, and dependency plans              |
-| `retro`                  | Sanitizes, deduplicates, triages, reconciles, and files retrospective findings                         |
-| `schema.ts`              | Single source of truth for owned, managed, preserved, deprecated, merged, and patched assets           |
-| `self-report-capture.ts` | Accepts bounded CLI-side self-observation events for retrospective analysis                            |
-| `skills`                 | Installs optional third-party language coding skills without owning Safeword workflows                 |
-| `templates`              | Produces dynamic configuration and legacy-cleanup content used by reconciliation                       |
-| `test-plan`              | Resolves and renders the canonical test/build/typecheck/BDD/dependency plan for a project              |
-| `ticket-create`          | Routes ticket creation between local identifiers and issue-first tracker identities                    |
-| `ticket-sync`            | Builds active and completed ticket-corpus discovery indexes                                            |
-| `tracker-connect`        | Configures tracker identity, credentials, secret storage, and handoff state                            |
-| `tracker-sync`           | Plans and applies one-way projection from local tickets to GitHub or Linear                            |
-| `upstream-monitor`       | Tracks upstream agent-CLI release signals, and issues gating workaround removal, for review            |
-| `utils`                  | Shared architecture, manifest, filesystem, Git, path, detection, Gherkin, and ticket primitives        |
-| `version.ts`             | Reads the release version from package metadata                                                        |
+| Module                        | Responsibility                                                                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `boundary`                    | Evaluates architectural boundary evidence and dependency policy                                                                                  |
+| `claude-plugin`               | Native Claude plugin delivery, execution proof, historical ownership classification, legacy contraction                                          |
+| `cli.ts`                      | Executable composition root that registers public, compatibility, and hidden hook commands                                                       |
+| `cli-protocol`                | Typed command catalogue, policy, plan/result envelopes, rendering, and execution adapters                                                        |
+| `codex-plugin`                | Profile plugin catalogue, installation, proof, legacy authority, migration, finalization, and recovery                                           |
+| `commands`                    | Domain command handlers for removal, project workflows, Codex, tickets, and retros (install/status/doctor live in `lifecycle`)                   |
+| `cursor-wrappers.ts`          | Generates thin Cursor command/rule wrappers from canonical workflow templates                                                                    |
+| `health.ts`                   | Aggregates configuration, path, coverage, version, and integration health findings                                                               |
+| `index.ts`                    | Stable library exports for version, detection, reconciliation, and ESLint consumers                                                              |
+| `learning-sync`               | Builds deterministic discovery indexes over project learnings                                                                                    |
+| `lifecycle`                   | Unified install, plan, status, doctor, and uninstall across the project and selected agent integrations (registry in `integrations.ts`)          |
+| `opencode`                    | OpenCode profile discovery, bounded evidence records, and collision-safe reconciliation                                                          |
+| `owned-paths.ts`              | Derives writable top-level path prefixes from the schema                                                                                         |
+| `packs`                       | Detects languages and installs language-native files, packages, and setup behavior                                                               |
+| `parity.ts`                   | Enforces template/dogfood/generated catalogue pairs and one-way content contracts                                                                |
+| `plugin-bundle.ts`            | Normalizes generated plugin JavaScript so machine-specific Bun paths do not change bundle bytes or hashes                                        |
+| `plugin-runtime-authority.ts` | Enforces packaged-runtime authority for native plugin workflow assets                                                                            |
+| `pr-review`                   | Reviews pull-request evidence, applies conservative routing, and separates model inspection from merge-neutral GitHub publication                |
+| `presets`                     | Publishes conditional TypeScript/JavaScript ESLint presets                                                                                       |
+| `project-runtime-helpers.ts`  | Dependency-free inventory of helpers the packaged project runtime may execute                                                                    |
+| `project-state.ts`            | Exposes lazy transient-state ignore management to the packaged CLI runtime                                                                       |
+| `reconcile.ts`                | Computes and executes idempotent file, JSON, text-patch, permission, and dependency plans                                                        |
+| `retro`                       | Sanitizes, deduplicates, triages, reconciles, and files retrospective findings                                                                   |
+| `review`                      | Coordinates independent adversarial reviews across Claude, Codex, and OpenCode: runtime discovery, neutral packets, policy, fallback, provenance |
+| `schema.ts`                   | Single source of truth for owned, managed, preserved, deprecated, merged, and patched assets                                                     |
+| `self-report-capture.ts`      | Accepts bounded CLI-side self-observation events for retrospective analysis                                                                      |
+| `skills`                      | Installs optional third-party language coding skills without owning Safeword workflows                                                           |
+| `templates`                   | Produces dynamic configuration and legacy-cleanup content used by reconciliation                                                                 |
+| `test-execution`              | Resolves local versus remote-preferred test execution, including private worktree configuration and fail-closed validation                       |
+| `test-plan`                   | Resolves and renders the canonical test/build/typecheck/BDD/dependency plan for a project                                                        |
+| `ticket-create`               | Routes ticket creation between local identifiers and issue-first tracker identities                                                              |
+| `ticket-sync`                 | Builds active and completed ticket-corpus discovery indexes                                                                                      |
+| `tracker-connect`             | Configures tracker identity, credentials, secret storage, and handoff state                                                                      |
+| `tracker-sync`                | Plans and applies one-way projection from local tickets to GitHub or Linear                                                                      |
+| `upstream-monitor`            | Tracks upstream agent-CLI release signals, and issues gating workaround removal, for review                                                      |
+| `utils`                       | Shared architecture, manifest, filesystem, Git, path, detection, Gherkin, and ticket primitives                                                  |
+| `version.ts`                  | Reads the release version from package metadata                                                                                                  |
 
-Shipped assets live beside the source: `templates/` is the canonical project-local payload, while `codex-plugin/` is the generated profile-scoped plugin bundle. `packages/cli/architecture.generated.md` remains the source of structural truth when this table is reviewed.
+Shipped assets live beside the source: `templates/` is the canonical project-local payload, while `codex-plugin/` is the generated profile-scoped Codex plugin bundle. The generated native Claude plugin lives at the repo-root `plugin/` (see [Monorepo Structure](#monorepo-structure)). `packages/cli/architecture.generated.md` remains the source of structural truth when this table is reviewed.
 
 ---
 
@@ -265,18 +284,18 @@ Language-specific tooling (detection, config generation, setup) is encapsulated 
 ```typescript
 interface LanguagePack {
   id: string; // e.g., 'python', 'typescript', 'golang', 'rust', 'sql'
-  name: string; // e.g., 'Python', 'TypeScript', 'Go', 'Rust', 'SQL/dbt'
+  name: string; // e.g., 'Python', 'TypeScript', 'Go', 'Rust', 'SQL'
   extensions: string[]; // e.g., ['.py', '.pyi']
   detect: (cwd: string) => boolean; // Is this language present?
   setup: (cwd: string, ctx: SetupContext) => SetupResult;
 }
 
-// Registry
+// Registry (declaration order is lookup order for getPackForExtension)
 const LANGUAGE_PACKS: Record<string, LanguagePack> = {
+  sql: sqlPack,
   golang: golangPack,
   python: pythonPack,
   rust: rustPack,
-  sql: sqlPack,
   typescript: typescriptPack,
 };
 ```
@@ -292,16 +311,17 @@ const LANGUAGE_PACKS: Record<string, LanguagePack> = {
 | `install.ts`  | Pack installation orchestration                      |
 | `types.ts`    | Shared types (`LanguagePack`, `ProjectContext`)      |
 
-**Per-language packs** (standard pattern: `index.ts`, `files.ts`, `setup.ts`):
+**Per-language packs** (standard pattern: `index.ts`, `files.ts`, `setup.ts`, `skills.ts`):
 
 ```text
 packs/{lang}/
 ├── index.ts   # LanguagePack interface implementation
 ├── files.ts   # ownedFiles, managedFiles, jsonMerges exports
-└── setup.ts   # Setup utilities (language-specific tooling)
+├── setup.ts   # Setup utilities (language-specific tooling)
+└── skills.ts  # Optional third-party coding-skill manifest (consumed by src/skills)
 ```
 
-Note: SQL pack uses `dialect.ts` (dialect auto-detection) instead of `setup.ts`.
+Note: SQL pack uses `dialect.ts` (dialect auto-detection) instead of `setup.ts` and has no `skills.ts`.
 
 **Exports from files.ts:**
 
@@ -335,7 +355,7 @@ Installed packs tracked in `.safeword/config.json`:
 Language detection runs FIRST, before any framework-specific detection. This prevents side effects like creating package.json for Python-only projects.
 
 ```text
-detectLanguages(cwd)     →  Languages { javascript, python, golang, rust }
+detectLanguages(cwd)     →  Languages { javascript, python, golang, rust, sql }
        ↓
 detectProjectType()      →  ProjectType (if javascript)
 detectPythonType()       →  PythonProjectType (if python)
@@ -348,13 +368,15 @@ detectPythonType()       →  PythonProjectType (if python)
 function detectLanguages(cwd: string): Languages;
 function detectPythonType(cwd: string): PythonProjectType | undefined;
 
-// Language detection result
+// Language detection result — each field delegates to its pack's detect().
+// TypeScript checks the root package.json only; every other pack scans the
+// tree recursively via existsInTree().
 interface Languages {
-  javascript: boolean; // package.json exists
-  python: boolean; // pyproject.toml OR requirements.txt exists
+  javascript: boolean; // root package.json exists
+  python: boolean; // pyproject.toml, requirements.txt, Pipfile, setup.py, or setup.cfg
   golang: boolean; // go.mod exists
   rust: boolean; // Cargo.toml exists
-  sql: boolean; // dbt_project.yml exists
+  sql: boolean; // dbt_project.yml/.sqlfluff/sqlc.yaml markers, or SQL directory conventions
 }
 
 // Python-specific detection (returned only if languages.python)
@@ -372,6 +394,8 @@ interface ProjectContext {
   productionDeps: Record<string, string>;
   isGitRepo: boolean;
   languages?: Languages; // Optional - set when language detection runs
+  namespaceRoot?: string; // Resolved namespace root; reconcile maps namespace paths onto it
+  hookManager?: HookManagerWorld; // Git hook-manager world; gates boundary-shim text patches
 }
 ```
 
@@ -398,17 +422,17 @@ Safeword bundles 20+ ESLint plugins organized into three tiers. All rules use `e
 
 **Framework Plugins (conditional — included when framework detected in `package.json`):**
 
-| Plugin                      | Detection                         | Peer Dep                        |
-| --------------------------- | --------------------------------- | ------------------------------- |
-| @eslint-react/eslint-plugin | `detectFramework()` returns react | `node: >=22.0.0`                |
-| react-hooks                 | `detectFramework()` returns react | —                               |
-| jsx-a11y                    | `detectFramework()` returns react | —                               |
-| @next/eslint-plugin-next    | `detectFramework()` returns next  | —                               |
-| astro                       | `detectFramework()` returns astro | —                               |
-| storybook                   | `hasStorybook(deps)`              | `storybook: ^10.3.5`            |
-| tanstack-query              | `hasTanstackQuery(deps)`          | `typescript: ^5.0.0` (optional) |
-| tailwind                    | `hasTailwind(deps)`               | —                               |
-| turbo                       | `hasTurbo(deps)`                  | `turbo: >2.0.0`                 |
+| Plugin                      | Detection                          | Peer Dep                                                         |
+| --------------------------- | ---------------------------------- | ---------------------------------------------------------------- |
+| @eslint-react/eslint-plugin | `detectFramework()` returns react  | `node: >=22.0.0`                                                 |
+| react-hooks                 | `detectFramework()` returns react  | —                                                                |
+| jsx-a11y                    | react/astro, and only if installed | — (loaded via `optionalRequire`; CLI devDependency, not bundled) |
+| @next/eslint-plugin-next    | `detectFramework()` returns next   | —                                                                |
+| astro                       | `detectFramework()` returns astro  | —                                                                |
+| storybook                   | `hasStorybook(deps)`               | `storybook: ^10.3.5`                                             |
+| tanstack-query              | `hasTanstackQuery(deps)`           | `typescript: ^5.0.0` (optional)                                  |
+| tailwind                    | `hasTailwind(deps)`                | —                                                                |
+| turbo                       | `hasTurbo(deps)`                   | `turbo: >2.0.0`                                                  |
 
 React framework configs use `@eslint-react/eslint-plugin` for React, JSX, DOM,
 RSC, and web API guardrails. `eslint-plugin-react-hooks` remains the official
@@ -427,6 +451,8 @@ published React preset.
 | ---------- | --------------------- | ----------- |
 | vitest     | `hasVitest(deps)`     | `vitest: *` |
 | playwright | `hasPlaywright(deps)` | —           |
+
+**Standalone configs** (exported, not auto-detected): `bunTest` declares `bun:test` globals for plain JS test files; `vendoredIgnores` globally ignores `.safeword/**` and the generated `.dependency-cruiser.cjs` for downstream `eslint.config.mjs` files.
 
 **Config hierarchy** (each extends the previous): `recommended` (JS) → `recommendedTypeScript` → `recommendedTypeScriptReact` → `recommendedTypeScriptNext`
 
@@ -452,37 +478,50 @@ SAFEWORD_SCHEMA = {
   deprecatedDirs: [...]       // Deleted on upgrade
   deprecatedPackages: [...]   // Uninstalled on upgrade
   ownedFiles: { ... }         // Overwritten on every upgrade
-  managedFiles: { ... }       // Created if missing, not overwritten
+  managedFiles: { ... }       // Created if missing; refreshed only when opted in and unmodified
   jsonMerges: { ... }         // Merge specific keys into JSON files
-  textPatches: { ... }        // Marker-based text insertions
+  textPatches: { ... }        // Marker-based text insertions (one patch or an ordered array per file)
+  legacyTextPatches: { ... }  // Old managed patches removed without being installed
+  contracts: { ... }          // Files that must contain specific strings (predicate parity)
+  codexMigration: { ... }     // Historical Codex identities retained until explicit finalization
   packages: { base, conditional }  // Dependencies to install
 }
 ```
 
+A `textPatches` array applies in list order and unpatches in reverse, so the patch that owns file removal runs last on uninstall. A `managedFiles` entry is normally create-if-missing; with `refreshWhileUnmodified: true`, reconcile also rewrites it when the installed bytes still match a known Safeword scaffold (`shouldRefreshManagedFile` in `reconcile.ts`), so user-edited copies are never overwritten.
+
 File definitions support three content sources: `template` (path in `templates/`), `content` (static string or factory), `generator` (dynamic function of `ProjectContext`, returns `undefined` to skip).
 
-A `managedFiles` entry may also carry an optional `configKey` (`'personas' | 'glossary' | 'architecture'`). When the user sets the matching `paths.<configKey>` in `.safeword/config.json`, reconcile suppresses the entry uniformly — install skips the scaffold, `uninstall-full` skips the removal. The user-configured path becomes the single source of truth; the default location is no longer safeword's concern (ticket K7N2QM).
+A `managedFiles` entry may also carry an optional `configKey` (`'principles' | 'personas' | 'glossary' | 'surfaces' | 'architecture'`). When the user sets the matching `paths.<configKey>` in `.safeword/config.json`, install skips the default scaffold and the user-configured path becomes the single source of truth (ticket K7N2QM). Independently of any override, a `configKey` marks the default as project-owned knowledge, so `reset --full` (`uninstall-full`) preserves it (ticket KD4C2A).
 
 ### Reconciliation Modes
 
-| Mode             | Behavior                                         |
-| ---------------- | ------------------------------------------------ |
-| `install`        | Create dirs, write files, merge JSON, patch text |
-| `upgrade`        | Remove deprecated, update owned, create missing  |
-| `uninstall`      | Remove safeword-managed files and dirs           |
-| `uninstall-full` | Also remove generated configs (ESLint, Prettier) |
+| Mode             | Behavior                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------ |
+| `install`        | Create dirs, write files, merge JSON, patch text                                     |
+| `upgrade`        | Remove deprecated, update owned, create missing managed (refresh unmodified opt-ins) |
+| `uninstall`      | Remove safeword-managed files and dirs                                               |
+| `uninstall-full` | Also remove generated configs (ESLint, Prettier)                                     |
 
 **Key property:** Idempotent. Running the same mode twice produces the same result.
 
 ### Install Convergence Flow
 
 ```text
-CLI command
-  → createProjectContext(cwd)     # detect languages, frameworks, tooling
-  → reconcile(schema, mode, ctx)  # compute plan from schema + context
-    → computePlan()               # directory, file, JSON, text actions
-    → executePlan()               # create, update, delete, chmod
-  → installDependencies()         # npm/bun/pnpm/yarn
+safeword install (src/lifecycle/commands.ts)
+  → profile preflight for selected integration adapters
+  → projectLifecycleSchema(cwd, agents)   # schemaForClaudeDelivery() drops .claude/ assets for
+                                          #   native-plugin delivery; Codex + selected-surface filters
+  → convergeSetup() (src/lifecycle/project-install.ts)
+    → namespace migration, version gate
+    → createProjectContext(cwd)           # detect languages, frameworks, tooling
+    → reconcile(schema, install|upgrade, ctx)
+      → computePlan() → executePlan()     # directory, file, JSON, text actions
+    → installPack() for missing packs, public-retro project config
+    → Codex bootstrap, architecture/workspace/ESLint config stages
+    → installDependencies()               # npm/bun/pnpm/yarn
+    → Python tooling, package compatibility
+  → selected integration adapters (registry order: profile install/proof per agent)
 ```
 
 ---
@@ -510,16 +549,22 @@ CLI command
 
 ### Dev (`devDependencies`)
 
-| Package      | Purpose                                                        |
-| ------------ | -------------------------------------------------------------- |
-| `vitest`     | Test runner                                                    |
-| `tsup`       | Bundler                                                        |
-| `typescript` | Type checking                                                  |
-| `eslint`     | Linting (self-hosted)                                          |
-| `prettier`   | Formatting                                                     |
-| `jiti`       | Load TypeScript ESLint config files from generated hook config |
-| `knip`       | Dead code detection                                            |
-| `publint`    | Package publishing lint                                        |
+`packages/cli` devDependencies:
+
+| Package                         | Purpose                                                                       |
+| ------------------------------- | ----------------------------------------------------------------------------- |
+| `vitest`, `@vitest/coverage-v8` | Test runner and coverage                                                      |
+| `@cucumber/cucumber`, `tsx`     | Gherkin acceptance lane and TypeScript step loading                           |
+| `tsup`, `esbuild`               | Bundler                                                                       |
+| `typescript`, `@types/*`        | Type checking                                                                 |
+| `eslint`                        | Linting (self-hosted)                                                         |
+| `eslint-plugin-jsx-a11y`        | Optional a11y preset exercised in tests (loaded at runtime only if installed) |
+| `prettier`                      | Formatting                                                                    |
+| `ajv`                           | JSON Schema validation of the published CLI result schema                     |
+| `knip`                          | Dead code detection                                                           |
+| `publint`                       | Package publishing lint                                                       |
+
+`jiti` (loading TypeScript ESLint config files) is a devDependency of the root workspace only, not of `packages/cli`.
 
 ### Peer
 
@@ -531,18 +576,28 @@ CLI command
 
 ## Test Structure
 
-| Script                    | Config                     | Includes                                                                                                 | Purpose                                                      |
-| ------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `test`                    | `vitest.config.ts`         | `*.test.ts`                                                                                              | Default unit and integration suite                           |
-| `test:smoke`              | default config             | Named fast and integration smoke files                                                                   | Broader pre-merge smoke validation                           |
-| `test:smoke:live`         | `vitest.live.config.ts`    | `*.live.test.ts`                                                                                         | Live-model smoke validation                                  |
-| `test:release`            | `vitest.release.config.ts` | `*.release.test.ts`                                                                                      | Package, supply-chain, schema, and dogfood release contracts |
-| `test:slow`               | `vitest.slow.config.ts`    | `*.slow.test.ts`                                                                                         | Real package installs                                        |
-| `test:slow:install-proof` | `vitest.slow.config.ts`    | `non-git-install-proof.slow.test.ts`                                                                     | Focused physical dependency-install proof                    |
-| `test:integration`        | default config             | `tests/integration/`                                                                                     | Integration subset                                           |
-| `test:bdd`                | `cucumber.mjs`             | `features/**/*.feature` + workspace `*/features/**/*.feature` + configured `paths.features` dir (56JCFZ) | Gherkin acceptance lane (cucumber-js, 102a)                  |
+| Script                    | Config                               | Includes                                                             | Purpose                                                           |
+| ------------------------- | ------------------------------------ | -------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `test`                    | `vitest.config.ts`                   | `*.test.ts`                                                          | Default unit and integration suite                                |
+| `test:smoke`              | default config                       | Named fast and integration smoke files                               | Broader pre-merge smoke validation                                |
+| `test:smoke:live`         | `vitest.live.config.ts`              | `*.live.test.ts`                                                     | Live-model smoke validation                                       |
+| `test:release`            | `vitest.release.config.ts`           | `*.release.test.ts`                                                  | Package, supply-chain, schema, and dogfood release contracts      |
+| `test:slow`               | `vitest.slow.config.ts`              | `*.slow.test.ts`                                                     | Real package installs                                             |
+| `test:slow:install-proof` | `vitest.slow.config.ts`              | `non-git-install-proof.slow.test.ts`                                 | Focused physical dependency-install proof                         |
+| `test:integration`        | default config                       | `tests/integration/`                                                 | Integration subset                                                |
+| `test:done`               | default config                       | `tests/hooks/` + `tests/schema.test.ts`                              | Hook and schema subset                                            |
+| `test:smoke:fast`         | default config                       | Hook, schema, quality-gate, JTBD, and hook-coverage files            | Fast smoke subset                                                 |
+| `test:smoke:live:github`  | `scripts/run-github-live-smokes.mjs` | GitHub-backed live smokes                                            | Live GitHub integration validation                                |
+| `test:coverage`           | default config                       | `*.test.ts` with `--coverage`                                        | Coverage report                                                   |
+| `test:watch`              | default config                       | `*.test.ts`                                                          | Local watch mode                                                  |
+| `test:bdd`                | `packages/cli/cucumber.mjs` + vitest | `test:bdd:acceptance` then `test:bdd:proof`                          | CLI acceptance lane (cucumber-js, 102a)                           |
+| `test:bdd:acceptance`     | `packages/cli/cucumber.mjs`          | `packages/cli/features/**/*.feature`; steps `features/steps/**/*.ts` | CLI Gherkin scenarios                                             |
+| `test:bdd:proof`          | default config                       | `tests/bdd-proof-tags.test.ts`                                       | Scenarios tagged `@proof.vitest` are proven by named Vitest tests |
+| `test:bdd:live`           | `packages/cli/cucumber.mjs`          | `@live` scenarios                                                    | Live acceptance scenarios                                         |
 
-The Vitest lanes extend `vitest.base.ts` and use up to three workers. `test:bdd` is a **separate runner**: cucumber-js executes `.feature` files with TypeScript step defs (loaded via `tsx/esm`). Unit/integration stay in vitest (which globs only `*.test.ts`); the acceptance lane and the unit suite partition the tree, neither double-runs a spec.
+Root `package.json` adds a second, repo-wide lane. Root `test:bdd` builds the CLI and relay, then delegates to the CLI `test:bdd` above. Root `test:bdd:acceptance` (also run by `test:all`) uses the **root** `cucumber.mjs`: features from root `features/**/*.feature`, workspace `packages|apps|libs|modules/*/features/**/*.feature`, and any configured `paths.features` dir (56JCFZ); steps from root `steps/**/*.ts`, workspace `*/features/steps/**/*.ts`, and `paths.steps`. Root `test:bdd:live` uses the same config's `live` profile. The root config is the same file Safeword scaffolds into customer projects.
+
+The Vitest lanes extend `vitest.base.ts` and use up to three workers. The cucumber lanes are a **separate runner**: cucumber-js executes `.feature` files with TypeScript step defs (loaded via `tsx`). Both configs exclude `@wip`, `@proof.vitest`, `@manual`, and `@live` by default. Unit/integration stay in vitest (which globs only `*.test.ts`); the acceptance lanes and the unit suite partition the tree, neither double-runs a spec.
 
 The lane is also **core customer scaffolding** (102b): `safeword install` writes the same shape into every project — `cucumber.mjs` (safeword-owned), `features/` + `steps/` starters (customer-owned after creation), `@cucumber/cucumber` + `tsx` as conditional packages, and a `test:bdd` script (add-if-absent). A repo with no `package.json` (pure Go/Rust/Python) gets a minimal private one created to host the lane, and the TS toolchain comes along so the lane's step files are themselves linted (Option A, ticket 102b). **Unless the repo already has its own cucumber harness** (56JCFZ, issue #645): installation detects host cucumber configs/deps (excluding safeword's own template revisions, hash-registered in `cucumber-template-revisions.ts`), suppresses the entire starter lane, and points the user at `paths.features`/`paths.steps` — which all readers (`project codify` / `project lint-gherkin` / `doctor` via `feature-source.ts`) and the scaffolded runner consume as augment-not-replace. `safeword doctor` carries the persistent misalignment advisories; removal never removes host-owned harness pieces.
 
@@ -555,10 +610,14 @@ tsup → dist/
   ├── cli.js              # Executable entry (#!/usr/bin/env node)
   ├── index.js            # Library exports (VERSION, detect, eslint)
   ├── presets/typescript/  # ESLint preset (safeword/eslint)
+  ├── opencode/dispatcher.js  # Self-contained OpenCode dispatcher (rebundled by
+  │                           #   scripts/build-opencode-dispatcher.ts in tsup onSuccess)
   └── *.d.ts              # Type declarations
 ```
 
-Published files: `dist/` + `schemas/` + `templates/` (bundled for setup convergence) + `codex-plugin/` (bundled for Codex plugin install).
+The OpenCode profile copies `dispatcher.js` without sibling chunks or `node_modules`, so the post-build step re-bundles it as one file. Package exports: `.` (library), `./eslint` (preset), and `./schemas/cli-result-v1.json` (the published CLI result JSON Schema).
+
+Published files: `dist/` + `schemas/` + `templates/` (bundled for setup convergence) + `codex-plugin/` (bundled for Codex plugin install). The native Claude plugin ships separately from the repo-root `plugin/` via the Claude marketplace, not the npm tarball.
 
 **Publish path:** an annotated `v*` tag triggers `.github/workflows/release.yml`. Its unprivileged build job installs from the frozen lockfile, builds, runs the release-contract suite, and packs the tarball. When local retro cutover is enabled, a protected job validates fresh production evidence before publication; malformed cutover state or failed evidence blocks the release. A separate minimal OIDC job downloads the artifact and publishes stable versions to `latest` and prereleases to `next` with provenance and install scripts disabled. After a stable publish, a final job advances the non-forced `stable` branch only when it remains a fast-forward. The local `prepublishOnly` hook (tag check → release tests → build) remains defense in depth, not the canonical release path.
 
@@ -566,8 +625,8 @@ Published files: `dist/` + `schemas/` + `templates/` (bundled for setup converge
 
 ## Migration & Evolution
 
-- **Unified installation:** `safeword install` converges the current project and installs Claude plus Codex by default. `--agents` narrows the selected integrations; Cursor is included only when explicitly selected. `safeword setup` remains a hidden, indefinitely retained compatibility alias. Schema ownership categories determine whether an asset is replaced, merged, created only when absent, preserved, or removed.
-- **Public CLI:** canonical commands are catalogued with stable typed effects and schema-versioned JSON. Hidden compatibility aliases remain through the documented 0.71 window and emit machine-readable deprecation findings.
+- **Unified installation:** `safeword install` converges the current project and installs Claude plus Codex by default. `--agents` narrows the selected integrations; Cursor and OpenCode are included only when explicitly selected. `safeword setup` remains a hidden, indefinitely retained compatibility alias. Schema ownership categories determine whether an asset is replaced, merged, created only when absent, preserved, or removed.
+- **Public CLI:** canonical commands are catalogued with stable typed effects and schema-versioned JSON. Hidden compatibility aliases are retained indefinitely (`retention: 'indefinite'` in `cli-protocol/catalog.ts`) and emit machine-readable deprecation findings.
 - **Codex delivery:** migration follows Expand → Prove → Contract. Profile-plugin proof must cover the running hook manifest before legacy project protection can be finalized; fingerprinted backup and recovery protect interrupted transitions.
 - **Generated architecture:** fingerprints migrate structural state deterministically. Machine-owned fields heal from source and manifests; human purpose prose survives and is marked stale when it needs semantic review.
 - **Architecture decisions:** update accepted decisions in place. Mark superseded choices explicitly, keep their original rationale, and record the replacement and reassessment trigger rather than creating detached ADR files.
@@ -602,7 +661,7 @@ Published files: `dist/` + `schemas/` + `templates/` (bundled for setup converge
 
 **ESLint disable comment governance:** `@eslint-community/eslint-plugin-eslint-comments` enforces suppression hygiene: `disable-enable-pair` (block orphaned disables), `no-unlimited-disable` (require rule name), `require-description` (require `-- reason`), `no-duplicate-disable`, `no-unused-enable`. Combined with `reportUnusedDisableDirectives: 'error'` via `linterOptions` to catch stale disables.
 
-**Schema drift prevention:** `.husky/pre-push` runs targeted tests (~60s) when `schema.ts` is modified in commits being pushed. Stop hook also appends a reminder when `git diff` shows schema.ts changes. Skippable with `git push --no-verify`.
+**Schema drift prevention:** `.husky/pre-push` runs two pure, filesystem-read-only tests (`schema.test.ts`, `skills-commands-validation.test.ts`; ~0.5s) when `git diff origin/main...HEAD` touches `schema.ts`. Install/dist-dependent E2E runs only in CI. Skippable with `git push --no-verify`.
 
 ### Bundled Language Packs (No External Packages)
 
@@ -635,28 +694,28 @@ Published files: `dist/` + `schemas/` + `templates/` (bundled for setup converge
 **Status:** Accepted
 **Date:** 2026-01-09
 
-| Field          | Value                                                                                                         |
-| -------------- | ------------------------------------------------------------------------------------------------------------- |
-| What           | Removed standalone TDD, brainstorming, and writing-plans skills; consolidated into BDD orchestration          |
-| Why            | BDD skill's discovery phase covers brainstorming; Phase 6 includes full TDD; Claude Code has native plan mode |
-| Trade-off      | Less granular skill invocation; users must use `/bdd` for structured workflows                                |
-| Removed        | `safeword-tdd-enforcing`, `safeword-brainstorming`, `safeword-writing-plans` skills; `/tdd` command           |
-| Remaining      | See `templates/skills/` for Claude Code and `packages/cli/codex-plugin/skills/` for Codex plugin skills       |
-| Implementation | Deprecated files listed in `packages/cli/src/schema.ts` deprecatedFiles/deprecatedDirs                        |
+| Field          | Value                                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| What           | Removed standalone TDD, brainstorming, and writing-plans skills; consolidated into BDD orchestration                                                         |
+| Why            | BDD skill's discovery phase covers brainstorming; Phase 6 includes full TDD; Claude Code has native plan mode                                                |
+| Trade-off      | Less granular skill invocation; users must use `/bdd` for structured workflows                                                                               |
+| Removed        | `safeword-tdd-enforcing`, `safeword-brainstorming`, `safeword-writing-plans` skills; `/tdd` command                                                          |
+| Remaining      | Source in `packages/cli/templates/skills/`; Claude Code ships them from generated `plugin/skills/`, Codex from generated `packages/cli/codex-plugin/skills/` |
+| Implementation | Deprecated files listed in `packages/cli/src/schema.ts` deprecatedFiles/deprecatedDirs                                                                       |
 
-### Hard Block for Done Phase (Exit Code 2)
+### Hard Block for Done Phase (Stop `decision: "block"`)
 
 **Status:** Accepted
-**Date:** 2026-01-07
+**Date:** 2026-01-07 (updated 2026-10-02: records the structured-JSON block; the original exit-2 mechanism was replaced)
 
-| Field          | Value                                                                                                                                                                                                                                 |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | Done phase in quality hook uses exit 2 (hard block) requiring evidence before completion                                                                                                                                              |
-| Why            | Prevents premature "done" claims; agent must show test/scenario/audit output                                                                                                                                                          |
-| Trade-off      | Slightly more friction at completion time                                                                                                                                                                                             |
-| Alternatives   | Soft block with reminder (rejected: too easy to ignore), no enforcement (rejected: allows false claims)                                                                                                                               |
-| Implementation | `packages/cli/templates/hooks/stop-quality.ts` - `hardBlockDone()` with evidence pattern matching; GFM checkbox predicate extracted to `.safeword/hooks/lib/scenario-format.ts` (`analyzeScenarioFormat`) for direct unit testability |
-| Evidence       | Features require: `✓ X/X tests pass` + `All N scenarios marked complete` + `Audit passed`. Tasks: test only.                                                                                                                          |
+| Field          | Value                                                                                                                                                                                                                                                                |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | Done phase in the Stop quality hook hard-blocks completion until evidence is shown. `hardBlockDone()` prints `{decision: "block", reason, systemMessage}` JSON and exits 0; `stop_hook_active` does not bypass it, and `systemMessage` surfaces the hint to the user |
+| Why            | Prevents premature "done" claims; agent must show test/scenario/audit output                                                                                                                                                                                         |
+| Trade-off      | Slightly more friction at completion time                                                                                                                                                                                                                            |
+| Alternatives   | Soft block with reminder (rejected: too easy to ignore), no enforcement (rejected: allows false claims)                                                                                                                                                              |
+| Implementation | `packages/cli/templates/hooks/stop-quality.ts` - `hardBlockDone()` with evidence pattern matching; GFM checkbox predicate extracted to `.safeword/hooks/lib/scenario-format.ts` (`analyzeScenarioFormat`) for direct unit testability                                |
+| Evidence       | Features require: `✓ X/X tests pass` + `All N scenarios marked complete` + `Audit passed`. Tasks: test only.                                                                                                                                                         |
 
 ### Hierarchy Navigation on Ticket Completion
 
@@ -696,17 +755,17 @@ Published files: `dist/` + `schemas/` + `templates/` (bundled for setup converge
 
 **Gate types:**
 
-- **LOC gate** (`loc`) — triggers when `git diff --stat HEAD` exceeds 400 LOC of project code; forces commit before more edits. Meta paths (`.safeword/`, `.claude/`, `.cursor/`, and the resolved namespace root—`.project/` by default, legacy `.safeword-project/`) are excluded from the count via git pathspec, so setup convergence output doesn't inflate it.
+- **LOC gate** (`loc`) — triggers when `git diff --stat HEAD` exceeds 400 LOC of project code; forces commit before more edits. Meta paths (`META_PATHS` in `hooks/lib/quality-state.ts`: `.safeword/`, `.claude/`, `.cursor/`, `.codex/`, `.agents/`, and the namespace root—`.project/` by default, legacy `.safeword-project/`) are excluded from the count via git pathspec, so setup convergence output doesn't inflate it.
 - **Phase reminders** — prompt hook derives current phase from ticket.md via `getTicketInfo()` and injects phase-specific one-liner each turn. No blocking gate — guidance only.
 - **TDD step reminders** — prompt hook derives TDD step from test-definitions.md via `deriveTddStep()` during `implement` phase. Shows RED/GREEN/REFACTOR status each turn.
 
-**Phase-based access control:** PreToolUse reads the active ticket's phase directly from ticket files (via `lib/active-ticket.ts`) and restricts code edits to `implement` phase only. Planning phases (intake, define-behavior, scenario-gate) and done phase only allow edits to meta paths. No ticket or no in_progress ticket = no restriction.
+**Phase-based access control:** PreToolUse reads the active ticket's phase directly from ticket files (via `lib/active-ticket.ts`). For features, `plan-implementation` is a code freeze (application edits are denied until `impl-plan.md` is done and the phase advances to `implement`), and `implement` requires `test-definitions.md` before application code. Planning phases (intake, define-behavior, scenario-gate, plan-implementation) are otherwise governed by phase-transition and artifact gates on ticket files, not by a blanket code-edit block. Tasks are exempt from the feature-only gates. No ticket or no in_progress ticket = no restriction.
 
-**Meta-path exemption:** Files under the resolved namespace root, `.safeword/`, `.claude/`, and `.cursor/` are always editable regardless of gates or phase. These are tooling/metadata, not application code. This prevents circular dependencies where a gate blocks editing the file that caused the gate.
+**Meta-path exemption:** Files under `META_PATHS` (`.safeword/`, `.claude/`, `.cursor/`, `.codex/`, `.agents/`, `.project/`, legacy `.safeword-project/`) are always editable regardless of gates or phase. These are tooling/metadata, not application code. This prevents circular dependencies where a gate blocks editing the file that caused the gate.
 
 **Active ticket resolution:** Session-scoped. Each session's state file (`quality-state-{session_id}.json`) tracks the `activeTicket` it's working on. Both `pre-tool-quality.ts` and `stop-quality.ts` read this session binding, then call `getTicketInfo()` to re-read the ticket's current phase and status from disk (stateless re-evaluation). This prevents cross-session blocking — tickets from other sessions are invisible. `getActiveTicket()` (global scan) is only used for hierarchy navigation after the done gate passes. Post-tool auto-clears `activeTicket` when the ticket reaches `done` or `backlog` status.
 
-**TDD step detection:** PostToolUse watches `test-definitions.md` in ticket directories. Each scenario has three sub-checkboxes (`- [ ] RED`, `- [ ] GREEN`, `- [ ] REFACTOR`). The parser finds the first scenario with mixed checked/unchecked items and determines which step just completed. The act of marking a sub-checkbox IS the detection mechanism — the artifact is the single source of truth.
+**TDD step detection:** PostToolUse watches `test-definitions.md` in ticket directories. Each scenario has three sub-checkboxes (`- [ ] RED`, `- [ ] GREEN`, `- [ ] REFACTOR`). The parser finds the first scenario with mixed checked/unchecked items and determines which step just completed. The act of marking a sub-checkbox IS the detection mechanism — the artifact is the single source of truth. `.feature` files are the scenario source for authoring and acceptance runs, but `deriveTddStep()` reads only the `test-definitions.md` R/G/R ledger; a ticket without that ledger has no derived TDD step.
 
 **`additionalContext` field:** PreToolUse deny output uses `additionalContext` (Claude Code v2.1.9+) to guide Claude toward skills. `permissionDecisionReason` explains WHY blocked; `additionalContext` tells WHAT TO DO. This prevents content drift — hooks reference skills by name, skills own the review content.
 
@@ -932,7 +991,7 @@ and invalidates preemptively completed jobs; hostile-code isolation would be a s
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Context        | Safeword commands historically mixed observation, mutation, prompting, output, and process termination. Humans could infer intent from prose, but agents could not reliably discover effects, distinguish drift from failure, or bind destructive consent to an exact preview.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Decision       | Public commands follow Observe → Plan → Confirm → Apply → Verify → Report. Domain handlers return schema-version-1 `Plan` and `Result` values; the executable adapter alone renders output and maps `healthy`/`changed`/`action_required`/`failed` to exit 0/0/2/1. A declarative command catalog owns canonical leaves, aliases, internal routes, compatibility rewrites, effect/prompt/network policy, schema versions, and deterministic invocation fixtures. One side-effect-free `createCliProgram()` factory assembles the production Commander tree; a focused contract gate recursively reconciles that real tree with the catalog and its generated surfaces. `Result.effects` records completed effects; proposed effects live in `Plan.effects`. Destructive confirmation binds a plan identity to its precondition digest. |
-| Consequences   | Bare `safeword` is read-only status. Every public leaf supports `--json --no-input`; JSON is one snake-case envelope validated against the published v1 JSON Schema, while human output leads with one verdict and at most one next action. `--offline` refuses declared network work, read-only commands cannot report applied effects, and partial failures retain completed effects plus stable recovery. Legacy names remain hidden deprecated aliases through 0.71. Hook helpers remain hidden and keep their latency-oriented direct adapters under stricter no-network/no-lifecycle policy.                                                                                                                                                                                                                                     |
+| Consequences   | Bare `safeword` is read-only status. Every public leaf supports `--json --no-input`; JSON is one snake-case envelope validated against the published v1 JSON Schema, while human output leads with one verdict and at most one next action. `--offline` refuses declared network work, read-only commands cannot report applied effects, and partial failures retain completed effects plus stable recovery. Legacy names remain hidden deprecated aliases, retained indefinitely. Hook helpers remain hidden and keep their latency-oriented direct adapters under stricter no-network/no-lifecycle policy.                                                                                                                                                                                                                           |
 | Alternatives   | Capture legacy console output (rejected: prose cannot preserve semantic effect integrity); derive capabilities from Commander (rejected: it lacks effect, consent, compatibility, and fixture metadata); require `--yes` without a plan identity (rejected: consent could apply to changed effects); remove old commands immediately (rejected: breaks scripts and installed integrations).                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | Reassess when  | A second JSON schema is needed, Commander cannot preserve global-option placement or `--` semantics, or a host exposes a native typed command/effect protocol that can replace Safeword’s adapter.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Implementation | Issue #1574 / ticket K53GQ9 established `packages/cli/src/cli-protocol/`, the schema, catalog, and executable fixtures. Issue #2283 / ticket 6N6M40 adds `cli-protocol/program.ts`, runtime reconciliation, deterministic command-reference generation, terminology checks, `check:cli-contract`, and the dedicated required CI context.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -1137,8 +1196,6 @@ extension to [Deterministic Readiness Evidence Status](#deterministic-readiness-
 | Reassess when  | The bundled CLI receives an explicit resource-provider abstraction, either host exposes a canonical package-resource API, or Claude introduces a dedicated recoverable plugin-health decision separate from PreToolUse authorization.                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Implementation | Ticket `HX3KFQ`; native plugin generators and catalogues, generated payloads, dispatcher degraded mode, generator drift checks, and executable release-contract tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
-## References
-
 ### Per-file host JavaScript toolchain ownership
 
 **Status:** Accepted
@@ -1151,6 +1208,8 @@ extension to [Deterministic Readiness Evidence Status](#deterministic-readiness-
 | Trade-off      | The hook owns path/config parsing and executable lookup instead of delegating to package runners. Unsupported formatters remain on the existing no-Prettier path until a dedicated adapter and scenarios are added.                                                                                                                                                                                                               |
 | Alternatives   | Root-wide formatter detection: rejected because it crosses workspace boundaries. Generic package-manager invocation: rejected because it can download or select a global binary. Shell commands: rejected because filenames are operands, not code.                                                                                                                                                                               |
 | Implementation | `packages/cli/templates/hooks/lib/host-toolchain.ts` and the shared `lintFile` entry point; ticket 13E3EN.                                                                                                                                                                                                                                                                                                                        |
+
+## References
 
 - Language Pack Spec: `packages/cli/src/packs/LANGUAGE_PACK_SPEC.md`
 - Ruff docs: https://docs.astral.sh/ruff/

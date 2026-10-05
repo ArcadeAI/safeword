@@ -26,7 +26,13 @@ jobs:
         run: |
           artifact_names="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SAFEWORD_RUN_ID/artifacts" --jq '.artifacts[].name')"
           pull_number="$(printf '%s\n' "$artifact_names" | sed -nE 's/^safeword-pr-review(-context)?-([0-9]+)$/\2/p' | sort -u)"
-          if [ "$(printf '%s\n' "$pull_number" | sed '/^$/d' | wc -l)" != 1 ]; then
+          pull_count="$(printf '%s\n' "$pull_number" | sed '/^$/d' | wc -l)"
+          if [ "$pull_count" -eq 0 ]; then
+            echo 'pull_number=' >> "$GITHUB_OUTPUT"
+            echo 'has_result=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$pull_count" -ne 1 ]; then
             echo '::error::event run did not identify exactly one pull request'
             exit 1
           fi
@@ -50,12 +56,24 @@ jobs:
       issues: write
       pull-requests: write
     steps:
+      - name: Read the trusted Bun version declaration
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/package.json?ref=$GITHUB_SHA" > package.json
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
       - name: Invalidate any obsolete advisory route
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
           SAFEWORD_PR_NUMBER: ${{ needs.discover-event-result.outputs.pull_number }}
-        run: npx --yes safeword@0.83.1 --no-input --json review-pr invalidate
+        run: |
+          mkdir -p plugin/runtime
+          gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/plugin/package.json?ref=$GITHUB_SHA" > plugin/package.json
+          gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/plugin/runtime/cli.js?ref=$GITHUB_SHA" > plugin/runtime/cli.js
+          bun plugin/runtime/cli.js --no-input --json review-pr invalidate
       - name: Download the JSON-only advisory handoff
         if: needs.discover-event-result.outputs.has_result == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -63,10 +81,11 @@ jobs:
           name: safeword-pr-review-${{ needs.discover-event-result.outputs.pull_number }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
+          path: advisory-handoff
       - name: Publish one ordinary pull-request comment
         if: needs.discover-event-result.outputs.has_result == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
           SAFEWORD_PR_NUMBER: ${{ needs.discover-event-result.outputs.pull_number }}
-        run: npx --yes safeword@0.83.1 --no-input --json review-pr publish advisory-result.json
+        run: bun plugin/runtime/cli.js --no-input --json review-pr publish advisory-handoff/advisory-result.json
