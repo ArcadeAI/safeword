@@ -363,6 +363,22 @@ describe('pull-request readiness from a session inside a nested worktree', () =>
     expect(output).toEqual({});
   });
 
+  it('allows Ready when the worktree ticket was closed through an alias outside the ticket tree', () => {
+    const session = worktreeSession();
+    // The alias path itself carries no `.project/tickets/` segment, so only the
+    // canonical path identifies it as a ticket artifact.
+    const aliasDirectory = nodePath.join(session.launchDirectory, 'ticket-link');
+    symlinkSync(
+      nodePath.join(session.worktreeDirectory, nodePath.dirname(TICKET_PATH)),
+      aliasDirectory,
+    );
+    closeTicketInWorktree(session, aliasDirectory);
+
+    const output = runReadyFromLaunch(session.launchDirectory, session.worktreeDirectory);
+
+    expect(output).toEqual({});
+  });
+
   it('still denies Ready when the shell works in the unfinished launch checkout', () => {
     const session = worktreeSession();
     closeTicketInWorktree(session);
