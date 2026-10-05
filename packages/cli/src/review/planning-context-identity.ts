@@ -3,7 +3,6 @@ import nodePath from 'node:path';
 
 import { parsers } from 'prettier/plugins/markdown';
 
-import { PLANNING_CONTRACTS } from '../planning/contracts.generated.js';
 import {
   parseFeature,
   parseFeatureLineageReferences,
@@ -14,6 +13,7 @@ import { parseAffectedSurfaceReferences, surfaceSlug } from '../utils/scenario-c
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 import type { ReviewPacket } from './contract.js';
 import { isPlanEvidenceRecord, type PlanEvidenceRecordV1 } from './evidence-record.js';
+import { ReviewPacketError } from './packet-error.js';
 import { PlanningContextError } from './planning-context-error.js';
 import type { PlanningReviewIdentity } from './planning-role-context.js';
 import { scenarioReviewRubric } from './review-rubric.js';
@@ -602,6 +602,15 @@ function semanticRoleIdentity(
   if (role === 'scenarios') return identity(gherkinIdentity(parseFeature(content)));
   if (role === 'personas') return planningPersonaIdentity(packet, content);
   if (role === 'surfaces') return planningSurfaceIdentity(packet, content);
+  if (role === 'accepted-upstream-plan') {
+    if (packet.upstream_plan_contract === undefined) {
+      throw new ReviewPacketError('Execution review requires its canonical upstream contract.');
+    }
+    return identity({
+      plan: artifactIdentity(content),
+      contract: packet.upstream_plan_contract.reviewer.sha256,
+    });
+  }
   return artifactIdentity(content);
 }
 
@@ -641,8 +650,10 @@ export function createPlanningReviewIdentity(
   let contractDigest: string;
   if (packet.kind === 'scenario-gate') contractDigest = sha256(scenarioReviewRubric());
   else {
-    const phase = packet.planning_phase ?? 'plan-implementation';
-    contractDigest = sha256(identity(PLANNING_CONTRACTS[phase]));
+    if (packet.plan_contract === undefined) {
+      throw new ReviewPacketError('A planning review identity requires its canonical contract.');
+    }
+    contractDigest = packet.plan_contract.reviewer.sha256;
   }
   return {
     ...context,

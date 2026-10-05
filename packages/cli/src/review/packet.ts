@@ -922,12 +922,25 @@ function isOwnedPlanningTarget(cwd: string, targets: readonly string[], expected
   );
 }
 
+function upstreamPlanContract(
+  planningTarget: boolean,
+  kind: ReviewKind,
+  fingerprintOnly: boolean,
+): Pick<ReviewPacket, 'upstream_plan_contract'> {
+  if (!planningTarget || kind !== 'plan-execution') return {};
+  return {
+    upstream_plan_contract: fingerprintOnly
+      ? fingerprintPlanContract('plan-implementation')
+      : packagedPlanContract('plan-implementation'),
+  };
+}
+
 function packetPlanContract(
   kind: ReviewKind,
   configured: PlanContractPair | undefined,
   productTarget: boolean,
   options: { cwd: string; targets: readonly string[]; fingerprintOnly: boolean },
-): Pick<ReviewPacket, 'planning_phase' | 'plan_contract'> {
+): Pick<ReviewPacket, 'planning_phase' | 'plan_contract' | 'upstream_plan_contract'> {
   if (productTarget)
     return {
       planning_phase: 'product-plan',
@@ -945,6 +958,7 @@ function packetPlanContract(
   return {
     ...(planningTarget && { planning_phase: kind }),
     plan_contract: configured ?? canonical,
+    ...upstreamPlanContract(planningTarget, kind, options.fingerprintOnly),
   };
 }
 
