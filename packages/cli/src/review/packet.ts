@@ -1335,7 +1335,7 @@ function prepareReviewPacketUnsafe(
     deliveryDefinition = retainedDeliveryDefinition(kind, logicalFiles, canonicalRoot);
     planningContract = packetPlanContract(kind, execution.planContract, productPlan, {
       cwd: canonicalRoot,
-      targets,
+      targets: uniqueTargets,
       fingerprintOnly: execution.fingerprintOnly === true,
     });
     planningContext = resolvePlanningRoleContext(

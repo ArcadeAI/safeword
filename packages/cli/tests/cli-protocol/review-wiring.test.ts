@@ -795,6 +795,42 @@ describe('cross-agent review public-command wiring', () => {
     expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude']);
   });
 
+  it('rejects repeated host-private planning targets before reviewer dispatch', async () => {
+    const directory = createTemporaryDirectory();
+    const privateDirectory = nodePath.join(directory, '.claude', 'plans');
+    mkdirSync(privateDirectory, { recursive: true });
+    writeFileSync(nodePath.join(privateDirectory, 'impl-plan.md'), '# Host-private plan\n');
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const bin = installFakeReviewer(directory, 'claude');
+    const rejected = await runCli(
+      [
+        'review',
+        'run',
+        'plan-implementation',
+        '.claude/plans/impl-plan.md',
+        './.claude/plans/impl-plan.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+    expect(rejected.exitCode, rejected.stdout).toBe(1);
+    expect(JSON.parse(rejected.stdout)).toMatchObject({
+      errors: [{ code: 'REVIEW_PLAN_TARGET_INVALID' }],
+    });
+    expect(existsSync(reviewLog)).toBe(false);
+  });
+
   it('rejects host-private and other unowned Implementation Plans through the public review command', async () => {
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');
