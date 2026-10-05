@@ -23,7 +23,7 @@ import { createBestEffortByteSink } from '../cli-protocol/policy.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { retryCommand } from './command.js';
 import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
-import { prepareReviewPacket } from './packet.js';
+import { prepareReviewPacket, toReviewPath } from './packet.js';
 import { reviewWorkerRunBoundMs } from './runtime.js';
 
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
@@ -739,7 +739,7 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
   } catch {
     return staleResult(record);
   }
-  if (record.result !== undefined) return withReviewProvenance(record, record.result);
+  if (record.result !== undefined) return withReviewProvenance(cwd, record, record.result);
   return createResult({
     state: 'failed',
     errors: [
@@ -757,7 +757,10 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
  * the integrity-checked record and its excluded-target report, so a stamp
  * names what the reviewer actually saw.
  */
-function effectiveReviewTargets(record: ReviewJobRecord): readonly string[] | undefined {
+function effectiveReviewTargets(
+  cwd: string,
+  record: ReviewJobRecord,
+): readonly string[] | undefined {
   const data = record.result?.data;
   if (typeof data !== 'object' || data === null || Array.isArray(data)) return record.targets;
   const excluded = (data as Record<string, unknown>).excluded_targets;
@@ -765,10 +768,14 @@ function effectiveReviewTargets(record: ReviewJobRecord): readonly string[] | un
   if (!Array.isArray(excluded) || excluded.some(target => typeof target !== 'string'))
     return undefined;
   const excludedPaths = new Set<string>(excluded);
-  return record.targets.filter(target => !excludedPaths.has(target));
+  const root = realpathSync.native(cwd);
+  return record.targets.filter(target => {
+    const relative = nodePath.relative(root, nodePath.resolve(root, target));
+    return !excludedPaths.has(toReviewPath(relative));
+  });
 }
 
-function withReviewProvenance(record: ReviewJobRecord, result: CliResult): CliResult {
+function withReviewProvenance(cwd: string, record: ReviewJobRecord, result: CliResult): CliResult {
   const data =
     typeof result.data === 'object' && result.data !== null && !Array.isArray(result.data)
       ? (result.data as Record<string, unknown>)
@@ -779,7 +786,7 @@ function withReviewProvenance(record: ReviewJobRecord, result: CliResult): CliRe
       ...data,
       review_id: record.id,
       review_kind: record.kind,
-      review_targets: effectiveReviewTargets(record) ?? [],
+      review_targets: effectiveReviewTargets(cwd, record) ?? [],
     },
   };
 }
@@ -1386,7 +1393,7 @@ export function approvedRetrospectiveReview(
       record.state === 'completed' &&
       hasCurrentFingerprint(cwd, record) &&
       hasIndependentApproval(data)
-      ? effectiveReviewTargets(record)
+      ? effectiveReviewTargets(cwd, record)
       : undefined;
   } catch {
     return undefined;

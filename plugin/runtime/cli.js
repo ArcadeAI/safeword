@@ -34015,7 +34015,7 @@ function terminalResult(cwd, record) {
     return staleResult(record);
   }
   if (record.result !== undefined)
-    return withReviewProvenance(record, record.result);
+    return withReviewProvenance(cwd, record, record.result);
   return createResult({
     state: "failed",
     errors: [
@@ -34024,7 +34024,7 @@ function terminalResult(cwd, record) {
     data: { command: "review status", status: "failed", review_id: record.id }
   });
 }
-function effectiveReviewTargets(record) {
+function effectiveReviewTargets(cwd, record) {
   const data = record.result?.data;
   if (typeof data !== "object" || data === null || Array.isArray(data))
     return record.targets;
@@ -34034,9 +34034,13 @@ function effectiveReviewTargets(record) {
   if (!Array.isArray(excluded) || excluded.some((target) => typeof target !== "string"))
     return;
   const excludedPaths = new Set(excluded);
-  return record.targets.filter((target) => !excludedPaths.has(target));
+  const root = realpathSync9.native(cwd);
+  return record.targets.filter((target) => {
+    const relative = nodePath46.relative(root, nodePath46.resolve(root, target));
+    return !excludedPaths.has(toReviewPath(relative));
+  });
 }
-function withReviewProvenance(record, result) {
+function withReviewProvenance(cwd, record, result) {
   const data = typeof result.data === "object" && result.data !== null && !Array.isArray(result.data) ? result.data : {};
   return {
     ...result,
@@ -34044,7 +34048,7 @@ function withReviewProvenance(record, result) {
       ...data,
       review_id: record.id,
       review_kind: record.kind,
-      review_targets: effectiveReviewTargets(record) ?? []
+      review_targets: effectiveReviewTargets(cwd, record) ?? []
     }
   };
 }
@@ -34511,7 +34515,7 @@ function approvedRetrospectiveReview(cwd, id, kind) {
   try {
     const record = readJob(cwd, id);
     const data = record.result?.data;
-    return record.kind === kind && record.state === "completed" && hasCurrentFingerprint(cwd, record) && hasIndependentApproval(data) ? effectiveReviewTargets(record) : undefined;
+    return record.kind === kind && record.state === "completed" && hasCurrentFingerprint(cwd, record) && hasIndependentApproval(data) ? effectiveReviewTargets(cwd, record) : undefined;
   } catch {
     return;
   }

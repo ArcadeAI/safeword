@@ -378,7 +378,12 @@ describe('durable review jobs', () => {
     const result = await startReviewJob({
       cwd,
       kind: 'retrospective-eligibility',
-      targets: ['input.md', 'generated.md'],
+      targets: [
+        'input.md',
+        'generated.md',
+        './generated.md',
+        nodePath.join(realpathSync(cwd), 'generated.md'),
+      ],
     });
 
     expect(result.data).toMatchObject({ review_targets: ['input.md'] });

@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -116,8 +117,8 @@ describe('generated review targets', () => {
         'run',
         'quality-review',
         'authored.md',
-        'generated/first.js',
-        'generated/second.js',
+        './generated/first.js',
+        nodePath.join(realpathSync(directory), 'generated/second.js'),
         '--json',
         '--no-input',
         '--cwd',
@@ -135,8 +136,11 @@ describe('generated review targets', () => {
     );
 
     expect(result.exitCode, result.stdout).toBe(0);
-    const envelope = JSON.parse(result.stdout) as { data: { excluded_targets: string[] } };
+    const envelope = JSON.parse(result.stdout) as {
+      data: { excluded_targets: string[]; review_targets: string[] };
+    };
     expect(envelope.data.excluded_targets).toEqual(['generated/first.js', 'generated/second.js']);
+    expect(envelope.data.review_targets).toEqual(['authored.md']);
     const prompt = readFileSync(promptLog, 'utf8');
     expect(prompt).toContain('review this authored change');
     expect(prompt).not.toContain('generated/first.js');
