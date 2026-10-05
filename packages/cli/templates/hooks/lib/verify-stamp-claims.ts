@@ -28,14 +28,7 @@ import {
 } from './review-receipt.js';
 import type { ReviewStamp } from './review-ledger.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
-
-const DEFAULT_BASE_REFS = [
-  'refs/remotes/origin/HEAD',
-  'refs/remotes/origin/main',
-  'refs/remotes/origin/master',
-  'refs/heads/main',
-  'refs/heads/master',
-] as const;
+import { closestDefaultMergeBase } from './closest-base-ref.js';
 
 function runGit(projectDirectory: string, args: string[]): string | undefined {
   const result = spawnSync('git', ['-C', projectDirectory, ...args], { encoding: 'utf8' });
@@ -48,22 +41,16 @@ function addPaths(paths: Set<string>, output: string | undefined): boolean {
   return true;
 }
 
-/** Current branch plus staged, unstaged, and untracked work, relative to the repo root. */
+/** Current branch plus staged, unstaged, and untracked work, relative to the project directory. */
 function currentWorkFiles(projectDirectory: string): string[] {
-  const baseRef = DEFAULT_BASE_REFS.find(
-    ref =>
-      runGit(projectDirectory, ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]) !==
-      undefined,
-  );
-  if (baseRef === undefined) return [];
-  const mergeBase = runGit(projectDirectory, ['merge-base', 'HEAD', baseRef])?.trim();
-  if (!mergeBase) return [];
+  const base = closestDefaultMergeBase(projectDirectory);
+  if (base.state !== 'found') return [];
 
   const paths = new Set<string>();
   if (
     !addPaths(
       paths,
-      runGit(projectDirectory, ['diff', '--relative', '--name-only', '-z', `${mergeBase}...HEAD`]),
+      runGit(projectDirectory, ['diff', '--relative', '--name-only', '-z', `${base.sha}...HEAD`]),
     ) ||
     !addPaths(
       paths,
@@ -117,6 +104,7 @@ export function verifiedStamps(
   requirePinnedReviewerModel = false,
 ): ReviewStamp[] {
   const readReceipt = createReviewReceiptReader(projectDirectory);
+  let claimContext: ReturnType<typeof reviewClaimContext> | undefined;
   return stamps
     .filter(stamp => stamp.scope === scope)
     .filter(stamp => {
@@ -132,7 +120,7 @@ export function verifiedStamps(
       const claim = claimFromScope(stamp.scope, {
         projectDirectory,
         ticketDirectory,
-        ...reviewClaimContext(projectDirectory, ticketDirectory),
+        ...(claimContext ??= reviewClaimContext(projectDirectory, ticketDirectory)),
         independence: stamp.independence,
         authorAgent: stamp.author,
         reviewerAgent: stamp.reviewer,

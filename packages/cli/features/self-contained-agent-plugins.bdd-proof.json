@@ -1,6 +1,24 @@
 {
   "feature": "packages/cli/features/self-contained-agent-plugins.feature",
   "scenarios": {
+    "Native plugin bundles execute template-backed commands from shipped resources": [
+      "packages/cli/tests/plugin-resource-contract.test.ts",
+      "runs template-backed commands from the committed %s plugin bundle"
+    ],
+    "A damaged Claude Code plugin cache remains recoverable": [
+      [
+        "packages/cli/tests/claude-plugin/dispatch.test.ts",
+        "asks for user approval when a listed plugin asset was modified"
+      ],
+      [
+        "packages/cli/tests/claude-plugin/dispatch.test.ts",
+        "warns without executing %s hooks when the plugin cache is damaged"
+      ],
+      [
+        "packages/cli/tests/claude-plugin/dispatch.test.ts",
+        "keeps repair available when an otherwise verified cache has an unlisted asset"
+      ]
+    ],
     "A packaged shared-shell helper executes without project runtime": [
       "packages/cli/tests/commands/audit-scope.test.ts",
       "executes the shared-shell helper without project runtime"
@@ -138,7 +156,7 @@
       ],
       [
         "packages/cli/tests/claude-plugin/catalogue.test.ts",
-        "passes the shared native runtime-authority release gate"
+        "runs the shared native runtime-authority gate during generation"
       ],
       [
         "packages/cli/tests/opencode/catalogue.test.ts",

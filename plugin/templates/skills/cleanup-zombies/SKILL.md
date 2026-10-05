@@ -1,0 +1,53 @@
+---
+name: cleanup-zombies
+description: Kill zombie dev servers and test processes. Use when ports are
+  blocked, processes are hanging, or test runners won't start.
+allowed-tools: '*'
+effort: low
+---
+
+# Cleanup Zombies
+
+Kill zombie processes (dev servers, Playwright browsers, test runners) for the current project only. Safe to use in multi-project environments.
+
+## Instructions
+
+Run the cleanup script — it previews what would be killed (nothing dies without
+explicit consent; the preview-first ritual is script-enforced):
+
+```bash
+./.safeword/scripts/cleanup-zombies.sh
+```
+
+If the preview looks correct, confirm the kill with `--yes`:
+
+```bash
+./.safeword/scripts/cleanup-zombies.sh --yes
+```
+
+## What It Does
+
+1. **Auto-detects framework** - Finds port from vite.config.ts, next.config.js, etc. (checks root, `packages/*/`, `apps/*/` for monorepos)
+2. **Checks project-owned port processes** - Inspects the dev port and in-range test port (port + 1000), reporting owners it skips when project ownership cannot be verified
+3. **Checks project-owned test processes** - Inspects Playwright, Chromium, and Electron matches whose working directory is inside this project
+4. **Revalidates before signaling** - Only kills processes whose current working directory still belongs to this project
+
+## Manual Override
+
+If auto-detection fails or you need a specific port:
+
+```bash
+# Explicit port (preview, then add --yes to kill)
+./.safeword/scripts/cleanup-zombies.sh 5173
+
+# Port + additional pattern
+./.safeword/scripts/cleanup-zombies.sh --yes 5173 "electron"
+```
+
+## When to Use
+
+- Port already in use when starting dev server
+- Tests hanging or failing due to zombie processes
+- Switching between projects
+- Before running E2E tests
+- After interrupted test runs

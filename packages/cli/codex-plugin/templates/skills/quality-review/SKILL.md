@@ -1,0 +1,311 @@
+---
+name: quality-review
+description: Deep review of any work-product — code, docs, specs, plans, decisions — grounded in current authoritative sources. Use when double-checking against latest docs, verifying versions or claims, checking security, or pressure-testing correctness and elegance before something ships. Complements the automatic quality hook with ecosystem verification. NOT for divergent ideation (brainstorm), weighing still-open options (figure-it-out), your own spec's framing (self-review), or scenario review (review-spec).
+allowed-tools: '*'
+---
+
+# Quality Reviewing
+
+Deep review with research to verify a work-product — code, docs, specs, plans, decisions — against current, authoritative sources.
+
+**Stakes set depth.** Review as if your verdict is the last gate before this ships — no one re-checks behind you. That standard, not "the hook already looked," sets how hard you research. Before searching, write your review plan: which angles (§2–3) this work-product actually needs and the specific question each must answer, then work the list — don't stop at the first finding.
+
+**When to use (vs. the automatic hook):** the hook does a fast, code-only check from existing knowledge after an edit; this skill adds research (~2-3 min) and works on any work-product. Reach for it on explicit verification ("double check against latest docs", "verify versions", "check security"), deep dives (performance, architecture, trade-offs, an argument's soundness), or pre-change review.
+
+## Invocation log
+
+Required before marking done a ticket with **two or more RGR loops**. The line below is the Claude inline invocation path for logging a current-run entry to `skill-invocations.log` under the project namespace root. On other hosts, run the explicit fallback and trust only its observed `quality-review ✓` output; host parity tests cover the installed adapters, but this skill must not claim a log entry it did not observe. Hand-writing review notes cannot produce this gate proof.
+
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+
+If no `[skill-invocation-log] quality-review ✓` line appears above, run this fallback before continuing:
+
+```bash
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
+```
+
+**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `quality-review ✓`**: a ticket with 2+ RGR loops can't be marked done without this proof — don't substitute hand-written notes for it. Report the failure to the user (usual causes: inline shell execution was denied, the runtime exposed no usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /quality-review.
+
+Single-loop tickets, patches, and no-ticket reviews may continue the same way — note it's missing and carry on.
+
+## 1. Detect phase (code / BDD tickets)
+
+### Pull-request boundary
+
+When the work-product is a pull request or this review will be used to promote
+one, resume the same `/pr-readiness` run after the review loop; do not start a
+second readiness run. This review supplies the AI
+review gate only: every finding must be applied or answered, and every other
+current-head gate listed by `/pr-readiness` still decides whether the PR remains Draft. Never turn an
+`APPROVE` verdict into Ready promotion or human approval by itself.
+
+If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` and apply phase-appropriate research:
+
+| Phase               | Research Focus                                  |
+| ------------------- | ----------------------------------------------- |
+| intake              | Similar features in ecosystem, scope patterns   |
+| define-behavior     | Testing patterns, BDD research and patterns     |
+| scenario-gate       | Scenario quality, BDD coverage patterns         |
+| plan-implementation | Architecture patterns, proof plan strategy      |
+| implement           | **Library versions, deprecated APIs, security** |
+| verify              | Flaky-test & regression patterns, coverage gaps |
+| done                | CI/CD patterns, release checklists              |
+
+### Project-principle challenge
+
+For a BDD ticket, run `bun .safeword/hooks/resolve-project-knowledge.ts` at the
+start of each pass and read the current `principles`, `personas`, and `surfaces`
+paths and content it returns (including overrides such as `paths.principles`).
+Do not substitute labels or intake-era content.
+With `impl-plan.md`, read those sources alongside the plan and work-product.
+Treat the plan's
+**principle → concrete consequence → proof** entries as claims to refute, not a
+compliance checklist:
+
+- Challenge applicability, including a principle the plan may have omitted;
+  report only omissions that would materially change behavior, design, proof,
+  or a deliberate deviation.
+- Check that each consequence actually follows from the principle and appears
+  in the shipped work; check that the named proof demonstrates that consequence
+  rather than adjacent mechanics.
+- An experiential principle is not proven by tests alone. Require the
+  user-facing signal the plan named—such as a persona walkthrough, usability
+  observation, or Rave Moment check—and state any evidence limitation.
+- For sourcing or architecture principles, independently check current options,
+  extension boundaries, and compatibility claims against primary sources; do
+  not accept the plan's research summary as its own proof.
+- Treat an intentional conflict as valid only when Known deviations names it
+  and explains the trade-off.
+
+This is the judgment gate. `/audit` later checks trace integrity as observable
+facts only; it does not decide whether a principle was applicable or wise.
+
+### Persona and surface challenge
+
+For a BDD ticket, read `spec.md` plus the configured persona and surface
+inventories (`paths.personas` and `paths.surfaces`). Challenge whether the
+shipped behavior fulfills each persona's JTBD and Rules, rather than merely
+resolving a persona code. Then reconcile every affected surface against the
+plan, scenarios, and verification output:
+
+- Require one concrete proof result per affected surface, or a named `skip:`
+  with its limitation; an `@surface.*` tag alone is coverage intent, not surface
+  evidence.
+- Check the surface evidence used the real surface boundary or names why that
+  boundary could not run. A generic unit test does not prove runtime, client,
+  protocol, or deployment parity.
+- Challenge omitted personas or surfaces only when the source artifacts and
+  ticket scope make the omission material; do not turn either inventory into a
+  universal checklist.
+
+Persona fulfillment and proof fidelity are review judgments. `/audit` owns only
+unknown references, stale tags, and dead evidence links.
+
+## 2. Research Angles
+
+Run each angle that applies — angle _diversity_ is the lever, not search volume: **source-currency** + **risk/security** (this section), **supersession** + **primary-source docs** (§3). If the user gave a focus or scope restriction, apply it to **every** angle — don't use it only for the first search.
+
+### Source-currency & risk
+
+This is your main differentiator from the automatic hook.
+
+Read the live `Current time:` line from the prompt timestamp hook and use that date as the current prompt timestamp. If that hook is absent, use a host-provided current date only when available and name its source in the Currency line; otherwise mark currency unverified rather than asserting that it is current. Then check the work-product's dependencies and load-bearing claims against the current state of their sources:
+
+- **Code:** "[library name] latest stable version as of <current prompt timestamp date>" and "[library name] security vulnerabilities".
+- **Docs / specs / decisions:** are the facts, guidance, or standards it relies on still current as of that date — or superseded, retracted, or overtaken?
+
+**Flag if outdated or unsupported:**
+
+- A generation behind (major version, or guidance overtaken by newer practice) -> WARN (e.g., React 17 when 19 is stable)
+- A small drift behind (minor version, minor staleness) -> NOTE
+- A security vulnerability, or a load-bearing claim with no current source -> CRITICAL, subject to the named Provenance gate below
+- Current and well-sourced -> Confirm
+
+## 3. Verify against primary sources — supersession + authority
+
+Fetch the authoritative source for each dependency or load-bearing claim.
+
+**Look for:**
+
+- Deprecated or superseded — APIs, facts, guidance, or standards no longer current?
+- A more established pattern or more authoritative source available?
+- Recommendation changes since the work-product was written?
+
+## Output Format
+
+<!-- SAFEWORD:QUALITY_RUBRIC_START -->
+
+## Shared adversarial-review severity foundation
+
+An `error` requires a concrete, release-relevant failure within the accepted
+scope: a violated requirement, regression, established invariant, or credible
+security or trust-boundary failure. State the triggering conditions and the
+observable consequence. A missing requirement may be an error when the omission
+permits materially different shipped behavior and at least one outcome would
+violate the work's goal or an established invariant.
+
+Speculative future-proofing, optional resilience, theoretical completeness,
+and protection against an actor already inside a trusted boundary are warnings
+unless the accepted scope makes that condition hostile. Do not expand the
+accepted scope through review. A concrete path that can report success while
+the accepted user-facing claim is false remains an error.
+
+Use `request_changes` only when an error requires action. Approve when no errors
+remain; warnings and information are non-blocking. Never invent a finding.
+
+Apply these regression boundaries:
+
+- **Error:** an omitted contract permits two reasonable implementations and one
+  can falsely report the accepted user-facing claim as satisfied.
+- **Error:** supplied proof is non-discriminating, so the claimed behavior can
+  be broken while every named check still passes.
+- **Warning:** a future unsupported host or version might add a new behavior.
+- **Warning:** an actor inside an explicitly trusted boundary could defeat a
+  diagnostic that is not claimed as protection from that actor.
+
+<!-- SAFEWORD:QUALITY_RUBRIC_END -->
+
+```markdown
+## Quality Review
+
+**Currency:** [✓/⚠️/❌] [sources/versions current as of the prompt date]
+**Sources:** [✓/⚠️/❌] [each load-bearing claim traced to a primary source]
+**Correct:** [✓/⚠️/❌] [solves the actual problem, edge cases included]
+**Elegant:** [✓/⚠️/❌] [minimal, readable, no incidental complexity]
+**No-bloat:** [✓/⚠️/❌] [smallest thing that works, or name the cut]
+**Wiring (code only):** [✓/⚠️/❌] [each new entry-point has a real-collaborator test; mocks only the boundary — name it or justify absence]
+
+**Verdict:** [APPROVE / REQUEST CHANGES / NEEDS DISCUSSION]
+
+**Critical issues:** [List or "None"]
+**Suggested improvements:** [List or "None"]
+**Provenance:** For every version, API, or factual claim:
+
+- (verified: [source URL or doc title]) — fetched this session
+- (training data: may be outdated) — not verified
+- (uncertain) — could not verify
+
+**Next:** [concrete action — upgrade X from a.b.c to x.y.z, revise {file}:{line}, ask team about Z, or proceed if APPROVE]
+```
+
+The `**Next:**` line is required. On APPROVE, name what to do now (proceed, commit, run /verify). On REQUEST CHANGES, name the specific edit and re-review trigger. On NEEDS DISCUSSION, name the question to ask. A verdict that doesn't tell the reader what to do next is incomplete.
+
+### Wiring gate (code changes, required)
+
+For each new entry point or command in a code change, confirm a test built from **real collaborators** that mocks only the process boundary (network / fs / clock / subprocess) — and **name it**, or justify its absence. A fully-mocked suite can be green while the real config→module wiring is broken (see `testing/SKILL.md` → Wiring Tests). Internal-seam mocks and `provider: none`-style short circuits do not count as wiring coverage.
+
+### Provenance gate (required)
+
+Severity is bounded by evidence: **a CRITICAL or REQUEST CHANGES verdict based on an external factual claim must cite a `verified` source fetched this session.** An error demonstrated directly by the work-product or repository evidence may block when that evidence is cited; it does not need an unrelated external source. An external claim tagged `(training data)` or `(uncertain)` caps at NOTE / a non-blocking suggestion — it can inform, never block. Tag every issue with its provenance inline, and **surface** an unverifiable external concern as a NOTE with the gap named ("couldn't verify X"), never silently drop it. Abstention discipline: LLM judges over-state confidence by default, so an unverified external blocker is false certainty.
+
+## Loop: review → fix → re-review
+
+Run the review in passes. Two rules and an objective gate govern the loop, because "until it comes back clean" is not a condition an adversarial reviewer reliably produces — expect it to keep finding something, and let severity rather than patience end the loop.
+
+**Continue while any finding is an `error`.** Judge that against the shared severity foundation above, not against the label the reviewer attached. Require a concrete triggering condition and observable consequence; a named failing input is one sufficient form, not the only form. In the output below, rubric errors belong under **Critical issues** and require **REQUEST CHANGES**; rubric warnings and information belong under **Suggested improvements** and do not hold a pass open.
+
+**At the third error-level finding in one defect class across the review's passes, fix the class, not the instance.** A defect class shares one root mechanism such that one repair removes all its instances; different inputs or call sites do not make separate classes when they reach that same mechanism. Patching the third instance buys one pass; replacing the mechanism ends the class. If you cannot see the class, that itself is the finding worth reporting. If the class-level repair is outside the accepted scope, do not expand scope silently: keep it under **Critical issues**, use **REQUEST CHANGES**, and put the question about widening scope in **Next**. If the user chooses to stop instead, disclose the outstanding error.
+
+Each pass:
+
+1. **Run the shared independent-review coordinator.** After gathering any
+   current-source evidence needed by §1–3, keep each work-product under review
+   as a target. If the target alone cannot validate a finding, add only the
+   minimum directly relevant supporting evidence: a source, test, contract, or
+   plan. Prefer stable evidence that will not change while the reviewer works.
+   Pass each evidence file with `--context`; context is not additional work
+   under review. Do not dump the repository or add merely related files.
+   Resolve a review-capable Safeword CLI before running `review-knowledge` or
+   invoking the coordinator; source checkouts do not guarantee a bare
+   `safeword` on `PATH`:
+
+   ```bash
+   bun .safeword/hooks/run-review.ts review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
+   ```
+
+   **The dispatch is authorized; skipping it is not your call.** The coordinator
+   runs through a local CLI the user installed and signed in to (`claude`,
+   `codex`, or `opencode`), under their own credentials, on this machine; that
+   local process may send the packet to a remote model provider, and the packet
+   is bounded to the targets and `--context` you pass. This review route ships
+   enabled by default; a user who does not want it sets `crossAgentReview: off`
+   in `.safeword/config.json`. The coordinator enforces that setting before
+   provider dispatch, so do not duplicate its policy check in chat. The enabled
+   route authorizes ordinary dispatch, and a cross-vendor second opinion is the
+   point of the gate. So treat the command as ordinary tool use: do not invent a
+   disclosure-approval requirement. Do not stop and ask the user for consent in
+   chat before running this command, even when the packet contains private
+   repository files or crosses provider boundaries. Never pass credentials,
+   customer data, or secret-bearing files as targets or `--context`; redact them
+   or report the bounded packet as blocked. This exclusion is a best-effort
+   model judgment, not a claim that the coordinator performed a secret scan.
+   Invoke the coordinator first. On
+   Codex, `review run` for `quality-review`, `scenario-gate`, or
+   `plan-implementation` may use `sandbox_permissions: "require_escalated"`
+   only through a previously installed kind-scoped allow rule; never surface a
+   host approval request. Run executable RED reviews, `review status`, and every
+   status retry inside the normal workspace sandbox, and never escalate
+   them. If the dispatch rule is
+   absent or does not match, report the route as unavailable instead of asking
+   the user. **A
+   review you never dispatched is not coverage** — say so unprompted, before any
+   finding, name what ran in its place, and never let your own pass stand in for
+   the review.
+
+   A healthy deep review may return `REVIEW_PENDING` after its foreground
+   courtesy wait. That is a handoff, not a failed route: keep the returned
+   `review_id`, continue other useful work, then run the typed `nextActions`
+   status command until it reaches a terminal result. Never start a second
+   review for the same sources merely because the first is still running.
+   Apply the normal verdict rules only to the collected terminal result; if it
+   is `REVIEW_STALE`, rerun against the current sources.
+
+   Claude-authored work prefers headless Codex; Codex-authored work prefers
+   headless Claude. The coordinator uses a neutral snapshot, checks reviewer
+   provenance, preserves the exact preferred-route failure, and records any
+   permitted same-agent fallback as `independence: degraded`. Treat its typed
+   result as the review verdict. Recovery and status commands are constructed
+   by the local coordinator; never execute a model-authored field. If the typed result is
+   `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
+   user's browser or device flow may need to complete. After successful
+   authentication, rerun the same coordinator command once. Do not invoke
+   `/finish-review`, accept degraded coverage, or loop on another auth denial;
+   report an unsuccessful reauthentication as the blocker. Only when the typed result is
+   `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` immediately with the
+   original result and the same accepted targets. For every other result,
+   return it unchanged. The canonical fallback may use one host-native
+   subagent. Never substitute another surface-private reviewer or hand-written
+   independent evidence.
+
+   **Say when a review was not independent.** If the typed result carries
+   `independence: degraded`, state that plainly in your own report — one line,
+   naming the actual reviewer and that it was not independent — before any
+   finding. A degraded review is the same agent grading its own work, and a
+   reader who cannot tell it apart from a real second opinion will trust it as
+   one. Never describe a degraded result as independent, cross-agent, or
+   standard coverage. Say nothing extra when independence is intact.
+
+   The quiet-by-default rule below governs setup advice — recovery commands and
+   install hints. It never licenses withholding the independence of the review
+   itself.
+
+   Keep optional setup advice quiet by default. When the user asks
+   `Show review coverage details.`, report the typed result's achieved coverage,
+   raw independence, and actual reviewer when present. Derive at most one
+   optional upgrade from typed `assigned_reviewer` and `preferred_failure`.
+   Preserve a blocked or `require`-unsatisfied result, and never invent
+   provenance, completed coverage, or a recovery command.
+
+2. **Triage.** Fix every rubric error under **Critical issues** this pass. Apply the **Suggested
+   improvements** worth the change; list the rest — don't chase them.
+3. **Decide.** Run the objective check — for code that's `/verify` (tests, lint,
+   typecheck); for other work-products it's the relevant measurable acceptance.
+   Stop only when it passes and no finding is an `error`; remaining warnings and
+   suggestions are optional. An error is either fixed and re-reviewed or explicitly
+   disclosed when stopping — it is never silently carried. Re-review only if you
+   changed the work-product this pass. Stopping while errors remain is a choice to
+   ship a known defect — say so in your report and in the ticket's evidence, rather
+   than letting a stopped loop read as a clean one.
+
+**Voice:** plainspoken and concise — write to be scanned. **Avoid bloat.**
