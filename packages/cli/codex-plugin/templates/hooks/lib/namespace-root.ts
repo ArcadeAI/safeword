@@ -146,14 +146,16 @@ export function readConfiguredPathValue(projectDirectory: string, key: string): 
   const configPath = nodePath.join(projectDirectory, '.safeword', 'config.json');
   if (!existsSync(configPath)) return undefined;
 
-  let parsed: { paths?: Record<string, unknown> };
+  let parsed: { paths?: Record<string, unknown> } | null;
   try {
-    parsed = JSON.parse(readFileSync(configPath, 'utf8')) as { paths?: Record<string, unknown> };
+    parsed = JSON.parse(readFileSync(configPath, 'utf8')) as {
+      paths?: Record<string, unknown>;
+    } | null;
   } catch {
     return undefined;
   }
 
-  const raw = parsed.paths?.[key];
+  const raw = parsed?.paths?.[key];
   if (typeof raw !== 'string' || raw.length === 0) return undefined;
   return raw;
 }

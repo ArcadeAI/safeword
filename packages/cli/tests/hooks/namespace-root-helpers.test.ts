@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   isNamespacePath,
+  readConfiguredPathValue,
   resolveOwningProjectDirectory,
   resolveToolProjectDirectory,
   resolveWorkingProjectDirectory,
@@ -191,4 +192,34 @@ describe('resolveWorkingProjectDirectory (#5361)', () => {
     expect(resolveWorkingProjectDirectory(launch, launch)).toBe(launch);
     expect(resolveWorkingProjectDirectory(launch, root)).toBe(launch);
   });
+});
+
+describe('readConfiguredPathValue (#5373)', () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = createTemporaryDirectory();
+    mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+  });
+
+  afterEach(() => {
+    removeTemporaryDirectory(root);
+  });
+
+  const writeConfig = (content: string) => {
+    writeFileSync(nodePath.join(root, '.safeword', 'config.json'), content);
+  };
+
+  it('returns the configured path', () => {
+    writeConfig(JSON.stringify({ paths: { projectRoot: 'docs/project' } }));
+    expect(readConfiguredPathValue(root, 'projectRoot')).toBe('docs/project');
+  });
+
+  it.each(['null', '42', '"text"', '[]', '{"paths":null}', '{"paths":"x"}', '{not json'])(
+    'falls back to defaults for config.json containing %s',
+    content => {
+      writeConfig(content);
+      expect(readConfiguredPathValue(root, 'projectRoot')).toBeUndefined();
+    },
+  );
 });
