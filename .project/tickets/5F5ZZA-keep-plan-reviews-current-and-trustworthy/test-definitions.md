@@ -658,7 +658,7 @@ scenario and remaining Product/Execution actor paths are still open.
 
 ### Scenario: Generated Codex Cloud instructions cannot claim a gated approval
 
-- [ ] RED
+- [x] RED 5b965631f3417952425f2549aca7e1ca6c422b7e
 - [ ] GREEN
 - [ ] REFACTOR
 
