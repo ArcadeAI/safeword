@@ -28,7 +28,7 @@ import {
 import { computeSkipMask, parseHeading } from '../utils/markdown-sections.js';
 import { retryCommand } from './command.js';
 import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
-import { prepareReviewPacket } from './packet.js';
+import { prepareReviewPacket, toReviewPath } from './packet.js';
 import { reviewWorkerRunBoundMs } from './runtime.js';
 
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
@@ -135,6 +135,27 @@ function hasValidIntegrity(cwd: string, record: ReviewJobRecord): boolean {
 function withRecordIntegrity(cwd: string, record: ReviewJobRecord): ReviewJobRecord {
   const unsigned = { ...record, integrity: undefined };
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
+}
+
+/** Bind a completed CKWE2D replay to the same profile-owned review key. */
+export function retrospectiveCloseTag(cwd: string, content: string): string {
+  return createHmac('sha256', readOrCreateIntegrityKey())
+    .update(realpathSync.native(cwd))
+    .update('\0retrospective-close\0')
+    .update(content)
+    .digest('hex');
+}
+
+export function validRetrospectiveCloseTag(cwd: string, content: string, tag: string): boolean {
+  if (!/^[a-f\d]{64}$/u.test(tag)) return false;
+  try {
+    return timingSafeEqual(
+      Buffer.from(tag, 'hex'),
+      Buffer.from(retrospectiveCloseTag(cwd, content), 'hex'),
+    );
+  } catch {
+    return false;
+  }
 }
 
 interface LedgerFingerprintContext {
@@ -737,7 +758,7 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
   } catch {
     return staleResult(record);
   }
-  if (record.result !== undefined) return withReviewProvenance(record, record.result);
+  if (record.result !== undefined) return withReviewProvenance(cwd, record, record.result);
   return createResult({
     state: 'failed',
     errors: [
@@ -751,11 +772,29 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
  * Name the review behind a terminal verdict (ticket PB1GMZ). The agent that
  * stamps a phase or artifact has to cite the review that approved it, and until
  * this the happy path was the one result that never carried its own id — only
- * the pending and failed paths did. `kind` and `targets` come from the same
- * integrity-checked record, so a stamp can be bound to what was actually
- * reviewed rather than to the agent's account of it.
+ * the pending and failed paths did. `kind` and effective targets come from
+ * the integrity-checked record and its excluded-target report, so a stamp
+ * names what the reviewer actually saw.
  */
-function withReviewProvenance(record: ReviewJobRecord, result: CliResult): CliResult {
+function effectiveReviewTargets(
+  cwd: string,
+  record: ReviewJobRecord,
+): readonly string[] | undefined {
+  const data = record.result?.data;
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return record.targets;
+  const excluded = (data as Record<string, unknown>).excluded_targets;
+  if (excluded === undefined) return record.targets;
+  if (!Array.isArray(excluded) || excluded.some(target => typeof target !== 'string'))
+    return undefined;
+  const excludedPaths = new Set<string>(excluded);
+  const root = realpathSync.native(cwd);
+  return record.targets.filter(target => {
+    const relative = nodePath.relative(root, nodePath.resolve(root, target));
+    return !excludedPaths.has(toReviewPath(relative));
+  });
+}
+
+function withReviewProvenance(cwd: string, record: ReviewJobRecord, result: CliResult): CliResult {
   const data =
     typeof result.data === 'object' && result.data !== null && !Array.isArray(result.data)
       ? (result.data as Record<string, unknown>)
@@ -766,7 +805,7 @@ function withReviewProvenance(record: ReviewJobRecord, result: CliResult): CliRe
       ...data,
       review_id: record.id,
       review_kind: record.kind,
-      review_targets: record.targets,
+      review_targets: effectiveReviewTargets(cwd, record) ?? [],
     },
   };
 }
@@ -1392,6 +1431,26 @@ function hasCurrentFingerprint(cwd: string, record: ReviewJobRecord): boolean {
     );
   } catch {
     return false;
+  }
+}
+
+/** Authenticated review identity for the CKWE2D migration gate. */
+export function approvedRetrospectiveReview(
+  cwd: string,
+  id: string,
+  kind: 'retrospective-eligibility' | 'retrospective-proof',
+): readonly string[] | undefined {
+  try {
+    const record = readJob(cwd, id);
+    const data = record.result?.data as Record<string, unknown> | undefined;
+    return record.kind === kind &&
+      record.state === 'completed' &&
+      hasCurrentFingerprint(cwd, record) &&
+      hasIndependentApproval(data)
+      ? effectiveReviewTargets(cwd, record)
+      : undefined;
+  } catch {
+    return undefined;
   }
 }
 

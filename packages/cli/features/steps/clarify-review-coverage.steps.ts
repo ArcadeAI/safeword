@@ -946,7 +946,7 @@ function assertSuccessfulHelpMode(result: CliExecution): void {
   assert.equal(result.exitCode, 0);
   assert.equal(result.stderr, '');
   for (const requiredLine of [
-    'Usage: safeword review run [options] <kind> <targets...>',
+    'Usage: safeword review run [options] <kind> [targets...]',
     'Run an independent adversarial review',
     '--json',
     '--no-input',

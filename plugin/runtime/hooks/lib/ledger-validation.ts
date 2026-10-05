@@ -10,6 +10,7 @@ import {
   parseCheckboxAnnotation,
   type CheckboxAnnotation,
 } from './parse-annotation.js';
+import { parseRetrospectiveAnnotation } from './retrospective-annotation.js';
 
 export interface LedgerValidationResult {
   ok: boolean;
@@ -24,6 +25,7 @@ interface ScenarioLedger {
   red?: CheckboxAnnotation;
   green?: CheckboxAnnotation;
   refactor?: CheckboxAnnotation;
+  verified?: CheckboxAnnotation;
 }
 
 function parseLedger(content: string): {
@@ -36,7 +38,7 @@ function parseLedger(content: string): {
   let crossScenario: CheckboxAnnotation | undefined;
 
   for (const line of lines) {
-    const scenarioMatch = /^#{2,3}\s+Scenario:\s*(.+)$/.exec(line);
+    const scenarioMatch = /^#{2,6}\s+Scenario:\s*(.+)$/.exec(line);
     if (scenarioMatch) {
       current = { name: (scenarioMatch[1] ?? '').trim() };
       scenarios.push(current);
@@ -52,6 +54,7 @@ function parseLedger(content: string): {
       if (parsed.step === 'RED') current.red = parsed;
       else if (parsed.step === 'GREEN') current.green = parsed;
       else if (parsed.step === 'REFACTOR') current.refactor = parsed;
+      else if (parsed.step === 'VERIFIED') current.verified = parsed;
     }
   }
 
@@ -93,6 +96,13 @@ function validateScenario(
   resolveSha: ShaResolver,
   errors: string[],
 ): void {
+  if (scenario.verified?.checked) {
+    const parsed = parseRetrospectiveAnnotation(`- [x] VERIFIED ${scenario.verified.annotation}`);
+    if (parsed?.kind !== 'claim') {
+      errors.push(`Scenario "${scenario.name}" has malformed VERIFIED receipt identities.`);
+    }
+    return;
+  }
   const steps: Array<{ name: string; box?: CheckboxAnnotation }> = [
     { name: 'RED', box: scenario.red },
     { name: 'GREEN', box: scenario.green },
@@ -205,7 +215,7 @@ export function wholeTicketPassApplies(content: string): boolean {
  */
 function wholeTicketPassFromScenarios(scenarios: ScenarioLedger[]): boolean {
   const hasAnyAnnotation = scenarios.some(s =>
-    [s.red, s.green, s.refactor].some(box => box?.annotation),
+    [s.red, s.green, s.refactor, s.verified].some(box => box?.annotation),
   );
   return scenarios.length >= 2 && hasAnyAnnotation;
 }

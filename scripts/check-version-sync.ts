@@ -103,7 +103,7 @@ if (
 }
 
 for (const [manifestEvent, cliEvent] of Object.entries(CODEX_HOOK_EVENTS)) {
-  const expectedCommand = `bun "\${PLUGIN_ROOT}/runtime/cli.js" hook codex ${cliEvent} --plugin-hook`;
+  const expectedCommand = `bun --no-env-file --cwd "\${PLUGIN_ROOT}" "\${PLUGIN_ROOT}/runtime/cli.js" hook codex ${cliEvent} --plugin-hook`;
   const commands = getHookCommands(codexHooks, manifestEvent);
   if (commands.length !== 1 || commands[0] !== expectedCommand) {
     fail(

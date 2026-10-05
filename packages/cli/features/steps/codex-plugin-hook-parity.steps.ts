@@ -814,7 +814,7 @@ Then(
     for (const command of commands) {
       assert.match(
         command,
-        /^bun "\$\{PLUGIN_ROOT\}\/runtime\/cli\.js" hook codex [a-z-]+ --plugin-hook$/u,
+        /^bun --no-env-file --cwd "\$\{PLUGIN_ROOT\}" "\$\{PLUGIN_ROOT\}\/runtime\/cli\.js" hook codex [a-z-]+ --plugin-hook$/u,
       );
       assert.doesNotMatch(command, /\b(?:bunx|npx)\b/u);
     }
