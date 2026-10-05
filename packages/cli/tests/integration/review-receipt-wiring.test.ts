@@ -177,6 +177,7 @@ describe('review-receipt wiring (write-review-stamp.ts ↔ review status --json)
       review_kind: 'quality-review',
       review_targets: [source],
       excluded_targets: [generated],
+      review_excluded_targets: [generated],
     });
     const prior = process.env.CLAUDE_PLUGIN_ROOT;
     process.env.CLAUDE_PLUGIN_ROOT = pluginRoot;
@@ -202,10 +203,22 @@ describe('review-receipt wiring (write-review-stamp.ts ↔ review status --json)
     }
   });
 
+  it('does not treat legacy raw exclusions as authenticated coverage waivers', () => {
+    stubCoordinator({ ...approvedEnvelope, excluded_targets: ['src/unreviewed.ts'] });
+    const prior = process.env.CLAUDE_PLUGIN_ROOT;
+    process.env.CLAUDE_PLUGIN_ROOT = pluginRoot;
+    try {
+      expect(readReviewReceipt(REVIEW_ID, projectRoot)?.excludedTargets).toBeUndefined();
+    } finally {
+      if (prior === undefined) delete process.env.CLAUDE_PLUGIN_ROOT;
+      else process.env.CLAUDE_PLUGIN_ROOT = prior;
+    }
+  });
+
   it.each(['plugin/runtime/cli.js', ['plugin/runtime/cli.js', 7]])(
     'rejects malformed coordinator exclusion scope %j',
-    excluded_targets => {
-      stubCoordinator({ ...approvedEnvelope, excluded_targets });
+    review_excluded_targets => {
+      stubCoordinator({ ...approvedEnvelope, review_excluded_targets });
       const prior = process.env.CLAUDE_PLUGIN_ROOT;
       process.env.CLAUDE_PLUGIN_ROOT = pluginRoot;
       try {

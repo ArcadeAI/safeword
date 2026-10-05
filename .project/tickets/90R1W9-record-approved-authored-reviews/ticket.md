@@ -56,4 +56,29 @@ their generated classification invalidates the review's effective scope.
 
 - 2026-10-05T19:40:29.941Z Started: Created ticket 90R1W9.
 
-**Next:** Review intake, then add failing receipt regressions before editing helpers.
+## Implementation evidence
+
+- Intake review 1303122e independently approved by Claude/Opus, normally stamped before implementation.
+- Genuine RED: /tmp/approval-exclusions-red.log (two coverage/reader failures); /tmp/approval-exclusions-classification-red.log (unclassified exclusion); /tmp/approval-exclusions-schema-red.log (invalid provenance shape).
+- Current targeted proof: 185/185 in /tmp/approval-exclusions-targeted-final.log before schema extension.
+- Independent source reviews 100b3c43 and d0de462c approved. Addressed warnings by reusing the packet classification already computed for freshness and adding real source CLI status-to-reader-to-gate coverage.
+- Legacy scope is fail closed: only `review_excluded_targets` carries authenticated current exclusions; the old raw field remains unchanged and cannot waive coverage.
+- Classifier requires oversized AND generated AND regular, with committed attributes. Every non-ticket authored changed file still needs review. Excluded bytes get no review credit; content-only changes to still-generated exclusions are intentional. Exact normalized lexical paths support dot/absolute aliases without widening directory coverage; case differences fail closed.
+- Checkpoint fa298f4b6 was required by LOC guard while provenance-field integration was incomplete; not claimed green. Final verification follows the completed reader/schema integration.
+- Pinned Bun 1.3.14 is used without replacing global Bun 1.4.0. Generated lifecycle result hashes remain unchanged; tree hashes reflect template bytes.
+
+## Final verification and review responses
+
+- Full frozen suite passed: CLI 609 files / 10,453 tests / 14 expected skips, relay 198 tests / one expected skip, collector 153 tests. Evidence: /tmp/approval-exclusions-full.log. Targeted coordinator, reader, gate, schema and CLI contract tests passed 259/259 in /tmp/approval-exclusions-targeted-contract.log.
+- Root lint and typecheck passed; all five generated surfaces, supported parity sync and version-sync passed with pinned Bun 1.3.14. Lifecycle result hashes are unchanged.
+- Independent review 88d593cf approved production source and contract tests; supplementary review 7269afde approved the final schema fixture and documentation. Both were actual separate Claude/Opus processes with no errors.
+- Nested-project warning is answered by currentWorkFiles: both Git diff calls explicitly use --relative, and untracked ls-files paths are project-relative. The new exact-file exclusion uses that same project base. No speculative path rewrite was introduced.
+- The schema's completed-review requirement for raw excluded_targets predates this change. The diff adds only an optional, typed review_excluded_targets field; legacy receipts remain valid and cannot waive coverage.
+- Schema shape tests intentionally do not authorize exclusions. Coordinator classification, real source CLI status-to-reader-to-gate, malformed/legacy receipt, stale result and uncovered authored-file tests separately cover the trust decisions.
+- Regenerated plugin/runtime/cli.js read actual review 7269afde as approved with review_excluded_targets:[]; installed 1.0.0 read the same authenticated job approved without the field. Logs: /tmp/approval-exclusions-bundled-status.json and /tmp/approval-exclusions-installed-status.json. Installation was not changed. Exclusion-aware recording requires deployment of this fix; older verifiers remain strict.
+
+- Release packaging passed 13 files / 81 tests in /tmp/approval-exclusions-release.log. Final read-only generated and parity gates passed all five surfaces, 268 pairs and 11 contracts.
+- Complete changed-file independent review f7f7e7ee approved with no errors and classified exactly the two generated runtime bundles as verified exclusions. Its missing-classification-loss-test warning was addressed by shrinking an excluded file and asserting stale status, then restoring it for the tamper test. Current job tests passed 76/76 in /tmp/approval-exclusions-freshness-final.log. This final change was test-only; production bytes remain identical to the successful full suite.
+- Committed generated attributes remain the established classification policy; attribute changes themselves require authored review. Generated equivalence is separately enforced by the five-surface and parity gates. No generic sandbox or new reclassification workflow was introduced. A malformed route may fall through only to another authenticated, well-formed status route.
+
+**Next:** Publish the scoped Draft PR for current-head CI and configured review. Do not merge or release, alter #2121 historical claims, or claim installed activation. The installed legacy verifier may still reject the normal implement stamp until this fix is deployed; it must not be bypassed.

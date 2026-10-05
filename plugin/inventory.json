@@ -343,7 +343,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "c6218a848f72df47f47b6ff39e16ce33fbe3187986d4833c692936467ac31c89"
+      "sha256": "b27cf9028d662dbfc6ed251bbdd985db96cbe277f2b5491c057f677691d9db55"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -1283,7 +1283,7 @@
     },
     {
       "path": "templates/hooks/lib/read-receipt.ts",
-      "sha256": "c6218a848f72df47f47b6ff39e16ce33fbe3187986d4833c692936467ac31c89"
+      "sha256": "b27cf9028d662dbfc6ed251bbdd985db96cbe277f2b5491c057f677691d9db55"
     },
     {
       "path": "templates/hooks/lib/readiness-pointer.ts",

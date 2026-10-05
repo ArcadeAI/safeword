@@ -70,12 +70,13 @@ export function readReviewReceipt(
 
     const text = (field: string): string | undefined =>
       typeof data[field] === 'string' ? (data[field] as string) : undefined;
-    // Never salvage a partially malformed exclusion list: it is authorization
-    // scope, supplied only by the authenticated coordinator status route.
+    // Only status provenance may waive coverage. Legacy raw excluded_targets
+    // describe packet output without this verification contract. Never salvage
+    // a partially malformed verified list: it is authorization scope.
     if (
-      data.excluded_targets !== undefined &&
-      (!Array.isArray(data.excluded_targets) ||
-        data.excluded_targets.some(target => typeof target !== 'string'))
+      data.review_excluded_targets !== undefined &&
+      (!Array.isArray(data.review_excluded_targets) ||
+        data.review_excluded_targets.some(target => typeof target !== 'string'))
     )
       continue;
     const receipt = {
@@ -85,7 +86,7 @@ export function readReviewReceipt(
       targets: Array.isArray(data.review_targets)
         ? data.review_targets.filter(target => typeof target === 'string')
         : [],
-      excludedTargets: data.excluded_targets as string[] | undefined,
+      excludedTargets: data.review_excluded_targets as string[] | undefined,
       independence: text('independence'),
       authorAgent: text('author_agent'),
       actualReviewer: text('actual_reviewer'),

@@ -388,7 +388,10 @@ describe('durable review jobs', () => {
       ],
     });
 
-    expect(result.data).toMatchObject({ review_targets: ['input.md'], excluded_targets: [] });
+    expect(result.data).toMatchObject({
+      review_targets: ['input.md'],
+      review_excluded_targets: [],
+    });
     const id = (result.data as { review_id: string }).review_id;
     expect(approvedRetrospectiveReview(cwd, id, 'retrospective-eligibility')).toEqual(['input.md']);
   });
@@ -435,6 +438,7 @@ describe('durable review jobs', () => {
       status: 'approved',
       review_targets: ['input.md'],
       excluded_targets: ['generated.js'],
+      review_excluded_targets: ['generated.js'],
     });
     const id = (result.data as { review_id: string }).review_id;
     const pluginRoot = createTrustedReviewerDirectory('receipt-real-cli-');
@@ -463,6 +467,9 @@ describe('durable review jobs', () => {
       status: 'approved',
       excluded_targets: ['generated.js'],
     });
+    writeFileSync(nodePath.join(cwd, 'generated.js'), 'now an eligible authored target');
+    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'stale' });
+    writeFileSync(nodePath.join(cwd, 'generated.js'), 'y'.repeat(256 * 1024 + 1));
     const path = nodePath.join(cwd, '.safeword/state/reviews', `${id}.json`);
     const record = JSON.parse(readFileSync(path, 'utf8'));
     record.result.data.excluded_targets.push('input.md');
