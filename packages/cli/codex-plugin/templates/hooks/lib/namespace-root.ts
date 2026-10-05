@@ -30,7 +30,34 @@ export function hasSafewordProjectMarker(projectDirectory: string): boolean {
  */
 export function resolveOwningProjectDirectory(launchDirectory: string, filePath: string): string {
   if (filePath === '') return launchDirectory;
-  let directory = nodePath.dirname(filePath);
+  return resolveDirectoryOwner(launchDirectory, nodePath.dirname(filePath));
+}
+
+/**
+ * The project a hook should gate or record against for one tool call. Edits
+ * resolve from the edited file (#5247); shell commands have no edited file, so
+ * they resolve from the host-reported shell `cwd` — otherwise a session inside
+ * `.claude/worktrees/<name>` would have its PR-readiness gate and its readiness
+ * receipt read and written in the launch checkout. Pre- and post-tool hooks
+ * share this so the gate reads exactly where the observer wrote.
+ */
+export function resolveToolProjectDirectory(
+  launchDirectory: string,
+  call: { tool: string; editedFile: string; cwd: string | undefined },
+): string {
+  if (EDIT_TOOL_NAMES.has(call.tool)) {
+    return resolveOwningProjectDirectory(launchDirectory, call.editedFile);
+  }
+  if (call.tool === 'Bash' && call.cwd !== undefined && call.cwd !== '') {
+    return resolveDirectoryOwner(launchDirectory, nodePath.resolve(launchDirectory, call.cwd));
+  }
+  return launchDirectory;
+}
+
+const EDIT_TOOL_NAMES = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+
+function resolveDirectoryOwner(launchDirectory: string, startDirectory: string): string {
+  let directory = startDirectory;
   for (;;) {
     if (existsSync(nodePath.join(directory, '.git'))) {
       const owns = hasSafewordProjectMarker(directory);

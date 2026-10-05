@@ -264,6 +264,103 @@ function expectDenied(host: Host, output: ClaudeHookOutput | CursorHookOutput): 
   expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).toBe('deny');
 }
 
+interface WorktreeSession {
+  launchDirectory: string;
+  worktreeDirectory: string;
+}
+
+/**
+ * A launch checkout whose session moved into an enrolled `.claude/worktrees/<name>`
+ * worktree. Claude Code keeps CLAUDE_PROJECT_DIR at the launch checkout, so the
+ * hooks only learn where the work lives from the edited path or the shell cwd.
+ */
+function worktreeSession(): WorktreeSession {
+  const launchDirectory = unfinishedProject();
+  const worktreeDirectory = nodePath.join(launchDirectory, '.claude/worktrees/wt');
+  execFileSync('git', ['worktree', 'add', '-q', '-b', 'wt', worktreeDirectory], {
+    cwd: launchDirectory,
+    stdio: 'ignore',
+  });
+  return { launchDirectory, worktreeDirectory };
+}
+
+function runClaudeHookFromLaunch(
+  hook: string,
+  launchDirectory: string,
+  input: Record<string, unknown>,
+): ClaudeHookOutput {
+  const environment: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: launchDirectory };
+  delete environment.SAFEWORD_PLUGIN_CLI;
+  const result = spawnSync('bun', [hook], {
+    cwd: launchDirectory,
+    env: environment,
+    input: JSON.stringify({ session_id: 'claude-test', ...input }),
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  expect(result.status, result.stderr).toBe(0);
+  return result.stdout.trim() === '' ? {} : (JSON.parse(result.stdout) as ClaudeHookOutput);
+}
+
+/** Close the worktree's ticket with valid verification, as a session inside it would. */
+function closeTicketInWorktree({ launchDirectory, worktreeDirectory }: WorktreeSession): void {
+  const observeEdit = (editedPath: string) =>
+    runClaudeHookFromLaunch(POST_TOOL_QUALITY, launchDirectory, {
+      cwd: worktreeDirectory,
+      tool_name: 'Edit',
+      tool_input: { file_path: nodePath.join(worktreeDirectory, editedPath) },
+    });
+  writeTestFile(worktreeDirectory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
+  observeEdit(VERIFY_PATH);
+  writeTicket(worktreeDirectory, 'done', 'done');
+  observeEdit(TICKET_PATH);
+  commitAll(worktreeDirectory, 'close ticket');
+  runClaudeHookFromLaunch(POST_TOOL_QUALITY, launchDirectory, {
+    cwd: worktreeDirectory,
+    tool_name: 'Bash',
+    tool_input: { command: 'git commit -m "close ticket"' },
+  });
+}
+
+function runReadyFromLaunch(launchDirectory: string, shellDirectory: string): ClaudeHookOutput {
+  return runClaudeHookFromLaunch(PRE_TOOL_QUALITY, launchDirectory, {
+    cwd: shellDirectory,
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Bash',
+    tool_input: { command: 'gh pr ready' },
+  });
+}
+
+describe('pull-request readiness from a session inside a nested worktree', () => {
+  it('allows Ready when the shell works in a worktree whose ticket is verified done', () => {
+    const session = worktreeSession();
+    closeTicketInWorktree(session);
+
+    const output = runReadyFromLaunch(session.launchDirectory, session.worktreeDirectory);
+
+    expect(output).toEqual({});
+  });
+
+  it('still denies Ready when the shell works in the unfinished launch checkout', () => {
+    const session = worktreeSession();
+    closeTicketInWorktree(session);
+
+    const output = runReadyFromLaunch(session.launchDirectory, session.launchDirectory);
+
+    expectDenied('Claude Code', output);
+    expect(denialReason('Claude Code', output)).toContain('implementation');
+  });
+
+  it('still denies Ready when the worktree ticket is unfinished', () => {
+    const session = worktreeSession();
+
+    const output = runReadyFromLaunch(session.launchDirectory, session.worktreeDirectory);
+
+    expectDenied('Claude Code', output);
+    expect(denialReason('Claude Code', output)).toContain('implementation');
+  });
+});
+
 describe('pull-request readiness delivery gate', () => {
   it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
     'allows Ready commands in repositories that are not enrolled on %s',
