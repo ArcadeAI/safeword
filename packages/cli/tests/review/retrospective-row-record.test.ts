@@ -26,23 +26,41 @@ import { scenarioBodyDigest } from '../../src/review/retrospective-scenario-body
 
 // These collaborators isolate replay-record orchestration, not actor behavior,
 // review independence, historical eligibility, or the two-copy proof runner.
-const replay = vi.hoisted(() => ({ calls: 0, observation: {}, feature: '' }));
+const replay = vi.hoisted(() => ({
+  calls: 0,
+  observation: {},
+  feature: '',
+  commit: '',
+  dirty: false,
+  advanceDuringReplay: false,
+  absoluteTargets: false,
+}));
 vi.mock('node:child_process', async original => ({
   ...(await original<typeof ChildProcess>()),
   spawnSync: () => ({ status: 0, stdout: replay.feature }),
 }));
 vi.mock('../../src/review/job.js', async original => ({
   ...(await original<typeof ReviewJob>()),
-  approvedRetrospectiveReview: (_root: string, id: string) =>
-    ({ eligibility: ['eligibility.json'], proof: ['proof.json', 'observation.json'] })[id],
+  approvedRetrospectiveReview: (_root: string, id: string) => {
+    const targets = {
+      [claim.eligibilityId]: ['eligibility.json'],
+      [claim.proofId]: ['proof.json', 'observation.json'],
+    }[id];
+    return targets?.map(target => (replay.absoluteTargets ? path.join(_root, target) : target));
+  },
 }));
 vi.mock('../../src/review/retrospective-prerequisites.js', () => ({
   checkRetrospectivePrerequisites: () => ({ eligibleForReview: true }),
 }));
 vi.mock('../../src/review/retrospective-proof.js', async original => ({
   ...(await original<typeof Proof>()),
+  currentProofCommit: () => {
+    if (replay.dirty) throw new Error('Commit tracked changes before running retrospective proof.');
+    return replay.commit;
+  },
   runRetrospectiveProof: () => {
     replay.calls += 1;
+    if (replay.advanceDuringReplay) replay.commit = 'b'.repeat(40);
     return replay.observation;
   },
 }));
@@ -51,8 +69,8 @@ const claim = {
   ticketId: 'CKWE2D',
   ledger: RETROSPECTIVE_LEDGER,
   scenario: 'Example',
-  eligibilityId: 'eligibility',
-  proofId: 'proof',
+  eligibilityId: '11111111-1111-4111-8111-111111111111',
+  proofId: '22222222-2222-4222-8222-222222222222',
 };
 const implementation = 'packages/cli/src/example.ts';
 const test = 'packages/cli/tests/example.test.ts';
@@ -72,6 +90,10 @@ describe('retrospective row replay record', () => {
     previousKeyRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
     process.env.SAFEWORD_REVIEW_KEY_ROOT = path.join(root, 'profile');
     replay.calls = 0;
+    replay.commit = 'a'.repeat(40);
+    replay.dirty = false;
+    replay.advanceDuringReplay = false;
+    replay.absoluteTargets = false;
     replay.feature =
       'Feature: Example\n  Scenario: Example\n    Given a behavior\n    Then it holds\n';
     put(RETROSPECTIVE_FEATURE, replay.feature);
@@ -110,6 +132,7 @@ describe('retrospective row replay record', () => {
     };
     put('proof.json', JSON.stringify(request));
     replay.observation = {
+      commit: replay.commit,
       request,
       argv: ['bun', 'run', 'test'],
       cwd: 'packages/cli',
@@ -133,6 +156,12 @@ describe('retrospective row replay record', () => {
     if (previousKeyRoot === undefined) delete process.env.SAFEWORD_REVIEW_KEY_ROOT;
     else process.env.SAFEWORD_REVIEW_KEY_ROOT = previousKeyRoot;
     rmSync(root, { recursive: true, force: true });
+  });
+
+  it('accepts approved absolute targets inside the project', () => {
+    replay.absoluteTargets = true;
+    expect(attestRetrospectiveRow(root, claim).state).toBe('changed');
+    expect(retrospectiveGate(root, claim).state).toBe('healthy');
   });
 
   it.each([test, implementation])(
@@ -168,6 +197,23 @@ describe('retrospective row replay record', () => {
     } finally {
       rmSync(other, { recursive: true, force: true });
     }
+  });
+
+  it.each(['commit', 'working tree'] as const)(
+    'rejects undeclared source drift in the %s',
+    mode => {
+      expect(attestRetrospectiveRow(root, claim).state).toBe('changed');
+      if (mode === 'commit') replay.commit = 'b'.repeat(40);
+      else replay.dirty = true;
+      expect(retrospectiveGate(root, claim).state).toBe('action_required');
+      expect(replay.calls).toBe(1);
+    },
+  );
+
+  it('does not attest when the source commit changes during replay', () => {
+    replay.advanceDuringReplay = true;
+    expect(attestRetrospectiveRow(root, claim).state).toBe('action_required');
+    expect(retrospectiveGate(root, claim).state).toBe('action_required');
   });
 
   it('rejects a forged record and changed reviewed observation', () => {

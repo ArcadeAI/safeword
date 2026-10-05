@@ -10,6 +10,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 
 import { parseCheckboxAnnotation } from './parse-annotation.js';
+import {
+  parseRetrospectiveAnnotation,
+  type RetrospectiveAnnotation,
+} from './retrospective-annotation.js';
 
 export interface CheckboxTransition {
   step: string;
@@ -18,6 +22,8 @@ export interface CheckboxTransition {
   evidenceMode?: 'live' | 'manual';
   evidenceModeChanged?: boolean;
   historicalEvidenceRemoved?: boolean;
+  editReconstructionFailed?: boolean;
+  retrospective?: RetrospectiveAnnotation;
 }
 
 export interface TransitionHookInput {
@@ -27,7 +33,7 @@ export interface TransitionHookInput {
     new_string?: string;
     content?: string;
     replace_all?: boolean;
-    edits?: Array<{ old_string?: string; new_string?: string }>;
+    edits?: Array<{ old_string?: string; new_string?: string; replace_all?: boolean }>;
   };
 }
 
@@ -82,7 +88,12 @@ function checkboxStates(text: string): CheckboxState[] {
     if (heading !== null) {
       scenario = heading[1]?.length === 1 ? undefined : heading[2]?.trim();
     }
-    const parsed = parseCheckboxAnnotation(line);
+    const retrospective = parseRetrospectiveAnnotation(line);
+    const parsed =
+      parseCheckboxAnnotation(line) ??
+      (retrospective?.kind === 'invalid'
+        ? { step: 'VERIFIED' as const, checked: /^\s*- \[[xX]\]/u.test(line), annotation: '' }
+        : null);
     if (parsed === null) continue;
     const match =
       parsed.step === 'RED' && parsed.checked
@@ -96,6 +107,7 @@ function checkboxStates(text: string): CheckboxState[] {
     states.push({
       ...parsed,
       scenario,
+      ...(parsed.step === 'VERIFIED' && { retrospective }),
       ...((mode === 'manual' || mode === 'live') && { evidenceMode: mode }),
     });
   }
@@ -145,6 +157,10 @@ function findTransitions(
       renamedScenarioOrigins.has(newScenario) &&
       renamedScenarioOrigins.get(newScenario) === oldScenario);
   const priorEvidenceModeByScenario = new Map<string | undefined, 'live' | 'manual'>();
+  const sameEvidenceBinding = (old: CheckboxState, next: CheckboxState): boolean =>
+    old.step === 'VERIFIED'
+      ? old.scenario === next.scenario && next.retrospective?.kind === 'claim'
+      : sameScenario(old.scenario, next.scenario);
   for (const state of checkboxStates(evidenceBaseline)) {
     if (state.step === 'RED' && state.checked && state.evidenceMode !== undefined) {
       priorEvidenceModeByScenario.set(state.scenario, state.evidenceMode);
@@ -174,7 +190,7 @@ function findTransitions(
         newState.step === oldState.step &&
         newState.checked &&
         newState.annotation === oldState.annotation &&
-        sameScenario(oldState.scenario, newState.scenario),
+        sameEvidenceBinding(oldState, newState),
     );
     if (preservedIndex >= 0) preservedHistoricalRows.add(preservedIndex);
     else {
@@ -199,7 +215,7 @@ function findTransitions(
         old.checked === checked &&
         old.step === state.step &&
         (!exactAnnotation || old.annotation === state.annotation) &&
-        (!exactScenario || sameScenario(old.scenario, state.scenario)),
+        (!exactScenario || sameEvidenceBinding(old, state)),
     );
     if (index < 0) return undefined;
     usedOld.add(index);
@@ -260,6 +276,7 @@ function findTransitions(
       evidenceMode,
       evidenceModeChanged,
       historicalEvidenceRemoved,
+      retrospective,
     }) => ({
       step,
       annotation,
@@ -270,6 +287,7 @@ function findTransitions(
       evidenceMode,
       evidenceModeChanged,
       historicalEvidenceRemoved,
+      ...(retrospective !== undefined && { retrospective }),
     }),
   );
 }
@@ -370,15 +388,22 @@ export function collectNewTransitions(
     const baseline = existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
     let current = baseline;
     const transitions: CheckboxTransition[] = [];
+    let headingsChanged = false;
     for (const edit of edits) {
-      const applied = transitionsForAppliedEdit(
-        current,
-        edit.old_string ?? '',
-        edit.new_string ?? '',
-        baseline,
-      );
-      current = applied.next;
-      transitions.push(...applied.transitions);
+      const oldText = edit.old_string ?? '';
+      const newText = edit.new_string ?? '';
+      const next =
+        edit.replace_all === true && oldText !== '' && current.includes(oldText)
+          ? current.replaceAll(oldText, newText)
+          : applyUniqueEdit(current, oldText, newText);
+      if (next === undefined) return [{ step: '', annotation: '', editReconstructionFailed: true }];
+      headingsChanged ||=
+        JSON.stringify([...countScenarioHeadings(current)]) !==
+        JSON.stringify([...countScenarioHeadings(next)]);
+      // A heading may now name a different original scenario. Require a separate
+      // tool call before granting any on-disk manual/live exemption after a rename.
+      transitions.push(...findTransitions(current, next, headingsChanged ? '' : baseline));
+      current = next;
     }
     return transitions;
   }

@@ -47,6 +47,26 @@ describe('retrospective scenario source identity', () => {
     );
   });
 
+  it('binds tags immediately before the selected scenario', () => {
+    const tagged = feature.replace(
+      '    Scenario: nested project',
+      '    @wip\n    Scenario: nested project',
+    );
+    expect(scenarioBodyDigest(tagged, 'nested project')).not.toBe(
+      scenarioBodyDigest(feature, 'nested project'),
+    );
+  });
+
+  it('keeps the next scenario tags out of the preceding scenario identity', () => {
+    const tagged = feature.replace(
+      '    Scenario Outline: alias resolution',
+      '    @manual\n    Scenario Outline: alias resolution',
+    );
+    expect(scenarioBodyDigest(tagged, 'nested project')).toBe(
+      scenarioBodyDigest(feature, 'nested project'),
+    );
+  });
+
   it('includes Scenario Outline example rows', () => {
     const changed = feature.replace('| link |', '| other |');
     expect(scenarioBodyDigest(changed, 'alias resolution')).not.toBe(

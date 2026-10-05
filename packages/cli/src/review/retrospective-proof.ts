@@ -273,6 +273,16 @@ function requireDigests(
   if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(message);
 }
 
+/** Identify the clean committed source used to build the replay archives. */
+export function currentProofCommit(root: string): string {
+  const commit = git(root, ['rev-parse', '--verify', 'HEAD^{commit}']).toString('utf8').trim();
+  const trackedChanges = git(root, ['status', '--porcelain', '--untracked-files=no']);
+  if (trackedChanges.toString('utf8').trim() !== '') {
+    throw new Error('Commit tracked changes before running retrospective proof.');
+  }
+  return commit;
+}
+
 /**
  * Observe both executions only. This result is not a receipt and cannot authorize VERIFIED.
  * The coordinator must bind it to independent reviews before either gate may consume it.
@@ -287,11 +297,7 @@ export function runRetrospectiveProof(
   if (nodePath.resolve(repoRoot) !== root) {
     throw new Error('Retrospective proof requires the Git repository root.');
   }
-  const commit = git(root, ['rev-parse', '--verify', 'HEAD^{commit}']).toString('utf8').trim();
-  const trackedChanges = git(root, ['status', '--porcelain', '--untracked-files=no']);
-  if (trackedChanges.toString('utf8').trim() !== '') {
-    throw new Error('Commit tracked changes before running retrospective proof.');
-  }
+  const commit = currentProofCommit(root);
   const inputs = [request.testFile, request.implementationPath, ...request.supportFiles];
   const supportSha256: Record<string, string> = {};
   for (const path of inputs) {

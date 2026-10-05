@@ -17,7 +17,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
 import { applyCodexFinalization } from '../../src/codex-plugin/finalization.js';
-import { codexMarketplaceReplacementOperation } from '../../src/codex-plugin/migration-error.js';
 import { acquireCodexProfileLock } from '../../src/codex-plugin/profile-lock.js';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
@@ -817,7 +816,7 @@ command = 'echo "keep this user hook"'
           {
             kind: 'replace',
             target: 'Safeword Codex marketplace',
-            operation: codexMarketplaceReplacementOperation(),
+            operation: REQUIRED_MARKETPLACE_REF === 'stable' ? 'stable-channel' : 'prerelease-tag',
           },
         ],
       },
@@ -895,7 +894,7 @@ command = 'echo "keep this user hook"'
           {
             kind: 'replace',
             target: 'Safeword Codex marketplace',
-            operation: codexMarketplaceReplacementOperation(),
+            operation: REQUIRED_MARKETPLACE_REF === 'stable' ? 'stable-channel' : 'prerelease-tag',
           },
         ],
       },

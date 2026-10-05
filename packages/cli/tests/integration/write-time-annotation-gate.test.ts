@@ -11,7 +11,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -124,7 +124,7 @@ function runReplaceAllEditHook(
 function runMultiEditHook(
   cwd: string,
   filePath: string,
-  edits: { old_string: string; new_string: string }[],
+  edits: { old_string: string; new_string: string; replace_all?: boolean }[],
   environment: NodeJS.ProcessEnv = {},
 ): HookResult {
   const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
@@ -287,6 +287,50 @@ describe('write-time annotation gate', () => {
   });
 
   describe('Rule 1: Marking a TDD checkbox requires a SHA or skip reason', () => {
+    it.each(['lowercase', 'spacing', 'rename', 'checked-case'] as const)(
+      'denies a %s retrospective edit before requesting receipts',
+      kind => {
+        const eligibilityId = '11111111-1111-4111-8111-111111111111';
+        const proofId = '22222222-2222-4222-8222-222222222222';
+        const row = `- [x] VERIFIED eligibility=${eligibilityId} proof=${proofId}`;
+        const checked = kind === 'rename' || kind === 'checked-case';
+        const initial = `### Scenario: example\n\n${checked ? row : '- [ ] VERIFIED'}\n`;
+        const setup = setupProject(initial, 'CKWE2D');
+        projectDirectory = setup.cwd;
+        const gateDirectory = createTemporaryDirectory();
+        gateDirectories.push(gateDirectory);
+        const gateCli = nodePath.join(gateDirectory, 'cli.js');
+        const log = nodePath.join(gateDirectory, 'called');
+        const identity = {
+          status: 'approved',
+          ticketId: 'CKWE2D',
+          scenario: kind === 'rename' ? 'renamed' : 'example',
+          ledger: '.safeword-project/tickets/CKWE2D/test-definitions.md',
+          eligibilityId,
+          proofId,
+        };
+        writeFileSync(
+          gateCli,
+          `require('node:fs').writeFileSync(${JSON.stringify(log)}, 'called'); process.stdout.write(${JSON.stringify(JSON.stringify({ state: 'healthy', data: identity }))});\n`,
+        );
+        let oldString = checked ? row : '- [ ] VERIFIED';
+        if (kind === 'rename') oldString = '### Scenario: example';
+        let newString = row.replace('VERIFIED', 'verified');
+        if (kind === 'spacing') newString = row.replace('] VERIFIED', ']  VERIFIED');
+        else if (kind === 'rename') newString = '### Scenario: renamed';
+        const result = runEditHook(setup.cwd, setup.testDefinitionsPath, oldString, newString, {
+          SAFEWORD_PLUGIN_CLI: gateCli,
+        });
+        const output = JSON.parse(result.stdout || '{}') as {
+          hookSpecificOutput?: { permissionDecision: string };
+        };
+        expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
+        expectHookDeny(result, 'VERIFIED');
+        expect(existsSync(log)).toBe(false);
+        expect(readFileSync(setup.testDefinitionsPath, 'utf8')).toBe(initial);
+      },
+    );
+
     it('rejects retrospective proof on an unrelated ticket despite plausible receipt IDs', () => {
       const setup = setupProject('### Scenario: example\n\n- [ ] VERIFIED\n');
       projectDirectory = setup.cwd;
@@ -761,6 +805,66 @@ describe('write-time annotation gate', () => {
         { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
       );
       expectHookDeny(result, 'executable RED');
+    });
+
+    it.each([false, true])(
+      'rejects MultiEdit evidence carried across swapped scenario names (new RED: %s)',
+      newManualEvidence => {
+        const setup = setupProject(
+          '### Scenario: alpha\n\n- [x] RED skip: manual — see timestamped work log\n\n### Scenario: beta\n\n- [x] RED abc1234\n- [ ] GREEN\n',
+        );
+        projectDirectory = setup.cwd;
+        const result = runMultiEditHook(
+          setup.cwd,
+          setup.testDefinitionsPath,
+          [
+            { old_string: '### Scenario: alpha', new_string: '### Scenario: gamma' },
+            { old_string: '### Scenario: beta', new_string: '### Scenario: alpha' },
+            ...(newManualEvidence
+              ? [
+                  {
+                    old_string: '- [x] RED abc1234',
+                    new_string:
+                      '- [x] RED skip: manual — see timestamped work log\n- [x] RED abc1234',
+                  },
+                ]
+              : []),
+            {
+              old_string: '- [x] RED abc1234\n- [ ] GREEN',
+              new_string: '- [x] RED abc1234\n- [x] GREEN def5678',
+            },
+          ],
+          { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+        );
+        expect(JSON.parse(result.stdout || '{}').hookSpecificOutput?.permissionDecision).toBe(
+          'deny',
+        );
+        expectHookDeny(result, 'executable RED');
+      },
+    );
+
+    it('checks every per-edit MultiEdit replace_all transition', () => {
+      const setup = setupProject(
+        '### Scenario: first\n\n- [x] RED abc1234\n- [ ] GREEN\n\n### Scenario: second\n\n- [x] RED def5678\n- [ ] GREEN\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runMultiEditHook(setup.cwd, setup.testDefinitionsPath, [
+        { old_string: '[ ] GREEN', new_string: '[x] GREEN abc1234', replace_all: true },
+      ]);
+      expect(JSON.parse(result.stdout || '{}').hookSpecificOutput?.permissionDecision).toBe('deny');
+      expectHookDeny(result, 'more than one');
+    });
+
+    it('rejects an ambiguous MultiEdit rather than guessing its checkbox transitions', () => {
+      const setup = setupProject(
+        '### Scenario: first\n\n- [ ] GREEN\n\n### Scenario: second\n\n- [ ] GREEN\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runMultiEditHook(setup.cwd, setup.testDefinitionsPath, [
+        { old_string: '[ ] GREEN', new_string: '[x] GREEN abc1234' },
+      ]);
+      expect(JSON.parse(result.stdout || '{}').hookSpecificOutput?.permissionDecision).toBe('deny');
+      expectHookDeny(result, 'reconstruct');
     });
 
     it('does not let an earlier MultiEdit add manual RED evidence that exempts GREEN', () => {

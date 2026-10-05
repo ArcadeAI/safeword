@@ -14,7 +14,6 @@ import {
   parseTddStep,
 } from './lib/active-ticket.ts';
 import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-ledger-writes.ts';
-import { parseRetrospectiveAnnotation } from './lib/retrospective-annotation.ts';
 import { retrospectiveGateDenial } from './lib/retrospective-gate.ts';
 import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
@@ -77,7 +76,7 @@ interface HookInput {
     new_string?: string;
     replace_all?: boolean;
     content?: string;
-    edits?: Array<{ old_string?: string; new_string?: string }>;
+    edits?: Array<{ old_string?: string; new_string?: string; replace_all?: boolean }>;
     command?: string;
   };
 }
@@ -1003,6 +1002,12 @@ if (
     );
   }
   const transitions = collectNewTransitions(input, editedFile);
+  if (transitions.some(transition => transition.editReconstructionFailed === true)) {
+    deny(
+      'Cannot reconstruct the exact MultiEdit ledger changes.',
+      'Use an unambiguous replacement or explicit replace_all so every checkbox transition can be checked.',
+    );
+  }
   const relabeledEvidence = transitions.find(transition => transition.evidenceModeChanged === true);
   if (relabeledEvidence !== undefined) {
     deny(
@@ -1022,7 +1027,11 @@ if (
       'Split the edit so each GREEN transition receives one bounded executable-RED receipt check. This prevents a multi-replacement edit from outliving the host hook timeout.',
     );
   }
-  if (transitions.filter(transition => transition.step === 'VERIFIED').length > 1) {
+  if (
+    transitions.filter(
+      transition => transition.step === 'VERIFIED' && transition.historicalEvidenceRemoved !== true,
+    ).length > 1
+  ) {
     deny(
       'Cannot mark more than one VERIFIED row in one tool call.',
       'Check each scenario separately so its independent receipts and current proof are verified at the edit boundary.',
@@ -1036,7 +1045,7 @@ if (
       );
     }
     if (transition.step === 'VERIFIED') {
-      const parsed = parseRetrospectiveAnnotation(`- [x] VERIFIED ${transition.annotation}`);
+      const parsed = transition.retrospective;
       if (parsed?.kind !== 'claim' || transition.scenario === undefined) {
         deny(
           'Cannot mark VERIFIED without one scenario and two distinct review receipts.',

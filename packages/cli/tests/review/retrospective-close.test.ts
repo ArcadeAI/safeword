@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -9,6 +10,7 @@ import {
   attestRetrospectiveClose,
   retrospectiveCloseGate,
 } from '../../src/review/retrospective-close.js';
+import type * as Gate from '../../src/review/retrospective-gate.js';
 import type * as History from '../../src/review/retrospective-history.js';
 import { RETROSPECTIVE_LEDGER } from '../../src/review/retrospective-history.js';
 
@@ -34,7 +36,8 @@ vi.mock('../../src/review/job.js', async importOriginal => {
   };
 });
 
-vi.mock('../../src/review/retrospective-gate.js', () => ({
+vi.mock('../../src/review/retrospective-gate.js', async original => ({
+  ...(await original<typeof Gate>()),
   attestRetrospectiveRow: (root: string, request: unknown) => {
     replay.calls += 1;
     replay.root = root;
@@ -52,6 +55,23 @@ function put(root: string, relative: string, content: string): void {
   const path = nodePath.join(root, relative);
   mkdirSync(nodePath.dirname(path), { recursive: true });
   writeFileSync(path, content);
+}
+
+function commitFixture(root: string): void {
+  execFileSync('git', ['-C', root, 'add', '.']);
+  execFileSync('git', [
+    '-C',
+    root,
+    '-c',
+    'commit.gpgsign=false',
+    '-c',
+    'user.name=Test',
+    '-c',
+    'user.email=test@example.com',
+    'commit',
+    '-qm',
+    'fixture',
+  ]);
 }
 
 function fixture(root: string): void {
@@ -105,6 +125,9 @@ describe('retrospective closing replay record', () => {
     previousKeyRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
     process.env.SAFEWORD_REVIEW_KEY_ROOT = nodePath.join(root, 'profile-state');
     fixture(root);
+    put(root, 'unlisted.ts', 'original source\n');
+    execFileSync('git', ['init', '-q', root]);
+    commitFixture(root);
   });
 
   afterEach(() => {
@@ -148,12 +171,25 @@ describe('retrospective closing replay record', () => {
     );
   });
 
+  it.each(['committed', 'uncommitted'] as const)(
+    'rejects %s changes outside the declared inputs',
+    mode => {
+      expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
+      put(root, 'unlisted.ts', 'changed source\n');
+      if (mode === 'committed') commitFixture(root);
+      expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
+        'action_required',
+      );
+    },
+  );
+
   it('refuses to attest a VERIFIED row when the ledger duplicates its scenario heading', () => {
     put(
       root,
       RETROSPECTIVE_LEDGER,
       `### Scenario: duplicate\n- [x] VERIFIED eligibility=${eligibilityId} proof=${proofId}\n### Scenario: duplicate\n- [ ] RED\n`,
     );
+    commitFixture(root);
     const verdict = attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER);
     expect(verdict.state).toBe('action_required');
     expect(verdict.findings[0]?.message).toContain('unique scenario headings');

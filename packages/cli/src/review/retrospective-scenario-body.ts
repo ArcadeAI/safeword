@@ -18,6 +18,16 @@ interface Boundary {
   readonly title?: string;
 }
 
+function taggedStart(lines: readonly string[], index: number): number {
+  let start = index;
+  for (let preceding = index - 1; preceding >= 0; preceding -= 1) {
+    const line = lines[preceding]?.trim() ?? '';
+    if (line.startsWith('@')) start = preceding;
+    else if (line !== '' && !line.startsWith('#')) break;
+  }
+  return start;
+}
+
 function scenarioBoundaries(lines: readonly string[]): Boundary[] {
   const boundaries: Boundary[] = [];
   let docstringFence: '"""' | '```' | undefined;
@@ -32,12 +42,13 @@ function scenarioBoundaries(lines: readonly string[]): Boundary[] {
       continue;
     }
     const title = scenarioTitle(line);
-    if (title !== undefined || isBoundary(line)) boundaries.push({ index, title });
+    if (title !== undefined || isBoundary(line))
+      boundaries.push({ index: taggedStart(lines, index), title });
   }
   return boundaries;
 }
 
-/** Digest the exact text of one uniquely named Gherkin scenario block. */
+/** Digest one uniquely named Gherkin scenario block, including its preceding tags. */
 export function scenarioBodyDigest(feature: string, heading: string): string | undefined {
   const lines = feature.split(/(?<=\n)/u);
   const boundaries = scenarioBoundaries(lines);

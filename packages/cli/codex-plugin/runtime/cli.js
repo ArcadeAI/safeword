@@ -3629,7 +3629,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "3c2076859e59b02c4a76fb1a18efd01190c92298a4294577f0b196b1430a362f",
+        ".safeword/hooks/pre-tool-quality.ts": "f077f23a907fa5ad8cd0ea05c44c01e10ae96390cdcd979540aecd0e81414111",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -35696,6 +35696,14 @@ function requireDigests(actual, expected, message) {
   if (JSON.stringify(actual) !== JSON.stringify(expected))
     throw new Error(message);
 }
+function currentProofCommit(root) {
+  const commit = git3(root, ["rev-parse", "--verify", "HEAD^{commit}"]).toString("utf8").trim();
+  const trackedChanges = git3(root, ["status", "--porcelain", "--untracked-files=no"]);
+  if (trackedChanges.toString("utf8").trim() !== "") {
+    throw new Error("Commit tracked changes before running retrospective proof.");
+  }
+  return commit;
+}
 function runRetrospectiveProof(projectRoot, request) {
   validateRequest(request);
   const root = nodePath48.resolve(projectRoot);
@@ -35703,11 +35711,7 @@ function runRetrospectiveProof(projectRoot, request) {
   if (nodePath48.resolve(repoRoot) !== root) {
     throw new Error("Retrospective proof requires the Git repository root.");
   }
-  const commit = git3(root, ["rev-parse", "--verify", "HEAD^{commit}"]).toString("utf8").trim();
-  const trackedChanges = git3(root, ["status", "--porcelain", "--untracked-files=no"]);
-  if (trackedChanges.toString("utf8").trim() !== "") {
-    throw new Error("Commit tracked changes before running retrospective proof.");
-  }
+  const commit = currentProofCommit(root);
   const inputs = [request.testFile, request.implementationPath, ...request.supportFiles];
   const supportSha256 = {};
   for (const path7 of inputs) {
@@ -35799,6 +35803,17 @@ function isBoundary(line) {
   const trimmed = line.trimStart();
   return trimmed.startsWith("Rule:") || trimmed.startsWith("Feature:");
 }
+function taggedStart(lines, index) {
+  let start = index;
+  for (let preceding = index - 1;preceding >= 0; preceding -= 1) {
+    const line = lines[preceding]?.trim() ?? "";
+    if (line.startsWith("@"))
+      start = preceding;
+    else if (line !== "" && !line.startsWith("#"))
+      break;
+  }
+  return start;
+}
 function scenarioBoundaries(lines) {
   const boundaries = [];
   let docstringFence;
@@ -35815,7 +35830,7 @@ function scenarioBoundaries(lines) {
     }
     const title = scenarioTitle(line);
     if (title !== undefined || isBoundary(line))
-      boundaries.push({ index, title });
+      boundaries.push({ index: taggedStart(lines, index), title });
   }
   return boundaries;
 }
@@ -35831,6 +35846,7 @@ var init_retrospective_scenario_body = () => {};
 // src/review/retrospective-gate.ts
 var exports_retrospective_gate = {};
 __export(exports_retrospective_gate, {
+  retrospectiveReviewTargets: () => retrospectiveReviewTargets,
   retrospectiveGate: () => retrospectiveGate,
   attestRetrospectiveRow: () => attestRetrospectiveRow
 });
@@ -35857,6 +35873,9 @@ function ticketNamesClaim(root, claimPath) {
   const ticket = frontmatterOf(readFileSync33(ticketPath, "utf8"));
   return ticket?.id === RETROSPECTIVE_TICKET && ticket.retrospective_claim === claimPath;
 }
+function retrospectiveReviewTargets(root, targets) {
+  return targets.map((target) => nodePath49.relative(root, nodePath49.resolve(root, target)).split(nodePath49.sep).join("/"));
+}
 function soleJsonTarget(targets) {
   const [target] = targets;
   return targets.length === 1 && target?.endsWith(".json") ? target : undefined;
@@ -35877,7 +35896,7 @@ function committedFeature(root) {
   return result.status === 0 ? result.stdout : undefined;
 }
 function verifiedEligibility(root, targets, request) {
-  const target = soleJsonTarget(targets);
+  const target = soleJsonTarget(retrospectiveReviewTargets(root, targets));
   if (target === undefined || !ticketNamesClaim(root, target))
     return;
   const claim = JSON.parse(readFileSync33(nodePath49.join(root, target), "utf8"));
@@ -35920,21 +35939,23 @@ function hasDiscriminatingOutcome(observation, testFullName) {
   return passing.exitCode === 0 && passing.passedTests === 1 && passing.failedTests === 0 && passing.test === testFullName && mutated.exitCode !== 0 && mutated.passedTests === 0 && mutated.failedTests === 1 && mutated.test === testFullName;
 }
 function verifiedProof(root, targets, request, eligibility, replay) {
-  if (targets.length !== 2 || targets.some((path8) => !path8.endsWith(".json")))
+  const paths = retrospectiveReviewTargets(root, targets);
+  if (paths.length !== 2 || paths.some((path8) => !path8.endsWith(".json")))
     return false;
-  const proofRequest = JSON.parse(readFileSync33(nodePath49.join(root, targets[0] ?? ""), "utf8"));
-  const reviewed = JSON.parse(readFileSync33(nodePath49.join(root, targets[1] ?? ""), "utf8"));
+  const proofRequest = JSON.parse(readFileSync33(nodePath49.join(root, paths[0] ?? ""), "utf8"));
+  const reviewed = JSON.parse(readFileSync33(nodePath49.join(root, paths[1] ?? ""), "utf8"));
   if (!matchingProofRequest(proofRequest, reviewed, request, eligibility))
     return false;
   if (!hasDiscriminatingOutcome(reviewed, proofRequest.testFullName))
     return false;
-  const content = `retrospective-row-v1\x00${rowIdentity(request)}\x00${stableObservation(reviewed)}`;
+  const commit = currentProofCommit(root);
+  const content = `retrospective-row-v2\x00${commit}\x00${rowIdentity(request)}\x00${stableObservation(reviewed)}`;
   const path7 = rowRecordPath(root, request);
   if (!replay) {
     return currentReplayRecord(root, path7, content, reviewed.supportSha256);
   }
   const rerun = runRetrospectiveProof(root, proofRequest);
-  if (stableObservation(reviewed) !== stableObservation(rerun))
+  if (stableObservation(reviewed) !== stableObservation(rerun) || rerun.commit !== commit || currentProofCommit(root) !== commit)
     return false;
   writeDurableFile(path7, `${retrospectiveCloseTag(root, content)}
 `, { mode: 384 });
@@ -35996,7 +36017,7 @@ function retrospectiveGate(root, request, replay = false) {
     if (eligibility === undefined)
       return deny("Historical eligibility no longer matches the cutoff and scenario.");
     if (!verifiedProof(root, proofTargets, request, eligibility, replay))
-      return deny("The reviewed proof is stale. Run review attest retrospective before checking the row.");
+      return deny("The reviewed proof is stale. Commit any tracked changes first, then run review attest retrospective before checking the row.");
     return createResult({
       state: "healthy",
       findings: [
@@ -36013,7 +36034,7 @@ function retrospectiveGate(root, request, replay = false) {
       }
     });
   } catch {
-    return deny("Retrospective evidence is missing or invalid. Run review attest retrospective before checking the row.");
+    return deny("Retrospective evidence is missing or invalid. Commit any tracked changes first, then run review attest retrospective before checking the row.");
   }
 }
 var init_retrospective_gate = __esm(() => {
@@ -36180,7 +36201,7 @@ function reviewedTargets(root, id, kind) {
   const targets = approvedRetrospectiveReview(root, id, kind);
   if (targets === undefined)
     throw new Error("A retrospective review is no longer approved.");
-  return targets;
+  return retrospectiveReviewTargets(root, targets);
 }
 function claimInputPaths(root, claim) {
   const eligibilityTargets = reviewedTargets(root, claim.eligibilityId, "retrospective-eligibility");
@@ -36240,6 +36261,7 @@ function attestRetrospectiveClose(root, ticketId, ledger) {
     if (ticketId !== RETROSPECTIVE_TICKET || ledger !== RETROSPECTIVE_LEDGER) {
       throw new Error("Only the CKWE2D ledger may use retrospective closing proof.");
     }
+    const sourceCommit = currentProofCommit(root);
     const claimPath = ticketClaim(root);
     const claims = claimsFromLedger(root);
     const paths = inputPaths(root, claims);
@@ -36249,13 +36271,14 @@ function attestRetrospectiveClose(root, ticketId, ledger) {
         throw new Error(`Retrospective proof did not reproduce for ${claim.scenario}.`);
       }
     }
-    if (JSON.stringify(before) !== JSON.stringify(inputDigests(root, paths)) || claimPath !== ticketClaim(root)) {
+    if (JSON.stringify(before) !== JSON.stringify(inputDigests(root, paths)) || claimPath !== ticketClaim(root) || currentProofCommit(root) !== sourceCommit) {
       throw new Error("Retrospective inputs changed during the closing replay.");
     }
     const body = {
       schema_version: 1,
       ticket: RETROSPECTIVE_TICKET,
       claimPath,
+      sourceCommit,
       claims,
       inputs: before
     };
@@ -36287,7 +36310,7 @@ function retrospectiveCloseGate(root, ticketId, ledger) {
       throw new Error("No retrospective closing record exists.");
     }
     const record = JSON.parse(readFileSync34(nodePath50.join(root, RECORD_PATH), "utf8"));
-    if (record.schema_version !== 1 || record.ticket !== RETROSPECTIVE_TICKET || record.claimPath !== ticketClaim(root) || !validRetrospectiveCloseTag(root, JSON.stringify(unsigned(record)), record.integrity)) {
+    if (record.schema_version !== 1 || record.ticket !== RETROSPECTIVE_TICKET || record.claimPath !== ticketClaim(root) || record.sourceCommit !== currentProofCommit(root) || !validRetrospectiveCloseTag(root, JSON.stringify(unsigned(record)), record.integrity)) {
       throw new Error("Retrospective closing record is invalid.");
     }
     const claims = claimsFromLedger(root);
@@ -36315,6 +36338,7 @@ var init_retrospective_close = __esm(() => {
   init_retrospective_annotation2();
   init_retrospective_gate();
   init_retrospective_history();
+  init_retrospective_proof();
   TICKET_PATH = nodePath50.join(nodePath50.dirname(RETROSPECTIVE_LEDGER), "ticket.md");
 });
 

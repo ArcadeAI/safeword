@@ -18,19 +18,24 @@ import {
   validRetrospectiveCloseTag,
 } from './job.js';
 import { parseRetrospectiveAnnotation } from './retrospective-annotation.js';
-import { attestRetrospectiveRow, type RetrospectiveGateRequest } from './retrospective-gate.js';
+import {
+  attestRetrospectiveRow,
+  type RetrospectiveGateRequest,
+  retrospectiveReviewTargets,
+} from './retrospective-gate.js';
 import {
   checkRetrospectiveHistory,
   RETROSPECTIVE_FEATURE,
   RETROSPECTIVE_LEDGER,
   RETROSPECTIVE_TICKET,
 } from './retrospective-history.js';
-import type { RetrospectiveProofRequest } from './retrospective-proof.js';
+import { currentProofCommit, type RetrospectiveProofRequest } from './retrospective-proof.js';
 
 interface CloseRecord {
   readonly schema_version: 1;
   readonly ticket: typeof RETROSPECTIVE_TICKET;
   readonly claimPath: string;
+  readonly sourceCommit: string;
   readonly claims: readonly RetrospectiveGateRequest[];
   readonly inputs: Readonly<Record<string, string>>;
   readonly integrity: string;
@@ -146,7 +151,7 @@ function reviewedTargets(
 ): readonly string[] {
   const targets = approvedRetrospectiveReview(root, id, kind);
   if (targets === undefined) throw new Error('A retrospective review is no longer approved.');
-  return targets;
+  return retrospectiveReviewTargets(root, targets);
 }
 
 function claimInputPaths(root: string, claim: RetrospectiveGateRequest): string[] {
@@ -226,6 +231,7 @@ export function attestRetrospectiveClose(
     if (ticketId !== RETROSPECTIVE_TICKET || ledger !== RETROSPECTIVE_LEDGER) {
       throw new Error('Only the CKWE2D ledger may use retrospective closing proof.');
     }
+    const sourceCommit = currentProofCommit(root);
     const claimPath = ticketClaim(root);
     const claims = claimsFromLedger(root);
     const paths = inputPaths(root, claims);
@@ -237,7 +243,8 @@ export function attestRetrospectiveClose(
     }
     if (
       JSON.stringify(before) !== JSON.stringify(inputDigests(root, paths)) ||
-      claimPath !== ticketClaim(root)
+      claimPath !== ticketClaim(root) ||
+      currentProofCommit(root) !== sourceCommit
     ) {
       throw new Error('Retrospective inputs changed during the closing replay.');
     }
@@ -245,6 +252,7 @@ export function attestRetrospectiveClose(
       schema_version: 1,
       ticket: RETROSPECTIVE_TICKET,
       claimPath,
+      sourceCommit,
       claims,
       inputs: before,
     };
@@ -292,6 +300,7 @@ export function retrospectiveCloseGate(root: string, ticketId: string, ledger: s
       record.schema_version !== 1 ||
       record.ticket !== RETROSPECTIVE_TICKET ||
       record.claimPath !== ticketClaim(root) ||
+      record.sourceCommit !== currentProofCommit(root) ||
       !validRetrospectiveCloseTag(root, JSON.stringify(unsigned(record)), record.integrity)
     ) {
       throw new Error('Retrospective closing record is invalid.');
