@@ -3591,7 +3591,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/SCENARIOS.md": "33b7033c37619a202908f58157a2d353074c8bce415be9c13daa2f5b0edfe20d",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "6641d1c0091f855aa4ec65a48879ce5b13e18daec672d8ca4c39cd56896cac32",
+        ".claude/skills/bdd/TDD.md": "5be0472712532b35cbb2eb7b10c9f79395243eec7540d88b69b144cc071a8fd4",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -3612,7 +3612,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/review-spec/SKILL.md": "2841aece00db9df62bdd0b6a8be303172d40726d1883cef5515e114e62446a2e",
         ".claude/skills/self-review/SKILL.md": "7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
-        ".claude/skills/tdd-review/SKILL.md": "322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43",
+        ".claude/skills/tdd-review/SKILL.md": "7069137b66d521c45413da8e42e4aeba7c548b80b8e2897a97287dbd58b91ad5",
         ".claude/skills/testing/SKILL.md": "fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686",
         ".claude/skills/ticket-system/SKILL.md": "765e4118b54e7e4984da4268244b45b5dc6d57b221964563d49076ac49cc9b7a",
         ".claude/skills/verify/SKILL.md": "d6b1f8cfa6ad1ccc5fd84a8b7f96cf3a13e13561088eb1de9a5b0ee5045759c5"
@@ -32440,8 +32440,9 @@ support files. Approval requires all of the following:
 - the observed failure is the intended missing behavior at that boundary.
 
 Request changes when the failure is caused by syntax, imports, fixtures, configuration,
-infrastructure, an unrelated actor-boundary assertion, a passing command, timeout, or signal. Do
-not infer execution from cached suite status or the author's account. Explain the mismatch and name
+undefined or pending Cucumber steps, infrastructure, an unrelated actor-boundary assertion,
+a passing command, timeout, or signal. Do not infer execution from cached suite status or the
+author's account. Explain the mismatch and name
 the exact proof or environment correction to make before retrying.`;
 
 // src/review/scenario-rubric.generated.ts
