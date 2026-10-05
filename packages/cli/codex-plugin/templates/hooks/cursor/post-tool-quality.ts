@@ -13,7 +13,7 @@ import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { stashCursorTranscript } from '../lib/cursor-state.ts';
+import { readCursorShellCwd, stashCursorTranscript } from '../lib/cursor-state.ts';
 
 import {
   type ClaudeGateInput,
@@ -53,6 +53,8 @@ if (!claudeTool) emitAndExit({});
 const filePath = extractFilePath(input.tool_input);
 const translated: ClaudeGateInput = {
   session_id: input.conversation_id,
+  // postToolUse carries no cwd; reuse the one its beforeShellExecution stashed.
+  cwd: claudeTool === 'Bash' ? readCursorShellCwd(input) : undefined,
   hook_event_name: 'PostToolUse',
   tool_name: claudeTool,
   tool_input: filePath ? { ...input.tool_input, file_path: filePath } : { ...input.tool_input },

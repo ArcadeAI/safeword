@@ -1,17 +1,20 @@
 /**
  * Hook-side namespace-root lib behavior (ticket TAGWZ8). The differential
  * test pins resolveNamespaceRoot against the CLI copy; this file covers the
- * hook-only helpers isNamespacePath and resolveOwningProjectDirectory.
+ * hook-only helpers isNamespacePath, resolveOwningProjectDirectory, and
+ * resolveToolProjectDirectory.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   isNamespacePath,
+  readConfiguredPathValue,
   resolveOwningProjectDirectory,
+  resolveToolProjectDirectory,
   resolveWorkingProjectDirectory,
 } from '../../templates/hooks/lib/namespace-root.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
@@ -92,6 +95,76 @@ describe('resolveOwningProjectDirectory (#5247)', () => {
     );
     expect(resolveOwningProjectDirectory(launch, '')).toBe(launch);
   });
+
+  describe('per tool call', () => {
+    it('roots a shell command at the enrolled worktree its cwd is inside', () => {
+      const worktree = tree(nodePath.join(launch, '.claude/worktrees/wt'), { enrolled: true });
+      mkdirSync(nodePath.join(worktree, 'packages/cli'), { recursive: true });
+
+      expect(
+        resolveToolProjectDirectory(launch, { tool: 'Bash', editedFile: '', cwd: worktree }),
+      ).toBe(worktree);
+      expect(
+        resolveToolProjectDirectory(launch, {
+          tool: 'Bash',
+          editedFile: '',
+          cwd: nodePath.join(worktree, 'packages/cli'),
+        }),
+      ).toBe(worktree);
+    });
+
+    it('roots a shell cwd reached through a symlink at the worktree it lands in', () => {
+      const worktree = tree(nodePath.join(launch, '.claude/worktrees/wt'), { enrolled: true });
+      mkdirSync(nodePath.join(worktree, 'packages'), { recursive: true });
+      const alias = nodePath.join(launch, 'work-link');
+      symlinkSync(nodePath.join(worktree, 'packages'), alias);
+
+      expect(
+        resolveToolProjectDirectory(launch, { tool: 'Bash', editedFile: '', cwd: alias }),
+      ).toBe(realpathSync(worktree));
+    });
+
+    it('keeps the launch checkout for shells in it, without a cwd, or in unenrolled trees', () => {
+      const vendored = tree(nodePath.join(launch, 'vendor/lib'), { enrolled: false });
+
+      for (const cwd of [launch, undefined, '', vendored, nodePath.join(root, 'loose')]) {
+        expect(resolveToolProjectDirectory(launch, { tool: 'Bash', editedFile: '', cwd })).toBe(
+          launch,
+        );
+      }
+    });
+
+    it('resolves edits from the edited file, not the shell cwd', () => {
+      const worktree = tree(nodePath.join(launch, '.claude/worktrees/wt'), { enrolled: true });
+
+      expect(
+        resolveToolProjectDirectory(launch, {
+          tool: 'Edit',
+          editedFile: ticket(launch),
+          cwd: worktree,
+        }),
+      ).toBe(launch);
+      expect(
+        resolveToolProjectDirectory(launch, {
+          tool: 'Write',
+          editedFile: ticket(worktree),
+          cwd: launch,
+        }),
+      ).toBe(worktree);
+    });
+
+    it('keeps the launch checkout for other tools', () => {
+      const worktree = tree(nodePath.join(launch, '.claude/worktrees/wt'), { enrolled: true });
+
+      expect(
+        resolveToolProjectDirectory(launch, {
+          tool: 'Read',
+          editedFile: ticket(worktree),
+          cwd: worktree,
+        }),
+      ).toBe(launch);
+    });
+  });
 });
 
 describe('resolveWorkingProjectDirectory (#5361)', () => {
@@ -119,4 +192,34 @@ describe('resolveWorkingProjectDirectory (#5361)', () => {
     expect(resolveWorkingProjectDirectory(launch, launch)).toBe(launch);
     expect(resolveWorkingProjectDirectory(launch, root)).toBe(launch);
   });
+});
+
+describe('readConfiguredPathValue (#5373)', () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = createTemporaryDirectory();
+    mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+  });
+
+  afterEach(() => {
+    removeTemporaryDirectory(root);
+  });
+
+  const writeConfig = (content: string) => {
+    writeFileSync(nodePath.join(root, '.safeword', 'config.json'), content);
+  };
+
+  it('returns the configured path', () => {
+    writeConfig(JSON.stringify({ paths: { projectRoot: 'docs/project' } }));
+    expect(readConfiguredPathValue(root, 'projectRoot')).toBe('docs/project');
+  });
+
+  it.each(['null', '42', '"text"', '[]', '{"paths":null}', '{"paths":"x"}', '{not json'])(
+    'falls back to defaults for config.json containing %s',
+    content => {
+      writeConfig(content);
+      expect(readConfiguredPathValue(root, 'projectRoot')).toBeUndefined();
+    },
+  );
 });

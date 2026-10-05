@@ -77,7 +77,7 @@ for event in session-start user-prompt-submit pre-tool-use post-tool-use stop; d
     post-tool-use) input_event=PostToolUse ;;
     stop) input_event=Stop ;;
   esac
-  printf '{"session_id":"fixture-session","hook_event_name":"%s"}\n' "$input_event" \
+  "$SAFEWORD_BUN" -e 'console.log(JSON.stringify({cwd:process.cwd(),session_id:"fixture-session",hook_event_name:process.argv[1]}))' "$input_event" \
     | "$SAFEWORD_BUN" "$SAFEWORD_CLI_PATH" hook codex "$event" --plugin-hook >/dev/null
 done
 if [ "$(printenv SAFEWORD_FAKE_FUTURE_RECEIPT 2>/dev/null || true)" = "1" ]; then

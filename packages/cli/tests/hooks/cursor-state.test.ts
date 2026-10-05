@@ -6,8 +6,11 @@ import {
   cursorConversationStashPath,
   cursorEditedMarkerPath,
   cursorProjectStashPath,
+  cursorShellCwdStashPath,
   cursorStateKey,
   cursorTranscriptStashPath,
+  readCursorShellCwd,
+  stashCursorShellCwd,
   stashCursorTranscript,
 } from '../../templates/hooks/lib/cursor-state.js';
 
@@ -16,12 +19,14 @@ const CONVERSATION_ID = 'test-cursor-state-conv';
 const STASH_PATH = cursorTranscriptStashPath({ conversation_id: CONVERSATION_ID });
 const IDENTITY_PATH = cursorConversationStashPath({ conversation_id: CONVERSATION_ID });
 const PROJECT_PATH = cursorProjectStashPath({ conversation_id: CONVERSATION_ID });
+const SHELL_CWD_PATH = cursorShellCwdStashPath({ conversation_id: CONVERSATION_ID });
 const SYMLINK_TARGET = `/tmp/safeword-cursor-state-target-${process.pid}`;
 
 afterEach(() => {
   rmSync(STASH_PATH, { force: true });
   rmSync(IDENTITY_PATH, { force: true });
   rmSync(PROJECT_PATH, { force: true });
+  rmSync(SHELL_CWD_PATH, { force: true });
   rmSync(SYMLINK_TARGET, { force: true });
 });
 
@@ -80,5 +85,32 @@ describe('stashCursorTranscript (RTSK9C / #624)', () => {
 
     expect(readFileSync(SYMLINK_TARGET, 'utf8')).toBe('do-not-overwrite');
     expect(existsSync(IDENTITY_PATH)).toBe(false);
+  });
+});
+
+describe('stashCursorShellCwd (#5392)', () => {
+  const input = { conversation_id: CONVERSATION_ID };
+
+  it('hands the shell cwd from beforeShellExecution to postToolUse', () => {
+    stashCursorShellCwd({ ...input, cwd: '/repo/.claude/worktrees/a' });
+
+    expect(readCursorShellCwd(input)).toBe('/repo/.claude/worktrees/a');
+  });
+
+  it('keeps a worktree path byte-for-byte, including surrounding spaces', () => {
+    stashCursorShellCwd({ ...input, cwd: ' /repo/.claude/worktrees/a ' });
+
+    expect(readCursorShellCwd(input)).toBe(' /repo/.claude/worktrees/a ');
+  });
+
+  it.each([
+    ['no cwd', {}],
+    ['a blank cwd', { cwd: '  ' }],
+  ])('forgets an earlier worktree when the next command carries %s', (_label, next) => {
+    stashCursorShellCwd({ ...input, cwd: '/repo/.claude/worktrees/a' });
+
+    stashCursorShellCwd({ ...input, ...next });
+
+    expect(readCursorShellCwd(input)).toBeUndefined();
   });
 });
