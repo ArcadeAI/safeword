@@ -250,8 +250,8 @@ safeword retro-relay-retry [request-id]
 safeword retro-relay-discard <request-id> [--confirm]
 ```
 
-`review run` kinds are `quality-review`, `scenario-gate`, `plan-implementation`,
-`plan-execution`, and `executable-red`. It keeps Claude-authored work on Codex
+`review run` selects the review rubric by kind, including `retrospective-eligibility`
+and `retrospective-proof` for the CKWE2D migration. It keeps Claude-authored work on Codex
 first and Codex-authored work on Claude first. If that preferred independent
 route is exhausted, a compatible OpenCode 1.x CLI is tried before same-author
 degraded review. OpenCode-authored work is sent to Claude and then Codex;
