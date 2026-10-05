@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js SessionStart --event-group"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js SessionStart --event-group"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js UserPromptSubmit --event-group"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js UserPromptSubmit --event-group"
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-quality.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-quality.ts"
           }
         ]
       },
@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-reentry.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-reentry.ts"
           }
         ]
       },
@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-self-report.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-self-report.ts"
           }
         ]
       },
@@ -49,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-retro-filing.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-retro-filing.ts"
           }
         ]
       },
@@ -57,7 +57,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-retro.ts",
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-retro.ts",
             "async": true
           }
         ]
@@ -69,7 +69,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-dependency-readiness.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-dependency-readiness.ts"
           }
         ]
       },
@@ -78,7 +78,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-quality.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-quality.ts"
           }
         ]
       },
@@ -87,7 +87,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-quality.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-quality.ts"
           }
         ]
       },
@@ -96,7 +96,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-config-guard.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-config-guard.ts"
           }
         ]
       },
@@ -106,7 +106,7 @@
           {
             "type": "command",
             "if": "Bash(git *)",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bash \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-git-bare-fix.sh"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bash \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-git-bare-fix.sh"
           }
         ]
       },
@@ -116,7 +116,7 @@
           {
             "type": "command",
             "if": "Bash(git commit*)",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-architecture-stage.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-architecture-stage.ts"
           }
         ]
       },
@@ -126,7 +126,7 @@
           {
             "type": "command",
             "if": "Bash(git checkout*)",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-stale-main.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-stale-main.ts"
           }
         ]
       },
@@ -136,7 +136,7 @@
           {
             "type": "command",
             "if": "Bash(git switch*)",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-stale-main.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-stale-main.ts"
           }
         ]
       }
@@ -147,7 +147,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-lint.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-lint.ts"
           }
         ]
       },
@@ -156,7 +156,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-quality.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-quality.ts"
           }
         ]
       },
@@ -165,7 +165,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-skill-nudge.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-skill-nudge.ts"
           }
         ]
       },
@@ -174,7 +174,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-bypass-warn.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-bypass-warn.ts"
           }
         ]
       },
@@ -183,7 +183,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-sync-learnings.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-sync-learnings.ts"
           }
         ]
       },
@@ -192,7 +192,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-work-log.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-work-log.ts"
           }
         ]
       },
@@ -201,7 +201,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-dependency-readiness.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-dependency-readiness.ts"
           }
         ]
       }
@@ -211,7 +211,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js SessionEnd -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-cleanup-quality.ts"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js SessionEnd -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-cleanup-quality.ts"
           }
         ]
       }
@@ -222,7 +222,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Setup -- true"
+            "command": "bun --no-env-file --cwd \"${CLAUDE_PLUGIN_ROOT}\" \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.js Setup -- true"
           }
         ]
       }

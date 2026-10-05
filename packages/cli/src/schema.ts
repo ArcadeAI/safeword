@@ -854,6 +854,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'hooks/lib/skill-invocation-log.ts',
     },
     '.safeword/hooks/lib/parse-annotation.ts': { template: 'hooks/lib/parse-annotation.ts' },
+    '.safeword/hooks/lib/retrospective-gate.ts': { template: 'hooks/lib/retrospective-gate.ts' },
+    '.safeword/hooks/lib/retrospective-annotation.ts': {
+      template: 'hooks/lib/retrospective-annotation.ts',
+    },
     '.safeword/hooks/lib/jtbd.ts': { template: 'hooks/lib/jtbd.ts' },
     '.safeword/hooks/lib/phase-provenance.ts': { template: 'hooks/lib/phase-provenance.ts' },
     '.safeword/hooks/lib/impl-plan.ts': { template: 'hooks/lib/impl-plan.ts' },

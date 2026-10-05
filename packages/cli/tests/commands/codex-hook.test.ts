@@ -42,12 +42,14 @@ describe('packagedNamespaceRootLabel', () => {
     const isolatedCodexHome =
       env?.CODEX_HOME ?? mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-profile-'));
     if (env?.CODEX_HOME === undefined) directories.push(isolatedCodexHome);
+    const payload =
+      pluginHook && typeof input !== 'string' ? { cwd: projectDirectory, ...input } : input;
     return spawnSync(
       process.execPath,
       [CLI_PATH, 'hook', 'codex', event, ...(pluginHook ? ['--plugin-hook'] : [])],
       {
         cwd: projectDirectory,
-        input: typeof input === 'string' ? input : JSON.stringify(input),
+        input: typeof payload === 'string' ? payload : JSON.stringify(payload),
         encoding: 'utf8',
         env: { ...process.env, CODEX_HOME: isolatedCodexHome, ...env },
       },
@@ -176,6 +178,61 @@ describe('packagedNamespaceRootLabel', () => {
       rmSync(directory, { recursive: true, force: true });
     }
     directories.length = 0;
+  });
+
+  it('denies native tool use when neither the payload nor the host identifies a project', () => {
+    const pluginDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-native-no-project-'));
+    directories.push(pluginDirectory);
+    const env: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: undefined };
+    const result = runCodexHook(
+      pluginDirectory,
+      'pre-tool-use',
+      JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'pkill node' } }),
+      env,
+      true,
+    );
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('Native hook input is missing its project directory');
+  });
+
+  it('routes native hooks from the plugin directory to the host payload project', () => {
+    const { packageDirectory, projectDirectory } = createPackagedCliFixture();
+    symlinkSync(
+      nodePath.resolve(import.meta.dirname, '../../node_modules'),
+      nodePath.join(packageDirectory, 'node_modules'),
+      'dir',
+    );
+    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-native-profile-'));
+    directories.push(codexHome);
+    const env: NodeJS.ProcessEnv = { ...process.env, CODEX_HOME: codexHome };
+    delete env.CLAUDE_PROJECT_DIR;
+    const result = spawnSync(
+      process.execPath,
+      [
+        nodePath.join(packageDirectory, 'dist/cli.js'),
+        'hook',
+        'codex',
+        'pre-tool-use',
+        '--plugin-hook',
+      ],
+      {
+        cwd: packageDirectory,
+        env,
+        input: JSON.stringify({
+          cwd: projectDirectory,
+          tool_name: 'Bash',
+          tool_input: { command: 'pkill node' },
+        }),
+        encoding: 'utf8',
+      },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: expect.stringContaining('Broad process kill blocked'),
+      },
+    });
   });
 
   it('does not let a packaged-hook test write proof into its runner profile', () => {

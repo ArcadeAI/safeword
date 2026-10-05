@@ -27,6 +27,7 @@ import {
   procGroupHasRunningMember,
   qualityReviewRubric,
   reconcilePlanContract,
+  retrospectiveEligibilityRubric,
   reviewerArguments,
   reviewTimeoutMilliseconds,
   runBoundMs,
@@ -102,6 +103,14 @@ describe('scenario review rubric', () => {
     expect(rubric).toContain('## Shared implementation-plan judgment standard');
     expect(rubric).toContain('Apply the deletion test');
     expect(rubric).not.toContain('run-review.ts');
+  });
+
+  it('requires historical implementation judgment for retrospective eligibility', () => {
+    const rubric = retrospectiveEligibilityRubric();
+    expect(rubric).toContain('every named scenario');
+    expect(rubric).toContain('baseline implementation path');
+    expect(rubric).toContain('post-cutoff-only implementation');
+    expect(rubric).toContain('passing current test alone does not prove historical implementation');
   });
 });
 
