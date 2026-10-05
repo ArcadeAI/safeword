@@ -97,6 +97,12 @@ describe('stashCursorShellCwd (#5392)', () => {
     expect(readCursorShellCwd(input)).toBe('/repo/.claude/worktrees/a');
   });
 
+  it('keeps a worktree path byte-for-byte, including surrounding spaces', () => {
+    stashCursorShellCwd({ ...input, cwd: ' /repo/.claude/worktrees/a ' });
+
+    expect(readCursorShellCwd(input)).toBe(' /repo/.claude/worktrees/a ');
+  });
+
   it.each([
     ['no cwd', {}],
     ['a blank cwd', { cwd: '  ' }],

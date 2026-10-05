@@ -74,12 +74,14 @@ export function cursorShellCwdStashPath(input: CursorStateInput): string {
 /**
  * Remember where this conversation's shell command runs. A command without a
  * cwd clears the stash, so its postToolUse cannot inherit an earlier command's
- * worktree while its gate ran against the launch checkout. Best-effort.
+ * worktree while its gate ran against the launch checkout. The path is kept
+ * exactly as the gate saw it — trimming could name a different directory.
+ * Best-effort.
  */
 export function stashCursorShellCwd(input: CursorStateInput & { cwd?: unknown }): void {
-  const cwd = typeof input.cwd === 'string' ? input.cwd.trim() : '';
+  const cwd = typeof input.cwd === 'string' ? input.cwd : '';
   try {
-    if (cwd.length === 0) {
+    if (cwd.trim().length === 0) {
       rmSync(cursorShellCwdStashPath(input), { force: true });
       return;
     }
@@ -92,8 +94,8 @@ export function stashCursorShellCwd(input: CursorStateInput & { cwd?: unknown })
 /** The directory this conversation's last shell command ran in, if one was stashed. */
 export function readCursorShellCwd(input: CursorStateInput): string | undefined {
   try {
-    const cwd = readFileSync(cursorShellCwdStashPath(input), 'utf8').trim();
-    return cwd.length > 0 ? cwd : undefined;
+    const cwd = readFileSync(cursorShellCwdStashPath(input), 'utf8');
+    return cwd.trim().length > 0 ? cwd : undefined;
   } catch {
     return undefined;
   }
