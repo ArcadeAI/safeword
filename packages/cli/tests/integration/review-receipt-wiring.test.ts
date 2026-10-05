@@ -28,6 +28,7 @@ import {
   readReviewReceipt,
 } from '../../templates/hooks/lib/read-receipt.js';
 import { hashArtifact, reviewScope } from '../../templates/hooks/lib/review-ledger.js';
+import { receiptGateVerdict } from '../../templates/hooks/lib/review-receipt.js';
 import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
 const STAMP_PATH = nodePath.resolve(__dirname, '../../templates/hooks/write-review-stamp.ts');
@@ -167,6 +168,54 @@ describe('review-receipt wiring (write-review-stamp.ts ↔ review status --json)
       else process.env.CLAUDE_PLUGIN_ROOT = previousPluginRoot;
     }
   });
+
+  it('carries coordinator exclusions through the real reader into implementation approval', () => {
+    const source = 'src/feature.ts';
+    const generated = 'plugin/runtime/cli.js';
+    stubCoordinator({
+      ...approvedEnvelope,
+      review_kind: 'quality-review',
+      review_targets: [source],
+      excluded_targets: [generated],
+    });
+    const prior = process.env.CLAUDE_PLUGIN_ROOT;
+    process.env.CLAUDE_PLUGIN_ROOT = pluginRoot;
+    try {
+      const receipt = readReviewReceipt(REVIEW_ID, projectRoot);
+      expect(receipt?.excludedTargets).toEqual([generated]);
+      expect(
+        receiptGateVerdict(
+          {
+            independence: 'cross-agent',
+            phase: 'implement',
+            ticketFolder: TICKET,
+            projectDirectory: projectRoot,
+            ticketDirectory: nodePath.join(projectRoot, '.safeword-project/tickets', TICKET),
+            implementationFiles: [source, generated],
+          },
+          receipt,
+        ),
+      ).toEqual({ ok: true });
+    } finally {
+      if (prior === undefined) delete process.env.CLAUDE_PLUGIN_ROOT;
+      else process.env.CLAUDE_PLUGIN_ROOT = prior;
+    }
+  });
+
+  it.each(['plugin/runtime/cli.js', ['plugin/runtime/cli.js', 7]])(
+    'rejects malformed coordinator exclusion scope %j',
+    excluded_targets => {
+      stubCoordinator({ ...approvedEnvelope, excluded_targets });
+      const prior = process.env.CLAUDE_PLUGIN_ROOT;
+      process.env.CLAUDE_PLUGIN_ROOT = pluginRoot;
+      try {
+        expect(readReviewReceipt(REVIEW_ID, projectRoot)).toBeUndefined();
+      } finally {
+        if (prior === undefined) delete process.env.CLAUDE_PLUGIN_ROOT;
+        else process.env.CLAUDE_PLUGIN_ROOT = prior;
+      }
+    },
+  );
 
   it("refuses when the cited review covered a different ticket's impl-plan", () => {
     stubCoordinator({

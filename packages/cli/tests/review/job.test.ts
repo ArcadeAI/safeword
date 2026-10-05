@@ -29,6 +29,8 @@ import {
   reviewJobStatus,
   startReviewJob,
 } from '../../src/review/job.js';
+import { readReviewReceipt } from '../../templates/hooks/lib/read-receipt.js';
+import { receiptGateVerdict } from '../../templates/hooks/lib/review-receipt.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -386,9 +388,86 @@ describe('durable review jobs', () => {
       ],
     });
 
-    expect(result.data).toMatchObject({ review_targets: ['input.md'] });
+    expect(result.data).toMatchObject({ review_targets: ['input.md'], excluded_targets: [] });
     const id = (result.data as { review_id: string }).review_id;
     expect(approvedRetrospectiveReview(cwd, id, 'retrospective-eligibility')).toEqual(['input.md']);
+  });
+
+  it('publishes only original exclusions still confirmed by generated packet classification', async () => {
+    const cwd = project();
+    writeFileSync(nodePath.join(cwd, '.gitattributes'), 'generated.js linguist-generated=true\n');
+    writeFileSync(nodePath.join(cwd, 'generated.js'), 'x'.repeat(256 * 1024 + 1));
+    for (const args of [
+      ['init', '-q'],
+      ['add', '.gitattributes'],
+      [
+        '-c',
+        'commit.gpgsign=false',
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-qm',
+        'fixture',
+      ],
+    ]) {
+      const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+      expect(result.status, result.stderr).toBe(0);
+    }
+    vi.stubEnv(
+      'SAFEWORD_CLI_ENTRYPOINT',
+      worker(
+        cwd,
+        COMPLETE_WORKER.replace(
+          "actual_reviewer: 'codex', independence: 'cross-agent',",
+          "actual_reviewer: 'codex', independence: 'cross-agent', excluded_targets: ['generated.js'],",
+        ),
+      ),
+    );
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const result = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: ['input.md', 'generated.js'],
+    });
+    expect(result.data).toMatchObject({
+      status: 'approved',
+      review_targets: ['input.md'],
+      excluded_targets: ['generated.js'],
+    });
+    const id = (result.data as { review_id: string }).review_id;
+    const pluginRoot = createTrustedReviewerDirectory('receipt-real-cli-');
+    mkdirSync(nodePath.join(pluginRoot, 'runtime'));
+    writeFileSync(
+      nodePath.join(pluginRoot, 'runtime/cli.js'),
+      `await import(${JSON.stringify(SOURCE_CLI)});`,
+    );
+    vi.stubEnv('CLAUDE_PLUGIN_ROOT', pluginRoot);
+    const receipt = readReviewReceipt(id, cwd);
+    expect(
+      receiptGateVerdict(
+        {
+          independence: 'cross-agent',
+          phase: 'implement',
+          ticketFolder: 'TST',
+          projectDirectory: cwd,
+          ticketDirectory: nodePath.join(cwd, '.project/tickets/TST'),
+          implementationFiles: ['input.md', 'generated.js'],
+        },
+        receipt,
+      ),
+    ).toEqual({ ok: true });
+    writeFileSync(nodePath.join(cwd, 'generated.js'), 'y'.repeat(256 * 1024 + 1));
+    expect(reviewJobStatus(cwd, id).data).toMatchObject({
+      status: 'approved',
+      excluded_targets: ['generated.js'],
+    });
+    const path = nodePath.join(cwd, '.safeword/state/reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(path, 'utf8'));
+    record.result.data.excluded_targets.push('input.md');
+    writeFileSync(path, JSON.stringify(record));
+    expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_JOB_INVALID');
   });
 
   it('keeps plan-execution approval current through ordinary checklist progress', async () => {

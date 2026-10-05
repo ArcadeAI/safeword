@@ -33676,7 +33676,7 @@ function ledgerFingerprintContext(cwd, targets, context, execution) {
     missing
   };
 }
-function fingerprint(cwd, kind, targets, context = [], execution) {
+function reviewIdentity(cwd, kind, targets, context = [], execution) {
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
   const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
     allowMissingExecutableRedAttestation: true
@@ -33702,10 +33702,13 @@ function fingerprint(cwd, kind, targets, context = [], execution) {
         hash.update("\x00");
       }
     }
-    return hash.digest("hex");
+    return { fingerprint: hash.digest("hex"), excludedTargets: prepared.excludedTargets };
   } finally {
     prepared.cleanup();
   }
+}
+function fingerprint(cwd, kind, targets, context = [], execution) {
+  return reviewIdentity(cwd, kind, targets, context, execution).fingerprint;
 }
 function reviewFingerprintContent(section, path7, content, executionPlanTargetPath, executionPlanFingerprint) {
   if (section === "targets" && path7 === executionPlanTargetPath && executionPlanFingerprint !== undefined) {
@@ -34009,13 +34012,14 @@ function terminalResult(cwd, record) {
     });
   }
   try {
-    if (fingerprint(cwd, record.kind, record.targets, record.context, record.execution) !== record.source_fingerprint)
+    const current = reviewIdentity(cwd, record.kind, record.targets, record.context, record.execution);
+    if (current.fingerprint !== record.source_fingerprint)
       return staleResult(record);
+    if (record.result !== undefined)
+      return withReviewProvenance(cwd, record, record.result, current.excludedTargets);
   } catch {
     return staleResult(record);
   }
-  if (record.result !== undefined)
-    return withReviewProvenance(cwd, record, record.result);
   return createResult({
     state: "failed",
     errors: [
@@ -34040,7 +34044,17 @@ function effectiveReviewTargets(cwd, record) {
     return !excludedPaths.has(toReviewPath(relative));
   });
 }
-function withReviewProvenance(cwd, record, result) {
+function verifiedExcludedTargets(record, current) {
+  const data = record.result?.data;
+  const recorded = data?.excluded_targets;
+  if (!Array.isArray(recorded) || recorded.some((target) => typeof target !== "string"))
+    return [];
+  if (recorded.length === 0)
+    return [];
+  const recordedPaths = new Set(recorded);
+  return current.filter((target) => recordedPaths.has(target));
+}
+function withReviewProvenance(cwd, record, result, currentExclusions) {
   const data = typeof result.data === "object" && result.data !== null && !Array.isArray(result.data) ? result.data : {};
   return {
     ...result,
@@ -34048,7 +34062,8 @@ function withReviewProvenance(cwd, record, result) {
       ...data,
       review_id: record.id,
       review_kind: record.kind,
-      review_targets: effectiveReviewTargets(cwd, record) ?? []
+      review_targets: effectiveReviewTargets(cwd, record) ?? [],
+      review_excluded_targets: verifiedExcludedTargets(record, currentExclusions)
     }
   };
 }

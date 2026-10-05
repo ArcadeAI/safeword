@@ -70,6 +70,14 @@ export function readReviewReceipt(
 
     const text = (field: string): string | undefined =>
       typeof data[field] === 'string' ? (data[field] as string) : undefined;
+    // Never salvage a partially malformed exclusion list: it is authorization
+    // scope, supplied only by the authenticated coordinator status route.
+    if (
+      data.excluded_targets !== undefined &&
+      (!Array.isArray(data.excluded_targets) ||
+        data.excluded_targets.some(target => typeof target !== 'string'))
+    )
+      continue;
     const receipt = {
       reviewId: id,
       status: text('status'),
@@ -77,6 +85,7 @@ export function readReviewReceipt(
       targets: Array.isArray(data.review_targets)
         ? data.review_targets.filter(target => typeof target === 'string')
         : [],
+      excludedTargets: data.excluded_targets as string[] | undefined,
       independence: text('independence'),
       authorAgent: text('author_agent'),
       actualReviewer: text('actual_reviewer'),
