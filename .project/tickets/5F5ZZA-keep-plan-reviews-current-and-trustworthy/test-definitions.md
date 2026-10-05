@@ -163,9 +163,26 @@ installed-dispatch outline or full feature verification, so R/G/R remains open.
 
 ### Scenario: Context identity ignores cosmetic and unrelated edits
 
+2026-10-04 parent-alignment correction: accepted parent TBU4.R9 requires every
+bounded canonical contract byte change to invalidate review. Only other context
+uses semantic normalization. The canonical whitespace/comment row now requires
+stale status. Its primary proof uses real `review status` from an isolated
+installed plugin distribution with consistently regenerated rubric bytes,
+digest, and typed phase record; the unmodified copied runtime is a positive
+control. Prior approval of the contradictory row is historical, not current
+authority. Production identity remains unchanged pending reviewed RED and fresh
+planning approval.
+
 - [x] RED 1ec6d2e09
 - [x] GREEN fd833c0fe
 - [x] REFACTOR 6569bc614
+
+Corrective cycle for the parent-aligned canonical-byte row. The historical rows
+above remain immutable and do not complete this changed primary proof.
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU4.5F5ZZA.R5 — Contract identity binds exact canonical bytes
 
@@ -502,6 +519,13 @@ unaltered.
 
 ### Scenario: Cosmetic canonical changes preserve review currency but require copy reconciliation
 
+2026-10-04 clarification: the existing fixture appends a comment outside the
+bounded contract markers and asserts that the extracted contract bytes are
+unchanged. Its Given now says that explicitly; the historical scenario name and
+RED binding remain intact. Its evidence does not authorize retaining review
+after any bounded canonical contract bytes change; the corrected R4 row owns
+that case.
+
 Actor-facing RED loop: start with an authenticated current Implementation
 review, copy the installed Claude plugin, change a comment in its canonical
 author source, and update the copied runtime's generated author identity to
@@ -675,6 +699,18 @@ other phases must not acquire that field. The primary target is
 The missing generated record is the expected RED. This supporting proof does not
 claim runtime dependency invalidation or rejection of malformed contracts; those
 boundaries remain required before the scenario can be checked.
+
+### Scenario: An unsupported upstream invalidation direction blocks reconciliation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+Corrective parent alignment authorized by the user's “your call” on 2026-10-04
+PDT: a semantic accepted Implementation Plan change must invalidate both plan
+reviews (TBU2.R11/TBU4.R9). The former own-review-only positive case becomes a
+reconciliation rejection case. Historical evidence remains unchanged; this
+correction requires fresh failing proof and authenticated review.
 
 ### Scenario: An undecidable Execution invalidation contract blocks reconciliation
 

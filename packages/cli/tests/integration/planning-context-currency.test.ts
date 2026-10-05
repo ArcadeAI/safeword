@@ -283,6 +283,16 @@ describe('semantic planning context currency through public review status', () =
       (text: string) => text.replace('scope: preserve approval', 'scope: allow anonymous approval'),
     ],
     [
+      'ticket completion criteria',
+      childTicket,
+      (text: string) =>
+        text.replace(
+          'done_when: current approval advances',
+          'done_when: verified delivery advances',
+        ),
+    ],
+    ['ticket type', childTicket, (text: string) => text.replace('type: feature', 'type: task')],
+    [
       'parent ticket scope',
       `${parentFolder}/ticket.md`,
       (text: string) => text.replace('scope: preserve approval', 'scope: allow anonymous approval'),

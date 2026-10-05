@@ -336,7 +336,7 @@ describe('Planning contract shared-clause generation', () => {
       expect(after[phase]?.sha256).not.toBe(before[phase]?.sha256);
   });
 
-  it.each(['both_plan_reviews', 'implementation_review_only'] as const)(
+  it.each(['both_plan_reviews'] as const)(
     'emits typed phase contracts including the owner-decided $0 Execution invalidation direction',
     mode => {
       const distribution = sourceDistribution();
@@ -411,6 +411,10 @@ describe('Planning contract shared-clause generation', () => {
   );
 
   it.each([
+    {
+      case: 'unsupported own-review-only',
+      declaration: 'upstreamImplementationInvalidation: implementation_review_only',
+    },
     { case: 'missing', declaration: '' },
     { case: 'missing entire field', declaration: undefined },
     { case: 'unknown', declaration: 'upstreamImplementationInvalidation: either_plan_review' },

@@ -110,7 +110,7 @@ Feature: Keep plan reviews current and trustworthy
       Examples:
         | context_change | review_state |
         | a bound context artifact changes only in whitespace or comments | the review remains current |
-        | the canonical phase contract changes only in whitespace or comments | the review remains current |
+        | the canonical phase contract changes only in whitespace or comments | the review becomes stale |
         | an unrelated persona or surface entry is added | the review remains current |
         | the reviewed plan changes only in whitespace or comments outside normalized Execution Plan checklist progress cells | that plan's review becomes stale because its exact bytes changed |
         | the canonical phase contract changes semantically | the review becomes stale |
@@ -146,7 +146,7 @@ Feature: Keep plan reviews current and trustworthy
 
     @surface.claude-code @rejection
     Scenario: Cosmetic canonical changes preserve review currency but require copy reconciliation
-      Given a plan review is current and its canonical phase contract changed only in whitespace or comments after installed copies were generated
+      Given a plan review is current and its authoring guidance changed only in comments outside the canonical contract after installed copies were generated
       When actual lifecycle dispatch from installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary
       Then the review receipt remains current and the phase remains blocked with canonical contract reconciliation named
 
@@ -386,7 +386,13 @@ Feature: Keep plan reviews current and trustworthy
       Examples:
         | dependency_direction | invalidation_result |
         | accepted Implementation Plan changes invalidate both plan reviews | both plan reviews are invalidated |
-        | accepted Implementation Plan changes invalidate only their own review | only the Implementation Plan review is invalidated and the Execution Plan review remains current |
+
+    @surface.safeword-cli @rejection
+    Scenario: An unsupported upstream invalidation direction blocks reconciliation
+      Given the canonical Execution Planning contract declares that accepted Implementation Plan changes invalidate only their own review
+      When the Safeword CLI reconciles the installed phase contracts through real project configuration
+      Then reconciliation is blocked with invalid_invalidation_contract, the Execution phase, and the canonical contract path named
+      And the installed phase-contract bytes remain unchanged
 
     @surface.safeword-cli @rejection
     Scenario: An undecidable Execution invalidation contract blocks reconciliation

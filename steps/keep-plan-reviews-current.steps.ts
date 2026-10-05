@@ -14,6 +14,7 @@ import path from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { PLANNING_CONTRACT_TEMPLATE_PATHS } from '../packages/cli/src/schema.js';
 import type { SafewordWorld } from './world.js';
 
 const packageRoot = path.resolve(import.meta.dirname, '../packages/cli');
@@ -25,6 +26,7 @@ interface ContractWorld {
   project: string;
   expected: 'changed' | 'phase-only' | 'missing';
   result?: ReturnType<typeof spawnSync>;
+  installedContracts?: readonly { path: string; bytes: string }[];
 }
 
 const contractWorlds = new WeakMap<SafewordWorld, ContractWorld>();
@@ -93,6 +95,82 @@ function state(world: SafewordWorld): ContractWorld {
   assert.ok(current, 'The contract scenario must establish its project first.');
   return current;
 }
+
+function invalidationFixture(world: SafewordWorld, declaration: string) {
+  const current = setup(world, 'missing');
+  setScopeClause(current.distribution, originalClause);
+  phaseContracts(current.distribution);
+  const installed = reconcile(current, 'install');
+  assert.equal(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+  current.installedContracts = Object.values(PLANNING_CONTRACT_TEMPLATE_PATHS).map(relative => {
+    const installedPath = path.join(current.project, '.safeword', relative);
+    return { path: installedPath, bytes: readFileSync(installedPath, 'utf8') };
+  });
+  setScopeClause(current.distribution, changedClause);
+  phaseContracts(current.distribution);
+  for (const snapshot of current.installedContracts) {
+    const relative = path.relative(path.join(current.project, '.safeword'), snapshot.path);
+    assert.notEqual(
+      readFileSync(path.join(current.distribution, 'templates', relative), 'utf8'),
+      snapshot.bytes,
+    );
+  }
+  const contractPath = path.join(
+    current.distribution,
+    'templates',
+    PLANNING_CONTRACT_TEMPLATE_PATHS.execution,
+  );
+  const canonical = readFileSync(contractPath, 'utf8');
+  const supported = 'upstreamImplementationInvalidation: both_plan_reviews';
+  assert.ok(canonical.includes(supported));
+  writeFileSync(contractPath, canonical.replace(supported, declaration));
+}
+
+Given(
+  'the canonical Execution Planning contract declares that accepted Implementation Plan changes invalidate only their own review',
+  function (this: SafewordWorld) {
+    invalidationFixture(this, 'upstreamImplementationInvalidation: implementation_review_only');
+  },
+);
+
+Given(
+  'the canonical Execution Planning owner does not declare exactly one supported upstream invalidation direction',
+  function (this: SafewordWorld) {
+    invalidationFixture(this, 'upstreamImplementationInvalidation:');
+  },
+);
+
+Then(
+  'reconciliation is blocked with invalid_invalidation_contract, the Execution phase, and the canonical contract path named',
+  function (this: SafewordWorld) {
+    const current = state(this);
+    assert.notEqual(
+      current.result?.status,
+      0,
+      'unsupported invalidation contract advanced reconciliation',
+    );
+    const output = JSON.parse(current.result?.stdout ?? '') as {
+      errors: { code: string }[];
+      findings: { code: string; metadata?: Record<string, unknown> }[];
+    };
+    assert.ok(output.errors.some(error => error.code === 'invalid_invalidation_contract'));
+    assert.ok(
+      output.findings.some(
+        finding =>
+          finding.code === 'invalid_invalidation_contract' &&
+          finding.metadata?.planning_phase === 'plan-execution' &&
+          finding.metadata?.contract_path === PLANNING_CONTRACT_TEMPLATE_PATHS.execution,
+      ),
+    );
+  },
+);
+
+Then('the installed phase-contract bytes remain unchanged', function (this: SafewordWorld) {
+  const snapshots = state(this).installedContracts;
+  assert.ok(snapshots?.length);
+  for (const snapshot of snapshots)
+    assert.equal(readFileSync(snapshot.path, 'utf8'), snapshot.bytes);
+});
 
 After(function (this: SafewordWorld) {
   const current = contractWorlds.get(this);

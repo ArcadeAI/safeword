@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -243,5 +243,25 @@ describe('user-owned planning review disposition', () => {
     const result = project.terminal('y', project.reviewId);
     expect(result.stdout).toContain('REVIEW_DISPOSITION_WRITE_UNAVAILABLE');
     expect(readFileSync(project.ticketPath, 'utf8')).toBe(before);
+    expect(readFileSync(`${project.ticketPath}.review-disposition.lock`, 'utf8')).toBe(
+      String(process.pid),
+    );
+  });
+  it('recovers a crashed disposition writer on retry', async () => {
+    const project = await reviewedProject();
+    const deadWriter = spawnSync(
+      process.execPath,
+      ['-e', 'process.stdout.write(String(process.pid))'],
+      {
+        encoding: 'utf8',
+      },
+    );
+    expect(deadWriter.status).toBe(0);
+    const lock = `${project.ticketPath}.review-disposition.lock`;
+    writeFileSync(lock, deadWriter.stdout);
+    const result = project.terminal('y', project.reviewId);
+    expect(result.stdout).toContain('recorded');
+    expect(readFileSync(project.ticketPath, 'utf8')).toContain('review_dispositions:');
+    expect(existsSync(lock)).toBe(false);
   });
 });

@@ -6,7 +6,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { PLANNING_CONTRACTS } from '../../src/planning/contracts.generated.js';
 import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
-import { prepareReviewPacket } from '../../src/review/packet.js';
+import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
+import { assemblePlanContract, prepareReviewPacket } from '../../src/review/packet.js';
 import { PLANNING_CONTEXT_ROLES } from '../../src/review/planning-context-error.js';
 import { createPlanningReviewIdentity } from '../../src/review/planning-context-identity.js';
 import { isPlanningReviewIdentity } from '../../src/review/planning-role-context.js';
@@ -134,6 +135,37 @@ describe('Execution planning role context', () => {
       prepared.cleanup();
     }
   });
+  it('inherits triggered data guidance from the accepted Implementation Plan', () => {
+    const root = project();
+    expect(readFileSync(nodePath.join(root, target), 'utf8')).not.toContain('Data applicability');
+    writeFileSync(
+      nodePath.join(root, upstream),
+      implementation.replace(
+        'Data applicability: skip: No product data is stored.',
+        'Data applicability: Approval records are durable project-local authority data.',
+      ),
+    );
+    const guide = '.safeword/guides/data-architecture-guide.md';
+    mkdirSync(nodePath.dirname(nodePath.join(root, guide)), { recursive: true });
+    writeFileSync(
+      nodePath.join(root, guide),
+      '# Data architecture\n\nPreserve approval records.\n',
+    );
+    const prepared = prepareReviewPacket(root, 'plan-execution', [target], [upstream, feature]);
+    try {
+      expect(prepared.packet.planning_context?.dependencies).toContainEqual({
+        role: 'data',
+        path: guide,
+      });
+      expect(prepared.packet.context_files).toContainEqual({
+        path: guide,
+        content: '# Data architecture\n\nPreserve approval records.\n',
+      });
+      expect(prepared.packet.planning_context?.absences.map(row => row.role)).not.toContain('data');
+    } finally {
+      prepared.cleanup();
+    }
+  });
   it('retains ordinary checklist progress but stales a delivery definition change', () => {
     const root = project();
     const path = nodePath.join(root, target);
@@ -190,7 +222,7 @@ describe('Execution planning role context', () => {
     );
     expect(identity(root)).not.toEqual(before);
   });
-  it('retains Execution identity for an upstream edit under implementation-review-only direction', () => {
+  it('cannot retain Execution approval through an unsupported own-review-only direction', () => {
     const contracts = PLANNING_CONTRACTS as unknown as Record<string, unknown>;
     contracts['plan-execution'] = {
       ...canonicalExecutionContract,
@@ -204,17 +236,25 @@ describe('Execution planning role context', () => {
         .replace('Preserve authenticated approval.', 'Require attributable approval.')
         .replace('No product data is stored.', 'This contribution stores no product data.'),
     );
-    expect(identity(root)).toEqual(before);
-  });
-  it('stales Execution identity when the canonical upstream direction changes', () => {
-    const root = project();
-    const before = identity(root);
-    const contracts = PLANNING_CONTRACTS as unknown as Record<string, unknown>;
-    contracts['plan-execution'] = {
-      ...canonicalExecutionContract,
-      upstreamImplementationInvalidation: 'implementation_review_only',
-    };
     expect(identity(root)).not.toEqual(before);
+  });
+  it('stales Execution identity when bounded canonical contract bytes change cosmetically', () => {
+    const root = project();
+    const prepared = prepareReviewPacket(root, 'plan-execution', [target], [upstream, feature]);
+    try {
+      const before = createPlanningReviewIdentity(prepared.packet);
+      const changed = EXECUTION_PLAN_REVIEW_RUBRIC.replace('\n', '\n\n');
+      const contract = assemblePlanContract(changed, changed);
+      expect(contract.reviewer.obligations).toEqual(
+        prepared.packet.plan_contract?.reviewer.obligations,
+      );
+      expect(contract.reviewer.sha256).not.toBe(prepared.packet.plan_contract?.reviewer.sha256);
+      expect(
+        createPlanningReviewIdentity({ ...prepared.packet, plan_contract: contract }),
+      ).not.toEqual(before);
+    } finally {
+      prepared.cleanup();
+    }
   });
   it('rejects an Execution identity that marks the upstream plan absent', () => {
     const root = project();

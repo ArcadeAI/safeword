@@ -342,7 +342,7 @@ Given(
 );
 
 Given(
-  'a plan review is current and its canonical phase contract changed only in whitespace or comments after installed copies were generated',
+  'a plan review is current and its authoring guidance changed only in comments outside the canonical contract after installed copies were generated',
   function (this: SafewordWorld) {
     establishApprovedPlanningContext.call(this, 'current');
     const state = states.get(this);

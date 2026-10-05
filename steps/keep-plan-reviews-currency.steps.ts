@@ -1,12 +1,15 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import { PLANNING_CONTRACTS } from '../packages/cli/src/planning/contracts.generated.js';
 import { parsePlanningContract } from '../packages/cli/src/planning/phase-contract.js';
+import { extractPlanReviewRubric } from '../packages/cli/src/review/plan-rubric.js';
 import { reviewJobStatus } from '../packages/cli/src/review/job.js';
 import { createTrustedReviewerDirectory } from '../packages/cli/tests/review-fixtures.js';
 import { fixtureProject, reviewerExecutable } from './keep-plan-reviews-installed-context.steps.js';
@@ -83,15 +86,60 @@ function appendAndCheck(state: CurrencyState, file: string, addition: string): s
 function statusWithContractSource(state: CurrencyState, before: string, after: string): string {
   const source = readFileSync(contractSource, 'utf8');
   assert.ok(source.includes(before));
-  const parsed = parsePlanningContract('plan-implementation', source.replace(before, after));
-  const contract = PLANNING_CONTRACTS['plan-implementation'] as Record<string, string>;
-  const original = { ...contract };
+  const distribution = mkdtempSync(path.join(tmpdir(), 'safeword-r4-contract-'));
+  cpSync(path.resolve(import.meta.dirname, '../plugin'), distribution, { recursive: true });
+  const runtime = path.join(distribution, 'runtime/cli.js');
+  const status = () => {
+    const result = spawnSync('bun', [runtime, 'review', 'status', state.reviewId, '--json'], {
+      cwd: state.root,
+      encoding: 'utf8',
+      timeout: 60_000,
+      env: { ...process.env, CLAUDE_PLUGIN_ROOT: distribution },
+    });
+    const output = JSON.parse(result.stdout) as { errors: unknown[]; data: { status: string } };
+    assert.deepEqual(output.errors, [], `${result.stdout}\n${result.stderr}`);
+    return output.data.status;
+  };
   try {
-    Object.assign(contract, parsed);
-    const result = reviewJobStatus(state.root, state.reviewId);
-    return (result.data as { status: string }).status;
+    assert.equal(status(), 'approved', 'the unmodified copied runtime must retain approval');
+    const rubric = extractPlanReviewRubric(source);
+    const changed = extractPlanReviewRubric(source.replace(before, after));
+    assert.notEqual(changed, rubric, 'the mutation must change bounded canonical contract bytes');
+    const bundle = readFileSync(runtime, 'utf8');
+    const start = bundle.indexOf('var PLAN_REVIEW_RUBRIC = `');
+    const end = bundle.indexOf('PLAN_REVIEW_RUBRIC_SHA256', start);
+    assert.ok(start >= 0 && end > start);
+    const block = bundle.slice(start, end);
+    assert.ok(block.includes(before));
+    const oldHash = createHash('sha256').update(rubric).digest('hex');
+    const newHash = createHash('sha256').update(changed).digest('hex');
+    assert.ok(bundle.includes(`PLAN_REVIEW_RUBRIC_SHA256 = "${oldHash}"`));
+    const contractStart = bundle.indexOf('PLANNING_CONTRACTS = {');
+    const contractEnd = bundle.indexOf('\n  };', contractStart);
+    assert.ok(contractStart >= 0 && contractEnd > contractStart);
+    const contracts = {
+      ...PLANNING_CONTRACTS,
+      'plan-implementation': parsePlanningContract(
+        'plan-implementation',
+        source.replace(before, after),
+      ),
+    };
+    const updated = (
+      bundle.slice(0, start) +
+      block.replace(before, after) +
+      bundle.slice(end)
+    ).replace(
+      `PLAN_REVIEW_RUBRIC_SHA256 = "${oldHash}"`,
+      `PLAN_REVIEW_RUBRIC_SHA256 = "${newHash}"`,
+    );
+    const oldContracts = bundle.slice(contractStart, contractEnd + '\n  };'.length);
+    writeFileSync(
+      runtime,
+      updated.replace(oldContracts, `PLANNING_CONTRACTS = ${JSON.stringify(contracts)};`),
+    );
+    return status();
   } finally {
-    Object.assign(contract, original);
+    rmSync(distribution, { recursive: true, force: true });
   }
 }
 
@@ -280,7 +328,7 @@ When(
   function (this: SafewordWorld) {
     const state = states.get(this);
     assert.ok(state);
-    state.retainFailure = 'canonical contract comment changed review currency';
+    state.staleFailure = 'changed canonical contract bytes retained review currency';
     state.statuses = [
       statusWithContractSource(state, '- **Purpose:**', '- **Purpose:**   '),
       statusWithContractSource(

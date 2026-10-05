@@ -105,6 +105,100 @@ parent_contract_digest: 2afd2f5559eafea9bd752ac826b46fa98e80a30ccdf6bed76a16ff7f
 
 ## Root Cause (PR 4 Claude Product review identity)
 
+### Resume checkpoint — 2026-10-05 UTC
+
+Current continuation checkpoint: R9's authorized correction now has real RED
+proof: the targeted three-file run reported 52 passing and two failing tests
+(unsupported own-review-only reconciliation and retained upstream identity).
+Executable-RED review `30603a6f-aea5-4849-b782-b5b7d8bf78d7` approved the real
+reconciliation failure. No production correction or corrective checkbox is
+claimed complete. The separate Execution data-guidance characterization passed:
+the current resolver reads the accepted Implementation Plan's trigger and
+includes current guidance without a duplicate Execution declaration. The plan
+now states that existing behavior explicitly. Current R8 primary proof reports
+four failed scenarios, 204 passed steps and four failed steps; guidance remains
+unimplemented. The repaired Execution checklist parses with 15 items.
+
+Installed MCP scenario review `7267f08c-0996-4978-9605-89246c3fa687` approved;
+Implementation review `a1860825-3ed6-497c-a91f-ef7aaf9b1aca` requested the
+data-trigger clarification, now repaired. Those installed receipts lack this
+branch's planning review identity, and the current source reader reported the
+scenario receipt stale before subsequent documentation edits. The installed
+runtime SHA is `32c23e84488322e5aee9caa32a216b6ac4dcc9df8e847cfb42b7d06a13e49c0a`,
+while this branch's generated runtime is
+`1beaa407adc228af27592a161f15f1618219d45078c889eed02b13962576c29e`.
+This branch does not package the installed MCP bridge. Do not replace the
+personal plugin with a build that removes that bridge, reinterpret the old
+receipts as current, or weaken authentication. A narrow request is pending to
+use the repository's existing shared coordinator for this epic instead of the
+installed skill's MCP route. Fresh scenario/Implementation/Execution reviews
+and normal phase admission are still required. Source Execution review
+`04a4859e-db15-43dc-b7fc-392779ed5ec9` identified current-vs-historical task
+labels; those labels and startable corrective commands are now repaired.
+No new review tool, product authority, or dependency policy is introduced.
+
+Latest follow-up: the user delegated the invalidation-policy choice with
+“your call”. Align with parent TBU2.R11/TBU4.R9: semantic Implementation Plan
+changes stale both approvals; own-review-only becomes unsupported and must be
+rejected before reconciliation changes installed bytes. Test corrections are
+authorized. The source CLI now reports the personal native 1.0.0-rc.5 plugin
+protected with current proof for all five lifecycle events. The requested
+latest-package installer retry reported a version mismatch; it did not replace
+that verified protection state. Earlier pending-approval and protection notes
+below are historical.
+
+Restart follow-up: the personal profile still reports a version mismatch; do
+not claim active hook protection. Receipt verification is separately resolved
+for development: native `codex plugin marketplace add` and `codex plugin add`
+installed the current generated bundle into the isolated profile named in
+`/tmp/4200-review-profile-path`. Its cached runtime is a regular installed copy,
+not a repository symlink; SHA-256
+`1beaa407adc228af27592a161f15f1618219d45078c889eed02b13962576c29e`
+matches the generated distribution and remains unchanged. That installed
+verifier authenticated current R8 RED review
+`20743afe-5875-49bc-98ee-0ded14788876` and correctly reported an older scenario
+receipt stale. The installed-cache compatibility root is the verifier route;
+the editable repository plugin is not.
+
+Fresh scenario review `a3143e8d-4361-4f47-b042-be0a39084e88` found that the
+alternate own-review-only Execution invalidation policy contradicts parent
+TBU2.R11/TBU4.R9. Requested user approval to correct the conflicting scenario
+contract to the parent's both-review policy; do not change that test contract
+while the answer is pending. Execution proof mappings, startable commands,
+live-confirmation/release ownership, and current-state labels are repaired in
+the uncommitted plans; they require fresh review after the boundary is settled.
+
+The existing semantic ticket projection already retains `done_when` and `type`;
+added two characterization cases and clarified that fact in the plan. Their
+targeted run started no tests: the package test lock is held by PID 77155 in
+the principles worktree. Do not bypass that lock, kill the other run, or claim
+these cases passed. R14's plan now distinguishes human-directed recorded scope
+changes from identity-authenticated filesystem edits; it adds no new acceptance
+command or false claim that terminal confirmation identifies a human.
+
+PR 5 commit `39bd3bdeb` adds the real missing-reviewer-rubric recovery proof;
+its CI is green. Uncommitted corrective R4 proof now reports exactly six
+scenarios, five passing and one failing: cosmetic changes inside the bounded
+canonical contract incorrectly retain approval. External executable-RED review
+`dd2b0f9a-90f9-46a3-a12b-9a6a2b09f013` approved that failure. The new R8
+installed-guidance cases also remain RED. No corrective production fix is made.
+
+Current scenario and Implementation reviews approved; the latest Execution
+review requests changes to proof/checklist mappings, rollback RED, reviewer
+transport decision accounting, and startable RED commands. These remain open.
+The user-deferred R7 host retrieval proof remains unfinished, as does full epic
+acceptance. The last full acceptance census retains one failure and 541
+undefined scenarios; no narrower green result replaces it.
+
+Receipt verification must use distribution-owned code. Stamps produced during
+this investigation with `CLAUDE_PLUGIN_ROOT` pointing at the editable repository
+plugin are not accepted authorization evidence; preserve history and obtain
+fresh admission through the supported installed verifier. The supported profile
+repair reports `CODEX_PLUGIN_INSTALLED_RESTART_REQUIRED`: inspect Settings >
+Hooks, fully restart Codex, then verify protection and current receipt admission.
+Do not implement through a substituted local verifier. All PRs stay Draft;
+neither merge nor promotion is authorized.
+
 Product Plan reviews use `quality-review`, but the Claude adapter selected streamed model metadata only by review kind, so Product reviews returned a verdict without confirmable model identity. After requesting streamed output for the Product phase, a live probe still lacked confirmation: Claude keyed `modelUsage` as `claude-opus-5[1m]` while its assistant event and `canonicalModel` said `claude-opus-5`. Matching the canonical field resolves the current protocol shape. A live Product review then confirmed `claude-opus-5` and returned its actual rejection findings. The competing hypothesis that no assistant model event was emitted was ruled out by the observed event stream.
 
 ## Root Cause (PR 4 Codex Execution review timeouts)
