@@ -52,7 +52,13 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
   }
   if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
   const targets = Array.isArray(rawTargets)
-    ? rawTargets.filter((target): target is string => typeof target === 'string')
+    ? new Map(
+        rawTargets
+          .filter((target): target is string => typeof target === 'string')
+          .map(target => [nodePath.resolve(invocation.cwd, target), target]),
+      )
+        .values()
+        .toArray()
     : [];
   const context = reviewContext(invocation.options.context);
   if (rawKind === 'plan-implementation' || rawKind === 'plan-execution') {

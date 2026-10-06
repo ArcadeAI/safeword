@@ -847,13 +847,21 @@ function packagedProductPlanContract(): PlanContractPair {
   );
 }
 
+function upstreamPlanContract(
+  planningTarget: boolean,
+  kind: ReviewKind,
+): Pick<ReviewPacket, 'upstream_plan_contract'> {
+  if (!planningTarget || kind !== 'plan-execution') return {};
+  return { upstream_plan_contract: packagedPlanContract('plan-implementation') };
+}
+
 function packetPlanContract(
   kind: ReviewKind,
   configured: PlanContractPair | undefined,
   productTarget: boolean,
   cwd: string,
   targets: readonly string[],
-): Pick<ReviewPacket, 'planning_phase' | 'plan_contract'> {
+): Pick<ReviewPacket, 'planning_phase' | 'plan_contract' | 'upstream_plan_contract'> {
   if (productTarget)
     return { planning_phase: 'product-plan', plan_contract: packagedProductPlanContract() };
   if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
@@ -867,6 +875,7 @@ function packetPlanContract(
   return {
     ...(planningTarget && { planning_phase: kind }),
     plan_contract: configured ?? canonical,
+    ...upstreamPlanContract(planningTarget, kind),
   };
 }
 
@@ -1250,7 +1259,7 @@ function prepareReviewPacketUnsafe(
       execution.planContract,
       productPlan,
       canonicalRoot,
-      targets,
+      uniqueTargets,
     );
     planningContext = resolvePlanningRoleContext(
       canonicalRoot,
