@@ -911,3 +911,18 @@ review target remains the actual unchanged source, so it is not an applied
 candidate approval. No new live matrix or admission generated. Earlier complete
 54-pass/nine-failure/zero-unfinished matrix remains historical evidence; full
 acceptance, RGR, R7, legacy approval reuse and final stack review remain open.
+
+### 2026-10-06 — measurement negative controls approved and applied
+
+Human approved `/tmp/4200-measurement-controls.patch`; applied exactly that
+six-case correction. Targeted tests: 63 passed, zero failed; typecheck passed;
+all five generated surfaces regenerated and verified. Independent Claude
+applied-source review `74359889-aff7-4532-892c-fbd1e544d4a1` approved with no
+blocking findings. Preserve warnings: two regex mutations can silently drift;
+partial decision mutations retain contradictory accepted language and may make
+destination expectations ambiguous. No unrelated hardening added. Admission
+remains stale and fails closed until a fresh complete passing matrix exists.
+Logs: `/tmp/4200-measurement-controls-static.log`,
+`/tmp/4200-measurement-controls-typecheck.log`,
+`/tmp/4200-measurement-controls-generated.log`,
+`/tmp/4200-measurement-controls-applied-quality.json`.

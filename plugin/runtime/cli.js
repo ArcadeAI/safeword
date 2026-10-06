@@ -35752,18 +35752,7 @@ var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integri
 
 - One shared authorization service owns permission checks for every transport.
 - Host-neutral dependency order keeps every intermediate merge supported.
-`, INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN, PROOF_ONLY_IMPLEMENTATION_PLAN, MEASUREMENT_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_RESPONSE_TASK = "2. GREEN: add the accepted result fields to `src/review/contract.ts`, route the public command through `src/review/command.ts`, and rerun the step-1 command with approved-plan as the coherent-change fixture; assert exit 0, schema-valid response, execution_plan_record.slicing_decision equal to one_pull_request, exactly one slice named Complete delivery, and exact obligation owners, unchanged decision statuses, normalized approved-plan digest, and delivery definition matching the fixture; assert all those same expected values after reading the stored result. Seed the approved judgment with distinguishing summary, findings, evidence records, destination, and complete slice details; compare the complete supplied judgment by deep equality with both the public response and the stored-reader response.", ONE_DENIAL_RED_TASK = "5. RED: run `bun run test:failure-signals -- --fixture authorized-reviewer-rejection` with a reviewer response containing request_changes, the named rejection finding, and a null execution_plan_record; observe exit 1 because the public response loses the finding or retains an approval record. Also run `bun run test:authorization-boundary -- --fixture denied-review` with an unauthorized actor and an initially empty reviewer request journal; observe exit 1 because the CLI neither names the denied review nor prevents dispatch before editing `src/review/command.ts`.", ONE_DENIAL_GREEN_TASK = "6. GREEN: call the accepted shared authorization service before reviewer dispatch in `src/review/command.ts`, rerun both step-5 commands, and assert the unauthorized call exits 2, names the affected review, leaves the reviewer request journal empty, and persists no result. For the authorized reviewer rejection, assert the public response retains the supplied rejection finding and a null execution_plan_record, and that the compatible stored-result reader returns those same values. Seed the rejected judgment with distinguishing summary, findings, evidence records, and destination; compare the complete supplied judgment by deep equality with both the public response and the stored-reader response.", ONE_DELIVERY_TASKS, COMPLETE_DELIVERY_SLICE, COMPLETE_DELIVERY_RATIONALE = "The public review result, its compatible persistence, permission check, failure signal, rollout switch, rollback, and documentation are inseparable facets of one command contract; none is independently useful and every proof protects that same response.", ONE_PLAN, UNCHANGED_DECISIONS_PLAN, CURRENT_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", CURRENT_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", EARLIER_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | reusable_earlier_revision | bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb | receipt:earlier-proof; compatible: accepted boundary is unchanged |", OPEN_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |", OPEN_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | open | missing | | |", ABSENT_WORK_CLAIMED_COMPLETE_PLAN, CURRENT_PROOF_BASE_PLAN, CURRENT_PROOF_PLAN, EARLIER_PROOF_CLAIMED_CURRENT_PLAN, KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN, PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, MEASUREMENT_EXECUTION_BLOCK = `
-## Measurement execution
-
-- Owner: Complete delivery.
-- Dependency order: add instrumentation, validate its samples, then collect current-revision evidence.
-- Instrumentation: record the duration at the gateway authorization boundary before response serialization and publish the \`gateway_authorization_seconds\` histogram with transport and outcome dimensions. Step 12 RED: add production-permitted, production-denied, and synthetic-probe fixtures in tests/gateway-authorization-metrics.test.ts; drive the existing public gateway authorization boundary and run bun run test tests/gateway-authorization-metrics.test.ts -t emitted-histogram. Observe exit 1 because production requests do not emit the expected histogram observations before editing src/gateway/authorization.ts. Step 13 GREEN: use the existing gateway metrics publisher at that accepted boundary, counting the eligible production-request census separately from successfully observed histogram samples; rerun step 12 and assert durations are observed before serialization with exact transport and outcome labels for permitted and denied production requests, while synthetic probes are excluded from the production population. Step 14 REFACTOR: share the instrumentation path and rerun the public authorization and emitted-histogram tests with identical responses and observations.
-- Tests: prove the histogram covers production gateway authorization requests, excludes documented synthetic probes, and rejects evidence below 99 percent sample coverage.
-- Evidence collection: query the rolling seven-day window and retain the population, sample coverage, p95 result, target comparison, and source revision. Step 15 RED: add valid-window, low-coverage, synthetic-contamination, and over-target fixtures in tests/gateway-measurement-collection.test.ts; run bun run test tests/gateway-measurement-collection.test.ts -t seven-day-evidence and observe exit 1 because accepted measurements cannot be collected or invalid samples enable rollout before editing scripts/collect-gateway-measurement.ts. Step 16 GREEN: implement the collector against the existing gateway histogram query, rerun step 15, and assert the seven-day production population, synthetic exclusion, coverage computed as observed samples divided by the independent eligible-request census and at least 99 percent, milliseconds-converted p95 at most 200, and recorded source revision. The low-coverage fixture must have 98 observed samples for 100 eligible requests; synthetic requests belong to neither count. Low coverage or synthetic contamination must produce invalid evidence and keep rollout disabled; over-target valid evidence must leave the success criterion unmet. Step 17 COLLECT: run bun scripts/collect-gateway-measurement.ts --window-days 7 --output .evidence/gateway-measurement.json against the existing production gateway metrics source and retain the source revision, population, coverage, p95, target comparison, and validity result; do not mark completion until valid current-revision evidence meets the accepted target. Step 18 REFACTOR: share collection validation and rerun the four fixtures with identical classification, artifact fields, and rollout decisions.
-- Completion signal: current-revision evidence shows p95 authorization latency at or below 200 milliseconds with at least 99 percent valid sample coverage.
-- Preserved contract: the accepted outcome, population, target, measurement origin, method, validity safeguards, and failure behavior remain unchanged.
-- Failure handling: keep rollout disabled and report the measurement as invalid when a validity safeguard fails.
-`, MEASUREMENT_PLAN, MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, MISSING_MEASUREMENT_EVIDENCE_PLAN, CHANGED_MEASUREMENT_TARGET_PLAN, CHANGED_MEASUREMENT_ORIGIN_PLAN, WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, CHANGED_MEASUREMENT_FAILURE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, COMPLETE_DELIVERY_OBLIGATION_OWNERS, DATA_OWNERSHIP_POSITIVE_PLAN, MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN, MEASUREMENT_POSITIVE_PLAN, conformanceCases, EXECUTION_PLAN_CONFORMANCE_CASES;
+`, INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN, PROOF_ONLY_IMPLEMENTATION_PLAN, MEASUREMENT_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_RESPONSE_TASK = "2. GREEN: add the accepted result fields to `src/review/contract.ts`, route the public command through `src/review/command.ts`, and rerun the step-1 command with approved-plan as the coherent-change fixture; assert exit 0, schema-valid response, execution_plan_record.slicing_decision equal to one_pull_request, exactly one slice named Complete delivery, and exact obligation owners, unchanged decision statuses, normalized approved-plan digest, and delivery definition matching the fixture; assert all those same expected values after reading the stored result. Seed the approved judgment with distinguishing summary, findings, evidence records, destination, and complete slice details; compare the complete supplied judgment by deep equality with both the public response and the stored-reader response.", ONE_DENIAL_RED_TASK = "5. RED: run `bun run test:failure-signals -- --fixture authorized-reviewer-rejection` with a reviewer response containing request_changes, the named rejection finding, and a null execution_plan_record; observe exit 1 because the public response loses the finding or retains an approval record. Also run `bun run test:authorization-boundary -- --fixture denied-review` with an unauthorized actor and an initially empty reviewer request journal; observe exit 1 because the CLI neither names the denied review nor prevents dispatch before editing `src/review/command.ts`.", ONE_DENIAL_GREEN_TASK = "6. GREEN: call the accepted shared authorization service before reviewer dispatch in `src/review/command.ts`, rerun both step-5 commands, and assert the unauthorized call exits 2, names the affected review, leaves the reviewer request journal empty, and persists no result. For the authorized reviewer rejection, assert the public response retains the supplied rejection finding and a null execution_plan_record, and that the compatible stored-result reader returns those same values. Seed the rejected judgment with distinguishing summary, findings, evidence records, and destination; compare the complete supplied judgment by deep equality with both the public response and the stored-reader response.", ONE_DELIVERY_TASKS, COMPLETE_DELIVERY_SLICE, COMPLETE_DELIVERY_RATIONALE = "The public review result, its compatible persistence, permission check, failure signal, rollout switch, rollback, and documentation are inseparable facets of one command contract; none is independently useful and every proof protects that same response.", ONE_PLAN, UNCHANGED_DECISIONS_PLAN, CURRENT_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", CURRENT_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", EARLIER_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | reusable_earlier_revision | bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb | receipt:earlier-proof; compatible: accepted boundary is unchanged |", OPEN_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |", OPEN_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | open | missing | | |", ABSENT_WORK_CLAIMED_COMPLETE_PLAN, CURRENT_PROOF_BASE_PLAN, CURRENT_PROOF_PLAN, EARLIER_PROOF_CLAIMED_CURRENT_PLAN, KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN, PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, COMPLETE_DELIVERY_OBLIGATION_OWNERS, DATA_OWNERSHIP_POSITIVE_PLAN, MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN, MEASUREMENT_POSITIVE_PLAN, MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, MISSING_MEASUREMENT_EVIDENCE_PLAN, CHANGED_MEASUREMENT_TARGET_PLAN, CHANGED_MEASUREMENT_ORIGIN_PLAN, WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, CHANGED_MEASUREMENT_FAILURE_PLAN, conformanceCases, EXECUTION_PLAN_CONFORMANCE_CASES;
 var init_execution_plan_conformance = __esm(() => {
   init_delivery_checklist();
   init_execution_plan_admission_generated();
@@ -36030,25 +36019,6 @@ ${reviewOutputSchema("plan-execution")}
 - Human authority: pending security approval.
 - Target work: obtain the named security approval.
 - Claimed delivery state: complete.`);
-  MEASUREMENT_PLAN = `${withRequiredReplacements(ONE_PLAN, [
-    [
-      `
-
-## Delivery checklist`,
-      `
-| measurement-evidence | command | E2E | Current-revision production gateway histogram, seven-day population, p95, coverage, synthetic exclusion, and rollout validity. | real_boundary | current_required | ${JSON.stringify({ type: "command", cwd: ".", argv: ["bun", "scripts/collect-gateway-measurement.ts", "--window-days", "7", "--output", ".evidence/gateway-measurement.json"] })} |
-
-## Delivery checklist`
-    ]
-  ]).trimEnd()}
-| item-12 | testing | Implement and collect the accepted gateway authorization measurement. | contributor | measurement-evidence | open | missing | | |
-${MEASUREMENT_EXECUTION_BLOCK}`;
-  MISSING_MEASUREMENT_INSTRUMENTATION_PLAN = MEASUREMENT_PLAN.replace(/^- Instrumentation:.*\n/m, "");
-  MISSING_MEASUREMENT_EVIDENCE_PLAN = MEASUREMENT_PLAN.replace(/^- Evidence collection:.*\n/m, "");
-  CHANGED_MEASUREMENT_TARGET_PLAN = MEASUREMENT_PLAN.replace("at or below 200 milliseconds", "at or below 300 milliseconds");
-  CHANGED_MEASUREMENT_ORIGIN_PLAN = MEASUREMENT_PLAN.replace("at the gateway authorization boundary before response serialization", "in the client after response parsing");
-  WEAKENED_MEASUREMENT_SAFEGUARD_PLAN = MEASUREMENT_PLAN.replace("rejects evidence below 99 percent sample coverage", "accepts evidence at any sample coverage");
-  CHANGED_MEASUREMENT_FAILURE_PLAN = MEASUREMENT_PLAN.replace("keep rollout disabled and report the measurement as invalid when a validity safeguard fails", "continue rollout and treat missing samples as a passing measurement");
   DISMISSED_APPLICABLE_WORK_PLAN = ONE_PLAN.replace("| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |", "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor |  | not_applicable | missing | | No runtime proof is needed. |").replace("| item-11 | completion evidence | Retain concrete completion evidence for all accepted obligations. | contributor | plan-integrity | open | missing | | |", `| item-11 | completion evidence | Retain concrete completion evidence for all accepted obligations. | contributor | plan-integrity | open | missing | | |
 | item-12 | testing | Exercise an unrelated smoke check. | contributor | behavior-boundary | open | missing | | |`);
   APPLICABILITY_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
@@ -36472,6 +36442,34 @@ ${MEASUREMENT_EXECUTION_BLOCK}`;
   ]).trimEnd()}
 | item-12 | testing | Implement and collect the accepted gateway authorization measurement. | contributor | measurement-evidence | open | missing | | |
 `;
+  MISSING_MEASUREMENT_INSTRUMENTATION_PLAN = MEASUREMENT_POSITIVE_PLAN.replace(/^3\. VERIFY INSTRUMENTATION:.*$/mu, "3. VERIFY INSTRUMENTATION: to be determined.");
+  MISSING_MEASUREMENT_EVIDENCE_PLAN = withRequiredReplacements(MEASUREMENT_POSITIVE_PLAN.replace(/^4\. COLLECT:.*$/mu, "4. COLLECT: to be determined."), [
+    [
+      "both fixture commands and the Gateway measurement step-4 production collector",
+      "both fixture commands"
+    ]
+  ]);
+  CHANGED_MEASUREMENT_TARGET_PLAN = withRequiredReplacements(MEASUREMENT_POSITIVE_PLAN, [
+    ["p95 at most 200 milliseconds", "p95 at most 300 milliseconds"]
+  ]);
+  CHANGED_MEASUREMENT_ORIGIN_PLAN = withRequiredReplacements(MEASUREMENT_POSITIVE_PLAN, [
+    [
+      "observations before response serialization",
+      "observations in the client after response parsing"
+    ]
+  ]);
+  WEAKENED_MEASUREMENT_SAFEGUARD_PLAN = withRequiredReplacements(MEASUREMENT_POSITIVE_PLAN, [
+    [
+      "Coverage below 99 percent or synthetic contamination produces invalid evidence",
+      "Any sample coverage is valid unless synthetic contamination produces invalid evidence"
+    ]
+  ]);
+  CHANGED_MEASUREMENT_FAILURE_PLAN = withRequiredReplacements(MEASUREMENT_POSITIVE_PLAN, [
+    [
+      "Keep rollout disabled and report invalid evidence if a validity safeguard fails",
+      "Continue rollout and report passing evidence if a validity safeguard fails"
+    ]
+  ]);
   conformanceCases = [
     approved("one-coherent-change", "One coherent change records one pull request.", ONE_PLAN, "one_pull_request", ["Complete delivery"]),
     approved("several-ordered-changes", "Several independent changes record ordered pull requests.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
@@ -36669,27 +36667,27 @@ ${MEASUREMENT_EXECUTION_BLOCK}`;
     },
     {
       ...denied("missing-measurement-instrumentation", "Accepted measurement execution without the instrumentation work is denied.", MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, ["instrumentation"]),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+      implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN
     },
     {
       ...denied("missing-measurement-evidence-collection", "Accepted measurement execution without evidence collection is denied.", MISSING_MEASUREMENT_EVIDENCE_PLAN, ["evidence", "collection"]),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+      implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN
     },
     {
       ...decisionChangingDiscovery("changed-measurement-target", "Execution Planning cannot change the accepted Product-owned measurement target.", CHANGED_MEASUREMENT_TARGET_PLAN, ["target", "200"]),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+      implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN
     },
     {
       ...decisionChangingDiscovery("changed-measurement-origin", "Execution Planning cannot change the accepted measurement origin.", CHANGED_MEASUREMENT_ORIGIN_PLAN, ["measurement origin", "gateway"]),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+      implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN
     },
     {
       ...decisionChangingDiscovery("weakened-measurement-safeguard", "Execution Planning cannot weaken an accepted measurement validity safeguard.", WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, ["validity", "99"]),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+      implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN
     },
     {
       ...decisionChangingDiscovery("changed-measurement-failure-behavior", "Execution Planning cannot redefine accepted measurement failure behavior.", CHANGED_MEASUREMENT_FAILURE_PLAN, ["failure", "rollout"]),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+      implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN
     },
     decisionChangingDiscovery("reopened-authorization-decision", "A slice cannot move the accepted shared authorization boundary.", executionPlan({
       decision: "one pull request",

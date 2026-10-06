@@ -648,50 +648,6 @@ const PENDING_HUMAN_CLAIMED_COMPLETE_PLAN = withDeliveryState(
 - Target work: obtain the named security approval.
 - Claimed delivery state: complete.`,
 );
-const MEASUREMENT_EXECUTION_BLOCK = `
-## Measurement execution
-
-- Owner: Complete delivery.
-- Dependency order: add instrumentation, validate its samples, then collect current-revision evidence.
-- Instrumentation: record the duration at the gateway authorization boundary before response serialization and publish the \`gateway_authorization_seconds\` histogram with transport and outcome dimensions. Step 12 RED: add production-permitted, production-denied, and synthetic-probe fixtures in tests/gateway-authorization-metrics.test.ts; drive the existing public gateway authorization boundary and run bun run test tests/gateway-authorization-metrics.test.ts -t emitted-histogram. Observe exit 1 because production requests do not emit the expected histogram observations before editing src/gateway/authorization.ts. Step 13 GREEN: use the existing gateway metrics publisher at that accepted boundary, counting the eligible production-request census separately from successfully observed histogram samples; rerun step 12 and assert durations are observed before serialization with exact transport and outcome labels for permitted and denied production requests, while synthetic probes are excluded from the production population. Step 14 REFACTOR: share the instrumentation path and rerun the public authorization and emitted-histogram tests with identical responses and observations.
-- Tests: prove the histogram covers production gateway authorization requests, excludes documented synthetic probes, and rejects evidence below 99 percent sample coverage.
-- Evidence collection: query the rolling seven-day window and retain the population, sample coverage, p95 result, target comparison, and source revision. Step 15 RED: add valid-window, low-coverage, synthetic-contamination, and over-target fixtures in tests/gateway-measurement-collection.test.ts; run bun run test tests/gateway-measurement-collection.test.ts -t seven-day-evidence and observe exit 1 because accepted measurements cannot be collected or invalid samples enable rollout before editing scripts/collect-gateway-measurement.ts. Step 16 GREEN: implement the collector against the existing gateway histogram query, rerun step 15, and assert the seven-day production population, synthetic exclusion, coverage computed as observed samples divided by the independent eligible-request census and at least 99 percent, milliseconds-converted p95 at most 200, and recorded source revision. The low-coverage fixture must have 98 observed samples for 100 eligible requests; synthetic requests belong to neither count. Low coverage or synthetic contamination must produce invalid evidence and keep rollout disabled; over-target valid evidence must leave the success criterion unmet. Step 17 COLLECT: run bun scripts/collect-gateway-measurement.ts --window-days 7 --output .evidence/gateway-measurement.json against the existing production gateway metrics source and retain the source revision, population, coverage, p95, target comparison, and validity result; do not mark completion until valid current-revision evidence meets the accepted target. Step 18 REFACTOR: share collection validation and rerun the four fixtures with identical classification, artifact fields, and rollout decisions.
-- Completion signal: current-revision evidence shows p95 authorization latency at or below 200 milliseconds with at least 99 percent valid sample coverage.
-- Preserved contract: the accepted outcome, population, target, measurement origin, method, validity safeguards, and failure behavior remain unchanged.
-- Failure handling: keep rollout disabled and report the measurement as invalid when a validity safeguard fails.
-`;
-const MEASUREMENT_PLAN = `${withRequiredReplacements(ONE_PLAN, [
-  [
-    '\n\n## Delivery checklist',
-    `\n| measurement-evidence | command | E2E | Current-revision production gateway histogram, seven-day population, p95, coverage, synthetic exclusion, and rollout validity. | real_boundary | current_required | ${JSON.stringify({ type: 'command', cwd: '.', argv: ['bun', 'scripts/collect-gateway-measurement.ts', '--window-days', '7', '--output', '.evidence/gateway-measurement.json'] })} |\n\n## Delivery checklist`,
-  ],
-]).trimEnd()}
-| item-12 | testing | Implement and collect the accepted gateway authorization measurement. | contributor | measurement-evidence | open | missing | | |
-${MEASUREMENT_EXECUTION_BLOCK}`;
-const MISSING_MEASUREMENT_INSTRUMENTATION_PLAN = MEASUREMENT_PLAN.replace(
-  /^- Instrumentation:.*\n/m,
-  '',
-);
-const MISSING_MEASUREMENT_EVIDENCE_PLAN = MEASUREMENT_PLAN.replace(
-  /^- Evidence collection:.*\n/m,
-  '',
-);
-const CHANGED_MEASUREMENT_TARGET_PLAN = MEASUREMENT_PLAN.replace(
-  'at or below 200 milliseconds',
-  'at or below 300 milliseconds',
-);
-const CHANGED_MEASUREMENT_ORIGIN_PLAN = MEASUREMENT_PLAN.replace(
-  'at the gateway authorization boundary before response serialization',
-  'in the client after response parsing',
-);
-const WEAKENED_MEASUREMENT_SAFEGUARD_PLAN = MEASUREMENT_PLAN.replace(
-  'rejects evidence below 99 percent sample coverage',
-  'accepts evidence at any sample coverage',
-);
-const CHANGED_MEASUREMENT_FAILURE_PLAN = MEASUREMENT_PLAN.replace(
-  'keep rollout disabled and report the measurement as invalid when a validity safeguard fails',
-  'continue rollout and treat missing samples as a passing measurement',
-);
 const DISMISSED_APPLICABLE_WORK_PLAN = ONE_PLAN.replace(
   '| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |',
   '| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor |  | not_applicable | missing | | No runtime proof is needed. |',
@@ -1213,6 +1169,41 @@ const MEASUREMENT_POSITIVE_PLAN = `${withRequiredReplacements(
   ],
 ).trimEnd()}\n| item-12 | testing | Implement and collect the accepted gateway authorization measurement. | contributor | measurement-evidence | open | missing | | |\n`;
 
+const MISSING_MEASUREMENT_INSTRUMENTATION_PLAN = MEASUREMENT_POSITIVE_PLAN.replace(
+  /^3\. VERIFY INSTRUMENTATION:.*$/mu,
+  '3. VERIFY INSTRUMENTATION: to be determined.',
+);
+const MISSING_MEASUREMENT_EVIDENCE_PLAN = withRequiredReplacements(
+  MEASUREMENT_POSITIVE_PLAN.replace(/^4\. COLLECT:.*$/mu, '4. COLLECT: to be determined.'),
+  [
+    [
+      'both fixture commands and the Gateway measurement step-4 production collector',
+      'both fixture commands',
+    ],
+  ],
+);
+const CHANGED_MEASUREMENT_TARGET_PLAN = withRequiredReplacements(MEASUREMENT_POSITIVE_PLAN, [
+  ['p95 at most 200 milliseconds', 'p95 at most 300 milliseconds'],
+]);
+const CHANGED_MEASUREMENT_ORIGIN_PLAN = withRequiredReplacements(MEASUREMENT_POSITIVE_PLAN, [
+  [
+    'observations before response serialization',
+    'observations in the client after response parsing',
+  ],
+]);
+const WEAKENED_MEASUREMENT_SAFEGUARD_PLAN = withRequiredReplacements(MEASUREMENT_POSITIVE_PLAN, [
+  [
+    'Coverage below 99 percent or synthetic contamination produces invalid evidence',
+    'Any sample coverage is valid unless synthetic contamination produces invalid evidence',
+  ],
+]);
+const CHANGED_MEASUREMENT_FAILURE_PLAN = withRequiredReplacements(MEASUREMENT_POSITIVE_PLAN, [
+  [
+    'Keep rollout disabled and report invalid evidence if a validity safeguard fails',
+    'Continue rollout and report passing evidence if a validity safeguard fails',
+  ],
+]);
+
 const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
   approved(
     'one-coherent-change',
@@ -1597,7 +1588,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       MISSING_MEASUREMENT_INSTRUMENTATION_PLAN,
       ['instrumentation'],
     ),
-    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+    implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN,
   },
   {
     ...denied(
@@ -1606,7 +1597,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       MISSING_MEASUREMENT_EVIDENCE_PLAN,
       ['evidence', 'collection'],
     ),
-    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+    implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN,
   },
   {
     ...decisionChangingDiscovery(
@@ -1615,7 +1606,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       CHANGED_MEASUREMENT_TARGET_PLAN,
       ['target', '200'],
     ),
-    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+    implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN,
   },
   {
     ...decisionChangingDiscovery(
@@ -1624,7 +1615,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       CHANGED_MEASUREMENT_ORIGIN_PLAN,
       ['measurement origin', 'gateway'],
     ),
-    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+    implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN,
   },
   {
     ...decisionChangingDiscovery(
@@ -1633,7 +1624,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       WEAKENED_MEASUREMENT_SAFEGUARD_PLAN,
       ['validity', '99'],
     ),
-    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+    implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN,
   },
   {
     ...decisionChangingDiscovery(
@@ -1642,7 +1633,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       CHANGED_MEASUREMENT_FAILURE_PLAN,
       ['failure', 'rollout'],
     ),
-    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+    implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN,
   },
   decisionChangingDiscovery(
     'reopened-authorization-decision',
