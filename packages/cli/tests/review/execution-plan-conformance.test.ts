@@ -21,7 +21,7 @@ const EXPECTED_CASE_IDS = [
   'generic-checklist',
   'dismissed-applicable-work',
   'proof-does-not-exercise-boundary',
-  'missing-purpose',
+  'purpose-in-rationale',
   'missing-boundary',
   'missing-prerequisites',
   'missing-proof',

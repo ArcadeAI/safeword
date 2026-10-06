@@ -710,7 +710,8 @@ const COMPLETE_RECORD_PLAN = executionPlan({
         'Result type, validation, persistence, compatibility, failure and security behavior, rollout, rollback, and documentation.',
       prerequisites: 'none',
       proof: ALL_DELIVERY_PROOFS,
-      completion: 'A complete judgment round-trips and every accepted obligation is supported.',
+      completion:
+        'A complete judgment round-trips, every named proof command passes on the merge candidate, and every accepted obligation has completion evidence.',
       tasks: ONE_DELIVERY_TASKS.map(task =>
         task.replaceAll('Complete delivery', 'Typed review result'),
       ),
@@ -1147,7 +1148,17 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
     }),
     ['proof', 'boundary'],
   ),
-  missingFieldCase('missing-purpose', 'purpose', 'purpose'),
+  approved(
+    'purpose-in-rationale',
+    'A coherent purpose stated in the rationale and boundary does not require a repeated label.',
+    executionPlan({
+      decision: 'one pull request',
+      rationale: COMPLETE_DELIVERY_RATIONALE,
+      slices: [{ ...COMPLETE_DELIVERY_SLICE, purpose: undefined }],
+    }),
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
   missingFieldCase('missing-boundary', 'boundary', 'boundary'),
   missingFieldCase('missing-prerequisites', 'prerequisites', 'prerequisite'),
   missingFieldCase('missing-proof', 'proof', 'proof'),

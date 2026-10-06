@@ -635,3 +635,25 @@ has been changed to conceal a failure. The next matrix requires fresh complete
 proof after any approved corpus correction. The epic and stack remain blocked
 on the required human test-change decisions and all previously recorded
 acceptance, RGR, R7, legacy, and final-review work.
+
+### Approved oracle corrections — 2026-10-06
+
+The human approved both prepared patches. Applied only the complete-record
+completion clarification, the purpose-in-rationale approval oracle, and its
+case-inventory rename. All 62 targeted tests pass (59 conformance and three
+request-bound schema tests), typecheck passes, and all five generated surfaces
+were regenerated and verified. Independent review
+`0a9b6ecd-8b09-4b9c-8b35-2bf096fc949e` approved with nonblocking coverage
+suggestions. No admission evidence was restamped or manufactured.
+
+The contract digest remains
+`b41b5a7b566c0e4d0d76b774f63335e109fa5b591f0de28739fffe577d2eb3cc`.
+The corrected corpus digest is
+`48350247aced49465a74c3518a1b702b1105577b0d6738086c714e749cbccc47`.
+Every earlier live result remains bound to its original inputs. A bounded live
+pilot checks the two corrected cases and adjacent missing-boundary,
+missing-prerequisites, and missing-proof controls before a fresh full matrix;
+this checks whether the shared omitted-field fixtures still isolate the
+semantic requirement rather than only a missing label. Filtered pilots are
+never qualification evidence. All prior unfinished acceptance and stack work
+remains open.
