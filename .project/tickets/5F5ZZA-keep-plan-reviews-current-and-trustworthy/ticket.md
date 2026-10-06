@@ -47,6 +47,10 @@ parent_contract_digest: fc6cd57babcd3fefc8a71c2f100683aa98d4589e1b14abfe46f8b422
 
 ## Work Log
 
+- 2026-10-06 Qualification continuation: the explicitly approved runner correction now checks runtime-confirmed provider/model and uses/restores the selected authenticated profile. Its final typecheck/lint and Claude review `c86135f1-94ea-48bd-bccc-57c40622f70c` passed. The complete Codex `gpt-6-astra` matrix finished with 51/63 cases passing and 12 failing (64 Vitest tests including identity precondition: 52 passed, 12 failed); raw log and results remain `/tmp/4200-codex-model-qualified-live.log` and `/tmp/4200-codex-model-qualified-results.json`. No admission was generated. Nine failures exposed incomplete fixture mechanics/context; their approved repairs now specify accepted store ownership, complete prior-response proof, measurement instrumentation/independent coverage census/collection, concrete discovery actions, denial inputs/assertions, and independently supported consumers. Eight repaired cases have focused passing diagnostics; fresh-context denial now receives approval but still fails exact obligation-name scoring on a descriptive suffix. The three prepared scorer corrections remain unapplied pending human approval; they retain verdict, destination, rejection-record and canonical-name checks while accepting correct terminology/descriptive comma-or-colon suffixes. Final fixture unit tests pass 59/59, typecheck and lint pass. A review started before final formatting returned stale (`67df9015-1825-47ad-aa73-3f913103f0a6`); the current-byte review is running. PR4's own live model-confirmation proof passed 2/2 and its 895 schema pre-push checks passed; commit `5696a899f` is pushed to PR #5086. Current-head full CI is not yet claimed. Historical acceptance failures/unfinished scenarios, the RGR ledger, legacy diagnostic gap, and deferred R7 remain unfinished; no merge, promotion, or epic completion is claimed.
+
+- 2026-10-06 Qualification fixture repairs approved and applied: complete-record and five multi-slice/mirror positive fixtures now supply concrete accepted delivery tasks. Missing-field/obligation/checklist rejection fixtures now start from the complete delivery slice. The two separately approved oracle corrections preserve required rejection. Direct source-runtime diagnostics passed 10/10 selected cases with confirmed OpenAI `gpt-6-astra`; these are not full qualification or admission evidence. Static tests passed 59/59 before the final negative-baseline repair; the final rerun is waiting on another checkout's test lock. Final typecheck and lint passed. Claude review `e40e6be5-e01e-4245-ab71-1d798bea73ea` approved with advisories after repairing its earlier blocking baseline finding. The model-provenance/authenticated-Claude-profile runner patch `/tmp/4200-qualification-model-provenance.patch` remains unapplied pending explicit test-edit approval. Historical failures, the earlier purpose-term miss, unfinished acceptance, RGR ledger, and deferred R7 remain visible. No new admission, completion, merge, or promotion is claimed.
+
 - 2026-10-06T06:10Z Live model-confirmation proof: commit `b36df53d1` adds the planned opt-in installed-project/public-coordinator proof. Both real routes passed (2/2): OpenAI `gpt-6-astra` and Anthropic `claude-opus-5` exactly matched their packaged selectors and coordinator-observed confirmations. Typecheck and lint passed; independent Claude review `7345f22c-ebe0-4d8a-b3c8-2ac9323317df` approved the final test. This proves current adapter identity confirmation, not semantic qualification, complete acceptance, or every possible reroute. The unfinished qualification matrix, acceptance scenarios, RGR ledger, and explicitly deferred R7 retrieval-boundary proof remain unfinished; no merge or promotion is authorized.
 
 - 2026-10-01T22:19:00Z R10 review-quality repair: Independent Claude review `6ceab607-97fb-44b8-a0dd-ebec372c54a3` found that the Product and Execution downstream-claim fixtures could be rejected for unrelated incompleteness. Replaced their skeletal plans with phase-conforming base plans, added bounded-approval controls sharing those exact bases, and required the rejection finding to name the full unsupported downstream claim. The three isolated downstream-claim scenarios passed; both new controls received three correct judged approvals each; the pinned corpus test passed 2/2. The positive R10 ledger row remains unfinished because none of these passing proofs is behavioral RED.
@@ -365,3 +369,19 @@ no admission evidence was fabricated. The current feature-wide result remains
 55 passed, two failed, and 118 undefined before these focused corrections;
 no full acceptance rerun or stack-readiness claim is made. The confirmed inherited
 approval-reuse failure and deferred R7 proof remain open.
+
+### Qualification scoring and input integrity — 2026-10-06
+
+Applied the human-approved three scoring corrections from
+`/tmp/4200-qualification-three-scorer-corrections.patch`. The targeted static
+suite passes 59/59 (`/tmp/4200-approved-scorer-static.log`). Required verdicts,
+destinations, obligation names, and null rejection records remain checked.
+
+Current-byte Claude review `d6bd14e8-df5c-4cad-b73d-67ec5f2d023c`
+requested changes: qualification scenario inputs expose the private expected
+verdict/finding labels. The previous 51/63 live result and focused probes cannot
+support model admission. Prepared, but did not apply,
+`/tmp/4200-neutral-qualification-scenarios.patch`; explicit approval is pending
+for neutral accepted-behavior inputs in both review paths, bound into the corpus
+digest. Fresh complete qualification is required after that correction. No
+model admission, epic completion, PR promotion, or merge is claimed.
