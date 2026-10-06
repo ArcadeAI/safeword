@@ -86,3 +86,7 @@ their generated classification invalidates the review's effective scope.
 - Supply-chain verification reports preexisting 10 JavaScript advisories and 6 urllib3 advisories in the Python experiment. No manifests/locks changed; no unrelated upgrade performed. Full honest checklist and surface limits are in verify.md, rather than an invented all-green completion verdict.
 
 **Next:** Push the reviewed scoped Draft PR follow-up for fresh CI. Do not merge or release, alter #2121 historical claims, or claim installed activation. The installed legacy verifier rejects the normal implement stamp until this fix is deployed; it must not be bypassed.
+
+- Normal additive main synchronization regenerates the five conflicted generated surfaces; no authored conflict or manual bundle edit. Combined receipt/job/readiness checks passed 254/254.
+- Supported installed-candidate walkthrough in an isolated Codex profile and disposable project normally records a genuine cross-agent reviewed implement stamp with the generated exclusion; an uncovered authored file rejects the same receipt without a second stamp. No user profile or original historical claim changed. Details and limits are in verify.md.
+- c6d4045c5 CI passed all ordinary checks; its inherited audit policy explicitly ignores the two user-deferred high advisories. Raw scan remains non-green, not reported as patched.

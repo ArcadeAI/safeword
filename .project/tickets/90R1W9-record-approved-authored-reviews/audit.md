@@ -64,3 +64,12 @@ or release state changed. Fresh CI remains required and the PR remains Draft.
 Sources: [reviewed advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q), [upstream patch release](https://github.com/7rulnik/source-map-js/releases/tag/v1.2.2).
 
 Final root lint, Gherkin lint and CLI typecheck passed with pinned Bun 1.3.14 and actual Node 26.8.1 (/tmp/5443-source-map-lint-node-final.log). The initial Bun-as-Node PATH failed node:sqlite resolution; no source assertions were changed. All five generated surfaces remain current (/tmp/5443-source-map-generated.log).
+
+## CI policy and deferred advisories
+
+Exact c6d4045c5 CI 37414245531 passed, including its configured audit. The audit
+explicitly ignores the two remaining high advisories under inherited commit
+541efd82a policy; the user deferred them. The raw local scan is still non-green,
+while source-map-js is actually patched. No ignore was added by this PR.
+The supported installed-candidate recording walkthrough and its negative
+authored-file check are documented once in verify.md.
