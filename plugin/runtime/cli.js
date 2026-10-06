@@ -3604,7 +3604,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/audit/SKILL.md": "02c6353beb320c6370788c7845ec193ec08532f05ed6f6174585aa8a68456470",
         ".claude/skills/bdd/DISCOVERY.md": "9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_EXECUTION.md": "b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d",
+        ".claude/skills/bdd/PLAN_EXECUTION.md": "04061409d2a5cd0ade97e0cace2abfea46121423f039afebfc4c3239848f7bcc",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "8dcf90cf71ecd2f77c14bf4a0bb87d28adb99883efe91c3b35246e0a37e387ef",
         ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
         ".claude/skills/bdd/SKILL.md": "898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90",
@@ -33008,7 +33008,10 @@ from outside those sources.
   present prerequisite list, its own proof obligation, a concrete completion
   signal, and a readable \`relies_on_unmerged_successor\` assertion. Reject a
   slice with two independently valuable purposes or any implementation choice
-  the approved plan did not settle.
+  the approved plan did not settle. A final proof step requiring every applicable
+  proof to pass can establish the slice's completion condition; the completion
+  text need not repeat that step. Merely rerunning commands or preserving one
+  snapshot does not establish success for the other required proofs.
 - **Startable steps:** Every executable step must name its exact action, inputs,
   prerequisites, and observable expected result. Require the first production
   slice to begin with the highest-risk named RED and state its command or fixture
@@ -33057,7 +33060,11 @@ from outside those sources.
   cover every accepted scenario and preserve the accepted Implementation Plan
   approach. Reject a complete-looking generic checklist that is unrelated to
   the supplied behavior or loses an accepted boundary, risk, rollout, or
-  decision.
+  decision. A checklist obligation may reference a named accepted obligation
+  whose concrete work is supplied by the accepted plan and local tasks. Resolve
+  that reference rather than requiring duplicate detail in the row. An unnamed
+  generic obligation does not acquire an accepted-work reference merely from
+  its category or mapped proof command.
 - **Proof quality:** Require the exact Proof specifications table before the
   Delivery Checklist. Judge whether each method can exercise its named boundary
   and whether its currency policy is defensible. Every contributor Required
@@ -33095,7 +33102,7 @@ slice's \`relies_on_unmerged_successor\` to \`false\` and every decision status 
 coverage booleans to true only after judging the supplied scenarios and
 approach. For a denial, return the record as null and name each blocking slice,
 field, obligation, dependency, proof, or decision in findings. Never approve
-because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "102ce7d02dcbd8caa6169428baaa1e4874abd2e085d7ef7466c90e45277b9cf4";
+because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "268399e8245553176143543f9c0ae1a51cac707f88945797ee4b545a086063c6";
 
 // src/review/plan-rubric.generated.ts
 var PLAN_REVIEW_RUBRIC = `<!-- SAFEWORD:PLANNING_SHARED_START -->
@@ -34081,12 +34088,16 @@ import {
 } from "fs";
 import { homedir as homedir5, tmpdir as tmpdir3 } from "os";
 import nodePath46 from "path";
-function reviewOutputSchema(kind, planningPhase) {
-  if (kind === "plan-execution")
-    return JSON.stringify(EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE);
-  if (planningPhase === "product-plan" || kind === "scenario-gate" || kind === "plan-implementation")
-    return JSON.stringify(PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE);
-  return REVIEW_OUTPUT_SCHEMA;
+function reviewOutputSchema(kind, planningPhase, dispatchId) {
+  const planningSchema = planningPhase === "product-plan" || kind === "scenario-gate" || kind === "plan-implementation" ? PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE : REVIEW_OUTPUT_SCHEMA_SHAPE;
+  const schema = kind === "plan-execution" ? EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE : planningSchema;
+  return JSON.stringify(dispatchId === undefined ? schema : {
+    ...schema,
+    properties: {
+      ...schema.properties,
+      dispatch_id: { type: "string", enum: [dispatchId] }
+    }
+  });
 }
 function configuredClaudeEffort(environment) {
   const effort = environment.SAFEWORD_REVIEW_EFFORT_CLAUDE;
@@ -34097,12 +34108,12 @@ function configuredClaudeEffort(environment) {
   warn(`Ignoring SAFEWORD_REVIEW_EFFORT_CLAUDE='${effort}' - expected low, medium, high, xhigh, or max.`);
   return;
 }
-function baseReviewerArguments(reviewer, kind, planningPhase) {
+function baseReviewerArguments(reviewer, kind, planningPhase, dispatchId) {
   const base = [...ARGUMENTS[reviewer]];
   if (reviewer !== "claude")
     return base;
   const schemaIndex = base.indexOf("--json-schema") + 1;
-  base[schemaIndex] = reviewOutputSchema(kind, planningPhase);
+  base[schemaIndex] = reviewOutputSchema(kind, planningPhase, dispatchId);
   if (planningPhase === "product-plan" || ["scenario-gate", "plan-implementation", "plan-execution"].includes(kind)) {
     base[base.indexOf("--output-format") + 1] = "stream-json";
     base.push("--verbose");
@@ -34123,7 +34134,8 @@ function reviewerExtraArguments(reviewer, model, schemaPath, environment) {
 function reviewerArguments(reviewer, model, schemaPath, environment = process.env, review = "quality-review") {
   const kind = typeof review === "string" ? review : review.kind;
   const planningPhase = typeof review === "string" ? undefined : review.planning_phase;
-  const base = baseReviewerArguments(reviewer, kind, planningPhase);
+  const dispatchId = typeof review === "string" ? undefined : review.dispatch_id;
+  const base = baseReviewerArguments(reviewer, kind, planningPhase, dispatchId);
   const extra = reviewerExtraArguments(reviewer, model, schemaPath, environment);
   if (extra.length === 0)
     return base;
@@ -34878,7 +34890,7 @@ async function runCodexAppServerCandidate(executable, attempt, timeoutMs) {
           params: {
             threadId: result.thread.id,
             input: [{ type: "text", text: reviewPrompt("codex", attempt.packet) }],
-            outputSchema: JSON.parse(reviewOutputSchema(attempt.packet.kind, attempt.packet.planning_phase)),
+            outputSchema: JSON.parse(reviewOutputSchema(attempt.packet.kind, attempt.packet.planning_phase, attempt.packet.dispatch_id)),
             ...attempt.effort !== undefined && { effort: attempt.effort }
           }
         });
@@ -35131,7 +35143,7 @@ async function runHeadlessReviewerWithProvenance(reviewer, packet, cwd, untruste
   }
   let contract;
   try {
-    contract = reviewer === "codex" ? writeContractFile(packet.kind, packet.planning_phase) : undefined;
+    contract = reviewer === "codex" ? writeContractFile(packet.kind, packet.planning_phase, packet.dispatch_id) : undefined;
   } catch {
     throw new ReviewRuntimeError("process_failed", `The ${reviewer} review could not be prepared`);
   }
@@ -35141,10 +35153,10 @@ async function runHeadlessReviewerWithProvenance(reviewer, packet, cwd, untruste
     contract?.cleanup();
   }
 }
-function writeContractFile(kind, planningPhase) {
+function writeContractFile(kind, planningPhase, dispatchId) {
   const directory = mkdtempSync5(nodePath46.join(tmpdir3(), "safeword-review-contract-"));
   const path7 = nodePath46.join(directory, "review-result.schema.json");
-  writeFileSync12(path7, reviewOutputSchema(kind, planningPhase), { mode: 384 });
+  writeFileSync12(path7, reviewOutputSchema(kind, planningPhase, dispatchId), { mode: 384 });
   return {
     path: path7,
     cleanup: () => {
@@ -36676,7 +36688,7 @@ var init_contracts_generated = __esm(() => {
     },
     "plan-execution": {
       relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
-      sha256: "b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d"
+      sha256: "04061409d2a5cd0ade97e0cace2abfea46121423f039afebfc4c3239848f7bcc"
     }
   };
 });
@@ -55364,7 +55376,7 @@ function readPlanningAuthor(root, phase, identity2) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "02d3dd686280264aed7b11d0485a928d363ebcfec1e311fc118f0a44ea9ff4db" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } };
+  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "02d3dd686280264aed7b11d0485a928d363ebcfec1e311fc118f0a44ea9ff4db" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "64776c7a1c82b28fbde97b0c066a060283ddc39ef11a580e1df2f3ddce350741" } };
   return readPlanningAuthor(packageRoot(), phase, copies[phase]);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {

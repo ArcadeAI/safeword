@@ -536,3 +536,57 @@ fixtures repaired to fit this candidate. The candidate remains available as
 `/tmp/4200-reviewer-clarification-candidate.patch`, with all pilot results in
 `/tmp/4200-clarified-codex-sentinel-results.json` and the corresponding log.
 The qualification blocker and all remaining epic work remain open.
+
+### Narrower reference clarification and dispatch binding — 2026-10-06
+
+The human-authorized narrower candidate resolves a named checklist obligation
+against accepted work and local tasks, and recognizes a final step requiring
+all applicable proofs to pass as a completion condition. Unnamed generic rows
+and merely rerunning proofs remain insufficient. Corpus and semantic
+expectations are unchanged. The first four-case Astra pilot produced correct
+verdicts for every case, but the generic-checklist response dropped a character
+from its dispatch ID. The identity assertion correctly failed: three passes,
+one failure, 60 filtered. The original output remains in
+`/tmp/4200-narrow-codex-sentinel-live.log` and its results file.
+
+The surgical protocol repair binds the request's dispatch ID with a singleton
+typed enum in the existing Claude schema argument, Codex contract file, and
+Codex app-server schema. It adds no retry, output rewriting, or new state;
+independent exact identity validation remains unchanged. A direct assertion
+failed before the fix and passed afterward. Three focused tests now pass,
+including capture of the real app-server adapter's schema. The adapter fixture's
+initial missing evidence record caused one additional test failure, retained in
+`/tmp/4200-dispatch-schema-final-static.log`; correcting the newly authored fake
+response preserved all assertions. Typecheck and focused lint pass.
+
+The broader static run passed 153 tests, failed five installed admission tests,
+and skipped two existing conditional tests. Those admission failures remain
+open while no current contract/model matrix qualifies; no tests were weakened.
+All five generated surfaces were regenerated and verified. Independent review
+`5af314a2-1be0-412d-a484-04de96054d21` approved with nonblocking findings; its
+Codex coverage suggestion is addressed by the added adapter test, and a fresh
+review includes the generated rubric.
+
+Fresh Astra pilot: four passes, zero failures, 60 filtered, with both positive
+controls approved, both negative controls rejected, and exact dispatch IDs.
+Evidence: `/tmp/4200-bound-codex-sentinel-live.log` and results JSON.
+Current contract digest is
+`b41b5a7b566c0e4d0d76b774f63335e109fa5b591f0de28739fffe577d2eb3cc`;
+corpus digest remains
+`3da40ba3ac1d8ecf492a5b43571fa317a973549febb31e1ff040a76c4e2d995a`.
+The Claude pilot is running. No filtered pilot qualifies a model, and no
+admission, whole-epic completion, PR promotion, or merge is claimed.
+
+The Claude pilot completed with four passes, zero failures, 60 filtered
+(`/tmp/4200-bound-claude-sentinel-live.log`, results JSON). Its two valid
+controls and two required rejections all preserved exact dispatch identity.
+Independent current-source review
+`ec160873-754f-4e88-9a3a-fc81e16cce5e` approved. Remaining suggestions concern
+additional exec-route/Claude spawn coverage and separating the two repairs;
+the binding is independently tested and the wording independently evaluated.
+Generated rubric and all shipped surfaces are synchronized. The accepted
+contract change deliberately invalidates earlier planning reviews rather than
+retaining stale approval. Neither four-case pilot admits a model. The next
+proof is a complete fresh 63-case Astra matrix, chosen because its pilot took
+134 seconds versus Claude's 341 seconds, with the same 210-second per-review
+bound and unchanged expectations. Any failed or unfinished case blocks admission.

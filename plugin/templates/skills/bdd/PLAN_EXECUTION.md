@@ -117,7 +117,10 @@ from outside those sources.
   present prerequisite list, its own proof obligation, a concrete completion
   signal, and a readable `relies_on_unmerged_successor` assertion. Reject a
   slice with two independently valuable purposes or any implementation choice
-  the approved plan did not settle.
+  the approved plan did not settle. A final proof step requiring every applicable
+  proof to pass can establish the slice's completion condition; the completion
+  text need not repeat that step. Merely rerunning commands or preserving one
+  snapshot does not establish success for the other required proofs.
 - **Startable steps:** Every executable step must name its exact action, inputs,
   prerequisites, and observable expected result. Require the first production
   slice to begin with the highest-risk named RED and state its command or fixture
@@ -166,7 +169,11 @@ from outside those sources.
   cover every accepted scenario and preserve the accepted Implementation Plan
   approach. Reject a complete-looking generic checklist that is unrelated to
   the supplied behavior or loses an accepted boundary, risk, rollout, or
-  decision.
+  decision. A checklist obligation may reference a named accepted obligation
+  whose concrete work is supplied by the accepted plan and local tasks. Resolve
+  that reference rather than requiring duplicate detail in the row. An unnamed
+  generic obligation does not acquire an accepted-work reference merely from
+  its category or mapped proof command.
 - **Proof quality:** Require the exact Proof specifications table before the
   Delivery Checklist. Judge whether each method can exercise its named boundary
   and whether its currency policy is defensible. Every contributor Required

@@ -306,15 +306,25 @@ const EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
 export function reviewOutputSchema(
   kind: ReviewKind,
   planningPhase?: ReviewPacket['planning_phase'],
+  dispatchId?: string,
 ): string {
-  if (kind === 'plan-execution') return JSON.stringify(EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE);
-  if (
-    planningPhase === 'product-plan' ||
-    kind === 'scenario-gate' ||
-    kind === 'plan-implementation'
-  )
-    return JSON.stringify(PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE);
-  return REVIEW_OUTPUT_SCHEMA;
+  const planningSchema =
+    planningPhase === 'product-plan' || kind === 'scenario-gate' || kind === 'plan-implementation'
+      ? PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE
+      : REVIEW_OUTPUT_SCHEMA_SHAPE;
+  const schema =
+    kind === 'plan-execution' ? EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE : planningSchema;
+  return JSON.stringify(
+    dispatchId === undefined
+      ? schema
+      : {
+          ...schema,
+          properties: {
+            ...schema.properties,
+            dispatch_id: { type: 'string', enum: [dispatchId] },
+          },
+        },
+  );
 }
 const CLAUDE_EFFORT_LEVELS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 
@@ -373,11 +383,12 @@ function baseReviewerArguments(
   reviewer: ReviewAgent,
   kind: ReviewKind,
   planningPhase?: ReviewPacket['planning_phase'],
+  dispatchId?: string,
 ): string[] {
   const base = [...ARGUMENTS[reviewer]];
   if (reviewer !== 'claude') return base;
   const schemaIndex = base.indexOf('--json-schema') + 1;
-  base[schemaIndex] = reviewOutputSchema(kind, planningPhase);
+  base[schemaIndex] = reviewOutputSchema(kind, planningPhase, dispatchId);
   if (
     planningPhase === 'product-plan' ||
     ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(kind)
@@ -412,11 +423,15 @@ export function reviewerArguments(
   model: string | undefined,
   schemaPath: string | undefined,
   environment: Readonly<Record<string, string | undefined>> = process.env,
-  review: ReviewKind | Pick<ReviewPacket, 'kind' | 'planning_phase'> = 'quality-review',
+  review:
+    | ReviewKind
+    | (Pick<ReviewPacket, 'kind' | 'planning_phase'> &
+        Partial<Pick<ReviewPacket, 'dispatch_id'>>) = 'quality-review',
 ): string[] {
   const kind = typeof review === 'string' ? review : review.kind;
   const planningPhase = typeof review === 'string' ? undefined : review.planning_phase;
-  const base = baseReviewerArguments(reviewer, kind, planningPhase);
+  const dispatchId = typeof review === 'string' ? undefined : review.dispatch_id;
+  const base = baseReviewerArguments(reviewer, kind, planningPhase, dispatchId);
   const extra = reviewerExtraArguments(reviewer, model, schemaPath, environment);
   if (extra.length === 0) return base;
   if (reviewer !== 'codex') return [...base, ...extra];
@@ -1696,7 +1711,11 @@ async function runCodexAppServerCandidate(
             threadId: result.thread.id,
             input: [{ type: 'text', text: reviewPrompt('codex', attempt.packet) }],
             outputSchema: JSON.parse(
-              reviewOutputSchema(attempt.packet.kind, attempt.packet.planning_phase),
+              reviewOutputSchema(
+                attempt.packet.kind,
+                attempt.packet.planning_phase,
+                attempt.packet.dispatch_id,
+              ),
             ) as unknown,
             ...(attempt.effort !== undefined && { effort: attempt.effort }),
           },
@@ -2046,7 +2065,9 @@ export async function runHeadlessReviewerWithProvenance(
   let contract: ContractFile | undefined;
   try {
     contract =
-      reviewer === 'codex' ? writeContractFile(packet.kind, packet.planning_phase) : undefined;
+      reviewer === 'codex'
+        ? writeContractFile(packet.kind, packet.planning_phase, packet.dispatch_id)
+        : undefined;
   } catch {
     throw new ReviewRuntimeError('process_failed', `The ${reviewer} review could not be prepared`);
   }
@@ -2090,10 +2111,11 @@ interface ContractFile {
 function writeContractFile(
   kind: ReviewKind,
   planningPhase?: ReviewPacket['planning_phase'],
+  dispatchId?: string,
 ): ContractFile {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-contract-'));
   const path = nodePath.join(directory, 'review-result.schema.json');
-  writeFileSync(path, reviewOutputSchema(kind, planningPhase), { mode: 0o600 });
+  writeFileSync(path, reviewOutputSchema(kind, planningPhase, dispatchId), { mode: 0o600 });
   return {
     path,
     cleanup: () => {
