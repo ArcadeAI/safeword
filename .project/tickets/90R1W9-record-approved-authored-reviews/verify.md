@@ -1,5 +1,26 @@
 # Verification report
 
+## Rooted continuation verification — 2026-10-06
+
+Resumed in the exact approval-exclusions worktree on codex/approval-exclusions
+at b76c539ff191943a27304b018493fab47cf59a52. The installed verify invocation
+recorder succeeded and the supported ticket resolver selected 90R1W9. Ticket
+phase/status are done; the worktree was clean. Installed and generated runtime
+SHA-256 still match the activation record below. Independent complete-packet
+review 20cb1caf-814e-4850-90ff-9f34ee4476ef remains authenticated approved,
+cross-agent, with no errors. Its documented trust-boundary warnings remain
+answered by the current report and PR body, not erased from historical evidence.
+
+Exact-head CI [37427267424](https://github.com/ArcadeAI/safeword/actions/runs/37427267424)
+completed successfully, including both Node lanes and acceptance. Existing full
+local verification below remains applicable to unchanged product bytes; no broad
+suite was repeated for this evidence-only continuation. Raw dependency scans
+remain non-green under the documented deferred-advisory policy.
+
+Configured GitHub model inspection is still pending the authorized Ready
+transition. Earlier Draft noop runs do not count as model review. No merge,
+release, manual readiness receipt or historical #2121 proof change is authorized.
+
 ## Local candidate activation — 2026-10-06 UTC
 
 The supported Codex installer now registers this worktree's marketplace and
