@@ -684,3 +684,34 @@ test changes; the patch remains unapplied. All substantive negatives, review
 wording, authenticated approval, and admission validation remain unchanged.
 The next full matrix must use fresh evidence after any approved corpus change.
 The epic and PR stack remain incomplete; no promotion or merge is authorized.
+
+Human approved the two prepared boundary/proof corrections on 2026-10-06;
+the exact patch is applied. The targeted conformance/schema suite passes all
+62 tests, typecheck passes, and all five generated surfaces are regenerated
+and verified. Independent Claude review
+`a4f85c06-ff36-44fc-8f09-01f5750f0882` approves the scoped correction. Its
+nonblocking coverage advisory identifies the lack of a wholly absent semantic
+boundary/proof case; its stale-admission warning remains a release prerequisite.
+No negative finding or old failed qualification result is hidden or restamped.
+
+The contract digest remains
+`b41b5a7b566c0e4d0d76b774f63335e109fa5b591f0de28739fffe577d2eb3cc`;
+the current corpus digest is
+`fd41e0105269c82864bc4f7b44bfa44c4afbca82e1a6f7fad87a733487792bee`.
+A fresh full 63-case Astra matrix is running against this corpus, with evidence
+at `/tmp/4200-final-oracle-codex-full-live.log` and its results JSON. Until it
+finishes successfully, admission and epic readiness remain unproved.
+
+The fresh matrix stopped after 14 completed semantic cases: 13 passed, one
+failed, and 49 remain unfinished. It exited 130 after an intentional interrupt
+of its own process group; no complete matrix or admission is claimed. All three
+semantic label-omission approval cases passed, as did missing prerequisites,
+missing completion, generic checklist, and unresolved authorization rejection.
+The failing two-independent-purposes case correctly returned request_changes,
+null execution_plan_record, and exact reviewer/dispatch identity. Its summary
+and error explicitly reject independently valuable outcomes, but the oracle
+requires the literal word purpose. The contract itself uses both purposes and
+outcomes. Prepared `/tmp/4200-independent-outcomes-oracle-correction.patch`
+changes only that required term to outcome; rejection and all other checks stay.
+Human approval and a bounded independent audit are pending; the patch is not
+applied. Raw evidence remains `/tmp/4200-final-oracle-codex-full-live.log`.

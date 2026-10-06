@@ -1159,9 +1159,29 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
     'one_pull_request',
     ['Complete delivery'],
   ),
-  missingFieldCase('missing-boundary', 'boundary', 'boundary'),
+  approved(
+    'boundary-in-tasks',
+    'A clear boundary stated in the rationale and tasks does not require a repeated label.',
+    executionPlan({
+      decision: 'one pull request',
+      rationale: COMPLETE_DELIVERY_RATIONALE,
+      slices: [{ ...COMPLETE_DELIVERY_SLICE, boundary: undefined }],
+    }),
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
   missingFieldCase('missing-prerequisites', 'prerequisites', 'prerequisite'),
-  missingFieldCase('missing-proof', 'proof', 'proof'),
+  approved(
+    'proof-in-tasks',
+    'A slice proof obligation stated in its exact test steps does not require a repeated label.',
+    executionPlan({
+      decision: 'one pull request',
+      rationale: COMPLETE_DELIVERY_RATIONALE,
+      slices: [{ ...COMPLETE_DELIVERY_SLICE, proof: undefined }],
+    }),
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
   missingFieldCase('missing-completion-signal', 'completion', 'completion signal'),
   denied(
     'two-independent-purposes',
