@@ -53,6 +53,8 @@ export interface ReviewReceipt {
   readonly status?: string;
   readonly kind?: string;
   readonly targets?: readonly string[];
+  /** Exact generated files excluded by authenticated, current coordinator scope. */
+  readonly excludedTargets?: readonly string[];
   readonly independence?: string;
   readonly authorAgent?: string;
   readonly actualReviewer?: string;
@@ -162,7 +164,12 @@ function targetCoversFile(target: string, file: string, projectDirectory: string
 }
 
 /** Whether the receipt covered the artifact produced by this workflow phase. */
-function coversPhase(targets: readonly string[], claim: StampClaim, phase: string): boolean {
+function coversPhase(
+  targets: readonly string[],
+  claim: StampClaim,
+  phase: string,
+  excludedTargets: readonly string[] = [],
+): boolean {
   const ticketTargets = targets
     .map(target => relativeTicketTarget(target, claim))
     .filter((target): target is string => target !== undefined);
@@ -182,9 +189,18 @@ function coversPhase(targets: readonly string[], claim: StampClaim, phase: strin
     // Without a current Git change set there is no independent evidence that
     // a reviewed file is the implementation this phase produced.
     if (claim.implementationFiles.length === 0) return false;
-    const changed = claim.implementationFiles.filter(
-      target => relativeTicketTarget(target, claim) === undefined,
+    const excluded = new Set(
+      excludedTargets
+        .map(target => resolveTarget(target, claim.projectDirectory))
+        .filter((target): target is string => target !== undefined),
     );
+    const changed = claim.implementationFiles.filter(target => {
+      const resolved = resolveTarget(target, claim.projectDirectory);
+      return (
+        relativeTicketTarget(target, claim) === undefined &&
+        (resolved === undefined || !excluded.has(resolved))
+      );
+    });
     if (changed.length === 0) return false;
     return changed.every(file =>
       targets.some(target => targetCoversFile(target, file, claim.projectDirectory)),
@@ -251,7 +267,7 @@ export function receiptGateVerdict(claim: StampClaim, receipt?: ReviewReceipt): 
         ok: false,
         reason: `review ${receipt.reviewId} is a "${receipt.kind ?? 'unknown'}" review, but the "${claim.phase}" exit needs a "${requiredKind}" review`,
       };
-    if (!coversPhase(targets, claim, claim.phase))
+    if (!coversPhase(targets, claim, claim.phase, receipt.excludedTargets))
       return {
         ok: false,
         reason: `review ${receipt.reviewId} did not cover the work produced by the "${claim.phase}" phase in ${claim.ticketFolder} — it covered ${targets.join(', ') || 'nothing'}`,
