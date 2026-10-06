@@ -10,7 +10,7 @@
 **Scenarios:** ⏭️ Skipped — investigated bug task has no feature scenario ledger; its observable proof matrix is in process-assessment.md. Existing acceptance scenarios were corrected, not newly authored feature behavior.
 **Refactor:** ✅ No change warranted — existing packet identity, classifier and normalizer remain authoritative; separate assessment records the rationale.
 **PR Scope:** ✅ Diff matches ticket scope — verified exclusion transport, exact authored coverage, coordinator classification and generated delivery; current follow-up repairs the resulting exact-key acceptance contract and records process evidence.
-**Dep Drift:** ⚠️ Existing supply-chain scans reported 10 JavaScript advisories (3 high, 4 moderate, 3 low) and 6 urllib3 2.7.0 advisories in the Python experiment. No dependency manifests or lockfiles changed in this PR. This is not a clean dependency scan and no unrelated dependency upgrade was applied.
+**Dep Drift:** ⚠️ Existing supply-chain scans reported 10 JavaScript advisories (3 high, 4 moderate, 3 low) and 6 urllib3 2.7.0 advisories in the Python experiment. The earlier approval fix changed no manifests or lockfiles; the later authorized source-map-js lockfile patch below removes that advisory. This remains an unclean dependency scan; unrelated upgrades were not applied.
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation — existing authenticated coordinator receipt and exact-file coverage mechanisms reused.
 **Experience:** ⚠️ Installed 1.0.0 still rejects the valid implement stamp until this fix is deployed. Walked developer through review → receipt → recording using the real source CLI integration; worst step = deployed recorder rejects the generated exclusion; new steps vs before = 0 in the fixed source flow. No killer demo declared for this bug task.
@@ -62,3 +62,38 @@ investigate that fixture separately if fresh CI reproduces it. Deployment and
 fresh CI remain required; the review does not grant Ready promotion.
 
 **Next:** Push the reviewed scoped follow-up and inspect fresh CI. Keep the PR Draft and ticket in implement; deployment and the normal installed approval stamp remain outstanding.
+
+## Source-map dependency security follow-up
+
+User authorized the smallest patched source-map-js update after CI reported
+GHSA-68fv-2mgg-jv7q. The advisory identifies versions before 1.2.2 as vulnerable
+to event-loop denial of service through indexed source-map section offsets.
+Registry latest and integrity were verified against npm; bun.lock now resolves
+1.2.2 instead of 1.2.1. All existing consumer ranges accept this patch, so no
+direct dependency, override, manifest change, or unrelated upgrade was added.
+
+Pinned Bun 1.3.14 frozen installation accepted the lockfile. A force frozen
+install refreshed stale local consumer links; all five installed consuming
+packages (PostCSS, both css-tree versions, @eslint/css-tree and magicast) resolve
+1.2.2. Unreferenced old install cache bytes are not dependency resolution.
+
+Before/after audit is the genuine regression evidence for this dependency-only
+change; no fabricated source RED test is claimed. The source-map-js advisory is
+absent afterward, but audit remains non-green with two unrelated high findings:
+http-cache-semantics GHSA-ch52-4w7c-c8xp and braces GHSA-vfj7-8cjw-p6xm. They
+remain outside this explicitly narrow update. Logs:
+/tmp/5443-source-map-audit-before.log and
+/tmp/5443-source-map-audit-final.log.
+
+Affected CLI/relay/collector source-map builds and the Astro website production
+build passed after refreshing the dependency links. Release packaging passed
+13 files / 81 tests. Logs: /tmp/5443-source-map-build-final.log,
+/tmp/5443-source-map-website-final.log, /tmp/5443-source-map-release-final.log.
+Independent dependency review approved the single lock entry, compatible ranges,
+registry integrity and honest remaining audit blockers. No production source,
+generated template bytes, historical scenario claims, installed approval stamp,
+or release state changed. Fresh CI remains required and the PR remains Draft.
+
+Sources: [reviewed advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q), [upstream patch release](https://github.com/7rulnik/source-map-js/releases/tag/v1.2.2).
+
+Final root lint, Gherkin lint and CLI typecheck passed with pinned Bun 1.3.14 and actual Node 26.8.1 (/tmp/5443-source-map-lint-node-final.log). The initial Bun-as-Node PATH failed node:sqlite resolution; no source assertions were changed. All five generated surfaces remain current (/tmp/5443-source-map-generated.log).
