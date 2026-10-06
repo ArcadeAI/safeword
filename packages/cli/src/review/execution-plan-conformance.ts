@@ -532,10 +532,12 @@ const COMPLETE_DELIVERY_SLICE: SliceInput = {
   tasks: ONE_DELIVERY_TASKS,
 };
 
+const COMPLETE_DELIVERY_RATIONALE =
+  'The public review result, its compatible persistence, permission check, failure signal, rollout switch, rollback, and documentation are inseparable facets of one command contract; none is independently useful and every proof protects that same response.';
+
 const ONE_PLAN = executionPlan({
   decision: 'one pull request',
-  rationale:
-    'The public review result, its compatible persistence, permission check, failure signal, rollout switch, rollback, and documentation are inseparable facets of one command contract; none is independently useful and every proof protects that same response.',
+  rationale: COMPLETE_DELIVERY_RATIONALE,
   slices: [COMPLETE_DELIVERY_SLICE],
 });
 const UNCHANGED_DECISIONS_PLAN = `${ONE_PLAN}
@@ -1083,7 +1085,7 @@ function missingFieldCase(
     `A planned pull request omits its ${term}; review names ${term} as required.`,
     executionPlan({
       decision: 'one pull request',
-      rationale: 'The contribution claims to be one coherent change.',
+      rationale: COMPLETE_DELIVERY_RATIONALE,
       slices: [{ ...COMPLETE_DELIVERY_SLICE, [field]: undefined }],
     }),
     [term],
@@ -1099,7 +1101,7 @@ function missingObligationCase(
     `The accepted ${obligation} has no owning slice; review names the unassigned obligation.`,
     executionPlan({
       decision: 'one pull request',
-      rationale: 'The contribution claims to preserve the accepted approach.',
+      rationale: COMPLETE_DELIVERY_RATIONALE,
       slices: [COMPLETE_DELIVERY_SLICE],
       omittedObligation: obligation,
     }),
@@ -1143,7 +1145,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
     'A structurally complete checklist unrelated to the accepted scenarios and approach is denied.',
     executionPlan({
       decision: 'one pull request',
-      rationale: 'The contribution claims one coherent outcome.',
+      rationale: COMPLETE_DELIVERY_RATIONALE,
       slices: [COMPLETE_DELIVERY_SLICE],
       unrelatedChecklist: true,
     }),
@@ -1163,7 +1165,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
     'A command that cannot exercise its claimed real boundary is denied.',
     executionPlan({
       decision: 'one pull request',
-      rationale: 'The contribution claims one coherent outcome.',
+      rationale: COMPLETE_DELIVERY_RATIONALE,
       slices: [COMPLETE_DELIVERY_SLICE],
       unrealProof: true,
     }),
@@ -1336,7 +1338,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       'Accepted decision-derived work has no owning slice.',
       executionPlan({
         decision: 'one pull request',
-        rationale: 'The contribution claims to preserve the accepted approach.',
+        rationale: COMPLETE_DELIVERY_RATIONALE,
         slices: [COMPLETE_DELIVERY_SLICE],
       }),
       ['decision-derived work'],
@@ -1349,7 +1351,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       'Accepted proof-strategy work has no owning slice.',
       executionPlan({
         decision: 'one pull request',
-        rationale: 'The contribution claims to preserve the accepted proof boundary.',
+        rationale: COMPLETE_DELIVERY_RATIONALE,
         slices: [COMPLETE_DELIVERY_SLICE],
       }),
       ['proof-strategy work'],
