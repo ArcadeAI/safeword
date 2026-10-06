@@ -283,13 +283,13 @@ function ledgerFingerprintContext(
   };
 }
 
-function fingerprint(
+function reviewIdentity(
   cwd: string,
   kind: ReviewKind,
   targets: readonly string[],
   context: readonly string[] = [],
   execution?: RedExecutionRequest,
-): string {
+): { fingerprint: string; excludedTargets: readonly string[] } {
   // A GREEN receipt is bound to the ledger state that the reviewer approved,
   // not just to the human-readable scenario label. Otherwise a later heading
   // rename could make an old receipt appear to cover a different scenario.
@@ -332,10 +332,20 @@ function fingerprint(
         hash.update('\0');
       }
     }
-    return hash.digest('hex');
+    return { fingerprint: hash.digest('hex'), excludedTargets: prepared.excludedTargets };
   } finally {
     prepared.cleanup();
   }
+}
+
+function fingerprint(
+  cwd: string,
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[] = [],
+  execution?: RedExecutionRequest,
+): string {
+  return reviewIdentity(cwd, kind, targets, context, execution).fingerprint;
 }
 
 function reviewFingerprintContent(
@@ -731,15 +741,19 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
     });
   }
   try {
-    if (
-      fingerprint(cwd, record.kind, record.targets, record.context, record.execution) !==
-      record.source_fingerprint
-    )
-      return staleResult(record);
+    const current = reviewIdentity(
+      cwd,
+      record.kind,
+      record.targets,
+      record.context,
+      record.execution,
+    );
+    if (current.fingerprint !== record.source_fingerprint) return staleResult(record);
+    if (record.result !== undefined)
+      return withReviewProvenance(cwd, record, record.result, current.excludedTargets);
   } catch {
     return staleResult(record);
   }
-  if (record.result !== undefined) return withReviewProvenance(cwd, record, record.result);
   return createResult({
     state: 'failed',
     errors: [
@@ -775,7 +789,25 @@ function effectiveReviewTargets(
   });
 }
 
-function withReviewProvenance(cwd: string, record: ReviewJobRecord, result: CliResult): CliResult {
+/** Exclusions waive coverage only when the packet classifier confirms them now. */
+function verifiedExcludedTargets(
+  record: ReviewJobRecord,
+  current: readonly string[],
+): readonly string[] {
+  const data = record.result?.data as Record<string, unknown> | undefined;
+  const recorded = data?.excluded_targets;
+  if (!Array.isArray(recorded) || recorded.some(target => typeof target !== 'string')) return [];
+  if (recorded.length === 0) return [];
+  const recordedPaths = new Set<string>(recorded);
+  return current.filter(target => recordedPaths.has(target));
+}
+
+function withReviewProvenance(
+  cwd: string,
+  record: ReviewJobRecord,
+  result: CliResult,
+  currentExclusions: readonly string[],
+): CliResult {
   const data =
     typeof result.data === 'object' && result.data !== null && !Array.isArray(result.data)
       ? (result.data as Record<string, unknown>)
@@ -787,6 +819,7 @@ function withReviewProvenance(cwd: string, record: ReviewJobRecord, result: CliR
       review_id: record.id,
       review_kind: record.kind,
       review_targets: effectiveReviewTargets(cwd, record) ?? [],
+      review_excluded_targets: verifiedExcludedTargets(record, currentExclusions),
     },
   };
 }

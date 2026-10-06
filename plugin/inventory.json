@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "e1170e6a1a13806fbe3f1a9da9be1095f76a57ea62afb09d1151dd1947e574e8"
+      "sha256": "b281fe1bc7ece3f7b9c238753fd7a7bbe56ebca499ebdfe857616e1e1569456a"
     },
     {
       "path": "runtime/dispatch.js",
@@ -343,7 +343,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "8a86ecab48f65fce00bde3624eb8e17e4434b4fe1b0fc71acf483d1adbb04393"
+      "sha256": "b27cf9028d662dbfc6ed251bbdd985db96cbe277f2b5491c057f677691d9db55"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -395,7 +395,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "5a28c5698da39dade7ae480e87f29a640f6b2b6663d45aafef9ef848a1c23096"
+      "sha256": "fe930694d4a43fc486ed2dfe1b34b5428be87b0d0b9660c86cd4442bef57f194"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -1283,7 +1283,7 @@
     },
     {
       "path": "templates/hooks/lib/read-receipt.ts",
-      "sha256": "8a86ecab48f65fce00bde3624eb8e17e4434b4fe1b0fc71acf483d1adbb04393"
+      "sha256": "b27cf9028d662dbfc6ed251bbdd985db96cbe277f2b5491c057f677691d9db55"
     },
     {
       "path": "templates/hooks/lib/readiness-pointer.ts",
@@ -1335,7 +1335,7 @@
     },
     {
       "path": "templates/hooks/lib/review-receipt.ts",
-      "sha256": "5a28c5698da39dade7ae480e87f29a640f6b2b6663d45aafef9ef848a1c23096"
+      "sha256": "fe930694d4a43fc486ed2dfe1b34b5428be87b0d0b9660c86cd4442bef57f194"
     },
     {
       "path": "templates/hooks/lib/review-trigger.ts",
