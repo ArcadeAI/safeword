@@ -116,10 +116,8 @@ export function renderDecisionBriefContract(grammar = DECISION_BRIEF_GRAMMAR): s
     .map(([verdict, variant]) => `**${variant.terminalLabel}:** for ${verdict}`)
     .join(' or ');
   const shapes = renderDecisionBriefShapes(grammar);
-  // The route paragraph sits just before CONFIDENT's terminal paragraph and picks its form.
-  const { CONFIDENT, BLOCKED } = grammar.variants;
-  const route = `**${CONFIDENT.paragraphs.at(-2)?.label ?? 'Open'}:**`;
-  const blockedTerminal = `**${BLOCKED.terminalLabel}:**`;
+  const route = `**${routeLabelOf(grammar)}:**`;
+  const blockedTerminal = `**${grammar.variants.BLOCKED.terminalLabel}:**`;
 
   return `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight. End with ${endings}.
 
@@ -270,30 +268,44 @@ interface MarkdownParagraph {
   grammarOpaque: boolean;
 }
 
+/** CONFIDENT's route paragraph sits just before its terminal one and picks the terminal form. */
+function routeLabelOf(grammar: DecisionBriefGrammar): string {
+  return grammar.variants.CONFIDENT.paragraphs.at(-2)?.label ?? 'Open';
+}
+
+/** The route paragraph's value after its bold label, or undefined when absent. */
+function routeValue(
+  paragraphsAfterVerdict: readonly MarkdownParagraph[],
+  routeLabel: string,
+): string | undefined {
+  const routeParagraph = paragraphsAfterVerdict.find(
+    paragraph => LABEL.exec(paragraph.text)?.[1] === routeLabel,
+  );
+  return routeParagraph?.text.slice(`**${routeLabel}:**`.length);
+}
+
+const ROUTE_NONE = /^\s+none\.?\s*$/iu;
+const ROUTE_HUMAN = /^\s+human:\s+\S(?:.*\S)?\.?\s*$/isu;
+
 function determineTerminalHandoffForm(
   verdict: DecisionBriefVerdict,
   paragraphsAfterVerdict: readonly MarkdownParagraph[],
+  routeLabel: string,
 ): Exclude<TerminalHandoffForm, 'outside'> {
   if (verdict === 'BLOCKED') return 'decision';
-  const openParagraph = paragraphsAfterVerdict.find(
-    paragraph => LABEL.exec(paragraph.text)?.[1] === 'Open',
-  );
-  return /^\*\*Open:\*\*\s+none\.?\s*$/iu.test(openParagraph?.text ?? '') ? 'action' : 'decision';
+  return ROUTE_NONE.test(routeValue(paragraphsAfterVerdict, routeLabel) ?? '')
+    ? 'action'
+    : 'decision';
 }
 
 function hasCanonicalOpenRoute(
   verdict: DecisionBriefVerdict,
   paragraphsAfterVerdict: readonly MarkdownParagraph[],
+  routeLabel: string,
 ): boolean {
   if (verdict === 'BLOCKED') return true;
-  const openParagraph = paragraphsAfterVerdict.find(
-    paragraph => LABEL.exec(paragraph.text)?.[1] === 'Open',
-  );
-  const value = openParagraph?.text ?? '';
-  return (
-    /^\*\*Open:\*\*\s+none\.?\s*$/iu.test(value) ||
-    /^\*\*Open:\*\*\s+human:\s+\S(?:.*\S)?\.?\s*$/isu.test(value)
-  );
+  const value = routeValue(paragraphsAfterVerdict, routeLabel) ?? '';
+  return ROUTE_NONE.test(value) || ROUTE_HUMAN.test(value);
 }
 
 const TERMINAL_ROLE =
@@ -703,8 +715,10 @@ export function evaluateDecisionBriefCompliance(
   if (!verdictEntry) return result(false, { kind: 'verdict-count', count: 0 });
   const { index: verdictIndex, verdict: rawVerdict } = verdictEntry;
   const verdict = rawVerdict as DecisionBriefVerdict;
-  form = determineTerminalHandoffForm(verdict, paragraphs.slice(verdictIndex + 1));
-  const canonicalOpenRoute = hasCanonicalOpenRoute(verdict, paragraphs.slice(verdictIndex + 1));
+  const paragraphsAfterVerdict = paragraphs.slice(verdictIndex + 1);
+  const routeLabel = routeLabelOf(grammar);
+  form = determineTerminalHandoffForm(verdict, paragraphsAfterVerdict, routeLabel);
+  const canonicalOpenRoute = hasCanonicalOpenRoute(verdict, paragraphsAfterVerdict, routeLabel);
   const grammarLabels = new Set(
     Object.values(grammar.variants).flatMap(variant =>
       variant.paragraphs.map(paragraph => paragraph.label),
@@ -877,17 +891,18 @@ export function renderDecisionBriefCorrection(
   grammar = DECISION_BRIEF_GRAMMAR,
 ): string {
   if (!evaluation.violation && evaluation.requirements && evaluation.requirements.length > 0) {
+    const route = routeLabelOf(grammar);
     const header = `${evaluation.contractVersion} correction. Missing: ${evaluation.requirements.join(', ')}. ${explainRequirements(evaluation.requirements, evaluation.form)}`;
     const actionShape = `**Next:** Action: <imperative>. Object: <specific object>. Reason: Required because <essential reason>.`;
-    const decisionShape = `**Next:** Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>.\n\nFor BLOCKED, use the same five roles after **Need:**.\n\nFor CONFIDENT, the decision form applies because **Open:** names a human decision. If no human decision remains, write **Open:** none. and use the action form instead.`;
+    const decisionShape = `**Next:** Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>.\n\nFor BLOCKED, use the same five roles after **Need:**.\n\nFor CONFIDENT, the decision form applies because **${route}:** names a human decision. If no human decision remains, write **${route}:** none. and use the action form instead.`;
     const termShape = evaluation.requirements.includes('plain-language meaning')
       ? '\n\nWrite each necessary marked term as `Term: name = plain-language meaning`.'
       : '';
     const routeShape = evaluation.requirements.includes('canonical Open route')
-      ? '\n\nAlso rewrite **Open:** as exactly `human: <one choice>` for a decision or `none` for an action.'
+      ? `\n\nAlso rewrite **${route}:** as exactly \`human: <one choice>\` for a decision or \`none\` for an action.`
       : '';
     const rewriteScope = evaluation.requirements.includes('canonical Open route')
-      ? 'the Open and terminal paragraphs'
+      ? `the ${route} and terminal paragraphs`
       : 'only the terminal paragraph';
 
     return `${header} Preserve the useful content and rewrite ${rewriteScope} in this exact ${evaluation.form} form:\n\n${

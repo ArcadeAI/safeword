@@ -335,7 +335,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "77472a5f8f8c8c6c0a9a2845a1c6e8e2c3366fd43167da24cceebd7746e0d186"
+      "sha256": "a9006c5df041840661eefea9950c30cc00912a4aca37cce39938195002a605a0"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -1275,7 +1275,7 @@
     },
     {
       "path": "templates/hooks/lib/quality.ts",
-      "sha256": "77472a5f8f8c8c6c0a9a2845a1c6e8e2c3366fd43167da24cceebd7746e0d186"
+      "sha256": "a9006c5df041840661eefea9950c30cc00912a4aca37cce39938195002a605a0"
     },
     {
       "path": "templates/hooks/lib/re-entry.ts",
