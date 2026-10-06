@@ -57,11 +57,6 @@ const DATA_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
 - The project-local SQLite database \`delivery.db\` stores delivery evidence.
 - DeliveryStateService owns all reads and writes for that store.
 `;
-const PROOF_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
-## Accepted proof strategy
-
-- Edited-plan denial uses the named fixture and command through the installed CLI subprocess and must assert exit code 2.
-`;
 const DECISION_OBLIGATION_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
 ## Accepted decision-derived work
 
@@ -515,8 +510,8 @@ const ONE_DELIVERY_TASKS = [
   ONE_DENIAL_GREEN_TASK,
   '7. RED: run `bun run test:rollout-rollback -- --fixture enabled-result` and observe exit 1 because disabling the review command does not restore the prior readable result before editing `src/review/rollout.ts`.',
   '8. GREEN: add the accepted activation switch and rollback reader in `src/review/rollout.ts`, rerun the step-7 command, and assert activation waits for compatible reading, enabled activation reads the expected legacy-result and typed-result fixture contents, and disabling activation restores the prior reader while both formats remain readable with their exact expected contents.',
-  '9. RED: run `bun run test:documentation-contract` and `bun run test:execution-plan-conformance`; observe exit 1 because the public command and complete obligation mapping are absent before editing the command reference and canonical review contract.',
-  '10. GREEN: document the exact public response and add every accepted obligation to the canonical conformance corpus, then rerun both step-9 commands and assert exit 0.',
+  '9. RED: run `bun run test:documentation-contract` and `bun run test:execution-plan-conformance`; observe exit 1 because the command reference omits the public response, denial, activation, or rollback contract, or the corpus omits an accepted obligation, before editing the command reference and canonical review contract.',
+  '10. GREEN: document the exact public response, denial, activation, and rollback contracts and add every accepted obligation to the canonical conformance corpus, then rerun both step-9 commands and assert exit 0; assert the rendered command reference describes all four accepted contracts and that removing any one makes documentation-contract fail.',
   '11. REFACTOR: move the duplicate response validation in `src/review/command.ts` and `src/review/result-store.ts` into `src/review/contract.ts`, then rerun all seven proof commands and assert the public response snapshot is byte-identical.',
 ] as const;
 
@@ -863,28 +858,6 @@ const STARTABLE_PLAN = executionPlan({
   inapplicableOptionalWork: true,
 });
 
-function concreteProofPlan(step: string): string {
-  return executionPlan({
-    decision: 'one pull request',
-    rationale: 'One edited-plan denial is one independently provable behavior.',
-    slices: [
-      {
-        name: 'Edited-plan denial proof',
-        purpose: 'Prove the accepted edited-plan denial.',
-        boundary: 'Installed CLI subprocess response.',
-        prerequisites: 'none',
-        proof: 'behavior-boundary',
-        completion: 'The installed CLI exits 2 for the edited-plan fixture.',
-        tasks: [
-          `1. RED: ${step}`,
-          '2. GREEN: implement the accepted edited-plan denial, then rerun the named command and observe exit code 0.',
-          '3. REFACTOR: preserve the installed CLI boundary, then rerun the named command and observe exit code 0.',
-        ],
-      },
-    ],
-  });
-}
-
 const EXACT_CLI_DENIAL_PROOF_PLAN = executionPlan({
   decision: 'one pull request',
   rationale: 'One edited-plan denial is one independently provable behavior.',
@@ -907,12 +880,15 @@ const EXACT_CLI_DENIAL_PROOF_PLAN = executionPlan({
   applicableObligations: ['Accepted behavior'],
   inapplicableOptionalWork: true,
 });
-const MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN = concreteProofPlan(
-  'using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the TBD CLI boundary and assert exit code 2 before editing production code.',
-);
-const MISSING_DENIED_EXIT_ASSERTION_PLAN = concreteProofPlan(
-  'using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the installed CLI subprocess and assert the TBD denied-exit result before editing production code.',
-);
+const MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN = withRequiredReplacements(EXACT_CLI_DENIAL_PROOF_PLAN, [
+  ['through the installed CLI subprocess,', 'through the TBD CLI boundary,'],
+]);
+const MISSING_DENIED_EXIT_ASSERTION_PLAN = withRequiredReplacements(EXACT_CLI_DENIAL_PROOF_PLAN, [
+  [
+    'because the CLI does not yet exit 2 before editing production code.',
+    'because the CLI does not yet produce the TBD denied-exit result before editing production code.',
+  ],
+]);
 const LATER_UNSTARTABLE_PLAN = executionPlan({
   decision: 'one pull request',
   rationale: 'One authorization denial is one independently provable behavior.',
@@ -1628,7 +1604,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN,
       ['subprocess', 'boundary'],
     ),
-    implementation_plan: PROOF_IMPLEMENTATION_PLAN,
+    implementation_plan: PROOF_ONLY_IMPLEMENTATION_PLAN,
   },
   {
     ...denied(
@@ -1637,7 +1613,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       MISSING_DENIED_EXIT_ASSERTION_PLAN,
       ['exit', 'assertion'],
     ),
-    implementation_plan: PROOF_IMPLEMENTATION_PLAN,
+    implementation_plan: PROOF_ONLY_IMPLEMENTATION_PLAN,
   },
   decisionChangingDiscovery(
     'later-step-is-not-startable',

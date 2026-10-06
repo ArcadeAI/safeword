@@ -385,3 +385,63 @@ support model admission. Prepared, but did not apply,
 for neutral accepted-behavior inputs in both review paths, bound into the corpus
 digest. Fresh complete qualification is required after that correction. No
 model admission, epic completion, PR promotion, or merge is claimed.
+
+### Approved neutral qualification inputs — 2026-10-06
+
+Human approval applied the neutral-scenario patch. Both direct and installed-CLI
+paths now send `accepted_scenario`, not private case verdict/finding labels.
+All 63 cases have one Feature header; cases sharing accepted implementation
+context share the same scenario input. The neutral corpus is digest-bound.
+Targeted static checks pass 59/59, typecheck and lint pass, and Claude current-byte
+review `b0c222b9-62db-4185-b622-1a0eebc2cdd2` approved with advisories.
+
+The complete fresh Codex run uses the neutral corpus digest
+`8a85a5e43cf211a8232ec0ce36a7784a120990ac4ba41306c8ffb8a12114dab3`.
+Its first three positive failures identified the same incomplete response-proof
+mechanism: selected-field comparisons allow corruption of the supplied summary
+or evidence. Within the approved task/detail repair scope, commit `d47d165bf`
+adds distinguishing values and whole-judgment equality at both accepted response
+boundaries to the shared approval and rejection tasks. Claude review
+`10c7a3f1-db6e-4c92-9473-86f530bcf8bd` approved the repaired current files with
+nonblocking advisories. The already-running matrix retains its loaded earlier
+inputs and is diagnostic only; it will not be rebound to the repaired corpus.
+Fresh complete runs remain required. PR4 current-head full CI was explicitly
+dispatched as run `37484286149`; completion is not yet claimed.
+
+### Current qualification and stack evidence — 2026-10-06
+
+PR4 full CI run `37484286149` succeeded at `5696a899fb`. PR4989's
+four targeted root features passed all 145 scenarios and 6,769 steps;
+bounded current review `4100530c-909e-436f-aa96-8c3ed60a23fe` approved.
+Its local evidence commit `82480bf55` remains unpushed.
+
+The obsolete neutral Codex matrix stopped with 12 passes, 12 failures, and
+39 unrun cases. Sleep disrupted the next focused run (two passes, three
+failures). The awake focused run had two passes and two failures: the
+missing-completion case was incorrectly approved, and the accepted-data case
+was correctly approved but rejected by an exact-name oracle missing periods.
+Human approval corrected those decision names in `09d0ec3de`; static tests
+passed 59/59 and current review `d9da3e29-0461-4757-853c-6aaa3da56dab`
+approved. Independent review `8d84c5a7-7f47-43ad-8bf9-0bd67a034bbf`
+confirmed that the missing-completion case remains a valid rejection.
+Codex is not qualified; none of these partial runs supports admission.
+
+Fresh Claude qualification rejected the first positive case because its
+documentation task omitted accepted denial, activation, and rollback content
+and asserted only exit zero. The failure is retained in
+`/tmp/4200-neutral-claude-live.log`. The obsolete-input run was interrupted
+(exit 130), and the shared documentation tasks were repaired within the
+approved fixture-detail scope. Expected verdicts and findings are unchanged.
+Fresh complete qualification remains required. The last epic acceptance result
+remains 56 passed, one failed, and 118 undefined; the 148 RGR records,
+legacy approval-reuse gap, deferred R7 proof, and final stack evidence remain
+unfinished. No completion, promotion, or merge is claimed.
+
+Current independent review `869e9fe5-3cb0-421b-af50-d5a59d298062`
+requested changes because the two CLI-placeholder negatives had unrelated
+obligation/proof scope gaps. Human approval applied
+`/tmp/4200-isolate-cli-proof-negatives.patch`: both now inherit the valid
+edited-plan baseline and its matching accepted scope, changing only their
+named placeholder detail. Required verdicts and finding terms are preserved.
+Static verification is queued behind another checkout's live package lock;
+fresh independent review and complete live qualification remain pending.
