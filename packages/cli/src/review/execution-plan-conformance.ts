@@ -1338,10 +1338,9 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       slice_names: ['Complete delivery'],
       obligations: OBLIGATIONS,
       decisions: [
-        'One shared authorization service owns permission checks for every transport',
-        'Host-neutral dependency order keeps every intermediate merge supported',
-        'The project-local SQLite database `delivery.db` stores delivery evidence',
-        'DeliveryStateService owns all reads and writes for that store',
+        ...DECISIONS,
+        'The project-local SQLite database `delivery.db` stores delivery evidence.',
+        'DeliveryStateService owns all reads and writes for that store.',
       ],
     },
   },
