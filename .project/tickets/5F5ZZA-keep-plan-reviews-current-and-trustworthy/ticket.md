@@ -464,3 +464,13 @@ headless isolation and the existing configurable foreground attempt ceiling
 of 210 seconds. A single fresh full matrix now uses that supported limit,
 with unchanged semantic scoring, source corpus, model, and authentication.
 This is run configuration only; no production deadline change was made.
+
+Correction: the live harness calls `reviewTimeoutMilliseconds({})`, ignoring
+the supplied timeout environment. The purported 210-second run actually
+retained the 120-second limit. It completed seven cases (six passed, one
+timeout), with 56 unfinished when interrupted (exit 130); its original log
+and `/tmp/4200-ignored-timeout-diagnostic-summary.json` retain that failure.
+The prepared one-line `/tmp/4200-live-timeout-configuration.patch` makes
+the harness honor the existing runtime configuration without changing any
+semantic assertion or production behavior. Explicit test-change approval is
+pending; no qualification or model admission is claimed.
