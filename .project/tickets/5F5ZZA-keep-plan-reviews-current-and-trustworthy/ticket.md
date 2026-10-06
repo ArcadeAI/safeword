@@ -657,3 +657,30 @@ this checks whether the shared omitted-field fixtures still isolate the
 semantic requirement rather than only a missing label. Filtered pilots are
 never qualification evidence. All prior unfinished acceptance and stack work
 remains open.
+
+The corrected five-case pilot completed: three passed, two failed, 58 semantic
+cases filtered (plus the filtered harness guard). Complete-slice-record and
+purpose-in-rationale passed their corrected approval expectations; missing
+prerequisites passed its required rejection. Missing-boundary and missing-proof
+received approval and failed their rejection oracles. Evidence is
+`/tmp/4200-corrected-corpus-field-pilot-live.log` and its results JSON. This
+filtered failed run is not qualification evidence. Approved corrections are
+committed and pushed at `cb7fdd6d7`; the push gate passed 895 tests.
+
+Bounded audit `562497e8-4e01-4651-9ed6-c5c0624ee447` confirmed the two disputed
+oracles also remove only labels: the boundary remains concrete in the rationale
+and edit tasks, and the own-slice proof obligation remains explicit in its
+RED/GREEN steps, proof table, and completion condition. The contract does not
+require those two repeated labels. The prerequisite control is different: the
+contract explicitly requires a present prerequisite list, so its rejection stays.
+The audit's suggestion to revisit missing-completion is not applied: its final
+refactor merely reruns commands and checks one snapshot, and both prior live
+pilots correctly rejected it under the current contract.
+
+Prepared `/tmp/4200-boundary-proof-oracle-corrections.patch` converts only the
+two label-omission cases to boundary-in-tasks and proof-in-tasks approval cases
+and updates their inventory names. Human approval is pending for these additional
+test changes; the patch remains unapplied. All substantive negatives, review
+wording, authenticated approval, and admission validation remain unchanged.
+The next full matrix must use fresh evidence after any approved corpus change.
+The epic and PR stack remain incomplete; no promotion or merge is authorized.
