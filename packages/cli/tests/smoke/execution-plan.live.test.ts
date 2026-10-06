@@ -33,6 +33,28 @@ const model = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL?.trim() || undefine
 const resultsPath = process.env.SAFEWORD_EXECUTION_PLAN_RESULTS_PATH;
 const results: ExecutionPlanConformanceResult[] = [];
 
+async function liveReviewer(
+  assigned: ReviewAgent,
+  directory: string,
+  packet: ReviewPacket,
+): Promise<ReviewerOutput> {
+  const previousHome = process.env.CODEX_HOME;
+  if (assigned === 'codex') {
+    const profile = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CODEX_HOME;
+    if (!profile) throw new Error('Codex live proof requires its explicitly authenticated profile');
+    process.env.CODEX_HOME = profile;
+  }
+  try {
+    return (await runHeadlessReviewer(assigned, packet, directory, process.cwd(), {
+      ...(model !== undefined && { model }),
+      runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
+    })) as ReviewerOutput;
+  } finally {
+    if (previousHome === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = previousHome;
+  }
+}
+
 function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent): ReviewPacket {
   const identity =
     model === undefined ? `${assigned} runtime default` : `${assigned} model ${model}`;
@@ -135,10 +157,7 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
       const packet = packetFor(testCase, reviewer);
       let passed = false;
       try {
-        const output = (await runHeadlessReviewer(reviewer, packet, directory, process.cwd(), {
-          ...(model !== undefined && { model }),
-          runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
-        })) as ReviewerOutput;
+        const output = await liveReviewer(reviewer, directory, packet);
         try {
           assertCase(testCase, output, reviewer, packet.dispatch_id);
         } catch (error) {
