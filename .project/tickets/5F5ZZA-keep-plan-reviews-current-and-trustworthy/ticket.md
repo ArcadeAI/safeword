@@ -510,3 +510,29 @@ with the current source to preserve that fail-closed behavior in every shipped
 surface. Installed-CLI acceptance, the remaining epic scenarios and RGR
 records, legacy approval reuse, deferred R7, and final stack evidence remain
 open. The stack is not merge-ready; no promotion or merge is authorized.
+
+### Bounded reviewer clarification — 2026-10-06
+
+Human-authorized experiment clarified two existing requirements in
+PLAN_EXECUTION.md: successful proof on the final revision and concrete
+checklist obligations that cannot be substituted by task/proof detail.
+Corpus and expectations were unchanged. All 59 static conformance tests,
+typecheck, and generated-surface verification passed; independent wording
+review approved with nonblocking advisories.
+
+The four-case Codex Astra pilot caught both required rejections
+(generic-checklist and missing-completion-signal), but rejected both valid
+controls (one-coherent-change and several-ordered-changes). Results: two
+passes, two failures, 60 filtered; no qualification evidence earned.
+The controls' checklist rows refer to accepted obligation categories, while
+their detailed outcomes live in tasks and proofs. The stronger instructions
+treated these references as insufficient. The ordered control's outcome-based
+completion signals were also rejected despite its proof tasks.
+
+As preregistered, the experiment stopped on those false alarms. No Claude pilot
+or full matrix followed. The authoring candidate and all generated changes were
+restored to the prior committed source; no expectations were weakened or
+fixtures repaired to fit this candidate. The candidate remains available as
+`/tmp/4200-reviewer-clarification-candidate.patch`, with all pilot results in
+`/tmp/4200-clarified-codex-sentinel-results.json` and the corresponding log.
+The qualification blocker and all remaining epic work remain open.
