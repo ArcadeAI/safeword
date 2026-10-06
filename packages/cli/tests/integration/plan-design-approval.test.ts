@@ -829,12 +829,13 @@ describe('implementation-time discoveries return to the affected planning phase'
 describe('repair must precede renewed planning approval', () => {
   it('refuses reuse of the old current-context approval after an execution discovery', async () => {
     const project = fixture(false, 'approved', true);
+    const args = ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID];
+    const accepted = await runCli(args, { cwd: project.root, env: reviewEnvironment(project) });
+    expect(accepted.exitCode, accepted.stdout).toBe(0);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
     writeFileSync(
       project.ticketPath,
-      readFileSync(project.ticketPath, 'utf8').replace(
-        'phase: plan-implementation',
-        'phase: implement',
-      ),
+      readFileSync(project.ticketPath, 'utf8').replace('phase: plan-execution', 'phase: implement'),
     );
     const executionPlanPath = nodePath.join(project.ticketDirectory, 'execution-plan.md');
     writeFileSync(
@@ -870,12 +871,14 @@ describe('repair must precede renewed planning approval', () => {
     );
     expect(reviewed.exitCode, reviewed.stdout).toBe(2);
     expect(reviewed.stdout).toContain('"planning_destination":"plan-implementation"');
-    const args = ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID];
     const returned = await runCli(args, { cwd: project.root, env: reviewEnvironment(project) });
     expect(returned.exitCode, returned.stdout).toBe(2);
     expect(phase(project.ticketPath)).toBe('plan-implementation');
     const unrepaired = await runCli(args, { cwd: project.root, env: reviewEnvironment(project) });
     expect(unrepaired.exitCode, unrepaired.stdout).toBe(2);
+    expect(unrepaired.stdout).toContain(
+      'no current authenticated Implementation Plan review receipt',
+    );
     expect(phase(project.ticketPath)).toBe('plan-implementation');
   });
 });
