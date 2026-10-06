@@ -752,3 +752,38 @@ The root acceptance dry run reports 175 scenarios (57 skipped, 118 undefined)
 and 9,102 steps (8,755 skipped, 347 undefined); it executes no behavior and is
 not a passing acceptance run. No existing failure or unfinished scenario is
 hidden. Full semantic qualification must restart on the current digest.
+
+Approved finding correction committed/pushed at `2d53c75a8`; push checks
+passed 895/895. Fresh Astra full qualification on corpus
+`e4bf56ea3cb94770ebab3ad874c948bc3207eee86a9e2ad31d9dc5d6791af098`
+completed 23 semantic cases: 21 passed, two failed, 40 unfinished. It was
+intentionally stopped (exit 130) after both failures; no admission is produced.
+The previous independent-outcomes case now passes. Both new failures correctly
+returned request_changes with null approval records and exact identities:
+vague-data-ownership identifies missing concrete delivery.db/DeliveryStateService
+work and remains in Execution Planning; invented-data-ownership identifies the
+excluded Redis/ReviewService design and routes to Implementation Planning.
+Their finding oracles require the literal words unnamed and invented, which
+these otherwise correct diagnoses do not use. Raw failures remain in
+`/tmp/4200-independent-finding-codex-full-live.log`.
+
+Prepared `/tmp/4200-data-rejection-finding-corrections.patch` changes only the
+two finding-term expectations and their matching unit assertions: delivery.db
+and DeliveryStateService for missing accepted data work, Redis and ReviewService
+for the excluded downstream design. All fixtures, rejection verdicts, null
+approval records, exact identity checks and planning destinations stay required.
+No generalized matcher or reviewer wording change is proposed. Bounded audit
+and explicit human approval are pending; this patch is unapplied. The epic's
+acceptance, legacy approval-reuse gap, RGR ledger, R7 deferral and complete stack
+verification remain open.
+
+Bounded independent audit `ba815f78-20be-409b-9def-51d2d60a159b` requests
+changes for the two existing adjective-based data oracles and explicitly
+recommends the prepared storage/service term replacements. It confirms both
+observed rejections have the intended semantic reason and planning destination.
+Its separate advisories identify remaining context in the CLI-boundary and
+denied-exit negative fixtures; those are retained for their qualification cases,
+not silently corrected or treated as proven failures. The hypothetical
+runtime-default sentinel collision is outside this observed repair. The exact
+two-case source/unit patch awaits human approval under the testing guide;
+no additional production change, fixture change, or admission evidence is made.
