@@ -1,5 +1,41 @@
 # Verification report
 
+## Sharp security follow-up — 2026-10-06
+
+CI 37496157002 on 87e3347819f72da8316569ed42f64804c9c45f95 failed its
+inherited dependency policy for newly published high-severity
+[GHSA-wq5f-xc86-pv6w](https://github.com/advisories/GHSA-wq5f-xc86-pv6w).
+This is not covered by the human's earlier two-advisory deferral. The human
+authorized investigation of the smallest patched Sharp update. npm metadata
+and the advisory identify Sharp 0.35.5; Astro 7.2.10 already permits ^0.35.4.
+
+The final lockfile changes exactly 27 existing Sharp/platform/libvips entries;
+workspace metadata and all other packages are unchanged. Sharp is 0.35.5 and
+the matching libvips packages are 1.3.4. The initial named Bun update added an
+unwanted direct dependency and retained an old nested copy; those incidental
+changes were removed before normal lockfile reconciliation. No new manifest,
+override, audit ignore or direct dependency remains. Registry integrity matches
+the generated Sharp entry. No code RED test is invented: the real before/after
+dependency scan supplies the regression evidence for this dependency-only fix.
+
+Frozen installation initially retained Astro's stale Sharp 0.35.4 link. Supported
+force-frozen installation refreshed the links. Astro's actual resolved Sharp
+now reports 0.35.5 and librsvg 2.63.2; real SVG → PNG conversion passed with
+the expected dimensions. Website typecheck reports zero errors/warnings/hints;
+the website production build passes on the refreshed dependency. The inherited
+CI audit command now exits zero, but raw audit still reports nine advisories
+(two high, four moderate, three low), not an all-green raw scan. No broad suite
+was repeated locally for this isolated website dependency patch.
+
+Logs: /tmp/5443-sharp-audit-before.log, /tmp/5443-sharp-policy-audit.log,
+/tmp/5443-sharp-raw-audit.log, /tmp/5443-sharp-frozen-refresh.log,
+/tmp/5443-sharp-installed-smoke.log, /tmp/5443-sharp-typecheck-final.log and
+/tmp/5443-sharp-build-final.log. Fresh independent review and exact new-head CI
+are required. Main #5484 also landed meanwhile: GitHub reports conflicts only
+in generated lifecycle fixtures and plugin identity. Main synchronization is
+awaiting clarification of the explicit no-merge constraint. PR remains Draft;
+configured Draft inspection's actual JSON artifact is kind noop, not model review.
+
 ## Rooted continuation verification — 2026-10-06
 
 Resumed in the exact approval-exclusions worktree on codex/approval-exclusions

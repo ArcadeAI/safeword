@@ -3,7 +3,7 @@ id: 90R1W9
 slug: record-approved-authored-reviews
 type: task
 subtype: bug-investigated
-scope: [receipt transport, implement coverage, coordinator exclusion validation, generated delivery]
+scope: [receipt transport, implement coverage, coordinator exclusion validation, generated delivery, authorized Sharp security patch]
 out_of_scope: [historical proofs, RED enforcement, release, unrelated session edits]
 done_when: [valid exclusions permit recording, uncovered authored files fail, invalid and stale exclusions fail]
 phase: done
@@ -17,6 +17,15 @@ last_modified: 2026-10-06T07:02:17Z
 **Goal:** Honor authenticated generated-file exclusions while rejecting uncovered authored changes
 
 **Why:** The reviewer and implement-phase approval recorder disagree on generated targets
+
+## Authorized dependency follow-up — 2026-10-06
+
+Current-head CI exposed newly published Sharp advisory GHSA-wq5f-xc86-pv6w.
+The human selected the smallest patched Sharp investigation rather than leaving
+this delivery blocked for a separate dependency fix. Astro 7.2.10 already permits
+Sharp ^0.35.4; the patch updates only Sharp 0.35.4 → 0.35.5 and its matching
+platform/libvips packages in bun.lock. No direct dependency, manifest, override,
+audit ignore or unrelated package update remains. Verification is in verify.md.
 
 ## Current guarded closure
 
