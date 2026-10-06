@@ -423,16 +423,16 @@ describe('Execution Plan review-contract identity', () => {
   });
 
   it.each([
-    ['missing-author', 'authoring contract copy'],
-    ['edited-author', 'authoring contract copy'],
+    ['missing-author', 'authoring contract copy', 'missing_generated_contract_copy'],
+    ['edited-author', 'authoring contract copy', 'canonical_contract_copy_mismatch'],
     ['missing-reviewer', 'generated reviewer contract copy'],
     ['stale-reviewer', 'stale generated reviewer contract'],
     ['stale-slicing-contract', 'canonical contract-byte identity'],
-    ['incomplete-pair', 'canonical contract-byte identity'],
+    ['incomplete-pair', 'canonical contract-byte identity', 'canonical_contract_copy_mismatch'],
     ['stale-delivery-taxonomy', 'canonical delivery-contract identity'],
   ] as const)(
     'blocks %s through the installed CLI with the failed copy named',
-    (state, expected) => {
+    (state, expected, contractCopyCode?: string) => {
       const result = runInstalledReview(state);
       const output = JSON.parse(result.stdout) as {
         errors?: { code: string; message: string }[];
@@ -441,6 +441,19 @@ describe('Execution Plan review-contract identity', () => {
       const messages = [...(output.errors ?? []), ...(output.findings ?? [])];
 
       expect(result.status).not.toBe(0);
+      if (contractCopyCode !== undefined) {
+        expect(output.findings).toContainEqual(
+          expect.objectContaining({
+            code: contractCopyCode,
+            message: expect.stringContaining(expected),
+            metadata: {
+              planning_phase: 'plan-execution',
+              contract_path: 'templates/skills/bdd/PLAN_EXECUTION.md',
+            },
+          }),
+        );
+        return;
+      }
       expect(
         messages.some(
           candidate => candidate.code.startsWith('REVIEW') && candidate.message.includes(expected),
