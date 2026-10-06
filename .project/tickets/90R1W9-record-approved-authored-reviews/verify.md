@@ -133,3 +133,5 @@ closeout or activation of the user's profile. User-installed stable 1.0.0 still
 needs delivery of the fix. Fresh merged-head CI/review remain required.
 
 Combined candidate release packaging passed 81/81; root lint/Gherkin/typecheck and all five generated surfaces passed. Logs: /tmp/5443-synced-release.log, /tmp/5443-synced-lint.log, /tmp/5443-main-sync-generated.log. No repeated whole-suite local pass is claimed for this additive main synchronization; its scoped tests and fresh CI provide current combined evidence.
+
+Latest additive main synchronization also includes ad937bc450a0220df72e54f978ef3525a1686323 and its accepted source-map-js 1.2.2 root override/ticket. That policy is inherited from main, not a new override introduced by this approval fix. Frozen install and all five generated-surface checks passed; production templates are unchanged by that second merge. Final independent inspection and exact new-head CI are pending.
