@@ -17,7 +17,7 @@ import {
   rememberCursorRunIdentity,
 } from '../lib/cursor-run-identity.ts';
 import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from '../lib/closeout-binding.ts';
-import { stashCursorTranscript } from '../lib/cursor-state.ts';
+import { stashCursorShellCwd, stashCursorTranscript } from '../lib/cursor-state.ts';
 import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-upgrade-lock.ts';
 import {
   type ClaudeGateInput,
@@ -55,6 +55,8 @@ if (command === '' || !existsSync('.safeword')) {
 // Stash transcript_path for the user-invoked `/retro` command (RTSK9C / #624).
 // This fires on `/retro`'s own bash, keeping THIS conversation's stash freshest.
 stashCursorTranscript(input);
+// postToolUse carries no cwd, so remember where this command runs for it (#5392).
+stashCursorShellCwd(input);
 
 if (isAutoUpgradeLockActive({ projectDir: process.cwd() })) {
   process.stdout.write(JSON.stringify(toCursorDecision(AUTO_UPGRADE_LOCK_MESSAGE)) + '\n');
@@ -104,6 +106,7 @@ if (!needsFailClosedGate) {
 
 const translated: ClaudeGateInput = {
   session_id: input.conversation_id,
+  cwd: input.cwd,
   hook_event_name: 'PreToolUse',
   tool_name: 'Bash',
   tool_input: { command },

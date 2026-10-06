@@ -423,6 +423,139 @@ describe('pull-request readiness from a session inside a nested worktree', () =>
   });
 });
 
+/**
+ * Run a Codex or Cursor adapter the way its host does in a worktree session:
+ * the hook process and CLAUDE_PROJECT_DIR stay at the launch checkout, and only
+ * the host payload says where the work happens (#5392).
+ */
+function runAdapterFromLaunch(
+  hook: string,
+  launchDirectory: string,
+  input: Record<string, unknown>,
+): ClaudeHookOutput | CursorHookOutput {
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    CLAUDE_PROJECT_DIR: launchDirectory,
+    SAFEWORD_CODEX_DENY_MODE: 'json',
+  };
+  delete environment.SAFEWORD_PLUGIN_CLI;
+  const result = spawnSync('bun', [hook], {
+    cwd: launchDirectory,
+    env: environment,
+    input: JSON.stringify(input),
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  expect(result.status, result.stderr).toBe(0);
+  return result.stdout.trim() === ''
+    ? {}
+    : (JSON.parse(result.stdout) as ClaudeHookOutput | CursorHookOutput);
+}
+
+// Codex sends `cwd` on every hook. Cursor sends it to beforeShellExecution but
+// not postToolUse, so its commit is observed without one.
+const ADAPTER_SESSIONS = {
+  'OpenAI Codex': {
+    observeEdit: (session: WorktreeSession, filePath: string) =>
+      runAdapterFromLaunch(CODEX_POST_TOOL_QUALITY, session.launchDirectory, {
+        session_id: 'codex-test',
+        cwd: session.worktreeDirectory,
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Edit',
+        tool_input: { file_path: filePath },
+      }),
+    shell: (session: WorktreeSession, command: string) =>
+      runAdapterFromLaunch(CODEX_PRE_TOOL_QUALITY, session.launchDirectory, {
+        session_id: 'codex-test',
+        cwd: session.worktreeDirectory,
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Bash',
+        tool_input: { command },
+      }),
+    observeShell: (session: WorktreeSession, command: string) =>
+      runAdapterFromLaunch(CODEX_POST_TOOL_QUALITY, session.launchDirectory, {
+        session_id: 'codex-test',
+        cwd: session.worktreeDirectory,
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Bash',
+        tool_input: { command },
+      }),
+  },
+  Cursor: {
+    observeEdit: (session: WorktreeSession, filePath: string) =>
+      runAdapterFromLaunch(CURSOR_POST_TOOL_QUALITY, session.launchDirectory, {
+        conversation_id: 'cursor-test',
+        workspace_roots: [session.launchDirectory],
+        tool_name: 'Write',
+        tool_input: { file_path: filePath },
+      }),
+    shell: (session: WorktreeSession, command: string) =>
+      runAdapterFromLaunch(CURSOR_BEFORE_SHELL, session.launchDirectory, {
+        conversation_id: 'cursor-test',
+        workspace_roots: [session.launchDirectory],
+        cwd: session.worktreeDirectory,
+        command,
+      }),
+    observeShell: (session: WorktreeSession, command: string) =>
+      runAdapterFromLaunch(CURSOR_POST_TOOL_QUALITY, session.launchDirectory, {
+        conversation_id: 'cursor-test',
+        workspace_roots: [session.launchDirectory],
+        tool_name: 'Shell',
+        tool_input: { command },
+      }),
+  },
+} as const;
+
+type AdapterHost = keyof typeof ADAPTER_SESSIONS;
+
+/** Close the worktree ticket through the host adapter, as that host's session would. */
+function closeTicketThroughAdapter(host: AdapterHost, session: WorktreeSession): void {
+  const adapter = ADAPTER_SESSIONS[host];
+  const ticketDirectory = nodePath.join(session.worktreeDirectory, nodePath.dirname(TICKET_PATH));
+  writeTestFile(
+    session.worktreeDirectory,
+    VERIFY_PATH,
+    '**PR Scope:** ✅ Diff matches ticket scope\n',
+  );
+  adapter.observeEdit(session, nodePath.join(ticketDirectory, 'verify.md'));
+  writeTicket(session.worktreeDirectory, 'done', 'done');
+  adapter.observeEdit(session, nodePath.join(ticketDirectory, 'ticket.md'));
+  const commit = 'git commit -m "close ticket"';
+  adapter.shell(session, commit);
+  commitAll(session.worktreeDirectory, 'close ticket');
+  adapter.observeShell(session, commit);
+}
+
+describe('pull-request readiness from a Codex or Cursor session inside a nested worktree', () => {
+  it.each<AdapterHost>(['OpenAI Codex', 'Cursor'])(
+    'allows Ready on %s when the shell works in a worktree whose ticket is verified done',
+    host => {
+      const session = worktreeSession();
+      closeTicketThroughAdapter(host, session);
+
+      const output = ADAPTER_SESSIONS[host].shell(session, 'gh pr ready');
+
+      if (host === 'Cursor') {
+        expect((output as CursorHookOutput).permission).toBe('allow');
+      } else {
+        expect(output).toEqual({});
+      }
+    },
+  );
+
+  it.each<AdapterHost>(['OpenAI Codex', 'Cursor'])(
+    'still denies Ready on %s when the worktree ticket is unfinished',
+    host => {
+      const session = worktreeSession();
+
+      const output = ADAPTER_SESSIONS[host].shell(session, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('implementation');
+    },
+  );
+});
+
 describe('pull-request readiness delivery gate', () => {
   it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
     'allows Ready commands in repositories that are not enrolled on %s',
@@ -784,6 +917,25 @@ describe('pull-request readiness delivery gate', () => {
       expectDenied(host, output);
       expect(denialReason(host, output)).toContain('current commit');
       expect(denialReason(host, output)).toContain('run verification again');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'ignores a Ready receipt for a ticket that is not on this branch on %s',
+    host => {
+      const directory = unfinishedProject();
+      clearSessionBindings(directory);
+      writeTestFile(
+        directory,
+        '.project/readiness-ticket.json',
+        `${JSON.stringify({ schema_version: 1, ticket_id: 'ZZ9999', head_sha: 'deadbeef' })}\n`,
+      );
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).not.toContain('ZZ9999');
+      expect(denialReason(host, output)).toContain('Open or resume the delivery ticket');
     },
   );
 
