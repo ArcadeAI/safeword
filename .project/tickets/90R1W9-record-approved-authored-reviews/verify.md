@@ -1,5 +1,47 @@
 # Verification report
 
+## Reviewed main synchronization — 2026-10-06
+
+The human directed quality-review of the proposed sync and proceeding as
+appropriate, while retaining the prohibition on merging PR #5443 or releasing.
+Independent Claude/Opus review 7fe97ea3-c41a-45f4-a31e-9674177724eb approved
+main-sync-plan.md with no errors. Its warnings were checked, not assumed away:
+lifecycle result_sha256 values agree across both parents and the merge base;
+main's authored terminal-handoff source/tests are byte-identical in the combined
+tree; historical catalogue files and #2121 proofs were not changed. The original
+human request explicitly authorizes marking this exact PR Ready, then inspecting
+the configured GitHub review, not bypassing the local guard.
+
+Normal additive branch synchronization imports main
+5fdb789be3787c57dc42d1131bc01f002f324adf. Only generated fixtures and Claude
+identity conflicted. The lifecycle helper requires parseable baseline inputs,
+so only its conflicted fixtures were restored from the existing branch HEAD
+before supported regeneration. No final digest or identity was hand-selected.
+The supported five-surface repair regenerated and verified all outputs in its
+safe order. Lifecycle outcomes remain unchanged; combined template/tree hashes
+move as expected. An initial helper attempt exited 75 before tests started due
+to another worktree's live test lock. The supported longer wait succeeded;
+no lock, process, guard or assertion was bypassed.
+
+Combined focused verification passed six files and 292/293 tests initially;
+one unchanged 450ms worker-inspection fixture lacked ps.log under that run.
+The isolated job.test.ts recheck passed 76/76 with its assertions unchanged.
+The first invocation is not called all-green. Root lint, Gherkin lint and CLI
+typecheck passed; a separate final generated-surface check passed all five.
+Audit remains valid for the unchanged authored approval-fix scope; Sharp's
+authorized dependency proof is below. No new feature scenario or refactor was
+introduced, and the PR diff remains the ticket's approval fix plus that patch.
+Full local suites were not repeated: fresh exact merged-head CI remains required.
+
+Logs: /tmp/5443-main-sync-generators.log (initial refusal),
+/tmp/5443-main-sync-generators-final.log, /tmp/5443-main-sync-targeted.log,
+/tmp/5443-main-sync-job-recheck.log, /tmp/5443-main-sync-lint.log and
+/tmp/5443-main-sync-final-surfaces.log. Current-head independent review follows
+this report; commit/push, await exact-head CI, reconfirm the closed verification
+artifact through native host observation, then use guarded Ready promotion and
+inspect actual configured review artifacts/findings. Prior closure stamps do not
+claim to review the later Sharp/main follow-ups. No PR merge or release.
+
 ## Sharp security follow-up — 2026-10-06
 
 CI 37496157002 on 87e3347819f72da8316569ed42f64804c9c45f95 failed its
