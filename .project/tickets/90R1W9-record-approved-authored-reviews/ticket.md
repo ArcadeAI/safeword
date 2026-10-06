@@ -6,10 +6,10 @@ subtype: bug-investigated
 scope: [receipt transport, implement coverage, coordinator exclusion validation, generated delivery]
 out_of_scope: [historical proofs, RED enforcement, release, unrelated session edits]
 done_when: [valid exclusions permit recording, uncovered authored files fail, invalid and stale exclusions fail]
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-10-05T19:40:29.941Z
-last_modified: 2026-10-05T19:40:29.941Z
+last_modified: 2026-10-06T07:02:17Z
 ---
 
 # Record valid authored reviews for developers
@@ -17,6 +17,37 @@ last_modified: 2026-10-05T19:40:29.941Z
 **Goal:** Honor authenticated generated-file exclusions while rejecting uncovered authored changes
 
 **Why:** The reviewer and implement-phase approval recorder disagree on generated targets
+
+## Current guarded closure
+
+Normal installed implement stamp succeeded for independent Claude/Opus review
+`53a9e548-0918-46f6-9ecb-df081c8c67fa`; the live guard accepted implement →
+verify. Earlier closure-attempt text below is historical, superseded by this
+actual shared-profile result. The reviewer approved with no errors. Its
+warnings are answered in verify.md: tampering proves integrity rejection;
+separate signed unclassified exclusions prove classification enforcement.
+
+Independent Claude/Opus review `eb4c864e-e146-40d5-ac2e-11987c8ca1f3`
+approved with no errors. The normal installed writer earned the verify-phase
+stamp; guarded edits accepted phase done and status done. Audit, scope and
+scenario/refactor assessments are recorded in the ticket artifacts. Subsequent
+warnings were answered without source changes: historical instructions below
+are retained only as history; generated content equivalence remains a separate
+gate; source-map-js's override is inherited from main; deadline sensitivity is
+already tracked in the verification report.
+
+**Next:** Commit and push the closure evidence, await current-head CI, mark
+PR #5443 Ready and inspect its configured review. No merge or release.
+
+## Local activation decision
+
+- Frame: activate the reviewed payload through the supported installer so normal closure guards can verify it.
+- Options: refresh the actual local marketplace install; use the isolated candidate profile; wait for publication.
+- Domains: Codex cache replacement/reload, Safeword distribution-owned receipt routing, shared-profile provenance and recovery.
+- Evidence: official <https://developers.openai.com/plugins/build/plugins> documents local marketplace registration and installed cache delivery; local CLI requires marketplace removal before replacing its source. Safeword's receipt route deliberately excludes project source CLIs. The isolated profile cannot fix the active guard; publication is outside scope.
+- Decided: supported local marketplace replacement plus `codex plugin add safeword@safeword --json`. Both installed and reviewed generated runtime hashes now match `b281fe1bc7ece3f7b9c238753fd7a7bbe56ebca499ebdfe857616e1e1569456a`, retaining 1.0.0. No hand-edited cache or approval proof.
+- Premortem: the running app retains old code; require actual normal stamp and phase-gate success rather than assuming the install result proves activation.
+- Recovery source: the previous marketplace was `/Users/alex/.codex/worktrees/4951/safeword`; restoring it, if needed, uses the same supported marketplace commands.
 
 ## Root Cause
 
@@ -52,7 +83,7 @@ files and tampered stored exclusions. No caller exclusion flag or duplicate
 hook classifier is added. Excluded bytes are not credited as reviewed; changing
 their generated classification invalidates the review's effective scope.
 
-## Work Log
+## Historical work log — prior states and next steps are superseded
 
 - 2026-10-05T19:40:29.941Z Started: Created ticket 90R1W9.
 
@@ -90,3 +121,14 @@ their generated classification invalidates the review's effective scope.
 - Normal additive main synchronization regenerates the five conflicted generated surfaces; no authored conflict or manual bundle edit. Combined receipt/job/readiness checks passed 254/254.
 - Supported installed-candidate walkthrough in an isolated Codex profile and disposable project normally records a genuine cross-agent reviewed implement stamp with the generated exclusion; an uncovered authored file rejects the same receipt without a second stamp. No user profile or original historical claim changed. Details and limits are in verify.md.
 - c6d4045c5 CI passed all ordinary checks; its inherited audit policy explicitly ignores the two user-deferred high advisories. Raw scan remains non-green, not reported as patched.
+
+## Earlier closure attempt — superseded by local activation above
+
+- 2026-10-06T06:49:35Z Resumed the requested worktree at 862bdfba4 after reading audit.md, process-assessment.md and verify.md. Exact-head CI 37418723375 is green. Review 35ee3248 was authenticated approved before the report update; stale 754a7ca3 was not reused.
+- Installed verify invocation recorded; verbatim plan ran with Bun 1.3.14 / Node 26.8.1. Both CLI runs passed 10,456 tests across 609 files; relay 198 and collector 153 passed; both acceptance runs passed 596 scenarios / 11,118 steps. Build, typecheck, final lint and five generated surfaces passed. Aggregate exited 75 because dedicated proof calls could not acquire another chat's active lock; the supported longer-wait recheck passed 47/47. No lock, assertion or guard was bypassed. Raw scans still report nine JavaScript and six root uv/urllib3 advisories; details and logs are in verify.md.
+- Normal installed and repository recorders refused the implement stamp because their stable distribution receipt lacks verified exclusions. Safeword denied the actual implement-to-verify edit. The shared marketplace points at worktree 4951; the supported isolated candidate matches this branch's generated runtime. Active-profile activation/restart awaits the user's choice. Phase/status remain implement/in_progress.
+- Configured Draft inspection returned a noop, not a model review. PR #5443 remains Draft. No merge, release, guard change or historical #2121 proof edit occurred. These documentation updates require fresh review before advancement.
+
+**Next:** Resolve supported candidate activation in the shared profile, then earn
+fresh review and advance through normal verify/closure before marking #5443 Ready
+and inspecting its configured review. Preserve all guards and historical proofs.

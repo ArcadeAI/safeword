@@ -1,5 +1,98 @@
 # Verification report
 
+## Local candidate activation — 2026-10-06 UTC
+
+The supported Codex installer now registers this worktree's marketplace and
+installs its generated Safeword plugin into the actual shared profile. Codex
+required removal of the old marketplace registration before adding this local
+source; the plugin remained installed throughout marketplace replacement.
+`codex plugin add safeword@safeword --json` completed successfully. Installed
+and generated runtime SHA-256 are both
+`b281fe1bc7ece3f7b9c238753fd7a7bbe56ebca499ebdfe857616e1e1569456a`.
+Both distributions retain version 1.0.0. No cache files, receipts, approval
+ledger lines or guards were manually edited. This supersedes the active-profile
+blocker below; fresh independent review and normal guarded transitions still
+must prove closure. Official installation guidance:
+<https://developers.openai.com/plugins/build/plugins>.
+
+## Current verification — 2026-10-05 local / 2026-10-06 UTC
+
+Resumed `codex/approval-exclusions` at `862bdfba4e35d861bb48ac03c81dd3c9a38d8b5f`.
+The installed recorder logged `verify ✓` for the actual current Codex run. The
+skill's verbatim shell block ran with Bun 1.3.14 and Node 26.8.1; no assertion
+or product code changed.
+
+### Verify Checklist
+
+**Test Suite:** ✓ 10,456/10,456 CLI tests pass in each of two full runs (609 files, 14 expected skips each); relay 198/198 passes with one expected skip; collector 153/153 passes twice. Earlier wrong-Bun and fake-reviewer deadline failures did not recur.
+**Gherkin:** ✅ Acceptance passes twice — 596/596 scenarios and 11,118/11,118 steps each. Both dedicated proof calls were refused by another chat's shared test lock before tests started; the same command subsequently passed 47/47 with the wrapper's supported longer wait, without removing or bypassing the lock.
+**Build:** ✅ Success — all resolved entries, including the website.
+**Lint:** ✅ Clean — root lint, Gherkin lint and CLI typecheck passed after acceptance cleanup. The first concurrent lint invocation encountered ENOENT when a temporary `.safeword-coverage-bin-*` fixture was removed; it was not called green.
+**Typecheck:** ✅ Clean — all resolved entries, including Astro and Python.
+**Scenarios:** ⏭️ Skipped — investigated bug task has no feature ledger; process-assessment.md records its observable proof matrix.
+**Refactor:** ✅ No change warranted — existing packet identity, classifier and path normalizer remain authoritative.
+**PR Scope:** ✅ Diff matches ticket scope — complete source/test/docs diff inspected; generated carriers contain the scoped change and lifecycle result hashes remain unchanged. Historical #2121 proofs were not changed.
+**Dep Drift:** ✅ No new architectural dependency — source-map-js resolution and its root override are already inherited from current main; rendering and shipped lint tools are existing choices.
+**Parent Epic:** N/A
+**Reconcile:** ✅ No pattern deviation.
+**Experience:** ✅ Actual shared-profile recorder accepted independent review `53a9e548-0918-46f6-9ecb-df081c8c67fa` and earned the implement stamp. The live guarded ticket edit advanced implement → verify. Installed candidate positive/negative walkthrough below also rejects uncovered authored work. The fix adds zero user steps.
+**Surface Evidence:** ✅ Source CLI, public envelope, generated delivery, supported installed candidate and actual shared-profile recording have proof. All five generated surfaces are current.
+**Evidence limits:** ⚠️ Canonical aggregate exited 75 from proof-lock contention despite green full suites and acceptance; the separate proof recheck passed. Raw scans remain non-green: nine JavaScript advisories (two high, four moderate, three low), and six urllib3 advisories from root uv audit. The two high JavaScript findings remain user-deferred under inherited CI policy. GEPA requirements pip-audit and Go's scanner reported no findings. No new ignore or dependency upgrade was added.
+
+Audit passed for the unchanged implementation scope with the limits in audit.md.
+Exact-head CI [37418723375](https://github.com/ArcadeAI/safeword/actions/runs/37418723375)
+is terminal green, including both Node lanes. Local logs:
+`/tmp/5443-closure-verify.log`, `/tmp/5443-closure-proof-recheck.log`,
+`/tmp/5443-closure-lint-final.log`, `/tmp/5443-closure-generated.log`.
+The raw scan no longer reports the patched source-map-js advisory.
+
+### Earlier closure attempt — superseded by local activation above
+
+Before this report update, review `35ee3248-47c8-431e-aa74-9be0a152aff0` was
+authenticated approved with both runtime bundles in `review_excluded_targets`.
+The installed recorder and normal repository `bun run safeword` recorder both
+rejected implement coverage because their distribution-owned stable receipt
+route lacks that field. Read-time verification also refuses the earlier ledger
+stamp. Safeword denied the actual implement-to-verify ticket edit; phase/status
+remain implement/in_progress.
+
+The shared marketplace points at worktree `4951`, rather than this branch. The
+active runtime hash differs; the supported isolated candidate and this branch's
+generated runtime both hash to
+`b281fe1bc7ece3f7b9c238753fd7a7bbe56ebca499ebdfe857616e1e1569456a`.
+No active-profile cache, identity, receipt, approval line or guard was edited.
+Configured GitHub Draft inspection returned a `noop`, not a model review.
+PR #5443 remains Draft. Supported local candidate activation and restart await
+the shared-profile choice; this new report requires fresh artifact review before
+subsequent phase advancement, rather than carrying the earlier approval forward.
+
+**Next:** Resolve supported candidate activation, then earn fresh review and use
+normal stamp/verify/done transitions before Ready promotion and actual configured
+inspection. Do not merge, release, bypass guards or change #2121 proofs.
+
+## Current guarded closure evidence
+
+Independent Claude/Opus review `53a9e548-0918-46f6-9ecb-df081c8c67fa`
+approved the full packet with no errors. The actual installed distribution's
+normal `project runtime write-review-stamp` earned the implement stamp and the
+live PreToolUse guard accepted implement → verify. No restart or alternate
+verifier route was used. The earlier blocked attempts above are historical.
+Review warnings are answered: stale status sections are explicitly historical;
+tampering tests prove integrity rejection, while separate signed unclassified
+exclusion tests prove classification enforcement. Generated content freshness
+and status-first rejection remain deliberate documented boundaries.
+
+Independent Claude/Opus review `eb4c864e-e146-40d5-ac2e-11987c8ca1f3`
+approved the verification packet with no errors. The normal installed writer
+earned the verify-phase stamp; the live guard accepted phase done and status
+done. No product code changed during closure. The source-map-js root override
+is inherited from main, as detailed in the main synchronization history below.
+
+**Next:** Commit/push the closure evidence, await current-head CI, mark PR #5443
+Ready and inspect the configured review. Do not merge or release.
+
+## Historical verification record — prior states and next steps are superseded
+
 ## Verify Checklist
 
 **Test Suite:** ⚠️ Local environment limitation: the complete resolved plan ran two CLI suites under a child PATH selecting Bun 1.4.0 instead of required 1.3.14; 8 generator failures reproduced that explicit version refusal. A second pass also hit one 500ms fake-reviewer deadline assertion. Explicit pinned Bun/Node rerun of all three affected files passed 145/145 tests. Prior frozen production suite passed 10,453 CLI tests; production bytes remain unchanged by this acceptance-fixture/report follow-up. Relay 198/198 and collector 153/153 passed.
