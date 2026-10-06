@@ -3619,7 +3619,7 @@ var init_historical_catalogue_generated = __esm(() => {
       },
       hook_files: {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
-        ".safeword/hooks/post-tool-dependency-readiness.ts": "21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4",
+        ".safeword/hooks/post-tool-dependency-readiness.ts": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be",
         ".safeword/hooks/post-tool-lint.ts": "f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa",
         ".safeword/hooks/post-tool-quality.ts": "eb8226888626244f196409a3fafea98c5c83908165a3ada1e6394fa745e4fbad",
         ".safeword/hooks/post-tool-skill-nudge.ts": "a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4",
@@ -3627,7 +3627,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/post-tool-work-log.ts": "f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978",
         ".safeword/hooks/pre-tool-architecture-stage.ts": "b730b5c63eb5b860203a2b453aaddbf8271050cab8b3479c23bc8fcc47d79205",
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
-        ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
+        ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
         ".safeword/hooks/pre-tool-quality.ts": "8a8bcb71e0718a9609091eb06e310aea939028b0d9c3d4245da2ea5ae3f1fcbd",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
@@ -60707,16 +60707,21 @@ function holdsProject(directory) {
   const marker = nodePath97.join(directory, ".safeword");
   return statSync8(marker, { throwIfNoEntry: false })?.isDirectory() === true;
 }
+function isGitCheckoutRoot(directory) {
+  return statSync8(nodePath97.join(directory, ".git"), { throwIfNoEntry: false }) !== undefined;
+}
 function findEnclosingProject(cwd) {
-  let current = nodePath97.dirname(nodePath97.resolve(cwd));
-  let previous = "";
-  while (current !== previous) {
-    if (holdsProject(current))
-      return current;
-    previous = current;
-    current = nodePath97.dirname(current);
+  let current = nodePath97.resolve(cwd);
+  for (;; ) {
+    if (isGitCheckoutRoot(current))
+      return;
+    const parent = nodePath97.dirname(current);
+    if (parent === current)
+      return;
+    if (holdsProject(parent))
+      return parent;
+    current = parent;
   }
-  return;
 }
 function nestedProjectRefused(cwd, root) {
   return createResult({

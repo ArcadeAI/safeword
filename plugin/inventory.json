@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "e1170e6a1a13806fbe3f1a9da9be1095f76a57ea62afb09d1151dd1947e574e8"
+      "sha256": "573bcb57683c3feab349237c6b3a30aac0f28b641adcc065333b54c948c7792f"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "f2f381da437a4d2bf933bdf5b03223a0c8aa3893ffe46bd9575d46723668f720"
+      "sha256": "b73478d948ca30f0c3718ecde10ec93dac39e627997a313d5751afd02105cafb"
     },
     {
       "path": "runtime/event-groups.json",
@@ -459,7 +459,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-dependency-readiness.ts",
-      "sha256": "21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4"
+      "sha256": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be"
     },
     {
       "path": "runtime/hooks/post-tool-lint.ts",
@@ -491,7 +491,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-dependency-readiness.ts",
-      "sha256": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8"
+      "sha256": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb"
     },
     {
       "path": "runtime/hooks/pre-tool-git-bare-fix.sh",
@@ -1399,7 +1399,7 @@
     },
     {
       "path": "templates/hooks/post-tool-dependency-readiness.ts",
-      "sha256": "21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4"
+      "sha256": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be"
     },
     {
       "path": "templates/hooks/post-tool-lint.ts",
@@ -1431,7 +1431,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-dependency-readiness.ts",
-      "sha256": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8"
+      "sha256": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb"
     },
     {
       "path": "templates/hooks/pre-tool-git-bare-fix.sh",

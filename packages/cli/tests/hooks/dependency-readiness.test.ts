@@ -1676,3 +1676,89 @@ describe('isDependencyReadinessRecoveryCommand', () => {
     }
   });
 });
+
+describe('dependency readiness in a git worktree nested under the launch checkout (#5478)', () => {
+  const MARKER = 'node_modules/.safeword-deps-fingerprint';
+  let launchDirectory: string;
+  let worktreeDirectory: string;
+
+  /** An enrolled Bun project whose installed dependencies are current or stale. */
+  function writeEnrolledBunProject(directory: string, dependencies: 'current' | 'stale'): void {
+    writeTestFile(directory, '.safeword/SAFEWORD.md', '# Safeword');
+    writeTestFile(
+      directory,
+      'package.json',
+      JSON.stringify({ name: 'project', packageManager: 'bun@1.3.2' }),
+    );
+    writeTestFile(directory, 'bun.lock', '# lockfile');
+    mkdirSync(path.join(directory, 'node_modules'), { recursive: true });
+    if (dependencies === 'stale') writeTestFile(directory, MARKER, 'old-fingerprint');
+    expect(getDependencyReadiness(directory).status).toBe(
+      dependencies === 'current' ? 'ready' : 'stale',
+    );
+  }
+
+  function runHook(scriptPath: string, input: Record<string, unknown>): SpawnSyncReturns<string> {
+    return spawnSync('bun', [scriptPath], {
+      cwd: launchDirectory,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: launchDirectory },
+      input: JSON.stringify(input),
+      encoding: 'utf8',
+    });
+  }
+
+  beforeEach(() => {
+    launchDirectory = createTemporaryDirectory();
+    mkdirSync(path.join(launchDirectory, '.git'));
+    worktreeDirectory = path.join(launchDirectory, '.claude/worktrees/feature');
+    writeTestFile(worktreeDirectory, '.git', 'gitdir: ../../../.git/worktrees/feature\n');
+  });
+
+  afterEach(() => {
+    removeTemporaryDirectory(launchDirectory);
+  });
+
+  it('lets a command run in a ready worktree while the launch checkout is stale', () => {
+    writeEnrolledBunProject(launchDirectory, 'stale');
+    writeEnrolledBunProject(worktreeDirectory, 'current');
+
+    const result = runHook(PRE_TOOL_HOOK, {
+      tool_name: 'Bash',
+      tool_input: { command: 'bun run test' },
+      cwd: worktreeDirectory,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toContain('"permissionDecision":"deny"');
+  });
+
+  it('blocks a command in a stale worktree while the launch checkout is ready', () => {
+    writeEnrolledBunProject(launchDirectory, 'current');
+    writeEnrolledBunProject(worktreeDirectory, 'stale');
+
+    const result = runHook(PRE_TOOL_HOOK, {
+      tool_name: 'Bash',
+      tool_input: { command: 'bun run test' },
+      cwd: worktreeDirectory,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('"permissionDecision":"deny"');
+  });
+
+  it('stamps the install marker in the worktree the install ran in', () => {
+    writeEnrolledBunProject(launchDirectory, 'stale');
+    writeEnrolledBunProject(worktreeDirectory, 'stale');
+
+    const result = runHook(POST_TOOL_HOOK, {
+      tool_name: 'Bash',
+      tool_input: { command: 'bun ci' },
+      tool_response: { exit_code: 0 },
+      cwd: worktreeDirectory,
+    });
+
+    expect(result.status).toBe(0);
+    expect(getDependencyReadiness(worktreeDirectory).status).toBe('ready');
+    expect(readTestFile(launchDirectory, MARKER)).toBe('old-fingerprint');
+  });
+});
