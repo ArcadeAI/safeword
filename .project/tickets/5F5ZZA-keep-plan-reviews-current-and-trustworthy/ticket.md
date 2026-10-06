@@ -611,3 +611,27 @@ guide forbids unapproved fixture changes. The missing-purpose approval remains
 an actual Astra reviewer failure. An independent validity review is running;
 the Claude full matrix will follow once the positive fixture is correctly
 specified. No additional reviewer wording change is being made to fit a failure.
+
+The focused Claude live missing-purpose check also failed the oracle
+(one failed case, 62 semantic cases filtered, plus the filtered harness guard).
+Claude explicitly explained that the coherent purpose is settled by the
+rationale and boundary; only its label is absent. That distinction prompted a
+bounded audit of the oracle rather than another reviewer instruction change.
+Audit `03d9639b-487b-420d-ae63-83ee18a8ad3f` confirmed that the governing
+contract requires one coherent purpose, not a literal Purpose label. The
+earlier quality rejection assumed an absent-label requirement and a review-scope
+clause that was not in the governing contract. Both live approvals are therefore
+consistent with the semantic requirement. This supersedes the earlier
+classification of this case as an actual Astra reviewer mistake; its original
+failed test result remains retained, without retrospective admission.
+
+The surgical `/tmp/4200-purpose-oracle-correction.patch` changes this case to
+an approval tolerance case named purpose-in-rationale and updates its inventory
+entry. The existing two-independent-purposes rejection continues to test the
+substantive requirement. Human approval is pending for this oracle correction
+and the positive completion correction. Neither patch has been applied; no
+fixture, assertion, review wording, admission evidence, or generated identity
+has been changed to conceal a failure. The next matrix requires fresh complete
+proof after any approved corpus correction. The epic and stack remain blocked
+on the required human test-change decisions and all previously recorded
+acceptance, RGR, R7, legacy, and final-review work.
