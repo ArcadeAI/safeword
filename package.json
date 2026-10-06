@@ -54,6 +54,7 @@
     "tsx": "4.23.13"
   },
   "overrides": {
+    "source-map-js": "1.2.2",
     "@felipecrs/decompress-tarxz": "5.0.6",
     "@types/estree": "^1.0.9",
     "@xhmikosr/decompress-unzip": "8.2.1",
