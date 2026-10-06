@@ -474,3 +474,13 @@ The prepared one-line `/tmp/4200-live-timeout-configuration.patch` makes
 the harness honor the existing runtime configuration without changing any
 semantic assertion or production behavior. Explicit test-change approval is
 pending; no qualification or model admission is claimed.
+
+Human approval applied the timeout runner correction in `677042d97`.
+Typecheck and all 59 conformance tests pass. Independent review
+`94de4d37-63b1-4749-a70b-d9397397f591` approved with nonblocking advisories.
+The runtime reports 210,000 ms under the configured environment. A fresh
+complete qualification matrix is running with unchanged corpus digest
+`3da40ba3ac1d8ecf492a5b43571fa317a973549febb31e1ff040a76c4e2d995a`.
+Its first case passed after 120.3 seconds, beyond the old cutoff. This single
+pass is not admission evidence. PR4989 evidence commit `82480bf55` is pushed;
+its pre-push suite passed 895/895.
