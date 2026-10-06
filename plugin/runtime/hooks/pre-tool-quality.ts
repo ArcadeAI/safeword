@@ -4,7 +4,7 @@
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
