@@ -787,3 +787,20 @@ not silently corrected or treated as proven failures. The hypothetical
 runtime-default sentinel collision is outside this observed repair. The exact
 two-case source/unit patch awaits human approval under the testing guide;
 no additional production change, fixture change, or admission evidence is made.
+
+Human approved both data finding corrections at 14:11 PDT on 2026-10-06.
+The exact four-line source/unit patch is applied. Targeted tests pass 62/62,
+typecheck passes, and all five generated surfaces are regenerated and verified.
+Scoped Claude review `e12db6af-6d40-4fa4-8eb8-560b0100aa65` approves. Its
+case-sensitivity advisory is resolved by existing assertDenial, which lowercases
+both explanation and expected term; the fresh-admission prerequisite remains
+open. Case descriptions retain the semantic distinction between unnamed accepted
+work and an invented downstream design, without requiring those literal words.
+No reviewer contract, verdict, destination or identity requirement changes.
+
+The contract digest remains
+`b41b5a7b566c0e4d0d76b774f63335e109fa5b591f0de28739fffe577d2eb3cc`;
+current corpus digest is
+`b145a35e6cc2cc994bbbb238996140f29d82742e5ea464677e9807f5526305c7`.
+Fresh full qualification is required. Prior 21-pass/two-failure/40-unfinished
+results remain non-admissible and bound to their original corpus.

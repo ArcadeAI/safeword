@@ -1290,7 +1290,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
         ONE_PLAN,
         '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- Use the appropriate store and ownership contract during implementation.',
       ),
-      ['data', 'unnamed'],
+      ['delivery.db', 'DeliveryStateService'],
     ),
     implementation_plan: DATA_IMPLEMENTATION_PLAN,
   },
@@ -1302,7 +1302,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
         ONE_PLAN,
         '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- Store delivery evidence in Redis and let ReviewService own reads and writes.',
       ),
-      ['data', 'invented'],
+      ['Redis', 'ReviewService'],
     ),
   },
   {

@@ -143,8 +143,8 @@ describe('Execution Plan semantic conformance admission', () => {
   });
 
   it.each([
-    ['vague-data-ownership', 'request_changes', ['data', 'unnamed']],
-    ['invented-data-ownership', 'request_changes', ['data', 'invented']],
+    ['vague-data-ownership', 'request_changes', ['delivery.db', 'DeliveryStateService']],
+    ['invented-data-ownership', 'request_changes', ['Redis', 'ReviewService']],
     ['accepted-data-ownership', 'approve', undefined],
   ] as const)('keeps %s as a data-decision specificity case', (caseId, verdict, findingTerms) => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);

@@ -36457,13 +36457,13 @@ ${MEASUREMENT_EXECUTION_BLOCK}`;
     {
       ...denied("vague-data-ownership", "A vague store reference is denied and reported as an unnamed accepted data decision.", withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
 - Host-neutral dependency order keeps every intermediate merge supported: unchanged
-- Use the appropriate store and ownership contract during implementation.`), ["data", "unnamed"]),
+- Use the appropriate store and ownership contract during implementation.`), ["delivery.db", "DeliveryStateService"]),
       implementation_plan: DATA_IMPLEMENTATION_PLAN
     },
     {
       ...decisionChangingDiscovery("invented-data-ownership", "A concrete data design invented downstream is denied and reported as an invented data decision.", withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
 - Host-neutral dependency order keeps every intermediate merge supported: unchanged
-- Store delivery evidence in Redis and let ReviewService own reads and writes.`), ["data", "invented"])
+- Store delivery evidence in Redis and let ReviewService own reads and writes.`), ["Redis", "ReviewService"])
     },
     {
       ...approved("accepted-data-ownership", "The accepted concrete store and owner do not block semantic approval.", withRequiredReplacements(`${withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
