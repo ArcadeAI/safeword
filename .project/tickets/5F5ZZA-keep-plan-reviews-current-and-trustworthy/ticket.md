@@ -453,3 +453,14 @@ with nonblocking negative-fixture ambiguity and stale-admission advisories.
 The focused Claude sentinel checks the repaired coherent-change positive,
 missing completion, and both CLI placeholder negatives. It is diagnostic;
 all 63 current cases are still required for admission.
+
+The focused Claude sentinel passed all four selected cases (60 filtered,
+not completion evidence). The next full run completed seven cases: five
+passed and two timed out at the 120-second attempt limit; 56 remain unfinished
+in that interrupted diagnostic (exit 130). The original log and
+`/tmp/4200-claude-120s-interrupted-summary.json` retain both failures.
+No partial results are used for admission. Runtime inspection confirmed
+headless isolation and the existing configurable foreground attempt ceiling
+of 210 seconds. A single fresh full matrix now uses that supported limit,
+with unchanged semantic scoring, source corpus, model, and authentication.
+This is run configuration only; no production deadline change was made.
