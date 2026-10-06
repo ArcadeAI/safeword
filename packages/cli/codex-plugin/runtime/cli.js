@@ -33549,8 +33549,1929 @@ function reviewerPromptInstructions(kind, reviewer, planningPhase) {
 var QUALITY_REVIEW_FOCUS = "Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.", RETROSPECTIVE_ELIGIBILITY_RUBRIC = "Review only the CKWE2D retrospective migration. For every named scenario, compare its exact fixed-cutoff Given/When/Then body and cited baseline implementation blobs with current behavior. Cite each baseline implementation path and explain why the scenario behavior already existed at the named baseline commit. Reject a missing or changed scenario body, missing or mismatched baseline blob, ambiguous path mapping, post-cutoff-only implementation, or rationale that does not explain why ordinary RED evidence is unavailable. A passing current test alone does not prove historical implementation. Approval establishes historical eligibility only; each VERIFIED row still needs its own independently reviewed passing and behavior-removal proof.", RETROSPECTIVE_PROOF_RUBRIC = "Review only the CKWE2D retrospective migration. Judge the exact named test against every actor-facing Given/When/Then clause, whether the declared mutation removes that scenario's behavior, whether the reported failure is at its own assertion rather than syntax, setup, or unrelated behavior, and whether the declared support files cover every input that could flip the result. Inspect the request and observation for mismatched source identities or extra mutated differences. The review job is not execution evidence: the edit and done gates must independently rerun the request and compare its result with the reviewed observation. Approval covers only the named scenario and is insufficient without separate historical eligibility.", REVIEWER_PLACEHOLDER = "{{reviewer}}";
 var init_review_rubric = () => {};
 
-// src/review/execution-plan-conformance.ts
+// src/review/codex-app-server-proof.ts
+function record(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function unique(messages2, predicate) {
+  const matches = messages2.filter((message) => record(message) && predicate(message));
+  return matches.length === 1 ? matches[0] : undefined;
+}
+function startedTurn(messages2) {
+  const start = unique(messages2, (message) => message.id === 2);
+  const turnStart = unique(messages2, (message) => message.id === 3);
+  if (!record(start?.result) || !record(start.result.thread) || !record(turnStart?.result))
+    return;
+  const threadId = start.result.thread.id;
+  const turn = turnStart.result.turn;
+  if (typeof threadId !== "string" || !record(turn) || typeof turn.id !== "string")
+    return;
+  return { threadId, turnId: turn.id, start: start.result };
+}
+function completedTurn(messages2, threadId, turnId) {
+  const completed = unique(messages2, (message) => message.method === "turn/completed" && record(message.params) && message.params.threadId === threadId && record(message.params.turn) && message.params.turn.id === turnId);
+  if (!record(completed?.params) || !record(completed.params.turn))
+    return;
+  const finishedTurn = completed.params.turn;
+  if (finishedTurn.status !== "completed" || !Array.isArray(finishedTurn.items))
+    return;
+  return finishedTurn;
+}
+function codexAppServerFailedTurn(messages2) {
+  const started = startedTurn(messages2);
+  if (started === undefined)
+    return false;
+  return messages2.some((message) => record(message) && message.method === "turn/completed" && record(message.params) && message.params.threadId === started.threadId && record(message.params.turn) && message.params.turn.id === started.turnId && message.params.turn.status === "failed");
+}
+function finalAnswer(turn) {
+  if (!Array.isArray(turn.items))
+    return;
+  const answers = turn.items.filter((item) => record(item) && item.type === "agentMessage" && item.phase === "final_answer" && typeof item.text === "string");
+  if (answers.length !== 1 || typeof answers[0]?.text !== "string")
+    return;
+  return answers[0].text;
+}
+function wasRerouted(messages2, threadId, turnId) {
+  return messages2.some((message) => record(message) && message.method === "model/rerouted" && record(message.params) && message.params.threadId === threadId && message.params.turnId === turnId);
+}
+function confirmedModel(start, selectedModel) {
+  const model = start.model;
+  const provider = start.modelProvider;
+  if (typeof model !== "string" || model === "" || provider !== "openai" || selectedModel !== undefined && selectedModel !== model)
+    return;
+  return { provider, model };
+}
+function codexAppServerProof(messages2, selectedModel) {
+  const started = startedTurn(messages2);
+  if (started === undefined)
+    return;
+  const completed = completedTurn(messages2, started.threadId, started.turnId);
+  if (completed === undefined)
+    return;
+  const text = finalAnswer(completed);
+  if (text === undefined)
+    return;
+  const model = wasRerouted(messages2, started.threadId, started.turnId) ? undefined : confirmedModel(started.start, selectedModel);
+  return {
+    text,
+    ...model && { confirmedModel: model }
+  };
+}
+
+// src/review/environment.ts
+function filteredEnvironment(reviewer, source = process.env, platform2 = process.platform) {
+  const normalize = (name) => platform2 === "win32" ? name.toUpperCase() : name;
+  const allowed = new Set([
+    ...PROCESS_VARIABLES,
+    ...REVIEWER_CONTROL_VARIABLES,
+    ...(source.NODE_ENV ?? "development") === "test" ? REVIEWER_FIXTURE_VARIABLES : [],
+    ...reviewer === undefined ? [] : VENDOR_VARIABLES[reviewer]
+  ].map((name) => normalize(name)));
+  const managedProgressSignal = normalize("SAFEWORD_REVIEW_PROGRESS");
+  return Object.fromEntries(Object.entries(source).filter(([name]) => normalize(name) !== managedProgressSignal && allowed.has(normalize(name))));
+}
+function reviewerEnvironment(reviewer, source = process.env, platform2 = process.platform) {
+  const environment = filteredEnvironment(reviewer, source, platform2);
+  if (reviewer !== "opencode")
+    return environment;
+  let inlineConfig = {};
+  try {
+    const parsed2 = JSON.parse(environment.OPENCODE_CONFIG_CONTENT ?? "{}");
+    if (parsed2 !== null && typeof parsed2 === "object" && !Array.isArray(parsed2)) {
+      inlineConfig = parsed2;
+    }
+  } catch {}
+  return {
+    ...environment,
+    OPENCODE_CONFIG_CONTENT: JSON.stringify({ ...inlineConfig, permission: { "*": "deny" } }),
+    OPENCODE_DISABLE_AUTOUPDATE: "true",
+    OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
+    OPENCODE_DISABLE_LSP_DOWNLOAD: "true"
+  };
+}
+function reviewerProbeEnvironment(source = process.env, platform2 = process.platform) {
+  return filteredEnvironment(undefined, source, platform2);
+}
+var VENDOR_VARIABLES, PROCESS_VARIABLES, REVIEWER_CONTROL_VARIABLES, REVIEWER_FIXTURE_VARIABLES;
+var init_environment = __esm(() => {
+  VENDOR_VARIABLES = {
+    claude: [
+      "ANTHROPIC_API_KEY",
+      "CLAUDE_CODE_OAUTH_TOKEN",
+      "CLAUDE_CONFIG_DIR",
+      "CLAUDE_SESSION_ID",
+      "CLAUDE_CODE_SESSION_ID"
+    ],
+    codex: [
+      "OPENAI_API_KEY",
+      "AZURE_OPENAI_API_KEY",
+      "CODEX_API_KEY",
+      "CODEX_HOME",
+      "CODEX_THREAD_ID"
+    ],
+    opencode: [
+      "ANTHROPIC_API_KEY",
+      "OPENAI_API_KEY",
+      "AZURE_OPENAI_API_KEY",
+      "OPENCODE_CONFIG",
+      "OPENCODE_CONFIG_CONTENT",
+      "OPENCODE_CONFIG_DIR"
+    ]
+  };
+  PROCESS_VARIABLES = [
+    "ALL_PROXY",
+    "APPDATA",
+    "HOME",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "LANG",
+    "LC_ALL",
+    "LOGNAME",
+    "LOCALAPPDATA",
+    "NODE_EXTRA_CA_CERTS",
+    "NO_PROXY",
+    "PATH",
+    "PATHEXT",
+    "SHELL",
+    "SYSTEMROOT",
+    "SSL_CERT_DIR",
+    "SSL_CERT_FILE",
+    "TEMP",
+    "TERM",
+    "TMP",
+    "TMPDIR",
+    "USER",
+    "USERPROFILE",
+    "COMSPEC",
+    "XDG_CACHE_HOME",
+    "XDG_CONFIG_HOME",
+    "all_proxy",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy"
+  ];
+  REVIEWER_CONTROL_VARIABLES = [
+    "SAFEWORD_REVIEW_RUN_BOUND_MS",
+    "SAFEWORD_REVIEW_TIMEOUT_MS"
+  ];
+  REVIEWER_FIXTURE_VARIABLES = [
+    "SAFEWORD_REVIEW_ACCEPTED_MODEL",
+    "SAFEWORD_REVIEW_BDD_EXPECTED_MODEL",
+    "SAFEWORD_REVIEW_CANDIDATE_LOG",
+    "SAFEWORD_REVIEW_CHILD_PID",
+    "SAFEWORD_REVIEW_COVERAGE_FAIL",
+    "SAFEWORD_REVIEW_COVERAGE_FAIL_CLAUDE",
+    "SAFEWORD_REVIEW_COVERAGE_FAIL_CODEX",
+    "SAFEWORD_REVIEW_COVERAGE_FINDING",
+    "SAFEWORD_REVIEW_COVERAGE_VERDICT",
+    "SAFEWORD_REVIEW_DESCENDANT_PID_FILE",
+    "SAFEWORD_REVIEW_ENV_LOG",
+    "SAFEWORD_REVIEW_FAKE_DELAY_AGENT",
+    "SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD",
+    "SAFEWORD_REVIEW_FAKE_FAILURE",
+    "SAFEWORD_REVIEW_FAKE_FAILURE_AGENT",
+    "SAFEWORD_REVIEW_FAKE_FAILURE_CLAUDE",
+    "SAFEWORD_REVIEW_FAKE_FAILURE_CODEX",
+    "SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE",
+    "SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS",
+    "SAFEWORD_REVIEW_FAKE_FINDING",
+    "SAFEWORD_REVIEW_FAKE_HELP_FAILURE",
+    "SAFEWORD_REVIEW_FAKE_IDENTITY",
+    "SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY",
+    "SAFEWORD_REVIEW_FAKE_MUTATE",
+    "SAFEWORD_REVIEW_FAKE_MUTATE_AGENT",
+    "SAFEWORD_REVIEW_FAKE_SOURCE_MUTATE_TARGET",
+    "SAFEWORD_REVIEW_FAKE_SUMMARY",
+    "SAFEWORD_REVIEW_FAKE_VERDICT",
+    "SAFEWORD_REVIEW_HELP_MUTATE",
+    "SAFEWORD_REVIEW_LAUNCH_LOG",
+    "SAFEWORD_REVIEW_LOG",
+    "SAFEWORD_REVIEW_MODEL_LOG",
+    "SAFEWORD_REVIEW_MODEL_PROMPT_LOG",
+    "SAFEWORD_REVIEW_PROBE_ENV_LOG",
+    "SAFEWORD_REVIEW_PROMPT_LOG",
+    "SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR",
+    "SAFEWORD_REVIEW_ROUTE_LOG",
+    "SAFEWORD_REVIEW_SCHEMA_COPY",
+    "SAFEWORD_REVIEW_SCHEMA_PATH_LOG",
+    "SAFEWORD_REVIEW_STUBBORN_PID",
+    "SAFEWORD_REVIEW_SWAP_ALIAS",
+    "SAFEWORD_REVIEW_SWAP_TARGET"
+  ];
+});
+
+// src/review/evidence-record.ts
+function isEvidenceRecord(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
+  const record2 = value;
+  return Object.keys(record2).length === EVIDENCE_RECORD_FIELDS.length && EVIDENCE_RECORD_FIELDS.every((field) => typeof record2[field] === "string" && record2[field].trim() !== "");
+}
+function isPlanEvidenceRecord(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
+  const { schema_version, ...fields } = value;
+  return schema_version === 1 && isEvidenceRecord(fields);
+}
+var EVIDENCE_RECORD_FIELDS;
+var init_evidence_record = __esm(() => {
+  EVIDENCE_RECORD_FIELDS = [
+    "source_identity",
+    "checked_version",
+    "source_version",
+    "target_version",
+    "supported_claim",
+    "license_identifier",
+    "attribution_notice",
+    "redistribution_limit",
+    "security_limit",
+    "privacy_limit",
+    "reuse_limit"
+  ];
+});
+
+// src/review/execution-plan-output.ts
+import { isDeepStrictEqual } from "util";
+function isRecord6(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function hasExactKeys3(value, keys) {
+  const expected = new Set(keys);
+  return Object.keys(value).length === keys.length && Object.keys(value).every((key) => expected.has(key));
+}
+function isNonblank(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+function isSha2562(value) {
+  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+}
+function uniqueNonblankStrings(value, allowEmpty) {
+  if (!Array.isArray(value) || !allowEmpty && value.length === 0)
+    return false;
+  if (!value.every(isNonblank))
+    return false;
+  return new Set(value).size === value.length;
+}
+function deniedOutput(output, messages2 = []) {
+  return {
+    kind: "denied",
+    output: {
+      ...output,
+      verdict: "request_changes",
+      execution_plan_record: NULL_EXECUTION_PLAN_RECORD,
+      findings: [
+        ...output.findings,
+        ...messages2.map((message) => ({ severity: "error", message }))
+      ]
+    }
+  };
+}
+function successorTripwireFinding(value, index) {
+  if (!isRecord6(value) || value.relies_on_unmerged_successor !== true)
+    return;
+  const name = isNonblank(value.name) ? value.name : `slice ${index + 1}`;
+  return `Execution Plan slice "${name}" relies on an unmerged successor.`;
+}
+function decisionTripwireFinding(value, index) {
+  if (!isRecord6(value) || !isNonblank(value.status) || value.status === "unchanged") {
+    return;
+  }
+  const name = isNonblank(value.decision) ? value.decision : `decision ${index + 1}`;
+  return `Execution Plan decision "${name}" has status "${value.status}" instead of unchanged.`;
+}
+function readableTripwireFindings(record2) {
+  const sliceFindings = Array.isArray(record2.slices) ? record2.slices.map((slice, index) => successorTripwireFinding(slice, index)).filter((finding) => finding !== undefined) : [];
+  const decisionFindings = Array.isArray(record2.decision_statuses) ? record2.decision_statuses.map((decision, index) => decisionTripwireFinding(decision, index)).filter((finding) => finding !== undefined) : [];
+  return [...sliceFindings, ...decisionFindings];
+}
+function isValidSlice(value) {
+  if (!isRecord6(value))
+    return false;
+  if (!hasExactKeys3(value, [
+    "name",
+    "purpose",
+    "boundary",
+    "prerequisites",
+    "proof",
+    "completion_signal",
+    "relies_on_unmerged_successor"
+  ])) {
+    return false;
+  }
+  return isNonblank(value.name) && isNonblank(value.purpose) && isNonblank(value.boundary) && uniqueNonblankStrings(value.prerequisites, true) && isNonblank(value.proof) && isNonblank(value.completion_signal) && value.relies_on_unmerged_successor === false;
+}
+function hasValidRecordHeader(value) {
+  const decisionIsValid = value.slicing_decision === "one_pull_request" || value.slicing_decision === "multiple_pull_requests";
+  return hasExactKeys3(value, [
+    "slicing_decision",
+    "rationale",
+    "slices",
+    "obligation_owners",
+    "decision_statuses",
+    "accepted_scenarios_covered",
+    "accepted_approach_preserved",
+    "normalized_plan_digest",
+    "delivery_definition"
+  ]) && decisionIsValid && isNonblank(value.rationale) && Array.isArray(value.slices) && value.slices.every(isValidSlice) && Array.isArray(value.obligation_owners) && Array.isArray(value.decision_statuses) && isSha2562(value.normalized_plan_digest) && hasValidPlanJudgmentHeader(value);
+}
+function hasValidPlanJudgmentHeader(value) {
+  return value.accepted_scenarios_covered === true && value.accepted_approach_preserved === true && isRecord6(value.delivery_definition);
+}
+function isProjectContainedPath2(value) {
+  if (value === "" || value.startsWith("/") || value.startsWith("\\"))
+    return false;
+  if (/^[A-Za-z]:[\\/]/u.test(value) || value.includes("\x00"))
+    return false;
+  return !value.split(/[\\/]/u).includes("..");
+}
+function isValidProofInvocation(value, method) {
+  if (!isRecord6(value) || value.type !== method)
+    return false;
+  if (method === "command") {
+    return hasExactKeys3(value, ["type", "cwd", "argv"]) && typeof value.cwd === "string" && isProjectContainedPath2(value.cwd) && uniqueNonblankStrings(value.argv, false);
+  }
+  return hasExactKeys3(value, ["type", "kind", "targets"]) && isNonblank(value.kind) && uniqueNonblankStrings(value.targets, false) && value.targets.every((target) => isProjectContainedPath2(target));
+}
+function isValidProofSpecification(value) {
+  if (!isRecord6(value) || !hasExactKeys3(value, [
+    "proof_id",
+    "method",
+    "scope",
+    "boundary_exercised",
+    "qualifies_as",
+    "currency",
+    "invocation"
+  ])) {
+    return false;
+  }
+  const methodIsValid = value.method === "command" || value.method === "review_receipt";
+  const scopeIsValid = ["unit", "integration", "E2E", "eval"].includes(String(value.scope));
+  const qualificationIsValid = ["real_boundary", "partial_or_structural"].includes(String(value.qualifies_as));
+  const currencyIsValid = ["current_required", "compatible_earlier_allowed"].includes(String(value.currency));
+  return isNonblank(value.proof_id) && isNonblank(value.boundary_exercised) && methodIsValid && scopeIsValid && qualificationIsValid && currencyIsValid && isValidProofInvocation(value.invocation, value.method);
+}
+function hasValidChecklistItemBase(value) {
+  return isNonblank(value.id) && DELIVERY_CHECKLIST_CATEGORIES.includes(value.category) && isNonblank(value.obligation);
+}
+function contributorDefinitionIsValid(value) {
+  if (value.reviewed_disposition === "not_applicable") {
+    return value.required_proof === "" && isNonblank(value.reviewed_detail);
+  }
+  return value.reviewed_disposition === null && value.reviewed_detail === null && isNonblank(value.required_proof);
+}
+function humanDefinitionIsValid(value) {
+  return value.required_proof === "" && (value.reviewed_disposition === "not_applicable" || value.reviewed_disposition === "pending_human") && isNonblank(value.reviewed_detail);
+}
+function isValidChecklistDefinitionItem(value) {
+  if (!isRecord6(value) || !hasExactKeys3(value, [
+    "id",
+    "category",
+    "obligation",
+    "owner",
+    "required_proof",
+    "reviewed_disposition",
+    "reviewed_detail"
+  ])) {
+    return false;
+  }
+  if (!hasValidChecklistItemBase(value))
+    return false;
+  if (value.owner === "contributor")
+    return contributorDefinitionIsValid(value);
+  return value.owner === "human" && humanDefinitionIsValid(value);
+}
+function hasValidDeliveryDefinitionHeader(definition) {
+  return hasExactKeys3(definition, [
+    "schema_version",
+    "design_approval_gate",
+    "proof_specifications",
+    "checklist_items"
+  ]) && definition.schema_version === 1 && typeof definition.design_approval_gate === "boolean" && Array.isArray(definition.proof_specifications) && Array.isArray(definition.checklist_items) && definition.proof_specifications.length > 0 && definition.checklist_items.length > 0;
+}
+function hasUniqueDefinitionIds(definition) {
+  const proofIds = definition.proof_specifications.map((proof) => proof.proof_id);
+  const itemIds = definition.checklist_items.map((item) => item.id);
+  return new Set(proofIds).size === proofIds.length && new Set(itemIds).size === itemIds.length;
+}
+function hasEveryDefinitionCategory(definition) {
+  const presentCategories = new Set(definition.checklist_items.map((item) => item.category));
+  return DELIVERY_CHECKLIST_CATEGORIES.every((category) => presentCategories.has(category));
+}
+function contributorProofsAreReal(definition) {
+  const realProofs = new Set(definition.proof_specifications.filter((proof) => proof.qualifies_as === "real_boundary").map((proof) => proof.proof_id));
+  return definition.checklist_items.every((item) => item.owner !== "contributor" || item.reviewed_disposition === "not_applicable" || realProofs.has(item.required_proof));
+}
+function hasValidDeliveryDefinition(definition) {
+  if (!hasValidDeliveryDefinitionHeader(definition))
+    return false;
+  if (definition.proof_specifications.some((proof) => !isValidProofSpecification(proof))) {
+    return false;
+  }
+  if (definition.checklist_items.some((item) => !isValidChecklistDefinitionItem(item))) {
+    return false;
+  }
+  return hasUniqueDefinitionIds(definition) && hasEveryDefinitionCategory(definition) && contributorProofsAreReal(definition);
+}
+function hasValidSliceGraph(record2) {
+  const slices = record2.slices;
+  const countMatchesDecision = record2.slicing_decision === "one_pull_request" ? slices.length === 1 : slices.length >= 2;
+  const sliceNames = slices.map((slice) => slice.name);
+  const namesAreUnique = new Set(sliceNames).size === sliceNames.length;
+  const prerequisitesAreEarlier = slices.every((slice, index) => {
+    const earlier = new Set(sliceNames.slice(0, index));
+    return slice.prerequisites.every((prerequisite) => earlier.has(prerequisite));
+  });
+  return countMatchesDecision && namesAreUnique && prerequisitesAreEarlier;
+}
+function isValidObligationOwner(value, sliceNames, seen) {
+  if (!isRecord6(value) || !hasExactKeys3(value, ["obligation", "slices"]))
+    return false;
+  if (!isNonblank(value.obligation) || seen.has(value.obligation))
+    return false;
+  if (!uniqueNonblankStrings(value.slices, false))
+    return false;
+  if (value.slices.some((slice) => !sliceNames.includes(slice)))
+    return false;
+  seen.add(value.obligation);
+  return true;
+}
+function hasValidObligationOwners(record2) {
+  if (record2.obligation_owners.length === 0)
+    return false;
+  const sliceNames = record2.slices.map((slice) => slice.name);
+  const seen = new Set;
+  const valid = record2.obligation_owners.every((owner) => isValidObligationOwner(owner, sliceNames, seen));
+  if (!valid)
+    return false;
+  const owned = new Set(record2.obligation_owners.flatMap((owner) => owner.slices));
+  return sliceNames.every((slice) => owned.has(slice));
+}
+function hasValidDecisionStatuses(record2) {
+  if (record2.decision_statuses.length === 0)
+    return false;
+  const seen = new Set;
+  return record2.decision_statuses.every((decision) => {
+    if (!isRecord6(decision) || !hasExactKeys3(decision, ["decision", "status"]))
+      return false;
+    if (!isNonblank(decision.decision) || seen.has(decision.decision))
+      return false;
+    if (decision.status !== "unchanged")
+      return false;
+    seen.add(decision.decision);
+    return true;
+  });
+}
+function isValidExecutionPlanRecord(value) {
+  if (!isRecord6(value) || !hasValidRecordHeader(value))
+    return false;
+  const record2 = value;
+  return hasValidSliceGraph(record2) && hasValidObligationOwners(record2) && hasValidDecisionStatuses(record2) && hasValidDeliveryDefinition(record2.delivery_definition);
+}
+function hasValidPlanningDestination(output) {
+  const destination = output.planning_destination;
+  return (destination === "plan-execution" || destination === "plan-implementation") && (output.verdict !== "approve" || destination === "plan-execution");
+}
+function validateExecutionPlanOutput(output, expectedDefinition, expectedNormalizedPlanDigest) {
+  if (!hasValidPlanningDestination(output))
+    return { kind: "invalid_output" };
+  if (output.verdict === "request_changes")
+    return deniedOutput(output);
+  const candidate = output.execution_plan_record;
+  if (isRecord6(candidate)) {
+    const tripwires = readableTripwireFindings(candidate);
+    if (tripwires.length > 0)
+      return deniedOutput(output, tripwires);
+  }
+  if (!isValidExecutionPlanRecord(candidate))
+    return { kind: "invalid_output" };
+  if (expectedDefinition !== undefined && !isDeepStrictEqual(candidate.delivery_definition, expectedDefinition)) {
+    return { kind: "invalid_output" };
+  }
+  if (expectedNormalizedPlanDigest !== undefined && candidate.normalized_plan_digest !== expectedNormalizedPlanDigest) {
+    return { kind: "invalid_output" };
+  }
+  return { kind: "approved", output: { ...output, execution_plan_record: candidate } };
+}
+var NULL_EXECUTION_PLAN_RECORD;
+var init_execution_plan_output = __esm(() => {
+  init_delivery_checklist();
+  NULL_EXECUTION_PLAN_RECORD = JSON.parse("null");
+});
+
+// src/review/runtime.ts
+import { spawn } from "child_process";
 import { createHash as createHash18 } from "crypto";
+import {
+  accessSync as accessSync2,
+  chmodSync as chmodSync3,
+  closeSync as closeSync5,
+  constants as constants3,
+  fstatSync as fstatSync2,
+  lstatSync as lstatSync9,
+  mkdirSync as mkdirSync11,
+  mkdtempSync as mkdtempSync5,
+  openSync as openSync5,
+  readdirSync as readdirSync8,
+  readFileSync as readFileSync32,
+  realpathSync as realpathSync7,
+  renameSync as renameSync7,
+  rmSync as rmSync7,
+  symlinkSync,
+  writeFileSync as writeFileSync12
+} from "fs";
+import { homedir as homedir5, tmpdir as tmpdir3 } from "os";
+import nodePath46 from "path";
+function reviewOutputSchema(kind, planningPhase) {
+  if (kind === "plan-execution")
+    return JSON.stringify(EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE);
+  if (planningPhase === "product-plan" || kind === "scenario-gate" || kind === "plan-implementation")
+    return JSON.stringify(PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE);
+  return REVIEW_OUTPUT_SCHEMA;
+}
+function configuredClaudeEffort(environment) {
+  const effort = environment.SAFEWORD_REVIEW_EFFORT_CLAUDE;
+  if (effort === undefined || effort.trim() === "")
+    return;
+  if (CLAUDE_EFFORT_LEVELS.has(effort))
+    return effort;
+  warn(`Ignoring SAFEWORD_REVIEW_EFFORT_CLAUDE='${effort}' - expected low, medium, high, xhigh, or max.`);
+  return;
+}
+function baseReviewerArguments(reviewer, kind, planningPhase) {
+  const base = [...ARGUMENTS[reviewer]];
+  if (reviewer !== "claude")
+    return base;
+  const schemaIndex = base.indexOf("--json-schema") + 1;
+  base[schemaIndex] = reviewOutputSchema(kind, planningPhase);
+  if (planningPhase === "product-plan" || ["scenario-gate", "plan-implementation", "plan-execution"].includes(kind)) {
+    base[base.indexOf("--output-format") + 1] = "stream-json";
+    base.push("--verbose");
+  }
+  return base;
+}
+function reviewerExtraArguments(reviewer, model, schemaPath, environment) {
+  const extra = [];
+  if (model !== undefined)
+    extra.push("--model", model);
+  const effort = reviewer === "claude" ? configuredClaudeEffort(environment) : undefined;
+  if (effort !== undefined)
+    extra.push("--effort", effort);
+  if (reviewer === "codex" && schemaPath !== undefined)
+    extra.push("--output-schema", schemaPath);
+  return extra;
+}
+function reviewerArguments(reviewer, model, schemaPath, environment = process.env, review = "quality-review") {
+  const kind = typeof review === "string" ? review : review.kind;
+  const planningPhase = typeof review === "string" ? undefined : review.planning_phase;
+  const base = baseReviewerArguments(reviewer, kind, planningPhase);
+  const extra = reviewerExtraArguments(reviewer, model, schemaPath, environment);
+  if (extra.length === 0)
+    return base;
+  if (reviewer !== "codex")
+    return [...base, ...extra];
+  const stdinMarker = base.length - 1;
+  if (base[stdinMarker] !== "-")
+    throw new Error("Codex reviewer arguments lack the stdin marker");
+  return [...base.slice(0, stdinMarker), ...extra, "-"];
+}
+function reviewRunCeiling(env2) {
+  return env2.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_RUN_BOUND_MS : RUN_BOUND_MS;
+}
+function runBoundMs(env2 = process.env) {
+  const configured = Number(env2.SAFEWORD_REVIEW_RUN_BOUND_MS);
+  const ceiling = reviewRunCeiling(env2);
+  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, ceiling) : ceiling;
+}
+function reviewWorkerRunBoundMs(env2 = process.env) {
+  return runBoundMs({ ...env2, SAFEWORD_REVIEW_WORKER: "1" });
+}
+function minimumRouteMs(env2 = process.env) {
+  return Math.min(60000, reviewTimeoutMilliseconds(env2));
+}
+function reviewTimeoutMilliseconds(env2 = process.env) {
+  const raw = env2.SAFEWORD_REVIEW_TIMEOUT_MS;
+  const configured = raw === undefined ? NaN : Number(raw);
+  const ceiling = runBoundMs(env2);
+  const defaultDeadline = env2.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_ATTEMPT_DEADLINE_MS : DEFAULT_ATTEMPT_DEADLINE_MS;
+  const maximumAttempt = ceiling > 60000 ? ceiling - 60000 : ceiling;
+  const requested = Number.isFinite(configured) && configured > 0 ? configured : defaultDeadline;
+  return Math.min(requested, maximumAttempt);
+}
+function isRecord7(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function parseJson(value) {
+  return JSON.parse(value);
+}
+function parseClaudeOutput(stdout) {
+  let envelope;
+  try {
+    envelope = parseJson(stdout);
+  } catch {
+    envelope = ndjsonEvents(stdout).findLast((event) => isRecord7(event) && event.type === "result" && event.subtype === "success");
+  }
+  if (isRecord7(envelope) && isRecord7(envelope.structured_output)) {
+    return envelope.structured_output;
+  }
+  if (isRecord7(envelope) && typeof envelope.result === "string") {
+    return parseJson(envelope.result);
+  }
+  return envelope;
+}
+function ndjsonEvents(stdout) {
+  return stdout.split(`
+`).filter((line) => line.trim() !== "").flatMap((line) => {
+    try {
+      return [parseJson(line)];
+    } catch {
+      return [];
+    }
+  });
+}
+function parseCodexOutput(stdout) {
+  const events = ndjsonEvents(stdout);
+  const message = events.findLast((event) => isRecord7(event) && event.type === "item.completed" && isRecord7(event.item) && event.item.type === "agent_message" && typeof event.item.text === "string");
+  if (isRecord7(message) && isRecord7(message.item) && typeof message.item.text === "string") {
+    return parseJson(message.item.text);
+  }
+  return parseJson(stdout);
+}
+function parseOpenCodeOutput(stdout) {
+  const completed = ndjsonEvents(stdout).filter((event2) => isRecord7(event2) && event2.type === "text" && isRecord7(event2.part) && event2.part.type === "text" && isRecord7(event2.part.time) && typeof event2.part.time.end === "number" && typeof event2.part.text === "string");
+  if (completed.length !== 1)
+    throw new Error("invalid reviewer output");
+  const [event] = completed;
+  if (!isRecord7(event) || !isRecord7(event.part) || typeof event.part.text !== "string") {
+    throw new Error("invalid reviewer output");
+  }
+  return parseJson(event.part.text);
+}
+function reviewerVerdictMatchesFindings(verdict, findings) {
+  return verdict !== "approve" || findings.every((finding) => isRecord7(finding) && finding.severity !== "error");
+}
+function reviewerOutputKeys(kind) {
+  const keys = new Set([
+    "schema_version",
+    "dispatch_id",
+    "reviewer_agent",
+    "verdict",
+    "summary",
+    "findings",
+    "evidence_records"
+  ]);
+  if (kind === "plan-execution") {
+    keys.add("planning_destination");
+    keys.add("execution_plan_record");
+  }
+  return keys;
+}
+function hasValidEvidenceRecords(value) {
+  if (!isRecord7(value) || value.schema_version !== 1 || !Array.isArray(value.records))
+    return false;
+  if (Object.keys(value).some((key) => key !== "schema_version" && key !== "records"))
+    return false;
+  return value.records.every(isEvidenceRecord);
+}
+function hasKindSpecificOutput(value, kind) {
+  return kind !== "plan-execution" || (value.planning_destination === "plan-execution" || value.planning_destination === "plan-implementation") && Object.hasOwn(value, "execution_plan_record");
+}
+function hasValidOutputExtensions(value, kind) {
+  return hasKindSpecificOutput(value, kind) && (value.evidence_records === undefined || hasValidEvidenceRecords(value.evidence_records));
+}
+function hasValidReviewerOutputBody(value, kind) {
+  if (!isRecord7(value))
+    return false;
+  const allowedOutputKeys = reviewerOutputKeys(kind);
+  if (Object.keys(value).some((key) => !allowedOutputKeys.has(key)) || value.schema_version !== 1 || value.verdict !== "approve" && value.verdict !== "request_changes" || typeof value.summary !== "string" || !Array.isArray(value.findings) || !hasValidOutputExtensions(value, kind)) {
+    return false;
+  }
+  const findingsAreValid = value.findings.every((finding) => isRecord7(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && typeof finding.severity === "string" && ["info", "warning", "error"].includes(finding.severity) && typeof finding.message === "string");
+  if (!findingsAreValid)
+    return false;
+  return reviewerVerdictMatchesFindings(value.verdict, value.findings);
+}
+function hasRequiredPlanningEvidence(output, kind, planningPhase) {
+  if (kind !== "plan-execution" && kind !== "plan-implementation" && kind !== "scenario-gate" && planningPhase !== "product-plan")
+    return true;
+  return isRecord7(output) && hasValidEvidenceRecords(output.evidence_records);
+}
+function parseReviewerOutput(reviewer, stdout, kind = "quality-review", planningPhase) {
+  let output;
+  if (reviewer === "claude")
+    output = parseClaudeOutput(stdout);
+  else if (reviewer === "codex")
+    output = parseCodexOutput(stdout);
+  else
+    output = parseOpenCodeOutput(stdout);
+  if (!hasValidReviewerOutputBody(output, kind) || !hasRequiredPlanningEvidence(output, kind, planningPhase))
+    throw new Error("invalid reviewer output");
+  return output;
+}
+function confirmedClaudeAssistantModel(stdout) {
+  const events = ndjsonEvents(stdout);
+  const result = events.findLast((event) => isRecord7(event) && event.type === "result" && event.subtype === "success");
+  const models = new Set(events.flatMap((event) => isRecord7(event) && event.type === "assistant" && isRecord7(event.message) && typeof event.message.model === "string" ? [event.message.model] : []));
+  if (models.size !== 1 || !isRecord7(result) || !isRecord7(result.modelUsage))
+    return;
+  const model = [...models][0];
+  if (model === undefined)
+    return;
+  const matchingUsage = Object.values(result.modelUsage).filter((usage) => isRecord7(usage) && usage.provider === "firstParty" && usage.canonicalModel === model);
+  if (matchingUsage.length !== 1)
+    return;
+  return { provider: "anthropic", model };
+}
+function parseReviewerExecution(reviewer, stdout, kind = "quality-review", planningPhase) {
+  const output = parseReviewerOutput(reviewer, stdout, kind, planningPhase);
+  const confirmedModel2 = reviewer === "claude" ? confirmedClaudeAssistantModel(stdout) : undefined;
+  return confirmedModel2 === undefined ? { output } : { output, confirmedModel: confirmedModel2 };
+}
+function reviewPrompt(reviewer, packet) {
+  return `${reviewerPromptInstructions(packet.kind, reviewer, packet.planning_phase)}
+${JSON.stringify(packet)}`;
+}
+function planningIdentityConflicts(contract, canonicalDigest) {
+  const authorIsCanonical = contract.author.sha256 === canonicalDigest;
+  if (!authorIsCanonical && contract.author.sha256 === contract.reviewer.sha256) {
+    return [
+      "Matching author and reviewer copies differ from the packaged canonical contract-byte identity."
+    ];
+  }
+  const reviewerIsCanonical = contract.reviewer.sha256 === canonicalDigest;
+  return [
+    ...authorIsCanonical ? [] : [
+      "The authoring contract copy differs from the packaged canonical contract-byte identity."
+    ],
+    ...reviewerIsCanonical ? [] : [
+      "The stale generated reviewer contract copy differs from the packaged canonical contract-byte identity."
+    ]
+  ];
+}
+function canonicalPlanningDigest(packet) {
+  if (packet.planning_phase === "product-plan")
+    return PRODUCT_PLAN_REVIEW_RUBRIC_SHA256;
+  if (packet.kind === "plan-implementation")
+    return PLAN_REVIEW_RUBRIC_SHA256;
+  if (packet.kind === "plan-execution")
+    return EXECUTION_PLAN_REVIEW_RUBRIC_SHA256;
+  return;
+}
+function reconcilePlanContract(packet, output) {
+  const contract = packet.plan_contract;
+  if (contract === undefined)
+    return output;
+  const canonicalDigest = canonicalPlanningDigest(packet);
+  if (canonicalDigest === undefined)
+    return output;
+  const author = new Set(contract.author.obligations);
+  const reviewer = new Set(contract.reviewer.obligations);
+  const conflicts = planningIdentityConflicts(contract, canonicalDigest);
+  conflicts.push(...[...author].filter((obligation) => !reviewer.has(obligation)).map((obligation) => `Author contract requires "${obligation}" but reviewer contract does not.`), ...[...reviewer].filter((obligation) => !author.has(obligation)).map((obligation) => `Reviewer contract requires "${obligation}" but author contract does not.`));
+  const identitiesMatch = contract.author.sha256 === contract.reviewer.sha256;
+  if (identitiesMatch && conflicts.length === 0)
+    return output;
+  if (conflicts.length === 0) {
+    conflicts.push(`Author contract ${contract.author.sha256} conflicts with reviewer contract ${contract.reviewer.sha256}.`);
+  }
+  return {
+    ...output,
+    verdict: "request_changes",
+    ...packet.kind === "plan-execution" && {
+      planning_destination: "plan-execution",
+      execution_plan_record: NULL_EXECUTION_PLAN_RECORD2
+    },
+    summary: "Safeword blocked approval until the author and reviewer contracts are reconciled.",
+    findings: [
+      ...output.findings,
+      ...conflicts.map((message) => ({
+        severity: "error",
+        message: `Safeword contract reconciliation: ${message}`
+      }))
+    ]
+  };
+}
+function inside(root, candidate) {
+  const relative = nodePath46.relative(root, candidate);
+  return relative === "" || !nodePath46.isAbsolute(relative) && !relative.startsWith(`..${nodePath46.sep}`) && relative !== "..";
+}
+function outsideUntrustedRoot(root, candidate) {
+  if (inside(root, candidate))
+    return false;
+  try {
+    return !inside(root, realpathSync7(candidate));
+  } catch {
+    return false;
+  }
+}
+function pathMetadataIsTrusted(mode, ownerUid, currentUid) {
+  const ownedByCurrentUser = currentUid !== undefined && ownerUid === currentUid;
+  return (mode & 2) === 0 && (mode & 16) === 0 && (currentUid === undefined || ownerUid === 0 || ownedByCurrentUser);
+}
+function currentUserId() {
+  return typeof process.getuid === "function" ? process.getuid() : undefined;
+}
+function hasTrustedExecutableAncestry(candidate) {
+  if (process.platform === "win32")
+    return true;
+  const currentUid = currentUserId();
+  let current = candidate;
+  while (true) {
+    const metadata = lstatSync9(current);
+    if (!pathMetadataIsTrusted(metadata.mode, metadata.uid, currentUid))
+      return false;
+    const parent = nodePath46.dirname(current);
+    if (parent === current)
+      return true;
+    current = parent;
+  }
+}
+function digestOpenFile(fd) {
+  if (!fstatSync2(fd).isFile())
+    return;
+  const bytes = readFileSync32(fd);
+  return { bytes, digest: createHash18("sha256").update(bytes).digest("hex") };
+}
+function cachedCopyMatchesDigest(copyPath, expectedDigest) {
+  let cachedFd;
+  try {
+    cachedFd = openSync5(copyPath, constants3.O_RDONLY);
+    return digestOpenFile(cachedFd)?.digest === expectedDigest;
+  } catch {
+    return false;
+  } finally {
+    if (cachedFd !== undefined)
+      closeSync5(cachedFd);
+  }
+}
+function preparedTrustedCacheDirectory(untrustedRoot) {
+  const cacheDirectory = process.env.SAFEWORD_REVIEWER_CACHE_DIR ?? nodePath46.join(homedir5(), ".cache", "safeword-reviewers");
+  if (inside(untrustedRoot, cacheDirectory))
+    return;
+  try {
+    if (lstatSync9(cacheDirectory).isSymbolicLink())
+      return;
+  } catch {}
+  mkdirSync11(cacheDirectory, { recursive: true, mode: 448 });
+  if (lstatSync9(cacheDirectory).isSymbolicLink())
+    return;
+  const resolved = realpathSync7(cacheDirectory);
+  if (!outsideUntrustedRoot(untrustedRoot, resolved))
+    return;
+  chmodSync3(resolved, 448);
+  return resolved;
+}
+function stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot) {
+  let sourceFd;
+  try {
+    sourceFd = openSync5(canonical, constants3.O_RDONLY);
+    const sourceMetadata = fstatSync2(sourceFd);
+    const currentUid = currentUserId();
+    if (!pathMetadataIsTrusted(sourceMetadata.mode, sourceMetadata.uid, currentUid)) {
+      return;
+    }
+    const source = digestOpenFile(sourceFd);
+    if (source === undefined)
+      return;
+    const cacheDirectory = preparedTrustedCacheDirectory(untrustedRoot);
+    if (cacheDirectory === undefined)
+      return;
+    const copyPath = nodePath46.join(cacheDirectory, `${reviewer}.${source.digest}`);
+    if (cachedCopyMatchesDigest(copyPath, source.digest))
+      return copyPath;
+    const temporaryPath = `${copyPath}.${process.pid.toString(36)}.${Date.now().toString(36)}.tmp`;
+    writeFileSync12(temporaryPath, source.bytes, { mode: 448, flag: "wx" });
+    renameSync7(temporaryPath, copyPath);
+    return copyPath;
+  } catch {
+    return;
+  } finally {
+    if (sourceFd !== undefined)
+      closeSync5(sourceFd);
+  }
+}
+function remainingReviewTime(deadline, reviewer, lastFailure) {
+  const remainingMs = deadline - Date.now();
+  if (remainingMs <= 0) {
+    throw lastFailure ?? new ReviewRuntimeError("timed_out", `${reviewer} review timed out`);
+  }
+  return remainingMs;
+}
+function executableCandidates(reviewer, untrustedRoot, allowStaging = true) {
+  const canonicalUntrustedRoot = realpathSync7(untrustedRoot);
+  const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
+  const candidates = (process.env.PATH ?? "").split(nodePath46.delimiter).filter((directory) => directory !== "" && nodePath46.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath46.join(directory, `${reviewer}${extension}`)));
+  let rejectedForTrust = false;
+  const stageable = [];
+  const canonicalCandidates = candidates.flatMap((candidate) => {
+    if (inside(untrustedRoot, candidate))
+      return [];
+    try {
+      const canonical = realpathSync7(candidate);
+      if (!outsideUntrustedRoot(canonicalUntrustedRoot, canonical))
+        return [];
+      accessSync2(canonical, constants3.X_OK);
+      if (!hasTrustedExecutableAncestry(canonical)) {
+        rejectedForTrust = true;
+        stageable.push(canonical);
+        return [];
+      }
+      return [canonical];
+    } catch {
+      return [];
+    }
+  });
+  const trusted = [...new Set(canonicalCandidates)];
+  if (trusted.length > 0)
+    return { paths: trusted, rejectedForTrust };
+  if (!allowStaging)
+    return { paths: [], rejectedForTrust };
+  const staged = stageable.flatMap((canonical) => {
+    const copy = stagedTrustedReviewerCopy(reviewer, canonical, canonicalUntrustedRoot);
+    return copy !== undefined && hasTrustedExecutableAncestry(copy) ? [copy] : [];
+  });
+  return { paths: [...new Set(staged)], rejectedForTrust };
+}
+function unavailableReviewerError(reviewer, rejectedForTrust) {
+  if (rejectedForTrust) {
+    return new ReviewRuntimeError("untrusted_install", `${reviewer} reviewer installation has an untrusted writable ancestor`);
+  }
+  return new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
+}
+async function captureCommand(reviewer, executable, arguments_, cwd, timeoutMs) {
+  const child = spawn(executable, arguments_, {
+    cwd,
+    env: reviewerProbeEnvironment(),
+    stdio: ["ignore", "pipe", "ignore"],
+    detached: process.platform !== "win32"
+  });
+  const result = await new Promise((resolve) => {
+    let stdout = "";
+    let settled = false;
+    const finish = (value) => {
+      if (settled)
+        return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(value);
+    };
+    const timeout = setTimeout(() => {
+      finish({ kind: "failed" });
+    }, timeoutMs);
+    child.stdout.on("data", (chunk) => {
+      if (Buffer.byteLength(stdout) + chunk.byteLength > MAX_OUTPUT_BYTES) {
+        finish({ kind: "failed" });
+        return;
+      }
+      stdout += chunk.toString("utf8");
+    });
+    child.on("error", () => {
+      finish({ kind: "failed" });
+    });
+    child.on("close", (code) => {
+      finish(code === 0 ? { kind: "completed", stdout } : { kind: "failed" });
+    });
+  });
+  await stopReviewerOrThrow(child, reviewer);
+  child.stdout.destroy();
+  child.unref();
+  return result;
+}
+async function inspectOpenCodeCatalogue(executable, model, cwd, deadline) {
+  const catalogue = await captureCommand("opencode", executable, ["models", "--pure"], cwd, Math.max(1, deadline - Date.now()));
+  if (catalogue.kind === "failed") {
+    return { installed: true, compatibility: "compatible", catalogue: "unavailable" };
+  }
+  const listedModels = catalogue.stdout.split(/\r?\n/u).map((value) => value.trim()).filter((value) => value.length > 0);
+  if (listedModels.length === 0) {
+    return { installed: true, compatibility: "compatible", catalogue: "unavailable" };
+  }
+  return {
+    installed: true,
+    compatibility: "compatible",
+    catalogue: listedModels.includes(model) ? "catalogued" : "not_catalogued"
+  };
+}
+function compatibleRouteObservation(reviewer, model, skipCatalogue) {
+  if (model === undefined) {
+    return {
+      kind: "completed",
+      observation: {
+        installed: true,
+        compatibility: "compatible",
+        catalogue: "not_applicable"
+      }
+    };
+  }
+  if (reviewer !== "opencode" || skipCatalogue) {
+    return {
+      kind: "completed",
+      observation: { installed: true, compatibility: "compatible", catalogue: "unavailable" }
+    };
+  }
+  return { kind: "catalogue", model };
+}
+function unavailableCandidateObservation(rejectedForTrust) {
+  return rejectedForTrust ? { installed: true, compatibility: "inspection_unavailable", catalogue: "unavailable" } : { installed: false, compatibility: "not_compatible", catalogue: "unavailable" };
+}
+async function inspectReviewRoute(reviewer, model, cwd, timeoutMs = 5000, skipCatalogue = false) {
+  const candidates = executableCandidates(reviewer, cwd, false);
+  if (candidates.paths.length === 0) {
+    return unavailableCandidateObservation(candidates.rejectedForTrust);
+  }
+  const deadline = Date.now() + timeoutMs;
+  let inspectionUnavailable = false;
+  for (const candidate of candidates.paths) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      inspectionUnavailable = true;
+      break;
+    }
+    const capability = await supportsReviewContract(reviewer, candidate, tmpdir3(), remaining, {
+      model
+    });
+    if (capability.kind === "failed") {
+      inspectionUnavailable ||= capability.failure !== "unsupported";
+      continue;
+    }
+    const compatible = compatibleRouteObservation(reviewer, model, skipCatalogue);
+    if (compatible.kind === "completed")
+      return compatible.observation;
+    return inspectOpenCodeCatalogue(candidate, compatible.model, tmpdir3(), deadline);
+  }
+  return {
+    installed: true,
+    compatibility: inspectionUnavailable ? "inspection_unavailable" : "not_compatible",
+    catalogue: "unavailable"
+  };
+}
+async function supportsReviewContract(reviewer, executable, cwd, timeoutMs, options) {
+  const child = spawn(executable, options.arguments ?? HELP_ARGUMENTS[reviewer], {
+    cwd,
+    env: reviewerProbeEnvironment(),
+    stdio: ["ignore", "pipe", "pipe"],
+    detached: process.platform !== "win32"
+  });
+  const assessment = await new Promise((resolve) => {
+    let help = "";
+    let helpBytes = 0;
+    let settled = false;
+    const finish = (result) => {
+      if (settled)
+        return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(result);
+    };
+    const timeout = setTimeout(() => {
+      finish({ kind: "failed", failure: "probe_timed_out" });
+    }, timeoutMs);
+    const capture = (chunk) => {
+      const appended = appendBounded(help, helpBytes, chunk.toString("utf8"));
+      help = appended.value;
+      helpBytes = appended.bytes;
+      if (appended.overflow)
+        finish({ kind: "failed", failure: "unsupported" });
+    };
+    child.stdout.on("data", capture);
+    child.stderr.on("data", capture);
+    child.on("error", () => {
+      finish({ kind: "failed", failure: "launch_failed" });
+    });
+    child.on("close", (code) => {
+      if (code !== 0) {
+        finish({ kind: "failed", failure: "launch_failed" });
+        return;
+      }
+      const advertisedFlags = new Set;
+      for (const match of help.matchAll(/--[\w-]+/gu))
+        advertisedFlags.add(match[0]);
+      const requiredCapabilities = options.required ?? (options.model === undefined ? REQUIRED_CAPABILITIES[reviewer] : [...REQUIRED_CAPABILITIES[reviewer], "--model"]);
+      finish(requiredCapabilities.every((flag) => advertisedFlags.has(flag)) ? { kind: "supported" } : { kind: "failed", failure: "unsupported" });
+    });
+  });
+  await stopReviewerOrThrow(child, reviewer);
+  child.stdout.destroy();
+  child.stderr.destroy();
+  child.unref();
+  return assessment;
+}
+function appendBounded(current, currentBytes, chunk) {
+  const bytes = currentBytes + Buffer.byteLength(chunk);
+  return {
+    value: bytes > MAX_OUTPUT_BYTES ? current : current + chunk,
+    bytes,
+    overflow: bytes > MAX_OUTPUT_BYTES
+  };
+}
+function classifyExit(stdout, stderr, otherwise) {
+  return /not logged in|sign in|authenticat(?:e|ion)|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(`${stdout}
+${stderr}`) ? "not_authenticated" : otherwise;
+}
+function stopWindowsReviewer(child, pid) {
+  const streamClosed = (stream) => stream === null || stream.closed;
+  const childClosed = () => child.exitCode !== null && streamClosed(child.stdout) && streamClosed(child.stderr);
+  if (childClosed())
+    return Promise.resolve(true);
+  return new Promise((resolve) => {
+    let settled = false;
+    let taskkillSucceeded = false;
+    const finish = (stopped) => {
+      if (settled)
+        return;
+      settled = true;
+      clearTimeout(timeout);
+      child.kill("SIGKILL");
+      resolve(stopped);
+    };
+    const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
+    const taskkill = nodePath46.join(systemRoot, "System32", "taskkill.exe");
+    const killer = spawn(taskkill, ["/PID", String(pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true
+    });
+    const timeout = setTimeout(() => {
+      killer.kill("SIGKILL");
+      finish(childClosed());
+    }, WINDOWS_CLEANUP_BUDGET_MS);
+    child.on("close", () => {
+      if (taskkillSucceeded)
+        finish(true);
+    });
+    killer.on("error", () => {
+      finish(childClosed());
+    });
+    killer.on("close", (code) => {
+      if (code !== 0) {
+        finish(childClosed());
+        return;
+      }
+      taskkillSucceeded = true;
+      child.kill("SIGKILL");
+      if (childClosed())
+        finish(true);
+    });
+  });
+}
+function stopReviewer(child) {
+  const existing = reviewerStops.get(child);
+  if (existing !== undefined)
+    return existing;
+  const stopping = stopReviewerOnce(child);
+  reviewerStops.set(child, stopping);
+  return stopping;
+}
+async function stopReviewerOrThrow(child, reviewer, terminal = true) {
+  if (await stopReviewer(child))
+    return;
+  throw new ReviewRuntimeError("process_failed", `${reviewer} reviewer processes could not be stopped`, terminal);
+}
+function parseProcessStat(line) {
+  const commEnd = line.lastIndexOf(")");
+  if (commEnd === -1)
+    return;
+  const [state, , group] = line.slice(commEnd + 1).trim().split(/\s+/u, 3);
+  const groupId = Number(group);
+  if (state === undefined || !Number.isSafeInteger(groupId))
+    return;
+  return { state, group: groupId };
+}
+function procGroupHasRunningMember(group) {
+  if (process.platform !== "linux")
+    return;
+  let entries;
+  try {
+    entries = readdirSync8("/proc");
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (!/^\d+$/u.test(entry))
+      continue;
+    let line;
+    try {
+      line = readFileSync32(`/proc/${entry}/stat`, "utf8");
+    } catch {
+      continue;
+    }
+    const parsed2 = parseProcessStat(line);
+    if (parsed2?.group === group && parsed2.state !== "Z")
+      return true;
+  }
+  return false;
+}
+async function waitForProcessGroupToStop(groupIsRunning, deadline) {
+  while (groupIsRunning() && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, PROCESS_GROUP_POLL_INTERVAL_MS));
+  }
+}
+async function stopReviewerOnce(child) {
+  const pid = child.pid;
+  if (pid === undefined)
+    return true;
+  if (process.platform === "win32") {
+    return stopWindowsReviewer(child, pid);
+  }
+  const signalGroup = (signal) => {
+    try {
+      process.kill(-pid, signal);
+    } catch {}
+  };
+  signalGroup("SIGTERM");
+  const groupExists = () => {
+    try {
+      process.kill(-pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const groupIsRunning = () => {
+    if (!groupExists())
+      return false;
+    return procGroupHasRunningMember(pid) ?? true;
+  };
+  const groupIsStopped = async () => {
+    if (groupIsRunning())
+      return false;
+    await new Promise((resolve) => setTimeout(resolve, PROCESS_GROUP_POLL_INTERVAL_MS));
+    return !groupIsRunning();
+  };
+  await waitForProcessGroupToStop(groupIsRunning, Date.now() + CLEANUP_BUDGET_MS);
+  if (groupExists()) {
+    signalGroup("SIGKILL");
+    await waitForProcessGroupToStop(groupIsRunning, Date.now() + CLEANUP_BUDGET_MS);
+  }
+  return groupIsStopped();
+}
+function isolatedCodexHome() {
+  const path7 = mkdtempSync5(nodePath46.join(tmpdir3(), "safeword-codex-review-"));
+  chmodSync3(path7, 448);
+  const source = nodePath46.join(process.env.CODEX_HOME ?? nodePath46.join(homedir5(), ".codex"), "auth.json");
+  try {
+    accessSync2(source, constants3.R_OK);
+    symlinkSync(source, nodePath46.join(path7, "auth.json"));
+  } catch {}
+  return {
+    path: path7,
+    cleanup: () => {
+      rmSync7(path7, { recursive: true, force: true });
+    }
+  };
+}
+function codexAppServerReviewOutput(packet, text, confirmedModel2) {
+  const event = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text } });
+  const output = parseReviewerOutput("codex", event, packet.kind, packet.planning_phase);
+  if (packet.kind !== "plan-execution")
+    return { output, confirmedModel: confirmedModel2 };
+  const validation = validateExecutionPlanOutput(output, packet.execution_plan_delivery_definition, packet.execution_plan_normalized_digest);
+  if (validation.kind === "invalid_output")
+    throw new Error("invalid reviewer output");
+  return { output: validation.output, confirmedModel: confirmedModel2 };
+}
+function installReviewerTerminationHandler(child) {
+  const terminateReviewer = () => {
+    stopReviewer(child).finally(() => process.exit(143));
+  };
+  process.once("SIGTERM", terminateReviewer);
+  return () => process.off("SIGTERM", terminateReviewer);
+}
+async function runCodexAppServerCandidate(executable, attempt, timeoutMs) {
+  const isolatedHome = isolatedCodexHome();
+  const child = spawn(executable, ["app-server", "--stdio", "--config", "mcp_servers={}"], {
+    cwd: attempt.cwd,
+    env: { ...reviewerEnvironment("codex"), CODEX_HOME: isolatedHome.path },
+    stdio: ["pipe", "pipe", "pipe"],
+    detached: process.platform !== "win32"
+  });
+  const removeTerminationHandler = installReviewerTerminationHandler(child);
+  try {
+    const execution = await new Promise((resolve, reject) => {
+      const messages2 = [];
+      let pending = "";
+      let stdout = "";
+      let stderr = "";
+      let stdoutBytes = 0;
+      let stderrBytes = 0;
+      let settled = false;
+      const settle = (finish) => {
+        if (settled)
+          return;
+        settled = true;
+        clearTimeout(timeout);
+        finish();
+      };
+      const send = (message) => {
+        child.stdin.write(`${JSON.stringify(message)}
+`);
+      };
+      const timeout = setTimeout(() => {
+        settle(() => {
+          reject(new ReviewRuntimeError("timed_out", "codex review timed out"));
+        });
+      }, timeoutMs);
+      const startTurn = (result) => {
+        if (!isRecord7(result) || !isRecord7(result.thread))
+          throw new Error("thread start failed");
+        send({
+          id: 3,
+          method: "turn/start",
+          params: {
+            threadId: result.thread.id,
+            input: [{ type: "text", text: reviewPrompt("codex", attempt.packet) }],
+            outputSchema: JSON.parse(reviewOutputSchema(attempt.packet.kind, attempt.packet.planning_phase)),
+            ...attempt.effort !== undefined && { effort: attempt.effort }
+          }
+        });
+      };
+      const finishTurn = () => {
+        if (codexAppServerFailedTurn(messages2)) {
+          throw new ReviewRuntimeError("process_failed", "codex turn failed");
+        }
+        const proof = codexAppServerProof(messages2, attempt.model);
+        if (proof === undefined)
+          return;
+        const parsed2 = codexAppServerReviewOutput(attempt.packet, proof.text, proof.confirmedModel);
+        settle(() => {
+          resolve(parsed2);
+        });
+      };
+      const handle = (message) => {
+        if (!isRecord7(message))
+          return;
+        messages2.push(message);
+        if (message.id === 1) {
+          if (message.error !== undefined)
+            throw new Error("initialize failed");
+          send({ method: "initialized" });
+          send({
+            id: 2,
+            method: "thread/start",
+            params: {
+              cwd: attempt.cwd,
+              ephemeral: true,
+              sandbox: "read-only",
+              approvalPolicy: "never",
+              ...attempt.model !== undefined && { model: attempt.model }
+            }
+          });
+        } else if (message.id === 2) {
+          startTurn(message.result);
+        } else if (message.id === 3 && message.error !== undefined) {
+          throw new ReviewRuntimeError("process_failed", "codex turn was rejected");
+        } else if (message.method === "turn/completed") {
+          finishTurn();
+        }
+      };
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
+      child.stdout.on("data", (chunk) => {
+        const appended = appendBounded(stdout, stdoutBytes, chunk);
+        stdout = appended.value;
+        stdoutBytes = appended.bytes;
+        if (appended.overflow) {
+          settle(() => {
+            reject(new ReviewRuntimeError("invalid_output", "codex output exceeded limit"));
+          });
+          return;
+        }
+        pending += chunk;
+        let newline;
+        while ((newline = pending.indexOf(`
+`)) !== -1 && !settled) {
+          const line = pending.slice(0, newline);
+          pending = pending.slice(newline + 1);
+          try {
+            handle(JSON.parse(line));
+          } catch (error2) {
+            settle(() => {
+              reject(error2 instanceof ReviewRuntimeError ? error2 : new ReviewRuntimeError("invalid_output", "codex protocol failed"));
+            });
+          }
+        }
+      });
+      child.stderr.on("data", (chunk) => {
+        const appended = appendBounded(stderr, stderrBytes, chunk);
+        stderr = appended.value;
+        stderrBytes = appended.bytes;
+      });
+      child.stdin.on("error", () => {});
+      child.on("error", (error2) => {
+        settle(() => {
+          reject(new ReviewRuntimeError("process_failed", error2.message));
+        });
+      });
+      child.on("close", () => {
+        settle(() => {
+          reject(new ReviewRuntimeError(classifyExit(stdout, stderr, "unsupported"), "codex app-server did not complete the review"));
+        });
+      });
+      send({
+        id: 1,
+        method: "initialize",
+        params: { clientInfo: { name: "safeword", version: "1" } }
+      });
+    });
+    await stopReviewerOrThrow(child, "codex", false);
+    return { ...execution, output: reconcilePlanContract(attempt.packet, execution.output) };
+  } catch (error2) {
+    await stopReviewerOrThrow(child, "codex");
+    throw error2;
+  } finally {
+    removeTerminationHandler();
+    isolatedHome.cleanup();
+  }
+}
+async function runCandidate(executable, attempt, timeoutMs) {
+  if (attempt.reviewer === "codex" && (attempt.packet.planning_phase === "product-plan" || ["scenario-gate", "plan-implementation", "plan-execution"].includes(attempt.packet.kind))) {
+    const appServer = await supportsReviewContract("codex", executable, attempt.cwd, Math.min(5000, timeoutMs), { arguments: ["app-server", "--help"], required: ["--stdio", "--config"] });
+    if (appServer.kind === "supported") {
+      try {
+        return await runCodexAppServerCandidate(executable, attempt, timeoutMs);
+      } catch (error2) {
+        if (!(error2 instanceof ReviewRuntimeError) || error2.failure !== "unsupported")
+          throw error2;
+      }
+    }
+  }
+  const { reviewer, packet, cwd, model, schemaPath } = attempt;
+  const argumentEnvironment = attempt.effort === undefined ? process.env : { ...process.env, SAFEWORD_REVIEW_EFFORT_CLAUDE: attempt.effort };
+  const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath, argumentEnvironment, packet), {
+    cwd,
+    env: reviewerEnvironment(reviewer),
+    stdio: ["pipe", "pipe", "pipe"],
+    detached: process.platform !== "win32"
+  });
+  const removeTerminationHandler = installReviewerTerminationHandler(child);
+  try {
+    let execution;
+    try {
+      execution = await new Promise((resolve, reject) => {
+        let overflow = false;
+        let settled = false;
+        const settle = (finish) => {
+          if (settled)
+            return;
+          settled = true;
+          clearTimeout(timeout);
+          finish();
+        };
+        const timeout = setTimeout(() => {
+          settle(() => {
+            reject(new ReviewRuntimeError("timed_out", `${reviewer} review timed out`));
+          });
+        }, timeoutMs);
+        let stdout = "";
+        let stderr = "";
+        let stdoutBytes = 0;
+        let stderrBytes = 0;
+        child.stdout.setEncoding("utf8");
+        child.stderr.setEncoding("utf8");
+        child.stdout.on("data", (chunk) => {
+          const appended = appendBounded(stdout, stdoutBytes, chunk);
+          stdout = appended.value;
+          stdoutBytes = appended.bytes;
+          overflow ||= appended.overflow;
+          if (overflow) {
+            stopReviewer(child);
+          }
+        });
+        child.stderr.on("data", (chunk) => {
+          const appended = appendBounded(stderr, stderrBytes, chunk);
+          stderr = appended.value;
+          stderrBytes = appended.bytes;
+          overflow ||= appended.overflow;
+          if (overflow) {
+            stopReviewer(child);
+          }
+        });
+        child.stdin.on("error", () => {});
+        child.on("error", (error2) => {
+          settle(() => {
+            reject(new ReviewRuntimeError("process_failed", error2.message));
+          });
+        });
+        child.on("close", (code) => {
+          settle(() => {
+            if (overflow) {
+              reject(new ReviewRuntimeError(classifyExit(stdout, stderr, "invalid_output"), `${reviewer} exceeded its output limit`));
+              return;
+            }
+            if (code !== 0) {
+              reject(new ReviewRuntimeError(classifyExit(stdout, stderr, "process_failed"), `${reviewer} review failed (${code ?? "signal"}): ${stderr.trim()}`));
+              return;
+            }
+            try {
+              const parsed2 = parseReviewerExecution(reviewer, stdout, packet.kind, packet.planning_phase);
+              if (packet.kind !== "plan-execution") {
+                resolve(parsed2);
+                return;
+              }
+              const validation = validateExecutionPlanOutput(parsed2.output, packet.execution_plan_delivery_definition, packet.execution_plan_normalized_digest);
+              if (validation.kind === "invalid_output")
+                throw new Error("invalid reviewer output");
+              resolve({ ...parsed2, output: validation.output });
+            } catch {
+              reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
+            }
+          });
+        });
+        child.stdin.end(reviewPrompt(reviewer, packet));
+      });
+    } catch (error2) {
+      await stopReviewerOrThrow(child, reviewer);
+      throw error2;
+    }
+    await stopReviewerOrThrow(child, reviewer, false);
+    return { ...execution, output: reconcilePlanContract(packet, execution.output) };
+  } finally {
+    removeTerminationHandler();
+  }
+}
+async function runReviewerCandidates(attempt, candidates, deadline) {
+  const reviewer = attempt.reviewer;
+  let foundCompatible = false;
+  let lastFailure;
+  let lastProbeFailure;
+  for (const [index, candidate] of candidates.entries()) {
+    const remainingMs = remainingReviewTime(deadline, reviewer, lastFailure);
+    const untried = candidates.length - index;
+    const candidateDeadline = Date.now() + remainingMs / untried;
+    const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
+    const assessment = await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget, {
+      model: attempt.model
+    });
+    if (assessment.kind === "failed") {
+      lastProbeFailure = new ReviewRuntimeError(assessment.failure, `${reviewer} capability probe failed: ${assessment.failure}`);
+      continue;
+    }
+    foundCompatible = true;
+    try {
+      return await runCandidate(candidate, attempt, remainingReviewTime(candidateDeadline, reviewer, lastFailure));
+    } catch (error2) {
+      if (!(error2 instanceof ReviewRuntimeError))
+        throw error2;
+      if (error2.terminal)
+        throw error2;
+      lastFailure = error2;
+    }
+  }
+  if (!foundCompatible) {
+    if (lastProbeFailure !== undefined)
+      throw lastProbeFailure;
+    throw new ReviewRuntimeError("not_installed", `No trusted compatible ${reviewer} reviewer was found`);
+  }
+  throw lastFailure ?? new ReviewRuntimeError("process_failed", `${reviewer} review failed`);
+}
+async function runHeadlessReviewerWithProvenance(reviewer, packet, cwd, untrustedRoot = process.cwd(), options = {}) {
+  const { model, runDeadline, effort } = options;
+  const deadline = Math.min(Date.now() + reviewTimeoutMilliseconds(), runDeadline ?? Infinity);
+  const candidates = executableCandidates(reviewer, untrustedRoot);
+  if (candidates.paths.length === 0) {
+    throw unavailableReviewerError(reviewer, candidates.rejectedForTrust);
+  }
+  let contract;
+  try {
+    contract = reviewer === "codex" ? writeContractFile(packet.kind, packet.planning_phase) : undefined;
+  } catch {
+    throw new ReviewRuntimeError("process_failed", `The ${reviewer} review could not be prepared`);
+  }
+  try {
+    return await runReviewerCandidates({ reviewer, packet, cwd, model, effort, schemaPath: contract?.path }, candidates.paths, deadline);
+  } finally {
+    contract?.cleanup();
+  }
+}
+function writeContractFile(kind, planningPhase) {
+  const directory = mkdtempSync5(nodePath46.join(tmpdir3(), "safeword-review-contract-"));
+  const path7 = nodePath46.join(directory, "review-result.schema.json");
+  writeFileSync12(path7, reviewOutputSchema(kind, planningPhase), { mode: 384 });
+  return {
+    path: path7,
+    cleanup: () => {
+      rmSync7(directory, { recursive: true, force: true });
+    }
+  };
+}
+var REVIEW_OUTPUT_SCHEMA_SHAPE, EVIDENCE_RECORDS_SCHEMA, PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE, JSON_NULL2, REVIEW_OUTPUT_SCHEMA, EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA, EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA, EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA, EXECUTION_PLAN_RECORD_SCHEMA, EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, NULL_EXECUTION_PLAN_RECORD2, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var init_runtime = __esm(() => {
+  init_delivery_checklist();
+  init_environment();
+  init_evidence_record();
+  init_execution_plan_output();
+  init_review_rubric();
+  init_review_rubric();
+  REVIEW_OUTPUT_SCHEMA_SHAPE = {
+    type: "object",
+    properties: {
+      schema_version: { type: "integer", enum: [1] },
+      dispatch_id: { type: "string" },
+      reviewer_agent: { type: "string", enum: ["claude", "codex", "opencode"] },
+      verdict: { type: "string", enum: ["approve", "request_changes"] },
+      summary: { type: "string" },
+      findings: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            severity: { type: "string", enum: ["info", "warning", "error"] },
+            message: { type: "string" }
+          },
+          required: ["severity", "message"],
+          additionalProperties: false
+        }
+      }
+    },
+    required: ["schema_version", "dispatch_id", "reviewer_agent", "verdict", "summary", "findings"],
+    additionalProperties: false
+  };
+  EVIDENCE_RECORDS_SCHEMA = {
+    type: "object",
+    properties: {
+      schema_version: { type: "integer", enum: [1] },
+      records: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: Object.fromEntries(EVIDENCE_RECORD_FIELDS.map((field) => [field, { type: "string" }])),
+          required: EVIDENCE_RECORD_FIELDS,
+          additionalProperties: false
+        }
+      }
+    },
+    required: ["schema_version", "records"],
+    additionalProperties: false
+  };
+  PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE = {
+    ...REVIEW_OUTPUT_SCHEMA_SHAPE,
+    properties: {
+      ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+      evidence_records: EVIDENCE_RECORDS_SCHEMA
+    },
+    required: [...REVIEW_OUTPUT_SCHEMA_SHAPE.required, "evidence_records"]
+  };
+  JSON_NULL2 = JSON.parse("null");
+  REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
+  EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA = {
+    type: "object",
+    properties: {
+      proof_id: { type: "string" },
+      method: { type: "string", enum: ["command", "review_receipt"] },
+      scope: { type: "string", enum: ["unit", "integration", "E2E", "eval"] },
+      boundary_exercised: { type: "string" },
+      qualifies_as: { type: "string", enum: ["real_boundary", "partial_or_structural"] },
+      currency: {
+        type: "string",
+        enum: ["current_required", "compatible_earlier_allowed"]
+      },
+      invocation: {
+        anyOf: [
+          {
+            type: "object",
+            properties: {
+              type: { type: "string", enum: ["command"] },
+              cwd: { type: "string" },
+              argv: { type: "array", items: { type: "string" } }
+            },
+            required: ["type", "cwd", "argv"],
+            additionalProperties: false
+          },
+          {
+            type: "object",
+            properties: {
+              type: { type: "string", enum: ["review_receipt"] },
+              kind: { type: "string" },
+              targets: { type: "array", items: { type: "string" } }
+            },
+            required: ["type", "kind", "targets"],
+            additionalProperties: false
+          }
+        ]
+      }
+    },
+    required: [
+      "proof_id",
+      "method",
+      "scope",
+      "boundary_exercised",
+      "qualifies_as",
+      "currency",
+      "invocation"
+    ],
+    additionalProperties: false
+  };
+  EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA = {
+    type: "object",
+    properties: {
+      id: { type: "string" },
+      category: { type: "string", enum: DELIVERY_CHECKLIST_CATEGORIES },
+      obligation: { type: "string" },
+      owner: { type: "string", enum: ["contributor", "human"] },
+      required_proof: { type: "string" },
+      reviewed_disposition: {
+        type: ["string", "null"],
+        enum: ["not_applicable", "pending_human", JSON_NULL2]
+      },
+      reviewed_detail: { type: ["string", "null"] }
+    },
+    required: [
+      "id",
+      "category",
+      "obligation",
+      "owner",
+      "required_proof",
+      "reviewed_disposition",
+      "reviewed_detail"
+    ],
+    additionalProperties: false
+  };
+  EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA = {
+    type: "object",
+    properties: {
+      schema_version: { type: "integer", enum: [1] },
+      design_approval_gate: { type: "boolean" },
+      proof_specifications: {
+        type: "array",
+        items: EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA
+      },
+      checklist_items: { type: "array", items: EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA }
+    },
+    required: ["schema_version", "design_approval_gate", "proof_specifications", "checklist_items"],
+    additionalProperties: false
+  };
+  EXECUTION_PLAN_RECORD_SCHEMA = {
+    anyOf: [
+      { type: "null" },
+      {
+        type: "object",
+        properties: {
+          slicing_decision: {
+            type: "string",
+            enum: ["one_pull_request", "multiple_pull_requests"]
+          },
+          rationale: { type: "string" },
+          slices: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                purpose: { type: "string" },
+                boundary: { type: "string" },
+                prerequisites: { type: "array", items: { type: "string" } },
+                proof: { type: "string" },
+                completion_signal: { type: "string" },
+                relies_on_unmerged_successor: { type: "boolean" }
+              },
+              required: [
+                "name",
+                "purpose",
+                "boundary",
+                "prerequisites",
+                "proof",
+                "completion_signal",
+                "relies_on_unmerged_successor"
+              ],
+              additionalProperties: false
+            }
+          },
+          obligation_owners: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                obligation: { type: "string" },
+                slices: { type: "array", items: { type: "string" } }
+              },
+              required: ["obligation", "slices"],
+              additionalProperties: false
+            }
+          },
+          decision_statuses: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                decision: { type: "string" },
+                status: { type: "string", enum: ["unchanged"] }
+              },
+              required: ["decision", "status"],
+              additionalProperties: false
+            }
+          },
+          accepted_scenarios_covered: { type: "boolean", enum: [true] },
+          accepted_approach_preserved: { type: "boolean", enum: [true] },
+          normalized_plan_digest: { type: "string", pattern: "^[a-f0-9]{64}$" },
+          delivery_definition: EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA
+        },
+        required: [
+          "slicing_decision",
+          "rationale",
+          "slices",
+          "obligation_owners",
+          "decision_statuses",
+          "accepted_scenarios_covered",
+          "accepted_approach_preserved",
+          "normalized_plan_digest",
+          "delivery_definition"
+        ],
+        additionalProperties: false
+      }
+    ]
+  };
+  EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
+    ...PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE,
+    properties: {
+      ...PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+      planning_destination: {
+        type: "string",
+        enum: ["plan-execution", "plan-implementation"]
+      },
+      execution_plan_record: EXECUTION_PLAN_RECORD_SCHEMA
+    },
+    required: [
+      ...PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE.required,
+      "planning_destination",
+      "execution_plan_record"
+    ]
+  };
+  CLAUDE_EFFORT_LEVELS = new Set(["low", "medium", "high", "xhigh", "max"]);
+  ARGUMENTS = {
+    claude: [
+      "-p",
+      "--output-format",
+      "json",
+      "--json-schema",
+      REVIEW_OUTPUT_SCHEMA,
+      "--no-session-persistence",
+      "--disable-slash-commands",
+      "--setting-sources",
+      "",
+      "--strict-mcp-config",
+      "--tools",
+      ""
+    ],
+    codex: [
+      "exec",
+      "--json",
+      "--sandbox",
+      "read-only",
+      "--skip-git-repo-check",
+      "--ephemeral",
+      "--ignore-user-config",
+      "--ignore-rules",
+      "--disable",
+      "hooks",
+      "--config",
+      "mcp_servers={}",
+      "-"
+    ],
+    opencode: ["run", "--format", "json", "--pure"]
+  };
+  HELP_ARGUMENTS = {
+    claude: ["--help"],
+    codex: ["exec", "--help"],
+    opencode: ["run", "--help"]
+  };
+  REQUIRED_CAPABILITIES = {
+    claude: [
+      "--output-format",
+      "--json-schema",
+      "--no-session-persistence",
+      "--disable-slash-commands",
+      "--setting-sources",
+      "--strict-mcp-config",
+      "--tools"
+    ],
+    codex: [
+      "--json",
+      "--sandbox",
+      "--skip-git-repo-check",
+      "--ephemeral",
+      "--ignore-user-config",
+      "--ignore-rules",
+      "--disable",
+      "--config",
+      "--output-schema"
+    ],
+    opencode: ["--format", "--pure", "--model"]
+  };
+  MAX_OUTPUT_BYTES = 1024 * 1024;
+  NULL_EXECUTION_PLAN_RECORD2 = JSON_NULL2;
+  ReviewRuntimeError = class ReviewRuntimeError extends Error {
+    failure;
+    terminal;
+    constructor(failure, message, terminal = false) {
+      super(message);
+      this.failure = failure;
+      this.terminal = terminal;
+      this.name = "ReviewRuntimeError";
+    }
+  };
+  reviewerStops = new WeakMap;
+});
+
+// src/review/execution-plan-conformance.ts
+import { createHash as createHash19 } from "crypto";
 function stagedOwners(prerequisite, activation) {
   return { "Accepted behavior": activation, "Migration work": prerequisite };
 }
@@ -33645,10 +35566,64 @@ ${proofRows}
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 ${items}`;
 }
+function acceptedBehaviorScenario(implementationPlan) {
+  const editedPlan = `Feature: Preserve the existing plan approval boundary
+Scenario: A permitted user invokes the command after an approved plan changes
+  Given the existing authenticated approval path approved the current plan
+  And a permitted user changes that plan's recorded content
+  When the user invokes the installed public CLI command
+  Then the command names the edited plan and exits 2
+  And no reviewer request or stored result is created
+`;
+  if (implementationPlan.includes("This fixture repairs the existing public command's edited-plan denial"))
+    return editedPlan;
+  const permission = `Feature: Preserve the accepted permission boundary
+Scenario: A user without review permission requests a review
+  Given authenticated blocked-user has no permission for fixture-review
+  When blocked-user invokes the existing public review command
+  Then the command names fixture-review and exits 2
+  And no reviewer request or stored result is created
+`;
+  if (implementationPlan.includes("This fixture repairs the existing public review command's permission denial"))
+    return permission;
+  let result = `Feature: Preserve the accepted public review command contract
+Scenario: An authorized user receives an approved reviewer judgment
+  Given an authenticated permitted actor requests a review
+  When the reviewer supplies an approved version-1 judgment
+  Then the public command and stored-result reader retain the exact accepted response fields
+Scenario: An authorized user receives a rejected reviewer judgment
+  Given an authenticated permitted actor requests a review
+  When the reviewer supplies rejection findings and a null execution record
+  Then the public and stored responses retain those findings and the null record
+Scenario: Activation preserves compatibility and recovery
+  Given existing legacy and typed stored results
+  When activation is enabled after compatible reading is available and subsequently disabled
+  Then the prior reader is restored and both formats remain readable without rewriting legacy bytes
+  And documentation describes the same public response, denial, activation, and rollback contracts
+${permission.replace(/^Feature:[^\n]*\n/u, "")}`;
+  if (implementationPlan.includes("## Accepted data design"))
+    result += `Scenario: Delivery evidence uses the accepted store and owner
+  When the existing delivery workflow writes and reads known evidence
+  Then DeliveryStateService owns those operations against delivery.db
+  And the exact evidence values round-trip
+`;
+  if (implementationPlan.includes("## Accepted measurement contract"))
+    result += `Scenario: Production gateway authorization measurements satisfy the accepted safeguards
+  When the existing gateway observes production authorization requests before response serialization
+  Then gateway_authorization_seconds records transport and outcome dimensions
+  And the seven-day production population excludes documented synthetic probes
+  And valid current-revision evidence requires at least 99 percent sample coverage and p95 at most 200 milliseconds
+  And invalid evidence keeps rollout disabled and is reported as invalid
+`;
+  if (implementationPlan.includes("## Accepted proof strategy"))
+    result += editedPlan.replace(/^Feature:[^\n]*\n/u, "");
+  return result;
+}
 function approved(id, scenario, plan, slicingDecision, sliceNames) {
   return {
     id,
     scenario,
+    accepted_scenario: acceptedBehaviorScenario(IMPLEMENTATION_PLAN),
     implementation_plan: IMPLEMENTATION_PLAN,
     execution_plan: plan,
     expectation: {
@@ -33665,6 +35640,7 @@ function denied(id, scenario, plan, findingTerms) {
   return {
     id,
     scenario,
+    accepted_scenario: acceptedBehaviorScenario(IMPLEMENTATION_PLAN),
     implementation_plan: IMPLEMENTATION_PLAN,
     execution_plan: plan,
     expectation: {
@@ -33689,44 +35665,38 @@ function withDeliveryState(plan, state, proofRow) {
 ${state}
 `;
 }
-function concreteProofPlan(step) {
-  return executionPlan({
-    decision: "one pull request",
-    rationale: "One edited-plan denial is one independently provable behavior.",
-    slices: [
-      {
-        name: "Edited-plan denial proof",
-        purpose: "Prove the accepted edited-plan denial.",
-        boundary: "Installed CLI subprocess response.",
-        prerequisites: "none",
-        proof: "behavior-boundary",
-        completion: "The installed CLI exits 2 for the edited-plan fixture.",
-        tasks: [
-          `1. RED: ${step}`,
-          "2. GREEN: implement the accepted edited-plan denial, then rerun the named command and observe exit code 0.",
-          "3. REFACTOR: preserve the installed CLI boundary, then rerun the named command and observe exit code 0."
-        ]
-      }
-    ]
-  });
+function withRequiredReplacements(plan, replacements) {
+  for (const [before, after] of replacements) {
+    if (!plan.includes(before))
+      throw new Error("Conformance fixture is missing expected task text");
+    plan = plan.replace(before, () => after);
+  }
+  return plan;
+}
+function permissionDenialTasks(testFile, command, productionFile) {
+  return [
+    `1. RED: create the denied-request fixture in tests/fixtures/denied-request.ts with authenticated blocked-user lacking permission for fixture-review, an empty reviewer request journal, and an empty result store. Add the public-CLI denial assertion in ${testFile}; run ${command}, bun run test:failure-signals -- --fixture denied-request, and bun run test:authorization-boundary -- --fixture denied-request. Observe exit 1 with unauthorized request reached reviewer because the journal is nonempty before editing ${productionFile}.`,
+    `2. GREEN: call the existing shared authorization service before dispatch in ${productionFile}; rerun all three step-1 commands and assert test-runner exit 0, public-command exit 2 naming fixture-review, an empty reviewer journal, and no stored result.`,
+    "3. REFACTOR: move duplicate permission checks into the existing shared authorizer without changing its authority. Rerun all three denial commands and bun run test:execution-plan-conformance; assert the public response, decision preservation, single-slice dependencies, ownership, and retained completion evidence remain unchanged."
+  ];
 }
 function missingFieldCase(id, field, term) {
   return denied(id, `A planned pull request omits its ${term}; review names ${term} as required.`, executionPlan({
     decision: "one pull request",
-    rationale: "The contribution claims to be one coherent change.",
-    slices: [{ ...CONTRACT_SLICE, [field]: undefined }]
+    rationale: COMPLETE_DELIVERY_RATIONALE,
+    slices: [{ ...COMPLETE_DELIVERY_SLICE, [field]: undefined }]
   }), [term]);
 }
 function missingObligationCase(id, obligation) {
   return denied(id, `The accepted ${obligation} has no owning slice; review names the unassigned obligation.`, executionPlan({
     decision: "one pull request",
-    rationale: "The contribution claims to preserve the accepted approach.",
-    slices: [CONTRACT_SLICE],
+    rationale: COMPLETE_DELIVERY_RATIONALE,
+    slices: [COMPLETE_DELIVERY_SLICE],
     omittedObligation: obligation
   }), [obligation]);
 }
 function sha2564(value) {
-  return createHash18("sha256").update(value).digest("hex");
+  return createHash19("sha256").update(value).digest("hex");
 }
 function executionPlanConformanceDigests() {
   return {
@@ -33752,7 +35722,7 @@ function filterExecutionPlanRoutes(kind, routes, evidence = EXECUTION_PLAN_ADMIS
     return [];
   return routes.filter((route) => admittedIdentity(route, evidence.identities));
 }
-var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integrity, failure-signals, security-boundary, rollout-rollback, and documentation-contract", ALL_DELIVERY_PROOFS, IMPLEMENTATION_PLAN, DATA_IMPLEMENTATION_PLAN, PROOF_IMPLEMENTATION_PLAN, DECISION_OBLIGATION_IMPLEMENTATION_PLAN, PROOF_OBLIGATION_IMPLEMENTATION_PLAN, ORDERED_MIGRATION_IMPLEMENTATION_PLAN, INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN = `# Implementation Plan
+var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integrity, failure-signals, security-boundary, rollout-rollback, and documentation-contract", ALL_DELIVERY_PROOFS, IMPLEMENTATION_PLAN, DATA_IMPLEMENTATION_PLAN, DECISION_OBLIGATION_IMPLEMENTATION_PLAN, PROOF_OBLIGATION_IMPLEMENTATION_PLAN, ORDERED_MIGRATION_IMPLEMENTATION_PLAN, MINIMAL_IMPLEMENTATION_PLAN = `# Implementation Plan
 
 ## Accepted obligations
 
@@ -33770,22 +35740,23 @@ var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integri
 
 - One shared authorization service owns permission checks for every transport.
 - Host-neutral dependency order keeps every intermediate merge supported.
-`, PROOF_ONLY_IMPLEMENTATION_PLAN, MEASUREMENT_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_PLAN, UNCHANGED_DECISIONS_PLAN, CURRENT_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", CURRENT_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", EARLIER_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | reusable_earlier_revision | bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb | receipt:earlier-proof; compatible: accepted boundary is unchanged |", OPEN_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |", OPEN_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | open | missing | | |", ABSENT_WORK_CLAIMED_COMPLETE_PLAN, CURRENT_PROOF_BASE_PLAN, CURRENT_PROOF_PLAN, EARLIER_PROOF_CLAIMED_CURRENT_PLAN, KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN, PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, MEASUREMENT_EXECUTION_BLOCK = `
+`, INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN, PROOF_ONLY_IMPLEMENTATION_PLAN, MEASUREMENT_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_RESPONSE_TASK = "2. GREEN: add the accepted result fields to `src/review/contract.ts`, route the public command through `src/review/command.ts`, and rerun the step-1 command with approved-plan as the coherent-change fixture; assert exit 0, schema-valid response, execution_plan_record.slicing_decision equal to one_pull_request, exactly one slice named Complete delivery, and exact obligation owners, unchanged decision statuses, normalized approved-plan digest, and delivery definition matching the fixture; assert all those same expected values after reading the stored result. Seed the approved judgment with distinguishing summary, findings, evidence records, destination, and complete slice details; compare the complete supplied judgment by deep equality with both the public response and the stored-reader response.", ONE_DENIAL_RED_TASK = "5. RED: run `bun run test:failure-signals -- --fixture authorized-reviewer-rejection` with a reviewer response containing request_changes, the named rejection finding, and a null execution_plan_record; observe exit 1 because the public response loses the finding or retains an approval record. Also run `bun run test:authorization-boundary -- --fixture denied-review` with an unauthorized actor and an initially empty reviewer request journal; observe exit 1 because the CLI neither names the denied review nor prevents dispatch before editing `src/review/command.ts`.", ONE_DENIAL_GREEN_TASK = "6. GREEN: call the accepted shared authorization service before reviewer dispatch in `src/review/command.ts`, rerun both step-5 commands, and assert the unauthorized call exits 2, names the affected review, leaves the reviewer request journal empty, and persists no result. For the authorized reviewer rejection, assert the public response retains the supplied rejection finding and a null execution_plan_record, and that the compatible stored-result reader returns those same values. Seed the rejected judgment with distinguishing summary, findings, evidence records, and destination; compare the complete supplied judgment by deep equality with both the public response and the stored-reader response.", ONE_DELIVERY_TASKS, COMPLETE_DELIVERY_SLICE, COMPLETE_DELIVERY_RATIONALE = "The public review result, its compatible persistence, permission check, failure signal, rollout switch, rollback, and documentation are inseparable facets of one command contract; none is independently useful and every proof protects that same response.", ONE_PLAN, UNCHANGED_DECISIONS_PLAN, CURRENT_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", CURRENT_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", EARLIER_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | reusable_earlier_revision | bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb | receipt:earlier-proof; compatible: accepted boundary is unchanged |", OPEN_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |", OPEN_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | open | missing | | |", ABSENT_WORK_CLAIMED_COMPLETE_PLAN, CURRENT_PROOF_BASE_PLAN, CURRENT_PROOF_PLAN, EARLIER_PROOF_CLAIMED_CURRENT_PLAN, KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN, PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, MEASUREMENT_EXECUTION_BLOCK = `
 ## Measurement execution
 
 - Owner: Complete delivery.
 - Dependency order: add instrumentation, validate its samples, then collect current-revision evidence.
-- Instrumentation: record the duration at the gateway authorization boundary before response serialization and publish the \`gateway_authorization_seconds\` histogram with transport and outcome dimensions.
+- Instrumentation: record the duration at the gateway authorization boundary before response serialization and publish the \`gateway_authorization_seconds\` histogram with transport and outcome dimensions. Step 12 RED: add production-permitted, production-denied, and synthetic-probe fixtures in tests/gateway-authorization-metrics.test.ts; drive the existing public gateway authorization boundary and run bun run test tests/gateway-authorization-metrics.test.ts -t emitted-histogram. Observe exit 1 because production requests do not emit the expected histogram observations before editing src/gateway/authorization.ts. Step 13 GREEN: use the existing gateway metrics publisher at that accepted boundary, counting the eligible production-request census separately from successfully observed histogram samples; rerun step 12 and assert durations are observed before serialization with exact transport and outcome labels for permitted and denied production requests, while synthetic probes are excluded from the production population. Step 14 REFACTOR: share the instrumentation path and rerun the public authorization and emitted-histogram tests with identical responses and observations.
 - Tests: prove the histogram covers production gateway authorization requests, excludes documented synthetic probes, and rejects evidence below 99 percent sample coverage.
-- Evidence collection: query the rolling seven-day window and retain the population, sample coverage, p95 result, target comparison, and source revision.
+- Evidence collection: query the rolling seven-day window and retain the population, sample coverage, p95 result, target comparison, and source revision. Step 15 RED: add valid-window, low-coverage, synthetic-contamination, and over-target fixtures in tests/gateway-measurement-collection.test.ts; run bun run test tests/gateway-measurement-collection.test.ts -t seven-day-evidence and observe exit 1 because accepted measurements cannot be collected or invalid samples enable rollout before editing scripts/collect-gateway-measurement.ts. Step 16 GREEN: implement the collector against the existing gateway histogram query, rerun step 15, and assert the seven-day production population, synthetic exclusion, coverage computed as observed samples divided by the independent eligible-request census and at least 99 percent, milliseconds-converted p95 at most 200, and recorded source revision. The low-coverage fixture must have 98 observed samples for 100 eligible requests; synthetic requests belong to neither count. Low coverage or synthetic contamination must produce invalid evidence and keep rollout disabled; over-target valid evidence must leave the success criterion unmet. Step 17 COLLECT: run bun scripts/collect-gateway-measurement.ts --window-days 7 --output .evidence/gateway-measurement.json against the existing production gateway metrics source and retain the source revision, population, coverage, p95, target comparison, and validity result; do not mark completion until valid current-revision evidence meets the accepted target. Step 18 REFACTOR: share collection validation and rerun the four fixtures with identical classification, artifact fields, and rollout decisions.
 - Completion signal: current-revision evidence shows p95 authorization latency at or below 200 milliseconds with at least 99 percent valid sample coverage.
 - Preserved contract: the accepted outcome, population, target, measurement origin, method, validity safeguards, and failure behavior remain unchanged.
 - Failure handling: keep rollout disabled and report the measurement as invalid when a validity safeguard fails.
-`, MEASUREMENT_PLAN, MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, MISSING_MEASUREMENT_EVIDENCE_PLAN, CHANGED_MEASUREMENT_TARGET_PLAN, CHANGED_MEASUREMENT_ORIGIN_PLAN, WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, CHANGED_MEASUREMENT_FAILURE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, EXECUTION_PLAN_CONFORMANCE_CASES;
+`, MEASUREMENT_PLAN, MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, MISSING_MEASUREMENT_EVIDENCE_PLAN, CHANGED_MEASUREMENT_TARGET_PLAN, CHANGED_MEASUREMENT_ORIGIN_PLAN, WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, CHANGED_MEASUREMENT_FAILURE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, conformanceCases, EXECUTION_PLAN_CONFORMANCE_CASES;
 var init_execution_plan_conformance = __esm(() => {
   init_delivery_checklist();
   init_execution_plan_admission_generated();
   init_review_rubric();
+  init_runtime();
   OBLIGATIONS = [
     "Accepted behavior",
     "Migration work",
@@ -33810,17 +35781,29 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
 
 - One shared authorization service owns permission checks for every transport.
 - Host-neutral dependency order keeps every intermediate merge supported.
+
+## Binding fixture scope
+
+- This fixture project delivers one public review command and its compatible stored result. The ticket accepts the six named obligations above, with no new transport, database, reviewer selection policy, or human approval policy.
+- Existing fixture scripts exercise the public command, result reader, permission denial, activation switch, and documentation. Execution Planning determines whether delivery needs one or multiple independently supported slices.
+
+## Accepted response and recovery contracts
+
+- The public command and result store use the exact version-1 Execution Plan reviewer response below. Approval records its slicing decision, named slices, obligation owners, preserved decisions, normalized plan digest, and delivery definition; rejection retains its findings and has a null execution record.
+- Migration preserves legacy result bytes and translates their verdict, summary, and findings through the backward-compatible reader; it does not rewrite persisted legacy records.
+- The shared authorization service denies an unauthorized actor before reviewer dispatch or persistence. Denial names the affected review, exits 2, and creates no stored result.
+- Activation enables the typed reader only after compatible result reading is available. Disabling activation restores the prior reader and leaves both old and new stored results readable.
+- Documentation describes the same public response, denial, activation, and rollback behavior; it adds no new behavior.
+
+Accepted response schema:
+
+${reviewOutputSchema("plan-execution")}
 `;
   DATA_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
 ## Accepted data design
 
 - The project-local SQLite database \`delivery.db\` stores delivery evidence.
 - DeliveryStateService owns all reads and writes for that store.
-`;
-  PROOF_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
-## Accepted proof strategy
-
-- Edited-plan denial uses the named fixture and command through the installed CLI subprocess and must assert exit code 2.
 `;
   DECISION_OBLIGATION_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
 ## Accepted decision-derived work
@@ -33837,7 +35820,20 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
 
 - Complete Migration work before activating Accepted behavior.
 `;
-  PROOF_ONLY_IMPLEMENTATION_PLAN = `${INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN}
+  INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN = `${MINIMAL_IMPLEMENTATION_PLAN}
+## Binding fixture scope and accepted behavior
+
+- This fixture repairs the existing public review command's permission denial. The authenticated actor blocked-user has no review permission for fixture-review; the existing shared authorization service owns that permission check.
+- Accepted behavior: the unauthorized public command names fixture-review, exits 2, leaves the reviewer request journal empty, and creates no stored result. Existing documentation already describes this response; neither the response contract nor its persisted representation changes.
+- Existing fixture scripts exercise the public command, its denied response, its reviewer journal, and its result store. No additional transport, data design, activation policy, or approval authority is introduced.
+`;
+  PROOF_ONLY_IMPLEMENTATION_PLAN = `${MINIMAL_IMPLEMENTATION_PLAN}
+## Binding fixture scope and accepted behavior
+
+- This fixture repairs the existing public command's edited-plan denial. An authenticated permitted actor starts with a current plan approved through the existing authenticated approval path. Editing that plan makes its prior approval unusable.
+- Accepted behavior: the public command exits 2 and names the edited plan before reviewer dispatch or result persistence. The existing approval issuer and plan-version check remain authoritative; no approval policy, response format, stored representation, or documentation contract changes.
+- Existing fixture helpers obtain the initial approval through that authenticated path, edit the plan, invoke the installed CLI subprocess, and inspect its exit, reviewer journal, and result store.
+
 ## Accepted proof strategy
 
 - Edited-plan denial uses a self-contained fixture and command through the installed CLI subprocess and must assert exit code 2.
@@ -33858,14 +35854,16 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
   CONTRACT_SLICE = {
     name: "Contract",
     purpose: "Package the canonical Execution Planning contract.",
-    boundary: "Contract template, schema registration, and generated assets.",
+    boundary: "Contract template, schema registration, generated assets, and the compatible stored-result reader; public activation remains disabled.",
     prerequisites: "none",
     proof: "data-compatibility: package tests compare every installed contract byte.",
-    completion: "The inert contract ships and the repository remains supported.",
+    completion: "The inert contract and compatible reader ship with public activation disabled; legacy bytes remain unchanged and the repository remains supported.",
     tasks: [
       "1. RED: run `bun run test:schema-compatibility` with the generated-contract fixture and observe `canonical contract bytes differ` before editing templates.",
       "2. GREEN: add the canonical contract to the template registry, regenerate its mirrors, and rerun `bun run test:schema-compatibility` with exit 0.",
-      "3. REFACTOR: remove duplicate contract text, regenerate the mirrors, and rerun `bun run test:schema-compatibility` with exit 0."
+      "3. RED: run `bun run test:schema-compatibility -- --fixture legacy-result` and observe exit 1 because the compatible reader cannot return the legacy verdict, summary, and findings before editing `src/review/result-store.ts`.",
+      "4. GREEN: implement the accepted compatible reader in `src/review/result-store.ts` without enabling public activation, rerun both compatibility commands, and assert exact legacy verdict, summary, and findings, unchanged persisted legacy bytes, and exact typed-result contents.",
+      "5. REFACTOR: remove duplicate contract text, regenerate the mirrors, and rerun both compatibility commands with exit 0 while public activation remains disabled."
     ]
   };
   ACTIVATION_SLICE = {
@@ -33876,9 +35874,15 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
     proof: ACTIVATION_PROOFS,
     completion: "The accepted behavior and every activation obligation are delivered and supported.",
     tasks: [
-      "1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing review routing.",
-      "2. GREEN: connect public review routing to typed result retention, then run `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.",
-      "3. REFACTOR: keep one result-retention path for every caller, then rerun the six activation proof commands with exit 0."
+      "1. RED: run `bun run test:review-cli -- --fixture approved-plan` through the public CLI and observe exit 2 with `typed review result is unavailable` before editing `src/review/command.ts`.",
+      "2. GREEN: connect public routing and result retention to the prerequisite schema and compatible reader; rerun the step-1 command and assert exit 0, schema-valid response, and exact slicing decision, slice names, obligation owners, unchanged decisions, normalized plan digest, and delivery definition matching approved-plan in both the public response and stored result. Seed the approved judgment with distinguishing summary, findings, evidence records, destination, and complete slice details; compare the complete supplied judgment by deep equality with both the public response and the stored-reader response.",
+      "3. RED: run `bun run test:failure-signals -- --fixture authorized-reviewer-rejection` and observe exit 1 because the public or stored response loses the rejection finding or retains an approval record. Run `bun run test:authorization-boundary -- --fixture denied-review` with an unauthorized actor and an empty reviewer request journal and observe exit 1 because dispatch or persistence occurs before authorization.",
+      "4. GREEN: check the accepted shared authorization service before dispatch; rerun both step-3 commands and assert unauthorized exit 2, the affected review identity, an empty reviewer journal, and no persisted result. Assert authorized reviewer rejection retains the supplied finding and a null execution record in both public and stored results. Seed the rejected judgment with distinguishing summary, findings, evidence records, and destination; compare the complete supplied judgment by deep equality with both the public response and the stored-reader response.",
+      "5. RED: run `bun run test:rollout-rollback -- --fixture enabled-result` and observe exit 1 because activation ignores compatible-reader availability or disabling activation makes stored results unreadable before editing `src/review/rollout.ts`.",
+      "6. GREEN: implement the accepted activation switch and rollback reader; rerun step 5 and assert activation waits for compatible reading, both formats retain their exact expected contents, and disabling activation restores the prior reader with both formats still readable.",
+      "7. RED: run `bun run test:documentation-contract` and `bun run test:execution-plan-conformance` and observe exit 1 because the public response, denial, activation, rollback, or obligation mapping is missing before editing the command reference and canonical corpus.",
+      "8. GREEN: document the accepted public contracts and complete the canonical obligation mapping; rerun both step-7 commands and assert exit 0.",
+      "9. REFACTOR: retain one response-validation and result-retention path; run all six activation proof commands and assert exit 0 with byte-identical public response snapshots."
     ]
   };
   CHECKLIST_OBLIGATIONS = [
@@ -33940,32 +35944,32 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       "test:documentation-contract"
     ]
   ];
+  ONE_DELIVERY_TASKS = [
+    "1. RED: run `bun run test:review-cli -- --fixture approved-plan` through the public CLI and observe exit 2 with `typed review result is unavailable` before editing `src/review/command.ts`.",
+    ONE_RESPONSE_TASK,
+    "3. RED: run `bun run test:schema-compatibility -- --fixture legacy-result` and observe exit 1 with `legacy result cannot be read` before editing `src/review/result-store.ts`.",
+    "4. GREEN: add the backward-compatible legacy-result reader in `src/review/result-store.ts`, rerun the step-3 command, and assert the stored result round-trips without rewriting legacy bytes.",
+    ONE_DENIAL_RED_TASK,
+    ONE_DENIAL_GREEN_TASK,
+    "7. RED: run `bun run test:rollout-rollback -- --fixture enabled-result` and observe exit 1 because disabling the review command does not restore the prior readable result before editing `src/review/rollout.ts`.",
+    "8. GREEN: add the accepted activation switch and rollback reader in `src/review/rollout.ts`, rerun the step-7 command, and assert activation waits for compatible reading, enabled activation reads the expected legacy-result and typed-result fixture contents, and disabling activation restores the prior reader while both formats remain readable with their exact expected contents.",
+    "9. RED: run `bun run test:documentation-contract` and `bun run test:execution-plan-conformance`; observe exit 1 because the command reference omits the public response, denial, activation, or rollback contract, or the corpus omits an accepted obligation, before editing the command reference and canonical review contract.",
+    "10. GREEN: document the exact public response, denial, activation, and rollback contracts and add every accepted obligation to the canonical conformance corpus, then rerun both step-9 commands and assert exit 0; assert the rendered command reference describes all four accepted contracts and that removing any one makes documentation-contract fail.",
+    "11. REFACTOR: move the duplicate response validation in `src/review/command.ts` and `src/review/result-store.ts` into `src/review/contract.ts`, then rerun all seven proof commands and assert the public response snapshot is byte-identical."
+  ];
+  COMPLETE_DELIVERY_SLICE = {
+    name: "Complete delivery",
+    purpose: "Deliver the complete typed Execution Plan review capability.",
+    boundary: "Contract, CLI behavior, compatibility, failure signals, authorization, rollout, rollback, and documentation.",
+    prerequisites: "none",
+    proof: ALL_DELIVERY_PROOFS,
+    completion: "Every named proof command passes on the merge candidate and every checklist item has completion evidence.",
+    tasks: ONE_DELIVERY_TASKS
+  };
   ONE_PLAN = executionPlan({
     decision: "one pull request",
-    rationale: "The public review result, its compatible persistence, permission check, failure signal, rollout switch, rollback, and documentation are inseparable facets of one command contract; none is independently useful and every proof protects that same response.",
-    slices: [
-      {
-        name: "Complete delivery",
-        purpose: "Deliver the complete typed Execution Plan review capability.",
-        boundary: "Contract, CLI behavior, compatibility, failure signals, authorization, rollout, rollback, and documentation.",
-        prerequisites: "none",
-        proof: ALL_DELIVERY_PROOFS,
-        completion: "Every named proof command passes on the merge candidate and every checklist item has completion evidence.",
-        tasks: [
-          "1. RED: run `bun run test:review-cli -- --fixture approved-plan` through the public CLI and observe exit 2 with `typed review result is unavailable` before editing `src/review/command.ts`.",
-          "2. GREEN: add the accepted result fields to `src/review/contract.ts`, route the public command through `src/review/command.ts`, and rerun the step-1 command; assert exit 0 and the complete typed response.",
-          "3. RED: run `bun run test:schema-compatibility -- --fixture legacy-result` and observe exit 1 with `legacy result cannot be read` before editing `src/review/result-store.ts`.",
-          "4. GREEN: add the backward-compatible legacy-result reader in `src/review/result-store.ts`, rerun the step-3 command, and assert the stored result round-trips without rewriting legacy bytes.",
-          "5. RED: run `bun run test:failure-signals` and `bun run test:authorization-boundary` with the denied-review fixture; observe exit 1 because the public CLI neither names the denial nor rejects the unauthorized actor before editing `src/review/command.ts`.",
-          "6. GREEN: call the accepted shared authorization service from `src/review/command.ts`, return the typed denial identity on reviewer failure, rerun both step-5 commands, and assert the unauthorized call exits 2 without persisting a result.",
-          "7. RED: run `bun run test:rollout-rollback -- --fixture enabled-result` and observe exit 1 because disabling the review command does not restore the prior readable result before editing `src/review/rollout.ts`.",
-          "8. GREEN: add the accepted activation switch and rollback reader in `src/review/rollout.ts`, rerun the step-7 command, and assert both enabled activation and disabled rollback preserve a supported response.",
-          "9. RED: run `bun run test:documentation-contract` and `bun run test:execution-plan-conformance`; observe exit 1 because the public command and complete obligation mapping are absent before editing the command reference and canonical review contract.",
-          "10. GREEN: document the exact public response and add every accepted obligation to the canonical conformance corpus, then rerun both step-9 commands and assert exit 0.",
-          "11. REFACTOR: move the duplicate response validation in `src/review/command.ts` and `src/review/result-store.ts` into `src/review/contract.ts`, then rerun all seven proof commands and assert the public response snapshot is byte-identical."
-        ]
-      }
-    ]
+    rationale: COMPLETE_DELIVERY_RATIONALE,
+    slices: [COMPLETE_DELIVERY_SLICE]
   });
   UNCHANGED_DECISIONS_PLAN = `${ONE_PLAN}
 ## Decision preservation focus
@@ -33978,7 +35982,20 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
 - Evidence: missing.
 - Target work: implement the accepted behavior and collect current-revision real-boundary proof.
 - Claimed delivery state: complete.`);
-  CURRENT_PROOF_BASE_PLAN = ONE_PLAN.split(OPEN_BEHAVIOR_ROW).join(CURRENT_BEHAVIOR_ROW).replace("1. RED: run `bun run test:review-cli -- --fixture approved-plan` through the public CLI and observe exit 2 with `typed review result is unavailable` before editing `src/review/command.ts`.", "1. RED: retain the current exit-0 `bun run test:review-cli -- --fixture approved-plan` receipt, then run `bun run test:failure-signals` with the denied-review fixture and observe exit 1 because the denial identity is absent before editing `src/review/command.ts`.").replace("2. GREEN: add the accepted result fields to `src/review/contract.ts`, route the public command through `src/review/command.ts`, and rerun the step-1 command; assert exit 0 and the complete typed response.", "2. GREEN: preserve the accepted typed result while adding the denial identity in `src/review/command.ts`, then rerun both step-1 commands; assert the approved fixture still exits 0 and the denied fixture exposes the typed denial.").replace("5. RED: run `bun run test:failure-signals` and `bun run test:authorization-boundary` with the denied-review fixture; observe exit 1 because the public CLI neither names the denial nor rejects the unauthorized actor before editing `src/review/command.ts`.", "5. RED: run `bun run test:authorization-boundary` with the denied-review fixture and observe exit 1 because the public CLI does not reject the unauthorized actor before editing `src/review/command.ts`.").replace("6. GREEN: call the accepted shared authorization service from `src/review/command.ts`, return the typed denial identity on reviewer failure, rerun both step-5 commands, and assert the unauthorized call exits 2 without persisting a result.", "6. GREEN: call the accepted shared authorization service from `src/review/command.ts`, rerun the step-5 command, and assert the unauthorized call exits 2 without persisting a result while the typed denial identity from step 2 remains unchanged.");
+  CURRENT_PROOF_BASE_PLAN = withRequiredReplacements(executionPlan({
+    decision: "one pull request",
+    rationale: "The existing public response remains proven while compatible reading, recovery, and documentation complete the same command contract.",
+    slices: [
+      {
+        ...COMPLETE_DELIVERY_SLICE,
+        tasks: [
+          "0. VERIFY: retain the current-revision receipts for `bun run test:review-cli -- --fixture approved-plan`, `bun run test:failure-signals -- --fixture authorized-reviewer-rejection`, and `bun run test:authorization-boundary -- --fixture denied-review`. They already prove the exact approved public and stored response, retained rejection finding and null execution record, and unauthorized exit 2 with the affected review identity, an empty reviewer journal, and no stored result. Rerun these regression commands after each remaining change; no response or permission implementation remains outstanding.",
+          ...ONE_DELIVERY_TASKS.slice(2, 4),
+          ...ONE_DELIVERY_TASKS.slice(6)
+        ]
+      }
+    ]
+  }), [[OPEN_BEHAVIOR_ROW, CURRENT_BEHAVIOR_ROW]]);
   CURRENT_PROOF_PLAN = withDeliveryState(CURRENT_PROOF_BASE_PLAN, `- Obligation: Prove Accepted behavior at the named boundary.
 - Current implementation: matches the accepted design.
 - Evidence: current-revision real-boundary proof.
@@ -34001,7 +36018,19 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
 - Human authority: pending security approval.
 - Target work: obtain the named security approval.
 - Claimed delivery state: complete.`);
-  MEASUREMENT_PLAN = `${ONE_PLAN}${MEASUREMENT_EXECUTION_BLOCK}`;
+  MEASUREMENT_PLAN = `${withRequiredReplacements(ONE_PLAN, [
+    [
+      `
+
+## Delivery checklist`,
+      `
+| measurement-evidence | command | E2E | Current-revision production gateway histogram, seven-day population, p95, coverage, synthetic exclusion, and rollout validity. | real_boundary | current_required | ${JSON.stringify({ type: "command", cwd: ".", argv: ["bun", "scripts/collect-gateway-measurement.ts", "--window-days", "7", "--output", ".evidence/gateway-measurement.json"] })} |
+
+## Delivery checklist`
+    ]
+  ]).trimEnd()}
+| item-12 | testing | Implement and collect the accepted gateway authorization measurement. | contributor | measurement-evidence | open | missing | | |
+${MEASUREMENT_EXECUTION_BLOCK}`;
   MISSING_MEASUREMENT_INSTRUMENTATION_PLAN = MEASUREMENT_PLAN.replace(/^- Instrumentation:.*\n/m, "");
   MISSING_MEASUREMENT_EVIDENCE_PLAN = MEASUREMENT_PLAN.replace(/^- Evidence collection:.*\n/m, "");
   CHANGED_MEASUREMENT_TARGET_PLAN = MEASUREMENT_PLAN.replace("at or below 200 milliseconds", "at or below 300 milliseconds");
@@ -34032,11 +36061,7 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         prerequisites: "none",
         proof: ALL_DELIVERY_PROOFS,
         completion: "A complete judgment round-trips and every accepted obligation is supported.",
-        tasks: [
-          "1. RED: run `bun run test:review-cli` with a complete-result fixture and observe `typed review result does not round-trip` before editing persistence.",
-          "2. GREEN: implement schema validation and result persistence for the complete typed judgment, then run every proof command named by the slice with exit 0.",
-          "3. REFACTOR: share one validator between write and read paths, then rerun every named proof command with exit 0."
-        ]
+        tasks: ONE_DELIVERY_TASKS.map((task) => task.replaceAll("Complete delivery", "Typed review result"))
       }
     ]
   });
@@ -34047,14 +36072,16 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       {
         name: "Schema",
         purpose: "Add the inert result schema.",
-        boundary: "Types and schema only; no reader calls it.",
+        boundary: "Types, schema, and a compatible stored-result reader helper; public activation remains disabled.",
         prerequisites: "none",
         proof: "data-compatibility: schema golden tests pass.",
-        completion: "The unused schema ships without changing runtime behavior.",
+        completion: "The unused schema and compatible reader helper ship without activating the public command; legacy stored bytes remain unchanged.",
         tasks: [
           "1. RED: run `bun run test:schema-compatibility` with the result-schema fixture and observe `result schema is missing` before editing schema files.",
           "2. GREEN: add the inert result schema without a runtime consumer, then rerun `bun run test:schema-compatibility` with exit 0.",
-          "3. REFACTOR: remove duplicate schema declarations and rerun `bun run test:schema-compatibility` with exit 0."
+          "3. RED: run `bun run test:schema-compatibility -- --fixture legacy-result` and observe exit 1 because the compatible reader cannot return the legacy verdict, summary, and findings before editing `src/review/result-schema.ts`.",
+          "4. GREEN: add the compatible reader helper beside the schema without enabling public activation; rerun both compatibility commands and assert exact legacy verdict, summary, and findings, unchanged persisted legacy bytes, and exact typed-result contents.",
+          "5. REFACTOR: remove duplicate schema declarations and rerun both compatibility commands with exit 0 while public activation remains disabled."
         ]
       },
       {
@@ -34064,11 +36091,7 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         prerequisites: "Schema",
         proof: ACTIVATION_PROOFS,
         completion: "The reader and every activation obligation are supported.",
-        tasks: [
-          "1. RED: run `bun run test:review-cli` with a schema-valid result and observe `result reader is unavailable` before editing the reader.",
-          "2. GREEN: read and retain schema-valid results through the public review command, then run every activation proof command with exit 0.",
-          "3. REFACTOR: reuse the schema validator in the reader and rerun every activation proof command with exit 0."
-        ]
+        tasks: ACTIVATION_SLICE.tasks
       }
     ],
     obligationOwners: stagedOwners("Schema", "Reader")
@@ -34085,9 +36108,10 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         proof: ALL_DELIVERY_PROOFS,
         completion: "All mirrors and every accepted delivery obligation are supported.",
         tasks: [
-          "1. RED: run `bun run test:schema-compatibility` with the generated-mirror fixture and observe `generated contract bytes differ` before editing the canonical template.",
-          "2. GREEN: update the canonical template and regenerate every registered mirror, then run every proof command named by the slice with exit 0.",
-          "3. REFACTOR: remove duplicate hand-authored mirror text, regenerate, and rerun every named proof command with exit 0."
+          ...ONE_DELIVERY_TASKS.map((task) => task.replaceAll("Complete delivery", "Contract mirrors")),
+          "12. RED: run `bun run test:schema-compatibility -- --fixture generated-mirror` and observe exit 1 with `generated contract bytes differ` before editing the canonical template.",
+          "13. GREEN: update the canonical template and regenerate every registered mirror, then rerun the step-12 command and assert every installed contract byte matches the canonical source.",
+          "14. REFACTOR: remove duplicate hand-authored mirror text, regenerate, and rerun all seven named proof commands with exit 0."
         ]
       }
     ]
@@ -34099,14 +36123,16 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       {
         name: "Inert schema",
         purpose: "Ship a typed schema without changing public behavior.",
-        boundary: "One schema file.",
+        boundary: "One schema file containing the schema and compatible reader helper; public activation remains disabled.",
         prerequisites: "none",
         proof: "data-compatibility: a golden test proves the schema bytes.",
-        completion: "The schema is available but unused.",
+        completion: "The schema and compatible reader helper are available but public activation remains disabled; legacy stored bytes remain unchanged.",
         tasks: [
           "1. RED: run `bun run test:schema-compatibility` with the public-result fixture and observe `public result schema is missing` before editing schema files.",
           "2. GREEN: add the inert public result schema, then rerun `bun run test:schema-compatibility` with exit 0.",
-          "3. REFACTOR: consolidate schema declarations and rerun `bun run test:schema-compatibility` with exit 0."
+          "3. RED: run `bun run test:schema-compatibility -- --fixture legacy-result` and observe exit 1 because the compatible reader cannot return the legacy verdict, summary, and findings before editing the same schema file.",
+          "4. GREEN: add the compatible reader helper in that same schema file without enabling public activation; rerun both compatibility commands and assert exact legacy verdict, summary, and findings, unchanged persisted legacy bytes, and exact typed-result contents.",
+          "5. REFACTOR: consolidate schema declarations and rerun both compatibility commands with exit 0 while public activation remains disabled."
         ]
       },
       {
@@ -34116,11 +36142,7 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         prerequisites: "Inert schema",
         proof: ACTIVATION_PROOFS,
         completion: "The command and every activation obligation are supported.",
-        tasks: [
-          "1. RED: run `bun run test:review-cli` with the public-command fixture and observe `review command is unavailable` before editing routing.",
-          "2. GREEN: register the public review command and connect it to schema-valid results, then run every activation proof command with exit 0.",
-          "3. REFACTOR: keep one command-routing path and rerun every activation proof command with exit 0."
-        ]
+        tasks: ACTIVATION_SLICE.tasks
       }
     ],
     obligationOwners: stagedOwners("Inert schema", "Public activation")
@@ -34150,11 +36172,7 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         prerequisites: "none",
         proof: "behavior-boundary",
         completion: "The denied request returns the accepted error.",
-        tasks: [
-          "1. RED: add the denied-request fixture, run `bun run test tests/auth.test.ts -t denied-request`, `bun run test:failure-signals`, and `bun run test:authorization-boundary` through the public authorization response, and observe exit 1 before editing `src/auth.ts`.",
-          "2. GREEN: implement the accepted denial in `src/auth.ts`, rerun all three step-1 commands, and assert exit 0 with the typed denial and no unauthorized side effect.",
-          "3. REFACTOR: move the duplicate denial check from `src/auth.ts` and `src/cli.ts` into the shared authorizer, then run `bun run test:review-cli` and assert the public response is unchanged."
-        ]
+        tasks: permissionDenialTasks("tests/auth.test.ts", "bun run test tests/auth.test.ts -t denied-request", "src/auth.ts")
       }
     ],
     applicableObligations: ["Accepted behavior"],
@@ -34181,8 +36199,15 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
     applicableObligations: ["Accepted behavior"],
     inapplicableOptionalWork: true
   });
-  MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN = concreteProofPlan("using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the TBD CLI boundary and assert exit code 2 before editing production code.");
-  MISSING_DENIED_EXIT_ASSERTION_PLAN = concreteProofPlan("using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the installed CLI subprocess and assert the TBD denied-exit result before editing production code.");
+  MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN = withRequiredReplacements(EXACT_CLI_DENIAL_PROOF_PLAN, [
+    ["through the installed CLI subprocess,", "through the TBD CLI boundary,"]
+  ]);
+  MISSING_DENIED_EXIT_ASSERTION_PLAN = withRequiredReplacements(EXACT_CLI_DENIAL_PROOF_PLAN, [
+    [
+      "because the CLI does not yet exit 2 before editing production code.",
+      "because the CLI does not yet produce the TBD denied-exit result before editing production code."
+    ]
+  ]);
   LATER_UNSTARTABLE_PLAN = executionPlan({
     decision: "one pull request",
     rationale: "One authorization denial is one independently provable behavior.",
@@ -34239,12 +36264,7 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         ...ACTIVATION_SLICE,
         name: "Activation",
         prerequisites: "Risk probe",
-        proof: ALL_DELIVERY_PROOFS,
-        tasks: [
-          "1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing review routing.",
-          "2. GREEN: connect public review routing to typed result retention, then run `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.",
-          "3. REFACTOR: keep one result-retention path for every caller, then rerun the six activation proof commands with exit 0."
-        ]
+        proof: ALL_DELIVERY_PROOFS
       }
     ],
     obligationOwners: stagedOwners("Risk probe", "Activation")
@@ -34263,14 +36283,10 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         name: "CLI consumer",
         purpose: "Activate the public CLI consumer after the shared contract is proven.",
         prerequisites: "Risk probe",
-        boundary: "CLI routing and result presentation only.",
+        boundary: "CLI routing, result retention, permission denial, failure signals, activation, and rollback; documentation is owned by Documentation consumer.",
         proof: "behavior-boundary, plan-integrity, failure-signals, security-boundary, and rollout-rollback",
         completion: "The CLI consumer passes every named boundary proof.",
-        tasks: [
-          "1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing CLI routing.",
-          "2. GREEN: activate the CLI consumer, then run `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, and `bun run test:rollout-rollback` with exit 0.",
-          "3. REFACTOR: keep one CLI result path, then rerun the five CLI proof commands with exit 0."
-        ]
+        tasks: ACTIVATION_SLICE.tasks?.filter((task) => !task.startsWith("7.") && !task.startsWith("8.")).map((task) => task.startsWith("9.") ? "9. REFACTOR: retain one response-validation and result-retention path; rerun the five CLI proof commands with exit 0 and byte-identical public response snapshots." : task)
       },
       {
         name: "Documentation consumer",
@@ -34280,9 +36296,9 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         proof: "documentation-contract",
         completion: "The documented command matches the proven shared contract.",
         tasks: [
-          "1. RED: run `bun run test:documentation-contract` and observe `documented command is unavailable` before editing documentation.",
-          "2. GREEN: publish the command documentation, then rerun `bun run test:documentation-contract` with exit 0.",
-          "3. REFACTOR: remove duplicate examples, then rerun `bun run test:documentation-contract` with exit 0."
+          "1. RED: add the activation-states documentation fixture using the prerequisite shared contract and both disabled and enabled activation states. Run `bun run test:documentation-contract -- --fixture activation-states` and observe exit 1 because the rendered reference omits response fields, denial, or recovery conditions before editing `docs/commands/review.md`.",
+          "2. GREEN: publish the accepted contract reference in `docs/commands/review.md`; state that typed response activation requires the completed CLI consumer and compatible reader. Rerun step 1 and assert enabled documentation matches the exact version-1 response schema, unauthorized denial names the review and exits 2 without dispatch or persistence, and disabling activation restores the prior reader with both stored formats readable. Assert disabled-state documentation preserves the prior contract and does not advertise typed activation as already available. This reference can ship while the CLI consumer is still inactive.",
+          "3. REFACTOR: remove duplicate examples, then rerun the activation-states documentation command and assert identical rendered contracts in both states."
         ]
       }
     ],
@@ -34331,17 +36347,13 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         boundary: "The accepted behavior only; no migration, rollout, rollback, documentation, or additional surface work.",
         proof: "behavior-boundary",
         completion: "Accepted behavior passes at its public boundary.",
-        tasks: [
-          "1. RED: add the denied-review fixture, run `bun run test:review-cli`, `bun run test:failure-signals`, and `bun run test:authorization-boundary` through the public review boundary, and observe exit 1 before editing `src/review/command.ts`.",
-          "2. GREEN: implement Accepted behavior in `src/review/command.ts`, rerun all three step-1 commands, and assert exit 0 with the typed denial and no unauthorized side effect.",
-          "3. REFACTOR: move duplicate denial validation into `src/review/contract.ts`, then rerun the three behavior commands plus `bun run test:execution-plan-conformance` and assert the public response is unchanged."
-        ]
+        tasks: permissionDenialTasks("tests/review-cli.test.ts", "bun run test:review-cli -- --fixture denied-request", "src/review/command.ts")
       }
     ],
     applicableObligations: ["Accepted behavior"],
     inapplicableOptionalWork: true
   });
-  EXECUTION_PLAN_CONFORMANCE_CASES = [
+  conformanceCases = [
     approved("one-coherent-change", "One coherent change records one pull request.", ONE_PLAN, "one_pull_request", ["Complete delivery"]),
     approved("several-ordered-changes", "Several independent changes record ordered pull requests.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
     denied("omitted-slicing-decision", "An omitted slicing decision is denied as undecided.", executionPlan({
@@ -34351,8 +36363,8 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
     approved("complete-slice-record", "A complete slice receives a complete record.", COMPLETE_RECORD_PLAN, "one_pull_request", ["Typed review result"]),
     denied("generic-checklist", "A structurally complete checklist unrelated to the accepted scenarios and approach is denied.", executionPlan({
       decision: "one pull request",
-      rationale: "The contribution claims one coherent outcome.",
-      slices: [CONTRACT_SLICE],
+      rationale: COMPLETE_DELIVERY_RATIONALE,
+      slices: [COMPLETE_DELIVERY_SLICE],
       unrelatedChecklist: true
     }), ["checklist", "accepted"]),
     {
@@ -34361,8 +36373,8 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
     },
     denied("proof-does-not-exercise-boundary", "A command that cannot exercise its claimed real boundary is denied.", executionPlan({
       decision: "one pull request",
-      rationale: "The contribution claims one coherent outcome.",
-      slices: [CONTRACT_SLICE],
+      rationale: COMPLETE_DELIVERY_RATIONALE,
+      slices: [COMPLETE_DELIVERY_SLICE],
       unrealProof: true
     }), ["proof", "boundary"]),
     missingFieldCase("missing-purpose", "purpose", "purpose"),
@@ -34381,8 +36393,8 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
           proof: "Package tests prove the contract; CLI tests separately prove activation."
         }
       ]
-    }), ["two", "purpose"]),
-    denied("unresolved-authorization-decision", "A formally complete slice leaving authorization ownership undecided is denied.", executionPlan({
+    }), ["independent", "purpose"]),
+    decisionChangingDiscovery("unresolved-authorization-decision", "A formally complete slice leaving authorization ownership undecided is denied.", executionPlan({
       decision: "one pull request",
       rationale: "The slice is mechanically complete.",
       slices: [
@@ -34414,7 +36426,7 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
     denied("line-count-only-rationale", "Line count alone cannot justify a review boundary.", executionPlan({
       decision: "one pull request",
       rationale: "This is reviewable only because it is below 400 changed lines.",
-      slices: [CONTRACT_SLICE]
+      slices: [COMPLETE_DELIVERY_SLICE]
     }), ["conceptual", "proof"]),
     approved("all-obligations-assigned", "Every accepted obligation has an owner.", OBLIGATION_PLAN, "multiple_pull_requests", ["Contract owner", "Release owner"]),
     approved("all-decisions-unchanged", "Every accepted decision remains unchanged.", UNCHANGED_DECISIONS_PLAN, "one_pull_request", ["Complete delivery"]),
@@ -34430,10 +36442,33 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
 - Store delivery evidence in Redis and let ReviewService own reads and writes.`), ["data", "invented"])
     },
     {
-      ...approved("accepted-data-ownership", "The accepted concrete store and owner do not block semantic approval.", withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
+      ...approved("accepted-data-ownership", "The accepted concrete store and owner do not block semantic approval.", withRequiredReplacements(`${withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
 - Host-neutral dependency order keeps every intermediate merge supported: unchanged
 - The project-local SQLite database \`delivery.db\` stores delivery evidence: unchanged
-- DeliveryStateService owns all reads and writes for that store: unchanged`), "one_pull_request", ["Complete delivery"]),
+- DeliveryStateService owns all reads and writes for that store: unchanged`).trimEnd()}
+| item-12 | testing | Prove delivery.db storage and DeliveryStateService ownership through the existing delivery workflow. | contributor | owned-store | open | missing | | |
+
+## Accepted data decision execution
+
+- Owner: Complete delivery.
+- 12. RED: add the owned-store fixture in tests/delivery-state.test.ts with a known delivery-evidence row and a temporary delivery.db. Invoke the existing delivery workflow to write and read that evidence. Run bun run test tests/delivery-state.test.ts -t owned-store and observe exit 1 because the workflow does not read and write the evidence through DeliveryStateService into delivery.db before editing src/delivery-state.ts.
+- 13. GREEN: route the existing delivery workflow's evidence reads and writes through the accepted DeliveryStateService in src/delivery-state.ts. Rerun step 12 by invoking that workflow and assert the exact fixture row is present in delivery.db, the workflow returns those same values, and the service's read/write trace contains every workflow evidence operation. Rerun the public response and authorization fixtures to assert unchanged responses and no unauthorized persistence.
+- 14. REFACTOR: remove duplicate evidence access without changing the accepted store or owner; rerun the owned-store and public response commands with the same row, trace, and denial assertions.
+`, [
+        [
+          `
+
+## Delivery checklist`,
+          `
+| owned-store | command | E2E | Existing delivery workflow writes and reads known evidence through DeliveryStateService against delivery.db. | real_boundary | current_required | {"type":"command","cwd":".","argv":["bun","run","test","tests/delivery-state.test.ts","-t","owned-store"]} |
+
+## Delivery checklist`
+        ],
+        [
+          "Preserve both recorded implementation decisions.",
+          "Preserve all four recorded implementation decisions, including delivery.db storage and DeliveryStateService ownership."
+        ]
+      ]), "one_pull_request", ["Complete delivery"]),
       implementation_plan: DATA_IMPLEMENTATION_PLAN,
       expectation: {
         verdict: "approve",
@@ -34442,10 +36477,9 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         slice_names: ["Complete delivery"],
         obligations: OBLIGATIONS,
         decisions: [
-          "One shared authorization service owns permission checks for every transport",
-          "Host-neutral dependency order keeps every intermediate merge supported",
-          "The project-local SQLite database `delivery.db` stores delivery evidence",
-          "DeliveryStateService owns all reads and writes for that store"
+          ...DECISIONS,
+          "The project-local SQLite database `delivery.db` stores delivery evidence.",
+          "DeliveryStateService owns all reads and writes for that store."
         ]
       }
     },
@@ -34453,16 +36487,16 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
     {
       ...denied("missing-decision-obligation", "Accepted decision-derived work has no owning slice.", executionPlan({
         decision: "one pull request",
-        rationale: "The contribution claims to preserve the accepted approach.",
-        slices: [CONTRACT_SLICE]
+        rationale: COMPLETE_DELIVERY_RATIONALE,
+        slices: [COMPLETE_DELIVERY_SLICE]
       }), ["decision-derived work"]),
       implementation_plan: DECISION_OBLIGATION_IMPLEMENTATION_PLAN
     },
     {
       ...denied("missing-proof-strategy-obligation", "Accepted proof-strategy work has no owning slice.", executionPlan({
         decision: "one pull request",
-        rationale: "The contribution claims to preserve the accepted proof boundary.",
-        slices: [CONTRACT_SLICE]
+        rationale: COMPLETE_DELIVERY_RATIONALE,
+        slices: [COMPLETE_DELIVERY_SLICE]
       }), ["proof-strategy work"]),
       implementation_plan: PROOF_OBLIGATION_IMPLEMENTATION_PLAN
     },
@@ -34476,7 +36510,7 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN
     },
     {
-      ...denied("migration-missing-dependency-order", "Owned migration work without its accepted dependency order is incomplete.", MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, ["migration", "dependency order"]),
+      ...denied("migration-missing-dependency-order", "Owned migration work without its accepted dependency order is incomplete.", MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, ["migration", "dependency"]),
       implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN
     },
     {
@@ -34531,15 +36565,38 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       decisionText: `- One shared authorization service owns permission checks for every transport: changed to per-transport checks
 - Host-neutral dependency order keeps every intermediate merge supported: unchanged`
     }), ["authorization"]),
-    approved("fixture-discovery-stays-in-execution-planning", "A discovered fixture implementation change preserves every accepted decision and proof boundary.", `${ONE_PLAN}
+    approved("fixture-discovery-stays-in-execution-planning", "A discovered fixture implementation change preserves every accepted decision and proof boundary.", `${executionPlan({
+      decision: "one pull request",
+      rationale: "The same public command contract requires only a mechanical fixture representation repair.",
+      slices: [
+        {
+          ...COMPLETE_DELIVERY_SLICE,
+          tasks: [
+            ...ONE_DELIVERY_TASKS,
+            "12. RED: add the literal-fixture regression in tests/fixtures/approved-plan.test.ts with the existing approved-plan expected contents. Run bun run test tests/fixtures/approved-plan.test.ts -t literal-fixture and observe exit 1 because the builder output differs from those expected contents before editing tests/fixtures/approved-plan.ts.",
+            "13. GREEN: replace the builder in tests/fixtures/approved-plan.ts with a literal containing the same canonical expected contents. Rerun step 12 and bun run test:review-cli -- --fixture approved-plan; assert identical fixture bytes, exact public and stored responses, obligation owners, unchanged decisions, normalized plan digest, and delivery definition.",
+            "14. REFACTOR: remove the unused builder and rerun both fixture and public-boundary commands with identical expected contents and actor assertions."
+          ]
+        }
+      ]
+    })}
 ## Discovery
 
-The fixture implementation must move from a builder to a literal without changing behavior, API, data, or proof boundaries.
+The fixture implementation moves from a builder to a literal in steps 12\u201314 without changing behavior, API, data, or proof boundaries.
 `, "one_pull_request", ["Complete delivery"]),
-    approved("test-command-discovery-stays-in-execution-planning", "A discovered test-command change preserves every accepted decision and proof boundary.", `${ONE_PLAN}
+    approved("test-command-discovery-stays-in-execution-planning", "A discovered test-command change preserves every accepted decision and proof boundary.", `${withRequiredReplacements(ONE_PLAN.replaceAll("bun run test:review-cli", "bun run --cwd packages/cli test:review-cli"), [
+      [
+        JSON.stringify({ type: "command", cwd: ".", argv: ["bun", "run", "test:review-cli"] }),
+        JSON.stringify({
+          type: "command",
+          cwd: "packages/cli",
+          argv: ["bun", "run", "test:review-cli"]
+        })
+      ]
+    ])}
 ## Discovery
 
-The test command must use the package-local runner without changing the accepted proof boundary.
+The existing public-review boundary suite lives in packages/cli. Its task invocations now run the same test:review-cli script through that package-local runner from the project root; its behavior-boundary proof uses cwd packages/cli. Fixture inputs, response and actor assertions, and the public CLI subprocess boundary are unchanged.
 `, "one_pull_request", ["Complete delivery"]),
     approved("path-only-discovery-stays-in-execution-planning", "A file or helper location change with no contract consequence stays in Execution Planning.", `${ONE_PLAN}
 ## Discovery
@@ -34587,18 +36644,22 @@ Move the handler file and replace the accepted public command response with a ne
     },
     {
       ...denied("missing-cli-subprocess-boundary", "A proof step with a placeholder actor boundary is denied with the missing subprocess boundary named.", MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, ["subprocess", "boundary"]),
-      implementation_plan: PROOF_IMPLEMENTATION_PLAN
+      implementation_plan: PROOF_ONLY_IMPLEMENTATION_PLAN
     },
     {
       ...denied("missing-denied-exit-assertion", "A proof step with a placeholder denied-exit result is denied with the missing exit assertion named.", MISSING_DENIED_EXIT_ASSERTION_PLAN, ["exit", "assertion"]),
-      implementation_plan: PROOF_IMPLEMENTATION_PLAN
+      implementation_plan: PROOF_ONLY_IMPLEMENTATION_PLAN
     },
-    decisionChangingDiscovery("later-step-is-not-startable", "A concrete first RED cannot hide an unresolved behavior decision in the fourth step.", LATER_UNSTARTABLE_PLAN, ["behavior", "before implementation"]),
+    decisionChangingDiscovery("later-step-is-not-startable", "A concrete first RED cannot hide an unresolved behavior decision in the fourth step.", LATER_UNSTARTABLE_PLAN, ["behavior", "decision"]),
     denied("blocked-first-prerequisite", "The first planned slice depends on an incomplete prerequisite and is not startable.", BLOCKED_FIRST_PREREQUISITE_PLAN, ["prerequisite", "startable"]),
     denied("no-executable-steps", "A plan with no executable task leaves a fresh agent with no startable step.", NO_EXECUTABLE_STEPS_PLAN, ["executable", "step"]),
     approved("risk-first-ordering", "Independent work orders the highest-risk probe before activation.", RISK_FIRST_PLAN, "multiple_pull_requests", ["Risk probe", "Activation"]),
     approved("parallel-safe-after-probe", "Independent consumers may proceed in parallel after the shared risk probe.", PARALLEL_AFTER_PROBE_PLAN, "multiple_pull_requests", ["Risk probe", "CLI consumer", "Documentation consumer"])
   ];
+  EXECUTION_PLAN_CONFORMANCE_CASES = conformanceCases.map((testCase) => ({
+    ...testCase,
+    accepted_scenario: acceptedBehaviorScenario(testCase.implementation_plan)
+  }));
 });
 
 // src/planning/contracts.generated.ts
@@ -34684,9 +36745,9 @@ function findTicketFolderMatch(names, ticketId) {
 }
 
 // src/utils/product-plan-contract.ts
-import { createHash as createHash19 } from "crypto";
-import { existsSync as existsSync16, readdirSync as readdirSync8, readFileSync as readFileSync32 } from "fs";
-import nodePath46 from "path";
+import { createHash as createHash20 } from "crypto";
+import { existsSync as existsSync16, readdirSync as readdirSync9, readFileSync as readFileSync33 } from "fs";
+import nodePath47 from "path";
 function sectionAfterHeading(content, level, id) {
   const prefix = "#".repeat(level);
   const lines = content.split(/\r?\n/);
@@ -34750,15 +36811,15 @@ function canonicalizeContractValue(value) {
 }
 function digestParentContract(values) {
   const canonical = CONTRACT_KEYS.map((key) => [key, canonicalizeContractValue(values[key])]);
-  return createHash19("sha256").update(JSON.stringify(canonical)).digest("hex");
+  return createHash20("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
 function resolveTicketDirectory(cwd, ticketId) {
   const root = resolveTicketsDirectory(cwd);
   if (!existsSync16(root))
     return;
-  const names = readdirSync8(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const names = readdirSync9(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
   const match = findTicketFolderMatch(names, ticketId);
-  return match ? nodePath46.join(root, match) : undefined;
+  return match ? nodePath47.join(root, match) : undefined;
 }
 function resolveParentContract(cwd, parentId, parentJobId, milestoneId) {
   const directory = resolveTicketDirectory(cwd, parentId);
@@ -34777,14 +36838,14 @@ function parentContractValuesFromSpec(spec, parentJobId, milestoneId) {
   return contractValues(parentJob, milestone, productBet);
 }
 function readParentSpec(directory, parentId) {
-  const ticket = readFileSync32(nodePath46.join(directory, "ticket.md"), "utf8");
+  const ticket = readFileSync33(nodePath47.join(directory, "ticket.md"), "utf8");
   if (readFrontmatterScalar(ticket, "type") !== "epic") {
     throw new Error(`Parent ticket "${parentId}" is not a feature epic.`);
   }
-  const specPath = nodePath46.join(directory, "spec.md");
+  const specPath = nodePath47.join(directory, "spec.md");
   if (!existsSync16(specPath))
     throw new Error(`Parent epic "${parentId}" has no Product Plan.`);
-  return readFileSync32(specPath, "utf8");
+  return readFileSync33(specPath, "utf8");
 }
 function requireSection(spec, level, id, label) {
   const section = sectionAfterHeading(spec, level, id);
@@ -34824,7 +36885,7 @@ var init_product_plan_contract = __esm(() => {
 });
 
 // src/review/planning-accepted-boundary.ts
-import { createHash as createHash20 } from "crypto";
+import { createHash as createHash21 } from "crypto";
 function acceptedTerms(value, field) {
   const terms = typeof value === "string" ? [value] : value;
   if (!Array.isArray(terms) || terms.length === 0 || terms.some((term) => typeof term !== "string" || term.trim() === ""))
@@ -34871,9 +36932,9 @@ function acceptedBoundaryDigest(ticketContent, productSpec) {
     const values = parentContractValuesFromSpec(productSpec, metadata.parent_job, metadata.milestone);
     productBoundary = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, canonicalizeContractValue(value)]));
   }
-  return createHash20("sha256").update(JSON.stringify({ version: 1, scope, exclusions, parent: productBoundary })).digest("hex");
+  return createHash21("sha256").update(JSON.stringify({ version: 1, scope, exclusions, parent: productBoundary })).digest("hex");
 }
-function isRecord6(value) {
+function isRecord8(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 function reviewDispositionContext(ticketContent, productSpec, reviewKind) {
@@ -34885,9 +36946,9 @@ function reviewDispositionContext(ticketContent, productSpec, reviewKind) {
     throw new Error("The ticket review dispositions are invalid.");
   const current = acceptedBoundaryDigest(ticketContent, productSpec);
   const records = dispositions.map((value) => {
-    if (!isRecord6(value) || value.version !== 1 || typeof value.review_kind !== "string" || typeof value.review_id !== "string" || value.disposition !== "declined" || typeof value.finding_fingerprint !== "string" || value.finding_severity !== "info" && value.finding_severity !== "warning" || typeof value.finding_message !== "string" || typeof value.accepted_boundary_digest !== "string" || typeof value.reason !== "string")
+    if (!isRecord8(value) || value.version !== 1 || typeof value.review_kind !== "string" || typeof value.review_id !== "string" || value.disposition !== "declined" || typeof value.finding_fingerprint !== "string" || value.finding_severity !== "info" && value.finding_severity !== "warning" || typeof value.finding_message !== "string" || typeof value.accepted_boundary_digest !== "string" || typeof value.reason !== "string")
       throw new Error("The ticket review dispositions are invalid.");
-    const fingerprint = createHash20("sha256").update(JSON.stringify({ severity: value.finding_severity, message: value.finding_message })).digest("hex");
+    const fingerprint = createHash21("sha256").update(JSON.stringify({ severity: value.finding_severity, message: value.finding_message })).digest("hex");
     if (value.finding_fingerprint !== fingerprint)
       throw new Error("The ticket review dispositions are invalid.");
     return {
@@ -51797,39 +53858,9 @@ var init_scenario_coverage = __esm(() => {
   LINEAGE_TAG_TOKEN = /@\S+/g;
 });
 
-// src/review/evidence-record.ts
-function isEvidenceRecord(value) {
-  if (value === null || typeof value !== "object" || Array.isArray(value))
-    return false;
-  const record = value;
-  return Object.keys(record).length === EVIDENCE_RECORD_FIELDS.length && EVIDENCE_RECORD_FIELDS.every((field) => typeof record[field] === "string" && record[field].trim() !== "");
-}
-function isPlanEvidenceRecord(value) {
-  if (value === null || typeof value !== "object" || Array.isArray(value))
-    return false;
-  const { schema_version, ...fields } = value;
-  return schema_version === 1 && isEvidenceRecord(fields);
-}
-var EVIDENCE_RECORD_FIELDS;
-var init_evidence_record = __esm(() => {
-  EVIDENCE_RECORD_FIELDS = [
-    "source_identity",
-    "checked_version",
-    "source_version",
-    "target_version",
-    "supported_claim",
-    "license_identifier",
-    "attribution_notice",
-    "redistribution_limit",
-    "security_limit",
-    "privacy_limit",
-    "reuse_limit"
-  ];
-});
-
 // src/review/planning-context-identity.ts
-import { createHash as createHash21 } from "crypto";
-import nodePath47 from "path";
+import { createHash as createHash22 } from "crypto";
+import nodePath48 from "path";
 function parseMarkdown(content) {
   const ast = Reflect.apply(ru.markdown.parse, undefined, [content, {}]);
   if (ast === null || typeof ast !== "object" || !("type" in ast) || ast.type !== "root" || !("children" in ast) || !Array.isArray(ast.children)) {
@@ -51842,12 +53873,12 @@ function stableValue(value) {
     return value.map((child) => stableValue(child));
   if (value === null || typeof value !== "object")
     return value;
-  const record = value;
-  return Object.fromEntries(Object.keys(record).toSorted((a, b) => {
+  const record2 = value;
+  return Object.fromEntries(Object.keys(record2).toSorted((a, b) => {
     if (a === b)
       return 0;
     return a < b ? -1 : 1;
-  }).map((key) => [key, stableValue(record[key])]));
+  }).map((key) => [key, stableValue(record2[key])]));
 }
 function identity(value) {
   const canonical = stableValue(value);
@@ -51956,7 +53987,7 @@ function childRelationship(metadata) {
 }
 function capturedParent(packet, target) {
   const context = packet.context_files ?? [];
-  const ticketPath = nodePath47.join(nodePath47.dirname(target.path), "ticket.md");
+  const ticketPath = nodePath48.join(nodePath48.dirname(target.path), "ticket.md");
   const ticket = context.find((file) => file.path === ticketPath);
   if (ticket === undefined)
     return;
@@ -51964,11 +53995,11 @@ function capturedParent(packet, target) {
   const relationship = childRelationship(metadata);
   if (relationship === undefined)
     return;
-  const parentTickets = context.filter((file) => nodePath47.basename(file.path) === "ticket.md" && file.path !== ticketPath && parseTicketMetadata(file.content).metadata.id === relationship.parent);
+  const parentTickets = context.filter((file) => nodePath48.basename(file.path) === "ticket.md" && file.path !== ticketPath && parseTicketMetadata(file.content).metadata.id === relationship.parent);
   const [parentTicket] = parentTickets;
   if (parentTickets.length !== 1 || parentTicket === undefined)
     throw new Error("Planning child context must have one captured parent ticket.");
-  const parentPath = nodePath47.join(nodePath47.dirname(parentTicket.path), "spec.md");
+  const parentPath = nodePath48.join(nodePath48.dirname(parentTicket.path), "spec.md");
   const parent = context.find((file) => file.path === parentPath);
   if (parent === undefined)
     throw new Error("Planning child context has no captured parent spec.");
@@ -52284,7 +54315,7 @@ function planningSurfaceIdentity(packet, content) {
   return identity({ version: 1, preamble, selected });
 }
 function sha2565(content) {
-  return createHash21("sha256").update(content).digest("hex");
+  return createHash22("sha256").update(content).digest("hex");
 }
 function semanticRoleIdentity(packet, role, content) {
   if (role === "ticket")
@@ -52379,8 +54410,8 @@ var init_planning_context_identity = __esm(() => {
 });
 
 // src/utils/architecture-records.ts
-import { readdirSync as readdirSync9, statSync as statSync4 } from "fs";
-import nodePath48 from "path";
+import { readdirSync as readdirSync10, statSync as statSync4 } from "fs";
+import nodePath49 from "path";
 function listArchitectureRecords(resolvedPath) {
   let stats;
   try {
@@ -52392,7 +54423,7 @@ function listArchitectureRecords(resolvedPath) {
     return { kind: "file", records: [resolvedPath] };
   }
   if (stats?.isDirectory()) {
-    const records = readdirSync9(resolvedPath, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md").map((entry) => nodePath48.join(resolvedPath, entry.name));
+    const records = readdirSync10(resolvedPath, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md").map((entry) => nodePath49.join(resolvedPath, entry.name));
     return { kind: "directory", records };
   }
   return { kind: "absent", records: [] };
@@ -52406,21 +54437,21 @@ var init_workspace_roots = __esm(() => {
 });
 
 // src/utils/workspaces.ts
-import { readdirSync as readdirSync10 } from "fs";
-import nodePath49 from "path";
+import { readdirSync as readdirSync11 } from "fs";
+import nodePath50 from "path";
 function getWorkspacePatterns(cwd) {
-  const packageJson = readJson(nodePath49.join(cwd, "package.json"));
+  const packageJson = readJson(nodePath50.join(cwd, "package.json"));
   if (!packageJson?.workspaces)
     return [];
   return Array.isArray(packageJson.workspaces) ? packageJson.workspaces : packageJson.workspaces.packages ?? [];
 }
 function readPackageName(directory) {
-  const packageJson = readJson(nodePath49.join(directory, "package.json"));
+  const packageJson = readJson(nodePath50.join(directory, "package.json"));
   return packageJson?.name;
 }
 function listSubdirectories(parentPath) {
   try {
-    return readdirSync10(parentPath, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !entry.name.startsWith(".")).map((entry) => nodePath49.join(parentPath, entry.name));
+    return readdirSync11(parentPath, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !entry.name.startsWith(".")).map((entry) => nodePath50.join(parentPath, entry.name));
   } catch {
     return [];
   }
@@ -52428,7 +54459,7 @@ function listSubdirectories(parentPath) {
 function resolvePattern(cwd, pattern) {
   const isGlob = pattern.endsWith("/*");
   const basePath = isGlob ? pattern.slice(0, -2) : pattern;
-  const fullPath = nodePath49.join(cwd, basePath);
+  const fullPath = nodePath50.join(cwd, basePath);
   if (!exists(fullPath))
     return [];
   return isGlob ? listSubdirectories(fullPath) : [fullPath];
@@ -52451,10 +54482,10 @@ var init_workspaces = __esm(() => {
 });
 
 // src/utils/feature-source.ts
-import { existsSync as existsSync17, readdirSync as readdirSync11 } from "fs";
-import nodePath50 from "path";
+import { existsSync as existsSync17, readdirSync as readdirSync12 } from "fs";
+import nodePath51 from "path";
 function slugForTicket(cwd, ticketFolder) {
-  const content = readFileSafe(nodePath50.join(resolveTicketsDirectory(cwd), ticketFolder, "ticket.md"));
+  const content = readFileSafe(nodePath51.join(resolveTicketsDirectory(cwd), ticketFolder, "ticket.md"));
   const slug = readFrontmatterScalar(content, "slug");
   if (slug !== undefined && slug !== "")
     return slug;
@@ -52466,7 +54497,7 @@ function featureSourceFileName(cwd, ticketFolder) {
 }
 function findFeatureSourcePath(cwd, ticketFolder, featureFiles = collectExecutableFeatureFiles(cwd)) {
   const fileName = featureSourceFileName(cwd, ticketFolder);
-  return featureFiles.find((path7) => nodePath50.basename(path7) === fileName);
+  return featureFiles.find((path7) => nodePath51.basename(path7) === fileName);
 }
 function createPhaseAnchorEnvironment(cwd, configuredFeatures) {
   const featureRoots = ["features"];
@@ -52500,25 +54531,25 @@ function collectExecutableFeatureDirectories(cwd) {
 }
 function collectDefaultFeatureDirectories(cwd) {
   return [
-    nodePath50.join(cwd, "features"),
-    ...WORKSPACE_ROOTS.flatMap((root) => collectWorkspaceFeatureDirectories(nodePath50.join(cwd, root)))
+    nodePath51.join(cwd, "features"),
+    ...WORKSPACE_ROOTS.flatMap((root) => collectWorkspaceFeatureDirectories(nodePath51.join(cwd, root)))
   ];
 }
 function collectWorkspaceFeatureDirectories(workspaceDirectory) {
   if (!existsSync17(workspaceDirectory))
     return [];
-  return readdirSync11(workspaceDirectory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => nodePath50.join(workspaceDirectory, entry.name, "features"));
+  return readdirSync12(workspaceDirectory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => nodePath51.join(workspaceDirectory, entry.name, "features"));
 }
 function findFeatureFiles(directory, fileName) {
   let entries;
   try {
-    entries = readdirSync11(directory, { withFileTypes: true });
+    entries = readdirSync12(directory, { withFileTypes: true });
   } catch {
     return [];
   }
   const matches = [];
   for (const entry of entries) {
-    const absolute2 = nodePath50.join(directory, entry.name);
+    const absolute2 = nodePath51.join(directory, entry.name);
     if (entry.isDirectory()) {
       matches.push(...findFeatureFiles(absolute2, fileName));
     } else if (entry.isFile() && isMatchingFeatureFile(entry.name, fileName)) {
@@ -52530,12 +54561,12 @@ function findFeatureFiles(directory, fileName) {
 function containsFeatureFile(directory) {
   let entries;
   try {
-    entries = readdirSync11(directory, { withFileTypes: true });
+    entries = readdirSync12(directory, { withFileTypes: true });
   } catch {
     return false;
   }
   return entries.some((entry) => {
-    const absolute2 = nodePath50.join(directory, entry.name);
+    const absolute2 = nodePath51.join(directory, entry.name);
     return entry.isDirectory() ? containsFeatureFile(absolute2) : entry.isFile() && entry.name.endsWith(".feature");
   });
 }
@@ -52566,8 +54597,8 @@ var init_planning_ticket_owner = __esm(() => {
 });
 
 // src/review/planning-role-context.ts
-import { existsSync as existsSync18, readFileSync as readFileSync33 } from "fs";
-import nodePath51 from "path";
+import { existsSync as existsSync18, readFileSync as readFileSync34 } from "fs";
+import nodePath52 from "path";
 function captured(files, role, path7) {
   const file = files.find((value) => value.path === path7);
   if (file === undefined || file.content.trim() === "")
@@ -52590,11 +54621,11 @@ function sectionSkip(plan, role) {
 function scenarioSource(cwd, ticket, directory) {
   const anchors = ticket.phase_anchors;
   if (anchors === undefined) {
-    const name = featureSourceFileName(cwd, nodePath51.basename(directory));
+    const name = featureSourceFileName(cwd, nodePath52.basename(directory));
     const matches2 = collectExecutableFeatureFiles(cwd, name);
     if (matches2.length !== 1 || matches2[0] === undefined)
       throw new PlanningContextError("scenarios", `features/${name}`);
-    return nodePath51.relative(cwd, matches2[0]);
+    return nodePath52.relative(cwd, matches2[0]);
   }
   if (!Array.isArray(anchors))
     throw new PlanningContextError("scenarios", `${directory}/ticket.md:phase_anchors`);
@@ -52605,16 +54636,16 @@ function scenarioSource(cwd, ticket, directory) {
     return typeof entry["scenario-gate"] === "string" ? [entry["scenario-gate"]] : [];
   });
   const source = matches.at(-1);
-  if (source === undefined || source.trim() === "" || nodePath51.extname(source) !== ".feature")
+  if (source === undefined || source.trim() === "" || nodePath52.extname(source) !== ".feature")
     throw new PlanningContextError("scenarios", `${directory}/ticket.md:phase_anchors`);
-  const normalized = nodePath51.relative(cwd, nodePath51.resolve(cwd, source));
-  if (normalized.startsWith(`..${nodePath51.sep}`) || normalized === "..")
+  const normalized = nodePath52.relative(cwd, nodePath52.resolve(cwd, source));
+  if (normalized.startsWith(`..${nodePath52.sep}`) || normalized === "..")
     throw new PlanningContextError("scenarios", `${directory}/ticket.md:phase_anchors`);
   return normalized;
 }
 function optionalDimensions(cwd, directory, authority) {
-  const path7 = nodePath51.join(directory, "dimensions.md");
-  return existsSync18(nodePath51.resolve(cwd, path7)) ? { dependency: { role: "dimensions", path: path7 } } : {
+  const path7 = nodePath52.join(directory, "dimensions.md");
+  return existsSync18(nodePath52.resolve(cwd, path7)) ? { dependency: { role: "dimensions", path: path7 } } : {
     absence: {
       role: "dimensions",
       reason: "The ticket has no dimensions artifact.",
@@ -52623,11 +54654,11 @@ function optionalDimensions(cwd, directory, authority) {
   };
 }
 function architectureOverride(cwd) {
-  const configPath2 = nodePath51.join(cwd, ".safeword/config.json");
+  const configPath2 = nodePath52.join(cwd, ".safeword/config.json");
   if (!existsSync18(configPath2))
     return { declared: false, value: undefined };
   try {
-    const config = JSON.parse(readFileSync33(configPath2, "utf8"));
+    const config = JSON.parse(readFileSync34(configPath2, "utf8"));
     if (!plainRecord(config))
       throw new TypeError("Configuration must be an object.");
     const paths = config.paths;
@@ -52648,7 +54679,7 @@ function configuredArchitectureLocation(cwd) {
   const configured = architectureOverride(cwd);
   const value = configured.value;
   if (configured.declared && (typeof value !== "string" || value.trim() === "" || !existsSync18(path7)))
-    throw new PlanningContextError("architecture", nodePath51.relative(cwd, path7));
+    throw new PlanningContextError("architecture", nodePath52.relative(cwd, path7));
   return path7;
 }
 function architectureSources(cwd, plan) {
@@ -52656,16 +54687,16 @@ function architectureSources(cwd, plan) {
   const records = listArchitectureRecords(path7);
   if (records.records.length > 0)
     return {
-      dependencies: records.records.toSorted((a, b) => a.localeCompare(b)).map((source) => ({ role: "architecture", path: nodePath51.relative(cwd, source) })),
+      dependencies: records.records.toSorted((a, b) => a.localeCompare(b)).map((source) => ({ role: "architecture", path: nodePath52.relative(cwd, source) })),
       absences: []
     };
   const reason = sectionSkip(plan, "architecture");
   if (reason === undefined)
-    throw new PlanningContextError("architecture", nodePath51.relative(cwd, path7));
+    throw new PlanningContextError("architecture", nodePath52.relative(cwd, path7));
   return { dependencies: [], absences: [{ role: "architecture", reason, authority: plan.path }] };
 }
 function inheritedSources(ticket, ticketFile, files) {
-  const spec = nodePath51.join(nodePath51.dirname(ticketFile.path), "spec.md");
+  const spec = nodePath52.join(nodePath52.dirname(ticketFile.path), "spec.md");
   if (!Object.hasOwn(ticket, "parent"))
     return {
       dependencies: [],
@@ -52676,12 +54707,12 @@ function inheritedSources(ticket, ticketFile, files) {
         authority: ticketFile.path
       }))
     };
-  const parent = files.find((file) => nodePath51.basename(file.path) === "ticket.md" && file.path !== ticketFile.path && parseTicketMetadata(file.content).metadata.id === ticket.parent);
+  const parent = files.find((file) => nodePath52.basename(file.path) === "ticket.md" && file.path !== ticketFile.path && parseTicketMetadata(file.content).metadata.id === ticket.parent);
   if (parent === undefined)
     throw new PlanningContextError("parent", `${ticketFile.path}:parent`);
   if (typeof ticket.parent_job !== "string" || ticket.parent_job.trim() === "" || typeof ticket.milestone !== "string" || ticket.milestone.trim() === "")
     throw new PlanningContextError("milestone", `${ticketFile.path}:milestone`);
-  const project = nodePath51.join(nodePath51.dirname(parent.path), "spec.md");
+  const project = nodePath52.join(nodePath52.dirname(parent.path), "spec.md");
   return {
     project,
     dependencies: [
@@ -52693,7 +54724,7 @@ function inheritedSources(ticket, ticketFile, files) {
   };
 }
 function requireOwnedPlanningTicket(ticket, ticketPath) {
-  if (!planningTicketOwner(ticket, nodePath51.basename(nodePath51.dirname(ticketPath)), ticketPath))
+  if (!planningTicketOwner(ticket, nodePath52.basename(nodePath52.dirname(ticketPath)), ticketPath))
     throw new PlanningContextError("ticket", ticketPath);
 }
 function resolvePlanningRoleContext(cwd, kind, planningPhase, targets, files) {
@@ -52708,8 +54739,8 @@ function resolvePlanningRoleContext(cwd, kind, planningPhase, targets, files) {
   const plan = targets[0];
   if (plan === undefined)
     throw new PlanningContextError("ticket", "impl-plan.md");
-  const directory = nodePath51.dirname(plan.path);
-  const ticketPath = nodePath51.join(directory, "ticket.md");
+  const directory = nodePath52.dirname(plan.path);
+  const ticketPath = nodePath52.join(directory, "ticket.md");
   const ticketFile = captured(files, "ticket", ticketPath);
   const ticket = parseTicketMetadata(ticketFile.content).metadata;
   requireOwnedPlanningTicket(ticket, ticketPath);
@@ -52725,11 +54756,11 @@ function resolvePlanningRoleContext(cwd, kind, planningPhase, targets, files) {
     { role: "ticket", path: ticketPath },
     { role: "project", path: project.path },
     ...inherited.dependencies,
-    { role: "rules", path: nodePath51.join(directory, "spec.md") },
+    { role: "rules", path: nodePath52.join(directory, "spec.md") },
     { role: "scenarios", path: scenarioSource(cwd, ticket, directory) },
     ...["principles", "personas", "surfaces"].map((role) => ({
       role,
-      path: nodePath51.relative(cwd, resolveConfiguredPath(cwd, role))
+      path: nodePath52.relative(cwd, resolveConfiguredPath(cwd, role))
     }))
   ];
   const absences = [...inherited.absences];
@@ -52772,8 +54803,8 @@ function resolveExecutionRoleContext(cwd, targets, files) {
   const plan = targets[0];
   if (plan === undefined)
     throw new PlanningContextError("ticket", "execution-plan.md");
-  const directory = nodePath51.dirname(plan.path);
-  const ticketPath = nodePath51.join(directory, "ticket.md");
+  const directory = nodePath52.dirname(plan.path);
+  const ticketPath = nodePath52.join(directory, "ticket.md");
   const ticketFile = captured(files, "ticket", ticketPath);
   const ticket = parseTicketMetadata(ticketFile.content).metadata;
   requireOwnedPlanningTicket(ticket, ticketPath);
@@ -52785,17 +54816,17 @@ function resolveExecutionRoleContext(cwd, targets, files) {
     throw new PlanningContextError("project", project.path);
   }
   requirePlanningRules(project);
-  const upstreamPath = nodePath51.join(directory, "impl-plan.md");
+  const upstreamPath = nodePath52.join(directory, "impl-plan.md");
   const upstream = captured(files, "accepted-upstream-plan", upstreamPath);
   const dependencies = [
     { role: "ticket", path: ticketPath },
     { role: "project", path: project.path },
     ...inherited.dependencies,
-    { role: "rules", path: nodePath51.join(directory, "spec.md") },
+    { role: "rules", path: nodePath52.join(directory, "spec.md") },
     { role: "scenarios", path: scenarioSource(cwd, ticket, directory) },
     ...["principles", "personas", "surfaces"].map((role) => ({
       role,
-      path: nodePath51.relative(cwd, resolveConfiguredPath(cwd, role))
+      path: nodePath52.relative(cwd, resolveConfiguredPath(cwd, role))
     })),
     { role: "accepted-upstream-plan", path: upstream.path }
   ];
@@ -52834,7 +54865,7 @@ function resolveScenarioRoleContext(cwd, targets, files) {
   const spec = files[0];
   if (scenario === undefined || spec === undefined)
     return;
-  const ticketPath = nodePath51.join(nodePath51.dirname(spec.path), "ticket.md");
+  const ticketPath = nodePath52.join(nodePath52.dirname(spec.path), "ticket.md");
   const ticketFile = files.find((file) => file.path === ticketPath);
   if (ticketFile === undefined)
     return;
@@ -52842,7 +54873,7 @@ function resolveScenarioRoleContext(cwd, targets, files) {
   if (ticket.product_plan_contract !== "v1")
     return;
   requireOwnedPlanningTicket(ticket, ticketPath);
-  if (scenarioSource(cwd, ticket, nodePath51.dirname(spec.path)) !== scenario.path)
+  if (scenarioSource(cwd, ticket, nodePath52.dirname(spec.path)) !== scenario.path)
     throw new PlanningContextError("scenarios", scenario.path);
   const inherited = inheritedSources(ticket, ticketFile, files);
   const project = captured(files, "project", inherited.project);
@@ -52863,7 +54894,7 @@ function resolveScenarioRoleContext(cwd, targets, files) {
       { role: "scenarios", path: scenario.path },
       ...["principles", "personas", "surfaces"].map((role) => ({
         role,
-        path: nodePath51.relative(cwd, resolveConfiguredPath(cwd, role))
+        path: nodePath52.relative(cwd, resolveConfiguredPath(cwd, role))
       }))
     ],
     absences: [
@@ -52886,7 +54917,7 @@ function resolveProductRoleContext(cwd, targets, files) {
   const plan = targets[0];
   if (plan === undefined)
     throw new PlanningContextError("project", "spec.md");
-  const ticketPath = nodePath51.join(nodePath51.dirname(plan.path), "ticket.md");
+  const ticketPath = nodePath52.join(nodePath52.dirname(plan.path), "ticket.md");
   const ticketFile = captured(files, "ticket", ticketPath);
   const ticket = parseTicketMetadata(ticketFile.content).metadata;
   requireOwnedPlanningTicket(ticket, ticketPath);
@@ -52909,7 +54940,7 @@ function resolveProductRoleContext(cwd, targets, files) {
       { role: "rules", path: plan.path },
       ...["principles", "personas", "surfaces"].map((role) => ({
         role,
-        path: nodePath51.relative(cwd, resolveConfiguredPath(cwd, role))
+        path: nodePath52.relative(cwd, resolveConfiguredPath(cwd, role))
       }))
     ],
     absences: [
@@ -53148,33 +55179,33 @@ __export(exports_packet, {
   PlanningContextError: () => PlanningContextError
 });
 import { spawnSync as spawnSync5 } from "child_process";
-import { createHash as createHash22, randomUUID as randomUUID9 } from "crypto";
+import { createHash as createHash23, randomUUID as randomUUID9 } from "crypto";
 import {
-  closeSync as closeSync5,
-  constants as constants3,
+  closeSync as closeSync6,
+  constants as constants4,
   existsSync as existsSync19,
-  fstatSync as fstatSync2,
-  lstatSync as lstatSync9,
-  mkdirSync as mkdirSync11,
-  mkdtempSync as mkdtempSync5,
-  openSync as openSync5,
-  readdirSync as readdirSync12,
-  readFileSync as readFileSync34,
+  fstatSync as fstatSync3,
+  lstatSync as lstatSync10,
+  mkdirSync as mkdirSync12,
+  mkdtempSync as mkdtempSync6,
+  openSync as openSync6,
+  readdirSync as readdirSync13,
+  readFileSync as readFileSync35,
   readSync as readSync2,
-  realpathSync as realpathSync7,
-  rmSync as rmSync7,
-  writeFileSync as writeFileSync12
+  realpathSync as realpathSync8,
+  rmSync as rmSync8,
+  writeFileSync as writeFileSync13
 } from "fs";
-import { tmpdir as tmpdir3 } from "os";
-import nodePath52 from "path";
+import { tmpdir as tmpdir4 } from "os";
+import nodePath53 from "path";
 import process10 from "process";
 function planningOverrideConfig(cwd, role) {
-  const configPath2 = nodePath52.join(cwd, ".safeword/config.json");
+  const configPath2 = nodePath53.join(cwd, ".safeword/config.json");
   if (!existsSync19(configPath2))
     return;
   let config;
   try {
-    config = JSON.parse(readFileSync34(configPath2, "utf8"));
+    config = JSON.parse(readFileSync35(configPath2, "utf8"));
   } catch {
     throw new PlanningContextError(role, ".safeword/config.json");
   }
@@ -53213,12 +55244,12 @@ function requiredPlanningKnowledgeSource(cwd, role) {
   return requiredPlanningSource(cwd, role, resolveConfiguredPath(cwd, role), configured);
 }
 function requiredPlanningSource(cwd, role, source, configured = false) {
-  const relative = nodePath52.relative(cwd, source);
+  const relative = nodePath53.relative(cwd, source);
   try {
-    if (escapes(cwd, source) || !lstatSync9(source).isFile()) {
+    if (escapes(cwd, source) || !lstatSync10(source).isFile()) {
       throw new PlanningContextError(role, relative, undefined, configured);
     }
-    if (readFileSync34(source, "utf8").trim() === "") {
+    if (readFileSync35(source, "utf8").trim() === "") {
       throw new PlanningContextError(role, relative, undefined, configured);
     }
   } catch {
@@ -53229,7 +55260,7 @@ function requiredPlanningSource(cwd, role, source, configured = false) {
 function planningTicketMetadata(cwd, source, role) {
   const relative = requiredPlanningSource(cwd, role, source);
   try {
-    return parseTicketMetadata(readFileSync34(source, "utf8")).metadata;
+    return parseTicketMetadata(readFileSync35(source, "utf8")).metadata;
   } catch {
     throw new PlanningContextError(role, relative);
   }
@@ -53247,38 +55278,38 @@ function requiredProductParentContext(cwd, targets) {
   const target = targets[0];
   if (target === undefined)
     return [];
-  const ticketSource = nodePath52.join(nodePath52.dirname(nodePath52.resolve(cwd, target)), "ticket.md");
+  const ticketSource = nodePath53.join(nodePath53.dirname(nodePath53.resolve(cwd, target)), "ticket.md");
   const ticket = planningTicketMetadata(cwd, ticketSource, "ticket");
-  const parent = declaredPlanningParent(ticket, nodePath52.relative(cwd, ticketSource));
+  const parent = declaredPlanningParent(ticket, nodePath53.relative(cwd, ticketSource));
   if (parent === undefined)
-    return [nodePath52.relative(cwd, ticketSource)];
+    return [nodePath53.relative(cwd, ticketSource)];
   const tickets = resolveTicketsDirectory(cwd);
-  const candidates = readdirSync12(tickets, { withFileTypes: true }).filter((entry) => entry.isDirectory() && (entry.name === parent || entry.name.startsWith(`${parent}-`)));
+  const candidates = readdirSync13(tickets, { withFileTypes: true }).filter((entry) => entry.isDirectory() && (entry.name === parent || entry.name.startsWith(`${parent}-`)));
   const directory = candidates[0];
   if (candidates.length !== 1 || directory === undefined) {
-    throw new PlanningContextError("parent", nodePath52.relative(cwd, nodePath52.join(tickets, parent, "spec.md")));
+    throw new PlanningContextError("parent", nodePath53.relative(cwd, nodePath53.join(tickets, parent, "spec.md")));
   }
-  const parentTicket = nodePath52.join(tickets, directory.name, "ticket.md");
+  const parentTicket = nodePath53.join(tickets, directory.name, "ticket.md");
   const parentMetadata = planningTicketMetadata(cwd, parentTicket, "parent");
   if (parentMetadata.id !== parent || parentMetadata.type !== "epic") {
-    throw new PlanningContextError("parent", nodePath52.relative(cwd, parentTicket));
+    throw new PlanningContextError("parent", nodePath53.relative(cwd, parentTicket));
   }
-  const parentSpec = requiredPlanningSource(cwd, "parent", nodePath52.join(tickets, directory.name, "spec.md"));
-  return [nodePath52.relative(cwd, ticketSource), nodePath52.relative(cwd, parentTicket), parentSpec];
+  const parentSpec = requiredPlanningSource(cwd, "parent", nodePath53.join(tickets, directory.name, "spec.md"));
+  return [nodePath53.relative(cwd, ticketSource), nodePath53.relative(cwd, parentTicket), parentSpec];
 }
 function requiredDownstreamProductContext(cwd, targets, planName) {
   const target = targets[0];
-  if (targets.length !== 1 || target === undefined || nodePath52.basename(target) !== planName)
+  if (targets.length !== 1 || target === undefined || nodePath53.basename(target) !== planName)
     return [];
-  const ticketDirectory = nodePath52.dirname(nodePath52.resolve(cwd, target));
-  if (nodePath52.dirname(ticketDirectory) !== resolveTicketsDirectory(cwd))
+  const ticketDirectory = nodePath53.dirname(nodePath53.resolve(cwd, target));
+  if (nodePath53.dirname(ticketDirectory) !== resolveTicketsDirectory(cwd))
     return [];
   if (!ownedPlanningTicket(cwd, target))
     return;
   const inherited = requiredProductParentContext(cwd, targets);
-  const product = requiredPlanningSource(cwd, "project", nodePath52.join(ticketDirectory, "spec.md"));
+  const product = requiredPlanningSource(cwd, "project", nodePath53.join(ticketDirectory, "spec.md"));
   const upstream = planName === "execution-plan.md" ? [
-    requiredPlanningSource(cwd, "accepted-upstream-plan", nodePath52.join(ticketDirectory, "impl-plan.md"))
+    requiredPlanningSource(cwd, "accepted-upstream-plan", nodePath53.join(ticketDirectory, "impl-plan.md"))
   ] : [];
   return [...inherited, product, ...upstream];
 }
@@ -53287,10 +55318,10 @@ function requiredPlanningBoundaryContext(cwd, kind, targets, context, productPla
     return requiredProductParentContext(cwd, targets);
   if (kind === "scenario-gate") {
     const spec = context[0];
-    if (spec === undefined || nodePath52.basename(spec) !== "spec.md" || !ownedPlanningTicket(cwd, spec))
+    if (spec === undefined || nodePath53.basename(spec) !== "spec.md" || !ownedPlanningTicket(cwd, spec))
       return;
     const inherited = requiredProductParentContext(cwd, [spec]);
-    requiredPlanningSource(cwd, "project", nodePath52.resolve(cwd, spec));
+    requiredPlanningSource(cwd, "project", nodePath53.resolve(cwd, spec));
     return inherited;
   }
   if (kind !== "plan-implementation" && kind !== "plan-execution")
@@ -53302,14 +55333,14 @@ function resolvedPlanningContext(cwd, kind, targets, context, productPlan = fals
   const inherited = requiredPlanningBoundaryContext(cwd, kind, targets, context, productPlan);
   if (inherited === undefined)
     return context;
-  const included = new Set([...targets, ...context].map((path7) => nodePath52.resolve(cwd, path7)));
+  const included = new Set([...targets, ...context].map((path7) => nodePath53.resolve(cwd, path7)));
   const resolved = [...context];
   const required = [
     ...inherited,
     ...PLANNING_KNOWLEDGE_ROLES.map((role) => requiredPlanningKnowledgeSource(cwd, role))
   ];
   for (const path7 of required) {
-    const absolute2 = nodePath52.resolve(cwd, path7);
+    const absolute2 = nodePath53.resolve(cwd, path7);
     if (!included.has(absolute2)) {
       resolved.push(path7);
       included.add(absolute2);
@@ -53323,7 +55354,7 @@ function resolvedPlanningContext(cwd, kind, targets, context, productPlan = fals
 function readPlanningAuthor(root, phase, identity2) {
   let bytes;
   try {
-    bytes = readFileSync34(nodePath52.join(root, identity2.relativePath));
+    bytes = readFileSync35(nodePath53.join(root, identity2.relativePath));
   } catch {
     throw new PlanningContractCopyError("missing_generated_contract_copy", phase, identity2.relativePath);
   }
@@ -53428,14 +55459,14 @@ function generatedTargets(root, files) {
       throw new ReviewPacketError("Git attributes could not be resolved for an oversized review target", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
     }
     const objectsPath = gitOutput(["-C", root, "rev-parse", "--git-path", "objects"], env2).toString("utf8").trim();
-    const objects = realpathSync7(nodePath52.resolve(root, objectsPath));
+    const objects = realpathSync8(nodePath53.resolve(root, objectsPath));
     const repoPrefix = readRepoPrefix(root, env2);
     const repoPaths = files.map((file) => `${repoPrefix}${file.relative}`);
-    const isolatedGit = mkdtempSync5(nodePath52.join(tmpdir3(), "safeword-review-git-"));
+    const isolatedGit = mkdtempSync6(nodePath53.join(tmpdir4(), "safeword-review-git-"));
     try {
-      const bare = nodePath52.join(isolatedGit, "bare");
-      const emptyTemplate = nodePath52.join(isolatedGit, "template");
-      mkdirSync11(emptyTemplate);
+      const bare = nodePath53.join(isolatedGit, "bare");
+      const emptyTemplate = nodePath53.join(isolatedGit, "template");
+      mkdirSync12(emptyTemplate);
       gitOutput(["init", "--bare", "-q", `--template=${emptyTemplate}`, bare], env2);
       const result = spawnSync5("git", [
         "--git-dir",
@@ -53472,7 +55503,7 @@ function generatedTargets(root, files) {
       }
       return marked;
     } finally {
-      rmSync7(isolatedGit, { recursive: true, force: true });
+      rmSync8(isolatedGit, { recursive: true, force: true });
     }
   } catch (error2) {
     if (error2 instanceof ReviewPacketError)
@@ -53482,8 +55513,8 @@ function generatedTargets(root, files) {
 }
 function oversizedState(root, file) {
   try {
-    const observed = lstatSync9(file.source);
-    if (escapes(root, realpathSync7(file.source)))
+    const observed = lstatSync10(file.source);
+    if (escapes(root, realpathSync8(file.source)))
       return "outside";
     if (!observed.isFile() || observed.dev !== file.device || observed.ino !== file.inode || observed.size !== file.size)
       return "changed";
@@ -53516,7 +55547,7 @@ function requireScenarioTicketSpec(kind, contextFiles) {
   if (kind !== "scenario-gate")
     return;
   const ticketSpec = contextFiles[0];
-  if (ticketSpec === undefined || nodePath52.basename(ticketSpec.path) !== "spec.md" || ticketSpec.content.trim() === "") {
+  if (ticketSpec === undefined || nodePath53.basename(ticketSpec.path) !== "spec.md" || ticketSpec.content.trim() === "") {
     throw new ReviewPacketError("Scenario-gate review requires a non-blank spec.md as its first context file");
   }
 }
@@ -53524,7 +55555,7 @@ function requirePlanWorkArtifact(kind, logicalFiles) {
   if (kind !== "plan-implementation")
     return;
   const plan = logicalFiles[0];
-  if (logicalFiles.length !== 1 || plan === undefined || nodePath52.basename(plan.path) !== "impl-plan.md" || plan.content.trim() === "") {
+  if (logicalFiles.length !== 1 || plan === undefined || nodePath53.basename(plan.path) !== "impl-plan.md" || plan.content.trim() === "") {
     throw new ReviewPacketError("Plan-implementation review requires one non-blank impl-plan.md work file; pass supporting evidence with --context");
   }
 }
@@ -53532,21 +55563,21 @@ function requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles) {
   if (kind !== "plan-execution")
     return;
   const plan = logicalFiles[0];
-  if (logicalFiles.length !== 1 || plan === undefined || nodePath52.basename(plan.path) !== "execution-plan.md" || plan.content.trim() === "") {
+  if (logicalFiles.length !== 1 || plan === undefined || nodePath53.basename(plan.path) !== "execution-plan.md" || plan.content.trim() === "") {
     throw new ReviewPacketError("Plan-execution review requires one non-blank execution-plan.md work file; pass supporting evidence with --context");
   }
-  const implementationPlan = contextFiles.find((file) => nodePath52.basename(file.path) === "impl-plan.md" && file.content.trim() !== "");
-  const scenarios = contextFiles.find((file) => nodePath52.extname(file.path) === ".feature" && file.content.trim() !== "");
+  const implementationPlan = contextFiles.find((file) => nodePath53.basename(file.path) === "impl-plan.md" && file.content.trim() !== "");
+  const scenarios = contextFiles.find((file) => nodePath53.extname(file.path) === ".feature" && file.content.trim() !== "");
   if (implementationPlan === undefined || scenarios === undefined) {
     throw new ReviewPacketError("Plan-execution review requires a non-blank impl-plan.md and approved .feature scenarios as context");
   }
 }
 function designApprovalGate(root) {
-  const configPath2 = nodePath52.join(root, ".safeword", "config.json");
+  const configPath2 = nodePath53.join(root, ".safeword", "config.json");
   if (!existsSync19(configPath2))
     return false;
   try {
-    const value = JSON.parse(readFileSync34(configPath2, "utf8"));
+    const value = JSON.parse(readFileSync35(configPath2, "utf8"));
     if (typeof value !== "object" || value === null || Array.isArray(value)) {
       throw new Error("configuration root is not an object");
     }
@@ -53603,7 +55634,7 @@ function planningPacketError(error2) {
   return error2 instanceof PlanningContractCopyError || error2 instanceof PlanningContextError ? error2 : undefined;
 }
 function digest3(content) {
-  return createHash22("sha256").update(content).digest("hex");
+  return createHash23("sha256").update(content).digest("hex");
 }
 function planObligations(contract) {
   return Array.from(contract.matchAll(/^- \*\*([^*]+):\*\*/gmu), (match) => match[1]?.trim() ?? "");
@@ -53621,8 +55652,8 @@ function assemblePlanContract(authorRubric, reviewerRubric) {
   };
 }
 function packageRoot() {
-  const runtimeDirectory = nodePath52.basename(import.meta.dirname);
-  return runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath52.dirname(import.meta.dirname) : nodePath52.resolve(import.meta.dirname, "../..");
+  const runtimeDirectory = nodePath53.basename(import.meta.dirname);
+  return runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath53.dirname(import.meta.dirname) : nodePath53.resolve(import.meta.dirname, "../..");
 }
 function packagedPlanAuthorRubric() {
   const source = packagedPlanningAuthor("plan-implementation");
@@ -53650,17 +55681,17 @@ function productPlanWorkTarget(root, kind, files) {
   if (kind !== "quality-review" || files.length !== 1)
     return false;
   const target = files[0];
-  if (target === undefined || nodePath52.basename(target.path) !== "spec.md")
+  if (target === undefined || nodePath53.basename(target.path) !== "spec.md")
     return false;
-  const ticketDirectory = nodePath52.dirname(nodePath52.resolve(root, target.path));
-  if (nodePath52.dirname(ticketDirectory) !== resolveTicketsDirectory(root))
+  const ticketDirectory = nodePath53.dirname(nodePath53.resolve(root, target.path));
+  if (nodePath53.dirname(ticketDirectory) !== resolveTicketsDirectory(root))
     return false;
-  const ticketPath = nodePath52.join(ticketDirectory, "ticket.md");
-  const relativeTicketPath = nodePath52.relative(root, ticketPath);
+  const ticketPath = nodePath53.join(ticketDirectory, "ticket.md");
+  const relativeTicketPath = nodePath53.relative(root, ticketPath);
   const markedProductPlan = target.content.includes("<!-- safeword:product-plan-contract:v1 -->");
   let metadata;
   try {
-    metadata = parseTicketMetadata(readFileSync34(ticketPath, "utf8")).metadata;
+    metadata = parseTicketMetadata(readFileSync35(ticketPath, "utf8")).metadata;
   } catch {
     if (markedProductPlan)
       throw new PlanningContextError("ticket", relativeTicketPath);
@@ -53671,15 +55702,15 @@ function productPlanWorkTarget(root, kind, files) {
       throw new PlanningContextError("ticket", relativeTicketPath);
     return false;
   }
-  return planningTicketOwner(metadata, nodePath52.basename(ticketDirectory), relativeTicketPath);
+  return planningTicketOwner(metadata, nodePath53.basename(ticketDirectory), relativeTicketPath);
 }
 function ownedPlanningTicket(root, target) {
-  const ticketDirectory = nodePath52.dirname(nodePath52.resolve(root, target));
-  if (nodePath52.dirname(ticketDirectory) !== resolveTicketsDirectory(root))
+  const ticketDirectory = nodePath53.dirname(nodePath53.resolve(root, target));
+  if (nodePath53.dirname(ticketDirectory) !== resolveTicketsDirectory(root))
     return false;
-  const ticketPath = nodePath52.join(ticketDirectory, "ticket.md");
+  const ticketPath = nodePath53.join(ticketDirectory, "ticket.md");
   const metadata = planningTicketMetadata(root, ticketPath, "ticket");
-  return planningTicketOwner(metadata, nodePath52.basename(ticketDirectory), nodePath52.relative(root, ticketPath));
+  return planningTicketOwner(metadata, nodePath53.basename(ticketDirectory), nodePath53.relative(root, ticketPath));
 }
 function packagedProductPlanContract() {
   const authorRubric = extractProductPlanReviewRubric(packagedPlanningAuthor("product-plan"));
@@ -53696,7 +55727,7 @@ function fingerprintPlanContract(phase) {
 }
 function isOwnedPlanningTarget(cwd, targets, expected) {
   const target = targets.length === 1 ? targets[0] : undefined;
-  return target !== undefined && nodePath52.basename(target) === expected && ownedPlanningTicket(cwd, target);
+  return target !== undefined && nodePath53.basename(target) === expected && ownedPlanningTicket(cwd, target);
 }
 function upstreamPlanContract(planningTarget, kind, fingerprintOnly) {
   if (!planningTarget || kind !== "plan-execution")
@@ -53725,8 +55756,8 @@ function packetPlanContract(kind, configured, productTarget, options) {
 function fileDigest(path7) {
   let descriptor;
   try {
-    descriptor = openSync5(path7, constants3.O_RDONLY | (constants3.O_NOFOLLOW ?? 0));
-    const stat3 = fstatSync2(descriptor);
+    descriptor = openSync6(path7, constants4.O_RDONLY | (constants4.O_NOFOLLOW ?? 0));
+    const stat3 = fstatSync3(descriptor);
     if (!stat3.isFile() || stat3.size > MAX_FILE_BYTES)
       return;
     const bytes = readBounded(descriptor, MAX_FILE_BYTES);
@@ -53735,7 +55766,7 @@ function fileDigest(path7) {
     return;
   } finally {
     if (descriptor !== undefined)
-      closeSync5(descriptor);
+      closeSync6(descriptor);
   }
 }
 function readBounded(descriptor, maxBytes) {
@@ -53752,11 +55783,11 @@ function readBounded(descriptor, maxBytes) {
 function sourceFileChanged(root, file) {
   let descriptor;
   try {
-    descriptor = openSync5(file.source, constants3.O_RDONLY | (constants3.O_NOFOLLOW ?? 0));
-    const current = fstatSync2(descriptor);
+    descriptor = openSync6(file.source, constants4.O_RDONLY | (constants4.O_NOFOLLOW ?? 0));
+    const current = fstatSync3(descriptor);
     if (!current.isFile() || current.dev !== file.device || current.ino !== file.inode)
       return true;
-    if (escapes(root, realpathSync7(file.source)))
+    if (escapes(root, realpathSync8(file.source)))
       return true;
     const bytes = readBounded(descriptor, MAX_FILE_BYTES);
     return bytes === undefined || digest3(bytes) !== file.sha256;
@@ -53764,7 +55795,7 @@ function sourceFileChanged(root, file) {
     return true;
   } finally {
     if (descriptor !== undefined)
-      closeSync5(descriptor);
+      closeSync6(descriptor);
   }
 }
 function requireStableSources(root, files) {
@@ -53779,9 +55810,9 @@ function throwFirstTargetError(errors) {
   throw errors[0]?.error;
 }
 function readContainedText(root, source, target, packetBytesRemaining) {
-  const descriptor = openSync5(source, constants3.O_RDONLY | (constants3.O_NOFOLLOW ?? 0));
+  const descriptor = openSync6(source, constants4.O_RDONLY | (constants4.O_NOFOLLOW ?? 0));
   try {
-    const opened = fstatSync2(descriptor);
+    const opened = fstatSync3(descriptor);
     if (!opened.isFile()) {
       throw new ReviewPacketError(`Review target is not a regular file: ${target}`, "REVIEW_TARGET_NOT_REGULAR");
     }
@@ -53791,11 +55822,11 @@ function readContainedText(root, source, target, packetBytesRemaining) {
     if (opened.size > packetBytesRemaining) {
       throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE");
     }
-    const resolved = realpathSync7(source);
+    const resolved = realpathSync8(source);
     if (escapes(root, resolved)) {
       throw new ReviewPacketError(`Review target escapes the project: ${target}`, "REVIEW_TARGET_OUTSIDE_PROJECT");
     }
-    const observed = lstatSync9(resolved);
+    const observed = lstatSync10(resolved);
     if (opened.dev !== observed.dev || opened.ino !== observed.ino) {
       throw new ReviewPacketError(`Review target changed while it was being captured: ${target}`, "REVIEW_TARGET_CHANGED");
     }
@@ -53814,21 +55845,21 @@ function readContainedText(root, source, target, packetBytesRemaining) {
     }
     return { bytes, content, device: opened.dev, inode: opened.ino };
   } finally {
-    closeSync5(descriptor);
+    closeSync6(descriptor);
   }
 }
 function escapes(root, candidate) {
-  const relative = nodePath52.relative(root, candidate);
-  return relative === ".." || relative.startsWith(`..${nodePath52.sep}`) || nodePath52.isAbsolute(relative);
+  const relative = nodePath53.relative(root, candidate);
+  return relative === ".." || relative.startsWith(`..${nodePath53.sep}`) || nodePath53.isAbsolute(relative);
 }
-function toReviewPath(relative, separator = nodePath52.sep) {
+function toReviewPath(relative, separator = nodePath53.sep) {
   return relative.split(separator).join("/");
 }
 function snapshotEntries(root, directory = root) {
-  return readdirSync12(directory).flatMap((name) => {
-    const path7 = nodePath52.join(directory, name);
-    const relative = nodePath52.relative(root, path7);
-    const stats = lstatSync9(path7);
+  return readdirSync13(directory).flatMap((name) => {
+    const path7 = nodePath53.join(directory, name);
+    const relative = nodePath53.relative(root, path7);
+    const stats = lstatSync10(path7);
     if (stats.isDirectory())
       return [`directory:${relative}`, ...snapshotEntries(root, path7)];
     if (stats.isFile())
@@ -53837,7 +55868,7 @@ function snapshotEntries(root, directory = root) {
   });
 }
 function planningRoleSources(cwd, context, included) {
-  const sources = context?.dependencies.map((source) => requiredPlanningSource(cwd, source.role, nodePath52.resolve(cwd, source.path)));
+  const sources = context?.dependencies.map((source) => requiredPlanningSource(cwd, source.role, nodePath53.resolve(cwd, source.path)));
   return [...new Set(sources).difference(included)];
 }
 function requirePacketFileCount(count) {
@@ -53876,13 +55907,13 @@ function validatePlanEvidenceRecords(kind, files) {
   if (kind !== "plan-implementation" && kind !== "plan-execution")
     return;
   for (const file of files)
-    if (nodePath52.basename(file.path) === "impl-plan.md")
+    if (nodePath53.basename(file.path) === "impl-plan.md")
       planningEvidenceRecords(file.content);
 }
 function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution = {}) {
   const executionAttestation = checkedExecutionAttestation(kind, execution);
-  const canonicalRoot = realpathSync7(cwd);
-  const workspace = mkdtempSync5(nodePath52.join(tmpdir3(), "safeword-review-"));
+  const canonicalRoot = realpathSync8(cwd);
+  const workspace = mkdtempSync6(nodePath53.join(tmpdir4(), "safeword-review-"));
   const tracked = [];
   const oversized = [];
   const captured2 = [];
@@ -53898,13 +55929,13 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     let packetBytes = 0;
     const captureFiles = (files, allowGenerated, offset) => files.flatMap((target, index) => {
       try {
-        const source = nodePath52.resolve(canonicalRoot, target);
-        const relative = nodePath52.relative(canonicalRoot, source);
+        const source = nodePath53.resolve(canonicalRoot, target);
+        const relative = nodePath53.relative(canonicalRoot, source);
         if (escapes(canonicalRoot, source)) {
           throw new ReviewPacketError(`Review target escapes the project: ${target}`, "REVIEW_TARGET_OUTSIDE_PROJECT");
         }
-        const stats = lstatSync9(source);
-        if (escapes(canonicalRoot, realpathSync7(source))) {
+        const stats = lstatSync10(source);
+        if (escapes(canonicalRoot, realpathSync8(source))) {
           throw new ReviewPacketError(`Review target escapes the project: ${target}`, "REVIEW_TARGET_OUTSIDE_PROJECT");
         }
         if (!stats.isFile()) {
@@ -53933,13 +55964,13 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
         if (packetBytes > MAX_PACKET_BYTES) {
           throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE");
         }
-        const snapshot = nodePath52.join(workspace, relative);
-        mkdirSync11(nodePath52.dirname(snapshot), { recursive: true });
-        writeFileSync12(snapshot, bytes, { mode: 384 });
-        let parent = nodePath52.dirname(relative);
+        const snapshot = nodePath53.join(workspace, relative);
+        mkdirSync12(nodePath53.dirname(snapshot), { recursive: true });
+        writeFileSync13(snapshot, bytes, { mode: 384 });
+        let parent = nodePath53.dirname(relative);
         while (parent !== ".") {
           expectedSnapshotEntries.add(`directory:${parent}`);
-          parent = nodePath52.dirname(parent);
+          parent = nodePath53.dirname(parent);
         }
         expectedSnapshotEntries.add(`file:${relative}`);
         tracked.push({ source, snapshot, sha256: digest3(bytes), device, inode });
@@ -53953,7 +55984,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     });
     const seen = new Set;
     const rejectDuplicate = (target) => {
-      const relative = nodePath52.relative(canonicalRoot, nodePath52.resolve(canonicalRoot, target));
+      const relative = nodePath53.relative(canonicalRoot, nodePath53.resolve(canonicalRoot, target));
       if (seen.has(relative)) {
         throw new Error(`Review packet contains a duplicate file: ${target}`);
       }
@@ -53961,7 +55992,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     };
     const uniqueTargets = [];
     for (const target of targets) {
-      const relative = nodePath52.relative(canonicalRoot, nodePath52.resolve(canonicalRoot, target));
+      const relative = nodePath53.relative(canonicalRoot, nodePath53.resolve(canonicalRoot, target));
       if (seen.has(relative))
         continue;
       rejectDuplicate(target);
@@ -54015,7 +56046,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     requireStableSources(canonicalRoot, tracked);
     throwFirstTargetError(targetErrors);
   } catch (error2) {
-    rmSync7(workspace, { recursive: true, force: true });
+    rmSync8(workspace, { recursive: true, force: true });
     throw error2;
   }
   const packet = {
@@ -54032,7 +56063,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     ...executionAttestation !== undefined && { execution_attestation: executionAttestation }
   };
   if (Buffer.byteLength(JSON.stringify(packet), "utf8") > MAX_PACKET_BYTES) {
-    rmSync7(workspace, { recursive: true, force: true });
+    rmSync8(workspace, { recursive: true, force: true });
     throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE");
   }
   return {
@@ -54052,7 +56083,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
       }
     },
     cleanup: () => {
-      rmSync7(workspace, { recursive: true, force: true });
+      rmSync8(workspace, { recursive: true, force: true });
     }
   };
 }
@@ -54113,1897 +56144,6 @@ var init_packet = __esm(() => {
       this.copy = copy;
     }
   };
-});
-
-// src/review/codex-app-server-proof.ts
-function record(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function unique(messages3, predicate) {
-  const matches = messages3.filter((message) => record(message) && predicate(message));
-  return matches.length === 1 ? matches[0] : undefined;
-}
-function startedTurn(messages3) {
-  const start = unique(messages3, (message) => message.id === 2);
-  const turnStart = unique(messages3, (message) => message.id === 3);
-  if (!record(start?.result) || !record(start.result.thread) || !record(turnStart?.result))
-    return;
-  const threadId = start.result.thread.id;
-  const turn = turnStart.result.turn;
-  if (typeof threadId !== "string" || !record(turn) || typeof turn.id !== "string")
-    return;
-  return { threadId, turnId: turn.id, start: start.result };
-}
-function completedTurn(messages3, threadId, turnId) {
-  const completed = unique(messages3, (message) => message.method === "turn/completed" && record(message.params) && message.params.threadId === threadId && record(message.params.turn) && message.params.turn.id === turnId);
-  if (!record(completed?.params) || !record(completed.params.turn))
-    return;
-  const finishedTurn = completed.params.turn;
-  if (finishedTurn.status !== "completed" || !Array.isArray(finishedTurn.items))
-    return;
-  return finishedTurn;
-}
-function codexAppServerFailedTurn(messages3) {
-  const started = startedTurn(messages3);
-  if (started === undefined)
-    return false;
-  return messages3.some((message) => record(message) && message.method === "turn/completed" && record(message.params) && message.params.threadId === started.threadId && record(message.params.turn) && message.params.turn.id === started.turnId && message.params.turn.status === "failed");
-}
-function finalAnswer(turn) {
-  if (!Array.isArray(turn.items))
-    return;
-  const answers = turn.items.filter((item) => record(item) && item.type === "agentMessage" && item.phase === "final_answer" && typeof item.text === "string");
-  if (answers.length !== 1 || typeof answers[0]?.text !== "string")
-    return;
-  return answers[0].text;
-}
-function wasRerouted(messages3, threadId, turnId) {
-  return messages3.some((message) => record(message) && message.method === "model/rerouted" && record(message.params) && message.params.threadId === threadId && message.params.turnId === turnId);
-}
-function confirmedModel(start, selectedModel) {
-  const model = start.model;
-  const provider = start.modelProvider;
-  if (typeof model !== "string" || model === "" || provider !== "openai" || selectedModel !== undefined && selectedModel !== model)
-    return;
-  return { provider, model };
-}
-function codexAppServerProof(messages3, selectedModel) {
-  const started = startedTurn(messages3);
-  if (started === undefined)
-    return;
-  const completed = completedTurn(messages3, started.threadId, started.turnId);
-  if (completed === undefined)
-    return;
-  const text = finalAnswer(completed);
-  if (text === undefined)
-    return;
-  const model = wasRerouted(messages3, started.threadId, started.turnId) ? undefined : confirmedModel(started.start, selectedModel);
-  return {
-    text,
-    ...model && { confirmedModel: model }
-  };
-}
-
-// src/review/environment.ts
-function filteredEnvironment(reviewer, source = process.env, platform2 = process.platform) {
-  const normalize = (name) => platform2 === "win32" ? name.toUpperCase() : name;
-  const allowed = new Set([
-    ...PROCESS_VARIABLES,
-    ...REVIEWER_CONTROL_VARIABLES,
-    ...(source.NODE_ENV ?? "development") === "test" ? REVIEWER_FIXTURE_VARIABLES : [],
-    ...reviewer === undefined ? [] : VENDOR_VARIABLES[reviewer]
-  ].map((name) => normalize(name)));
-  const managedProgressSignal = normalize("SAFEWORD_REVIEW_PROGRESS");
-  return Object.fromEntries(Object.entries(source).filter(([name]) => normalize(name) !== managedProgressSignal && allowed.has(normalize(name))));
-}
-function reviewerEnvironment(reviewer, source = process.env, platform2 = process.platform) {
-  const environment = filteredEnvironment(reviewer, source, platform2);
-  if (reviewer !== "opencode")
-    return environment;
-  let inlineConfig = {};
-  try {
-    const parsed2 = JSON.parse(environment.OPENCODE_CONFIG_CONTENT ?? "{}");
-    if (parsed2 !== null && typeof parsed2 === "object" && !Array.isArray(parsed2)) {
-      inlineConfig = parsed2;
-    }
-  } catch {}
-  return {
-    ...environment,
-    OPENCODE_CONFIG_CONTENT: JSON.stringify({ ...inlineConfig, permission: { "*": "deny" } }),
-    OPENCODE_DISABLE_AUTOUPDATE: "true",
-    OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
-    OPENCODE_DISABLE_LSP_DOWNLOAD: "true"
-  };
-}
-function reviewerProbeEnvironment(source = process.env, platform2 = process.platform) {
-  return filteredEnvironment(undefined, source, platform2);
-}
-var VENDOR_VARIABLES, PROCESS_VARIABLES, REVIEWER_CONTROL_VARIABLES, REVIEWER_FIXTURE_VARIABLES;
-var init_environment = __esm(() => {
-  VENDOR_VARIABLES = {
-    claude: [
-      "ANTHROPIC_API_KEY",
-      "CLAUDE_CODE_OAUTH_TOKEN",
-      "CLAUDE_CONFIG_DIR",
-      "CLAUDE_SESSION_ID",
-      "CLAUDE_CODE_SESSION_ID"
-    ],
-    codex: [
-      "OPENAI_API_KEY",
-      "AZURE_OPENAI_API_KEY",
-      "CODEX_API_KEY",
-      "CODEX_HOME",
-      "CODEX_THREAD_ID"
-    ],
-    opencode: [
-      "ANTHROPIC_API_KEY",
-      "OPENAI_API_KEY",
-      "AZURE_OPENAI_API_KEY",
-      "OPENCODE_CONFIG",
-      "OPENCODE_CONFIG_CONTENT",
-      "OPENCODE_CONFIG_DIR"
-    ]
-  };
-  PROCESS_VARIABLES = [
-    "ALL_PROXY",
-    "APPDATA",
-    "HOME",
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "LANG",
-    "LC_ALL",
-    "LOGNAME",
-    "LOCALAPPDATA",
-    "NODE_EXTRA_CA_CERTS",
-    "NO_PROXY",
-    "PATH",
-    "PATHEXT",
-    "SHELL",
-    "SYSTEMROOT",
-    "SSL_CERT_DIR",
-    "SSL_CERT_FILE",
-    "TEMP",
-    "TERM",
-    "TMP",
-    "TMPDIR",
-    "USER",
-    "USERPROFILE",
-    "COMSPEC",
-    "XDG_CACHE_HOME",
-    "XDG_CONFIG_HOME",
-    "all_proxy",
-    "http_proxy",
-    "https_proxy",
-    "no_proxy"
-  ];
-  REVIEWER_CONTROL_VARIABLES = [
-    "SAFEWORD_REVIEW_RUN_BOUND_MS",
-    "SAFEWORD_REVIEW_TIMEOUT_MS"
-  ];
-  REVIEWER_FIXTURE_VARIABLES = [
-    "SAFEWORD_REVIEW_ACCEPTED_MODEL",
-    "SAFEWORD_REVIEW_BDD_EXPECTED_MODEL",
-    "SAFEWORD_REVIEW_CANDIDATE_LOG",
-    "SAFEWORD_REVIEW_CHILD_PID",
-    "SAFEWORD_REVIEW_COVERAGE_FAIL",
-    "SAFEWORD_REVIEW_COVERAGE_FAIL_CLAUDE",
-    "SAFEWORD_REVIEW_COVERAGE_FAIL_CODEX",
-    "SAFEWORD_REVIEW_COVERAGE_FINDING",
-    "SAFEWORD_REVIEW_COVERAGE_VERDICT",
-    "SAFEWORD_REVIEW_DESCENDANT_PID_FILE",
-    "SAFEWORD_REVIEW_ENV_LOG",
-    "SAFEWORD_REVIEW_FAKE_DELAY_AGENT",
-    "SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD",
-    "SAFEWORD_REVIEW_FAKE_FAILURE",
-    "SAFEWORD_REVIEW_FAKE_FAILURE_AGENT",
-    "SAFEWORD_REVIEW_FAKE_FAILURE_CLAUDE",
-    "SAFEWORD_REVIEW_FAKE_FAILURE_CODEX",
-    "SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE",
-    "SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS",
-    "SAFEWORD_REVIEW_FAKE_FINDING",
-    "SAFEWORD_REVIEW_FAKE_HELP_FAILURE",
-    "SAFEWORD_REVIEW_FAKE_IDENTITY",
-    "SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY",
-    "SAFEWORD_REVIEW_FAKE_MUTATE",
-    "SAFEWORD_REVIEW_FAKE_MUTATE_AGENT",
-    "SAFEWORD_REVIEW_FAKE_SOURCE_MUTATE_TARGET",
-    "SAFEWORD_REVIEW_FAKE_SUMMARY",
-    "SAFEWORD_REVIEW_FAKE_VERDICT",
-    "SAFEWORD_REVIEW_HELP_MUTATE",
-    "SAFEWORD_REVIEW_LAUNCH_LOG",
-    "SAFEWORD_REVIEW_LOG",
-    "SAFEWORD_REVIEW_MODEL_LOG",
-    "SAFEWORD_REVIEW_MODEL_PROMPT_LOG",
-    "SAFEWORD_REVIEW_PROBE_ENV_LOG",
-    "SAFEWORD_REVIEW_PROMPT_LOG",
-    "SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR",
-    "SAFEWORD_REVIEW_ROUTE_LOG",
-    "SAFEWORD_REVIEW_SCHEMA_COPY",
-    "SAFEWORD_REVIEW_SCHEMA_PATH_LOG",
-    "SAFEWORD_REVIEW_STUBBORN_PID",
-    "SAFEWORD_REVIEW_SWAP_ALIAS",
-    "SAFEWORD_REVIEW_SWAP_TARGET"
-  ];
-});
-
-// src/review/execution-plan-output.ts
-import { isDeepStrictEqual } from "util";
-function isRecord7(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function hasExactKeys3(value, keys) {
-  const expected = new Set(keys);
-  return Object.keys(value).length === keys.length && Object.keys(value).every((key) => expected.has(key));
-}
-function isNonblank(value) {
-  return typeof value === "string" && value.trim() !== "";
-}
-function isSha2562(value) {
-  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
-}
-function uniqueNonblankStrings(value, allowEmpty) {
-  if (!Array.isArray(value) || !allowEmpty && value.length === 0)
-    return false;
-  if (!value.every(isNonblank))
-    return false;
-  return new Set(value).size === value.length;
-}
-function deniedOutput(output, messages3 = []) {
-  return {
-    kind: "denied",
-    output: {
-      ...output,
-      verdict: "request_changes",
-      execution_plan_record: NULL_EXECUTION_PLAN_RECORD,
-      findings: [
-        ...output.findings,
-        ...messages3.map((message) => ({ severity: "error", message }))
-      ]
-    }
-  };
-}
-function successorTripwireFinding(value, index) {
-  if (!isRecord7(value) || value.relies_on_unmerged_successor !== true)
-    return;
-  const name = isNonblank(value.name) ? value.name : `slice ${index + 1}`;
-  return `Execution Plan slice "${name}" relies on an unmerged successor.`;
-}
-function decisionTripwireFinding(value, index) {
-  if (!isRecord7(value) || !isNonblank(value.status) || value.status === "unchanged") {
-    return;
-  }
-  const name = isNonblank(value.decision) ? value.decision : `decision ${index + 1}`;
-  return `Execution Plan decision "${name}" has status "${value.status}" instead of unchanged.`;
-}
-function readableTripwireFindings(record2) {
-  const sliceFindings = Array.isArray(record2.slices) ? record2.slices.map((slice2, index) => successorTripwireFinding(slice2, index)).filter((finding) => finding !== undefined) : [];
-  const decisionFindings = Array.isArray(record2.decision_statuses) ? record2.decision_statuses.map((decision, index) => decisionTripwireFinding(decision, index)).filter((finding) => finding !== undefined) : [];
-  return [...sliceFindings, ...decisionFindings];
-}
-function isValidSlice(value) {
-  if (!isRecord7(value))
-    return false;
-  if (!hasExactKeys3(value, [
-    "name",
-    "purpose",
-    "boundary",
-    "prerequisites",
-    "proof",
-    "completion_signal",
-    "relies_on_unmerged_successor"
-  ])) {
-    return false;
-  }
-  return isNonblank(value.name) && isNonblank(value.purpose) && isNonblank(value.boundary) && uniqueNonblankStrings(value.prerequisites, true) && isNonblank(value.proof) && isNonblank(value.completion_signal) && value.relies_on_unmerged_successor === false;
-}
-function hasValidRecordHeader(value) {
-  const decisionIsValid = value.slicing_decision === "one_pull_request" || value.slicing_decision === "multiple_pull_requests";
-  return hasExactKeys3(value, [
-    "slicing_decision",
-    "rationale",
-    "slices",
-    "obligation_owners",
-    "decision_statuses",
-    "accepted_scenarios_covered",
-    "accepted_approach_preserved",
-    "normalized_plan_digest",
-    "delivery_definition"
-  ]) && decisionIsValid && isNonblank(value.rationale) && Array.isArray(value.slices) && value.slices.every(isValidSlice) && Array.isArray(value.obligation_owners) && Array.isArray(value.decision_statuses) && isSha2562(value.normalized_plan_digest) && hasValidPlanJudgmentHeader(value);
-}
-function hasValidPlanJudgmentHeader(value) {
-  return value.accepted_scenarios_covered === true && value.accepted_approach_preserved === true && isRecord7(value.delivery_definition);
-}
-function isProjectContainedPath2(value) {
-  if (value === "" || value.startsWith("/") || value.startsWith("\\"))
-    return false;
-  if (/^[A-Za-z]:[\\/]/u.test(value) || value.includes("\x00"))
-    return false;
-  return !value.split(/[\\/]/u).includes("..");
-}
-function isValidProofInvocation(value, method) {
-  if (!isRecord7(value) || value.type !== method)
-    return false;
-  if (method === "command") {
-    return hasExactKeys3(value, ["type", "cwd", "argv"]) && typeof value.cwd === "string" && isProjectContainedPath2(value.cwd) && uniqueNonblankStrings(value.argv, false);
-  }
-  return hasExactKeys3(value, ["type", "kind", "targets"]) && isNonblank(value.kind) && uniqueNonblankStrings(value.targets, false) && value.targets.every((target) => isProjectContainedPath2(target));
-}
-function isValidProofSpecification(value) {
-  if (!isRecord7(value) || !hasExactKeys3(value, [
-    "proof_id",
-    "method",
-    "scope",
-    "boundary_exercised",
-    "qualifies_as",
-    "currency",
-    "invocation"
-  ])) {
-    return false;
-  }
-  const methodIsValid = value.method === "command" || value.method === "review_receipt";
-  const scopeIsValid = ["unit", "integration", "E2E", "eval"].includes(String(value.scope));
-  const qualificationIsValid = ["real_boundary", "partial_or_structural"].includes(String(value.qualifies_as));
-  const currencyIsValid = ["current_required", "compatible_earlier_allowed"].includes(String(value.currency));
-  return isNonblank(value.proof_id) && isNonblank(value.boundary_exercised) && methodIsValid && scopeIsValid && qualificationIsValid && currencyIsValid && isValidProofInvocation(value.invocation, value.method);
-}
-function hasValidChecklistItemBase(value) {
-  return isNonblank(value.id) && DELIVERY_CHECKLIST_CATEGORIES.includes(value.category) && isNonblank(value.obligation);
-}
-function contributorDefinitionIsValid(value) {
-  if (value.reviewed_disposition === "not_applicable") {
-    return value.required_proof === "" && isNonblank(value.reviewed_detail);
-  }
-  return value.reviewed_disposition === null && value.reviewed_detail === null && isNonblank(value.required_proof);
-}
-function humanDefinitionIsValid(value) {
-  return value.required_proof === "" && (value.reviewed_disposition === "not_applicable" || value.reviewed_disposition === "pending_human") && isNonblank(value.reviewed_detail);
-}
-function isValidChecklistDefinitionItem(value) {
-  if (!isRecord7(value) || !hasExactKeys3(value, [
-    "id",
-    "category",
-    "obligation",
-    "owner",
-    "required_proof",
-    "reviewed_disposition",
-    "reviewed_detail"
-  ])) {
-    return false;
-  }
-  if (!hasValidChecklistItemBase(value))
-    return false;
-  if (value.owner === "contributor")
-    return contributorDefinitionIsValid(value);
-  return value.owner === "human" && humanDefinitionIsValid(value);
-}
-function hasValidDeliveryDefinitionHeader(definition) {
-  return hasExactKeys3(definition, [
-    "schema_version",
-    "design_approval_gate",
-    "proof_specifications",
-    "checklist_items"
-  ]) && definition.schema_version === 1 && typeof definition.design_approval_gate === "boolean" && Array.isArray(definition.proof_specifications) && Array.isArray(definition.checklist_items) && definition.proof_specifications.length > 0 && definition.checklist_items.length > 0;
-}
-function hasUniqueDefinitionIds(definition) {
-  const proofIds = definition.proof_specifications.map((proof) => proof.proof_id);
-  const itemIds = definition.checklist_items.map((item) => item.id);
-  return new Set(proofIds).size === proofIds.length && new Set(itemIds).size === itemIds.length;
-}
-function hasEveryDefinitionCategory(definition) {
-  const presentCategories = new Set(definition.checklist_items.map((item) => item.category));
-  return DELIVERY_CHECKLIST_CATEGORIES.every((category) => presentCategories.has(category));
-}
-function contributorProofsAreReal(definition) {
-  const realProofs = new Set(definition.proof_specifications.filter((proof) => proof.qualifies_as === "real_boundary").map((proof) => proof.proof_id));
-  return definition.checklist_items.every((item) => item.owner !== "contributor" || item.reviewed_disposition === "not_applicable" || realProofs.has(item.required_proof));
-}
-function hasValidDeliveryDefinition(definition) {
-  if (!hasValidDeliveryDefinitionHeader(definition))
-    return false;
-  if (definition.proof_specifications.some((proof) => !isValidProofSpecification(proof))) {
-    return false;
-  }
-  if (definition.checklist_items.some((item) => !isValidChecklistDefinitionItem(item))) {
-    return false;
-  }
-  return hasUniqueDefinitionIds(definition) && hasEveryDefinitionCategory(definition) && contributorProofsAreReal(definition);
-}
-function hasValidSliceGraph(record2) {
-  const slices = record2.slices;
-  const countMatchesDecision = record2.slicing_decision === "one_pull_request" ? slices.length === 1 : slices.length >= 2;
-  const sliceNames = slices.map((slice2) => slice2.name);
-  const namesAreUnique = new Set(sliceNames).size === sliceNames.length;
-  const prerequisitesAreEarlier = slices.every((slice2, index) => {
-    const earlier = new Set(sliceNames.slice(0, index));
-    return slice2.prerequisites.every((prerequisite) => earlier.has(prerequisite));
-  });
-  return countMatchesDecision && namesAreUnique && prerequisitesAreEarlier;
-}
-function isValidObligationOwner(value, sliceNames, seen) {
-  if (!isRecord7(value) || !hasExactKeys3(value, ["obligation", "slices"]))
-    return false;
-  if (!isNonblank(value.obligation) || seen.has(value.obligation))
-    return false;
-  if (!uniqueNonblankStrings(value.slices, false))
-    return false;
-  if (value.slices.some((slice2) => !sliceNames.includes(slice2)))
-    return false;
-  seen.add(value.obligation);
-  return true;
-}
-function hasValidObligationOwners(record2) {
-  if (record2.obligation_owners.length === 0)
-    return false;
-  const sliceNames = record2.slices.map((slice2) => slice2.name);
-  const seen = new Set;
-  const valid = record2.obligation_owners.every((owner) => isValidObligationOwner(owner, sliceNames, seen));
-  if (!valid)
-    return false;
-  const owned = new Set(record2.obligation_owners.flatMap((owner) => owner.slices));
-  return sliceNames.every((slice2) => owned.has(slice2));
-}
-function hasValidDecisionStatuses(record2) {
-  if (record2.decision_statuses.length === 0)
-    return false;
-  const seen = new Set;
-  return record2.decision_statuses.every((decision) => {
-    if (!isRecord7(decision) || !hasExactKeys3(decision, ["decision", "status"]))
-      return false;
-    if (!isNonblank(decision.decision) || seen.has(decision.decision))
-      return false;
-    if (decision.status !== "unchanged")
-      return false;
-    seen.add(decision.decision);
-    return true;
-  });
-}
-function isValidExecutionPlanRecord(value) {
-  if (!isRecord7(value) || !hasValidRecordHeader(value))
-    return false;
-  const record2 = value;
-  return hasValidSliceGraph(record2) && hasValidObligationOwners(record2) && hasValidDecisionStatuses(record2) && hasValidDeliveryDefinition(record2.delivery_definition);
-}
-function hasValidPlanningDestination(output) {
-  const destination = output.planning_destination;
-  return (destination === "plan-execution" || destination === "plan-implementation") && (output.verdict !== "approve" || destination === "plan-execution");
-}
-function validateExecutionPlanOutput(output, expectedDefinition, expectedNormalizedPlanDigest) {
-  if (!hasValidPlanningDestination(output))
-    return { kind: "invalid_output" };
-  if (output.verdict === "request_changes")
-    return deniedOutput(output);
-  const candidate = output.execution_plan_record;
-  if (isRecord7(candidate)) {
-    const tripwires = readableTripwireFindings(candidate);
-    if (tripwires.length > 0)
-      return deniedOutput(output, tripwires);
-  }
-  if (!isValidExecutionPlanRecord(candidate))
-    return { kind: "invalid_output" };
-  if (expectedDefinition !== undefined && !isDeepStrictEqual(candidate.delivery_definition, expectedDefinition)) {
-    return { kind: "invalid_output" };
-  }
-  if (expectedNormalizedPlanDigest !== undefined && candidate.normalized_plan_digest !== expectedNormalizedPlanDigest) {
-    return { kind: "invalid_output" };
-  }
-  return { kind: "approved", output: { ...output, execution_plan_record: candidate } };
-}
-var NULL_EXECUTION_PLAN_RECORD;
-var init_execution_plan_output = __esm(() => {
-  init_delivery_checklist();
-  NULL_EXECUTION_PLAN_RECORD = JSON.parse("null");
-});
-
-// src/review/runtime.ts
-import { spawn } from "child_process";
-import { createHash as createHash23 } from "crypto";
-import {
-  accessSync as accessSync2,
-  chmodSync as chmodSync3,
-  closeSync as closeSync6,
-  constants as constants4,
-  fstatSync as fstatSync3,
-  lstatSync as lstatSync10,
-  mkdirSync as mkdirSync12,
-  mkdtempSync as mkdtempSync6,
-  openSync as openSync6,
-  readdirSync as readdirSync13,
-  readFileSync as readFileSync35,
-  realpathSync as realpathSync8,
-  renameSync as renameSync7,
-  rmSync as rmSync8,
-  symlinkSync,
-  writeFileSync as writeFileSync13
-} from "fs";
-import { homedir as homedir5, tmpdir as tmpdir4 } from "os";
-import nodePath53 from "path";
-function reviewOutputSchema(kind, planningPhase) {
-  if (kind === "plan-execution")
-    return JSON.stringify(EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE);
-  if (planningPhase === "product-plan" || kind === "scenario-gate" || kind === "plan-implementation")
-    return JSON.stringify(PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE);
-  return REVIEW_OUTPUT_SCHEMA;
-}
-function configuredClaudeEffort(environment) {
-  const effort = environment.SAFEWORD_REVIEW_EFFORT_CLAUDE;
-  if (effort === undefined || effort.trim() === "")
-    return;
-  if (CLAUDE_EFFORT_LEVELS.has(effort))
-    return effort;
-  warn(`Ignoring SAFEWORD_REVIEW_EFFORT_CLAUDE='${effort}' - expected low, medium, high, xhigh, or max.`);
-  return;
-}
-function baseReviewerArguments(reviewer, kind, planningPhase) {
-  const base = [...ARGUMENTS[reviewer]];
-  if (reviewer !== "claude")
-    return base;
-  const schemaIndex = base.indexOf("--json-schema") + 1;
-  base[schemaIndex] = reviewOutputSchema(kind, planningPhase);
-  if (planningPhase === "product-plan" || ["scenario-gate", "plan-implementation", "plan-execution"].includes(kind)) {
-    base[base.indexOf("--output-format") + 1] = "stream-json";
-    base.push("--verbose");
-  }
-  return base;
-}
-function reviewerExtraArguments(reviewer, model, schemaPath, environment) {
-  const extra = [];
-  if (model !== undefined)
-    extra.push("--model", model);
-  const effort = reviewer === "claude" ? configuredClaudeEffort(environment) : undefined;
-  if (effort !== undefined)
-    extra.push("--effort", effort);
-  if (reviewer === "codex" && schemaPath !== undefined)
-    extra.push("--output-schema", schemaPath);
-  return extra;
-}
-function reviewerArguments(reviewer, model, schemaPath, environment = process.env, review = "quality-review") {
-  const kind = typeof review === "string" ? review : review.kind;
-  const planningPhase = typeof review === "string" ? undefined : review.planning_phase;
-  const base = baseReviewerArguments(reviewer, kind, planningPhase);
-  const extra = reviewerExtraArguments(reviewer, model, schemaPath, environment);
-  if (extra.length === 0)
-    return base;
-  if (reviewer !== "codex")
-    return [...base, ...extra];
-  const stdinMarker = base.length - 1;
-  if (base[stdinMarker] !== "-")
-    throw new Error("Codex reviewer arguments lack the stdin marker");
-  return [...base.slice(0, stdinMarker), ...extra, "-"];
-}
-function reviewRunCeiling(env2) {
-  return env2.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_RUN_BOUND_MS : RUN_BOUND_MS;
-}
-function runBoundMs(env2 = process.env) {
-  const configured = Number(env2.SAFEWORD_REVIEW_RUN_BOUND_MS);
-  const ceiling = reviewRunCeiling(env2);
-  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, ceiling) : ceiling;
-}
-function reviewWorkerRunBoundMs(env2 = process.env) {
-  return runBoundMs({ ...env2, SAFEWORD_REVIEW_WORKER: "1" });
-}
-function minimumRouteMs(env2 = process.env) {
-  return Math.min(60000, reviewTimeoutMilliseconds(env2));
-}
-function reviewTimeoutMilliseconds(env2 = process.env) {
-  const raw = env2.SAFEWORD_REVIEW_TIMEOUT_MS;
-  const configured = raw === undefined ? NaN : Number(raw);
-  const ceiling = runBoundMs(env2);
-  const defaultDeadline = env2.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_ATTEMPT_DEADLINE_MS : DEFAULT_ATTEMPT_DEADLINE_MS;
-  const maximumAttempt = ceiling > 60000 ? ceiling - 60000 : ceiling;
-  const requested = Number.isFinite(configured) && configured > 0 ? configured : defaultDeadline;
-  return Math.min(requested, maximumAttempt);
-}
-function isRecord8(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function parseJson(value) {
-  return JSON.parse(value);
-}
-function parseClaudeOutput(stdout) {
-  let envelope;
-  try {
-    envelope = parseJson(stdout);
-  } catch {
-    envelope = ndjsonEvents(stdout).findLast((event) => isRecord8(event) && event.type === "result" && event.subtype === "success");
-  }
-  if (isRecord8(envelope) && isRecord8(envelope.structured_output)) {
-    return envelope.structured_output;
-  }
-  if (isRecord8(envelope) && typeof envelope.result === "string") {
-    return parseJson(envelope.result);
-  }
-  return envelope;
-}
-function ndjsonEvents(stdout) {
-  return stdout.split(`
-`).filter((line) => line.trim() !== "").flatMap((line) => {
-    try {
-      return [parseJson(line)];
-    } catch {
-      return [];
-    }
-  });
-}
-function parseCodexOutput(stdout) {
-  const events = ndjsonEvents(stdout);
-  const message = events.findLast((event) => isRecord8(event) && event.type === "item.completed" && isRecord8(event.item) && event.item.type === "agent_message" && typeof event.item.text === "string");
-  if (isRecord8(message) && isRecord8(message.item) && typeof message.item.text === "string") {
-    return parseJson(message.item.text);
-  }
-  return parseJson(stdout);
-}
-function parseOpenCodeOutput(stdout) {
-  const completed = ndjsonEvents(stdout).filter((event2) => isRecord8(event2) && event2.type === "text" && isRecord8(event2.part) && event2.part.type === "text" && isRecord8(event2.part.time) && typeof event2.part.time.end === "number" && typeof event2.part.text === "string");
-  if (completed.length !== 1)
-    throw new Error("invalid reviewer output");
-  const [event] = completed;
-  if (!isRecord8(event) || !isRecord8(event.part) || typeof event.part.text !== "string") {
-    throw new Error("invalid reviewer output");
-  }
-  return parseJson(event.part.text);
-}
-function reviewerVerdictMatchesFindings(verdict, findings) {
-  return verdict !== "approve" || findings.every((finding) => isRecord8(finding) && finding.severity !== "error");
-}
-function reviewerOutputKeys(kind) {
-  const keys = new Set([
-    "schema_version",
-    "dispatch_id",
-    "reviewer_agent",
-    "verdict",
-    "summary",
-    "findings",
-    "evidence_records"
-  ]);
-  if (kind === "plan-execution") {
-    keys.add("planning_destination");
-    keys.add("execution_plan_record");
-  }
-  return keys;
-}
-function hasValidEvidenceRecords(value) {
-  if (!isRecord8(value) || value.schema_version !== 1 || !Array.isArray(value.records))
-    return false;
-  if (Object.keys(value).some((key) => key !== "schema_version" && key !== "records"))
-    return false;
-  return value.records.every(isEvidenceRecord);
-}
-function hasKindSpecificOutput(value, kind) {
-  return kind !== "plan-execution" || (value.planning_destination === "plan-execution" || value.planning_destination === "plan-implementation") && Object.hasOwn(value, "execution_plan_record");
-}
-function hasValidOutputExtensions(value, kind) {
-  return hasKindSpecificOutput(value, kind) && (value.evidence_records === undefined || hasValidEvidenceRecords(value.evidence_records));
-}
-function hasValidReviewerOutputBody(value, kind) {
-  if (!isRecord8(value))
-    return false;
-  const allowedOutputKeys = reviewerOutputKeys(kind);
-  if (Object.keys(value).some((key) => !allowedOutputKeys.has(key)) || value.schema_version !== 1 || value.verdict !== "approve" && value.verdict !== "request_changes" || typeof value.summary !== "string" || !Array.isArray(value.findings) || !hasValidOutputExtensions(value, kind)) {
-    return false;
-  }
-  const findingsAreValid = value.findings.every((finding) => isRecord8(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && typeof finding.severity === "string" && ["info", "warning", "error"].includes(finding.severity) && typeof finding.message === "string");
-  if (!findingsAreValid)
-    return false;
-  return reviewerVerdictMatchesFindings(value.verdict, value.findings);
-}
-function hasRequiredPlanningEvidence(output, kind, planningPhase) {
-  if (kind !== "plan-execution" && kind !== "plan-implementation" && kind !== "scenario-gate" && planningPhase !== "product-plan")
-    return true;
-  return isRecord8(output) && hasValidEvidenceRecords(output.evidence_records);
-}
-function parseReviewerOutput(reviewer, stdout, kind = "quality-review", planningPhase) {
-  let output;
-  if (reviewer === "claude")
-    output = parseClaudeOutput(stdout);
-  else if (reviewer === "codex")
-    output = parseCodexOutput(stdout);
-  else
-    output = parseOpenCodeOutput(stdout);
-  if (!hasValidReviewerOutputBody(output, kind) || !hasRequiredPlanningEvidence(output, kind, planningPhase))
-    throw new Error("invalid reviewer output");
-  return output;
-}
-function confirmedClaudeAssistantModel(stdout) {
-  const events = ndjsonEvents(stdout);
-  const result = events.findLast((event) => isRecord8(event) && event.type === "result" && event.subtype === "success");
-  const models = new Set(events.flatMap((event) => isRecord8(event) && event.type === "assistant" && isRecord8(event.message) && typeof event.message.model === "string" ? [event.message.model] : []));
-  if (models.size !== 1 || !isRecord8(result) || !isRecord8(result.modelUsage))
-    return;
-  const model = [...models][0];
-  if (model === undefined)
-    return;
-  const matchingUsage = Object.values(result.modelUsage).filter((usage) => isRecord8(usage) && usage.provider === "firstParty" && usage.canonicalModel === model);
-  if (matchingUsage.length !== 1)
-    return;
-  return { provider: "anthropic", model };
-}
-function parseReviewerExecution(reviewer, stdout, kind = "quality-review", planningPhase) {
-  const output = parseReviewerOutput(reviewer, stdout, kind, planningPhase);
-  const confirmedModel2 = reviewer === "claude" ? confirmedClaudeAssistantModel(stdout) : undefined;
-  return confirmedModel2 === undefined ? { output } : { output, confirmedModel: confirmedModel2 };
-}
-function reviewPrompt(reviewer, packet) {
-  return `${reviewerPromptInstructions(packet.kind, reviewer, packet.planning_phase)}
-${JSON.stringify(packet)}`;
-}
-function planningIdentityConflicts(contract, canonicalDigest) {
-  const authorIsCanonical = contract.author.sha256 === canonicalDigest;
-  if (!authorIsCanonical && contract.author.sha256 === contract.reviewer.sha256) {
-    return [
-      "Matching author and reviewer copies differ from the packaged canonical contract-byte identity."
-    ];
-  }
-  const reviewerIsCanonical = contract.reviewer.sha256 === canonicalDigest;
-  return [
-    ...authorIsCanonical ? [] : [
-      "The authoring contract copy differs from the packaged canonical contract-byte identity."
-    ],
-    ...reviewerIsCanonical ? [] : [
-      "The stale generated reviewer contract copy differs from the packaged canonical contract-byte identity."
-    ]
-  ];
-}
-function canonicalPlanningDigest(packet) {
-  if (packet.planning_phase === "product-plan")
-    return PRODUCT_PLAN_REVIEW_RUBRIC_SHA256;
-  if (packet.kind === "plan-implementation")
-    return PLAN_REVIEW_RUBRIC_SHA256;
-  if (packet.kind === "plan-execution")
-    return EXECUTION_PLAN_REVIEW_RUBRIC_SHA256;
-  return;
-}
-function reconcilePlanContract(packet, output) {
-  const contract = packet.plan_contract;
-  if (contract === undefined)
-    return output;
-  const canonicalDigest = canonicalPlanningDigest(packet);
-  if (canonicalDigest === undefined)
-    return output;
-  const author = new Set(contract.author.obligations);
-  const reviewer = new Set(contract.reviewer.obligations);
-  const conflicts = planningIdentityConflicts(contract, canonicalDigest);
-  conflicts.push(...[...author].filter((obligation) => !reviewer.has(obligation)).map((obligation) => `Author contract requires "${obligation}" but reviewer contract does not.`), ...[...reviewer].filter((obligation) => !author.has(obligation)).map((obligation) => `Reviewer contract requires "${obligation}" but author contract does not.`));
-  const identitiesMatch = contract.author.sha256 === contract.reviewer.sha256;
-  if (identitiesMatch && conflicts.length === 0)
-    return output;
-  if (conflicts.length === 0) {
-    conflicts.push(`Author contract ${contract.author.sha256} conflicts with reviewer contract ${contract.reviewer.sha256}.`);
-  }
-  return {
-    ...output,
-    verdict: "request_changes",
-    ...packet.kind === "plan-execution" && {
-      planning_destination: "plan-execution",
-      execution_plan_record: NULL_EXECUTION_PLAN_RECORD2
-    },
-    summary: "Safeword blocked approval until the author and reviewer contracts are reconciled.",
-    findings: [
-      ...output.findings,
-      ...conflicts.map((message) => ({
-        severity: "error",
-        message: `Safeword contract reconciliation: ${message}`
-      }))
-    ]
-  };
-}
-function inside(root, candidate) {
-  const relative = nodePath53.relative(root, candidate);
-  return relative === "" || !nodePath53.isAbsolute(relative) && !relative.startsWith(`..${nodePath53.sep}`) && relative !== "..";
-}
-function outsideUntrustedRoot(root, candidate) {
-  if (inside(root, candidate))
-    return false;
-  try {
-    return !inside(root, realpathSync8(candidate));
-  } catch {
-    return false;
-  }
-}
-function pathMetadataIsTrusted(mode, ownerUid, currentUid) {
-  const ownedByCurrentUser = currentUid !== undefined && ownerUid === currentUid;
-  return (mode & 2) === 0 && (mode & 16) === 0 && (currentUid === undefined || ownerUid === 0 || ownedByCurrentUser);
-}
-function currentUserId() {
-  return typeof process.getuid === "function" ? process.getuid() : undefined;
-}
-function hasTrustedExecutableAncestry(candidate) {
-  if (process.platform === "win32")
-    return true;
-  const currentUid = currentUserId();
-  let current = candidate;
-  while (true) {
-    const metadata = lstatSync10(current);
-    if (!pathMetadataIsTrusted(metadata.mode, metadata.uid, currentUid))
-      return false;
-    const parent = nodePath53.dirname(current);
-    if (parent === current)
-      return true;
-    current = parent;
-  }
-}
-function digestOpenFile(fd2) {
-  if (!fstatSync3(fd2).isFile())
-    return;
-  const bytes = readFileSync35(fd2);
-  return { bytes, digest: createHash23("sha256").update(bytes).digest("hex") };
-}
-function cachedCopyMatchesDigest(copyPath, expectedDigest) {
-  let cachedFd;
-  try {
-    cachedFd = openSync6(copyPath, constants4.O_RDONLY);
-    return digestOpenFile(cachedFd)?.digest === expectedDigest;
-  } catch {
-    return false;
-  } finally {
-    if (cachedFd !== undefined)
-      closeSync6(cachedFd);
-  }
-}
-function preparedTrustedCacheDirectory(untrustedRoot) {
-  const cacheDirectory = process.env.SAFEWORD_REVIEWER_CACHE_DIR ?? nodePath53.join(homedir5(), ".cache", "safeword-reviewers");
-  if (inside(untrustedRoot, cacheDirectory))
-    return;
-  try {
-    if (lstatSync10(cacheDirectory).isSymbolicLink())
-      return;
-  } catch {}
-  mkdirSync12(cacheDirectory, { recursive: true, mode: 448 });
-  if (lstatSync10(cacheDirectory).isSymbolicLink())
-    return;
-  const resolved = realpathSync8(cacheDirectory);
-  if (!outsideUntrustedRoot(untrustedRoot, resolved))
-    return;
-  chmodSync3(resolved, 448);
-  return resolved;
-}
-function stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot) {
-  let sourceFd;
-  try {
-    sourceFd = openSync6(canonical, constants4.O_RDONLY);
-    const sourceMetadata = fstatSync3(sourceFd);
-    const currentUid = currentUserId();
-    if (!pathMetadataIsTrusted(sourceMetadata.mode, sourceMetadata.uid, currentUid)) {
-      return;
-    }
-    const source = digestOpenFile(sourceFd);
-    if (source === undefined)
-      return;
-    const cacheDirectory = preparedTrustedCacheDirectory(untrustedRoot);
-    if (cacheDirectory === undefined)
-      return;
-    const copyPath = nodePath53.join(cacheDirectory, `${reviewer}.${source.digest}`);
-    if (cachedCopyMatchesDigest(copyPath, source.digest))
-      return copyPath;
-    const temporaryPath = `${copyPath}.${process.pid.toString(36)}.${Date.now().toString(36)}.tmp`;
-    writeFileSync13(temporaryPath, source.bytes, { mode: 448, flag: "wx" });
-    renameSync7(temporaryPath, copyPath);
-    return copyPath;
-  } catch {
-    return;
-  } finally {
-    if (sourceFd !== undefined)
-      closeSync6(sourceFd);
-  }
-}
-function remainingReviewTime(deadline, reviewer, lastFailure) {
-  const remainingMs = deadline - Date.now();
-  if (remainingMs <= 0) {
-    throw lastFailure ?? new ReviewRuntimeError("timed_out", `${reviewer} review timed out`);
-  }
-  return remainingMs;
-}
-function executableCandidates(reviewer, untrustedRoot, allowStaging = true) {
-  const canonicalUntrustedRoot = realpathSync8(untrustedRoot);
-  const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
-  const candidates = (process.env.PATH ?? "").split(nodePath53.delimiter).filter((directory) => directory !== "" && nodePath53.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath53.join(directory, `${reviewer}${extension}`)));
-  let rejectedForTrust = false;
-  const stageable = [];
-  const canonicalCandidates = candidates.flatMap((candidate) => {
-    if (inside(untrustedRoot, candidate))
-      return [];
-    try {
-      const canonical = realpathSync8(candidate);
-      if (!outsideUntrustedRoot(canonicalUntrustedRoot, canonical))
-        return [];
-      accessSync2(canonical, constants4.X_OK);
-      if (!hasTrustedExecutableAncestry(canonical)) {
-        rejectedForTrust = true;
-        stageable.push(canonical);
-        return [];
-      }
-      return [canonical];
-    } catch {
-      return [];
-    }
-  });
-  const trusted = [...new Set(canonicalCandidates)];
-  if (trusted.length > 0)
-    return { paths: trusted, rejectedForTrust };
-  if (!allowStaging)
-    return { paths: [], rejectedForTrust };
-  const staged = stageable.flatMap((canonical) => {
-    const copy = stagedTrustedReviewerCopy(reviewer, canonical, canonicalUntrustedRoot);
-    return copy !== undefined && hasTrustedExecutableAncestry(copy) ? [copy] : [];
-  });
-  return { paths: [...new Set(staged)], rejectedForTrust };
-}
-function unavailableReviewerError(reviewer, rejectedForTrust) {
-  if (rejectedForTrust) {
-    return new ReviewRuntimeError("untrusted_install", `${reviewer} reviewer installation has an untrusted writable ancestor`);
-  }
-  return new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
-}
-async function captureCommand(reviewer, executable, arguments_, cwd, timeoutMs) {
-  const child = spawn(executable, arguments_, {
-    cwd,
-    env: reviewerProbeEnvironment(),
-    stdio: ["ignore", "pipe", "ignore"],
-    detached: process.platform !== "win32"
-  });
-  const result = await new Promise((resolve) => {
-    let stdout = "";
-    let settled = false;
-    const finish = (value) => {
-      if (settled)
-        return;
-      settled = true;
-      clearTimeout(timeout);
-      resolve(value);
-    };
-    const timeout = setTimeout(() => {
-      finish({ kind: "failed" });
-    }, timeoutMs);
-    child.stdout.on("data", (chunk) => {
-      if (Buffer.byteLength(stdout) + chunk.byteLength > MAX_OUTPUT_BYTES) {
-        finish({ kind: "failed" });
-        return;
-      }
-      stdout += chunk.toString("utf8");
-    });
-    child.on("error", () => {
-      finish({ kind: "failed" });
-    });
-    child.on("close", (code) => {
-      finish(code === 0 ? { kind: "completed", stdout } : { kind: "failed" });
-    });
-  });
-  await stopReviewerOrThrow(child, reviewer);
-  child.stdout.destroy();
-  child.unref();
-  return result;
-}
-async function inspectOpenCodeCatalogue(executable, model, cwd, deadline) {
-  const catalogue = await captureCommand("opencode", executable, ["models", "--pure"], cwd, Math.max(1, deadline - Date.now()));
-  if (catalogue.kind === "failed") {
-    return { installed: true, compatibility: "compatible", catalogue: "unavailable" };
-  }
-  const listedModels = catalogue.stdout.split(/\r?\n/u).map((value) => value.trim()).filter((value) => value.length > 0);
-  if (listedModels.length === 0) {
-    return { installed: true, compatibility: "compatible", catalogue: "unavailable" };
-  }
-  return {
-    installed: true,
-    compatibility: "compatible",
-    catalogue: listedModels.includes(model) ? "catalogued" : "not_catalogued"
-  };
-}
-function compatibleRouteObservation(reviewer, model, skipCatalogue) {
-  if (model === undefined) {
-    return {
-      kind: "completed",
-      observation: {
-        installed: true,
-        compatibility: "compatible",
-        catalogue: "not_applicable"
-      }
-    };
-  }
-  if (reviewer !== "opencode" || skipCatalogue) {
-    return {
-      kind: "completed",
-      observation: { installed: true, compatibility: "compatible", catalogue: "unavailable" }
-    };
-  }
-  return { kind: "catalogue", model };
-}
-function unavailableCandidateObservation(rejectedForTrust) {
-  return rejectedForTrust ? { installed: true, compatibility: "inspection_unavailable", catalogue: "unavailable" } : { installed: false, compatibility: "not_compatible", catalogue: "unavailable" };
-}
-async function inspectReviewRoute(reviewer, model, cwd, timeoutMs = 5000, skipCatalogue = false) {
-  const candidates = executableCandidates(reviewer, cwd, false);
-  if (candidates.paths.length === 0) {
-    return unavailableCandidateObservation(candidates.rejectedForTrust);
-  }
-  const deadline = Date.now() + timeoutMs;
-  let inspectionUnavailable = false;
-  for (const candidate of candidates.paths) {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) {
-      inspectionUnavailable = true;
-      break;
-    }
-    const capability = await supportsReviewContract(reviewer, candidate, tmpdir4(), remaining, {
-      model
-    });
-    if (capability.kind === "failed") {
-      inspectionUnavailable ||= capability.failure !== "unsupported";
-      continue;
-    }
-    const compatible = compatibleRouteObservation(reviewer, model, skipCatalogue);
-    if (compatible.kind === "completed")
-      return compatible.observation;
-    return inspectOpenCodeCatalogue(candidate, compatible.model, tmpdir4(), deadline);
-  }
-  return {
-    installed: true,
-    compatibility: inspectionUnavailable ? "inspection_unavailable" : "not_compatible",
-    catalogue: "unavailable"
-  };
-}
-async function supportsReviewContract(reviewer, executable, cwd, timeoutMs, options) {
-  const child = spawn(executable, options.arguments ?? HELP_ARGUMENTS[reviewer], {
-    cwd,
-    env: reviewerProbeEnvironment(),
-    stdio: ["ignore", "pipe", "pipe"],
-    detached: process.platform !== "win32"
-  });
-  const assessment = await new Promise((resolve) => {
-    let help = "";
-    let helpBytes = 0;
-    let settled = false;
-    const finish = (result) => {
-      if (settled)
-        return;
-      settled = true;
-      clearTimeout(timeout);
-      resolve(result);
-    };
-    const timeout = setTimeout(() => {
-      finish({ kind: "failed", failure: "probe_timed_out" });
-    }, timeoutMs);
-    const capture = (chunk) => {
-      const appended = appendBounded(help, helpBytes, chunk.toString("utf8"));
-      help = appended.value;
-      helpBytes = appended.bytes;
-      if (appended.overflow)
-        finish({ kind: "failed", failure: "unsupported" });
-    };
-    child.stdout.on("data", capture);
-    child.stderr.on("data", capture);
-    child.on("error", () => {
-      finish({ kind: "failed", failure: "launch_failed" });
-    });
-    child.on("close", (code) => {
-      if (code !== 0) {
-        finish({ kind: "failed", failure: "launch_failed" });
-        return;
-      }
-      const advertisedFlags = new Set;
-      for (const match of help.matchAll(/--[\w-]+/gu))
-        advertisedFlags.add(match[0]);
-      const requiredCapabilities = options.required ?? (options.model === undefined ? REQUIRED_CAPABILITIES[reviewer] : [...REQUIRED_CAPABILITIES[reviewer], "--model"]);
-      finish(requiredCapabilities.every((flag) => advertisedFlags.has(flag)) ? { kind: "supported" } : { kind: "failed", failure: "unsupported" });
-    });
-  });
-  await stopReviewerOrThrow(child, reviewer);
-  child.stdout.destroy();
-  child.stderr.destroy();
-  child.unref();
-  return assessment;
-}
-function appendBounded(current, currentBytes, chunk) {
-  const bytes = currentBytes + Buffer.byteLength(chunk);
-  return {
-    value: bytes > MAX_OUTPUT_BYTES ? current : current + chunk,
-    bytes,
-    overflow: bytes > MAX_OUTPUT_BYTES
-  };
-}
-function classifyExit(stdout, stderr, otherwise) {
-  return /not logged in|sign in|authenticat(?:e|ion)|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(`${stdout}
-${stderr}`) ? "not_authenticated" : otherwise;
-}
-function stopWindowsReviewer(child, pid) {
-  const streamClosed = (stream) => stream === null || stream.closed;
-  const childClosed = () => child.exitCode !== null && streamClosed(child.stdout) && streamClosed(child.stderr);
-  if (childClosed())
-    return Promise.resolve(true);
-  return new Promise((resolve) => {
-    let settled = false;
-    let taskkillSucceeded = false;
-    const finish = (stopped) => {
-      if (settled)
-        return;
-      settled = true;
-      clearTimeout(timeout);
-      child.kill("SIGKILL");
-      resolve(stopped);
-    };
-    const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
-    const taskkill = nodePath53.join(systemRoot, "System32", "taskkill.exe");
-    const killer = spawn(taskkill, ["/PID", String(pid), "/T", "/F"], {
-      stdio: "ignore",
-      windowsHide: true
-    });
-    const timeout = setTimeout(() => {
-      killer.kill("SIGKILL");
-      finish(childClosed());
-    }, WINDOWS_CLEANUP_BUDGET_MS);
-    child.on("close", () => {
-      if (taskkillSucceeded)
-        finish(true);
-    });
-    killer.on("error", () => {
-      finish(childClosed());
-    });
-    killer.on("close", (code) => {
-      if (code !== 0) {
-        finish(childClosed());
-        return;
-      }
-      taskkillSucceeded = true;
-      child.kill("SIGKILL");
-      if (childClosed())
-        finish(true);
-    });
-  });
-}
-function stopReviewer(child) {
-  const existing = reviewerStops.get(child);
-  if (existing !== undefined)
-    return existing;
-  const stopping = stopReviewerOnce(child);
-  reviewerStops.set(child, stopping);
-  return stopping;
-}
-async function stopReviewerOrThrow(child, reviewer, terminal = true) {
-  if (await stopReviewer(child))
-    return;
-  throw new ReviewRuntimeError("process_failed", `${reviewer} reviewer processes could not be stopped`, terminal);
-}
-function parseProcessStat(line) {
-  const commEnd = line.lastIndexOf(")");
-  if (commEnd === -1)
-    return;
-  const [state, , group] = line.slice(commEnd + 1).trim().split(/\s+/u, 3);
-  const groupId = Number(group);
-  if (state === undefined || !Number.isSafeInteger(groupId))
-    return;
-  return { state, group: groupId };
-}
-function procGroupHasRunningMember(group) {
-  if (process.platform !== "linux")
-    return;
-  let entries;
-  try {
-    entries = readdirSync13("/proc");
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    if (!/^\d+$/u.test(entry))
-      continue;
-    let line;
-    try {
-      line = readFileSync35(`/proc/${entry}/stat`, "utf8");
-    } catch {
-      continue;
-    }
-    const parsed2 = parseProcessStat(line);
-    if (parsed2?.group === group && parsed2.state !== "Z")
-      return true;
-  }
-  return false;
-}
-async function waitForProcessGroupToStop(groupIsRunning, deadline) {
-  while (groupIsRunning() && Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, PROCESS_GROUP_POLL_INTERVAL_MS));
-  }
-}
-async function stopReviewerOnce(child) {
-  const pid = child.pid;
-  if (pid === undefined)
-    return true;
-  if (process.platform === "win32") {
-    return stopWindowsReviewer(child, pid);
-  }
-  const signalGroup = (signal) => {
-    try {
-      process.kill(-pid, signal);
-    } catch {}
-  };
-  signalGroup("SIGTERM");
-  const groupExists = () => {
-    try {
-      process.kill(-pid, 0);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-  const groupIsRunning = () => {
-    if (!groupExists())
-      return false;
-    return procGroupHasRunningMember(pid) ?? true;
-  };
-  const groupIsStopped = async () => {
-    if (groupIsRunning())
-      return false;
-    await new Promise((resolve) => setTimeout(resolve, PROCESS_GROUP_POLL_INTERVAL_MS));
-    return !groupIsRunning();
-  };
-  await waitForProcessGroupToStop(groupIsRunning, Date.now() + CLEANUP_BUDGET_MS);
-  if (groupExists()) {
-    signalGroup("SIGKILL");
-    await waitForProcessGroupToStop(groupIsRunning, Date.now() + CLEANUP_BUDGET_MS);
-  }
-  return groupIsStopped();
-}
-function isolatedCodexHome() {
-  const path7 = mkdtempSync6(nodePath53.join(tmpdir4(), "safeword-codex-review-"));
-  chmodSync3(path7, 448);
-  const source = nodePath53.join(process.env.CODEX_HOME ?? nodePath53.join(homedir5(), ".codex"), "auth.json");
-  try {
-    accessSync2(source, constants4.R_OK);
-    symlinkSync(source, nodePath53.join(path7, "auth.json"));
-  } catch {}
-  return {
-    path: path7,
-    cleanup: () => {
-      rmSync8(path7, { recursive: true, force: true });
-    }
-  };
-}
-function codexAppServerReviewOutput(packet, text, confirmedModel2) {
-  const event = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text } });
-  const output = parseReviewerOutput("codex", event, packet.kind, packet.planning_phase);
-  if (packet.kind !== "plan-execution")
-    return { output, confirmedModel: confirmedModel2 };
-  const validation = validateExecutionPlanOutput(output, packet.execution_plan_delivery_definition, packet.execution_plan_normalized_digest);
-  if (validation.kind === "invalid_output")
-    throw new Error("invalid reviewer output");
-  return { output: validation.output, confirmedModel: confirmedModel2 };
-}
-function installReviewerTerminationHandler(child) {
-  const terminateReviewer = () => {
-    stopReviewer(child).finally(() => process.exit(143));
-  };
-  process.once("SIGTERM", terminateReviewer);
-  return () => process.off("SIGTERM", terminateReviewer);
-}
-async function runCodexAppServerCandidate(executable, attempt, timeoutMs) {
-  const isolatedHome = isolatedCodexHome();
-  const child = spawn(executable, ["app-server", "--stdio", "--config", "mcp_servers={}"], {
-    cwd: attempt.cwd,
-    env: { ...reviewerEnvironment("codex"), CODEX_HOME: isolatedHome.path },
-    stdio: ["pipe", "pipe", "pipe"],
-    detached: process.platform !== "win32"
-  });
-  const removeTerminationHandler = installReviewerTerminationHandler(child);
-  try {
-    const execution = await new Promise((resolve, reject) => {
-      const messages3 = [];
-      let pending = "";
-      let stdout = "";
-      let stderr = "";
-      let stdoutBytes = 0;
-      let stderrBytes = 0;
-      let settled = false;
-      const settle = (finish) => {
-        if (settled)
-          return;
-        settled = true;
-        clearTimeout(timeout);
-        finish();
-      };
-      const send = (message) => {
-        child.stdin.write(`${JSON.stringify(message)}
-`);
-      };
-      const timeout = setTimeout(() => {
-        settle(() => {
-          reject(new ReviewRuntimeError("timed_out", "codex review timed out"));
-        });
-      }, timeoutMs);
-      const startTurn = (result) => {
-        if (!isRecord8(result) || !isRecord8(result.thread))
-          throw new Error("thread start failed");
-        send({
-          id: 3,
-          method: "turn/start",
-          params: {
-            threadId: result.thread.id,
-            input: [{ type: "text", text: reviewPrompt("codex", attempt.packet) }],
-            outputSchema: JSON.parse(reviewOutputSchema(attempt.packet.kind, attempt.packet.planning_phase)),
-            ...attempt.effort !== undefined && { effort: attempt.effort }
-          }
-        });
-      };
-      const finishTurn = () => {
-        if (codexAppServerFailedTurn(messages3)) {
-          throw new ReviewRuntimeError("process_failed", "codex turn failed");
-        }
-        const proof = codexAppServerProof(messages3, attempt.model);
-        if (proof === undefined)
-          return;
-        const parsed2 = codexAppServerReviewOutput(attempt.packet, proof.text, proof.confirmedModel);
-        settle(() => {
-          resolve(parsed2);
-        });
-      };
-      const handle = (message) => {
-        if (!isRecord8(message))
-          return;
-        messages3.push(message);
-        if (message.id === 1) {
-          if (message.error !== undefined)
-            throw new Error("initialize failed");
-          send({ method: "initialized" });
-          send({
-            id: 2,
-            method: "thread/start",
-            params: {
-              cwd: attempt.cwd,
-              ephemeral: true,
-              sandbox: "read-only",
-              approvalPolicy: "never",
-              ...attempt.model !== undefined && { model: attempt.model }
-            }
-          });
-        } else if (message.id === 2) {
-          startTurn(message.result);
-        } else if (message.id === 3 && message.error !== undefined) {
-          throw new ReviewRuntimeError("process_failed", "codex turn was rejected");
-        } else if (message.method === "turn/completed") {
-          finishTurn();
-        }
-      };
-      child.stdout.setEncoding("utf8");
-      child.stderr.setEncoding("utf8");
-      child.stdout.on("data", (chunk) => {
-        const appended = appendBounded(stdout, stdoutBytes, chunk);
-        stdout = appended.value;
-        stdoutBytes = appended.bytes;
-        if (appended.overflow) {
-          settle(() => {
-            reject(new ReviewRuntimeError("invalid_output", "codex output exceeded limit"));
-          });
-          return;
-        }
-        pending += chunk;
-        let newline;
-        while ((newline = pending.indexOf(`
-`)) !== -1 && !settled) {
-          const line = pending.slice(0, newline);
-          pending = pending.slice(newline + 1);
-          try {
-            handle(JSON.parse(line));
-          } catch (error2) {
-            settle(() => {
-              reject(error2 instanceof ReviewRuntimeError ? error2 : new ReviewRuntimeError("invalid_output", "codex protocol failed"));
-            });
-          }
-        }
-      });
-      child.stderr.on("data", (chunk) => {
-        const appended = appendBounded(stderr, stderrBytes, chunk);
-        stderr = appended.value;
-        stderrBytes = appended.bytes;
-      });
-      child.stdin.on("error", () => {});
-      child.on("error", (error2) => {
-        settle(() => {
-          reject(new ReviewRuntimeError("process_failed", error2.message));
-        });
-      });
-      child.on("close", () => {
-        settle(() => {
-          reject(new ReviewRuntimeError(classifyExit(stdout, stderr, "unsupported"), "codex app-server did not complete the review"));
-        });
-      });
-      send({
-        id: 1,
-        method: "initialize",
-        params: { clientInfo: { name: "safeword", version: "1" } }
-      });
-    });
-    await stopReviewerOrThrow(child, "codex", false);
-    return { ...execution, output: reconcilePlanContract(attempt.packet, execution.output) };
-  } catch (error2) {
-    await stopReviewerOrThrow(child, "codex");
-    throw error2;
-  } finally {
-    removeTerminationHandler();
-    isolatedHome.cleanup();
-  }
-}
-async function runCandidate(executable, attempt, timeoutMs) {
-  if (attempt.reviewer === "codex" && (attempt.packet.planning_phase === "product-plan" || ["scenario-gate", "plan-implementation", "plan-execution"].includes(attempt.packet.kind))) {
-    const appServer = await supportsReviewContract("codex", executable, attempt.cwd, Math.min(5000, timeoutMs), { arguments: ["app-server", "--help"], required: ["--stdio", "--config"] });
-    if (appServer.kind === "supported") {
-      try {
-        return await runCodexAppServerCandidate(executable, attempt, timeoutMs);
-      } catch (error2) {
-        if (!(error2 instanceof ReviewRuntimeError) || error2.failure !== "unsupported")
-          throw error2;
-      }
-    }
-  }
-  const { reviewer, packet, cwd, model, schemaPath } = attempt;
-  const argumentEnvironment = attempt.effort === undefined ? process.env : { ...process.env, SAFEWORD_REVIEW_EFFORT_CLAUDE: attempt.effort };
-  const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath, argumentEnvironment, packet), {
-    cwd,
-    env: reviewerEnvironment(reviewer),
-    stdio: ["pipe", "pipe", "pipe"],
-    detached: process.platform !== "win32"
-  });
-  const removeTerminationHandler = installReviewerTerminationHandler(child);
-  try {
-    let execution;
-    try {
-      execution = await new Promise((resolve, reject) => {
-        let overflow = false;
-        let settled = false;
-        const settle = (finish) => {
-          if (settled)
-            return;
-          settled = true;
-          clearTimeout(timeout);
-          finish();
-        };
-        const timeout = setTimeout(() => {
-          settle(() => {
-            reject(new ReviewRuntimeError("timed_out", `${reviewer} review timed out`));
-          });
-        }, timeoutMs);
-        let stdout = "";
-        let stderr = "";
-        let stdoutBytes = 0;
-        let stderrBytes = 0;
-        child.stdout.setEncoding("utf8");
-        child.stderr.setEncoding("utf8");
-        child.stdout.on("data", (chunk) => {
-          const appended = appendBounded(stdout, stdoutBytes, chunk);
-          stdout = appended.value;
-          stdoutBytes = appended.bytes;
-          overflow ||= appended.overflow;
-          if (overflow) {
-            stopReviewer(child);
-          }
-        });
-        child.stderr.on("data", (chunk) => {
-          const appended = appendBounded(stderr, stderrBytes, chunk);
-          stderr = appended.value;
-          stderrBytes = appended.bytes;
-          overflow ||= appended.overflow;
-          if (overflow) {
-            stopReviewer(child);
-          }
-        });
-        child.stdin.on("error", () => {});
-        child.on("error", (error2) => {
-          settle(() => {
-            reject(new ReviewRuntimeError("process_failed", error2.message));
-          });
-        });
-        child.on("close", (code) => {
-          settle(() => {
-            if (overflow) {
-              reject(new ReviewRuntimeError(classifyExit(stdout, stderr, "invalid_output"), `${reviewer} exceeded its output limit`));
-              return;
-            }
-            if (code !== 0) {
-              reject(new ReviewRuntimeError(classifyExit(stdout, stderr, "process_failed"), `${reviewer} review failed (${code ?? "signal"}): ${stderr.trim()}`));
-              return;
-            }
-            try {
-              const parsed2 = parseReviewerExecution(reviewer, stdout, packet.kind, packet.planning_phase);
-              if (packet.kind !== "plan-execution") {
-                resolve(parsed2);
-                return;
-              }
-              const validation = validateExecutionPlanOutput(parsed2.output, packet.execution_plan_delivery_definition, packet.execution_plan_normalized_digest);
-              if (validation.kind === "invalid_output")
-                throw new Error("invalid reviewer output");
-              resolve({ ...parsed2, output: validation.output });
-            } catch {
-              reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
-            }
-          });
-        });
-        child.stdin.end(reviewPrompt(reviewer, packet));
-      });
-    } catch (error2) {
-      await stopReviewerOrThrow(child, reviewer);
-      throw error2;
-    }
-    await stopReviewerOrThrow(child, reviewer, false);
-    return { ...execution, output: reconcilePlanContract(packet, execution.output) };
-  } finally {
-    removeTerminationHandler();
-  }
-}
-async function runReviewerCandidates(attempt, candidates, deadline) {
-  const reviewer = attempt.reviewer;
-  let foundCompatible = false;
-  let lastFailure;
-  let lastProbeFailure;
-  for (const [index, candidate] of candidates.entries()) {
-    const remainingMs = remainingReviewTime(deadline, reviewer, lastFailure);
-    const untried = candidates.length - index;
-    const candidateDeadline = Date.now() + remainingMs / untried;
-    const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
-    const assessment = await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget, {
-      model: attempt.model
-    });
-    if (assessment.kind === "failed") {
-      lastProbeFailure = new ReviewRuntimeError(assessment.failure, `${reviewer} capability probe failed: ${assessment.failure}`);
-      continue;
-    }
-    foundCompatible = true;
-    try {
-      return await runCandidate(candidate, attempt, remainingReviewTime(candidateDeadline, reviewer, lastFailure));
-    } catch (error2) {
-      if (!(error2 instanceof ReviewRuntimeError))
-        throw error2;
-      if (error2.terminal)
-        throw error2;
-      lastFailure = error2;
-    }
-  }
-  if (!foundCompatible) {
-    if (lastProbeFailure !== undefined)
-      throw lastProbeFailure;
-    throw new ReviewRuntimeError("not_installed", `No trusted compatible ${reviewer} reviewer was found`);
-  }
-  throw lastFailure ?? new ReviewRuntimeError("process_failed", `${reviewer} review failed`);
-}
-async function runHeadlessReviewerWithProvenance(reviewer, packet, cwd, untrustedRoot = process.cwd(), options = {}) {
-  const { model, runDeadline, effort } = options;
-  const deadline = Math.min(Date.now() + reviewTimeoutMilliseconds(), runDeadline ?? Infinity);
-  const candidates = executableCandidates(reviewer, untrustedRoot);
-  if (candidates.paths.length === 0) {
-    throw unavailableReviewerError(reviewer, candidates.rejectedForTrust);
-  }
-  let contract;
-  try {
-    contract = reviewer === "codex" ? writeContractFile(packet.kind, packet.planning_phase) : undefined;
-  } catch {
-    throw new ReviewRuntimeError("process_failed", `The ${reviewer} review could not be prepared`);
-  }
-  try {
-    return await runReviewerCandidates({ reviewer, packet, cwd, model, effort, schemaPath: contract?.path }, candidates.paths, deadline);
-  } finally {
-    contract?.cleanup();
-  }
-}
-function writeContractFile(kind, planningPhase) {
-  const directory = mkdtempSync6(nodePath53.join(tmpdir4(), "safeword-review-contract-"));
-  const path7 = nodePath53.join(directory, "review-result.schema.json");
-  writeFileSync13(path7, reviewOutputSchema(kind, planningPhase), { mode: 384 });
-  return {
-    path: path7,
-    cleanup: () => {
-      rmSync8(directory, { recursive: true, force: true });
-    }
-  };
-}
-var REVIEW_OUTPUT_SCHEMA_SHAPE, EVIDENCE_RECORDS_SCHEMA, PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE, JSON_NULL2, REVIEW_OUTPUT_SCHEMA, EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA, EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA, EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA, EXECUTION_PLAN_RECORD_SCHEMA, EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, NULL_EXECUTION_PLAN_RECORD2, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
-var init_runtime = __esm(() => {
-  init_delivery_checklist();
-  init_environment();
-  init_evidence_record();
-  init_execution_plan_output();
-  init_review_rubric();
-  init_review_rubric();
-  REVIEW_OUTPUT_SCHEMA_SHAPE = {
-    type: "object",
-    properties: {
-      schema_version: { type: "integer", enum: [1] },
-      dispatch_id: { type: "string" },
-      reviewer_agent: { type: "string", enum: ["claude", "codex", "opencode"] },
-      verdict: { type: "string", enum: ["approve", "request_changes"] },
-      summary: { type: "string" },
-      findings: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            severity: { type: "string", enum: ["info", "warning", "error"] },
-            message: { type: "string" }
-          },
-          required: ["severity", "message"],
-          additionalProperties: false
-        }
-      }
-    },
-    required: ["schema_version", "dispatch_id", "reviewer_agent", "verdict", "summary", "findings"],
-    additionalProperties: false
-  };
-  EVIDENCE_RECORDS_SCHEMA = {
-    type: "object",
-    properties: {
-      schema_version: { type: "integer", enum: [1] },
-      records: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: Object.fromEntries(EVIDENCE_RECORD_FIELDS.map((field) => [field, { type: "string" }])),
-          required: EVIDENCE_RECORD_FIELDS,
-          additionalProperties: false
-        }
-      }
-    },
-    required: ["schema_version", "records"],
-    additionalProperties: false
-  };
-  PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE = {
-    ...REVIEW_OUTPUT_SCHEMA_SHAPE,
-    properties: {
-      ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
-      evidence_records: EVIDENCE_RECORDS_SCHEMA
-    },
-    required: [...REVIEW_OUTPUT_SCHEMA_SHAPE.required, "evidence_records"]
-  };
-  JSON_NULL2 = JSON.parse("null");
-  REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
-  EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA = {
-    type: "object",
-    properties: {
-      proof_id: { type: "string" },
-      method: { type: "string", enum: ["command", "review_receipt"] },
-      scope: { type: "string", enum: ["unit", "integration", "E2E", "eval"] },
-      boundary_exercised: { type: "string" },
-      qualifies_as: { type: "string", enum: ["real_boundary", "partial_or_structural"] },
-      currency: {
-        type: "string",
-        enum: ["current_required", "compatible_earlier_allowed"]
-      },
-      invocation: {
-        anyOf: [
-          {
-            type: "object",
-            properties: {
-              type: { type: "string", enum: ["command"] },
-              cwd: { type: "string" },
-              argv: { type: "array", items: { type: "string" } }
-            },
-            required: ["type", "cwd", "argv"],
-            additionalProperties: false
-          },
-          {
-            type: "object",
-            properties: {
-              type: { type: "string", enum: ["review_receipt"] },
-              kind: { type: "string" },
-              targets: { type: "array", items: { type: "string" } }
-            },
-            required: ["type", "kind", "targets"],
-            additionalProperties: false
-          }
-        ]
-      }
-    },
-    required: [
-      "proof_id",
-      "method",
-      "scope",
-      "boundary_exercised",
-      "qualifies_as",
-      "currency",
-      "invocation"
-    ],
-    additionalProperties: false
-  };
-  EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA = {
-    type: "object",
-    properties: {
-      id: { type: "string" },
-      category: { type: "string", enum: DELIVERY_CHECKLIST_CATEGORIES },
-      obligation: { type: "string" },
-      owner: { type: "string", enum: ["contributor", "human"] },
-      required_proof: { type: "string" },
-      reviewed_disposition: {
-        type: ["string", "null"],
-        enum: ["not_applicable", "pending_human", JSON_NULL2]
-      },
-      reviewed_detail: { type: ["string", "null"] }
-    },
-    required: [
-      "id",
-      "category",
-      "obligation",
-      "owner",
-      "required_proof",
-      "reviewed_disposition",
-      "reviewed_detail"
-    ],
-    additionalProperties: false
-  };
-  EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA = {
-    type: "object",
-    properties: {
-      schema_version: { type: "integer", enum: [1] },
-      design_approval_gate: { type: "boolean" },
-      proof_specifications: {
-        type: "array",
-        items: EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA
-      },
-      checklist_items: { type: "array", items: EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA }
-    },
-    required: ["schema_version", "design_approval_gate", "proof_specifications", "checklist_items"],
-    additionalProperties: false
-  };
-  EXECUTION_PLAN_RECORD_SCHEMA = {
-    anyOf: [
-      { type: "null" },
-      {
-        type: "object",
-        properties: {
-          slicing_decision: {
-            type: "string",
-            enum: ["one_pull_request", "multiple_pull_requests"]
-          },
-          rationale: { type: "string" },
-          slices: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                purpose: { type: "string" },
-                boundary: { type: "string" },
-                prerequisites: { type: "array", items: { type: "string" } },
-                proof: { type: "string" },
-                completion_signal: { type: "string" },
-                relies_on_unmerged_successor: { type: "boolean" }
-              },
-              required: [
-                "name",
-                "purpose",
-                "boundary",
-                "prerequisites",
-                "proof",
-                "completion_signal",
-                "relies_on_unmerged_successor"
-              ],
-              additionalProperties: false
-            }
-          },
-          obligation_owners: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                obligation: { type: "string" },
-                slices: { type: "array", items: { type: "string" } }
-              },
-              required: ["obligation", "slices"],
-              additionalProperties: false
-            }
-          },
-          decision_statuses: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                decision: { type: "string" },
-                status: { type: "string", enum: ["unchanged"] }
-              },
-              required: ["decision", "status"],
-              additionalProperties: false
-            }
-          },
-          accepted_scenarios_covered: { type: "boolean", enum: [true] },
-          accepted_approach_preserved: { type: "boolean", enum: [true] },
-          normalized_plan_digest: { type: "string", pattern: "^[a-f0-9]{64}$" },
-          delivery_definition: EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA
-        },
-        required: [
-          "slicing_decision",
-          "rationale",
-          "slices",
-          "obligation_owners",
-          "decision_statuses",
-          "accepted_scenarios_covered",
-          "accepted_approach_preserved",
-          "normalized_plan_digest",
-          "delivery_definition"
-        ],
-        additionalProperties: false
-      }
-    ]
-  };
-  EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
-    ...PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE,
-    properties: {
-      ...PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
-      planning_destination: {
-        type: "string",
-        enum: ["plan-execution", "plan-implementation"]
-      },
-      execution_plan_record: EXECUTION_PLAN_RECORD_SCHEMA
-    },
-    required: [
-      ...PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE.required,
-      "planning_destination",
-      "execution_plan_record"
-    ]
-  };
-  CLAUDE_EFFORT_LEVELS = new Set(["low", "medium", "high", "xhigh", "max"]);
-  ARGUMENTS = {
-    claude: [
-      "-p",
-      "--output-format",
-      "json",
-      "--json-schema",
-      REVIEW_OUTPUT_SCHEMA,
-      "--no-session-persistence",
-      "--disable-slash-commands",
-      "--setting-sources",
-      "",
-      "--strict-mcp-config",
-      "--tools",
-      ""
-    ],
-    codex: [
-      "exec",
-      "--json",
-      "--sandbox",
-      "read-only",
-      "--skip-git-repo-check",
-      "--ephemeral",
-      "--ignore-user-config",
-      "--ignore-rules",
-      "--disable",
-      "hooks",
-      "--config",
-      "mcp_servers={}",
-      "-"
-    ],
-    opencode: ["run", "--format", "json", "--pure"]
-  };
-  HELP_ARGUMENTS = {
-    claude: ["--help"],
-    codex: ["exec", "--help"],
-    opencode: ["run", "--help"]
-  };
-  REQUIRED_CAPABILITIES = {
-    claude: [
-      "--output-format",
-      "--json-schema",
-      "--no-session-persistence",
-      "--disable-slash-commands",
-      "--setting-sources",
-      "--strict-mcp-config",
-      "--tools"
-    ],
-    codex: [
-      "--json",
-      "--sandbox",
-      "--skip-git-repo-check",
-      "--ephemeral",
-      "--ignore-user-config",
-      "--ignore-rules",
-      "--disable",
-      "--config",
-      "--output-schema"
-    ],
-    opencode: ["--format", "--pure", "--model"]
-  };
-  MAX_OUTPUT_BYTES = 1024 * 1024;
-  NULL_EXECUTION_PLAN_RECORD2 = JSON_NULL2;
-  ReviewRuntimeError = class ReviewRuntimeError extends Error {
-    failure;
-    terminal;
-    constructor(failure, message, terminal = false) {
-      super(message);
-      this.failure = failure;
-      this.terminal = terminal;
-      this.name = "ReviewRuntimeError";
-    }
-  };
-  reviewerStops = new WeakMap;
 });
 
 // src/review/coordinator.ts

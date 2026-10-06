@@ -484,3 +484,29 @@ complete qualification matrix is running with unchanged corpus digest
 Its first case passed after 120.3 seconds, beyond the old cutoff. This single
 pass is not admission evidence. PR4989 evidence commit `82480bf55` is pushed;
 its pre-push suite passed 895/895.
+
+### Qualification blocker — 2026-10-06
+
+The correctly configured 210-second Claude run completed seven cases: six
+passed and generic-checklist failed because the reviewer approved uniform
+boilerplate checklist obligations. The accepted contract requires each
+obligation to be concrete. Independent case-validity review
+`50c3c5ce-8970-4127-876f-8d7b892c9a00` confirmed rejection is required;
+the oracle remains unchanged. The run was stopped (exit 130), with 56
+unfinished cases explicitly retained in
+`/tmp/4200-claude-semantic-failure-summary.json` and the original log.
+No partial, failed, or earlier input matrix is used for admission.
+
+The bounded newer Codex candidate probe (`gpt-6.1-sol`) failed before judgment
+in all four selected cases (60 filtered). The authenticated CLI returned
+HTTP 400: the model is not supported for this ChatGPT account. Evidence is
+`/tmp/4200-codex-61-model-access.log`. Current account model metadata lists
+`gpt-6-astra` and older models, but not `gpt-6.1-sol`. The earlier Astra
+missing-completion approval and current Claude generic-checklist approval
+remain valid semantic failures. Neither tested reviewer has qualified.
+
+The admission gate remains closed. Generated runtimes are being synchronized
+with the current source to preserve that fail-closed behavior in every shipped
+surface. Installed-CLI acceptance, the remaining epic scenarios and RGR
+records, legacy approval reuse, deferred R7, and final stack evidence remain
+open. The stack is not merge-ready; no promotion or merge is authorized.
