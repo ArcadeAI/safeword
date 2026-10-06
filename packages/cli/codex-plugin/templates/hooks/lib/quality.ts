@@ -116,12 +116,16 @@ export function renderDecisionBriefContract(grammar = DECISION_BRIEF_GRAMMAR): s
     .map(([verdict, variant]) => `**${variant.terminalLabel}:** for ${verdict}`)
     .join(' or ');
   const shapes = renderDecisionBriefShapes(grammar);
+  // The route paragraph sits just before CONFIDENT's terminal paragraph and picks its form.
+  const { CONFIDENT, BLOCKED } = grammar.variants;
+  const route = `**${CONFIDENT.paragraphs.at(-2)?.label ?? 'Open'}:**`;
+  const blockedTerminal = `**${BLOCKED.terminalLabel}:**`;
 
   return `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight. End with ${endings}.
 
 End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn — make the verdict line clear from the words after the dash, not the label alone (a non-coder may not know the labels). Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
 
-Next or Need must stand alone under ${TERMINAL_HANDOFF_CONTRACT_VERSION}. Write for a reader who sees only this paragraph. When a decision is required, use exactly: Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>. Use specific nouns, verbs, paths, commands, amounts, and consequences. Write each necessary marked term as Term: <name> = <plain-language meaning>. Include a detail only if it could change the decision or action. Stop once the reader can decide or act without scrolling. If no decision is required, use exactly: Action: <imperative>. Object: <specific object>. Optionally add only: Reason: Required because <essential reason>.
+Next or Need must stand alone under ${TERMINAL_HANDOFF_CONTRACT_VERSION}. Write for a reader who sees only this paragraph. When ${route} names a human decision, and always for ${blockedTerminal}, use exactly: Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>. Use specific nouns, verbs, paths, commands, amounts, and consequences. Write each necessary marked term as Term: <name> = <plain-language meaning>. Include a detail only if it could change the decision or action. Stop once the reader can decide or act without scrolling. If ${route} is none, use exactly: Action: <imperative>. Object: <specific object>. Optionally add only: Reason: Required because <essential reason>.
 
 Implementation choices are yours. BLOCKED is for spec/scope/value decisions that need human input. Multiple unknowns: resolve the small ones, BLOCK on the largest.
 
@@ -875,7 +879,7 @@ export function renderDecisionBriefCorrection(
   if (!evaluation.violation && evaluation.requirements && evaluation.requirements.length > 0) {
     const header = `${evaluation.contractVersion} correction. Missing: ${evaluation.requirements.join(', ')}. ${explainRequirements(evaluation.requirements, evaluation.form)}`;
     const actionShape = `**Next:** Action: <imperative>. Object: <specific object>. Reason: Required because <essential reason>.`;
-    const decisionShape = `**Next:** Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>.\n\nFor BLOCKED, use the same five roles after **Need:**.`;
+    const decisionShape = `**Next:** Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>.\n\nFor BLOCKED, use the same five roles after **Need:**.\n\nFor CONFIDENT, the decision form applies because **Open:** names a human decision. If no human decision remains, write **Open:** none. and use the action form instead.`;
     const termShape = evaluation.requirements.includes('plain-language meaning')
       ? '\n\nWrite each necessary marked term as `Term: name = plain-language meaning`.'
       : '';
