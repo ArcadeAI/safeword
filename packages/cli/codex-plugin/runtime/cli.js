@@ -3607,7 +3607,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/PLAN_EXECUTION.md": "b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "8dcf90cf71ecd2f77c14bf4a0bb87d28adb99883efe91c3b35246e0a37e387ef",
         ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
-        ".claude/skills/bdd/SKILL.md": "3770f019f5a83fd4ad6dcb2322528595a39545f61cf1106a2f606a8137036d9d",
+        ".claude/skills/bdd/SKILL.md": "898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
         ".claude/skills/bdd/TDD.md": "5cbbca305b337c2fdf18310e4fccb20979dbc731d873b4f4cec0b036bed816b1",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
@@ -34602,47 +34602,8 @@ Move the handler file and replace the accepted public command response with a ne
 });
 
 // src/planning/contracts.generated.ts
-var PLANNING_CONTRACTS, PLANNING_AUTHOR_COPIES;
+var PLANNING_AUTHOR_COPIES;
 var init_contracts_generated = __esm(() => {
-  PLANNING_CONTRACTS = {
-    "product-plan": {
-      phase: "product-plan",
-      sharedAuthorityDigest: "094aa621afe3cb37e48dc4aebad92e76462f1505b06e61d3c1924aa96a13a38d",
-      purpose: "Define the accepted behavior and its product boundaries.",
-      entryCriteria: "Feature intake with the user's goal and current project context; a child also names its declared parent job and milestone.",
-      requiredContent: "The owning Product Plan or child Contribution, accepted Rules, scope and exclusions, observable done state, personas and affected surfaces. Keep supported facts, assumptions, and unresolved decisions distinct.",
-      prohibitedContent: "Implementation design, delivery task sequencing, or claims that scenarios, either downstream plan, or implementation are approved.",
-      reviewQuestion: "Does this Product Plan completely and honestly define the accepted behavior within user-owned scope, including its consequential outcomes?",
-      approvalMeaning: "The behavior is ready for scenario definition. This is not scenario acceptance, design approval, startable delivery, or completion.",
-      invalidation: "Changed Product Plan bytes or changed decision-bearing product boundaries require a current review of the changed decision.",
-      returnPath: "Repair incomplete behavior or unresolved product choices in intake, then review the corrected Product Plan before scenario definition."
-    },
-    "plan-implementation": {
-      phase: "plan-implementation",
-      sharedAuthorityDigest: "094aa621afe3cb37e48dc4aebad92e76462f1505b06e61d3c1924aa96a13a38d",
-      purpose: "Decide a coherent implementation approach within accepted behavior.",
-      entryCriteria: "Accepted Product Plan Rules and scenarios, with current ticket and project boundaries, principles, personas, affected surfaces, dimensions when present, configured architecture records, and triggered data guidance.",
-      requiredContent: "Approach decisions, affected contracts and surfaces, concrete failure behavior, proof strategy and confidence limits, risks, rollout and rollback, recorded choices, and applicable architecture and data consequences.",
-      prohibitedContent: "Delivery task ordering, a second execution checklist, invented product scope, implementation results, or claims of downstream approval.",
-      reviewQuestion: "Is the accepted approach complete and coherent enough to sequence delivery without inventing another design or widening user-owned scope?",
-      approvalMeaning: "The approach is ready for Execution Planning. This does not approve delivery sequencing, coding, verification, merge, or deployment.",
-      invalidation: "Changed Implementation Plan bytes or decision-bearing behavior and scope require fresh approach review. Dependent Execution review follows the invalidation direction declared by its canonical owner.",
-      returnPath: "Repair approach decisions in Implementation Planning; unresolved product behavior returns to intake or scenario definition before fresh review."
-    },
-    "plan-execution": {
-      phase: "plan-execution",
-      sharedAuthorityDigest: "094aa621afe3cb37e48dc4aebad92e76462f1505b06e61d3c1924aa96a13a38d",
-      purpose: "Turn the accepted approach into startable, dependency-ordered delivery.",
-      entryCriteria: "Current accepted Implementation Plan and scenarios, with current ticket and project boundaries, principles, personas, affected surfaces, dimensions when present, configured architecture records, and triggered data guidance.",
-      requiredContent: "Startable tasks and prerequisites, dependency order, concrete proof specifications, pull-request slicing, reviewed delivery obligations, honest evidence classes, and explicit pending human authority.",
-      prohibitedContent: "A competing approach, expanded product scope, unreviewed design choices, or completion claims unsupported by current real-boundary proof.",
-      reviewQuestion: "Can delivery start and finish from this sequence without inventing an approach, proof boundary, or additional scope?",
-      approvalMeaning: "The reviewed sequence authorizes its bounded coding work when the configured authority permits it. It does not establish implementation, verification, merge, promotion, or deployment completion.",
-      invalidation: "Load-bearing behavior or scope changes and accepted Implementation Plan changes invalidate both plan reviews. Execution-only decision changes invalidate its own review; ordinary checklist progress retains it. The upstream direction is `upstreamImplementationInvalidation: both_plan_reviews`.",
-      returnPath: "Repair sequencing in Execution Planning. A changed or missing accepted approach returns through Implementation Planning and dependent execution review.",
-      upstreamImplementationInvalidation: "both_plan_reviews"
-    }
-  };
   PLANNING_AUTHOR_COPIES = {
     "product-plan": {
       relativePath: "templates/skills/bdd/DISCOVERY.md",
@@ -52334,6 +52295,15 @@ function semanticRoleIdentity(packet, role, content) {
     return planningPersonaIdentity(packet, content);
   if (role === "surfaces")
     return planningSurfaceIdentity(packet, content);
+  if (role === "accepted-upstream-plan") {
+    if (packet.upstream_plan_contract === undefined) {
+      throw new ReviewPacketError("Execution review requires its canonical upstream contract.");
+    }
+    return identity({
+      plan: artifactIdentity(content),
+      contract: packet.upstream_plan_contract.reviewer.sha256
+    });
+  }
   return artifactIdentity(content);
 }
 function createPlanningReviewIdentity(packet) {
@@ -52370,8 +52340,10 @@ function createPlanningReviewIdentity(packet) {
   if (packet.kind === "scenario-gate")
     contractDigest = sha2565(scenarioReviewRubric());
   else {
-    const phase = packet.planning_phase ?? "plan-implementation";
-    contractDigest = sha2565(identity(PLANNING_CONTRACTS[phase]));
+    if (packet.plan_contract === undefined) {
+      throw new ReviewPacketError("A planning review identity requires its canonical contract.");
+    }
+    contractDigest = packet.plan_contract.reviewer.sha256;
   }
   return {
     ...context,
@@ -52387,12 +52359,12 @@ function createPlanningReviewIdentity(packet) {
 var productFrameFields;
 var init_planning_context_identity = __esm(() => {
   init_markdown();
-  init_contracts_generated();
   init_gherkin_feature();
   init_personas();
   init_scenario_coverage();
   init_ticket_metadata();
   init_evidence_record();
+  init_packet_error();
   init_planning_context_error();
   init_review_rubric();
   productFrameFields = [
@@ -53726,6 +53698,13 @@ function isOwnedPlanningTarget(cwd, targets, expected) {
   const target = targets.length === 1 ? targets[0] : undefined;
   return target !== undefined && nodePath52.basename(target) === expected && ownedPlanningTicket(cwd, target);
 }
+function upstreamPlanContract(planningTarget, kind, fingerprintOnly) {
+  if (!planningTarget || kind !== "plan-execution")
+    return {};
+  return {
+    upstream_plan_contract: fingerprintOnly ? fingerprintPlanContract("plan-implementation") : packagedPlanContract("plan-implementation")
+  };
+}
 function packetPlanContract(kind, configured, productTarget, options) {
   if (productTarget)
     return {
@@ -53739,7 +53718,8 @@ function packetPlanContract(kind, configured, productTarget, options) {
   const canonical = options.fingerprintOnly && planningTarget ? fingerprintPlanContract(kind) : packagedPlanContract(kind);
   return {
     ...planningTarget && { planning_phase: kind },
-    plan_contract: configured ?? canonical
+    plan_contract: configured ?? canonical,
+    ...upstreamPlanContract(planningTarget, kind, options.fingerprintOnly)
   };
 }
 function fileDigest(path7) {
@@ -54025,7 +54005,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     deliveryDefinition = retainedDeliveryDefinition(kind, logicalFiles, canonicalRoot);
     planningContract = packetPlanContract(kind, execution.planContract, productPlan, {
       cwd: canonicalRoot,
-      targets,
+      targets: uniqueTargets,
       fingerprintOnly: execution.fingerprintOnly === true
     });
     planningContext = resolvePlanningRoleContext(canonicalRoot, kind, planningContract.planning_phase, logicalFiles, contextFiles);
@@ -89541,7 +89521,7 @@ async function reviewRunHandler(invocation) {
   }
   if (process.env.SAFEWORD_REVIEW_WORKER === "1")
     return runReviewWorker(invocation);
-  const targets = Array.isArray(rawTargets) ? rawTargets.filter((target) => typeof target === "string") : [];
+  const targets = Array.isArray(rawTargets) ? new Map(rawTargets.filter((target) => typeof target === "string").map((target) => [nodePath62.resolve(invocation.cwd, target), target])).values().toArray() : [];
   const context = reviewContext(invocation.options.context);
   if (rawKind === "plan-implementation" || rawKind === "plan-execution") {
     const targetFailure = invalidPlanningTarget(invocation.cwd, rawKind, targets);
