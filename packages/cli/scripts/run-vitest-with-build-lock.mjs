@@ -5,6 +5,7 @@ import {
   copyFileSync,
   cpSync,
   existsSync,
+  linkSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -22,6 +23,7 @@ import process from 'node:process';
 
 import {
   defaultMaximumLockWaitMilliseconds,
+  lockBusyExitCode,
   resolveSafeIntegerEnvironmentVariable,
 } from './lib/test-lock-config.mjs';
 import { environmentPathKey, resolveTestRunnerInvocation } from './test-runner-executable.mjs';
@@ -149,7 +151,15 @@ function isRecognizedTransitionOwner(owner) {
 
 function readOwnerAt(path) {
   try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8'));
+    return parseOwner(readFileSync(path, 'utf8'));
+  } catch {
+    return { owner: {}, readable: false, valid: false };
+  }
+}
+
+function parseOwner(text) {
+  try {
+    const parsed = JSON.parse(text);
     const owner =
       typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
     const readable = isUsableOwnerPid(owner.pid) || hasUsableOwnerTimestamp(owner.createdAt);
@@ -328,8 +338,9 @@ function lockTransitionIsAbandoned(unreadableFallback) {
   return unreadableTransitionIsAgedSafewordResidue();
 }
 
-function transitionRecoveryIsAbandoned() {
-  const { owner, readable } = readOwnerAt(transitionRecoveryOwnerPath);
+function transitionRecoveryIsAbandoned(ownerText) {
+  const { owner, readable } =
+    ownerText === false ? { owner: {}, readable: false } : parseOwner(ownerText);
   if (owner.kind === transitionRecoveryOwnerKind && isUsableOwnerPid(owner.pid))
     return !isProcessAlive(owner.pid);
   if (readable) return false;
@@ -342,41 +353,103 @@ function transitionRecoveryIsAbandoned() {
   }
 }
 
-function removeAbandonedTransitionRecovery() {
-  if (!transitionRecoveryIsAbandoned()) return false;
-
-  const abandonedRecoveryDirectory = `${transitionRecoveryDirectory}.abandoned-${randomUUID()}`;
+function readTextIfPresent(path) {
   try {
-    renameSync(transitionRecoveryDirectory, abandonedRecoveryDirectory);
+    return readFileSync(path, 'utf8');
   } catch (error) {
     if (error?.code === 'ENOENT') return false;
     throw error;
   }
-  rmSync(abandonedRecoveryDirectory, { force: true, recursive: true });
-  return true;
+}
+
+function transitionRecoveryOwnerPathFor(generation) {
+  return nodePath.join(transitionRecoveryDirectory, `owner-${generation}.json`);
+}
+
+function readTransitionRecoveryOwners() {
+  // Owner files are never removed while a marker exists. owner-1 fixes the
+  // marker's instance, and the highest owner of that instance is
+  // authoritative. Until owner-1 exists the marker has no numbered owner, so
+  // only a legacy owner.json can stand in.
+  const anchor = readTextIfPresent(transitionRecoveryOwnerPathFor(1));
+  if (anchor === false) {
+    return { authority: readTextIfPresent(transitionRecoveryOwnerPath), nextGeneration: 1 };
+  }
+  const { instance } = parseOwner(anchor).owner;
+  let entries;
+  try {
+    entries = readdirSync(transitionRecoveryDirectory);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { authority: false, nextGeneration: 1 };
+    throw error;
+  }
+  const generations = entries
+    .map(entry => Number(/^owner-(\d+)\.json$/u.exec(entry)?.[1] ?? 0))
+    .filter(generation => generation > 0)
+    .toSorted((left, right) => left - right);
+  const owners = generations.map(generation =>
+    readTextIfPresent(transitionRecoveryOwnerPathFor(generation)),
+  );
+  return {
+    authority: owners.findLast(text => parseOwner(text).owner.instance === instance) ?? anchor,
+    instance,
+    nextGeneration: generations.at(-1) + 1,
+  };
+}
+
+function holdsTransitionRecovery(token) {
+  const { authority } = readTransitionRecoveryOwners();
+  const { owner } = authority === false ? { owner: {} } : parseOwner(authority);
+  return owner.pid === process.pid && owner.token === token;
+}
+
+function publishTransitionRecoveryOwner(token, generation, instance) {
+  // Link a fully written file into place: contenders never observe partial
+  // metadata, and at most one process can publish each generation.
+  const pendingOwnerPath = `${transitionRecoveryOwnerPath}.pending-${randomUUID()}`;
+  try {
+    writeFileSync(
+      pendingOwnerPath,
+      `${JSON.stringify({ createdAt: new Date().toISOString(), instance, kind: transitionRecoveryOwnerKind, pid: process.pid, token })}\n`,
+    );
+    linkSync(pendingOwnerPath, transitionRecoveryOwnerPathFor(generation));
+    return true;
+  } catch (error) {
+    if (error?.code === 'EEXIST' || error?.code === 'ENOENT') return false;
+    throw error;
+  } finally {
+    rmSync(pendingOwnerPath, { force: true });
+  }
+}
+
+function tryAdoptAbandonedTransitionRecovery(token) {
+  const { authority, instance, nextGeneration } = readTransitionRecoveryOwners();
+  if (!transitionRecoveryIsAbandoned(authority)) return false;
+  // Supersede the abandoned owner instead of removing it, then confirm we are
+  // the authoritative owner. A stale judgement either loses the exclusive link
+  // or publishes an owner that is ignored: an older generation, or an owner
+  // of a marker instance that has since been replaced (#419).
+  return (
+    publishTransitionRecoveryOwner(token, nextGeneration, instance ?? randomUUID()) &&
+    holdsTransitionRecovery(token)
+  );
 }
 
 function tryEnterTransitionRecovery(token) {
   try {
     mkdirSync(transitionRecoveryDirectory);
-    writeFileSync(
-      transitionRecoveryOwnerPath,
-      `${JSON.stringify({ createdAt: new Date().toISOString(), kind: transitionRecoveryOwnerKind, pid: process.pid, token })}\n`,
-    );
-    return true;
   } catch (error) {
-    if (error?.code === 'EEXIST') {
-      return removeAbandonedTransitionRecovery() && tryEnterTransitionRecovery(token);
-    }
-    rmSync(transitionRecoveryDirectory, { force: true, recursive: true });
+    if (error?.code === 'EEXIST') return tryAdoptAbandonedTransitionRecovery(token);
     if (error?.code === 'ENOENT' || error?.code === 'EINVAL') return false;
     throw error;
   }
+  // A failed publish leaves an ownerless marker that ages out; removing it by
+  // path could delete a marker another contender adopted meanwhile.
+  return publishTransitionRecoveryOwner(token, 1, randomUUID()) && holdsTransitionRecovery(token);
 }
 
 function leaveTransitionRecovery(token) {
-  const { owner } = readOwnerAt(transitionRecoveryOwnerPath);
-  if (owner.pid !== process.pid || owner.token !== token) return false;
+  if (!holdsTransitionRecovery(token)) return false;
   const releasedRecoveryDirectory = `${transitionRecoveryDirectory}.released-${randomUUID()}`;
   try {
     renameSync(transitionRecoveryDirectory, releasedRecoveryDirectory);
@@ -499,7 +572,7 @@ function acquireLock() {
       const ownerPid = pid === undefined ? 'unavailable' : `PID ${pid}`;
       const ownerCheckout = checkoutRoot ?? 'an unavailable checkout';
       console.error(
-        `Could not acquire safeword package test lock at ${lockDirectory} after waiting ${formatElapsedWait(maximumLockWaitMilliseconds)}; no test was started. The active owner is ${ownerPid} in ${ownerCheckout}. A transition may be blocked at ${transitionDirectory}. Re-run after it finishes, set SAFEWORD_TEST_LOCK_MAX_WAIT_MS to a larger positive millisecond value, or remove either directory only if you are sure no package test is running.`,
+        `Safeword package test lock busy: could not acquire ${lockDirectory} after waiting ${formatElapsedWait(maximumLockWaitMilliseconds)}; no test was started. The active owner is ${ownerPid} in ${ownerCheckout}. A transition may be blocked at ${transitionDirectory}. Re-run after it finishes, set SAFEWORD_TEST_LOCK_MAX_WAIT_MS to a larger positive millisecond value, or remove either directory only if you are sure no package test is running.`,
       );
       return false;
     }
@@ -702,7 +775,7 @@ function removePackageSnapshot(snapshotRoot) {
 
 let lockToken;
 let packageSnapshot;
-let status = 1;
+let status;
 try {
   lockToken = acquireLock();
   if (lockToken) {
@@ -714,6 +787,8 @@ try {
         SAFEWORD_TEST_CLI_ROOT: packageSnapshot,
       });
     }
+  } else {
+    status = lockBusyExitCode;
   }
 } finally {
   if (packageSnapshot) removePackageSnapshot(packageSnapshot);

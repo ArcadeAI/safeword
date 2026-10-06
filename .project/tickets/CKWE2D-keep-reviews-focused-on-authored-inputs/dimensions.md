@@ -13,13 +13,13 @@ the smallest set of representative behavioral scenarios.
 | Eligible target set | authored target remains · **none remains** | every supplied target is omitted | generated target leaves authored input; all targets excluded |
 | Result scope | no reduction · named generated exclusions | `excluded_targets` has exact duplicate-free canonical project-relative membership in supplied-target order after packet finalization; preflight failures omit it | multiple generated oversized targets; repeated path; alias paths; post-launch failure; special paths |
 | Input validity | every oversize target marked · **one unmarked target** | mixed input must fail atomically before reviewer launch | mixed generated and unmarked input |
-| Aggregate bound | four individually valid 262144-byte multibyte UTF-8 files · **the same four plus one byte** | generated omission cannot reset the pre-existing aggregate cap, count characters instead of bytes, or mask individual-limit precedence | aggregate boundary success; aggregate overflow rejection |
+| Aggregate bound | four individually valid multibyte UTF-8 files whose serialized packet reaches 1048576 bytes including metadata · **the same packet plus one ASCII byte** | generated omission cannot reset the pre-existing aggregate cap, count characters instead of bytes, or mask individual-limit precedence | aggregate boundary success; aggregate overflow rejection |
 | Failure result | target-too-large · packet-too-large · no-eligible-targets | nonzero JSON envelope contains the exact `errors[0].code` and no successful-scope field | all rejection scenarios |
 | Target path syntax | ordinary · nested with spaces · option-like · **outside project** | Git receives every project-relative path as one literal NUL-delimited stdin value, never shell or pathspec syntax; outside targets never reach it | special-path and outside-project outlines |
-| Capture stability | captured target unchanged · **replaced before attribute lookup** | a changed target fails before either classification or review | target-changed rejection |
+| Capture stability | captured target unchanged · **replaced before attribute lookup** · **oversized candidate replaced after lookup** | a changed target fails before classification, omission, or review | target-changed rejection |
 | Submitted target set | eligible target exists · **empty input** · all targets omitted | every no-eligible path reports the same no-review failure | empty targets; all generated oversized targets |
 | Existing target validity | regular UTF-8 file · **directory / invalid UTF-8** | generated classification never bypasses earlier containment or text validation | generated-marker validation outline |
-| Repository metadata | runtime artifact marked · marker absent | Safeword dogfood path is classified by the same mechanism | generated runtime metadata |
+| Repository metadata | Claude and Codex runtime artifacts marked · marker absent | both shipped runtime outputs are classified by the same committed-tree mechanism | generated runtime outline |
 
 ## Partitioning notes
 
@@ -42,8 +42,10 @@ the smallest set of representative behavioral scenarios.
   that names the requested canonical path. Multiple, foreign, missing, or
   delimiter-corrupt records are attribute-resolution failures, not a generated
   declaration.
-- Every generated classification uses one process contract: `git -C
-  project-root check-attr -z --stdin linguist-generated`, with exactly one
+- Every generated classification uses one process contract: `git --git-dir
+  isolated-bare-dir -c core.attributesFile=<null-device> check-attr
+  --source=<HEAD-commit> -z --stdin linguist-generated`, with the real object
+  database supplied as an alternate and system attributes disabled; exactly one
   NUL-terminated canonical project-relative path in stdin and exactly one
   matching UTF-8 response tuple: canonical path, `linguist-generated`, value,
   each NUL-terminated with no trailing bytes. No target path is placed in argv
@@ -69,7 +71,7 @@ the smallest set of representative behavioral scenarios.
   values, while outside and symlink-escaping or newly changed paths are
   rejected before attribute lookup. The asserted JSON
   envelope is the CLI's user-visible contract.
-- **Metadata:** `git check-attr` against the dogfood artifact proves the
-  shipped repository declaration is present; the command-level arbitrary-path
-  fixture proves packet selection actually follows the Git attribute rather
+- **Metadata:** the public review command receives the real dogfood runtime
+  beside an authored target and proves the shipped declaration is honored;
+  an arbitrary-path fixture proves selection follows the Git attribute rather
   than a hard-coded runtime path.

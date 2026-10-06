@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "description": "AI coding agent workflows: BDD, auto-linting, quality reviews, debugging, and refactoring. Start a new session to auto-install, or run /safeword:setup.",
+  "description": "AI coding agent workflows: BDD, auto-linting, quality reviews, debugging, and refactoring. Run safeword install in a project to enroll it.",
   "author": {
     "name": "safeword"
   },

@@ -226,6 +226,51 @@ describe('Schema - Single Source of Truth', () => {
         expect(content).toContain(entry);
       }
     });
+
+    // Hooks name their namespace-root state files in one-line filename
+    // constants (`const X = 'name.json';`). A new one that never reaches the
+    // transient list shows up untracked in every customer project, so derive
+    // the expectation from the hook source, not a copy. Filenames declared any
+    // other way (typed, multiline, inline) are not discovered.
+    it('ignores every state-file constant a hook declares', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const gitignorePatch = SAFEWORD_SCHEMA.textPatches['.gitignore'];
+      const content =
+        (Array.isArray(gitignorePatch) ? gitignorePatch[0]?.content : gitignorePatch?.content) ??
+        '';
+      // A rendered patch would hide every entry, so it fails rather than passes.
+      const text = typeof content === 'string' ? content : '';
+      // Ignored by its own `**/architecture.generated.md` rule.
+      const ignoredElsewhere = new Set(['architecture.generated.md']);
+      const hookSources = [
+        ...readdirSync(nodePath.join(import.meta.dirname, '../templates/hooks'), {
+          recursive: true,
+        })
+          .map(String)
+          .filter(file => file.endsWith('.ts'))
+          .map(file => nodePath.join(import.meta.dirname, '../templates/hooks', file)),
+        nodePath.join(import.meta.dirname, '../src/commands/codex-hook.ts'),
+      ];
+      const stateFiles = new Set(
+        hookSources.flatMap(file =>
+          Array.from(
+            readFileSync(file, 'utf8').matchAll(
+              /^(?:export )?const [A-Z_]+ = '([a-z][a-z\d-]*\.(?:json|jsonl|log|md))';/gmu,
+            ),
+            match => match[1] ?? '',
+          ),
+        ),
+      );
+      expect(stateFiles.size).toBeGreaterThan(0);
+
+      const unignored = [...stateFiles].filter(
+        name =>
+          !ignoredElsewhere.has(name) &&
+          !(text.includes(`.project/${name}`) && text.includes(`.safeword-project/${name}`)),
+      );
+
+      expect(unignored).toEqual([]);
+    });
   });
 
   describe('BDD lane surface constants (56JCFZ)', () => {
@@ -395,7 +440,9 @@ describe('Schema - Single Source of Truth', () => {
         for (const entry of entries) {
           const hookCommands = entry.hooks ?? [];
           for (const hook of hookCommands) {
-            expect(hook.command).toContain('bun "${PLUGIN_ROOT}/runtime/cli.js" hook codex');
+            expect(hook.command).toContain(
+              'bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js" hook codex',
+            );
           }
         }
       }

@@ -22,6 +22,7 @@ import {
   reviewRoutePlan,
 } from './policy.js';
 import { minimumRouteMs, ReviewRuntimeError, runBoundMs, runHeadlessReviewer } from './runtime.js';
+import { withReviewScope } from './scope.js';
 
 /** The command runner owns reporter shutdown; review routing only updates it. */
 type ReviewProgress = Pick<ProgressReporter, 'start' | 'heartbeat'>;
@@ -1624,7 +1625,7 @@ function runAfterPrimaryFailure(
   });
 }
 
-export async function runReview(input: ReviewRunInput): Promise<CliResult> {
+async function runReviewCore(input: ReviewRunInput): Promise<CliResult> {
   const author = resolveRunIdentity({}, { env: process.env }).runtime;
   const policy = readReviewPolicy(input.cwd);
   if (policy === 'off') {
@@ -1736,4 +1737,25 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     preferredModel,
     preferredModelFailure,
   });
+}
+
+export async function runReview(input: ReviewRunInput): Promise<CliResult> {
+  const { result, scope } = await withReviewScope(() => runReviewCore(input));
+  const exhausted = result.findings.find(finding => finding.code === 'REVIEW_ROUTES_EXHAUSTED');
+  const publicResult =
+    exhausted === undefined || result.errors.some(error => error.code === exhausted.code)
+      ? result
+      : {
+          ...result,
+          errors: [
+            ...result.errors,
+            { code: exhausted.code, message: exhausted.message, retryable: true },
+          ],
+        };
+  if (scope.excludedTargets === undefined) return publicResult;
+  const data = publicResult.data as Record<string, unknown> | undefined;
+  return {
+    ...publicResult,
+    data: { ...data, excluded_targets: scope.excludedTargets },
+  };
 }

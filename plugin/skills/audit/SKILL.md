@@ -16,12 +16,15 @@ Run a diff-scoped code audit. Execute checks and report results by severity.
 
 This skill is required before marking a feature ticket done. The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /audit was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids from the runtime environment, and on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper — so on all three runtimes the fallback runs without hand-picking an id. Hand-writing audit results cannot produce this feature-gate proof.
 
-!`bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$CLAUDE_PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`PROJECT_DIR="$(top=$(git rev-parse --show-toplevel 2> /dev/null); if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi)" && bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$CLAUDE_PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] audit ✓` line appears above, run this fallback before continuing:
 
 ```bash
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}"
 ```
 
@@ -68,7 +71,10 @@ that ref. An invalid ref stops the audit instead of silently widening its scope.
 ```bash
 # Ensure we're in the project root regardless of prior CWD state, then load the
 # same scope contract every executable audit block uses.
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 cd "$PROJECT_DIR" || exit 1
 source "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/lib/audit-scope.sh"
 audit_scope_initialize "$PROJECT_DIR" || exit $?
@@ -330,15 +336,16 @@ $GO_MODULE_DIRS
 EOF
   fi
 
-  # 1d. Architecture - Rust. Cargo rejects circular crate deps and rustc forbids
-  # mutually-recursive modules, so a compiling project cannot contain cycles — no
-  # check needed. No mature standard tool enforces directional layer boundaries in
-  # Rust (cargo-modules only visualizes); teams enforce boundaries structurally via
-  # separate crates + visibility. (cargo-deny covers dependency supply-chain —
+  # 1d. Architecture - Rust. Cargo rejects circular CRATE dependencies, so a green
+  # build proves the crate graph is acyclic. It does NOT cover modules: sibling
+  # modules inside one crate may `use` each other, so module cycles compile and no
+  # standard tool reports them (cargo-modules only visualizes). No mature tool
+  # enforces directional layer boundaries either; teams enforce them structurally
+  # via separate crates + visibility. (cargo-deny covers dependency supply-chain —
   # advisories/licenses/bans — a different axis, not architecture.)
   if [ -n "$RUST_CRATE_DIRS" ]; then
     while IFS= read -r crate_dir; do
-      [ -n "$crate_dir" ] && echo "Rust architecture — $crate_dir: crate/module cycles are compiler-guaranteed absent (a passing build proves it); no standard layer-boundary tool exists — enforce structurally via crates."
+      [ -n "$crate_dir" ] && echo "Rust architecture — $crate_dir: crate dependency cycles are compiler-guaranteed absent (a passing build proves it). Manual evidence required: module cycles inside a crate are NOT checked (modules may reference each other and still compile); review module structure by hand or inspect it with 'cargo modules dependencies'. No standard layer-boundary tool exists — enforce structurally via crates."
     done << EOF
 $RUST_CRATE_DIRS
 EOF
@@ -559,7 +566,10 @@ For each changed config file, check:
 Changed project learnings in the resolved namespace root's `learnings/*.md` must have a `Covers:` line on line 3 — the auto-generated `INDEX.md` is built from these lines, and files without them don't appear in the index. In a repository audit, check every learning as before.
 
 ```bash
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 source "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/lib/audit-scope.sh"
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 NS_ROOT="$(bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
@@ -699,7 +709,10 @@ contract testable without turning semantic review into shell heuristics.
 
 ```bash
 # principle-trace-check — E010 objective trace integrity only.
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 TICKET_PATH="$(bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/resolve-verify-ticket.ts" "$PROJECT_DIR")"
 ticket_status=$?
 if [ "$ticket_status" -ne 0 ]; then
@@ -723,8 +736,14 @@ below verbatim, as ONE bash invocation.**
 ````bash
 # domain-docs-check — read-only reconciliation of the namespace domain docs.
 # Class-2: observable facts only. Emits W008 (empty). Never writes the tree.
-cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+cd "$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)" || exit 1
+PROJECT_DIR="$(
+  top=$(git rev-parse --show-toplevel 2> /dev/null)
+  if [ -f "$top/.safeword/SAFEWORD.md" ]; then echo "$top"; else echo "${CLAUDE_PROJECT_DIR:-${top:-$PWD}}"; fi
+)"
 source "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/lib/audit-scope.sh"
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 

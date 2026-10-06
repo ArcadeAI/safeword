@@ -1,7 +1,7 @@
 /** Integration proof for the local Ready boundary (ticket PY73VN). */
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -263,6 +263,298 @@ function expectDenied(host: Host, output: ClaudeHookOutput | CursorHookOutput): 
   }
   expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).toBe('deny');
 }
+
+interface WorktreeSession {
+  launchDirectory: string;
+  worktreeDirectory: string;
+}
+
+/**
+ * A launch checkout whose session moved into an enrolled `.claude/worktrees/<name>`
+ * worktree. Claude Code keeps CLAUDE_PROJECT_DIR at the launch checkout, so the
+ * hooks only learn where the work lives from the edited path or the shell cwd.
+ */
+function worktreeSession(): WorktreeSession {
+  const launchDirectory = unfinishedProject();
+  const worktreeDirectory = nodePath.join(launchDirectory, '.claude/worktrees/wt');
+  execFileSync('git', ['worktree', 'add', '-q', '-b', 'wt', worktreeDirectory], {
+    cwd: launchDirectory,
+    stdio: 'ignore',
+  });
+  return { launchDirectory, worktreeDirectory };
+}
+
+function runClaudeHookFromLaunch(
+  hook: string,
+  launchDirectory: string,
+  input: Record<string, unknown>,
+): ClaudeHookOutput {
+  const environment: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: launchDirectory };
+  delete environment.SAFEWORD_PLUGIN_CLI;
+  const result = spawnSync('bun', [hook], {
+    cwd: launchDirectory,
+    env: environment,
+    input: JSON.stringify({ session_id: 'claude-test', ...input }),
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  expect(result.status, result.stderr).toBe(0);
+  return result.stdout.trim() === '' ? {} : (JSON.parse(result.stdout) as ClaudeHookOutput);
+}
+
+/** Close the worktree's ticket with valid verification, as a session inside it would. */
+function closeTicketInWorktree(
+  { launchDirectory, worktreeDirectory }: WorktreeSession,
+  editedTicketDirectory = nodePath.join(worktreeDirectory, nodePath.dirname(TICKET_PATH)),
+): void {
+  const observeEdit = (editedPath: string) =>
+    runClaudeHookFromLaunch(POST_TOOL_QUALITY, launchDirectory, {
+      cwd: worktreeDirectory,
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: nodePath.join(editedTicketDirectory, nodePath.basename(editedPath)),
+      },
+    });
+  writeTestFile(worktreeDirectory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
+  observeEdit(VERIFY_PATH);
+  writeTicket(worktreeDirectory, 'done', 'done');
+  observeEdit(TICKET_PATH);
+  commitAll(worktreeDirectory, 'close ticket');
+  runClaudeHookFromLaunch(POST_TOOL_QUALITY, launchDirectory, {
+    cwd: worktreeDirectory,
+    tool_name: 'Bash',
+    tool_input: { command: 'git commit -m "close ticket"' },
+  });
+}
+
+function runReadyFromLaunch(launchDirectory: string, shellDirectory: string): ClaudeHookOutput {
+  return runClaudeHookFromLaunch(PRE_TOOL_QUALITY, launchDirectory, {
+    cwd: shellDirectory,
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Bash',
+    tool_input: { command: 'gh pr ready' },
+  });
+}
+
+describe('pull-request readiness from a session inside a nested worktree', () => {
+  it('allows Ready when the shell works in a worktree whose ticket is verified done', () => {
+    const session = worktreeSession();
+    closeTicketInWorktree(session);
+
+    const output = runReadyFromLaunch(session.launchDirectory, session.worktreeDirectory);
+
+    expect(output).toEqual({});
+  });
+
+  it('allows Ready when the worktree ticket was closed through a symlink in the launch checkout', () => {
+    const session = worktreeSession();
+    const linkedTicketDirectory = nodePath.join(
+      session.launchDirectory,
+      '.project/tickets/WT-linked',
+    );
+    symlinkSync(
+      nodePath.join(session.worktreeDirectory, nodePath.dirname(TICKET_PATH)),
+      linkedTicketDirectory,
+    );
+    closeTicketInWorktree(session, linkedTicketDirectory);
+
+    const output = runReadyFromLaunch(session.launchDirectory, session.worktreeDirectory);
+
+    expect(output).toEqual({});
+  });
+
+  it('allows Ready when the worktree ticket was closed through an alias outside the ticket tree', () => {
+    const session = worktreeSession();
+    // The alias path itself carries no `.project/tickets/` segment, so only the
+    // canonical path identifies it as a ticket artifact.
+    const aliasDirectory = nodePath.join(session.launchDirectory, 'ticket-link');
+    symlinkSync(
+      nodePath.join(session.worktreeDirectory, nodePath.dirname(TICKET_PATH)),
+      aliasDirectory,
+    );
+    closeTicketInWorktree(session, aliasDirectory);
+
+    const output = runReadyFromLaunch(session.launchDirectory, session.worktreeDirectory);
+
+    expect(output).toEqual({});
+  });
+
+  it('records a worktree ticket closed through edit targets relative to the session cwd', () => {
+    const session = worktreeSession();
+    // Relative to the worktree cwd; the hook process itself runs in the
+    // unfinished launch checkout, which holds the same relative path.
+    closeTicketInWorktree(session, nodePath.dirname(TICKET_PATH));
+
+    const output = runReadyFromLaunch(session.launchDirectory, session.worktreeDirectory);
+
+    expect(output).toEqual({});
+  });
+
+  it('gates the worktree the shell is in when its cwd is reached through a symlink', () => {
+    const session = worktreeSession();
+    mkdirSync(nodePath.join(session.worktreeDirectory, 'packages'), { recursive: true });
+    // Lexically under the unfinished launch checkout, really inside the worktree.
+    const aliasedShellDirectory = nodePath.join(session.launchDirectory, 'work-link');
+    symlinkSync(nodePath.join(session.worktreeDirectory, 'packages'), aliasedShellDirectory);
+    closeTicketInWorktree(session);
+
+    const output = runReadyFromLaunch(session.launchDirectory, aliasedShellDirectory);
+
+    expect(output).toEqual({});
+  });
+
+  it('still denies Ready when the shell works in the unfinished launch checkout', () => {
+    const session = worktreeSession();
+    closeTicketInWorktree(session);
+
+    const output = runReadyFromLaunch(session.launchDirectory, session.launchDirectory);
+
+    expectDenied('Claude Code', output);
+    expect(denialReason('Claude Code', output)).toContain('implementation');
+  });
+
+  it('still denies Ready when the worktree ticket is unfinished', () => {
+    const session = worktreeSession();
+
+    const output = runReadyFromLaunch(session.launchDirectory, session.worktreeDirectory);
+
+    expectDenied('Claude Code', output);
+    expect(denialReason('Claude Code', output)).toContain('implementation');
+  });
+});
+
+/**
+ * Run a Codex or Cursor adapter the way its host does in a worktree session:
+ * the hook process and CLAUDE_PROJECT_DIR stay at the launch checkout, and only
+ * the host payload says where the work happens (#5392).
+ */
+function runAdapterFromLaunch(
+  hook: string,
+  launchDirectory: string,
+  input: Record<string, unknown>,
+): ClaudeHookOutput | CursorHookOutput {
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    CLAUDE_PROJECT_DIR: launchDirectory,
+    SAFEWORD_CODEX_DENY_MODE: 'json',
+  };
+  delete environment.SAFEWORD_PLUGIN_CLI;
+  const result = spawnSync('bun', [hook], {
+    cwd: launchDirectory,
+    env: environment,
+    input: JSON.stringify(input),
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  expect(result.status, result.stderr).toBe(0);
+  return result.stdout.trim() === ''
+    ? {}
+    : (JSON.parse(result.stdout) as ClaudeHookOutput | CursorHookOutput);
+}
+
+// Codex sends `cwd` on every hook. Cursor sends it to beforeShellExecution but
+// not postToolUse, so its commit is observed without one.
+const ADAPTER_SESSIONS = {
+  'OpenAI Codex': {
+    observeEdit: (session: WorktreeSession, filePath: string) =>
+      runAdapterFromLaunch(CODEX_POST_TOOL_QUALITY, session.launchDirectory, {
+        session_id: 'codex-test',
+        cwd: session.worktreeDirectory,
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Edit',
+        tool_input: { file_path: filePath },
+      }),
+    shell: (session: WorktreeSession, command: string) =>
+      runAdapterFromLaunch(CODEX_PRE_TOOL_QUALITY, session.launchDirectory, {
+        session_id: 'codex-test',
+        cwd: session.worktreeDirectory,
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Bash',
+        tool_input: { command },
+      }),
+    observeShell: (session: WorktreeSession, command: string) =>
+      runAdapterFromLaunch(CODEX_POST_TOOL_QUALITY, session.launchDirectory, {
+        session_id: 'codex-test',
+        cwd: session.worktreeDirectory,
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Bash',
+        tool_input: { command },
+      }),
+  },
+  Cursor: {
+    observeEdit: (session: WorktreeSession, filePath: string) =>
+      runAdapterFromLaunch(CURSOR_POST_TOOL_QUALITY, session.launchDirectory, {
+        conversation_id: 'cursor-test',
+        workspace_roots: [session.launchDirectory],
+        tool_name: 'Write',
+        tool_input: { file_path: filePath },
+      }),
+    shell: (session: WorktreeSession, command: string) =>
+      runAdapterFromLaunch(CURSOR_BEFORE_SHELL, session.launchDirectory, {
+        conversation_id: 'cursor-test',
+        workspace_roots: [session.launchDirectory],
+        cwd: session.worktreeDirectory,
+        command,
+      }),
+    observeShell: (session: WorktreeSession, command: string) =>
+      runAdapterFromLaunch(CURSOR_POST_TOOL_QUALITY, session.launchDirectory, {
+        conversation_id: 'cursor-test',
+        workspace_roots: [session.launchDirectory],
+        tool_name: 'Shell',
+        tool_input: { command },
+      }),
+  },
+} as const;
+
+type AdapterHost = keyof typeof ADAPTER_SESSIONS;
+
+/** Close the worktree ticket through the host adapter, as that host's session would. */
+function closeTicketThroughAdapter(host: AdapterHost, session: WorktreeSession): void {
+  const adapter = ADAPTER_SESSIONS[host];
+  const ticketDirectory = nodePath.join(session.worktreeDirectory, nodePath.dirname(TICKET_PATH));
+  writeTestFile(
+    session.worktreeDirectory,
+    VERIFY_PATH,
+    '**PR Scope:** ✅ Diff matches ticket scope\n',
+  );
+  adapter.observeEdit(session, nodePath.join(ticketDirectory, 'verify.md'));
+  writeTicket(session.worktreeDirectory, 'done', 'done');
+  adapter.observeEdit(session, nodePath.join(ticketDirectory, 'ticket.md'));
+  const commit = 'git commit -m "close ticket"';
+  adapter.shell(session, commit);
+  commitAll(session.worktreeDirectory, 'close ticket');
+  adapter.observeShell(session, commit);
+}
+
+describe('pull-request readiness from a Codex or Cursor session inside a nested worktree', () => {
+  it.each<AdapterHost>(['OpenAI Codex', 'Cursor'])(
+    'allows Ready on %s when the shell works in a worktree whose ticket is verified done',
+    host => {
+      const session = worktreeSession();
+      closeTicketThroughAdapter(host, session);
+
+      const output = ADAPTER_SESSIONS[host].shell(session, 'gh pr ready');
+
+      if (host === 'Cursor') {
+        expect((output as CursorHookOutput).permission).toBe('allow');
+      } else {
+        expect(output).toEqual({});
+      }
+    },
+  );
+
+  it.each<AdapterHost>(['OpenAI Codex', 'Cursor'])(
+    'still denies Ready on %s when the worktree ticket is unfinished',
+    host => {
+      const session = worktreeSession();
+
+      const output = ADAPTER_SESSIONS[host].shell(session, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('implementation');
+    },
+  );
+});
 
 describe('pull-request readiness delivery gate', () => {
   it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
@@ -625,6 +917,25 @@ describe('pull-request readiness delivery gate', () => {
       expectDenied(host, output);
       expect(denialReason(host, output)).toContain('current commit');
       expect(denialReason(host, output)).toContain('run verification again');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'ignores a Ready receipt for a ticket that is not on this branch on %s',
+    host => {
+      const directory = unfinishedProject();
+      clearSessionBindings(directory);
+      writeTestFile(
+        directory,
+        '.project/readiness-ticket.json',
+        `${JSON.stringify({ schema_version: 1, ticket_id: 'ZZ9999', head_sha: 'deadbeef' })}\n`,
+      );
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).not.toContain('ZZ9999');
+      expect(denialReason(host, output)).toContain('Open or resume the delivery ticket');
     },
   );
 
