@@ -34,6 +34,7 @@ import {
 import { appendDesignDecision } from '../../src/review/approval-ledger.js';
 import { hashArtifact, reviewScope } from '../../templates/hooks/lib/review-ledger.js';
 import { assertTestCliFresh, runCli, testCliPath } from '../helpers.js';
+import { PLANNING_ROLE_PRODUCT, writeImplementationRoleInputs } from '../planning-role-fixtures.js';
 
 const TICKET_ID = 'PLAN42';
 const TICKET_FOLDER = `${TICKET_ID}-review-the-approach`;
@@ -189,7 +190,24 @@ function projectFiles(directory: string, root = directory): string[] {
   });
 }
 
-function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approved'): Fixture {
+function supplyCurrentContext(root: string, ticketDirectory: string, enabled: boolean): void {
+  if (!enabled) return;
+  writeFileSync(
+    nodePath.join(ticketDirectory, 'spec.md'),
+    `${PLANNING_ROLE_PRODUCT}\n## Surfaces\n\nAffected:\n- Safeword CLI\n`,
+  );
+  writeImplementationRoleInputs(
+    root,
+    `${nodePath.relative(root, ticketDirectory)}/impl-plan.md`,
+    'review-the-approach.feature',
+  );
+}
+
+function fixture(
+  designApprovalGate: boolean,
+  reviewState: ReviewState = 'approved',
+  currentContext = false,
+): Fixture {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-plan-approval-'));
   fixtures.push(root);
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', TICKET_FOLDER);
@@ -222,6 +240,13 @@ function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approv
       'type: feature',
       'phase: plan-implementation',
       'status: in_progress',
+      ...(currentContext
+        ? [
+            'product_plan_contract: v1',
+            'phase_anchors:',
+            '  - scenario-gate: features/review-the-approach.feature',
+          ]
+        : []),
       'scope: review one approach',
       'out_of_scope: unrelated work',
       'done_when: execution planning begins safely',
@@ -237,6 +262,7 @@ function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approv
     nodePath.join(root, 'features', 'review-the-approach.feature'),
     'Feature: Review the approach\n',
   );
+  supplyCurrentContext(root, ticketDirectory, currentContext);
   writeFileSync(
     nodePath.join(root, '.safeword', 'templates', 'execution-plan-template.md'),
     EXECUTION_PLAN_TEMPLATE,
@@ -283,7 +309,8 @@ function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approv
   const reviewId = payload.data?.review_id;
   if (reviewId === undefined)
     throw new Error(`Implementation Plan review failed: ${reviewed.stdout}`);
-  const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(PLAN));
+  const currentPlan = readFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), 'utf8');
+  const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(currentPlan));
   const existingLedger = readFileSync(ledgerPath, 'utf8');
   writeFileSync(
     ledgerPath,
@@ -797,6 +824,60 @@ describe('implementation-time discoveries return to the affected planning phase'
       );
     },
   );
+});
+
+describe('repair must precede renewed planning approval', () => {
+  it('refuses reuse of the old current-context approval after an execution discovery', async () => {
+    const project = fixture(false, 'approved', true);
+    writeFileSync(
+      project.ticketPath,
+      readFileSync(project.ticketPath, 'utf8').replace(
+        'phase: plan-implementation',
+        'phase: implement',
+      ),
+    );
+    const executionPlanPath = nodePath.join(project.ticketDirectory, 'execution-plan.md');
+    writeFileSync(
+      executionPlanPath,
+      replanExecutionPlan('Accepted authorization approach changed'),
+    );
+    const reviewerBin = installBlockingReviewer();
+    const reviewed = await runCli(
+      [
+        '--json',
+        '--no-input',
+        'review',
+        'run',
+        'plan-execution',
+        nodePath.relative(project.root, executionPlanPath),
+        '--context',
+        nodePath.relative(project.root, nodePath.join(project.ticketDirectory, 'impl-plan.md')),
+        '--context',
+        'features/review-the-approach.feature',
+        '--cwd',
+        project.root,
+      ],
+      {
+        cwd: project.root,
+        env: {
+          PATH: `${reviewerBin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+          SAFEWORD_REVIEW_FOREGROUND_MS: '5000',
+          ...reviewEnvironment(project),
+        },
+      },
+    );
+    expect(reviewed.exitCode, reviewed.stdout).toBe(2);
+    expect(reviewed.stdout).toContain('"planning_destination":"plan-implementation"');
+    const args = ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID];
+    const returned = await runCli(args, { cwd: project.root, env: reviewEnvironment(project) });
+    expect(returned.exitCode, returned.stdout).toBe(2);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    const unrepaired = await runCli(args, { cwd: project.root, env: reviewEnvironment(project) });
+    expect(unrepaired.exitCode, unrepaired.stdout).toBe(2);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+  });
 });
 
 describe('an accepted design enters Execution Planning', () => {
