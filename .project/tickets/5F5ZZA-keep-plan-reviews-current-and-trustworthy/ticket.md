@@ -715,3 +715,14 @@ outcomes. Prepared `/tmp/4200-independent-outcomes-oracle-correction.patch`
 changes only that required term to outcome; rejection and all other checks stay.
 Human approval and a bounded independent audit are pending; the patch is not
 applied. Raw evidence remains `/tmp/4200-final-oracle-codex-full-live.log`.
+
+Independent audit `cfb48dfc-4fe7-4423-b3fc-26751d32765e` confirms the rejection
+is correct and admission fails closed. It warns that substituting outcome for
+purpose merely reverses the synonym problem. The prepared patch is therefore
+revised to require independent and contract, the named affected slice, as the
+audit proposes. This retains the rejection and its case-specific finding check
+without choosing between purpose/outcome wording. The earlier one-word approval
+request is superseded; the revised patch remains unapplied pending approval.
+Other audit advisories (unchecked fixture replacements and a rubric HTML span)
+are recorded without expanding this correction's scope. The approved boundary
+and proof corrections are committed at `ce59fb0ef`; no PR promotion or merge.
