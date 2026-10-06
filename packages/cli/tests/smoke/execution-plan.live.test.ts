@@ -29,7 +29,7 @@ import {
 } from '../helpers.js';
 
 const CAN_RUN = process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE === '1';
-const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds({});
+const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds();
 const LIVE_TEST_TIMEOUT_MS = REVIEW_TIMEOUT_MS + 60_000;
 const reviewer = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER as ReviewAgent | undefined;
 const model = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL?.trim() || undefined;
