@@ -1107,204 +1107,203 @@ function missingObligationCase(
   );
 }
 
-export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformanceCase[] = (
-  [
-    approved(
-      'one-coherent-change',
-      'One coherent change records one pull request.',
-      ONE_PLAN,
-      'one_pull_request',
-      ['Complete delivery'],
+const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
+  approved(
+    'one-coherent-change',
+    'One coherent change records one pull request.',
+    ONE_PLAN,
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
+  approved(
+    'several-ordered-changes',
+    'Several independent changes record ordered pull requests.',
+    MULTI_PLAN,
+    'multiple_pull_requests',
+    ['Contract', 'Activation'],
+  ),
+  denied(
+    'omitted-slicing-decision',
+    'An omitted slicing decision is denied as undecided.',
+    executionPlan({
+      rationale: 'Contract and activation are described but the slicing decision is unspecified.',
+      slices: [CONTRACT_SLICE, ACTIVATION_SLICE],
+    }),
+    ['slicing', 'decision'],
+  ),
+  approved(
+    'complete-slice-record',
+    'A complete slice receives a complete record.',
+    COMPLETE_RECORD_PLAN,
+    'one_pull_request',
+    ['Typed review result'],
+  ),
+  denied(
+    'generic-checklist',
+    'A structurally complete checklist unrelated to the accepted scenarios and approach is denied.',
+    executionPlan({
+      decision: 'one pull request',
+      rationale: 'The contribution claims one coherent outcome.',
+      slices: [COMPLETE_DELIVERY_SLICE],
+      unrelatedChecklist: true,
+    }),
+    ['checklist', 'accepted'],
+  ),
+  {
+    ...denied(
+      'dismissed-applicable-work',
+      'Applicable contributor work cannot be dismissed as not applicable.',
+      DISMISSED_APPLICABLE_WORK_PLAN,
+      ['item-4', 'behavior-boundary'],
     ),
-    approved(
-      'several-ordered-changes',
-      'Several independent changes record ordered pull requests.',
-      MULTI_PLAN,
-      'multiple_pull_requests',
-      ['Contract', 'Activation'],
-    ),
-    denied(
-      'omitted-slicing-decision',
-      'An omitted slicing decision is denied as undecided.',
-      executionPlan({
-        rationale: 'Contract and activation are described but the slicing decision is unspecified.',
-        slices: [CONTRACT_SLICE, ACTIVATION_SLICE],
-      }),
-      ['slicing', 'decision'],
-    ),
-    approved(
-      'complete-slice-record',
-      'A complete slice receives a complete record.',
-      COMPLETE_RECORD_PLAN,
-      'one_pull_request',
-      ['Typed review result'],
-    ),
-    denied(
-      'generic-checklist',
-      'A structurally complete checklist unrelated to the accepted scenarios and approach is denied.',
-      executionPlan({
-        decision: 'one pull request',
-        rationale: 'The contribution claims one coherent outcome.',
-        slices: [COMPLETE_DELIVERY_SLICE],
-        unrelatedChecklist: true,
-      }),
-      ['checklist', 'accepted'],
-    ),
-    {
-      ...denied(
-        'dismissed-applicable-work',
-        'Applicable contributor work cannot be dismissed as not applicable.',
-        DISMISSED_APPLICABLE_WORK_PLAN,
-        ['item-4', 'behavior-boundary'],
+    implementation_plan: APPLICABILITY_IMPLEMENTATION_PLAN,
+  },
+  denied(
+    'proof-does-not-exercise-boundary',
+    'A command that cannot exercise its claimed real boundary is denied.',
+    executionPlan({
+      decision: 'one pull request',
+      rationale: 'The contribution claims one coherent outcome.',
+      slices: [COMPLETE_DELIVERY_SLICE],
+      unrealProof: true,
+    }),
+    ['proof', 'boundary'],
+  ),
+  missingFieldCase('missing-purpose', 'purpose', 'purpose'),
+  missingFieldCase('missing-boundary', 'boundary', 'boundary'),
+  missingFieldCase('missing-prerequisites', 'prerequisites', 'prerequisite'),
+  missingFieldCase('missing-proof', 'proof', 'proof'),
+  missingFieldCase('missing-completion-signal', 'completion', 'completion signal'),
+  denied(
+    'two-independent-purposes',
+    'One slice with two independently valuable purposes is denied.',
+    executionPlan({
+      decision: 'one pull request',
+      rationale: 'The author put both outcomes together because they touch review code.',
+      slices: [
+        {
+          ...CONTRACT_SLICE,
+          purpose: 'Package the contract and independently activate public CLI routing.',
+          boundary: 'Contract generation plus unrelated public command activation.',
+          proof: 'Package tests prove the contract; CLI tests separately prove activation.',
+        },
+      ],
+    }),
+    ['independent', 'purpose'],
+  ),
+  decisionChangingDiscovery(
+    'unresolved-authorization-decision',
+    'A formally complete slice leaving authorization ownership undecided is denied.',
+    executionPlan({
+      decision: 'one pull request',
+      rationale: 'The slice is mechanically complete.',
+      slices: [
+        {
+          ...CONTRACT_SLICE,
+          boundary:
+            'The implementer will decide whether each transport or one service owns authorization.',
+        },
+      ],
+    }),
+    ['authorization'],
+  ),
+  approved(
+    'ordered-schema-before-reader',
+    'Schema addition precedes reader activation.',
+    ORDERED_SCHEMA_PLAN,
+    'multiple_pull_requests',
+    ['Schema', 'Reader'],
+  ),
+  denied(
+    'unsafe-intermediate-merge',
+    'An earlier merge requiring an unmerged handler is denied with its missing prerequisite.',
+    executionPlan({
+      decision: 'multiple pull requests',
+      rationale: 'The workflow state and handler are in separate pull requests.',
+      slices: [
+        {
+          ...CONTRACT_SLICE,
+          purpose: 'Emit a required state that no merged code can handle.',
+          completion: 'The new unsupported state is emitted.',
+        },
+        {
+          ...ACTIVATION_SLICE,
+          prerequisites: 'none',
+          purpose: 'Add the only handler for the required state.',
+        },
+      ],
+    }),
+    ['supported', 'prerequisite'],
+  ),
+  approved(
+    'many-mechanical-edits',
+    'Many mechanical edits with one proof remain one concern.',
+    MECHANICAL_MIRRORS_PLAN,
+    'one_pull_request',
+    ['Contract mirrors'],
+  ),
+  approved(
+    'few-files-two-outcomes',
+    'Few edits with two separately provable outcomes become two concerns.',
+    FEW_FILES_TWO_OUTCOMES_PLAN,
+    'multiple_pull_requests',
+    ['Inert schema', 'Public activation'],
+  ),
+  denied(
+    'line-count-only-rationale',
+    'Line count alone cannot justify a review boundary.',
+    executionPlan({
+      decision: 'one pull request',
+      rationale: 'This is reviewable only because it is below 400 changed lines.',
+      slices: [COMPLETE_DELIVERY_SLICE],
+    }),
+    ['conceptual', 'proof'],
+  ),
+  approved(
+    'all-obligations-assigned',
+    'Every accepted obligation has an owner.',
+    OBLIGATION_PLAN,
+    'multiple_pull_requests',
+    ['Contract owner', 'Release owner'],
+  ),
+  approved(
+    'all-decisions-unchanged',
+    'Every accepted decision remains unchanged.',
+    UNCHANGED_DECISIONS_PLAN,
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
+  {
+    ...denied(
+      'vague-data-ownership',
+      'A vague store reference is denied and reported as an unnamed accepted data decision.',
+      withDecisionAccounting(
+        ONE_PLAN,
+        '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- Use the appropriate store and ownership contract during implementation.',
       ),
-      implementation_plan: APPLICABILITY_IMPLEMENTATION_PLAN,
-    },
-    denied(
-      'proof-does-not-exercise-boundary',
-      'A command that cannot exercise its claimed real boundary is denied.',
-      executionPlan({
-        decision: 'one pull request',
-        rationale: 'The contribution claims one coherent outcome.',
-        slices: [COMPLETE_DELIVERY_SLICE],
-        unrealProof: true,
-      }),
-      ['proof', 'boundary'],
+      ['data', 'unnamed'],
     ),
-    missingFieldCase('missing-purpose', 'purpose', 'purpose'),
-    missingFieldCase('missing-boundary', 'boundary', 'boundary'),
-    missingFieldCase('missing-prerequisites', 'prerequisites', 'prerequisite'),
-    missingFieldCase('missing-proof', 'proof', 'proof'),
-    missingFieldCase('missing-completion-signal', 'completion', 'completion signal'),
-    denied(
-      'two-independent-purposes',
-      'One slice with two independently valuable purposes is denied.',
-      executionPlan({
-        decision: 'one pull request',
-        rationale: 'The author put both outcomes together because they touch review code.',
-        slices: [
-          {
-            ...CONTRACT_SLICE,
-            purpose: 'Package the contract and independently activate public CLI routing.',
-            boundary: 'Contract generation plus unrelated public command activation.',
-            proof: 'Package tests prove the contract; CLI tests separately prove activation.',
-          },
-        ],
-      }),
-      ['independent', 'purpose'],
-    ),
-    decisionChangingDiscovery(
-      'unresolved-authorization-decision',
-      'A formally complete slice leaving authorization ownership undecided is denied.',
-      executionPlan({
-        decision: 'one pull request',
-        rationale: 'The slice is mechanically complete.',
-        slices: [
-          {
-            ...CONTRACT_SLICE,
-            boundary:
-              'The implementer will decide whether each transport or one service owns authorization.',
-          },
-        ],
-      }),
-      ['authorization'],
-    ),
-    approved(
-      'ordered-schema-before-reader',
-      'Schema addition precedes reader activation.',
-      ORDERED_SCHEMA_PLAN,
-      'multiple_pull_requests',
-      ['Schema', 'Reader'],
-    ),
-    denied(
-      'unsafe-intermediate-merge',
-      'An earlier merge requiring an unmerged handler is denied with its missing prerequisite.',
-      executionPlan({
-        decision: 'multiple pull requests',
-        rationale: 'The workflow state and handler are in separate pull requests.',
-        slices: [
-          {
-            ...CONTRACT_SLICE,
-            purpose: 'Emit a required state that no merged code can handle.',
-            completion: 'The new unsupported state is emitted.',
-          },
-          {
-            ...ACTIVATION_SLICE,
-            prerequisites: 'none',
-            purpose: 'Add the only handler for the required state.',
-          },
-        ],
-      }),
-      ['supported', 'prerequisite'],
-    ),
-    approved(
-      'many-mechanical-edits',
-      'Many mechanical edits with one proof remain one concern.',
-      MECHANICAL_MIRRORS_PLAN,
-      'one_pull_request',
-      ['Contract mirrors'],
-    ),
-    approved(
-      'few-files-two-outcomes',
-      'Few edits with two separately provable outcomes become two concerns.',
-      FEW_FILES_TWO_OUTCOMES_PLAN,
-      'multiple_pull_requests',
-      ['Inert schema', 'Public activation'],
-    ),
-    denied(
-      'line-count-only-rationale',
-      'Line count alone cannot justify a review boundary.',
-      executionPlan({
-        decision: 'one pull request',
-        rationale: 'This is reviewable only because it is below 400 changed lines.',
-        slices: [COMPLETE_DELIVERY_SLICE],
-      }),
-      ['conceptual', 'proof'],
-    ),
-    approved(
-      'all-obligations-assigned',
-      'Every accepted obligation has an owner.',
-      OBLIGATION_PLAN,
-      'multiple_pull_requests',
-      ['Contract owner', 'Release owner'],
-    ),
-    approved(
-      'all-decisions-unchanged',
-      'Every accepted decision remains unchanged.',
-      UNCHANGED_DECISIONS_PLAN,
-      'one_pull_request',
-      ['Complete delivery'],
-    ),
-    {
-      ...denied(
-        'vague-data-ownership',
-        'A vague store reference is denied and reported as an unnamed accepted data decision.',
-        withDecisionAccounting(
-          ONE_PLAN,
-          '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- Use the appropriate store and ownership contract during implementation.',
-        ),
-        ['data', 'unnamed'],
+    implementation_plan: DATA_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...decisionChangingDiscovery(
+      'invented-data-ownership',
+      'A concrete data design invented downstream is denied and reported as an invented data decision.',
+      withDecisionAccounting(
+        ONE_PLAN,
+        '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- Store delivery evidence in Redis and let ReviewService own reads and writes.',
       ),
-      implementation_plan: DATA_IMPLEMENTATION_PLAN,
-    },
-    {
-      ...decisionChangingDiscovery(
-        'invented-data-ownership',
-        'A concrete data design invented downstream is denied and reported as an invented data decision.',
-        withDecisionAccounting(
-          ONE_PLAN,
-          '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- Store delivery evidence in Redis and let ReviewService own reads and writes.',
-        ),
-        ['data', 'invented'],
-      ),
-    },
-    {
-      ...approved(
-        'accepted-data-ownership',
-        'The accepted concrete store and owner do not block semantic approval.',
-        `${withDecisionAccounting(
-          ONE_PLAN,
-          '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- The project-local SQLite database `delivery.db` stores delivery evidence: unchanged\n- DeliveryStateService owns all reads and writes for that store: unchanged',
-        )}
+      ['data', 'invented'],
+    ),
+  },
+  {
+    ...approved(
+      'accepted-data-ownership',
+      'The accepted concrete store and owner do not block semantic approval.',
+      `${withDecisionAccounting(
+        ONE_PLAN,
+        '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- The project-local SQLite database `delivery.db` stores delivery evidence: unchanged\n- DeliveryStateService owns all reads and writes for that store: unchanged',
+      )}
 ## Accepted data decision execution
 
 - Owner: Complete delivery.
@@ -1312,359 +1311,358 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
 - 13. GREEN: reuse the accepted DeliveryStateService for delivery-evidence reads and writes in src/delivery-state.ts. Rerun step 12 and assert the exact fixture row is present in delivery.db, the service returns those same values, and its read/write trace contains every evidence operation. Rerun the public response and authorization fixtures to assert unchanged responses and no unauthorized persistence.
 - 14. REFACTOR: remove duplicate evidence access without changing the accepted store or owner; rerun the owned-store and public response commands with the same row, trace, and denial assertions.
 `,
-        'one_pull_request',
-        ['Complete delivery'],
-      ),
-      implementation_plan: DATA_IMPLEMENTATION_PLAN,
-      expectation: {
-        verdict: 'approve',
-        planning_destination: 'plan-execution',
-        slicing_decision: 'one_pull_request',
-        slice_names: ['Complete delivery'],
-        obligations: OBLIGATIONS,
-        decisions: [
-          'One shared authorization service owns permission checks for every transport',
-          'Host-neutral dependency order keeps every intermediate merge supported',
-          'The project-local SQLite database `delivery.db` stores delivery evidence',
-          'DeliveryStateService owns all reads and writes for that store',
-        ],
-      },
-    },
-    missingObligationCase('missing-behavior-obligation', 'Accepted behavior'),
-    {
-      ...denied(
-        'missing-decision-obligation',
-        'Accepted decision-derived work has no owning slice.',
-        executionPlan({
-          decision: 'one pull request',
-          rationale: 'The contribution claims to preserve the accepted approach.',
-          slices: [COMPLETE_DELIVERY_SLICE],
-        }),
-        ['decision-derived work'],
-      ),
-      implementation_plan: DECISION_OBLIGATION_IMPLEMENTATION_PLAN,
-    },
-    {
-      ...denied(
-        'missing-proof-strategy-obligation',
-        'Accepted proof-strategy work has no owning slice.',
-        executionPlan({
-          decision: 'one pull request',
-          rationale: 'The contribution claims to preserve the accepted proof boundary.',
-          slices: [COMPLETE_DELIVERY_SLICE],
-        }),
-        ['proof-strategy work'],
-      ),
-      implementation_plan: PROOF_OBLIGATION_IMPLEMENTATION_PLAN,
-    },
-    missingObligationCase('missing-migration-obligation', 'Migration work'),
-    missingObligationCase('missing-rollout-obligation', 'Rollout work'),
-    missingObligationCase('missing-rollback-obligation', 'Rollback work'),
-    missingObligationCase('missing-documentation-obligation', 'Documentation work'),
-    missingObligationCase('missing-affected-surface-obligation', 'Affected-surface work'),
-    {
-      ...denied(
-        'migration-missing-completion-signal',
-        'Owned migration work without a migration completion signal is incomplete.',
-        MIGRATION_WITHOUT_COMPLETION_PLAN,
-        ['migration', 'completion signal'],
-      ),
-      implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN,
-    },
-    {
-      ...denied(
-        'migration-missing-dependency-order',
-        'Owned migration work without its accepted dependency order is incomplete.',
-        MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN,
-        ['migration', 'dependency'],
-      ),
-      implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN,
-    },
-    {
-      ...approved(
-        'explicitly-inapplicable-obligations',
-        'One accepted behavior remains owned without manufacturing explicitly inapplicable optional work.',
-        INAPPLICABLE_OPTIONAL_WORK_PLAN,
-        'one_pull_request',
-        ['Behavior delivery'],
-      ),
-      implementation_plan: INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN,
-      expectation: {
-        verdict: 'approve',
-        planning_destination: 'plan-execution',
-        slicing_decision: 'one_pull_request',
-        slice_names: ['Behavior delivery'],
-        obligations: ['Accepted behavior'],
-        decisions: DECISIONS,
-      },
-    },
-    denied(
-      'absent-work-is-not-complete',
-      'Absent implementation remains target work and cannot be called complete.',
-      ABSENT_WORK_CLAIMED_COMPLETE_PLAN,
-      ['absent', 'complete'],
-    ),
-    approved(
-      'current-proof-supports-completion',
-      'Matching implementation with current-revision real-boundary proof may be recorded as implemented and proven.',
-      CURRENT_PROOF_PLAN,
       'one_pull_request',
       ['Complete delivery'],
     ),
-    denied(
-      'earlier-proof-remains-open',
-      'Reusable earlier-revision proof remains open until current proof is collected.',
-      EARLIER_PROOF_CLAIMED_CURRENT_PLAN,
-      ['earlier', 'open'],
-    ),
-    denied(
-      'known-defect-is-not-complete',
-      'A known defect remains separate target correction work and cannot be called complete.',
-      KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN,
-      ['defect', 'complete'],
-    ),
-    denied(
-      'pending-human-authority-is-not-complete',
-      'Completed contributor work remains incomplete while required human authority is pending.',
-      PENDING_HUMAN_CLAIMED_COMPLETE_PLAN,
-      ['human', 'pending'],
-    ),
-    {
-      ...approved(
-        'complete-measurement-execution',
-        'Accepted measurement decisions map to owned instrumentation, tests, evidence collection, and a completion signal.',
-        MEASUREMENT_PLAN,
-        'one_pull_request',
-        ['Complete delivery'],
-      ),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+    implementation_plan: DATA_IMPLEMENTATION_PLAN,
+    expectation: {
+      verdict: 'approve',
+      planning_destination: 'plan-execution',
+      slicing_decision: 'one_pull_request',
+      slice_names: ['Complete delivery'],
+      obligations: OBLIGATIONS,
+      decisions: [
+        'One shared authorization service owns permission checks for every transport',
+        'Host-neutral dependency order keeps every intermediate merge supported',
+        'The project-local SQLite database `delivery.db` stores delivery evidence',
+        'DeliveryStateService owns all reads and writes for that store',
+      ],
     },
-    {
-      ...denied(
-        'missing-measurement-instrumentation',
-        'Accepted measurement execution without the instrumentation work is denied.',
-        MISSING_MEASUREMENT_INSTRUMENTATION_PLAN,
-        ['instrumentation'],
-      ),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
-    },
-    {
-      ...denied(
-        'missing-measurement-evidence-collection',
-        'Accepted measurement execution without evidence collection is denied.',
-        MISSING_MEASUREMENT_EVIDENCE_PLAN,
-        ['evidence', 'collection'],
-      ),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
-    },
-    {
-      ...decisionChangingDiscovery(
-        'changed-measurement-target',
-        'Execution Planning cannot change the accepted Product-owned measurement target.',
-        CHANGED_MEASUREMENT_TARGET_PLAN,
-        ['target', '200'],
-      ),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
-    },
-    {
-      ...decisionChangingDiscovery(
-        'changed-measurement-origin',
-        'Execution Planning cannot change the accepted measurement origin.',
-        CHANGED_MEASUREMENT_ORIGIN_PLAN,
-        ['measurement origin', 'gateway'],
-      ),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
-    },
-    {
-      ...decisionChangingDiscovery(
-        'weakened-measurement-safeguard',
-        'Execution Planning cannot weaken an accepted measurement validity safeguard.',
-        WEAKENED_MEASUREMENT_SAFEGUARD_PLAN,
-        ['validity', '99'],
-      ),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
-    },
-    {
-      ...decisionChangingDiscovery(
-        'changed-measurement-failure-behavior',
-        'Execution Planning cannot redefine accepted measurement failure behavior.',
-        CHANGED_MEASUREMENT_FAILURE_PLAN,
-        ['failure', 'rollout'],
-      ),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
-    },
-    decisionChangingDiscovery(
-      'reopened-authorization-decision',
-      'A slice cannot move the accepted shared authorization boundary.',
+  },
+  missingObligationCase('missing-behavior-obligation', 'Accepted behavior'),
+  {
+    ...denied(
+      'missing-decision-obligation',
+      'Accepted decision-derived work has no owning slice.',
       executionPlan({
         decision: 'one pull request',
-        rationale: 'The slice replaces the accepted authorization design.',
-        slices: [{ ...CONTRACT_SLICE, purpose: 'Move authorization into each transport.' }],
-        decisionText:
-          '- One shared authorization service owns permission checks for every transport: changed to per-transport checks\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged',
+        rationale: 'The contribution claims to preserve the accepted approach.',
+        slices: [COMPLETE_DELIVERY_SLICE],
       }),
-      ['authorization'],
+      ['decision-derived work'],
     ),
-    approved(
-      'fixture-discovery-stays-in-execution-planning',
-      'A discovered fixture implementation change preserves every accepted decision and proof boundary.',
-      `${executionPlan({
+    implementation_plan: DECISION_OBLIGATION_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...denied(
+      'missing-proof-strategy-obligation',
+      'Accepted proof-strategy work has no owning slice.',
+      executionPlan({
         decision: 'one pull request',
-        rationale:
-          'The same public command contract requires only a mechanical fixture representation repair.',
-        slices: [
-          {
-            ...COMPLETE_DELIVERY_SLICE,
-            tasks: [
-              ...ONE_DELIVERY_TASKS,
-              '12. RED: add the literal-fixture regression in tests/fixtures/approved-plan.test.ts with the existing approved-plan expected contents. Run bun run test tests/fixtures/approved-plan.test.ts -t literal-fixture and observe exit 1 because the builder output differs from those expected contents before editing tests/fixtures/approved-plan.ts.',
-              '13. GREEN: replace the builder in tests/fixtures/approved-plan.ts with a literal containing the same canonical expected contents. Rerun step 12 and bun run test:review-cli -- --fixture approved-plan; assert identical fixture bytes, exact public and stored responses, obligation owners, unchanged decisions, normalized plan digest, and delivery definition.',
-              '14. REFACTOR: remove the unused builder and rerun both fixture and public-boundary commands with identical expected contents and actor assertions.',
-            ],
-          },
-        ],
-      })}\n## Discovery\n\nThe fixture implementation moves from a builder to a literal in steps 12–14 without changing behavior, API, data, or proof boundaries.\n`,
+        rationale: 'The contribution claims to preserve the accepted proof boundary.',
+        slices: [COMPLETE_DELIVERY_SLICE],
+      }),
+      ['proof-strategy work'],
+    ),
+    implementation_plan: PROOF_OBLIGATION_IMPLEMENTATION_PLAN,
+  },
+  missingObligationCase('missing-migration-obligation', 'Migration work'),
+  missingObligationCase('missing-rollout-obligation', 'Rollout work'),
+  missingObligationCase('missing-rollback-obligation', 'Rollback work'),
+  missingObligationCase('missing-documentation-obligation', 'Documentation work'),
+  missingObligationCase('missing-affected-surface-obligation', 'Affected-surface work'),
+  {
+    ...denied(
+      'migration-missing-completion-signal',
+      'Owned migration work without a migration completion signal is incomplete.',
+      MIGRATION_WITHOUT_COMPLETION_PLAN,
+      ['migration', 'completion signal'],
+    ),
+    implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...denied(
+      'migration-missing-dependency-order',
+      'Owned migration work without its accepted dependency order is incomplete.',
+      MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN,
+      ['migration', 'dependency'],
+    ),
+    implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...approved(
+      'explicitly-inapplicable-obligations',
+      'One accepted behavior remains owned without manufacturing explicitly inapplicable optional work.',
+      INAPPLICABLE_OPTIONAL_WORK_PLAN,
+      'one_pull_request',
+      ['Behavior delivery'],
+    ),
+    implementation_plan: INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN,
+    expectation: {
+      verdict: 'approve',
+      planning_destination: 'plan-execution',
+      slicing_decision: 'one_pull_request',
+      slice_names: ['Behavior delivery'],
+      obligations: ['Accepted behavior'],
+      decisions: DECISIONS,
+    },
+  },
+  denied(
+    'absent-work-is-not-complete',
+    'Absent implementation remains target work and cannot be called complete.',
+    ABSENT_WORK_CLAIMED_COMPLETE_PLAN,
+    ['absent', 'complete'],
+  ),
+  approved(
+    'current-proof-supports-completion',
+    'Matching implementation with current-revision real-boundary proof may be recorded as implemented and proven.',
+    CURRENT_PROOF_PLAN,
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
+  denied(
+    'earlier-proof-remains-open',
+    'Reusable earlier-revision proof remains open until current proof is collected.',
+    EARLIER_PROOF_CLAIMED_CURRENT_PLAN,
+    ['earlier', 'open'],
+  ),
+  denied(
+    'known-defect-is-not-complete',
+    'A known defect remains separate target correction work and cannot be called complete.',
+    KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN,
+    ['defect', 'complete'],
+  ),
+  denied(
+    'pending-human-authority-is-not-complete',
+    'Completed contributor work remains incomplete while required human authority is pending.',
+    PENDING_HUMAN_CLAIMED_COMPLETE_PLAN,
+    ['human', 'pending'],
+  ),
+  {
+    ...approved(
+      'complete-measurement-execution',
+      'Accepted measurement decisions map to owned instrumentation, tests, evidence collection, and a completion signal.',
+      MEASUREMENT_PLAN,
       'one_pull_request',
       ['Complete delivery'],
     ),
-    approved(
-      'test-command-discovery-stays-in-execution-planning',
-      'A discovered test-command change preserves every accepted decision and proof boundary.',
-      `${withRequiredReplacements(
-        ONE_PLAN.replaceAll(
-          'bun run test:review-cli',
-          'bun run --cwd packages/cli test:review-cli',
-        ),
-        [
-          [
-            JSON.stringify({ type: 'command', cwd: '.', argv: ['bun', 'run', 'test:review-cli'] }),
-            JSON.stringify({
-              type: 'command',
-              cwd: 'packages/cli',
-              argv: ['bun', 'run', 'test:review-cli'],
-            }),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...denied(
+      'missing-measurement-instrumentation',
+      'Accepted measurement execution without the instrumentation work is denied.',
+      MISSING_MEASUREMENT_INSTRUMENTATION_PLAN,
+      ['instrumentation'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...denied(
+      'missing-measurement-evidence-collection',
+      'Accepted measurement execution without evidence collection is denied.',
+      MISSING_MEASUREMENT_EVIDENCE_PLAN,
+      ['evidence', 'collection'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...decisionChangingDiscovery(
+      'changed-measurement-target',
+      'Execution Planning cannot change the accepted Product-owned measurement target.',
+      CHANGED_MEASUREMENT_TARGET_PLAN,
+      ['target', '200'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...decisionChangingDiscovery(
+      'changed-measurement-origin',
+      'Execution Planning cannot change the accepted measurement origin.',
+      CHANGED_MEASUREMENT_ORIGIN_PLAN,
+      ['measurement origin', 'gateway'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...decisionChangingDiscovery(
+      'weakened-measurement-safeguard',
+      'Execution Planning cannot weaken an accepted measurement validity safeguard.',
+      WEAKENED_MEASUREMENT_SAFEGUARD_PLAN,
+      ['validity', '99'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...decisionChangingDiscovery(
+      'changed-measurement-failure-behavior',
+      'Execution Planning cannot redefine accepted measurement failure behavior.',
+      CHANGED_MEASUREMENT_FAILURE_PLAN,
+      ['failure', 'rollout'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  decisionChangingDiscovery(
+    'reopened-authorization-decision',
+    'A slice cannot move the accepted shared authorization boundary.',
+    executionPlan({
+      decision: 'one pull request',
+      rationale: 'The slice replaces the accepted authorization design.',
+      slices: [{ ...CONTRACT_SLICE, purpose: 'Move authorization into each transport.' }],
+      decisionText:
+        '- One shared authorization service owns permission checks for every transport: changed to per-transport checks\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged',
+    }),
+    ['authorization'],
+  ),
+  approved(
+    'fixture-discovery-stays-in-execution-planning',
+    'A discovered fixture implementation change preserves every accepted decision and proof boundary.',
+    `${executionPlan({
+      decision: 'one pull request',
+      rationale:
+        'The same public command contract requires only a mechanical fixture representation repair.',
+      slices: [
+        {
+          ...COMPLETE_DELIVERY_SLICE,
+          tasks: [
+            ...ONE_DELIVERY_TASKS,
+            '12. RED: add the literal-fixture regression in tests/fixtures/approved-plan.test.ts with the existing approved-plan expected contents. Run bun run test tests/fixtures/approved-plan.test.ts -t literal-fixture and observe exit 1 because the builder output differs from those expected contents before editing tests/fixtures/approved-plan.ts.',
+            '13. GREEN: replace the builder in tests/fixtures/approved-plan.ts with a literal containing the same canonical expected contents. Rerun step 12 and bun run test:review-cli -- --fixture approved-plan; assert identical fixture bytes, exact public and stored responses, obligation owners, unchanged decisions, normalized plan digest, and delivery definition.',
+            '14. REFACTOR: remove the unused builder and rerun both fixture and public-boundary commands with identical expected contents and actor assertions.',
           ],
+        },
+      ],
+    })}\n## Discovery\n\nThe fixture implementation moves from a builder to a literal in steps 12–14 without changing behavior, API, data, or proof boundaries.\n`,
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
+  approved(
+    'test-command-discovery-stays-in-execution-planning',
+    'A discovered test-command change preserves every accepted decision and proof boundary.',
+    `${withRequiredReplacements(
+      ONE_PLAN.replaceAll('bun run test:review-cli', 'bun run --cwd packages/cli test:review-cli'),
+      [
+        [
+          JSON.stringify({ type: 'command', cwd: '.', argv: ['bun', 'run', 'test:review-cli'] }),
+          JSON.stringify({
+            type: 'command',
+            cwd: 'packages/cli',
+            argv: ['bun', 'run', 'test:review-cli'],
+          }),
         ],
-      )}\n## Discovery\n\nThe existing public-review boundary suite lives in packages/cli. Its task invocations now run the same test:review-cli script through that package-local runner from the project root; its behavior-boundary proof uses cwd packages/cli. Fixture inputs, response and actor assertions, and the public CLI subprocess boundary are unchanged.\n`,
+      ],
+    )}\n## Discovery\n\nThe existing public-review boundary suite lives in packages/cli. Its task invocations now run the same test:review-cli script through that package-local runner from the project root; its behavior-boundary proof uses cwd packages/cli. Fixture inputs, response and actor assertions, and the public CLI subprocess boundary are unchanged.\n`,
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
+  approved(
+    'path-only-discovery-stays-in-execution-planning',
+    'A file or helper location change with no contract consequence stays in Execution Planning.',
+    `${ONE_PLAN}\n## Discovery\n\nMove one helper file without changing behavior, API, data, or proof boundaries.\n`,
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
+  decisionChangingDiscovery(
+    'accepted-design-discovery-returns-to-implementation-planning',
+    'A discovery requires replacing the accepted shared authorization design.',
+    `${ONE_PLAN}\n## Discovery\n\nImplementation requires moving authorization ownership from the accepted shared service into each transport.\n`,
+    ['authorization', 'decision'],
+  ),
+  decisionChangingDiscovery(
+    'accepted-proof-discovery-returns-to-implementation-planning',
+    'A discovery requires replacing an accepted real-boundary proof with structural evidence.',
+    `${ONE_PLAN}\n## Discovery\n\nThe accepted public CLI proof cannot run; replace it with a parser unit test that does not exercise that boundary.\n`,
+    ['proof', 'boundary'],
+  ),
+  decisionChangingDiscovery(
+    'path-and-api-discovery-returns-to-implementation-planning',
+    'A file-path discovery also changes the accepted API contract.',
+    `${ONE_PLAN}\n## Discovery\n\nMove the handler file and replace the accepted public command response with a new API contract.\n`,
+    ['api', 'contract'],
+  ),
+  {
+    ...approved(
+      'fresh-context-first-red',
+      'A fresh-context agent can begin with the named highest-risk RED without inventing a decision.',
+      STARTABLE_PLAN,
       'one_pull_request',
-      ['Complete delivery'],
+      ['Authorization denial'],
     ),
-    approved(
-      'path-only-discovery-stays-in-execution-planning',
-      'A file or helper location change with no contract consequence stays in Execution Planning.',
-      `${ONE_PLAN}\n## Discovery\n\nMove one helper file without changing behavior, API, data, or proof boundaries.\n`,
+    implementation_plan: INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN,
+    expectation: {
+      verdict: 'approve',
+      planning_destination: 'plan-execution',
+      slicing_decision: 'one_pull_request',
+      slice_names: ['Authorization denial'],
+      obligations: ['Accepted behavior'],
+      decisions: DECISIONS,
+    },
+  },
+  {
+    ...approved(
+      'exact-cli-denial-proof',
+      'A complete proof step names its fixture, command, edit action, denied exit assertion, and installed CLI subprocess boundary.',
+      EXACT_CLI_DENIAL_PROOF_PLAN,
       'one_pull_request',
-      ['Complete delivery'],
+      ['Edited-plan denial proof'],
     ),
-    decisionChangingDiscovery(
-      'accepted-design-discovery-returns-to-implementation-planning',
-      'A discovery requires replacing the accepted shared authorization design.',
-      `${ONE_PLAN}\n## Discovery\n\nImplementation requires moving authorization ownership from the accepted shared service into each transport.\n`,
-      ['authorization', 'decision'],
-    ),
-    decisionChangingDiscovery(
-      'accepted-proof-discovery-returns-to-implementation-planning',
-      'A discovery requires replacing an accepted real-boundary proof with structural evidence.',
-      `${ONE_PLAN}\n## Discovery\n\nThe accepted public CLI proof cannot run; replace it with a parser unit test that does not exercise that boundary.\n`,
-      ['proof', 'boundary'],
-    ),
-    decisionChangingDiscovery(
-      'path-and-api-discovery-returns-to-implementation-planning',
-      'A file-path discovery also changes the accepted API contract.',
-      `${ONE_PLAN}\n## Discovery\n\nMove the handler file and replace the accepted public command response with a new API contract.\n`,
-      ['api', 'contract'],
-    ),
-    {
-      ...approved(
-        'fresh-context-first-red',
-        'A fresh-context agent can begin with the named highest-risk RED without inventing a decision.',
-        STARTABLE_PLAN,
-        'one_pull_request',
-        ['Authorization denial'],
-      ),
-      implementation_plan: INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN,
-      expectation: {
-        verdict: 'approve',
-        planning_destination: 'plan-execution',
-        slicing_decision: 'one_pull_request',
-        slice_names: ['Authorization denial'],
-        obligations: ['Accepted behavior'],
-        decisions: DECISIONS,
-      },
+    implementation_plan: PROOF_ONLY_IMPLEMENTATION_PLAN,
+    expectation: {
+      verdict: 'approve',
+      planning_destination: 'plan-execution',
+      slicing_decision: 'one_pull_request',
+      slice_names: ['Edited-plan denial proof'],
+      obligations: ['Accepted behavior'],
+      decisions: DECISIONS,
     },
-    {
-      ...approved(
-        'exact-cli-denial-proof',
-        'A complete proof step names its fixture, command, edit action, denied exit assertion, and installed CLI subprocess boundary.',
-        EXACT_CLI_DENIAL_PROOF_PLAN,
-        'one_pull_request',
-        ['Edited-plan denial proof'],
-      ),
-      implementation_plan: PROOF_ONLY_IMPLEMENTATION_PLAN,
-      expectation: {
-        verdict: 'approve',
-        planning_destination: 'plan-execution',
-        slicing_decision: 'one_pull_request',
-        slice_names: ['Edited-plan denial proof'],
-        obligations: ['Accepted behavior'],
-        decisions: DECISIONS,
-      },
-    },
-    {
-      ...denied(
-        'missing-cli-subprocess-boundary',
-        'A proof step with a placeholder actor boundary is denied with the missing subprocess boundary named.',
-        MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN,
-        ['subprocess', 'boundary'],
-      ),
-      implementation_plan: PROOF_IMPLEMENTATION_PLAN,
-    },
-    {
-      ...denied(
-        'missing-denied-exit-assertion',
-        'A proof step with a placeholder denied-exit result is denied with the missing exit assertion named.',
-        MISSING_DENIED_EXIT_ASSERTION_PLAN,
-        ['exit', 'assertion'],
-      ),
-      implementation_plan: PROOF_IMPLEMENTATION_PLAN,
-    },
-    decisionChangingDiscovery(
-      'later-step-is-not-startable',
-      'A concrete first RED cannot hide an unresolved behavior decision in the fourth step.',
-      LATER_UNSTARTABLE_PLAN,
-      ['behavior', 'decision'],
+  },
+  {
+    ...denied(
+      'missing-cli-subprocess-boundary',
+      'A proof step with a placeholder actor boundary is denied with the missing subprocess boundary named.',
+      MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN,
+      ['subprocess', 'boundary'],
     ),
-    denied(
-      'blocked-first-prerequisite',
-      'The first planned slice depends on an incomplete prerequisite and is not startable.',
-      BLOCKED_FIRST_PREREQUISITE_PLAN,
-      ['prerequisite', 'startable'],
+    implementation_plan: PROOF_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...denied(
+      'missing-denied-exit-assertion',
+      'A proof step with a placeholder denied-exit result is denied with the missing exit assertion named.',
+      MISSING_DENIED_EXIT_ASSERTION_PLAN,
+      ['exit', 'assertion'],
     ),
-    denied(
-      'no-executable-steps',
-      'A plan with no executable task leaves a fresh agent with no startable step.',
-      NO_EXECUTABLE_STEPS_PLAN,
-      ['executable', 'step'],
-    ),
-    approved(
-      'risk-first-ordering',
-      'Independent work orders the highest-risk probe before activation.',
-      RISK_FIRST_PLAN,
-      'multiple_pull_requests',
-      ['Risk probe', 'Activation'],
-    ),
-    approved(
-      'parallel-safe-after-probe',
-      'Independent consumers may proceed in parallel after the shared risk probe.',
-      PARALLEL_AFTER_PROBE_PLAN,
-      'multiple_pull_requests',
-      ['Risk probe', 'CLI consumer', 'Documentation consumer'],
-    ),
-  ] satisfies readonly ExecutionPlanConformanceCase[]
-).map(testCase => ({
-  ...testCase,
-  accepted_scenario: acceptedBehaviorScenario(testCase.implementation_plan),
-}));
+    implementation_plan: PROOF_IMPLEMENTATION_PLAN,
+  },
+  decisionChangingDiscovery(
+    'later-step-is-not-startable',
+    'A concrete first RED cannot hide an unresolved behavior decision in the fourth step.',
+    LATER_UNSTARTABLE_PLAN,
+    ['behavior', 'decision'],
+  ),
+  denied(
+    'blocked-first-prerequisite',
+    'The first planned slice depends on an incomplete prerequisite and is not startable.',
+    BLOCKED_FIRST_PREREQUISITE_PLAN,
+    ['prerequisite', 'startable'],
+  ),
+  denied(
+    'no-executable-steps',
+    'A plan with no executable task leaves a fresh agent with no startable step.',
+    NO_EXECUTABLE_STEPS_PLAN,
+    ['executable', 'step'],
+  ),
+  approved(
+    'risk-first-ordering',
+    'Independent work orders the highest-risk probe before activation.',
+    RISK_FIRST_PLAN,
+    'multiple_pull_requests',
+    ['Risk probe', 'Activation'],
+  ),
+  approved(
+    'parallel-safe-after-probe',
+    'Independent consumers may proceed in parallel after the shared risk probe.',
+    PARALLEL_AFTER_PROBE_PLAN,
+    'multiple_pull_requests',
+    ['Risk probe', 'CLI consumer', 'Documentation consumer'],
+  ),
+];
+
+export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformanceCase[] =
+  conformanceCases.map(testCase => ({
+    ...testCase,
+    accepted_scenario: acceptedBehaviorScenario(testCase.implementation_plan),
+  }));
 
 export interface ExecutionPlanConformanceResult {
   readonly case_id: string;
