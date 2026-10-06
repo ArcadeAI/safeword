@@ -84,9 +84,12 @@ function assistantTextLine(text: string): string {
   });
 }
 
-const state: { projectDirectory: string } = { projectDirectory: '' };
+const state: { projectDirectory: string; previousCli?: string } = { projectDirectory: '' };
 
 beforeEach(() => {
+  state.previousCli = process.env.SAFEWORD_CLI;
+  // Exercise this checkout's CLI from temporary projects without downloading a release.
+  process.env.SAFEWORD_CLI = nodePath.resolve(import.meta.dirname, '../../src/cli.ts');
   state.projectDirectory = createTemporaryDirectory();
   writeGateConfig(state.projectDirectory, {
     stopQualityReview: true,
@@ -96,6 +99,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  if (state.previousCli === undefined) delete process.env.SAFEWORD_CLI;
+  else process.env.SAFEWORD_CLI = state.previousCli;
   removeTemporaryDirectory(state.projectDirectory);
 });
 
