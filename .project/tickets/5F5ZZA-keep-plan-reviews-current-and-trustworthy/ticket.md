@@ -590,3 +590,24 @@ retaining stale approval. Neither four-case pilot admits a model. The next
 proof is a complete fresh 63-case Astra matrix, chosen because its pilot took
 134 seconds versus Claude's 341 seconds, with the same 210-second per-review
 bound and unchanged expectations. Any failed or unfinished case blocks admission.
+
+The full Astra attempt at `e3f441871` was stopped with exit 130 after eight
+completed cases: six passed, two failed, 55 unfinished. The two failures were
+complete-slice-record (required approval was rejected) and missing-purpose
+(required rejection was approved, with an invented purpose in the record).
+The raw log and explicit non-admissible summary are retained at
+`/tmp/4200-bound-codex-full-live.log` and
+`/tmp/4200-bound-codex-full-summary.json`. No partial qualification is admitted.
+
+Independent review `f482640a-2cb3-4dad-a4ea-e0dcf1001d6f` confirmed that the
+complete-record fixture has a real final-proof defect: its final refactor
+requires only rerunning commands and retaining one snapshot, while its
+completion sentence does not require all proofs to pass on the final candidate.
+The prepared `/tmp/4200-complete-record-completion.patch` changes only that
+positive fixture's completion sentence to require all named proofs to pass and
+completion evidence for all accepted work. Its approval expectation and every
+negative case remain unchanged. Human approval is pending because the testing
+guide forbids unapproved fixture changes. The missing-purpose approval remains
+an actual Astra reviewer failure. An independent validity review is running;
+the Claude full matrix will follow once the positive fixture is correctly
+specified. No additional reviewer wording change is being made to fit a failure.
