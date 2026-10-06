@@ -341,3 +341,25 @@ edits. Earlier approving phase receipts are historical evidence, not current
 coding authorization; ticket progress notes and parent reconciliation changed
 their bound ticket identity. PR3's four-file correction remains staged and
 uncommitted after the lint rejection; the root corrections remain uncommitted.
+
+### 2026-10-05 — approved assertion and context-proof corrections
+
+The user explicitly approved exact-code test updates and stronger context-delivery
+checks. PR2's three inherited prefix assertions now require the current typed
+refusal, phase, and contract path; all 17 targeted tests and type checking pass.
+Fresh external Claude review `2d36d7bf-7d18-42ec-9b6a-baa11f4fbdb2` approved.
+The correction is pushed to PR2 and carried into PR3, PR4, and PR5.
+
+Positive R2 checks now verify each required role's actual current source content
+in the reviewer packet. All nine in-process scenarios pass. Fresh external Claude
+review `cdb430be-63d7-4b6a-ac10-c938b33c6c9d` approved the step corrections.
+Installed fixtures isolate the Claude profile, invoke the copied native Claude
+plugin, and retain valid principles lineage in negative cases.
+
+The installed Execution Plan positive case remains failing: its Codex model is
+not admitted by the checked-in conformance matrix, which admits only Claude
+`opus`. A live Codex conformance probe failed before returning review output;
+no admission evidence was fabricated. The current feature-wide result remains
+55 passed, two failed, and 118 undefined before these focused corrections;
+no full acceptance rerun or stack-readiness claim is made. The confirmed inherited
+approval-reuse failure and deferred R7 proof remain open.
