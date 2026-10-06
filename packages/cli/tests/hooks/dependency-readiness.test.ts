@@ -1729,7 +1729,9 @@ describe('dependency readiness in a git worktree nested under the launch checkou
     });
 
     expect(result.status).toBe(0);
-    expect(result.stdout).not.toContain('"permissionDecision":"deny"');
+    expect(result.stdout).toBe('');
+    expect(readDependencyReadinessState(worktreeDirectory)?.status).toBe('ready');
+    expect(readDependencyReadinessState(launchDirectory)).toBeUndefined();
   });
 
   it('blocks a command in a stale worktree while the launch checkout is ready', () => {
