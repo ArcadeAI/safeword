@@ -17,7 +17,10 @@ import {
   type ExecutionPlanConformanceCase,
   type ExecutionPlanConformanceResult,
 } from '../../src/review/execution-plan-conformance.js';
-import { reviewTimeoutMilliseconds, runHeadlessReviewer } from '../../src/review/runtime.js';
+import {
+  reviewTimeoutMilliseconds,
+  runHeadlessReviewerWithProvenance,
+} from '../../src/review/runtime.js';
 import {
   assertTestCliFresh,
   createTemporaryDirectory,
@@ -38,20 +41,38 @@ async function liveReviewer(
   directory: string,
   packet: ReviewPacket,
 ): Promise<ReviewerOutput> {
-  const previousHome = process.env.CODEX_HOME;
-  if (assigned === 'codex') {
-    const profile = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CODEX_HOME;
-    if (!profile) throw new Error('Codex live proof requires its explicitly authenticated profile');
-    process.env.CODEX_HOME = profile;
-  }
+  const profileKey = assigned === 'codex' ? 'CODEX_HOME' : 'CLAUDE_CONFIG_DIR';
+  const profile =
+    assigned === 'codex'
+      ? process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CODEX_HOME
+      : process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CLAUDE_CONFIG_DIR;
+  if (!profile)
+    throw new Error(`${assigned} live proof requires its explicitly authenticated profile`);
+  const previousProfile = process.env[profileKey];
+  if (assigned === 'claude' && profile === 'default')
+    Reflect.deleteProperty(process.env, profileKey);
+  else process.env[profileKey] = profile;
   try {
-    return (await runHeadlessReviewer(assigned, packet, directory, process.cwd(), {
-      ...(model !== undefined && { model }),
-      runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
-    })) as ReviewerOutput;
+    const execution = await runHeadlessReviewerWithProvenance(
+      assigned,
+      packet,
+      directory,
+      process.cwd(),
+      {
+        ...(model !== undefined && { model }),
+        runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
+      },
+    );
+    if (model !== undefined) {
+      expect(execution.confirmedModel).toEqual({
+        provider: assigned === 'codex' ? 'openai' : 'anthropic',
+        model,
+      });
+    }
+    return execution.output as ReviewerOutput;
   } finally {
-    if (previousHome === undefined) delete process.env.CODEX_HOME;
-    else process.env.CODEX_HOME = previousHome;
+    if (previousProfile === undefined) Reflect.deleteProperty(process.env, profileKey);
+    else process.env[profileKey] = previousProfile;
   }
 }
 
@@ -68,7 +89,7 @@ function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent
     logical_files: [{ path: 'execution-plan.md', content: testCase.execution_plan }],
     context_files: [
       { path: 'impl-plan.md', content: testCase.implementation_plan },
-      { path: 'scenario.feature', content: testCase.scenario },
+      { path: 'scenario.feature', content: testCase.accepted_scenario },
       {
         path: 'reviewer-identity.md',
         content: `Assigned reviewer: ${identity}.`,
@@ -94,7 +115,14 @@ function assertApproval(testCase: ExecutionPlanConformanceCase, output: Reviewer
   expect(record.slices.map(slice => slice.name)).toEqual(testCase.expectation.slice_names);
   const expectedObligations = testCase.expectation.obligations ?? [];
   for (const obligation of expectedObligations) {
-    expect(record.obligation_owners.map(owner => owner.obligation)).toContain(obligation);
+    expect(
+      record.obligation_owners.some(
+        owner =>
+          owner.obligation === obligation ||
+          owner.obligation.startsWith(`${obligation}, `) ||
+          owner.obligation.startsWith(`${obligation}: `),
+      ),
+    ).toBe(true);
   }
   const expectedDecisions = testCase.expectation.decisions ?? [];
   for (const decision of expectedDecisions) {
@@ -254,7 +282,7 @@ describe.skipIf(!CLI_LIVE)('installed CLI semantic conformance', () => {
           nodePath.join(directory, ticketPath, 'impl-plan.md'),
           testCase.implementation_plan,
         );
-        writeFileSync(nodePath.join(directory, 'scenario.feature'), testCase.scenario);
+        writeFileSync(nodePath.join(directory, 'scenario.feature'), testCase.accepted_scenario);
         let result = await invoke([
           'run',
           'plan-execution',

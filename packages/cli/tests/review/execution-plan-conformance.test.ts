@@ -127,7 +127,7 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'request_changes',
-      finding_terms: ['two', 'purpose'],
+      finding_terms: ['independent', 'purpose'],
     });
   });
 
@@ -189,7 +189,7 @@ describe('Execution Plan semantic conformance admission', () => {
       slice_names: ['Authorization denial'],
     });
     expect(testCase?.execution_plan).toContain(
-      'RED: add the denied-request fixture, run `bun run test tests/auth.test.ts -t denied-request`, `bun run test:failure-signals`, and `bun run test:authorization-boundary` through the public authorization response, and observe exit 1 before editing `src/auth.ts`.',
+      'RED: create the denied-request fixture in tests/fixtures/denied-request.ts with authenticated blocked-user lacking permission for fixture-review, an empty reviewer request journal, and an empty result store. Add the public-CLI denial assertion in tests/auth.test.ts; run bun run test tests/auth.test.ts -t denied-request, bun run test:failure-signals -- --fixture denied-request, and bun run test:authorization-boundary -- --fixture denied-request. Observe exit 1 with unauthorized request reached reviewer because the journal is nonempty before editing src/auth.ts.',
     );
   });
 
@@ -211,7 +211,7 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'request_changes',
-      finding_terms: ['behavior', 'before implementation'],
+      finding_terms: ['behavior', 'decision'],
     });
     expect(testCase?.execution_plan).toContain(
       '1. RED: run `bun run test tests/auth.test.ts -t denied-request`',
@@ -276,7 +276,7 @@ describe('Execution Plan semantic conformance admission', () => {
 
   it.each([
     ['migration-missing-completion-signal', ['migration', 'completion signal']],
-    ['migration-missing-dependency-order', ['migration', 'dependency order']],
+    ['migration-missing-dependency-order', ['migration', 'dependency']],
   ] as const)('keeps %s as a partial obligation-mapping denial', (caseId, findingTerms) => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
 
