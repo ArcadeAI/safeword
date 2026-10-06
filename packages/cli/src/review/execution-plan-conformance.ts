@@ -1302,17 +1302,31 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
     ...approved(
       'accepted-data-ownership',
       'The accepted concrete store and owner do not block semantic approval.',
-      `${withDecisionAccounting(
-        ONE_PLAN,
-        '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- The project-local SQLite database `delivery.db` stores delivery evidence: unchanged\n- DeliveryStateService owns all reads and writes for that store: unchanged',
-      )}
+      withRequiredReplacements(
+        `${withDecisionAccounting(
+          ONE_PLAN,
+          '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- The project-local SQLite database `delivery.db` stores delivery evidence: unchanged\n- DeliveryStateService owns all reads and writes for that store: unchanged',
+        ).trimEnd()}
+| item-12 | testing | Prove delivery.db storage and DeliveryStateService ownership through the existing delivery workflow. | contributor | owned-store | open | missing | | |
+
 ## Accepted data decision execution
 
 - Owner: Complete delivery.
-- 12. RED: add the owned-store fixture in tests/delivery-state.test.ts with a known delivery-evidence row and a temporary delivery.db. Run bun run test tests/delivery-state.test.ts -t owned-store and observe exit 1 because the evidence is not read and written through DeliveryStateService into delivery.db before editing src/delivery-state.ts.
-- 13. GREEN: reuse the accepted DeliveryStateService for delivery-evidence reads and writes in src/delivery-state.ts. Rerun step 12 and assert the exact fixture row is present in delivery.db, the service returns those same values, and its read/write trace contains every evidence operation. Rerun the public response and authorization fixtures to assert unchanged responses and no unauthorized persistence.
+- 12. RED: add the owned-store fixture in tests/delivery-state.test.ts with a known delivery-evidence row and a temporary delivery.db. Invoke the existing delivery workflow to write and read that evidence. Run bun run test tests/delivery-state.test.ts -t owned-store and observe exit 1 because the workflow does not read and write the evidence through DeliveryStateService into delivery.db before editing src/delivery-state.ts.
+- 13. GREEN: route the existing delivery workflow's evidence reads and writes through the accepted DeliveryStateService in src/delivery-state.ts. Rerun step 12 by invoking that workflow and assert the exact fixture row is present in delivery.db, the workflow returns those same values, and the service's read/write trace contains every workflow evidence operation. Rerun the public response and authorization fixtures to assert unchanged responses and no unauthorized persistence.
 - 14. REFACTOR: remove duplicate evidence access without changing the accepted store or owner; rerun the owned-store and public response commands with the same row, trace, and denial assertions.
 `,
+        [
+          [
+            '\n\n## Delivery checklist',
+            '\n| owned-store | command | E2E | Existing delivery workflow writes and reads known evidence through DeliveryStateService against delivery.db. | real_boundary | current_required | {"type":"command","cwd":".","argv":["bun","run","test","tests/delivery-state.test.ts","-t","owned-store"]} |\n\n## Delivery checklist',
+          ],
+          [
+            'Preserve both recorded implementation decisions.',
+            'Preserve all four recorded implementation decisions, including delivery.db storage and DeliveryStateService ownership.',
+          ],
+        ],
+      ),
       'one_pull_request',
       ['Complete delivery'],
     ),
