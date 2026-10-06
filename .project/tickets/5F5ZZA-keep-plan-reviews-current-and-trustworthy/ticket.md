@@ -726,3 +726,29 @@ request is superseded; the revised patch remains unapplied pending approval.
 Other audit advisories (unchecked fixture replacements and a rubric HTML span)
 are recorded without expanding this correction's scope. The approved boundary
 and proof corrections are committed at `ce59fb0ef`; no PR promotion or merge.
+
+Human approved the revised independent/contract finding check at 13:22 PDT
+on 2026-10-06. The exact prepared patch is applied. Typecheck passes; the
+targeted test run waits for another checkout's owned test lock, without bypass
+or interference. Scoped Claude review `5f5e67f4-2ab7-4f09-91dc-fdb9939cb224`
+approves with a nonblocking precision warning: matching terms across the full
+explanation remains a coarse reason check. No false passing judgment was
+demonstrated, and no matcher redesign is included in this approved correction.
+The fresh qualification prerequisite remains open. Current corpus digest:
+`e4bf56ea3cb94770ebab3ad874c948bc3207eee86a9e2ad31d9dc5d6791af098`;
+contract digest unchanged. Previous failed runs retain their original digests.
+
+The first targeted run retained 61 passes and one failed duplicate unit
+expectation still requiring purpose. That unit expectation is updated to the
+same explicitly approved independent/contract check; no additional behavior
+or rejection requirement changes. Fresh targeted verification passes 62/62,
+typecheck passes, and all five generated surfaces are regenerated and verified.
+Exact source/unit review `3a8ee340-60bd-4006-8a7f-5461c3ea7769` approves with
+the same reason-precision and fresh-admission advisories. Evidence is retained
+in `/tmp/4200-independent-finding-static.log`, its static-green log, and
+`/tmp/4200-independent-finding-final-quality.json`.
+
+The root acceptance dry run reports 175 scenarios (57 skipped, 118 undefined)
+and 9,102 steps (8,755 skipped, 347 undefined); it executes no behavior and is
+not a passing acceptance run. No existing failure or unfinished scenario is
+hidden. Full semantic qualification must restart on the current digest.

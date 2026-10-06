@@ -1198,7 +1198,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
         },
       ],
     }),
-    ['independent', 'purpose'],
+    ['independent', 'contract'],
   ),
   decisionChangingDiscovery(
     'unresolved-authorization-decision',

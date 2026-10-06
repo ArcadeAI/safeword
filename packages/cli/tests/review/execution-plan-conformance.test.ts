@@ -127,7 +127,7 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'request_changes',
-      finding_terms: ['independent', 'purpose'],
+      finding_terms: ['independent', 'contract'],
     });
   });
 

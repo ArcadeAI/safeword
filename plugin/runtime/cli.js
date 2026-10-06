@@ -36417,7 +36417,7 @@ ${MEASUREMENT_EXECUTION_BLOCK}`;
           proof: "Package tests prove the contract; CLI tests separately prove activation."
         }
       ]
-    }), ["independent", "purpose"]),
+    }), ["independent", "contract"]),
     decisionChangingDiscovery("unresolved-authorization-decision", "A formally complete slice leaving authorization ownership undecided is denied.", executionPlan({
       decision: "one pull request",
       rationale: "The slice is mechanically complete.",
