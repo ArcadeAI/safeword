@@ -16,6 +16,7 @@ import {
   EXECUTION_PLAN_CONFORMANCE_CASES,
   type ExecutionPlanConformanceCase,
   type ExecutionPlanConformanceResult,
+  matchesExecutionPlanFindingTerms,
 } from '../../src/review/execution-plan-conformance.js';
 import {
   reviewTimeoutMilliseconds,
@@ -136,9 +137,7 @@ function assertDenial(testCase: ExecutionPlanConformanceCase, output: ReviewerOu
   const explanation =
     `${output.summary}\n${output.findings.map(finding => finding.message).join('\n')}`.toLowerCase();
   const expectedTerms = testCase.expectation.finding_terms ?? [];
-  for (const term of expectedTerms) {
-    expect(explanation).toContain(term.toLowerCase());
-  }
+  expect(matchesExecutionPlanFindingTerms(explanation, expectedTerms)).toBe(true);
 }
 
 function assertCase(

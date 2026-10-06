@@ -878,3 +878,36 @@ run targeted verification, regenerate surfaces, review actual source, check the
 nine corrected cases, and run a fresh complete matrix before admission. Full
 acceptance, RGR, deferred R7, legacy approval reuse and final stack review remain
 unfinished; no PR promotion or merge is authorized.
+
+### 2026-10-06 — approved nine-case patch applied; measurement control gap
+
+Human approved `/tmp/4200-nine-case-corpus-corrections.patch`; applied it to the
+three source/test files. Automatic formatting and a shared obligation-owner
+constant resolve lint without changing fixture semantics. Aligned the
+missing-decision unit assertion with its approved three finding terms. First
+targeted run: 62 passed, one stale assertion failed. A mistaken shared-test edit
+then yielded 56 passed, seven failed; corrected the branch to retain all other
+case assertions. Final targeted run: 63 passed, zero failed. Typecheck passed;
+all five generated surfaces regenerated and verified. Logs are
+`/tmp/4200-nine-case-static.log`, `-static-rerun.log`, `-static-final.log`,
+`/tmp/4200-nine-case-typecheck.log`, and `/tmp/4200-nine-case-generated.log`.
+
+Applied-source independent Claude review `7e4333eb-4bd9-4eda-8c9f-5d465c7ca6fe`
+requested changes: six measurement negatives still derive from the old,
+independently invalid single-slice base, while the approved control now uses the
+valid two-slice base. These cannot establish detection of their intended
+mutation. This blocks live qualification; do not certify that corpus. Data
+negative-control alignment, broad word alternatives and existing empty-term
+behavior were advisories, not hidden or expanded into unrelated hardening.
+
+Prepared `/tmp/4200-measurement-controls.patch` (also in
+`.safeword/logs/4200-measurement-controls.patch`) to rebase exactly the six
+measurement negatives on the approved positive plan and implementation scope,
+retaining their rejection verdicts, destinations and findings. Removes the now
+unused obsolete measurement base. This additional test-fixture change remains
+unapplied pending explicit approval under the testing guide. Follow-up Claude
+review `0eba1d50-d73c-4cde-be53-a5e07afe90b7` confirms the rebase direction; its
+review target remains the actual unchanged source, so it is not an applied
+candidate approval. No new live matrix or admission generated. Earlier complete
+54-pass/nine-failure/zero-unfinished matrix remains historical evidence; full
+acceptance, RGR, R7, legacy approval reuse and final stack review remain open.

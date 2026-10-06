@@ -35763,7 +35763,7 @@ var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integri
 - Completion signal: current-revision evidence shows p95 authorization latency at or below 200 milliseconds with at least 99 percent valid sample coverage.
 - Preserved contract: the accepted outcome, population, target, measurement origin, method, validity safeguards, and failure behavior remain unchanged.
 - Failure handling: keep rollout disabled and report the measurement as invalid when a validity safeguard fails.
-`, MEASUREMENT_PLAN, MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, MISSING_MEASUREMENT_EVIDENCE_PLAN, CHANGED_MEASUREMENT_TARGET_PLAN, CHANGED_MEASUREMENT_ORIGIN_PLAN, WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, CHANGED_MEASUREMENT_FAILURE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, conformanceCases, EXECUTION_PLAN_CONFORMANCE_CASES;
+`, MEASUREMENT_PLAN, MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, MISSING_MEASUREMENT_EVIDENCE_PLAN, CHANGED_MEASUREMENT_TARGET_PLAN, CHANGED_MEASUREMENT_ORIGIN_PLAN, WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, CHANGED_MEASUREMENT_FAILURE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, COMPLETE_DELIVERY_OBLIGATION_OWNERS, DATA_OWNERSHIP_POSITIVE_PLAN, MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN, MEASUREMENT_POSITIVE_PLAN, conformanceCases, EXECUTION_PLAN_CONFORMANCE_CASES;
 var init_execution_plan_conformance = __esm(() => {
   init_delivery_checklist();
   init_execution_plan_admission_generated();
@@ -36365,6 +36365,113 @@ ${MEASUREMENT_EXECUTION_BLOCK}`;
     applicableObligations: ["Accepted behavior"],
     inapplicableOptionalWork: true
   });
+  COMPLETE_DELIVERY_OBLIGATION_OWNERS = Object.fromEntries(OBLIGATIONS.map((obligation) => [obligation, "Complete delivery"]));
+  DATA_OWNERSHIP_POSITIVE_PLAN = `${withRequiredReplacements(executionPlan({
+    decision: "multiple pull requests",
+    rationale: "The public review command and the existing delivery-evidence workflow have independently valuable outcomes and separate proofs; each ships in a supported state with its own complete boundary.",
+    slices: [
+      {
+        ...COMPLETE_DELIVERY_SLICE,
+        completion: "All seven public-command proofs pass on the merge candidate, and every obligation owned by Complete delivery has current completion evidence.",
+        tasks: ONE_DELIVERY_TASKS.map((task) => task.replaceAll(/\bstep([ -])(\d+)/gu, "Complete delivery step$1$2"))
+      },
+      {
+        name: "Delivery evidence",
+        purpose: "Preserve delivery evidence through its accepted store and owner.",
+        boundary: "Existing delivery workflow evidence reads and writes through DeliveryStateService against delivery.db; the public review command remains unchanged.",
+        prerequisites: "Complete delivery",
+        proof: "owned-store",
+        completion: "The owned-store command passes with exact round-trip values and service traces; public response and authorization regression commands also pass with unchanged denial and persistence assertions.",
+        tasks: [
+          "1. RED: add the owned-store fixture in tests/delivery-state.test.ts with a known delivery-evidence row and a temporary delivery.db. Invoke the existing delivery workflow to write and read that evidence. Run bun run test tests/delivery-state.test.ts -t owned-store and observe exit 1 because the workflow does not read and write the evidence through DeliveryStateService into delivery.db before editing src/delivery-state.ts.",
+          "2. GREEN: route the existing delivery workflow's evidence reads and writes through the accepted DeliveryStateService in src/delivery-state.ts. Rerun Delivery evidence step 1 by invoking that workflow and assert the exact fixture row is present in delivery.db, the workflow returns those same values, and the service's read/write trace contains every workflow evidence operation. Rerun the public response and authorization fixtures to assert unchanged responses and no unauthorized persistence.",
+          "3. REFACTOR: remove duplicate evidence access without changing the accepted store or owner; rerun the owned-store and public response commands with the same row, trace, and denial assertions."
+        ]
+      }
+    ],
+    obligationOwners: COMPLETE_DELIVERY_OBLIGATION_OWNERS,
+    decisionText: `${BASE_DECISION_ACCOUNTING}
+- The project-local SQLite database \`delivery.db\` stores delivery evidence.: unchanged
+- DeliveryStateService owns all reads and writes for that store.: unchanged`
+  }), [
+    [
+      `
+
+## Delivery checklist`,
+      `
+| owned-store | command | E2E | Existing delivery workflow writes and reads known evidence through DeliveryStateService against delivery.db. | real_boundary | current_required | {"type":"command","cwd":".","argv":["bun","run","test","tests/delivery-state.test.ts","-t","owned-store"]} |
+
+## Delivery checklist`
+    ],
+    [
+      "- Affected-surface work: Complete delivery",
+      `- Affected-surface work: Complete delivery
+- Accepted data decision work: Delivery evidence`
+    ],
+    [
+      "Preserve both recorded implementation decisions.",
+      "Preserve all four recorded implementation decisions, including delivery.db storage and DeliveryStateService ownership."
+    ]
+  ]).trimEnd()}
+| item-12 | testing | Prove delivery.db storage and DeliveryStateService ownership through the existing delivery workflow. | contributor | owned-store | open | missing | | |
+`;
+  MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN = `${withRequiredReplacements(MEASUREMENT_IMPLEMENTATION_PLAN, [
+    [
+      "- Affected-surface work",
+      `- Affected-surface work
+- Accepted measurement work: implement and collect the accepted gateway authorization measurement.`
+    ]
+  ])}
+## Fixture current state
+
+- The existing production gateway already implements the accepted histogram, origin, transport/outcome dimensions, synthetic exclusion and independent eligible-request census. Its current production source revision already has a complete seven-day window satisfying the accepted target and coverage; those source facts must be verified, not restamped.
+- Remaining work is the evidence collector and its validity tests. No gateway production-code or deployment change is needed. The public review command does not modify this production measurement source.
+`;
+  MEASUREMENT_POSITIVE_PLAN = `${withRequiredReplacements(executionPlan({
+    decision: "multiple pull requests",
+    rationale: "The public typed-review command and gateway measurement collection are separately valuable and independently provable. Complete the command first, then collect evidence from the existing unchanged production gateway source; each intermediate merge remains supported.",
+    slices: [
+      {
+        ...COMPLETE_DELIVERY_SLICE,
+        completion: "All seven public-command proofs pass on the merge candidate, and every obligation owned by Complete delivery has current completion evidence.",
+        tasks: ONE_DELIVERY_TASKS.map((task) => task.replaceAll(/\bstep([ -])(\d+)/gu, "Complete delivery step$1$2"))
+      },
+      {
+        name: "Gateway measurement",
+        purpose: "Collect valid evidence for the accepted gateway authorization measurement.",
+        boundary: "Evidence collector, existing deployed histogram and independent census, measurement validity tests, and the accepted gateway rollout decision; the public typed-review command is unchanged.",
+        prerequisites: "Complete delivery",
+        proof: "measurement-contract and measurement-evidence",
+        completion: "Both named measurement proofs pass and retained evidence from the current unchanged production gateway source meets the accepted seven-day p95, coverage and population contract; all accepted validity safeguards and failure behavior are preserved.",
+        tasks: [
+          "1. RED: create valid-window, low-coverage, synthetic-contamination, and over-target fixtures in tests/gateway-measurement-collection.test.ts. Run bun run test tests/gateway-measurement-collection.test.ts -t seven-day-evidence; observe exit 1 because the collector is absent or incorrectly admits invalid evidence before editing scripts/collect-gateway-measurement.ts. Use 98 observations for 100 independently counted eligible requests in the low-coverage fixture.",
+          "2. GREEN: implement the collector against the existing production gateway histogram and independent eligible-request census in scripts/collect-gateway-measurement.ts. Rerun Gateway measurement step 1 and assert the exact seven-day production population, exclusion of documented synthetic probes from both counts, coverage computed as observed samples divided by eligible requests, milliseconds-converted p95, source revision and target comparison. Coverage below 99 percent or synthetic contamination produces invalid evidence and keeps gateway rollout disabled; valid over-target evidence leaves success unmet.",
+          "3. VERIFY INSTRUMENTATION: add production-permitted, production-denied and synthetic-probe fixture assertions in tests/gateway-authorization-metrics.test.ts, then invoke the existing public gateway authorization boundary. Run bun run test tests/gateway-authorization-metrics.test.ts -t emitted-histogram and require exit 0 with exact gateway_authorization_seconds observations before response serialization, transport and outcome labels, an independently counted eligible production population, and synthetic exclusion. Preserve the already deployed instrumentation and its source revision; no gateway production-code or deployment change is planned.",
+          "4. COLLECT: the existing production source already has a complete seven-day window for its current unchanged gateway revision. Run bun scripts/collect-gateway-measurement.ts --window-days 7 --output .evidence/gateway-measurement.json against that source. Require a valid artifact identifying that current source revision, the exact production population, at least 99 percent sample coverage and p95 at most 200 milliseconds. Keep rollout disabled and report invalid evidence if a validity safeguard fails; do not declare measurement completion for missing or over-target evidence.",
+          "5. REFACTOR: share collection validation without changing the accepted measurement contract. Rerun both fixture commands and the Gateway measurement step-4 production collector; require exit 0 with identical population, source revision, coverage, p95, classification and rollout decisions. Retain the current real-boundary artifact and require measurement-contract and measurement-evidence to pass before this slice completes."
+        ]
+      }
+    ],
+    obligationOwners: COMPLETE_DELIVERY_OBLIGATION_OWNERS
+  }), [
+    [
+      `
+
+## Delivery checklist`,
+      `
+| measurement-contract | command | E2E | Existing gateway authorization instrumentation and collector validity at their accepted actor boundaries. | real_boundary | current_required | {"type":"command","cwd":".","argv":["bun","run","test","tests/gateway-authorization-metrics.test.ts","tests/gateway-measurement-collection.test.ts"]} |
+| measurement-evidence | command | E2E | Current unchanged production gateway source, seven-day population, p95, coverage, synthetic exclusion and rollout validity. | real_boundary | current_required | {"type":"command","cwd":".","argv":["bun","scripts/collect-gateway-measurement.ts","--window-days","7","--output",".evidence/gateway-measurement.json"]} |
+
+## Delivery checklist`
+    ],
+    [
+      "- Affected-surface work: Complete delivery",
+      `- Affected-surface work: Complete delivery
+- Accepted measurement work: Gateway measurement`
+    ]
+  ]).trimEnd()}
+| item-12 | testing | Implement and collect the accepted gateway authorization measurement. | contributor | measurement-evidence | open | missing | | |
+`;
   conformanceCases = [
     approved("one-coherent-change", "One coherent change records one pull request.", ONE_PLAN, "one_pull_request", ["Complete delivery"]),
     approved("several-ordered-changes", "Several independent changes record ordered pull requests.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
@@ -36466,40 +36573,20 @@ ${MEASUREMENT_EXECUTION_BLOCK}`;
 - Store delivery evidence in Redis and let ReviewService own reads and writes.`), ["Redis", "ReviewService"])
     },
     {
-      ...approved("accepted-data-ownership", "The accepted concrete store and owner do not block semantic approval.", withRequiredReplacements(`${withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
-- Host-neutral dependency order keeps every intermediate merge supported: unchanged
-- The project-local SQLite database \`delivery.db\` stores delivery evidence: unchanged
-- DeliveryStateService owns all reads and writes for that store: unchanged`).trimEnd()}
-| item-12 | testing | Prove delivery.db storage and DeliveryStateService ownership through the existing delivery workflow. | contributor | owned-store | open | missing | | |
-
-## Accepted data decision execution
-
-- Owner: Complete delivery.
-- 12. RED: add the owned-store fixture in tests/delivery-state.test.ts with a known delivery-evidence row and a temporary delivery.db. Invoke the existing delivery workflow to write and read that evidence. Run bun run test tests/delivery-state.test.ts -t owned-store and observe exit 1 because the workflow does not read and write the evidence through DeliveryStateService into delivery.db before editing src/delivery-state.ts.
-- 13. GREEN: route the existing delivery workflow's evidence reads and writes through the accepted DeliveryStateService in src/delivery-state.ts. Rerun step 12 by invoking that workflow and assert the exact fixture row is present in delivery.db, the workflow returns those same values, and the service's read/write trace contains every workflow evidence operation. Rerun the public response and authorization fixtures to assert unchanged responses and no unauthorized persistence.
-- 14. REFACTOR: remove duplicate evidence access without changing the accepted store or owner; rerun the owned-store and public response commands with the same row, trace, and denial assertions.
-`, [
+      ...approved("accepted-data-ownership", "The accepted concrete store and owner do not block semantic approval.", DATA_OWNERSHIP_POSITIVE_PLAN, "multiple_pull_requests", ["Complete delivery", "Delivery evidence"]),
+      implementation_plan: withRequiredReplacements(DATA_IMPLEMENTATION_PLAN, [
         [
-          `
-
-## Delivery checklist`,
-          `
-| owned-store | command | E2E | Existing delivery workflow writes and reads known evidence through DeliveryStateService against delivery.db. | real_boundary | current_required | {"type":"command","cwd":".","argv":["bun","run","test","tests/delivery-state.test.ts","-t","owned-store"]} |
-
-## Delivery checklist`
-        ],
-        [
-          "Preserve both recorded implementation decisions.",
-          "Preserve all four recorded implementation decisions, including delivery.db storage and DeliveryStateService ownership."
+          "- Affected-surface work",
+          `- Affected-surface work
+- Accepted data decision work: execute the accepted delivery.db and DeliveryStateService design through the existing delivery workflow.`
         ]
-      ]), "one_pull_request", ["Complete delivery"]),
-      implementation_plan: DATA_IMPLEMENTATION_PLAN,
+      ]),
       expectation: {
         verdict: "approve",
         planning_destination: "plan-execution",
-        slicing_decision: "one_pull_request",
-        slice_names: ["Complete delivery"],
-        obligations: OBLIGATIONS,
+        slicing_decision: "multiple_pull_requests",
+        slice_names: ["Complete delivery", "Delivery evidence"],
+        obligations: [...OBLIGATIONS, "Accepted data decision work"],
         decisions: [
           ...DECISIONS,
           "The project-local SQLite database `delivery.db` stores delivery evidence.",
@@ -36513,7 +36600,7 @@ ${MEASUREMENT_EXECUTION_BLOCK}`;
         decision: "one pull request",
         rationale: COMPLETE_DELIVERY_RATIONALE,
         slices: [COMPLETE_DELIVERY_SLICE]
-      }), ["decision-derived work"]),
+      }), ["gateway", "transport", "authorization"]),
       implementation_plan: DECISION_OBLIGATION_IMPLEMENTATION_PLAN
     },
     {
@@ -36530,7 +36617,13 @@ ${MEASUREMENT_EXECUTION_BLOCK}`;
     missingObligationCase("missing-documentation-obligation", "Documentation work"),
     missingObligationCase("missing-affected-surface-obligation", "Affected-surface work"),
     {
-      ...denied("migration-missing-completion-signal", "Owned migration work without a migration completion signal is incomplete.", MIGRATION_WITHOUT_COMPLETION_PLAN, ["migration", "completion signal"]),
+      ...denied("migration-missing-completion-signal", "Owned migration work without a migration completion signal is incomplete.", withRequiredReplacements(MIGRATION_WITHOUT_COMPLETION_PLAN, [
+        ["- Prerequisites: Contract", "- Prerequisites: none"],
+        [
+          "the prerequisite schema and compatible reader",
+          "the accepted schema and compatible reader"
+        ]
+      ]), ["migration", ["completion signal", "completion proof", "completion condition"]]),
       implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN
     },
     {
@@ -36553,10 +36646,26 @@ ${MEASUREMENT_EXECUTION_BLOCK}`;
     approved("current-proof-supports-completion", "Matching implementation with current-revision real-boundary proof may be recorded as implemented and proven.", CURRENT_PROOF_PLAN, "one_pull_request", ["Complete delivery"]),
     denied("earlier-proof-remains-open", "Reusable earlier-revision proof remains open until current proof is collected.", EARLIER_PROOF_CLAIMED_CURRENT_PLAN, ["earlier", "open"]),
     denied("known-defect-is-not-complete", "A known defect remains separate target correction work and cannot be called complete.", KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN, ["defect", "complete"]),
-    denied("pending-human-authority-is-not-complete", "Completed contributor work remains incomplete while required human authority is pending.", PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, ["human", "pending"]),
     {
-      ...approved("complete-measurement-execution", "Accepted measurement decisions map to owned instrumentation, tests, evidence collection, and a completion signal.", MEASUREMENT_PLAN, "one_pull_request", ["Complete delivery"]),
-      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+      ...denied("pending-human-authority-is-not-complete", "Completed contributor work remains incomplete while required human authority is pending.", PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, ["human", "pending", ["complete", "completion", "claimed"]]),
+      implementation_plan: `${IMPLEMENTATION_PLAN}
+## Existing human authority for this fixture
+
+- The existing security owner must authorize activation after the compatible reader is available. This is an accepted prerequisite, not a new approval policy.
+- Contributor implementation and proof do not grant this human authorization; delivery remains incomplete until that security owner approves.
+`
+    },
+    {
+      ...approved("complete-measurement-execution", "Accepted measurement decisions map to owned instrumentation, tests, evidence collection, and a completion signal.", MEASUREMENT_POSITIVE_PLAN, "multiple_pull_requests", ["Complete delivery", "Gateway measurement"]),
+      implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN,
+      expectation: {
+        verdict: "approve",
+        planning_destination: "plan-execution",
+        slicing_decision: "multiple_pull_requests",
+        slice_names: ["Complete delivery", "Gateway measurement"],
+        obligations: [...OBLIGATIONS, "Accepted measurement work"],
+        decisions: DECISIONS
+      }
     },
     {
       ...denied("missing-measurement-instrumentation", "Accepted measurement execution without the instrumentation work is denied.", MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, ["instrumentation"]),
@@ -36643,7 +36752,24 @@ The accepted public CLI proof cannot run; replace it with a parser unit test tha
 Move the handler file and replace the accepted public command response with a new API contract.
 `, ["api", "contract"]),
     {
-      ...approved("fresh-context-first-red", "A fresh-context agent can begin with the named highest-risk RED without inventing a decision.", STARTABLE_PLAN, "one_pull_request", ["Authorization denial"]),
+      ...approved("fresh-context-first-red", "A fresh-context agent can begin with the named highest-risk RED without inventing a decision.", withRequiredReplacements(STARTABLE_PLAN, [
+        [
+          "- Proof: behavior-boundary",
+          "- Proof: behavior-boundary, failure-signals, security-boundary, and plan-integrity"
+        ],
+        [
+          "move duplicate permission checks into the existing shared authorizer without changing its authority.",
+          "remove duplicate permission branching in src/auth.ts while retaining the call to the existing shared authorizer before dispatch."
+        ],
+        [
+          "- Completion signal: The denied request returns the accepted error.",
+          "- Completion signal: The public command names fixture-review and exits 2, the reviewer journal and result store remain empty, and every applicable proof passes at the current revision."
+        ],
+        [
+          "assert the public response, decision preservation, single-slice dependencies, ownership, and retained completion evidence remain unchanged.",
+          "run bun run test:review-cli -- --fixture denied-request and require exit 0 from that command, all three denial commands, and bun run test:execution-plan-conformance at the current revision. Assert public-command exit 2 naming fixture-review, an empty reviewer journal, no stored result, preserved decisions and ownership, and retained completion evidence."
+        ]
+      ]), "one_pull_request", ["Authorization denial"]),
       implementation_plan: INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN,
       expectation: {
         verdict: "approve",
@@ -36655,7 +36781,28 @@ Move the handler file and replace the accepted public command response with a ne
       }
     },
     {
-      ...approved("exact-cli-denial-proof", "A complete proof step names its fixture, command, edit action, denied exit assertion, and installed CLI subprocess boundary.", EXACT_CLI_DENIAL_PROOF_PLAN, "one_pull_request", ["Edited-plan denial proof"]),
+      ...approved("exact-cli-denial-proof", "A complete proof step names its fixture, command, edit action, denied exit assertion, and installed CLI subprocess boundary.", withRequiredReplacements(EXACT_CLI_DENIAL_PROOF_PLAN, [
+        [
+          "an approved plan, edit its recorded content,",
+          "an authenticated permitted actor, a plan approved through the existing authenticated approval path, and snapshots of the reviewer journal and result store. Add the edited-plan assertion in tests/cli-protocol/phase-gates.test.ts for exit 2 naming the edited plan with no new reviewer request or stored result; edit that plan's recorded content,"
+        ],
+        [
+          "implement the accepted edited-plan denial in `src/review/command.ts`,",
+          "call the existing authenticated approval issuer and plan-version check in `src/review/command.ts` before reviewer dispatch or result persistence,"
+        ],
+        [
+          "move duplicate plan-currentness validation from `src/review/command.ts` into `src/review/contract.ts`,",
+          "remove duplicate plan-currentness branching in `src/review/command.ts` while retaining the existing authenticated approval issuer and plan-version check,"
+        ],
+        [
+          "assert test-runner exit 0 plus installed-CLI exit 2;",
+          "assert test-runner exit 0, installed-CLI exit 2 naming the edited plan, and no new reviewer request or stored result compared with the initial journal and store snapshots;"
+        ],
+        [
+          "rerun all four named proof commands, and assert the installed-CLI denial response is unchanged.",
+          "rerun all four named proof commands and bun run test:review-cli -- --fixture edited-plan with exit 0; assert that the CLI still exits 2 naming the edited plan and creates no new reviewer request or stored result, and require every applicable proof to pass before slice completion."
+        ]
+      ]), "one_pull_request", ["Edited-plan denial proof"]),
       implementation_plan: PROOF_ONLY_IMPLEMENTATION_PLAN,
       expectation: {
         verdict: "approve",
@@ -36675,8 +36822,11 @@ Move the handler file and replace the accepted public command response with a ne
       implementation_plan: PROOF_ONLY_IMPLEMENTATION_PLAN
     },
     decisionChangingDiscovery("later-step-is-not-startable", "A concrete first RED cannot hide an unresolved behavior decision in the fourth step.", LATER_UNSTARTABLE_PLAN, ["behavior", "decision"]),
-    denied("blocked-first-prerequisite", "The first planned slice depends on an incomplete prerequisite and is not startable.", BLOCKED_FIRST_PREREQUISITE_PLAN, ["prerequisite", "startable"]),
-    denied("no-executable-steps", "A plan with no executable task leaves a fresh agent with no startable step.", NO_EXECUTABLE_STEPS_PLAN, ["executable", "step"]),
+    denied("blocked-first-prerequisite", "The first planned slice depends on an incomplete prerequisite and is not startable.", BLOCKED_FIRST_PREREQUISITE_PLAN, ["prerequisite", "Unfinished contract"]),
+    denied("no-executable-steps", "A plan with no executable task leaves a fresh agent with no startable step.", NO_EXECUTABLE_STEPS_PLAN, [
+      ["executable", "startable", "empty"],
+      ["step", "task"]
+    ]),
     approved("risk-first-ordering", "Independent work orders the highest-risk probe before activation.", RISK_FIRST_PLAN, "multiple_pull_requests", ["Risk probe", "Activation"]),
     approved("parallel-safe-after-probe", "Independent consumers may proceed in parallel after the shared risk probe.", PARALLEL_AFTER_PROBE_PLAN, "multiple_pull_requests", ["Risk probe", "CLI consumer", "Documentation consumer"])
   ];
