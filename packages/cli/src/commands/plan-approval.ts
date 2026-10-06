@@ -136,7 +136,11 @@ function reviewsPlan(data: Record<string, unknown>, context: ApprovalContext): b
 }
 
 type ExecutionDiscovery =
-  | { readonly destination: 'plan-execution' | 'plan-implementation' }
+  | {
+      readonly destination: 'plan-execution' | 'plan-implementation';
+      readonly reviewId: string;
+      readonly findings: readonly string[];
+    }
   | { readonly destination: 'invalid' };
 
 function reviewTargetsPath(
@@ -151,13 +155,17 @@ function reviewTargetsPath(
   );
 }
 
-function discoveryDestination(output: unknown): ExecutionDiscovery {
+function discoveryDestination(
+  output: unknown,
+  reviewId: string,
+  findings: readonly string[],
+): ExecutionDiscovery {
   if (typeof output !== 'object' || output === null || Array.isArray(output)) {
     return { destination: 'invalid' };
   }
   const destination = (output as Record<string, unknown>).planning_destination;
   return destination === 'plan-execution' || destination === 'plan-implementation'
-    ? { destination }
+    ? { destination, reviewId, findings }
     : { destination: 'invalid' };
 }
 
@@ -180,7 +188,24 @@ function currentExecutionDiscovery(context: ApprovalContext): ExecutionDiscovery
   ) {
     return undefined;
   }
-  return discoveryDestination(data.reviewer_output);
+  return discoveryDestination(
+    data.reviewer_output,
+    String(data.review_id),
+    review.findings
+      .filter(finding => finding.code === 'REVIEWER_FINDING')
+      .map(finding => finding.message),
+  );
+}
+
+function executionDiscoveryNotice(
+  discovery: Exclude<ExecutionDiscovery, { destination: 'invalid' }>,
+): string {
+  const messages = [
+    `Execution review ${discovery.reviewId} requested Implementation Plan repair.`,
+    ...discovery.findings,
+  ];
+  const quoted = messages.flatMap(message => message.split(/\r?\n/u).map(line => `> ${line}`));
+  return `\n\n### Execution discovery requiring fresh planning review\n\n${quoted.join('\n')}\n`;
 }
 
 function applyExecutionDiscovery(
@@ -193,7 +218,9 @@ function applyExecutionDiscovery(
     if (currentPhase !== 'plan-execution' && currentPhase !== 'implement') {
       throw new Error(`Ticket is in ${String(currentPhase)}, not plan-execution or implement.`);
     }
-    const changed = replaceTicketPhase(context, currentPhase, discovery.destination);
+    const notice =
+      discovery.destination === 'plan-implementation' ? executionDiscoveryNotice(discovery) : '';
+    const changed = replaceTicketPhase(context, currentPhase, discovery.destination, notice);
     const target = nodePath.relative(context.cwd, context.ticketPath);
     const implementationDecision = discovery.destination === 'plan-implementation';
     return createResult({
@@ -275,6 +302,7 @@ function replaceTicketPhase(
   context: ApprovalContext,
   from: 'implement' | 'plan-execution' | 'plan-implementation',
   to: 'plan-execution' | 'plan-implementation',
+  notice = '',
 ): boolean {
   const ticket = readFileSync(context.ticketPath, 'utf8');
   const phase = readFrontmatterScalar(ticket, 'phase');
@@ -291,7 +319,7 @@ function replaceTicketPhase(
     throw new Error(`Ticket phase "${from}" could not be updated safely.`);
   }
   const temporary = `${context.ticketPath}.${process.pid}.${randomUUID()}.tmp`;
-  writeFileSync(temporary, updated);
+  writeFileSync(temporary, updated + notice);
   renameSync(temporary, context.ticketPath);
   return true;
 }
