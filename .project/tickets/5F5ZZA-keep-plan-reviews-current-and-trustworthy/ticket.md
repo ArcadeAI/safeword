@@ -445,3 +445,11 @@ edited-plan baseline and its matching accepted scope, changing only their
 named placeholder detail. Required verdicts and finding terms are preserved.
 Static verification is queued behind another checkout's live package lock;
 fresh independent review and complete live qualification remain pending.
+
+Fixture repairs committed as `804922166`. Typecheck passes; the targeted
+conformance suite passes 59/59 after the shared test lock released.
+Committed-source review `4a7a38cd-a2af-491a-829c-5a932723cfce` approved
+with nonblocking negative-fixture ambiguity and stale-admission advisories.
+The focused Claude sentinel checks the repaired coherent-change positive,
+missing completion, and both CLI placeholder negatives. It is diagnostic;
+all 63 current cases are still required for admission.
