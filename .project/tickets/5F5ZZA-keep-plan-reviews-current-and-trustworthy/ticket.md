@@ -804,3 +804,77 @@ current corpus digest is
 `b145a35e6cc2cc994bbbb238996140f29d82742e5ea464677e9807f5526305c7`.
 Fresh full qualification is required. Prior 21-pass/two-failure/40-unfinished
 results remain non-admissible and bound to their original corpus.
+
+At pushed head `3a87f4f83`, the fresh Astra matrix completed every semantic
+case: 54 passed, nine failed, zero unfinished; the harness guard also passed
+(55 passed / nine failed Vitest tests), exit 1, 1,528.64 seconds. The exact
+results and raw judgments are retained at
+`/tmp/4200-data-findings-codex-full-results.json` and its live log. The two
+approved data denial corrections passed. No admission is generated.
+
+Failures: accepted-data-ownership, missing-decision-obligation,
+migration-missing-completion-signal, pending-human-authority-is-not-complete,
+complete-measurement-execution, fresh-context-first-red, exact-cli-denial-proof,
+blocked-first-prerequisite, and no-executable-steps. These are not collectively
+called reviewer failures. Bounded independent audits identify four phrase-only
+failures and five inconsistent fixture/expectation pairs. Slicing audit
+`eac6204a-42e1-49a5-9b39-027f02483c11` confirms the data and measurement
+positives violate cohesion/proof requirements. Startability audit
+`76c433a0-06ed-4377-9d73-93c3219877bf` confirms both CLI positives omit
+accepted assertions or a required proof. Denial audit
+`ea83bb0a-3cb1-4e10-83e3-3db79915dcdc` confirms the four correct semantic
+rejections failed incidental words; pending human authority is also inconsistent
+with its accepted fixture scope. No rubric relaxation is proposed.
+
+Prepared `/tmp/4200-seven-case-corpus-corrections.patch` addresses seven cases:
+four case-specific finding checks, the existing accepted human prerequisite in
+the pending-authority fixture, and complete proof/assertion steps in the two
+CLI positives. Original positive and negative verdicts remain required. A
+disposable rendering check confirms exactly seven changed cases and 63 total,
+without changing repository source or running qualification on a candidate.
+The patch remains unapplied pending explicit human approval. The remaining
+data/measurement positives need coherent fixture decomposition and complete
+own-slice proof; their rejection expectations are not flipped to hide defects.
+
+The bounded seven-case candidate audit
+`73bc6567-6863-4e1b-b1a2-78a695153c54` found an additional explicit-test-edit
+gap in the CLI positive. The nine-case candidate audit
+`898e435a-4ea6-440b-a4f0-ceac708f8d4d` found two candidate defects: a blank
+line detached additional checklist rows, and an incomplete alternative could
+match a prerequisite-only rejection. Both were corrected before any application.
+The disposable parser check now confirms the added rows are retained, and a
+negative matcher check rejects that prerequisite-only explanation. This failed
+candidate is not hidden or described as approved.
+
+Revised candidate review `753acf2e-073a-4c39-9d0c-7f164e0c7c50` approves with
+no blocking findings. Remaining advisories are multiple defects in some negative
+fixtures and limits of keyword checks. Decision punctuation and accepted fixture
+obligation names were subsequently aligned with the expectations. The final
+prepared `/tmp/4200-nine-case-corpus-corrections.patch` affects source/unit/live
+grading, exactly nine cases, and preserves all 63 cases and every original
+verdict. Data and measurement positives have separate owning slices. Measurement
+fixture current state explicitly supplies existing unchanged production
+instrumentation and a valid source window; this is not Safeword production
+evidence. CLI positives supply the missing assertions and proof commands. The
+small finding matcher ANDs required groups, ORs explicitly listed alternatives,
+normalizes case, and rejects empty groups; authentication and admission do not
+change. No production rubric change or model-based grader is included.
+
+## Qualification root cause — 2026-10-06
+
+The failed matrix reflects contradictory positive fixtures and incidental
+wording requirements in private expectations. Independent reviews confirm the
+four positive rejections against the exact accepted inputs; the pending-human
+fixture also adds authority excluded by its own baseline. Four remaining cases
+correctly reject but fail literal words. This differs from provider/runtime
+failure: all 63 cases completed with confirmed model and matched identities,
+without a transport timeout or dispatch mismatch. Reviewer judgment defects
+were not established for these nine outputs. No old or filtered result is
+rebound as a passing current qualification.
+
+Current blocker: explicit approval of this additional nine-case test patch,
+requested with the exact prepared artifact. It remains unapplied. After approval,
+run targeted verification, regenerate surfaces, review actual source, check the
+nine corrected cases, and run a fresh complete matrix before admission. Full
+acceptance, RGR, deferred R7, legacy approval reuse and final stack review remain
+unfinished; no PR promotion or merge is authorized.
