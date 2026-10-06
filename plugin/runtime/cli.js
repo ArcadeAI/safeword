@@ -3647,7 +3647,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "f3d28c3824bc93c54803047c9ed6788f66f0fc2d4fd047f747d5c70ad78d48a6",
+        ".safeword/hooks/pre-tool-quality.ts": "59703b91e0c7b5f04df4d2ee0d7f336e76a1bb54de3fe4ae7208daf3a423b490",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -81972,12 +81972,12 @@ function reviewTargetsPath(data, cwd, expectedPath) {
   const resolvedExpected = nodePath131.resolve(expectedPath);
   return data.review_targets.some((target) => typeof target === "string" && nodePath131.resolve(cwd, target) === resolvedExpected);
 }
-function discoveryDestination(output) {
+function discoveryDestination(output, reviewId, findings) {
   if (typeof output !== "object" || output === null || Array.isArray(output)) {
     return { destination: "invalid" };
   }
   const destination = output.planning_destination;
-  return destination === "plan-execution" || destination === "plan-implementation" ? { destination } : { destination: "invalid" };
+  return destination === "plan-execution" || destination === "plan-implementation" ? { destination, reviewId, findings } : { destination: "invalid" };
 }
 function currentExecutionDiscovery(context) {
   const ticket = readFileSync86(context.ticketPath, "utf8");
@@ -81995,7 +81995,21 @@ function currentExecutionDiscovery(context) {
   if (data.review_kind !== "plan-execution" || data.status !== "changes_requested" || !reviewTargetsPath(data, context.cwd, planPath)) {
     return;
   }
-  return discoveryDestination(data.reviewer_output);
+  return discoveryDestination(data.reviewer_output, String(data.review_id), review.findings.filter((finding2) => finding2.code === "REVIEWER_FINDING").map((finding2) => finding2.message));
+}
+function executionDiscoveryNotice(discovery) {
+  const messages3 = [
+    `Execution review ${discovery.reviewId} requested Implementation Plan repair.`,
+    ...discovery.findings
+  ];
+  const quoted = messages3.flatMap((message) => message.split(/\r?\n/u).map((line) => `> ${line}`));
+  return `
+
+### Execution discovery requiring fresh planning review
+
+${quoted.join(`
+`)}
+`;
 }
 function applyExecutionDiscovery(context, discovery) {
   if (discovery.destination !== "invalid") {
@@ -82004,7 +82018,8 @@ function applyExecutionDiscovery(context, discovery) {
     if (currentPhase !== "plan-execution" && currentPhase !== "implement") {
       throw new Error(`Ticket is in ${String(currentPhase)}, not plan-execution or implement.`);
     }
-    const changed2 = replaceTicketPhase(context, currentPhase, discovery.destination);
+    const notice = discovery.destination === "plan-implementation" ? executionDiscoveryNotice(discovery) : "";
+    const changed2 = replaceTicketPhase(context, currentPhase, discovery.destination, notice);
     const target = nodePath131.relative(context.cwd, context.ticketPath);
     const implementationDecision = discovery.destination === "plan-implementation";
     return createResult({
@@ -82064,7 +82079,7 @@ function appendReceipt(context, status) {
   })}
 `);
 }
-function replaceTicketPhase(context, from, to2) {
+function replaceTicketPhase(context, from, to2, notice = "") {
   const ticket = readFileSync86(context.ticketPath, "utf8");
   const phase = readFrontmatterScalar(ticket, "phase");
   if (phase === to2)
@@ -82082,7 +82097,7 @@ function replaceTicketPhase(context, from, to2) {
     throw new Error(`Ticket phase "${from}" could not be updated safely.`);
   }
   const temporary = `${context.ticketPath}.${process19.pid}.${randomUUID17()}.tmp`;
-  writeFileSync32(temporary, updated);
+  writeFileSync32(temporary, updated + notice);
   renameSync17(temporary, context.ticketPath);
   return true;
 }
