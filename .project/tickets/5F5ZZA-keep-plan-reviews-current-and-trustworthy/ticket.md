@@ -926,3 +926,33 @@ Logs: `/tmp/4200-measurement-controls-static.log`,
 `/tmp/4200-measurement-controls-typecheck.log`,
 `/tmp/4200-measurement-controls-generated.log`,
 `/tmp/4200-measurement-controls-applied-quality.json`.
+
+### 2026-10-06 — corrected-case live qualification pilot
+
+At source head `7861cffb6`, the first focused Astra run completed 13 cases:
+11 passed, two failed; 50 semantic cases plus the harness guard filtered. Two
+intended long case names were truncated by Vitest's parameterized title, so the
+quoted-name filter excluded them. Ran both separately: two passed, 61 semantic
+cases plus the guard filtered. Combined focused observations: all 15 changed
+cases completed, 13 passed and two failed. These separate filtered runs are not
+a complete matrix, not admission evidence, and are not stitched into one.
+Logs/results: `/tmp/4200-fifteen-case-codex-pilot-live.log`,
+`/tmp/4200-fifteen-case-codex-pilot-results.json`,
+`/tmp/4200-two-missed-codex-pilot-live.log`,
+`/tmp/4200-two-missed-codex-pilot-results.json`. Both failures retained exact
+provider/model/dispatch identities and actual rejection outputs.
+
+Migration rejection correctly demands that all seven proofs be required for
+slice completion, but the current alternatives omit the words `slice completion`.
+Origin rejection correctly returns to Execution Planning because the fixture
+changes a verification assertion while explicitly preserving production origin.
+Independent Claude audit `4329c013-16cf-47ee-9e9d-7f90618eadee` confirms both
+observed judgments and recommends a wording alternative plus a fixture that
+actually changes the accepted measurement origin. Prepared additional two-case
+patch `/tmp/4200-two-case-final-corrections.patch`: retains both rejection
+verdicts and destinations, expands only the migration finding group, and makes
+the origin case explicitly relocate recording with consistent new-source
+references. Disposable import confirms 63 total cases and exactly those two
+changed identities. The additional patch remains unapplied pending explicit
+human approval. Full qualification is blocked; no new admission is generated.
+Applied source checkpoint is pushed; pre-push schema tests passed 895/895.
