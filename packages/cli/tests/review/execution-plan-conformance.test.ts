@@ -124,7 +124,7 @@ describe('Execution Plan semantic conformance admission', () => {
   it('requires every finding group while accepting named wording alternatives', () => {
     const terms = [
       'migration',
-      ['completion signal', 'completion proof', 'completion condition'],
+      ['completion signal', 'completion proof', 'completion condition', 'slice completion'],
     ] as const;
     expect(matchesExecutionPlanFindingTerms('Migration lacks a COMPLETION PROOF.', terms)).toBe(
       true,
@@ -141,6 +141,9 @@ describe('Execution Plan semantic conformance admission', () => {
         terms,
       ),
     ).toBe(false);
+    expect(
+      matchesExecutionPlanFindingTerms('Migration proof is required for slice completion.', terms),
+    ).toBe(true);
     expect(matchesExecutionPlanFindingTerms('A completion proof is present.', terms)).toBe(false);
     expect(
       matchesExecutionPlanFindingTerms('Migration lacks a completion proof.', [[], 'migration']),
@@ -318,7 +321,10 @@ describe('Execution Plan semantic conformance admission', () => {
   it.each([
     [
       'migration-missing-completion-signal',
-      ['migration', ['completion signal', 'completion proof', 'completion condition']],
+      [
+        'migration',
+        ['completion signal', 'completion proof', 'completion condition', 'slice completion'],
+      ],
     ],
     ['migration-missing-dependency-order', ['migration', 'dependency']],
   ] as const)('keeps %s as a partial obligation-mapping denial', (caseId, findingTerms) => {

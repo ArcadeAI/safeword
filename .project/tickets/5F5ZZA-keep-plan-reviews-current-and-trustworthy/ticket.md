@@ -956,3 +956,19 @@ references. Disposable import confirms 63 total cases and exactly those two
 changed identities. The additional patch remains unapplied pending explicit
 human approval. Full qualification is blocked; no new admission is generated.
 Applied source checkpoint is pushed; pre-push schema tests passed 895/895.
+
+### 2026-10-06 — final two-case correction approved and applied
+
+Human approved `/tmp/4200-two-case-final-corrections.patch`; applied exactly the
+source and unit changes. Targeted tests: 63 passed, zero failed; typecheck passed;
+all five generated surfaces regenerated and verified. Independent applied-source
+Claude review `7b145aea-0bf9-4522-b129-4ec6d5c74f89` approved. Preserve its warning
+that `slice completion` also matches some dependency-only findings; the actual
+observed migration rejection specifically required all proofs for completion.
+The origin fixture now proposes an actual production recording-point change,
+preserving its required rejection and Implementation Planning destination.
+Logs: `/tmp/4200-two-case-static.log`, `/tmp/4200-two-case-typecheck.log`,
+`/tmp/4200-two-case-generated.log`, `/tmp/4200-two-case-applied-quality.json`.
+Fresh two-case live run queued behind the existing shared test-lock owner in
+`pr5117-delivery`; no foreign process killed or concurrent Vitest started.
+Admission remains stale until a fresh complete passing matrix exists.

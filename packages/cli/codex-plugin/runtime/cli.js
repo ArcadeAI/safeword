@@ -36456,6 +36456,38 @@ ${reviewOutputSchema("plan-execution")}
     [
       "observations before response serialization",
       "observations in the client after response parsing"
+    ],
+    [
+      "Preserve the already deployed instrumentation and its source revision; no gateway production-code or deployment change is planned.",
+      "Change the accepted measurement origin: move gateway_authorization_seconds recording from the gateway authorization boundary before response serialization to src/client/authorization.ts after response parsing. This changes production instrumentation and requires a new source revision."
+    ],
+    [
+      "implement the collector against the existing production gateway histogram and independent eligible-request census",
+      "implement the collector against the proposed client-origin histogram and independent eligible-request census"
+    ],
+    [
+      "Existing gateway authorization instrumentation and collector validity at their accepted actor boundaries.",
+      "Proposed client-origin instrumentation after response parsing and collector validity at the changed measurement boundary."
+    ],
+    [
+      "collect evidence from the existing unchanged production gateway source",
+      "collect evidence from the proposed client-origin production source at its new revision"
+    ],
+    [
+      "Evidence collector, existing deployed histogram and independent census",
+      "Evidence collector, proposed client-origin histogram and independent census"
+    ],
+    [
+      "current unchanged production gateway source meets",
+      "new client-origin production source meets"
+    ],
+    [
+      "the existing production source already has a complete seven-day window for its current unchanged gateway revision",
+      "after moving the recording point, collect a complete seven-day window for the new client-origin source revision"
+    ],
+    [
+      "Current unchanged production gateway source, seven-day population",
+      "New client-origin production source, seven-day population"
     ]
   ]);
   WEAKENED_MEASUREMENT_SAFEGUARD_PLAN = withRequiredReplacements(MEASUREMENT_POSITIVE_PLAN, [
@@ -36621,7 +36653,10 @@ ${reviewOutputSchema("plan-execution")}
           "the prerequisite schema and compatible reader",
           "the accepted schema and compatible reader"
         ]
-      ]), ["migration", ["completion signal", "completion proof", "completion condition"]]),
+      ]), [
+        "migration",
+        ["completion signal", "completion proof", "completion condition", "slice completion"]
+      ]),
       implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN
     },
     {
