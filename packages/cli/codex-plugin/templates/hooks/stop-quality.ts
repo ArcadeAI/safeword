@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
+  DONE_GATED_TICKET_TYPES,
   deriveTddStep,
   getActiveTicket,
   getTicketInfo,
@@ -156,9 +157,6 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
 
   return fallbackGlobalScan();
 }
-
-/** Build ticket types and epics carry evidence for the done gate to check. */
-const DONE_GATED_TICKET_TYPES = new Set(['task', 'feature', 'epic']);
 
 /** The ticket whose owed done gate this Stop is running, settled once it passes. */
 let owedDoneGateTicket: string | undefined;
