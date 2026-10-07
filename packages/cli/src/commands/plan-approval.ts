@@ -303,7 +303,12 @@ function scaffoldExecutionPlan(context: ApprovalContext): string | undefined {
       'The installed Execution Plan template is missing. Repair the Safeword installation before approving the plan.',
     );
   }
-  writeFileSync(planPath, readFileSync(templatePath, 'utf8'), { flag: 'wx' });
+  try {
+    writeFileSync(planPath, readFileSync(templatePath, 'utf8'), { flag: 'wx' });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return undefined;
+    throw error;
+  }
   return nodePath.relative(context.cwd, planPath);
 }
 
