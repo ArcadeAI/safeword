@@ -282,6 +282,23 @@ independent evidence. OpenCode is invoked one-shot with JSON events, a stdin
 prompt, `--pure`, deny-all tool permissions, and the shared review deadline and
 integrity checks.
 
+Review packets retain their 256 KiB per-target and 1 MiB aggregate limits.
+An oversized target is omitted only when the committed repository attributes
+mark it `linguist-generated=true`. The result reports its path in
+`data.excluded_targets`; every eligible authored target still reaches the
+reviewer unchanged. An unmarked oversized target or a review with no eligible
+targets fails before reviewer launch.
+
+For completed durable reviews, `review status` authenticates the stored result
+and revalidates the current packet. Its `data.review_excluded_targets` contains
+only original exclusions that still meet that classification. Approval recording
+uses these exact file paths to waive generated-file coverage while requiring
+every remaining authored change to be reviewed. Exclusions never count as reviewed
+work. Legacy receipts without this verified field retain strict coverage; raw
+`data.excluded_targets` alone cannot authorize a waiver.
+Content-only changes to a still-classified generated exclusion do not stale the
+authored review; removing its eligible classification does.
+
 Supported local Claude Code, Codex, and Cursor installs can quietly send sanitized
 retrospective findings to SafeWord's durable public collector. Collection requires
 no account or registration. The envelope can include the project UUID, normalized
