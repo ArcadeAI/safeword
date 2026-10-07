@@ -1,0 +1,87 @@
+{
+  "commit": "85dadcbe8cc8fbc0a6b949a641be551f5419f69a",
+  "request": {
+    "ticketId": "CKWE2D",
+    "scenario": "A nested project uses its committed generated marker",
+    "testFile": "packages/cli/tests/cli-protocol/review-generated-targets.test.ts",
+    "testFullName": "generated review targets uses repository-relative paths for a project nested below the Git root",
+    "implementationPath": "packages/cli/src/review/packet.ts",
+    "mutation": {
+      "before": "const repoPaths = files.map(file => `${repoPrefix}${file.relative}`);",
+      "after": "const repoPaths = files.map(file => file.relative);",
+      "expectedFailure": "excludedTargets: undefined",
+      "assertionLocation": "review-generated-targets.test.ts:228"
+    },
+    "supportFiles": [
+      "packages/cli/src/review/scope.ts",
+      "packages/cli/src/review/coordinator.ts",
+      "packages/cli/src/review/runtime.ts",
+      "packages/cli/src/review/job.ts",
+      "packages/cli/src/cli-protocol/review-handlers.ts",
+      "packages/cli/src/cli-protocol/result.ts",
+      "packages/cli/tests/helpers.ts",
+      "packages/cli/tests/review-fixtures.ts",
+      "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature",
+      "packages/cli/package.json",
+      "bun.lock"
+    ]
+  },
+  "argv": [
+    "/Users/alex/.local/share/mise/installs/bun/1.3.14/bin/bun",
+    "run",
+    "test",
+    "tests/cli-protocol/review-generated-targets.test.ts",
+    "--testNamePattern",
+    "^generated(?:\\s*>\\s*|\\s+)review(?:\\s*>\\s*|\\s+)targets(?:\\s*>\\s*|\\s+)uses(?:\\s*>\\s*|\\s+)repository-relative(?:\\s*>\\s*|\\s+)paths(?:\\s*>\\s*|\\s+)for(?:\\s*>\\s*|\\s+)a(?:\\s*>\\s*|\\s+)project(?:\\s*>\\s*|\\s+)nested(?:\\s*>\\s*|\\s+)below(?:\\s*>\\s*|\\s+)the(?:\\s*>\\s*|\\s+)Git(?:\\s*>\\s*|\\s+)root$",
+    "--reporter=json",
+    "--outputFile=retrospective-proof-report.json"
+  ],
+  "cwd": "packages/cli",
+  "sourceSha256": "889203574e5893d6b4f53a8796dd848ab21a0be7496a49cb1bb0fbb0a4689aa7",
+  "mutantSha256": "7348383c1087978424a9325c73ea92dbc5b45937f9065929f15ce9113b0d6d39",
+  "supportSha256": {
+    "packages/cli/tests/cli-protocol/review-generated-targets.test.ts": "90a9ffa0364e1f08889d6b8c895e81d7ce1c5e048043207c98fd660e3d2d058f",
+    "packages/cli/src/review/packet.ts": "889203574e5893d6b4f53a8796dd848ab21a0be7496a49cb1bb0fbb0a4689aa7",
+    "packages/cli/src/review/scope.ts": "636f6cc5cf9db618b5158dae4dc3603188b600aa2bf27609e0ee5b8b06395749",
+    "packages/cli/src/review/coordinator.ts": "9b2d0b447ff89f41f027b5a3fcfb7255744769320f2a1d6b092b700fc4edb8ae",
+    "packages/cli/src/review/runtime.ts": "481e50bc4dba99a4bad9db50ae0c0c77a9513d929b1378844d831719b31bd5a4",
+    "packages/cli/src/review/job.ts": "831646f7b7c7679eb8c998446ebb6524039a7be3444e302c6eb816591664e3a4",
+    "packages/cli/src/cli-protocol/review-handlers.ts": "5a24f76b7b818e981caf9b64a5a53fbbb0056cf547993b8c87df4e4231518441",
+    "packages/cli/src/cli-protocol/result.ts": "9853a7a90361fa88f658d52bca738986c22c5b6dc2653c36f16284c3eb479e4a",
+    "packages/cli/tests/helpers.ts": "f65bc687595b84dd9a3359e1f473e0e8ffa1029b0386da0f9eece3c932c70d50",
+    "packages/cli/tests/review-fixtures.ts": "27db6444069c5c5fe2856ec7b47121ae60a8f1cb6b01038d71f5371a144d8427",
+    "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature": "f1848dcff37e28dcb2b867b079d939004bab735a2d953661dd74e14565ff1a97",
+    "packages/cli/package.json": "04a0a404802376bc39c6ea2d493c154a0794a510e989ae5e2b332f138a06d826",
+    "bun.lock": "1a76454f330a6a38206af48a0252be19e9a76751cd3dc61823e6cdfc2075f2ab",
+    "package.json": "79f0ebd39fe498c05fd4e46cd561ce9c0bc0c2d1147b39637004df005b1fb8fc"
+  },
+  "mutatedSupportSha256": {
+    "packages/cli/tests/cli-protocol/review-generated-targets.test.ts": "90a9ffa0364e1f08889d6b8c895e81d7ce1c5e048043207c98fd660e3d2d058f",
+    "packages/cli/src/review/packet.ts": "7348383c1087978424a9325c73ea92dbc5b45937f9065929f15ce9113b0d6d39",
+    "packages/cli/src/review/scope.ts": "636f6cc5cf9db618b5158dae4dc3603188b600aa2bf27609e0ee5b8b06395749",
+    "packages/cli/src/review/coordinator.ts": "9b2d0b447ff89f41f027b5a3fcfb7255744769320f2a1d6b092b700fc4edb8ae",
+    "packages/cli/src/review/runtime.ts": "481e50bc4dba99a4bad9db50ae0c0c77a9513d929b1378844d831719b31bd5a4",
+    "packages/cli/src/review/job.ts": "831646f7b7c7679eb8c998446ebb6524039a7be3444e302c6eb816591664e3a4",
+    "packages/cli/src/cli-protocol/review-handlers.ts": "5a24f76b7b818e981caf9b64a5a53fbbb0056cf547993b8c87df4e4231518441",
+    "packages/cli/src/cli-protocol/result.ts": "9853a7a90361fa88f658d52bca738986c22c5b6dc2653c36f16284c3eb479e4a",
+    "packages/cli/tests/helpers.ts": "f65bc687595b84dd9a3359e1f473e0e8ffa1029b0386da0f9eece3c932c70d50",
+    "packages/cli/tests/review-fixtures.ts": "27db6444069c5c5fe2856ec7b47121ae60a8f1cb6b01038d71f5371a144d8427",
+    "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature": "f1848dcff37e28dcb2b867b079d939004bab735a2d953661dd74e14565ff1a97",
+    "packages/cli/package.json": "04a0a404802376bc39c6ea2d493c154a0794a510e989ae5e2b332f138a06d826",
+    "bun.lock": "1a76454f330a6a38206af48a0252be19e9a76751cd3dc61823e6cdfc2075f2ab",
+    "package.json": "79f0ebd39fe498c05fd4e46cd561ce9c0bc0c2d1147b39637004df005b1fb8fc"
+  },
+  "passing": {
+    "exitCode": 0,
+    "test": "generated review targets uses repository-relative paths for a project nested below the Git root",
+    "passedTests": 1,
+    "failedTests": 0
+  },
+  "mutated": {
+    "exitCode": 1,
+    "test": "generated review targets uses repository-relative paths for a project nested below the Git root",
+    "passedTests": 0,
+    "failedTests": 1,
+    "failure": "AssertionError: expected { excludedTargets: undefined, …(3) } to deeply equal { …(4) }\n    at /private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-retrospective-proof-HEBcBG/mutated/packages/cli/tests/cli-protocol/review-generated-targets.test.ts:228:8\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at file:///private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-retrospective-proof-HEBcBG/passing/node_modules/.bun/vitest@5.0.3+8474ea2ce1bfeb2c/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+  }
+}

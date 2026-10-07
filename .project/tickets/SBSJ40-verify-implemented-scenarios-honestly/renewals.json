@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "rows": [
+    {
+      "scenario": "A nested project uses its committed generated marker",
+      "originalEligibilityId": "8c9192a4-7fc9-4dd8-9ca8-26cd51ab02bf",
+      "originalProofId": "5de2a5e1-c538-4b50-b19f-0318191633e4",
+      "eligibilityId": "8c9192a4-7fc9-4dd8-9ca8-26cd51ab02bf",
+      "proofId": "a04bd70e-2935-4330-9434-5d10b3d7510d"
+    }
+  ]
+}
