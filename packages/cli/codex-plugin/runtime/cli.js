@@ -35678,7 +35678,7 @@ function safePath(path7) {
 }
 function exactSelection(fullName) {
   const escaped = fullName.replaceAll(/[.*+?^${}()|[\]\\]/gu, (character) => `\\${character}`);
-  return `^${escaped}$`;
+  return `^${escaped.replaceAll(" ", () => VITEST_SUITE_SEPARATOR)}$`;
 }
 function validateRequest(request) {
   if (request.ticketId !== RETROSPECTIVE_TICKET)
@@ -35941,10 +35941,11 @@ function runRetrospectiveProof(projectRoot, request) {
     rmSync9(temporary, { recursive: true, force: true });
   }
 }
-var TEST_TIMEOUT_MS = 180000, REPORT = "retrospective-proof-report.json", MAX_PROCESS_OUTPUT;
+var TEST_TIMEOUT_MS = 180000, REPORT = "retrospective-proof-report.json", MAX_PROCESS_OUTPUT, VITEST_SUITE_SEPARATOR;
 var init_retrospective_proof = __esm(() => {
   init_retrospective_history();
   MAX_PROCESS_OUTPUT = 128 * 1024;
+  VITEST_SUITE_SEPARATOR = String.raw`(?:\s*>\s*|\s+)`;
 });
 
 // src/review/retrospective-scenario-body.ts
