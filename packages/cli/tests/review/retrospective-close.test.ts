@@ -233,6 +233,40 @@ describe('retrospective closing replay record', () => {
     );
   });
 
+  it.each([
+    ['a different original proof', { originalProofId: renewedProofId }],
+    ['an unknown scenario', { scenario: 'An unrecorded scenario' }],
+    ['the same renewed review for both roles', { proofId: renewedEligibilityId }],
+  ])('rejects a renewal bound to %s', (_label, change) => {
+    put(
+      root,
+      nodePath.join(nodePath.dirname(RETROSPECTIVE_LEDGER), 'ticket.md'),
+      `---\nid: CKWE2D\nretrospective_claim: ${claimPath}\nretrospective_renewals: ${renewalPath}\n---\n`,
+    );
+    put(
+      root,
+      renewalPath,
+      JSON.stringify({
+        schema_version: 1,
+        rows: [
+          {
+            scenario: 'A nested project uses its committed generated marker',
+            originalEligibilityId: eligibilityId,
+            originalProofId: proofId,
+            eligibilityId: renewedEligibilityId,
+            proofId: renewedProofId,
+            ...change,
+          },
+        ],
+      }),
+    );
+    commitFixture(root);
+    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
+      'action_required',
+    );
+    expect(replay.calls).toBe(0);
+  });
+
   it.each(['committed', 'uncommitted'] as const)(
     'rejects %s changes outside the declared inputs',
     mode => {
