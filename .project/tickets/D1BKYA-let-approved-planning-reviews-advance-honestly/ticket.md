@@ -69,3 +69,14 @@ Targeted checks: `plan-design-approval.test.ts`, `plan-transition-gate.test.ts`,
   `verify.md` investigation remain unstaged and byte-identical to their saved
   pre-merge snapshots. The merge does not claim this defect fixed, acceptance
   complete, a Ready promotion, or human merge approval.
+
+- Fresh bounded Claude review `33c980be-06fa-4835-848a-18f44dc1f089`
+  approved the D1 material diff with no error findings. This does not overturn
+  the actual failing diagnostic. Its suggested specific-denial assertion and
+  formatting apply to that unstaged RED investigation, not a passing delivery
+  test; they remain pending scoped repair rather than silently modifying tests.
+  The mirrored guidance is regenerated and its complete document-contract file
+  passed in the 139-test result. A rejection from earlier plan bytes can still
+  be rendered as the reason for refusing unreviewed current bytes; admission
+  remains closed, and no claim that this informational limitation is fixed is
+  made. Log: `/tmp/4200-D1-main-quality.json`.
