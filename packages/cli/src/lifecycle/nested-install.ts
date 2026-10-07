@@ -8,6 +8,11 @@ function holdsProject(directory: string): boolean {
   return statSync(marker, { throwIfNoEntry: false })?.isDirectory() === true;
 }
 
+/** A `.git` directory or a worktree's `.git` file marks a repository root. */
+function isGitCheckoutRoot(directory: string): boolean {
+  return statSync(nodePath.join(directory, '.git'), { throwIfNoEntry: false }) !== undefined;
+}
+
 /**
  * Locate an installed Safeword project strictly above `cwd`, if there is one.
  *
@@ -15,16 +20,20 @@ function holdsProject(directory: string): boolean {
  * subdirectory of an installed project it therefore builds a second, nested project
  * there and rewrites that subdirectory's tool configs — so callers look up first and
  * refuse rather than reconciling against a root the user never meant to target.
+ *
+ * The search stops at a git repository root: a worktree under
+ * `.claude/worktrees/<name>` is its own checkout, not a subdirectory of the
+ * project it happens to sit inside (#5479, #5318).
  */
 export function findEnclosingProject(cwd: string): string | undefined {
-  let current = nodePath.dirname(nodePath.resolve(cwd));
-  let previous = '';
-  while (current !== previous) {
-    if (holdsProject(current)) return current;
-    previous = current;
-    current = nodePath.dirname(current);
+  let current = nodePath.resolve(cwd);
+  for (;;) {
+    if (isGitCheckoutRoot(current)) return undefined;
+    const parent = nodePath.dirname(current);
+    if (parent === current) return undefined;
+    if (holdsProject(parent)) return parent;
+    current = parent;
   }
-  return undefined;
 }
 
 /** Refuse a nested install, naming the project the caller almost certainly meant. */
