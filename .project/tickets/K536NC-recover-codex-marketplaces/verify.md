@@ -1,5 +1,19 @@
 # Verification evidence
 
+## Reopened profile correction
+
+Earlier completion evidence below is historical and superseded by the hosted review's consequential profile mismatch. Merge remains blocked pending fresh final verification and current-head CI.
+
+- RED: three divergent-profile regressions failed against the previous source (install changed the process profile, observation saw the wrong plugin, automatic migration incorrectly skipped).
+- GREEN: all 100 targeted tests passed, including finalization. Independent review required distinct local declarations between the two profiles; that discriminating fixture is now present and will run in the complete suite.
+- One resolved environment now feeds config reads, profile lock, marketplace discovery/add/upgrade/replace/restore, plugin install/verification, proof/activation and migration reporting. Partial overrides inherit PATH; process.env remains unchanged.
+- Fresh native Codex 0.153.4 two-profile programmatic execution: requested profile installed/enabled Safeword 1.0.0 with no errors; other profile config, plugin state and activation directory stayed unchanged. Temporary profiles only; persistent main-checkout registration preserved.
+- Claude Opus independent review approved the corrected source and tests (f3a0f733-f038-480b-9752-2c8a990192a1, cross-agent). Its non-blocking Git-branch coverage suggestion is deferred: the shared environment is forwarded through all Git operations, existing pin/rollback tests remain in the complete suite, and the accepted local-source defect has discriminating profile tests. Generated carriers are authenticated exclusions and all five generated-surface checks pass.
+- Changed-file ESLint, root typecheck and formatting pass. Diff architecture audit reports no violations (65 modules, 99 dependencies). No dependency or lockfile changes.
+- Complete suite is waiting for another chat's test lock; no other session or worktree was modified or interrupted.
+
+## Historical evidence
+
 Audit passed: diff-scoped architecture check found no violations (64 modules, 97 dependencies). Changed tests have behavior assertions, isolated fixtures, parameterized rejection boundaries, and no arbitrary sleeps; independent review confirms each authorization guard can be caught if removed. Configured local documentation sources (README and website docs), architecture narrative, changed references, and namespace/principle checks show no contradictory impacted claims. No agent configuration or learning files changed. Whole-repository unused-code, clone, and dependency-freshness discovery were intentionally excluded from this diff audit. Verification passed with the previously disclosed baseline findings.
 
 ## Verify Checklist

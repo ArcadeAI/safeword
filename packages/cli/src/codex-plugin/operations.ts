@@ -77,8 +77,16 @@ type CodexMarketplaceList = {
   }[];
 };
 
-function run(command: string, arguments_: string[]): string {
-  const result = spawnSync(command, arguments_, { encoding: 'utf8' });
+function resolveCodexEnvironment(environment: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  return { ...process.env, ...environment };
+}
+
+function run(
+  command: string,
+  arguments_: string[],
+  environment: NodeJS.ProcessEnv = process.env,
+): string {
+  const result = spawnSync(command, arguments_, { encoding: 'utf8', env: environment });
   if (result.error)
     throw new Error(`${command} is required. Install it, then re-run this command.`);
   if (result.status !== 0) {
@@ -113,8 +121,8 @@ function isOfficialSafewordGitSource(source: string | undefined): boolean {
   ]).has(normalized);
 }
 
-function observeCodexPlugin(): CodexPluginObservation {
-  return pluginObservationFromList(run('codex', ['plugin', 'list', '--json']));
+function observeCodexPlugin(environment: NodeJS.ProcessEnv = process.env): CodexPluginObservation {
+  return pluginObservationFromList(run('codex', ['plugin', 'list', '--json'], environment));
 }
 
 function marketplaceListFromOutput(output: string): CodexMarketplaceList {
@@ -144,9 +152,13 @@ function marketplaceListFromOutput(output: string): CodexMarketplaceList {
   return parsed as CodexMarketplaceList;
 }
 
-function runCodexMarketplace(arguments_: string[], failureContext: string): string {
+function runCodexMarketplace(
+  arguments_: string[],
+  failureContext: string,
+  environment: NodeJS.ProcessEnv,
+): string {
   try {
-    return run('codex', ['plugin', 'marketplace', ...arguments_]);
+    return run('codex', ['plugin', 'marketplace', ...arguments_], environment);
   } catch (error) {
     throw new CodexMigrationError(
       'PLUGIN_MARKETPLACE_FAILED',
@@ -211,23 +223,29 @@ function requiredMarketplaceReference(): string {
   return SAFEWORD_SCHEMA.version.includes('-') ? `v${SAFEWORD_SCHEMA.version}` : 'stable';
 }
 
-function replaceCodexMarketplace(configured: ConfiguredMarketplace): boolean {
+function replaceCodexMarketplace(
+  configured: ConfiguredMarketplace,
+  environment: NodeJS.ProcessEnv,
+): boolean {
   const source = configured.source ?? MARKETPLACE_SOURCE;
   const requiredReference = requiredMarketplaceReference();
   runCodexMarketplace(
     ['remove', 'safeword', '--json'],
     'Could not replace the Safeword marketplace',
+    environment,
   );
   try {
     runCodexMarketplace(
       marketplaceAddArguments(MARKETPLACE_SOURCE, requiredReference),
       `Could not enroll the Safeword ${requiredReference} marketplace channel`,
+      environment,
     );
   } catch (error) {
     try {
       runCodexMarketplace(
         marketplaceAddArguments(source, configured.ref ?? 'main'),
         'Could not restore the previous Safeword marketplace after enrollment failed',
+        environment,
       );
     } catch (restorationError) {
       const restoreCommand = [
@@ -287,14 +305,18 @@ function refreshOfficialGitMarketplace(
   const pinnedVersion = ref === undefined ? undefined : exactVersionReference(ref);
   assertMarketplacePinIsNotNewer(ref, pinnedVersion);
   if (marketplaceNeedsReplacement(ref, pinnedVersion)) {
-    return replaceCodexMarketplace({
-      ...configured,
-      source: configured?.source ?? source,
-    });
+    return replaceCodexMarketplace(
+      {
+        ...configured,
+        source: configured?.source ?? source,
+      },
+      environment,
+    );
   }
   runCodexMarketplace(
     ['upgrade', 'safeword', '--json'],
     'Could not refresh the configured Safeword Codex marketplace',
+    environment,
   );
   return false;
 }
@@ -341,6 +363,7 @@ function refreshOrAddCodexMarketplace(
     const output = runCodexMarketplace(
       ['list', '--json'],
       'Could not inspect configured Codex marketplaces. Codex loads all configured marketplaces together, so even an unrelated broken source can block Safeword. Inspect the failing registration reported below; restore its manifest or use `codex plugin marketplace add <persistent-source> --json` to repoint it. Remove a registration with `codex plugin marketplace remove <name> --json` only if you no longer need it',
+      environment,
     );
     const marketplace = marketplaceListFromOutput(output).marketplaces.find(
       candidate => candidate.name === 'safeword',
@@ -362,6 +385,7 @@ function refreshOrAddCodexMarketplace(
       '--json',
     ],
     'Could not add the Safeword Codex marketplace',
+    environment,
   );
   return false;
 }
@@ -373,7 +397,7 @@ function addCodexPluginToProfile(
   const marketplaceReplaced = refreshOrAddCodexMarketplace(marketplaceSource, environment);
   const recoveryCommand = `codex plugin add ${PLUGIN_ID} --json`;
   try {
-    run('codex', ['plugin', 'add', PLUGIN_ID, '--json']);
+    run('codex', ['plugin', 'add', PLUGIN_ID, '--json'], environment);
   } catch (error) {
     throw new CodexMigrationError(
       'PLUGIN_INSTALL_FAILED',
@@ -384,10 +408,12 @@ function addCodexPluginToProfile(
   return marketplaceReplaced;
 }
 
-function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean } = {}): void {
+function verifyCodexPluginIsEnabled(
+  options: { installationCompleted?: boolean; environment?: NodeJS.ProcessEnv } = {},
+): void {
   let pluginList: string;
   try {
-    pluginList = run('codex', ['plugin', 'list', '--json']);
+    pluginList = run('codex', ['plugin', 'list', '--json'], options.environment);
   } catch (error) {
     const prefix =
       options.installationCompleted === true
@@ -467,6 +493,7 @@ export function observeCodexMigrationResult(
   cwd = process.cwd(),
   environment: NodeJS.ProcessEnv = process.env,
 ): CodexMigrationResultV2 {
+  environment = resolveCodexEnvironment(environment);
   let legacyEvents: string[] = [];
   let configObservationError: CodexConfigObservationError | undefined;
   try {
@@ -482,7 +509,7 @@ export function observeCodexMigrationResult(
     plugin = { installed: false, enabled: null, version: null, observation: 'unknown' };
   } else {
     try {
-      plugin = observeCodexPlugin();
+      plugin = observeCodexPlugin(environment);
     } catch (error) {
       plugin = { installed: false, enabled: null, version: null, observation: 'unknown' };
       pluginObservationError = error instanceof Error ? error : new Error(String(error));
@@ -565,6 +592,7 @@ export function observeCodexMigration(
   cwd = process.cwd(),
   environment: NodeJS.ProcessEnv = process.env,
 ): CliResult {
+  environment = resolveCodexEnvironment(environment);
   const result = observeCodexMigrationResult(cwd, environment);
   const legacyState = legacyCodexMigrationState(result.state);
   const globalGuidance = legacyGlobalGuidanceDiagnostic(observeLegacyGlobalGuidance(environment));
@@ -654,6 +682,7 @@ export function installCodexPlugin(
     environment?: NodeJS.ProcessEnv;
   } = {},
 ): boolean {
+  options = { ...options, environment: resolveCodexEnvironment(options.environment) };
   const cwd = options.cwd ?? process.cwd();
   if (shouldReportExistingMigrationState(cwd, options)) {
     reportCodexMigration(cwd, { json: options.json, environment: options.environment });
@@ -668,10 +697,10 @@ export function installCodexPlugin(
   }
   let marketplaceReplaced = false;
   try {
-    run('bun', ['--version']);
-    run('codex', ['--version']);
+    run('bun', ['--version'], options.environment);
+    run('codex', ['--version'], options.environment);
     marketplaceReplaced = addCodexPluginToProfile(options.marketplaceSource, options.environment);
-    verifyCodexPluginIsEnabled({ installationCompleted: true });
+    verifyCodexPluginIsEnabled({ installationCompleted: true, environment: options.environment });
     if (options.recordActivationPending !== false) writeCodexActivationMarker(options.environment);
   } catch (error) {
     rethrowCodexInstallFailure(error, marketplaceReplaced);
@@ -971,6 +1000,7 @@ export async function removeLegacyCodexHooks(
     report?: boolean;
   } = {},
 ): Promise<boolean> {
+  options = { ...options, environment: resolveCodexEnvironment(options.environment) };
   if (codexRecoveryIsRequired(cwd)) {
     reportCodexWhen(options.report !== false, () => {
       reportCodexMigration(cwd, options);
@@ -1008,9 +1038,9 @@ export async function removeLegacyCodexHooks(
     return false;
   }
 
-  run('bun', ['--version']);
-  run('codex', ['--version']);
-  verifyCodexPluginIsEnabled();
+  run('bun', ['--version'], options.environment);
+  run('codex', ['--version'], options.environment);
+  verifyCodexPluginIsEnabled({ environment: options.environment });
 
   reportCodexWhen(options.report !== false && options.json !== true, () => {
     success('Safeword Codex plugin is enabled for this profile.');
@@ -1041,9 +1071,13 @@ export function legacyCodexHandoffPending(cwd = process.cwd()): boolean {
   return preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
 }
 
-export function automaticLegacyCodexMigrationNeeded(cwd = process.cwd()): boolean {
+export function automaticLegacyCodexMigrationNeeded(
+  cwd = process.cwd(),
+  environment: NodeJS.ProcessEnv = process.env,
+): boolean {
+  environment = resolveCodexEnvironment(environment);
   if (!legacyCodexHandoffPending(cwd)) return false;
-  const plugin = observeCodexPlugin();
+  const plugin = observeCodexPlugin(environment);
   return plugin.enabled !== true || !codexPluginVersionMatchesPackage(plugin);
 }
 
@@ -1056,7 +1090,7 @@ export function automaticallyMigrateLegacyCodex(
   cwd = process.cwd(),
   environment: NodeJS.ProcessEnv = process.env,
 ): AutomaticLegacyCodexMigrationResult {
-  if (!automaticLegacyCodexMigrationNeeded(cwd)) {
+  if (!automaticLegacyCodexMigrationNeeded(cwd, environment)) {
     return { migrated: false, marketplaceReplaced: false };
   }
 

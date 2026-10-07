@@ -2,14 +2,16 @@
 id: K536NC
 slug: recover-codex-marketplaces
 type: task
-phase: done
+phase: verify
 external_issue: https://github.com/ArcadeAI/safeword/issues/5430
-status: done
+status: in_progress
 created: 2026-10-07T03:51:49.009Z
 last_modified: 2026-10-07T06:18:45Z
 ---
 
 # Recover Codex installation for developers with local marketplaces
+
+**Current state:** Reopened in implementation after independent approval of the reopening record (63d8060d). Merge remains blocked until the profile-mismatch correction is verified and reviewed. Earlier completion/verification approvals and their debt assessment are superseded for the current delivery; all prior results below are historical evidence. The user's merge authority remains contingent on correcting and verifying this defect.
 
 **Goal:** Honor valid local Safeword marketplaces and make broken registrations recoverable without modifying unrelated profile settings.
 
@@ -46,6 +48,7 @@ Premortem: another config layer could supply the same name; require agreement wi
 - Existing newer-pin tests must continue rejecting installation with PLUGIN_NEWER_PIN_PRESERVED while leaving the Git pin unchanged; successful downgrades are forbidden.
 - A mismatched user-global local declaration and another layer's undeclared source remain rejected.
 - Recovery includes Codex's failing registration verbatim. Advice offers marketplace add with a persistent source or removal as an explicit user choice. Safeword executes neither automatically.
+- When a programmatic CODEX_HOME differs from process.env, installation, observation, automatic migration and finalization use the requested profile. Partial environment overrides inherit PATH. The other profile's settings, plugin state, version and proof/activation directory remain unchanged, and process.env is not mutated.
 
 ## Work Log
 
@@ -57,6 +60,6 @@ Premortem: another config layer could supply the same name; require agreement wi
 - Final verification: after the other chat released its lock, standalone BDD proof passed 47/47 and fast smoke passed 2,143/2,143. All CI checks passed for the source commit. Draft PR https://github.com/ArcadeAI/safeword/pull/5572 links #5430 and records the remaining readiness state; no Ready promotion or merge is authorized.
 - Completion authorized by the user's subsequent "get green and admin merge" request. Verification exit independently approved by Claude Opus (04475ecb); its phase stamp succeeded. Fresh isolated native installation and matching tilde-source rejection checks passed. Implementation remains unchanged.
 
-## Follow-up debt
+## Blocking defect (reopened)
 
-- Reconcile the public custom-environment argument with the environment inherited by native Codex subprocesses before supporting callers that supply a different CODEX_HOME from process.env. This inherited programmatic-call inconsistency is outside this fix; the production CLI uses one environment throughout.
+- Hosted review of PR #5572 subsequently identified a consequential profile mismatch: supplying CODEX_HOME programmatically reads and locks that profile while native commands inherit process.env and can mutate another profile. The completion recorded above is withdrawn pending this correction. Reopen implementation, add a regression using divergent profiles, propagate one resolved environment through discovery/install/finalization, and repeat verification and independent review before merging. Earlier test results remain historical evidence, not approval to ship this known defect.
