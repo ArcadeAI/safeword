@@ -590,6 +590,28 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     expect(testRunCount(directory)).toBe(baseline + 1);
   });
 
+  it('gates a Write close after the ticket was reopened outside an edit', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = closeCommittedTicket('5566', 'session-write-reopen');
+    setTestExitCode(directory, 0);
+    runStopHook(directory, 'session-write-reopen');
+    writeFileSync(ticketFile, ticketMarkdown('5566', 'in_progress', 'implement'));
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    writeTicketThroughPostToolUse(
+      directory,
+      'session-write-reopen',
+      ticketFile,
+      ticketMarkdown('5566', 'done', 'done'),
+    );
+    const result = runStopHook(directory, 'session-write-reopen');
+
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
   it('gates a close assembled from partial MultiEdit replacements', () => {
     const directory = fixture.projectDirectory;
     const ticketFile = writeTaskTicket(directory, '5565', 'wontfix');
