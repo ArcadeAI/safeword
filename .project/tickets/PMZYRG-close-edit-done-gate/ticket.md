@@ -2,11 +2,11 @@
 id: PMZYRG
 slug: close-edit-done-gate
 type: task
-phase: verify
+phase: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/5546
-status: in_progress
+status: done
 created: 2026-10-07T22:51:08.409Z
-last_modified: 2026-10-07T22:53:00.000Z
+last_modified: 2026-10-07T23:35:00.000Z
 ---
 
 # Run the done gate when an edit closes a ticket
@@ -33,3 +33,4 @@ last_modified: 2026-10-07T22:53:00.000Z
 - 2026-10-07T22:51:08.409Z Started: Created ticket PMZYRG
 - 2026-10-07T22:53:00.000Z Delivery ticket opened after implementation on PR 5571 (red-first; tdd-review, refactor, and 10 cross-agent quality-review passes with the final one approved).
 - 2026-10-07T22:52:11.556Z Phase: intake → verify
+- 2026-10-07T23:30:43.511Z Phase: verify → done
