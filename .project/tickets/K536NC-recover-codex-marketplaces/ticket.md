@@ -2,16 +2,16 @@
 id: K536NC
 slug: recover-codex-marketplaces
 type: task
-phase: verify
+phase: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/5430
-status: in_progress
+status: done
 created: 2026-10-07T03:51:49.009Z
-last_modified: 2026-10-07T06:18:45Z
+last_modified: 2026-10-07T07:28:57Z
 ---
 
 # Recover Codex installation for developers with local marketplaces
 
-**Current state:** Reopened in implementation after independent approval of the reopening record (63d8060d). Merge remains blocked until the profile-mismatch correction is verified and reviewed. Earlier completion/verification approvals and their debt assessment are superseded for the current delivery; all prior results below are historical evidence. The user's merge authority remains contingent on correcting and verifying this defect.
+**Current state:** Local delivery complete after correcting the hosted profile-mismatch finding. Claude Opus approved the corrected source/tests (f3a0f733) and final verification record (4ab03eb7); the verify-phase stamp succeeded. All local verification and native two-profile checks pass. Final-head CI and hosted advisory review remain required before exercising the user's admin-merge authority. Earlier completion/verification approvals and their debt assessment are superseded for the current delivery; earlier work-log entries below are historical evidence.
 
 **Goal:** Honor valid local Safeword marketplaces and make broken registrations recoverable without modifying unrelated profile settings.
 
@@ -47,7 +47,7 @@ Premortem: another config layer could supply the same name; require agreement wi
 - Failed discovery retains its cause and offers native recovery without mutation.
 - Existing newer-pin tests must continue rejecting installation with PLUGIN_NEWER_PIN_PRESERVED while leaving the Git pin unchanged; successful downgrades are forbidden.
 - A mismatched user-global local declaration and another layer's undeclared source remain rejected.
-- Recovery includes Codex's failing registration verbatim. Advice offers marketplace add with a persistent source or removal as an explicit user choice. Safeword executes neither automatically.
+- Recovery retains Codex's discovery error; native probes verify the failing registration name/path, while the automated regression requires the fixture error text. Advice offers marketplace add with a persistent source or removal as an explicit user choice. Safeword executes neither automatically.
 - When a programmatic CODEX_HOME differs from process.env, installation, observation, automatic migration and finalization use the requested profile. Partial environment overrides inherit PATH. The other profile's settings, plugin state, version and proof/activation directory remain unchanged, and process.env is not mutated.
 
 ## Work Log
@@ -55,11 +55,11 @@ Premortem: another config layer could supply the same name; require agreement wi
 - 2026-10-07T03:51:49.009Z Started: Created ticket K536NC
 - Local-live-host proof: Codex 0.153.4 registered the persistent main checkout into an isolated temporary CODEX_HOME using its native marketplace add command. The resulting TOML contained source_type = "local" and an absolute source; marketplace list reported that exact source. Before this change, source-CLI codex install failed with PLUGIN_MARKETPLACE_FAILED / not a Git marketplace. After this change it installed/enabled version 1.0.0, returned no errors, and correctly reported app restart required. No real-profile settings were changed.
 - Missing-own and broken-unrelated marketplace probes in the isolated profile retained the full native error and returned changed=false with repair guidance. Native marketplace add repaired the missing-own registration. The unrelated probe was removed only from the isolated profile.
-- Intake independently approved by Claude Opus (70b93cfb); early code review fb381e02 found no blocking errors, followed by complete-diff approval 61905c05. Native proof above validates Codex 0.153.4's declared absolute source and profile format; other normalization cases remain a host-contract coverage gap. The stricter absolute-path and source-type boundaries have regression coverage. Subprocess environment override consistency is inherited debt; production CLI execution uses one environment throughout.
+- Historical intake/review: Claude Opus approved intake (70b93cfb); early code review fb381e02 found no blocking errors, followed by complete-diff approval 61905c05. Native proof validated Codex 0.153.4's declared absolute source and profile format; other normalization cases remained a host-contract coverage gap. The absolute-path and source-type boundaries had regression coverage. The initial assessment of subprocess environment overrides as deferrable inherited debt was superseded by hosted review and corrected in the Hosted finding and correction section below.
 - Verification retry: targeted migration tests passed 96/96. Complete CLI rerun passed 10,473 tests with 14 skipped; acceptance passed 596 scenarios and 11,118 steps. Build/typecheck passed. The first full run had one intermittent review-deadline failure; baseline dependency audit findings and remaining standalone proof/smoke checks are recorded in verify.md. Only this session's blocked closing command was stopped when another chat began a new 63-case live run. Ticket remains in verify; completion is not claimed.
 - Final verification: after the other chat released its lock, standalone BDD proof passed 47/47 and fast smoke passed 2,143/2,143. All CI checks passed for the source commit. Draft PR https://github.com/ArcadeAI/safeword/pull/5572 links #5430 and records the remaining readiness state; no Ready promotion or merge is authorized.
 - Completion authorized by the user's subsequent "get green and admin merge" request. Verification exit independently approved by Claude Opus (04475ecb); its phase stamp succeeded. Fresh isolated native installation and matching tilde-source rejection checks passed. Implementation remains unchanged.
 
-## Blocking defect (reopened)
+## Hosted finding and correction
 
-- Hosted review of PR #5572 subsequently identified a consequential profile mismatch: supplying CODEX_HOME programmatically reads and locks that profile while native commands inherit process.env and can mutate another profile. The completion recorded above is withdrawn pending this correction. Reopen implementation, add a regression using divergent profiles, propagate one resolved environment through discovery/install/finalization, and repeat verification and independent review before merging. Earlier test results remain historical evidence, not approval to ship this known defect.
+- Hosted review of PR #5572 identified a consequential profile mismatch: supplying CODEX_HOME programmatically read and locked that profile while native commands inherited process.env and could mutate another profile. Completion was withdrawn and implementation reopened. Commit 8d9630894 resolves and forwards one environment through discovery/install/finalization and adds four divergent-profile regressions. Distinct marketplace declarations make the authorization read discriminating. Independent review approved the correction. Fresh local full-suite, acceptance, build, proof and smoke checks pass; native upgrade/replacement/rollback probes and finalization RED/GREEN proof pass. Final-head CI and hosted advisory review remain required before merge.
