@@ -282,6 +282,10 @@ if (
       delete state.recentCompletedTicket;
       state.readinessReceiptPending = false;
     }
+    // Reopening a closed ticket cancels its owed done gate.
+    if (ticketStatus !== undefined && ticketStatus !== 'done' && ticketId !== undefined) {
+      state.doneGateOwedTickets = state.doneGateOwedTickets?.filter(id => id !== ticketId);
+    }
     if (ticketStatus === 'done' || ticketStatus === 'backlog') {
       if (ticketStatus === 'done' && ticketId !== undefined) {
         const previousStatus = ticketStatusAtHead(fullPath);
@@ -293,6 +297,15 @@ if (
         // actually be unfinished so merely observing an old done ticket cannot
         // bless an unrelated HEAD.
         if (wasActiveTicket || completedSinceHead) state.readinessReceiptPending = true;
+        // A real close owes Stop's done gate, which can no longer find the
+        // ticket through activeTicket (#5546). Editing a ticket already done at
+        // HEAD is not a close; a ticket not yet committed counts only if this
+        // session was working it.
+        const realClose = completedSinceHead || (wasActiveTicket && previousStatus === undefined);
+        const owed = state.doneGateOwedTickets ?? [];
+        if (realClose && !owed.includes(ticketId)) {
+          state.doneGateOwedTickets = [...owed, ticketId];
+        }
       }
       state.activeTicket = null;
     }
