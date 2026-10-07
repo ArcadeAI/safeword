@@ -36714,7 +36714,7 @@ ${reviewOutputSchema("plan-execution")}
       implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN
     },
     {
-      ...decisionChangingDiscovery("weakened-measurement-safeguard", "Execution Planning cannot weaken an accepted measurement validity safeguard.", WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, ["validity", "99"]),
+      ...decisionChangingDiscovery("weakened-measurement-safeguard", "Execution Planning cannot weaken an accepted measurement validity safeguard.", WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, ["coverage", "99"]),
       implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN
     },
     {

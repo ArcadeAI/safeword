@@ -1062,3 +1062,23 @@ approval under the testing guide. After approval, verify and review applied
 source, regenerate surfaces, and run a fresh complete matrix before admission.
 No PR promoted or merged. Full acceptance, RGR, R7, legacy reuse, main integration
 and full stack review remain unfinished.
+
+### 2026-10-06 — coverage finding correction approved and applied
+
+Human approved `/tmp/4200-coverage-finding-correction.patch`; changed only
+`weakened-measurement-safeguard` finding terms from `validity` + `99` to
+`coverage` + `99`. Verdict, destination, fixture, threshold and authentication
+remain unchanged. Targeted source/schema suite: 64 passed, zero failed;
+typecheck passed. Independent applied-source Claude review
+`8b6cea9d-6d72-45e6-9a49-1b64d03cd132` approved. Its warning requires fresh
+complete qualification before regenerating admission; substring matching
+remains coarse. Logs: `/tmp/4200-coverage-static.log`,
+`/tmp/4200-coverage-typecheck.log`,
+`/tmp/4200-coverage-applied-quality.json`. Contract digest remains
+`b41b5a7b566c0e4d0d76b774f63335e109fa5b591f0de28739fffe577d2eb3cc`;
+new corpus digest:
+`9e4a208b2d4a5e81f877c496baaa69e55ed762abb6f5eae7ea75eedd1b5d195c`.
+Previous complete 62/1/0 result remains failed historical evidence. All five
+generated surfaces regenerated and verified after the foreign test-lock owner
+completed naturally (`/tmp/4200-coverage-generated.log`). No admission
+regenerated; complete live matrix not yet started.

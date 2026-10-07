@@ -1654,7 +1654,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       'weakened-measurement-safeguard',
       'Execution Planning cannot weaken an accepted measurement validity safeguard.',
       WEAKENED_MEASUREMENT_SAFEGUARD_PLAN,
-      ['validity', '99'],
+      ['coverage', '99'],
     ),
     implementation_plan: MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN,
   },
