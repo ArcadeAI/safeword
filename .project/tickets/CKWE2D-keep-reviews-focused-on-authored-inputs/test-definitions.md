@@ -20,6 +20,7 @@ builder-visible command path with a real temporary project and fake reviewer.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+- [x] VERIFIED eligibility=8c9192a4-7fc9-4dd8-9ca8-26cd51ab02bf proof=5de2a5e1-c538-4b50-b19f-0318191633e4
 
 ### Scenario: A repeated generated target has one ordered exclusion
 
