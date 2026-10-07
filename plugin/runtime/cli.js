@@ -72526,7 +72526,13 @@ function scaffoldExecutionPlan(context) {
   if (!existsSync60(templatePath)) {
     throw new Error("The installed Execution Plan template is missing. Repair the Safeword installation before approving the plan.");
   }
-  writeFileSync32(planPath, readFileSync84(templatePath, "utf8"), { flag: "wx" });
+  try {
+    writeFileSync32(planPath, readFileSync84(templatePath, "utf8"), { flag: "wx" });
+  } catch (error2) {
+    if (error2.code === "EEXIST")
+      return;
+    throw error2;
+  }
   return nodePath129.relative(context.cwd, planPath);
 }
 function advanceToExecutionPlanning(context) {
