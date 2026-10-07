@@ -359,6 +359,25 @@ describe('terminal handoff contract', () => {
 });
 
 describe('terminal handoff corrections name the exact problem', () => {
+  it('explains that a human decision in Open is why the decision form applies', () => {
+    const evaluation = quality.evaluateDecisionBriefCompliance(
+      [
+        '**CONFIDENT** — The sentinel run is finished.',
+        '**Decided:** Keep the current schedule.',
+        '**Open:** human: choose whether to widen the sentinel scope.',
+        '**Next:** Action: Read the sentinel report. Object: the latest scheduled run. Reason: Required because it lists the drift found.',
+      ].join('\n\n'),
+    );
+
+    const correction = quality.renderDecisionBriefCorrection(evaluation, 'Evidence stays intact.');
+
+    expect(evaluation.form).toBe('decision');
+    expect(correction).toContain(
+      'For CONFIDENT, the decision form applies because **Open:** names a human decision.',
+    );
+    expect(correction).toContain('If no human decision remains, write **Open:** none.');
+  });
+
   it('lists the labels it found and the order it expects when the sequence is wrong', () => {
     const evaluation = quality.evaluateDecisionBriefCompliance(
       [
