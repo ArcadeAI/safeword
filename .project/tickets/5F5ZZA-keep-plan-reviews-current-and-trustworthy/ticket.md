@@ -1082,3 +1082,37 @@ Previous complete 62/1/0 result remains failed historical evidence. All five
 generated surfaces regenerated and verified after the foreign test-lock owner
 completed naturally (`/tmp/4200-coverage-generated.log`). No admission
 regenerated; complete live matrix not yet started.
+
+### 2026-10-06 — coverage correction pushed; fresh full qualification 62/1/0
+
+Source `f4a70fd7f7c809918357c580ccfb359ac6063f5c` pushed with 895 passing
+pre-push checks. Fresh unfiltered authenticated `codex` / `gpt-6-astra` matrix
+completed all 63 semantic cases: 62 passed, one failed, zero unfinished.
+Harness guard passed: Vitest 63 passed / one failed / 64 total, exit 1,
+1761.52 seconds. Exact ordered case IDs and reviewer/model identities verified.
+Contract digest remains `b41b5a7b566c0e4d0d76b774f63335e109fa5b591f0de28739fffe577d2eb3cc`;
+corpus digest `9e4a208b2d4a5e81f877c496baaa69e55ed762abb6f5eae7ea75eedd1b5d195c`.
+Coverage correction passes, as do all six measurement rejection controls.
+Logs/results: `/tmp/4200-coverage-codex-full-live.log`,
+`/tmp/4200-coverage-codex-full-results.json`,
+`/tmp/4200-coverage-full-census.json`. No admission generated; all earlier
+failed/partial evidence retained.
+
+Only `missing-proof-strategy-obligation` failed. Authenticated dispatch
+`78afa174-540c-4869-b764-5fbff5324260` correctly requests changes, identifies
+the omitted installed-CLI edited-plan denial proof and its missing fixture,
+action and denial assertion, returns `plan-execution`, and has a null record.
+The grader requires literal `proof-strategy work`, absent from the actual
+finding. Prepared `/tmp/4200-proof-strategy-finding-correction.patch` changes
+only that case's terms to `edited-plan` AND `denial`, both from the accepted
+Implementation Plan obligation. Verdict, destination, fixture, matcher and
+authentication are unchanged. Independent candidate Claude review
+`f6bcaaff-222b-49d0-931b-478082904124` approves. Checked existing matcher:
+all-of, case-insensitive; authorization-denial alone and edited-plan alone both
+fail, both concrete terms pass. These are candidate checks, not live admission.
+Preserve limitations: co-occurrence cannot establish semantic entailment;
+hyphen-free wording can fail. No new judge or parser added. Patch is unapplied
+pending explicit human approval under the testing guide. A fresh complete
+matrix remains required after any approved corpus change. Full acceptance,
+RGR, deferred R7, legacy reuse, main integration and whole-stack review remain
+unfinished; no PR promoted or merged.
