@@ -49,3 +49,33 @@ describe('enclosing project detection', () => {
     expect(findEnclosingProject(nested)).toBeUndefined();
   });
 });
+
+describe('enclosing project detection across git worktrees (#5479, #5318)', () => {
+  function worktreeInsideProject(): { root: string; worktree: string } {
+    const { root } = projectWithSubdirectory();
+    const worktree = nodePath.join(root, '.claude/worktrees/feature');
+    mkdirSync(worktree, { recursive: true });
+    writeFileSync(nodePath.join(worktree, '.git'), 'gitdir: ../../../.git/worktrees/feature\n');
+    return { root, worktree };
+  }
+
+  it('treats a git worktree nested under a project as its own project root', () => {
+    const { worktree } = worktreeInsideProject();
+    expect(findEnclosingProject(worktree)).toBeUndefined();
+  });
+
+  it('still reports the worktree for a subdirectory inside an installed worktree', () => {
+    const { worktree } = worktreeInsideProject();
+    mkdirSync(nodePath.join(worktree, '.safeword'));
+    const nested = nodePath.join(worktree, 'packages/cli');
+    mkdirSync(nested, { recursive: true });
+    expect(findEnclosingProject(nested)).toBe(worktree);
+  });
+
+  it('does not look past a git repository boundary to a project above it', () => {
+    const { worktree } = worktreeInsideProject();
+    const nested = nodePath.join(worktree, 'packages/cli');
+    mkdirSync(nested, { recursive: true });
+    expect(findEnclosingProject(nested)).toBeUndefined();
+  });
+});
