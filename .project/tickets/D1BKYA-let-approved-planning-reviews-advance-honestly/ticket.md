@@ -80,3 +80,18 @@ Targeted checks: `plan-design-approval.test.ts`, `plan-transition-gate.test.ts`,
   be rendered as the reason for refusing unreviewed current bytes; admission
   remains closed, and no claim that this informational limitation is fixed is
   made. Log: `/tmp/4200-D1-main-quality.json`.
+
+- Concurrent approval scaffold repair: Node 22 CI on acceptance head
+  `65f7963af` reported one failed CLI invocation. A deterministic installed-CLI
+  regression reproduced exits `[1, 0]` when both approvals observed the absent
+  Execution Plan before exclusive creation. The repair handles only `EEXIST`
+  from the losing create; all other errors still throw. The new regression
+  passes with the repair, and both concurrency cases pass in D1 (2 passed,
+  35 filtered by the explicit targeted selector). Logs:
+  `/tmp/4200-scaffold-permanent-red.log`,
+  `/tmp/4200-scaffold-permanent-green.log`, and
+  `/tmp/4200-scaffold-D1-permanent-green.log`. Source review
+  `441e7626-977b-424b-9970-3794e263b2c0` approved the narrow repair; the new
+  regression addresses its warning about chance-based scheduling. The separate
+  legacy approval-reuse RED and its verification investigation remain unstaged
+  and unresolved. This repair does not reclassify earlier failed CI as passing.
