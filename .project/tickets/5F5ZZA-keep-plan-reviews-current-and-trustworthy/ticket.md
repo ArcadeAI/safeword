@@ -46,6 +46,26 @@ parent_contract_digest: 2afd2f5559eafea9bd752ac826b46fa98e80a30ccdf6bed76a16ff7f
 
 ## Work Log
 
+- 2026-10-07 Contract slice main integration: inherited main `485d8ac` through
+  approval branch `dc9692ef9`. No production-source conflict required manual
+  resolution. Dependency/generated conflicts use the updated base followed by
+  all five generators; an identical duplicate root override was removed.
+  Frozen installation, typecheck, and generated checks pass. Six complete
+  targeted files pass **189/189 tests**, including canonical generation,
+  installed-copy admission, native-copy dispatch, reconciliation, contract
+  identity, and review wiring. Logs: `/tmp/4200-contract-main-targeted.log`,
+  `/tmp/4200-contract-main-typecheck.log`, and
+  `/tmp/4200-contract-main-generated.log`. This integration does not refresh
+  whole-PR review or claim full acceptance, legacy migration, Ready, or merge.
+
+- 2026-10-07 Main-integration suite result: CLI 660 files passed, one failed; 10929 tests passed, one failed, 14 skipped, exit 1, 657.80s. Retro relay passed 198 tests with one skip; retro collector passed 153 tests. The sole CLI failure occurred at `git add -A` before the assertion: Git could not create a temporary object (`Invalid argument`) while indexing the installed interface-contract guide. The exact original boundary test file then passed unchanged, all 12 tests, in 9.10s (`/tmp/4200-guide-main-boundary-isolated.log`). This identifies fixture staging rather than phase-skip validation as the failing boundary; the underlying intermittent filesystem cause is not established. Disk capacity is ample. No test, retry policy, tool pin or production workaround was changed. The full run remains a failed run, not reclassified as green; a later final integrated-head full check remains required. Frozen install and all 275 template pairs/11 contracts pass. This is an integration checkpoint, not epic completion or PR readiness.
+
+- 2026-10-07 Main-integration full-suite investigation: the active run reports one failure in `does not flag born-past-intake when phase_skips justify the birth (negative)`. No test or production fix applied. Competing causes: phase-skip validation regression, generated CLI mismatch, or a suite/environment interaction. Direct current-source `evaluateTicketWrite` accepts the exact skip list (`/tmp/4200-boundary-birth-pure.log`); a fresh installed Cursor project through the built CLI returns exit 0 with only the unrelated missing-ledger warning and no birth finding (`/tmp/4200-boundary-birth-repro.log`). These checks rule out a simple validator failure and consistent built-CLI mismatch. The exact full-suite assertion output and isolated original test rerun remain required before assigning a root cause. Full-suite evidence is retained in `/tmp/4200-guide-main-full.log`.
+
+- 2026-10-06 Main integration: merged `485d8ac773af44e73dbcd8c2ea64f08e5fee5154` into the guide base. Preserved per-scenario ledger fingerprints together with main's current generated-target classification and authenticated exclusion revalidation. Typecheck and 173 targeted review/receipt/ledger tests pass. Independent Claude review `507706f1-41b3-4216-9e98-cdd079e9f6b6` approves the source/test union; inherited fail-safe under-credit warnings remain, without expanding this integration. Frozen install passes using the pinned launcher from the PR5 checkout because this lower branch predates the toolchain slice. The initial local-launcher attempt failed because that file is absent here; no shell profile or repository pin changed.
+
+- 2026-10-06 Generated integration evidence: first generation stopped on a Cursor install result-hash change against the temporary main fixture used for conflict resolution. Investigated all 12 regenerated lifecycle results: each matches the original guide-branch HEAD, including Cursor install `1f3c3174135d276fe41de6b44e23ff96f100c35f8d97264f483a1fd663a9ccb8`. Thus the warning reflects the different main placeholder rather than a new feature behavior. Reran all five generators in safe order and verified them successfully. Logs: `/tmp/4200-guide-main-generated.log`, `/tmp/4200-guide-main-generated-verified.log`, `/tmp/4200-guide-main-targeted.log`, `/tmp/4200-guide-main-typecheck.log`. Full repository tests are still running; no full-suite success or whole-PR readiness is claimed.
+
 - 2026-09-10T03:36:35.000Z Scenario gate approved: Independent Claude Opus review `907bfbe5-0e30-437f-9bd8-492366879e33` approved the final 44-scenario review-trust contract with cross-agent independence. Advanced to Implementation Plan drafting; no plan anchor exists yet.
 
 - 2026-09-09T23:10:11.000Z Parent reconciliation: `--accept` refreshed this child against the approved Product Plan after the 23:04 changes; the current digest is recorded in frontmatter and passes `ticket reconcile-parent`.

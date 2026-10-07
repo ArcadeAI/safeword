@@ -51,6 +51,7 @@ if [ -n "$accepted_model" ] && [ "$model" != "$accepted_model" ]; then
   exit 7
 fi
 payload=$(cat)
+printf '%s\n' "$payload" > "$SAFEWORD_REVIEW_MODEL_LOG.packet"
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
 printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
 `,
@@ -91,6 +92,91 @@ function writeConfig(directory: string, config: Record<string, unknown>): void {
 }
 
 describe('alternate-model review route', () => {
+  it.each([
+    { author: 'claude', reviewer: 'codex' },
+    { author: 'codex', reviewer: 'claude' },
+  ] as const)(
+    'preserves executable RED evidence when $reviewer retries on its alternate model',
+    async ({ author, reviewer }) => {
+      const directory = createTemporaryDirectory();
+      const modelLog = nodePath.join(directory, 'model.log');
+      const packetLog = `${modelLog}.packet`;
+      const proof = "console.error('expected actor assertion'); process.exit(1);";
+      writeFileSync(nodePath.join(directory, 'proof.js'), proof);
+      writeFileSync(
+        nodePath.join(directory, 'test-definitions.md'),
+        '## Scenario: actor boundary\n',
+      );
+      writeConfig(directory, {
+        crossAgentReview: 'require',
+        crossAgentReviewAlternateModel: { [reviewer]: 'vendor-model-2' },
+      });
+      const bin = installModelDependentReviewer(directory, reviewer);
+      const argv = [process.execPath, 'proof.js'];
+
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'executable-red',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+          '--scenario',
+          'Scenario: actor boundary',
+          '--ledger',
+          'test-definitions.md',
+          '--proof-cwd',
+          '.',
+          '--evidence-class',
+          'pure-contract',
+          '--expected-failure',
+          'expected actor assertion',
+          '--execute',
+          JSON.stringify(argv),
+          '--',
+          'proof.js',
+        ],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: author,
+            SAFEWORD_REVIEW_MODEL_LOG: modelLog,
+            SAFEWORD_REVIEW_ACCEPTED_MODEL: 'vendor-model-2',
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode, result.stdout).toBe(0);
+      const payload = JSON.parse(result.stdout);
+      expect(payload).toMatchObject({
+        data: {
+          status: 'approved',
+          author_agent: author,
+          actual_reviewer: reviewer,
+          independence: 'cross-agent',
+          reviewer_model: 'vendor-model-2',
+          execution_attestation: {
+            argv,
+            evidence_class: 'pure-contract',
+            expected_failure: { literal: 'expected actor assertion', matched: true },
+            termination: { exit_code: 1, timed_out: false },
+            stderr: { excerpt: 'expected actor assertion\n' },
+          },
+        },
+      });
+      expect(readFileSync(packetLog, 'utf8')).toContain(
+        JSON.stringify(payload.data.execution_attestation),
+      );
+      expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(
+        reviewer === 'claude' ? ['opus', 'vendor-model-2'] : ['vendor-model-2'],
+      );
+    },
+  );
+
   it.each([
     { author: 'claude', reviewer: 'codex' },
     { author: 'codex', reviewer: 'claude' },

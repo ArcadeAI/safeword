@@ -272,7 +272,13 @@ export function evaluatePrReadiness(
 ): PrReadinessVerdict {
   const state = readSessionState(projectDirectory, sessionId);
   const receipt = readReceipt(projectDirectory);
-  const ticketId = state?.activeTicket ?? state?.recentCompletedTicket ?? receipt?.ticket_id;
+  // A receipt left by another checkout's delivery names a ticket this branch never had;
+  // only trust it to pick the ticket when that ticket exists here.
+  const receiptTicketId =
+    receipt && getTicketInfo(projectDirectory, receipt.ticket_id).folder
+      ? receipt.ticket_id
+      : undefined;
+  const ticketId = state?.activeTicket ?? state?.recentCompletedTicket ?? receiptTicketId;
   if (!ticketId) {
     return {
       ok: false,

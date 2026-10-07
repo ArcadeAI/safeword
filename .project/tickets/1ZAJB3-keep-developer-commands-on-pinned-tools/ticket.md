@@ -16,6 +16,12 @@ last_modified: 2026-09-26T09:00:48.400Z
 
 ## Work Log
 
+- 2026-10-07 Main integration: merged acceptance repair `bd9969a14cf7736f751060279eac0ed16e7c5dff`, containing guide base `c60ac8bd5` and main `485d8ac773af44e73dbcd8c2ea64f08e5fee5154`. No production-source conflicts. Removed only the duplicate identical source-map-js override produced by the merge. Frozen install, typecheck and all five regenerated surfaces pass. The first generated-fixture validation waited 60 seconds behind a foreign test owner and failed before starting tests; a rerun with the existing 900000ms wait setting completed successfully. No foreign owner or runtime pin changed.
+
+- 2026-10-07 Fresh verification: 83 tests passed across five explicitly selected CLI files (`/tmp/4200-toolchain-main-targeted.log`). This is a fresh count, not the older 87-test/six-file result. Real launcher commands select Bun 1.3.14 and Node 24.18.1. External Claude review `3c75047a-6041-4cca-8294-b9b605b9466e` approves the full toolchain slice after integration (`/tmp/4200-toolchain-main-quality.json`). Answered warnings: requiring mise is the already accepted repository-local policy; the launcher preserves mise's stderr, though its additional missing-tool sentence is generic for trust failures; launcher tests and source inspection do not alone establish hook wiring; supported wrapper runs rebuild the built CLI before source-hook tests. No customer configuration, shell profile, dependency pin, retry logic or assertion was changed to address optional strengthening.
+
+- 2026-10-07 Process correction: this older root test script starts the retro package suites before the CLI lock. Those two preliminary runs overlapped a foreign Vitest owner, violating the one-runner rule; the subsequent 83-test CLI run waited for and held the shared lock. Future queued checks must invoke the CLI package wrapper directly. Preserve the process violation rather than treating passing output as compliance. The guide-base full suite's separate fixture-staging Git failure remains recorded; no fresh full-suite pass, PR promotion, merge or epic completion is claimed.
+
 - 2026-09-26T09:00:48.400Z Started: Created ticket 1ZAJB3
 
 ## Scope
