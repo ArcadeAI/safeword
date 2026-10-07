@@ -19,18 +19,14 @@ import nodePath from 'node:path';
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import { WORKSPACE_ROOTS } from '../packages/cli/src/utils/workspace-roots.ts';
-import {
-  AUDIT_PATH,
-  git,
-  implPlanContent,
-  readAuditEntries,
-  writeFileAt,
-} from './support/repo-fixtures.ts';
+import { AUDIT_PATH, git, readAuditEntries, writeFileAt } from './support/repo-fixtures.ts';
 import type { SafewordWorld } from './world.js';
 
 const PROJECT_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const CLI = nodePath.join(PROJECT_ROOT, 'packages/cli/src/cli.ts');
 const TICKET_DIR = '.project/tickets/BGT001-fixture';
+const EXECUTION_PLAN = `${TICKET_DIR}/execution-plan.md`;
+const EXECUTION_PLAN_CONTENT = '# Execution Plan\n\nBuild the fixture.\n';
 
 interface BoundaryWorld extends SafewordWorld {
   dir?: string;
@@ -301,7 +297,7 @@ Given(
       `${TICKET_DIR}/ticket.md`,
       ticketContent({
         phase: 'implement',
-        anchors: [`implement: ${TICKET_DIR}/impl-plan.md`],
+        anchors: [`implement: ${EXECUTION_PLAN}`],
       }),
     );
     git(this.dir!, 'add -A');
@@ -334,13 +330,13 @@ Given(
     writeFileAt(this.dir!, 'src/work.ts', 'export const work = 1;\n');
     git(this.dir!, 'add -A');
     git(this.dir!, 'commit -m work --quiet');
-    writeFileAt(this.dir!, `${TICKET_DIR}/impl-plan.md`, implPlanContent());
+    writeFileAt(this.dir!, EXECUTION_PLAN, EXECUTION_PLAN_CONTENT);
     writeFileAt(
       this.dir!,
       `${TICKET_DIR}/ticket.md`,
       ticketContent({
         phase: 'implement',
-        anchors: [`implement: ${TICKET_DIR}/impl-plan.md`],
+        anchors: [`implement: ${EXECUTION_PLAN}`],
       }),
     );
     git(this.dir!, 'add -A');
@@ -462,7 +458,7 @@ const { reconcileChange } = await import(${JSON.stringify(
       nodePath.join(PROJECT_ROOT, 'packages/cli/src/boundary/engine.ts'),
     )});
 const ticket = (phase, anchors) => ['---','id: BGT','type: feature','phase: '+phase,'status: in_progress', ...(anchors ? ['phase_anchors:', ...anchors.map(a=>'  - '+a)] : []), '---',''].join('\\n');
-const anchor = 'implement: .project/tickets/BGT001-fixture/impl-plan.md';
+const anchor = 'implement: .project/tickets/BGT001-fixture/execution-plan.md';
 const verdicts = reconcileChange([{
   anchorScope: {
     ticketPath: '.project/tickets/BGT001-fixture',

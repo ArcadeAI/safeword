@@ -185,6 +185,30 @@ function suggestionForFailure(failure: unknown, label: string): string | undefin
   return undefined;
 }
 
+function planArchitectureReceiptLines(
+  data: Record<string, unknown>,
+  messages: readonly string[],
+): string[] | undefined {
+  if (data.review_kind !== 'plan-implementation') return undefined;
+  const architectureBlocker = messages.find(message =>
+    /shared-contract choice.+durable architecture (?:record|link)/iu.test(message),
+  );
+  if (architectureBlocker === undefined) return undefined;
+  const targets = Array.isArray(data.review_targets)
+    ? data.review_targets.filter((target): target is string => typeof target === 'string')
+    : [];
+  const planTarget = targets
+    .find(target => /(?:^|\/)impl-plan\.md$/u.test(target))
+    ?.replaceAll(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, ' ');
+  return [
+    'The shared-contract choice needs a durable architecture record.',
+    'Recovery: Add the durable architecture link before resubmitting.',
+    'Check: Durable architecture link — failed.',
+    `Implementation Plan: ${planTarget ?? 'impl-plan.md'}`,
+    'Obligation: Shared-contract choices require a resolvable durable architecture record.',
+  ];
+}
+
 export function reviewResultLines(
   result: CliResult,
   options: { verbose?: boolean },
@@ -195,7 +219,8 @@ export function reviewResultLines(
     .filter(finding => !REPLACED_REVIEW_FINDINGS.has(finding.code))
     .map(finding => finding.message);
   messages.push(...result.errors.map(error => error.message));
-  const lines = [reviewCoverageLine(result.data, result.state), ...messages];
+  const planReceipt = planArchitectureReceiptLines(result.data, messages) ?? [];
+  const lines = [...planReceipt, reviewCoverageLine(result.data, result.state), ...messages];
   if (options.verbose === true) {
     const suggestion = reviewUpgradeSuggestion(result.data, result.state);
     if (suggestion !== undefined) lines.push(suggestion);

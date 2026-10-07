@@ -16,6 +16,8 @@ packages/cli/codex-plugin/runtime/
 packages/cli/codex-plugin/skills/
 packages/cli/codex-plugin/templates/
 packages/cli/src/review/scenario-rubric.generated.ts
+packages/cli/src/review/execution-plan-rubric.generated.ts
+packages/cli/src/review/delivery-compatibility-rubric.generated.ts
 packages/website/.astro/
 .venv/
 

@@ -20,9 +20,8 @@ import { pathToFileURL } from 'node:url';
 
 import { Given, Then, When } from '@cucumber/cucumber';
 
-import { toRepoPath } from '../packages/cli/src/utils/repo-path.ts';
 import { WORKSPACE_ROOTS } from '../packages/cli/src/utils/workspace-roots.ts';
-import { git, implPlanContent, readAuditEntries, writeFileAt } from './support/repo-fixtures.ts';
+import { git, readAuditEntries, writeFileAt } from './support/repo-fixtures.ts';
 import type { SafewordWorld } from './world.js';
 
 const PROJECT_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -34,11 +33,54 @@ const LIB_URL = pathToFileURL(
 const SHA = 'a1b2c3d';
 const TICKET_DIR = '.project/tickets/ACA001-fixture';
 const IMPL_PLAN = `${TICKET_DIR}/impl-plan.md`;
+const EXECUTION_PLAN = `${TICKET_DIR}/execution-plan.md`;
+const SPEC = `${TICKET_DIR}/spec.md`;
 const LEDGER = `${TICKET_DIR}/test-definitions.md`;
+const VERIFY = `${TICKET_DIR}/verify.md`;
 const FEATURE_SRC = 'features/fixture.feature';
-const GONE = `${TICKET_DIR}/gone/impl-plan.md`;
+const GONE = `${TICKET_DIR}/gone/execution-plan.md`;
 
-const SHAPE_VALID_IMPL_PLAN = implPlanContent();
+const SHAPE_VALID_EXECUTION_PLAN = '# Execution Plan\n\nBuild the fixture.\n';
+
+const SHAPE_VALID_SPEC = [
+  '# Spec: fixture',
+  '',
+  '## Jobs To Be Done',
+  '',
+  '### fixture.SWM1 — Keep phase evidence trustworthy',
+  '',
+  '**Persona:** Safeword Maintainer (SWM)',
+  '',
+  '> When a phase advances, I want its output recorded, so the boundary can verify it.',
+  '',
+].join('\n');
+
+const SHAPE_VALID_IMPL_PLAN = [
+  '# Impl Plan: fixture',
+  '',
+  '**Status:** planned',
+  '',
+  '## Approach',
+  '',
+  'Swap the grammar in place.',
+  '',
+  '## Decisions',
+  '',
+  'skip: fixture plan',
+  '',
+  '## Arch alignment',
+  '',
+  'skip: fixture plan',
+  '',
+  '## Known deviations',
+  '',
+  'skip: fixture plan',
+  '',
+  '## Assessment triggers',
+  '',
+  'skip: fixture plan',
+  '',
+].join('\n');
 
 const HOLLOW_IMPL_PLAN = [
   '# Impl Plan: fixture',
@@ -80,13 +122,12 @@ interface AnchorWorld extends SafewordWorld {
   priorPhase?: string | null;
   priorAnchors?: string[];
   tree?: Record<string, string>;
+  anchorArtifact?: { path: string; content: string };
   fsDir?: string;
   verdict?: AnchorVerdict;
   dir?: string;
   remote?: string;
   cli?: { exitCode: number; output: string };
-  nativePath?: string;
-  normalizedPath?: string;
 }
 
 function ticketContent(
@@ -175,11 +216,41 @@ Given(
 );
 
 Given(
-  'a feature ticket at phase {word} whose impl-plan artifact exists and is shape-valid',
+  'a feature ticket at phase {word} whose execution-plan artifact exists and is shape-valid',
   function (this: AnchorWorld, phase: string) {
     this.priorType = 'feature';
     this.priorPhase = phase;
-    this.tree = { [IMPL_PLAN]: SHAPE_VALID_IMPL_PLAN };
+    this.tree = { [EXECUTION_PLAN]: SHAPE_VALID_EXECUTION_PLAN };
+  },
+);
+
+Given(
+  'a feature ticket at phase plan-execution whose execution-plan is shape-valid and whose earlier define-behavior anchor path is absent',
+  function (this: AnchorWorld) {
+    this.priorType = 'feature';
+    this.priorPhase = 'plan-execution';
+    this.priorAnchors = ['define-behavior: features/removed.feature'];
+    this.tree = { [EXECUTION_PLAN]: SHAPE_VALID_EXECUTION_PLAN };
+  },
+);
+
+Given(
+  'a feature ticket at phase {word} whose {word} anchor artifact exists and is shape-valid',
+  function (this: AnchorWorld, phase: string, artifact: string) {
+    const artifacts: Record<string, { path: string; content: string }> = {
+      spec: { path: SPEC, content: SHAPE_VALID_SPEC },
+      'feature-source': { path: FEATURE_SRC, content: FEATURE_CONTENT },
+      'impl-plan': { path: IMPL_PLAN, content: SHAPE_VALID_IMPL_PLAN },
+      'execution-plan': { path: EXECUTION_PLAN, content: SHAPE_VALID_EXECUTION_PLAN },
+      ledger: { path: LEDGER, content: LEDGER_CONTENT },
+      verify: { path: VERIFY, content: VERIFY_CONTENT },
+    };
+    const selected = artifacts[artifact];
+    assert.ok(selected, `unknown anchor artifact ${artifact}`);
+    this.priorType = 'feature';
+    this.priorPhase = phase;
+    this.anchorArtifact = selected;
+    this.tree = { [selected.path]: selected.content };
   },
 );
 
@@ -205,19 +276,19 @@ Given(
   'a feature ticket that entered implement once, whose earlier implement anchor names a path absent from the tree',
   function (this: AnchorWorld) {
     this.priorType = 'feature';
-    this.priorPhase = 'scenario-gate';
+    this.priorPhase = 'plan-execution';
     this.priorAnchors = [`implement: ${GONE}`];
-    this.tree = { [IMPL_PLAN]: SHAPE_VALID_IMPL_PLAN };
+    this.tree = { [EXECUTION_PLAN]: SHAPE_VALID_EXECUTION_PLAN };
   },
 );
 
 Given(
-  'a feature ticket whose earlier implement anchor names its existing shape-valid impl-plan',
+  'a feature ticket whose earlier implement anchor names its existing shape-valid execution-plan',
   function (this: AnchorWorld) {
     this.priorType = 'feature';
-    this.priorPhase = 'scenario-gate';
-    this.priorAnchors = [`implement: ${IMPL_PLAN}`];
-    this.tree = { [IMPL_PLAN]: SHAPE_VALID_IMPL_PLAN };
+    this.priorPhase = 'plan-execution';
+    this.priorAnchors = [`implement: ${EXECUTION_PLAN}`];
+    this.tree = { [EXECUTION_PLAN]: SHAPE_VALID_EXECUTION_PLAN };
   },
 );
 
@@ -225,29 +296,29 @@ Given(
   'a feature ticket in a working directory with no git repository at all, whose anchored artifact is readable in the tree',
   function (this: AnchorWorld) {
     const dir = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'safeword-anchor-nogit-'));
-    const full = nodePath.join(dir, IMPL_PLAN);
+    const full = nodePath.join(dir, EXECUTION_PLAN);
     mkdirSync(nodePath.dirname(full), { recursive: true });
-    writeFileSync(full, SHAPE_VALID_IMPL_PLAN);
+    writeFileSync(full, SHAPE_VALID_EXECUTION_PLAN);
     this.fsDir = dir;
     this.priorType = 'feature';
-    this.priorPhase = 'scenario-gate';
+    this.priorPhase = 'plan-execution';
   },
 );
 
 Given(
-  'a feature ticket at phase scenario-gate whose anchored path does not exist in the tree',
+  'a feature ticket at phase plan-execution whose anchored path does not exist in the tree',
   function (this: AnchorWorld) {
     this.priorType = 'feature';
-    this.priorPhase = 'scenario-gate';
+    this.priorPhase = 'plan-execution';
     this.tree = {};
   },
 );
 
 Given(
-  'a feature ticket at phase scenario-gate whose impl-plan artifact exists but fails its shape check',
+  'a feature ticket at phase plan-implementation whose impl-plan artifact exists but fails its shape check',
   function (this: AnchorWorld) {
     this.priorType = 'feature';
-    this.priorPhase = 'scenario-gate';
+    this.priorPhase = 'plan-implementation';
     this.tree = { [IMPL_PLAN]: HOLLOW_IMPL_PLAN };
   },
 );
@@ -287,14 +358,26 @@ Given(
 When(
   "it advances to implement recording that artifact's path for implement",
   function (this: AnchorWorld) {
-    advance(this, { phase: 'implement', anchors: [`implement: ${IMPL_PLAN}`] });
+    advance(this, { phase: 'implement', anchors: [`implement: ${EXECUTION_PLAN}`] });
   },
 );
 
 When(
-  'it advances two steps to implement recording that impl-plan path for implement only',
+  'it advances four steps to implement recording that execution-plan path for implement only',
   function (this: AnchorWorld) {
-    advance(this, { phase: 'implement', anchors: [`implement: ${IMPL_PLAN}`] });
+    advance(this, { phase: 'implement', anchors: [`implement: ${EXECUTION_PLAN}`] });
+  },
+);
+
+When(
+  'it advances to {word} recording that artifact path for {word}',
+  function (this: AnchorWorld, phase: string, anchorPhase: string) {
+    assert.equal(anchorPhase, phase);
+    assert.ok(this.anchorArtifact, 'anchor artifact fixture was not initialized');
+    advance(this, {
+      phase,
+      anchors: [`${anchorPhase}: ${this.anchorArtifact.path}`],
+    });
   },
 );
 
@@ -313,9 +396,9 @@ When(
 );
 
 When(
-  'it re-enters implement appending an anchor naming its existing shape-valid impl-plan',
+  'it re-enters implement appending an anchor naming its existing shape-valid execution-plan',
   function (this: AnchorWorld) {
-    advance(this, { phase: 'implement', anchors: [`implement: ${IMPL_PLAN}`] });
+    advance(this, { phase: 'implement', anchors: [`implement: ${EXECUTION_PLAN}`] });
   },
 );
 
@@ -327,7 +410,7 @@ When(
 );
 
 When('the advance is checked', function (this: AnchorWorld) {
-  advance(this, { phase: 'implement', anchors: [`implement: ${IMPL_PLAN}`] });
+  advance(this, { phase: 'implement', anchors: [`implement: ${EXECUTION_PLAN}`] });
 });
 
 When(
@@ -338,10 +421,10 @@ When(
 );
 
 When(
-  'it advances to implement with a phase_anchors block naming only scenario-gate',
+  'it advances to implement with a phase_anchors block naming only plan-execution',
   function (this: AnchorWorld) {
     this.tree = { ...this.tree, [FEATURE_SRC]: FEATURE_CONTENT };
-    advance(this, { phase: 'implement', anchors: [`scenario-gate: ${FEATURE_SRC}`] });
+    advance(this, { phase: 'implement', anchors: [`plan-execution: ${IMPL_PLAN}`] });
   },
 );
 
@@ -360,8 +443,15 @@ When(
 );
 
 When('it advances to implement recording that path for implement', function (this: AnchorWorld) {
-  advance(this, { phase: 'implement', anchors: [`implement: ${IMPL_PLAN}`] });
+  advance(this, { phase: 'implement', anchors: [`implement: ${EXECUTION_PLAN}`] });
 });
+
+When(
+  "it advances to plan-execution recording that artifact's path for plan-execution",
+  function (this: AnchorWorld) {
+    advance(this, { phase: 'plan-execution', anchors: [`plan-execution: ${IMPL_PLAN}`] });
+  },
+);
 
 When(
   'it advances to done recording the README path as the anchor for done',
@@ -406,6 +496,17 @@ When('the at-rest anchor advisory inspects it', function (this: AnchorWorld) {
   this.verdict = runDetector(this, content, 'state');
 });
 
+When('safeword check runs on the project', function (this: AnchorWorld) {
+  const result = spawnSync('bun', [CLI, 'check', '--agents', 'none', '--offline'], {
+    cwd: this.dir,
+    encoding: 'utf8',
+  });
+  this.cli = {
+    exitCode: result.status ?? 1,
+    output: `${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim(),
+  };
+});
+
 // ---------------------------------------------------------------------------
 // Predicate lane — Thens
 // ---------------------------------------------------------------------------
@@ -434,9 +535,17 @@ Then('the advance is not flagged', function (this: AnchorWorld) {
   );
 });
 
+Then('the transition check raises no anchor finding', function (this: AnchorWorld) {
+  assert.equal(
+    this.verdict?.kind,
+    'not-applicable',
+    `expected transition check to be not-applicable; got ${JSON.stringify(this.verdict)}`,
+  );
+});
+
 Then('the finding names the expected anchor line for implement', function (this: AnchorWorld) {
   assert.match(this.verdict?.reason ?? '', /- implement:/);
-  assert.match(this.verdict?.reason ?? '', /impl-plan\.md/);
+  assert.match(this.verdict?.reason ?? '', /execution-plan\.md/);
 });
 
 Then('the finding says the artifact is missing from the tree', function (this: AnchorWorld) {
@@ -455,13 +564,17 @@ Then(
   },
 );
 
-Then('an anchor finding nudges the path grammar', function (this: AnchorWorld) {
-  assert.equal(
-    this.verdict?.kind,
-    'unanchored',
-    `expected unanchored; got ${JSON.stringify(this.verdict)}`,
-  );
-  assert.match(this.verdict?.reason ?? '', /artifact/i);
+Then(
+  'the finding says the artifact is not the expected kind for implement',
+  function (this: AnchorWorld) {
+    assert.match(this.verdict?.reason ?? '', /expected/i);
+    assert.match(this.verdict?.reason ?? '', /execution-plan\.md/);
+  },
+);
+
+Then('the finding identifies the legacy commit SHA migration', function (this: AnchorWorld) {
+  assert.match(this.verdict?.reason ?? '', /legacy commit-SHA anchor/i);
+  assert.match(this.verdict?.reason ?? '', /artifact path instead/i);
 });
 
 Then('no anchor finding is raised', function (this: AnchorWorld) {
@@ -512,14 +625,14 @@ function lastAuditEntry(dir: string): string {
 
 function createCommittedAnchoredAdvance(world: AnchorWorld): { dir: string; branch: string } {
   const dir = createProject(world);
-  writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'scenario-gate'));
+  writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'plan-execution'));
   addPushedBaseline(world);
   const branch = git(dir, 'branch --show-current').trim();
-  writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
+  writeFileAt(dir, EXECUTION_PLAN, SHAPE_VALID_EXECUTION_PLAN);
   writeFileAt(
     dir,
     `${TICKET_DIR}/ticket.md`,
-    ticketContent('feature', 'implement', [`implement: ${IMPL_PLAN}`]),
+    ticketContent('feature', 'implement', [`implement: ${EXECUTION_PLAN}`]),
   );
   git(dir, 'add -A');
   git(dir, 'commit -m advance --quiet');
@@ -535,12 +648,12 @@ function seedTicket(world: AnchorWorld, ticketPath: string, phase: string): stri
 }
 
 Given(
-  "a staged advance anchored to another ticket's shape-valid impl-plan",
+  "a staged advance anchored to another ticket's shape-valid execution-plan",
   function (this: AnchorWorld) {
     const foreignTicket = '.project/tickets/ACA002-foreign';
-    const foreignPlan = `${foreignTicket}/impl-plan.md`;
-    const dir = seedTicket(this, TICKET_DIR, 'scenario-gate');
-    writeFileAt(dir, foreignPlan, SHAPE_VALID_IMPL_PLAN);
+    const foreignPlan = `${foreignTicket}/execution-plan.md`;
+    const dir = seedTicket(this, TICKET_DIR, 'plan-execution');
+    writeFileAt(dir, foreignPlan, SHAPE_VALID_EXECUTION_PLAN);
     writeFileAt(
       dir,
       `${TICKET_DIR}/ticket.md`,
@@ -562,28 +675,39 @@ Given("a staged advance anchored to another ticket's feature source", function (
   git(dir, 'add -A');
 });
 
+Given(
+  'a staged project configuring a non-default feature lane and an advance anchored to a feature source inside it',
+  function (this: AnchorWorld) {
+    const configuredFeature = 'tests/behaviors/fixture.feature';
+    const dir = createProject(this);
+    writeFileAt(
+      dir,
+      '.safeword/config.json',
+      JSON.stringify({ paths: { features: 'tests/behaviors' } }, undefined, 2),
+    );
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'define-behavior'));
+    git(dir, 'add -A');
+    git(dir, 'commit -m seed --quiet');
+    writeFileAt(dir, configuredFeature, FEATURE_CONTENT);
+    writeFileAt(
+      dir,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent('feature', 'scenario-gate', [`scenario-gate: ${configuredFeature}`]),
+    );
+    git(dir, 'add -A');
+  },
+);
+
 Given('a staged advance whose anchor uses a Git index-stage prefix', function (this: AnchorWorld) {
-  const stagedAlias = `0:${IMPL_PLAN}`;
-  const dir = seedTicket(this, TICKET_DIR, 'scenario-gate');
-  writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
+  const stagedAlias = `0:${EXECUTION_PLAN}`;
+  const dir = seedTicket(this, TICKET_DIR, 'plan-execution');
+  writeFileAt(dir, EXECUTION_PLAN, SHAPE_VALID_EXECUTION_PLAN);
   writeFileAt(
     dir,
     `${TICKET_DIR}/ticket.md`,
     ticketContent('feature', 'implement', [`implement: ${stagedAlias}`]),
   );
   git(dir, 'add -A');
-});
-
-Given('an OS-native ticket directory path', function (this: AnchorWorld) {
-  this.nativePath = nodePath.win32.join('.project', 'tickets', 'ACA001-fixture');
-});
-
-When('the path is normalized for an anchor', function (this: AnchorWorld) {
-  this.normalizedPath = toRepoPath(this.nativePath ?? '');
-});
-
-Then('it uses the forward-slashed anchor grammar', function (this: AnchorWorld) {
-  assert.equal(this.normalizedPath, TICKET_DIR);
 });
 
 Given(
@@ -602,9 +726,22 @@ Given(
 );
 
 Given(
-  'a staged advance anchored to a correctly named feature outside every feature lane',
+  'a Safeword project with a feature ticket at rest at phase implement and no implement anchor',
   function (this: AnchorWorld) {
-    const lookalike = 'docs/fixture.feature';
+    const dir = createProject(this);
+    const setup = spawnSync('bun', [CLI, 'setup', '--yes', '--agents', 'none'], {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+    assert.equal(setup.status, 0, `${setup.stdout ?? ''}\n${setup.stderr ?? ''}`.trim());
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'implement'));
+  },
+);
+
+Given(
+  'a staged advance anchored to a correctly named feature inside its ticket directory but outside every feature lane',
+  function (this: AnchorWorld) {
+    const lookalike = `${TICKET_DIR}/fixture.feature`;
     const dir = seedTicket(this, TICKET_DIR, 'define-behavior');
     writeFileAt(dir, lookalike, FEATURE_CONTENT);
     writeFileAt(
@@ -622,25 +759,45 @@ function stageConfiguredTicket(
   ticketRoot = 'custom',
 ): void {
   const ticketPath = `${ticketRoot}/tickets/ACA001-fixture`;
-  const dir = seedTicket(world, ticketPath, 'scenario-gate');
+  const defaultTicketPath = '.project/tickets/ACA001-fixture';
+  const defaultPlanPath = `${defaultTicketPath}/impl-plan.md`;
+  const dir = createProject(world);
+  writeFileAt(dir, `${ticketPath}/ticket.md`, ticketContent('feature', 'plan-implementation'));
+  writeFileAt(
+    dir,
+    `${defaultTicketPath}/ticket.md`,
+    ticketContent('feature', 'plan-implementation'),
+  );
+  git(dir, 'add -A');
+  git(dir, 'commit -m seed --quiet');
   writeFileAt(
     dir,
     '.safeword/config.json',
     JSON.stringify({ paths: { projectRoot: configuredProjectRoot } }, undefined, 2),
   );
-  writeFileAt(dir, `${ticketPath}/impl-plan.md`, '# hollow plan\n');
+  writeFileAt(dir, defaultPlanPath, SHAPE_VALID_IMPL_PLAN);
   writeFileAt(
     dir,
     `${ticketPath}/ticket.md`,
-    ticketContent('feature', 'implement', [`implement: ${ticketPath}/impl-plan.md`]),
+    ticketContent('feature', 'plan-execution', [`plan-execution: ${defaultPlanPath}`]),
+  );
+  writeFileAt(
+    dir,
+    `${defaultTicketPath}/ticket.md`,
+    ticketContent('feature', 'plan-execution', [`plan-execution: ${defaultPlanPath}`]),
   );
   git(dir, 'add -A');
 }
 
 Given(
-  'a staged project-root configuration and a ticket in that configured root',
+  'a project-root configuration staged for a custom root while its worktree copy points at the default root',
   function (this: AnchorWorld) {
     stageConfiguredTicket(this, 'custom');
+    writeFileAt(
+      this.dir!,
+      '.safeword/config.json',
+      JSON.stringify({ paths: { projectRoot: '.project' } }, undefined, 2),
+    );
   },
 );
 
@@ -652,10 +809,10 @@ Given(
 );
 
 Given(
-  'staged repository-root ticket and feature lanes with a valid owned anchor',
+  'staged repository-root ticket and feature lanes with an anchor owned by another ticket',
   function (this: AnchorWorld) {
     const rootTicket = 'tickets/ACA001-fixture';
-    const rootFeature = 'fixture.feature';
+    const foreignFeature = 'another-ticket.feature';
     const dir = createProject(this);
     writeFileAt(
       dir,
@@ -665,11 +822,11 @@ Given(
     writeFileAt(dir, `${rootTicket}/ticket.md`, ticketContent('feature', 'define-behavior'));
     git(dir, 'add -A');
     git(dir, 'commit -m seed --quiet');
-    writeFileAt(dir, rootFeature, FEATURE_CONTENT);
+    writeFileAt(dir, foreignFeature, FEATURE_CONTENT);
     writeFileAt(
       dir,
       `${rootTicket}/ticket.md`,
-      ticketContent('feature', 'scenario-gate', [`scenario-gate: ${rootFeature}`]),
+      ticketContent('feature', 'scenario-gate', [`scenario-gate: ${foreignFeature}`]),
     );
     git(dir, 'add -A');
   },
@@ -693,24 +850,29 @@ Given(
     addPushedBaseline(this);
     const legacyHex = git(dir, 'rev-parse --short HEAD').trim();
     writeFileAt(dir, FEATURE_SRC, FEATURE_CONTENT);
+    writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
     writeFileAt(
       dir,
       `${TICKET_DIR}/ticket.md`,
-      ticketContent('feature', 'scenario-gate', [
+      ticketContent('feature', 'plan-execution', [
         `define-behavior: ${legacyHex}`,
         `scenario-gate: ${FEATURE_SRC}`,
+        `plan-implementation: ${FEATURE_SRC}`,
+        `plan-execution: ${IMPL_PLAN}`,
       ]),
     );
     git(dir, 'add -A');
     git(dir, 'commit -m c1 --quiet');
-    writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
+    writeFileAt(dir, EXECUTION_PLAN, SHAPE_VALID_EXECUTION_PLAN);
     writeFileAt(
       dir,
       `${TICKET_DIR}/ticket.md`,
       ticketContent('feature', 'implement', [
         `define-behavior: ${legacyHex}`,
         `scenario-gate: ${FEATURE_SRC}`,
-        `implement: ${IMPL_PLAN}`,
+        `plan-implementation: ${FEATURE_SRC}`,
+        `plan-execution: ${IMPL_PLAN}`,
+        `implement: ${EXECUTION_PLAN}`,
       ]),
     );
     git(dir, 'add -A');
@@ -721,7 +883,9 @@ Given(
     this.priorAnchors = [
       `define-behavior: ${legacyHex}`,
       `scenario-gate: ${FEATURE_SRC}`,
-      `implement: ${IMPL_PLAN}`,
+      `plan-implementation: ${FEATURE_SRC}`,
+      `plan-execution: ${IMPL_PLAN}`,
+      `implement: ${EXECUTION_PLAN}`,
     ];
   },
 );
@@ -767,7 +931,7 @@ Given(
   'a shallow single-depth clone of a project with an anchored feature ticket in the outgoing range',
   function (this: AnchorWorld) {
     const dir = createProject(this);
-    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'scenario-gate'));
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'plan-execution'));
     addPushedBaseline(this);
     const shallow = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'safeword-anchor-shallow-'));
     git(shallow, `clone --quiet --depth 1 ${this.remote!} .`);
@@ -776,11 +940,11 @@ Given(
     // Git tracks no empty directories — recreate the .safeword marker the
     // boundary command requires, exactly as a fresh container's setup would.
     mkdirSync(nodePath.join(shallow, '.safeword'), { recursive: true });
-    writeFileAt(shallow, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
+    writeFileAt(shallow, EXECUTION_PLAN, SHAPE_VALID_EXECUTION_PLAN);
     writeFileAt(
       shallow,
       `${TICKET_DIR}/ticket.md`,
-      ticketContent('feature', 'implement', [`implement: ${IMPL_PLAN}`]),
+      ticketContent('feature', 'implement', [`implement: ${EXECUTION_PLAN}`]),
     );
     git(shallow, 'add -A');
     git(shallow, 'commit -m advance --quiet');
@@ -791,18 +955,68 @@ Given(
 );
 
 Given(
-  'a staged forward advance anchored to an impl-plan path that exists on disk but is not staged',
+  'a staged forward advance anchored to an execution-plan path that exists on disk but is not staged',
   function (this: AnchorWorld) {
     const dir = createProject(this);
-    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'scenario-gate'));
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'plan-execution'));
     git(dir, 'add -A');
     git(dir, 'commit -m seed --quiet');
     // On disk only — never `git add`ed, so the staged tree lacks it.
-    writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
+    writeFileAt(dir, EXECUTION_PLAN, SHAPE_VALID_EXECUTION_PLAN);
     writeFileAt(
       dir,
       `${TICKET_DIR}/ticket.md`,
-      ticketContent('feature', 'implement', [`implement: ${IMPL_PLAN}`]),
+      ticketContent('feature', 'implement', [`implement: ${EXECUTION_PLAN}`]),
+    );
+    git(dir, `add ${TICKET_DIR}/ticket.md`);
+  },
+);
+
+Given(
+  'a staged forward advance anchored to an impl-plan that fails its shape check',
+  function (this: AnchorWorld) {
+    const dir = createProject(this);
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'plan-implementation'));
+    git(dir, 'add -A');
+    git(dir, 'commit -m seed --quiet');
+    writeFileAt(dir, IMPL_PLAN, HOLLOW_IMPL_PLAN);
+    writeFileAt(
+      dir,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent('feature', 'plan-execution', [`plan-execution: ${IMPL_PLAN}`]),
+    );
+    git(dir, 'add -A');
+  },
+);
+
+Given(
+  'a pushed forward advance anchored to an execution-plan path that exists in the worktree but not the pushed HEAD tree',
+  function (this: AnchorWorld) {
+    const dir = createProject(this);
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'plan-execution'));
+    addPushedBaseline(this);
+    writeFileAt(
+      dir,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent('feature', 'implement', [`implement: ${EXECUTION_PLAN}`]),
+    );
+    git(dir, `add ${TICKET_DIR}/ticket.md`);
+    git(dir, 'commit -m advance --quiet');
+    writeFileAt(dir, EXECUTION_PLAN, SHAPE_VALID_EXECUTION_PLAN);
+  },
+);
+
+Given(
+  'a staged forward advance whose entered phase carries a hex-shaped legacy anchor',
+  function (this: AnchorWorld) {
+    const dir = createProject(this);
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'plan-execution'));
+    git(dir, 'add -A');
+    git(dir, 'commit -m seed --quiet');
+    writeFileAt(
+      dir,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent('feature', 'implement', [`implement: ${SHA}`]),
     );
     git(dir, `add ${TICKET_DIR}/ticket.md`);
   },
@@ -812,9 +1026,9 @@ Given(
   'a pushed range whose ticket carries a valid artifact-path anchor and a ledger tick SHA absent from history',
   function (this: AnchorWorld) {
     const dir = createProject(this);
-    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'scenario-gate'));
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'plan-execution'));
     addPushedBaseline(this);
-    writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
+    writeFileAt(dir, EXECUTION_PLAN, SHAPE_VALID_EXECUTION_PLAN);
     writeFileAt(
       dir,
       LEDGER,
@@ -832,7 +1046,7 @@ Given(
     writeFileAt(
       dir,
       `${TICKET_DIR}/ticket.md`,
-      ticketContent('feature', 'implement', [`implement: ${IMPL_PLAN}`]),
+      ticketContent('feature', 'implement', [`implement: ${EXECUTION_PLAN}`]),
     );
     git(dir, 'add -A');
     git(dir, 'commit -m advance --quiet');
@@ -860,6 +1074,22 @@ Then(
   },
 );
 
+Then(
+  'it exits zero and warns that the anchored artifact fails its shape check',
+  function (this: AnchorWorld) {
+    assert.equal(this.cli?.exitCode, 0);
+    assert.match(this.cli?.output ?? '', /phase-anchor.*fails its shape check/is);
+  },
+);
+
+Then(
+  'it exits zero and warns that the anchored artifact is missing from the pushed tree',
+  function (this: AnchorWorld) {
+    assert.equal(this.cli?.exitCode, 0);
+    assert.match(this.cli?.output ?? '', /phase-anchor.*missing from the tree/is);
+  },
+);
+
 Then('the anchor check passes', function (this: AnchorWorld) {
   const entry = lastAuditEntry(this.dir!);
   assert.match(entry, /phase-anchor.*pass|pass.*phase-anchor/);
@@ -882,16 +1112,34 @@ Then('it exits zero and warns that the anchor is not repo-relative', function (t
   assert.match(this.cli?.output ?? '', /repo-relative/i);
 });
 
+Then(
+  'safeword check advises the expected path-shaped anchor line for implement',
+  function (this: AnchorWorld) {
+    assert.ok(this.cli, 'safeword check did not run');
+    assert.match(this.cli?.output ?? '', /- implement: <ticket-folder>\/execution-plan\.md/);
+  },
+);
+
+Then(
+  'it exits zero and warns with the expected path-shaped anchor line',
+  function (this: AnchorWorld) {
+    assert.equal(this.cli?.exitCode, 0);
+    assert.match(this.cli?.output ?? '', /legacy commit-SHA anchor/i);
+    assert.match(this.cli?.output ?? '', /- implement: <ticket-folder>\/execution-plan\.md/);
+  },
+);
+
 Then('it exits zero and warns about the phase anchor', function (this: AnchorWorld) {
   assert.equal(this.cli?.exitCode, 0);
   assert.match(this.cli?.output ?? '', /phase-anchor/i);
 });
 
 Then(
-  "it exits zero and reports the configured ticket's malformed plan",
+  'it exits zero and warns that the feature anchor is outside every executable or configured feature lane',
   function (this: AnchorWorld) {
     assert.equal(this.cli?.exitCode, 0);
-    assert.match(this.cli?.output ?? '', /impl-plan-shape.*missing/is);
+    assert.match(this.cli?.output ?? '', /phase-anchor/i);
+    assert.match(this.cli?.output ?? '', /outside this ticket/i);
   },
 );
 

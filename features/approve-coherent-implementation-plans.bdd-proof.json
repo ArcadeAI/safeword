@@ -1,0 +1,132 @@
+{
+  "feature": "features/approve-coherent-implementation-plans.feature",
+  "scenarios": {
+    "Safeword CLI accepts only the project-local Implementation Plan": [
+      [
+        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+        "accepts a ticket-owned Implementation Plan through the public review command"
+      ],
+      [
+        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+        "rejects host-private and other unowned Implementation Plans through the public review command"
+      ]
+    ],
+    "A divergent host-private copy never becomes authoritative": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "reviews the ticket plan when a divergent host-private copy exists"
+    ],
+    "Architecture applicability accepts consequences or a justified skip": [
+      "packages/cli/tests/review/plan-architecture-applicability.test.ts",
+      "$name"
+    ],
+    "Data decisions cannot be replaced by migration commands": [
+      "packages/cli/tests/review/plan-data-applicability.test.ts",
+      "rejects exact migration commands even when every data decision is present"
+    ],
+    "Durable recording routes only significant decisions to the architecture record": [
+      "packages/cli/tests/review/plan-durable-architecture.test.ts",
+      "keeps a reversible local choice in the plan and links only the shared contract"
+    ],
+    "An unrecorded significant decision blocks approval": [
+      "packages/cli/tests/review/plan-durable-architecture.test.ts",
+      "blocks approval when a shared-contract choice has no durable link"
+    ],
+    "A one-file shared contract is significant while a many-file mechanical edit is not": [
+      "packages/cli/tests/review/plan-architecture-significance.test.ts",
+      "requires a record for $significantChange while ignoring a many-file mechanical edit"
+    ],
+    "Proof scope excludes execution mechanics": [
+      "packages/cli/tests/review/plan-proof-scope.test.ts",
+      "$proofState"
+    ],
+    "Decision resolution controls its Implementation Plan obligation": [
+      "packages/cli/tests/review/plan-decision-resolution.test.ts",
+      "$state"
+    ],
+    "Installed review reports every simultaneous decision blocker": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "preserves every simultaneous Implementation Planning blocker in the installed CLI receipt"
+    ],
+    "Decision evidence controls semantic review": [
+      "packages/cli/tests/review/plan-decision-evidence.test.ts",
+      "$name"
+    ],
+    "Evidence fields accept honest applicability without allowing empty decision coverage": [
+      [
+        "packages/cli/tests/hooks/plan-decision-evidence-structure.test.ts",
+        "names a missing decision entry when neither evidence nor a skip is present"
+      ],
+      ["packages/cli/tests/hooks/plan-decision-evidence-structure.test.ts", "$name"]
+    ],
+    "Installed CLI human design authority follows configuration": [
+      [
+        "packages/cli/tests/integration/plan-design-approval.test.ts",
+        "advances non-interactively and records not-required when the gate is disabled"
+      ],
+      [
+        "packages/cli/tests/integration/plan-design-approval.test.ts",
+        "presents the reviewed approach exactly once through a real terminal"
+      ],
+      [
+        "packages/cli/tests/integration/plan-design-approval.test.ts",
+        "settles headless work as pending without prompting or changing phase"
+      ]
+    ],
+    "A declined design returns to Implementation Planning": [
+      "packages/cli/tests/integration/plan-design-approval.test.ts",
+      "names the exact declined approach and leaves it in planning for repair"
+    ],
+    "An accepted design enters Execution Planning": [
+      "packages/cli/tests/integration/plan-design-approval.test.ts",
+      "binds the approval to the exact approach bytes before advancing"
+    ],
+    "A review-blocked design is never presented for human approval": [
+      "packages/cli/tests/integration/plan-design-approval.test.ts",
+      "returns the current semantic finding before crossing the prompt boundary"
+    ],
+    "Human design authority follows approach currency": [
+      [
+        "packages/cli/tests/integration/plan-design-approval.test.ts",
+        "reuses approval for unchanged approach bytes without prompting again"
+      ],
+      [
+        "packages/cli/tests/integration/plan-design-approval.test.ts",
+        "requires a new decision after the approach bytes change"
+      ]
+    ],
+    "Concurrent design decisions do not overwrite each other": [
+      "packages/cli/tests/integration/plan-design-approval.test.ts",
+      "serializes two installed CLI writers in one project ledger"
+    ],
+    "An interrupted approval resumes according to durable authority": [
+      [
+        "packages/cli/tests/integration/plan-design-approval.test.ts",
+        "requires a new decision when the first invocation exits before durability"
+      ],
+      [
+        "packages/cli/tests/integration/plan-design-approval.test.ts",
+        "resumes one durable approval without prompting after the phase write is interrupted"
+      ]
+    ],
+    "Retrying the same design approval does not duplicate authority": [
+      "packages/cli/tests/integration/plan-design-approval.test.ts",
+      "keeps one event when two installed CLI invocations submit the same decision"
+    ],
+    "Approval-ledger contention fails closed without changing authority": [
+      "packages/cli/tests/integration/plan-design-approval.test.ts",
+      "returns pending within the configured budget while a live writer owns the lock"
+    ],
+    "A design decision preserves compatible approval-ledger extensions": [
+      "packages/cli/tests/integration/plan-design-approval.test.ts",
+      "keeps earlier known authority and opaque event bytes while appending approval"
+    ],
+    "A completed Execution Plan does not trigger a second design approval": [
+      "packages/cli/tests/integration/plan-design-approval.test.ts",
+      "reuses current approach approval at the downstream implementation boundary"
+    ],
+    "A completed Execution Plan cannot preserve stale design approval": [
+      "packages/cli/tests/integration/plan-design-approval.test.ts",
+      "returns to a fresh human decision when the accepted approach bytes changed"
+    ]
+  }
+}

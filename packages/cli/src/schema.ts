@@ -219,6 +219,7 @@ const CURSOR_SHARED_SKILL_FILES = [
   'bdd/SKILL.md',
   'bdd/DISCOVERY.md',
   'bdd/PLAN_IMPLEMENTATION.md',
+  'bdd/PLAN_EXECUTION.md',
   'bdd/SCENARIOS.md',
   'bdd/TDD.md',
   'bdd/DONE.md',
@@ -1049,6 +1050,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/guides/data-architecture-guide.md': {
       template: 'guides/data-architecture-guide.md',
     },
+    '.safeword/guides/interface-contract-guide.md': {
+      template: 'guides/interface-contract-guide.md',
+    },
     '.safeword/guides/design-doc-guide.md': {
       template: 'guides/design-doc-guide.md',
     },
@@ -1063,6 +1067,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/guides/planning-guide.md': {
       template: 'guides/planning-guide.md',
+    },
+    '.safeword/guides/release-recovery-guide.md': {
+      template: 'guides/release-recovery-guide.md',
+    },
+    '.safeword/guides/measurement-design-guide.md': {
+      template: 'guides/measurement-design-guide.md',
     },
     '.safeword/guides/skill-eval-optimization-guide.md': {
       template: 'guides/skill-eval-optimization-guide.md',
@@ -1100,6 +1110,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // the plan-implementation phase, validated by the stop hook's impl-plan gate.
     '.safeword/templates/impl-plan-template.md': {
       template: 'doc-templates/impl-plan-template.md',
+    },
+    '.safeword/templates/execution-plan-template.md': {
+      template: 'doc-templates/execution-plan-template.md',
     },
     '.safeword/templates/adr-template.md': {
       template: 'doc-templates/adr-template.md',
@@ -1180,6 +1193,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.claude/skills/bdd/PLAN_IMPLEMENTATION.md': {
       template: 'skills/bdd/PLAN_IMPLEMENTATION.md',
+    },
+    '.claude/skills/bdd/PLAN_EXECUTION.md': {
+      template: 'skills/bdd/PLAN_EXECUTION.md',
     },
     '.claude/skills/bdd/SCENARIOS.md': {
       template: 'skills/bdd/SCENARIOS.md',

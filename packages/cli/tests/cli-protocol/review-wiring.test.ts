@@ -12,6 +12,12 @@ import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import {
+  createExecutionPlanDeliveryDefinition,
+  normalizedExecutionPlanDigest,
+  parseDeliveryPlanContract,
+} from '../../src/execution-plan/delivery-checklist.js';
+import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
 import { createTrustedReviewerDirectory } from '../review-fixtures.js';
 
@@ -101,6 +107,14 @@ if [ "$failure" = "auth" ] && { [ -z "$failure_agent" ] || [ "$failure_agent" = 
   printf 'not logged in\n' >&2
   exit 1
 fi
+if [ "$failure" = "auth-stdout" ] && { [ -z "$failure_agent" ] || [ "$failure_agent" = "${agent}" ]; } && { [ -z "$failure_path" ] || printf '%s' "$0" | /usr/bin/grep -q "$failure_path"; }; then
+  printf '{"is_error":true,"result":"Not logged in · Please run /login"}\n'
+  exit 1
+fi
+if [ "$failure" = "auth-expired-stdout" ] && { [ -z "$failure_agent" ] || [ "$failure_agent" = "${agent}" ]; } && { [ -z "$failure_path" ] || printf '%s' "$0" | /usr/bin/grep -q "$failure_path"; }; then
+  printf '{"is_error":true,"result":"Failed to authenticate: OAuth session expired and could not be refreshed"}\n'
+  exit 1
+fi
 payload=$(cat)
 prompt_log=$(printenv SAFEWORD_REVIEW_PROMPT_LOG || true)
 model_prompt_log=$(printenv SAFEWORD_REVIEW_MODEL_PROMPT_LOG || true)
@@ -129,6 +143,31 @@ if [ -z "$verdict" ]; then verdict=approve; fi
 summary=$(printenv SAFEWORD_REVIEW_FAKE_SUMMARY || true)
 if [ -z "$summary" ]; then summary=reviewed; fi
 finding=$(printenv SAFEWORD_REVIEW_FAKE_FINDING || true)
+execution_plan_record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
+planning_destination=$(printenv SAFEWORD_REVIEW_FAKE_PLANNING_DESTINATION || true)
+if [ -z "$planning_destination" ]; then planning_destination=plan-execution; fi
+required_contract_signal=''
+case "$finding" in
+  require-contract:*)
+    required_contract_signal=${'$'}{finding#require-contract:}
+    finding=''
+    ;;
+esac
+if [ -n "$required_contract_signal" ] && ! printf '%s' "$payload" | /usr/bin/grep -Fq "$required_contract_signal"; then
+  verdict=request_changes
+  finding="Execution Plan review contract does not distinguish current implementation from target work."
+  execution_plan_record=''
+fi
+if [ -z "$execution_plan_record" ] && printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
+  execution_plan_record=null
+fi
+finding_second=''
+case "$finding" in
+  *'|||'*)
+    finding_second=${'$'}{finding#*|||}
+    finding=${'$'}{finding%%|||*}
+    ;;
+esac
 env_log=$(printenv SAFEWORD_REVIEW_ENV_LOG || true)
 if [ -n "$env_log" ]; then
   if printenv ANTHROPIC_API_KEY >/dev/null 2>&1; then printf 'anthropic=present\n' >> "$env_log"; else printf 'anthropic=absent\n' >> "$env_log"; fi
@@ -148,6 +187,14 @@ elif [ "$identity" = "dispatch" ]; then
   else
     printf '%s\n' "$result"
   fi
+elif [ -n "$execution_plan_record" ] && [ -n "$finding" ] && [ -n "$finding_second" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"},{"severity":"error","message":"%s"}],"planning_destination":"%s","execution_plan_record":%s}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$finding_second" "$planning_destination" "$execution_plan_record"
+elif [ -n "$finding" ] && [ -n "$finding_second" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"},{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$finding_second"
+elif [ -n "$execution_plan_record" ] && [ -n "$finding" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}],"planning_destination":"%s","execution_plan_record":%s}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$planning_destination" "$execution_plan_record"
+elif [ -n "$execution_plan_record" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[],"planning_destination":"%s","execution_plan_record":%s}\n' "$dispatch_id" "$verdict" "$summary" "$planning_destination" "$execution_plan_record"
 elif [ -n "$finding" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$verdict" "$summary" "$finding"
 elif [ "${agent}" = "opencode" ]; then
@@ -273,6 +320,53 @@ describe('cross-agent review public-command wiring', () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       errors: [{ code: 'REVIEW_JOB_NOT_FOUND' }],
     });
+  });
+
+  it('dispatches delivery compatibility through the real review command', async () => {
+    const directory = createTemporaryDirectory();
+    const request = nodePath.join(directory, 'compatibility-request.md');
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    writeFileSync(request, '# Delivery compatibility request\n\nComplete bounded diff.\n');
+    const bin = installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'delivery-compatibility',
+        'compatibility-request.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      data: {
+        status: 'approved',
+        review_kind: 'delivery-compatibility',
+        assigned_reviewer: 'claude',
+      },
+    });
+    expect(readFileSync(promptLog, 'utf8')).toContain(
+      'Does the earlier passing receipt still establish this',
+    );
+    expect(readFileSync(promptLog, 'utf8')).toContain('Complete bounded diff.');
+    expect(readFileSync(reviewLog, 'utf8').trim()).toBe('claude');
   });
 
   it.each([
@@ -481,7 +575,10 @@ describe('cross-agent review public-command wiring', () => {
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');
     const promptLog = nodePath.join(directory, 'prompt.log');
-    writeFileSync(nodePath.join(directory, 'impl-plan.md'), '# Implementation plan\n');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation plan\n');
     const bin = installFakeReviewer(directory, 'claude');
 
     const result = await runCli(
@@ -489,7 +586,7 @@ describe('cross-agent review public-command wiring', () => {
         'review',
         'run',
         'plan-implementation',
-        'impl-plan.md',
+        '.project/tickets/T1-feature/impl-plan.md',
         '--json',
         '--no-input',
         '--cwd',
@@ -511,6 +608,548 @@ describe('cross-agent review public-command wiring', () => {
     const prompt = readFileSync(promptLog, 'utf8');
     expect(prompt).toContain('## Shared adversarial-review severity foundation');
     expect(prompt).toContain('## Shared implementation-plan judgment standard');
+  });
+
+  it('accepts a ticket-owned Implementation Plan through the public review command', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Project plan\n');
+    const bin = installFakeReviewer(directory, 'claude');
+    const environment = {
+      PATH: `${bin}:/usr/bin:/bin`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_REVIEW_LOG: reviewLog,
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    };
+
+    const accepted = await runCli(
+      [
+        'review',
+        'run',
+        'plan-implementation',
+        '.project/tickets/T1-feature/impl-plan.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: environment },
+    );
+    expect(accepted.exitCode, accepted.stdout).toBe(0);
+    expect(JSON.parse(accepted.stdout)).toMatchObject({
+      state: 'healthy',
+      data: { status: 'approved' },
+    });
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude']);
+  });
+
+  it('rejects host-private and other unowned Implementation Plans through the public review command', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    const privateDirectory = nodePath.join(directory, '.claude', 'plans');
+    const notesDirectory = nodePath.join(directory, 'notes');
+    mkdirSync(ticketDirectory, { recursive: true });
+    mkdirSync(privateDirectory, { recursive: true });
+    mkdirSync(notesDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(privateDirectory, 'impl-plan.md'), '# Host-private plan\n');
+    writeFileSync(nodePath.join(notesDirectory, 'impl-plan.md'), '# Unowned plan\n');
+    writeFileSync(nodePath.join(directory, '.project', 'ticket.md'), '---\nid: parent\n---\n');
+    writeFileSync(nodePath.join(directory, '.project', 'impl-plan.md'), '# Parent escape plan\n');
+    const environment = {
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_REVIEW_LOG: reviewLog,
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    };
+
+    for (const target of [
+      '.claude/plans/impl-plan.md',
+      'notes/impl-plan.md',
+      '.project/impl-plan.md',
+    ]) {
+      const rejected = await runCli(
+        [
+          'review',
+          'run',
+          'plan-implementation',
+          target,
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        { cwd: directory, env: environment },
+      );
+      expect(
+        rejected.exitCode,
+        `A non-ticket Implementation Plan reached the reviewer: ${rejected.stdout}`,
+      ).toBe(1);
+      expect(JSON.parse(rejected.stdout)).toMatchObject({
+        state: 'failed',
+        errors: [
+          {
+            code: 'REVIEW_PLAN_TARGET_INVALID',
+            message: expect.stringContaining('.project/tickets/<ticket>/impl-plan.md'),
+          },
+        ],
+      });
+    }
+    expect(existsSync(reviewLog)).toBe(false);
+  });
+
+  it('activates Execution Plan review only for a ticket-owned plan through an admitted route', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    const executionPlanPath = nodePath.join(ticketDirectory, 'execution-plan.md');
+    const acceptedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      testCase => testCase.id === 'one-coherent-change',
+    )?.execution_plan;
+    if (acceptedPlan === undefined) throw new Error('Missing accepted slicing fixture');
+    const acceptedContract = parseDeliveryPlanContract(acceptedPlan);
+    if (!acceptedContract.ok) throw new Error(acceptedContract.message);
+    writeFileSync(executionPlanPath, acceptedPlan);
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
+    writeFileSync(nodePath.join(directory, 'execution-plan.md'), '# Unowned Execution Plan\n');
+    const bin = installFakeReviewer(directory, 'claude');
+    const executionPlanRecord = JSON.stringify({
+      slicing_decision: 'one_pull_request',
+      rationale: 'One coherent activation change.',
+      slices: [
+        {
+          name: 'Complete delivery',
+          purpose: 'Deliver the complete typed Execution Plan review capability.',
+          boundary: 'The complete reviewed delivery boundary.',
+          prerequisites: [],
+          proof: 'The real CLI integration test passes.',
+          completion_signal: 'The command retains an admitted approval.',
+          relies_on_unmerged_successor: false,
+        },
+      ],
+      obligation_owners: [{ obligation: 'Accepted behavior', slices: ['Complete delivery'] }],
+      decision_statuses: [{ decision: 'Use one coordinator', status: 'unchanged' }],
+      accepted_scenarios_covered: true,
+      accepted_approach_preserved: true,
+      normalized_plan_digest: normalizedExecutionPlanDigest(acceptedPlan),
+      delivery_definition: createExecutionPlanDeliveryDefinition(acceptedContract, false),
+    });
+    const environment = {
+      PATH: `${bin}:/usr/bin:/bin`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: executionPlanRecord,
+      SAFEWORD_REVIEW_FAKE_FINDING: 'require-contract:Current-to-target truthfulness',
+      SAFEWORD_REVIEW_LOG: reviewLog,
+      SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    };
+
+    const reviewArguments = [
+      'review',
+      'run',
+      'plan-execution',
+      '.project/tickets/T1-feature/execution-plan.md',
+      '--context',
+      '.project/tickets/T1-feature/impl-plan.md',
+      '--context',
+      '.project/tickets/T1-feature/behavior.feature',
+      '--json',
+      '--no-input',
+      '--cwd',
+      directory,
+    ];
+    const accepted = await runCli(reviewArguments, { cwd: directory, env: environment });
+
+    expect(accepted.exitCode, accepted.stdout).toBe(0);
+    expect(JSON.parse(accepted.stdout)).toMatchObject({
+      state: 'healthy',
+      data: {
+        status: 'approved',
+        review_kind: 'plan-execution',
+        assigned_reviewer: 'claude',
+        reviewer_model: 'opus',
+        reviewer_output: { execution_plan_record: JSON.parse(executionPlanRecord) },
+      },
+    });
+    const prompt = readFileSync(promptLog, 'utf8');
+    expect(prompt).toContain('"kind":"plan-execution"');
+    expect(prompt).toContain('"plan_contract"');
+    expect(prompt).toContain('Slicing decision');
+    expect(prompt).toMatch(/Reject line or file count as\s+the sole justification/);
+    expect(prompt).toContain('Current-to-target truthfulness');
+    expect(prompt).toContain('# Execution Plan');
+    expect(prompt).toContain('# Implementation Plan');
+    expect(prompt).toContain('Feature: behavior');
+
+    writeFileSync(
+      executionPlanPath,
+      `${acceptedPlan}\n## Current-to-target state\n\n- Current implementation: known defect contradicts the accepted design.\n- Target correction: restore the accepted authorization behavior.\n- Claimed delivery state: complete.\n`,
+    );
+    const contradicted = await runCli(reviewArguments, {
+      cwd: directory,
+      env: {
+        ...environment,
+        SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: '',
+        SAFEWORD_REVIEW_FAKE_FINDING:
+          'The known defect contradicts the accepted design, so the target correction remains open and cannot be called complete.',
+        SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+      },
+    });
+    expect(contradicted.exitCode, contradicted.stdout).toBe(2);
+    const contradictedOutput = JSON.parse(contradicted.stdout) as {
+      findings: unknown[];
+    };
+    expect(contradictedOutput).toMatchObject({
+      data: {
+        status: 'changes_requested',
+        reviewer_output: {
+          verdict: 'request_changes',
+          execution_plan_record: JSON.parse('null'),
+        },
+      },
+    });
+    expect(contradictedOutput.findings).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        message: expect.stringContaining('target correction remains open'),
+      }),
+    );
+
+    const rejected = await runCli(
+      [
+        'review',
+        'run',
+        'plan-execution',
+        'execution-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/impl-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/behavior.feature',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: environment },
+    );
+    expect(rejected.exitCode, rejected.stdout).toBe(1);
+    expect(JSON.parse(rejected.stdout)).toMatchObject({
+      errors: [
+        {
+          code: 'REVIEW_PLAN_TARGET_INVALID',
+          message: expect.stringContaining('.project/tickets/<ticket>/execution-plan.md'),
+        },
+      ],
+    });
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude', 'claude']);
+  });
+
+  it('guides the author to record an unresolved pull-request slicing decision', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
+    const executionPlanPath = nodePath.join(ticketDirectory, 'execution-plan.md');
+    const unresolvedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      testCase => testCase.id === 'omitted-slicing-decision',
+    )?.execution_plan;
+    if (unresolvedPlan === undefined) throw new Error('Missing unresolved slicing fixture');
+    const acceptedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      testCase => testCase.id === 'one-coherent-change',
+    )?.execution_plan;
+    if (acceptedPlan === undefined) throw new Error('Missing accepted slicing fixture');
+    writeFileSync(executionPlanPath, unresolvedPlan);
+    const bin = installFakeReviewer(directory, 'claude');
+    const reviewArguments = [
+      'review',
+      'run',
+      'plan-execution',
+      '.project/tickets/T1-feature/execution-plan.md',
+      '--context',
+      '.project/tickets/T1-feature/impl-plan.md',
+      '--context',
+      '.project/tickets/T1-feature/behavior.feature',
+      '--json',
+      '--no-input',
+      '--cwd',
+      directory,
+    ];
+    const environment = {
+      PATH: `${bin}:/usr/bin:/bin`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_REVIEW_FAKE_FINDING: 'Pull-request slicing decision is missing.',
+      SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+      SAFEWORD_REVIEW_LOG: reviewLog,
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    };
+
+    const deniedWithoutRecord = await runCli(reviewArguments, { cwd: directory, env: environment });
+
+    expect(deniedWithoutRecord.exitCode, deniedWithoutRecord.stdout).toBe(2);
+    const deniedResult = JSON.parse(deniedWithoutRecord.stdout) as {
+      data: unknown;
+      findings: { message: string }[];
+      recovery: { command: string; description: string; requires_human: boolean }[];
+    };
+    expect(deniedResult).toMatchObject({
+      data: {
+        status: 'changes_requested',
+        reviewer_output: {
+          verdict: 'request_changes',
+          execution_plan_record: JSON.parse('null'),
+        },
+      },
+    });
+    expect(deniedResult.findings.map(finding => finding.message)).toContain(
+      'Pull-request slicing decision is missing.',
+    );
+    expect(readFileSync(executionPlanPath, 'utf8')).toBe(unresolvedPlan);
+    expect(unresolvedPlan).toMatch(
+      /\| item-3 \| dependency and pull-request decomposition \|.*\| open \|/u,
+    );
+    expect(unresolvedPlan).not.toMatch(/^Decision: (?:one|multiple) pull requests?\.$/mu);
+    expect(acceptedPlan).toMatch(/^Decision: (?:one|multiple) pull requests?\.$/mu);
+    expect(deniedResult.recovery, 'the slicing denial must have one repair action').toHaveLength(1);
+    expect(deniedResult.recovery[0]).toMatchObject({
+      description:
+        'Record the missing pull-request slicing decision in the Execution Plan, then run the review again.',
+      requires_human: false,
+    });
+    expect(deniedResult.recovery[0]?.command).toContain('safeword review run plan-execution');
+    expect(deniedResult.recovery[0]?.command).toContain(
+      '.project/tickets/T1-feature/execution-plan.md',
+    );
+
+    writeFileSync(executionPlanPath, acceptedPlan);
+    const misleadingSlicingDenial = await runCli(reviewArguments, {
+      cwd: directory,
+      env: environment,
+    });
+    const misleadingResult = JSON.parse(misleadingSlicingDenial.stdout) as {
+      recovery: { description: string }[];
+    };
+    expect(misleadingSlicingDenial.exitCode, misleadingSlicingDenial.stdout).toBe(2);
+    expect(misleadingResult.recovery.map(action => action.description)).not.toContain(
+      'Record the missing pull-request slicing decision in the Execution Plan, then run the review again.',
+    );
+
+    writeFileSync(executionPlanPath, unresolvedPlan);
+    const unrelatedDenial = await runCli(reviewArguments, {
+      cwd: directory,
+      env: {
+        ...environment,
+        SAFEWORD_REVIEW_FAKE_FINDING: 'The risk register is incomplete.',
+      },
+    });
+    const unrelatedResult = JSON.parse(unrelatedDenial.stdout) as {
+      recovery: { description: string }[];
+    };
+    expect(unrelatedDenial.exitCode, unrelatedDenial.stdout).toBe(2);
+    expect(unrelatedResult.recovery.map(action => action.description)).toContain(
+      'Record the missing pull-request slicing decision in the Execution Plan, then run the review again.',
+    );
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual([
+      'claude',
+      'claude',
+      'claude',
+    ]);
+  });
+
+  it('keeps an accepted proof obligation open when the plan calls it not applicable', async () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'dismissed-applicable-work',
+    );
+    if (testCase === undefined) throw new Error('Missing applicable-work conformance fixture');
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), testCase.execution_plan);
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), testCase.implementation_plan);
+    writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), testCase.scenario);
+    const bin = installFakeReviewer(directory, 'claude');
+    const finding =
+      'Item item-4 dismisses Accepted behavior required by the behavior-boundary proof.';
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'plan-execution',
+        '.project/tickets/T1-feature/execution-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/impl-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/behavior.feature',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_FAKE_FINDING: finding,
+          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      findings: expect.arrayContaining([expect.objectContaining({ message: finding })]),
+      data: {
+        status: 'changes_requested',
+        reviewer_output: { verdict: 'request_changes', execution_plan_record: JSON.parse('null') },
+      },
+    });
+    expect(readFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), 'utf8')).toBe(
+      testCase.execution_plan,
+    );
+    expect(readFileSync(reviewLog, 'utf8').trim()).toBe('claude');
+  });
+
+  it('fails closed before dispatch when no configured route has current admission', async () => {
+    const executionPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      testCase => testCase.id === 'one-coherent-change',
+    )?.execution_plan;
+    if (executionPlan === undefined) throw new Error('Missing accepted execution plan fixture');
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    mkdirSync(ticketDirectory, { recursive: true });
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), executionPlan);
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({
+        crossAgentReviewRoutes: {
+          codex: [{ reviewer: 'claude', model: 'sonnet' }],
+        },
+      }),
+    );
+    const bin = installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'plan-execution',
+        '.project/tickets/T1-feature/execution-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/impl-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/behavior.feature',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
+      data: { status: 'blocked', review_kind: 'plan-execution', review_routes: [] },
+    });
+    expect(existsSync(reviewLog)).toBe(false);
+  });
+
+  it('reviews the ticket plan when a divergent host-private copy exists', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    const privateDirectory = nodePath.join(directory, '.claude', 'plans');
+    mkdirSync(ticketDirectory, { recursive: true });
+    mkdirSync(privateDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Authoritative project plan\n');
+    writeFileSync(nodePath.join(privateDirectory, 'impl-plan.md'), '# Divergent private plan\n');
+    const bin = installFakeReviewer(directory, 'claude');
+    const environment = {
+      PATH: `${bin}:/usr/bin:/bin`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_REVIEW_LOG: reviewLog,
+      SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    };
+
+    const accepted = await runCli(
+      [
+        'review',
+        'run',
+        'plan-implementation',
+        '.project/tickets/T1-feature/impl-plan.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: environment },
+    );
+    expect(accepted.exitCode, accepted.stdout).toBe(0);
+    expect(JSON.parse(accepted.stdout)).toMatchObject({
+      state: 'healthy',
+      data: {
+        status: 'approved',
+        review_targets: ['.project/tickets/T1-feature/impl-plan.md'],
+      },
+    });
+    const prompt = readFileSync(promptLog, 'utf8');
+    expect(prompt).toContain('# Authoritative project plan');
+    expect(prompt).not.toContain('# Divergent private plan');
+
+    const rejected = await runCli(
+      [
+        'review',
+        'run',
+        'plan-implementation',
+        '.claude/plans/impl-plan.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: environment },
+    );
+    expect(
+      rejected.exitCode,
+      `The divergent host-private plan became authoritative: ${rejected.stdout}`,
+    ).toBe(1);
+    expect(JSON.parse(rejected.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'REVIEW_PLAN_TARGET_INVALID' }],
+    });
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude']);
   });
 
   it.each([
@@ -865,6 +1504,57 @@ describe('cross-agent review public-command wiring', () => {
     },
   );
 
+  it('preserves every simultaneous Implementation Planning blocker in the installed CLI receipt', async () => {
+    const directory = createTemporaryDirectory();
+    await createConfiguredProject(directory);
+    const log = nodePath.join(directory, 'review.log');
+    const plan = '.project/tickets/PLAN01/impl-plan.md';
+    mkdirSync(nodePath.join(directory, '.project', 'tickets', 'PLAN01'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.project', 'tickets', 'PLAN01', 'ticket.md'),
+      '---\nid: PLAN01\ntype: feature\nphase: plan-implementation\n---\n',
+    );
+    writeFileSync(nodePath.join(directory, plan), '# Implementation Plan\n');
+    const bin = installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      ['review', 'run', 'plan-implementation', plan, '--json', '--no-input', '--cwd', directory],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_FAKE_FINDING:
+            'API contract is unresolved|||Rollback behavior is unresolved',
+          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(2);
+    const payload = JSON.parse(result.stdout) as {
+      findings: { code: string; message: string; severity: string }[];
+      data: { reviewer_output: { findings: { message: string; severity: string }[] } };
+    };
+    expect(payload, result.stdout).toMatchObject({
+      data: { reviewer_output: { findings: expect.any(Array) } },
+    });
+    const publicFindings = payload.findings.filter(finding => finding.code === 'REVIEWER_FINDING');
+    for (const findings of [publicFindings, payload.data.reviewer_output.findings]) {
+      expect(findings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ message: 'API contract is unresolved', severity: 'error' }),
+          expect.objectContaining({
+            message: 'Rollback behavior is unresolved',
+            severity: 'error',
+          }),
+        ]),
+      );
+    }
+  });
+
   it.each(['prefer', 'require'] as const)(
     'returns typed exhaustion for a Cursor author under $policy policy without invoking OpenCode',
     async policy => {
@@ -990,33 +1680,6 @@ describe('cross-agent review public-command wiring', () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'failed',
       errors: [{ code: 'REVIEW_KIND_INVALID' }],
-    });
-  });
-
-  it('keeps plan-execution receipt compatibility read-only', async () => {
-    const directory = createTemporaryDirectory();
-
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'plan-execution',
-        'execution-plan.md',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: { SAFEWORD_NO_UPDATE_CHECK: '1' },
-      },
-    );
-
-    expect(result.exitCode).toBe(1);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'failed',
-      errors: [{ code: 'REVIEW_KIND_NOT_RUNNABLE' }],
     });
   });
 
@@ -1391,6 +2054,16 @@ describe('cross-agent review public-command wiring', () => {
     },
     {
       failure: 'auth',
+      classification: 'not_authenticated',
+      action: 'Reauthenticate Codex, then retry the original independent review.',
+    },
+    {
+      failure: 'auth-stdout',
+      classification: 'not_authenticated',
+      action: 'Reauthenticate Codex, then retry the original independent review.',
+    },
+    {
+      failure: 'auth-expired-stdout',
       classification: 'not_authenticated',
       action: 'Reauthenticate Codex, then retry the original independent review.',
     },

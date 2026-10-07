@@ -1,6 +1,10 @@
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult, type Effect, type Finding } from '../cli-protocol/result.js';
+import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import { retryCommand } from './command.js';
 import type {
   RedExecutionAttestation,
@@ -12,9 +16,11 @@ import type {
   ReviewPolicy,
   UnverifiedReviewerOutput,
 } from './contract.js';
+import { filterExecutionPlanRoutes } from './execution-plan-conformance.js';
 import { prepareReviewPacket } from './packet.js';
 import type { ReviewRoute } from './policy.js';
 import {
+  builtInReviewRoutes,
   readAlternateReviewerModel,
   readConfiguredReviewRoutes,
   readPrimaryReviewerModel,
@@ -35,6 +41,69 @@ type ReviewRunInput = {
   readonly progress?: ReviewProgress;
   readonly executionAttestation?: RedExecutionAttestation;
 };
+
+function implementationPlanningRecovery(cwd: string, target: string): CliResult['recovery'] {
+  try {
+    const targetPath = nodePath.resolve(cwd, target);
+    const ticketPath = nodePath.join(nodePath.dirname(targetPath), 'ticket.md');
+    const ticket = readFileSync(ticketPath, 'utf8');
+    const ticketId = readFrontmatterScalar(ticket, 'id');
+    if (ticketId === undefined || ticketId.trim() === '') return [];
+    return [
+      {
+        command: `safeword ticket approve-plan ${ticketId}`,
+        description:
+          'Apply the reviewed return to Implementation Planning before repairing the accepted decision.',
+        requiresHuman: false,
+      },
+    ];
+  } catch {
+    return [];
+  }
+}
+
+function planExecutionRecovery(input: {
+  readonly cwd: string;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
+  readonly context?: readonly string[];
+  readonly output: ReviewerOutput;
+}): CliResult['recovery'] {
+  if (input.kind !== 'plan-execution' || input.output.verdict !== 'request_changes') return [];
+  const target = input.targets[0];
+  if (target === undefined) return [];
+
+  if (input.output.planning_destination === 'plan-implementation') {
+    return implementationPlanningRecovery(input.cwd, target);
+  }
+
+  let plan: string;
+  try {
+    plan = readFileSync(nodePath.resolve(input.cwd, target), 'utf8');
+  } catch {
+    return [];
+  }
+  const slicingSection = plan
+    .split(/^## Pull-request slicing\s*$/imu, 2)[1]
+    ?.split(/^##\s+/mu, 1)[0];
+  if (
+    slicingSection !== undefined &&
+    /^(?:\*\*)?Decision:(?:\*\*)?\s*(?:one pull request|multiple pull requests)\.?\s*$/imu.test(
+      slicingSection,
+    )
+  ) {
+    return [];
+  }
+
+  return [
+    {
+      command: retryCommand(input.kind, input.targets, input.context),
+      description:
+        'Record the missing pull-request slicing decision in the Execution Plan, then run the review again.',
+      requiresHuman: false,
+    },
+  ];
+}
 
 type DegradedReviewInput = ReviewRunInput & {
   readonly author: ReviewAgent;
@@ -84,7 +153,11 @@ function verifyProvenance(
 }
 
 function independentReviewResult(input: {
+  readonly cwd: string;
   readonly author: ReviewAuthor;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
+  readonly context?: readonly string[];
   readonly reviewer: ReviewAgent;
   readonly output: ReviewerOutput;
   readonly model?: string;
@@ -116,9 +189,12 @@ function independentReviewResult(input: {
         reviewRequest(input.reviewer),
       ],
     },
+    recovery: planExecutionRecovery(input),
     data: {
       command: 'review run',
       status: input.output.verdict === 'approve' ? 'approved' : 'changes_requested',
+      review_kind: input.kind,
+      review_targets: input.targets,
       author_agent: input.author,
       assigned_reviewer: input.reviewer,
       actual_reviewer: input.output.reviewer_agent,
@@ -757,7 +833,11 @@ async function runRankedRoutes(
     evidence.push({ ...route, status: 'attempted' });
     if (route.independence === 'cross-agent') {
       const result = independentReviewResult({
+        cwd: input.cwd,
         author,
+        kind: input.kind,
+        targets: input.targets,
+        context: input.context,
         reviewer: route.reviewer,
         output: assessment.output,
         model: route.model,
@@ -1305,7 +1385,11 @@ async function runAlternateModelRoute(
   const output = assessment.output;
 
   const result = independentReviewResult({
+    cwd: input.cwd,
     author: input.author,
+    kind: input.kind,
+    targets: input.targets,
+    context: input.context,
     reviewer: input.reviewer,
     output,
     model,
@@ -1375,7 +1459,11 @@ async function runIndependentFallback(
   return {
     kind: 'completed',
     result: independentReviewResult({
+      cwd: input.cwd,
       author: input.author,
+      kind: input.kind,
+      targets: input.targets,
+      context: input.context,
       reviewer: input.reviewer,
       output: assessment.output,
       preferredReviewer: input.preferredReviewer,
@@ -1663,9 +1751,9 @@ async function runReviewCore(input: ReviewRunInput): Promise<CliResult> {
   } catch (error) {
     return invalidRouteConfigResult(error, routes.author, policy);
   }
-  if (configuredRoutes !== undefined) {
-    return runRankedRoutes(input, routes.author, policy, configuredRoutes);
-  }
+  const rankedRoutes = rankedReviewRoutes(input, routes.author, configuredRoutes);
+  if (rankedRoutes !== undefined)
+    return runRankedRoutes(input, routes.author, policy, rankedRoutes);
   const reviewer = routes.preferred;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
@@ -1730,13 +1818,29 @@ async function runReviewCore(input: ReviewRunInput): Promise<CliResult> {
   const output = provenance.output;
 
   return independentReviewResult({
+    cwd: input.cwd,
     author: routes.author,
+    kind: input.kind,
+    targets: input.targets,
+    context: input.context,
     reviewer,
     output,
     model: completedModel,
     preferredModel,
     preferredModelFailure,
   });
+}
+
+function rankedReviewRoutes(
+  input: ReviewRunInput,
+  author: ReviewAgent,
+  configured: readonly ReviewRoute[] | undefined,
+): readonly ReviewRoute[] | undefined {
+  if (input.kind !== 'plan-execution') return configured;
+  return filterExecutionPlanRoutes(
+    input.kind,
+    configured ?? builtInReviewRoutes(input.cwd, author),
+  );
 }
 
 export async function runReview(input: ReviewRunInput): Promise<CliResult> {

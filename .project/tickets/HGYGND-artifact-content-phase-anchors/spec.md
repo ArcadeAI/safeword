@@ -57,7 +57,9 @@ did not fire.
 | --- | --- | --- | --- |
 | intake → define-behavior | `spec.md` (Intake Brief, JTBD, Rules) + `scope`/`out_of_scope`/`done_when` frontmatter | yes | spec/JTBD/criteria gates, `pre-tool-quality.ts:289-424` |
 | define-behavior → scenario-gate | `features/<slug>.feature` + `test-definitions.md` skeleton + `dimensions.md` | yes | dimensions gate `pre-tool-quality.ts:343-365`; stop hook `stop-quality.ts:182-208` |
-| scenario-gate → implement | `impl-plan.md` (authored at scenario-gate exit) | yes | hard-block at implement+ `stop-quality.ts:218-238` |
+| scenario-gate → plan-implementation | reviewed feature source (the scenario-gate has no distinct exit artifact) | yes | scenario review gate |
+| plan-implementation → plan-execution | `impl-plan.md` | yes | Implementation Plan review gate |
+| plan-execution → implement | `execution-plan.md` | yes | Execution Plan review and coding-authorization gates |
 | implement → verify | R/G/R ledger ticks with per-tick SHAs in `test-definitions.md`; `impl-plan.md` Status → implemented | yes | tick-annotation write gate `pre-tool-quality.ts:587-611`; reconciliation `stop-quality.ts:242-247` |
 | verify → done | `verify.md` (PR-scope + audit lines) | yes | done gate `stop-quality.ts:537-548`, `done-gate.ts:25-58` |
 
@@ -84,7 +86,8 @@ hashes.
   left): define-behavior ← `spec.md` · scenario-gate ← the feature source
   (`features/<slug>.feature`, a direct workspace's `features/` lane, or the
   configured feature lane; same-named `.feature` files elsewhere are not
-  executable evidence) · implement ← `impl-plan.md` · verify ←
+  executable evidence) · plan-implementation ← that reviewed feature source ·
+  plan-execution ← `impl-plan.md` · implement ← `execution-plan.md` · verify ←
   `test-definitions.md` (the R/G/R ledger) · done ← `verify.md`. The explicit
   path (rather than a derived map) pins per-ticket ambiguity — configurable
   features dir, legacy AC-path tickets — and keeps the traversal trail the

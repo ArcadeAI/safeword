@@ -17,7 +17,11 @@ import { resolveNamespaceRoot } from './namespace-root.js';
 import { isValidSkipReason } from './parse-annotation.js';
 import { activeScenarioKey } from './skill-nudge.js';
 
-export { inspirationContractProvenance, specArtifactProvenance } from './feature-provenance.js';
+export {
+  executionPlanContractProvenance,
+  inspirationContractProvenance,
+  specArtifactProvenance,
+} from './feature-provenance.js';
 
 export interface ActiveTicketInfo {
   phase: string | undefined;

@@ -1,6 +1,6 @@
 # SAFEWORD Agent Instructions
 
-The standing operating model for this project. Read at session start; re-scan by topic as situations arise. Project-specific rules live in the project's own `./AGENTS.md` or `./CLAUDE.md` (whichever your host reads). Triggered playbooks live in `./.safeword/guides/`.
+The standing operating model for this project. Read at session start; re-scan by topic as situations arise. Project-specific rules live in `./CLAUDE.md`. Triggered playbooks live in `./.safeword/guides/`.
 
 Project knowledge (tickets, learnings, principles, personas, glossary, surfaces) lives under the **project namespace root**: configurable via `paths.projectRoot` in `.safeword/config.json`, `.project/` by default, with legacy `.safeword-project/` honored only when that directory already exists. Paths below use `<namespace-root>` for the resolved directory.
 
@@ -49,13 +49,13 @@ Before proceeding, run the **specificity self-test**: can you describe the behav
 - **Riskiest assumption** — and the cheapest way to test it before building.
 - **Request shape** — is this the problem, or someone's guess at the fix?
 
-Scale depth by blast radius — reversible, local work proceeds; irreversible or high-blast work resolves the open unknowns first. You're ready when your remaining questions are about edge-cases and trade-offs, not basics. When a feature's recorded Reversibility says one-way (data model, public API, or migration), intake offers a deeper **cold-start executability check** at exit (`.safeword/guides/cold-start-check.md`) — a context-free agent attempts to plan the work from the captured spec alone, surfacing what it couldn't reconstruct; runnable on demand too.
+Scale depth by blast radius — reversible, local work proceeds; irreversible or high-blast work resolves the open unknowns first. You're ready when your remaining questions are about edge-cases and trade-offs, not basics. For one-way-door (irreversible) features, intake offers a deeper **cold-start executability check** at exit (`.safeword/guides/cold-start-check.md`) — a context-free agent attempts to plan the work from the captured spec alone, surfacing what it couldn't reconstruct; runnable on demand too.
 
 **PM-grade intake** is the name for how these fit together, scaled by blast radius — one protocol, not three disconnected mechanisms:
 
 - The readiness pointer nudges every turn.
-- The Product Plan in `spec.md` (Product Bet · jobs and Rules · Shape · Killer Demo · Surfaces) is authored for features.
-- The cold-start executability check is offered only when the recorded Reversibility says one-way.
+- The Intake Brief (who asked · cost of inaction · reversibility) is authored for features.
+- The cold-start executability check fires only for one-way-door work.
 - `$safeword:elicit`, `$safeword:brainstorm`, and `$safeword:figure-it-out` get pulled in as the gaps demand (unknown intent · empty option space · options to weigh).
 
 **Project principles.** Before choosing scope or design, read the configured
@@ -73,16 +73,16 @@ If the conversation feels circular, make a best-guess proposal: "Here's my best 
 Exit: user accepts your proposal. For features, intake builds its artifacts in order, each anchoring the next:
 
 1. Load personas, glossary, and surfaces from the configured project-knowledge files.
-2. Open the **Product Plan** in `spec.md` (from `spec-template.md`) with its **Product Bet** — problem / why now, expected outcome, falsifiable success threshold, non-goals — the framing for the decision to build, which also triages whether this is a feature or a leaner task. A child feature (`parent`, `parent_job`, `milestone`) uses `child-spec-template.md` instead: just its Contribution and feature-owned Rules; the parent owns the bet and jobs.
+2. Open with a short **Intake Brief** in `spec.md` (who asked · cost of inaction · reversibility) — the framing for the decision to build, which also triages whether this is a feature or a leaner task.
 3. Author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form. Jobs are outcomes the persona wants to be true; never drop or narrow one because of how it would be built. Feasibility, state, and which layer serves it are plan-implementation questions.
-4. Decompose each job into numbered Rules — one testable invariant per `#### <jtbd-id>.R<n>`, the level that define-behavior scenarios later prove against. (Acceptance Criteria — `#### <jtbd-id>.AC<n>` — is the still-supported legacy alternative; one criteria kind per job, never both.) Then sketch the Shape (milestones), Killer Demo, and affected Surfaces.
+4. Decompose each job into numbered Rules — one testable invariant per `#### <jtbd-id>.R<n>`, the level that define-behavior scenarios later prove against. (Acceptance Criteria — `#### <jtbd-id>.AC<n>` — is the still-supported legacy alternative; one criteria kind per job, never both.)
 5. Let jobs-and-rules anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
 
 - **`scope`** — what you're building (derived from accepted choices).
 - **`out_of_scope`** — what you're not building (rejected alternatives + domain-knowledge exclusions).
 - **`done_when`** — observable outcomes.
 
-In define-behavior, each Gherkin `Rule:` block carries its lineage as a `@<jtbd-id>.R<#>` tag that its scenarios inherit (legacy specs tag each scenario `@<jtbd-id>.AC<#>`); scenario names stay plain English. That lets `safeword doctor` flag coverage gaps — uncovered rules, orphan scenarios. The bdd skill's DISCOVERY.md walks these sub-steps end to end with a worked example; SCENARIOS.md covers the numbering.
+In define-behavior, each scenario carries its lineage `<jtbd-id>.R<#>.<scenario_name>` (snake_case; `.AC<#>` on the legacy path) so `safeword doctor` flags coverage gaps — uncovered rules, orphan scenarios. The bdd skill's DISCOVERY.md walks these sub-steps end to end with a worked example; SCENARIOS.md covers the numbering.
 
 If the user is exploring without intent to build, follow their lead — not every conversation produces a ticket.
 
@@ -126,7 +126,7 @@ Never ask the user to test what you can test yourself. Run the relevant tests af
 
 ### 5. Done
 
-Run `$safeword:verify` (it writes `verify.md`) and, for features, `$safeword:audit`. The done gate re-runs the tests and blocks until they pass and the evidence is real — see Enforcement.
+The done gate hard-blocks until `verify.md` exists in the ticket folder. Run `$safeword:verify` — it produces the artifact.
 
 ---
 
@@ -176,21 +176,24 @@ Blog posts, tweets, marketing, and "I remember reading…" don't count for any t
 
 Read the matching guide when its trigger fires:
 
-| Trigger                                                          | Guide                                                 |
-| ---------------------------------------------------------------- | ----------------------------------------------------- |
-| Starting a feature/task OR writing specs/test-definitions        | `./.safeword/guides/planning-guide.md`                |
-| Choosing test type, doing TDD, or a test is failing              | `./.safeword/guides/testing-guide.md`                 |
-| Deciding when a test or check runs (smoke, live, release lanes)  | `./.safeword/guides/verification-lanes-guide.md`      |
-| Building or evaluating an AI/LLM feature                         | `./.safeword/guides/llm-evals-guide.md`               |
-| Changing a skill's prompt and proving it's better                | `./.safeword/guides/skill-eval-optimization-guide.md` |
-| Creating or updating a design doc                                | `./.safeword/guides/design-doc-guide.md`              |
-| Making an architectural decision or writing an ADR               | `./.safeword/guides/architecture-guide.md`            |
-| Understanding the generated `architecture.generated.md` doc      | `./.safeword/guides/architecture-guide.md`            |
-| Data-heavy project needing formal data architecture              | `./.safeword/guides/data-architecture-guide.md`       |
-| Writing learnings or agent config (CLAUDE.md, .cursor/rules)     | `./.safeword/guides/llm-writing-guide.md`             |
-| Updating CLAUDE.md, SAFEWORD.md, or any context file             | `./.safeword/guides/context-files-guide.md`           |
-| Hit the same bug repeatedly or discovered an undocumented gotcha | `./.safeword/guides/learning-extraction.md`           |
-| Process hanging, port in use, or zombie process suspected        | `./.safeword/guides/zombie-process-cleanup.md`        |
+| Trigger                                                             | Guide                                                 |
+| ------------------------------------------------------------------- | ----------------------------------------------------- |
+| Starting a feature/task OR writing specs/test-definitions           | `./.safeword/guides/planning-guide.md`                |
+| Choosing proof scope during planning, doing TDD, or a test failing  | `./.safeword/guides/testing-guide.md`                 |
+| Deciding when a check runs (smoke, live, or release)                | `./.safeword/guides/verification-lanes-guide.md`      |
+| Building or evaluating an AI/LLM feature                            | `./.safeword/guides/llm-evals-guide.md`               |
+| Changing a skill prompt and proving it improved                     | `./.safeword/guides/skill-eval-optimization-guide.md` |
+| Creating or updating a design doc                                   | `./.safeword/guides/design-doc-guide.md`              |
+| Making a significant structural/shared-contract decision or ADR     | `./.safeword/guides/architecture-guide.md`            |
+| Understanding the generated `architecture.generated.md` doc         | `./.safeword/guides/architecture-guide.md`            |
+| Changing data contracts, ownership, lifecycle, or cross-system flow | `./.safeword/guides/data-architecture-guide.md`       |
+| Changing an interface or access rule                                | `./.safeword/guides/interface-contract-guide.md`      |
+| Planning live transition, material failure, or reversal             | `./.safeword/guides/release-recovery-guide.md`        |
+| Designing measurement for a Product promise or decision signal      | `./.safeword/guides/measurement-design-guide.md`      |
+| Writing learnings or agent config (CLAUDE.md, .cursor/rules)        | `./.safeword/guides/llm-writing-guide.md`             |
+| Updating CLAUDE.md, SAFEWORD.md, or any context file                | `./.safeword/guides/context-files-guide.md`           |
+| Hit the same bug repeatedly or discovered an undocumented gotcha    | `./.safeword/guides/learning-extraction.md`           |
+| Process hanging, port in use, or zombie process suspected           | `./.safeword/guides/zombie-process-cleanup.md`        |
 
 ---
 
@@ -200,7 +203,7 @@ Read the matching guide when its trigger fires:
 
 **Commit frequently.** After each GREEN phase, before and after refactors, when switching tasks. The LOC gate fires near 400 lines — commit to reset it.
 
-**Reviewer-as-customer pull requests.** Keep speculative work on a branch. Open a pull request only when the user asks, and as a Draft only for concrete CI, AI review, or a narrow human sanity check. Before writing a PR body, responding to review, or promoting a PR to Ready, run `$safeword:pr-readiness`: its seven current-head gates and reviewer-oriented description contract are the single source of truth. Missing evidence keeps the PR Draft. Mark a pull request Ready for review only when the user explicitly asks for that exact change; a request to push, publish, or open a pull request does not authorize Ready.
+**Reviewer-as-customer pull requests.** Keep speculative work on a branch. Open a Draft only for concrete CI, AI review, or a narrow human sanity check. Before writing a PR body, responding to review, or promoting a PR to Ready, run `$safeword:pr-readiness`: its seven current-head gates and reviewer-oriented description contract are the single source of truth. Missing evidence keeps the PR Draft. Only create or mark a pull request ready for review when the user explicitly asks; a request to push, publish, or open a pull request does not count.
 
 **Worktree entry (all hosts).** At session start and after moving roots or creating a worktree, run `pwd && git rev-parse --show-toplevel && git branch --show-current && git rev-parse --short HEAD` before evidence gathering or edits. Do not guess a package directory or probe a speculative path. Work from the reported repository root; use `<namespace-root>/architecture.generated.md` to find monorepo packages when present, otherwise inspect the root once. If the path, repo root, branch, or commit is wrong, stop and fix the workspace before touching files.
 
@@ -210,14 +213,14 @@ Read the matching guide when its trigger fires:
 
 ## Enforcement
 
-Safeword runs hooks each turn to track your phase and TDD step. A feature ticket moves one step at a time through `intake → define-behavior → scenario-gate → plan-implementation → implement → verify → done` (deviations need a recorded `phase_skips` reason). The main hard blocks:
+Safeword runs hooks each turn to track your phase and TDD step. A feature moves through intake, behavior definition, scenario review, planning, implementation, verification, and done. The main hard blocks:
 
-- **Scenario prerequisites** — `test-definitions.md` needs `scope` / `out_of_scope` / `done_when` in ticket frontmatter and a phase past intake; features also need `dimensions.md`, a `spec.md` with valid jobs and Rules, and a `$safeword:self-review` stamp on its current content. Leaving intake also waits on unfinished `blocked_on` tickets.
-- **Phase review** — leaving a phase needs an independent review stamp, unless `reviewGate` in `.safeword/config.json` excludes that exit.
-- **Plan gate** — no application code during plan-implementation; a new-flow feature can't enter `implement` without a valid `impl-plan.md` (status `planned`) or finish until it's reconciled to `implemented`; feature code needs `test-definitions.md` first.
-- **Ledger** — each RED/GREEN/REFACTOR checkbox needs a commit SHA or `skip: <reason>`; a REFACTOR commit can't touch tests.
+- **Scenario prerequisites** — `test-definitions.md` needs `scope` / `out_of_scope` / `done_when` in ticket frontmatter; features also need reviewed behavior and dimensions.
+- **Phase review** — leaving a phase needs independent review unless the configured review gate excludes that exit.
+- **Planning gates** — a new-flow feature can't enter `plan-execution` without a current reviewed Implementation Plan, or enter `implement` without a current reviewed Execution Plan. It can't reach `verify`/`done` until the Implementation Plan is reconciled to `implemented`.
+- **Ledger** — each RED/GREEN/REFACTOR checkbox needs its required proof; a REFACTOR commit can't touch tests.
 - **LOC gate** — commit every ~400 lines of project code (blast-radius control).
-- **Done gate** — dependencies installed, tests re-run green, a valid `verify.md` (with PR scope); for features, every scenario checked off, no `@wip` left in the feature file, and `$safeword:verify` + `$safeword:audit` run this session.
+- **Done gate** — can't close a ticket without current verification evidence in `verify.md`; features need every scenario accounted for and no `@wip` scenario left.
 
 The prompt hook injects your current phase each turn as a reminder.
 

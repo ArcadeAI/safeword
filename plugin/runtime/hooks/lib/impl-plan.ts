@@ -47,6 +47,53 @@ export interface ImplPlanResult {
   errors: string[];
 }
 
+export interface UserAuthorityEvidence {
+  kind: 'user-scope-change';
+  ticketId: string;
+  sessionId: string;
+  proposedScopeDigest: string;
+}
+
+export interface ScopeExpansionInput {
+  ticketId: string;
+  sessionId: string;
+  proposedScopeDigest: string;
+  authorityEvidence?: unknown;
+  /** Plan and work-log prose is untrusted context, never scope authority. */
+  untrustedClaims?: readonly string[];
+}
+
+export type ScopeExpansionDecision =
+  | { accepted: true; reason: 'matching-user-authority' }
+  | { accepted: false; reason: 'missing-or-mismatched-user-authority' };
+
+/**
+ * Admit proposed scope only when the caller supplies the exact typed authority
+ * for this ticket, session, and scope digest. Authentic authority acquisition
+ * belongs to the host boundary; this consumer deliberately fails closed.
+ */
+export function evaluateScopeExpansion(input: ScopeExpansionInput): ScopeExpansionDecision {
+  const evidence = input.authorityEvidence;
+  const matches =
+    typeof evidence === 'object' &&
+    evidence !== null &&
+    'kind' in evidence &&
+    evidence.kind === 'user-scope-change' &&
+    'ticketId' in evidence &&
+    evidence.ticketId === input.ticketId &&
+    input.ticketId !== '' &&
+    'sessionId' in evidence &&
+    evidence.sessionId === input.sessionId &&
+    input.sessionId !== '' &&
+    'proposedScopeDigest' in evidence &&
+    evidence.proposedScopeDigest === input.proposedScopeDigest &&
+    input.proposedScopeDigest !== '';
+
+  return matches
+    ? { accepted: true, reason: 'matching-user-authority' }
+    : { accepted: false, reason: 'missing-or-mismatched-user-authority' };
+}
+
 const STATUS_PREFIX = '**Status:**';
 const SKIP_PREFIX = 'skip:';
 const DECISIONS_SCAFFOLD_LINES = new Set<string>(Object.values(IMPLEMENTATION_INSPIRATION_GRAMMAR));
@@ -207,4 +254,41 @@ export function hasCitation(text: string): boolean {
 /** The active (non-comment) body text of a named section, joined by newlines; '' when absent. */
 export function sectionBody(content: string, name: ImplPlanSectionName): string {
   return (collectSectionBodies(activeLines(content)).get(name) ?? []).join('\n');
+}
+
+const UNRESOLVED_CHOICE = /^(?:|<[^>]+>|tbd|tbu|pending|open|unknown|unresolved|not decided)$/iu;
+
+/**
+ * Decision names whose Choice cell explicitly says the behavior-shaping choice
+ * is still open. These tokens are the machine-readable planning convention;
+ * semantic review remains responsible for finding choices disguised as prose.
+ */
+export function unresolvedDecisionNames(content: string): string[] {
+  const lines = sectionBody(content, 'Decisions').split('\n');
+  const recordedDecisions = lines.findIndex(line =>
+    /^#{3,6}\s+Recorded Decisions\s*$/iu.test(line.trim()),
+  );
+  if (recordedDecisions < 0) return [];
+
+  const names: string[] = [];
+  for (const line of lines.slice(recordedDecisions + 1)) {
+    if (/^#{2,6}\s+/u.test(line.trim())) break;
+    if (!line.trim().startsWith('|')) continue;
+    const cells = line
+      .trim()
+      .slice(1, -1)
+      .split('|')
+      .map(cell => cell.trim());
+    if (cells.length < 2) continue;
+    const [decision = '', choice = ''] = cells;
+    if (
+      decision !== '' &&
+      decision.toLowerCase() !== 'decision' &&
+      !/^[-: ]+$/u.test(decision) &&
+      UNRESOLVED_CHOICE.test(choice)
+    ) {
+      names.push(decision);
+    }
+  }
+  return names;
 }

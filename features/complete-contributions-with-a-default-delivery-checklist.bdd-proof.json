@@ -1,0 +1,123 @@
+{
+  "feature": "features/complete-contributions-with-a-default-delivery-checklist.feature",
+  "scenarios": {
+    "The installed CLI exposes a satisfied execution prerequisite": [
+      "packages/cli/tests/integration/delivery-execution-prerequisite.test.ts",
+      "runs through the installed CLI with integrity-checked admitted reviews"
+    ],
+    "Missing contribution context blocks execution readiness": [
+      "packages/cli/tests/integration/delivery-execution-prerequisite.test.ts",
+      "denies only the missing %s prerequisite with one repair"
+    ],
+    "Several missing prerequisites are reported in deterministic planning order": [
+      "packages/cli/tests/integration/delivery-execution-prerequisite.test.ts",
+      "reports every missing prerequisite once in deterministic planning order"
+    ],
+    "A complete checklist exposes every default obligation category": [
+      "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
+      "returns every item from a complete checklist in plan order"
+    ],
+    "A silently omitted default category prevents checklist completion": [
+      "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
+      "names a missing %s default category"
+    ],
+    "An applicable item records an honest disposition": [
+      [
+        "packages/cli/tests/integration/delivery-checklist-update.test.ts",
+        "records one receipt while preserving every other plan byte"
+      ],
+      [
+        "packages/cli/tests/review/execution-plan-output.test.ts",
+        "admits a reviewed contributor not-applicable item without a proof claim"
+      ],
+      [
+        "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
+        "snapshots stable planning identity while excluding mutable progress"
+      ]
+    ],
+    "Contributor-controlled work cannot be dismissed as a human handoff": [
+      "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
+      "keeps contributor-controlled work open when it is labeled pending human"
+    ],
+    "Applicable contributor work cannot be dismissed as not applicable": [
+      "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "keeps every authoritative scenario example as its own case"
+    ],
+    "In-flight checklist state reflects partial execution progress": [
+      "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
+      "records retained proof and immediately reports the next open obligation"
+    ],
+    "An unreadable Execution Plan blocks checklist updates": [
+      "packages/cli/tests/integration/delivery-checklist-unreadable.test.ts",
+      "blocks the installed CLI with one repair and does not regenerate the plan"
+    ],
+    "The feature Delivery Checklist lives in the Execution Plan": [
+      "packages/cli/tests/integration/plan-design-approval.test.ts",
+      "creates the feature checklist only inside the canonical Execution Plan"
+    ],
+    "The feature checklist contract cannot impose feature artifacts on smaller work": [
+      "packages/cli/tests/integration/delivery-execution-prerequisite.test.ts",
+      "keeps %s work outside the feature contract"
+    ],
+    "The checklist records the appropriate PR-slicing outcome": [
+      "packages/cli/tests/integration/delivery-execution-prerequisite.test.ts",
+      "returns the reviewed %s slicing outcome when its checklist item is completed"
+    ],
+    "A large contribution cannot leave PR slicing unresolved": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "guides the author to record an unresolved pull-request slicing decision"
+    ],
+    "Readiness reports the next owning boundary without inventing authority": [
+      [
+        "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
+        "does not trust a hand-written complete checklist row"
+      ],
+      [
+        "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
+        "rejects a contributor obligation whose required proof is not a real-boundary proof"
+      ],
+      [
+        "packages/cli/tests/execution-plan/delivery-proof.test.ts",
+        "keeps proof current across a plan-only commit and stales it on any source change"
+      ],
+      [
+        "packages/cli/tests/review/delivery-proof-ledger.test.ts",
+        "retains one idempotent compatibility acceptance with exact bindings"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
+        "keeps another human dependency pending after design approval"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
+        "distinguishes contributor completion, pending human work, and satisfied design approval"
+      ]
+    ],
+    "Contributor evidence cannot record human approval": [
+      "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
+      "keeps human approval pending when a contributor records evidence for it"
+    ],
+    "Evidence class controls the claim Safeword may make": [
+      [
+        "packages/cli/tests/execution-plan/delivery-proof.test.ts",
+        "executes only the retained argv directly with closed non-TTY stdin"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
+        "records an approved compatibility review before reusing earlier proof"
+      ],
+      [
+        "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
+        "requires an executable real-boundary proof for contributor testing"
+      ],
+      [
+        "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
+        "retains missing as the evidence class for an open obligation"
+      ]
+    ],
+    "Earlier or partial evidence cannot silently become current complete proof": [
+      "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
+      "keeps supporting proof narrow and reports both partial and earlier-revision gaps"
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "feature": "features/split-large-contributions-into-reviewable-prs.feature",
+  "scenarios": {
+    "Contribution shape produces an explicit slicing decision": [
+      "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "records an explicit slicing outcome for %s"
+    ],
+    "An omitted slicing decision cannot pass Execution Plan review": [
+      "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "keeps an omitted slicing decision as a named denial case"
+    ],
+    "Installed review dispatch carries the canonical slicing contract": [
+      "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "binds admission to the complete static prompt contract dispatched to reviewers"
+    ],
+    "A complete pull-request slice receives a complete review record": [
+      "packages/cli/tests/review/execution-plan-output.test.ts",
+      "accepts a complete positive record without changing it"
+    ],
+    "An incomplete pull-request slice is rejected": [
+      "packages/cli/tests/review/execution-plan-output.test.ts",
+      "classifies %s as retryable invalid output"
+    ],
+    "A pull-request slice with two independent purposes is rejected": [
+      "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "keeps two independent purposes as a named denial case"
+    ],
+    "A formally complete slice cannot leave a design decision to its implementer": [
+      "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "keeps unresolved authorization as a named denial case"
+    ],
+    "Ordered slices preserve a supported repository after every merge": [
+      "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "keeps ordered schema activation as a supported approval case"
+    ],
+    "A slice that becomes safe only after a later merge is rejected": [
+      "packages/cli/tests/review/execution-plan-output.test.ts",
+      "converts a readable successor dependency to a final named denial"
+    ],
+    "Conceptual scope determines reviewable slicing": [
+      "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "assigns staged obligations honestly in %s"
+    ],
+    "Line count alone cannot justify a slicing decision": [
+      "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "keeps line count alone as a named conceptual-scope denial"
+    ],
+    "Accepted obligations remain assigned across pull-request slices": [
+      "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "keeps complete obligation ownership as an approval case"
+    ],
+    "Accepted decisions remain unchanged across pull-request slices": [
+      "packages/cli/tests/review/execution-plan-output.test.ts",
+      "accepts exactly one independently safe slice for one pull request"
+    ],
+    "A slicing plan cannot discard an accepted obligation": [
+      "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "keeps %s as a named missing-obligation denial"
+    ],
+    "A pull-request slice cannot rewrite an accepted approach decision": [
+      "packages/cli/tests/review/execution-plan-output.test.ts",
+      "converts a readable changed decision to a final named denial"
+    ]
+  }
+}

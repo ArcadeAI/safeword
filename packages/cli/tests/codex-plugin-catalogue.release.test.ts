@@ -50,6 +50,7 @@ function expectedPluginAssets(): string[] {
   return [
     ...canonicalAssets,
     'bdd/references/adr-template.md',
+    'bdd/references/execution-plan-template.md',
     'bdd/references/impl-plan-template.md',
   ].toSorted((left, right) => left.localeCompare(right));
 }

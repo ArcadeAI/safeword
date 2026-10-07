@@ -1,0 +1,405 @@
+# Test Definitions: Approve coherent Implementation Plans
+
+Feature source: `features/approve-coherent-implementation-plans.feature`
+
+test-definitions.md is the R/G/R ledger.
+
+Proof boundary: every untagged semantic scenario must derive its verdict from
+the exact packaged Implementation Plan contract bytes through the deterministic
+contract-conformance reviewer boundary. A per-scenario scripted verdict cannot
+satisfy RED or GREEN. Scenarios tagged `@surface.safeword-cli` additionally
+prove real installed CLI wiring.
+
+## Rule: plan-implementability.TBU1.G1C9PP.R1 — Implementation Planning is a distinct approach-decision phase
+
+### Scenario: Safeword CLI enforces and releases the decision boundary
+
+- [x] RED b1727e245
+- [x] GREEN 828d8af75
+- [x] REFACTOR skip: the existing gate is already a single unconditional decision check; this loop only restored packaged boundary proof
+
+## Rule: plan-implementability.TBU1.G1C9PP.R2 — Authors and reviewers use one decision-quality contract
+
+### Scenario: Contract agreement controls review eligibility
+
+- [x] RED 5c33fe706
+- [x] GREEN 5f6201106
+- [x] REFACTOR skip: contract extraction and reconciliation already have one production path; the new fixture only exposes that boundary to Cucumber
+
+### Scenario: A missing packaged contract blocks installed review
+
+- [x] RED 917fca1a0
+- [x] GREEN e8a440de4
+- [x] REFACTOR skip: the package-relative lookup is one focused boundary and mirrors the existing packaged-runtime root rule; extracting two call sites would add indirection without changing behavior
+
+## Rule: plan-implementability.TBU1.G1C9PP.R3 — The plan opens with an architecture-at-a-glance mental model and keeps decision-bearing detail in the main review path without becoming an execution or evidence manual
+
+### Scenario: Decision presentation controls focused reviewability
+
+- [x] RED c4674408b
+- [x] GREEN 2e01fc849
+- [x] REFACTOR skip: the conformance fixture is already separated into contract, structure, and decision judgments; further extraction would not improve this scenario's behavior or proof
+
+### Scenario: A load-bearing decision cannot disappear from the review path
+
+- [x] RED 9ad2d2518
+- [x] GREEN 2e01fc849
+- [x] REFACTOR skip: the missing-decision rule is one clause in the shared focused-review obligation and reuses the same decision judgment as the outline
+
+## Rule: plan-implementability.TBU1.G1C9PP.R4 — The Implementation Plan is a project-local reviewed artifact
+
+### Scenario: Safeword CLI accepts only the project-local Implementation Plan
+
+- [x] RED b59d6f7b9
+- [x] GREEN 2722ee208
+- [x] REFACTOR skip: the authority check is one public-command boundary with no duplicated production path
+
+### Scenario: A divergent host-private copy never becomes authoritative
+
+- [x] RED 4f168b359
+- [x] GREEN 2722ee208
+- [x] REFACTOR skip: the scenario reuses the same single authority boundary and packet capture path
+
+## Rule: plan-implementability.TBU1.G1C9PP.R5 — Architecture applicability is explicit
+
+### Scenario: Architecture applicability accepts consequences or a justified skip
+
+- [x] RED 61636f429
+- [x] GREEN 5b00d9413
+- [x] REFACTOR skip: one rubric clause and one authoring prompt express the applicability rule without a new parser or abstraction
+
+## Rule: plan-implementability.TBU1.G1C9PP.R6 — Applicable data decisions cover purpose, store and model, schema and relationships, source of truth, ownership and access, identity and integrity, cross-system flow, lifecycle and retention, migration and backfill, compliance, and rollback at decision depth
+
+Acceptance-matrix boundary: every row represents a distinct decision family named
+by this Rule and must produce the family-specific missing-decision result shown in
+the feature. Lower-level contract tests own permutations within each family.
+
+### Scenario: Data guidance follows data-contract applicability
+
+- [x] RED a1ab09835
+- [x] GREEN 6e58244f28
+- [x] REFACTOR skip: one shared field matrix drives both the eight-row acceptance proof and per-field contract mutations; no production structure changed in this requalification loop
+
+### Scenario: Data decisions cannot be replaced by migration commands
+
+- [x] RED c642b9967
+- [x] GREEN 80e39608d
+- [x] REFACTOR 790f3be0e
+
+### Scenario: Conflicting data ownership blocks approval
+
+- [x] RED 9845cadf0
+- [x] GREEN 7a7473024
+- [x] REFACTOR skip: one explicit reviewer obligation is the smallest production change; the shared semantic fixture stays reusable for the agreeing-owner control
+
+### Scenario: Coherent data ownership permits approval
+
+- [x] RED cec8e4aab
+- [x] GREEN 7a7473024
+- [x] REFACTOR skip: the paired control reuses the same reviewer and replaces duplicate ownership lines through one shared fixture builder; no production structure needs cleanup
+
+## Rule: plan-implementability.TBU1.G1C9PP.R7 — Significant decisions also enter the durable architecture record
+
+### Scenario: Durable recording routes only significant decisions to the architecture record
+
+- [x] RED ca18e79a6
+- [x] GREEN d2084c8c0
+- [x] REFACTOR 0379b57e3
+
+### Scenario: An unrecorded significant decision blocks approval
+
+- [x] RED 37d445eb2
+- [x] GREEN 8504f326d
+- [x] REFACTOR b58e82d6f
+
+### Scenario: Planning access permits only configured durable architecture records
+
+- [x] RED 446fe35b9
+- [x] GREEN be327806e
+- [x] REFACTOR skip: two small path helpers keep physical containment separate from the direct dated-ADR policy; no further extraction has another consumer
+
+## Rule: plan-implementability.TBU1.G1C9PP.R8 — Architectural significance uses semantic triggers
+
+### Scenario: A one-file shared contract is significant while a many-file mechanical edit is not
+
+- [x] RED 9410f11e6
+- [x] GREEN 6c7040887
+- [x] REFACTOR f76c9d7e4
+
+## Rule: plan-implementability.TBU1.G1C9PP.R9 — One feature has one design plan of record
+
+### Scenario: One design plan remains the feature plan of record
+
+- [x] RED 7bdd33ed0
+- [x] GREEN e3b149f29
+- [x] REFACTOR skip: the shared fixture is already extracted and the contract change is one minimal rule
+
+## Rule: plan-implementability.TBU1.G1C9PP.R10 — Implementation planning chooses proof scope and confidence without absorbing execution mechanics or the verification ledger
+
+### Scenario: Proof scope excludes execution mechanics
+
+- [x] RED 6b72a8724
+- [x] GREEN ec3a723a5
+- [x] REFACTOR 58aebd530
+
+## Rule: plan-implementability.TBU1.G1C9PP.R11 — Behavior-shaping decisions cannot leak into execution planning
+
+### Scenario: Decision resolution controls its Implementation Plan obligation
+
+- [x] RED 78c997859
+- [x] GREEN b3c2f898d
+- [x] REFACTOR skip: the decision family loop and one contract clause are already the smallest coherent structure
+
+### Scenario: Installed review reports every simultaneous decision blocker
+
+- [x] RED ee611ade9
+- [x] GREEN 07b38e5410
+- [x] REFACTOR skip: the installed-boundary proof and shared reviewer projection are already the smallest coherent structure
+
+## Rule: plan-implementability.TBU1.G1C9PP.R12 — Load-bearing choices carry alternatives and evidence
+
+### Scenario: Decision evidence controls semantic review
+
+- [x] RED 3b5f78a9b
+- [x] GREEN f6343f586
+- [x] REFACTOR skip: one reviewer clause and the existing generator are already the smallest single-source production path
+
+## Rule: plan-implementability.TBU1.G1C9PP.R13 — Decision evidence is structurally present and semantically judged
+
+### Scenario: Evidence fields accept honest applicability without allowing empty decision coverage
+
+- [x] RED 06221b2df
+- [x] GREEN d33f7a62c
+- [x] REFACTOR skip: the section-scoped applicability helper is one small production rule beside the existing decision parser
+
+### Scenario: Evidence presentation does not replace evidence completeness
+
+- [x] RED 89f22b337
+- [x] GREEN d64828c6b
+- [x] REFACTOR skip: the section-scoped labeled-record extractor and validator are already the smallest production structure
+
+## Rule: plan-implementability.TBU1.G1C9PP.R14 — Decision discovery is scope-bounded and covers the consequential trust, operation, approval, and recovery needs of every accepted persona
+
+### Scenario: Discovery respects and updates scope only with user authority
+
+Proof limit: the accepting scope-expansion row exercises the consumer contract
+with fixture-minted authority. Sibling `5F5ZZA` owns authentic host-user-event
+provenance and the end-to-end positive proof; this scenario cannot satisfy that
+release prerequisite by itself.
+
+- [x] RED 8adbd9581
+- [x] GREEN c23b88b7a
+- [x] REFACTOR skip: the explicit three-binding fail-closed predicate is already the smallest clear trust-boundary consumer
+
+### Scenario: Persona consequence coverage controls approach approval
+
+- [x] RED 63dab8b2c
+- [x] GREEN 3d3e3d2c3
+- [x] REFACTOR skip: one shared persona obligation and one deterministic fixture are already the smallest clear contract
+
+### Scenario: Omitting one accepted persona blocks approach approval
+
+- [x] RED ed13f8d63
+- [x] GREEN 7de8f700c
+- [x] REFACTOR skip: the shared persona fixture now covers both per-need and whole-inventory omissions without production duplication
+
+## Rule: plan-implementability.TBU1.G1C9PP.R15 — Review receipts expose decision reviewability and concrete recovery
+
+### Scenario: The receipt records the focused-review judgment
+
+- [x] RED 4168e473a
+- [x] GREEN e9582618c
+- [x] REFACTOR skip: the existing focused-review collaborator now emits the receipt judgment directly with no second projection layer
+
+### Scenario: A blocked receipt gives a Non-Technical Builder a concrete recovery
+
+- [x] RED 87fa059b3
+- [x] GREEN 19c911c56
+- [x] REFACTOR skip: one plan-specific projection prepends plain recovery while retaining the existing coordinator receipt beneath it
+
+### Scenario: A blocked receipt preserves evidence for a Technical Builder
+
+- [x] RED 7e4281d7c
+- [x] GREEN 2172f5f76
+- [x] REFACTOR 1e82764db
+
+## Rule: plan-implementability.TBU1.G1C9PP.R16 — When planning and implementation states coexist, the plan distinguishes proposed decisions, implemented facts, available proof, known defects, and pending human authority without treating one as another
+
+### Scenario: Plan-state claims remain truthful
+
+- [x] RED 8c1ff90f4
+- [x] GREEN ae74ea6e2
+- [x] REFACTOR skip: one explicit state taxonomy and a table of forbidden claim promotions keep the boundary direct and extensible
+
+## Rule: plan-implementability.TBU1.G1C9PP.R17 — Significant concurrency, security, durability, lifecycle, migration, and compatibility choices include the applicable state, authority, atomicity, retry, and evidence model at decision depth
+
+Acceptance-matrix boundary: every positive/negative pair represents a distinct
+significant concern family named by this Rule and must identify that family's
+missing decision model. Lower-level contract tests own permutations within a
+family.
+
+### Scenario: Significant workflow decisions are complete at decision depth
+
+- [x] RED c62458a80
+- [x] GREEN 6d01a8599
+- [x] REFACTOR skip: one concern-to-required-fields table covers all six families and keeps omissions data-driven
+
+## Rule: plan-implementability.TBU1.G1C9PP.R18 — Accepted quantitative promises carry a design-level measurement contract without moving Product-owned outcomes or Execution-owned instrumentation into the Implementation Plan
+
+### Scenario: Measurement ownership stays with the phase that owns it
+
+- [x] RED 0eb25d232
+- [x] GREEN fce53f366
+- [x] REFACTOR skip: one ownership clause and one ordered conflict classifier keep Product, design, and execution responsibilities distinct
+
+### Scenario: Measurement applicability is explicit
+
+- [x] RED af66da714
+- [x] GREEN 7331e04c4
+- [x] REFACTOR skip: applicability reuses the measurement obligation and distinguishes missing, bare, and justified states directly
+
+## Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval binds the exact semantically reviewed Implementation Plan before Execution Planning; unchanged approach bytes reuse that approval, changed approach bytes require a new decision, approval is not duplicated after the Execution Plan, headless work records pending authority without deadlocking or claiming approval, and the shared decision record preserves authority across concurrent writes, interruption, retry, contention, and compatible extensions
+
+Proof boundary: the interactive approver-available row, the accepted and declined
+design scenarios, and the review-blocked no-prompt scenario must drive the
+installed CLI through a real terminal/PTY human-input boundary; an injected
+in-process prompter cannot satisfy RED or GREEN. The other non-interactive rows
+prove their outcomes from CLI exit state, ticket phase, and the project-local
+receipt.
+
+Contention proof boundary: the fixture holding the first writer releases only
+after the second invocation's configured bounded contention timeout has elapsed.
+
+Headless reviewable-output delivery — skip: sibling `YCFFNC` owns installed host
+delivery of the reviewed approach; this ticket proves pending authority and
+nonblocking behavior at the canonical CLI boundary.
+
+### Scenario: Installed CLI human design authority follows configuration
+
+- [x] RED ba24ca98e
+- [x] GREEN ffc20b29f
+- [x] REFACTOR skip: the first slice keeps ticket resolution, review admission, prompt, receipt, and phase mutation together until the durability scenarios establish the shared ledger boundary
+
+### Scenario: Malformed approval configuration fails closed
+
+- [x] RED 0302d818d
+- [x] GREEN 34cc6a317
+- [x] REFACTOR skip: the narrow parser guard preserves the existing missing-or-disabled semantics while turning only unreadable, malformed, or non-object configuration into an explicit fail-closed result
+
+### Scenario: Implementation Planning exits through the canonical approval boundary
+
+- [x] RED f9d832a6c
+- [x] GREEN cb285bee7
+- [x] REFACTOR skip: the exit now has one command-owned approval and phase boundary; further extraction would duplicate the public CLI contract or blur the distinct headless outcome
+
+### Scenario: A declined design returns to Implementation Planning
+
+- [x] RED afd16b0b2
+- [x] GREEN a7de9a01f
+- [x] REFACTOR skip: one declined-result sentence now carries the exact plan path and repair state without adding a second receipt shape
+
+### Scenario: An accepted design enters Execution Planning
+
+- [x] RED 395dab774
+- [x] GREEN 5532748f1
+- [x] REFACTOR skip: the GREEN fix centralizes current-byte phase replacement, unique staging, and truthful changed-file projection; remaining review warnings require sibling migration or separately accepted behavior
+
+### Scenario: A review-blocked design is never presented for human approval
+
+- [x] RED c5dad14b1
+- [x] GREEN 7fe63f37d
+- [x] REFACTOR skip: the narrow current-review lookup reuses the integrity-checked review job boundary without introducing another review record or parser
+
+### Scenario: Human design authority follows approach currency
+
+Proof limit: this scenario proves only whether human design approval still
+binds the exact current approach bytes. Sibling `5F5ZZA` owns semantic review
+record invalidation, provenance changes, and context-digest recomputation.
+
+- [x] RED c3b190c73
+- [x] GREEN 13d2085d3
+- [x] REFACTOR skip: the next durability scenario drives the planned shared-ledger extraction; moving the parser before that contract exists would only relocate unsettled behavior
+
+### Scenario: Concurrent design decisions do not overwrite each other
+
+- [x] RED 06724f70c
+- [x] GREEN 426ccbf7e
+- [x] REFACTOR skip: GREEN is the planned extraction into one shared approval-ledger boundary; further durability behavior remains scenario-driven below
+
+### Scenario: A stale fencing generation cannot commit authority
+
+- [x] RED 9fab905a2
+- [x] GREEN cd60ba10e
+- [x] REFACTOR skip: the guarded test-only mutation sits immediately before the existing ownership recheck, making deletion of that load-bearing guard observable without changing the production protocol
+
+### Scenario: The latest serialized decision controls phase and retry identity
+
+- [x] RED 5e4197aea
+- [x] GREEN 0189cb294
+- [x] REFACTOR skip: one shared current-decision selector now drives retry identity, reads, phase reconciliation, and truthful CLI results; another state layer would add indirection without closing a distinct behavior gap
+
+### Scenario: An interrupted approval resumes according to durable authority
+
+- [x] RED e707a8f87
+- [x] GREEN daec96bce
+- [x] REFACTOR skip: the two explicit test-only exit points expose the already-separated durable-event and phase-transition boundaries without changing production behavior
+
+### Scenario: Retrying the same design approval does not duplicate authority
+
+- [x] RED skip: retry identity was an inseparable prerequisite of the concurrent-writer GREEN in 426ccbf7e; 2288f66f5 adds the explicit two-invocation regression without inventing a false failure
+- [x] GREEN 426ccbf7e
+- [x] REFACTOR skip: idempotency remains inside the single locked append transaction and needs no parallel retry path
+
+### Scenario: Approval-ledger contention fails closed without changing authority
+
+- [x] RED c99a7cf44
+- [x] GREEN b03466f66
+- [x] REFACTOR skip: timeout validation is isolated at lock acquisition and the pending path already shares the command's fail-closed result
+
+### Scenario: Embedded decision markers remain authority-inert
+
+- [x] RED 8c8a663b9
+- [x] GREEN 6bcacef21
+- [x] REFACTOR skip: one anchored line pattern and one timestamp equality check are the smallest parser boundary that distinguishes canonical authority from inert extension text
+
+### Scenario: A design decision preserves compatible approval-ledger extensions
+
+- [x] RED skip: byte preservation was part of the atomic concurrent-writer design implemented in 426ccbf7e; 2166a951b adds its explicit installed-CLI regression
+- [x] GREEN 426ccbf7e
+- [x] REFACTOR skip: opaque events remain authority-inert because the writer copies all prior bytes and the reader parses only known decision events
+
+### Scenario: A completed Execution Plan does not trigger a second design approval
+
+- [x] RED skip: unchanged-byte approval reuse was driven RED in c3b190c73; b03418ede pins the same authority rule with a completed Execution Plan fixture at the sibling-owned downstream boundary
+- [x] GREEN 13d2085d3
+- [x] REFACTOR skip: Execution Plan presence does not create a second human-authority state machine
+
+### Scenario: A completed Execution Plan cannot preserve stale design approval
+
+- [x] RED skip: changed-byte invalidation was driven RED in c3b190c73; b03418ede pins it with a completed Execution Plan fixture without taking over sibling 7CAMAD's plan-content gate
+- [x] GREEN 13d2085d3
+- [x] REFACTOR skip: downstream implementation entry consumes the same exact-plan authority result rather than duplicating its parser
+
+## Rule: plan-implementability.TBU1.G1C9PP.R20 — An incomplete or incorrect plan returns to decision discovery with the full current set of blocking defects and is corrected and re-reviewed on its new exact bytes until complete and correct or honestly waiting on an external decision
+
+### Scenario: Review repairs every known plan defect before execution planning
+
+- [x] RED 8eab8e7f0
+- [x] GREEN 7c2c24197
+- [x] REFACTOR skip: one shared installed-review fixture proves the full blocker set, exact-byte invalidation, and clean current receipt without duplicating coordinator machinery
+
+### Scenario: External authority pauses repair without disguising the plan as complete
+
+- [x] RED 8eab8e7f0
+- [x] GREEN 7c2c24197
+- [x] REFACTOR skip: the same repair contract and reviewer boundary already separate external authority from agent-owned repair with one explicit pending state
+
+### Scenario: Every corrected plan is re-reviewed until its current bytes are clean
+
+- [x] RED 8eab8e7f0
+- [x] GREEN 7c2c24197
+- [x] REFACTOR skip: current-byte eligibility and remaining-blocker refusal reuse one review helper and differ only in the reviewer result
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario ba15f2434

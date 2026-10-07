@@ -68,6 +68,7 @@ describe('safeword boundary (slice 2: commit-tier findings)', () => {
           'define-behavior: scenarios exist as tests',
           'scenario-gate: reviewed on the PR thread',
           'plan-implementation: plan captured in PR description',
+          'plan-execution: execution details captured in PR description',
         ],
       }),
     );
@@ -122,7 +123,7 @@ describe('safeword boundary (slice 2: commit-tier findings)', () => {
       `${TICKET}/ticket.md`,
       ticketContent({
         phase: 'implement',
-        anchors: ['implement: .project/tickets/BNF001-fixture/impl-plan.md'],
+        anchors: ['implement: .project/tickets/BNF001-fixture/execution-plan.md'],
       }),
     );
     git(dir, 'add -A');

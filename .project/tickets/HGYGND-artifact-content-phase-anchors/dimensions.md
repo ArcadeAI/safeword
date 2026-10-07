@@ -7,7 +7,7 @@ phase-provenance transition semantics; the canonical phase→artifact map).
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
 | Anchor presence (entered phase)  | entry present; no `phase_anchors` key at all; key present but entered phase absent                                                                                                                      | R1 / R3 |
 | Anchor value grammar             | repo-relative path; hex-shaped 7-40 chars (legacy); empty; `..`-traversal or absolute path (implausible)                                                                                                | R3 / R4 |
-| Artifact ↔ phase agreement       | path resolves to the entered phase's expected artifact kind (spec.md / feature source / impl-plan.md / test-definitions.md / verify.md); mismatched kind (e.g. done anchored to README.md)              | R1 / R3 |
+| Artifact ↔ phase agreement       | path resolves to the entered phase's expected artifact kind (spec.md / feature source / impl-plan.md / execution-plan.md / test-definitions.md / verify.md); mismatched kind (e.g. done anchored to README.md) | R1 / R3 |
 | Artifact existence               | anchored path present in the checked tree; absent                                                                                                                                                       | R2 / R3 |
 | Artifact shape                   | shape-valid per kind (spec: parseable frontmatter+JTBD · feature: non-empty scenarios · impl-plan: parseImplPlan · ledger: present · verify: checkVerifyArtifact); shape-failing (hollow/scaffold file)  | R2 / R3 |
 | Transition kind                  | forward one step; forward multi-step (entered-phase-only); backward; re-declaration; re-advance after backward (last-wins pinned)                                                                       | R1 / R3 |
@@ -22,8 +22,9 @@ artifact reader, co-located with `phase-provenance.test.ts` /
 `phase-anchor.test.ts`). Boundary tier + history-invariance + R5 → **command**
 (temp git repos in the boundary suites, including one squash-merge and one
 shallow-clone fixture that fail under SHA anchors and pass under path anchors).
-Acceptance → the existing `evidence-anchored-phase-transitions.feature` and
-boundary-gate feature files re-expressed for the path grammar.
+Acceptance → `artifact-content-phase-anchors.feature` (the sole replacement for
+the removed `evidence-anchored-phase-transitions.feature`) and the boundary-gate
+feature files re-expressed for the path grammar.
 
 **Baked decisions (from /figure-it-out + intake, recorded in ticket.md):**
 

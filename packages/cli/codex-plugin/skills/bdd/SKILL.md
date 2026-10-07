@@ -9,7 +9,8 @@ description: Behavior-first feature development — use when building new
 
 # BDD Orchestrator
 
-Behavior-first development for features. Discovery → Scenarios → Implementation.
+Behavior-first development for features. Discovery → Scenarios → Implementation Planning →
+Execution Planning → Implementation.
 
 Define the behavior before implementing it. When unsure whether work is a feature, default to a task (TDD directly) — the user can `$safeword:bdd` to override.
 
@@ -20,7 +21,7 @@ Features progress through phases. Track in ticket frontmatter:
 ```yaml
 ---
 type: feature
-phase: implement # intake | define-behavior | scenario-gate | plan-implementation | implement | verify | done
+phase: implement # intake | define-behavior | scenario-gate | plan-implementation | plan-execution | implement | verify | done
 ---
 ```
 
@@ -32,6 +33,7 @@ phase: implement # intake | define-behavior | scenario-gate | plan-implementatio
 | `define-behavior`     | Writing Given/When/Then                           | [SCENARIOS.md](references/SCENARIOS.md)                     |
 | `scenario-gate`       | Validating scenarios                              | [SCENARIOS.md](references/SCENARIOS.md)                     |
 | `plan-implementation` | Implementation design record                      | [PLAN_IMPLEMENTATION.md](references/PLAN_IMPLEMENTATION.md) |
+| `plan-execution`      | Startable work and proof order                    | [PLAN_EXECUTION.md](references/PLAN_EXECUTION.md)           |
 | `implement`           | Outside-in TDD                                    | [TDD.md](references/TDD.md)                                 |
 | `verify`              | Evidence gate: $safeword:verify + $safeword:audit | [VERIFY.md](references/VERIFY.md)                           |
 | `done`                | Close ticket                                      | [DONE.md](references/DONE.md)                               |
@@ -39,8 +41,9 @@ phase: implement # intake | define-behavior | scenario-gate | plan-implementatio
 **Update phase when:**
 
 - Completing a BDD phase → set next phase
-- Scenario-gate complete → offer the optional `$safeword:spike` checkpoint only for an eligible build-only kill-risk, then set `plan-implementation` (impl-plan authoring, proof plan + sequencing live there)
-- Plan reviewed (impl-plan.md valid, status planned) → set `implement`
+- Scenario-gate complete → offer the optional `$safeword:spike` checkpoint only for an eligible build-only kill-risk, then set `plan-implementation`
+- Implementation Plan reviewed and approved → set `plan-execution`
+- Execution Plan reviewed and current → set `implement`
 - All scenarios pass → set `verify`
 - $safeword:verify + $safeword:audit complete (verify.md exists) → set `done`
 
@@ -57,7 +60,9 @@ typed `nextActions` until terminal, and never start a replacement review or
 advance/stamp while it is pending. `REVIEW_STALE` means rerun against the
 current artifacts. Only a terminal verdict may advance the phase.
 
-The plan-implementation exit applies the same discipline to the implementation plan (see [PLAN_IMPLEMENTATION.md](references/PLAN_IMPLEMENTATION.md)'s exit). Other phase exits don't need an independent review by default — they carry their
+The plan-implementation and plan-execution exits apply the same discipline to their respective
+plans (see [PLAN_IMPLEMENTATION.md](references/PLAN_IMPLEMENTATION.md) and
+[PLAN_EXECUTION.md](references/PLAN_EXECUTION.md)). Other phase exits don't need an independent review by default — they carry their
 own guards (intake's user sub-phase gates, implement's tests, the done-gate's
 evidence checks). When the **review gate** is enabled (`reviewGate` in
 `.safeword/config.json` — e.g. autonomous runs where user gates auto-confirm,
@@ -78,6 +83,7 @@ ticket 2VCSZY), every phase advance requires a stamp, or a logged skip reason
 | `define-behavior`     | Continue drafting scenarios                                                                    |
 | `scenario-gate`       | Continue validating scenarios                                                                  |
 | `plan-implementation` | Continue the implementation plan ([PLAN_IMPLEMENTATION.md](references/PLAN_IMPLEMENTATION.md)) |
+| `plan-execution`      | Continue the execution plan ([PLAN_EXECUTION.md](references/PLAN_EXECUTION.md))                |
 | `implement`           | Find first unchecked scenario, run TDD                                                         |
 | `verify`              | Run $safeword:verify and $safeword:audit, write verify.md                                      |
 | `done`                | Close ticket (verify.md must exist)                                                            |
@@ -102,6 +108,7 @@ Load the appropriate file based on current phase:
 | `define-behavior`     | [SCENARIOS.md](references/SCENARIOS.md)                     |
 | `scenario-gate`       | [SCENARIOS.md](references/SCENARIOS.md)                     |
 | `plan-implementation` | [PLAN_IMPLEMENTATION.md](references/PLAN_IMPLEMENTATION.md) |
+| `plan-execution`      | [PLAN_EXECUTION.md](references/PLAN_EXECUTION.md)           |
 | `implement`           | [TDD.md](references/TDD.md)                                 |
 | `verify`              | [VERIFY.md](references/VERIFY.md)                           |
 | `done`                | [DONE.md](references/DONE.md)                               |

@@ -10,6 +10,7 @@
 
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
+import { toRepoPath } from '../../src/utils/repo-path.js';
 import { WORKSPACE_ROOTS } from '../../src/utils/workspace-roots.js';
 import type {
   ArtifactReader,
@@ -25,6 +26,7 @@ const SHA = 'a1b2c3d';
 
 const TICKET_DIR = '.project/tickets/ZZTEST-fixture';
 const IMPL_PLAN_PATH = `${TICKET_DIR}/impl-plan.md`;
+const EXECUTION_PLAN_PATH = `${TICKET_DIR}/execution-plan.md`;
 const SPEC_PATH = `${TICKET_DIR}/spec.md`;
 const LEDGER_PATH = `${TICKET_DIR}/test-definitions.md`;
 const VERIFY_PATH = `${TICKET_DIR}/verify.md`;
@@ -38,6 +40,10 @@ const ANCHOR_SCOPE = {
 it('requires ownership scope at the detector API boundary', () => {
   expectTypeOf(detectPhaseTransition).parameter(2).toEqualTypeOf<PhaseAnchorScope>();
   expectTypeOf(detectPhaseState).parameter(1).toEqualTypeOf<PhaseAnchorScope>();
+});
+
+it('normalizes OS-native separators to the anchor grammar', () => {
+  expect(toRepoPath(String.raw`.project\tickets\ZZTEST-fixture`)).toBe(TICKET_DIR);
 });
 
 function detectUnanchoredPhaseTransition(
@@ -79,24 +85,6 @@ const SHAPE_VALID_IMPL_PLAN = [
   '',
 ].join('\n');
 
-/** Scaffold with the headings present but every section empty — shape-invalid. */
-const HOLLOW_IMPL_PLAN = [
-  '# Impl Plan: fixture',
-  '',
-  '**Status:** planned',
-  '',
-  '## Approach',
-  '',
-  '## Decisions',
-  '',
-  '## Arch alignment',
-  '',
-  '## Known deviations',
-  '',
-  '## Assessment triggers',
-  '',
-].join('\n');
-
 const SHAPE_VALID_SPEC = [
   '# Spec: fixture',
   '',
@@ -135,6 +123,8 @@ const SHAPE_VALID_LEDGER = [
   '',
 ].join('\n');
 
+const SHAPE_VALID_EXECUTION_PLAN = '# Execution Plan\n\n## Pull-request plan\n\nOne slice.\n';
+
 const SHAPE_VALID_VERIFY = [
   '# Verify: fixture',
   '',
@@ -152,6 +142,7 @@ function readerFor(tree: Record<string, string>): ArtifactReader {
 
 const FULL_TREE: Record<string, string> = {
   [IMPL_PLAN_PATH]: SHAPE_VALID_IMPL_PLAN,
+  [EXECUTION_PLAN_PATH]: SHAPE_VALID_EXECUTION_PLAN,
   [SPEC_PATH]: SHAPE_VALID_SPEC,
   [LEDGER_PATH]: SHAPE_VALID_LEDGER,
   [VERIFY_PATH]: SHAPE_VALID_VERIFY,
@@ -178,16 +169,38 @@ describe('detectUnanchoredPhaseTransition — an advance anchored to the exited 
   it('a forward advance recording an existing shape-valid artifact path is anchored', () => {
     const verdict = detectUnanchoredPhaseTransition(
       ticket({ type: 'feature', phase: 'scenario-gate' }),
-      ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${IMPL_PLAN_PATH}`] }),
+      ticket({
+        type: 'feature',
+        phase: 'implement',
+        anchors: [`implement: ${EXECUTION_PLAN_PATH}`],
+      }),
       readTree,
     );
+    expect(verdict.kind).toBe('anchored');
+  });
+
+  it('a quoted block-sequence entry is parsed as the same phase anchor', () => {
+    const verdict = detectUnanchoredPhaseTransition(
+      ticket({ type: 'feature', phase: 'plan-execution' }),
+      ticket({
+        type: 'feature',
+        phase: 'implement',
+        anchors: [`"implement: ${EXECUTION_PLAN_PATH}"`],
+      }),
+      readTree,
+    );
+
     expect(verdict.kind).toBe('anchored');
   });
 
   it('only the entered phase needs an anchor on a multi-step advance', () => {
     const verdict = detectUnanchoredPhaseTransition(
       ticket({ type: 'feature', phase: 'define-behavior' }),
-      ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${IMPL_PLAN_PATH}`] }),
+      ticket({
+        type: 'feature',
+        phase: 'implement',
+        anchors: [`implement: ${EXECUTION_PLAN_PATH}`],
+      }),
       readTree,
     );
     expect(verdict.kind).toBe('anchored');
@@ -196,7 +209,11 @@ describe('detectUnanchoredPhaseTransition — an advance anchored to the exited 
   it('a plausible path with no reader supplied is anchored (format-only mode)', () => {
     const verdict = detectUnanchoredPhaseTransition(
       ticket({ type: 'feature', phase: 'scenario-gate' }),
-      ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${IMPL_PLAN_PATH}`] }),
+      ticket({
+        type: 'feature',
+        phase: 'implement',
+        anchors: [`implement: ${EXECUTION_PLAN_PATH}`],
+      }),
     );
     expect(verdict.kind).toBe('anchored');
   });
@@ -207,7 +224,8 @@ describe('detectUnanchoredPhaseTransition — the per-phase kind map', () => {
     ['define-behavior', 'intake', SPEC_PATH],
     ['scenario-gate', 'define-behavior', FEATURE_PATH],
     ['plan-implementation', 'scenario-gate', FEATURE_PATH],
-    ['implement', 'scenario-gate', IMPL_PLAN_PATH],
+    ['plan-execution', 'plan-implementation', IMPL_PLAN_PATH],
+    ['implement', 'plan-execution', EXECUTION_PLAN_PATH],
     ['verify', 'implement', LEDGER_PATH],
     ['done', 'verify', VERIFY_PATH],
   ])('entering %s anchored to its canonical artifact is anchored', (entered, prior, path) => {
@@ -290,7 +308,7 @@ describe('detectUnanchoredPhaseTransition — re-advance is judged by the latest
       ticket({
         type: 'feature',
         phase: 'implement',
-        anchors: [`implement: ${TICKET_DIR}/gone.md`, `implement: ${IMPL_PLAN_PATH}`],
+        anchors: [`implement: ${TICKET_DIR}/gone.md`, `implement: ${EXECUTION_PLAN_PATH}`],
       }),
       readTree,
     );
@@ -303,7 +321,7 @@ describe('detectUnanchoredPhaseTransition — re-advance is judged by the latest
       ticket({
         type: 'feature',
         phase: 'implement',
-        anchors: [`implement: ${IMPL_PLAN_PATH}`, `implement: ${TICKET_DIR}/gone.md`],
+        anchors: [`implement: ${EXECUTION_PLAN_PATH}`, `implement: ${TICKET_DIR}/gone.md`],
       }),
       readTree,
     );
@@ -321,7 +339,7 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
     expect(verdict.kind).toBe('unanchored');
     if (verdict.kind === 'unanchored') {
       expect(verdict.reason).toContain('- implement:');
-      expect(verdict.reason).toContain('impl-plan.md');
+      expect(verdict.reason).toContain('execution-plan.md');
     }
   });
 
@@ -392,7 +410,7 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
   });
 
   it("a ticket cannot reuse another ticket's same-kind artifact", () => {
-    const foreignPlan = '.project/tickets/OTHER-fixture/impl-plan.md';
+    const foreignPlan = '.project/tickets/OTHER-fixture/execution-plan.md';
     const verdict = detectUnanchoredPhaseTransition(
       ticket({ type: 'feature', phase: 'scenario-gate' }),
       ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${foreignPlan}`] }),
@@ -423,7 +441,7 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
       ticket({
         type: 'feature',
         phase: 'implement',
-        anchors: [`implement: ${IMPL_PLAN_PATH}`],
+        anchors: [`implement: ${EXECUTION_PLAN_PATH}`],
       }),
       readerFor({}),
     );
@@ -434,8 +452,12 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
   it('a hollow scaffold artifact is unanchored, saying it fails its shape check', () => {
     const verdict = detectUnanchoredPhaseTransition(
       ticket({ type: 'feature', phase: 'scenario-gate' }),
-      ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${IMPL_PLAN_PATH}`] }),
-      readerFor({ [IMPL_PLAN_PATH]: HOLLOW_IMPL_PLAN }),
+      ticket({
+        type: 'feature',
+        phase: 'implement',
+        anchors: [`implement: ${EXECUTION_PLAN_PATH}`],
+      }),
+      readerFor({ [EXECUTION_PLAN_PATH]: '' }),
     );
     expect(verdict.kind).toBe('unanchored');
     if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/shape/i);
@@ -523,14 +545,22 @@ describe('detectUnanchoredPhaseTransition — fires only on a feature forward ad
 describe('detectUnanchoredPhaseState — at-rest variant (the check advisory)', () => {
   it('a feature past intake with a valid path anchor and no reader is anchored (format-only)', () => {
     const verdict = detectUnanchoredPhaseState(
-      ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${IMPL_PLAN_PATH}`] }),
+      ticket({
+        type: 'feature',
+        phase: 'implement',
+        anchors: [`implement: ${EXECUTION_PLAN_PATH}`],
+      }),
     );
     expect(verdict.kind).toBe('anchored');
   });
 
   it('a feature past intake with an existing shape-valid anchor and a reader is anchored', () => {
     const verdict = detectUnanchoredPhaseState(
-      ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${IMPL_PLAN_PATH}`] }),
+      ticket({
+        type: 'feature',
+        phase: 'implement',
+        anchors: [`implement: ${EXECUTION_PLAN_PATH}`],
+      }),
       readTree,
     );
     expect(verdict.kind).toBe('anchored');

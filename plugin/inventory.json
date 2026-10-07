@@ -23,7 +23,7 @@
     },
     {
       "path": "resources/guides/architecture-guide.md",
-      "sha256": "9d0da6ba79eaf288d788e78f3b6cfaa45850cdc33578a3226f95d7e661c266bf"
+      "sha256": "9fe1062f24185b58a80f0b794954440ac95640295894c89525c9a6065a5ca082"
     },
     {
       "path": "resources/guides/cold-start-check.md",
@@ -35,11 +35,15 @@
     },
     {
       "path": "resources/guides/data-architecture-guide.md",
-      "sha256": "ebc05b23c6177fb05b26d4fbcad6136e39e00d8ffbc97a2ee47018c27486bc40"
+      "sha256": "3947dd4f0ee8dc1d0bb8e0ce4daa6fd596ddca3c69b4088342a8955b8879cac2"
     },
     {
       "path": "resources/guides/design-doc-guide.md",
-      "sha256": "351c1243b029b80178796c6ea96dba110a1eebd88691a094a660f7a38780055a"
+      "sha256": "e59708aa054dbad808232446d05b95c00b630cc14d0c000376f4b402e7c6a2f4"
+    },
+    {
+      "path": "resources/guides/interface-contract-guide.md",
+      "sha256": "340d64b0d2809e99b4396128cc05705be3ef9de3a8621c81055aba446de049e4"
     },
     {
       "path": "resources/guides/learning-extraction.md",
@@ -54,8 +58,16 @@
       "sha256": "3ad2e5cb876b3ebe371d9cc0c92cd1d86647f4201485ef17b0562a707839a06c"
     },
     {
+      "path": "resources/guides/measurement-design-guide.md",
+      "sha256": "2b5d67db410a57468e3dc135d63988ec1e8337980cf55dbe81539fd376b46f9f"
+    },
+    {
       "path": "resources/guides/planning-guide.md",
-      "sha256": "c9a74af6256c44b6c55a139405c9d4686caa13a7b263532873136f188a897483"
+      "sha256": "cc22996fc32f45f565be3cee69f12be9b233743a3ecb54b4a4cd5071821670ed"
+    },
+    {
+      "path": "resources/guides/release-recovery-guide.md",
+      "sha256": "cbb2cbb83fb8bfdde92c4bda2666020f9cd857d232db34e099e441a732372132"
     },
     {
       "path": "resources/guides/retro.md",
@@ -71,7 +83,7 @@
     },
     {
       "path": "resources/guides/testing-guide.md",
-      "sha256": "5014e9d85494e42c7f2b5af92b672c46c13b8e309a2184219da67f287899ee8f"
+      "sha256": "087e1e9593ce7b4fece4f8c5fd5342c2909ef927d2d985a0043bd2178f8f1973"
     },
     {
       "path": "resources/guides/verification-lanes-guide.md",
@@ -83,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "7e5faa70bf92fb368ff9ea2ae48ba6ac1eae9e39b6b809e677553bbdedfca354"
+      "sha256": "8a0e3b614c5a21579b6a45245c2c418d57b2bf54c6a146cb7dffde9d80af1ba8"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -114,8 +126,12 @@
       "sha256": "33885d7eaec20c6edc0e1a8fb49dc633de5bb3304b8de8d8d3eb93715cd0d9c3"
     },
     {
+      "path": "resources/templates/execution-plan-template.md",
+      "sha256": "4cc6ed5bf9dc8cad6215856c02b1dd75733b8e180ac220025b5b9ee60a1756ea"
+    },
+    {
       "path": "resources/templates/impl-plan-template.md",
-      "sha256": "6f4f7123183aa3ebabd36216fb4f1309556547ee6647a0f7e4afa0125d49cc05"
+      "sha256": "dd37ea77bb9f96ccb9a38c7a0d62edcd439351142b10f274cc1e62f43f9156b6"
     },
     {
       "path": "resources/templates/task-spec-template.md",
@@ -127,7 +143,7 @@
     },
     {
       "path": "resources/templates/ticket-template.md",
-      "sha256": "d3cb9d6f88ca8457b41f315d6f7b7e5e5bdea8e8bf16f361dd21248557560535"
+      "sha256": "9b7fc20924189c6129600048c414fcbad65b5e68a20a3a18c6e021f29074856e"
     },
     {
       "path": "resources/templates/tripwire-template.md",
@@ -139,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "81b85d1a90cb7567624ff8e55643bb63667d2ea4f4f1b78a185e2648e2328531"
+      "sha256": "95f92b1bd4f5c81f339f42675ef53d2987e6ba7a1311a2c87f7ac3116a0d5131"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "b73478d948ca30f0c3718ecde10ec93dac39e627997a313d5751afd02105cafb"
+      "sha256": "9a5413d6877d60db3d1b17eb10d3dd14a68d6c502e425357d67c8ca5f6b59c69"
     },
     {
       "path": "runtime/event-groups.json",
@@ -159,7 +175,7 @@
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
-      "sha256": "9dca29f6a71ce7159ce249b7ce6b46a5f6849b6e2ce8ad9fa85e5b201cc2c2af"
+      "sha256": "8d48bc0937c4ecadedb6b8a2a97c26a9152d630c43906b08c7bb9ecab091b274"
     },
     {
       "path": "runtime/hooks/lib/architecture-document-nudge.ts",
@@ -231,7 +247,7 @@
     },
     {
       "path": "runtime/hooks/lib/feature-provenance.ts",
-      "sha256": "840d3bff9d61d75dbcbdeff0f6317752cf7a640eebc26bae59d7b1920d66b4aa"
+      "sha256": "7afa93cde6e81eb11582baa8a968311e44322b8ae1e671a54ba336bdd6031935"
     },
     {
       "path": "runtime/hooks/lib/git-operation.ts",
@@ -247,11 +263,11 @@
     },
     {
       "path": "runtime/hooks/lib/impl-plan.ts",
-      "sha256": "53c766fd99667a08b642b5650c50ea3690618ffd60a76718845e80ae1056fdd0"
+      "sha256": "da56ecf7606ad6ac395d3f24a05767553f0997685ff83b9d9bb4623394adb6b4"
     },
     {
       "path": "runtime/hooks/lib/inspiration.ts",
-      "sha256": "c27c0d84c666b7763e51f8b44471105ea28c136ee9c3fee3b28de2c95a9fde43"
+      "sha256": "7f343390b08c4aa042ca8cbd5fc04eae087e41c41d193e3267974d2b2d26df24"
     },
     {
       "path": "runtime/hooks/lib/jsonl-spool.ts",
@@ -299,11 +315,11 @@
     },
     {
       "path": "runtime/hooks/lib/phase-provenance.ts",
-      "sha256": "77a7aea77f21b611f1b65ea7728c53b115ae18cebb769fa2d29e7df708e0065e"
+      "sha256": "c76b18f3da894f45d4eed48e7fdff9afc02c0e6d66d4412f5ab461e5cab85c6f"
     },
     {
       "path": "runtime/hooks/lib/plan-gate.ts",
-      "sha256": "e33a81f3cbf144076fb3dfc3960b5e3660780317a82e74ac815f54165db00ff3"
+      "sha256": "c06de496fddc10e6b784170f5e26f16cea3b74c771ca1410538fabc17a0c2462"
     },
     {
       "path": "runtime/hooks/lib/pr-readiness-guard.ts",
@@ -335,7 +351,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "a9006c5df041840661eefea9950c30cc00912a4aca37cce39938195002a605a0"
+      "sha256": "d08d6cd30bc9491a8a2f47d8ad8d6026305ed9cc8c2b889b447c262c4d504550"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -395,7 +411,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "fe930694d4a43fc486ed2dfe1b34b5428be87b0d0b9660c86cd4442bef57f194"
+      "sha256": "d9132d0eefd660a6673ef11960766bbc27b013a285f3117aef6d4df886da319d"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -443,7 +459,7 @@
     },
     {
       "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "8e0d42f23aa8ad511e19db3d91c622ad9e619cb813e82b2b390aafd4e92fe626"
+      "sha256": "3a63367e053e6cd825c008b2e9e0d09da8302993a8348dade8da776c032633bb"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -499,7 +515,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "6530382d0117872d47fe59c79f90e57afa1c8bed6b14baadc017b28eea4b6d96"
+      "sha256": "15a25a7cc5d699e4e5be29c9d674a32481ed044726787367c42fdbabb77b5193"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -507,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/prompt-questions.ts",
-      "sha256": "aa9d93722e73a6af32d5cdb8b0783157dd105c2d2a1a9526e2325e33374a4887"
+      "sha256": "96711e6e9cf7a7a051868a9cf1aaf7b41226ef1eb88f117cf49076c80b33b1af"
     },
     {
       "path": "runtime/hooks/prompt-retro-nudge.ts",
@@ -630,16 +646,20 @@
       "sha256": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60"
     },
     {
+      "path": "skills/bdd/PLAN_EXECUTION.md",
+      "sha256": "34c1580e70b87e27ea688136cbd53bacf5ac48a1682772d36ae094fe2a8a8a91"
+    },
+    {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "2ef9cca7fa3f312d4bf15a4c33e66a32247730529193f6720a7f29ba40f0a709"
+      "sha256": "b7cf417a40d59887f88adad3a51531afb40b98c29ff3cee095d0c62b691dfbaa"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "33b7033c37619a202908f58157a2d353074c8bce415be9c13daa2f5b0edfe20d"
+      "sha256": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb"
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516"
+      "sha256": "3770f019f5a83fd4ad6dcb2322528595a39545f61cf1106a2f606a8137036d9d"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
@@ -647,7 +667,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "1ab3c7cb20825261b2e59148a9f842775a0d1417b01cb1d89657f270eac58474"
+      "sha256": "33bdf8746a08bb5b69b2625fa49a82bb2d5c9cb4901dab84780f0d6d8b803e5d"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -719,7 +739,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "485c3c8db45a7d9c0172b0e813eb8722215f2a06864927d889ab987761d81776"
+      "sha256": "800fabc037ec4734e5ae206898f556f8f3b030d09da2c381f7741c89f81209ea"
     },
     {
       "path": "skills/self-review/SKILL.md",
@@ -731,7 +751,7 @@
     },
     {
       "path": "skills/tdd-review/SKILL.md",
-      "sha256": "322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43"
+      "sha256": "fb05b617ffb02bb6d06897d12fb5f121fc553536701f27b8696160041cb5269c"
     },
     {
       "path": "skills/testing/SKILL.md",
@@ -739,7 +759,7 @@
     },
     {
       "path": "skills/ticket-system/SKILL.md",
-      "sha256": "765e4118b54e7e4984da4268244b45b5dc6d57b221964563d49076ac49cc9b7a"
+      "sha256": "5a8ce171c60dc7ab07d641dc66d43ae3730d1a2401df86a02250ce82cf53a800"
     },
     {
       "path": "skills/verify/SKILL.md",
@@ -866,6 +886,10 @@
       "sha256": "eaefcee8e4a93e482f0e617355a1058bc9a94cc6ba9dbabb11f111c0e4d4b39b"
     },
     {
+      "path": "templates/cursor/rules/bdd-plan-execution.mdc",
+      "sha256": "1bd36eab33947afea300bd7a4b5783e8cc21ae0fcc6109a3388eaa6d1f19573c"
+    },
+    {
       "path": "templates/cursor/rules/bdd-plan-implementation.mdc",
       "sha256": "06d1a61efecfef7dece755a987a09a12e6fd1627b2fd1a3474d968c06ba28a82"
     },
@@ -954,12 +978,16 @@
       "sha256": "f97e6bc9cea5f2ced442655a6eb253bf2984444cd56a3a19fe0d06bab6274fd8"
     },
     {
+      "path": "templates/doc-templates/execution-plan-template.md",
+      "sha256": "4cc6ed5bf9dc8cad6215856c02b1dd75733b8e180ac220025b5b9ee60a1756ea"
+    },
+    {
       "path": "templates/doc-templates/feature-spec-template.md",
       "sha256": "7642c670031bb1f6312cb6d7e90536aec437fa486b992fdc5fcd034d81b2690c"
     },
     {
       "path": "templates/doc-templates/impl-plan-template.md",
-      "sha256": "6f4f7123183aa3ebabd36216fb4f1309556547ee6647a0f7e4afa0125d49cc05"
+      "sha256": "dd37ea77bb9f96ccb9a38c7a0d62edcd439351142b10f274cc1e62f43f9156b6"
     },
     {
       "path": "templates/doc-templates/task-spec-template.md",
@@ -971,7 +999,7 @@
     },
     {
       "path": "templates/doc-templates/ticket-template.md",
-      "sha256": "d3cb9d6f88ca8457b41f315d6f7b7e5e5bdea8e8bf16f361dd21248557560535"
+      "sha256": "9b7fc20924189c6129600048c414fcbad65b5e68a20a3a18c6e021f29074856e"
     },
     {
       "path": "templates/doc-templates/tripwire-template.md",
@@ -987,7 +1015,7 @@
     },
     {
       "path": "templates/guides/architecture-guide.md",
-      "sha256": "1275b2a42b34b18238cf87ac1310d8f1e321ec6690503f638f7da161edc54a4c"
+      "sha256": "9fe1062f24185b58a80f0b794954440ac95640295894c89525c9a6065a5ca082"
     },
     {
       "path": "templates/guides/cold-start-check.md",
@@ -999,11 +1027,15 @@
     },
     {
       "path": "templates/guides/data-architecture-guide.md",
-      "sha256": "cf686acb16c5daf8ee59c58a4457d15074883fdbe7ab4f1f9b934b768fc7282f"
+      "sha256": "3947dd4f0ee8dc1d0bb8e0ce4daa6fd596ddca3c69b4088342a8955b8879cac2"
     },
     {
       "path": "templates/guides/design-doc-guide.md",
-      "sha256": "c5ecb9b945f92b1d16b0e003162a2f8a822efd51409a1249ac77864c0e9aa614"
+      "sha256": "d91fe4117798a6adcd1a2a7820c6f61a176a0ae9f116f2989685d2245ee52439"
+    },
+    {
+      "path": "templates/guides/interface-contract-guide.md",
+      "sha256": "340d64b0d2809e99b4396128cc05705be3ef9de3a8621c81055aba446de049e4"
     },
     {
       "path": "templates/guides/learning-extraction.md",
@@ -1018,8 +1050,16 @@
       "sha256": "3ad2e5cb876b3ebe371d9cc0c92cd1d86647f4201485ef17b0562a707839a06c"
     },
     {
+      "path": "templates/guides/measurement-design-guide.md",
+      "sha256": "2b5d67db410a57468e3dc135d63988ec1e8337980cf55dbe81539fd376b46f9f"
+    },
+    {
       "path": "templates/guides/planning-guide.md",
-      "sha256": "bb5ceede9cb8fdec4d6da5d224806fea541a3eae47ec66b58b368f25031dadfd"
+      "sha256": "dbc991902b81107c1fca888475dc0ba770175e946a094e74e33bb1b1d0942152"
+    },
+    {
+      "path": "templates/guides/release-recovery-guide.md",
+      "sha256": "cbb2cbb83fb8bfdde92c4bda2666020f9cd857d232db34e099e441a732372132"
     },
     {
       "path": "templates/guides/retro.md",
@@ -1035,7 +1075,7 @@
     },
     {
       "path": "templates/guides/testing-guide.md",
-      "sha256": "d55916670c2649394f4b04776fdfc3800c4eac4c7330b8ee9a7ec9bec63ba083"
+      "sha256": "5bb02a03b8b34b02611466a73c156c6129497609723abdc3acab8eb00d212453"
     },
     {
       "path": "templates/guides/verification-lanes-guide.md",
@@ -1103,7 +1143,7 @@
     },
     {
       "path": "templates/hooks/lib/active-ticket.ts",
-      "sha256": "9dca29f6a71ce7159ce249b7ce6b46a5f6849b6e2ce8ad9fa85e5b201cc2c2af"
+      "sha256": "8d48bc0937c4ecadedb6b8a2a97c26a9152d630c43906b08c7bb9ecab091b274"
     },
     {
       "path": "templates/hooks/lib/architecture-document-nudge.ts",
@@ -1175,7 +1215,7 @@
     },
     {
       "path": "templates/hooks/lib/feature-provenance.ts",
-      "sha256": "840d3bff9d61d75dbcbdeff0f6317752cf7a640eebc26bae59d7b1920d66b4aa"
+      "sha256": "7afa93cde6e81eb11582baa8a968311e44322b8ae1e671a54ba336bdd6031935"
     },
     {
       "path": "templates/hooks/lib/git-operation.ts",
@@ -1191,11 +1231,11 @@
     },
     {
       "path": "templates/hooks/lib/impl-plan.ts",
-      "sha256": "338df9b66bfa1f44d9bf08f17ec0c5ffe566208f4a61f0ed095dc89b2fb6eb39"
+      "sha256": "e830c11d690cde6e03012857fb7516c4e7ab11b8b05bc2027e1533108390c556"
     },
     {
       "path": "templates/hooks/lib/inspiration.ts",
-      "sha256": "17ed057ade5e65a0992bf59d433e2b22c85f05e7545b4178f38a269bb15dd6f6"
+      "sha256": "d727836bcaf58fe3652c1c399637376e6e9c5ff1af9862b0afd97cc8a03211ea"
     },
     {
       "path": "templates/hooks/lib/jsonl-spool.ts",
@@ -1239,11 +1279,11 @@
     },
     {
       "path": "templates/hooks/lib/phase-provenance.ts",
-      "sha256": "bfee6e8d71dfcba0b90ba116aaaa0c16676afcfdbbac867b96ab14c6f99a9f45"
+      "sha256": "381c7f654008fd2416f4cf061db101ecada68d1dbcda6829022580851626337d"
     },
     {
       "path": "templates/hooks/lib/plan-gate.ts",
-      "sha256": "9a7fa2a904ca4f2fd2058347bb0f607f31520d18ef7a215b2a78504ff2c07c16"
+      "sha256": "e2a9a12014671e16ad2544dbc44125ba82bb2fd6aa189b8e3fbbbd63473fddaa"
     },
     {
       "path": "templates/hooks/lib/pr-readiness-guard.ts",
@@ -1275,7 +1315,7 @@
     },
     {
       "path": "templates/hooks/lib/quality.ts",
-      "sha256": "a9006c5df041840661eefea9950c30cc00912a4aca37cce39938195002a605a0"
+      "sha256": "d08d6cd30bc9491a8a2f47d8ad8d6026305ed9cc8c2b889b447c262c4d504550"
     },
     {
       "path": "templates/hooks/lib/re-entry.ts",
@@ -1335,7 +1375,7 @@
     },
     {
       "path": "templates/hooks/lib/review-receipt.ts",
-      "sha256": "fe930694d4a43fc486ed2dfe1b34b5428be87b0d0b9660c86cd4442bef57f194"
+      "sha256": "d9132d0eefd660a6673ef11960766bbc27b013a285f3117aef6d4df886da319d"
     },
     {
       "path": "templates/hooks/lib/review-trigger.ts",
@@ -1383,7 +1423,7 @@
     },
     {
       "path": "templates/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "8e0d42f23aa8ad511e19db3d91c622ad9e619cb813e82b2b390aafd4e92fe626"
+      "sha256": "3a63367e053e6cd825c008b2e9e0d09da8302993a8348dade8da776c032633bb"
     },
     {
       "path": "templates/hooks/lib/version.ts",
@@ -1439,7 +1479,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "8a8bcb71e0718a9609091eb06e310aea939028b0d9c3d4245da2ea5ae3f1fcbd"
+      "sha256": "3dcfa8dd79ce04839dd14ee89a7bb701476d568bea46cd9b917e15a85c85c50a"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1447,7 +1487,7 @@
     },
     {
       "path": "templates/hooks/prompt-questions.ts",
-      "sha256": "0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462"
+      "sha256": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39"
     },
     {
       "path": "templates/hooks/prompt-retro-nudge.ts",
@@ -1571,7 +1611,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "8c667e7f2ca822b0bee3709f30729f76bdb5bc8528f1f29a0b67063ddfe5c09c"
+      "sha256": "44fa498fd42413551bf4e43808d5b047ea61c8ceade40f30844a5c4c44e91025"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",
@@ -1602,16 +1642,20 @@
       "sha256": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60"
     },
     {
+      "path": "templates/skills/bdd/PLAN_EXECUTION.md",
+      "sha256": "4cf9fd3c73c7f0489d49c4f56af0251ea7ed8effa1415182e970f16fe764f47c"
+    },
+    {
       "path": "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "21afe725904a8ac20d72b3c71f9e6670f06d4036fee58af829b352862578094c"
+      "sha256": "e24265aef799112db05a778ae42e182bd2886f883ceea4b2382949c8ccc7392c"
     },
     {
       "path": "templates/skills/bdd/SCENARIOS.md",
-      "sha256": "33b7033c37619a202908f58157a2d353074c8bce415be9c13daa2f5b0edfe20d"
+      "sha256": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb"
     },
     {
       "path": "templates/skills/bdd/SKILL.md",
-      "sha256": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516"
+      "sha256": "3770f019f5a83fd4ad6dcb2322528595a39545f61cf1106a2f606a8137036d9d"
     },
     {
       "path": "templates/skills/bdd/SPLITTING.md",
@@ -1619,7 +1663,7 @@
     },
     {
       "path": "templates/skills/bdd/TDD.md",
-      "sha256": "6641d1c0091f855aa4ec65a48879ce5b13e18daec672d8ca4c39cd56896cac32"
+      "sha256": "6c9142c4a7cc63fb6054d2b5335f942a77a1322f3a7e269b6e8654f4d7435702"
     },
     {
       "path": "templates/skills/bdd/VERIFY.md",
@@ -1691,7 +1735,7 @@
     },
     {
       "path": "templates/skills/review-spec/SKILL.md",
-      "sha256": "2841aece00db9df62bdd0b6a8be303172d40726d1883cef5515e114e62446a2e"
+      "sha256": "bca4e90c57cd4868219ebe9366fbca8c126837f1289671a3e7b495bca894b052"
     },
     {
       "path": "templates/skills/self-review/SKILL.md",
@@ -1703,7 +1747,7 @@
     },
     {
       "path": "templates/skills/tdd-review/SKILL.md",
-      "sha256": "322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43"
+      "sha256": "fb05b617ffb02bb6d06897d12fb5f121fc553536701f27b8696160041cb5269c"
     },
     {
       "path": "templates/skills/testing/SKILL.md",
@@ -1711,7 +1755,7 @@
     },
     {
       "path": "templates/skills/ticket-system/SKILL.md",
-      "sha256": "765e4118b54e7e4984da4268244b45b5dc6d57b221964563d49076ac49cc9b7a"
+      "sha256": "5a8ce171c60dc7ab07d641dc66d43ae3730d1a2401df86a02250ce82cf53a800"
     },
     {
       "path": "templates/skills/verify/SKILL.md",

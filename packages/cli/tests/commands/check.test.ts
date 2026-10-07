@@ -1434,40 +1434,15 @@ describe('Test Suite 8: Health Check', () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(
         temporaryDirectory,
-        '.project/tickets/ANC006-demo/impl-plan.md',
-        [
-          '# Impl Plan',
-          '',
-          '**Status:** planned',
-          '',
-          '## Approach',
-          '',
-          'Fixture approach.',
-          '',
-          '## Decisions',
-          '',
-          'skip: fixture',
-          '',
-          '## Arch alignment',
-          '',
-          'skip: fixture',
-          '',
-          '## Known deviations',
-          '',
-          'skip: fixture',
-          '',
-          '## Assessment triggers',
-          '',
-          'skip: fixture',
-          '',
-        ].join('\n'),
+        '.project/tickets/ANC006-demo/execution-plan.md',
+        ['# Execution Plan', ''].join('\n'),
       );
       writeAnchorTicket('ANC006-demo', [
         'type: feature',
         'phase: implement',
         'status: in_progress',
         'phase_anchors:',
-        '  - implement: .project/tickets/ANC006-demo/impl-plan.md',
+        '  - implement: .project/tickets/ANC006-demo/execution-plan.md',
       ]);
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
@@ -1504,7 +1479,7 @@ describe('Test Suite 8: Health Check', () => {
         'phase: implement',
         'status: in_progress',
         'phase_anchors:',
-        '  - implement: .project/tickets/ANC007-demo/impl-plan.md',
+        '  - implement: .project/tickets/ANC007-demo/execution-plan.md',
       ]);
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });

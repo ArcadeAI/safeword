@@ -261,6 +261,15 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     skill: 'bdd',
   },
   {
+    name: 'bdd-plan-execution',
+    alwaysApply: false,
+    frontmatterOrder: 'description-first',
+    description:
+      'USE WHEN in BDD plan-execution phase. Turn the accepted Implementation Plan into startable work and review before coding.',
+    referencePath: '.safeword/skills/bdd/PLAN_EXECUTION.md',
+    skill: 'bdd',
+  },
+  {
     name: 'bdd-tdd',
     alwaysApply: false,
     frontmatterOrder: 'description-first',
