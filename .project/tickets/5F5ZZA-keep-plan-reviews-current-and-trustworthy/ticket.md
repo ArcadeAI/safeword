@@ -972,3 +972,40 @@ Logs: `/tmp/4200-two-case-static.log`, `/tmp/4200-two-case-typecheck.log`,
 Fresh two-case live run queued behind the existing shared test-lock owner in
 `pr5117-delivery`; no foreign process killed or concurrent Vitest started.
 Admission remains stale until a fresh complete passing matrix exists.
+
+### 2026-10-06 — final two-case live result; recurring wording defect
+
+At source head `8bdf0b01d`, the corrected two-case Astra pilot finished: one
+passed (`changed-measurement-origin`), one failed
+(`migration-missing-completion-signal`); 61 semantic cases and the harness guard
+were filtered. No cases unfinished within this focused selection. The shared
+test-lock owner completed naturally; no foreign process killed. Log/results:
+`/tmp/4200-final-two-codex-pilot-live.log` and
+`/tmp/4200-final-two-codex-pilot-results.json`. The migration review again
+correctly rejects to Execution Planning, specifies absent migration execution
+and legacy-byte/translation proof, and requires all seven proofs `to pass for
+completion`. Its authenticated dispatch ID is
+`04f8d07e-71eb-498a-9564-215f04b49f20`. The exact phrase alternatives still fail.
+This is another lexical false negative; no reviewer judgment error established.
+
+Figure-it-out investigation `/tmp/4200-migration-grading-investigation.md`
+compares another phrase extension, existing concept conjunction, fixture
+reconstruction and semantic grading. Recommend the existing matcher requiring
+all three concepts `migration`, `proof`, `completion`; no new judge/schema or
+production rubric change. Prepared `/tmp/4200-migration-completion-concepts.patch`
+changes only this case's finding terms, its mirrored expectation and a
+discriminating matcher unit check. Independent candidate Claude review
+`046941e6-cca8-43f3-bf98-9730cef8ba0a` approved with precision warnings. Direct
+existing-matcher check verifies three positive wording samples (including only
+plural `proofs`) and rejects dependency-only, missing-completion and
+missing-migration samples. This is candidate validation, not source suite or
+live qualification. Substring matching remains coarse: co-occurring concepts
+are not semantic entailment. Exact rejection, destination and null-record guards
+remain required. Patch is unapplied pending explicit approval under testing guide.
+
+Applied correction pushed; 895 pre-push checks pass. No fresh complete matrix
+started or admission generated. Main now points to `485d8ac773af44e73dbcd8c2ea64f08e5fee5154`.
+Read-only merge preview found conflicts in review-job logic/tests, read-receipt
+handling, CLI reference, lockfile and generated surfaces; no checkout merge or
+stack rewrite occurred. Full acceptance, RGR, deferred R7, legacy reuse and
+whole-stack review remain unfinished.
