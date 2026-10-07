@@ -1219,3 +1219,17 @@ Committed qualification artifact `execution-plan-astra-qualification.json`
 preserves the actual complete 63-case result, source commit and original raw
 result hash alongside its current digests. The older admission-eval artifact is
 retained as historical evidence; no signed-run or stronger assurance is claimed.
+
+### 2026-10-06 — fresh acceptance after manifest correction
+
+Full root Cucumber acceptance at `816a5510d` completed in 11m21.898s:
+175 scenarios, 57 passed, zero failed, 118 undefined; 9102 steps, 8748
+passed, seven skipped, 347 undefined. Exit 1 correctly preserves unfinished
+acceptance. All seven model-judged scenarios passed fresh under the corrected
+manifest, including downstream claims, bounded implementation scope, missing
+authorization, out-of-scope authorization and valid authorization. Each uses
+the unchanged three repetitions and agreement threshold. Evidence:
+`/tmp/4200-manifest-acceptance.log`, `/tmp/4200-manifest-acceptance.json`.
+Only the first raw judgment report was captured before fixture cleanup; do
+not claim complete raw reviewer-output retention. Historical failed runs,
+118 unfinished scenarios and the other epic completion gates remain visible.
