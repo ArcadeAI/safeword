@@ -157,6 +157,12 @@ describe('retrospective closing replay record', () => {
       'action_required',
     );
     expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
+    const record = JSON.parse(
+      readFileSync(nodePath.join(root, '.safeword/state/reviews/retrospective-close.json'), 'utf8'),
+    ) as { inputs: Record<string, string> };
+    expect(Object.keys(record.inputs)).toContain(
+      '.project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/ticket.md',
+    );
     expect(replay.calls).toBe(1);
     expect(replay.root).toBe(root);
     expect(replay.request).toEqual({

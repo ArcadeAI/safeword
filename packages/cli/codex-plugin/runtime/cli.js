@@ -36593,7 +36593,7 @@ var init_retrospective_close = __esm(() => {
   init_retrospective_gate();
   init_retrospective_history();
   init_retrospective_proof();
-  TICKET_PATH = nodePath50.join(nodePath50.dirname(RETROSPECTIVE_LEDGER), "ticket.md");
+  TICKET_PATH = nodePath50.posix.join(nodePath50.posix.dirname(RETROSPECTIVE_LEDGER), "ticket.md");
 });
 
 // templates/hooks/lib/review-ledger.ts

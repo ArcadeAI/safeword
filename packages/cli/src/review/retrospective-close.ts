@@ -43,7 +43,7 @@ interface CloseRecord {
 }
 
 const RECORD_PATH = '.safeword/state/reviews/retrospective-close.json';
-const TICKET_PATH = nodePath.join(nodePath.dirname(RETROSPECTIVE_LEDGER), 'ticket.md');
+const TICKET_PATH = nodePath.posix.join(nodePath.posix.dirname(RETROSPECTIVE_LEDGER), 'ticket.md');
 
 function result(
   command: 'review attest retrospective-close' | 'review gate retrospective-close',
