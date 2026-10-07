@@ -267,6 +267,48 @@ function contentBeforeEdit(
   return before;
 }
 
+/**
+ * Whether any replacement's text lands on the frontmatter status line. A
+ * replacement no longer found intact (a later one rewrote it) counts as
+ * touching it, so the check fails closed.
+ */
+function editTouchesStatusLine(content: string, newTexts: string[]): boolean {
+  const statusLine = /^status:.*$/m.exec(content);
+  if (!statusLine) return true;
+  const lineStart = statusLine.index;
+  const lineEnd = lineStart + statusLine[0].length;
+  return newTexts.some(text => {
+    if (text === '' || !content.includes(text)) return true;
+    for (let at = content.indexOf(text); at !== -1; at = content.indexOf(text, at + 1)) {
+      if (at < lineEnd && at + text.length > lineStart) return true;
+    }
+    return false;
+  });
+}
+
+/**
+ * Whether this edit moved the ticket to done. An Edit or MultiEdit is judged
+ * by undoing it; when that is ambiguous, it is a close if any replacement
+ * touches the status line. A Write or NotebookEdit carries no prior text, so
+ * it always counts as a close: nothing it reports can prove the ticket was
+ * already done.
+ */
+function isCloseEdit(content: string): boolean {
+  const toolInput = input.tool_input;
+  const newTexts = [
+    toolInput?.new_string,
+    ...(toolInput?.edits?.map(edit => edit.new_string) ?? []),
+  ].filter((text): text is string => text !== undefined);
+  if (newTexts.length > 0) {
+    const before = contentBeforeEdit(content, toolInput);
+    if (typeof before === 'string' && before !== AMBIGUOUS_EDIT) {
+      return frontmatterField(before, 'status') !== 'done';
+    }
+    return editTouchesStatusLine(content, newTexts);
+  }
+  return true;
+}
+
 function completedTicketIdForVerifyArtifact(filePath: string): string | undefined {
   if (!isNamespacePath(filePath, 'tickets/') || nodePath.basename(filePath) !== 'verify.md') {
     return undefined;
@@ -323,29 +365,15 @@ if (
         // bless an unrelated HEAD.
         if (wasActiveTicket || completedSinceHead) state.readinessReceiptPending = true;
         // A real close owes Stop's done gate, which can no longer find the
-        // ticket through activeTicket (#5546). Prior status comes from the file
-        // as it read before this edit, else what this session last saw, else
-        // HEAD. An edit that cannot be undone with no other evidence counts as
-        // a close (the gate runs once); an edit to a done ticket does not.
-        const before = contentBeforeEdit(content, input.tool_input);
-        const priorStatus =
-          (before === AMBIGUOUS_EDIT || before === undefined
-            ? undefined
-            : frontmatterField(before, 'status')) ??
-          state.observedTicketStatuses?.[ticketId] ??
-          previousStatus;
-        const realClose =
-          priorStatus === undefined ? before === AMBIGUOUS_EDIT : priorStatus !== 'done';
+        // ticket through activeTicket (#5546). It fails closed: only positive
+        // evidence that the ticket was already done rules a close out.
+        const realClose = isCloseEdit(content);
         const owed = state.doneGateOwedTickets ?? [];
         if (realClose && !owed.includes(ticketId)) {
           state.doneGateOwedTickets = [...owed, ticketId];
         }
       }
       state.activeTicket = null;
-    }
-
-    if (ticketId !== undefined && ticketStatus !== undefined) {
-      state.observedTicketStatuses = { ...state.observedTicketStatuses, [ticketId]: ticketStatus };
     }
 
     // Per-phase review (enter-semantics, deduped). Fires on the first edit that
@@ -380,9 +408,6 @@ if (
     const status = frontmatterField(content, 'status');
     const type = frontmatterField(content, 'type');
     if (id !== undefined) {
-      if (status !== undefined) {
-        state.observedTicketStatuses = { ...state.observedTicketStatuses, [id]: status };
-      }
       if (status === 'in_progress') {
         if (type !== 'epic') state.activeTicket = id;
       } else if (status !== undefined && state.activeTicket === id) {

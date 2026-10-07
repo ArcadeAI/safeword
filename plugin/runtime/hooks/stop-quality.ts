@@ -188,20 +188,6 @@ function owedDoneGateTicketInfo(
   return undefined;
 }
 
-/**
- * Stop marked this ticket done itself, so a later edit of it is not a close
- * (PostToolUse only sees edits, not this write).
- */
-function recordObservedDone(sessionId: string | undefined, ticketDirectory: string): void {
-  const ticketPath = `${ticketDirectory}/ticket.md`;
-  if (!existsSync(ticketPath)) return;
-  const ticketId = /^id:\s*(\S+)/m.exec(readFileSync(ticketPath, 'utf8'))?.[1];
-  if (ticketId === undefined) return;
-  updateStopState(sessionId, state => {
-    state.observedTicketStatuses = { ...state.observedTicketStatuses, [ticketId]: 'done' };
-  });
-}
-
 function dropOwedDoneGate(sessionId: string | undefined, ticketId: string): void {
   updateStopState(sessionId, state => {
     state.doneGateOwedTickets = state.doneGateOwedTickets?.filter(id => id !== ticketId);
@@ -943,7 +929,6 @@ if (currentPhase === 'done') {
   if (ticketInfo.folder) {
     const currentTicketDirectory = `${ticketsDir}/${ticketInfo.folder}`;
     updateTicketStatus(currentTicketDirectory, 'done', 'done');
-    recordObservedDone(input.session_id, currentTicketDirectory);
 
     // AXRC4D: non-blocking ARCHITECTURE.md staleness nudge. If this ticket moved the
     // top-level architecture fingerprint and a human ARCHITECTURE.md exists, advise a
@@ -966,7 +951,6 @@ if (currentPhase === 'done') {
       } else if (next.type === 'cascade-done') {
         // Mark parent done and continue walking up
         updateTicketStatus(next.ticketDirectory, 'done', 'done');
-        recordObservedDone(input.session_id, next.ticketDirectory);
         directory = next.ticketDirectory;
       } else {
         // all-done — no more work in hierarchy

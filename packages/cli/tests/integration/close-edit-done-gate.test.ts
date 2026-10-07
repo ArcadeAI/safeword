@@ -73,9 +73,14 @@ function ticketMarkdown(ticketId: string, status: string, phase: string): string
 }
 
 /** A task ticket (no test-definitions.md) with valid verify.md, not committed. */
-function writeTaskTicket(directory: string, ticketId: string, status: string): string {
+function writeTaskTicket(
+  directory: string,
+  ticketId: string,
+  status: string,
+  phase = 'implement',
+): string {
   const folder = `.project/tickets/${ticketId}`;
-  writeTestFile(directory, `${folder}/ticket.md`, ticketMarkdown(ticketId, status, 'implement'));
+  writeTestFile(directory, `${folder}/ticket.md`, ticketMarkdown(ticketId, status, phase));
   writeTestFile(
     directory,
     `${folder}/verify.md`,
@@ -122,6 +127,52 @@ function replaceInTicketThroughPostToolUse(
       cwd: directory,
       tool_name: 'Edit',
       tool_input: { file_path: ticketFile, old_string: oldString, new_string: newString },
+    }),
+    cwd: directory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+    encoding: 'utf8',
+  });
+  expect(result.status, result.stderr).toBe(0);
+}
+
+/** Apply MultiEdit replacements to ticket.md, then report them to the real PostToolUse hook. */
+function multiEditTicketThroughPostToolUse(
+  directory: string,
+  sessionId: string,
+  ticketFile: string,
+  edits: { old_string: string; new_string: string }[],
+): void {
+  let content = readFileSync(ticketFile, 'utf8');
+  for (const edit of edits) content = content.replace(edit.old_string, () => edit.new_string);
+  writeFileSync(ticketFile, content);
+  const result = spawnSync('bun', ['.safeword/hooks/post-tool-quality.ts'], {
+    input: JSON.stringify({
+      session_id: sessionId,
+      cwd: directory,
+      tool_name: 'MultiEdit',
+      tool_input: { file_path: ticketFile, edits },
+    }),
+    cwd: directory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+    encoding: 'utf8',
+  });
+  expect(result.status, result.stderr).toBe(0);
+}
+
+/** Overwrite ticket.md, then report the Write to the real PostToolUse hook. */
+function writeTicketThroughPostToolUse(
+  directory: string,
+  sessionId: string,
+  ticketFile: string,
+  content: string,
+): void {
+  writeFileSync(ticketFile, content);
+  const result = spawnSync('bun', ['.safeword/hooks/post-tool-quality.ts'], {
+    input: JSON.stringify({
+      session_id: sessionId,
+      cwd: directory,
+      tool_name: 'Write',
+      tool_input: { file_path: ticketFile, content },
     }),
     cwd: directory,
     env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
@@ -450,5 +501,110 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
 
     expect(result.reason).not.toContain('Tests failed');
     expect(testRunCount(directory)).toBe(baseline);
+  });
+
+  it('gates a first-seen close whose replaced text appears twice in the ticket', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = writeTaskTicket(directory, '5561', 'in_progress', 'done');
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    replaceInTicketThroughPostToolUse(
+      directory,
+      'session-ambiguous',
+      ticketFile,
+      'in_progress',
+      'done',
+    );
+    const result = runStopHook(directory, 'session-ambiguous');
+
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
+  it('gates a close edit after the ticket was reopened outside an edit', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = closeCommittedTicket('5562', 'session-shell-reopen');
+    setTestExitCode(directory, 0);
+    runStopHook(directory, 'session-shell-reopen');
+    git(directory, 'add -A');
+    git(directory, 'commit -q --no-verify -m "close 5562"');
+    writeFileSync(ticketFile, ticketMarkdown('5562', 'in_progress', 'implement'));
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    replaceInTicketThroughPostToolUse(
+      directory,
+      'session-shell-reopen',
+      ticketFile,
+      'status: in_progress',
+      'status: done',
+    );
+    const result = runStopHook(directory, 'session-shell-reopen');
+
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
+  it('gates an ambiguous close edit after the ticket was reopened outside an edit', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = closeCommittedTicket('5563', 'session-stale');
+    setTestExitCode(directory, 0);
+    runStopHook(directory, 'session-stale');
+    writeFileSync(ticketFile, ticketMarkdown('5563', 'in_progress', 'done'));
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    replaceInTicketThroughPostToolUse(
+      directory,
+      'session-stale',
+      ticketFile,
+      'in_progress',
+      'done',
+    );
+    const result = runStopHook(directory, 'session-stale');
+
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
+  it('gates an uncommitted ticket closed by a Write seen first this session', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = writeTaskTicket(directory, '5564', 'in_progress');
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    writeTicketThroughPostToolUse(
+      directory,
+      'session-write',
+      ticketFile,
+      ticketMarkdown('5564', 'done', 'done'),
+    );
+    const result = runStopHook(directory, 'session-write');
+
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
+  it('gates a close assembled from partial MultiEdit replacements', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = writeTaskTicket(directory, '5565', 'wontfix');
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    multiEditTicketThroughPostToolUse(directory, 'session-multiedit', ticketFile, [
+      { old_string: 'wont', new_string: 'don' },
+      { old_string: 'fix', new_string: 'e' },
+    ]);
+    const result = runStopHook(directory, 'session-multiedit');
+
+    expect(readFileSync(ticketFile, 'utf8')).toContain('status: done');
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
   });
 });

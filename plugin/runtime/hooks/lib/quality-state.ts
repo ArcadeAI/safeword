@@ -97,11 +97,6 @@ export interface QualityState {
    * task, feature, or epic (reopened, deleted) (#5546).
    */
   doneGateOwedTickets?: string[];
-  /**
-   * Last ticket.md status this session observed per ticket id, so a close is
-   * recognized as a not-done → done transition rather than guessed from HEAD.
-   */
-  observedTicketStatuses?: Record<string, string>;
   gate: string | null;
   recentFailures: FailureEntry[];
   incrementedPatterns: string[];

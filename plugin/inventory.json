@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b5b41c2b6c71311178c5b15baeaef2d31ab12b1ca88eca74f921385e676ac018"
+      "sha256": "a35078e7310765abf33e8d713921cfdcbac961b8276c8f566781e142b5168c67"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "6426e8d460daa47d0a53660cb4932253a5578151db6408afd8899df9cf9067c6"
+      "sha256": "bbfaa8e7184df57ea1cd76cfe904fa834704e34707394abd09d98c30e2424def"
     },
     {
       "path": "runtime/event-groups.json",
@@ -331,7 +331,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality-state.ts",
-      "sha256": "aac0644e4c2e973d3c556597ca76594830f04e05421e1e5d1ea6a55c5130bfce"
+      "sha256": "939597a0cdf328d7eb244fb8179c427874547e92d09ab466c887e1be222e9fef"
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
@@ -467,7 +467,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "924eda073c042c696e92fb9f3957a957dc60c21a918b464b88c556e12c24b0a5"
+      "sha256": "eb3615ef87c8c26f38d8ea5ed6a080b4a862c90e12d7a0d9af6d047b8f9b82c1"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -595,7 +595,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "269d2215b411a5328087b9eb917ed29d26c5f7397507acfe88e4b870b2beab7c"
+      "sha256": "1a4c72ca1c8db3c1b0e8b3163114944f52afc33668b006214a52b4441f31f4e9"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -1271,7 +1271,7 @@
     },
     {
       "path": "templates/hooks/lib/quality-state.ts",
-      "sha256": "aac0644e4c2e973d3c556597ca76594830f04e05421e1e5d1ea6a55c5130bfce"
+      "sha256": "939597a0cdf328d7eb244fb8179c427874547e92d09ab466c887e1be222e9fef"
     },
     {
       "path": "templates/hooks/lib/quality.ts",
@@ -1407,7 +1407,7 @@
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",
-      "sha256": "924eda073c042c696e92fb9f3957a957dc60c21a918b464b88c556e12c24b0a5"
+      "sha256": "eb3615ef87c8c26f38d8ea5ed6a080b4a862c90e12d7a0d9af6d047b8f9b82c1"
     },
     {
       "path": "templates/hooks/post-tool-skill-nudge.ts",
@@ -1535,7 +1535,7 @@
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "778f928d06578ed81f03e041f7effb9b3c4429047f87a07fc9c69da4b77f392c"
+      "sha256": "0489ddacba97417447c63580b29976458cc7e9a33a6b23b7e705dacc52bbc949"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",
