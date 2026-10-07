@@ -1,0 +1,393 @@
+{
+  "source_commit": "4c1bac2b6245551fb8af2984221ef16c16193618",
+  "contract_sha256": "b41b5a7b566c0e4d0d76b774f63335e109fa5b591f0de28739fffe577d2eb3cc",
+  "corpus_sha256": "11ee541f17deb4ba7a470906c33b6bbcea4a189e80f3dd48a3d9f60d126a05c4",
+  "results_sha256": "65492613b91ffc73eae17c6121bf6b9560e345550c2d9b11bc7f57ef1ac7a0db",
+  "semantic_cases": 63,
+  "passed": 63,
+  "failed": 0,
+  "unfinished": 0,
+  "vitest_tests": 64,
+  "vitest_exit_code": 0,
+  "duration_seconds": 1838.43,
+  "results": [
+    {
+      "case_id": "one-coherent-change",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "several-ordered-changes",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "omitted-slicing-decision",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "complete-slice-record",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "generic-checklist",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "dismissed-applicable-work",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "proof-does-not-exercise-boundary",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "purpose-in-rationale",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "boundary-in-tasks",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-prerequisites",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "proof-in-tasks",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-completion-signal",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "two-independent-purposes",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "unresolved-authorization-decision",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "ordered-schema-before-reader",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "unsafe-intermediate-merge",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "many-mechanical-edits",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "few-files-two-outcomes",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "line-count-only-rationale",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "all-obligations-assigned",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "all-decisions-unchanged",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "vague-data-ownership",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "invented-data-ownership",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "accepted-data-ownership",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-behavior-obligation",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-decision-obligation",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-proof-strategy-obligation",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-migration-obligation",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-rollout-obligation",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-rollback-obligation",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-documentation-obligation",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-affected-surface-obligation",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "migration-missing-completion-signal",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "migration-missing-dependency-order",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "explicitly-inapplicable-obligations",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "absent-work-is-not-complete",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "current-proof-supports-completion",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "earlier-proof-remains-open",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "known-defect-is-not-complete",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "pending-human-authority-is-not-complete",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "complete-measurement-execution",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-measurement-instrumentation",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-measurement-evidence-collection",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "changed-measurement-target",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "changed-measurement-origin",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "weakened-measurement-safeguard",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "changed-measurement-failure-behavior",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "reopened-authorization-decision",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "fixture-discovery-stays-in-execution-planning",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "test-command-discovery-stays-in-execution-planning",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "path-only-discovery-stays-in-execution-planning",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "accepted-design-discovery-returns-to-implementation-planning",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "accepted-proof-discovery-returns-to-implementation-planning",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "path-and-api-discovery-returns-to-implementation-planning",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "fresh-context-first-red",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "exact-cli-denial-proof",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-cli-subprocess-boundary",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "missing-denied-exit-assertion",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "later-step-is-not-startable",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "blocked-first-prerequisite",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "no-executable-steps",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "risk-first-ordering",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    },
+    {
+      "case_id": "parallel-safe-after-probe",
+      "reviewer": "codex",
+      "model": "gpt-6-astra",
+      "passed": true
+    }
+  ]
+}

@@ -1190,3 +1190,32 @@ require renewed qualification; the positive purpose/boundary/proof variants do
 not replace wholly absent-field negative controls; finding substrings remain
 coarse. These are limitations, not additional proof or new scope. Evidence:
 `/tmp/4200-admission-quality.json`, `/tmp/4200-admission-check.log`.
+
+### 2026-10-06 — admitted source acceptance exposes stale planning manifest
+
+Admission pushed at `e7dcf6d52` with 895 pre-push checks passing. Full root
+Cucumber acceptance ran from the repository root against the complete ticket
+feature: 175 scenarios, 50 passed, seven failed, 118 undefined; 9102 steps,
+8741 passed, seven failed, seven skipped, 347 undefined, exit 1. All seven
+failed at `readManifest` before any reviewer judgment because its derived
+canonical-rubric hash was stale. Logs/census:
+`/tmp/4200-admitted-acceptance.log`, `/tmp/4200-admitted-acceptance.json`,
+`/tmp/4200-admitted-acceptance-census.json`. This run supersedes no history;
+the previous 56/1/118 and initial six failures/585 unfinished remain recorded.
+
+Recomputed every manifest binding: only rubric digest changed, from
+`2b86e288fac6ee06d61db02c73b886499a3dff4c37d5cf45578ed9ee24e7ff7a` to
+`d079e1fb9262edb2ca67b9f350c7676afb5577debf2fe1f908c3a4067c087214`.
+Refreshed that derived field after the already authorized canonical-contract
+change; corpus, expected verdicts, reviewer/judge models, judge rubric, settings,
+three repetitions and two-run agreement threshold are unchanged. Two manifest
+tests pass (`/tmp/4200-planning-manifest-static.log`); independent Claude review
+`fff31c32-b567-4bf3-892d-0b310f3b989d` approves this metadata-only correction.
+Warnings remain: hash coverage does not include wrapper/schema bytes; fixed
+kind/phase combinations and rejection-only judge calibration are limited.
+No old judged report restamped as fresh. New root judgment remains required.
+
+Committed qualification artifact `execution-plan-astra-qualification.json`
+preserves the actual complete 63-case result, source commit and original raw
+result hash alongside its current digests. The older admission-eval artifact is
+retained as historical evidence; no signed-run or stronger assurance is claimed.
