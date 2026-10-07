@@ -216,6 +216,7 @@ describe('retrospective closing replay record', () => {
     );
     put(root, `.safeword/state/reviews/${renewedEligibilityId}.json`, '{}');
     put(root, `.safeword/state/reviews/${renewedProofId}.json`, '{}');
+    put(root, '.gitignore', `${renewalPath}\n`);
     commitFixture(root);
     const renewal = attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER);
     expect(renewal.state, renewal.findings[0]?.message).toBe('changed');
@@ -228,6 +229,18 @@ describe('retrospective closing replay record', () => {
     );
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('healthy');
     put(root, renewalPath, '{"schema_version":1,"rows":[]}');
+    expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
+      'action_required',
+    );
+  });
+
+  it('rejects a changed ignored review receipt without a Git change', () => {
+    const receipt = `.safeword/state/reviews/${proofId}.json`;
+    execFileSync('git', ['-C', root, 'rm', '--cached', '-q', receipt]);
+    put(root, '.gitignore', '.safeword/state/reviews/\n');
+    commitFixture(root);
+    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
+    put(root, receipt, '{"swapped":true}');
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
     );
