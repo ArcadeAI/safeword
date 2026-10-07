@@ -36077,9 +36077,11 @@ function committedFeature(root) {
 }
 function verifiedEligibility(root, targets, request) {
   const target = soleJsonTarget(retrospectiveReviewTargets(root, targets));
-  if (target === undefined || !ticketNamesClaim(root, target))
+  if (target === undefined)
     return;
-  const claim = JSON.parse(readFileSync33(nodePath49.join(root, target), "utf8"));
+  const claim = JSON.parse(readProofInput(root, target).toString("utf8"));
+  if (!ticketNamesClaim(root, target))
+    return;
   if (!claimMatchesMigration(claim))
     return;
   const prerequisite = checkRetrospectivePrerequisites(root, claim, claim.blobs);
@@ -36122,8 +36124,8 @@ function verifiedProof(root, targets, request, eligibility, replay) {
   const paths = retrospectiveReviewTargets(root, targets);
   if (paths.length !== 2 || paths.some((path8) => !path8.endsWith(".json")))
     return false;
-  const proofRequest = JSON.parse(readFileSync33(nodePath49.join(root, paths[0] ?? ""), "utf8"));
-  const reviewed = JSON.parse(readFileSync33(nodePath49.join(root, paths[1] ?? ""), "utf8"));
+  const proofRequest = JSON.parse(readProofInput(root, paths[0] ?? "").toString("utf8"));
+  const reviewed = JSON.parse(readProofInput(root, paths[1] ?? "").toString("utf8"));
   if (!matchingProofRequest(proofRequest, reviewed, request, eligibility))
     return false;
   if (!hasDiscriminatingOutcome(reviewed, proofRequest.testFullName))

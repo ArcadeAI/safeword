@@ -134,8 +134,9 @@ function verifiedEligibility(
   request: RetrospectiveGateRequest,
 ): EligibilityClaim | undefined {
   const target = soleJsonTarget(retrospectiveReviewTargets(root, targets));
-  if (target === undefined || !ticketNamesClaim(root, target)) return undefined;
-  const claim = JSON.parse(readFileSync(nodePath.join(root, target), 'utf8')) as EligibilityClaim;
+  if (target === undefined) return undefined;
+  const claim = JSON.parse(readProofInput(root, target).toString('utf8')) as EligibilityClaim;
+  if (!ticketNamesClaim(root, target)) return undefined;
   if (!claimMatchesMigration(claim)) return undefined;
   const prerequisite = checkRetrospectivePrerequisites(root, claim, claim.blobs);
   if (!prerequisite.eligibleForReview) return undefined;
@@ -198,10 +199,10 @@ function verifiedProof(
   const paths = retrospectiveReviewTargets(root, targets);
   if (paths.length !== 2 || paths.some(path => !path.endsWith('.json'))) return false;
   const proofRequest = JSON.parse(
-    readFileSync(nodePath.join(root, paths[0] ?? ''), 'utf8'),
+    readProofInput(root, paths[0] ?? '').toString('utf8'),
   ) as RetrospectiveProofRequest;
   const reviewed = JSON.parse(
-    readFileSync(nodePath.join(root, paths[1] ?? ''), 'utf8'),
+    readProofInput(root, paths[1] ?? '').toString('utf8'),
   ) as RetrospectiveProofObservation;
   if (!matchingProofRequest(proofRequest, reviewed, request, eligibility)) return false;
   if (!hasDiscriminatingOutcome(reviewed, proofRequest.testFullName)) return false;
