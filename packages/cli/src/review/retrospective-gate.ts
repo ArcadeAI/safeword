@@ -85,7 +85,13 @@ function matchingScenario(
 function ticketNamesClaim(root: string, claimPath: string): boolean {
   const ticketPath = nodePath.join(root, nodePath.dirname(RETROSPECTIVE_LEDGER), 'ticket.md');
   const ticket = frontmatterOf(readFileSync(ticketPath, 'utf8'));
-  return ticket?.id === RETROSPECTIVE_TICKET && ticket.retrospective_claim === claimPath;
+  if (ticket?.id !== RETROSPECTIVE_TICKET || typeof ticket.retrospective_claim !== 'string') {
+    return false;
+  }
+  return (
+    ticket.retrospective_claim === claimPath ||
+    (Array.isArray(ticket.retrospective_claims) && ticket.retrospective_claims.includes(claimPath))
+  );
 }
 
 /** Review packets accept absolute targets; ledger bindings use project-relative paths. */

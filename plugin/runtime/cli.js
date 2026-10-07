@@ -12350,13 +12350,135 @@ var init_files = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.9.0/node_modules/smol-toml/dist/error.js
+// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/date.js
+var DATE_TIME_RE, TomlDate;
+var init_date = __esm(() => {
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+  DATE_TIME_RE = /^(\d{4}-\d{2}-\d{2})?[T ]?(?:(\d{2}):\d{2}(?::\d{2}(?:\.\d+)?)?)?(Z|[-+]\d{2}:\d{2})?$/i;
+  TomlDate = class TomlDate extends Date {
+    #hasDate = false;
+    #hasTime = false;
+    #offset = null;
+    constructor(date) {
+      let hasDate = true;
+      let hasTime = true;
+      let offset = "Z";
+      if (typeof date === "string") {
+        let match = date.match(DATE_TIME_RE);
+        if (match) {
+          if (!match[1]) {
+            hasDate = false;
+            date = `0000-01-01T${date}`;
+          }
+          hasTime = !!match[2];
+          hasTime && date[10] === " " && (date = date.replace(" ", "T"));
+          if (match[2] && +match[2] > 23) {
+            date = "";
+          } else {
+            offset = match[3] || null;
+            date = date.toUpperCase();
+            if (!offset && hasTime)
+              date += "Z";
+          }
+        } else {
+          date = "";
+        }
+      }
+      super(date);
+      if (!isNaN(this.getTime())) {
+        this.#hasDate = hasDate;
+        this.#hasTime = hasTime;
+        this.#offset = offset;
+      }
+    }
+    isDateTime() {
+      return this.#hasDate && this.#hasTime;
+    }
+    isLocal() {
+      return !this.#hasDate || !this.#hasTime || !this.#offset;
+    }
+    isDate() {
+      return this.#hasDate && !this.#hasTime;
+    }
+    isTime() {
+      return this.#hasTime && !this.#hasDate;
+    }
+    isValid() {
+      return this.#hasDate || this.#hasTime;
+    }
+    toISOString() {
+      let iso = super.toISOString();
+      if (this.isDate())
+        return iso.slice(0, 10);
+      if (this.isTime())
+        return iso.slice(11, 23);
+      if (this.#offset === null)
+        return iso.slice(0, -1);
+      if (this.#offset === "Z")
+        return iso;
+      let offset = +this.#offset.slice(1, 3) * 60 + +this.#offset.slice(4, 6);
+      offset = this.#offset[0] === "-" ? offset : -offset;
+      let offsetDate = new Date(this.getTime() - offset * 60000);
+      return offsetDate.toISOString().slice(0, -1) + this.#offset;
+    }
+    static wrapAsOffsetDateTime(jsDate, offset = "Z") {
+      let date = new TomlDate(jsDate);
+      date.#offset = offset;
+      return date;
+    }
+    static wrapAsLocalDateTime(jsDate) {
+      let date = new TomlDate(jsDate);
+      date.#offset = null;
+      return date;
+    }
+    static wrapAsLocalDate(jsDate) {
+      let date = new TomlDate(jsDate);
+      date.#hasTime = false;
+      date.#offset = null;
+      return date;
+    }
+    static wrapAsLocalTime(jsDate) {
+      let date = new TomlDate(jsDate);
+      date.#hasDate = false;
+      date.#offset = null;
+      return date;
+    }
+  };
+});
+
+// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/error.js
 function getLineColFromPtr(string, ptr) {
-  let lines = string.slice(0, ptr).split(/\r?\n/);
+  let lines = string.slice(0, ptr).split(/\r\n|\n|\r/g);
   return [lines.length, lines.pop().length + 1];
 }
 function makeCodeBlock(string, line, column) {
-  let lines = string.split(/\r?\n/);
+  let lines = string.split(/\r\n|\n|\r/g);
   let codeblock = "";
   let numberLen = (Math.log10(line + 1) | 0) + 1;
   for (let i = line - 1;i <= line + 1; i++) {
@@ -12419,519 +12541,17 @@ ${codeblock}`, options);
       this.column = column;
       this.codeblock = codeblock;
     }
-    static x(message, ctx, ptr) {
-      throw new TomlError(message, { toml: ctx.s, ptr: ptr ?? ctx.p });
-    }
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.9.0/node_modules/smol-toml/dist/primitive.js
-function parseString(ctx) {
-  let startPtr = ctx.p;
-  let c = ctx.s.charCodeAt(ctx.p++);
-  let first = c;
-  let isLiteral = c === 39;
-  let isMultiline = c === ctx.s.charCodeAt(ctx.p) && c === ctx.s.charCodeAt(ctx.p + 1);
-  if (isMultiline) {
-    if ((c = ctx.s.charCodeAt(ctx.p += 2)) === 10)
-      ctx.p++;
-    else if (c === 13 && ctx.s.charCodeAt(ctx.p + 1) === 10)
-      ctx.p += 2;
-  }
-  let parsed2 = "";
-  let sliceStart = ctx.p;
-  let state = 0;
-  for (;ctx.p < ctx.s.length; ctx.p++) {
-    c = ctx.s.charCodeAt(ctx.p);
-    if (isMultiline && (c === 10 || c === 13 && ctx.s.charCodeAt(ctx.p + 1) === 10)) {
-      state = state && 3;
-    } else if (c < 32 && c !== 9 || c === 127) {
-      TomlError.x("control characters are not allowed in strings", ctx);
-    } else if ((!state || state === 3) && c === first && (!isMultiline || ctx.s.charCodeAt(ctx.p + 1) === first && ctx.s.charCodeAt(ctx.p + 2) === first)) {
-      if (isMultiline) {
-        if (ctx.s.charCodeAt(ctx.p + 3) === first)
-          ctx.p++;
-        if (ctx.s.charCodeAt(ctx.p + 3) === first)
-          ctx.p++;
-      }
-      if (!state) {
-        let s = ctx.s.slice(sliceStart, ctx.p);
-        parsed2 = parsed2 ? parsed2 + s : s;
-      }
-      ctx.p += isMultiline ? 3 : 1;
-      return parsed2;
-    } else if (!state) {
-      if (!isLiteral && c === 92) {
-        parsed2 += ctx.s.slice(sliceStart, sliceStart = ctx.p);
-        state = 1;
-      }
-    } else if (state === 1) {
-      if (c === 120 || c === 117 || c === 85) {
-        let errPtr = ctx.p++ - 1;
-        let value = 0;
-        let len = c === 120 ? 2 : c === 117 ? 4 : 8;
-        for (let j = 0;j < len; j++, ctx.p++) {
-          let hex = ctx.s.charCodeAt(ctx.p);
-          let digit = hex >= 48 && hex <= 57 ? hex - 48 : hex >= 65 && hex <= 70 ? hex - 65 + 10 : hex >= 97 && hex <= 102 ? hex - 97 + 10 : -1;
-          if (digit < 0)
-            TomlError.x("invalid non-hex character in unicode escape", ctx);
-          value = value << 4 | digit;
-        }
-        if (value < 0 || value > 1114111 || value >= 55296 && value <= 57343) {
-          TomlError.x("invalid unicode escape", ctx, errPtr);
-        }
-        parsed2 += String.fromCodePoint(value);
-        sliceStart = ctx.p--;
-        state = 0;
-      } else if (isMultiline && (c === 32 || c === 9)) {
-        state = 2;
-      } else {
-        if (c === 98)
-          parsed2 += "\b";
-        else if (c === 116)
-          parsed2 += "\t";
-        else if (c === 110)
-          parsed2 += `
-`;
-        else if (c === 102)
-          parsed2 += "\f";
-        else if (c === 114)
-          parsed2 += "\r";
-        else if (c === 101)
-          parsed2 += "\x1B";
-        else if (c === 34)
-          parsed2 += '"';
-        else if (c === 92)
-          parsed2 += "\\";
-        else
-          TomlError.x("unrecognised escape sequence", ctx);
-        sliceStart = ctx.p + 1;
-        state = 0;
-      }
-    } else if (c !== 32 && c !== 9) {
-      if (state === 2)
-        TomlError.x("invalid escape: only line-ending whitespace may be escaped", ctx, sliceStart);
-      state = !isLiteral && c === 92 ? 1 : 0;
-      sliceStart = ctx.p;
-    }
-  }
-  TomlError.x("unfinished string", ctx, startPtr);
+// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/util.js
+function indexOfNewline(str, start = 0) {
+  let idx = str.indexOf(`
+`, start);
+  if (str.charCodeAt(idx - 1) === 13)
+    idx--;
+  return idx;
 }
-var init_primitive = __esm(() => {
-  init_error();
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-});
-
-// ../../node_modules/.bun/smol-toml@1.9.0/node_modules/smol-toml/dist/date.js
-var DATE_TIME_RE, TomlDate;
-var init_date = __esm(() => {
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-  DATE_TIME_RE = /^(\d{4}-\d{2}-\d{2})?[Tt ]?(?:(\d{2}):\d{2}(?::\d{2}(?:\.\d+)?)?)?(Z|z|[-+]\d{2}:\d{2})?$/i;
-  TomlDate = class TomlDate extends Date {
-    #hasDate = false;
-    #hasTime = false;
-    #offset = null;
-    constructor(date, fasttype, unsafeDelim) {
-      let hasDate = true;
-      let hasTime = true;
-      let offset = "Z";
-      let c;
-      if (typeof date === "string") {
-        if (fasttype)
-          prep: {
-            if (fasttype < 3) {
-              if (+date.slice(11, 13) > 23) {
-                date = "";
-                break prep;
-              }
-              if (fasttype === 2) {
-                offset = null;
-                date += "Z";
-              } else if ((c = date.charCodeAt(date.length - 1)) !== 90 && c !== 122) {
-                offset = date.slice(date.length - 6);
-              }
-              if (unsafeDelim)
-                date = date.slice(0, 10) + "T" + date.slice(11);
-            } else if (fasttype === 4) {
-              date = +date.slice(0, 2) > 23 ? "" : `0000-01-01T${date}Z`;
-            }
-            hasDate = fasttype !== 4;
-            hasTime = fasttype !== 3;
-          }
-        else {
-          let match = date.match(DATE_TIME_RE);
-          if (match) {
-            if (!match[1]) {
-              hasDate = false;
-              date = `0000-01-01T${date}`;
-            }
-            hasTime = !!match[2];
-            hasTime && date[10] === " " && (date = date.replace(" ", "T"));
-            if (match[2] && +match[2] > 23) {
-              date = "";
-            } else {
-              offset = match[3] || null;
-              if (!offset && hasTime)
-                date += "Z";
-            }
-          } else {
-            date = "";
-          }
-        }
-      }
-      super(date);
-      if (!isNaN(this.getTime())) {
-        this.#hasDate = hasDate;
-        this.#hasTime = hasTime;
-        this.#offset = offset;
-      }
-    }
-    isDateTime() {
-      return this.#hasDate && this.#hasTime;
-    }
-    isLocal() {
-      return !this.#hasDate || !this.#hasTime || !this.#offset;
-    }
-    isDate() {
-      return this.#hasDate && !this.#hasTime;
-    }
-    isTime() {
-      return this.#hasTime && !this.#hasDate;
-    }
-    isValid() {
-      return this.#hasDate || this.#hasTime;
-    }
-    toISOString() {
-      let iso = super.toISOString();
-      if (this.isDate())
-        return iso.slice(0, 10);
-      if (this.isTime())
-        return iso.slice(11, 23);
-      if (this.#offset === null)
-        return iso.slice(0, -1);
-      if (this.#offset === "Z" || this.#offset === "z")
-        return iso;
-      let offset = +this.#offset.slice(1, 3) * 60 + +this.#offset.slice(4, 6);
-      offset = this.#offset[0] === "-" ? offset : -offset;
-      let offsetDate = new Date(this.getTime() - offset * 60000);
-      return offsetDate.toISOString().slice(0, -1) + this.#offset;
-    }
-    static wrapAsOffsetDateTime(jsDate, offset = "Z") {
-      let date = new TomlDate(jsDate);
-      date.#offset = offset;
-      return date;
-    }
-    static wrapAsLocalDateTime(jsDate) {
-      let date = new TomlDate(jsDate);
-      date.#offset = null;
-      return date;
-    }
-    static wrapAsLocalDate(jsDate) {
-      let date = new TomlDate(jsDate);
-      date.#hasTime = false;
-      date.#offset = null;
-      return date;
-    }
-    static wrapAsLocalTime(jsDate) {
-      let date = new TomlDate(jsDate);
-      date.#hasDate = false;
-      date.#offset = null;
-      return date;
-    }
-  };
-});
-
-// ../../node_modules/.bun/smol-toml@1.9.0/node_modules/smol-toml/dist/extract.js
-function isDigit(char, base = 10) {
-  return base === 16 ? char > 47 && char < 58 || char > 64 && char < 71 || char > 96 && char < 103 : char > 47 && char < 48 + base;
-}
-function isEndOfValue(char, delim) {
-  return char === 32 || char === 9 || char === 10 || char === 13 || delim && (char === delim || char === 44) || char === 35;
-}
-function extractValue(ctx, end) {
-  let errPtr = ctx.p;
-  let c = ctx.s.charCodeAt(ctx.p);
-  if (c === 91 || c === 123) {
-    ctx.d-- || TomlError.x("document contains excessively nested structures. aborting.", ctx);
-    let value = c === 91 ? parseArray(ctx) : parseInlineTable(ctx);
-    ctx.d++;
-    return value;
-  }
-  if (c === 34 || c === 39) {
-    return parseString(ctx);
-  }
-  if (c === 116) {
-    if (ctx.s.charCodeAt(++ctx.p) !== 114 || ctx.s.charCodeAt(++ctx.p) !== 117 || ctx.s.charCodeAt(++ctx.p) !== 101)
-      TomlError.x("invalid value", ctx, errPtr);
-    return ctx.p++, true;
-  }
-  if (c === 102) {
-    if (ctx.s.charCodeAt(++ctx.p) !== 97 || ctx.s.charCodeAt(++ctx.p) !== 108 || ctx.s.charCodeAt(++ctx.p) !== 115 || ctx.s.charCodeAt(++ctx.p) !== 101)
-      TomlError.x("invalid value", ctx, errPtr);
-    return ctx.p++, false;
-  }
-  if (c === 43 || c === 45) {
-    return parseNumber(ctx, ctx.p, ctx.s.charCodeAt(++ctx.p), 44 - c, end);
-  }
-  if (ctx.s.charCodeAt(ctx.p + 4) === 45 && ctx.s.charCodeAt(ctx.p + 7) === 45) {
-    return parseDate(ctx, c, end);
-  }
-  if (ctx.s.charCodeAt(ctx.p + 2) === 58) {
-    return parseTime(ctx, c, end);
-  }
-  return parseNumber(ctx, ctx.p, c, 0, end);
-}
-function parseNumber(ctx, startPtr, startChr, sign, endChr) {
-  let c = startChr;
-  let state = 0;
-  let hasUnderscores = false;
-  if (c === 105) {
-    if (ctx.s.charCodeAt(++ctx.p) !== 110 || ctx.s.charCodeAt(++ctx.p) !== 102)
-      TomlError.x("invalid value", ctx, startPtr);
-    return ctx.p++, (sign || 1) / 0;
-  }
-  if (c === 110) {
-    if (ctx.s.charCodeAt(++ctx.p) !== 97 || ctx.s.charCodeAt(++ctx.p) !== 110)
-      TomlError.x("invalid value", ctx, startPtr);
-    return ctx.p++, NaN;
-  }
-  if (c === 48) {
-    if (++ctx.p >= ctx.s.length || isEndOfValue(c = ctx.s.charCodeAt(ctx.p), endChr))
-      return ctx.bi === true ? 0n : 0;
-    if (!sign) {
-      if (c === 120)
-        return parseIntegerBaseN(ctx, startPtr, 16, endChr);
-      else if (c === 98)
-        return parseIntegerBaseN(ctx, startPtr, 2, endChr);
-      else if (c === 111)
-        return parseIntegerBaseN(ctx, startPtr, 8, endChr);
-    }
-    if (c === 46)
-      state = 2;
-    else if (c === 101 || c === 69)
-      state = 4;
-    else
-      TomlError.x("illegal leading zero", ctx, startPtr);
-  } else if (!isDigit(c))
-    TomlError.x("invalid value", ctx, startPtr);
-  while (++ctx.p < ctx.s.length && (c = ctx.s.charCodeAt(ctx.p), !isEndOfValue(c, endChr))) {
-    if (!state)
-      state = 1;
-    if (c === 95) {
-      if (!(state & 1))
-        TomlError.x("illegal underscore", ctx);
-      state += 11;
-      hasUnderscores = true;
-    } else if (state === 1 && c === 46)
-      state = 2;
-    else if ((state === 1 || state === 3) && (c === 101 || c === 69))
-      state = 4;
-    else if (state === 4 && (c === 43 || c === 45)) {} else if (!isDigit(c))
-      TomlError.x(`illegal character in numeric literal`, ctx);
-    else if (state > 9)
-      state -= 11;
-    else if (!(state & 1))
-      state++;
-  }
-  if (!state) {
-    let val = (startChr - 48) * (sign || 1);
-    return ctx.bi === true ? BigInt(val) : val;
-  }
-  if (!(state & 1))
-    TomlError.x("unfinished numeric value", ctx, startPtr);
-  let str = ctx.s.slice(startPtr, ctx.p);
-  if (hasUnderscores)
-    str = str.replaceAll("_", "");
-  return state > 1 ? parseFloat(str) : parseInteger(ctx, str, 10, startPtr);
-}
-function parseIntegerBaseN(ctx, startPtr, base, endChr) {
-  let c, underscore = 1;
-  while (++ctx.p < ctx.s.length && (c = ctx.s.charCodeAt(ctx.p), !isEndOfValue(c, endChr))) {
-    if (c === 95) {
-      if (underscore & 1)
-        TomlError.x("illegal underscore", ctx);
-      underscore = 3;
-    } else if (!isDigit(c, base))
-      TomlError.x(`illegal character in numeric literal`, ctx);
-    else if (underscore & 1)
-      underscore--;
-  }
-  if (underscore & 1)
-    TomlError.x("unfinished numeric value", ctx);
-  let str = ctx.s.slice(startPtr + 2, ctx.p);
-  if (underscore)
-    str = str.replaceAll("_", "");
-  return parseInteger(ctx, str, base, startPtr);
-}
-function parseInteger(ctx, str, base, startPtr) {
-  if (ctx.bi !== true)
-    int: {
-      let val = parseInt(str, base);
-      if (!Number.isSafeInteger(val)) {
-        if (ctx.bi)
-          break int;
-        TomlError.x("integer value cannot be represented losslessly", ctx, startPtr);
-      }
-      return val;
-    }
-  return base === 10 ? BigInt(str) : BigInt((base === 2 ? "0b" : base === 8 ? "0o" : "0x") + str);
-}
-function parseDate(ctx, c, endChr) {
-  let startPtr = ctx.p++, unsafeSeparator;
-  if (!isDigit(c) || !isDigit(ctx.s.charCodeAt(ctx.p++)) || !isDigit(ctx.s.charCodeAt(ctx.p++)) || !isDigit(ctx.s.charCodeAt(ctx.p++))) {
-    return parseNumber(ctx, ctx.p = startPtr, c, 0, endChr);
-  }
-  ctx.p += 5;
-  if (!isDigit(ctx.s.charCodeAt(ctx.p++)))
-    TomlError.x("invalid date-time: date part is malformed", ctx, startPtr);
-  if (ctx.p >= ctx.s.length || ((c = ctx.s.charCodeAt(ctx.p)) !== 32 || (unsafeSeparator = true, !isDigit(ctx.s.charCodeAt(ctx.p + 1)))) && c !== 84 && c !== 116) {
-    let t2 = ctx.s.slice(startPtr, ctx.p);
-    return readDate(ctx, t2, 3, false, startPtr);
-  }
-  if (ctx.s.charCodeAt(ctx.p += 3) !== 58)
-    TomlError.x("invalid date-time: time part is malformed", ctx, startPtr);
-  if (ctx.s.charCodeAt(ctx.p += 3) === 58)
-    ctx.p += 3;
-  if (ctx.s.charCodeAt(ctx.p) === 46)
-    while (isDigit(ctx.s.charCodeAt(++ctx.p)))
-      ;
-  if (c = ctx.s.charCodeAt(ctx.p)) {
-    if (c === 90 || c === 122) {
-      let t2 = ctx.s.slice(startPtr, ++ctx.p);
-      return readDate(ctx, t2, 1, unsafeSeparator, startPtr, "[+00:00]");
-    }
-    if (c === 43 || c === 45) {
-      let t2 = ctx.s.slice(startPtr, ctx.p += 6);
-      return readDate(ctx, t2, 1, unsafeSeparator, startPtr, !ctx.ld && "[" + ctx.s.slice(ctx.p - 6, ctx.p) + "]");
-    }
-  }
-  let t = ctx.s.slice(startPtr, ctx.p);
-  return readDate(ctx, t, 2, unsafeSeparator, startPtr);
-}
-function parseTime(ctx, c, endChr) {
-  let start = ctx.p;
-  if (!isDigit(c) || !isDigit(ctx.s.charCodeAt(++ctx.p))) {
-    return parseNumber(ctx, --ctx.p, c, 0, endChr);
-  }
-  if (ctx.s.charCodeAt(ctx.p += 4) === 58)
-    ctx.p += 3;
-  if (ctx.s.charCodeAt(ctx.p) === 46)
-    while (isDigit(ctx.s.charCodeAt(++ctx.p)))
-      ;
-  let t = ctx.s.slice(start, ctx.p);
-  return readDate(ctx, t, 4, false, start);
-}
-function readDate(ctx, str, type, unsafeDelim, errPtr, temporalSuffix) {
-  if (ctx.ld) {
-    let date = new TomlDate(str, type, unsafeDelim);
-    if (!date.isValid())
-      TomlError.x("invalid date", ctx, errPtr);
-    return date;
-  }
-  try {
-    if (temporalSuffix)
-      str += temporalSuffix;
-    switch (type) {
-      case 1:
-        return Temporal.ZonedDateTime.from(str);
-      case 2:
-        return Temporal.PlainDateTime.from(str);
-      case 3:
-        return Temporal.PlainDate.from(str);
-      case 4:
-        return Temporal.PlainTime.from(str);
-    }
-  } catch (e) {
-    TomlError.x(e instanceof Error ? e.message : "" + e, ctx, errPtr);
-  }
-}
-var init_extract = __esm(() => {
-  init_primitive();
-  init_struct();
-  init_error();
-  init_date();
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-});
-
-// ../../node_modules/.bun/smol-toml@1.9.0/node_modules/smol-toml/dist/util.js
 function skipComment(ctx) {
   for (;ctx.p < ctx.s.length; ctx.p++) {
     let c = ctx.s.charCodeAt(ctx.p);
@@ -12942,19 +12562,42 @@ function skipComment(ctx) {
       break;
     }
     if (c < 32 && c !== 9 || c === 127) {
-      TomlError.x("control characters are not allowed in comments", ctx);
+      throw new TomlError("control characters are not allowed in comments", {
+        toml: ctx.s,
+        ptr: ctx.p
+      });
     }
   }
 }
 function skipVoid(ctx, banNewLines, banComments) {
   let c;
-  while (ctx.p < ctx.s.length) {
-    while (ctx.p < ctx.s.length && ((c = ctx.s.charCodeAt(ctx.p)) === 32 || c === 9 || !banNewLines && (c === 10 || c === 13 && ctx.s.charCodeAt(ctx.p + 1) === 10)))
+  while (true) {
+    while ((c = ctx.s.charCodeAt(ctx.p)) === 32 || c === 9 || !banNewLines && (c === 10 || c === 13 && ctx.s.charCodeAt(ctx.p + 1) === 10))
       ctx.p++;
     if (banComments || c !== 35)
       break;
     skipComment(ctx);
   }
+}
+function skipUntil(ctx, sep, end) {
+  let ptr = ctx.p;
+  if (!end) {
+    ptr = indexOfNewline(ctx.s, ptr);
+    ctx.p = ptr < 0 ? ctx.s.length : ptr;
+    return;
+  }
+  for (;ctx.p < ctx.s.length; ctx.p++) {
+    let c = ctx.s.charCodeAt(ctx.p);
+    if (c === 35) {
+      skipComment(ctx);
+    } else if (c === end || c === sep) {
+      return;
+    }
+  }
+  throw new TomlError("cannot find end of structure", {
+    toml: ctx.s,
+    ptr
+  });
 }
 var init_util = __esm(() => {
   init_error();
@@ -12987,51 +12630,322 @@ var init_util = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.9.0/node_modules/smol-toml/dist/struct.js
-function parseKey(ctx, end = 61) {
-  let startPtr;
+// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/primitive.js
+function parseString(ctx) {
+  let start = ctx.p;
+  let c = ctx.s.charCodeAt(ctx.p++);
+  let first = c;
+  let isLiteral = c === 39;
+  let isMultiline = c === ctx.s.charCodeAt(ctx.p) && c === ctx.s.charCodeAt(ctx.p + 1);
+  if (isMultiline) {
+    if ((c = ctx.s.charCodeAt(ctx.p += 2)) === 10)
+      ctx.p++;
+    else if (c === 13 && ctx.s.charCodeAt(ctx.p + 1) === 10)
+      ctx.p += 2;
+  }
+  let parsed2 = "";
+  let sliceStart = ctx.p;
   let state = 0;
-  let parsed2 = [];
-  let sliceStart;
-  let c = ctx.s.charCodeAt(startPtr = ctx.p);
-  do {
-    if (c === end) {
-      if (!state)
-        TomlError.x("unexpected end of key", ctx);
-      if (state === 1)
-        parsed2.push(ctx.s.slice(sliceStart, ctx.p));
-      return ctx.p++, parsed2;
-    } else if (c === 46) {
-      if (!state)
-        TomlError.x("illegal empty bare key", ctx);
-      if (state === 1)
-        parsed2.push(ctx.s.slice(sliceStart, ctx.p));
-      state = 0;
-    } else if (!state && (c === 34 || c === 39)) {
-      if (c === ctx.s.charCodeAt(ctx.p + 1) && c === ctx.s.charCodeAt(ctx.p + 2))
-        TomlError.x("illegal quoted key: multiline strings are not allowed", ctx);
-      parsed2.push(parseString(ctx));
-      state = 2;
-      ctx.p--;
-    } else if (c === 32 || c === 9) {
-      if (state === 1) {
-        parsed2.push(ctx.s.slice(sliceStart, ctx.p));
-        state = 2;
+  for (;ctx.p < ctx.s.length; ctx.p++) {
+    c = ctx.s.charCodeAt(ctx.p);
+    if (isMultiline && (c === 10 || c === 13 && ctx.s.charCodeAt(ctx.p + 1) === 10)) {
+      state = state && 3;
+    } else if (c < 32 && c !== 9 || c === 127) {
+      throw new TomlError("control characters are not allowed in strings", {
+        toml: ctx.s,
+        ptr: ctx.p
+      });
+    } else if ((!state || state === 3) && c === first && (!isMultiline || ctx.s.charCodeAt(ctx.p + 1) === first && ctx.s.charCodeAt(ctx.p + 2) === first)) {
+      if (isMultiline) {
+        if (ctx.s.charCodeAt(ctx.p + 3) === first)
+          ctx.p++;
+        if (ctx.s.charCodeAt(ctx.p + 3) === first)
+          ctx.p++;
       }
-    } else if (state === 2 || c < 48 && c !== 45 || c > 57 && c < 65 || c > 90 && c < 97 && c !== 95 || c > 122) {
-      TomlError.x("illegal character in key", ctx);
+      if (!state)
+        parsed2 += ctx.s.slice(sliceStart, ctx.p);
+      ctx.p += isMultiline ? 3 : 1;
+      return parsed2;
     } else if (!state) {
-      state = 1;
+      if (!isLiteral && c === 92) {
+        parsed2 += ctx.s.slice(sliceStart, sliceStart = ctx.p);
+        state = 1;
+      }
+    } else if (state === 1) {
+      if (c === 120 || c === 117 || c === 85) {
+        let value = 0;
+        let len = c === 120 ? 2 : c === 117 ? 4 : 8;
+        for (let j = 0;j < len; j++, ctx.p++) {
+          let hex = ctx.s.charCodeAt(ctx.p + 1);
+          let digit = hex >= 48 && hex <= 57 ? hex - 48 : hex >= 65 && hex <= 70 ? hex - 65 + 10 : hex >= 97 && hex <= 102 ? hex - 97 + 10 : -1;
+          if (digit < 0)
+            throw new TomlError("invalid non-hex character in unicode escape", { toml: ctx.s, ptr: ctx.p + 1 });
+          value = value << 4 | digit;
+        }
+        if (value < 0 || value > 1114111 || value >= 55296 && value <= 57343) {
+          throw new TomlError("invalid unicode escape", { toml: ctx.s, ptr: ctx.p });
+        }
+        parsed2 += String.fromCodePoint(value);
+        sliceStart = ctx.p + 1;
+        state = 0;
+      } else if (c === 32 || c === 9) {
+        state = 2;
+      } else {
+        if (c === 98)
+          parsed2 += "\b";
+        else if (c === 116)
+          parsed2 += "\t";
+        else if (c === 110)
+          parsed2 += `
+`;
+        else if (c === 102)
+          parsed2 += "\f";
+        else if (c === 114)
+          parsed2 += "\r";
+        else if (c === 101)
+          parsed2 += "\x1B";
+        else if (c === 34)
+          parsed2 += '"';
+        else if (c === 92)
+          parsed2 += "\\";
+        else
+          throw new TomlError("unrecognized escape sequence", { toml: ctx.s, ptr: ctx.p });
+        sliceStart = ctx.p + 1;
+        state = 0;
+      }
+    } else if (c !== 32 && c !== 9) {
+      if (state === 2) {
+        throw new TomlError("invalid escape: only line-ending whitespace may be escaped", {
+          toml: ctx.s,
+          ptr: sliceStart
+        });
+      }
+      state = !isLiteral && c === 92 ? 1 : 0;
       sliceStart = ctx.p;
     }
-  } while (c = ctx.s.charCodeAt(++ctx.p));
-  TomlError.x("incomplete key-value: cannot find end of key", ctx, startPtr);
+  }
+  throw new TomlError("unfinished string", { toml: ctx.s, ptr: start });
 }
-function parseInlineTable(ctx) {
-  let startPtr = ctx.p++;
-  let res = Object.create(null);
+function sliceAndTrimEndOf(ctx, start, end) {
+  let value = ctx.s.slice(start, end);
+  let commentIdx = value.indexOf("#");
+  if (commentIdx > 0) {
+    skipComment({ s: value, p: commentIdx, d: 0 });
+    value = value.slice(0, commentIdx);
+  }
+  return value.trimEnd();
+}
+function parseValue(ctx, integersAsBigInt, end) {
+  let ptr = ctx.p;
+  let err = { toml: ctx.s, ptr };
+  skipUntil(ctx, 44, end);
+  let value = sliceAndTrimEndOf(ctx, ptr, ctx.p);
+  if (!value)
+    throw new TomlError("incomplete declaration: value expected", err);
+  if (value === "-inf")
+    return -Infinity;
+  if (value === "inf" || value === "+inf")
+    return Infinity;
+  if (value === "nan" || value === "+nan" || value === "-nan")
+    return NaN;
+  if (value === "-0")
+    return integersAsBigInt ? 0n : 0;
+  let isInt = INT_REGEX.test(value);
+  if (isInt || FLOAT_REGEX.test(value)) {
+    if (LEADING_ZERO.test(value)) {
+      throw new TomlError("leading zeroes are not allowed", err);
+    }
+    value = value.replace(/_/g, "");
+    let numeric = +value;
+    if (isNaN(numeric)) {
+      throw new TomlError("invalid number", err);
+    }
+    if (isInt) {
+      if ((isInt = !Number.isSafeInteger(numeric)) && !integersAsBigInt) {
+        throw new TomlError("integer value cannot be represented losslessly", err);
+      }
+      if (isInt || integersAsBigInt === true)
+        numeric = BigInt(value);
+    }
+    return numeric;
+  }
+  const date = new TomlDate(value);
+  if (!date.isValid())
+    throw new TomlError("invalid value", err);
+  return date;
+}
+var INT_REGEX, FLOAT_REGEX, LEADING_ZERO;
+var init_primitive = __esm(() => {
+  init_date();
+  init_error();
+  init_util();
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+  INT_REGEX = /^((0x[0-9a-fA-F](_?[0-9a-fA-F])*)|(([+-]|0[ob])?\d(_?\d)*))$/;
+  FLOAT_REGEX = /^[+-]?\d(_?\d)*(\.\d(_?\d)*)?([eE][+-]?\d(_?\d)*)?$/;
+  LEADING_ZERO = /^[+-]?0[0-9_]/;
+});
+
+// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/extract.js
+function extractValue(ctx, end, integersAsBigInt) {
+  let ptr = ctx.p;
+  let c = ctx.s.charCodeAt(ptr);
+  if (c === 91 || c === 123) {
+    if (!ctx.d--) {
+      throw new TomlError("document contains excessively nested structures. aborting.", {
+        toml: ctx.s,
+        ptr
+      });
+    }
+    let value = c === 91 ? parseArray(ctx, integersAsBigInt) : parseInlineTable(ctx, integersAsBigInt);
+    ctx.d++;
+    return value;
+  }
+  if (c === 34 || c === 39) {
+    return parseString(ctx);
+  }
+  if (c === 116) {
+    if (ctx.s.charCodeAt(++ctx.p) !== 114 || ctx.s.charCodeAt(++ctx.p) !== 117 || ctx.s.charCodeAt(++ctx.p) !== 101)
+      throw new TomlError("invalid value", { toml: ctx.s, ptr });
+    ctx.p++;
+    return true;
+  }
+  if (c === 102) {
+    if (ctx.s.charCodeAt(++ctx.p) !== 97 || ctx.s.charCodeAt(++ctx.p) !== 108 || ctx.s.charCodeAt(++ctx.p) !== 115 || ctx.s.charCodeAt(++ctx.p) !== 101)
+      throw new TomlError("invalid value", { toml: ctx.s, ptr });
+    ctx.p++;
+    return false;
+  }
+  return parseValue(ctx, integersAsBigInt, end);
+}
+var init_extract = __esm(() => {
+  init_primitive();
+  init_struct();
+  init_error();
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+});
+
+// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/struct.js
+function parseKey(ctx, end = "=") {
+  let start = ctx.p;
+  let dot = start - 1;
+  let parsed2 = [];
+  let endPtr = ctx.s.indexOf(end, start);
+  if (endPtr < 0) {
+    throw new TomlError("incomplete key-value: cannot find end of key", {
+      toml: ctx.s,
+      ptr: start
+    });
+  }
+  do {
+    let c = ctx.s.charCodeAt(ctx.p = ++dot);
+    if (c !== 32 && c !== 9) {
+      if (c === 34 || c === 39) {
+        if (c === ctx.s.charCodeAt(ctx.p + 1) && c === ctx.s.charCodeAt(ctx.p + 2)) {
+          throw new TomlError("multiline strings are not allowed in keys", {
+            toml: ctx.s,
+            ptr: ctx.p
+          });
+        }
+        let part = parseString(ctx);
+        dot = ctx.s.indexOf(".", ctx.p);
+        let strEnd = ctx.s.slice(ctx.p, dot < 0 || dot > endPtr ? endPtr : dot);
+        let newLine = indexOfNewline(strEnd);
+        if (newLine > -1) {
+          throw new TomlError("newlines are not allowed in keys", {
+            toml: ctx.s,
+            ptr: newLine
+          });
+        }
+        if (strEnd.trimStart()) {
+          throw new TomlError("found extra tokens after the string part", {
+            toml: ctx.s,
+            ptr: ctx.p
+          });
+        }
+        if (endPtr < ctx.p) {
+          endPtr = ctx.s.indexOf(end, ctx.p);
+          if (endPtr < 0) {
+            throw new TomlError("incomplete key-value: cannot find end of key", {
+              toml: ctx.s,
+              ptr: start
+            });
+          }
+        }
+        parsed2.push(part);
+      } else {
+        dot = ctx.s.indexOf(".", ctx.p);
+        let part = ctx.s.slice(ctx.p, dot < 0 || dot > endPtr ? endPtr : dot);
+        if (!KEY_PART_RE.test(part)) {
+          throw new TomlError("only letter, numbers, dashes and underscores are allowed in keys", {
+            toml: ctx.s,
+            ptr: ctx.p
+          });
+        }
+        parsed2.push(part.trimEnd());
+      }
+    }
+  } while (dot + 1 && dot < endPtr);
+  ctx.p = endPtr + 1;
+  skipVoid(ctx, true, true);
+  return parsed2;
+}
+function parseInlineTable(ctx, integersAsBigInt) {
+  let res = {};
   let seen = new Set;
   let c;
+  ctx.p++;
   while (ctx.p < ctx.s.length) {
     skipVoid(ctx);
     if ((c = ctx.s.charCodeAt(ctx.p)) === 125) {
@@ -13041,60 +12955,68 @@ function parseInlineTable(ctx) {
     let k;
     let t = res;
     let hasOwn = false;
-    let errPtr = ctx.p;
+    let p = ctx.p;
     let key = parseKey(ctx);
     for (let i = 0;i < key.length; i++) {
       if (i)
-        t = hasOwn ? t[k] : t[k] = Object.create(null);
+        t = hasOwn ? t[k] : t[k] = {};
       k = key[i];
       if ((hasOwn = Object.hasOwn(t, k)) && (typeof t[k] !== "object" || seen.has(t[k]))) {
-        TomlError.x("trying to redefine an already defined value", ctx, errPtr);
+        throw new TomlError("trying to redefine an already defined value", {
+          toml: ctx.s,
+          ptr: p
+        });
       }
-      let unsafe = k === "__proto__";
-      if (ctx.uk && (unsafe || k === "constructor")) {
-        t = ctx.uk !== 1 && TomlError.x("document contains an unsafe property", ctx, errPtr);
-        break;
-      }
-      if (!hasOwn && unsafe) {
+      if (!hasOwn && k === "__proto__") {
         Object.defineProperty(t, k, { enumerable: true, configurable: true, writable: true });
       }
     }
     if (hasOwn) {
-      TomlError.x("trying to redefine an already defined value", ctx, errPtr);
+      throw new TomlError("trying to redefine an already defined value", {
+        toml: ctx.s,
+        ptr: ctx.p
+      });
     }
-    skipVoid(ctx, true, true);
-    let value = extractValue(ctx, 125);
-    if (t && typeof (t[k] = value) === "object")
-      seen.add(value);
+    let value = extractValue(ctx, 125, integersAsBigInt);
+    seen.add(t[k] = value);
     skipVoid(ctx);
     if ((c = ctx.s.charCodeAt(ctx.p++)) === 125) {
       return res;
     }
-    if (c !== 44)
-      TomlError.x("expected comma or end of structure", ctx, ctx.p - 1);
+    if (c !== 44) {
+      throw new TomlError("expected comma or end of structure", { toml: ctx.s, ptr: ctx.p - 1 });
+    }
   }
-  TomlError.x("unfinished table", ctx, startPtr);
+  throw new TomlError("unfinished table encountered", {
+    toml: ctx.s,
+    ptr: ctx.p
+  });
 }
-function parseArray(ctx) {
-  let startPtr = ctx.p++;
+function parseArray(ctx, integersAsBigInt) {
   let res = [];
   let c;
+  ctx.p++;
   while (ctx.p < ctx.s.length) {
     skipVoid(ctx);
     if ((c = ctx.s.charCodeAt(ctx.p)) === 93) {
       ctx.p++;
       return res;
     }
-    res.push(extractValue(ctx, 93));
+    res.push(extractValue(ctx, 93, integersAsBigInt));
     skipVoid(ctx);
     if ((c = ctx.s.charCodeAt(ctx.p++)) === 93) {
       return res;
     }
-    if (c !== 44)
-      TomlError.x("expected comma or end of structure", ctx, ctx.p - 1);
+    if (c !== 44) {
+      throw new TomlError("expected comma or end of structure", { toml: ctx.s, ptr: ctx.p - 1 });
+    }
   }
-  TomlError.x("unfinished array", ctx, startPtr);
+  throw new TomlError("unfinished array encountered", {
+    toml: ctx.s,
+    ptr: ctx.p
+  });
 }
+var KEY_PART_RE;
 var init_struct = __esm(() => {
   init_primitive();
   init_extract();
@@ -13127,10 +13049,11 @@ var init_struct = __esm(() => {
    * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
    * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    */
+  KEY_PART_RE = /^[a-zA-Z0-9-_]+[ \t]*$/;
 });
 
-// ../../node_modules/.bun/smol-toml@1.9.0/node_modules/smol-toml/dist/parse.js
-function peekTable(ctx, key, table, meta, type) {
+// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/parse.js
+function peekTable(key, table, meta, type) {
   let t = table;
   let m = meta;
   let k;
@@ -13138,7 +13061,7 @@ function peekTable(ctx, key, table, meta, type) {
   let state;
   for (let i = 0;i < key.length; i++) {
     if (i) {
-      t = hasOwn ? t[k] : t[k] = Object.create(null);
+      t = hasOwn ? t[k] : t[k] = {};
       m = (state = m[k]).c;
       if (type === 0 && (state.t === 1 || state.t === 2)) {
         return null;
@@ -13154,10 +13077,7 @@ function peekTable(ctx, key, table, meta, type) {
       return null;
     }
     if (!hasOwn) {
-      let unsafe = k === "__proto__";
-      if (ctx.uk && (unsafe || k === "constructor"))
-        return false;
-      if (unsafe) {
+      if (k === "__proto__") {
         Object.defineProperty(t, k, { enumerable: true, configurable: true, writable: true });
         Object.defineProperty(m, k, { enumerable: true, configurable: true, writable: true });
       }
@@ -13165,7 +13085,7 @@ function peekTable(ctx, key, table, meta, type) {
         t: i < key.length - 1 && type === 2 ? 3 : type,
         d: false,
         i: 0,
-        c: Object.create(null)
+        c: {}
       };
     }
   }
@@ -13178,76 +13098,69 @@ function peekTable(ctx, key, table, meta, type) {
       state.d = true;
       t[k] = [];
     }
-    t[k].push(t = Object.create(null));
-    state.c[state.i++] = state = { t: 1, d: false, i: 0, c: Object.create(null) };
+    t[k].push(t = {});
+    state.c[state.i++] = state = { t: 1, d: false, i: 0, c: {} };
   }
   if (state.d) {
     return null;
   }
   state.d = true;
   if (type === 1) {
-    t = hasOwn ? t[k] : t[k] = Object.create(null);
+    t = hasOwn ? t[k] : t[k] = {};
   } else if (type === 0 && hasOwn) {
     return null;
   }
   return [k, t, state.c];
 }
-function validateTablePeek(ctx, peek, ptr) {
-  if (peek === null || ctx.uk === 2)
-    TomlError.x(peek === null ? "trying to redefine an already defined table or value" : "document contains an unsafe property", ctx, ptr);
-}
-function parse(toml, options = {}) {
-  let ctx = {
-    s: toml,
-    p: 0,
-    d: options.maxDepth ?? 1000,
-    bi: options.integersAsBigInt ?? false,
-    ld: options.useLegacyDate ?? true,
-    uk: options.unsafeKeyBehaviour === "throw" ? 2 : options.unsafeKeyBehaviour === "drop" ? 1 : 0
-  };
-  let res = Object.create(null);
-  let meta = Object.create(null);
+function parse(toml, { maxDepth = 1000, integersAsBigInt } = {}) {
+  let ctx = { s: toml, p: 0, d: maxDepth };
+  let res = {};
+  let meta = {};
   let tmp;
-  let skipping = false;
   let tbl = res;
   let m = meta;
-  if (toml.charCodeAt(0) === 65279)
-    ctx.p++;
   skipVoid(ctx);
   while (ctx.p < toml.length) {
     if (toml.charCodeAt(ctx.p) === 91) {
       let isTableArray = toml.charCodeAt(++ctx.p) === 91;
       tmp = ctx.p += +isTableArray;
-      skipping = false;
-      let k = parseKey(ctx, 93);
+      let k = parseKey(ctx, "]");
       if (isTableArray) {
-        if (toml.charCodeAt(ctx.p) !== 93) {
-          TomlError.x("expected end of table array declaration", ctx);
+        if (toml.charCodeAt(ctx.p - 1) !== 93) {
+          throw new TomlError("expected end of table declaration", {
+            toml,
+            ptr: ctx.p - 1
+          });
         }
         ctx.p++;
       }
-      let p = peekTable(ctx, k, res, meta, isTableArray ? 2 : 1);
+      let p = peekTable(k, res, meta, isTableArray ? 2 : 1);
       if (!p) {
-        validateTablePeek(ctx, p, tmp);
-        skipping = true;
-      } else {
-        m = p[2];
-        tbl = p[1];
+        throw new TomlError("trying to redefine an already defined table or value", {
+          toml,
+          ptr: tmp
+        });
       }
+      m = p[2];
+      tbl = p[1];
     } else {
       tmp = ctx.p;
       let k = parseKey(ctx);
-      let p = peekTable(ctx, k, tbl, m, 0);
-      if (!p && !skipping)
-        validateTablePeek(ctx, p, tmp);
-      skipVoid(ctx, true, true);
-      let v = extractValue(ctx, undefined);
-      if (p && !skipping)
-        p[1][p[0]] = v;
+      let p = peekTable(k, tbl, m, 0);
+      if (!p) {
+        throw new TomlError("trying to redefine an already defined table or value", {
+          toml,
+          ptr: tmp
+        });
+      }
+      p[1][p[0]] = extractValue(ctx, undefined, integersAsBigInt);
     }
     skipVoid(ctx, true);
-    if (ctx.p < toml.length && (tmp = toml.charCodeAt(ctx.p)) !== 10 && (tmp !== 13 || toml.charCodeAt(ctx.p + 1) !== 10)) {
-      TomlError.x("each key-value declaration must be followed by an end-of-line", ctx);
+    if (ctx.p < toml.length && (tmp = toml.charCodeAt(ctx.p)) !== 10 && tmp !== 13) {
+      throw new TomlError("each key-value declaration must be followed by an end-of-line", {
+        toml,
+        ptr: ctx.p
+      });
     }
     skipVoid(ctx);
   }
@@ -13287,8 +13200,7 @@ var init_parse = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.9.0/node_modules/smol-toml/dist/stringify.js
-var HAS_WELLFORMED;
+// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/stringify.js
 var init_stringify = __esm(() => {
   /*!
    * Copyright (c) Squirrel Chat et al., All rights reserved.
@@ -13317,10 +13229,9 @@ var init_stringify = __esm(() => {
    * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
    * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    */
-  HAS_WELLFORMED = !!"".isWellFormed;
 });
 
-// ../../node_modules/.bun/smol-toml@1.9.0/node_modules/smol-toml/dist/index.js
+// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/index.js
 var init_dist = __esm(() => {
   init_parse();
   init_stringify();
@@ -21566,13 +21477,13 @@ var require_structured_source = __commonJS((exports) => {
   exports.StructuredSource = StructuredSource;
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/helper/invariant.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/helper/invariant.js
 function invariant(condition, message) {
   if (!condition)
     throw new Error(message);
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
 class SecretLintSourceCodeImpl {
   hasBOM;
   content;
@@ -21629,7 +21540,7 @@ var init_SecretLintSourceCodeImpl = __esm(() => {
   import_structured_source = __toESM(require_structured_source(), 1);
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
 class EventEmitter2 {
   #listeners = new Map;
   on(type, listener) {
@@ -21689,7 +21600,7 @@ class PromiseEventEmitter {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
 var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   if (typeof props !== "object" || props === null) {
     return messageHandler();
@@ -21750,7 +21661,7 @@ var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/RuleContext.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/RuleContext.js
 var createContextEvents = () => {
   const contextEvents = new EventEmitter2;
   const REPORT_SYMBOL = Symbol("report");
@@ -21835,7 +21746,7 @@ var createContextEvents = () => {
 };
 var init_RuleContext = () => {};
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
 class SecretLintRule {
   ruleReportHandle;
   ruleCreator;
@@ -21877,7 +21788,7 @@ class SecretLintRule {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+profiler@13.0.7/node_modules/@secretlint/profiler/module/index.js
+// ../../node_modules/.bun/@secretlint+profiler@13.0.5/node_modules/@secretlint/profiler/module/index.js
 class SecretLintProfiler {
   perf;
   PerformanceObserver;
@@ -21971,7 +21882,7 @@ class SecretLintProfiler {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+profiler@13.0.7/node_modules/@secretlint/profiler/module/node.js
+// ../../node_modules/.bun/@secretlint+profiler@13.0.5/node_modules/@secretlint/profiler/module/node.js
 import perf_hooks from "perf_hooks";
 
 class NullPerformanceObserver {
@@ -21986,7 +21897,7 @@ var init_node = __esm(() => {
   });
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/RunningEvents.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/RunningEvents.js
 var createRunningEvents = () => {
   const contextEvents = new PromiseEventEmitter;
   const registerSet = new Set;
@@ -22043,7 +21954,7 @@ var init_RunningEvents = __esm(() => {
   init_node();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/RulePresetContext.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/RulePresetContext.js
 var createRulePresetContext = ({ configRulePreset, sourceCode, runningEvents, contextEvents, sharedOptions, locale }) => {
   const presetRules = configRulePreset.rules || [];
   if (!Array.isArray(presetRules)) {
@@ -22091,7 +22002,7 @@ var init_RulePresetContext = __esm(() => {
   init_RuleContext();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
 function filterIgnoredMessages(options) {
   const reportedMessages = options.reportedMessages;
   const ignoreMessages = options.ignoredMessages;
@@ -22113,7 +22024,7 @@ var isContainedRange = (index, range) => {
   return start <= index && index <= end;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
 var createMessageProcessor = (processors) => {
   return {
     process(messages) {
@@ -22128,7 +22039,7 @@ var createMessageProcessor = (processors) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
 function filterDuplicatedMessages(messages = []) {
   return messages.filter((message, index) => {
     const restMessages = messages.slice(index + 1);
@@ -22141,7 +22052,7 @@ var isEqualMessage = (aMessage, bMessage) => {
   return aMessage.range[0] === bMessage.range[0] && aMessage.range[1] === bMessage.range[1] && "severity" in aMessage && "severity" in bMessage && aMessage.severity === bMessage.severity && aMessage.message === bMessage.message;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/messages/sort-messages-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/sort-messages-process.js
 function sortMessagesByLocation(messages) {
   return messages.sort(function(a, b) {
     const startIndexDiff = a.range[0] - b.range[0];
@@ -22153,7 +22064,7 @@ function sortMessagesByLocation(messages) {
   });
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/messages/filter-message-id.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/filter-message-id.js
 var filterByAllowMessageIds = (messages, allowMessageIds) => {
   const disabledSet = new Set(allowMessageIds.map((allowMessage) => {
     return `${allowMessage.ruleId}--${allowMessage.messageId}`;
@@ -22163,7 +22074,7 @@ var filterByAllowMessageIds = (messages, allowMessageIds) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
 var deepMask = (object, handler) => {
   for (const key of Object.keys(object)) {
     if (typeof object[key] === "object") {
@@ -22205,7 +22116,7 @@ var deepMask = (object, handler) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/messages/index.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/index.js
 var cleanupMessages = (options) => {
   const reportedMessages = filterIgnoredMessages(options);
   const reportedMessagesWithoutAllowMessageIds = filterByAllowMessageIds(reportedMessages, options.allowMessageIds);
@@ -22993,7 +22904,7 @@ var require_src = __commonJS((exports, module) => {
   }
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.7/node_modules/@secretlint/core/module/index.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/index.js
 var import_debug, debug, lintSource = ({ source, options }) => {
   secretLintProfiler.mark({
     type: "@core>lint::start",
@@ -23120,7 +23031,7 @@ var init_module = __esm(() => {
   debug = import_debug.default("@secretlint/core");
 });
 
-// ../../node_modules/.bun/@secretlint+secretlint-rule-preset-recommend@13.0.7/node_modules/@secretlint/secretlint-rule-preset-recommend/module/index.js
+// ../../node_modules/.bun/@secretlint+secretlint-rule-preset-recommend@13.0.5/node_modules/@secretlint/secretlint-rule-preset-recommend/module/index.js
 import path3 from "path";
 function requireLodash_uniq() {
   if (hasRequiredLodash_uniq)
@@ -35696,7 +35607,7 @@ function safePath(path7) {
 }
 function exactSelection(fullName) {
   const escaped = fullName.replaceAll(/[.*+?^${}()|[\]\\]/gu, (character) => `\\${character}`);
-  return `^${escaped}$`;
+  return `^${escaped.replaceAll(" ", () => VITEST_SUITE_SEPARATOR)}$`;
 }
 function validateRequest(request) {
   if (request.ticketId !== RETROSPECTIVE_TICKET)
@@ -35959,10 +35870,11 @@ function runRetrospectiveProof(projectRoot, request) {
     rmSync9(temporary, { recursive: true, force: true });
   }
 }
-var TEST_TIMEOUT_MS = 180000, REPORT = "retrospective-proof-report.json", MAX_PROCESS_OUTPUT;
+var TEST_TIMEOUT_MS = 180000, REPORT = "retrospective-proof-report.json", MAX_PROCESS_OUTPUT, VITEST_SUITE_SEPARATOR;
 var init_retrospective_proof = __esm(() => {
   init_retrospective_history();
   MAX_PROCESS_OUTPUT = 128 * 1024;
+  VITEST_SUITE_SEPARATOR = String.raw`(?:\s*>\s*|\s+)`;
 });
 
 // src/review/retrospective-scenario-body.ts
@@ -36047,7 +35959,10 @@ function matchingScenario(claim, heading) {
 function ticketNamesClaim(root, claimPath) {
   const ticketPath = nodePath49.join(root, nodePath49.dirname(RETROSPECTIVE_LEDGER), "ticket.md");
   const ticket = frontmatterOf(readFileSync33(ticketPath, "utf8"));
-  return ticket?.id === RETROSPECTIVE_TICKET && ticket.retrospective_claim === claimPath;
+  if (ticket?.id !== RETROSPECTIVE_TICKET || typeof ticket.retrospective_claim !== "string") {
+    return false;
+  }
+  return ticket.retrospective_claim === claimPath || Array.isArray(ticket.retrospective_claims) && ticket.retrospective_claims.includes(claimPath);
 }
 function retrospectiveReviewTargets(root, targets) {
   return targets.map((target) => nodePath49.relative(root, nodePath49.resolve(root, target)).split(nodePath49.sep).join("/"));
@@ -36359,6 +36274,15 @@ function ticketClaim(root) {
   }
   return ticket.retrospective_claim;
 }
+function renewalPath(root) {
+  const ticket = frontmatterOf(readFileSync34(contained(root, TICKET_PATH), "utf8"));
+  const path7 = ticket?.retrospective_renewals;
+  if (path7 === undefined)
+    return;
+  if (typeof path7 !== "string")
+    throw new Error("Retrospective renewals need one file path.");
+  return path7;
+}
 function claimsFromLedger(root) {
   const content = readFileSync34(contained(root, RETROSPECTIVE_LEDGER), "utf8");
   const claims = [];
@@ -36404,6 +36328,34 @@ function claimsFromLedger(root) {
     throw new Error("VERIFIED requires unique scenario headings.");
   return claims;
 }
+function claimsForClose(root) {
+  const claims = claimsFromLedger(root);
+  const path7 = renewalPath(root);
+  if (path7 === undefined)
+    return claims;
+  const manifest = JSON.parse(readFileSync34(contained(root, path7), "utf8"));
+  if (manifest.schema_version !== 1 || !Array.isArray(manifest.rows)) {
+    throw new Error("Retrospective renewal manifest is invalid.");
+  }
+  const remaining = new Set(claims.map((claim) => claim.scenario));
+  const replacements = new Map;
+  for (const row of manifest.rows) {
+    if (typeof row !== "object" || row === null) {
+      throw new Error("Retrospective renewal row is invalid.");
+    }
+    const entry = row;
+    const original = claims.find((claim) => claim.scenario === entry.scenario);
+    if (original === undefined || !remaining.delete(original.scenario) || original.eligibilityId !== entry.originalEligibilityId || original.proofId !== entry.originalProofId || typeof entry.eligibilityId !== "string" || typeof entry.proofId !== "string" || entry.eligibilityId === entry.proofId) {
+      throw new Error("Retrospective renewal does not match one checked row.");
+    }
+    replacements.set(original.scenario, {
+      ...original,
+      eligibilityId: entry.eligibilityId,
+      proofId: entry.proofId
+    });
+  }
+  return claims.map((claim) => replacements.get(claim.scenario) ?? claim);
+}
 function reviewedTargets(root, id, kind) {
   const targets = approvedRetrospectiveReview(root, id, kind);
   if (targets === undefined)
@@ -36437,7 +36389,10 @@ function claimInputPaths(root, claim) {
   ];
 }
 function inputPaths(root, claims) {
-  const paths = new Set([RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
+  const paths = new Set([TICKET_PATH, RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
+  const renewal = renewalPath(root);
+  if (renewal !== undefined)
+    paths.add(renewal);
   for (const claim of claims) {
     for (const path7 of claimInputPaths(root, claim))
       paths.add(path7);
@@ -36470,7 +36425,7 @@ function attestRetrospectiveClose(root, ticketId, ledger) {
     }
     const sourceCommit = currentProofCommit(root);
     const claimPath = ticketClaim(root);
-    const claims = claimsFromLedger(root);
+    const claims = claimsForClose(root);
     const paths = inputPaths(root, claims);
     const before = inputDigests(root, paths);
     for (const claim of claims) {
@@ -36520,7 +36475,7 @@ function retrospectiveCloseGate(root, ticketId, ledger) {
     if (record.schema_version !== 1 || record.ticket !== RETROSPECTIVE_TICKET || record.claimPath !== ticketClaim(root) || record.sourceCommit !== currentProofCommit(root) || !validRetrospectiveCloseTag(root, JSON.stringify(unsigned(record)), record.integrity)) {
       throw new Error("Retrospective closing record is invalid.");
     }
-    const claims = claimsFromLedger(root);
+    const claims = claimsForClose(root);
     if (JSON.stringify(record.claims) !== JSON.stringify(claims)) {
       throw new Error("Retrospective ledger changed after closing proof.");
     }
@@ -41735,15 +41690,15 @@ function createScanner(text, ignoreTrivia = false) {
       pos++;
     } else {
       pos++;
-      while (pos < text.length && isDigit2(text.charCodeAt(pos))) {
+      while (pos < text.length && isDigit(text.charCodeAt(pos))) {
         pos++;
       }
     }
     if (pos < text.length && text.charCodeAt(pos) === 46) {
       pos++;
-      if (pos < text.length && isDigit2(text.charCodeAt(pos))) {
+      if (pos < text.length && isDigit(text.charCodeAt(pos))) {
         pos++;
-        while (pos < text.length && isDigit2(text.charCodeAt(pos))) {
+        while (pos < text.length && isDigit(text.charCodeAt(pos))) {
           pos++;
         }
       } else {
@@ -41757,9 +41712,9 @@ function createScanner(text, ignoreTrivia = false) {
       if (pos < text.length && text.charCodeAt(pos) === 43 || text.charCodeAt(pos) === 45) {
         pos++;
       }
-      if (pos < text.length && isDigit2(text.charCodeAt(pos))) {
+      if (pos < text.length && isDigit(text.charCodeAt(pos))) {
         pos++;
-        while (pos < text.length && isDigit2(text.charCodeAt(pos))) {
+        while (pos < text.length && isDigit(text.charCodeAt(pos))) {
           pos++;
         }
         end = pos;
@@ -41944,7 +41899,7 @@ function createScanner(text, ignoreTrivia = false) {
       case 45:
         value += String.fromCharCode(code);
         pos++;
-        if (pos === len || !isDigit2(text.charCodeAt(pos))) {
+        if (pos === len || !isDigit(text.charCodeAt(pos))) {
           return token = 16;
         }
       case 48:
@@ -42024,7 +41979,7 @@ function isWhiteSpace(ch) {
 function isLineBreak(ch) {
   return ch === 10 || ch === 13;
 }
-function isDigit2(ch) {
+function isDigit(ch) {
   return ch >= 48 && ch <= 57;
 }
 var CharacterCodes;
@@ -42612,15 +42567,15 @@ function visit(text, visitor, options = ParseOptions.DEFAULT) {
       }
     }
   }
-  function handleError(error2, skipUntilAfter = [], skipUntil = []) {
+  function handleError(error2, skipUntilAfter = [], skipUntil2 = []) {
     onError(error2);
-    if (skipUntilAfter.length + skipUntil.length > 0) {
+    if (skipUntilAfter.length + skipUntil2.length > 0) {
       let token = _scanner.getToken();
       while (token !== 17) {
         if (skipUntilAfter.indexOf(token) !== -1) {
           scanNext();
           break;
-        } else if (skipUntil.indexOf(token) !== -1) {
+        } else if (skipUntil2.indexOf(token) !== -1) {
           break;
         }
         token = scanNext();
@@ -42673,7 +42628,7 @@ function visit(text, visitor, options = ParseOptions.DEFAULT) {
     if (_scanner.getToken() === 6) {
       onSeparator(":");
       scanNext();
-      if (!parseValue()) {
+      if (!parseValue2()) {
         handleError(4, [], [2, 5]);
       }
     } else {
@@ -42736,7 +42691,7 @@ function visit(text, visitor, options = ParseOptions.DEFAULT) {
       } else {
         _jsonPath[_jsonPath.length - 1]++;
       }
-      if (!parseValue()) {
+      if (!parseValue2()) {
         handleError(4, [], [4, 5]);
       }
       needsComma = true;
@@ -42752,7 +42707,7 @@ function visit(text, visitor, options = ParseOptions.DEFAULT) {
     }
     return true;
   }
-  function parseValue() {
+  function parseValue2() {
     switch (_scanner.getToken()) {
       case 3:
         return parseArray2();
@@ -42772,7 +42727,7 @@ function visit(text, visitor, options = ParseOptions.DEFAULT) {
     handleError(4, [], []);
     return false;
   }
-  if (!parseValue()) {
+  if (!parseValue2()) {
     handleError(4, [], []);
     return false;
   }
@@ -54903,9 +54858,9 @@ function isLowercaseAlphaNumeric(segment) {
     const code = character.codePointAt(0);
     if (code === undefined)
       return false;
-    const isDigit3 = code >= 48 && code <= 57;
+    const isDigit2 = code >= 48 && code <= 57;
     const isLowercaseLetter = code >= 97 && code <= 122;
-    if (!isDigit3 && !isLowercaseLetter)
+    if (!isDigit2 && !isLowercaseLetter)
       return false;
   }
   return true;
