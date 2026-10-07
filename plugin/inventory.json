@@ -159,7 +159,7 @@
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
-      "sha256": "78bd032eb897f1ec3e46949429f8586d86c0fe8fb694ad23afe5e75b97c49e31"
+      "sha256": "0351e8705bb0f55f402d7a783a391e6f26fd4f57f8b33d70da00419ff34f899c"
     },
     {
       "path": "runtime/hooks/lib/architecture-document-nudge.ts",
@@ -1107,7 +1107,7 @@
     },
     {
       "path": "templates/hooks/lib/active-ticket.ts",
-      "sha256": "78bd032eb897f1ec3e46949429f8586d86c0fe8fb694ad23afe5e75b97c49e31"
+      "sha256": "0351e8705bb0f55f402d7a783a391e6f26fd4f57f8b33d70da00419ff34f899c"
     },
     {
       "path": "templates/hooks/lib/architecture-document-nudge.ts",

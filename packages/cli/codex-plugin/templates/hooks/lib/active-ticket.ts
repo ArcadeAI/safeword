@@ -439,6 +439,9 @@ export function deriveActiveScenario(
   }
 }
 
+/** Ticket types the done gate checks: build tickets (task, feature) and epics. */
+export const DONE_GATED_TICKET_TYPES: ReadonlySet<string> = new Set(['task', 'feature', 'epic']);
+
 /**
  * Resolve the effective Stop-hook phase context for a session's bound ticket,
  * closing the status/phase done-gate sidestep (ticket 2JMQMX).
@@ -459,9 +462,6 @@ export function deriveActiveScenario(
  * Pure: the caller supplies `hasTestDefinitions` (filesystem check) so this
  * stays unit-testable.
  */
-/** Ticket types the done gate checks: build tickets (task, feature) and epics. */
-export const DONE_GATED_TICKET_TYPES: ReadonlySet<string> = new Set(['task', 'feature', 'epic']);
-
 export function resolveStopPhase(
   details: TicketDetails,
   hasTestDefinitions: boolean,
