@@ -1142,3 +1142,51 @@ new corpus `11ee541f17deb4ba7a470906c33b6bbcea4a189e80f3dd48a3d9f60d126a05c4`.
 All five surfaces regenerated and verified after the foreign test owner
 completed naturally (`/tmp/4200-proof-strategy-generated.log`). No admission regenerated. Previous
 complete 62/1/0 result remains failed history; new complete run not yet started.
+
+### 2026-10-06 — complete current qualification: 63 passed, none failed or unfinished
+
+At source commit `4c1bac2b6245551fb8af2984221ef16c16193618`, the fresh
+unfiltered authenticated `codex` / `gpt-6-astra` matrix completed all 63 semantic
+cases: 63 passed, zero failed, zero unfinished. Harness guard passed; Vitest
+64 passed, exit 0, 1838.43 seconds. Exact ordered IDs and reviewer/model
+identities verified. Runtime model confirmation, dispatch binding and the
+210-second deadline remained enforced. Contract:
+`b41b5a7b566c0e4d0d76b774f63335e109fa5b591f0de28739fffe577d2eb3cc`;
+corpus `11ee541f17deb4ba7a470906c33b6bbcea4a189e80f3dd48a3d9f60d126a05c4`.
+Logs/results: `/tmp/4200-proof-strategy-codex-full-live.log`,
+`/tmp/4200-proof-strategy-codex-full-results.json`,
+`/tmp/4200-proof-strategy-full-census.json`. Admission generated from this
+single actual passing result via `generate-execution-plan-admission.ts
+--results`; no stitched, filtered or historical passes reused. Only exact
+`codex` / `gpt-6-astra` qualifies; defaults and other identities remain excluded.
+Generated-surface verification is queued behind a foreign test owner.
+
+Public generated Claude-plugin CLI manually exercised with an isolated fixture
+configured to request Astra. First valid-plan run approved and confirmed exact
+reviewer/provider/model, but the manual assertion wrongly expected full
+independence despite providing no verified author model. That failed proof is
+preserved in `/tmp/4200-astra-public-cli-proof.log`. Corrected the temporary
+manual check to require honest reduced assurance, the exact confirmed reviewer,
+`author_capability_unknown` and its warning. Valid-plan approval and weakened
+coverage rejection both pass, with actual public review IDs
+`43222498-e15e-4715-8538-100bbcb2c354` (initial valid case),
+`3d362aec-063d-4933-bdc5-f67fe4ceb571` (corrected valid case),
+`9bd8c8e3-cbc7-48cf-98ed-422e49576d0e` (rejection) and responses preserved in
+`/tmp/4200-astra-public-cli-proof-reduced-results.json`. Rejection returns
+`plan-implementation`, null execution record and exit 2; owned fixture jobs
+cancelled. No invented author attestation or assertion of full independence.
+This proves two configured public journeys, not default-route usability, full
+installed acceptance or epic completion. All historical failures and open
+acceptance, RGR, R7, legacy reuse, main-integration and whole-stack work remain.
+
+Admission validation: all five generated surfaces regenerated and verified
+(`/tmp/4200-proof-strategy-admitted-generated.log`); conformance, bound schema
+and review-policy tests: 74 passed (`/tmp/4200-admitted-static.log`);
+admission `--check` passed. Independent Claude admission/routing review
+`1320f374-43da-4d16-bf15-66f93c0d7194` approved. Warnings preserved: generated
+results trust the committer rather than a signed run; one probabilistic pass
+does not establish repeated-run reliability; future provider model changes can
+require renewed qualification; the positive purpose/boundary/proof variants do
+not replace wholly absent-field negative controls; finding substrings remain
+coarse. These are limitations, not additional proof or new scope. Evidence:
+`/tmp/4200-admission-quality.json`, `/tmp/4200-admission-check.log`.

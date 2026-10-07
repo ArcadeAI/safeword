@@ -32849,12 +32849,12 @@ var EXECUTION_PLAN_ADMISSION_EVIDENCE;
 var init_execution_plan_admission_generated = __esm(() => {
   EXECUTION_PLAN_ADMISSION_EVIDENCE = {
     schema_version: 1,
-    contract_sha256: "0007a2f66fdc391067505a162be398fd6e51c4812b7ba0fef852fb35e854c62b",
-    corpus_sha256: "833df049ac3d3cbe119fac7f8ecf43c614e1cf6c4d64b97c4f0781e4ee8f6309",
+    contract_sha256: "b41b5a7b566c0e4d0d76b774f63335e109fa5b591f0de28739fffe577d2eb3cc",
+    corpus_sha256: "11ee541f17deb4ba7a470906c33b6bbcea4a189e80f3dd48a3d9f60d126a05c4",
     identities: [
       {
-        reviewer: "claude",
-        model: "opus",
+        reviewer: "codex",
+        model: "gpt-6-astra",
         case_ids: [
           "one-coherent-change",
           "several-ordered-changes",
@@ -32863,10 +32863,10 @@ var init_execution_plan_admission_generated = __esm(() => {
           "generic-checklist",
           "dismissed-applicable-work",
           "proof-does-not-exercise-boundary",
-          "missing-purpose",
-          "missing-boundary",
+          "purpose-in-rationale",
+          "boundary-in-tasks",
           "missing-prerequisites",
-          "missing-proof",
+          "proof-in-tasks",
           "missing-completion-signal",
           "two-independent-purposes",
           "unresolved-authorization-decision",
