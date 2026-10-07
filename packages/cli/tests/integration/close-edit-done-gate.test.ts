@@ -236,6 +236,31 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     expect(testRunCount(directory)).toBe(baseline + 1);
   });
 
+  it('keeps the gate owed through failed Stops until every check passes', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = closeCommittedTicket('5567', 'session-retry');
+    const verifyFile = nodePath.join(nodePath.dirname(ticketFile), 'verify.md');
+    const verifyContent = readFileSync(verifyFile, 'utf8');
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    expect(runDoneGate(directory, 'session-retry').reason).toContain('Tests failed');
+    expect(runDoneGate(directory, 'session-retry').reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 2);
+
+    setTestExitCode(directory, 0);
+    rmSync(verifyFile);
+    expect(runDoneGate(directory, 'session-retry').reason).toContain('verify.md');
+    expect(testRunCount(directory)).toBe(baseline + 3);
+
+    writeFileSync(verifyFile, verifyContent);
+    expect(runDoneGate(directory, 'session-retry').decision).toBeUndefined();
+    expect(testRunCount(directory)).toBe(baseline + 4);
+
+    runDoneGate(directory, 'session-retry');
+    expect(testRunCount(directory)).toBe(baseline + 4);
+  });
+
   it('allows the Stop once tests pass and does not rerun the gate on a later Stop', () => {
     const directory = fixture.projectDirectory;
     closeCommittedTicket('5547', 'session-pass');
