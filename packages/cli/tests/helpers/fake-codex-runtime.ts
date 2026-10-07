@@ -55,6 +55,10 @@ export function installFakeCodexRuntime(
     nodePath.join(bin, 'codex'),
     String.raw`#!/bin/sh
 set -eu
+profile_home="$(printenv CODEX_HOME 2>/dev/null || true)"
+if [ -z "$profile_home" ]; then profile_home='${codexHome}'; fi
+plugin_state="$profile_home/plugin-state"
+plugin_version_state="$profile_home/plugin-version"
 printf '%s\n' "$*" >> "$SAFEWORD_CODEX_LOG"
 if [ "$(printenv SAFEWORD_MUTATE_CONFIG 2>/dev/null || true)" = "1" ] && [ "$*" = "plugin list --json" ]; then
   printf '# concurrent config update\n' >> "$SAFEWORD_CONFIG_PATH"
@@ -74,7 +78,9 @@ case "$*" in
     elif [ "$(printenv SAFEWORD_UNSUPPORTED_MARKETPLACE_LIST 2>/dev/null || true)" = "1" ]; then
       echo '{"marketplaces":[null]}'
     elif [ "$(printenv SAFEWORD_MARKETPLACE_SOURCE_TYPE 2>/dev/null || true)" = "local" ]; then
-      echo '{"marketplaces":[{"name":"safeword","marketplaceSource":{"sourceType":"local","source":"/tmp/safeword"}}]}'
+      local_source="$(printenv SAFEWORD_MARKETPLACE_LOCAL_SOURCE 2>/dev/null || true)"
+      if [ -z "$local_source" ]; then local_source='/tmp/safeword'; fi
+      printf '{"marketplaces":[{"name":"safeword","marketplaceSource":{"sourceType":"local","source":"%s"}}]}\n' "$local_source"
     elif [ "$(printenv SAFEWORD_MISMATCHED_GIT_MARKETPLACE 2>/dev/null || true)" = "1" ]; then
       echo '{"marketplaces":[{"name":"safeword","marketplaceSource":{"sourceType":"git","source":"https://example.com/untrusted/safeword.git"}}]}'
     elif [ "$(printenv SAFEWORD_SSH_GIT_MARKETPLACE 2>/dev/null || true)" = "1" ]; then
@@ -107,10 +113,10 @@ case "$*" in
       echo 'plugin installation failed' >&2
       exit 10
     fi
-    printf 'enabled' > '${pluginState}'
+    printf 'enabled' > "$plugin_state"
     installed_version="$(printenv SAFEWORD_FAKE_INSTALLED_PLUGIN_VERSION 2>/dev/null || true)"
     if [ -z "$installed_version" ]; then installed_version='${SAFEWORD_SCHEMA.version}'; fi
-    printf '%s' "$installed_version" > '${pluginVersionState}'
+    printf '%s' "$installed_version" > "$plugin_version_state"
     echo '{"pluginId":"safeword@safeword"}'
     ;;
   'plugin list --json')
@@ -122,13 +128,13 @@ case "$*" in
       echo '{bad json'
       exit 0
     fi
-    mode="$(cat '${pluginState}')"
+    mode="$(cat "$plugin_state")"
     if [ "$mode" = "absent" ]; then
       echo '{"installed":[]}'
     elif [ "$mode" = "disabled" ]; then
       echo '{"installed":[{"pluginId":"safeword@safeword","enabled":false}]}'
     else
-      version="$(cat '${pluginVersionState}')"
+      version="$(cat "$plugin_version_state")"
       if [ -n "$version" ]; then
         echo "{\"installed\":[{\"pluginId\":\"safeword@safeword\",\"enabled\":true,\"version\":\"$version\"}]}"
       else
