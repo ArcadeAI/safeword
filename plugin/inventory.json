@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "3667a871ff5cece80b795a2aec17b4376ecf21bb561c3e2dd2eba55e9a16f294"
+      "sha256": "eb18f9fb1e2ab317740cc66680585dfbd6b2b13d270500ef77751c7b0d8f219d"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "7a63fce9ad7f98426b86d3adb8cf2f35312b9c258a356072e3f363b0f71ecae8"
+      "sha256": "29d06772dea05b60b494e88e95c4df7d6c3b3a6be2e4f6648cf15abfc29736dc"
     },
     {
       "path": "runtime/event-groups.json",
@@ -323,7 +323,7 @@
     },
     {
       "path": "runtime/hooks/lib/pr-readiness-guard.ts",
-      "sha256": "9f90b97b21ad89cdd2b1c7741604d391c9c20fc577acfc97748eb3053d310d5e"
+      "sha256": "b9a015faa80698a1ca09f9c8733a005ad469c137a442e23908e2e5879111b27f"
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
@@ -351,7 +351,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "e10f3fc6a36768d34d2002060f825dea4af2bfac9b076d400e951f6e90dec801"
+      "sha256": "d08d6cd30bc9491a8a2f47d8ad8d6026305ed9cc8c2b889b447c262c4d504550"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -359,7 +359,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "c9282b984e40a8259d2e3bdd7a878d45ea6d69091e71b2cb677a729958733467"
+      "sha256": "be5b206a7587b14cf4f290e1feb3a6cb73e1c2132767ebed705c2a59775bc213"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -411,7 +411,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "eeea1d7151eca24aa17ca6f8111c042b99f8f92e28a14b431417b6fb4ca4e7a5"
+      "sha256": "9887c156f749c54d450ee70d97285334dea1397a0f5c53f377de106c3641978e"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -475,7 +475,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-dependency-readiness.ts",
-      "sha256": "21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4"
+      "sha256": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be"
     },
     {
       "path": "runtime/hooks/post-tool-lint.ts",
@@ -507,7 +507,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-dependency-readiness.ts",
-      "sha256": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8"
+      "sha256": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb"
     },
     {
       "path": "runtime/hooks/pre-tool-git-bare-fix.sh",
@@ -1287,7 +1287,7 @@
     },
     {
       "path": "templates/hooks/lib/pr-readiness-guard.ts",
-      "sha256": "9f90b97b21ad89cdd2b1c7741604d391c9c20fc577acfc97748eb3053d310d5e"
+      "sha256": "b9a015faa80698a1ca09f9c8733a005ad469c137a442e23908e2e5879111b27f"
     },
     {
       "path": "templates/hooks/lib/principle-trace.ts",
@@ -1315,7 +1315,7 @@
     },
     {
       "path": "templates/hooks/lib/quality.ts",
-      "sha256": "e10f3fc6a36768d34d2002060f825dea4af2bfac9b076d400e951f6e90dec801"
+      "sha256": "d08d6cd30bc9491a8a2f47d8ad8d6026305ed9cc8c2b889b447c262c4d504550"
     },
     {
       "path": "templates/hooks/lib/re-entry.ts",
@@ -1323,7 +1323,7 @@
     },
     {
       "path": "templates/hooks/lib/read-receipt.ts",
-      "sha256": "c9282b984e40a8259d2e3bdd7a878d45ea6d69091e71b2cb677a729958733467"
+      "sha256": "be5b206a7587b14cf4f290e1feb3a6cb73e1c2132767ebed705c2a59775bc213"
     },
     {
       "path": "templates/hooks/lib/readiness-pointer.ts",
@@ -1375,7 +1375,7 @@
     },
     {
       "path": "templates/hooks/lib/review-receipt.ts",
-      "sha256": "eeea1d7151eca24aa17ca6f8111c042b99f8f92e28a14b431417b6fb4ca4e7a5"
+      "sha256": "9887c156f749c54d450ee70d97285334dea1397a0f5c53f377de106c3641978e"
     },
     {
       "path": "templates/hooks/lib/review-trigger.ts",
@@ -1439,7 +1439,7 @@
     },
     {
       "path": "templates/hooks/post-tool-dependency-readiness.ts",
-      "sha256": "21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4"
+      "sha256": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be"
     },
     {
       "path": "templates/hooks/post-tool-lint.ts",
@@ -1471,7 +1471,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-dependency-readiness.ts",
-      "sha256": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8"
+      "sha256": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb"
     },
     {
       "path": "templates/hooks/pre-tool-git-bare-fix.sh",

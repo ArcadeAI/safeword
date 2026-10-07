@@ -921,6 +921,25 @@ describe('pull-request readiness delivery gate', () => {
   );
 
   it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'ignores a Ready receipt for a ticket that is not on this branch on %s',
+    host => {
+      const directory = unfinishedProject();
+      clearSessionBindings(directory);
+      writeTestFile(
+        directory,
+        '.project/readiness-ticket.json',
+        `${JSON.stringify({ schema_version: 1, ticket_id: 'ZZ9999', head_sha: 'deadbeef' })}\n`,
+      );
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).not.toContain('ZZ9999');
+      expect(denialReason(host, output)).toContain('Open or resume the delivery ticket');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
     'does not refresh an older completed ticket while another ticket is active on %s',
     host => {
       const directory = unfinishedProject();

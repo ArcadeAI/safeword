@@ -91,6 +91,15 @@ export function readReviewReceipt(
             path: metadata.context_path as string,
           }
         : undefined;
+    // Only status provenance may waive coverage. Legacy raw excluded_targets
+    // describe packet output without this verification contract. Never salvage
+    // a partially malformed verified list: it is authorization scope.
+    if (
+      data.review_excluded_targets !== undefined &&
+      (!Array.isArray(data.review_excluded_targets) ||
+        data.review_excluded_targets.some(target => typeof target !== 'string'))
+    )
+      continue;
     const receipt = {
       reviewId: id,
       status: text('status'),
@@ -98,6 +107,7 @@ export function readReviewReceipt(
       targets: Array.isArray(data.review_targets)
         ? data.review_targets.filter(target => typeof target === 'string')
         : [],
+      excludedTargets: data.review_excluded_targets as string[] | undefined,
       independence: text('independence'),
       authorAgent: text('author_agent'),
       actualReviewer: text('actual_reviewer'),
