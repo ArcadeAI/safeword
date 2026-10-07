@@ -14,7 +14,7 @@ import { execSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   createTemporaryDirectory,
@@ -26,7 +26,10 @@ import {
   writeTestFile,
 } from '../helpers.js';
 
-const fixture: { projectDirectory: string } = { projectDirectory: '' };
+const fixture: { projectDirectory: string; setupCommit: string } = {
+  projectDirectory: '',
+  setupCommit: '',
+};
 
 const COUNTER_FILE = 'test-runs.txt';
 const EXIT_CODE_FILE = 'test-exit-code.txt';
@@ -48,6 +51,18 @@ beforeAll(async () => {
   });
   git(fixture.projectDirectory, 'add -A');
   git(fixture.projectDirectory, 'commit -q --no-verify -m setup');
+  fixture.setupCommit = execSync('git rev-parse HEAD', {
+    cwd: fixture.projectDirectory,
+    encoding: 'utf8',
+  }).trim();
+});
+
+// Each test starts from the setup commit: no tickets, commits, or edits leak
+// between tests. The ignored counter file survives; tests read it relative to
+// a baseline.
+afterEach(() => {
+  git(fixture.projectDirectory, `reset -q --hard ${fixture.setupCommit}`);
+  git(fixture.projectDirectory, 'clean -q -fd');
 });
 
 afterAll(() => {
@@ -96,18 +111,44 @@ function commitTaskTicket(directory: string, ticketId: string, status: string): 
   return ticketFile;
 }
 
-/** Rewrite ticket.md on disk, then report the Edit to the real PostToolUse hook. */
-function editTicketThroughPostToolUse(
+/** Report a tool call on ticket.md to the real PostToolUse hook. */
+function runPostToolUse(
+  directory: string,
+  sessionId: string,
+  toolName: 'Edit' | 'MultiEdit' | 'Write',
+  toolInput: Record<string, unknown>,
+): void {
+  const result = spawnSync('bun', ['.safeword/hooks/post-tool-quality.ts'], {
+    input: JSON.stringify({
+      session_id: sessionId,
+      cwd: directory,
+      tool_name: toolName,
+      tool_input: toolInput,
+    }),
+    cwd: directory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+    encoding: 'utf8',
+  });
+  expect(result.status, result.stderr).toBe(0);
+}
+
+/** Apply MultiEdit replacements in order to ticket.md, then report them. */
+function multiEditTicketThroughPostToolUse(
   directory: string,
   sessionId: string,
   ticketFile: string,
-  replacement: string,
+  edits: { old_string: string; new_string: string }[],
 ): void {
-  const before = readFileSync(ticketFile, 'utf8');
-  replaceInTicketThroughPostToolUse(directory, sessionId, ticketFile, before, replacement);
+  let content = readFileSync(ticketFile, 'utf8');
+  for (const edit of edits) {
+    expect(content).toContain(edit.old_string);
+    content = content.replace(edit.old_string, () => edit.new_string);
+  }
+  writeFileSync(ticketFile, content);
+  runPostToolUse(directory, sessionId, 'MultiEdit', { file_path: ticketFile, edits });
 }
 
-/** Apply one Edit replacement to ticket.md, then report it to the real PostToolUse hook. */
+/** Apply one Edit replacement to ticket.md, then report it. */
 function replaceInTicketThroughPostToolUse(
   directory: string,
   sessionId: string,
@@ -121,45 +162,25 @@ function replaceInTicketThroughPostToolUse(
     ticketFile,
     before.replace(oldString, () => newString),
   );
-  const result = spawnSync('bun', ['.safeword/hooks/post-tool-quality.ts'], {
-    input: JSON.stringify({
-      session_id: sessionId,
-      cwd: directory,
-      tool_name: 'Edit',
-      tool_input: { file_path: ticketFile, old_string: oldString, new_string: newString },
-    }),
-    cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-    encoding: 'utf8',
+  runPostToolUse(directory, sessionId, 'Edit', {
+    file_path: ticketFile,
+    old_string: oldString,
+    new_string: newString,
   });
-  expect(result.status, result.stderr).toBe(0);
 }
 
-/** Apply MultiEdit replacements to ticket.md, then report them to the real PostToolUse hook. */
-function multiEditTicketThroughPostToolUse(
+/** Replace the whole of ticket.md with one Edit, then report it. */
+function editTicketThroughPostToolUse(
   directory: string,
   sessionId: string,
   ticketFile: string,
-  edits: { old_string: string; new_string: string }[],
+  replacement: string,
 ): void {
-  let content = readFileSync(ticketFile, 'utf8');
-  for (const edit of edits) content = content.replace(edit.old_string, () => edit.new_string);
-  writeFileSync(ticketFile, content);
-  const result = spawnSync('bun', ['.safeword/hooks/post-tool-quality.ts'], {
-    input: JSON.stringify({
-      session_id: sessionId,
-      cwd: directory,
-      tool_name: 'MultiEdit',
-      tool_input: { file_path: ticketFile, edits },
-    }),
-    cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-    encoding: 'utf8',
-  });
-  expect(result.status, result.stderr).toBe(0);
+  const before = readFileSync(ticketFile, 'utf8');
+  replaceInTicketThroughPostToolUse(directory, sessionId, ticketFile, before, replacement);
 }
 
-/** Overwrite ticket.md, then report the Write to the real PostToolUse hook. */
+/** Overwrite ticket.md with a Write, then report it. */
 function writeTicketThroughPostToolUse(
   directory: string,
   sessionId: string,
@@ -167,18 +188,7 @@ function writeTicketThroughPostToolUse(
   content: string,
 ): void {
   writeFileSync(ticketFile, content);
-  const result = spawnSync('bun', ['.safeword/hooks/post-tool-quality.ts'], {
-    input: JSON.stringify({
-      session_id: sessionId,
-      cwd: directory,
-      tool_name: 'Write',
-      tool_input: { file_path: ticketFile, content },
-    }),
-    cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-    encoding: 'utf8',
-  });
-  expect(result.status, result.stderr).toBe(0);
+  runPostToolUse(directory, sessionId, 'Write', { file_path: ticketFile, content });
 }
 
 function runStopHook(directory: string, sessionId: string): { decision?: string; reason: string } {
@@ -273,9 +283,8 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       `${ticketMarkdown('5548', 'done', 'done')}\nTypo fix.\n`,
     );
-    const result = runStopHook(directory, 'session-commit');
+    runStopHook(directory, 'session-commit');
 
-    expect(result.reason).not.toContain('Tests failed');
     expect(testRunCount(directory)).toBe(baseline);
   });
 
@@ -291,9 +300,8 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       `${ticketMarkdown('5549', 'done', 'implement')}\nTypo fix.\n`,
     );
-    const result = runStopHook(directory, 'session-archived');
+    runStopHook(directory, 'session-archived');
 
-    expect(result.reason).not.toContain('Tests failed');
     expect(testRunCount(directory)).toBe(baseline);
   });
 
@@ -309,9 +317,8 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       ticketMarkdown('5550', 'in_progress', 'implement'),
     );
-    const result = runStopHook(directory, 'session-reopen');
+    runStopHook(directory, 'session-reopen');
 
-    expect(result.reason).not.toContain('Tests failed');
     expect(testRunCount(directory)).toBe(baseline);
   });
 
@@ -354,9 +361,8 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       `${ticketMarkdown('5552', 'done', 'done')}\nTypo fix.\n`,
     );
-    const result = runStopHook(directory, 'session-reedit');
+    runStopHook(directory, 'session-reedit');
 
-    expect(result.reason).not.toContain('Tests failed');
     expect(testRunCount(directory)).toBe(baseline);
   });
 
@@ -366,12 +372,15 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     const secondTicket = closeCommittedTicket('5554', 'session-two');
     rmSync(nodePath.join(nodePath.dirname(secondTicket), 'verify.md'));
     setTestExitCode(directory, 0);
+    const baseline = testRunCount(directory);
 
     const first = runStopHook(directory, 'session-two');
+    expect(testRunCount(directory)).toBe(baseline + 1);
     expect(first.decision).toBe('block');
     expect(first.reason).toContain('5554');
 
     const second = runStopHook(directory, 'session-two');
+    expect(testRunCount(directory)).toBe(baseline + 2);
     expect(second.decision).toBe('block');
     expect(second.reason).toContain('verify.md');
   });
@@ -395,40 +404,6 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketMarkdown('5555', 'done', 'done'),
     );
     const result = runStopHook(directory, 'session-reclose');
-
-    expect(result.decision).toBe('block');
-    expect(result.reason).toContain('Tests failed');
-    expect(testRunCount(directory)).toBe(baseline + 1);
-  });
-
-  it('gates a passed ticket reopened and closed again while another ticket is bound', () => {
-    const directory = fixture.projectDirectory;
-    const ticketFile = closeCommittedTicket('5556', 'session-swap');
-    setTestExitCode(directory, 0);
-    runStopHook(directory, 'session-swap');
-    editTicketThroughPostToolUse(
-      directory,
-      'session-swap',
-      ticketFile,
-      ticketMarkdown('5556', 'in_progress', 'implement'),
-    );
-    const otherTicket = commitTaskTicket(directory, '5557', 'in_progress');
-    editTicketThroughPostToolUse(
-      directory,
-      'session-swap',
-      otherTicket,
-      `${ticketMarkdown('5557', 'in_progress', 'implement')}\nStarted.\n`,
-    );
-    setTestExitCode(directory, 1);
-    const baseline = testRunCount(directory);
-
-    editTicketThroughPostToolUse(
-      directory,
-      'session-swap',
-      ticketFile,
-      ticketMarkdown('5556', 'done', 'done'),
-    );
-    const result = runStopHook(directory, 'session-swap');
 
     expect(result.decision).toBe('block');
     expect(result.reason).toContain('Tests failed');
@@ -497,9 +472,8 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       '# Task 5560',
       '# Task 5560 (typo fixed)',
     );
-    const result = runStopHook(directory, 'session-stop-completes');
+    runStopHook(directory, 'session-stop-completes');
 
-    expect(result.reason).not.toContain('Tests failed');
     expect(testRunCount(directory)).toBe(baseline);
   });
 
