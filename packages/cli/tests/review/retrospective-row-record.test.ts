@@ -164,6 +164,23 @@ describe('retrospective row replay record', () => {
     expect(retrospectiveGate(root, claim).state).toBe('healthy');
   });
 
+  it('accepts an additional reviewed claim without replacing the first ticket claim', () => {
+    put(
+      path.join(path.dirname(RETROSPECTIVE_LEDGER), 'ticket.md'),
+      '---\nid: CKWE2D\nretrospective_claim: first-eligibility.json\nretrospective_claims:\n  - eligibility.json\n---\n',
+    );
+    expect(attestRetrospectiveRow(root, claim).state).toBe('changed');
+    expect(retrospectiveGate(root, claim).state).toBe('healthy');
+  });
+
+  it.each([
+    '---\nid: CKWE2D\nretrospective_claim: first-eligibility.json\n---\n',
+    '---\nid: CKWE2D\nretrospective_claims:\n  - eligibility.json\n---\n',
+  ])('rejects a claim without both the primary opt-in and a matching path', ticket => {
+    put(path.join(path.dirname(RETROSPECTIVE_LEDGER), 'ticket.md'), ticket);
+    expect(attestRetrospectiveRow(root, claim).state).toBe('action_required');
+  });
+
   it.each([test, implementation])(
     'checks %s after an explicit replay without executing another test',
     input => {

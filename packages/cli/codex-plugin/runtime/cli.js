@@ -36030,7 +36030,10 @@ function matchingScenario(claim, heading) {
 function ticketNamesClaim(root, claimPath) {
   const ticketPath = nodePath49.join(root, nodePath49.dirname(RETROSPECTIVE_LEDGER), "ticket.md");
   const ticket = frontmatterOf(readFileSync33(ticketPath, "utf8"));
-  return ticket?.id === RETROSPECTIVE_TICKET && ticket.retrospective_claim === claimPath;
+  if (ticket?.id !== RETROSPECTIVE_TICKET || typeof ticket.retrospective_claim !== "string") {
+    return false;
+  }
+  return ticket.retrospective_claim === claimPath || Array.isArray(ticket.retrospective_claims) && ticket.retrospective_claims.includes(claimPath);
 }
 function retrospectiveReviewTargets(root, targets) {
   return targets.map((target) => nodePath49.relative(root, nodePath49.resolve(root, target)).split(nodePath49.sep).join("/"));
@@ -36420,7 +36423,7 @@ function claimInputPaths(root, claim) {
   ];
 }
 function inputPaths(root, claims) {
-  const paths = new Set([RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
+  const paths = new Set([TICKET_PATH, RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
   for (const claim of claims) {
     for (const path7 of claimInputPaths(root, claim))
       paths.add(path7);

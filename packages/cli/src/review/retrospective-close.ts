@@ -192,7 +192,7 @@ function claimInputPaths(root: string, claim: RetrospectiveGateRequest): string[
 }
 
 function inputPaths(root: string, claims: readonly RetrospectiveGateRequest[]): string[] {
-  const paths = new Set([RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
+  const paths = new Set([TICKET_PATH, RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
   for (const claim of claims) {
     for (const path of claimInputPaths(root, claim)) paths.add(path);
   }
