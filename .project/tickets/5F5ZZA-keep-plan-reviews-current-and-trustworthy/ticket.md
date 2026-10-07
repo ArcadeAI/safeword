@@ -1321,3 +1321,27 @@ the unchanged three repetitions and agreement threshold. Evidence:
 Only the first raw judgment report was captured before fixture cleanup; do
 not claim complete raw reviewer-output retention. Historical failed runs,
 118 unfinished scenarios and the other epic completion gates remain visible.
+
+### 2026-10-07 — concurrent approval repair and current CI census
+
+Approval slice commit `1b79d7763` repairs only the exclusive scaffold-create
+race: the losing writer accepts `EEXIST`, without overwriting the winner or
+swallowing other errors. The deterministic installed-CLI case fails without the
+repair (exits `[1, 0]`) and passes with it. Both concurrency cases pass in the
+approval checkout. Fresh source/test Claude review
+`c69dad42-b578-43ff-9a43-adf4ce04d92f` approves with a warning that a future
+earlier existence check could change the test's interleaving; the present RED
+demonstrates that the current case reaches the failing operation. No broader
+test instrumentation or production lock was added.
+
+PR5 CI run `37591931811` at `82c6c830c` reports 43 failed, 11312 passed,
+10 skipped on each Node version. These are not superseded by the narrower
+229-pass/four-failure local run. Most failures report zero eligible Execution
+review routes before semantic dispatch; exact route qualification is in progress,
+not assumed. CI also reports two stale PLAN_EXECUTION documentation mirrors;
+syncing them from the canonical template restores all 275 parity pairs and
+11 contracts. Logs: `/tmp/4200-pr5-main-ci-failures.log`,
+`/tmp/4200-pr5-main-ci-case-census.json`, `/tmp/4200-pr5-parity-repair.log`.
+Legacy unbound approval reuse, 118 undefined feature scenarios, historical six
+failures/585 unfinished full-acceptance scenarios, and the human-owned retrieval
+proof deferral remain unresolved. No Ready promotion or PR merge is authorized.

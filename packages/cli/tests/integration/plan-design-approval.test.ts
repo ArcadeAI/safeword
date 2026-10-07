@@ -1318,6 +1318,50 @@ describe('retrying the same design approval does not duplicate authority', () =>
     });
   });
 
+  it('converges when both approvals observe an absent Execution Plan before creating it', async () => {
+    const project = fixture(true);
+    const schedule = nodePath.join(project.root, 'schedule-scaffold.mjs');
+    writeFileSync(
+      schedule,
+      String.raw`import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const exists = fs.existsSync;
+fs.existsSync = function(path) {
+  const found = exists(path);
+  if (!found && String(path).endsWith('/execution-plan.md')) {
+    const barrier = String(path) + '.two-writers';
+    fs.appendFileSync(barrier, 'ready\n');
+    const deadline = Date.now() + 5000;
+    while (fs.readFileSync(barrier, 'utf8').trim().split('\n').length < 2) {
+      if (Date.now() >= deadline) throw new Error('The second scaffold writer did not arrive');
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+    }
+  }
+  return found;
+};
+syncBuiltinESMExports();
+`,
+    );
+    const environment = {
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import ${JSON.stringify(schedule)}`,
+    };
+
+    const statuses = await Promise.all([
+      runApprovalInPtyAsync(project, TICKET_ID, environment),
+      runApprovalInPtyAsync(project, TICKET_ID, environment),
+    ]);
+
+    expect(statuses).toEqual([0, 0]);
+    expect(decisionPayloads(project.ledgerPath)).toHaveLength(1);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(readFileSync(nodePath.join(project.ticketDirectory, 'execution-plan.md'), 'utf8')).toBe(
+      readFileSync(
+        nodePath.join(project.root, '.safeword/templates/execution-plan-template.md'),
+        'utf8',
+      ),
+    );
+  });
+
   it('records a fresh approval after an earlier approval was superseded', () => {
     const project = fixture(true);
     const digest = createHash('sha256').update(PLAN).digest('hex');
