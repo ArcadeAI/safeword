@@ -28,7 +28,8 @@ const replay = vi.hoisted<{
   calls: number;
   root: string;
   request: unknown;
-}>(() => ({ state: 'changed', calls: 0, root: '', request: undefined }));
+  historyEligible: boolean;
+}>(() => ({ state: 'changed', calls: 0, root: '', request: undefined, historyEligible: true }));
 
 vi.mock('../../src/review/job.js', async importOriginal => {
   const actual = await importOriginal<typeof ReviewJob>();
@@ -56,7 +57,10 @@ vi.mock('../../src/review/retrospective-gate.js', async original => ({
 
 vi.mock('../../src/review/retrospective-history.js', async importOriginal => {
   const actual = await importOriginal<typeof History>();
-  return { ...actual, checkRetrospectiveHistory: () => ({ eligibleForReview: true }) };
+  return {
+    ...actual,
+    checkRetrospectiveHistory: () => ({ eligibleForReview: replay.historyEligible }),
+  };
 });
 
 function put(root: string, relative: string, content: string): void {
@@ -129,6 +133,7 @@ describe('retrospective closing replay record', () => {
     replay.calls = 0;
     replay.root = '';
     replay.request = undefined;
+    replay.historyEligible = true;
     root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-close-test-'));
     previousKeyRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
     process.env.SAFEWORD_REVIEW_KEY_ROOT = nodePath.join(root, 'profile-state');
@@ -174,6 +179,14 @@ describe('retrospective closing replay record', () => {
       'action_required',
     );
     expect(replay.calls).toBe(1);
+    expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
+      'action_required',
+    );
+  });
+
+  it('rejects a cutoff that becomes unreachable after closing attestation', () => {
+    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
+    replay.historyEligible = false;
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
     );
