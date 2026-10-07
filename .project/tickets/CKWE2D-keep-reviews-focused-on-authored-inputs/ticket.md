@@ -10,6 +10,8 @@ phase_anchors:
   - implement: .project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/impl-plan.md
 status: in_progress
 retrospective_claim: .project/tickets/SBSJ40-verify-implemented-scenarios-honestly/eligibility-first.json
+retrospective_claims:
+  - .project/tickets/SBSJ40-verify-implemented-scenarios-honestly/eligibility-repeat.json
 scope:
   - recognise an oversized target only when the repository explicitly marks it linguist-generated=true
   - review every remaining bounded authored target and report each omitted generated target in the command result
