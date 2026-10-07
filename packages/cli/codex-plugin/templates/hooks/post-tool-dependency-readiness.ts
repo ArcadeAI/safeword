@@ -19,6 +19,7 @@ import {
   writeDependencyReadinessState,
   writeInstallMarker,
 } from './lib/dependency-readiness.ts';
+import { resolveToolProjectDirectory } from './lib/namespace-root.ts';
 
 interface BashResult {
   exit_code?: number;
@@ -34,10 +35,8 @@ interface HookInput {
   // sibling `Bash` key. We only read it to REFUSE stamping on explicit failure.
   tool_response?: BashResult;
   Bash?: BashResult;
+  cwd?: string;
 }
-
-const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-if (!existsSync(`${projectDirectory}/.safeword`)) process.exit(0);
 
 let input: HookInput;
 try {
@@ -47,6 +46,13 @@ try {
 }
 
 if (input.tool_name !== 'Bash') process.exit(0);
+
+// Stamp the tree the install ran in, not the launch checkout (see the pre-tool gate).
+const projectDirectory = resolveToolProjectDirectory(
+  process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+  { tool: 'Bash', editedFile: '', cwd: input.cwd },
+);
+if (!existsSync(`${projectDirectory}/.safeword`)) process.exit(0);
 
 const command = input.tool_input?.command;
 if (command === undefined || !isDependencyInstallCommand(command)) process.exit(0);

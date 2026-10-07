@@ -64,6 +64,17 @@
       "items": { "$ref": "#/definitions/nextAction" }
     },
     "data": {
+      "allOf": [
+        {
+          "if": { "type": "object", "required": ["review_excluded_targets"] },
+          "then": {
+            "type": "object",
+            "properties": {
+              "review_excluded_targets": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      ],
       "if": { "type": "object", "required": ["excluded_targets"] },
       "then": {
         "type": "object",
