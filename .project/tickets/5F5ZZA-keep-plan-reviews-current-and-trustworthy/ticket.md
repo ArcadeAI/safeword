@@ -159,3 +159,18 @@ Product Plan reviews use `quality-review`, but the Claude adapter selected strea
 ## Root Cause (PR 4 Codex Execution review timeouts)
 
 The Execution Plan output schema contained `oneOf` for proof invocations. The Codex app-server accepted the turn request, but its model endpoint rejected the nested schema with `invalid_json_schema` because `oneOf` is unsupported. The adapter ignored the resulting `turn/completed` event with `status: failed`, turning a roughly four-second schema rejection into a worker timeout. An event trace captured both the rejection and failed completion; replacing `oneOf` with equivalent `anyOf` yielded a completed live Execution review. The competing hypotheses of a slow model and an unsupported pinned Codex model were ruled out: the rejection occurred before generation, while the same pinned model completed after the schema change.
+
+- 2026-10-07 PR2 alignment: The user delegated the invalidation-policy decision
+  with “your call” on 2026-10-04 PDT. Parent TBU2.R11/TBU4.R9 requires semantic
+  Implementation changes to invalidate both plan approvals; own-review-only is
+  unsupported. That decision and its approved scenario correction were already
+  recorded downstream. Fresh whole-PR reviews ce3ccbd1-713e-475e-a6a8-669c4f858571
+  and ece51d7e-f949-4932-85ca-86ea2e485014 identified stale upstream plan copies.
+  The plan, execution tasks, dimensions, historical proof claims and feature now
+  match the authorized decision without production-code changes. Complete
+  cross-agent review 4b8b5dc4-0e0f-46b7-8411-8f8d69a63481 approves the correction.
+  The existing PR2 real reconciliation matrix owns unsupported-mode rejection;
+  PR3 owns runtime dependency invalidation. The new scenario ledger remains
+  unchecked; no new RGR receipt or acceptance pass is claimed. Gherkin parsing
+  and diff hygiene pass. Generated architecture duplication and the remaining
+  admission boundaries are disclosed nonblocking warnings, not repaired here.

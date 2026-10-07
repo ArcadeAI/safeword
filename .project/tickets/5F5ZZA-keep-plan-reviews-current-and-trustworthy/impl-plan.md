@@ -88,12 +88,10 @@ accepted Implementation Plan. These context sources establish the current
 constraints; the accepted Implementation Plan remains the design authority.
 This preserves inherited TBU4.R3/R4 rather than treating an upstream plan's
 representation of those inputs as a replacement for reading their current sources.
-Required review inputs and currency-bearing dependencies are distinct. The
-accepted Implementation Plan is always resolved and included in an Execution
-review packet, but its invalidation edge comes from the canonical Execution
-Planning contract, owned by 7CAMAD, not a hardcoded role rule. A closed contract
-field `upstreamImplementationInvalidation` accepts `both_plan_reviews` or
-`implementation_review_only`; missing, unknown, duplicate, or ambiguous values
+The accepted Implementation Plan is always required and currency-bearing in an
+Execution review. The canonical Execution Planning contract, owned by 7CAMAD,
+must declare `upstreamImplementationInvalidation: both_plan_reviews`, as required
+by parent TBU2.R11/TBU4.R9. Missing, unsupported, duplicate, or ambiguous values
 return `invalid_invalidation_contract` rather than selecting a permissive default.
 The typed field is generated from the canonical owner's decided invalidation
 clause and is a prerequisite for its runtime consumption. If that clause has no decidable direction,
@@ -110,17 +108,12 @@ lower-level variations of that rejection. Existing R9 receipt-invalidation
 scenarios prove the separate runtime consequence. This names the proof of the already accepted declaration rule, not a new
 dependency policy or a substitute for those runtime scenarios.
 
-Only the accepted-upstream-plan role may carry `currency: snapshot-only`, and
-only for Execution review under `implementation_review_only`. Its bytes remain
-in the immutable dispatch snapshot and integrity-protected job evidence; they
-are checked for completeness and mid-flight changes before verdict persistence.
-Its content digest is excluded from subsequent semantic currency comparison in
-that mode. Required-source validation at admission still resolves a current
-accepted upstream plan and fails closed on missing or invalid input. In
-`both_plan_reviews`, its semantic digest is currency-bearing. All other applicable
-roles retain their defined semantic binding. The mode is itself bound through
-the canonical contract digest, so changing the declaration stales old receipts.
-No generic configurable dependency graph is introduced.
+An own-review-only declaration is unsupported: it cannot make a superseded
+design admissible. Semantic Implementation Plan changes stale both plan reviews.
+The user authorized this parent alignment on 2026-10-04 PDT by delegating the
+stated choice; the former snapshot-only design is historical, not an accepted
+exception. Its runtime removal belongs to PR3. All applicable roles retain their
+defined semantic binding. No generic configurable dependency graph is introduced.
 Scenario-gate is an additional consumer of this identity path, not a fourth
 planning contract. Its exact target is the accepted scenario source; required
 context is ticket, project (including the accepted persona-outcome inventory),
@@ -233,7 +226,7 @@ evidence cannot rewrite the plan under review.
 | R6 capability catalogue: every packaged cross-provider ordering is earned and every default independence claim is executable                          | pinned human-labelled planning-review corpus, Claude/Codex live model-confirmation proofs, and release verification      | eval + integration + live | repeated semantic review distinguishes model capability; release checks bind admitted results and adapter-specific confirmation to shipped catalogue/default routes                                                                                                 | a small corpus can establish only its declared planning-review boundary and live proofs must be refreshed when CLIs, models, rubrics, or defaults change |
 | R7: retrieved and reviewed material stays evidence, not instructions                                                                                  | quarantine/parser integration plus judged reviewer evaluation                                                          | integration + eval        | deterministic code proves no execution or disclosure path; an eval proves semantic instruction resistance                                                                                                                                                           | eval confidence is bounded by the pinned judge/rubric and repeated-run agreement                                                                         |
 | R8: ungated hosts receive advisory guidance while gated hosts retain enforcement claims                                                               | real CLI reconciliation of host guidance                                                                               | integration               | proves generated content on the installed surface                                                                                                                                                                                                                   | cannot prove a cloud vendor executes repository prose; the contract deliberately claims advisory only                                                    |
-| R9: only dependent reviews stale and receipts cannot cross ticket or kind                                                                             | current identity recomputation through the real phase gate                                                             | integration               | exercises both canonical declarations against the same resolver/status/admission machinery: a semantic upstream change stales both receipts in both-plan mode and only its own receipt in own-review-only mode; required upstream context remains mandatory in both | concurrent filesystem mutation is covered by the coordinator snapshot checks, not this matrix                                                            |
+| R9: only dependent reviews stale and receipts cannot cross ticket or kind                                                                             | current identity recomputation through the real phase gate                                                             | integration               | a semantic upstream change stales both receipts through the real resolver/status/admission machinery; reconciliation rejects an unsupported own-review-only declaration before changing installed bytes | concurrent filesystem mutation is covered by the coordinator snapshot checks, not this matrix                                                            |
 | R10-R11: each phase contract asks and approves only its own decision, with bounded findings and fresh-byte repair                                     | fixed-rubric judged review plus real phase-gate corrected-byte/fresh-verdict integration                               | integration + eval        | semantic finding authority needs judgment while receipt currency is deterministic                                                                                                                                                                                   | the eval remains model-dependent; exact-byte integration cannot judge finding quality                                                                    |
 | R12-R15: accepted boundaries include all authorities and reject both omissions and overreach without granting guidance authority                      | resolved-boundary packet plus fixed-rubric judged review                                                               | integration + eval        | integration proves complete context; eval proves bidirectional scope judgment                                                                                                                                                                                       | no proof can invent unavailable human authority; unresolved choices remain blocked                                                                       |
 | R14 disposition command: a user decline is explicit, durable, and currency-bearing without widening scope                                             | real pseudo-terminal CLI through ticket write, fresh packet, and phase admission                                       | integration               | proves interactive confirmation/refusal/no-input behavior, lock and digest checks, atomic write, accepted-boundary matching, and disposition-to-stale/fresh-review linkage through the public entry point                                                           | cooperating-writer proof does not claim protection from an out-of-band writer that ignores the lock                                                      |
