@@ -1,0 +1,26 @@
+{
+  "ticketId": "CKWE2D",
+  "scenario": "A nested project uses its committed generated marker",
+  "testFile": "packages/cli/tests/cli-protocol/review-generated-targets.test.ts",
+  "testFullName": "generated review targets uses repository-relative paths for a project nested below the Git root",
+  "implementationPath": "packages/cli/src/review/packet.ts",
+  "mutation": {
+    "before": "const repoPaths = files.map(file => `${repoPrefix}${file.relative}`);",
+    "after": "const repoPaths = files.map(file => file.relative);",
+    "expectedFailure": "excludedTargets: undefined",
+    "assertionLocation": "review-generated-targets.test.ts:216"
+  },
+  "supportFiles": [
+    "packages/cli/src/review/scope.ts",
+    "packages/cli/src/review/coordinator.ts",
+    "packages/cli/src/review/runtime.ts",
+    "packages/cli/src/review/job.ts",
+    "packages/cli/src/cli-protocol/review-handlers.ts",
+    "packages/cli/src/cli-protocol/result.ts",
+    "packages/cli/tests/helpers.ts",
+    "packages/cli/tests/review-fixtures.ts",
+    "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature",
+    "packages/cli/package.json",
+    "bun.lock"
+  ]
+}

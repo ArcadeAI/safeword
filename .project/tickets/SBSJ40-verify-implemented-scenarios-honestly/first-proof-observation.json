@@ -1,0 +1,85 @@
+{
+  "commit": "a2ae88084038056557e00d47d3de8210c2d3abca",
+  "request": {
+    "ticketId": "CKWE2D",
+    "scenario": "A nested project uses its committed generated marker",
+    "testFile": "packages/cli/tests/cli-protocol/review-generated-targets.test.ts",
+    "testFullName": "generated review targets uses repository-relative paths for a project nested below the Git root",
+    "implementationPath": "packages/cli/src/review/packet.ts",
+    "mutation": {
+      "before": "const repoPaths = files.map(file => `${repoPrefix}${file.relative}`);",
+      "after": "const repoPaths = files.map(file => file.relative);",
+      "expectedFailure": "excludedTargets: undefined",
+      "assertionLocation": "review-generated-targets.test.ts:216"
+    },
+    "supportFiles": [
+      "packages/cli/src/review/scope.ts",
+      "packages/cli/src/review/coordinator.ts",
+      "packages/cli/src/review/runtime.ts",
+      "packages/cli/src/review/job.ts",
+      "packages/cli/src/cli-protocol/review-handlers.ts",
+      "packages/cli/src/cli-protocol/result.ts",
+      "packages/cli/tests/helpers.ts",
+      "packages/cli/tests/review-fixtures.ts",
+      "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature",
+      "packages/cli/package.json",
+      "bun.lock"
+    ]
+  },
+  "argv": [
+    "bun",
+    "run",
+    "test",
+    "tests/cli-protocol/review-generated-targets.test.ts",
+    "--testNamePattern",
+    "^generated review targets uses repository-relative paths for a project nested below the Git root$",
+    "--reporter=json",
+    "--outputFile=retrospective-proof-report.json"
+  ],
+  "cwd": "packages/cli",
+  "sourceSha256": "889203574e5893d6b4f53a8796dd848ab21a0be7496a49cb1bb0fbb0a4689aa7",
+  "mutantSha256": "7348383c1087978424a9325c73ea92dbc5b45937f9065929f15ce9113b0d6d39",
+  "supportSha256": {
+    "packages/cli/tests/cli-protocol/review-generated-targets.test.ts": "5dcd82478a9c452c5a23d725630fd4a4e9cbaf52aac6d442e7480ccf4789e604",
+    "packages/cli/src/review/packet.ts": "889203574e5893d6b4f53a8796dd848ab21a0be7496a49cb1bb0fbb0a4689aa7",
+    "packages/cli/src/review/scope.ts": "636f6cc5cf9db618b5158dae4dc3603188b600aa2bf27609e0ee5b8b06395749",
+    "packages/cli/src/review/coordinator.ts": "d7887ae0b1ade008ce18181fda9e223f2078e0dbdacee5fdc744f72300583584",
+    "packages/cli/src/review/runtime.ts": "481e50bc4dba99a4bad9db50ae0c0c77a9513d929b1378844d831719b31bd5a4",
+    "packages/cli/src/review/job.ts": "23faba194b768f005e7d58092b27f14fccf0e47259880acf76f44cb9239b1ff6",
+    "packages/cli/src/cli-protocol/review-handlers.ts": "893a5f1f4680162622647ee4ebfb1c3d5de84b67e1eaa0a335cbc4cbb380fca3",
+    "packages/cli/src/cli-protocol/result.ts": "9853a7a90361fa88f658d52bca738986c22c5b6dc2653c36f16284c3eb479e4a",
+    "packages/cli/tests/helpers.ts": "f65bc687595b84dd9a3359e1f473e0e8ffa1029b0386da0f9eece3c932c70d50",
+    "packages/cli/tests/review-fixtures.ts": "27db6444069c5c5fe2856ec7b47121ae60a8f1cb6b01038d71f5371a144d8427",
+    "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature": "f1848dcff37e28dcb2b867b079d939004bab735a2d953661dd74e14565ff1a97",
+    "packages/cli/package.json": "7395c6961b642de4aa3df0f8b0bd3ab899af0f1340bb349fbfa10fe5d16ff952",
+    "bun.lock": "1f3ca5b8b9f94e2065bc0b446cc17d4e7145a1761dbce2bcf22dbc1fe32ba3ae"
+  },
+  "mutatedSupportSha256": {
+    "packages/cli/tests/cli-protocol/review-generated-targets.test.ts": "5dcd82478a9c452c5a23d725630fd4a4e9cbaf52aac6d442e7480ccf4789e604",
+    "packages/cli/src/review/packet.ts": "7348383c1087978424a9325c73ea92dbc5b45937f9065929f15ce9113b0d6d39",
+    "packages/cli/src/review/scope.ts": "636f6cc5cf9db618b5158dae4dc3603188b600aa2bf27609e0ee5b8b06395749",
+    "packages/cli/src/review/coordinator.ts": "d7887ae0b1ade008ce18181fda9e223f2078e0dbdacee5fdc744f72300583584",
+    "packages/cli/src/review/runtime.ts": "481e50bc4dba99a4bad9db50ae0c0c77a9513d929b1378844d831719b31bd5a4",
+    "packages/cli/src/review/job.ts": "23faba194b768f005e7d58092b27f14fccf0e47259880acf76f44cb9239b1ff6",
+    "packages/cli/src/cli-protocol/review-handlers.ts": "893a5f1f4680162622647ee4ebfb1c3d5de84b67e1eaa0a335cbc4cbb380fca3",
+    "packages/cli/src/cli-protocol/result.ts": "9853a7a90361fa88f658d52bca738986c22c5b6dc2653c36f16284c3eb479e4a",
+    "packages/cli/tests/helpers.ts": "f65bc687595b84dd9a3359e1f473e0e8ffa1029b0386da0f9eece3c932c70d50",
+    "packages/cli/tests/review-fixtures.ts": "27db6444069c5c5fe2856ec7b47121ae60a8f1cb6b01038d71f5371a144d8427",
+    "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature": "f1848dcff37e28dcb2b867b079d939004bab735a2d953661dd74e14565ff1a97",
+    "packages/cli/package.json": "7395c6961b642de4aa3df0f8b0bd3ab899af0f1340bb349fbfa10fe5d16ff952",
+    "bun.lock": "1f3ca5b8b9f94e2065bc0b446cc17d4e7145a1761dbce2bcf22dbc1fe32ba3ae"
+  },
+  "passing": {
+    "exitCode": 0,
+    "test": "generated review targets uses repository-relative paths for a project nested below the Git root",
+    "passedTests": 1,
+    "failedTests": 0
+  },
+  "mutated": {
+    "exitCode": 1,
+    "test": "generated review targets uses repository-relative paths for a project nested below the Git root",
+    "passedTests": 0,
+    "failedTests": 1,
+    "failure": "AssertionError: expected { excludedTargets: undefined, …(3) } to deeply equal { …(4) }\n    at /private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-retrospective-proof-qU2Dz4/mutated/packages/cli/tests/cli-protocol/review-generated-targets.test.ts:216:8\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at file:///Users/alex/.codex/worktrees/review-generated-targets/safeword/node_modules/.bun/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+  }
+}
