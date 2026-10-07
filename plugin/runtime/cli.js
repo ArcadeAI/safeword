@@ -36638,7 +36638,7 @@ ${reviewOutputSchema("plan-execution")}
         decision: "one pull request",
         rationale: COMPLETE_DELIVERY_RATIONALE,
         slices: [COMPLETE_DELIVERY_SLICE]
-      }), ["proof-strategy work"]),
+      }), ["edited-plan", "denial"]),
       implementation_plan: PROOF_OBLIGATION_IMPLEMENTATION_PLAN
     },
     missingObligationCase("missing-migration-obligation", "Migration work"),

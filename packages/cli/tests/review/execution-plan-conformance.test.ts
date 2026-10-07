@@ -338,6 +338,8 @@ describe('Execution Plan semantic conformance admission', () => {
         'transport',
         'authorization',
       ]);
+    } else if (caseId === 'missing-proof-strategy-obligation') {
+      expect(testCase?.expectation.finding_terms).toEqual(['edited-plan', 'denial']);
     } else {
       expect(testCase?.expectation.finding_terms).toHaveLength(1);
     }

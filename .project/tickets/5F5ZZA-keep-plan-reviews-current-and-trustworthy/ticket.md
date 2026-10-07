@@ -1116,3 +1116,29 @@ pending explicit human approval under the testing guide. A fresh complete
 matrix remains required after any approved corpus change. Full acceptance,
 RGR, deferred R7, legacy reuse, main integration and whole-stack review remain
 unfinished; no PR promoted or merged.
+
+### 2026-10-06 — proof-strategy finding correction approved and applied
+
+Human approved `/tmp/4200-proof-strategy-finding-correction.patch`.
+Applied only that case's `edited-plan` AND `denial` terms. The shared unit
+assertion still required one term; aligned the same approved case with its
+exact two terms, preserving every other case's assertion and rejection checks.
+Initial targeted run: 63 passed, one stale length assertion failed
+(`/tmp/4200-proof-strategy-static.log`). First alignment used an incorrect
+local variable name: 57 passed, seven failed
+(`/tmp/4200-proof-strategy-static-aligned.log`). Corrected `id` to the existing
+`caseId`; final targeted suite: 64 passed, zero failed
+(`/tmp/4200-proof-strategy-static-final.log`). Typecheck passed before and after
+alignment (`/tmp/4200-proof-strategy-typecheck-final.log`). These intermediate
+failures remain recorded rather than hidden by the final pass.
+
+Independent applied-source Claude review
+`baa15333-79a2-4fdc-a291-55653a9c8a99` approved; complete source-and-unit review
+`d51f24d8-e775-47fc-9003-512a78d86b3a` approved. Warning retained: substring
+matching can reject correct hyphen-free wording; admission must come from a
+fresh complete passing matrix. Contract remains
+`b41b5a7b566c0e4d0d76b774f63335e109fa5b591f0de28739fffe577d2eb3cc`;
+new corpus `11ee541f17deb4ba7a470906c33b6bbcea4a189e80f3dd48a3d9f60d126a05c4`.
+All five surfaces regenerated and verified after the foreign test owner
+completed naturally (`/tmp/4200-proof-strategy-generated.log`). No admission regenerated. Previous
+complete 62/1/0 result remains failed history; new complete run not yet started.

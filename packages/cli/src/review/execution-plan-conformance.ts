@@ -1505,7 +1505,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
         rationale: COMPLETE_DELIVERY_RATIONALE,
         slices: [COMPLETE_DELIVERY_SLICE],
       }),
-      ['proof-strategy work'],
+      ['edited-plan', 'denial'],
     ),
     implementation_plan: PROOF_OBLIGATION_IMPLEMENTATION_PLAN,
   },
