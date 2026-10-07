@@ -739,7 +739,9 @@ The complete unfiltered primary proof then returned seven intended failures
 and 15 passes (22 tests), retained in
 `/tmp/4200-complete-invalidation-reconciliation-red.log`.
 Missing includes both an absent declaration and an absent entire Invalidation
-field. The real generator also preserves either supported owner-decided mode.
+field. At that historical RED, the generator preserved both previously proposed
+modes. The user-authorized 2026-10-04 parent alignment supersedes that design:
+only `both_plan_reviews` is supported; `implementation_review_only` must reject.
 All seven failures are the real upgrade succeeding instead of rejecting its
 malformed canonical source; existing generation, shape, and shared-clause proofs
 still pass. Review `0a63b905-ce92-45b8-84da-fdccaf41df7b` remains a rejected
@@ -758,8 +760,9 @@ The primary proof changed, so a fresh attestation is required before GREEN;
 the approved prior review is historical evidence, not current authority.
 The supported-mode siblings also exercise real installation and assert the
 installed owner declaration, preventing a reconciler that rejects every
-canonical mode or silently hardcodes one of the two supported values from
-passing this proof. The strengthened unfiltered local run retains seven
+canonical mode from passing this proof. Only `both_plan_reviews` remains
+supported after the authorized parent alignment. The historical strengthened
+unfiltered local run retains seven
 intended failures and 15 passes; its log is
 `/tmp/4200-atomic-invalidation-reconciliation-red.log`.
 
