@@ -47,6 +47,9 @@ beforeAll(async () => {
   );
   writeTestFile(fixture.projectDirectory, '.gitignore', `${COUNTER_FILE}\n${EXIT_CODE_FILE}\n`);
   initGitRepo(fixture.projectDirectory);
+  // Many commits follow; background auto-gc could hold ref locks mid-test.
+  git(fixture.projectDirectory, 'config gc.auto 0');
+  git(fixture.projectDirectory, 'config maintenance.auto false');
   await setupOrThrow(fixture.projectDirectory, ['setup', '--yes'], {
     env: INSTALL_DEPENDENCIES_ENV,
   });
@@ -71,7 +74,14 @@ afterAll(() => {
 });
 
 function git(directory: string, arguments_: string): void {
-  execSync(`git ${arguments_}`, { cwd: directory, stdio: 'pipe' });
+  try {
+    execSync(`git ${arguments_}`, { cwd: directory, stdio: 'pipe' });
+  } catch (error) {
+    const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
+    throw new Error(`git ${arguments_} failed:\n${String(stdout ?? '')}${String(stderr ?? '')}`, {
+      cause: error,
+    });
+  }
 }
 
 function setTestExitCode(directory: string, code: number): void {
