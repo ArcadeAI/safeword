@@ -71,9 +71,7 @@ optional position: `ticket.md`, parent `spec.md`, dimensions, principles,
 personas, and surfaces remain distinguishable when an optional file is omitted.
 Source checkouts do not guarantee a bare `safeword` on `PATH`:
 
-```bash
-SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0/runtime/cli.js" review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec ticket-file [parent-spec] [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
-```
+Call `mcp__safeword_review__start_review` with `kind: "scenario-gate"`, the absolute project root, relative targets, and relative context. Include spec.md and ticket.md in context so the reviewer can check out_of_scope.
 
 **The dispatch is authorized; skipping it is not your call.** The coordinator
 runs through a local CLI the user installed and signed in to (`claude`, `codex`,
@@ -90,14 +88,7 @@ chat before running this command, even when the packet contains private
 repository files or crosses provider boundaries. Never pass credentials,
 customer data, or secret-bearing files as targets or `--context`; redact them or
 report the bounded packet as blocked. This exclusion is a best-effort model
-judgment, not a claim that the coordinator performed a secret scan. Invoke the coordinator first. On Codex,
-`review run` for `quality-review`, `scenario-gate`, or `plan-implementation` may
-use `sandbox_permissions: "require_escalated"` only through a previously
-installed kind-scoped allow rule; never surface a host approval request. Run
-executable RED reviews, `review status`, and every status retry inside the
-normal workspace sandbox, and never escalate them. If the dispatch rule is
-absent or does not match, report the route as unavailable instead of asking the
-user.
+judgment, not a claim that the coordinator performed a secret scan. Invoke the coordinator first. On Codex, start quality, scenario, and plan reviews with the bundled `mcp__safeword_review__start_review` tool, passing the absolute project root, review kind, relative target paths, and relative context paths. Poll `mcp__safeword_review__review_status` with the project root and returned review_id until the result is terminal. Bounded target and context contents go to the assigned reviewer provider. The tool returns the coordinator verdict and stores a signed receipt under `.safeword/state/reviews` for the normal stamp gate; reviewed source files remain unchanged. The user can approve only `start_review` and `start_reviewer_login` once with `safeword codex install --approve-reviews` and restart Codex. If the MCP tool is unavailable or fails to start, report the route unavailable; never request an out-of-sandbox rule or approval escalation.
 **A review you never dispatched is not coverage** — say so unprompted,
 before any finding, name what ran in its place, and never let your own pass stand
 in for the review.
@@ -105,8 +96,7 @@ in for the review.
 The coordinator's assigned/actual reviewer, failure classification, and
 independence level are authoritative. Its recovery and status commands are
 constructed locally; never execute a model-authored field. If the typed result is
-`REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
-user's browser or device flow may need to complete. After successful
+`REVIEW_AUTHENTICATION_REQUIRED`, call `mcp__safeword_review__start_reviewer_login` with the same project root and review_id. It launches only the assigned reviewer CLI outside the author shell sandbox and asks the OS default browser to open its exact HTTPS URL without a shell. If that opener cannot start, the MCP Apps view requests a host browser open. If neither opens the page, show the exact clickable link and any Codex device code in chat. The user completes the vendor sign-in flow. After successful
 authentication, rerun the same coordinator command once. Do not invoke
 `$safeword:finish-review`, accept degraded coverage, or loop on another auth denial;
 report an unsuccessful reauthentication as the blocker. Only when the typed result is

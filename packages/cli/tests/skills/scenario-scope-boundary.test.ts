@@ -62,8 +62,13 @@ describe('scenario scope boundary', () => {
     // context list the lens reads as enforced while the headless reviewer
     // cannot see the field it names — it would pass the exact crossing the
     // lens was added to catch.
-    expect(content).toContain('--context ticket-spec ticket-file');
-    expect(content).toContain('[parent-spec]');
+    if (relative.includes('codex-plugin/skills/')) {
+      expect(content).toContain('Include spec.md and ticket.md in context');
+      expect(content).toContain("resolve that parent's `spec.md`");
+    } else {
+      expect(content).toContain('--context ticket-spec ticket-file');
+      expect(content).toContain('[parent-spec]');
+    }
     expect(content).toContain('cannot see `out_of_scope`');
     // A missing ticket.md must degrade loudly; a silent fallback to spec.md
     // reproduces the same false-clean verdict.

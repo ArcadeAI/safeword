@@ -16,7 +16,11 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { RedExecutionAttestation } from '../../src/review/contract.js';
-import { prepareReviewPacket, toReviewPath } from '../../src/review/packet.js';
+import {
+  prepareReviewPacket,
+  prepareReviewPacketReadOnly,
+  toReviewPath,
+} from '../../src/review/packet.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -61,6 +65,18 @@ afterEach(() => {
 });
 
 describe('review packet containment and change accounting', () => {
+  it('captures bounded source bytes for status without materializing a snapshot', () => {
+    const root = temporaryDirectory();
+    writeFileSync(nodePath.join(root, 'proof.md'), 'review me\n');
+
+    const prepared = prepareReviewPacketReadOnly(root, 'quality-review', ['proof.md']);
+
+    expect(prepared.workspace).toBe('');
+    expect(prepared.packet.logical_files).toEqual([{ path: 'proof.md', content: 'review me\n' }]);
+    expect(prepared.sourceChanged()).toBe(false);
+    prepared.cleanup();
+  });
+
   it('uses forward slashes for Git attribute paths on Windows', () => {
     expect(toReviewPath(String.raw`generated\nested\output.js`, nodePath.win32.sep)).toBe(
       'generated/nested/output.js',

@@ -392,6 +392,8 @@ async function runCodexFinalization(
   };
 }
 
+// Installation and the explicit approval choice have independent effects.
+// eslint-disable-next-line complexity -- Install and optional approval each produce separate effects.
 function runCodexInstall(
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
@@ -400,26 +402,46 @@ function runCodexInstall(
   if (before.state === 'recovery_required') {
     return migration.observeCodexMigration(invocation.cwd);
   }
-  if (!migration.codexInstallRequiresMutation(before)) {
+  const installNeeded = migration.codexInstallRequiresMutation(before);
+  const approveReviews = invocation.options.approveReviews === true;
+  if (!installNeeded && !approveReviews) {
     return migration.observeCodexMigration(invocation.cwd);
   }
-  const marketplaceReplaced = migration.installCodexPlugin({
-    cwd: invocation.cwd,
-    json: true,
-    reportMigrationState: false,
-  });
+  const marketplaceReplaced = installNeeded
+    ? migration.installCodexPlugin({
+        cwd: invocation.cwd,
+        json: true,
+        reportMigrationState: false,
+      })
+    : false;
+  const approvalChanged = approveReviews ? migration.enableCodexReviewApproval() : false;
   const observed = migration.observeCodexMigration(invocation.cwd);
   return {
     ...observed,
-    state: observed.state === 'healthy' ? 'changed' : observed.state,
-    changed: true,
+    state:
+      observed.state === 'healthy' && (installNeeded || approvalChanged)
+        ? 'changed'
+        : observed.state,
+    changed: installNeeded || approvalChanged,
     effects: {
       ...observed.effects,
       configuration: [
-        {
-          kind: before.plugin.installed ? 'update' : 'enable',
-          target: 'Safeword Codex profile plugin',
-        },
+        ...(installNeeded
+          ? [
+              {
+                kind: before.plugin.installed ? 'update' : 'enable',
+                target: 'Safeword Codex profile plugin',
+              } as const,
+            ]
+          : []),
+        ...(approvalChanged
+          ? [
+              {
+                kind: 'update' as const,
+                target: 'Safeword review-start and reviewer-login tool approval in Codex profile',
+              },
+            ]
+          : []),
       ],
       destructive: marketplaceReplaced
         ? [

@@ -1,6 +1,7 @@
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -1436,6 +1437,37 @@ describe('durable review jobs', () => {
     await vi.waitFor(() => {
       expect(() => process.kill(record.pid, 0)).toThrow();
     });
+  });
+
+  it('observes an expired review through MCP without writing or terminating its worker', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    const inspectionMarker = nodePath.join(cwd, 'inspected-worker');
+    const inspectionTool = nodePath.join(cwd, 'inspect-worker.sh');
+    writeFileSync(inspectionTool, `#!/bin/sh\ntouch '${inspectionMarker}'\n`);
+    chmodSync(inspectionTool, 0o700);
+    vi.stubEnv('SAFEWORD_REVIEW_PS_PATH', inspectionTool);
+    expect(reviewJobStatus(cwd, id, true).findings[0]?.code).toBe('REVIEW_PENDING');
+    expect(existsSync(inspectionMarker)).toBe(false);
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as {
+      pid: number;
+      deadline_at: string;
+      integrity?: string;
+    };
+    record.deadline_at = new Date(0).toISOString();
+    record.integrity = signRecord(cwd, record);
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+    const before = readFileSync(recordPath, 'utf8');
+
+    expect(reviewJobStatus(cwd, id, true).errors[0]?.code).toBe('REVIEW_WORKER_TIMED_OUT');
+    expect(readFileSync(recordPath, 'utf8')).toBe(before);
+    expect(() => process.kill(record.pid, 0)).not.toThrow();
+
+    reviewJobStatus(cwd, id);
   });
 
   it.runIf(process.platform !== 'win32')(

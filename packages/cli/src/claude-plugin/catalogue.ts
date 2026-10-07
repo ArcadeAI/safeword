@@ -7,6 +7,7 @@ import { buildSync } from 'esbuild';
 import { generateOwnedPathsModule } from '../owned-paths.js';
 import { normalizePluginBundle } from '../plugin-bundle.js';
 import { assertNativePluginRuntimeAuthority } from '../plugin-runtime-authority.js';
+import { adaptReviewerLoginGuidance } from '../review/login-guidance.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { SETTINGS_HOOKS } from '../templates/config.js';
 import {
@@ -128,7 +129,7 @@ function adaptClaudeSkill(content: string): string {
   if (/!`[^`\n]*\$PROJECT_DIR[^`\n]*`/u.test(result)) {
     throw new Error('Claude plugin skill adaptation retained $PROJECT_DIR in an inline command.');
   }
-  return result;
+  return adaptReviewerLoginGuidance(result);
 }
 
 function adaptPluginScriptReference(content: string): string {
@@ -206,9 +207,12 @@ function assertUniqueInvocations(assets: readonly GeneratedClaudePluginAsset[]):
 function assertNoProjectFrameworkReferences(assets: readonly GeneratedClaudePluginAsset[]): void {
   for (const asset of assets) {
     if (
-      ['runtime/cli.js', 'runtime/dispatch.js', PROJECT_COMMAND_MATCHER_ASSET].includes(
-        asset.relativePath,
-      )
+      [
+        'runtime/cli.js',
+        'runtime/dispatch.js',
+        'runtime/review-mcp.js',
+        PROJECT_COMMAND_MATCHER_ASSET,
+      ].includes(asset.relativePath)
     )
       continue;
     if (!/^(?:agents|hooks|resources|runtime|skills)\//u.test(asset.relativePath)) continue;
@@ -241,7 +245,8 @@ function referencedPluginPaths(asset: GeneratedClaudePluginAsset): string[] {
   if (
     isCanonicalTemplateAsset(asset.relativePath) ||
     asset.relativePath === 'runtime/cli.js' ||
-    asset.relativePath === 'runtime/dispatch.js'
+    asset.relativePath === 'runtime/dispatch.js' ||
+    asset.relativePath === 'runtime/review-mcp.js'
   ) {
     return [];
   }
@@ -291,6 +296,7 @@ function isCatalogueRoot(asset: GeneratedClaudePluginAsset): boolean {
     /^(?:agents|skills)\//u.test(asset.relativePath) ||
     isCanonicalTemplateAsset(asset.relativePath) ||
     asset.relativePath === '.claude-plugin/plugin.json' ||
+    asset.relativePath === '.mcp.json' ||
     asset.relativePath === 'hooks/hooks.json' ||
     asset.relativePath === 'runtime/dispatch.js' ||
     asset.relativePath === 'runtime/event-groups.json' ||
@@ -482,6 +488,23 @@ function bundledDispatcher(sourceRoot: string): string {
   return normalizePluginBundle(output);
 }
 
+function bundledReviewMcp(sourceRoot: string): string {
+  const result = buildSync({
+    absWorkingDir: sourceRoot,
+    entryPoints: ['codex-plugin/review-mcp.ts'],
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    target: CLAUDE_DISPATCHER_NODE_TARGET,
+    write: false,
+    legalComments: 'none',
+    mainFields: ['module', 'main'],
+  });
+  const output = result.outputFiles[0]?.text;
+  if (output === undefined) throw new Error('Claude plugin review MCP bundle was not generated.');
+  return normalizePluginBundle(output);
+}
+
 export function generateClaudePluginAssets(
   input: ClaudePluginCatalogueInput,
 ): GeneratedClaudePluginAsset[] {
@@ -493,6 +516,21 @@ export function generateClaudePluginAssets(
     {
       relativePath: '.claude-plugin/plugin.json',
       content: pluginManifest(),
+    },
+    {
+      relativePath: '.mcp.json',
+      content: `${JSON.stringify(
+        {
+          mcpServers: {
+            safeword_review: {
+              command: 'bun',
+              args: ['${CLAUDE_PLUGIN_ROOT}/runtime/review-mcp.js', '--claude'],
+            },
+          },
+        },
+        undefined,
+        2,
+      )}\n`,
     },
     {
       relativePath: 'package.json',
@@ -533,6 +571,7 @@ export function generateClaudePluginAssets(
       asset => asset.relativePath !== 'runtime/dispatch.ts',
     ),
     { relativePath: 'runtime/dispatch.js', content: bundledDispatcher(sourceRoot) },
+    { relativePath: 'runtime/review-mcp.js', content: bundledReviewMcp(sourceRoot) },
     { relativePath: 'runtime/cli.js', content: cliBundle },
     { relativePath: 'runtime/event-groups.json', content: eventGroups },
     { relativePath: 'hooks/hooks.json', content: hookManifest },
@@ -608,6 +647,7 @@ export function writeClaudePluginCatalogue(
   rmSync(nodePath.join(pluginRoot, 'identity.json'), { force: true });
   rmSync(nodePath.join(pluginRoot, 'inventory.json'), { force: true });
   rmSync(nodePath.join(pluginRoot, 'package.json'), { force: true });
+  rmSync(nodePath.join(pluginRoot, '.mcp.json'), { force: true });
 
   for (const asset of assets) {
     const path = nodePath.join(pluginRoot, asset.relativePath);
@@ -620,6 +660,7 @@ export function writeClaudePluginCatalogue(
 export function sealClaudePluginCatalogue(pluginRoot: string, version: string): void {
   const paths = [
     'package.json',
+    '.mcp.json',
     ...GENERATED_DIRECTORIES.flatMap(directory =>
       filesBeneath(nodePath.join(pluginRoot, directory), directory),
     ),

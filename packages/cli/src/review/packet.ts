@@ -506,18 +506,31 @@ function snapshotEntries(root: string, directory = root): string[] {
   });
 }
 
+function writeReviewSnapshot(workspace: string, relative: string, bytes: Buffer): string {
+  if (workspace === '') return '';
+  const snapshotPath = nodePath.join(workspace, relative);
+  mkdirSync(nodePath.dirname(snapshotPath), { recursive: true });
+  writeFileSync(snapshotPath, bytes, { mode: 0o600 });
+  return snapshotPath;
+}
+
+function removeReviewSnapshot(workspace: string): void {
+  if (workspace !== '') rmSync(workspace, { recursive: true, force: true });
+}
+
 // Keep validation, generated classification, and packet capture in one atomic preflight.
-// eslint-disable-next-line complexity -- A partial packet must never escape this boundary.
+// eslint-disable-next-line complexity, max-params -- Atomic packet capture also supports read-only status verification.
 function prepareReviewPacketUnsafe(
   cwd: string,
   kind: ReviewKind,
   targets: readonly string[],
   context: readonly string[] = [],
   execution: ReviewPacketExecution = {},
+  snapshot = true,
 ): PreparedReviewPacket {
   const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot = realpathSync(cwd);
-  const workspace = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-'));
+  const workspace = snapshot ? mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-')) : '';
   const tracked: CapturedFile[] = [];
   const oversized: OversizedFile[] = [];
   const captured: CapturedPacketFile[] = [];
@@ -592,16 +605,14 @@ function prepareReviewPacketUnsafe(
               'REVIEW_PACKET_TOO_LARGE',
             );
           }
-          const snapshot = nodePath.join(workspace, relative);
-          mkdirSync(nodePath.dirname(snapshot), { recursive: true });
-          writeFileSync(snapshot, bytes, { mode: 0o600 });
+          const snapshotPath = writeReviewSnapshot(workspace, relative, bytes);
           let parent = nodePath.dirname(relative);
           while (parent !== '.') {
             expectedSnapshotEntries.add(`directory:${parent}`);
             parent = nodePath.dirname(parent);
           }
           expectedSnapshotEntries.add(`file:${relative}`);
-          tracked.push({ source, snapshot, sha256: digest(bytes), device, inode });
+          tracked.push({ source, snapshot: snapshotPath, sha256: digest(bytes), device, inode });
           const file = { path: toReviewPath(relative), content };
           captured.push({ index: offset + index, context: !allowGenerated, file });
           return [file];
@@ -669,7 +680,7 @@ function prepareReviewPacketUnsafe(
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
   } catch (error) {
-    rmSync(workspace, { recursive: true, force: true });
+    removeReviewSnapshot(workspace);
     throw error;
   }
   const packet: ReviewPacket = {
@@ -681,7 +692,7 @@ function prepareReviewPacketUnsafe(
     ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),
   };
   if (Buffer.byteLength(JSON.stringify(packet), 'utf8') > MAX_PACKET_BYTES) {
-    rmSync(workspace, { recursive: true, force: true });
+    removeReviewSnapshot(workspace);
     throw new ReviewPacketError(
       `Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`,
       'REVIEW_PACKET_TOO_LARGE',
@@ -694,6 +705,7 @@ function prepareReviewPacketUnsafe(
     workspace,
     sourceChanged: () => tracked.some(file => sourceFileChanged(canonicalRoot, file)),
     snapshotChanged: () => {
+      if (!snapshot) return false;
       if (tracked.some(file => fileDigest(file.snapshot) !== file.sha256)) return true;
       try {
         const actualEntries = snapshotEntries(workspace);
@@ -706,7 +718,7 @@ function prepareReviewPacketUnsafe(
       }
     },
     cleanup: () => {
-      rmSync(workspace, { recursive: true, force: true });
+      removeReviewSnapshot(workspace);
     },
   };
 }
@@ -730,5 +742,21 @@ export function prepareReviewPacket(
         ? message
         : 'Review packet could not be prepared. Check that every target and context path exists and is readable.',
     );
+  }
+}
+
+/** Capture the same bounded packet for verification without materializing a snapshot. */
+export function prepareReviewPacketReadOnly(
+  cwd: string,
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[] = [],
+  execution: ReviewPacketExecution = {},
+): PreparedReviewPacket {
+  try {
+    return prepareReviewPacketUnsafe(cwd, kind, targets, context, execution, false);
+  } catch (error) {
+    if (error instanceof ReviewPacketError) throw error;
+    throw new ReviewPacketError('Review packet could not be read for verification.');
   }
 }

@@ -23,7 +23,7 @@ import { createBestEffortByteSink } from '../cli-protocol/policy.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { retryCommand } from './command.js';
 import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
-import { prepareReviewPacket, toReviewPath } from './packet.js';
+import { prepareReviewPacket, prepareReviewPacketReadOnly, toReviewPath } from './packet.js';
 import { reviewWorkerRunBoundMs } from './runtime.js';
 
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
@@ -103,19 +103,22 @@ function unsignedRecord(record: ReviewJobRecord): Omit<ReviewJobRecord, 'integri
   return unsigned;
 }
 
-function recordIntegrity(cwd: string, record: ReviewJobRecord): string {
-  return createHmac('sha256', readOrCreateIntegrityKey())
+function recordIntegrity(cwd: string, record: ReviewJobRecord, readOnly = false): string {
+  const key = readOnly
+    ? decodeIntegrityKey(readFileSync(integrityKeyPath(), 'utf8'))
+    : readOrCreateIntegrityKey();
+  return createHmac('sha256', key)
     .update(realpathSync.native(cwd))
     .update('\0')
     .update(JSON.stringify(unsignedRecord(record)))
     .digest('hex');
 }
 
-function hasValidIntegrity(cwd: string, record: ReviewJobRecord): boolean {
+function hasValidIntegrity(cwd: string, record: ReviewJobRecord, readOnly = false): boolean {
   if (record.integrity === undefined || !/^[a-f\d]{64}$/u.test(record.integrity)) return false;
   try {
     const actual = Buffer.from(record.integrity, 'hex');
-    const expected = Buffer.from(recordIntegrity(cwd, record), 'hex');
+    const expected = Buffer.from(recordIntegrity(cwd, record, readOnly), 'hex');
     return timingSafeEqual(actual, expected);
   } catch {
     return false;
@@ -283,20 +286,28 @@ function ledgerFingerprintContext(
   };
 }
 
+// eslint-disable-next-line max-params, complexity -- Identity binds all signed inputs and preserves optional read-only status capture.
 function reviewIdentity(
   cwd: string,
   kind: ReviewKind,
   targets: readonly string[],
   context: readonly string[] = [],
   execution?: RedExecutionRequest,
+  readOnly = false,
 ): { fingerprint: string; excludedTargets: readonly string[] } {
   // A GREEN receipt is bound to the ledger state that the reviewer approved,
   // not just to the human-readable scenario label. Otherwise a later heading
   // rename could make an old receipt appear to cover a different scenario.
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
-  const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
-    allowMissingExecutableRedAttestation: true,
-  });
+  const prepared = (readOnly ? prepareReviewPacketReadOnly : prepareReviewPacket)(
+    cwd,
+    kind,
+    targets,
+    ledger.context,
+    {
+      allowMissingExecutableRedAttestation: true,
+    },
+  );
   try {
     const hash = createHash('sha256');
     hash.update(`kind\0${kind}\0`);
@@ -606,9 +617,9 @@ function hasReviewerIdentity(reviewer: Record<string, unknown>): boolean {
   );
 }
 
-function readJob(cwd: string, id: string): ReviewJobRecord {
+function readJob(cwd: string, id: string, readOnly = false): ReviewJobRecord {
   const parsed: unknown = JSON.parse(readFileSync(jobPath(cwd, id), 'utf8'));
-  if (!isReviewJobRecord(parsed) || parsed.id !== id || !hasValidIntegrity(cwd, parsed))
+  if (!isReviewJobRecord(parsed) || parsed.id !== id || !hasValidIntegrity(cwd, parsed, readOnly))
     throw new Error('invalid review job record');
   return parsed;
 }
@@ -670,19 +681,29 @@ function staleResult(record: ReviewJobRecord): CliResult {
   });
 }
 
-function currentResult(cwd: string, record: ReviewJobRecord): CliResult {
-  if (isActiveJobPastDeadline(record)) return failTimedOutJob(cwd, record);
+// eslint-disable-next-line complexity -- Each active state has a passive MCP observation and the existing durable CLI transition.
+function currentResult(cwd: string, record: ReviewJobRecord, readOnly = false): CliResult {
+  if (isActiveJobPastDeadline(record))
+    return readOnly
+      ? failedJobResult(record, {
+          code: 'REVIEW_WORKER_TIMED_OUT',
+          message: 'The background review worker exceeded its deadline before recording a result.',
+        })
+      : failTimedOutJob(cwd, record);
   if (record.state === 'launching') {
     if (record.pid !== undefined && processExists(record.pid)) return pendingResult(record);
-    return failExitedJob(cwd, record);
+    return readOnly
+      ? failedJobResult(record, {
+          code: 'REVIEW_WORKER_EXITED',
+          message: 'The background review worker exited before recording a result.',
+        })
+      : failExitedJob(cwd, record);
   }
   if (record.state === 'running') {
-    if (workerDefinitelyMismatches(record)) {
-      return failExitedJob(cwd, record);
-    }
+    if (!readOnly && workerDefinitelyMismatches(record)) return failExitedJob(cwd, record);
     return pendingResult(record);
   }
-  return terminalResult(cwd, record);
+  return terminalResult(cwd, record, readOnly);
 }
 
 function isActiveJobPastDeadline(record: ReviewJobRecord): boolean {
@@ -691,16 +712,23 @@ function isActiveJobPastDeadline(record: ReviewJobRecord): boolean {
   return Number.isFinite(deadline) && Date.now() >= deadline;
 }
 
+function failedJobResult(
+  record: ReviewJobRecord,
+  error: { readonly code: string; readonly message: string },
+): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [{ code: error.code, message: error.message, retryable: true }],
+    data: { command: 'review status', status: 'failed', review_id: record.id },
+  });
+}
+
 function failActiveJob(
   cwd: string,
   record: ReviewJobRecord,
   error: { readonly code: string; readonly message: string },
 ): CliResult {
-  const failed = createResult({
-    state: 'failed',
-    errors: [{ code: error.code, message: error.message, retryable: true }],
-    data: { command: 'review status', status: 'failed', review_id: record.id },
-  });
+  const failed = failedJobResult(record, error);
   const latest = updateActiveJob(cwd, record.id, current => ({
     ...current,
     state: 'failed',
@@ -729,8 +757,8 @@ function failExitedJob(cwd: string, record: ReviewJobRecord): CliResult {
   });
 }
 
-function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
-  if (!hasValidIntegrity(cwd, record)) return invalidJobResult(record.id);
+function terminalResult(cwd: string, record: ReviewJobRecord, readOnly = false): CliResult {
+  if (!hasValidIntegrity(cwd, record, readOnly)) return invalidJobResult(record.id);
   if (record.state === 'canceled') {
     return createResult({
       state: 'action_required',
@@ -747,6 +775,7 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
       record.targets,
       record.context,
       record.execution,
+      readOnly,
     );
     if (current.fingerprint !== record.source_fingerprint) return staleResult(record);
     if (record.result !== undefined)
@@ -1341,17 +1370,21 @@ function reusableApprovedExecutableRedJob(
   return undefined;
 }
 
-function hasIndependentApproval(data: Record<string, unknown> | undefined): boolean {
+export function hasIndependentVerdict(data: Record<string, unknown> | undefined): boolean {
   const reviewerOutput = data?.reviewer_output as Record<string, unknown> | undefined;
   const actualReviewer = data?.actual_reviewer;
   return [
-    data?.status === 'approved',
+    data?.status === 'approved' || data?.status === 'changes_requested',
     data?.independence === 'cross-agent',
     typeof data?.author_agent === 'string',
     ['claude', 'codex', 'opencode'].includes(actualReviewer as string),
     data?.author_agent !== actualReviewer,
     reviewerOutput?.reviewer_agent === actualReviewer,
   ].every(Boolean);
+}
+
+function hasIndependentApproval(data: Record<string, unknown> | undefined): boolean {
+  return data?.status === 'approved' && hasIndependentVerdict(data);
 }
 
 function hasFailingExecutionAttestation(
@@ -1487,7 +1520,7 @@ function isActiveReviewJob(record: ReviewJobRecord): boolean {
   return record.state === 'running' && inspectReviewWorker(record.pid, record.id) !== 'mismatch';
 }
 
-export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
+export function reviewJobStatus(cwd: string, requestedId?: string, readOnly = false): CliResult {
   let id: string | undefined;
   try {
     id = requestedId ?? latestJobId(cwd);
@@ -1505,7 +1538,7 @@ export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
   }
   let record: ReviewJobRecord;
   try {
-    record = readJob(cwd, id);
+    record = readJob(cwd, id, readOnly);
   } catch {
     const exists = isJobId(id) && existsSync(jobPath(cwd, id));
     return createResult({
@@ -1521,7 +1554,7 @@ export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
     });
   }
   try {
-    const result = currentResult(cwd, record);
+    const result = currentResult(cwd, record, readOnly);
     return { ...result, effects: { ...result.effects, network: [] } };
   } catch {
     return createResult({

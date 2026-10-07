@@ -9,7 +9,10 @@ describe('reviewer-scoped environment', () => {
         SAFEWORD_REVIEW_PROGRESS: '1',
         SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
       }),
-    ).toEqual({ SAFEWORD_REVIEW_TIMEOUT_MS: '1000' });
+    ).toEqual({
+      SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+    });
   });
 
   it('does not expose unknown review-prefixed variables in production', () => {
@@ -22,7 +25,10 @@ describe('reviewer-scoped environment', () => {
           SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
           SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
         }),
-      ).toEqual({ SAFEWORD_REVIEW_TIMEOUT_MS: '1000' });
+      ).toEqual({
+        SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
+        CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+      });
     } finally {
       if (originalNodeEnvironment === undefined) delete process.env.NODE_ENV;
       else process.env.NODE_ENV = originalNodeEnvironment;
@@ -44,6 +50,7 @@ describe('reviewer-scoped environment', () => {
       SAFEWORD_REVIEW_COVERAGE_VERDICT: 'request_changes',
       SAFEWORD_REVIEW_DESCENDANT_PID_FILE: '/tmp/descendant.pid',
       SAFEWORD_REVIEW_LAUNCH_LOG: '/tmp/reviewer-launches.log',
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
     });
   });
 
@@ -75,7 +82,14 @@ describe('reviewer-scoped environment', () => {
       HOME: '/home/reviewer',
       ANTHROPIC_API_KEY: 'anthropic',
       SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
     });
+  });
+
+  it('disables optional Claude traffic even when the parent requests it', () => {
+    expect(reviewerEnvironment('claude', { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '' })).toEqual(
+      { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' },
+    );
   });
 
   it('keeps Codex credentials isolated from Claude credentials', () => {

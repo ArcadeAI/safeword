@@ -57,6 +57,7 @@ import {
 import { preparedCodexProjectBootstrap } from './project-bootstrap.js';
 
 export { codexInstallRequiresMutation } from './migration.js';
+export { enableCodexReviewApproval } from './review-approval.js';
 
 const MARKETPLACE_SOURCE = 'ArcadeAI/safeword';
 const PLUGIN_ID = 'safeword@safeword';

@@ -18,7 +18,6 @@ import { Option } from 'commander';
 import { describe, expect, it } from 'vitest';
 
 import { GLOBAL_OPTION_DEFINITIONS } from '../../src/cli-protocol/execute.js';
-import { VERSION } from '../../src/version.js';
 import {
   reviewCandidates,
   reviewChildEnvironment,
@@ -128,22 +127,45 @@ function reviewCallSectionsIn(content: string): ReviewCallSection[] {
   }));
 }
 
-function expectDispatchAuthorization(content: string, context: string): void {
+function expectDispatchAuthorization(
+  content: string,
+  context: string,
+  route: 'shared' | 'codex' = 'shared',
+): void {
   const normalized = content.replaceAll(/\s+/gu, ' ');
   expect(normalized, context).toContain(
     '**The dispatch is authorized; skipping it is not your call.**',
   );
   expect(normalized, context).toMatch(/do not stop and ask[^.]{0,180}consent[^.]{0,120}in chat/iu);
   expect(normalized, context).toMatch(/invoke the coordinator first/iu);
-  expect(normalized, context).toContain(
-    '`review run` for `quality-review`, `scenario-gate`, or `plan-implementation` may use `sandbox_permissions: "require_escalated"` only through a previously installed kind-scoped allow rule; never surface a host approval request.',
-  );
-  expect(normalized, context).toContain(
-    'Run executable RED reviews, `review status`, and every status retry inside the normal workspace sandbox, and never escalate them.',
-  );
-  expect(normalized, context).toContain(
-    'If the dispatch rule is absent or does not match, report the route as unavailable instead of asking the user.',
-  );
+  if (route === 'shared') {
+    expect(normalized, context).toContain(
+      '`review run` for `quality-review`, `scenario-gate`, or `plan-implementation` may use `sandbox_permissions: "require_escalated"` only through a previously installed kind-scoped allow rule; never surface a host approval request.',
+    );
+    expect(normalized, context).toContain(
+      'Run executable RED reviews, `review status`, and every status retry inside the normal workspace sandbox, and never escalate them.',
+    );
+    expect(normalized, context).toContain(
+      'If the dispatch rule is absent or does not match, report the route as unavailable instead of asking the user.',
+    );
+  } else if (context.endsWith(':executable-red')) {
+    expect(normalized, context).toContain(
+      'Executable RED remains a CLI command inside the normal workspace sandbox, including every status retry; never escalate that command.',
+    );
+    expect(normalized, context).toContain(
+      'If that route is unavailable, report it instead of asking for an approval escalation.',
+    );
+  } else {
+    expect(normalized, context).toContain(
+      'On Codex, start quality, scenario, and plan reviews with the bundled `mcp__safeword_review__start_review` tool',
+    );
+    expect(normalized, context).toContain(
+      'Poll `mcp__safeword_review__review_status` with the project root and returned review_id until the result is terminal.',
+    );
+    expect(normalized, context).toContain(
+      'If the MCP tool is unavailable or fails to start, report the route unavailable; never request an out-of-sandbox rule or approval escalation.',
+    );
+  }
   expect(normalized, context).toContain(
     'Never pass credentials, customer data, or secret-bearing files as targets or `--context`;',
   );
@@ -159,7 +181,11 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
   const normalized = section.replaceAll(/\s+/gu, ' ');
   expect(normalized, context).toContain('--agent-handoff --json');
   expect(normalized, context).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
-  expect(normalized, context).toMatch(/execute its exact recovery command/iu);
+  if (normalized.includes('mcp__safeword_review__start_reviewer_login')) {
+    expect(normalized, context).toContain('call `mcp__safeword_review__start_reviewer_login`');
+  } else {
+    expect(normalized, context).toMatch(/(?:execute|run) its exact recovery command/iu);
+  }
   expect(normalized, context).toMatch(/rerun the same coordinator command once/iu);
   expect(section, context).toContain('REVIEW_PENDING');
   expect(normalized, context).toMatch(/independence: degraded[^.]{0,240}not independent/iu);
@@ -602,7 +628,11 @@ exit ${status}`,
         expect(calls, `${root}/${relativePath}`).not.toHaveLength(0);
         for (const call of calls) {
           const context = `${root}/${relativePath}:${call.kind}`;
-          expectDispatchAuthorization(call.section, context);
+          expectDispatchAuthorization(
+            call.section,
+            context,
+            root.includes('codex-plugin') ? 'codex' : 'shared',
+          );
           expectTypedExhaustion(`${root}/${relativePath}`, call);
         }
       }
@@ -686,20 +716,6 @@ exit ${status}`,
           'bdd/TDD.md',
         ],
       },
-      {
-        // Codex skills do not receive `PLUGIN_ROOT`, so they address the
-        // bundled CLI through Codex's stable versioned plugin-cache layout, carrying
-        // the managed-progress signal the wrapper would otherwise have set —
-        // without it a multi-minute review runs silent.
-        root: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
-        reviewEntrypoint: `SAFEWORD_REVIEW_PROGRESS=1 bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/${VERSION}/runtime/cli.js" `,
-        requiredReviewFiles: [
-          'quality-review/SKILL.md',
-          'review-spec/SKILL.md',
-          'bdd/references/PLAN_IMPLEMENTATION.md',
-          'bdd/references/TDD.md',
-        ],
-      },
     ];
 
     for (const { root, reviewEntrypoint, requiredReviewFiles } of generatedSurfaces) {
@@ -725,6 +741,21 @@ exit ${status}`,
           }
         }
       }
+    }
+
+    const codexRoot = nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills');
+    for (const relativePath of [
+      'quality-review/SKILL.md',
+      'review-spec/SKILL.md',
+      'bdd/references/PLAN_IMPLEMENTATION.md',
+      'bdd/references/TDD.md',
+    ]) {
+      const content = readFileSync(nodePath.join(codexRoot, relativePath), 'utf8');
+      expect(content, relativePath).toContain('mcp__safeword_review__start_review');
+      expect(content, relativePath).toContain('mcp__safeword_review__review_status');
+      expect(content, relativePath).not.toMatch(
+        /review run (?:quality-review|scenario-gate|plan-implementation)/u,
+      );
     }
 
     const cursorRoots = [

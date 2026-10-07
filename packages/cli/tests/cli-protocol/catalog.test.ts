@@ -271,7 +271,9 @@ describe('CLI command catalog', () => {
     expect(claudeInstall?.options).toEqual([
       expect.objectContaining({ flags: '--scope <scope>', default_value: 'project' }),
     ]);
-    expect(codexInstall?.options).toEqual([]);
+    expect(codexInstall?.options).toEqual([
+      expect.objectContaining({ flags: '--approve-reviews' }),
+    ]);
     const remove = data.commands.find(command => command.name === 'remove');
     expect(remove?.options).toEqual(
       expect.arrayContaining([

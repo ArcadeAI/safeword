@@ -615,6 +615,57 @@ esac
 
   it.skipIf(process.platform === 'win32').each([
     {
+      name: 'signed-out Claude JSON error',
+      response: { is_error: true, result: 'Not logged in · Please run /login' },
+      failure: 'not_authenticated',
+    },
+    {
+      name: 'unrelated Claude JSON error',
+      response: { is_error: true, result: 'Rate limit exceeded' },
+      failure: 'invalid_output',
+    },
+    {
+      name: 'review text mentioning login',
+      response: { is_error: false, result: 'The document says not logged in' },
+      failure: 'invalid_output',
+    },
+  ])('classifies $name without trusting arbitrary stdout', async ({ response, failure }) => {
+    const bin = trustedTemporaryDirectory();
+    const project = temporaryDirectory();
+    const untrustedRoot = temporaryDirectory();
+    const executable = nodePath.join(bin, 'claude');
+    writeFileSync(
+      executable,
+      `#!/bin/sh
+if [ "\${1:-}" = "--help" ]; then
+  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
+  exit 0
+fi
+/bin/cat > /dev/null
+printf '%s' '${JSON.stringify(response)}'
+`,
+      { mode: 0o755 },
+    );
+    chmodSync(executable, 0o755);
+    vi.stubEnv('PATH', bin);
+
+    await expect(
+      runHeadlessReviewer(
+        'claude',
+        {
+          schema_version: 1,
+          dispatch_id: 'claude-json-error',
+          kind: 'quality-review',
+          logical_files: [],
+        },
+        project,
+        untrustedRoot,
+      ),
+    ).rejects.toMatchObject({ failure });
+  });
+
+  it.skipIf(process.platform === 'win32').each([
+    {
       name: 'unsupported capabilities',
       help: String.raw`printf '%s\n' '--output-format'`,
       failure: 'unsupported',

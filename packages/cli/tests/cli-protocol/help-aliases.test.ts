@@ -134,6 +134,7 @@ describe('canonical help and compatibility aliases', () => {
     expect(codex.stdout).not.toContain('--scope <scope>');
     expect(codex.stdout).not.toContain('--agents <agents>');
     expect(codex.stdout).not.toContain('--no-modify');
+    expect(codex.stdout).toContain('--approve-reviews');
   });
 
   it.each([

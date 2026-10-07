@@ -95,7 +95,7 @@ export function generateOpenCodeCatalogueAssets(
     .map(entry => entry.name);
   const knownSkills = new Set(skillNames);
   validateOpenCodeCatalogueReferences(knownSkills, CURSOR_COMMAND_WRAPPERS, SAFEWORD_SUBAGENTS);
-  const skills = generateCodexPluginAssets(skillsRoot, VERSION).map(asset => {
+  const skills = generateCodexPluginAssets(skillsRoot, VERSION, 'cli').map(asset => {
     const [, name, ...suffix] = asset.relativePath.split(nodePath.sep);
     if (name === undefined || !knownSkills.has(name)) {
       throw new Error(`Generated native skill has an unexpected path: ${asset.relativePath}`);

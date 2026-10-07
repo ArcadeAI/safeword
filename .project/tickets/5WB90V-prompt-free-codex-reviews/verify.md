@@ -1,0 +1,113 @@
+# Verification — 2026-09-30
+
+## Main sync — 2026-10-04
+
+- Merged `origin/main` at `f3324523d8fa71117dab7d0f8da693969e8d3281`. The only conflicts were generated Claude `identity.json` and `inventory.json`; all five generated surfaces were regenerated from the combined source and verified.
+- No incoming changes touched the core review coordinator, MCP interface, or approval implementation. Main fixes worktree selection for review stamps, audit, and verify; improves unattended test-lock waiting; and adds lifecycle-fixture drift checks. These changes support this feature's verification without changing its review/login behavior.
+- Frozen dependency install and CLI build passed. Focused merge verification passed 162 tests in 12 files covering review tools, approval, login process/UI, receipt/stamp wiring, worktree resolution, test locks, and lifecycle generation.
+- Main's lockfile updates remove the prior brace-expansion/undici findings. The current JavaScript audit still reports two high advisories inherited from main: `http-cache-semantics` via Astro and `braces` via lint tooling. The historical TDD ledger and graphical MCP Apps evidence gaps remain unchanged.
+
+## Test quality assessment — 2026-10-04
+
+- BDD scenarios describe the accepted behavior and rejection paths, but the feature-level `@manual` tag excludes every scenario in this feature from Cucumber. The 596 passing acceptance scenarios are repository regression evidence, not execution of this feature. The feature header now states this explicitly.
+- The core Vitest tests cover config preservation, process launch/output, MCP tool behavior, receipt freshness, and UI messages. Process and live-host checks complement the internally mocked login wiring tests. Historical test-first RED/GREEN/REFACTOR evidence remains absent; passing tests do not reconstruct that history.
+- Strengthened the packaged-server test to reject executable RED through real JSON-RPC and assert no review state was created. Strengthened independence checks to reject matching self-review identities, pending results, and degraded review. The receipt-tamper check now changes only integrity, preventing a state change from producing a false pass. Corrected the opt-out scenario to name the observed non-independent `existing_route` result.
+- Refactor scout: no change warranted. The bounded interface already delegates to the coordinator and fixed login/browser adapters; additional extraction would add indirection without removing a demonstrated defect.
+- Independent quality review identified concrete proof gaps in self-review rejection, approval disclosures, login-only policy conflicts, and exclusion of broader grants. These were strengthened. Approval tests now compare the entire parsed config and require disclosure before the write. Login-only deny/prompt and review-only deny policies prove setup preserves the entire config and writes neither grant. Final targeted verification passed 14 tests in two files; changed-file ESLint, formatting, and Gherkin lint passed.
+- Final independent Claude quality review approved (`a733ef76-7581-4509-b88c-f37c780d068a`). Remaining suggestions are non-blocking: fresh-config permissions, simulated atomic-write failure, alternate TOML spellings, and deeper earlier-grant migration assertions. Existing receipt-content tamper coverage lives in `review/job.test.ts`; live signed receipt/restart and graphical-panel limitations remain in the host evidence below. Current MCP Apps documentation confirms the shipped protocol version, UI resource MIME type, initialize/result messages, and open-link method.
+- Full pinned-Bun verification completed: CLI 600 files / 10,219 tests passed (13 skipped), relay 198 passed (1 skipped), collector 153 passed. Cucumber passed 596 scenarios / 11,118 steps. A later proof-tag invocation hit another checkout's test lock; the isolated rerun passed all 47 tests. Builds and typechecks passed. Full root lint passed. Final strengthened MCP test rerun passed all 6 tests.
+- Evidence limit: the first full run used Bun 1.4.0 and failed generation checks requiring the repository's pinned Bun 1.3.14. The corrected full run used the installed 1.3.14 binary and passed the suites above.
+- Supply-chain verification remains red: the JavaScript scan found 17 advisories in brace-expansion/undici, and the Python scanner found six advisories in its urllib3 2.7.0 environment. PR #5144 addresses the JavaScript lockfile remediation; these findings are outside this test-only improvement.
+- Audit passed with warnings: diff-scoped dependency-cruiser found no violations (121 modules, 175 dependencies); learning metadata, principle trace, and domain reference checks were clean. Whole-repository Knip, duplication, and dependency freshness were explicitly skipped by the diff audit. BDD execution and historical TDD ledger limitations remain as stated above.
+
+
+## Current result
+
+**Status:** In progress. The review-specific checks, acceptance lane, and current-head CI test matrix pass. Live host checks cover two consecutive no-prompt Codex reviews and signed-out reviewer login links in both hosts. The scenario ledger remains incomplete; headless hosts did not prove MCP Apps panel rendering.
+
+**PR Scope:** Draft PR #5143 contains the review MCP implementation, one-time approval setup, sign-in UI, tests, generated plugin artifacts, and ticket evidence. Dependency-audit remediation is isolated in draft PR #5144.
+
+| Check | Result |
+| --- | --- |
+| CLI suite | 600 files passed; 10,219 tests passed; 13 skipped |
+| BDD acceptance | 596 scenarios and 11,118 steps passed |
+| CLI lint, Gherkin lint, typecheck | Passed |
+| Generated surfaces | All four current |
+| Diff whitespace | `git diff --check` passed |
+| Independent scenario review | Approved, cross-agent; scenario-gate stamp recorded (`2466e9ce-8094-40e9-92ae-223c5c7b2b03`) |
+| Independent source review | Approved, cross-agent (`4eaf4b2f-b51a-4240-89bc-fc34bb96ce1c`) |
+| Scenario ledger | 48 scenarios defined; historical RED/GREEN/REFACTOR cycles were not recorded |
+| Current-head focused review suite | 7 files, 145 tests passed on 2026-09-30 |
+| Current-head BDD acceptance and proof tags | 596 scenarios, 11,118 steps, and 47 proof-tag tests passed on 2026-09-30 |
+| Current-head CLI lint and typecheck | Passed on 2026-09-30 |
+| Current-head generated surfaces | All four current on 2026-09-30 |
+| Current-head broad run | Stopped after three unrelated timing failures; those 3 files passed in isolation (136 tests) |
+| PR #5143 CI at `48e789415` | Node 22 and 24 tests, lint, CLI contract, parity, and conformance passed; dependency audit failed on vulnerabilities inherited from `origin/main` |
+| PR #5144 CI at `c81fb2fa9` | Node 22 and 24 tests, lint, dependency audit, CLI contract, parity, and conformance passed |
+
+## Host evidence and limits
+
+- A disposable Codex home installed the built plugin and one-time `--approve-reviews` choice. The resulting profile granted only `start_review` and `start_reviewer_login`. A workspace-sandbox host with `on-request` approval called `start_review` without an approval event and received a signed review ID.
+- Disposable signed-out Claude and Codex reviewer CLI runs printed official HTTPS sign-in URLs; Codex also printed a device code. MCP tests verify that displayed details must exactly match the review's live CLI capture, with no shell interpretation.
+- A synthetic review returned a signed cross-agent Claude finding and a fresh status read verified its receipt. The normal bounded authored-file status and sign-in display paths avoid writes and reviewer launches. Oversized-target classification inherited from main can invoke bounded Git attribute helpers; a blanket no-subprocess claim is not yet proven.
+- On 2026-09-30, fresh disposable Claude and Codex profiles completed vendor sign-in. The built 1.0.0-rc.5 Codex plugin ran `start_review` under `workspace-write` with approval policy `never` and the two named grants. It completed as `changes_requested` with author `codex`, reviewer `claude`, `independence: cross-agent`, and findings naming the seeded `wallet.js` defect (review `072c61ba-50e9-4dd6-8923-80bb45458245`). No extra approval event appeared.
+- The built 1.0.0-rc.5 Claude plugin called its namespaced `start_review` tool from a headless host with that tool explicitly allowed. It completed as `changes_requested` with author `claude`, reviewer `codex`, `independence: cross-agent`, and a finding on `wallet.js` (review `64cf0fa7-9b5f-42a6-a265-588c6d0cd88a`). Fresh status reads validated both signed receipts and source freshness.
+- A direct run of the built review MCP server with a verified signed-out Claude credential home returned `REVIEW_AUTHENTICATION_REQUIRED` for signed review `758ab1b2-8a46-42f5-96be-86b7399a6c6e`; `review_status` reported `blocked` and `independent: false`. `start_reviewer_login` for that exact ID launched only the assigned Claude CLI, returned its exact HTTPS URL, and reported `browser_launch_requested: true`. Chrome opened Claude authorization tabs. The disposable Claude profile remained signed out because the Mac was locked and no user completed that browser flow before the ten-minute login session ended.
+- Retrying the same project, kind, target, and context against an already authenticated Claude credential home produced a new signed review ID `970cd192-f6a2-4d1d-8323-c3f262b50e89`, `changes_requested`, author `codex`, reviewer `claude`, `independence: cross-agent`. This proves the retry path after an auth-required result when credentials are available, but uses credential-home substitution rather than completion of the launched browser flow.
+- On 2026-09-30, a fresh direct run of the built MCP server with a verified signed-out disposable Claude credential home produced blocked review `94280b4d-1847-4e27-bbb0-75bd7367d51c` and `REVIEW_AUTHENTICATION_REQUIRED`. Its `start_reviewer_login` launched the assigned Claude CLI and opened Chrome. In the CLI-opened local callback tab, the user account selected `Arcade.dev` and authorized Claude Code; `claude auth status` for that exact credential home then reported `loggedIn: true`. Retrying the identical project, kind, target, and context through the same MCP server produced signed review `8c945019-be07-4c6d-a8df-393d97c89d1c`, `changes_requested`, author `codex`, reviewer `claude`, `independence: cross-agent`, and a finding that `canWithdraw(10, 1000)` incorrectly returns true. The original blocked review stayed non-independent. This completes the same-home browser sign-in and retry proof.
+- On 2026-10-01, a disposable Codex home installed the built `1.0.0-rc.5` plugin from this branch and ran with `workspace-write`, approval policy `never`, and only `start_review`/`start_reviewer_login` approved. One Codex host invocation completed two consecutive reviews of the same `wallet.js` defect: `c9d938c6-03da-4d8d-9dc1-eafdf61b8ac7` and `d299d5fd-6ddb-4d75-ac3f-1c5a6c2c5140`. Both terminal status reads reported `changes_requested` and `independent: true`; both named the defect; neither call produced an approval event. The fixture's SHA-256 stayed `0b3f5e34274a341ec6afef94f85b657a3e238898d3caec9b181f5e9653a326c3`.
+- In that installed Codex host, an isolated `HOME` made the assigned Claude reviewer genuinely signed out. Review `8961d484-bf5e-4d19-bb0e-62633b509277` ended `blocked`, `independent: false`, with `REVIEW_AUTHENTICATION_REQUIRED`; `start_reviewer_login` returned the Claude CLI's official HTTPS URL and requested browser launch without an approval prompt. Setting only `CLAUDE_CONFIG_DIR` on the outer Codex process did not isolate the reviewer in an earlier attempt; that attempt completed an authenticated review and was not counted as a sign-in check.
+- A headless Claude host loaded the built plugin from `plugin/` and explicitly allowed its three namespaced review tools. With an empty `CODEX_HOME`, review `2ccf044d-0b6c-4fd4-8256-a45aa21dc22f` ended `blocked`, `independent: false`, with `REVIEW_AUTHENTICATION_REQUIRED`; `start_reviewer_login` returned the official Codex device URL and device code together. No permission prompt occurred. This proves the Claude host tool path, although the plugin was loaded with `--plugin-dir` for this run rather than installed into a persistent Claude profile.
+- The MCP Apps view's `ui/open-link` request is covered by a UI-script test. The headless Codex and Claude logs show text links and tool calls, but do not reveal whether a graphical MCP Apps panel rendered. The OS browser opener was observed live earlier and worked, so the UI fallback itself was not exercised live.
+- The repository-wide lint/build lanes were not rerun here. A prior root lint run hit an unchanged website `strictNullChecks` rule; the affected CLI package lint and build pass.
+- The current-head root test run was stopped after timing failures in `review-wiring`, OpenCode `host-contract`, and `boundary-push` while another checkout also ran tests. All three files passed together in isolation (136 tests). This run does not provide a new full-suite pass; the previous full CLI suite pass above remains the last complete run.
+- Remaining host evidence: graphical native MCP Apps rendering; persistent Claude-profile installation; completed real vendor sign-in followed by a passing retry in each installed Codex and Claude host. Direct MCP server and component browser checks do not substitute for these installed-host checks.
+
+## Next action
+
+Keep the ticket in progress. The 48-scenario ledger cannot be truthfully backfilled as test-first RED/GREEN/REFACTOR cycles from this branch's history. Resolve that process gap explicitly without fabricating past TDD evidence. Graphical MCP Apps rendering remains a separate release-level observation; the text link and browser opener paths have live proof.
+
+## Current delivery review (2026-10-06)
+
+- Closed #5144 as superseded by merged #5534. Reconciled #5143 with current main while preserving its packet validation and generated-target classification.
+- Fixed login process cleanup on stdin EOF, SIGTERM and SIGINT; preserved existing config bytes; rejected conflicting disabled/tool-filter policies; fixed the sign-in view dark-mode background. Added regression tests without weakening existing assertions.
+- Cross-agent review `2e380828-235f-44be-9c73-2c1a5da34bd6` approved the authored diff. Retained warnings cover installed-host proof, handler-level approval wiring coverage, partial install effects on approval failure, oversized classification helpers, generic device-auth recovery compatibility, and minor URL/error wording consistency.
+- Fresh built MCP reviews `015fba13-bcc2-4d4c-a19c-caab5c08def7` and `960353bf-0d75-441e-8ae4-66f61d1b0938` ended `changes_requested`, `independent: true`. These are direct server checks.
+- Direct EOF/SIGTERM process checks, changed-file lint and TypeScript pass. Initial full CLI run: 10,517 passed, 14 skipped, four failures. One MCP boundary error was corrected with pre-dispatch regular-file validation; two missing CLI build failures were caused by a mistakenly concurrent contract rebuild (stopped immediately), and one acceptance failure required the relay build. These are being rerun serially before delivery.
+- The 48 historical scenario cycles remain unrecorded. Ticket stays in progress and PR stays Draft.
+
+- Independent review `247e1820-0f67-4d66-9a93-6850cf8bd3bd` approved the MCP boundary follow-up. Packet containment and review-ID validation remain enforced by the shared job/packet layer; this narrow follow-up packet did not include that layer.
+
+- A fresh disposable Codex profile installed the current built local plugin. The real `codexMutationHandler("codex install", {approveReviews: true})` path added exactly the named review/login approvals while preserving original config bytes and reporting changed configuration. A subsequent explicit conflicting `start_review` deny control returned `failed` and preserved the entire config byte-for-byte. Evidence: retained `.review/install-approval-proof.json`. This checks setup in an installed profile, not an interactive review/sign-in host session.
+
+- Current full Cucumber lane: 1,619 scenarios passed, three skipped, three failed (76,016 steps passed). Two migration assertions still require the old hook command prefix while main ships `--no-env-file --cwd`; updating them is awaiting explicit test-edit approval. The third is an inherited advisory-review budget inconsistency: its unit test explicitly treats 110 bytes as complete under a 100-byte maxTotalBytes limit, while its Cucumber scenario requires incomplete. No budget behavior or assertion has been changed without a scope decision. The MCP feature’s 48 `@manual` scenarios were excluded, not counted as passing.
+
+## Approved hook assertion correction (2026-10-06)
+
+The user approved the two existing hook-prefix assertions and instructed that the #4200 budget fix stay separate. Both assertions now require the current hardened `bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js"` prefix, retaining their packaged-entrypoint checks. The two affected Cucumber scenarios pass: 97 steps passed. No budget implementation or budget assertion changed. The separate proposed correction remains retained in `.review/proposed-budget-fix.diff`.
+
+## Fresh installed-host verification (2026-10-06)
+
+Both installed hosts completed real reviewer sign-in and an independent review retry. The installed Codex host exercised quality-review, scenario-gate, and plan-implementation without additional approval prompts. Retained `.review/` reports contain 35 process-level boundary checks, two absent-grant refusal controls, and three conflicting-policy setup controls. The current 48-row evidence matrix records 25 complete fresh scenario proofs and 23 partial rows; these results do not reconstruct historical RED/GREEN/REFACTOR cycles.
+
+The ticket permits a clickable sign-in link as an alternative to a native MCP Apps panel. Both hosts exercised that fallback; native graphical panel rendering remains unobserved, rather than a standalone acceptance blocker.
+
+The user explicitly approved changing the unfinished-review scenario assertion from `running` to `pending`. The captured installed-host status is `pending` with `independent: false`, and the corrected feature retains the independence assertion. The feature is manual: this comparison is captured actor evidence, not an automated Cucumber scenario pass. No #4200 budget behavior or assertion was changed.
+
+The focused existing pending-job regression was requested through the canonical package wrapper, but no test started: another checkout held the shared test lock throughout its 60-second acquisition window (exit 75). The lock was left intact. The scenario/captured-response comparison and `git diff --check` passed.
+
+## Root cause: denied browser opener loses the sign-in fallback (2026-10-07)
+
+An installed Claude host running under a child-only macOS policy denying `/usr/bin/open` returned `EPERM: operation not permitted, posix_spawn '/usr/bin/open'` from `start_reviewer_login`, rather than its captured sign-in URL/code. The actual vendor login produced its URL and reached the browser-launch step. A direct Bun 1.3.14 reproduction of `requestBrowserOpen` under the same policy rejected with the same error.
+
+The helper handles asynchronous child `error` events but not an immediate exception from `spawn`. The rejected promise propagates into the MCP login handler, which cancels the login and returns only the error. This explains the missing clickable fallback.
+
+Ruled out: vendor authentication or URL parsing failure (the error names the subsequent fixed OS opener); missing native panel alone (the failure reproduces directly in the opener helper, without a host or view); reviewer permission denial (the host successfully dispatched its granted login tool before the opener failed). The required behavior is to report that the browser opener did not start, preserving the already validated sign-in data for the view/text fallback. Node's documented child error events remain relevant alongside immediate exceptions: https://nodejs.org/api/child_process.html#event-error.
+
+## Browser fallback correction and current verification (2026-10-07)
+
+A new regression failed before implementation and passed after catching immediate opener exceptions. Both actual installed hosts then retained the vendor sign-in link when a child-only macOS policy denied the fixed OS opener. The independent reviewer approved the correction (receipt `56d68bcf-88eb-40d2-a5cb-e56029291331`). Generated surfaces, changed-file lint/format checks, and root typecheck pass.
+
+Focused verification passed 101 existing tests and 15 browser/reviewer tests. CLI acceptance passed 596 scenarios and 11,118 steps. The full CLI suite passed 10,520 tests, skipped 14, and failed two stop integration tests; targeted retries exposed Bun transient dependency cache-link errors. With the documented `SAFEWORD_CLI` override pointing to this candidate source, both affected integration files passed all 39 tests. This is a targeted environment-controlled retry, not a claim that a fresh full-suite run passed.
+
+The current scenario evidence remains partial: native graphical panel rendering and several broader actor boundaries are unobserved; historical test-first cycles were not reconstructed. The degraded verdict example correction awaits explicit test-edit approval. The timeout receipt is blocked with independent completion false; its successful status-lookup envelope does not mean the review succeeded. PR #5143 remains Draft, and the unrelated #4200 budget discrepancy remains separate.
