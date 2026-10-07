@@ -35696,7 +35696,7 @@ function safePath(path7) {
 }
 function exactSelection(fullName) {
   const escaped = fullName.replaceAll(/[.*+?^${}()|[\]\\]/gu, (character) => `\\${character}`);
-  return `^${escaped}$`;
+  return `^${escaped.replaceAll(" ", () => VITEST_SUITE_SEPARATOR)}$`;
 }
 function validateRequest(request) {
   if (request.ticketId !== RETROSPECTIVE_TICKET)
@@ -35959,10 +35959,11 @@ function runRetrospectiveProof(projectRoot, request) {
     rmSync9(temporary, { recursive: true, force: true });
   }
 }
-var TEST_TIMEOUT_MS = 180000, REPORT = "retrospective-proof-report.json", MAX_PROCESS_OUTPUT;
+var TEST_TIMEOUT_MS = 180000, REPORT = "retrospective-proof-report.json", MAX_PROCESS_OUTPUT, VITEST_SUITE_SEPARATOR;
 var init_retrospective_proof = __esm(() => {
   init_retrospective_history();
   MAX_PROCESS_OUTPUT = 128 * 1024;
+  VITEST_SUITE_SEPARATOR = String.raw`(?:\s*>\s*|\s+)`;
 });
 
 // src/review/retrospective-scenario-body.ts
@@ -36047,7 +36048,10 @@ function matchingScenario(claim, heading) {
 function ticketNamesClaim(root, claimPath) {
   const ticketPath = nodePath49.join(root, nodePath49.dirname(RETROSPECTIVE_LEDGER), "ticket.md");
   const ticket = frontmatterOf(readFileSync33(ticketPath, "utf8"));
-  return ticket?.id === RETROSPECTIVE_TICKET && ticket.retrospective_claim === claimPath;
+  if (ticket?.id !== RETROSPECTIVE_TICKET || typeof ticket.retrospective_claim !== "string") {
+    return false;
+  }
+  return ticket.retrospective_claim === claimPath || Array.isArray(ticket.retrospective_claims) && ticket.retrospective_claims.includes(claimPath);
 }
 function retrospectiveReviewTargets(root, targets) {
   return targets.map((target) => nodePath49.relative(root, nodePath49.resolve(root, target)).split(nodePath49.sep).join("/"));
@@ -36073,9 +36077,11 @@ function committedFeature(root) {
 }
 function verifiedEligibility(root, targets, request) {
   const target = soleJsonTarget(retrospectiveReviewTargets(root, targets));
-  if (target === undefined || !ticketNamesClaim(root, target))
+  if (target === undefined)
     return;
-  const claim = JSON.parse(readFileSync33(nodePath49.join(root, target), "utf8"));
+  const claim = JSON.parse(readProofInput(root, target).toString("utf8"));
+  if (!ticketNamesClaim(root, target))
+    return;
   if (!claimMatchesMigration(claim))
     return;
   const prerequisite = checkRetrospectivePrerequisites(root, claim, claim.blobs);
@@ -36118,8 +36124,8 @@ function verifiedProof(root, targets, request, eligibility, replay) {
   const paths = retrospectiveReviewTargets(root, targets);
   if (paths.length !== 2 || paths.some((path8) => !path8.endsWith(".json")))
     return false;
-  const proofRequest = JSON.parse(readFileSync33(nodePath49.join(root, paths[0] ?? ""), "utf8"));
-  const reviewed = JSON.parse(readFileSync33(nodePath49.join(root, paths[1] ?? ""), "utf8"));
+  const proofRequest = JSON.parse(readProofInput(root, paths[0] ?? "").toString("utf8"));
+  const reviewed = JSON.parse(readProofInput(root, paths[1] ?? "").toString("utf8"));
   if (!matchingProofRequest(proofRequest, reviewed, request, eligibility))
     return false;
   if (!hasDiscriminatingOutcome(reviewed, proofRequest.testFullName))
@@ -36359,6 +36365,15 @@ function ticketClaim(root) {
   }
   return ticket.retrospective_claim;
 }
+function renewalPath(root) {
+  const ticket = frontmatterOf(readFileSync34(contained(root, TICKET_PATH), "utf8"));
+  const path7 = ticket?.retrospective_renewals;
+  if (path7 === undefined)
+    return;
+  if (typeof path7 !== "string")
+    throw new Error("Retrospective renewals need one file path.");
+  return path7;
+}
 function claimsFromLedger(root) {
   const content = readFileSync34(contained(root, RETROSPECTIVE_LEDGER), "utf8");
   const claims = [];
@@ -36404,6 +36419,34 @@ function claimsFromLedger(root) {
     throw new Error("VERIFIED requires unique scenario headings.");
   return claims;
 }
+function claimsForClose(root) {
+  const claims = claimsFromLedger(root);
+  const path7 = renewalPath(root);
+  if (path7 === undefined)
+    return claims;
+  const manifest = JSON.parse(readFileSync34(contained(root, path7), "utf8"));
+  if (manifest.schema_version !== 1 || !Array.isArray(manifest.rows)) {
+    throw new Error("Retrospective renewal manifest is invalid.");
+  }
+  const remaining = new Set(claims.map((claim) => claim.scenario));
+  const replacements = new Map;
+  for (const row of manifest.rows) {
+    if (typeof row !== "object" || row === null) {
+      throw new Error("Retrospective renewal row is invalid.");
+    }
+    const entry = row;
+    const original = claims.find((claim) => claim.scenario === entry.scenario);
+    if (original === undefined || !remaining.delete(original.scenario) || original.eligibilityId !== entry.originalEligibilityId || original.proofId !== entry.originalProofId || typeof entry.eligibilityId !== "string" || typeof entry.proofId !== "string" || entry.eligibilityId === entry.proofId) {
+      throw new Error("Retrospective renewal does not match one checked row.");
+    }
+    replacements.set(original.scenario, {
+      ...original,
+      eligibilityId: entry.eligibilityId,
+      proofId: entry.proofId
+    });
+  }
+  return claims.map((claim) => replacements.get(claim.scenario) ?? claim);
+}
 function reviewedTargets(root, id, kind) {
   const targets = approvedRetrospectiveReview(root, id, kind);
   if (targets === undefined)
@@ -36437,7 +36480,10 @@ function claimInputPaths(root, claim) {
   ];
 }
 function inputPaths(root, claims) {
-  const paths = new Set([RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
+  const paths = new Set([TICKET_PATH, RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
+  const renewal = renewalPath(root);
+  if (renewal !== undefined)
+    paths.add(renewal);
   for (const claim of claims) {
     for (const path7 of claimInputPaths(root, claim))
       paths.add(path7);
@@ -36470,7 +36516,7 @@ function attestRetrospectiveClose(root, ticketId, ledger) {
     }
     const sourceCommit = currentProofCommit(root);
     const claimPath = ticketClaim(root);
-    const claims = claimsFromLedger(root);
+    const claims = claimsForClose(root);
     const paths = inputPaths(root, claims);
     const before = inputDigests(root, paths);
     for (const claim of claims) {
@@ -36520,7 +36566,7 @@ function retrospectiveCloseGate(root, ticketId, ledger) {
     if (record.schema_version !== 1 || record.ticket !== RETROSPECTIVE_TICKET || record.claimPath !== ticketClaim(root) || record.sourceCommit !== currentProofCommit(root) || !validRetrospectiveCloseTag(root, JSON.stringify(unsigned(record)), record.integrity)) {
       throw new Error("Retrospective closing record is invalid.");
     }
-    const claims = claimsFromLedger(root);
+    const claims = claimsForClose(root);
     if (JSON.stringify(record.claims) !== JSON.stringify(claims)) {
       throw new Error("Retrospective ledger changed after closing proof.");
     }
@@ -36547,7 +36593,7 @@ var init_retrospective_close = __esm(() => {
   init_retrospective_gate();
   init_retrospective_history();
   init_retrospective_proof();
-  TICKET_PATH = nodePath50.join(nodePath50.dirname(RETROSPECTIVE_LEDGER), "ticket.md");
+  TICKET_PATH = nodePath50.posix.join(nodePath50.posix.dirname(RETROSPECTIVE_LEDGER), "ticket.md");
 });
 
 // templates/hooks/lib/review-ledger.ts
