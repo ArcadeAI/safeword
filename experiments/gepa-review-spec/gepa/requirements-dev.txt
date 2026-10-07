@@ -1,5 +1,6 @@
 # Development checks required by Safeword for this isolated Python experiment.
 # From experiments/gepa-review-spec:
+# Create the virtual environment only if gepa/.venv does not already exist.
 #   uv venv --python 3.12 gepa/.venv
 #   uv pip install --python gepa/.venv/bin/python -r gepa/requirements.txt -r gepa/requirements-dev.txt
 ruff
