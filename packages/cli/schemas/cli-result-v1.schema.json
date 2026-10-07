@@ -15,6 +15,30 @@
     "recovery",
     "next_actions"
   ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["command", "status"],
+            "properties": {
+              "command": { "const": "review run" },
+              "status": { "enum": ["approved", "changes_requested"] }
+            }
+          }
+        },
+        "required": ["data"]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "required": ["excluded_targets"]
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "schema_version": { "const": 1 },
     "ok": { "type": "boolean" },
@@ -39,7 +63,29 @@
       "type": "array",
       "items": { "$ref": "#/definitions/nextAction" }
     },
-    "data": {}
+    "data": {
+      "allOf": [
+        {
+          "if": { "type": "object", "required": ["review_excluded_targets"] },
+          "then": {
+            "type": "object",
+            "properties": {
+              "review_excluded_targets": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "if": { "type": "object", "required": ["excluded_targets"] },
+      "then": {
+        "type": "object",
+        "properties": {
+          "excluded_targets": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
   },
   "definitions": {
     "effect": {

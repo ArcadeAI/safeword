@@ -7,6 +7,7 @@ import { hasIndependentVerdict, reviewJobStatus, startReviewJob } from '../revie
 import { REVIEW_LOGIN_HTML, REVIEW_LOGIN_URI } from './review-login-ui.js';
 import { requestBrowserOpen } from './reviewer-browser.js';
 import {
+  cancelAllReviewerLogins,
   cancelReviewerLogin,
   capturedReviewerLogin,
   startReviewerLogin,
@@ -61,6 +62,14 @@ export function isCodexDeviceCode(value: unknown): value is string {
   return typeof value === 'string' && /^[A-Z\d]{4,5}-[A-Z\d]{4,5}$/u.test(value);
 }
 
+function requireRegularFiles(cwd: string, files: readonly string[]): void {
+  for (const target of files) {
+    if (!lstatSync(nodePath.resolve(cwd, target)).isFile()) {
+      throw new Error(`Review target is not a regular file: ${target}`);
+    }
+  }
+}
+
 function reviewInput(args: unknown): {
   cwd: string;
   kind: ReviewKind;
@@ -81,6 +90,7 @@ function reviewInput(args: unknown): {
     throw new Error('Reviews require 1–64 total files');
   }
   const cwd = projectRootDirectory(projectRoot);
+  requireRegularFiles(cwd, [...targets, ...context]);
   return { cwd, kind: kind as ReviewKind, targets, context };
 }
 
@@ -328,22 +338,38 @@ export async function handleReviewMcpRequest(request: unknown): Promise<unknown>
   return { jsonrpc: '2.0', id, result };
 }
 
-if (import.meta.main) {
-  const hostFlag = process.argv.at(-1);
+export async function runReviewMcpServer(hostFlag: string | undefined): Promise<void> {
   if (hostFlag !== '--claude' && hostFlag !== '--codex') {
     throw new Error('Review MCP must be started by a plugin manifest with an explicit host flag');
   }
   process.env.SAFEWORD_AGENT_RUNTIME = hostFlag === '--claude' ? 'claude' : 'codex';
   process.env.SAFEWORD_REVIEW_FOREGROUND_MS = '0';
   const input = readline.createInterface({ input: process.stdin });
-  for await (const line of input) {
-    let request: unknown;
-    try {
-      request = JSON.parse(line) as unknown;
-    } catch {
-      continue;
+  const shutdown = (): void => {
+    cancelAllReviewerLogins();
+    input.close();
+    process.stdin.destroy();
+  };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
+  input.once('close', cancelAllReviewerLogins);
+  try {
+    for await (const line of input) {
+      let request: unknown;
+      try {
+        request = JSON.parse(line) as unknown;
+      } catch {
+        continue;
+      }
+      const response = await handleReviewMcpRequest(request);
+      if (response !== undefined) process.stdout.write(`${JSON.stringify(response)}\n`);
     }
-    const response = await handleReviewMcpRequest(request);
-    if (response !== undefined) process.stdout.write(`${JSON.stringify(response)}\n`);
+  } finally {
+    cancelAllReviewerLogins();
+    input.close();
+    process.off('SIGTERM', shutdown);
+    process.off('SIGINT', shutdown);
   }
 }
+
+if (import.meta.main) await runReviewMcpServer(process.argv.at(-1));

@@ -130,9 +130,15 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
       );
     });
 
-    it('template collapses Next to one action when no decision is required', () => {
+    it('template collapses Next to one action when Open is none', () => {
       expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toMatch(
-        /if no decision is required, use exactly: action: <imperative>\. object: <specific object>/,
+        /if \*\*open:\*\* is none, use exactly: action: <imperative>\. object: <specific object>/,
+      );
+    });
+
+    it('template keys the decision form to a human decision in Open', () => {
+      expect(QUALITY_REVIEW_MESSAGE).toContain(
+        'When **Open:** names a human decision, and always for **Need:**, use exactly: Choice:',
       );
     });
 

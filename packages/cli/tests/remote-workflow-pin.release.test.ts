@@ -1,69 +1,89 @@
-/**
- * Release gate: the remote-test workflow's version pin (#3784 follow-up).
- *
- * The bundled workflow runs `npx safeword@<version>`, written into the file as a
- * literal. It has to be one: `classifyRemoteWorkflow` tells an outdated
- * safeword-shipped workflow (upgradeable) apart from a customer-edited one (never
- * touched) by comparing against the enumerated digests in
- * REMOTE_WORKFLOW_RELEASE_MANIFEST, and digests are only enumerable while the bundled
- * bytes are fixed. So the advisory PR review workflows' install-time substitution
- * cannot be used here.
- *
- * That literal never moved: it sat at 0.78.6 from the day the workflow landed (#3128)
- * through five releases, because nothing tied it to the CLI's own version.
- *
- * remote-workflow-contract.test.ts already owns the manifest and fixture invariants —
- * every superseded release frozen as a fixture, the bundled workflow as the current
- * entry. This covers only what those leave open: that the tamper contract's exact
- * command still names the same version as the template, and that the version is one
- * npm could have published.
- */
-
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { parseDocument } from 'yaml';
 
-import { VERSION } from '../src/version.js';
+const packageRoot = nodePath.resolve(import.meta.dirname, '..');
+const workflow = readFileSync(
+  nodePath.join(packageRoot, 'templates/workflows/remote-tests.yml'),
+  'utf8',
+);
 
-/** Minor releases the pin may trail the CLI by before it counts as drift. */
-const MAX_MINOR_LAG = 2;
-
-const PACKAGE_ROOT = nodePath.resolve(import.meta.dirname, '..');
-
-function pinnedVersion(relativePath: string): string | undefined {
-  const source = readFileSync(nodePath.join(PACKAGE_ROOT, relativePath), 'utf8');
-  return /npx --yes safeword@(?<version>\d+\.\d+\.\d+)/u.exec(source)?.groups?.version;
+function testCommand(): string {
+  const document = parseDocument(workflow).toJS() as {
+    jobs: { test: { steps: { id?: string; run?: string }[] } };
+  };
+  const command = document.jobs.test.steps.find(step => step.id === 'tests')?.run;
+  if (command === undefined) throw new Error('remote test command is missing');
+  return command;
 }
 
-describe('remote-test workflow version pin', () => {
-  const pinned = pinnedVersion('templates/workflows/remote-tests.yml');
+function runWithProjectVersion(version?: string): {
+  status: number | null;
+  args: string | undefined;
+  sideEffect: boolean;
+} {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-remote-version-'));
+  try {
+    const bin = nodePath.join(root, 'bin');
+    mkdirSync(bin);
+    mkdirSync(nodePath.join(root, '.safeword'));
+    const sentinel = nodePath.join(root, 'unsafe-side-effect');
+    if (version !== undefined)
+      writeFileSync(
+        nodePath.join(root, '.safeword/version'),
+        version.replace('/tmp/unsafe', () => sentinel),
+      );
+    const log = nodePath.join(root, 'npx-args');
+    const npx = nodePath.join(bin, 'npx');
+    writeFileSync(npx, '#!/bin/sh\nprintf "%s\\n" "$@" > "$SAFEWORD_NPX_LOG"\n');
+    chmodSync(npx, 0o755);
 
-  it('is the version the tamper contract expects', () => {
-    // The contract compares the test step's `run` byte-for-byte, so bumping the
-    // template alone makes every installed workflow report `fixed_test_command`.
-    expect(pinned).toBeDefined();
-    expect(pinnedVersion('src/test-execution/remote-workflow-contract.ts')).toBe(pinned);
+    const result = spawnSync('bash', ['-e', '-c', testCommand()], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        LANE: 'done',
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        SAFEWORD_NPX_LOG: log,
+      },
+    });
+    const args = existsSync(log) ? readFileSync(log, 'utf8') : undefined;
+    return { status: result.status, args, sideEffect: existsSync(sentinel) };
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+}
+
+describe('remote-test workflow version selection', () => {
+  it.each(['0.85.0', '1.0.0-rc.5'])('runs the checked-out project version %s', version => {
+    expect(runWithProjectVersion(`${version}\n`)).toEqual({
+      status: 0,
+      sideEffect: false,
+      args: `--yes\nsafeword@${version}\nproject\ntest\n--lane\ndone\n--execution\nlocal\n--prepare-remote\n`,
+    });
   });
 
-  it(`names a released version compatible with the CLI release line`, () => {
-    const [pinMajor = -1, pinMinor = -1] = (pinned ?? '').split('.').map(Number);
-    const [major = -1, minor = -1] = VERSION.split('.').map(Number);
-    const sameReleaseLine = pinMajor === major;
-    const priorStableLineDuringMajorPrerelease =
-      VERSION.includes('-') && major > 0 && pinMajor === major - 1;
-    expect(
-      sameReleaseLine || priorStableLineDuringMajorPrerelease,
-      `pin ${pinned} is not a stable release line compatible with ${VERSION}`,
-    ).toBe(true);
-    if (!sameReleaseLine) return;
-    // Ahead of the CLI would name a version npm has never published.
-    expect(pinMinor, `pin ${pinned} is ahead of the CLI's own ${VERSION}`).toBeLessThanOrEqual(
-      minor,
-    );
-    expect(
-      minor - pinMinor,
-      `pin ${pinned} trails CLI ${VERSION} — bump it through the release-manifest procedure in remote-workflow-state.ts`,
-    ).toBeLessThanOrEqual(MAX_MINOR_LAG);
-  });
+  it.each([undefined, 'latest\n', '0.85.0;touch /tmp/unsafe\n'])(
+    'fails closed for an absent or unsafe version marker',
+    version => {
+      expect(runWithProjectVersion(version)).toEqual({
+        status: 1,
+        args: undefined,
+        sideEffect: false,
+      });
+    },
+  );
 });

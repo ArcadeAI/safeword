@@ -58,6 +58,74 @@ describe('CLI result protocol', () => {
     }
   });
 
+  it('requires a typed exclusion list on a completed review result', () => {
+    const schemaPath = nodePath.resolve(
+      import.meta.dirname,
+      '../../schemas/cli-result-v1.schema.json',
+    );
+    const validate = new Ajv({ allErrors: true }).compile(
+      JSON.parse(readFileSync(schemaPath, 'utf8')),
+    );
+    const envelope = (
+      state: 'healthy' | 'failed' | 'action_required',
+      data: Record<string, unknown>,
+    ): unknown => {
+      const result = createResult({ state, data });
+      return JSON.parse(renderJsonResult(result));
+    };
+    expect(
+      validate(
+        envelope('healthy', { command: 'review run', status: 'approved', excluded_targets: [] }),
+      ),
+    ).toBe(true);
+    expect(validate(envelope('healthy', { command: 'review run', status: 'approved' }))).toBe(
+      false,
+    );
+    expect(
+      validate(
+        envelope('healthy', {
+          command: 'review run',
+          status: 'changes_requested',
+          excluded_targets: 'bad',
+        }),
+      ),
+    ).toBe(false);
+    expect(validate(envelope('failed', { command: 'review run', status: 'blocked' }))).toBe(true);
+    const changesRequested = { command: 'review run', status: 'changes_requested' };
+    expect(validate(envelope('action_required', changesRequested))).toBe(false);
+    expect(
+      validate(envelope('action_required', { ...changesRequested, excluded_targets: 'bad' })),
+    ).toBe(false);
+    expect(
+      validate(envelope('action_required', { ...changesRequested, excluded_targets: [] })),
+    ).toBe(true);
+  });
+
+  it('validates the optional verified exclusion provenance without requiring legacy receipts to expose it', () => {
+    const schemaPath = nodePath.resolve(
+      import.meta.dirname,
+      '../../schemas/cli-result-v1.schema.json',
+    );
+    const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
+    const validate = new Ajv({ allErrors: true }).compile(schema);
+    const envelope = (data: Record<string, unknown>): unknown =>
+      JSON.parse(
+        renderJsonResult(
+          createResult({
+            state: 'healthy',
+            data: { command: 'review status', status: 'approved', ...data },
+          }),
+        ),
+      );
+    expect(validate(envelope({}))).toBe(true);
+    expect(validate(envelope({ review_excluded_targets: ['plugin/runtime/cli.js'] }))).toBe(true);
+    expect(validate(envelope({ review_excluded_targets: [] }))).toBe(true);
+    expect(validate(envelope({ review_excluded_targets: 'plugin/runtime/cli.js' }))).toBe(false);
+    expect(validate(envelope({ review_excluded_targets: ['plugin/runtime/cli.js', 7] }))).toBe(
+      false,
+    );
+  });
+
   it.each([
     ['healthy', 0],
     ['changed', 0],

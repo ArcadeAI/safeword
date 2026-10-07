@@ -207,22 +207,27 @@ function exactVersionReference(ref: string): string | undefined {
   return isSafePackageVersion(version) ? version : undefined;
 }
 
-function replaceCodexMarketplaceWithStable(configured: ConfiguredMarketplace): boolean {
+function requiredMarketplaceReference(): string {
+  return SAFEWORD_SCHEMA.version.includes('-') ? `v${SAFEWORD_SCHEMA.version}` : 'stable';
+}
+
+function replaceCodexMarketplace(configured: ConfiguredMarketplace): boolean {
   const source = configured.source ?? MARKETPLACE_SOURCE;
+  const requiredReference = requiredMarketplaceReference();
   runCodexMarketplace(
     ['remove', 'safeword', '--json'],
     'Could not replace the Safeword marketplace',
   );
   try {
     runCodexMarketplace(
-      marketplaceAddArguments(MARKETPLACE_SOURCE, 'stable'),
-      'Could not enroll the Safeword stable marketplace channel',
+      marketplaceAddArguments(MARKETPLACE_SOURCE, requiredReference),
+      `Could not enroll the Safeword ${requiredReference} marketplace channel`,
     );
   } catch (error) {
     try {
       runCodexMarketplace(
         marketplaceAddArguments(source, configured.ref ?? 'main'),
-        'Could not restore the previous Safeword marketplace after stable enrollment failed',
+        'Could not restore the previous Safeword marketplace after enrollment failed',
       );
     } catch (restorationError) {
       const restoreCommand = [
@@ -235,7 +240,7 @@ function replaceCodexMarketplaceWithStable(configured: ConfiguredMarketplace): b
         .join(' ');
       throw new CodexMigrationError(
         'PLUGIN_MARKETPLACE_FAILED',
-        `Stable marketplace enrollment failed and the previous Safeword marketplace could not be restored. The profile no longer has that marketplace; restore it with \`${restoreCommand}\`. Stable error: ${String(error)}. Restore error: ${String(restorationError)}`,
+        `Safeword ${requiredReference} marketplace enrollment failed and the previous Safeword marketplace could not be restored. The profile no longer has that marketplace; restore it with \`${restoreCommand}\`. Enrollment error: ${String(error)}. Restore error: ${String(restorationError)}`,
         { cause: error, profileChanged: true, recoveryCommand: restoreCommand },
       );
     }
@@ -257,6 +262,15 @@ function assertMarketplacePinIsNotNewer(
   );
 }
 
+function marketplaceNeedsReplacement(
+  ref: string | undefined,
+  pinnedVersion: string | undefined,
+): boolean {
+  if (ref === 'main') return true;
+  if (ref === requiredMarketplaceReference()) return false;
+  return pinnedVersion !== undefined || requiredMarketplaceReference() !== 'stable';
+}
+
 function refreshOfficialGitMarketplace(
   marketplace: CodexMarketplaceList['marketplaces'][number],
   environment: NodeJS.ProcessEnv,
@@ -272,8 +286,8 @@ function refreshOfficialGitMarketplace(
   const ref = configured?.ref;
   const pinnedVersion = ref === undefined ? undefined : exactVersionReference(ref);
   assertMarketplacePinIsNotNewer(ref, pinnedVersion);
-  if (ref === 'main' || pinnedVersion !== undefined) {
-    return replaceCodexMarketplaceWithStable({
+  if (marketplaceNeedsReplacement(ref, pinnedVersion)) {
+    return replaceCodexMarketplace({
       ...configured,
       source: configured?.source ?? source,
     });
@@ -312,7 +326,7 @@ function refreshOrAddCodexMarketplace(
     [
       'add',
       marketplaceSource ?? MARKETPLACE_SOURCE,
-      ...(marketplaceSource === undefined ? ['--ref', 'stable'] : []),
+      ...(marketplaceSource === undefined ? ['--ref', requiredMarketplaceReference()] : []),
       '--sparse',
       '.agents/plugins',
       '--sparse',

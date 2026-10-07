@@ -4,7 +4,7 @@ export const REVIEW_LOGIN_URI = 'ui://safeword/reviewer-login.html';
 export const REVIEW_LOGIN_HTML = `<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  body { font: 14px system-ui, sans-serif; margin: 0; padding: 16px; color: light-dark(#171717,#f5f5f5); color-scheme: light dark; }
+  body { font: 14px system-ui, sans-serif; margin: 0; padding: 16px; color: light-dark(#171717,#f5f5f5); color-scheme: light dark; background: light-dark(#fff,#171717); }
   h1 { font-size: 18px; margin: 0 0 8px; }
   p { margin: 8px 0; }
   button { border: 0; border-radius: 8px; padding: 9px 14px; cursor: pointer; background: #2457cf; color: white; }

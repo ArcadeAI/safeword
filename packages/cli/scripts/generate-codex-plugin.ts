@@ -7,6 +7,7 @@ import {
   adaptCodexWorkflowInvocations,
   writeCodexPluginCatalogue,
 } from '../src/codex-plugin/catalogue.js';
+import { codexPluginHookCommand, type CodexPluginHookEntry } from '../src/codex-plugin/hooks.js';
 import { VERSION } from '../src/version.js';
 import { generatePlanRubric } from './generate-plan-rubric.js';
 import { generateQualityRubric } from './generate-quality-rubric.js';
@@ -21,7 +22,7 @@ import {
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const shippedRoot = nodePath.join(packageRoot, 'codex-plugin');
-const authoredShippedFiles = ['.codex-plugin/plugin.json', '.mcp.json', 'hooks.json'] as const;
+const authoredShippedFiles = ['.codex-plugin/plugin.json', '.mcp.json'] as const;
 const options = parseCodexPluginGenerationOptions(process.argv.slice(2), VERSION);
 
 const outputRelativeToShippedRoot =
@@ -66,6 +67,27 @@ async function buildReviewMcpBundle(builtVersion: string | undefined): Promise<s
     throw new Error(`Failed to bundle the Codex review MCP server: ${mcpBundle.logs.join('\n')}`);
   }
   return normalizePluginCliBundle(await mcpBundle.outputs[0].text());
+}
+
+function writeHookManifest(generatedRoot: string): void {
+  // Preserve authored matcher/message metadata, but generate every runtime binding.
+  const manifest = JSON.parse(readFileSync(nodePath.join(shippedRoot, 'hooks.json'), 'utf8')) as {
+    hooks: Record<string, CodexPluginHookEntry[]>;
+  };
+  for (const entries of Object.values(manifest.hooks)) {
+    for (const entry of entries) {
+      const hooks = entry.hooks ?? [];
+      for (const hook of hooks) {
+        const event = hook.command?.match(/ hook codex ([a-z-]+) --plugin-hook$/u)?.[1];
+        if (event === undefined) throw new Error('Codex hook is missing its bundled event binding');
+        hook.command = codexPluginHookCommand(event);
+      }
+    }
+  }
+  writeFileSync(
+    nodePath.join(generatedRoot, 'hooks.json'),
+    `${JSON.stringify(manifest, undefined, 2)}\n`,
+  );
 }
 
 async function generatePlugin(
@@ -139,9 +161,10 @@ async function generatePlugin(
       nodePath.join(manifestDirectory, 'plugin.json'),
       `${JSON.stringify(manifest, undefined, 2)}\n`,
     );
-    cpSync(nodePath.join(shippedRoot, 'hooks.json'), nodePath.join(generatedRoot, 'hooks.json'));
     cpSync(nodePath.join(shippedRoot, '.mcp.json'), nodePath.join(generatedRoot, '.mcp.json'));
   }
+
+  writeHookManifest(generatedRoot);
 
   return assets.length;
 }

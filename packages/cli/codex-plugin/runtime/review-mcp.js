@@ -5,7 +5,7 @@ import nodePath6 from "path";
 import readline from "readline";
 
 // src/review/job.ts
-import { spawn, spawnSync } from "child_process";
+import { spawn, spawnSync as spawnSync2 } from "child_process";
 import { createHash as createHash3, createHmac, randomBytes, randomUUID as randomUUID2, timingSafeEqual } from "crypto";
 import {
   closeSync as closeSync3,
@@ -14,7 +14,7 @@ import {
   mkdirSync as mkdirSync3,
   openSync as openSync3,
   readdirSync as readdirSync3,
-  readFileSync as readFileSync3,
+  readFileSync as readFileSync2,
   realpathSync as realpathSync3,
   renameSync as renameSync2,
   statSync,
@@ -113,13 +113,16 @@ var REVIEW_KINDS = new Set([
   "scenario-gate",
   "plan-implementation",
   "plan-execution",
-  "executable-red"
+  "executable-red",
+  "retrospective-eligibility",
+  "retrospective-proof"
 ]);
 function isReviewKind(value) {
   return typeof value === "string" && REVIEW_KINDS.has(value);
 }
 
 // src/review/packet.ts
+import { spawnSync } from "child_process";
 import { createHash, randomUUID } from "crypto";
 import {
   closeSync,
@@ -130,13 +133,24 @@ import {
   mkdtempSync,
   openSync,
   readdirSync,
-  readFileSync,
+  readSync,
   realpathSync,
   rmSync,
   writeFileSync
 } from "fs";
 import { tmpdir } from "os";
 import nodePath from "path";
+
+// src/review/scope.ts
+import { AsyncLocalStorage } from "async_hooks";
+var reviewScope = new AsyncLocalStorage;
+function recordFinalizedScope(excludedTargets) {
+  const scope = reviewScope.getStore();
+  if (scope !== undefined)
+    scope.excludedTargets = [...excludedTargets];
+}
+
+// src/review/packet.ts
 var MAX_FILE_COUNT = 64;
 var MAX_FILE_BYTES = 256 * 1024;
 var MAX_PACKET_BYTES = 1024 * 1024;
@@ -150,7 +164,155 @@ var HIGH_CONFIDENCE_SECRET_PATTERNS = [
 ];
 
 class ReviewPacketError extends Error {
+  code;
   name = "ReviewPacketError";
+  constructor(message, code = "REVIEW_PACKET_INVALID") {
+    super(message);
+    this.code = code;
+  }
+}
+function serializedOverflowIndex(kind, files, executionAttestation) {
+  const logicalFiles = [];
+  const contextFiles = [];
+  for (const entry of files) {
+    (entry.context ? contextFiles : logicalFiles).push(entry.file);
+    const packet = {
+      schema_version: 1,
+      dispatch_id: "00000000-0000-0000-0000-000000000000",
+      kind,
+      logical_files: logicalFiles,
+      ...contextFiles.length > 0 && { context_files: contextFiles },
+      ...executionAttestation !== undefined && { execution_attestation: executionAttestation }
+    };
+    if (Buffer.byteLength(JSON.stringify(packet), "utf8") > MAX_PACKET_BYTES)
+      return entry.index;
+  }
+  return;
+}
+function gitEnvironment(alternateObjects) {
+  return {
+    PATH: process.env.PATH,
+    ...process.platform === "win32" && { SystemRoot: process.env.SystemRoot },
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_ATTR_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+    ...alternateObjects !== undefined && { GIT_ALTERNATE_OBJECT_DIRECTORIES: alternateObjects }
+  };
+}
+function gitOutput(args, env) {
+  const result = spawnSync("git", [...args], {
+    env,
+    encoding: "buffer",
+    timeout: 5000,
+    maxBuffer: 256 * 1024
+  });
+  if (result.status !== 0 || result.error !== undefined || !Buffer.isBuffer(result.stdout)) {
+    throw new ReviewPacketError("Git attributes could not be resolved for an oversized review target", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+  }
+  return result.stdout;
+}
+function readRepoPrefix(root, env) {
+  const output = new TextDecoder("utf-8", { fatal: true }).decode(gitOutput(["-C", root, "rev-parse", "--show-prefix"], env));
+  const prefix = output.slice(0, -1);
+  if (!output.endsWith(`
+`) || prefix.startsWith("/") || prefix !== "" && !prefix.endsWith("/") || prefix.split("/").includes("..")) {
+    throw new ReviewPacketError("Git attributes could not be resolved for an oversized review target", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+  }
+  return prefix;
+}
+function generatedTargets(root, files) {
+  if (files.length === 0)
+    return new Set;
+  try {
+    const env = gitEnvironment();
+    const commit = gitOutput(["-C", root, "rev-parse", "--verify", "HEAD^{commit}"], env).toString("utf8").trim();
+    if (!/^[0-9a-f]{40,64}$/u.test(commit)) {
+      throw new ReviewPacketError("Git attributes could not be resolved for an oversized review target", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+    }
+    const objectsPath = gitOutput(["-C", root, "rev-parse", "--git-path", "objects"], env).toString("utf8").trim();
+    const objects = realpathSync(nodePath.resolve(root, objectsPath));
+    const repoPrefix = readRepoPrefix(root, env);
+    const repoPaths = files.map((file) => `${repoPrefix}${file.relative}`);
+    const isolatedGit = mkdtempSync(nodePath.join(tmpdir(), "safeword-review-git-"));
+    try {
+      const bare = nodePath.join(isolatedGit, "bare");
+      const emptyTemplate = nodePath.join(isolatedGit, "template");
+      mkdirSync(emptyTemplate);
+      gitOutput(["init", "--bare", "-q", `--template=${emptyTemplate}`, bare], env);
+      const result = spawnSync("git", [
+        "--git-dir",
+        bare,
+        "-c",
+        `core.attributesFile=${process.platform === "win32" ? "NUL" : "/dev/null"}`,
+        "check-attr",
+        `--source=${commit}`,
+        "-z",
+        "--stdin",
+        "linguist-generated"
+      ], {
+        env: gitEnvironment(objects),
+        input: Buffer.from(`${repoPaths.join("\x00")}\x00`),
+        encoding: "buffer",
+        timeout: 5000,
+        maxBuffer: 256 * 1024
+      });
+      if (result.status !== 0 || result.error !== undefined || !Buffer.isBuffer(result.stdout)) {
+        throw new ReviewPacketError("Git attributes could not be resolved for an oversized review target", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+      }
+      const fields = new TextDecoder("utf-8", { fatal: true }).decode(result.stdout).split("\x00");
+      if (fields.pop() !== "" || fields.length !== files.length * 3) {
+        throw new ReviewPacketError("Git attributes returned an invalid response", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+      }
+      const marked = new Set;
+      for (const [index, file] of files.entries()) {
+        const offset = index * 3;
+        if (fields[offset] !== repoPaths[index] || fields[offset + 1] !== "linguist-generated") {
+          throw new ReviewPacketError("Git attributes returned an invalid response", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+        }
+        if (fields[offset + 2] === "true")
+          marked.add(file.relative);
+      }
+      return marked;
+    } finally {
+      rmSync(isolatedGit, { recursive: true, force: true });
+    }
+  } catch (error) {
+    if (error instanceof ReviewPacketError)
+      throw error;
+    throw new ReviewPacketError("Git attributes could not be resolved for an oversized review target", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+  }
+}
+function oversizedState(root, file) {
+  try {
+    const observed = lstatSync(file.source);
+    if (escapes(root, realpathSync(file.source)))
+      return "outside";
+    if (!observed.isFile() || observed.dev !== file.device || observed.ino !== file.inode || observed.size !== file.size)
+      return "changed";
+    return "same";
+  } catch {
+    return "changed";
+  }
+}
+function collectOversizedOutcomes(root, files, marked, errors, excluded) {
+  for (const file of files) {
+    const state = oversizedState(root, file);
+    if (state !== "same") {
+      errors.push({
+        index: file.index,
+        error: new ReviewPacketError(state === "outside" ? `Review target escapes the project: ${file.relative}` : `Review target changed while it was being classified: ${file.relative}`, state === "outside" ? "REVIEW_TARGET_OUTSIDE_PROJECT" : "REVIEW_TARGET_CHANGED")
+      });
+      continue;
+    }
+    if (!marked.has(file.relative)) {
+      errors.push({
+        index: file.index,
+        error: new ReviewPacketError(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${file.relative}`, "REVIEW_TARGET_TOO_LARGE")
+      });
+      continue;
+    }
+    excluded.push(file.relative);
+  }
 }
 function requireScenarioTicketSpec(kind, contextFiles) {
   if (kind !== "scenario-gate")
@@ -186,18 +348,43 @@ function digest(content) {
   return createHash("sha256").update(content).digest("hex");
 }
 function fileDigest(path) {
+  let descriptor;
   try {
-    return digest(readFileSync(path));
+    descriptor = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    const stat = fstatSync(descriptor);
+    if (!stat.isFile() || stat.size > MAX_FILE_BYTES)
+      return;
+    const bytes = readBounded(descriptor, MAX_FILE_BYTES);
+    return bytes === undefined ? undefined : digest(bytes);
   } catch {
     return;
+  } finally {
+    if (descriptor !== undefined)
+      closeSync(descriptor);
   }
 }
-function sourceFileChanged(file) {
+function readBounded(descriptor, maxBytes) {
+  const buffer = Buffer.allocUnsafe(maxBytes + 1);
+  let length = 0;
+  while (length < buffer.length) {
+    const read = readSync(descriptor, buffer, length, buffer.length - length, null);
+    if (read === 0)
+      return buffer.subarray(0, length);
+    length += read;
+  }
+  return;
+}
+function sourceFileChanged(root, file) {
   let descriptor;
   try {
     descriptor = openSync(file.source, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
     const current = fstatSync(descriptor);
-    return !current.isFile() || current.dev !== file.device || current.ino !== file.inode || digest(readFileSync(descriptor)) !== file.sha256;
+    if (!current.isFile() || current.dev !== file.device || current.ino !== file.inode)
+      return true;
+    if (escapes(root, realpathSync(file.source)))
+      return true;
+    const bytes = readBounded(descriptor, MAX_FILE_BYTES);
+    return bytes === undefined || digest(bytes) !== file.sha256;
   } catch {
     return true;
   } finally {
@@ -205,31 +392,47 @@ function sourceFileChanged(file) {
       closeSync(descriptor);
   }
 }
+function requireStableSources(root, files) {
+  if (files.some((file) => sourceFileChanged(root, file))) {
+    throw new ReviewPacketError("Review target changed after packet capture", "REVIEW_TARGET_CHANGED");
+  }
+}
+function throwFirstTargetError(errors) {
+  if (errors.length === 0)
+    return;
+  errors.sort((left, right) => left.index - right.index);
+  throw errors[0]?.error;
+}
 function readContainedText(root, source, target, packetBytesRemaining) {
   const descriptor = openSync(source, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
   try {
     const opened = fstatSync(descriptor);
-    if (!opened.isFile())
-      throw new Error(`Review target is not a regular file: ${target}`);
+    if (!opened.isFile()) {
+      throw new ReviewPacketError(`Review target is not a regular file: ${target}`, "REVIEW_TARGET_NOT_REGULAR");
+    }
     if (opened.size > MAX_FILE_BYTES) {
-      throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+      throw new ReviewPacketError(`Review target changed while it was being captured: ${target}`, "REVIEW_TARGET_CHANGED");
     }
     if (opened.size > packetBytesRemaining) {
-      throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
+      throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE");
     }
     const resolved = realpathSync(source);
-    if (escapes(root, resolved))
-      throw new Error(`Review target escapes the project: ${target}`);
+    if (escapes(root, resolved)) {
+      throw new ReviewPacketError(`Review target escapes the project: ${target}`, "REVIEW_TARGET_OUTSIDE_PROJECT");
+    }
     const observed = lstatSync(resolved);
     if (opened.dev !== observed.dev || opened.ino !== observed.ino) {
-      throw new Error(`Review target changed while it was being captured: ${target}`);
+      throw new ReviewPacketError(`Review target changed while it was being captured: ${target}`, "REVIEW_TARGET_CHANGED");
     }
-    const bytes = readFileSync(descriptor);
+    const bytes = readBounded(descriptor, MAX_FILE_BYTES);
+    if (bytes?.byteLength !== opened.size) {
+      throw new ReviewPacketError(`Review target changed while it was being captured: ${target}`, "REVIEW_TARGET_CHANGED");
+    }
     let content;
     try {
       content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     } catch {
-      throw new Error(`Review target is not valid UTF-8 text: ${target}`);
+      throw new ReviewPacketError(`Review target is not valid UTF-8 text: ${target}`, "REVIEW_TARGET_INVALID_TEXT");
     }
     if (HIGH_CONFIDENCE_SECRET_PATTERNS.some((pattern) => pattern.test(content))) {
       throw new Error(`Review packet rejected a high-confidence credential in ${target}; redact it before dispatch`);
@@ -243,6 +446,9 @@ function escapes(root, candidate) {
   const relative = nodePath.relative(root, candidate);
   return relative === ".." || relative.startsWith(`..${nodePath.sep}`) || nodePath.isAbsolute(relative);
 }
+function toReviewPath(relative, separator = nodePath.sep) {
+  return relative.split(separator).join("/");
+}
 function snapshotEntries(root, directory = root) {
   return readdirSync(directory).flatMap((name) => {
     const path = nodePath.join(directory, name);
@@ -255,51 +461,84 @@ function snapshotEntries(root, directory = root) {
     return [`other:${relative}`];
   });
 }
+function writeReviewSnapshot(workspace, relative, bytes) {
+  if (workspace === "")
+    return "";
+  const snapshotPath = nodePath.join(workspace, relative);
+  mkdirSync(nodePath.dirname(snapshotPath), { recursive: true });
+  writeFileSync(snapshotPath, bytes, { mode: 384 });
+  return snapshotPath;
+}
+function removeReviewSnapshot(workspace) {
+  if (workspace !== "")
+    rmSync(workspace, { recursive: true, force: true });
+}
 function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution = {}, snapshot = true) {
-  if (targets.length + context.length > MAX_FILE_COUNT) {
-    throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
-  }
   const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot = realpathSync(cwd);
   const workspace = snapshot ? mkdtempSync(nodePath.join(tmpdir(), "safeword-review-")) : "";
   const tracked = [];
+  const oversized = [];
+  const captured = [];
+  const targetErrors = [];
+  const excludedTargets = [];
   const expectedSnapshotEntries = new Set;
   let logicalFiles;
   let contextFiles;
   try {
     let packetBytes = 0;
-    const captureFiles = (files) => files.map((target) => {
-      const source = nodePath.resolve(canonicalRoot, target);
-      const relative = nodePath.relative(canonicalRoot, source);
-      if (escapes(canonicalRoot, source)) {
-        throw new Error(`Review target escapes the project: ${target}`);
+    const captureFiles = (files, allowGenerated, offset) => files.flatMap((target, index) => {
+      try {
+        const source = nodePath.resolve(canonicalRoot, target);
+        const relative = nodePath.relative(canonicalRoot, source);
+        if (escapes(canonicalRoot, source)) {
+          throw new ReviewPacketError(`Review target escapes the project: ${target}`, "REVIEW_TARGET_OUTSIDE_PROJECT");
+        }
+        const stats = lstatSync(source);
+        if (escapes(canonicalRoot, realpathSync(source))) {
+          throw new ReviewPacketError(`Review target escapes the project: ${target}`, "REVIEW_TARGET_OUTSIDE_PROJECT");
+        }
+        if (!stats.isFile()) {
+          throw new ReviewPacketError(`Review target is not a regular file: ${target}`, "REVIEW_TARGET_NOT_REGULAR");
+        }
+        if (stats.size > MAX_FILE_BYTES) {
+          if (!allowGenerated) {
+            throw new ReviewPacketError(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`, "REVIEW_TARGET_TOO_LARGE");
+          }
+          oversized.push({
+            index: offset + index,
+            source,
+            relative: toReviewPath(relative),
+            device: stats.dev,
+            inode: stats.ino,
+            size: stats.size
+          });
+          return [];
+        }
+        const { bytes, content, device, inode } = readContainedText(canonicalRoot, source, target, MAX_PACKET_BYTES - packetBytes);
+        const fileBytes = bytes.byteLength;
+        if (fileBytes > MAX_FILE_BYTES) {
+          throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+        }
+        packetBytes += fileBytes;
+        if (packetBytes > MAX_PACKET_BYTES) {
+          throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE");
+        }
+        const snapshotPath = writeReviewSnapshot(workspace, relative, bytes);
+        let parent = nodePath.dirname(relative);
+        while (parent !== ".") {
+          expectedSnapshotEntries.add(`directory:${parent}`);
+          parent = nodePath.dirname(parent);
+        }
+        expectedSnapshotEntries.add(`file:${relative}`);
+        tracked.push({ source, snapshot: snapshotPath, sha256: digest(bytes), device, inode });
+        const file = { path: toReviewPath(relative), content };
+        captured.push({ index: offset + index, context: !allowGenerated, file });
+        return [file];
+      } catch (error) {
+        targetErrors.push({ index: offset + index, error });
+        return [];
       }
-      const stats = lstatSync(source);
-      if (!stats.isFile()) {
-        throw new Error(`Review target is not a regular file: ${target}`);
-      }
-      const { bytes, content, device, inode } = readContainedText(canonicalRoot, source, target, MAX_PACKET_BYTES - packetBytes);
-      const fileBytes = bytes.byteLength;
-      if (fileBytes > MAX_FILE_BYTES) {
-        throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
-      }
-      packetBytes += fileBytes;
-      if (packetBytes > MAX_PACKET_BYTES) {
-        throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
-      }
-      const snapshotPath = snapshot ? nodePath.join(workspace, relative) : "";
-      if (snapshot) {
-        mkdirSync(nodePath.dirname(snapshotPath), { recursive: true });
-        writeFileSync(snapshotPath, bytes, { mode: 384 });
-      }
-      let parent = nodePath.dirname(relative);
-      while (parent !== ".") {
-        expectedSnapshotEntries.add(`directory:${parent}`);
-        parent = nodePath.dirname(parent);
-      }
-      expectedSnapshotEntries.add(`file:${relative}`);
-      tracked.push({ source, snapshot: snapshotPath, sha256: digest(bytes), device, inode });
-      return { path: relative, content };
     });
     const seen = new Set;
     const rejectDuplicate = (target) => {
@@ -309,17 +548,47 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
       }
       seen.add(relative);
     };
-    for (const target of targets)
+    const uniqueTargets = [];
+    for (const target of targets) {
+      const relative = nodePath.relative(canonicalRoot, nodePath.resolve(canonicalRoot, target));
+      if (seen.has(relative))
+        continue;
       rejectDuplicate(target);
+      uniqueTargets.push(target);
+    }
     for (const target of context)
       rejectDuplicate(target);
-    logicalFiles = captureFiles(targets);
-    contextFiles = captureFiles(context);
+    if (uniqueTargets.length + context.length > MAX_FILE_COUNT) {
+      throw new ReviewPacketError(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`, "REVIEW_PACKET_TOO_LARGE");
+    }
+    logicalFiles = captureFiles(uniqueTargets, true, 0);
+    contextFiles = captureFiles(context, false, uniqueTargets.length);
+    requireStableSources(canonicalRoot, tracked);
+    const overflowIndex = serializedOverflowIndex(kind, captured, executionAttestation);
+    if (overflowIndex !== undefined) {
+      targetErrors.push({
+        index: overflowIndex,
+        error: new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE")
+      });
+    }
+    let marked;
+    try {
+      marked = generatedTargets(canonicalRoot, oversized);
+    } catch (error) {
+      const firstOversizedIndex = oversized[0]?.index ?? Infinity;
+      const earlierFailure = targetErrors.filter((failure) => failure.index < firstOversizedIndex).toSorted((left, right) => left.index - right.index)[0];
+      throw earlierFailure?.error ?? error;
+    }
+    collectOversizedOutcomes(canonicalRoot, oversized, marked, targetErrors, excludedTargets);
+    requireStableSources(canonicalRoot, tracked);
+    throwFirstTargetError(targetErrors);
+    if (logicalFiles.length === 0) {
+      throw new ReviewPacketError(targets.length === 0 ? "Review has no submitted targets" : "Review has no eligible targets after generated outputs are excluded", "REVIEW_NO_ELIGIBLE_TARGETS");
+    }
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
   } catch (error) {
-    if (snapshot)
-      rmSync(workspace, { recursive: true, force: true });
+    removeReviewSnapshot(workspace);
     throw error;
   }
   const packet = {
@@ -331,15 +600,15 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     ...executionAttestation !== undefined && { execution_attestation: executionAttestation }
   };
   if (Buffer.byteLength(JSON.stringify(packet), "utf8") > MAX_PACKET_BYTES) {
-    if (snapshot)
-      rmSync(workspace, { recursive: true, force: true });
-    throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
+    removeReviewSnapshot(workspace);
+    throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE");
   }
   return {
     packet,
+    excludedTargets,
     sourceRoot: canonicalRoot,
     workspace,
-    sourceChanged: () => tracked.some((file) => sourceFileChanged(file)),
+    sourceChanged: () => tracked.some((file) => sourceFileChanged(canonicalRoot, file)),
     snapshotChanged: () => {
       if (!snapshot)
         return false;
@@ -353,14 +622,15 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
       }
     },
     cleanup: () => {
-      if (snapshot)
-        rmSync(workspace, { recursive: true, force: true });
+      removeReviewSnapshot(workspace);
     }
   };
 }
 function prepareReviewPacket(cwd, kind, targets, context = [], execution = {}) {
   try {
-    return prepareReviewPacketUnsafe(cwd, kind, targets, context, execution);
+    const prepared = prepareReviewPacketUnsafe(cwd, kind, targets, context, execution);
+    recordFinalizedScope(prepared.excludedTargets);
+    return prepared;
   } catch (error) {
     if (error instanceof ReviewPacketError)
       throw error;
@@ -391,7 +661,7 @@ import {
   mkdtempSync as mkdtempSync2,
   openSync as openSync2,
   readdirSync as readdirSync2,
-  readFileSync as readFileSync2,
+  readFileSync,
   realpathSync as realpathSync2,
   renameSync,
   rmSync as rmSync2,
@@ -584,7 +854,7 @@ function hasTrustedExecutableAncestry(candidate) {
 function digestOpenFile(fd) {
   if (!fstatSync2(fd).isFile())
     return;
-  const bytes = readFileSync2(fd);
+  const bytes = readFileSync(fd);
   return { bytes, digest: createHash2("sha256").update(bytes).digest("hex") };
 }
 function cachedCopyMatchesDigest(copyPath, expectedDigest) {
@@ -716,7 +986,7 @@ function integrityKeyPath() {
 function readOrCreateIntegrityKey() {
   const keyPath = integrityKeyPath();
   try {
-    return decodeIntegrityKey(readFileSync3(keyPath, "utf8"));
+    return decodeIntegrityKey(readFileSync2(keyPath, "utf8"));
   } catch {
     mkdirSync3(nodePath3.dirname(keyPath), { recursive: true, mode: 448 });
     const key = randomBytes(32);
@@ -732,7 +1002,7 @@ function readOrCreateIntegrityKey() {
     } catch (error) {
       if (!isFileExistsError(error))
         throw error;
-      return decodeIntegrityKey(readFileSync3(keyPath, "utf8"));
+      return decodeIntegrityKey(readFileSync2(keyPath, "utf8"));
     }
   }
 }
@@ -747,7 +1017,7 @@ function unsignedRecord(record) {
   return unsigned;
 }
 function recordIntegrity(cwd, record, readOnly = false) {
-  const key = readOnly ? decodeIntegrityKey(readFileSync3(integrityKeyPath(), "utf8")) : readOrCreateIntegrityKey();
+  const key = readOnly ? decodeIntegrityKey(readFileSync2(integrityKeyPath(), "utf8")) : readOrCreateIntegrityKey();
   return createHmac("sha256", key).update(realpathSync3.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record))).digest("hex");
 }
 function hasValidIntegrity(cwd, record, readOnly = false) {
@@ -853,7 +1123,7 @@ function executionPlanReviewIdentity(content, projectDirectory) {
   const configPath = nodePath3.join(projectDirectory, ".safeword", "config.json");
   let designApprovalGate = false;
   if (existsSync(configPath)) {
-    const value = JSON.parse(readFileSync3(configPath, "utf8"));
+    const value = JSON.parse(readFileSync2(configPath, "utf8"));
     if (typeof value !== "object" || value === null || Array.isArray(value)) {
       throw new Error("Safeword config root is not an object");
     }
@@ -879,7 +1149,7 @@ function ledgerFingerprintContext(cwd, targets, context, execution) {
     missing
   };
 }
-function fingerprint(cwd, kind, targets, context = [], execution, readOnly = false) {
+function reviewIdentity(cwd, kind, targets, context = [], execution, readOnly = false) {
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
   const prepared = (readOnly ? prepareReviewPacketReadOnly : prepareReviewPacket)(cwd, kind, targets, ledger.context, {
     allowMissingExecutableRedAttestation: true
@@ -905,10 +1175,13 @@ function fingerprint(cwd, kind, targets, context = [], execution, readOnly = fal
         hash.update("\x00");
       }
     }
-    return hash.digest("hex");
+    return { fingerprint: hash.digest("hex"), excludedTargets: prepared.excludedTargets };
   } finally {
     prepared.cleanup();
   }
+}
+function fingerprint(cwd, kind, targets, context = [], execution) {
+  return reviewIdentity(cwd, kind, targets, context, execution).fingerprint;
 }
 function reviewFingerprintContent(section, path, content, executionPlanTargetPath, executionPlanFingerprint) {
   if (section === "targets" && path === executionPlanTargetPath && executionPlanFingerprint !== undefined) {
@@ -974,7 +1247,7 @@ function withFileLock(lock, operation) {
 function recoverStaleLock(lock) {
   try {
     const inspected = statSync(lock);
-    const owner = Number(readFileSync3(lock, "utf8"));
+    const owner = Number(readFileSync2(lock, "utf8"));
     const invalidOwnerIsOld = !isProcessId(owner) && Date.now() - statSync(lock).mtimeMs >= JOB_LOCK_WAIT_MS;
     if (isProcessId(owner) && !processExists(owner) || invalidOwnerIsOld) {
       const current = statSync(lock);
@@ -1090,7 +1363,7 @@ function hasReviewerIdentity(reviewer) {
   return typeof reviewer.dispatch_id === "string" && reviewer.dispatch_id.length > 0 && ["claude", "codex", "opencode"].includes(String(reviewer.reviewer_agent));
 }
 function readJob(cwd, id, readOnly = false) {
-  const parsed = JSON.parse(readFileSync3(jobPath(cwd, id), "utf8"));
+  const parsed = JSON.parse(readFileSync2(jobPath(cwd, id), "utf8"));
   if (!isReviewJobRecord(parsed) || parsed.id !== id || !hasValidIntegrity(cwd, parsed, readOnly))
     throw new Error("invalid review job record");
   return parsed;
@@ -1220,13 +1493,14 @@ function terminalResult(cwd, record, readOnly = false) {
     });
   }
   try {
-    if (fingerprint(cwd, record.kind, record.targets, record.context, record.execution, readOnly) !== record.source_fingerprint)
+    const current = reviewIdentity(cwd, record.kind, record.targets, record.context, record.execution, readOnly);
+    if (current.fingerprint !== record.source_fingerprint)
       return staleResult(record);
+    if (record.result !== undefined)
+      return withReviewProvenance(cwd, record, record.result, current.excludedTargets);
   } catch {
     return staleResult(record);
   }
-  if (record.result !== undefined)
-    return withReviewProvenance(record, record.result);
   return createResult({
     state: "failed",
     errors: [
@@ -1235,7 +1509,33 @@ function terminalResult(cwd, record, readOnly = false) {
     data: { command: "review status", status: "failed", review_id: record.id }
   });
 }
-function withReviewProvenance(record, result) {
+function effectiveReviewTargets(cwd, record) {
+  const data = record.result?.data;
+  if (typeof data !== "object" || data === null || Array.isArray(data))
+    return record.targets;
+  const excluded = data.excluded_targets;
+  if (excluded === undefined)
+    return record.targets;
+  if (!Array.isArray(excluded) || excluded.some((target) => typeof target !== "string"))
+    return;
+  const excludedPaths = new Set(excluded);
+  const root = realpathSync3.native(cwd);
+  return record.targets.filter((target) => {
+    const relative = nodePath3.relative(root, nodePath3.resolve(root, target));
+    return !excludedPaths.has(toReviewPath(relative));
+  });
+}
+function verifiedExcludedTargets(record, current) {
+  const data = record.result?.data;
+  const recorded = data?.excluded_targets;
+  if (!Array.isArray(recorded) || recorded.some((target) => typeof target !== "string"))
+    return [];
+  if (recorded.length === 0)
+    return [];
+  const recordedPaths = new Set(recorded);
+  return current.filter((target) => recordedPaths.has(target));
+}
+function withReviewProvenance(cwd, record, result, currentExclusions) {
   const data = typeof result.data === "object" && result.data !== null && !Array.isArray(result.data) ? result.data : {};
   return {
     ...result,
@@ -1243,7 +1543,8 @@ function withReviewProvenance(record, result) {
       ...data,
       review_id: record.id,
       review_kind: record.kind,
-      review_targets: record.targets
+      review_targets: effectiveReviewTargets(cwd, record) ?? [],
+      review_excluded_targets: verifiedExcludedTargets(record, currentExclusions)
     }
   };
 }
@@ -1484,7 +1785,7 @@ function terminateUnactivatedWorker(record, pid) {
 }
 function terminateReviewWorker(pid) {
   if (process.platform === "win32") {
-    spawnSync(processTool("taskkill"), ["/PID", String(pid), "/T", "/F"], {
+    spawnSync2(processTool("taskkill"), ["/PID", String(pid), "/T", "/F"], {
       stdio: "ignore",
       timeout: 5000,
       windowsHide: true
@@ -1632,12 +1933,12 @@ function isJobId(value) {
   return /^[a-f\d-]{36}$/u.test(value);
 }
 function inspectReviewWorker(pid, id) {
-  const inspected = process.platform === "win32" ? spawnSync(processTool("powershell.exe"), [
+  const inspected = process.platform === "win32" ? spawnSync2(processTool("powershell.exe"), [
     "-NoProfile",
     "-NonInteractive",
     "-Command",
     `(Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}").CommandLine`
-  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync(processTool("ps"), ["-ww", "-p", String(pid), "-o", "command="], {
+  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync2(processTool("ps"), ["-ww", "-p", String(pid), "-o", "command="], {
     encoding: "utf8",
     timeout: 1000
   });
@@ -1651,7 +1952,7 @@ var REVIEW_LOGIN_URI = "ui://safeword/reviewer-login.html";
 var REVIEW_LOGIN_HTML = `<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  body { font: 14px system-ui, sans-serif; margin: 0; padding: 16px; color: light-dark(#171717,#f5f5f5); color-scheme: light dark; }
+  body { font: 14px system-ui, sans-serif; margin: 0; padding: 16px; color: light-dark(#171717,#f5f5f5); color-scheme: light dark; background: light-dark(#fff,#171717); }
   h1 { font-size: 18px; margin: 0 0 8px; }
   p { margin: 8px 0; }
   button { border: 0; border-radius: 8px; padding: 9px 14px; cursor: pointer; background: #2457cf; color: white; }
@@ -1783,7 +2084,24 @@ function cancelReviewerLogin(reviewKey) {
   if (session === undefined)
     return;
   sessions.delete(reviewKey);
-  session.child.kill();
+  session.stop();
+}
+function cancelAllReviewerLogins() {
+  for (const key of sessions.keys())
+    cancelReviewerLogin(key);
+}
+function signalLogin(child, signal) {
+  if (child.pid === undefined)
+    return;
+  try {
+    if (process.platform === "win32")
+      child.kill(signal);
+    else
+      process.kill(-child.pid, signal);
+  } catch (error) {
+    if (!(error instanceof Error && ("code" in error) && error.code === "ESRCH"))
+      throw error;
+  }
 }
 async function startReviewerLogin(reviewKey, reviewer, untrustedRoot) {
   if (sessions.has(reviewKey))
@@ -1797,23 +2115,36 @@ async function startReviewerLogin(reviewKey, reviewer, untrustedRoot) {
       cwd: loginCwd,
       env: reviewerEnvironment(reviewer),
       stdio: ["pipe", "pipe", "pipe"],
-      shell: false
+      shell: false,
+      detached: process.platform !== "win32"
     });
   } catch (error) {
     rmSync3(loginCwd, { recursive: true, force: true });
     throw error;
   }
-  const session = { child };
+  let forceStop;
+  const stop = () => {
+    signalLogin(child, "SIGTERM");
+    if (forceStop === undefined) {
+      forceStop = setTimeout(() => {
+        signalLogin(child, "SIGKILL");
+      }, 2000);
+      forceStop.unref();
+    }
+    rmSync3(loginCwd, { recursive: true, force: true });
+  };
+  const session = { child, stop };
   sessions.set(reviewKey, session);
-  const sessionTimer = setTimeout(() => child.kill(), SESSION_TIMEOUT_MS);
+  const sessionTimer = setTimeout(stop, SESSION_TIMEOUT_MS);
   sessionTimer.unref();
   const stopOnServerExit = () => {
-    child.kill();
+    signalLogin(child, "SIGKILL");
     rmSync3(loginCwd, { recursive: true, force: true });
   };
   process.once("exit", stopOnServerExit);
   child.once("close", () => {
     clearTimeout(sessionTimer);
+    clearTimeout(forceStop);
     process.off("exit", stopOnServerExit);
     if (sessions.get(reviewKey) === session)
       sessions.delete(reviewKey);
@@ -1831,7 +2162,7 @@ async function startReviewerLogin(reviewKey, reviewer, untrustedRoot) {
         return;
       settled = true;
       clearTimeout(timeout);
-      child.kill();
+      stop();
       reject(error);
     }
     function collect(chunk) {
@@ -1891,6 +2222,13 @@ function projectRootDirectory(value) {
 function isCodexDeviceCode(value) {
   return typeof value === "string" && /^[A-Z\d]{4,5}-[A-Z\d]{4,5}$/u.test(value);
 }
+function requireRegularFiles(cwd, files) {
+  for (const target of files) {
+    if (!lstatSync3(nodePath6.resolve(cwd, target)).isFile()) {
+      throw new Error(`Review target is not a regular file: ${target}`);
+    }
+  }
+}
 function reviewInput(args) {
   if (!isRecord(args))
     throw new Error("Review arguments must be an object");
@@ -1907,6 +2245,7 @@ function reviewInput(args) {
     throw new Error("Reviews require 1\u201364 total files");
   }
   const cwd = projectRootDirectory(projectRoot);
+  requireRegularFiles(cwd, [...targets, ...context]);
   return { cwd, kind, targets, context };
 }
 async function startReview(args) {
@@ -2110,28 +2449,45 @@ async function handleReviewMcpRequest(request) {
   }
   return { jsonrpc: "2.0", id, result };
 }
-if (import.meta.main) {
-  const hostFlag = process.argv.at(-1);
+async function runReviewMcpServer(hostFlag) {
   if (hostFlag !== "--claude" && hostFlag !== "--codex") {
     throw new Error("Review MCP must be started by a plugin manifest with an explicit host flag");
   }
   process.env.SAFEWORD_AGENT_RUNTIME = hostFlag === "--claude" ? "claude" : "codex";
   process.env.SAFEWORD_REVIEW_FOREGROUND_MS = "0";
   const input = readline.createInterface({ input: process.stdin });
-  for await (const line of input) {
-    let request;
-    try {
-      request = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    const response = await handleReviewMcpRequest(request);
-    if (response !== undefined)
-      process.stdout.write(`${JSON.stringify(response)}
+  const shutdown = () => {
+    cancelAllReviewerLogins();
+    input.close();
+    process.stdin.destroy();
+  };
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
+  input.once("close", cancelAllReviewerLogins);
+  try {
+    for await (const line of input) {
+      let request;
+      try {
+        request = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      const response = await handleReviewMcpRequest(request);
+      if (response !== undefined)
+        process.stdout.write(`${JSON.stringify(response)}
 `);
+    }
+  } finally {
+    cancelAllReviewerLogins();
+    input.close();
+    process.off("SIGTERM", shutdown);
+    process.off("SIGINT", shutdown);
   }
 }
+if (import.meta.main)
+  await runReviewMcpServer(process.argv.at(-1));
 export {
+  runReviewMcpServer,
   isCodexDeviceCode,
   handleReviewMcpRequest
 };

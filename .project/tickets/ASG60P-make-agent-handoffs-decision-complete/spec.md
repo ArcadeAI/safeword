@@ -55,12 +55,14 @@
 ## Surfaces
 
 Affected:
+
 - Claude Code
 - OpenAI Codex
 - Cursor
 - Safeword CLI
 
 Unaffected:
+
 - Claude Code Cloud — local terminal-boundary mechanics are not separately exercised unless they share the Claude Code contract path.
 - OpenAI Codex Cloud — repository instructions still receive the contract, but local packaged-plugin boundary proof does not imply cloud lifecycle proof.
 - Cursor Cloud Agents — project rules may carry the contract, but IDE-only terminal hooks do not apply.

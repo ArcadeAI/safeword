@@ -14,63 +14,67 @@ canonical commands below.
 
 {/* safeword:generated-cli-commands:start */}
 
-| Command                                 | Effect      | Purpose                                                                                                     |
-| --------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
-| `status`                                | observe     | Report project health and the next action                                                                   |
-| `conformance`                           | mutate      | Prove a selected agent integration against its real host                                                    |
-| `install`                               | mutate      | Install Safeword for this project and selected agents                                                       |
-| `plan`                                  | plan        | Preview reconciliation effects                                                                              |
-| `doctor`                                | observe     | Diagnose project configuration                                                                              |
-| `uninstall`                             | destructive | Deactivate selected Safeword project and agent state; preserve authored content; reinstall to recover       |
-| `project sync-config`                   | mutate      | Regenerate dependency-cruiser configuration                                                                 |
-| `project architecture`                  | mutate      | Refresh generated architecture state                                                                        |
-| `project sync-learnings`                | mutate      | Refresh the project learning index                                                                          |
-| `project sync-tickets`                  | mutate      | Refresh project ticket indexes                                                                              |
-| `project codify`                        | mutate      | Generate a test skeleton from ticket behavior                                                               |
-| `project test-plan`                     | observe     | Describe repository test commands                                                                           |
-| `project test`                          | mutate      | Run repository test commands                                                                                |
-| `project test-execution status`         | observe     | Show the effective test execution preference                                                                |
-| `project test-execution remote status`  | observe     | Show managed remote-test workflow status                                                                    |
-| `project test-execution remote setup`   | mutate      | Install the managed remote-test workflow                                                                    |
-| `project test-execution remote disable` | mutate      | Remove the managed remote-test workflow                                                                     |
-| `project lint-gherkin`                  | observe     | Validate executable feature files                                                                           |
-| `project audit-scope`                   | observe     | Print the packaged audit scope shell contract                                                               |
-| `project record-skill-invocation`       | mutate      | Record current-run workflow proof                                                                           |
-| `project runtime`                       | destructive | Run an allowlisted packaged helper with the helper arguments after --                                       |
-| `project retro-drain`                   | mutate      | Drain acknowledged retro drafts from a spool                                                                |
-| `project review-knowledge`              | observe     | Resolve the principles, personas, and surfaces sources for a review                                         |
-| `project public-retros`                 | mutate      | Turn silent public retrospective collection on or off                                                       |
-| `project namespace-root`                | observe     | Print the resolved project-knowledge namespace root                                                         |
-| `tracker sync`                          | mutate      | Synchronize tickets with the configured tracker                                                             |
-| `tracker connect`                       | mutate      | Connect a project to a tracker                                                                              |
-| `codex migrate`                         | destructive | Deactivate proven legacy Codex hooks after creating a recovery backup                                       |
-| `codex bootstrap`                       | mutate      | Keep the project Codex plugin available                                                                     |
-| `codex status`                          | observe     | Report Codex plugin and migration state                                                                     |
-| `claude status`                         | observe     | Report Claude plugin and migration state                                                                    |
-| `claude cleanup`                        | destructive | Deactivate verified legacy Claude assets while preserving a recoverable backup                              |
-| `claude recover`                        | mutate      | Restore recognized Claude state from its cleanup backup without replacing unrelated content                 |
-| `codex clean-guidance`                  | destructive | Deactivate exact legacy Safeword profile guidance, preserve unrelated content, and retain a recovery backup |
-| `codex recover`                         | destructive | Restore backed-up legacy Codex state without replacing unrelated current content                            |
-| `ticket list`                           | observe     | List project tickets                                                                                        |
-| `ticket new`                            | mutate      | Create a project ticket                                                                                     |
-| `ticket reconcile-parent`               | mutate      | Record the current parent Product Plan contract                                                             |
-| `review run`                            | mutate      | Run an independent adversarial review                                                                       |
-| `review status`                         | mutate      | Collect a durable independent review                                                                        |
-| `review gate executable-red`            | observe     | Check whether a scenario may claim GREEN                                                                    |
-| `review cancel`                         | mutate      | Cancel a durable independent review                                                                         |
-| `review routes set`                     | mutate      | Set ranked review routes                                                                                    |
-| `review routes list`                    | observe     | List effective ranked review routes                                                                         |
-| `review routes reset`                   | mutate      | Reset ranked review routes                                                                                  |
-| `review-pr inspect`                     | mutate      | Inspect bounded pull-request evidence as untrusted data                                                     |
-| `review-pr invalidate`                  | mutate      | Remove an obsolete advisory route                                                                           |
-| `review-pr readiness`                   | mutate      | Publish readiness; verdict is in data.outcome                                                               |
-| `review-pr publish`                     | mutate      | Publish a validated advisory result                                                                         |
-| `retro run`                             | mutate      | Extract and file session findings                                                                           |
-| `retro signals`                         | observe     | Inspect locally captured runtime signals                                                                    |
-| `retro reconcile`                       | mutate      | Reconcile open retro findings                                                                               |
-| `retro-relay-retry`                     | mutate      | List durable relay requests or rearm one dead letter without changing its identity                          |
-| `retro-relay-discard`                   | destructive | Permanently discard one poisoned relay identity and its source reservation                                  |
-| `capabilities`                          | observe     | Describe the public machine interface                                                                       |
+| Command                                 | Effect      | Purpose                                                                                                                                          |
+| --------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `status`                                | observe     | Report project health and the next action                                                                                                        |
+| `conformance`                           | mutate      | Prove a selected agent integration against its real host                                                                                         |
+| `install`                               | mutate      | Install Safeword for this project and selected agents                                                                                            |
+| `plan`                                  | plan        | Preview reconciliation effects                                                                                                                   |
+| `doctor`                                | observe     | Diagnose project configuration                                                                                                                   |
+| `uninstall`                             | destructive | Deactivate selected Safeword project and agent state; preserve authored content; reinstall to recover                                            |
+| `project sync-config`                   | mutate      | Regenerate dependency-cruiser configuration                                                                                                      |
+| `project architecture`                  | mutate      | Refresh generated architecture state                                                                                                             |
+| `project sync-learnings`                | mutate      | Refresh the project learning index                                                                                                               |
+| `project sync-tickets`                  | mutate      | Refresh project ticket indexes                                                                                                                   |
+| `project codify`                        | mutate      | Generate a test skeleton from ticket behavior                                                                                                    |
+| `project test-plan`                     | observe     | Describe repository test commands                                                                                                                |
+| `project test`                          | mutate      | Run repository test commands                                                                                                                     |
+| `project test-execution status`         | observe     | Show the effective test execution preference                                                                                                     |
+| `project test-execution remote status`  | observe     | Show managed remote-test workflow status                                                                                                         |
+| `project test-execution remote setup`   | mutate      | Install the managed remote-test workflow                                                                                                         |
+| `project test-execution remote disable` | mutate      | Remove the managed remote-test workflow                                                                                                          |
+| `project lint-gherkin`                  | observe     | Validate executable feature files                                                                                                                |
+| `project audit-scope`                   | observe     | Print the packaged audit scope shell contract                                                                                                    |
+| `project record-skill-invocation`       | mutate      | Record current-run workflow proof                                                                                                                |
+| `project runtime`                       | destructive | Run an allowlisted packaged helper with the helper arguments after --                                                                            |
+| `project retro-drain`                   | mutate      | Drain acknowledged retro drafts from a spool                                                                                                     |
+| `project review-knowledge`              | observe     | Resolve the principles, personas, and surfaces sources for a review                                                                              |
+| `project public-retros`                 | mutate      | Turn silent public retrospective collection on or off                                                                                            |
+| `project namespace-root`                | observe     | Print the resolved project-knowledge namespace root                                                                                              |
+| `tracker sync`                          | mutate      | Synchronize tickets with the configured tracker                                                                                                  |
+| `tracker connect`                       | mutate      | Connect a project to a tracker                                                                                                                   |
+| `codex migrate`                         | destructive | Deactivate proven legacy Codex hooks after creating a recovery backup                                                                            |
+| `codex bootstrap`                       | mutate      | Keep the project Codex plugin available                                                                                                          |
+| `codex status`                          | observe     | Report Codex plugin and migration state                                                                                                          |
+| `claude status`                         | observe     | Report Claude plugin and migration state                                                                                                         |
+| `claude cleanup`                        | destructive | Deactivate verified legacy Claude assets while preserving a recoverable backup                                                                   |
+| `claude recover`                        | mutate      | Restore recognized Claude state from its cleanup backup without replacing unrelated content                                                      |
+| `codex clean-guidance`                  | destructive | Deactivate exact legacy Safeword profile guidance, preserve unrelated content, and retain a recovery backup                                      |
+| `codex recover`                         | destructive | Restore backed-up legacy Codex state without replacing unrelated current content                                                                 |
+| `ticket list`                           | observe     | List project tickets                                                                                                                             |
+| `ticket new`                            | mutate      | Create a project ticket                                                                                                                          |
+| `ticket reconcile-parent`               | mutate      | Record the current parent Product Plan contract                                                                                                  |
+| `review run`                            | mutate      | Run an independent adversarial review; report data.excluded_targets and REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE or REVIEW_NO_ELIGIBLE_TARGETS errors |
+| `review status`                         | mutate      | Collect a durable independent review                                                                                                             |
+| `review gate executable-red`            | observe     | Check whether a scenario may claim GREEN                                                                                                         |
+| `review gate retrospective`             | observe     | Check CKWE2D retrospective receipts                                                                                                              |
+| `review attest retrospective`           | mutate      | Replay one CKWE2D proof before checking its row                                                                                                  |
+| `review attest retrospective-close`     | mutate      | Replay CKWE2D proofs for closing                                                                                                                 |
+| `review gate retrospective-close`       | observe     | Check current CKWE2D closing proof                                                                                                               |
+| `review cancel`                         | mutate      | Cancel a durable independent review                                                                                                              |
+| `review routes set`                     | mutate      | Set ranked review routes                                                                                                                         |
+| `review routes list`                    | observe     | List effective ranked review routes                                                                                                              |
+| `review routes reset`                   | mutate      | Reset ranked review routes                                                                                                                       |
+| `review-pr inspect`                     | mutate      | Inspect bounded pull-request evidence as untrusted data                                                                                          |
+| `review-pr invalidate`                  | mutate      | Remove an obsolete advisory route                                                                                                                |
+| `review-pr readiness`                   | mutate      | Publish readiness; verdict is in data.outcome                                                                                                    |
+| `review-pr publish`                     | mutate      | Publish a validated advisory result                                                                                                              |
+| `retro run`                             | mutate      | Extract and file session findings                                                                                                                |
+| `retro signals`                         | observe     | Inspect locally captured runtime signals                                                                                                         |
+| `retro reconcile`                       | mutate      | Reconcile open retro findings                                                                                                                    |
+| `retro-relay-retry`                     | mutate      | List durable relay requests or rearm one dead letter without changing its identity                                                               |
+| `retro-relay-discard`                   | destructive | Permanently discard one poisoned relay identity and its source reservation                                                                       |
+| `capabilities`                          | observe     | Describe the public machine interface                                                                                                            |
 
 {/* safeword:generated-cli-commands:end */}
 
@@ -246,8 +250,8 @@ safeword retro-relay-retry [request-id]
 safeword retro-relay-discard <request-id> [--confirm]
 ```
 
-`review run` kinds are `quality-review`, `scenario-gate`, `plan-implementation`,
-`plan-execution`, and `executable-red`. It keeps Claude-authored work on Codex
+`review run` selects the review rubric by kind, including `retrospective-eligibility`
+and `retrospective-proof` for the CKWE2D migration. It keeps Claude-authored work on Codex
 first and Codex-authored work on Claude first. If that preferred independent
 route is exhausted, a compatible OpenCode 1.x CLI is tried before same-author
 degraded review. OpenCode-authored work is sent to Claude and then Codex;
@@ -255,6 +259,23 @@ OpenCode self-review is never accepted as
 independent evidence. OpenCode is invoked one-shot with JSON events, a stdin
 prompt, `--pure`, deny-all tool permissions, and the shared review deadline and
 integrity checks.
+
+Review packets retain their 256 KiB per-target and 1 MiB aggregate limits.
+An oversized target is omitted only when the committed repository attributes
+mark it `linguist-generated=true`. The result reports its path in
+`data.excluded_targets`; every eligible authored target still reaches the
+reviewer unchanged. An unmarked oversized target or a review with no eligible
+targets fails before reviewer launch.
+
+For completed durable reviews, `review status` authenticates the stored result
+and revalidates the current packet. Its `data.review_excluded_targets` contains
+only original exclusions that still meet that classification. Approval recording
+uses these exact file paths to waive generated-file coverage while requiring
+every remaining authored change to be reviewed. Exclusions never count as reviewed
+work. Legacy receipts without this verified field retain strict coverage; raw
+`data.excluded_targets` alone cannot authorize a waiver.
+Content-only changes to a still-classified generated exclusion do not stale the
+authored review; removing its eligible classification does.
 
 Supported local Claude Code, Codex, and Cursor installs can quietly send sanitized
 retrospective findings to SafeWord's durable public collector. Collection requires
@@ -524,8 +545,10 @@ PreToolUse or command-interception hook. At task start the bootstrap exits
 successfully and is silent only when exact profile, project, version, and task
 proof exists. Otherwise it emits a prominent warning, explains that work may
 continue without Safeword protection, and gives one recovery action. Plugin
-hooks use version-pinned `bunx --bun safeword@<version>` commands; they never
-use npx or bypass Codex hook trust.
+hooks run the cached bundled CLI with
+`bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js"`.
+The host payload identifies the project directory. These hooks never install
+packages at runtime or bypass Codex hook trust.
 
 Installing the plugin does not enroll repositories. Project-scoped Codex gates
 and state activate only after `safeword install` creates

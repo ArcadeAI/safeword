@@ -29,7 +29,19 @@ function configuredApprovals(content: string): Record<string, unknown> {
   const config = record(parse(content));
   const plugin = record(record(config?.plugins)?.['safeword@safeword']);
   const server = record(record(plugin?.mcp_servers)?.safeword_review);
-  if (plugin?.approval_mode !== undefined || server?.approval_mode !== undefined) {
+  const enabledTools = server?.enabled_tools;
+  const disabledTools = server?.disabled_tools;
+  const restrictedTools =
+    (Array.isArray(enabledTools) && REVIEW_TOOLS.some(tool => !enabledTools.includes(tool))) ||
+    (Array.isArray(disabledTools) && REVIEW_TOOLS.some(tool => disabledTools.includes(tool)));
+  if (
+    plugin?.enabled === false ||
+    server?.enabled === false ||
+    plugin?.approval_mode !== undefined ||
+    server?.approval_mode !== undefined ||
+    server?.default_tools_approval_mode !== undefined ||
+    restrictedTools
+  ) {
     throw new Error(
       'Codex already has a plugin or server review policy; Safeword left it unchanged',
     );
@@ -52,7 +64,11 @@ function existingConfigMode(configPath: string): number | undefined {
 
 function missingApprovals(existing: Record<string, unknown>): string[] {
   for (const tool of REVIEW_TOOLS) {
-    if (existing[tool] !== undefined && record(existing[tool])?.approval_mode !== 'approve') {
+    if (
+      existing[tool] !== undefined &&
+      (record(existing[tool])?.approval_mode !== 'approve' ||
+        record(existing[tool])?.enabled === false)
+    ) {
       throw new Error('Codex already has a review-tool policy; Safeword left it unchanged');
     }
   }
@@ -82,7 +98,7 @@ export function enableCodexReviewApproval(environment: NodeJS.ProcessEnv = proce
   process.stderr.write(
     'Safeword review approval: bounded packet contents go to the assigned reviewer provider. Both the review worker and assigned vendor login CLI run outside the author shell sandbox; login may open its sign-in URL. Approving only the named review and reviewer-login tools in this Codex profile.\n',
   );
-  const updated = `${current.trimEnd()}\n\n${missing.map(tool => approval(tool)).join('\n')}`;
+  const updated = `${current}\n\n${missing.map(tool => approval(tool)).join('\n')}`;
   const directory = nodePath.dirname(configPath);
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   const mode = currentMode ?? 0o600;

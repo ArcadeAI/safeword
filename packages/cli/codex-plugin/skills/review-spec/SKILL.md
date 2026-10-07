@@ -35,7 +35,7 @@ Adversarially review a ticket's scenarios: treat them as if you're trying to bre
 - **Manual re-run** — invoke `$safeword:review-spec` anytime after `define-behavior` (e.g., scenarios changed during implement and you want to re-validate). Allowed on a closed ticket too — a post-hoc audit is still readable.
 
 Read the active ticket's `.feature` source first. At review time, run
-`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project review-knowledge --json` and read the current
+`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0/runtime/cli.js" project review-knowledge --json` and read the current
 `principles`, `personas`, and `surfaces` source paths and content it returns, so
 the review is grounded in project knowledge rather than labels or stale intake
 context. The resolver honors `paths.principles`, `paths.personas`, and
@@ -88,7 +88,7 @@ chat before running this command, even when the packet contains private
 repository files or crosses provider boundaries. Never pass credentials,
 customer data, or secret-bearing files as targets or `--context`; redact them or
 report the bounded packet as blocked. This exclusion is a best-effort model
-judgment, not a claim that the coordinator performed a secret scan. Invoke the coordinator first. On Codex, start quality, scenario, and plan reviews with the bundled `mcp__safeword_review__start_review` tool, passing the absolute project root, review kind, relative target paths, and relative context paths. Poll `mcp__safeword_review__review_status` with the project root and returned review_id until the result is terminal. The tool returns the coordinator verdict and stores a signed receipt under `.safeword/state/reviews` for the normal stamp gate; reviewed source files remain unchanged. The user can approve only `start_review` and `start_reviewer_login` once with `safeword codex install --approve-reviews` and restart Codex. If the MCP tool is unavailable or fails to start, report the route unavailable; never request an out-of-sandbox rule or approval escalation.
+judgment, not a claim that the coordinator performed a secret scan. Invoke the coordinator first. On Codex, start quality, scenario, and plan reviews with the bundled `mcp__safeword_review__start_review` tool, passing the absolute project root, review kind, relative target paths, and relative context paths. Poll `mcp__safeword_review__review_status` with the project root and returned review_id until the result is terminal. Bounded target and context contents go to the assigned reviewer provider. The tool returns the coordinator verdict and stores a signed receipt under `.safeword/state/reviews` for the normal stamp gate; reviewed source files remain unchanged. The user can approve only `start_review` and `start_reviewer_login` once with `safeword codex install --approve-reviews` and restart Codex. If the MCP tool is unavailable or fails to start, report the route unavailable; never request an out-of-sandbox rule or approval escalation.
 **A review you never dispatched is not coverage** — say so unprompted,
 before any finding, name what ran in its place, and never let your own pass stand
 in for the review.
@@ -120,7 +120,7 @@ the review is terminal. Never redispatch the same sources merely because that
 review is still pending. After an
 approval, record the returned author, actual reviewer, verified model when
 present, and independence with
-`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project runtime write-review-stamp -- --review-id "review_id" --independence "independence" --author-agent "author_agent" --reviewer-agent "actual_reviewer" --model "reviewer_model" --phase scenario-gate`.
+`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0/runtime/cli.js" project runtime write-review-stamp -- --review-id "review_id" --independence "independence" --author-agent "author_agent" --reviewer-agent "actual_reviewer" --model "reviewer_model" --phase scenario-gate`.
 Every value comes from the result you are stamping; drop `--model` when the
 result reports no verified model. The `--review-id` is that result's
 `review_id`: it is what proves the review ran, so a stamp claiming independence

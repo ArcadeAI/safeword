@@ -2,7 +2,7 @@
 // Used by the write-time gate, the commit-time gate, and the done gate to
 // answer one question consistently: "what does this checkbox claim?"
 
-type LedgerStep = 'RED' | 'GREEN' | 'REFACTOR' | 'cross-scenario';
+type LedgerStep = 'RED' | 'GREEN' | 'REFACTOR' | 'VERIFIED' | 'cross-scenario';
 
 export interface CheckboxAnnotation {
   step: LedgerStep;
@@ -17,7 +17,7 @@ export type AnnotationKind =
 // around the checkbox), capturing the checkmark, step, and annotation. Other
 // valid Markdown list shapes intentionally earn no ledger credit. The word
 // boundary prevents `REDish` / `cross-scenarios` from accidentally matching.
-const CHECKBOX_LINE = /^\s*- \[([ xX])\] (RED|GREEN|REFACTOR|cross-scenario)\b\s*(.*)$/i;
+const CHECKBOX_LINE = /^\s*- \[([ xX])\] (RED|GREEN|REFACTOR|VERIFIED|cross-scenario)\b\s*(.*)$/i;
 
 const SKIP_PREFIX = /^skip:(.*)$/i;
 

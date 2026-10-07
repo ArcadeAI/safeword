@@ -160,6 +160,10 @@ async function readBoundIdentity() {
 }
 
 function dispatch(identity, envelope, directory) {
+  const inputText = Object.values(envelope.tool_input).filter(value => typeof value === 'string').join('\n');
+  const timeoutMilliseconds = /ticket\.md/u.test(inputText) && /status:\s*['"]?done\b/u.test(inputText)
+    ? 90_000
+    : /\bVERIFIED\b/iu.test(inputText) ? 30_000 : 2_000;
   return new Promise((resolve, reject) => {
     const child = spawn(identity.runtime_path, [identity.dispatcher_path], {
       cwd: directory,
@@ -182,7 +186,7 @@ function dispatch(identity, envelope, directory) {
     const timeout = setTimeout(() => {
       child.kill('SIGTERM');
       finish(() => reject(new Error(DENIAL)));
-    }, 2_000);
+    }, timeoutMilliseconds);
     child.once('error', () => finish(() => reject(new Error(DENIAL))));
     child.stdin.once('error', () => finish(() => reject(new Error(DENIAL))));
     child.once('close', exitCode => finish(() => resolve({ exitCode })));

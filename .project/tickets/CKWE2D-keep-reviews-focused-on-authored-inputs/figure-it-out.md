@@ -82,3 +82,20 @@ bytes are deliberately kept outside the reviewer boundary. This keeps the
 existing 256 KiB per-target resource bound meaningful while retaining the
 regular-file, containment, committed explicit-marker, and visible-scope
 safeguards.
+
+## Revalidation for #5018 (2026-09-27)
+
+The blocker remains concrete: both generated plugin runtimes are 2,699,284
+bytes, exceed the 262,144-byte target cap, and are already marked
+`linguist-generated=true` in this repository. Git 2.54.0 on this host supports
+`check-attr --source`, `--stdin`, and `-z`; the current
+[Git documentation](https://git-scm.com/docs/git-check-attr) still defines the
+NUL-delimited path/attribute/value tuple. Current
+[attribute precedence documentation](https://git-scm.com/docs/gitattributes)
+also confirms that project-local `info/attributes` can override a checked-in
+marker, so isolated committed-tree lookup remains necessary. Raising the packet
+limit or accepting an untracked manual skip would weaken the review boundary.
+The decision and premortem above remain unchanged.
+An isolated bare-repository probe against this worktree's committed HEAD
+returned the exact NUL tuple `plugin/runtime/cli.js`,
+`linguist-generated`, `true`; no working-tree attribute file was read.

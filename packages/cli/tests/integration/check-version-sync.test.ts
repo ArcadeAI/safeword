@@ -37,7 +37,7 @@ function writeReleaseFixture(projectDirectory: string, version: string): void {
       {
         hooks: [
           {
-            command: `bun "\${PLUGIN_ROOT}/runtime/cli.js" hook codex ${cliEvent} --plugin-hook`,
+            command: `bun --no-env-file --cwd "\${PLUGIN_ROOT}" "\${PLUGIN_ROOT}/runtime/cli.js" hook codex ${cliEvent} --plugin-hook`,
           },
         ],
       },

@@ -9,7 +9,10 @@ import { trustedReviewerExecutable } from '../review/runtime.js';
 type Reviewer = 'claude' | 'codex';
 type LoginResult = { auth_url: string; device_code?: string };
 
-const sessions = new Map<string, { child: ChildProcessWithoutNullStreams; login?: LoginResult }>();
+const sessions = new Map<
+  string,
+  { child: ChildProcessWithoutNullStreams; login?: LoginResult; stop: () => void }
+>();
 const LOGIN_TIMEOUT_MS = 30_000;
 const SESSION_TIMEOUT_MS = 10 * 60_000;
 
@@ -51,7 +54,22 @@ export function cancelReviewerLogin(reviewKey: string): void {
   const session = sessions.get(reviewKey);
   if (session === undefined) return;
   sessions.delete(reviewKey);
-  session.child.kill();
+  session.stop();
+}
+
+/** End all active vendor login processes when their MCP server shuts down. */
+export function cancelAllReviewerLogins(): void {
+  for (const key of sessions.keys()) cancelReviewerLogin(key);
+}
+
+function signalLogin(child: ChildProcessWithoutNullStreams, signal: NodeJS.Signals): void {
+  if (child.pid === undefined) return;
+  try {
+    if (process.platform === 'win32') child.kill(signal);
+    else process.kill(-child.pid, signal);
+  } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH')) throw error;
+  }
 }
 
 /** Launches only the assigned reviewer's sign-in CLI, outside the author's shell sandbox. */
@@ -73,22 +91,39 @@ export async function startReviewerLogin(
       env: reviewerEnvironment(reviewer),
       stdio: ['pipe', 'pipe', 'pipe'],
       shell: false,
+      detached: process.platform !== 'win32',
     });
   } catch (error) {
     rmSync(loginCwd, { recursive: true, force: true });
     throw error;
   }
-  const session = { child } as { child: ChildProcessWithoutNullStreams; login?: LoginResult };
+  let forceStop: ReturnType<typeof setTimeout> | undefined;
+  const stop = (): void => {
+    signalLogin(child, 'SIGTERM');
+    if (forceStop === undefined) {
+      forceStop = setTimeout(() => {
+        signalLogin(child, 'SIGKILL');
+      }, 2000);
+      forceStop.unref();
+    }
+    rmSync(loginCwd, { recursive: true, force: true });
+  };
+  const session = { child, stop } as {
+    child: ChildProcessWithoutNullStreams;
+    login?: LoginResult;
+    stop: () => void;
+  };
   sessions.set(reviewKey, session);
-  const sessionTimer = setTimeout(() => child.kill(), SESSION_TIMEOUT_MS);
+  const sessionTimer = setTimeout(stop, SESSION_TIMEOUT_MS);
   sessionTimer.unref();
   const stopOnServerExit = (): void => {
-    child.kill();
+    signalLogin(child, 'SIGKILL');
     rmSync(loginCwd, { recursive: true, force: true });
   };
   process.once('exit', stopOnServerExit);
   child.once('close', () => {
     clearTimeout(sessionTimer);
+    clearTimeout(forceStop);
     process.off('exit', stopOnServerExit);
     if (sessions.get(reviewKey) === session) sessions.delete(reviewKey);
     rmSync(loginCwd, { recursive: true, force: true });
@@ -104,7 +139,7 @@ export async function startReviewerLogin(
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
-      child.kill();
+      stop();
       reject(error);
     }
     function collect(chunk: Buffer): void {

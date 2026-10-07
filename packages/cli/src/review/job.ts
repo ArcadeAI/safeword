@@ -23,7 +23,7 @@ import { createBestEffortByteSink } from '../cli-protocol/policy.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { retryCommand } from './command.js';
 import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
-import { prepareReviewPacket, prepareReviewPacketReadOnly } from './packet.js';
+import { prepareReviewPacket, prepareReviewPacketReadOnly, toReviewPath } from './packet.js';
 import { reviewWorkerRunBoundMs } from './runtime.js';
 
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
@@ -128,6 +128,27 @@ function hasValidIntegrity(cwd: string, record: ReviewJobRecord, readOnly = fals
 function withRecordIntegrity(cwd: string, record: ReviewJobRecord): ReviewJobRecord {
   const unsigned = { ...record, integrity: undefined };
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
+}
+
+/** Bind a completed CKWE2D replay to the same profile-owned review key. */
+export function retrospectiveCloseTag(cwd: string, content: string): string {
+  return createHmac('sha256', readOrCreateIntegrityKey())
+    .update(realpathSync.native(cwd))
+    .update('\0retrospective-close\0')
+    .update(content)
+    .digest('hex');
+}
+
+export function validRetrospectiveCloseTag(cwd: string, content: string, tag: string): boolean {
+  if (!/^[a-f\d]{64}$/u.test(tag)) return false;
+  try {
+    return timingSafeEqual(
+      Buffer.from(tag, 'hex'),
+      Buffer.from(retrospectiveCloseTag(cwd, content), 'hex'),
+    );
+  } catch {
+    return false;
+  }
 }
 
 interface LedgerFingerprintContext {
@@ -265,15 +286,15 @@ function ledgerFingerprintContext(
   };
 }
 
-// eslint-disable-next-line max-params, complexity -- Fingerprint inputs mirror the signed review identity and optional read-only verification.
-function fingerprint(
+// eslint-disable-next-line max-params, complexity -- Identity binds all signed inputs and preserves optional read-only status capture.
+function reviewIdentity(
   cwd: string,
   kind: ReviewKind,
   targets: readonly string[],
   context: readonly string[] = [],
   execution?: RedExecutionRequest,
   readOnly = false,
-): string {
+): { fingerprint: string; excludedTargets: readonly string[] } {
   // A GREEN receipt is bound to the ledger state that the reviewer approved,
   // not just to the human-readable scenario label. Otherwise a later heading
   // rename could make an old receipt appear to cover a different scenario.
@@ -322,10 +343,20 @@ function fingerprint(
         hash.update('\0');
       }
     }
-    return hash.digest('hex');
+    return { fingerprint: hash.digest('hex'), excludedTargets: prepared.excludedTargets };
   } finally {
     prepared.cleanup();
   }
+}
+
+function fingerprint(
+  cwd: string,
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[] = [],
+  execution?: RedExecutionRequest,
+): string {
+  return reviewIdentity(cwd, kind, targets, context, execution).fingerprint;
 }
 
 function reviewFingerprintContent(
@@ -738,15 +769,20 @@ function terminalResult(cwd: string, record: ReviewJobRecord, readOnly = false):
     });
   }
   try {
-    if (
-      fingerprint(cwd, record.kind, record.targets, record.context, record.execution, readOnly) !==
-      record.source_fingerprint
-    )
-      return staleResult(record);
+    const current = reviewIdentity(
+      cwd,
+      record.kind,
+      record.targets,
+      record.context,
+      record.execution,
+      readOnly,
+    );
+    if (current.fingerprint !== record.source_fingerprint) return staleResult(record);
+    if (record.result !== undefined)
+      return withReviewProvenance(cwd, record, record.result, current.excludedTargets);
   } catch {
     return staleResult(record);
   }
-  if (record.result !== undefined) return withReviewProvenance(record, record.result);
   return createResult({
     state: 'failed',
     errors: [
@@ -760,11 +796,47 @@ function terminalResult(cwd: string, record: ReviewJobRecord, readOnly = false):
  * Name the review behind a terminal verdict (ticket PB1GMZ). The agent that
  * stamps a phase or artifact has to cite the review that approved it, and until
  * this the happy path was the one result that never carried its own id — only
- * the pending and failed paths did. `kind` and `targets` come from the same
- * integrity-checked record, so a stamp can be bound to what was actually
- * reviewed rather than to the agent's account of it.
+ * the pending and failed paths did. `kind` and effective targets come from
+ * the integrity-checked record and its excluded-target report, so a stamp
+ * names what the reviewer actually saw.
  */
-function withReviewProvenance(record: ReviewJobRecord, result: CliResult): CliResult {
+function effectiveReviewTargets(
+  cwd: string,
+  record: ReviewJobRecord,
+): readonly string[] | undefined {
+  const data = record.result?.data;
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return record.targets;
+  const excluded = (data as Record<string, unknown>).excluded_targets;
+  if (excluded === undefined) return record.targets;
+  if (!Array.isArray(excluded) || excluded.some(target => typeof target !== 'string'))
+    return undefined;
+  const excludedPaths = new Set<string>(excluded);
+  const root = realpathSync.native(cwd);
+  return record.targets.filter(target => {
+    const relative = nodePath.relative(root, nodePath.resolve(root, target));
+    return !excludedPaths.has(toReviewPath(relative));
+  });
+}
+
+/** Exclusions waive coverage only when the packet classifier confirms them now. */
+function verifiedExcludedTargets(
+  record: ReviewJobRecord,
+  current: readonly string[],
+): readonly string[] {
+  const data = record.result?.data as Record<string, unknown> | undefined;
+  const recorded = data?.excluded_targets;
+  if (!Array.isArray(recorded) || recorded.some(target => typeof target !== 'string')) return [];
+  if (recorded.length === 0) return [];
+  const recordedPaths = new Set<string>(recorded);
+  return current.filter(target => recordedPaths.has(target));
+}
+
+function withReviewProvenance(
+  cwd: string,
+  record: ReviewJobRecord,
+  result: CliResult,
+  currentExclusions: readonly string[],
+): CliResult {
   const data =
     typeof result.data === 'object' && result.data !== null && !Array.isArray(result.data)
       ? (result.data as Record<string, unknown>)
@@ -775,7 +847,8 @@ function withReviewProvenance(record: ReviewJobRecord, result: CliResult): CliRe
       ...data,
       review_id: record.id,
       review_kind: record.kind,
-      review_targets: record.targets,
+      review_targets: effectiveReviewTargets(cwd, record) ?? [],
+      review_excluded_targets: verifiedExcludedTargets(record, currentExclusions),
     },
   };
 }
@@ -1370,6 +1443,26 @@ function hasCurrentFingerprint(cwd: string, record: ReviewJobRecord): boolean {
     );
   } catch {
     return false;
+  }
+}
+
+/** Authenticated review identity for the CKWE2D migration gate. */
+export function approvedRetrospectiveReview(
+  cwd: string,
+  id: string,
+  kind: 'retrospective-eligibility' | 'retrospective-proof',
+): readonly string[] | undefined {
+  try {
+    const record = readJob(cwd, id);
+    const data = record.result?.data as Record<string, unknown> | undefined;
+    return record.kind === kind &&
+      record.state === 'completed' &&
+      hasCurrentFingerprint(cwd, record) &&
+      hasIndependentApproval(data)
+      ? effectiveReviewTargets(cwd, record)
+      : undefined;
+  } catch {
+    return undefined;
   }
 }
 

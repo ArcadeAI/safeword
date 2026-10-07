@@ -211,6 +211,57 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
     ).toEqual({ ok: true });
   });
 
+  it('honors exact coordinator exclusions without granting unrelated authored coverage', () => {
+    const source = 'packages/cli/src/changed.ts';
+    const generated = 'plugin/runtime/cli.js';
+    const receipt = {
+      ...approved,
+      kind: 'quality-review',
+      targets: [source],
+      excludedTargets: [generated],
+    };
+    const claim = claimFor({ phase: 'implement', implementationFiles: [source, generated] });
+    expect(receiptGateVerdict(claim, receipt)).toEqual({ ok: true });
+    expect(
+      receiptGateVerdict(
+        claimFor({
+          phase: 'implement',
+          implementationFiles: [source, generated, 'src/unreviewed.ts'],
+        }),
+        receipt,
+      ).ok,
+    ).toBe(false);
+    for (const excludedTargets of [
+      ['plugin'],
+      ['plugin/runtime'],
+      ['plugin/runtime/CLI.js'],
+      ['other/cli.js'],
+    ]) {
+      expect(receiptGateVerdict(claim, { ...receipt, excludedTargets }).ok).toBe(false);
+    }
+    expect(
+      receiptGateVerdict(claim, {
+        ...receipt,
+        excludedTargets: ['./plugin/runtime/../runtime/cli.js'],
+      }).ok,
+    ).toBe(true);
+    expect(
+      receiptGateVerdict(claim, { ...receipt, excludedTargets: ['/repo/plugin/runtime/cli.js'] })
+        .ok,
+    ).toBe(true);
+    expect(receiptGateVerdict(claim, { ...receipt, excludedTargets: undefined }).ok).toBe(false);
+    expect(receiptGateVerdict(claim, { ...receipt, status: 'stale' }).ok).toBe(false);
+    expect(
+      receiptGateVerdict(
+        claimFor({
+          phase: 'implement',
+          implementationFiles: [generated],
+        }),
+        receipt,
+      ).ok,
+    ).toBe(false);
+  });
+
   it('fails closed when Git cannot derive an implementation change set', () => {
     expect(
       receiptGateVerdict(claimFor({ phase: 'implement', implementationFiles: [] }), {

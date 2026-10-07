@@ -440,7 +440,9 @@ describe('Schema - Single Source of Truth', () => {
         for (const entry of entries) {
           const hookCommands = entry.hooks ?? [];
           for (const hook of hookCommands) {
-            expect(hook.command).toContain('bun "${PLUGIN_ROOT}/runtime/cli.js" hook codex');
+            expect(hook.command).toContain(
+              'bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js" hook codex',
+            );
           }
         }
       }
