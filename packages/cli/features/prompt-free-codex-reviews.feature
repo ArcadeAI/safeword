@@ -241,7 +241,7 @@ Feature: Run independent Codex reviews after one narrow approval
 
       Examples:
         | actual_outcome              | reported_state                 |
-        | not finished                | running                        |
+        | not finished                | pending                        |
         | a worker failure            | failed                         |
         | a blocked coordinator result | blocked                        |
         | a degraded reviewer result  | degraded                       |

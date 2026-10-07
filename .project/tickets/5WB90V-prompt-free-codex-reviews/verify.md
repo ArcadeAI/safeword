@@ -85,3 +85,13 @@ Keep the ticket in progress. The 48-scenario ledger cannot be truthfully backfil
 ## Approved hook assertion correction (2026-10-06)
 
 The user approved the two existing hook-prefix assertions and instructed that the #4200 budget fix stay separate. Both assertions now require the current hardened `bun --no-env-file --cwd "${PLUGIN_ROOT}" "${PLUGIN_ROOT}/runtime/cli.js"` prefix, retaining their packaged-entrypoint checks. The two affected Cucumber scenarios pass: 97 steps passed. No budget implementation or budget assertion changed. The separate proposed correction remains retained in `.review/proposed-budget-fix.diff`.
+
+## Fresh installed-host verification (2026-10-06)
+
+Both installed hosts completed real reviewer sign-in and an independent review retry. The installed Codex host exercised quality-review, scenario-gate, and plan-implementation without additional approval prompts. Retained `.review/` reports contain 35 process-level boundary checks, two absent-grant refusal controls, and three conflicting-policy setup controls. The current 48-row evidence matrix records 25 complete fresh scenario proofs and 23 partial rows; these results do not reconstruct historical RED/GREEN/REFACTOR cycles.
+
+The ticket permits a clickable sign-in link as an alternative to a native MCP Apps panel. Both hosts exercised that fallback; native graphical panel rendering remains unobserved, rather than a standalone acceptance blocker.
+
+The user explicitly approved changing the unfinished-review scenario assertion from `running` to `pending`. The captured installed-host status is `pending` with `independent: false`, and the corrected feature retains the independence assertion. The feature is manual: this comparison is captured actor evidence, not an automated Cucumber scenario pass. No #4200 budget behavior or assertion was changed.
+
+The focused existing pending-job regression was requested through the canonical package wrapper, but no test started: another checkout held the shared test lock throughout its 60-second acquisition window (exit 75). The lock was left intact. The scenario/captured-response comparison and `git diff --check` passed.
