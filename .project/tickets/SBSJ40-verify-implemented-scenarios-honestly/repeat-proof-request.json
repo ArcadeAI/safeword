@@ -1,0 +1,31 @@
+{
+  "ticketId": "CKWE2D",
+  "scenario": "A repeated generated target has one ordered exclusion",
+  "testFile": "packages/cli/tests/cli-protocol/review-generated-repetition.test.ts",
+  "testFullName": "generated review repetition reports one ordered exclusion when a generated target is repeated",
+  "implementationPath": "packages/cli/src/review/packet.ts",
+  "mutation": {
+    "before": "      if (seen.has(relative)) continue;",
+    "after": "",
+    "expectedFailure": "excludedTargets: undefined",
+    "assertionLocation": "review-generated-repetition.test.ts:115"
+  },
+  "supportFiles": [
+    "packages/cli/src/cli.ts",
+    "packages/cli/src/cli-protocol/review-handlers.ts",
+    "packages/cli/src/cli-protocol/result.ts",
+    "packages/cli/src/review/contract.ts",
+    "packages/cli/src/review/coordinator.ts",
+    "packages/cli/src/review/job.ts",
+    "packages/cli/src/review/runtime.ts",
+    "packages/cli/src/review/scope.ts",
+    "packages/cli/tests/helpers.ts",
+    "packages/cli/tests/review-fixtures.ts",
+    "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature",
+    "packages/cli/vitest.config.ts",
+    "packages/cli/tsconfig.json",
+    "packages/cli/package.json",
+    "package.json",
+    "bun.lock"
+  ]
+}
