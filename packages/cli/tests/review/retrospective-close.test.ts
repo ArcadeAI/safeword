@@ -16,7 +16,10 @@ import { RETROSPECTIVE_LEDGER } from '../../src/review/retrospective-history.js'
 
 const eligibilityId = '70d17bbe-4174-4f02-a45f-5e58e3990761';
 const proofId = '316b1708-61e4-486d-87ad-693b393a8e87';
+const renewedEligibilityId = '74af50e1-5c4a-4ba7-a198-27b7dc359e1d';
+const renewedProofId = '0c0ffab2-d661-47c7-91e1-e2ae35c5f402';
 const claimPath = '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/eligibility.json';
+const renewalPath = '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/renewals.json';
 const proofPath = '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/proof.json';
 const observationPath =
   '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/observation.json';
@@ -32,7 +35,12 @@ vi.mock('../../src/review/job.js', async importOriginal => {
   return {
     ...actual,
     approvedRetrospectiveReview: (_root: string, id: string) =>
-      ({ [eligibilityId]: [claimPath], [proofId]: [proofPath, observationPath] })[id],
+      ({
+        [eligibilityId]: [claimPath],
+        [proofId]: [proofPath, observationPath],
+        [renewedEligibilityId]: [claimPath],
+        [renewedProofId]: [proofPath, observationPath],
+      })[id],
   };
 });
 
@@ -166,6 +174,47 @@ describe('retrospective closing replay record', () => {
       'action_required',
     );
     expect(replay.calls).toBe(1);
+    expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
+      'action_required',
+    );
+  });
+
+  it('replays a reviewed renewal while retaining the original checked row', () => {
+    put(
+      root,
+      nodePath.join(nodePath.dirname(RETROSPECTIVE_LEDGER), 'ticket.md'),
+      `---\nid: CKWE2D\nretrospective_claim: ${claimPath}\nretrospective_renewals: ${renewalPath}\n---\n`,
+    );
+    put(
+      root,
+      renewalPath,
+      JSON.stringify({
+        schema_version: 1,
+        rows: [
+          {
+            scenario: 'A nested project uses its committed generated marker',
+            originalEligibilityId: eligibilityId,
+            originalProofId: proofId,
+            eligibilityId: renewedEligibilityId,
+            proofId: renewedProofId,
+          },
+        ],
+      }),
+    );
+    put(root, `.safeword/state/reviews/${renewedEligibilityId}.json`, '{}');
+    put(root, `.safeword/state/reviews/${renewedProofId}.json`, '{}');
+    commitFixture(root);
+    const renewal = attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER);
+    expect(renewal.state, renewal.findings[0]?.message).toBe('changed');
+    expect(replay.request).toMatchObject({
+      eligibilityId: renewedEligibilityId,
+      proofId: renewedProofId,
+    });
+    expect(readFileSync(nodePath.join(root, RETROSPECTIVE_LEDGER), 'utf8')).toContain(
+      `VERIFIED eligibility=${eligibilityId} proof=${proofId}`,
+    );
+    expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('healthy');
+    put(root, renewalPath, '{"schema_version":1,"rows":[]}');
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
     );

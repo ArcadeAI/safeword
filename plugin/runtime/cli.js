@@ -36363,6 +36363,15 @@ function ticketClaim(root) {
   }
   return ticket.retrospective_claim;
 }
+function renewalPath(root) {
+  const ticket = frontmatterOf(readFileSync34(contained(root, TICKET_PATH), "utf8"));
+  const path7 = ticket?.retrospective_renewals;
+  if (path7 === undefined)
+    return;
+  if (typeof path7 !== "string")
+    throw new Error("Retrospective renewals need one file path.");
+  return path7;
+}
 function claimsFromLedger(root) {
   const content = readFileSync34(contained(root, RETROSPECTIVE_LEDGER), "utf8");
   const claims = [];
@@ -36408,6 +36417,34 @@ function claimsFromLedger(root) {
     throw new Error("VERIFIED requires unique scenario headings.");
   return claims;
 }
+function claimsForClose(root) {
+  const claims = claimsFromLedger(root);
+  const path7 = renewalPath(root);
+  if (path7 === undefined)
+    return claims;
+  const manifest = JSON.parse(readFileSync34(contained(root, path7), "utf8"));
+  if (manifest.schema_version !== 1 || !Array.isArray(manifest.rows)) {
+    throw new Error("Retrospective renewal manifest is invalid.");
+  }
+  const remaining = new Set(claims.map((claim) => claim.scenario));
+  const replacements = new Map;
+  for (const row of manifest.rows) {
+    if (typeof row !== "object" || row === null) {
+      throw new Error("Retrospective renewal row is invalid.");
+    }
+    const entry = row;
+    const original = claims.find((claim) => claim.scenario === entry.scenario);
+    if (original === undefined || !remaining.delete(original.scenario) || original.eligibilityId !== entry.originalEligibilityId || original.proofId !== entry.originalProofId || typeof entry.eligibilityId !== "string" || typeof entry.proofId !== "string" || entry.eligibilityId === entry.proofId) {
+      throw new Error("Retrospective renewal does not match one checked row.");
+    }
+    replacements.set(original.scenario, {
+      ...original,
+      eligibilityId: entry.eligibilityId,
+      proofId: entry.proofId
+    });
+  }
+  return claims.map((claim) => replacements.get(claim.scenario) ?? claim);
+}
 function reviewedTargets(root, id, kind) {
   const targets = approvedRetrospectiveReview(root, id, kind);
   if (targets === undefined)
@@ -36442,6 +36479,9 @@ function claimInputPaths(root, claim) {
 }
 function inputPaths(root, claims) {
   const paths = new Set([TICKET_PATH, RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
+  const renewal = renewalPath(root);
+  if (renewal !== undefined)
+    paths.add(renewal);
   for (const claim of claims) {
     for (const path7 of claimInputPaths(root, claim))
       paths.add(path7);
@@ -36474,7 +36514,7 @@ function attestRetrospectiveClose(root, ticketId, ledger) {
     }
     const sourceCommit = currentProofCommit(root);
     const claimPath = ticketClaim(root);
-    const claims = claimsFromLedger(root);
+    const claims = claimsForClose(root);
     const paths = inputPaths(root, claims);
     const before = inputDigests(root, paths);
     for (const claim of claims) {
@@ -36524,7 +36564,7 @@ function retrospectiveCloseGate(root, ticketId, ledger) {
     if (record.schema_version !== 1 || record.ticket !== RETROSPECTIVE_TICKET || record.claimPath !== ticketClaim(root) || record.sourceCommit !== currentProofCommit(root) || !validRetrospectiveCloseTag(root, JSON.stringify(unsigned(record)), record.integrity)) {
       throw new Error("Retrospective closing record is invalid.");
     }
-    const claims = claimsFromLedger(root);
+    const claims = claimsForClose(root);
     if (JSON.stringify(record.claims) !== JSON.stringify(claims)) {
       throw new Error("Retrospective ledger changed after closing proof.");
     }
