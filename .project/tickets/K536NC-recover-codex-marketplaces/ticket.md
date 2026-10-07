@@ -2,11 +2,11 @@
 id: K536NC
 slug: recover-codex-marketplaces
 type: task
-phase: verify
+phase: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/5430
-status: in_progress
+status: done
 created: 2026-10-07T03:51:49.009Z
-last_modified: 2026-10-07T03:51:49.009Z
+last_modified: 2026-10-07T06:18:45Z
 ---
 
 # Recover Codex installation for developers with local marketplaces
@@ -52,6 +52,11 @@ Premortem: another config layer could supply the same name; require agreement wi
 - 2026-10-07T03:51:49.009Z Started: Created ticket K536NC
 - Local-live-host proof: Codex 0.153.4 registered the persistent main checkout into an isolated temporary CODEX_HOME using its native marketplace add command. The resulting TOML contained source_type = "local" and an absolute source; marketplace list reported that exact source. Before this change, source-CLI codex install failed with PLUGIN_MARKETPLACE_FAILED / not a Git marketplace. After this change it installed/enabled version 1.0.0, returned no errors, and correctly reported app restart required. No real-profile settings were changed.
 - Missing-own and broken-unrelated marketplace probes in the isolated profile retained the full native error and returned changed=false with repair guidance. Native marketplace add repaired the missing-own registration. The unrelated probe was removed only from the isolated profile.
-- Intake independently approved by Claude Opus (70b93cfb); code review fb381e02 found no blocking errors. Native proof above resolves its config-format/source-normalization evidence warning. The stricter absolute-path and source-type boundaries have regression coverage. Subprocess environment override consistency is inherited debt; production CLI execution uses one environment throughout.
+- Intake independently approved by Claude Opus (70b93cfb); early code review fb381e02 found no blocking errors, followed by complete-diff approval 61905c05. Native proof above validates Codex 0.153.4's declared absolute source and profile format; other normalization cases remain a host-contract coverage gap. The stricter absolute-path and source-type boundaries have regression coverage. Subprocess environment override consistency is inherited debt; production CLI execution uses one environment throughout.
 - Verification retry: targeted migration tests passed 96/96. Complete CLI rerun passed 10,473 tests with 14 skipped; acceptance passed 596 scenarios and 11,118 steps. Build/typecheck passed. The first full run had one intermittent review-deadline failure; baseline dependency audit findings and remaining standalone proof/smoke checks are recorded in verify.md. Only this session's blocked closing command was stopped when another chat began a new 63-case live run. Ticket remains in verify; completion is not claimed.
 - Final verification: after the other chat released its lock, standalone BDD proof passed 47/47 and fast smoke passed 2,143/2,143. All CI checks passed for the source commit. Draft PR https://github.com/ArcadeAI/safeword/pull/5572 links #5430 and records the remaining readiness state; no Ready promotion or merge is authorized.
+- Completion authorized by the user's subsequent "get green and admin merge" request. Verification exit independently approved by Claude Opus (04475ecb); its phase stamp succeeded. Fresh isolated native installation and matching tilde-source rejection checks passed. Implementation remains unchanged.
+
+## Follow-up debt
+
+- Reconcile the public custom-environment argument with the environment inherited by native Codex subprocesses before supporting callers that supply a different CODEX_HOME from process.env. This inherited programmatic-call inconsistency is outside this fix; the production CLI uses one environment throughout.

@@ -1,5 +1,7 @@
 # Verification evidence
 
+Audit passed: diff-scoped architecture check found no violations (64 modules, 97 dependencies). Changed tests have behavior assertions, isolated fixtures, parameterized rejection boundaries, and no arbitrary sleeps; independent review confirms each authorization guard can be caught if removed. Configured local documentation sources (README and website docs), architecture narrative, changed references, and namespace/principle checks show no contradictory impacted claims. No agent configuration or learning files changed. Whole-repository unused-code, clone, and dependency-freshness discovery were intentionally excluded from this diff audit. Verification passed with the previously disclosed baseline findings.
+
 ## Verify Checklist
 
 **Test Suite:** ✓ 96/96 targeted Codex migration tests pass; complete CLI rerun passes 10,473 tests with 14 skipped (609 files). Relay 198 pass/1 skip; collector 153 pass. The first full CLI run had one intermittent review-routing deadline failure, retained below.
@@ -15,7 +17,7 @@
 **Reconcile:** ✅ No pattern deviation — existing marketplace/profile observation and error contracts retained.
 **Experience:** ✅ No new friction — native local install requires zero new steps. Missing-source recovery still requires selecting a persistent source and explicitly repairing its registration.
 **Surface Evidence:** ✅ Source CLI, native Codex registration/discovery/installation, and generated plugin freshness have recorded proof.
-**Evidence limits:** ⚠️ Baseline dependency audit findings and one intermittent first-run review deadline failure are retained below. Standalone proof/smoke checks subsequently passed after the other chat's lock cleared. No other chat was interrupted and no ticket completion is claimed.
+**Evidence limits:** ⚠️ Baseline dependency audit findings and one intermittent first-run review deadline failure are retained below. Standalone proof/smoke checks subsequently passed after the other chat's lock cleared. No other chat was interrupted. Native path normalization and real multi-layer configuration remain host-contract coverage gaps; production authorization boundaries have simulated subprocess coverage.
 
 ## Direct CLI evidence
 
@@ -32,6 +34,14 @@
 - Fresh native discovery still reports safeword at /Users/alex/Projects/safeword.
 - Final standalone checks: BDD proof 47/47 passed in 1.11s; fast smoke 2,143/2,143 passed across 101 files in 30.82s. Commands ran sequentially after the shared lock cleared.
 - All GitHub CI checks passed for source commit 2ec90435950640ffb8240109334328172b810f5c. Native isolated-profile install was repeated at that head: installed/enabled 1.0.0, no errors, expected restart-required state, changed=false.
+- All GitHub CI checks also passed for c28ca22de1542afdc4ce7c189745ae686711970c, including both Node jobs and dependency audit.
+- The changed=false repeat observed an already installed plugin. A subsequent fresh temporary CODEX_HOME at the unchanged implementation head genuinely installed/enabled Safeword 1.0.0: changed=true, enable effect, no errors, expected app-restart state. Native marketplace registration used a persistent main checkout. Real profile settings were untouched.
+- Final simulated source checks passed 8/8, adding an exact matching tilde declaration/discovery pair; it is rejected without profile mutation or plugin installation. This directly observes the absolute-only boundary without adding a Vitest process.
+- Named newer-pin coverage: `preserves newer explicit marketplace pin %s without profile mutation` covers both v9.0.0 and 9.0.0, requires PLUGIN_NEWER_PIN_PRESERVED/changed=false, and forbids marketplace add/remove and plugin add.
+- Named source-agreement coverage: `preserves an unauthorized local profile declaration: %s` tests a declared /tmp/safeword-other against discovered /tmp/safeword; `fails closed for a configured non-Git marketplace with the same name` rejects a discovered local source absent from the user-global declaration. These simulate cross-layer disagreement/absence; they do not claim native multi-layer integration coverage.
+- Review responses: inherited custom-environment/subprocess inconsistency is tracked as follow-up debt in this ticket; no production CLI call uses different profiles in one execution. Work-log timestamps are UTC and legitimately fall on October 7 while local PDT remains October 6.
+- Exact implementation head for the fresh-profile install above: c28ca22de1542afdc4ce7c189745ae686711970c. Later changes only clarify evidence and mark the authorized ticket completion.
+- Named discovery-error regression: `explains recovery when global marketplace discovery fails` requires the native fixture error text to remain present. Exact full-error retention, including the failing registration name/path, was observed in the real missing-own and broken-unrelated native probes; it is not claimed as a full verbatim automated host assertion.
 
 ## Remaining verification and baseline findings
 
