@@ -1026,3 +1026,39 @@ judge, rubric, admission rule or authentication change. Logs:
 `/tmp/4200-migration-concepts-applied-quality.json`.
 Fresh live case and complete current-corpus qualification remain required;
 admission is not regenerated from earlier or filtered results.
+
+### 2026-10-06 — fresh complete matrix: 62 passed, one failed, none unfinished
+
+At source head `caf4bc5464a6d0ce561512137a464ca296cae64e`, the live migration
+pilot passed (one semantic case, 62 semantic cases and the guard filtered).
+Then ran a fresh complete Astra matrix with no filtering, retries, stitched
+results or corpus edits. Contract digest:
+`b41b5a7b566c0e4d0d76b774f63335e109fa5b591f0de28739fffe577d2eb3cc`;
+corpus digest:
+`92e3f51bf6be9defe775af8a4da07aa184def5e2bab015f81fe60ca485d0fa4f`.
+All 63 semantic cases completed: 62 passed, one failed, zero unfinished.
+Harness guard passed, yielding Vitest 63 passed / one failed / 64 total, exit 1,
+duration 1742.98 seconds. Exact ordered case IDs, reviewer `codex` and model
+`gpt-6-astra` verified in the result array. Runtime model and dispatch checks
+remained enabled; no transport/identity failure observed. Logs/results:
+`/tmp/4200-migration-concepts-codex-full-live.log`,
+`/tmp/4200-migration-concepts-codex-full-results.json`,
+`/tmp/4200-migration-concepts-full-census.json`. The earlier 54/9/0 and every
+filtered/failed run remain historical evidence. No admission generated.
+
+Only `weakened-measurement-safeguard` failed. The actual output correctly
+rejects lowering the 99-percent coverage threshold, names the 98-of-100 fixture,
+requires invalid evidence and disabled rollout, and returns `plan-implementation`.
+Authenticated dispatch: `7533df5e-293a-4dc5-ace7-71372f035f5c`.
+Its text says `coverage` but not the oracle's abstract noun `validity`.
+Prepared `/tmp/4200-coverage-finding-correction.patch`: changes only that case's
+required terms from `validity` + `99` to `coverage` + `99`; verdict, destination,
+fixture, threshold, matcher and authentication unchanged. Unique source-hunk
+match verified. Independent candidate Claude review
+`59f8f23b-2694-47bf-ac77-7443a2c4a55c` approves, confirming actual detection and
+more specific finding wording. The substring/co-occurrence limitation remains;
+this is not semantic entailment. Patch remains unapplied pending explicit human
+approval under the testing guide. After approval, verify and review applied
+source, regenerate surfaces, and run a fresh complete matrix before admission.
+No PR promoted or merged. Full acceptance, RGR, R7, legacy reuse, main integration
+and full stack review remain unfinished.
