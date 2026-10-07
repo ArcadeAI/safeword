@@ -1,6 +1,6 @@
 # Verification — EBCDJA
 
-Release candidate source head: `73d0b0f59`. CI for that source: [run 37680551488](https://github.com/ArcadeAI/safeword/actions/runs/37680551488), successful on Node 22.23.2 and 24.18.1. Independent review `0e733d02-6cf6-46fb-9273-758af1545ede` approved the authored guard, tests, and version manifests with no blocking findings; `bun.lock` exceeded the reviewer's target limit. A closure-only commit will follow this source head and requires its own green CI before Ready. The Ready-only advisory review must pass before merge and publication.
+Release candidate source head: `73d0b0f59`. CI for that source: [run 37680551488](https://github.com/ArcadeAI/safeword/actions/runs/37680551488), successful on Node 22.23.2 and 24.18.1. Independent review `0e733d02-6cf6-46fb-9273-758af1545ede` approved the authored guard, tests, and version manifests with no blocking findings; `bun.lock` exceeded the reviewer's target limit. This record is committed with ticket closure, so it cannot name its own commit. Before merge, [PR #5612's required checks](https://github.com/ArcadeAI/safeword/pull/5612/checks) must be green on the PR's current head, and its Ready-only advisory receipt must review that same head.
 
 ## Verify Checklist
 
