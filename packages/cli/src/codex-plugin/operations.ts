@@ -159,6 +159,7 @@ function runCodexMarketplace(arguments_: string[], failureContext: string): stri
 interface ConfiguredMarketplace {
   ref?: string;
   source?: string;
+  source_type?: string;
 }
 
 function configuredSafewordMarketplace(
@@ -298,6 +299,40 @@ function refreshOfficialGitMarketplace(
   return false;
 }
 
+function isConfiguredLocalMarketplace(
+  source: string | undefined,
+  environment: NodeJS.ProcessEnv,
+): boolean {
+  const configured = configuredSafewordMarketplace(environment);
+  // Discovery validates the manifest; only a user's explicit absolute source
+  // may authorize installation. Relative sources can resolve in another layer.
+  return (
+    configured?.source_type === 'local' &&
+    typeof source === 'string' &&
+    nodePath.isAbsolute(source) &&
+    configured.source === source
+  );
+}
+
+function refreshConfiguredMarketplace(
+  marketplace: CodexMarketplaceList['marketplaces'][number],
+  environment: NodeJS.ProcessEnv,
+): boolean {
+  if (marketplace.marketplaceSource?.sourceType === 'git') {
+    return refreshOfficialGitMarketplace(marketplace, environment);
+  }
+  if (
+    marketplace.marketplaceSource?.sourceType === 'local' &&
+    isConfiguredLocalMarketplace(marketplace.marketplaceSource.source, environment)
+  ) {
+    return false;
+  }
+  throw new CodexMigrationError(
+    'PLUGIN_MARKETPLACE_FAILED',
+    'The configured Codex marketplace named safeword is not a Git marketplace or an explicitly configured absolute local source in the user profile. Safeword left it unchanged. For local development, register a persistent checkout with `codex plugin marketplace add <persistent-checkout> --json`. If Codex reports a conflicting registration, remove only safeword with `codex plugin marketplace remove safeword --json`, then add the persistent checkout again. To switch to official releases, remove safeword, then retry Safeword installation.',
+  );
+}
+
 function refreshOrAddCodexMarketplace(
   marketplaceSource: string | undefined,
   environment: NodeJS.ProcessEnv = process.env,
@@ -305,19 +340,13 @@ function refreshOrAddCodexMarketplace(
   if (marketplaceSource === undefined) {
     const output = runCodexMarketplace(
       ['list', '--json'],
-      'Could not inspect configured Codex marketplaces',
+      'Could not inspect configured Codex marketplaces. Codex loads all configured marketplaces together, so even an unrelated broken source can block Safeword. Inspect the failing registration reported below; restore its manifest or use `codex plugin marketplace add <persistent-source> --json` to repoint it. Remove a registration with `codex plugin marketplace remove <name> --json` only if you no longer need it',
     );
     const marketplace = marketplaceListFromOutput(output).marketplaces.find(
       candidate => candidate.name === 'safeword',
     );
-    if (marketplace?.marketplaceSource?.sourceType === 'git') {
-      return refreshOfficialGitMarketplace(marketplace, environment);
-    }
     if (marketplace !== undefined) {
-      throw new CodexMigrationError(
-        'PLUGIN_MARKETPLACE_FAILED',
-        'The configured Codex marketplace named safeword is not a Git marketplace. Safeword left it unchanged because replacing an unknown marketplace type is not safely reversible.',
-      );
+      return refreshConfiguredMarketplace(marketplace, environment);
     }
   }
 
@@ -394,7 +423,7 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
     throw new CodexMigrationError(
       'PLUGIN_ENABLEMENT_FAILED',
-      `Codex reported Safeword plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword install --agents=codex to update it; project hooks were left unchanged.`,
+      `Codex reported Safeword plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. If using a local marketplace, update that checkout to Safeword ${SAFEWORD_SCHEMA.version} first. Then re-run safeword install --agents=codex; project hooks were left unchanged.`,
       { profileChanged: options.installationCompleted === true },
     );
   }

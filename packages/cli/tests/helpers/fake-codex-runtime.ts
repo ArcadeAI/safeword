@@ -74,7 +74,9 @@ case "$*" in
     elif [ "$(printenv SAFEWORD_UNSUPPORTED_MARKETPLACE_LIST 2>/dev/null || true)" = "1" ]; then
       echo '{"marketplaces":[null]}'
     elif [ "$(printenv SAFEWORD_MARKETPLACE_SOURCE_TYPE 2>/dev/null || true)" = "local" ]; then
-      echo '{"marketplaces":[{"name":"safeword","marketplaceSource":{"sourceType":"local","source":"/tmp/safeword"}}]}'
+      local_source="$(printenv SAFEWORD_MARKETPLACE_LOCAL_SOURCE 2>/dev/null || true)"
+      if [ -z "$local_source" ]; then local_source='/tmp/safeword'; fi
+      printf '{"marketplaces":[{"name":"safeword","marketplaceSource":{"sourceType":"local","source":"%s"}}]}\n' "$local_source"
     elif [ "$(printenv SAFEWORD_MISMATCHED_GIT_MARKETPLACE 2>/dev/null || true)" = "1" ]; then
       echo '{"marketplaces":[{"name":"safeword","marketplaceSource":{"sourceType":"git","source":"https://example.com/untrusted/safeword.git"}}]}'
     elif [ "$(printenv SAFEWORD_SSH_GIT_MARKETPLACE 2>/dev/null || true)" = "1" ]; then
