@@ -137,10 +137,18 @@ describe('generated review targets', () => {
 
     expect(result.exitCode, result.stdout).toBe(0);
     const envelope = JSON.parse(result.stdout) as {
-      data: { excluded_targets: string[]; review_targets: string[] };
+      data: {
+        excluded_targets: string[];
+        review_targets: string[];
+        review_excluded_targets: string[];
+      };
     };
     expect(envelope.data.excluded_targets).toEqual(['generated/first.js', 'generated/second.js']);
     expect(envelope.data.review_targets).toEqual(['authored.md']);
+    expect(envelope.data.review_excluded_targets).toEqual([
+      'generated/first.js',
+      'generated/second.js',
+    ]);
     const prompt = readFileSync(promptLog, 'utf8');
     expect(prompt).toContain('review this authored change');
     expect(prompt).not.toContain('generated/first.js');
