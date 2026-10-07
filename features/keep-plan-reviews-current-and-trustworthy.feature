@@ -382,7 +382,13 @@ Feature: Keep plan reviews current and trustworthy
       Examples:
         | dependency_direction | invalidation_result |
         | accepted Implementation Plan changes invalidate both plan reviews | both plan reviews are invalidated |
-        | accepted Implementation Plan changes invalidate only their own review | only the Implementation Plan review is invalidated and the Execution Plan review remains current |
+
+    @surface.safeword-cli @rejection
+    Scenario: An unsupported upstream invalidation direction blocks reconciliation
+      Given the canonical Execution Planning contract declares that accepted Implementation Plan changes invalidate only their own review
+      When the Safeword CLI reconciles the installed phase contracts through real project configuration
+      Then reconciliation is blocked with invalid_invalidation_contract, the Execution phase, and the canonical contract path named
+      And the installed phase-contract bytes remain unchanged
 
     @surface.safeword-cli @rejection
     Scenario: An undecidable Execution invalidation contract blocks reconciliation

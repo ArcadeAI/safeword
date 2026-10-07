@@ -206,13 +206,13 @@ reopening its authority.
    admission; fresh coverage review restores it. Cosmetic inventory formatting
    and unreferenced persona edits retain approval. No fourth planning contract
    or new inventory authority is introduced.
-   Exercise both R9 canonical dependency declarations with the same mechanics.
-   Generate/reconcile the canonical contract variant, then review both plans.
+   Exercise the canonical R9 dependency direction with the same mechanics.
+   Generate/reconcile the canonical contract, then review both plans.
    A semantic upstream Implementation change stales both reviews under
-   `both_plan_reviews`; under `implementation_review_only`, only the
-   Implementation review stales. The upstream role is still required in the
-   packet and admission validation in either mode; missing or invalid input
-   blocks even where its content is snapshot-only. Assert that changing the
+   `both_plan_reviews`. The upstream role remains required and currency-bearing
+   in the packet and admission validation; missing or invalid input blocks.
+   Reconciliation rejects `implementation_review_only` before changing installed
+   contract bytes. Assert that changing the
    declaration itself stales old receipts, and malformed/unknown/missing modes
    fail closed. Do not use a mocked status or a separate per-mode code path.
 3. RED: Change corrected Product/Implementation plan bytes, every stable
@@ -396,7 +396,7 @@ reopening its authority.
   versioned fixed-rubric eval runs three deterministic repetitions and requires
   at least two agreeing correct verdicts per fixture; below threshold is
   inconclusive, never passing. The complete feature runs through Cucumber.
-- **Completion signal:** All 55 scenarios are GREEN/REFACTOR, the pinned eval
+- **Completion signal:** All accepted scenarios are GREEN/REFACTOR, the pinned eval
   passes 2-of-3, customer docs explain the bounded planning approvals and host
   matrix, and the contributor checklist has current evidence.
 - **Relies on an unmerged successor:** no
@@ -541,7 +541,7 @@ remains required for structure, wiring, receipt identity, and corrected bytes.
 | outcome-scope          | outcome and scope                         | Deliver R1–R16 without redefining sibling-owned plan content, migration, recovery copy, or release authority                                         | contributor | feature-proof        | open           | missing        |          |                                                                                |
 | resolved-decisions     | resolved decisions                        | Preserve all eight recorded decisions and exact/fallback/capability/user-authority boundaries                                                        | contributor | feature-proof        | open           | missing        |          |                                                                                |
 | pr-decomposition       | dependency and pull-request decomposition | Land five ordered independently reviewable slices, each safe without a successor                                                                     | contributor | phase-approval-proof | open           | missing        |          |                                                                                |
-| testing                | testing                                   | Complete deterministic boundary proof, all 55 scenario ledgers, the capability-catalogue eval, and the pinned 2-of-3 semantic contract eval          | contributor | planning-evals-proof | open           | missing        |          |                                                                                |
+| testing                | testing                                   | Complete deterministic boundary proof, all accepted scenario ledgers, the capability-catalogue eval, and the pinned 2-of-3 semantic contract eval    | contributor | planning-evals-proof | open           | missing        |          |                                                                                |
 | data-compatibility     | data and compatibility                    | Add versioned identity/evidence to existing job results and user dispositions to tickets; preserve history with no new store, migration, or backfill | contributor | identity-proof       | open           | missing        |          |                                                                                |
 | monitoring             | monitoring and failure signals            | Expose typed context, copy, route, identity, and origin failures with one recovery action                                                            | contributor | fallback-proof       | open           | missing        |          |                                                                                |
 | security-privacy       | security and privacy                      | Preserve credential/privacy boundaries and deny execution or instruction authority to evidence                                                       | contributor | evidence-proof       | open           | missing        |          |                                                                                |
