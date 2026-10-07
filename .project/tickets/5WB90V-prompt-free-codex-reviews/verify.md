@@ -95,3 +95,19 @@ The ticket permits a clickable sign-in link as an alternative to a native MCP Ap
 The user explicitly approved changing the unfinished-review scenario assertion from `running` to `pending`. The captured installed-host status is `pending` with `independent: false`, and the corrected feature retains the independence assertion. The feature is manual: this comparison is captured actor evidence, not an automated Cucumber scenario pass. No #4200 budget behavior or assertion was changed.
 
 The focused existing pending-job regression was requested through the canonical package wrapper, but no test started: another checkout held the shared test lock throughout its 60-second acquisition window (exit 75). The lock was left intact. The scenario/captured-response comparison and `git diff --check` passed.
+
+## Root cause: denied browser opener loses the sign-in fallback (2026-10-07)
+
+An installed Claude host running under a child-only macOS policy denying `/usr/bin/open` returned `EPERM: operation not permitted, posix_spawn '/usr/bin/open'` from `start_reviewer_login`, rather than its captured sign-in URL/code. The actual vendor login produced its URL and reached the browser-launch step. A direct Bun 1.3.14 reproduction of `requestBrowserOpen` under the same policy rejected with the same error.
+
+The helper handles asynchronous child `error` events but not an immediate exception from `spawn`. The rejected promise propagates into the MCP login handler, which cancels the login and returns only the error. This explains the missing clickable fallback.
+
+Ruled out: vendor authentication or URL parsing failure (the error names the subsequent fixed OS opener); missing native panel alone (the failure reproduces directly in the opener helper, without a host or view); reviewer permission denial (the host successfully dispatched its granted login tool before the opener failed). The required behavior is to report that the browser opener did not start, preserving the already validated sign-in data for the view/text fallback. Node's documented child error events remain relevant alongside immediate exceptions: https://nodejs.org/api/child_process.html#event-error.
+
+## Browser fallback correction and current verification (2026-10-07)
+
+A new regression failed before implementation and passed after catching immediate opener exceptions. Both actual installed hosts then retained the vendor sign-in link when a child-only macOS policy denied the fixed OS opener. The independent reviewer approved the correction (receipt `56d68bcf-88eb-40d2-a5cb-e56029291331`). Generated surfaces, changed-file lint/format checks, and root typecheck pass.
+
+Focused verification passed 101 existing tests and 15 browser/reviewer tests. CLI acceptance passed 596 scenarios and 11,118 steps. The full CLI suite passed 10,520 tests, skipped 14, and failed two stop integration tests; targeted retries exposed Bun transient dependency cache-link errors. With the documented `SAFEWORD_CLI` override pointing to this candidate source, both affected integration files passed all 39 tests. This is a targeted environment-controlled retry, not a claim that a fresh full-suite run passed.
+
+The current scenario evidence remains partial: native graphical panel rendering and several broader actor boundaries are unobserved; historical test-first cycles were not reconstructed. The degraded verdict example correction awaits explicit test-edit approval. The timeout receipt is blocked with independent completion false; its successful status-lookup envelope does not mean the review succeeded. PR #5143 remains Draft, and the unrelated #4200 budget discrepancy remains separate.

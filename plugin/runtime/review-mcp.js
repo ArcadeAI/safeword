@@ -2129,7 +2129,13 @@ async function requestBrowserOpen(url) {
   const opener = browserOpenerCommand(url);
   if (opener === void 0) return false;
   return new Promise((resolve) => {
-    const child = spawn2(opener.command, opener.args, opener.options);
+    let child;
+    try {
+      child = spawn2(opener.command, opener.args, opener.options);
+    } catch {
+      resolve(false);
+      return;
+    }
     child.once("spawn", () => {
       child.unref();
       resolve(true);

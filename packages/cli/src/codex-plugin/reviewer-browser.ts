@@ -29,7 +29,13 @@ export async function requestBrowserOpen(url: string): Promise<boolean> {
   const opener = browserOpenerCommand(url);
   if (opener === undefined) return false;
   return new Promise(resolve => {
-    const child = spawn(opener.command, opener.args, opener.options);
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn(opener.command, opener.args, opener.options);
+    } catch {
+      resolve(false);
+      return;
+    }
     child.once('spawn', () => {
       child.unref();
       resolve(true);
