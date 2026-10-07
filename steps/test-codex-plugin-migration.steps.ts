@@ -1797,7 +1797,10 @@ Then(
     const commands = this.codexPluginHookCommands ?? [];
     assert.ok(commands.length > 0, 'no hook commands were found');
     for (const command of commands) {
-      assert.match(command, /^bun "\$\{PLUGIN_ROOT\}\/runtime\/cli\.js"\s+/u);
+      assert.match(
+        command,
+        /^bun --no-env-file --cwd "\$\{PLUGIN_ROOT\}" "\$\{PLUGIN_ROOT\}\/runtime\/cli\.js"\s+/u,
+      );
       assert.match(command, /\bhook\s+codex\b/u);
     }
   },
@@ -2071,7 +2074,10 @@ Then(
 
     assert.ok(commands.length > 0, 'package hook manifest did not contain commands');
     for (const command of commands) {
-      assert.match(command, /^bun "\$\{PLUGIN_ROOT\}\/runtime\/cli\.js"\s+hook\s+codex\b/u);
+      assert.match(
+        command,
+        /^bun --no-env-file --cwd "\$\{PLUGIN_ROOT\}" "\$\{PLUGIN_ROOT\}\/runtime\/cli\.js"\s+hook\s+codex\b/u,
+      );
     }
     assert.ok(files.includes('package/codex-plugin/runtime/cli.js'));
     assert.ok(files.includes('package/codex-plugin/package.json'));
