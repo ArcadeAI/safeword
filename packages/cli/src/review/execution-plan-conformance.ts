@@ -1525,10 +1525,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
           'the accepted schema and compatible reader',
         ],
       ]),
-      [
-        'migration',
-        ['completion signal', 'completion proof', 'completion condition', 'slice completion'],
-      ],
+      ['migration', 'proof', 'completion'],
     ),
     implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN,
   },

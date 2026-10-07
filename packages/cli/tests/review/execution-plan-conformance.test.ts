@@ -150,6 +150,31 @@ describe('Execution Plan semantic conformance admission', () => {
     ).toBe(false);
   });
 
+  it('requires migration proof and completion without prescribing a phrase', () => {
+    const terms = ['migration', 'proof', 'completion'] as const;
+    expect(
+      matchesExecutionPlanFindingTerms('Migration proof is required for slice completion.', terms),
+    ).toBe(true);
+    expect(
+      matchesExecutionPlanFindingTerms(
+        'Migration lacks implementation and proof; require all seven proofs to pass for completion.',
+        terms,
+      ),
+    ).toBe(true);
+    expect(
+      matchesExecutionPlanFindingTerms(
+        'Migration dependency order must hold before slice completion.',
+        terms,
+      ),
+    ).toBe(false);
+    expect(matchesExecutionPlanFindingTerms('Migration proof command is missing.', terms)).toBe(
+      false,
+    );
+    expect(matchesExecutionPlanFindingTerms('Proof is required for completion.', terms)).toBe(
+      false,
+    );
+  });
+
   it('keeps two independent purposes as a named denial case', () => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
       candidate => candidate.id === 'two-independent-purposes',
@@ -319,13 +344,7 @@ describe('Execution Plan semantic conformance admission', () => {
   });
 
   it.each([
-    [
-      'migration-missing-completion-signal',
-      [
-        'migration',
-        ['completion signal', 'completion proof', 'completion condition', 'slice completion'],
-      ],
-    ],
+    ['migration-missing-completion-signal', ['migration', 'proof', 'completion']],
     ['migration-missing-dependency-order', ['migration', 'dependency']],
   ] as const)('keeps %s as a partial obligation-mapping denial', (caseId, findingTerms) => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);

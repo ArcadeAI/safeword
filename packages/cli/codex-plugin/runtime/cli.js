@@ -36653,10 +36653,7 @@ ${reviewOutputSchema("plan-execution")}
           "the prerequisite schema and compatible reader",
           "the accepted schema and compatible reader"
         ]
-      ]), [
-        "migration",
-        ["completion signal", "completion proof", "completion condition", "slice completion"]
-      ]),
+      ]), ["migration", "proof", "completion"]),
       implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN
     },
     {

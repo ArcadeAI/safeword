@@ -1009,3 +1009,20 @@ Read-only merge preview found conflicts in review-job logic/tests, read-receipt
 handling, CLI reference, lockfile and generated surfaces; no checkout merge or
 stack rewrite occurred. Full acceptance, RGR, deferred R7, legacy reuse and
 whole-stack review remain unfinished.
+
+### 2026-10-06 — migration concept check approved and applied
+
+Human approved `/tmp/4200-migration-completion-concepts.patch`; applied the
+one-case finding-term correction and its unit tests. Targeted suite: 64 passed,
+zero failed; typecheck passed; all five generated surfaces regenerated and
+verified after the foreign test-lock owner completed naturally. Independent
+applied-source Claude review `79e51e02-5e63-4d64-8405-1b57ede23f55` approved.
+Preserve warnings: proof-free but otherwise correct completion wording can fail
+this check; substring co-occurrence does not prove semantic entailment. No new
+judge, rubric, admission rule or authentication change. Logs:
+`/tmp/4200-migration-concepts-static.log`,
+`/tmp/4200-migration-concepts-typecheck.log`,
+`/tmp/4200-migration-concepts-generated.log`,
+`/tmp/4200-migration-concepts-applied-quality.json`.
+Fresh live case and complete current-corpus qualification remain required;
+admission is not regenerated from earlier or filtered results.
