@@ -25,6 +25,7 @@ import {
   setupOrThrow,
   writeTestFile,
 } from '../helpers.js';
+import { runDoneGate } from './done-gate-harness.js';
 
 const fixture: { projectDirectory: string; setupCommit: string } = {
   projectDirectory: '',
@@ -191,33 +192,6 @@ function writeTicketThroughPostToolUse(
   runPostToolUse(directory, sessionId, 'Write', { file_path: ticketFile, content });
 }
 
-function runStopHook(directory: string, sessionId: string): { decision?: string; reason: string } {
-  const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
-  writeFileSync(
-    transcriptPath,
-    `${JSON.stringify({
-      type: 'assistant',
-      message: {
-        role: 'assistant',
-        content: [
-          { type: 'text', text: 'Closed the ticket.' },
-          { type: 'tool_use', name: 'Edit' },
-        ],
-      },
-    })}\n`,
-  );
-  const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
-    input: JSON.stringify({ transcript_path: transcriptPath, session_id: sessionId }),
-    cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-    encoding: 'utf8',
-  });
-  const stdout = result.stdout.trim();
-  if (stdout === '') return { reason: '' };
-  const parsed = JSON.parse(stdout) as { decision?: string; reason?: string };
-  return { decision: parsed.decision, reason: parsed.reason ?? '' };
-}
-
 function recentFailurePatterns(directory: string, sessionId: string): string[] {
   const state = JSON.parse(
     readFileSync(nodePath.join(directory, '.project', `quality-state-${sessionId}.json`), 'utf8'),
@@ -244,7 +218,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     const baseline = testRunCount(directory);
 
     closeCommittedTicket('5546', 'session-block');
-    const result = runStopHook(directory, 'session-block');
+    const result = runDoneGate(directory, 'session-block');
 
     expect(result.decision).toBe('block');
     expect(result.reason).toContain('Tests failed');
@@ -258,12 +232,12 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     setTestExitCode(directory, 0);
     const baseline = testRunCount(directory);
 
-    const allowed = runStopHook(directory, 'session-pass');
+    const allowed = runDoneGate(directory, 'session-pass');
     expect(allowed.decision).toBeUndefined();
     expect(testRunCount(directory)).toBe(baseline + 1);
 
     setTestExitCode(directory, 1);
-    runStopHook(directory, 'session-pass');
+    runDoneGate(directory, 'session-pass');
     expect(testRunCount(directory)).toBe(baseline + 1);
   });
 
@@ -271,7 +245,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     const directory = fixture.projectDirectory;
     const ticketFile = closeCommittedTicket('5548', 'session-commit');
     setTestExitCode(directory, 0);
-    runStopHook(directory, 'session-commit');
+    runDoneGate(directory, 'session-commit');
     git(directory, 'add -A');
     git(directory, 'commit -q --no-verify -m "close 5548"');
     setTestExitCode(directory, 1);
@@ -283,7 +257,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       `${ticketMarkdown('5548', 'done', 'done')}\nTypo fix.\n`,
     );
-    runStopHook(directory, 'session-commit');
+    runDoneGate(directory, 'session-commit');
 
     expect(testRunCount(directory)).toBe(baseline);
   });
@@ -300,7 +274,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       `${ticketMarkdown('5549', 'done', 'implement')}\nTypo fix.\n`,
     );
-    runStopHook(directory, 'session-archived');
+    runDoneGate(directory, 'session-archived');
 
     expect(testRunCount(directory)).toBe(baseline);
   });
@@ -317,7 +291,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       ticketMarkdown('5550', 'in_progress', 'implement'),
     );
-    runStopHook(directory, 'session-reopen');
+    runDoneGate(directory, 'session-reopen');
 
     expect(testRunCount(directory)).toBe(baseline);
   });
@@ -340,7 +314,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       ticketMarkdown('5551', 'done', 'done'),
     );
-    const result = runStopHook(directory, 'session-new');
+    const result = runDoneGate(directory, 'session-new');
 
     expect(result.decision).toBe('block');
     expect(result.reason).toContain('Tests failed');
@@ -351,7 +325,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     const directory = fixture.projectDirectory;
     const ticketFile = closeCommittedTicket('5552', 'session-reedit');
     setTestExitCode(directory, 0);
-    runStopHook(directory, 'session-reedit');
+    runDoneGate(directory, 'session-reedit');
     setTestExitCode(directory, 1);
     const baseline = testRunCount(directory);
 
@@ -361,7 +335,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       `${ticketMarkdown('5552', 'done', 'done')}\nTypo fix.\n`,
     );
-    runStopHook(directory, 'session-reedit');
+    runDoneGate(directory, 'session-reedit');
 
     expect(testRunCount(directory)).toBe(baseline);
   });
@@ -374,12 +348,12 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     setTestExitCode(directory, 0);
     const baseline = testRunCount(directory);
 
-    const first = runStopHook(directory, 'session-two');
+    const first = runDoneGate(directory, 'session-two');
     expect(testRunCount(directory)).toBe(baseline + 1);
     expect(first.decision).toBe('block');
     expect(first.reason).toContain('5554');
 
-    const second = runStopHook(directory, 'session-two');
+    const second = runDoneGate(directory, 'session-two');
     expect(testRunCount(directory)).toBe(baseline + 2);
     expect(second.decision).toBe('block');
     expect(second.reason).toContain('verify.md');
@@ -403,7 +377,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       ticketMarkdown('5555', 'done', 'done'),
     );
-    const result = runStopHook(directory, 'session-reclose');
+    const result = runDoneGate(directory, 'session-reclose');
 
     expect(result.decision).toBe('block');
     expect(result.reason).toContain('Tests failed');
@@ -422,7 +396,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       ticketMarkdown('5558', 'done', 'done'),
     );
-    const result = runStopHook(directory, 'session-resumed');
+    const result = runDoneGate(directory, 'session-resumed');
 
     expect(result.decision).toBe('block');
     expect(result.reason).toContain('Tests failed');
@@ -442,7 +416,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       'status: in_progress',
       'status: done',
     );
-    const result = runStopHook(directory, 'session-partial');
+    const result = runDoneGate(directory, 'session-partial');
 
     expect(result.decision).toBe('block');
     expect(result.reason).toContain('Tests failed');
@@ -460,7 +434,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       'phase: done',
     );
     setTestExitCode(directory, 0);
-    runStopHook(directory, 'session-stop-completes');
+    runDoneGate(directory, 'session-stop-completes');
     expect(readFileSync(ticketFile, 'utf8')).toContain('status: done');
     setTestExitCode(directory, 1);
     const baseline = testRunCount(directory);
@@ -472,7 +446,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       '# Task 5560',
       '# Task 5560 (typo fixed)',
     );
-    runStopHook(directory, 'session-stop-completes');
+    runDoneGate(directory, 'session-stop-completes');
 
     expect(testRunCount(directory)).toBe(baseline);
   });
@@ -490,7 +464,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       'in_progress',
       'done',
     );
-    const result = runStopHook(directory, 'session-ambiguous');
+    const result = runDoneGate(directory, 'session-ambiguous');
 
     expect(result.decision).toBe('block');
     expect(result.reason).toContain('Tests failed');
@@ -501,7 +475,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     const directory = fixture.projectDirectory;
     const ticketFile = closeCommittedTicket('5562', 'session-shell-reopen');
     setTestExitCode(directory, 0);
-    runStopHook(directory, 'session-shell-reopen');
+    runDoneGate(directory, 'session-shell-reopen');
     git(directory, 'add -A');
     git(directory, 'commit -q --no-verify -m "close 5562"');
     writeFileSync(ticketFile, ticketMarkdown('5562', 'in_progress', 'implement'));
@@ -515,7 +489,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       'status: in_progress',
       'status: done',
     );
-    const result = runStopHook(directory, 'session-shell-reopen');
+    const result = runDoneGate(directory, 'session-shell-reopen');
 
     expect(result.decision).toBe('block');
     expect(result.reason).toContain('Tests failed');
@@ -526,7 +500,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     const directory = fixture.projectDirectory;
     const ticketFile = closeCommittedTicket('5563', 'session-stale');
     setTestExitCode(directory, 0);
-    runStopHook(directory, 'session-stale');
+    runDoneGate(directory, 'session-stale');
     writeFileSync(ticketFile, ticketMarkdown('5563', 'in_progress', 'done'));
     setTestExitCode(directory, 1);
     const baseline = testRunCount(directory);
@@ -538,7 +512,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       'in_progress',
       'done',
     );
-    const result = runStopHook(directory, 'session-stale');
+    const result = runDoneGate(directory, 'session-stale');
 
     expect(result.decision).toBe('block');
     expect(result.reason).toContain('Tests failed');
@@ -557,7 +531,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       ticketMarkdown('5564', 'done', 'done'),
     );
-    const result = runStopHook(directory, 'session-write');
+    const result = runDoneGate(directory, 'session-write');
 
     expect(result.decision).toBe('block');
     expect(result.reason).toContain('Tests failed');
@@ -568,7 +542,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     const directory = fixture.projectDirectory;
     const ticketFile = closeCommittedTicket('5566', 'session-write-reopen');
     setTestExitCode(directory, 0);
-    runStopHook(directory, 'session-write-reopen');
+    runDoneGate(directory, 'session-write-reopen');
     writeFileSync(ticketFile, ticketMarkdown('5566', 'in_progress', 'implement'));
     setTestExitCode(directory, 1);
     const baseline = testRunCount(directory);
@@ -579,7 +553,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       ticketFile,
       ticketMarkdown('5566', 'done', 'done'),
     );
-    const result = runStopHook(directory, 'session-write-reopen');
+    const result = runDoneGate(directory, 'session-write-reopen');
 
     expect(result.decision).toBe('block');
     expect(result.reason).toContain('Tests failed');
@@ -596,7 +570,7 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
       { old_string: 'wont', new_string: 'don' },
       { old_string: 'fix', new_string: 'e' },
     ]);
-    const result = runStopHook(directory, 'session-multiedit');
+    const result = runDoneGate(directory, 'session-multiedit');
 
     expect(readFileSync(ticketFile, 'utf8')).toContain('status: done');
     expect(result.decision).toBe('block');
