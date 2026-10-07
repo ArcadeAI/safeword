@@ -244,7 +244,8 @@ Feature: Run independent Codex reviews after one narrow approval
         | not finished                | pending                        |
         | a worker failure            | failed                         |
         | a blocked coordinator result | blocked                        |
-        | a degraded reviewer result  | degraded                       |
+        | a degraded reviewer approval | approved                      |
+        | a degraded reviewer rejection | changes_requested            |
         | a review of changed sources | stale                          |
 
     @rejection
