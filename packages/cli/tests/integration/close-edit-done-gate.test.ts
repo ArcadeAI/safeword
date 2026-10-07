@@ -11,7 +11,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -72,8 +72,8 @@ function ticketMarkdown(ticketId: string, status: string, phase: string): string
   return `---\nid: ${ticketId}\ntype: task\nphase: ${phase}\nstatus: ${status}\nlast_modified: 2026-01-06T10:00:00Z\n---\n# Task ${ticketId}\n`;
 }
 
-/** A committed task ticket (no test-definitions.md) with valid verify.md. */
-function commitTaskTicket(directory: string, ticketId: string, status: string): string {
+/** A task ticket (no test-definitions.md) with valid verify.md, not committed. */
+function writeTaskTicket(directory: string, ticketId: string, status: string): string {
   const folder = `.project/tickets/${ticketId}`;
   writeTestFile(directory, `${folder}/ticket.md`, ticketMarkdown(ticketId, status, 'implement'));
   writeTestFile(
@@ -81,9 +81,14 @@ function commitTaskTicket(directory: string, ticketId: string, status: string): 
     `${folder}/verify.md`,
     '# Verify\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
   );
-  git(directory, `add "${folder}"`);
-  git(directory, `commit -q --no-verify -m "ticket ${ticketId}"`);
   return nodePath.join(directory, folder, 'ticket.md');
+}
+
+function commitTaskTicket(directory: string, ticketId: string, status: string): string {
+  const ticketFile = writeTaskTicket(directory, ticketId, status);
+  git(directory, `add "${nodePath.dirname(ticketFile)}"`);
+  git(directory, `commit -q --no-verify -m "ticket ${ticketId}"`);
+  return ticketFile;
 }
 
 /** Rewrite ticket.md on disk, then report the Edit to the real PostToolUse hook. */
@@ -94,13 +99,29 @@ function editTicketThroughPostToolUse(
   replacement: string,
 ): void {
   const before = readFileSync(ticketFile, 'utf8');
-  writeFileSync(ticketFile, replacement);
+  replaceInTicketThroughPostToolUse(directory, sessionId, ticketFile, before, replacement);
+}
+
+/** Apply one Edit replacement to ticket.md, then report it to the real PostToolUse hook. */
+function replaceInTicketThroughPostToolUse(
+  directory: string,
+  sessionId: string,
+  ticketFile: string,
+  oldString: string,
+  newString: string,
+): void {
+  const before = readFileSync(ticketFile, 'utf8');
+  expect(before).toContain(oldString);
+  writeFileSync(
+    ticketFile,
+    before.replace(oldString, () => newString),
+  );
   const result = spawnSync('bun', ['.safeword/hooks/post-tool-quality.ts'], {
     input: JSON.stringify({
       session_id: sessionId,
       cwd: directory,
       tool_name: 'Edit',
-      tool_input: { file_path: ticketFile, old_string: before, new_string: replacement },
+      tool_input: { file_path: ticketFile, old_string: oldString, new_string: newString },
     }),
     cwd: directory,
     env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
@@ -144,63 +165,289 @@ function recentFailurePatterns(directory: string, sessionId: string): string[] {
 }
 
 describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
-  it('blocks on failing tests, allows once they pass, and does not rerun', () => {
+  /** Commit an in_progress task, then close it through the real PostToolUse hook. */
+  function closeCommittedTicket(ticketId: string, sessionId: string): string {
+    const ticketFile = commitTaskTicket(fixture.projectDirectory, ticketId, 'in_progress');
+    editTicketThroughPostToolUse(
+      fixture.projectDirectory,
+      sessionId,
+      ticketFile,
+      ticketMarkdown(ticketId, 'done', 'done'),
+    );
+    return ticketFile;
+  }
+
+  it('blocks the Stop after the close when tests fail', () => {
     const directory = fixture.projectDirectory;
-    const sessionId = 'session-close-5546';
-    const ticketFile = commitTaskTicket(directory, '5546', 'in_progress');
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    closeCommittedTicket('5546', 'session-block');
+    const result = runStopHook(directory, 'session-block');
+
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(recentFailurePatterns(directory, 'session-block')).toContain('done-gate-tests-failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
+  it('allows the Stop once tests pass and does not rerun the gate on a later Stop', () => {
+    const directory = fixture.projectDirectory;
+    closeCommittedTicket('5547', 'session-pass');
+    setTestExitCode(directory, 0);
+    const baseline = testRunCount(directory);
+
+    const allowed = runStopHook(directory, 'session-pass');
+    expect(allowed.decision).toBeUndefined();
+    expect(testRunCount(directory)).toBe(baseline + 1);
+
+    setTestExitCode(directory, 1);
+    runStopHook(directory, 'session-pass');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
+  it('does not rerun the gate when the closed ticket is edited after a later commit', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = closeCommittedTicket('5548', 'session-commit');
+    setTestExitCode(directory, 0);
+    runStopHook(directory, 'session-commit');
+    git(directory, 'add -A');
+    git(directory, 'commit -q --no-verify -m "close 5548"');
     setTestExitCode(directory, 1);
     const baseline = testRunCount(directory);
 
     editTicketThroughPostToolUse(
       directory,
-      sessionId,
+      'session-commit',
       ticketFile,
-      ticketMarkdown('5546', 'done', 'done'),
+      `${ticketMarkdown('5548', 'done', 'done')}\nTypo fix.\n`,
     );
+    const result = runStopHook(directory, 'session-commit');
 
-    const blocked = runStopHook(directory, sessionId);
-    expect(blocked.decision).toBe('block');
-    expect(blocked.reason).toContain('Tests failed');
-    expect(recentFailurePatterns(directory, sessionId)).toContain('done-gate-tests-failed');
-    expect(testRunCount(directory)).toBe(baseline + 1);
-
-    setTestExitCode(directory, 0);
-    const allowed = runStopHook(directory, sessionId);
-    expect(allowed.decision).toBeUndefined();
-    expect(testRunCount(directory)).toBe(baseline + 2);
-
-    runStopHook(directory, sessionId);
-    expect(testRunCount(directory)).toBe(baseline + 2);
-
-    // A later commit of the close, then another edit of the now-done ticket,
-    // must not re-arm the gate.
-    git(directory, 'add -A');
-    git(directory, 'commit -q --no-verify -m "close 5546"');
-    editTicketThroughPostToolUse(
-      directory,
-      sessionId,
-      ticketFile,
-      `${ticketMarkdown('5546', 'done', 'done')}\nTypo fix.\n`,
-    );
-    runStopHook(directory, sessionId);
-    expect(testRunCount(directory)).toBe(baseline + 2);
+    expect(result.reason).not.toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline);
   });
 
   it('does not run the gate when editing a ticket that was already done at HEAD', () => {
     const directory = fixture.projectDirectory;
-    const sessionId = 'session-archived-5546';
-    const ticketFile = commitTaskTicket(directory, '5547', 'done');
+    const ticketFile = commitTaskTicket(directory, '5549', 'done');
     setTestExitCode(directory, 1);
     const baseline = testRunCount(directory);
 
     editTicketThroughPostToolUse(
       directory,
-      sessionId,
+      'session-archived',
       ticketFile,
-      `${ticketMarkdown('5547', 'done', 'implement')}\nTypo fix.\n`,
+      `${ticketMarkdown('5549', 'done', 'implement')}\nTypo fix.\n`,
     );
+    const result = runStopHook(directory, 'session-archived');
 
-    const result = runStopHook(directory, sessionId);
+    expect(result.reason).not.toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline);
+  });
+
+  it('cancels the owed gate when the closed ticket is reopened before Stop', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = closeCommittedTicket('5550', 'session-reopen');
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    editTicketThroughPostToolUse(
+      directory,
+      'session-reopen',
+      ticketFile,
+      ticketMarkdown('5550', 'in_progress', 'implement'),
+    );
+    const result = runStopHook(directory, 'session-reopen');
+
+    expect(result.reason).not.toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline);
+  });
+
+  it('gates an uncommitted ticket closed by the session that was working it', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = writeTaskTicket(directory, '5551', 'in_progress');
+    editTicketThroughPostToolUse(
+      directory,
+      'session-new',
+      ticketFile,
+      `${ticketMarkdown('5551', 'in_progress', 'implement')}\nStarted.\n`,
+    );
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    editTicketThroughPostToolUse(
+      directory,
+      'session-new',
+      ticketFile,
+      ticketMarkdown('5551', 'done', 'done'),
+    );
+    const result = runStopHook(directory, 'session-new');
+
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
+  it('does not rerun the gate when the passed ticket is edited again before any commit', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = closeCommittedTicket('5552', 'session-reedit');
+    setTestExitCode(directory, 0);
+    runStopHook(directory, 'session-reedit');
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    editTicketThroughPostToolUse(
+      directory,
+      'session-reedit',
+      ticketFile,
+      `${ticketMarkdown('5552', 'done', 'done')}\nTypo fix.\n`,
+    );
+    const result = runStopHook(directory, 'session-reedit');
+
+    expect(result.reason).not.toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline);
+  });
+
+  it('gates every ticket closed before a single Stop', () => {
+    const directory = fixture.projectDirectory;
+    closeCommittedTicket('5553', 'session-two');
+    const secondTicket = closeCommittedTicket('5554', 'session-two');
+    rmSync(nodePath.join(nodePath.dirname(secondTicket), 'verify.md'));
+    setTestExitCode(directory, 0);
+
+    const first = runStopHook(directory, 'session-two');
+    expect(first.decision).toBe('block');
+    expect(first.reason).toContain('5554');
+
+    const second = runStopHook(directory, 'session-two');
+    expect(second.decision).toBe('block');
+    expect(second.reason).toContain('verify.md');
+  });
+
+  it('gates a ticket done at HEAD that this session reopened and closed again', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = commitTaskTicket(directory, '5555', 'done');
+    editTicketThroughPostToolUse(
+      directory,
+      'session-reclose',
+      ticketFile,
+      ticketMarkdown('5555', 'in_progress', 'implement'),
+    );
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    editTicketThroughPostToolUse(
+      directory,
+      'session-reclose',
+      ticketFile,
+      ticketMarkdown('5555', 'done', 'done'),
+    );
+    const result = runStopHook(directory, 'session-reclose');
+
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
+  it('gates a passed ticket reopened and closed again while another ticket is bound', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = closeCommittedTicket('5556', 'session-swap');
+    setTestExitCode(directory, 0);
+    runStopHook(directory, 'session-swap');
+    editTicketThroughPostToolUse(
+      directory,
+      'session-swap',
+      ticketFile,
+      ticketMarkdown('5556', 'in_progress', 'implement'),
+    );
+    const otherTicket = commitTaskTicket(directory, '5557', 'in_progress');
+    editTicketThroughPostToolUse(
+      directory,
+      'session-swap',
+      otherTicket,
+      `${ticketMarkdown('5557', 'in_progress', 'implement')}\nStarted.\n`,
+    );
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    editTicketThroughPostToolUse(
+      directory,
+      'session-swap',
+      ticketFile,
+      ticketMarkdown('5556', 'done', 'done'),
+    );
+    const result = runStopHook(directory, 'session-swap');
+
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
+  it('gates an uncommitted ticket whose closing edit is the first one this session sees', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = writeTaskTicket(directory, '5558', 'in_progress');
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    editTicketThroughPostToolUse(
+      directory,
+      'session-resumed',
+      ticketFile,
+      ticketMarkdown('5558', 'done', 'done'),
+    );
+    const result = runStopHook(directory, 'session-resumed');
+
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
+  it('gates an uncommitted ticket closed by a partial status edit seen first this session', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = writeTaskTicket(directory, '5559', 'in_progress');
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    replaceInTicketThroughPostToolUse(
+      directory,
+      'session-partial',
+      ticketFile,
+      'status: in_progress',
+      'status: done',
+    );
+    const result = runStopHook(directory, 'session-partial');
+
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
+  it('does not owe the gate for an edit after Stop itself completed the ticket', () => {
+    const directory = fixture.projectDirectory;
+    const ticketFile = commitTaskTicket(directory, '5560', 'in_progress');
+    replaceInTicketThroughPostToolUse(
+      directory,
+      'session-stop-completes',
+      ticketFile,
+      'phase: implement',
+      'phase: done',
+    );
+    setTestExitCode(directory, 0);
+    runStopHook(directory, 'session-stop-completes');
+    expect(readFileSync(ticketFile, 'utf8')).toContain('status: done');
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    replaceInTicketThroughPostToolUse(
+      directory,
+      'session-stop-completes',
+      ticketFile,
+      '# Task 5560',
+      '# Task 5560 (typo fixed)',
+    );
+    const result = runStopHook(directory, 'session-stop-completes');
+
     expect(result.reason).not.toContain('Tests failed');
     expect(testRunCount(directory)).toBe(baseline);
   });

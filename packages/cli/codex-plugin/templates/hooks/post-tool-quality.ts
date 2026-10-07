@@ -238,6 +238,35 @@ function ticketStatusAtHead(ticketFile: string): string | undefined {
   }
 }
 
+const AMBIGUOUS_EDIT = 'ambiguous' as const;
+
+/**
+ * The file as it read before an Edit or MultiEdit, rebuilt by undoing its
+ * replacements in reverse order. Write and NotebookEdit carry no prior text
+ * (undefined). A replacement whose new text is empty or appears more than once
+ * cannot be undone with certainty (AMBIGUOUS_EDIT).
+ */
+function contentBeforeEdit(
+  content: string,
+  toolInput: HookInput['tool_input'],
+): string | typeof AMBIGUOUS_EDIT | undefined {
+  const edits =
+    toolInput?.edits ??
+    (toolInput?.old_string === undefined
+      ? []
+      : [{ old_string: toolInput.old_string, new_string: toolInput.new_string }]);
+  if (edits.length === 0) return undefined;
+  let before = content;
+  for (const edit of edits.toReversed()) {
+    if (edit.old_string === undefined || edit.new_string === undefined) return AMBIGUOUS_EDIT;
+    if (edit.new_string === '' || before.split(edit.new_string).length !== 2) {
+      return AMBIGUOUS_EDIT;
+    }
+    before = before.replace(edit.new_string, () => edit.old_string ?? '');
+  }
+  return before;
+}
+
 function completedTicketIdForVerifyArtifact(filePath: string): string | undefined {
   if (!isNamespacePath(filePath, 'tickets/') || nodePath.basename(filePath) !== 'verify.md') {
     return undefined;
@@ -282,10 +311,6 @@ if (
       delete state.recentCompletedTicket;
       state.readinessReceiptPending = false;
     }
-    // Reopening a closed ticket cancels its owed done gate.
-    if (ticketStatus !== undefined && ticketStatus !== 'done' && ticketId !== undefined) {
-      state.doneGateOwedTickets = state.doneGateOwedTickets?.filter(id => id !== ticketId);
-    }
     if (ticketStatus === 'done' || ticketStatus === 'backlog') {
       if (ticketStatus === 'done' && ticketId !== undefined) {
         const previousStatus = ticketStatusAtHead(fullPath);
@@ -298,16 +323,29 @@ if (
         // bless an unrelated HEAD.
         if (wasActiveTicket || completedSinceHead) state.readinessReceiptPending = true;
         // A real close owes Stop's done gate, which can no longer find the
-        // ticket through activeTicket (#5546). Editing a ticket already done at
-        // HEAD is not a close; a ticket not yet committed counts only if this
-        // session was working it.
-        const realClose = completedSinceHead || (wasActiveTicket && previousStatus === undefined);
+        // ticket through activeTicket (#5546). Prior status comes from the file
+        // as it read before this edit, else what this session last saw, else
+        // HEAD. An edit that cannot be undone with no other evidence counts as
+        // a close (the gate runs once); an edit to a done ticket does not.
+        const before = contentBeforeEdit(content, input.tool_input);
+        const priorStatus =
+          (before === AMBIGUOUS_EDIT || before === undefined
+            ? undefined
+            : frontmatterField(before, 'status')) ??
+          state.observedTicketStatuses?.[ticketId] ??
+          previousStatus;
+        const realClose =
+          priorStatus === undefined ? before === AMBIGUOUS_EDIT : priorStatus !== 'done';
         const owed = state.doneGateOwedTickets ?? [];
         if (realClose && !owed.includes(ticketId)) {
           state.doneGateOwedTickets = [...owed, ticketId];
         }
       }
       state.activeTicket = null;
+    }
+
+    if (ticketId !== undefined && ticketStatus !== undefined) {
+      state.observedTicketStatuses = { ...state.observedTicketStatuses, [ticketId]: ticketStatus };
     }
 
     // Per-phase review (enter-semantics, deduped). Fires on the first edit that
@@ -342,6 +380,9 @@ if (
     const status = frontmatterField(content, 'status');
     const type = frontmatterField(content, 'type');
     if (id !== undefined) {
+      if (status !== undefined) {
+        state.observedTicketStatuses = { ...state.observedTicketStatuses, [id]: status };
+      }
       if (status === 'in_progress') {
         if (type !== 'epic') state.activeTicket = id;
       } else if (status !== undefined && state.activeTicket === id) {

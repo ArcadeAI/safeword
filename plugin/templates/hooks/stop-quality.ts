@@ -162,6 +162,8 @@ const DONE_GATED_TICKET_TYPES = new Set(['task', 'feature', 'epic']);
 
 /** The ticket whose owed done gate this Stop is running, settled once it passes. */
 let owedDoneGateTicket: string | undefined;
+/** Other closes still owed after this one; each gets its own Stop. */
+let laterOwedDoneGateTickets: string[] = [];
 
 /**
  * A ticket closed by an edit this session owes the done gate even though
@@ -173,18 +175,34 @@ function owedDoneGateTicketInfo(
   sessionId: string,
   owedTickets: string[] | undefined,
 ): TicketInfo | undefined {
-  for (const ticketId of owedTickets ?? []) {
+  const owed = owedTickets ?? [];
+  for (const [index, ticketId] of owed.entries()) {
     const ticket = getTicketInfo(projectDir, ticketId);
     if (ticket.status === 'done' && ticket.type && DONE_GATED_TICKET_TYPES.has(ticket.type)) {
       owedDoneGateTicket = ticketId;
+      laterOwedDoneGateTickets = owed.slice(index + 1);
       return { phase: 'done', type: ticket.type, folder: ticket.folder };
     }
-    settleOwedDoneGate(sessionId, ticketId);
+    dropOwedDoneGate(sessionId, ticketId);
   }
   return undefined;
 }
 
-function settleOwedDoneGate(sessionId: string | undefined, ticketId: string): void {
+/**
+ * Stop marked this ticket done itself, so a later edit of it is not a close
+ * (PostToolUse only sees edits, not this write).
+ */
+function recordObservedDone(sessionId: string | undefined, ticketDirectory: string): void {
+  const ticketPath = `${ticketDirectory}/ticket.md`;
+  if (!existsSync(ticketPath)) return;
+  const ticketId = /^id:\s*(\S+)/m.exec(readFileSync(ticketPath, 'utf8'))?.[1];
+  if (ticketId === undefined) return;
+  updateStopState(sessionId, state => {
+    state.observedTicketStatuses = { ...state.observedTicketStatuses, [ticketId]: 'done' };
+  });
+}
+
+function dropOwedDoneGate(sessionId: string | undefined, ticketId: string): void {
   updateStopState(sessionId, state => {
     state.doneGateOwedTickets = state.doneGateOwedTickets?.filter(id => id !== ticketId);
   });
@@ -912,12 +930,20 @@ if (currentPhase === 'done') {
 
   // Every done-gate check passed. Settle an owed close before the navigation
   // and architecture nudges below exit, or the gate reruns on every Stop.
-  if (owedDoneGateTicket !== undefined) settleOwedDoneGate(input.session_id, owedDoneGateTicket);
+  if (owedDoneGateTicket !== undefined) {
+    dropOwedDoneGate(input.session_id, owedDoneGateTicket);
+    if (laterOwedDoneGateTickets.length > 0) {
+      softBlock(
+        `Done gate passed for ${owedDoneGateTicket}. Ticket(s) ${laterOwedDoneGateTickets.join(', ')} were also closed this session and still need their done gate — stop again to run it.`,
+      );
+    }
+  }
 
   // Evidence passed — mark current ticket done and navigate hierarchy
   if (ticketInfo.folder) {
     const currentTicketDirectory = `${ticketsDir}/${ticketInfo.folder}`;
     updateTicketStatus(currentTicketDirectory, 'done', 'done');
+    recordObservedDone(input.session_id, currentTicketDirectory);
 
     // AXRC4D: non-blocking ARCHITECTURE.md staleness nudge. If this ticket moved the
     // top-level architecture fingerprint and a human ARCHITECTURE.md exists, advise a
@@ -940,6 +966,7 @@ if (currentPhase === 'done') {
       } else if (next.type === 'cascade-done') {
         // Mark parent done and continue walking up
         updateTicketStatus(next.ticketDirectory, 'done', 'done');
+        recordObservedDone(input.session_id, next.ticketDirectory);
         directory = next.ticketDirectory;
       } else {
         // all-done — no more work in hierarchy
