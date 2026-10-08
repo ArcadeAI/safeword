@@ -341,7 +341,7 @@ function deliveryContract(
     return `| item-${index + 1} | ${category} | ${obligation} | contributor | ${proof} | open | missing | | |`;
   }).join('\n');
   const proofRows = unrealProof
-    ? `| complete-delivery | command | E2E | Customer authorization across both live transports. | real_boundary | current_required | ${JSON.stringify(
+    ? `| complete-delivery | command | E2E | Authorization at the accepted public review command boundary. | real_boundary | current_required | ${JSON.stringify(
         { type: 'command', cwd: '.', argv: ['node', '--version'] },
       )} |`
     : PROOF_SPECIFICATIONS.map(

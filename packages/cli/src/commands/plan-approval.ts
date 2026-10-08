@@ -344,7 +344,7 @@ function scaffoldExecutionPlan(context: ApprovalContext): string | undefined {
 
   const installedPath = '.safeword/templates/execution-plan-template.md';
   const projectTemplatePath = nodePath.join(context.cwd, installedPath);
-  const packagedTemplate = SAFEWORD_SCHEMA.ownedFiles[installedPath].template;
+  const packagedTemplate = SAFEWORD_SCHEMA.ownedFiles[installedPath]?.template;
   if (packagedTemplate === undefined) throw new Error('Execution Plan template is not registered.');
   // Native distributions keep workflow templates in their package, rather than the project.
   const templatePath = existsSync(projectTemplatePath)

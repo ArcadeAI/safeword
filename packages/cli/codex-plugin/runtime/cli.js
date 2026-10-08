@@ -35668,7 +35668,7 @@ function deliveryContract(unrelated, unrealProof, inapplicableOptionalWork) {
     return `| item-${index + 1} | ${category} | ${obligation} | contributor | ${proof} | open | missing | | |`;
   }).join(`
 `);
-  const proofRows = unrealProof ? `| complete-delivery | command | E2E | Customer authorization across both live transports. | real_boundary | current_required | ${JSON.stringify({ type: "command", cwd: ".", argv: ["node", "--version"] })} |` : PROOF_SPECIFICATIONS.map(([proofId, boundary, script]) => `| ${proofId} | command | E2E | ${boundary} | real_boundary | current_required | ${JSON.stringify({ type: "command", cwd: ".", argv: ["bun", "run", script] })} |`).join(`
+  const proofRows = unrealProof ? `| complete-delivery | command | E2E | Authorization at the accepted public review command boundary. | real_boundary | current_required | ${JSON.stringify({ type: "command", cwd: ".", argv: ["node", "--version"] })} |` : PROOF_SPECIFICATIONS.map(([proofId, boundary, script]) => `| ${proofId} | command | E2E | ${boundary} | real_boundary | current_required | ${JSON.stringify({ type: "command", cwd: ".", argv: ["bun", "run", script] })} |`).join(`
 `);
   return `## Proof specifications
 
@@ -82662,7 +82662,7 @@ function scaffoldExecutionPlan(context) {
     return;
   const installedPath = ".safeword/templates/execution-plan-template.md";
   const projectTemplatePath = nodePath131.join(context.cwd, installedPath);
-  const packagedTemplate = SAFEWORD_SCHEMA.ownedFiles[installedPath].template;
+  const packagedTemplate = SAFEWORD_SCHEMA.ownedFiles[installedPath]?.template;
   if (packagedTemplate === undefined)
     throw new Error("Execution Plan template is not registered.");
   const templatePath = existsSync61(projectTemplatePath) ? projectTemplatePath : nodePath131.join(getTemplatesDirectory(), packagedTemplate);
