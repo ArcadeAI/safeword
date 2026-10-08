@@ -883,6 +883,35 @@ describe('repair must precede renewed planning approval', () => {
   });
 });
 
+describe('legacy review reuse after a planning return', () => {
+  it('preserves an untouched legacy review but refuses it after a recorded discovery', async () => {
+    const project = fixture(false);
+    const legacyId = 'PLAN43';
+    addReviewedTicket(project, legacyId, 'The retained legacy approach.');
+    const legacyPath = nodePath.join(
+      project.root,
+      '.project',
+      'tickets',
+      `${legacyId}-review-the-approach`,
+      'ticket.md',
+    );
+    const args = ['--json', '--no-input', 'ticket', 'approve-plan', legacyId];
+    const untouched = await runCli(args, { cwd: project.root, env: reviewEnvironment(project) });
+    expect(untouched.exitCode, untouched.stdout).toBe(0);
+    writeFileSync(
+      legacyPath,
+      `${readFileSync(legacyPath, 'utf8').replace(
+        'phase: plan-execution',
+        'phase: plan-implementation',
+      )}\n### Execution discovery requiring fresh planning review\n\n> Repair the accepted authorization boundary.\n`,
+    );
+    const returned = await runCli(args, { cwd: project.root, env: reviewEnvironment(project) });
+    expect(returned.exitCode, returned.stdout).toBe(2);
+    expect(phase(legacyPath)).toBe('plan-implementation');
+    expect(returned.stdout).toContain('Convert its retained plan and design decisions');
+  });
+});
+
 describe('an accepted design enters Execution Planning', () => {
   it('binds the approval to the exact approach bytes before advancing', () => {
     const project = fixture(true);

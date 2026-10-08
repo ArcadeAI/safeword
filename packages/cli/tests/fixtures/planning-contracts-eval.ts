@@ -1,4 +1,5 @@
 import type { PlanningContractCase } from '../../scripts/lib/planning-contracts-eval.js';
+import { planningContractShapeCases } from './planning-contract-shape-eval.js';
 
 const accepted =
   'Ticket scope: require explicit user authorization before account changes. Ticket exclusion: no automatic account migration. Project non-goal: no background account mutation. Parent milestone: safe manual approval.';
@@ -279,4 +280,5 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     allowed_finding_authority: 'An unsupported assumption is presented as a known fact.',
     forbidden_scope_expansion: 'Do not select a recovery mechanism for the user.',
   },
+  ...planningContractShapeCases,
 ];

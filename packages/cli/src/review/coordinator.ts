@@ -2313,7 +2313,7 @@ function rankedReviewRoutes(
       : configured;
   return filterExecutionPlanRoutes(
     input.kind,
-    configured ?? builtInReviewRoutes(input.cwd, author),
+    configured ?? builtInReviewRoutes(input.cwd, author, input.kind),
   );
 }
 

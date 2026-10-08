@@ -199,6 +199,15 @@ const ACTIVATION_SLICE: SliceInput = {
   ],
 };
 
+const COMPATIBLE_ACTIVATION_SLICE: SliceInput = {
+  ...ACTIVATION_SLICE,
+  proof: ALL_DELIVERY_PROOFS,
+  tasks: [
+    ...(ACTIVATION_SLICE.tasks?.slice(0, -1) ?? []),
+    '9. REFACTOR: retain one response-validation and result-retention path; rerun all seven named proof commands, including both default and legacy-result schema-compatibility fixtures, and assert exit 0, unchanged persisted legacy bytes, exact legacy verdict, summary, and findings, and public response snapshots identical to those captured in steps 2 and 4 before this refactor.',
+  ],
+};
+
 function executionPlan(input: {
   readonly decision?: 'one pull request' | 'multiple pull requests';
   readonly rationale: string;
@@ -325,7 +334,7 @@ function deliveryContract(
     let obligation: string = defaultObligation;
     if (unrelated) obligation = 'Complete the standard delivery work.';
     else if (inapplicableOptionalWork && index === 5)
-      obligation = 'Expose typed failure signals for Accepted behavior.';
+      obligation = 'Expose failure signals for Accepted behavior.';
     else if (inapplicableOptionalWork && index === 6)
       obligation = 'Protect the authorization boundary for Accepted behavior.';
     const proof = unrealProof ? 'complete-delivery' : CHECKLIST_PROOFS[index];
@@ -663,7 +672,7 @@ const APPLICABILITY_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
 const MULTI_PLAN = executionPlan({
   decision: 'multiple pull requests',
   rationale: 'Contract delivery and activation are independently reviewable with separate proof.',
-  slices: [CONTRACT_SLICE, ACTIVATION_SLICE],
+  slices: [CONTRACT_SLICE, COMPATIBLE_ACTIVATION_SLICE],
   obligationOwners: stagedOwners('Contract', 'Activation'),
 });
 const COMPLETE_RECORD_PLAN = executionPlan({
@@ -714,9 +723,9 @@ const ORDERED_SCHEMA_PLAN = executionPlan({
       boundary:
         'Reader activation, persistence, failure signals, authorization, rollout, rollback, and documentation.',
       prerequisites: 'Schema',
-      proof: ACTIVATION_PROOFS,
+      proof: ALL_DELIVERY_PROOFS,
       completion: 'The reader and every activation obligation are supported.',
-      tasks: ACTIVATION_SLICE.tasks,
+      tasks: COMPATIBLE_ACTIVATION_SLICE.tasks,
     },
   ],
   obligationOwners: stagedOwners('Schema', 'Reader'),
@@ -771,9 +780,9 @@ const FEW_FILES_TWO_OUTCOMES_PLAN = executionPlan({
       boundary:
         'Public routing, failure signals, authorization, rollout, rollback, and documentation.',
       prerequisites: 'Inert schema',
-      proof: ACTIVATION_PROOFS,
+      proof: ALL_DELIVERY_PROOFS,
       completion: 'The command and every activation obligation are supported.',
-      tasks: ACTIVATION_SLICE.tasks,
+      tasks: COMPATIBLE_ACTIVATION_SLICE.tasks,
     },
   ],
   obligationOwners: stagedOwners('Inert schema', 'Public activation'),
@@ -785,7 +794,7 @@ const OBLIGATION_PLAN = executionPlan({
   slices: [
     { ...CONTRACT_SLICE, name: 'Contract owner' },
     {
-      ...ACTIVATION_SLICE,
+      ...COMPATIBLE_ACTIVATION_SLICE,
       name: 'Release owner',
       prerequisites: 'Contract owner',
       completion: 'Every accepted obligation has an owner and the repository remains supported.',
@@ -801,7 +810,7 @@ function permissionDenialTasks(
   return [
     `1. RED: create the denied-request fixture in tests/fixtures/denied-request.ts with authenticated blocked-user lacking permission for fixture-review, an empty reviewer request journal, and an empty result store. Add the public-CLI denial assertion in ${testFile}; run ${command}, bun run test:failure-signals -- --fixture denied-request, and bun run test:authorization-boundary -- --fixture denied-request. Observe exit 1 with unauthorized request reached reviewer because the journal is nonempty before editing ${productionFile}.`,
     `2. GREEN: call the existing shared authorization service before dispatch in ${productionFile}; rerun all three step-1 commands and assert test-runner exit 0, public-command exit 2 naming fixture-review, an empty reviewer journal, and no stored result.`,
-    '3. REFACTOR: move duplicate permission checks into the existing shared authorizer without changing its authority. Rerun all three denial commands and bun run test:execution-plan-conformance; assert the public response, decision preservation, single-slice dependencies, ownership, and retained completion evidence remain unchanged.',
+    '3. REFACTOR: move duplicate permission checks into the existing shared authorizer without changing its authority. Rerun all three denial commands and bun run test:execution-plan-conformance after the final edit; require every test-runner command to exit 0 and reassert every step-2 denial assertion; assert the public response, decision preservation, single-slice dependencies, ownership, and retained completion evidence remain unchanged.',
   ];
 }
 
@@ -915,6 +924,10 @@ const RISK_FIRST_PLAN = executionPlan({
       name: 'Activation',
       prerequisites: 'Risk probe',
       proof: ALL_DELIVERY_PROOFS,
+      tasks: [
+        ...(ACTIVATION_SLICE.tasks?.slice(0, -1) ?? []),
+        '9. REFACTOR: retain one response-validation and result-retention path; rerun all seven named proof commands, including both default and legacy-result schema-compatibility fixtures, and assert exit 0, unchanged persisted legacy bytes, exact legacy verdict, summary, and findings, and public response snapshots identical to those captured in steps 2 and 4 before this refactor.',
+      ],
     },
   ],
   obligationOwners: stagedOwners('Risk probe', 'Activation'),
@@ -1004,6 +1017,8 @@ const INAPPLICABLE_OPTIONAL_WORK_PLAN = executionPlan({
     {
       ...ACTIVATION_SLICE,
       name: 'Behavior delivery',
+      purpose:
+        'Enforce the existing shared-authorization denial before reviewer dispatch or result persistence.',
       prerequisites: 'none',
       boundary:
         'The accepted behavior only; no migration, rollout, rollback, documentation, or additional surface work.',
@@ -1084,7 +1099,7 @@ const DATA_OWNERSHIP_POSITIVE_PLAN = `${withRequiredReplacements(
         tasks: [
           '1. RED: add the owned-store fixture in tests/delivery-state.test.ts with a known delivery-evidence row and a temporary delivery.db. Invoke the existing delivery workflow to write and read that evidence. Run bun run test tests/delivery-state.test.ts -t owned-store and observe exit 1 because the workflow does not read and write the evidence through DeliveryStateService into delivery.db before editing src/delivery-state.ts.',
           "2. GREEN: route the existing delivery workflow's evidence reads and writes through the accepted DeliveryStateService in src/delivery-state.ts. Rerun Delivery evidence step 1 by invoking that workflow and assert the exact fixture row is present in delivery.db, the workflow returns those same values, and the service's read/write trace contains every workflow evidence operation. Rerun the public response and authorization fixtures to assert unchanged responses and no unauthorized persistence.",
-          '3. REFACTOR: remove duplicate evidence access without changing the accepted store or owner; rerun the owned-store and public response commands with the same row, trace, and denial assertions.',
+          '3. REFACTOR: remove duplicate evidence access without changing the accepted store or owner; rerun the owned-store, public response, and authorization regression commands after the final edit, require every test command to exit 0, and preserve the same row, trace, denial, and no-unauthorized-persistence assertions.',
         ],
       },
     ],
@@ -1394,13 +1409,20 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
     }),
     ['supported', 'prerequisite'],
   ),
-  approved(
-    'many-mechanical-edits',
-    'Many mechanical edits with one proof remain one concern.',
-    MECHANICAL_MIRRORS_PLAN,
-    'one_pull_request',
-    ['Contract mirrors'],
-  ),
+  {
+    ...approved(
+      'many-mechanical-edits',
+      'Many mechanical edits with one proof remain one concern.',
+      MECHANICAL_MIRRORS_PLAN,
+      'one_pull_request',
+      ['Contract mirrors'],
+    ),
+    implementation_plan: `${IMPLEMENTATION_PLAN}
+## Accepted contract-delivery mechanism
+
+- The existing fixture project represents the accepted version-1 public review response in one canonical contract template and its registered generated and installed mirrors. Its existing generator reproduces every mirror from that canonical source; schema-compatibility compares each installed contract byte against that source. The public command and compatible stored-result reader consume this same version-1 contract.
+`,
+  },
   approved(
     'few-files-two-outcomes',
     'Few edits with two separately provable outcomes become two concerns.',
@@ -1685,7 +1707,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
     `${executionPlan({
       decision: 'one pull request',
       rationale:
-        'The same public command contract requires only a mechanical fixture representation repair.',
+        'One complete typed-review capability shares the public contract and its required boundaries; the fixture representation repair preserves that contract and adds no independent outcome.',
       slices: [
         {
           ...COMPLETE_DELIVERY_SLICE,

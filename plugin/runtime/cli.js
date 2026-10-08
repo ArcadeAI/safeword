@@ -31843,13 +31843,13 @@ function readConfiguredReviewRoutes(cwd, author) {
     return;
   return effectiveConfiguredRoutes(cwd, author)?.routes;
 }
-function builtInReviewRoutes(cwd, author) {
+function builtInReviewRoutes(cwd, author, kind) {
   const plan = reviewRoutePlan(author);
   if (plan === undefined)
     return [];
-  const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
-  const alternateModel = readAlternateReviewerModel(cwd, plan.preferred);
-  return [
+  const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred, kind);
+  const alternateModel = readAlternateReviewerModel(cwd, plan.preferred, kind);
+  const routes = [
     {
       reviewer: plan.preferred,
       ...primaryModel !== undefined && { model: primaryModel },
@@ -31857,14 +31857,27 @@ function builtInReviewRoutes(cwd, author) {
     },
     ...alternateModel !== undefined && alternateModel !== primaryModel ? [{ reviewer: plan.preferred, model: alternateModel, independence: "cross-agent" }] : [],
     { reviewer: plan.independentFallback, independence: "cross-agent" },
-    ...plan.degradedFallback === undefined ? [] : [{ reviewer: plan.degradedFallback, independence: "degraded" }]
+    ...plan.degradedFallback === undefined ? [] : [
+      {
+        reviewer: plan.degradedFallback,
+        independence: "degraded"
+      }
+    ]
   ];
+  if (kind !== "plan-execution")
+    return routes;
+  return routes.map((route) => {
+    if (route.model !== undefined)
+      return route;
+    const model = readPrimaryReviewerModel(cwd, route.reviewer, kind);
+    return model === undefined ? route : { ...route, model };
+  });
 }
-function readPrimaryReviewerModel(cwd, reviewer) {
-  return readReviewerModel(cwd, reviewer, "PRIMARY", "crossAgentReviewPrimaryModel") ?? DEFAULT_PRIMARY_MODEL[reviewer];
+function readPrimaryReviewerModel(cwd, reviewer, kind) {
+  return readReviewerModel(cwd, reviewer, "PRIMARY", "crossAgentReviewPrimaryModel") ?? (kind === "plan-execution" ? EXECUTION_PRIMARY_MODEL[reviewer] : DEFAULT_PRIMARY_MODEL[reviewer]);
 }
-function readAlternateReviewerModel(cwd, reviewer) {
-  return readReviewerModel(cwd, reviewer, "ALTERNATE", "crossAgentReviewAlternateModel") ?? DEFAULT_ALTERNATE_MODEL[reviewer];
+function readAlternateReviewerModel(cwd, reviewer, kind) {
+  return readReviewerModel(cwd, reviewer, "ALTERNATE", "crossAgentReviewAlternateModel") ?? (kind === "plan-execution" ? undefined : DEFAULT_ALTERNATE_MODEL[reviewer]);
 }
 function readReviewerModel(cwd, reviewer, route, configKey) {
   const environmentValue = process.env[`SAFEWORD_REVIEW_${route}_MODEL_${reviewer.toUpperCase()}`];
@@ -31898,13 +31911,17 @@ function readReviewPolicy(cwd) {
     return error2.code === "ENOENT" ? "prefer" : "require";
   }
 }
-var DEFAULT_PRIMARY_MODEL, DEFAULT_ALTERNATE_MODEL;
+var DEFAULT_PRIMARY_MODEL, DEFAULT_ALTERNATE_MODEL, EXECUTION_PRIMARY_MODEL;
 var init_policy = __esm(() => {
   init_review_ledger();
   init_preferences();
   init_route_config();
   DEFAULT_PRIMARY_MODEL = { claude: "opus" };
   DEFAULT_ALTERNATE_MODEL = { claude: "sonnet" };
+  EXECUTION_PRIMARY_MODEL = {
+    claude: "claude-opus-5",
+    codex: "gpt-6-astra"
+  };
 });
 
 // src/review/contract.ts
@@ -35644,7 +35661,7 @@ function deliveryContract(unrelated, unrealProof, inapplicableOptionalWork) {
     if (unrelated)
       obligation = "Complete the standard delivery work.";
     else if (inapplicableOptionalWork && index === 5)
-      obligation = "Expose typed failure signals for Accepted behavior.";
+      obligation = "Expose failure signals for Accepted behavior.";
     else if (inapplicableOptionalWork && index === 6)
       obligation = "Protect the authorization boundary for Accepted behavior.";
     const proof = unrealProof ? "complete-delivery" : CHECKLIST_PROOFS[index];
@@ -35778,7 +35795,7 @@ function permissionDenialTasks(testFile, command, productionFile) {
   return [
     `1. RED: create the denied-request fixture in tests/fixtures/denied-request.ts with authenticated blocked-user lacking permission for fixture-review, an empty reviewer request journal, and an empty result store. Add the public-CLI denial assertion in ${testFile}; run ${command}, bun run test:failure-signals -- --fixture denied-request, and bun run test:authorization-boundary -- --fixture denied-request. Observe exit 1 with unauthorized request reached reviewer because the journal is nonempty before editing ${productionFile}.`,
     `2. GREEN: call the existing shared authorization service before dispatch in ${productionFile}; rerun all three step-1 commands and assert test-runner exit 0, public-command exit 2 naming fixture-review, an empty reviewer journal, and no stored result.`,
-    "3. REFACTOR: move duplicate permission checks into the existing shared authorizer without changing its authority. Rerun all three denial commands and bun run test:execution-plan-conformance; assert the public response, decision preservation, single-slice dependencies, ownership, and retained completion evidence remain unchanged."
+    "3. REFACTOR: move duplicate permission checks into the existing shared authorizer without changing its authority. Rerun all three denial commands and bun run test:execution-plan-conformance after the final edit; require every test-runner command to exit 0 and reassert every step-2 denial assertion; assert the public response, decision preservation, single-slice dependencies, ownership, and retained completion evidence remain unchanged."
   ];
 }
 function missingFieldCase(id, field, term) {
@@ -35841,7 +35858,7 @@ var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integri
 
 - One shared authorization service owns permission checks for every transport.
 - Host-neutral dependency order keeps every intermediate merge supported.
-`, INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN, PROOF_ONLY_IMPLEMENTATION_PLAN, MEASUREMENT_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_RESPONSE_TASK = "2. GREEN: add the accepted result fields to `src/review/contract.ts`, route the public command through `src/review/command.ts`, and rerun the step-1 command with approved-plan as the coherent-change fixture; assert exit 0, schema-valid response, execution_plan_record.slicing_decision equal to one_pull_request, exactly one slice named Complete delivery, and exact obligation owners, unchanged decision statuses, normalized approved-plan digest, and delivery definition matching the fixture; assert all those same expected values after reading the stored result. Seed the approved judgment with distinguishing summary, findings, evidence records, destination, and complete slice details; compare the complete supplied judgment by deep equality with both the public response and the stored-reader response.", ONE_DENIAL_RED_TASK = "5. RED: run `bun run test:failure-signals -- --fixture authorized-reviewer-rejection` with a reviewer response containing request_changes, the named rejection finding, and a null execution_plan_record; observe exit 1 because the public response loses the finding or retains an approval record. Also run `bun run test:authorization-boundary -- --fixture denied-review` with an unauthorized actor and an initially empty reviewer request journal; observe exit 1 because the CLI neither names the denied review nor prevents dispatch before editing `src/review/command.ts`.", ONE_DENIAL_GREEN_TASK = "6. GREEN: call the accepted shared authorization service before reviewer dispatch in `src/review/command.ts`, rerun both step-5 commands, and assert the unauthorized call exits 2, names the affected review, leaves the reviewer request journal empty, and persists no result. For the authorized reviewer rejection, assert the public response retains the supplied rejection finding and a null execution_plan_record, and that the compatible stored-result reader returns those same values. Seed the rejected judgment with distinguishing summary, findings, evidence records, and destination; compare the complete supplied judgment by deep equality with both the public response and the stored-reader response.", ONE_DELIVERY_TASKS, COMPLETE_DELIVERY_SLICE, COMPLETE_DELIVERY_RATIONALE = "The public review result, its compatible persistence, permission check, failure signal, rollout switch, rollback, and documentation are inseparable facets of one command contract; none is independently useful and every proof protects that same response.", ONE_PLAN, UNCHANGED_DECISIONS_PLAN, CURRENT_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", CURRENT_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", EARLIER_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | reusable_earlier_revision | bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb | receipt:earlier-proof; compatible: accepted boundary is unchanged |", OPEN_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |", OPEN_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | open | missing | | |", ABSENT_WORK_CLAIMED_COMPLETE_PLAN, CURRENT_PROOF_BASE_PLAN, CURRENT_PROOF_PLAN, EARLIER_PROOF_CLAIMED_CURRENT_PLAN, KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN, PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, COMPLETE_DELIVERY_OBLIGATION_OWNERS, DATA_OWNERSHIP_POSITIVE_PLAN, MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN, MEASUREMENT_POSITIVE_PLAN, MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, MISSING_MEASUREMENT_EVIDENCE_PLAN, CHANGED_MEASUREMENT_TARGET_PLAN, CHANGED_MEASUREMENT_ORIGIN_PLAN, WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, CHANGED_MEASUREMENT_FAILURE_PLAN, conformanceCases, EXECUTION_PLAN_CONFORMANCE_CASES;
+`, INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN, PROOF_ONLY_IMPLEMENTATION_PLAN, MEASUREMENT_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, COMPATIBLE_ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_RESPONSE_TASK = "2. GREEN: add the accepted result fields to `src/review/contract.ts`, route the public command through `src/review/command.ts`, and rerun the step-1 command with approved-plan as the coherent-change fixture; assert exit 0, schema-valid response, execution_plan_record.slicing_decision equal to one_pull_request, exactly one slice named Complete delivery, and exact obligation owners, unchanged decision statuses, normalized approved-plan digest, and delivery definition matching the fixture; assert all those same expected values after reading the stored result. Seed the approved judgment with distinguishing summary, findings, evidence records, destination, and complete slice details; compare the complete supplied judgment by deep equality with both the public response and the stored-reader response.", ONE_DENIAL_RED_TASK = "5. RED: run `bun run test:failure-signals -- --fixture authorized-reviewer-rejection` with a reviewer response containing request_changes, the named rejection finding, and a null execution_plan_record; observe exit 1 because the public response loses the finding or retains an approval record. Also run `bun run test:authorization-boundary -- --fixture denied-review` with an unauthorized actor and an initially empty reviewer request journal; observe exit 1 because the CLI neither names the denied review nor prevents dispatch before editing `src/review/command.ts`.", ONE_DENIAL_GREEN_TASK = "6. GREEN: call the accepted shared authorization service before reviewer dispatch in `src/review/command.ts`, rerun both step-5 commands, and assert the unauthorized call exits 2, names the affected review, leaves the reviewer request journal empty, and persists no result. For the authorized reviewer rejection, assert the public response retains the supplied rejection finding and a null execution_plan_record, and that the compatible stored-result reader returns those same values. Seed the rejected judgment with distinguishing summary, findings, evidence records, and destination; compare the complete supplied judgment by deep equality with both the public response and the stored-reader response.", ONE_DELIVERY_TASKS, COMPLETE_DELIVERY_SLICE, COMPLETE_DELIVERY_RATIONALE = "The public review result, its compatible persistence, permission check, failure signal, rollout switch, rollback, and documentation are inseparable facets of one command contract; none is independently useful and every proof protects that same response.", ONE_PLAN, UNCHANGED_DECISIONS_PLAN, CURRENT_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", CURRENT_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", EARLIER_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | reusable_earlier_revision | bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb | receipt:earlier-proof; compatible: accepted boundary is unchanged |", OPEN_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |", OPEN_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | open | missing | | |", ABSENT_WORK_CLAIMED_COMPLETE_PLAN, CURRENT_PROOF_BASE_PLAN, CURRENT_PROOF_PLAN, EARLIER_PROOF_CLAIMED_CURRENT_PLAN, KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN, PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, COMPLETE_DELIVERY_OBLIGATION_OWNERS, DATA_OWNERSHIP_POSITIVE_PLAN, MEASUREMENT_POSITIVE_IMPLEMENTATION_PLAN, MEASUREMENT_POSITIVE_PLAN, MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, MISSING_MEASUREMENT_EVIDENCE_PLAN, CHANGED_MEASUREMENT_TARGET_PLAN, CHANGED_MEASUREMENT_ORIGIN_PLAN, WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, CHANGED_MEASUREMENT_FAILURE_PLAN, conformanceCases, EXECUTION_PLAN_CONFORMANCE_CASES;
 var init_execution_plan_conformance = __esm(() => {
   init_delivery_checklist();
   init_execution_plan_admission_generated();
@@ -35973,6 +35990,14 @@ ${reviewOutputSchema("plan-execution")}
       "7. RED: run `bun run test:documentation-contract` and `bun run test:execution-plan-conformance` and observe exit 1 because the public response, denial, activation, rollback, or obligation mapping is missing before editing the command reference and canonical corpus.",
       "8. GREEN: document the accepted public contracts and complete the canonical obligation mapping; rerun both step-7 commands and assert exit 0.",
       "9. REFACTOR: retain one response-validation and result-retention path; run all six activation proof commands and assert exit 0 with byte-identical public response snapshots."
+    ]
+  };
+  COMPATIBLE_ACTIVATION_SLICE = {
+    ...ACTIVATION_SLICE,
+    proof: ALL_DELIVERY_PROOFS,
+    tasks: [
+      ...ACTIVATION_SLICE.tasks?.slice(0, -1) ?? [],
+      "9. REFACTOR: retain one response-validation and result-retention path; rerun all seven named proof commands, including both default and legacy-result schema-compatibility fixtures, and assert exit 0, unchanged persisted legacy bytes, exact legacy verdict, summary, and findings, and public response snapshots identical to those captured in steps 2 and 4 before this refactor."
     ]
   };
   CHECKLIST_OBLIGATIONS = [
@@ -36118,7 +36143,7 @@ ${reviewOutputSchema("plan-execution")}
   MULTI_PLAN = executionPlan({
     decision: "multiple pull requests",
     rationale: "Contract delivery and activation are independently reviewable with separate proof.",
-    slices: [CONTRACT_SLICE, ACTIVATION_SLICE],
+    slices: [CONTRACT_SLICE, COMPATIBLE_ACTIVATION_SLICE],
     obligationOwners: stagedOwners("Contract", "Activation")
   });
   COMPLETE_RECORD_PLAN = executionPlan({
@@ -36160,9 +36185,9 @@ ${reviewOutputSchema("plan-execution")}
         purpose: "Read and retain schema-valid results.",
         boundary: "Reader activation, persistence, failure signals, authorization, rollout, rollback, and documentation.",
         prerequisites: "Schema",
-        proof: ACTIVATION_PROOFS,
+        proof: ALL_DELIVERY_PROOFS,
         completion: "The reader and every activation obligation are supported.",
-        tasks: ACTIVATION_SLICE.tasks
+        tasks: COMPATIBLE_ACTIVATION_SLICE.tasks
       }
     ],
     obligationOwners: stagedOwners("Schema", "Reader")
@@ -36211,9 +36236,9 @@ ${reviewOutputSchema("plan-execution")}
         purpose: "Expose the new review command.",
         boundary: "Public routing, failure signals, authorization, rollout, rollback, and documentation.",
         prerequisites: "Inert schema",
-        proof: ACTIVATION_PROOFS,
+        proof: ALL_DELIVERY_PROOFS,
         completion: "The command and every activation obligation are supported.",
-        tasks: ACTIVATION_SLICE.tasks
+        tasks: COMPATIBLE_ACTIVATION_SLICE.tasks
       }
     ],
     obligationOwners: stagedOwners("Inert schema", "Public activation")
@@ -36224,7 +36249,7 @@ ${reviewOutputSchema("plan-execution")}
     slices: [
       { ...CONTRACT_SLICE, name: "Contract owner" },
       {
-        ...ACTIVATION_SLICE,
+        ...COMPATIBLE_ACTIVATION_SLICE,
         name: "Release owner",
         prerequisites: "Contract owner",
         completion: "Every accepted obligation has an owner and the repository remains supported."
@@ -36335,7 +36360,11 @@ ${reviewOutputSchema("plan-execution")}
         ...ACTIVATION_SLICE,
         name: "Activation",
         prerequisites: "Risk probe",
-        proof: ALL_DELIVERY_PROOFS
+        proof: ALL_DELIVERY_PROOFS,
+        tasks: [
+          ...ACTIVATION_SLICE.tasks?.slice(0, -1) ?? [],
+          "9. REFACTOR: retain one response-validation and result-retention path; rerun all seven named proof commands, including both default and legacy-result schema-compatibility fixtures, and assert exit 0, unchanged persisted legacy bytes, exact legacy verdict, summary, and findings, and public response snapshots identical to those captured in steps 2 and 4 before this refactor."
+        ]
       }
     ],
     obligationOwners: stagedOwners("Risk probe", "Activation")
@@ -36414,6 +36443,7 @@ ${reviewOutputSchema("plan-execution")}
       {
         ...ACTIVATION_SLICE,
         name: "Behavior delivery",
+        purpose: "Enforce the existing shared-authorization denial before reviewer dispatch or result persistence.",
         prerequisites: "none",
         boundary: "The accepted behavior only; no migration, rollout, rollback, documentation, or additional surface work.",
         proof: "behavior-boundary",
@@ -36444,7 +36474,7 @@ ${reviewOutputSchema("plan-execution")}
         tasks: [
           "1. RED: add the owned-store fixture in tests/delivery-state.test.ts with a known delivery-evidence row and a temporary delivery.db. Invoke the existing delivery workflow to write and read that evidence. Run bun run test tests/delivery-state.test.ts -t owned-store and observe exit 1 because the workflow does not read and write the evidence through DeliveryStateService into delivery.db before editing src/delivery-state.ts.",
           "2. GREEN: route the existing delivery workflow's evidence reads and writes through the accepted DeliveryStateService in src/delivery-state.ts. Rerun Delivery evidence step 1 by invoking that workflow and assert the exact fixture row is present in delivery.db, the workflow returns those same values, and the service's read/write trace contains every workflow evidence operation. Rerun the public response and authorization fixtures to assert unchanged responses and no unauthorized persistence.",
-          "3. REFACTOR: remove duplicate evidence access without changing the accepted store or owner; rerun the owned-store and public response commands with the same row, trace, and denial assertions."
+          "3. REFACTOR: remove duplicate evidence access without changing the accepted store or owner; rerun the owned-store, public response, and authorization regression commands after the final edit, require every test command to exit 0, and preserve the same row, trace, denial, and no-unauthorized-persistence assertions."
         ]
       }
     ],
@@ -36671,7 +36701,14 @@ ${reviewOutputSchema("plan-execution")}
         }
       ]
     }), ["supported", "prerequisite"]),
-    approved("many-mechanical-edits", "Many mechanical edits with one proof remain one concern.", MECHANICAL_MIRRORS_PLAN, "one_pull_request", ["Contract mirrors"]),
+    {
+      ...approved("many-mechanical-edits", "Many mechanical edits with one proof remain one concern.", MECHANICAL_MIRRORS_PLAN, "one_pull_request", ["Contract mirrors"]),
+      implementation_plan: `${IMPLEMENTATION_PLAN}
+## Accepted contract-delivery mechanism
+
+- The existing fixture project represents the accepted version-1 public review response in one canonical contract template and its registered generated and installed mirrors. Its existing generator reproduces every mirror from that canonical source; schema-compatibility compares each installed contract byte against that source. The public command and compatible stored-result reader consume this same version-1 contract.
+`
+    },
     approved("few-files-two-outcomes", "Few edits with two separately provable outcomes become two concerns.", FEW_FILES_TWO_OUTCOMES_PLAN, "multiple_pull_requests", ["Inert schema", "Public activation"]),
     denied("line-count-only-rationale", "Line count alone cannot justify a review boundary.", executionPlan({
       decision: "one pull request",
@@ -36819,7 +36856,7 @@ ${reviewOutputSchema("plan-execution")}
     }), ["authorization"]),
     approved("fixture-discovery-stays-in-execution-planning", "A discovered fixture implementation change preserves every accepted decision and proof boundary.", `${executionPlan({
       decision: "one pull request",
-      rationale: "The same public command contract requires only a mechanical fixture representation repair.",
+      rationale: "One complete typed-review capability shares the public contract and its required boundaries; the fixture representation repair preserves that contract and adds no independent outcome.",
       slices: [
         {
           ...COMPLETE_DELIVERY_SLICE,
@@ -57990,7 +58027,7 @@ function selectRankedReview(input, author, configured) {
 function rankedReviewRoutes(input, author, configured, productPlan) {
   if (input.kind !== "plan-execution")
     return isPlanningReview(input.kind) || productPlan ? configured ?? builtInReviewRoutes(input.cwd, author) : configured;
-  return filterExecutionPlanRoutes(input.kind, configured ?? builtInReviewRoutes(input.cwd, author));
+  return filterExecutionPlanRoutes(input.kind, configured ?? builtInReviewRoutes(input.cwd, author, input.kind));
 }
 async function runReview(input) {
   const { result, scope } = await withReviewScope(() => runReviewCore(input));
@@ -82440,6 +82477,13 @@ function designApprovalEnabled(cwd) {
   }
 }
 function currentReview(context) {
+  const ticket = readFileSync86(context.ticketPath, "utf8");
+  if (readFrontmatterScalar(ticket, "product_plan_contract") !== "v1" && ticket.includes(EXECUTION_DISCOVERY_HEADING)) {
+    return {
+      ok: false,
+      reason: "This legacy ticket returned to planning after an Execution review discovery. Convert its retained plan and design decisions to the current planning contract, then obtain a fresh Implementation Plan review before approving it."
+    };
+  }
   const gate = evaluateExecutionPlanningEntry(context.ticketDirectory, {
     projectDirectory: context.cwd
   });
@@ -82507,7 +82551,7 @@ function executionDiscoveryNotice(discovery) {
   const quoted = messages3.flatMap((message) => message.split(/\r?\n/u).map((line) => `> ${line}`));
   return `
 
-### Execution discovery requiring fresh planning review
+${EXECUTION_DISCOVERY_HEADING}
 
 ${quoted.join(`
 `)}
@@ -82607,7 +82651,12 @@ function scaffoldExecutionPlan(context) {
   const planPath = nodePath131.join(context.ticketDirectory, "execution-plan.md");
   if (existsSync61(planPath))
     return;
-  const templatePath = nodePath131.join(context.cwd, ".safeword", "templates", "execution-plan-template.md");
+  const installedPath = ".safeword/templates/execution-plan-template.md";
+  const projectTemplatePath = nodePath131.join(context.cwd, installedPath);
+  const packagedTemplate = SAFEWORD_SCHEMA.ownedFiles[installedPath].template;
+  if (packagedTemplate === undefined)
+    throw new Error("Execution Plan template is not registered.");
+  const templatePath = existsSync61(projectTemplatePath) ? projectTemplatePath : nodePath131.join(getTemplatesDirectory(), packagedTemplate);
   if (!existsSync61(templatePath)) {
     throw new Error("The installed Execution Plan template is missing. Repair the Safeword installation before approving the plan.");
   }
@@ -82782,6 +82831,7 @@ async function approvePlanResult(cwd, ticketId, options) {
     });
   }
 }
+var EXECUTION_DISCOVERY_HEADING = "### Execution discovery requiring fresh planning review";
 var init_plan_approval = __esm(() => {
   init_plan_gate();
   init_result();
@@ -82789,7 +82839,9 @@ var init_plan_approval = __esm(() => {
   init_job();
   init_packet();
   init_phase_admission();
+  init_schema();
   init_configured_paths();
+  init_fs();
   init_planning_contract_copy_failure();
   init_product_plan_contract();
 });

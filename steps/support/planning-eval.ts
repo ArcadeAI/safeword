@@ -56,7 +56,7 @@ export function selectedPlanningEval(world: SafewordWorld) {
 export function runPlanningEval(world: SafewordWorld): void {
   const state = states.get(world);
   assert.ok(state, 'A judged evaluation case must be selected first.');
-  const environment = {
+  const environment: NodeJS.ProcessEnv = {
     ...process.env,
     SAFEWORD_PLANNING_EVAL_CASE: state.caseId,
     SAFEWORD_PLANNING_EVAL_OUTPUT: state.reportPath,

@@ -21,12 +21,15 @@ import {
   PlanningContractCopyError,
 } from '../review/packet.js';
 import { phaseReviewAdmission } from '../review/phase-admission.js';
+import { SAFEWORD_SCHEMA } from '../schema.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
+import { getTemplatesDirectory } from '../utils/fs.js';
 import { planningContractCopyFailure } from '../utils/planning-contract-copy-failure.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
 
 type ApprovalStatus = 'approved' | 'declined' | 'not-required' | 'pending';
+const EXECUTION_DISCOVERY_HEADING = '### Execution discovery requiring fresh planning review';
 
 function interruptApprovalForTest(boundary: 'after-decision' | 'before-decision'): void {
   if (
@@ -97,6 +100,17 @@ function currentReview(
 ):
   | { readonly ok: true; readonly independence: AchievedReviewIndependence }
   | { readonly ok: false; readonly reason: string } {
+  const ticket = readFileSync(context.ticketPath, 'utf8');
+  if (
+    readFrontmatterScalar(ticket, 'product_plan_contract') !== 'v1' &&
+    ticket.includes(EXECUTION_DISCOVERY_HEADING)
+  ) {
+    return {
+      ok: false,
+      reason:
+        'This legacy ticket returned to planning after an Execution review discovery. Convert its retained plan and design decisions to the current planning contract, then obtain a fresh Implementation Plan review before approving it.',
+    };
+  }
   const gate = evaluateExecutionPlanningEntry(context.ticketDirectory, {
     projectDirectory: context.cwd,
   });
@@ -205,7 +219,7 @@ function executionDiscoveryNotice(
     ...discovery.findings,
   ];
   const quoted = messages.flatMap(message => message.split(/\r?\n/u).map(line => `> ${line}`));
-  return `\n\n### Execution discovery requiring fresh planning review\n\n${quoted.join('\n')}\n`;
+  return `\n\n${EXECUTION_DISCOVERY_HEADING}\n\n${quoted.join('\n')}\n`;
 }
 
 function applyExecutionDiscovery(
@@ -328,12 +342,14 @@ function scaffoldExecutionPlan(context: ApprovalContext): string | undefined {
   const planPath = nodePath.join(context.ticketDirectory, 'execution-plan.md');
   if (existsSync(planPath)) return undefined;
 
-  const templatePath = nodePath.join(
-    context.cwd,
-    '.safeword',
-    'templates',
-    'execution-plan-template.md',
-  );
+  const installedPath = '.safeword/templates/execution-plan-template.md';
+  const projectTemplatePath = nodePath.join(context.cwd, installedPath);
+  const packagedTemplate = SAFEWORD_SCHEMA.ownedFiles[installedPath].template;
+  if (packagedTemplate === undefined) throw new Error('Execution Plan template is not registered.');
+  // Native distributions keep workflow templates in their package, rather than the project.
+  const templatePath = existsSync(projectTemplatePath)
+    ? projectTemplatePath
+    : nodePath.join(getTemplatesDirectory(), packagedTemplate);
   if (!existsSync(templatePath)) {
     throw new Error(
       'The installed Execution Plan template is missing. Repair the Safeword installation before approving the plan.',
