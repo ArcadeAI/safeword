@@ -222,6 +222,27 @@ async function fixture(reviewer: Reviewer, mode = 'success', expires = false) {
 }
 
 describe('connected MCP authentication recovery', () => {
+  it('finishes a signed-in review without another start or retry command', async () => {
+    const review = await fixture('claude');
+    await review.login();
+    review.authenticate();
+    review.release();
+    await vi.waitFor(
+      async () => {
+        const status = await review.status();
+        expect(status.status, 'signed-in review must resume without another tool call').toBe(
+          'approved',
+        );
+      },
+      { timeout: 10_000 },
+    );
+    expect(review.receipts()).toHaveLength(2);
+    expect(readFileSync(review.receipt)).toEqual(review.original);
+    expect(
+      readFileSync(nodePath.join(review.host, 'paid-dispatches'), 'utf8').trim().split('\n'),
+    ).toHaveLength(1);
+  });
+
   it('retains manual recovery for a signed legacy receipt without a profile binding', async () => {
     const review = await fixture('claude');
     const record = JSON.parse(readFileSync(review.receipt, 'utf8')) as Record<string, unknown>;

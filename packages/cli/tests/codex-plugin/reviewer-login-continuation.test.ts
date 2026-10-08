@@ -118,6 +118,30 @@ if (!status) process.stdout.write(${JSON.stringify(reviewer === 'claude' ? 'Open
 }
 
 describe('confirmed reviewer login continuation', () => {
+  it('expires while authentication status is held and rejects its late success', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const login = fixture('claude');
+    await login.start();
+    await vi.advanceTimersByTimeAsync(599_000);
+    login.releaseLogin();
+    await until(() => login.commands().length === 2);
+    const check = login.commands()[1];
+    if (check === undefined) throw new Error('Authentication status did not start');
+    await vi.advanceTimersByTimeAsync(1000);
+    await until(() => {
+      try {
+        process.kill(check.pid, 0);
+        return false;
+      } catch {
+        return true;
+      }
+    });
+    login.releaseStatus();
+    await until(() => capturedReviewerLogin(login.key) === undefined);
+    await delay(100);
+    expect(existsSync(login.resumed)).toBe(false);
+  });
+
   it.each(['claude', 'codex'] as const)(
     'retains the %s profile after ambient defaults change',
     async reviewer => {
