@@ -2,7 +2,7 @@
 // Safeword: Codex Stop adapter for turn-end work.
 //
 // Stop also runs the done gate a ticket owes after this run closed it by edit
-// (#5633), before the behaviors below.
+// (#5633), before the behaviors below and even on a continuation Stop.
 //
 // Three behaviors share one Stop hook:
 //   1. Architecture-drift advisory: may emit a Codex continuation
@@ -271,18 +271,22 @@ async function main(): Promise<string> {
     return SILENT; // malformed stdin / no stdin -> fail open with valid JSON
   }
 
-  if (input.stop_hook_active === true) return SILENT;
-
+  const continuation = input.stop_hook_active === true;
   const projectDirectory = input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   if (!existsSync(`${projectDirectory}/.safeword`)) return SILENT;
 
-  runRetroExtraction(projectDirectory, input);
+  if (!continuation) runRetroExtraction(projectDirectory, input);
 
+  // An owed done gate is a hard gate, like stop-quality.ts's: the continuation
+  // loop guard must not let a failed gate, or a later owed one, slip through.
   const owedGateReason = runOwedDoneGate(
     projectDirectory,
     resolveRunIdentity(input, { runtime: 'codex' }),
   );
   if (owedGateReason) return JSON.stringify({ decision: 'block', reason: owedGateReason });
+
+  // Everything below is advisory; a continuation Stop stays silent.
+  if (continuation) return SILENT;
 
   const completion = completeSessionDoneTicket(projectDirectory, input);
   if (completion.blockReason) {

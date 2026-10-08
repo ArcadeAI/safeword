@@ -161,8 +161,13 @@ function closeThroughCodexPostToolUse(directory: string, run: CodexRun, ticketFi
   });
 }
 
-function runCodexStop(directory: string, run: CodexRun): { decision?: string; reason?: string } {
-  const stdout = runCodexHook(directory, run, 'stop', { stop_hook_active: false });
+/** Stop; `continuation` is the Stop that follows a Stop hook's own block. */
+function runCodexStop(
+  directory: string,
+  run: CodexRun,
+  continuation = false,
+): { decision?: string; reason?: string } {
+  const stdout = runCodexHook(directory, run, 'stop', { stop_hook_active: continuation });
   return JSON.parse(stdout.trim()) as { decision?: string; reason?: string };
 }
 
@@ -210,6 +215,42 @@ describe.each(Object.entries(RUNS))(
       setTestExitCode(directory, 1);
       runCodexStop(directory, run);
       expect(testRunCount(directory)).toBe(baseline + 4);
+    });
+
+    it('still blocks the continuation Stop that follows a failed gate', () => {
+      const directory = fixture.projectDirectory;
+      const run = makeRun('thread-continuation');
+      const ticketFile = commitTaskTicket(directory, '5635');
+      setTestExitCode(directory, 1);
+      const baseline = testRunCount(directory);
+
+      closeThroughCodexPostToolUse(directory, run, ticketFile);
+      expect(runCodexStop(directory, run).reason).toContain('Tests failed');
+      const continuation = runCodexStop(directory, run, true);
+
+      expect(continuation.decision).toBe('block');
+      expect(continuation.reason).toContain('Tests failed');
+      expect(testRunCount(directory)).toBe(baseline + 2);
+    });
+
+    it('runs the next owed gate on the continuation Stop the first one requested', () => {
+      const directory = fixture.projectDirectory;
+      const run = makeRun('thread-two');
+      closeThroughCodexPostToolUse(directory, run, commitTaskTicket(directory, '5636'));
+      const second = commitTaskTicket(directory, '5637');
+      closeThroughCodexPostToolUse(directory, run, second);
+      rmSync(nodePath.join(nodePath.dirname(second), 'verify.md'));
+      setTestExitCode(directory, 0);
+      const baseline = testRunCount(directory);
+
+      const first = runCodexStop(directory, run);
+      expect(first.decision).toBe('block');
+      expect(first.reason).toContain('5637');
+      const continuation = runCodexStop(directory, run, true);
+
+      expect(continuation.decision).toBe('block');
+      expect(continuation.reason).toContain('verify.md');
+      expect(testRunCount(directory)).toBe(baseline + 2);
     });
   },
 );
