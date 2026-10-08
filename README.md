@@ -404,8 +404,10 @@ report `file_change` execution items; those are recorded as a runtime boundary,
 not as edits Safeword claims to guard through PreToolUse. Codex Stop hooks use
 continuation semantics (`decision: "block"`, `reason`) for done-phase reminders
 and evidence remediation. When a Codex session is bound to an in-progress
-done-phase ticket and shared evidence passes, Stop also marks that ticket done;
-it never stages, commits, or opens a PR.
+done-phase ticket and shared evidence passes, Stop also marks that ticket done.
+A ticket the session closed by an edit keeps its done gate owed: Stop blocks,
+even on a continuation Stop, until shared evidence passes. It never stages,
+commits, or opens a PR.
 
 **Skills**: On-demand workflows for planning, BDD/TDD, debugging, elicitation, architecture exploration, review, refactoring, verification, retrospectives, linting, testing, ticket management, and safe session closeout. Claude Code gets them from the Safeword plugin as `/safeword:<skill>`, Codex as `safeword:<skill>`, OpenCode as `/safeword-<skill>`, and Cursor as rules plus `.cursor/commands/`. The source of truth is `packages/cli/templates/skills/`; the plugin catalogues are generated from it. `finish-review` is internal: class-1 review workflows (those requiring independent/cross-model review, as opposed to class-2's self-verifiable checks) invoke it only after the CLI coordinator returns typed route exhaustion. Claude hides it from the slash menu; Cursor ships a `/finish-review` command file for that same fallback.
 

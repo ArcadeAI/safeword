@@ -1,6 +1,9 @@
 #!/usr/bin/env bun
 // Safeword: Codex Stop adapter for turn-end work.
 //
+// Stop also runs the done gate a ticket owes after this run closed it by edit
+// (#5633), before the behaviors below and even on a continuation Stop.
+//
 // Three behaviors share one Stop hook:
 //   1. Architecture-drift advisory: may emit a Codex continuation
 //      (`decision:"block"`) during done-phase work.
@@ -25,13 +28,19 @@ import { architectureDocumentNudgeForProject } from '../lib/architecture-documen
 import { evaluateDoneEvidence } from '../lib/done-gate.ts';
 import { updateTicketStatus } from '../lib/hierarchy.ts';
 import { resolveNamespaceRoot } from '../lib/namespace-root.ts';
-import { readSessionActiveTicket } from '../lib/quality-state.ts';
+import {
+  laterOwedDoneGatesMessage,
+  nextOwedDoneGate,
+  readSessionActiveTicket,
+  readSessionState,
+  settleOwedDoneGate,
+} from '../lib/quality-state.ts';
 import { isTerminalHandoffCorrectionEnabled } from '../lib/review-ledger.ts';
 import { evaluateDecisionBriefCompliance, renderDecisionBriefCorrection } from '../lib/quality.ts';
 import { recordRetroDebugEvent } from '../lib/retro-debug.ts';
 import { decideRetroFilingGate, formatCodexFilingDispatch } from '../lib/retro-filing-gate.ts';
 import { RETRO_CHILD_ENV, retroChildArgs } from '../lib/retro-extract.ts';
-import { resolveRunIdentity } from '../lib/run-identity.ts';
+import { resolveRunIdentity, type RunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
 import {
   countCompletedToolUsesCodex,
@@ -77,6 +86,37 @@ function isDonePhaseWork(projectDirectory: string, input: CodexStopInput): boole
 function architectureNudge(projectDirectory: string, input: CodexStopInput): string | null {
   if (!isDonePhaseWork(projectDirectory, input)) return null;
   return architectureDocumentNudgeForProject(projectDirectory);
+}
+
+/**
+ * Run the done gate a ticket owes after this run closed it by an edit — the
+ * contract stop-quality.ts honors (#5546). The entry settles only once every
+ * check passes, so a failed gate reruns on the next Stop. Returns the block
+ * reason, if any.
+ */
+function runOwedDoneGate(projectDirectory: string, runIdentity: RunIdentity): string | undefined {
+  if (runIdentity.sessionKey === null) return undefined;
+  const owed = readSessionState(projectDirectory, runIdentity)?.doneGateOwedTickets;
+  const gate = nextOwedDoneGate(projectDirectory, runIdentity, owed);
+  if (!gate) return undefined;
+
+  let verdict: ReturnType<typeof evaluateDoneEvidence>;
+  try {
+    verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets', gate.folder),
+      ticketType: gate.type,
+    });
+  } catch (error) {
+    // Unreadable evidence must keep the gate owed, never fall through to the
+    // adapter's fail-open catch.
+    return `Done gate for ${gate.ticketId}: its evidence could not be read (${error instanceof Error ? error.message : String(error)}). Fix the ticket folder, then stop again.`;
+  }
+  if (!verdict.ok) {
+    return `Done gate for ${gate.ticketId}: ${verdict.reason ?? 'Done evidence could not be verified.'}`;
+  }
+  settleOwedDoneGate(projectDirectory, runIdentity, gate.ticketId);
+  return gate.later.length > 0 ? laterOwedDoneGatesMessage(gate) : undefined;
 }
 
 interface DoneTransitionResult {
@@ -238,12 +278,22 @@ async function main(): Promise<string> {
     return SILENT; // malformed stdin / no stdin -> fail open with valid JSON
   }
 
-  if (input.stop_hook_active === true) return SILENT;
-
+  const continuation = input.stop_hook_active === true;
   const projectDirectory = input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   if (!existsSync(`${projectDirectory}/.safeword`)) return SILENT;
 
-  runRetroExtraction(projectDirectory, input);
+  if (!continuation) runRetroExtraction(projectDirectory, input);
+
+  // An owed done gate is a hard gate, like stop-quality.ts's: the continuation
+  // loop guard must not let a failed gate, or a later owed one, slip through.
+  const owedGateReason = runOwedDoneGate(
+    projectDirectory,
+    resolveRunIdentity(input, { runtime: 'codex' }),
+  );
+  if (owedGateReason) return JSON.stringify({ decision: 'block', reason: owedGateReason });
+
+  // Everything below is advisory; a continuation Stop stays silent.
+  if (continuation) return SILENT;
 
   const completion = completeSessionDoneTicket(projectDirectory, input);
   if (completion.blockReason) {

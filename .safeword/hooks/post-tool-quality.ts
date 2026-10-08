@@ -16,6 +16,7 @@ import {
   LOC_THRESHOLD,
   META_PATHS,
   type QualityState,
+  resolveQualityStateIdentity,
 } from './lib/quality-state.ts';
 import { shouldReviewPhase } from './lib/review-trigger.ts';
 import { isTicketCloseEdit } from './lib/ticket-close.ts';
@@ -28,7 +29,6 @@ import {
   canonicalPathForGate,
   resolveToolProjectDirectory,
 } from './lib/namespace-root.ts';
-import { resolveRunIdentity } from './lib/run-identity.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
 installCrashCapture('post-tool-quality');
@@ -78,17 +78,9 @@ if (!hasSafewordProjectMarker(projectDirectory)) {
   process.exit(0);
 }
 
-// Codex's adapter marks its child process with the runtime, so resolve its
-// durable identity here rather than writing an unscoped `undefined` state when
-// Desktop omits session_id. Stop uses the same resolution, including the
-// CODEX_THREAD_ID fallback, so both hooks address one binding. Other adapters
-// retain their existing translated raw-id storage behavior.
-const stateFile = getStateFilePath(
-  projectDirectory,
-  process.env.SAFEWORD_AGENT_RUNTIME === 'codex'
-    ? resolveRunIdentity(input, { runtime: 'codex' })
-    : input.session_id,
-);
+// Stop resolves the same identity, so both hooks address one binding even when
+// Codex Desktop omits session_id (#5633).
+const stateFile = getStateFilePath(projectDirectory, resolveQualityStateIdentity(input));
 
 // Load or create state
 function loadState(): QualityState {
