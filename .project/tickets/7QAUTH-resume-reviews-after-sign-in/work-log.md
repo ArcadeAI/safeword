@@ -27,4 +27,10 @@ Independent executable RED review 0ed3cdfb-d3a3-4348-baf1-2ad63288c689 approved 
 
 Independent signed-retry review 4450ea22-48be-4640-9146-04248523e42e found later ranked routes could not resume. Regression c4f218ba8 reproduced this with a real worker. The fix pins the authenticated reviewer/model, and its standalone proof passes. Testing also exposed macOS canonical-path admission mismatch and early worker failures left pending; both were corrected. Re-review ea38fc90-5a94-462e-b3dc-224c7663adf4 approved the signed-retry slice with warnings.
 
-Two committed fixtures use unused executable override variables. The concrete .review/fixture-routing.patch puts synthetic vendors on PATH and retains all assertions. Explicit human approval for those additional fixture corrections is pending. Final lint, broader tests, regeneration and whole-feature review remain required.
+The user approved the fixture routing corrections. Commit 201689a1b puts synthetic vendors on PATH and retains all assertions.
+
+Whole-feature review 424188d1-6aa5-4e44-834d-9c27e77481ef found that executable drift prevented manual sign-in. Regression ab0a9b2f3 reproduced it for both vendors; ae1f0881f restores manual authentication while refusing automatic dispatch. Regression c78a9a217 also reproduced a device-code prefix captured at a stream boundary; ae1f0881f waits for the delimiter. Both standalone proofs now pass, as does the real stdio automatic continuation proof for both vendors.
+
+Independent Claude/Opus re-review 2adfa057-675b-43e8-adf1-b97d5febda9e approved the whole source change with warnings about binding-capture cost, narrow cancellation races, delimiter-free vendor output and unexecuted matrix coverage. Type checking passes. Regenerated native plugins in 2374015d1; all five generated surfaces pass their drift check.
+
+The previous targeted matrix waited 60 minutes behind the foreign runner and exited 75 without starting tests. After fixture approval, another attempt waited one minute behind a different checkout and also exited 75 without starting CLI tests. A single targeted package run is now queued with a ten-minute lock wait. No competing Vitest process or lock removal was attempted. Required GREEN rows remain unchecked.
