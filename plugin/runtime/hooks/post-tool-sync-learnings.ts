@@ -7,8 +7,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { hasVerificationStamp } from './lib/learning-verification-stamps.ts';
-import { resolveNamespaceRoot } from './lib/namespace-root.ts';
-import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
+import { canonicalPathForGate, resolveNamespaceRoot } from './lib/namespace-root.ts';
+import {
+  canonicalEditTarget,
+  resolveLaunchDirectory,
+  resolveToolProjectDirectory,
+} from './lib/project-directory.ts';
 
 interface HookInput {
   tool_name?: string;
@@ -30,16 +34,18 @@ try {
 const file = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
 if (!file) process.exit(0);
 
-const projectDir = resolveToolProjectDirectory(resolveLaunchDirectory(), {
+const launchDirectory = resolveLaunchDirectory();
+const projectDir = resolveToolProjectDirectory(launchDirectory, {
   tool: input.tool_name ?? '',
   editedFile: file,
   cwd: input.cwd,
 });
 const learningsDirectory = nodePath.join(resolveNamespaceRoot(projectDir), 'learnings');
 
-// Only fire for files inside the learnings directory.
-const resolvedFile = nodePath.resolve(file);
-if (!resolvedFile.startsWith(`${nodePath.resolve(learningsDirectory)}${nodePath.sep}`)) {
+// Only fire for files inside the learnings directory. Both sides by real path:
+// a relative edit path is relative to the reported cwd, not this process's.
+const resolvedFile = canonicalEditTarget(launchDirectory, file, input.cwd);
+if (!resolvedFile.startsWith(`${canonicalPathForGate(learningsDirectory)}${nodePath.sep}`)) {
   process.exit(0);
 }
 if (!resolvedFile.endsWith('.md')) process.exit(0);

@@ -62,7 +62,7 @@ import { architectureDocumentNudgeForProject } from './lib/architecture-document
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
-installCrashCapture('stop-quality');
+const crashCapture = installCrashCapture('stop-quality');
 
 interface HookInput {
   session_id?: string;
@@ -412,6 +412,7 @@ try {
 // when the host's cwd and CLAUDE_PROJECT_DIR stay at the launch checkout),
 // else the rule applied to the host cwd (#5467). Every reader below uses it.
 const projectDir = resolveSessionProjectDirectory({ sessionId: input.session_id, cwd: input.cwd });
+crashCapture.setProject(projectDir);
 const safewordDir = `${projectDir}/.safeword`;
 const ticketsDir = `${resolveNamespaceRoot(projectDir)}/tickets`;
 

@@ -78,15 +78,15 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-dependency-readiness.ts':
         '6418539671ace93e5df04b4ee4d74b9f28b241ec81bbcf2588017702d3b092f6',
       '.safeword/hooks/post-tool-lint.ts':
-        '2bec765853b5b5dc07f988786157e4dba39369d659360996c22ad52e419c20c8',
+        'de94e4849bc619441199b7e90ca1ef14f49a1b10089cf10f622d74f497550a7b',
       '.safeword/hooks/post-tool-quality.ts':
-        '99eb92a899352ea58561d225c354b6ccb295a5e3a39e6375f7aef98caa452847',
+        '0cc444ec1c5a0fa743294950917a84872f72fabc03f3ab5c56b21cd603b4030b',
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'd71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39',
       '.safeword/hooks/post-tool-sync-learnings.ts':
-        'f50598f43c006c146635a8875d5e6b1024608db1e66840425686b46f665636a2',
+        'd1cc8155abec7f3814ec6238babb9cbc2924447ebe83d8c74c213b91cbd3df28',
       '.safeword/hooks/post-tool-work-log.ts':
-        'ee248d8112d897cf2c53611809363053387ba37cc2dc126a8d750f34de1948ff',
+        'c36969cb1aae65c5edc27d33bb0b3f97feea05406bc762c69c5d4c1ec71f54c3',
       '.safeword/hooks/pre-tool-architecture-stage.ts':
         '2af6111f9229eaed191e4e4b7f475843ef883ced3053aa5d868018b072bbc878',
       '.safeword/hooks/pre-tool-config-guard.ts':
@@ -96,7 +96,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '2cade11042e2f4bb90ae96188f50e1a65b27b57029e4f1abeb21723e533d363c',
+        '04c22586d2aa32c798eb72e70a0b74b302567ac8ca862bb4f94e3c54503577d4',
       '.safeword/hooks/pre-tool-stale-main.ts':
         '7bb05938c06c15ce412d2c1d816c9678898fe341eb787fd0ae1cb88f1bf9dbdf',
       '.safeword/hooks/prompt-questions.ts':
@@ -130,7 +130,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-version.ts':
         '93f99d48724c0fcb3745a738cae66555dc33ac93153cc62fe44496fe9d48fe74',
       '.safeword/hooks/stop-quality.ts':
-        '3dd875a8f74f2d8a196fb699f44f854b8666b8b7aacde101c8f7d6ed2d738235',
+        '8c144d226b2970ea98e69b729ffa91e8ecf13a2b7f36392291c31a132fe53442',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':
