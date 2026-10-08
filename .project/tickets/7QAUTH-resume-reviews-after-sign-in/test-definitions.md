@@ -23,8 +23,8 @@ The standalone authentication-retry-proof.ts also exercises the existing review-
 Module contract only: the reservation API must return the same linked attempt for repeated authenticationRetry requests. The signed synthetic verdict is a Given for completed-record deduplication, not evidence that a real reviewer ran. This group does not claim the feature's login-completion actor interaction; the real stdio proofs own that boundary.
 
 - [x] RED 300eb0d74
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 201689a1b
+- [x] REFACTOR skip: binding, reservation and read-only child lookup share the existing job protocol; no behavior-preserving extraction is needed for this slice
 
 ### Scenario: Connected MCP recovery and shutdown
 
@@ -38,7 +38,7 @@ The MCP suite also runs both reviewers' negative login/profile checks, deadline,
 | Confirmed sign-in resumes the original review once | Connected MCP recovery and shutdown |
 | Abandoned or unsuccessful login cannot resume work | Confirmed sign-in and cancellation |
 | Expired sign-in cannot resume after late success | Confirmed sign-in and cancellation |
-| Confirmed sign-in just before expiry still resumes | Confirmed sign-in and cancellation |
+| Confirmed sign-in just before expiry still resumes | Bound request and one linked retry; login-module deadline supplement |
 | The original request must still match before dispatch | Bound request and one linked retry |
 | Concurrent completion cannot duplicate reviews | Bound request and one linked retry |
 | A later completion returns the existing attempt | Bound request and one linked retry |
