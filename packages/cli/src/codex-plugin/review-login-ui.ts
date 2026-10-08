@@ -36,7 +36,9 @@ export const REVIEW_LOGIN_HTML = `<!doctype html>
       token.textContent = value.device_code;
       code.append(token);
     }
-    document.getElementById('help').textContent = value.reviewer === 'claude'
+    document.getElementById('help').textContent = value.automatic_resume_allowed
+      ? 'Complete sign-in. This review resumes automatically while connected; you can close this panel.'
+      : value.reviewer === 'claude'
       ? 'Complete Claude sign-in in your browser, then retry the review.'
       : 'Return here after sign-in, then retry the same review.';
     if (!opened) {

@@ -10,6 +10,7 @@ import {
   cancelAllReviewerLogins,
   cancelReviewerLogin,
   capturedReviewerLogin,
+  reviewerLoginOutcome,
   startReviewerLogin,
 } from './reviewer-login.js';
 
@@ -18,6 +19,28 @@ const REVIEW_KINDS = new Set<ReviewKind>([
   'scenario-gate',
   'plan-implementation',
 ]);
+
+const automaticLogins = new Set<string>();
+
+function rememberAutomaticLogin(key: string): void {
+  automaticLogins.add(key);
+  if (automaticLogins.size > 100) {
+    const [oldest] = automaticLogins;
+    if (oldest !== undefined) automaticLogins.delete(oldest);
+  }
+}
+
+function authenticationRecovery(
+  root: string,
+  id: string,
+  data: unknown,
+): ReturnType<typeof reviewerLoginOutcome> {
+  const key = `${root}:${id}`;
+  if (!automaticLogins.has(key)) return undefined;
+  // A linked attempt is authoritative even if cancellation raced with its launch.
+  if (isRecord(data) && data.review_id !== id) return undefined;
+  return reviewerLoginOutcome(key);
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -109,13 +132,15 @@ function reviewStatus(args: unknown): Record<string, unknown> {
   ) {
     throw new Error('review_id and absolute project_root are required');
   }
-  const result = reviewJobStatus(projectRootDirectory(args.project_root), args.review_id, true);
+  const root = projectRootDirectory(args.project_root);
+  const result = reviewJobStatus(root, args.review_id, true);
   const data = result.data;
   const independent = hasIndependentVerdict(isRecord(data) ? data : undefined);
   return textResult({
     review_id: args.review_id,
     status: isRecord(data) && typeof data.status === 'string' ? data.status : result.state,
     independent,
+    authentication_recovery: authenticationRecovery(root, args.review_id, data),
     result,
   });
 }
@@ -157,21 +182,28 @@ function showReviewerLogin(args: unknown): Record<string, unknown> {
   if (captured?.auth_url !== url.href || captured.device_code !== deviceCode) {
     throw new Error('Sign-in details do not match this review’s reviewer CLI');
   }
+  const automatic = isRecord(result.data) && result.data.authentication_continuation === true;
   const value = {
     reviewer,
     auth_url: url.href,
     ...(deviceCode !== undefined && { device_code: deviceCode }),
     browser_launch_requested: false,
     automatic_open_allowed: false,
-    message:
-      reviewer === 'claude'
-        ? 'Open the sign-in link and complete the Claude browser sign-in. Retry the same review after sign-in.'
-        : 'Open the sign-in link, enter the device code, then retry the same review after sign-in.',
+    ...(automatic && { automatic_resume_allowed: true }),
+    message: loginGuidance(reviewer, automatic),
   };
   return { content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value };
 }
 
-async function launchReviewerLogin(args: unknown): Promise<Record<string, unknown>> {
+function loginGuidance(reviewer: 'claude' | 'codex', automatic: boolean): string {
+  if (automatic)
+    return 'Complete sign-in. This review resumes automatically after account verification while connected.';
+  return reviewer === 'claude'
+    ? 'Open the sign-in link and complete the Claude browser sign-in. Retry the same review after sign-in.'
+    : 'Open the sign-in link, enter the device code, then retry the same review after sign-in.';
+}
+
+function loginLocation(args: unknown): { root: string; id: string } {
   if (
     !isRecord(args) ||
     typeof args.project_root !== 'string' ||
@@ -180,8 +212,12 @@ async function launchReviewerLogin(args: unknown): Promise<Record<string, unknow
   ) {
     throw new Error('project_root and review_id are required');
   }
-  const root = projectRootDirectory(args.project_root);
-  const status = reviewJobStatus(root, args.review_id, true);
+  return { root: projectRootDirectory(args.project_root), id: args.review_id };
+}
+
+async function launchReviewerLogin(args: unknown): Promise<Record<string, unknown>> {
+  const { root, id } = loginLocation(args);
+  const status = reviewJobStatus(root, id, true);
   const reviewer = isRecord(status.data) ? status.data.assigned_reviewer : undefined;
   if (
     status.findings.every(finding => finding.code !== 'REVIEW_AUTHENTICATION_REQUIRED') ||
@@ -189,15 +225,16 @@ async function launchReviewerLogin(args: unknown): Promise<Record<string, unknow
   ) {
     throw new Error('The review is not waiting for Claude or Codex authentication');
   }
-  const reviewKey = `${root}:${args.review_id}`;
-  const login = await startReviewerLogin(reviewKey, reviewer, root);
+  const reviewKey = `${root}:${id}`;
+  const { login, release } = await startBoundReviewerLogin(root, id, reviewer, status.data);
   try {
     const validated = showReviewerLogin({
       project_root: root,
-      review_id: args.review_id,
+      review_id: id,
       ...login,
     });
     const browserLaunchRequested = await requestBrowserOpen(login.auth_url);
+    release?.(true);
     const value = {
       ...(validated.structuredContent as Record<string, unknown>),
       browser_launch_requested: browserLaunchRequested,
@@ -205,9 +242,44 @@ async function launchReviewerLogin(args: unknown): Promise<Record<string, unknow
     };
     return { content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value };
   } catch (error) {
+    release?.(false);
     cancelReviewerLogin(reviewKey);
     throw error;
   }
+}
+
+async function startBoundReviewerLogin(
+  root: string,
+  id: string,
+  reviewer: 'claude' | 'codex',
+  data: unknown,
+) {
+  const key = `${root}:${id}`;
+  if (!isRecord(data) || data.authentication_continuation !== true)
+    return { login: await startReviewerLogin(key, reviewer, root), release: undefined };
+  const recovery = await loginContinuation(root, id, reviewer);
+  const login = await startReviewerLogin(key, reviewer, root, recovery.options);
+  rememberAutomaticLogin(key);
+  return { login, release: recovery.release };
+}
+
+async function loginContinuation(root: string, id: string, reviewer: 'claude' | 'codex') {
+  const { assertReviewAuthenticationContext, resumeReviewAfterAuthentication } =
+    await import('../review/job.js');
+  const { promise: displayed, resolve: release } = Promise.withResolvers<boolean>();
+  return {
+    release,
+    options: {
+      validateContext: (context: Parameters<typeof assertReviewAuthenticationContext>[3]) => {
+        assertReviewAuthenticationContext(root, id, reviewer, context);
+      },
+      onAuthenticated: async (signal: AbortSignal) => {
+        if (!(await displayed)) throw new Error('Sign-in details could not be displayed.');
+        signal.throwIfAborted();
+        await resumeReviewAfterAuthentication(root, id, reviewer, signal);
+      },
+    },
+  };
 }
 
 const tools = [
@@ -243,7 +315,7 @@ const tools = [
   {
     name: 'start_reviewer_login',
     description:
-      'Only after a signed review reports REVIEW_AUTHENTICATION_REQUIRED, launch the assigned reviewer CLI sign-in outside the author shell sandbox, request the default browser with its exact URL as one argument without a shell, and display the URL and optional device code. The user completes vendor sign-in; retry the review afterward.',
+      'After REVIEW_AUTHENTICATION_REQUIRED, start the assigned reviewer sign-in and show its URL and optional code. Eligible reviews resume once after verified sign-in while connected. Keep polling the original review ID; use result.data.review_id for the resulting receipt.',
     annotations: { readOnlyHint: false, openWorldHint: true },
     _meta: { ui: { resourceUri: REVIEW_LOGIN_URI } },
     inputSchema: {
@@ -258,7 +330,7 @@ const tools = [
   {
     name: 'show_reviewer_login',
     description:
-      'Redisplay the sign-in URL and any device code captured by an in-progress start_reviewer_login call for this signed review. The view opens the link only after a user click. Retry the same review after sign-in.',
+      'Redisplay captured sign-in details for this review. Eligible reviews resume once after verified sign-in while connected; older receipts require manual retry.',
     annotations: { readOnlyHint: true, openWorldHint: false },
     _meta: { ui: { resourceUri: REVIEW_LOGIN_URI } },
     inputSchema: {
