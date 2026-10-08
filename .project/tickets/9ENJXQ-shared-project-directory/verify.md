@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 10520/10520 tests pass (14 skipped; packages/cli 614 files, plus retro-relay 153/153 and retro-collector 198/198)
+**Test Suite:** ✓ 10520/10520 tests pass at 9a2ea1da5 (14 skipped; packages/cli 614 files, plus retro-relay 153/153 and retro-collector 198/198); after the review fixes, 4743/4743 pass across the hooks, integration, skills, claude-plugin, schema, parity and closeout suites at 8eae8f1d4
 **Gherkin:** ✅ Acceptance lane passes (596 scenarios passed)
 **Build:** ✅ Success
 **Lint:** ✅ Clean (ESLint on every changed source and test file)
@@ -20,4 +20,5 @@
 ## Notes
 
 - Cursor `cursor-install.json` / `cursor-uninstall.json` result hashes changed because a Cursor install now ships `.safeword/hooks/lib/project-directory.ts` (same effect PR #5571 had when adding `ticket-close.ts`).
+- Review: four cross-agent Codex quality-review passes; the last open finding (dependency stamp after a nested-package install) predates this work (#5498) and is a separate follow-up.
 - Behavior change: tools other than edits and Bash now resolve from the host `cwd` instead of always using the launch checkout.

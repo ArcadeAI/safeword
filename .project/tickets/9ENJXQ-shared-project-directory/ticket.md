@@ -31,3 +31,4 @@ Design: `.project/designs/5467-project-directory-resolution.md`.
 
 - 2026-10-08T05:12:13.595Z Started: Created ticket 9ENJXQ
 - 2026-10-08T05:13:46.303Z Phase: intake → implement
+- 2026-10-08T22:31:00.000Z Implemented red-first; four cross-agent Codex quality-review passes. Fixed: symlinked edit targets resolve by real path; `cwd` is a required input (an ambient `process.cwd()` default broke 69 hook tests); relative edit targets share the resolver's base; hooks pass the host-spelled edit path. Pass 4's remaining finding (dependency stamp after a nested-package install) predates this work (#5498) and is filed as a separate follow-up.
