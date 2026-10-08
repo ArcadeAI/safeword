@@ -89,7 +89,7 @@ function featureFixture(designApprovalGate = false, phase = 'plan-execution'): s
     `${JSON.stringify({
       designApprovalGate,
       crossAgentReviewRoutes: {
-        codex: [{ reviewer: 'claude', model: 'opus' }],
+        codex: [{ reviewer: 'claude', model: 'claude-opus-5' }],
       },
     })}\n`,
   );

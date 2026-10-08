@@ -301,7 +301,7 @@ async function featureFixture(
   writeFileSync(
     nodePath.join(root, '.safeword', 'config.json'),
     `${JSON.stringify({
-      crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'opus' }] },
+      crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'claude-opus-5' }] },
       ...(designApprovalGate && { designApprovalGate: true }),
     })}\n`,
   );

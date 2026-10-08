@@ -706,7 +706,7 @@ describe('implementation-time discoveries return to the affected planning phase'
   ] as const)(
     'routes %s repair from implementation through the installed CLI',
     async (discovery, planningDestination, expectedPhase) => {
-      const project = fixture(false);
+      const project = fixture(false, 'approved', true);
       writeFileSync(
         project.ticketPath,
         readFileSync(project.ticketPath, 'utf8').replace(
@@ -760,7 +760,14 @@ describe('implementation-time discoveries return to the affected planning phase'
       expect(result.stdout).toContain(`"planning_destination":"${planningDestination}"`);
 
       if (planningDestination === 'plan-implementation') {
-        const revisedImplementationPlan = `${PLAN}\nAccepted authorization uses the revised boundary.\n`;
+        const currentImplementationPlan = readFileSync(
+          nodePath.join(project.ticketDirectory, 'impl-plan.md'),
+          'utf8',
+        );
+        const revisedImplementationPlan = currentImplementationPlan.replace(
+          '## Decisions\n',
+          '## Decisions\n\nAccepted authorization uses the revised boundary.\n',
+        );
         writeFileSync(
           nodePath.join(project.ticketDirectory, 'impl-plan.md'),
           revisedImplementationPlan,

@@ -99,7 +99,7 @@ it.each([
           claude: [
             {
               reviewer: first,
-              ...(first === 'codex' && codexConfirmed && { model: 'gpt-6-astra' }),
+              ...(first === 'codex' && codexConfirmed && { model: 'gpt-6.1-sol' }),
             },
             { reviewer: second },
           ],

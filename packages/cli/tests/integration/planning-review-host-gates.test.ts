@@ -102,7 +102,7 @@ it.each([
         crossAgentReview: policy,
         crossAgentReviewRoutes: {
           [author]: [
-            { reviewer: reviewerAgent, ...(confirmedReviewer && { model: 'gpt-6-astra' }) },
+            { reviewer: reviewerAgent, ...(confirmedReviewer && { model: 'gpt-6.1-sol' }) },
           ],
         },
       }),

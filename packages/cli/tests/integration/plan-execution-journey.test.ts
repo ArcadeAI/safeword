@@ -280,7 +280,7 @@ describe('Execution Plan cold-start journey', () => {
       mkdirSync(nodePath.join(root, 'src'), { recursive: true });
       writeFileSync(
         nodePath.join(root, '.safeword', 'config.json'),
-        `${JSON.stringify({ designApprovalGate: false, crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'opus' }] } })}\n`,
+        `${JSON.stringify({ designApprovalGate: false, crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'claude-opus-5' }] } })}\n`,
       );
       writeFileSync(nodePath.join(root, '.safeword', 'SAFEWORD.md'), '# Safeword\n');
       writeFileSync(
@@ -538,7 +538,7 @@ describe('Execution Plan cold-start journey', () => {
             '--phase',
             request.kind,
             '--model',
-            'opus',
+            'claude-opus-5',
             '--author-agent',
             'codex',
             '--reviewer-agent',
@@ -773,7 +773,7 @@ describe('Execution Plan cold-start journey', () => {
       mkdirSync(nodePath.join(root, 'tests'), { recursive: true });
       writeFileSync(
         nodePath.join(root, '.safeword', 'config.json'),
-        `${JSON.stringify({ designApprovalGate: false, crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'opus' }] } })}\n`,
+        `${JSON.stringify({ designApprovalGate: false, crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'claude-opus-5' }] } })}\n`,
       );
       writeFileSync(nodePath.join(root, '.safeword', 'SAFEWORD.md'), '# Safeword\n');
       writeFileSync(

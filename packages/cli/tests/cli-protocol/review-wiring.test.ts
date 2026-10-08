@@ -960,7 +960,7 @@ describe('cross-agent review public-command wiring', () => {
         status: 'approved',
         review_kind: 'plan-execution',
         assigned_reviewer: 'claude',
-        reviewer_model: 'opus',
+        reviewer_model: 'claude-opus-5',
         reviewer_output: { execution_plan_record: JSON.parse(executionPlanRecord) },
       },
     });
