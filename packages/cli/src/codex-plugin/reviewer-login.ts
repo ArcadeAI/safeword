@@ -113,6 +113,7 @@ function authenticationCheck(
 export function parseReviewerLoginOutput(
   reviewer: Reviewer,
   output: string,
+  complete = true,
 ): LoginResult | undefined {
   // eslint-disable-next-line no-control-regex -- The CLI may color its sign-in URL.
   const clean = output.replaceAll(/\u{1B}\[[\d;]*m/gu, '');
@@ -134,7 +135,12 @@ export function parseReviewerLoginOutput(
   }
   if (url === undefined || url.href.length > 8000) return undefined;
   if (reviewer === 'claude') return { auth_url: url.href };
-  const deviceCode = /\b[A-Z\d]{4,5}-[A-Z\d]{4,5}\b/u.exec(clean.slice(urlEnd))?.[0];
+  const codeOutput = clean.slice(urlEnd);
+  const match = /\b[A-Z\d]{4,5}-[A-Z\d]{4,5}\b/u.exec(codeOutput);
+  // A chunk ending at four characters may still be part of a five-character code.
+  if (!complete && match !== null && match.index + match[0].length === codeOutput.length)
+    return undefined;
+  const deviceCode = match?.[0];
   return deviceCode === undefined ? undefined : { auth_url: url.href, device_code: deviceCode };
 }
 
@@ -290,7 +296,7 @@ export async function startReviewerLogin(
     function collect(chunk: Buffer): void {
       if (settled) return;
       output = `${output}${chunk.toString()}`.slice(-16_384);
-      const found = parseReviewerLoginOutput(reviewer, output);
+      const found = parseReviewerLoginOutput(reviewer, output, false);
       if (found === undefined) return;
       settled = true;
       clearTimeout(timeout);

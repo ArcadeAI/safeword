@@ -33,6 +33,10 @@ import type { AuthenticationReviewer, ReviewContinuation } from './scope.js';
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
 type WorkerInspection = 'match' | 'mismatch' | 'unavailable';
 
+export class ReviewAuthenticationContextChangedError extends Error {
+  override readonly name = 'ReviewAuthenticationContextChangedError';
+}
+
 interface ReviewJobRecord {
   readonly schema_version: 1;
   readonly id: string;
@@ -157,7 +161,9 @@ export function assertReviewAuthenticationContext(
     reviewIdentity(cwd, original.kind, original.targets, original.context, original.execution, true)
       .fingerprint !== original.source_fingerprint
   )
-    throw new Error('The review execution context changed. Retry manually.');
+    throw new ReviewAuthenticationContextChangedError(
+      'The review execution context changed. Retry manually.',
+    );
 }
 
 function verifiedAuthenticationParent(cwd: string, retry: AuthenticationRetry): ReviewJobRecord {

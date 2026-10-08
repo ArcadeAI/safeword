@@ -182,7 +182,10 @@ function showReviewerLogin(args: unknown): Record<string, unknown> {
   if (captured?.auth_url !== url.href || captured.device_code !== deviceCode) {
     throw new Error('Sign-in details do not match this review’s reviewer CLI');
   }
-  const automatic = isRecord(result.data) && result.data.authentication_continuation === true;
+  const automatic =
+    automaticLogins.has(`${root}:${args.review_id}`) &&
+    isRecord(result.data) &&
+    result.data.authentication_continuation === true;
   const value = {
     reviewer,
     auth_url: url.href,
@@ -200,7 +203,7 @@ function loginGuidance(reviewer: 'claude' | 'codex', automatic: boolean): string
     return 'Complete sign-in. This review resumes automatically after account verification while connected.';
   return reviewer === 'claude'
     ? 'Open the sign-in link and complete the Claude browser sign-in. Retry the same review after sign-in.'
-    : 'Open the sign-in link, enter the device code, then retry the same review after sign-in.';
+    : 'Open the sign-in link and enter the device code. Retry the same review after sign-in.';
 }
 
 function loginLocation(args: unknown): { root: string; id: string } {
@@ -258,14 +261,24 @@ async function startBoundReviewerLogin(
   if (!isRecord(data) || data.authentication_continuation !== true)
     return { login: await startReviewerLogin(key, reviewer, root), release: undefined };
   const recovery = await loginContinuation(root, id, reviewer);
-  const login = await startReviewerLogin(key, reviewer, root, recovery.options);
-  rememberAutomaticLogin(key);
-  return { login, release: recovery.release };
+  try {
+    const login = await startReviewerLogin(key, reviewer, root, recovery.options);
+    rememberAutomaticLogin(key);
+    return { login, release: recovery.release };
+  } catch (error) {
+    recovery.release(false);
+    if (!recovery.isContextChanged(error)) throw error;
+    automaticLogins.delete(key);
+    return { login: await startReviewerLogin(key, reviewer, root), release: undefined };
+  }
 }
 
 async function loginContinuation(root: string, id: string, reviewer: 'claude' | 'codex') {
-  const { assertReviewAuthenticationContext, resumeReviewAfterAuthentication } =
-    await import('../review/job.js');
+  const {
+    assertReviewAuthenticationContext,
+    resumeReviewAfterAuthentication,
+    ReviewAuthenticationContextChangedError,
+  } = await import('../review/job.js');
   let release!: (allowed: boolean) => void;
   // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The project targets ES2023.
   const displayed = new Promise<boolean>(resolve => {
@@ -273,6 +286,7 @@ async function loginContinuation(root: string, id: string, reviewer: 'claude' | 
   });
   return {
     release,
+    isContextChanged: (error: unknown) => error instanceof ReviewAuthenticationContextChangedError,
     options: {
       validateContext: (context: Parameters<typeof assertReviewAuthenticationContext>[3]) => {
         assertReviewAuthenticationContext(root, id, reviewer, context);
