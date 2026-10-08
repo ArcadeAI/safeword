@@ -136,6 +136,63 @@ writeFileSync(file+'.tmp',JSON.stringify(record)+'\n');renameSync(file+'.tmp',fi
 }
 
 describe('signed authentication continuation', () => {
+  it('leaves no receipt or dispatched worker when cancellation already won', async () => {
+    const request = await original();
+    const cancellation = new AbortController();
+    cancellation.abort();
+    await expect(
+      continuation.resumeReviewAfterAuthentication(
+        request.root,
+        request.id,
+        'claude',
+        cancellation.signal,
+      ),
+    ).rejects.toThrow();
+    expect(readdirSync(request.directory).filter(name => name.endsWith('.json'))).toHaveLength(1);
+    expect(existsSync(nodePath.join(request.keyRoot, 'dispatches'))).toBe(false);
+    expect(readFileSync(request.receipt)).toEqual(request.originalBytes);
+  });
+
+  it('follows a completed second authentication failure and never starts a third attempt', async () => {
+    const request = await original({ retryAuth: true });
+    const result = await continuation.resumeReviewAfterAuthentication(
+      request.root,
+      request.id,
+      'claude',
+      request.signal,
+    );
+    const childId = (result.data as { review_id: string }).review_id;
+    await vi.waitFor(() => {
+      expect(jobs.reviewJobStatus(request.root, childId, true).data).toMatchObject({
+        status: 'blocked',
+        review_id: childId,
+      });
+      const record = JSON.parse(
+        readFileSync(nodePath.join(request.directory, `${childId}.json`), 'utf8'),
+      ) as { state: string };
+      expect(record.state).toBe('completed');
+    });
+    expect(jobs.reviewJobStatus(request.root, request.id, true).data).toMatchObject({
+      status: 'blocked',
+      review_id: childId,
+    });
+    const repeated = await continuation.resumeReviewAfterAuthentication(
+      request.root,
+      request.id,
+      'claude',
+      request.signal,
+    );
+    expect((repeated.data as { review_id: string }).review_id).toBe(childId);
+    await expect(
+      continuation.resumeReviewAfterAuthentication(request.root, childId, 'claude', request.signal),
+    ).rejects.toThrow();
+    expect(readdirSync(request.directory).filter(name => name.endsWith('.json'))).toHaveLength(2);
+    expect(
+      readFileSync(nodePath.join(request.keyRoot, 'dispatches'), 'utf8').trim().split('\n'),
+    ).toEqual([childId]);
+    expect(readFileSync(request.receipt)).toEqual(request.originalBytes);
+  });
+
   it('finishes the real linked worker when sign-in completes at 9:59', async () => {
     const request = await original();
     const profile = nodePath.join(request.keyRoot, 'profile');
