@@ -1,5 +1,7 @@
 # Test-first ledger
 
+- [ ] cross-scenario
+
 ## Scenarios
 
 ### Scenario: Confirmed sign-in and cancellation
@@ -9,8 +11,8 @@ Proof: reviewer-login-continuation.test.ts; happy path, failed auth, wrong profi
 Module contract only: a successful login plus a qualifying assigned-profile status invokes the continuation callback once. Failed, unsupported, cancelled or expired authentication does not invoke it; cancellation terminates an active check. This slice does not claim review dispatch, lineage or verdict. The connected MCP slice owns that feature proof.
 
 - [x] RED 57e22472b
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN f772b8437
+- [x] REFACTOR skip: login and status share one captured context and bounded lifecycle; no separate restructuring needed
 
 ### Scenario: Bound request and one linked retry
 
