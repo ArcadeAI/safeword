@@ -1,0 +1,18 @@
+{
+  "checked_on": "2026-10-08",
+  "boundary": "Real installed trusted CLI status commands under reviewerEnvironment; no credentials copied or logged",
+  "claude": {
+    "version": "2.1.289",
+    "default": {"exit": 0, "loggedIn": true, "authMethod": "claude.ai", "configDirectoryPresent": true},
+    "empty_CLAUDE_CONFIG_DIR": {"exit": 1, "loggedIn": false, "authMethod": "none", "configDirectoryMatches": true},
+    "source": "https://code.claude.com/docs/en/authentication",
+    "supported": "claude.ai browser subscription login with an exact configDirectory match; shared Console profiles are excluded"
+  },
+  "codex": {
+    "version": "0.153.4",
+    "default": {"exit": 0, "chatgptStatus": true},
+    "empty_CODEX_HOME": {"exit": 1, "reportsNotLoggedIn": true},
+    "source": "https://raw.githubusercontent.com/openai/codex/rust-v0.153.4/codex-rs/login/src/auth/storage.rs",
+    "supported": "ChatGPT device login; file or CODEX_HOME-keyed keyring stores; other auth modes are excluded"
+  }
+}
