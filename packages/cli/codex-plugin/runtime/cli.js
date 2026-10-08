@@ -36369,7 +36369,7 @@ ${reviewOutputSchema("plan-execution")}
     ],
     obligationOwners: stagedOwners("Risk probe", "Activation")
   });
-  PARALLEL_AFTER_PROBE_PLAN = executionPlan({
+  PARALLEL_AFTER_PROBE_PLAN = `${executionPlan({
     decision: "multiple pull requests",
     rationale: "Resolve the shared contract risk first, then implement two independently provable consumers in parallel.",
     slices: [
@@ -36388,7 +36388,7 @@ ${reviewOutputSchema("plan-execution")}
         completion: "The CLI consumer passes every named boundary proof.",
         tasks: ACTIVATION_SLICE.tasks?.filter((task) => !task.startsWith("7.") && !task.startsWith("8.")).map((task) => {
           if (task.startsWith("6.")) {
-            return `${task} Verify only the accepted shared plan structure, not Documentation delivery, in the canonical conformance corpus with bun run test:execution-plan-conformance using the Risk probe, CLI consumer, and Documentation consumer dependency and obligation-owner fixtures. Assert both consumers require the completed Risk probe, neither consumer requires the other, intermediate merges preserve disabled CLI activation until its compatible reader is available, and every applicable obligation has retained final-revision completion evidence. Temporarily remove each prerequisite, obligation owner, or completion evidence and require this proof to fail, then restore the valid fixtures and require exit 0.`;
+            return `${task} Verify only the accepted shared plan structure, not Documentation delivery, in the canonical conformance corpus with bun run test:execution-plan-conformance using the Risk probe, CLI consumer, and Documentation consumer dependency and obligation-owner fixtures. Assert both consumers require the completed Risk probe, neither consumer requires the other, intermediate merges preserve disabled CLI activation until its compatible reader is available. Temporarily remove each prerequisite or obligation owner and require this proof to fail, then restore the valid fixtures and require exit 0.`;
           }
           return task.startsWith("9.") ? "9. REFACTOR: retain one response-validation and result-retention path; after the final edit rerun all five CLI proof commands, explicitly including bun run test:execution-plan-conformance, with exit 0, the step-6 conformance assertions unchanged, and byte-identical public response snapshots." : task;
         })
@@ -36415,7 +36415,11 @@ ${reviewOutputSchema("plan-execution")}
       "Documentation work": "Documentation consumer",
       "Affected-surface work": "CLI consumer"
     }
-  });
+  })}
+## Final delivery evidence
+
+After Risk probe, CLI consumer, and Documentation consumer are integrated into the same committed candidate revision, record proof for items 1 through 10 first by running safeword ticket record-delivery-proof <ticketId> <itemId> <proofId> with this ticket's ID and each row's declared IDs. The existing command executes each reviewed proof and retains its authenticated result after the final edit. Next run safeword ticket delivery-checklist <ticketId> --json and require data.open_contributor_items to contain only item-11; if any item 1 through 10 remains open, stop without recording item-11, even if every plan-structure fixture passes. Only then run safeword ticket record-delivery-proof <ticketId> item-11 plan-integrity and rerun delivery-checklist --json; require data.readiness_state contributor_work_complete and data.merge_authorization pending. This ordered final check proves actual obligation completion, is not a consumer-to-consumer prerequisite, and grants no merge authority. Reuse the existing proof-subject currency comparison: committed code contents must match the producing revision, excluding only this Execution Plan and its review-ledger progress; absent, stale, failed, or wrong-item evidence keeps the affected item open. Do not introduce a new receipt verifier or treat seeded conformance fixtures as actual completion evidence.
+`;
   MIGRATION_WITHOUT_COMPLETION_PLAN = executionPlan({
     decision: "one pull request",
     rationale: "The migration and behavior activation form one coherent delivery change.",
