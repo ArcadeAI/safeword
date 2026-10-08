@@ -30,6 +30,8 @@ export interface DependencyPlan {
   installCommand: InstallCommand;
   installArtifact: string;
   inputPaths: string[];
+  /** The `packageManager` pin (e.g. `bun@1.4.2`), when it names this manager. */
+  pinnedManager?: string;
 }
 
 export interface DependencyReadiness {
@@ -64,6 +66,7 @@ export type DependencyBootstrapResult =
 
 const INSTALL_ARTIFACT = 'node_modules';
 const INSTALL_MARKER_FILENAME = '.safeword-deps-fingerprint';
+const REINSTALL_SENTINEL_FILENAME = '.safeword-deps-reinstalled';
 const DEPENDENCY_STATE_FILENAME = 'dependency-readiness.json';
 const DEPENDENCY_BOOTSTRAP_LOCK_DIRECTORY = '.dependency-bootstrap.lock';
 const BUN_LOCKFILES = ['bun.lock', 'bun.lockb'];
@@ -149,6 +152,17 @@ export function detectDependencyPlan(projectDirectory: string): DependencyPlan |
   const packageManager =
     typeof packageJson.packageManager === 'string' ? packageJson.packageManager : undefined;
 
+  const plan = buildDependencyPlan(projectDirectory, packageJson, packageManager);
+  if (plan === undefined || parseDeclaredManager(packageManager) !== plan.manager) return plan;
+  // Drop a Corepack integrity suffix (`pnpm@9.0.0+sha512.…`) from the display.
+  return { ...plan, pinnedManager: packageManager?.split('+', 1)[0] };
+}
+
+function buildDependencyPlan(
+  projectDirectory: string,
+  packageJson: Record<string, unknown>,
+  packageManager: string | undefined,
+): DependencyPlan | undefined {
   switch (detectDependencyManager(projectDirectory, packageManager)) {
     case 'bun':
       return buildBunPlan(projectDirectory, packageJson);
@@ -366,7 +380,10 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
 
   // A matching marker is proof that a later install completed successfully.
   // Let that proof supersede durable failure state left by an earlier attempt.
-  if (marker === fingerprint) {
+  if (
+    marker === fingerprint ||
+    consumeReinstallSentinel(projectDirectory, plan, fingerprint, previousState)
+  ) {
     return {
       status: 'ready',
       reason: 'install_artifact_current',
@@ -722,6 +739,40 @@ function stampInstallMarker(
   }
 }
 
+/**
+ * The stale recovery ends in `touch <artifact>/.safeword-deps-reinstalled`, which
+ * runs only after its install succeeds. A sentinel newer than every input and
+ * any recorded install attempt therefore proves a later install. Converting it
+ * straight into the fingerprint marker keeps content authoritative afterwards.
+ * It replaces `rm -f <marker> && touch <artifact>`, which host command policies
+ * reject (#5188, #5647).
+ */
+function consumeReinstallSentinel(
+  projectDirectory: string,
+  plan: DependencyPlan,
+  fingerprint: string,
+  previousState: DependencyReadinessState | undefined,
+): boolean {
+  const sentinelPath = nodePath.join(
+    projectDirectory,
+    plan.installArtifact,
+    REINSTALL_SENTINEL_FILENAME,
+  );
+  const sentinelMtime = getMtimeMs(sentinelPath);
+  if (sentinelMtime === undefined) return false;
+  rmSync(sentinelPath, { force: true });
+
+  const lastAttempt =
+    previousState?.status === 'installing' || previousState?.status === 'failed'
+      ? Date.parse(previousState.updatedAt)
+      : 0;
+  if (sentinelMtime <= latestInputMtime(projectDirectory, plan) || sentinelMtime <= lastAttempt) {
+    return false;
+  }
+  stampInstallMarker(projectDirectory, plan, fingerprint);
+  return true;
+}
+
 function getDependencyReadinessIgnoringInstallState(projectDirectory: string): DependencyReadiness {
   rmSync(getDependencyReadinessStatePath(projectDirectory), { force: true });
   return getDependencyReadiness(projectDirectory);
@@ -796,11 +847,10 @@ function dependencyRecoveryCommand(readiness: DependencyReadiness): string {
   // dependencies, so the install reports "no changes" and does not refresh the
   // marker — which would otherwise leave this stale check looping. No package
   // manager offers a cheap "lockfile already satisfied" probe (pnpm#4861), so
-  // remove the stale marker and touch the artifact after the install succeeds.
-  // This also works when the current app still has an older PostToolUse hook
-  // loaded and therefore cannot stamp the new fingerprint itself.
+  // touch a reinstall sentinel after the install succeeds. This also works on
+  // hosts with no PostToolUse stamping (Codex) or an older hook loaded.
   if (status !== 'stale' || plan === undefined) return installCommand;
-  return `${installCommand} && rm -f ${plan.installArtifact}/${INSTALL_MARKER_FILENAME} && touch ${plan.installArtifact}`;
+  return `${installCommand} && touch ${plan.installArtifact}/${REINSTALL_SENTINEL_FILENAME}`;
 }
 
 export function formatDependencyRecovery(readiness: DependencyReadiness): string {
@@ -809,8 +859,16 @@ export function formatDependencyRecovery(readiness: DependencyReadiness): string
       ? "the project's tool list changed since it was last set up, so safeword's checks may be out of date"
       : "this project's tools aren't installed yet, so safeword's checks can't run";
 
+  const pinned = readiness.plan?.pinnedManager;
   const lines = [
     `${problem}.`,
+    // A shell can resolve an older binary than the pin (#5647); the install then
+    // fails on the lockfile format rather than on anything this message names.
+    ...(pinned === undefined
+      ? []
+      : [
+          `This project pins ${pinned}; if the install fails, check that \`${readiness.plan?.manager} --version\` matches.`,
+        ]),
     // The recovery may end in a relative `touch`, so the folder has to be the
     // project root — "the project folder" reads as "wherever you are" inside a
     // monorepo package and quietly touches the wrong artifact.
@@ -1286,13 +1344,15 @@ function isInstallArtifactStale(
   const artifactMtime = getMtimeMs(artifactPath);
   if (artifactMtime === undefined) return true;
 
-  const latestInputMtime = Math.max(
+  return artifactMtime + 1000 < latestInputMtime(projectDirectory, plan);
+}
+
+function latestInputMtime(projectDirectory: string, plan: DependencyPlan): number {
+  return Math.max(
     ...plan.inputPaths.map(
       inputPath => getMtimeMs(nodePath.join(projectDirectory, inputPath)) ?? 0,
     ),
   );
-
-  return artifactMtime + 1000 < latestInputMtime;
 }
 
 function readJsonFile<T>(filePath: string): T | undefined {

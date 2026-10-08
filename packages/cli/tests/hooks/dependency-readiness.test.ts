@@ -677,10 +677,112 @@ describe('dependency readiness hook support', () => {
     expect(stale.status).toBe('stale');
 
     const recovery = formatDependencyRecovery(stale);
-    expect(recovery).toContain(
-      'bun ci && rm -f node_modules/.safeword-deps-fingerprint && touch node_modules',
-    );
+    expect(recovery).toContain('bun ci && touch node_modules/.safeword-deps-reinstalled');
     expect(recovery).not.toContain('If it reports no changes');
+  });
+
+  it('stale recovery never asks for rm, which host command policies reject (#5188, #5647)', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+
+    const recovery = formatDependencyRecovery(getDependencyReadiness(projectDirectory));
+
+    expect(recovery).not.toMatch(/\brm\b/);
+  });
+
+  it('names the pinned package manager version so a mismatched binary is easy to spot (#5647)', () => {
+    writeBunProject();
+
+    const recovery = formatDependencyRecovery(getDependencyReadiness(projectDirectory));
+
+    expect(recovery).toContain('bun@1.3.2');
+  });
+
+  it('shows the pin without its Corepack integrity hash', () => {
+    writeJson('package.json', { name: 'pnpm-project', packageManager: 'pnpm@9.0.0+sha512.abc' });
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', 'lockfileVersion: 9.0\n');
+
+    const recovery = formatDependencyRecovery(getDependencyReadiness(projectDirectory));
+
+    expect(recovery).toContain('This project pins pnpm@9.0.0;');
+  });
+
+  it('omits the version note when package.json pins no manager version', () => {
+    writeJson('package.json', { name: 'unpinned', workspaces: ['packages/*'] });
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile');
+
+    const recovery = formatDependencyRecovery(getDependencyReadiness(projectDirectory));
+
+    expect(recovery).not.toContain('pins');
+  });
+
+  it('ignores a reinstall sentinel older than the changed inputs', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    const sentinel = path.join(artifact, '.safeword-deps-reinstalled');
+    writeFileSync(sentinel, '');
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(sentinel, past, past);
+    utimesSync(artifact, past, past);
+
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+  });
+
+  it('ignores a reinstall sentinel that predates a later interrupted install', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    const inputsChanged = new Date(Date.now() - 60_000);
+    for (const input of ['package.json', 'bun.lock', 'packages/cli/package.json']) {
+      utimesSync(path.join(projectDirectory, input), inputsChanged, inputsChanged);
+    }
+    const sentinel = path.join(artifact, '.safeword-deps-reinstalled');
+    writeFileSync(sentinel, '');
+    const sentinelTouched = new Date(Date.now() - 30_000);
+    utimesSync(sentinel, sentinelTouched, sentinelTouched);
+    const plan = detectDependencyPlan(projectDirectory);
+    if (plan === undefined) throw new Error('expected a dependency plan for the bun fixture');
+    writeDependencyReadinessState(projectDirectory, {
+      status: 'installing',
+      reason: 'install_artifact_stale',
+      fingerprint: dependencyInputFingerprint(projectDirectory, plan),
+      installCommand: 'bun ci',
+      updatedAt: new Date(Date.now() - 1000).toISOString(),
+    });
+
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+  });
+
+  it('converts a fresh reinstall sentinel into the content marker, so content stays authoritative', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    // Backdate every input: coarse filesystem clocks can give a same-tick
+    // sentinel the inputs' exact mtime, which the strict newer-than check rejects.
+    const past = new Date(Date.now() - 60_000);
+    for (const input of ['package.json', 'bun.lock', 'packages/cli/package.json']) {
+      utimesSync(path.join(projectDirectory, input), past, past);
+    }
+    writeFileSync(path.join(artifact, '.safeword-deps-reinstalled'), '');
+
+    const ready = getDependencyReadiness(projectDirectory);
+
+    expect(ready.status).toBe('ready');
+    expect(existsSync(path.join(artifact, '.safeword-deps-reinstalled'))).toBe(false);
+    expect(readFileSync(path.join(artifact, '.safeword-deps-fingerprint'), 'utf8')).toBe(
+      ready.fingerprint,
+    );
   });
 
   it('rendered stale recovery clears the block without a loaded PostToolUse hook', () => {
@@ -703,13 +805,17 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
 
     const stale = getDependencyReadiness(projectDirectory);
+    // Keep the inputs strictly older than the sentinel the recovery touches,
+    // even on filesystems with coarse mtime granularity.
+    const inputsChanged = new Date(Date.now() - 30_000);
+    for (const input of ['package.json', 'bun.lock', 'packages/cli/package.json']) {
+      utimesSync(path.join(projectDirectory, input), inputsChanged, inputsChanged);
+    }
     const recovery = formatDependencyRecovery({ ...stale, installCommand: 'true' })
       .split('\n')
       .at(-1)
       ?.trim();
-    expect(recovery).toBe(
-      'true && rm -f node_modules/.safeword-deps-fingerprint && touch node_modules',
-    );
+    expect(recovery).toBe('true && touch node_modules/.safeword-deps-reinstalled');
     expect(spawnSync('sh', ['-c', recovery ?? 'false'], { cwd: projectDirectory }).status).toBe(0);
     expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });

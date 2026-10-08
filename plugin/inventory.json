@@ -215,7 +215,7 @@
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
-      "sha256": "81c527896acd4b6aefe03caf669c44c7b5d2a5b7755666bab0015b4585d9d96a"
+      "sha256": "dd766afda3c91ee2e92f98a29cecd405241a26a5f3bdc5b4f60279a4e174ca3f"
     },
     {
       "path": "runtime/hooks/lib/dogfood.ts",
@@ -1163,7 +1163,7 @@
     },
     {
       "path": "templates/hooks/lib/dependency-readiness.ts",
-      "sha256": "81c527896acd4b6aefe03caf669c44c7b5d2a5b7755666bab0015b4585d9d96a"
+      "sha256": "dd766afda3c91ee2e92f98a29cecd405241a26a5f3bdc5b4f60279a4e174ca3f"
     },
     {
       "path": "templates/hooks/lib/dogfood.ts",
