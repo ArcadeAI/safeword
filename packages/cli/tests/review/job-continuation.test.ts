@@ -22,6 +22,11 @@ import {
 import * as jobs from '../../src/review/job.js';
 import type * as runtime from '../../src/review/runtime.js';
 import { trustedReviewerExecutable } from '../../src/review/runtime.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
+} from '../review-fixtures.js';
 
 vi.mock('../../src/review/runtime.js', async importOriginal => ({
   ...(await importOriginal<typeof runtime>()),
@@ -41,6 +46,7 @@ const workerPids = new Set<number>();
 
 afterEach(() => {
   cancelAllReviewerLogins();
+  cleanupTrustedReviewerDirectories();
   vi.useRealTimers();
   for (const pid of workerPids) {
     try {
@@ -136,6 +142,116 @@ writeFileSync(file+'.tmp',JSON.stringify(record)+'\n');renameSync(file+'.tmp',fi
 }
 
 describe('signed authentication continuation', () => {
+  it('rejects a structurally valid receipt whose signed request was tampered with', async () => {
+    const request = await original();
+    const record = JSON.parse(readFileSync(request.receipt, 'utf8')) as { targets: string[] };
+    record.targets = ['context.md'];
+    writeFileSync(request.receipt, JSON.stringify(record));
+    await expect(
+      continuation.resumeReviewAfterAuthentication(
+        request.root,
+        request.id,
+        'claude',
+        request.signal,
+      ),
+    ).rejects.toThrow('invalid review job record');
+    expect(readdirSync(request.directory).filter(name => name.endsWith('.json'))).toHaveLength(1);
+    expect(existsSync(nodePath.join(request.keyRoot, 'dispatches'))).toBe(false);
+  });
+
+  it.each(['model', 'vendor environment'] as const)(
+    'rejects changed %s controls before dispatch',
+    async control => {
+      const request = await original();
+      vi.stubEnv(
+        control === 'model' ? 'SAFEWORD_REVIEW_PRIMARY_MODEL_CLAUDE' : 'HTTPS_PROXY',
+        'changed-control',
+      );
+      await expect(
+        continuation.resumeReviewAfterAuthentication(
+          request.root,
+          request.id,
+          'claude',
+          request.signal,
+        ),
+      ).rejects.toThrow(/execution context changed/u);
+      expect(readdirSync(request.directory).filter(name => name.endsWith('.json'))).toHaveLength(1);
+      expect(existsSync(nodePath.join(request.keyRoot, 'dispatches'))).toBe(false);
+    },
+  );
+
+  it.each(['source', 'executable'] as const)(
+    'rechecks %s after the real worker capability probe',
+    async change => {
+      const request = await original();
+      const vendorRoot = createTrustedReviewerDirectory('continuation-worker-');
+      const executable = nodePath.join(vendorRoot, 'claude');
+      const held = nodePath.join(vendorRoot, 'probe-held');
+      const release = nodePath.join(vendorRoot, 'release-probe');
+      const dispatches = nodePath.join(vendorRoot, 'paid-dispatches');
+      const source = `#!${process.execPath}
+const fs=require('node:fs');
+if(process.argv.includes('--help')) {
+  fs.writeFileSync(${JSON.stringify(held)},'');
+  const timer=setInterval(()=>{if(fs.existsSync(${JSON.stringify(release)})){clearInterval(timer);console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)});process.exit(0)}},5);
+} else {
+  fs.writeFileSync(${JSON.stringify(dispatches)},'paid');
+  process.stdin.resume();process.stdin.on('end',()=>process.exit(1));
+}
+`;
+      writeFileSync(executable, source, { mode: 0o755 });
+      vi.mocked(trustedReviewerExecutable).mockReturnValue(executable);
+      vi.stubEnv('SAFEWORD_REVIEW_CLAUDE_PATH', executable);
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', nodePath.join(request.keyRoot, 'waiting.mjs'));
+      const parent = await jobs.startReviewJob({
+        cwd: request.root,
+        kind: 'quality-review',
+        targets: ['input.md'],
+        context: ['context.md'],
+      });
+      const id = (parent.data as { review_id: string }).review_id;
+      const parentRecord = JSON.parse(
+        readFileSync(nodePath.join(request.directory, `${id}.json`), 'utf8'),
+      ) as { pid: number };
+      workerPids.add(parentRecord.pid);
+      jobs.completeReviewJob(request.root, id, authResult());
+      vi.stubEnv(
+        'SAFEWORD_CLI_ENTRYPOINT',
+        nodePath.resolve(import.meta.dirname, '../../dist/cli.js'),
+      );
+      const resumed = await continuation.resumeReviewAfterAuthentication(
+        request.root,
+        id,
+        'claude',
+        request.signal,
+      );
+      const retryId = (resumed.data as { review_id: string }).review_id;
+      await vi.waitFor(
+        () => {
+          expect(existsSync(held)).toBe(true);
+        },
+        { timeout: 10_000 },
+      );
+      if (change === 'source')
+        writeFileSync(nodePath.join(request.root, 'input.md'), 'changed source');
+      else writeFileSync(executable, `${source}\n// changed bytes\n`);
+      writeFileSync(release, '');
+      await vi.waitFor(
+        () => {
+          const record = JSON.parse(
+            readFileSync(nodePath.join(request.directory, `${retryId}.json`), 'utf8'),
+          ) as { state: string };
+          expect(['completed', 'failed']).toContain(record.state);
+        },
+        { timeout: 10_000 },
+      );
+      expect(existsSync(dispatches)).toBe(false);
+      expect(
+        (jobs.reviewJobStatus(request.root, retryId, true).data as { status: string }).status,
+      ).not.toBe('approved');
+    },
+  );
+
   it('leaves no receipt or dispatched worker when cancellation already won', async () => {
     const request = await original();
     const cancellation = new AbortController();
