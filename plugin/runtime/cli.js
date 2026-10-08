@@ -36386,7 +36386,12 @@ ${reviewOutputSchema("plan-execution")}
         boundary: "CLI routing, result retention, permission denial, failure signals, activation, and rollback; documentation is owned by Documentation consumer.",
         proof: "behavior-boundary, plan-integrity, failure-signals, security-boundary, and rollout-rollback",
         completion: "The CLI consumer passes every named boundary proof.",
-        tasks: ACTIVATION_SLICE.tasks?.filter((task) => !task.startsWith("7.") && !task.startsWith("8.")).map((task) => task.startsWith("9.") ? "9. REFACTOR: retain one response-validation and result-retention path; rerun the five CLI proof commands with exit 0 and byte-identical public response snapshots." : task)
+        tasks: ACTIVATION_SLICE.tasks?.filter((task) => !task.startsWith("7.") && !task.startsWith("8.")).map((task) => {
+          if (task.startsWith("6.")) {
+            return `${task} Verify only the accepted shared plan structure, not Documentation delivery, in the canonical conformance corpus with bun run test:execution-plan-conformance using the Risk probe, CLI consumer, and Documentation consumer dependency and obligation-owner fixtures. Assert both consumers require the completed Risk probe, neither consumer requires the other, intermediate merges preserve disabled CLI activation until its compatible reader is available, and every applicable obligation has retained final-revision completion evidence. Temporarily remove each prerequisite, obligation owner, or completion evidence and require this proof to fail, then restore the valid fixtures and require exit 0.`;
+          }
+          return task.startsWith("9.") ? "9. REFACTOR: retain one response-validation and result-retention path; after the final edit rerun all five CLI proof commands, explicitly including bun run test:execution-plan-conformance, with exit 0, the step-6 conformance assertions unchanged, and byte-identical public response snapshots." : task;
+        })
       },
       {
         name: "Documentation consumer",
@@ -36864,7 +36869,7 @@ ${reviewOutputSchema("plan-execution")}
             ...ONE_DELIVERY_TASKS,
             "12. RED: add the literal-fixture regression in tests/fixtures/approved-plan.test.ts with the existing approved-plan expected contents. Run bun run test tests/fixtures/approved-plan.test.ts -t literal-fixture and observe exit 1 because the builder output differs from those expected contents before editing tests/fixtures/approved-plan.ts.",
             "13. GREEN: replace the builder in tests/fixtures/approved-plan.ts with a literal containing the same canonical expected contents. Rerun step 12 and bun run test:review-cli -- --fixture approved-plan; assert identical fixture bytes, exact public and stored responses, obligation owners, unchanged decisions, normalized plan digest, and delivery definition.",
-            "14. REFACTOR: remove the unused builder and rerun both fixture and public-boundary commands with identical expected contents and actor assertions."
+            "14. REFACTOR: remove the unused builder, then rerun the literal-fixture command and all seven named proof commands after this final edit. Require every proof command to exit 0, identical fixture and public-response contents and actor assertions, and completion evidence recorded against the final revision."
           ]
         }
       ]
