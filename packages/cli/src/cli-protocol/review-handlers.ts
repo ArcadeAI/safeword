@@ -489,7 +489,7 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
   try {
     persistedInput = reviewJobWorkerInput(invocation.cwd, id);
   } catch (error) {
-    return failedReviewWorker(
+    const failed = failedReviewWorker(
       {
         code: 'REVIEW_WORKER_JOB_INVALID',
         message:
@@ -500,6 +500,12 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
       },
       id,
     );
+    try {
+      completeReviewJob(invocation.cwd, id, failed, true);
+    } catch {
+      // An invalid or removed signed receipt cannot safely store a worker failure.
+    }
+    return failed;
   }
   let result: CliResult;
   try {
@@ -514,6 +520,7 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
       targets: persistedInput.targets,
       context: persistedInput.context,
       executionAttestation: attestation,
+      continuation: persistedInput.continuation,
       progress: invocation.progress,
     });
     result = withExecutionAttestation(

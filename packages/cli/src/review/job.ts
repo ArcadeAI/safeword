@@ -23,8 +23,12 @@ import { createBestEffortByteSink } from '../cli-protocol/policy.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { retryCommand } from './command.js';
 import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
+import { reviewerEnvironment } from './environment.js';
 import { prepareReviewPacket, prepareReviewPacketReadOnly, toReviewPath } from './packet.js';
-import { reviewWorkerRunBoundMs } from './runtime.js';
+import { scopedConfigPath } from './preferences.js';
+import { MODEL_NAME } from './route-config.js';
+import { reviewWorkerRunBoundMs, trustedReviewerExecutable } from './runtime.js';
+import type { AuthenticationReviewer, ReviewContinuation } from './scope.js';
 
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
 type WorkerInspection = 'match' | 'mismatch' | 'unavailable';
@@ -44,6 +48,156 @@ interface ReviewJobRecord {
   readonly pid?: number;
   readonly result?: CliResult;
   readonly integrity?: string;
+  readonly authentication_bindings?: Partial<Record<AuthenticationReviewer, string>>;
+  readonly retry_of?: string;
+}
+
+type AuthenticationRetry = {
+  readonly parent: string;
+  readonly reviewer: AuthenticationReviewer;
+  readonly signal: AbortSignal;
+};
+
+const AUTHENTICATION_REVIEW_KINDS = new Set<ReviewKind>([
+  'quality-review',
+  'scenario-gate',
+  'plan-implementation',
+]);
+
+function assignedAuthenticationReviewer(data: unknown): AuthenticationReviewer | undefined {
+  const reviewer = (data as Record<string, unknown> | undefined)?.assigned_reviewer;
+  return reviewer === 'claude' || reviewer === 'codex' ? reviewer : undefined;
+}
+
+function authenticationReviewer(record: ReviewJobRecord): AuthenticationReviewer | undefined {
+  if (!AUTHENTICATION_REVIEW_KINDS.has(record.kind)) return undefined;
+  if (record.retry_of !== undefined || record.state !== 'completed') return undefined;
+  const result = record.result;
+  if (result?.findings.some(finding => finding.code === 'REVIEW_AUTHENTICATION_REQUIRED') !== true)
+    return undefined;
+  const reviewer = assignedAuthenticationReviewer(result.data);
+  if (reviewer === undefined) return undefined;
+  return record.authentication_bindings?.[reviewer] === undefined ? undefined : reviewer;
+}
+
+function authenticationContext(cwd: string, reviewer: AuthenticationReviewer) {
+  return {
+    executable: trustedReviewerExecutable(reviewer, cwd),
+    environment: reviewerEnvironment(reviewer),
+  };
+}
+
+function authenticationBinding(
+  cwd: string,
+  context: Pick<ReviewContinuation, 'executable' | 'environment'>,
+): string {
+  const root = realpathSync.native(cwd);
+  const policyPaths = [scopedConfigPath(root, 'project'), scopedConfigPath(root, 'user')];
+  const controls = Object.entries(process.env)
+    .filter(
+      ([name]) =>
+        name === 'SAFEWORD_AGENT_RUNTIME' ||
+        name === 'SAFEWORD_REVIEW_EFFORT_CLAUDE' ||
+        /^SAFEWORD_REVIEW_(?:PRIMARY|ALTERNATE)_MODEL_(?:CLAUDE|CODEX|OPENCODE)$/u.test(name),
+    )
+    .toSorted(([left], [right]) => left.localeCompare(right));
+  const policies = policyPaths.map(path => [
+    path,
+    existsSync(path) ? readFileSync(path).toString('base64') : undefined,
+  ]);
+  const executableBytes = readFileSync(context.executable);
+  return createHmac('sha256', readOrCreateIntegrityKey())
+    .update(
+      JSON.stringify({
+        root,
+        policies,
+        controls,
+        executable: realpathSync.native(context.executable),
+        executable_bytes: createHash('sha256').update(executableBytes).digest('hex'),
+        environment: Object.entries(context.environment).toSorted(([left], [right]) =>
+          left.localeCompare(right),
+        ),
+      }),
+    )
+    .digest('hex');
+}
+
+function captureAuthenticationBindings(
+  cwd: string,
+): Partial<Record<AuthenticationReviewer, string>> {
+  const bindings: Partial<Record<AuthenticationReviewer, string>> = {};
+  for (const reviewer of ['claude', 'codex'] as const) {
+    try {
+      bindings[reviewer] = authenticationBinding(cwd, authenticationContext(cwd, reviewer));
+    } catch {
+      /* An unavailable or unbindable reviewer retains manual recovery. */
+    }
+  }
+  return bindings;
+}
+
+function authenticationRetryId(parent: string): string {
+  const hex = createHash('sha256').update(`safeword-authentication-retry:${parent}`).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+export function assertReviewAuthenticationContext(
+  cwd: string,
+  id: string,
+  reviewer: AuthenticationReviewer,
+  context: Pick<ReviewContinuation, 'executable' | 'environment'>,
+): void {
+  const original = readJob(cwd, id, true);
+  if (authenticationReviewer(original) !== reviewer)
+    throw new Error(
+      'The review is not eligible for automatic authentication recovery. Retry manually.',
+    );
+  if (
+    original.authentication_bindings?.[reviewer] !== authenticationBinding(cwd, context) ||
+    reviewIdentity(cwd, original.kind, original.targets, original.context, original.execution, true)
+      .fingerprint !== original.source_fingerprint
+  )
+    throw new Error('The review execution context changed. Retry manually.');
+}
+
+function verifiedAuthenticationParent(cwd: string, retry: AuthenticationRetry): ReviewJobRecord {
+  retry.signal.throwIfAborted();
+  const parent = readJob(cwd, retry.parent, true);
+  assertReviewAuthenticationContext(
+    cwd,
+    parent.id,
+    retry.reviewer,
+    authenticationContext(cwd, retry.reviewer),
+  );
+  return parent;
+}
+
+function linkedAuthenticationRetry(parent: ReviewJobRecord, child: ReviewJobRecord): boolean {
+  return (
+    child.retry_of === parent.id &&
+    child.id === authenticationRetryId(parent.id) &&
+    child.kind === parent.kind &&
+    child.source_fingerprint === parent.source_fingerprint &&
+    JSON.stringify(child.targets) === JSON.stringify(parent.targets) &&
+    JSON.stringify(child.context ?? []) === JSON.stringify(parent.context ?? []) &&
+    JSON.stringify(child.authentication_bindings) === JSON.stringify(parent.authentication_bindings)
+  );
+}
+
+export async function resumeReviewAfterAuthentication(
+  cwd: string,
+  id: string,
+  reviewer: AuthenticationReviewer,
+  signal: AbortSignal,
+): Promise<CliResult> {
+  const parent = readJob(cwd, id, true);
+  return startReviewJob({
+    cwd,
+    kind: parent.kind,
+    targets: parent.targets,
+    context: parent.context,
+    authenticationRetry: { parent: id, reviewer, signal },
+  });
 }
 
 const COURTESY_WAIT_MS = 75_000;
@@ -484,6 +638,11 @@ function hasReviewJobIdentity(candidate: Record<string, unknown>): boolean {
     hasStrings &&
     isStringArray(candidate.targets) &&
     isOptional(candidate.context, isStringArray) &&
+    isOptional(
+      candidate.retry_of,
+      value => typeof value === 'string' && isJobId(value) && value !== candidate.id,
+    ) &&
+    isOptional(candidate.authentication_bindings, validAuthenticationBindings) &&
     (candidate.kind === 'executable-red'
       ? isRedExecutionRequest(candidate.execution)
       : candidate.execution === undefined) &&
@@ -492,6 +651,20 @@ function hasReviewJobIdentity(candidate: Record<string, unknown>): boolean {
       value => typeof value === 'string' && Number.isFinite(Date.parse(value)),
     ) &&
     isReviewKind(candidate.kind)
+  );
+}
+
+function validAuthenticationBindings(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.entries(value).every(
+      ([reviewer, digest]) =>
+        ['claude', 'codex'].includes(reviewer) &&
+        typeof digest === 'string' &&
+        /^[a-f\d]{64}$/u.test(digest),
+    )
   );
 }
 
@@ -849,6 +1022,8 @@ function withReviewProvenance(
       review_kind: record.kind,
       review_targets: effectiveReviewTargets(cwd, record) ?? [],
       review_excluded_targets: verifiedExcludedTargets(record, currentExclusions),
+      ...(authenticationReviewer(record) !== undefined && { authentication_continuation: true }),
+      ...(record.retry_of !== undefined && { retry_of: record.retry_of }),
     },
   };
 }
@@ -987,14 +1162,62 @@ function announceBackgroundProgress(
   progress?.heartbeat?.('Still waiting for the independent review…');
 }
 
-export async function startReviewJob(input: {
+interface StartReviewJobInput {
   readonly cwd: string;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
   readonly context?: readonly string[];
   readonly execution?: RedExecutionRequest;
   readonly progress?: Pick<ProgressReporter, 'heartbeat' | 'managed' | 'start'>;
-}): Promise<CliResult> {
+  readonly authenticationRetry?: AuthenticationRetry;
+}
+
+function checkAuthenticationAbort(retry: AuthenticationRetry | undefined): void {
+  retry?.signal.throwIfAborted();
+}
+
+function authenticationParentForRequest(
+  input: StartReviewJobInput,
+  context: readonly string[],
+): ReviewJobRecord | undefined {
+  if (input.authenticationRetry === undefined) return undefined;
+  const parent = verifiedAuthenticationParent(input.cwd, input.authenticationRetry);
+  if (
+    input.kind !== parent.kind ||
+    input.execution !== undefined ||
+    JSON.stringify(input.targets) !== JSON.stringify(parent.targets) ||
+    JSON.stringify(context) !== JSON.stringify(parent.context ?? [])
+  )
+    throw new Error('The review execution context changed. Retry manually.');
+  checkAuthenticationAbort(input.authenticationRetry);
+  return parent;
+}
+
+function existingAuthenticationRetry(
+  cwd: string,
+  parent: ReviewJobRecord,
+): ReviewJobRecord | undefined {
+  const id = authenticationRetryId(parent.id);
+  if (existsSync(jobPath(cwd, id))) {
+    const child = readJob(cwd, id, true);
+    if (!linkedAuthenticationRetry(parent, child))
+      throw new Error('The linked authentication retry is invalid. Retry manually.');
+    return child;
+  }
+  if (runningJob(cwd, parent.kind, parent.source_fingerprint) !== undefined)
+    throw new Error('Another review of this request is active. Collect it before retrying.');
+  return undefined;
+}
+
+function bindingsForRequest(input: StartReviewJobInput, parent: ReviewJobRecord | undefined) {
+  if (parent !== undefined) return parent.authentication_bindings;
+  return AUTHENTICATION_REVIEW_KINDS.has(input.kind)
+    ? captureAuthenticationBindings(input.cwd)
+    : undefined;
+}
+
+export async function startReviewJob(input: StartReviewJobInput): Promise<CliResult> {
+  checkAuthenticationAbort(input.authenticationRetry);
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(
     input.cwd,
@@ -1005,6 +1228,10 @@ export async function startReviewJob(input: {
   );
   mkdirSync(jobsDirectory(input.cwd), { recursive: true, mode: 0o700 });
   const reserved = withFileLock(nodePath.join(jobsDirectory(input.cwd), 'start.lock'), () => {
+    const parent = authenticationParentForRequest(input, context);
+    const linked =
+      parent === undefined ? undefined : existingAuthenticationRetry(input.cwd, parent);
+    if (linked !== undefined) return { existing: true as const, record: linked };
     const existing =
       runningJob(input.cwd, input.kind, sourceFingerprint) ??
       (input.kind === 'executable-red'
@@ -1014,17 +1241,19 @@ export async function startReviewJob(input: {
     const now = new Date().toISOString();
     const record: ReviewJobRecord = {
       schema_version: 1,
-      id: randomUUID(),
+      id: parent === undefined ? randomUUID() : authenticationRetryId(parent.id),
       state: 'launching',
       kind: input.kind,
       targets: input.targets,
       context,
       execution: input.execution,
-      source_fingerprint: sourceFingerprint,
+      source_fingerprint: parent?.source_fingerprint ?? sourceFingerprint,
       started_at: now,
       updated_at: now,
       deadline_at: new Date(Date.now() + reviewWorkerRunBoundMs()).toISOString(),
       pid: process.pid,
+      authentication_bindings: bindingsForRequest(input, parent),
+      retry_of: parent?.id,
     };
     writeJob(input.cwd, record);
     return { existing: false as const, record };
@@ -1156,10 +1385,16 @@ function terminateReviewWorker(pid: number): void {
   }
 }
 
-export function completeReviewJob(cwd: string, id: string, result: CliResult): void {
+export function completeReviewJob(
+  cwd: string,
+  id: string,
+  result: CliResult,
+  activeOnly = false,
+): void {
   withJobLock(cwd, id, () => {
     const record = readJob(cwd, id);
     if (record.state === 'completed') {
+      if (activeOnly) return;
       const invalidated = createResult({
         state: 'failed',
         errors: [
@@ -1199,6 +1434,7 @@ export function reviewJobWorkerInput(
   readonly context: readonly string[];
   readonly execution?: RedExecutionRequest;
   readonly sourceFingerprint: string;
+  readonly continuation?: ReviewContinuation;
 } {
   const record = withJobLock(cwd, id, () => {
     const current = readJob(cwd, id);
@@ -1219,7 +1455,44 @@ export function reviewJobWorkerInput(
     context: record.context ?? [],
     execution: record.execution,
     sourceFingerprint: record.source_fingerprint,
+    continuation: workerAuthenticationContinuation(cwd, record),
   };
+}
+
+function authenticationRetryModel(parent: ReviewJobRecord): string | undefined {
+  const data = parent.result?.data as Record<string, unknown> | undefined;
+  if (data === undefined) throw new Error('The authentication retry has no route evidence.');
+  const primaryModel =
+    data.preferred_model_failure === undefined ? data.preferred_model : undefined;
+  const model =
+    data.alternate_model_failure === 'not_authenticated' ? data.alternate_model : primaryModel;
+  if (model === undefined) return undefined;
+  if (typeof model !== 'string' || !MODEL_NAME.test(model))
+    throw new Error('The authentication retry model is invalid.');
+  return model;
+}
+
+function workerAuthenticationContinuation(
+  cwd: string,
+  record: ReviewJobRecord,
+): ReviewContinuation | undefined {
+  if (record.retry_of === undefined) return undefined;
+  const parent = readJob(cwd, record.retry_of, true);
+  const reviewer = authenticationReviewer(parent);
+  if (reviewer === undefined || !linkedAuthenticationRetry(parent, record))
+    throw new Error('The authentication retry is invalid.');
+  const context = authenticationContext(cwd, reviewer);
+  const validate = (): void => {
+    const currentChild = readJob(cwd, record.id, true);
+    const currentParent = readJob(cwd, parent.id, true);
+    if (!linkedAuthenticationRetry(currentParent, currentChild))
+      throw new Error('The authentication retry is invalid.');
+    const currentContext = authenticationContext(cwd, reviewer);
+    assertReviewAuthenticationContext(cwd, parent.id, reviewer, currentContext);
+    assertReviewAuthenticationContext(cwd, parent.id, reviewer, context);
+  };
+  validate();
+  return { reviewer, model: authenticationRetryModel(parent), ...context, validate };
 }
 
 function latestJobId(cwd: string): string | undefined {
@@ -1520,13 +1793,28 @@ function isActiveReviewJob(record: ReviewJobRecord): boolean {
   return record.state === 'running' && inspectReviewWorker(record.pid, record.id) !== 'mismatch';
 }
 
-export function reviewJobStatus(cwd: string, requestedId?: string, readOnly = false): CliResult {
-  let id: string | undefined;
+function followAuthenticationRetry(
+  cwd: string,
+  parent: ReviewJobRecord,
+  readOnly: boolean,
+): ReviewJobRecord | undefined {
+  if (authenticationReviewer(parent) === undefined) return parent;
+  const id = authenticationRetryId(parent.id);
+  if (!existsSync(jobPath(cwd, id))) return parent;
+  const child = readJob(cwd, id, readOnly);
+  return linkedAuthenticationRetry(parent, child) ? child : undefined;
+}
+
+function requestedReviewId(cwd: string, requestedId: string | undefined): string | undefined {
   try {
-    id = requestedId ?? latestJobId(cwd);
+    return requestedId ?? latestJobId(cwd);
   } catch {
-    id = requestedId;
+    return requestedId;
   }
+}
+
+export function reviewJobStatus(cwd: string, requestedId?: string, readOnly = false): CliResult {
+  const id = requestedReviewId(cwd, requestedId);
   if (id === undefined) {
     return createResult({
       state: 'failed',
@@ -1554,6 +1842,9 @@ export function reviewJobStatus(cwd: string, requestedId?: string, readOnly = fa
     });
   }
   try {
+    const linked = followAuthenticationRetry(cwd, record, readOnly);
+    if (linked === undefined) return invalidJobResult(record.id);
+    record = linked;
     const result = currentResult(cwd, record, readOnly);
     return { ...result, effects: { ...result.effects, network: [] } };
   } catch {

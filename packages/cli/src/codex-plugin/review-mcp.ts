@@ -266,7 +266,11 @@ async function startBoundReviewerLogin(
 async function loginContinuation(root: string, id: string, reviewer: 'claude' | 'codex') {
   const { assertReviewAuthenticationContext, resumeReviewAfterAuthentication } =
     await import('../review/job.js');
-  const { promise: displayed, resolve: release } = Promise.withResolvers<boolean>();
+  let release!: (allowed: boolean) => void;
+  // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The project targets ES2023.
+  const displayed = new Promise<boolean>(resolve => {
+    release = resolve;
+  });
   return {
     release,
     options: {

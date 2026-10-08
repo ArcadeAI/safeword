@@ -22,7 +22,7 @@ import {
   reviewRoutePlan,
 } from './policy.js';
 import { minimumRouteMs, ReviewRuntimeError, runBoundMs, runHeadlessReviewer } from './runtime.js';
-import { withReviewScope } from './scope.js';
+import { type ReviewContinuation, withReviewScope } from './scope.js';
 
 /** The command runner owns reporter shutdown; review routing only updates it. */
 type ReviewProgress = Pick<ProgressReporter, 'start' | 'heartbeat'>;
@@ -34,6 +34,7 @@ type ReviewRunInput = {
   readonly context?: readonly string[];
   readonly progress?: ReviewProgress;
   readonly executionAttestation?: RedExecutionAttestation;
+  readonly continuation?: ReviewContinuation;
 };
 
 type DegradedReviewInput = ReviewRunInput & {
@@ -1663,8 +1664,9 @@ async function runReviewCore(input: ReviewRunInput): Promise<CliResult> {
   } catch (error) {
     return invalidRouteConfigResult(error, routes.author, policy);
   }
-  if (configuredRoutes !== undefined) {
-    return runRankedRoutes(input, routes.author, policy, configuredRoutes);
+  const selectedRoutes = selectedReviewRoutes(input.continuation, configuredRoutes);
+  if (selectedRoutes !== undefined) {
+    return runRankedRoutes(input, routes.author, policy, selectedRoutes);
   }
   const reviewer = routes.preferred;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
@@ -1739,8 +1741,17 @@ async function runReviewCore(input: ReviewRunInput): Promise<CliResult> {
   });
 }
 
+function selectedReviewRoutes(
+  continuation: ReviewContinuation | undefined,
+  configured: readonly ReviewRoute[] | undefined,
+): readonly ReviewRoute[] | undefined {
+  if (continuation === undefined) return configured;
+  const { reviewer, model } = continuation;
+  return [{ reviewer, model, independence: 'cross-agent' }];
+}
+
 export async function runReview(input: ReviewRunInput): Promise<CliResult> {
-  const { result, scope } = await withReviewScope(() => runReviewCore(input));
+  const { result, scope } = await withReviewScope(() => runReviewCore(input), input.continuation);
   const exhausted = result.findings.find(finding => finding.code === 'REVIEW_ROUTES_EXHAUSTED');
   const publicResult =
     exhausted === undefined || result.errors.some(error => error.code === exhausted.code)
