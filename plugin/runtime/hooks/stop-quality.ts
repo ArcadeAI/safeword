@@ -4,7 +4,6 @@
 // Phase-aware: reads ticket phase for context-appropriate review questions
 
 import { existsSync, readFileSync } from 'node:fs';
-import nodePath from 'node:path';
 
 import {
   deriveTddStep,
