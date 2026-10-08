@@ -119,6 +119,68 @@ if (!status) process.stdout.write(${JSON.stringify(reviewer === 'claude' ? 'Open
 
 describe('confirmed reviewer login continuation', () => {
   it.each(['claude', 'codex'] as const)(
+    'retains the %s profile after ambient defaults change',
+    async reviewer => {
+      const login = fixture(reviewer);
+      await login.start();
+      vi.stubEnv(reviewer === 'claude' ? 'CLAUDE_CONFIG_DIR' : 'CODEX_HOME', login.root);
+      login.releaseLogin();
+      login.releaseStatus();
+      await until(() => capturedReviewerLogin(login.key) === undefined);
+      expect(existsSync(login.resumed), 'confirmed login must resume automatically').toBe(true);
+      expect(login.commands().map(command => command.profile)).toEqual([
+        login.profile,
+        login.profile,
+      ]);
+    },
+  );
+
+  it('terminates an expired login before releasing late success', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const login = fixture('claude');
+    await login.start();
+    const command = login.commands()[0];
+    if (command === undefined) throw new Error('Login process did not start');
+    await vi.advanceTimersByTimeAsync(600_000);
+    await until(() => {
+      try {
+        process.kill(command.pid, 0);
+        return false;
+      } catch {
+        return true;
+      }
+    });
+    login.releaseLogin();
+    login.releaseStatus();
+    await until(() => capturedReviewerLogin(login.key) === undefined);
+    await delay(100);
+    expect(existsSync(login.resumed)).toBe(false);
+    expect(login.commands()).toHaveLength(1);
+  });
+
+  it('terminates a cancelled check before releasing its successful result', async () => {
+    const login = fixture('claude');
+    await login.start();
+    login.releaseLogin();
+    await until(() => login.commands().length === 2);
+    const command = login.commands()[1];
+    if (command === undefined) throw new Error('Authentication check did not start');
+    cancelReviewerLogin(login.key);
+    await until(() => {
+      try {
+        process.kill(command.pid, 0);
+        return false;
+      } catch {
+        return true;
+      }
+    });
+    login.releaseStatus();
+    await until(() => capturedReviewerLogin(login.key) === undefined);
+    await delay(100);
+    expect(existsSync(login.resumed)).toBe(false);
+  });
+
+  it.each(['claude', 'codex'] as const)(
     'resumes %s only after the same-profile status succeeds',
     async reviewer => {
       const login = fixture(reviewer);

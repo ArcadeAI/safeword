@@ -6,7 +6,9 @@
 
 Proof: reviewer-login-continuation.test.ts; happy path, failed auth, wrong profile, cancellation and deadline.
 
-- [ ] RED
+Module contract only: a successful login plus a qualifying assigned-profile status invokes the continuation callback once. Failed, unsupported, cancelled or expired authentication does not invoke it; cancellation terminates an active check. This slice does not claim review dispatch, lineage or verdict. The connected MCP slice owns that feature proof.
+
+- [x] RED 57e22472b
 - [ ] GREEN
 - [ ] REFACTOR
 

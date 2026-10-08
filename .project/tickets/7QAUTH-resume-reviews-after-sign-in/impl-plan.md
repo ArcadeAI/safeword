@@ -5,6 +5,8 @@
 
 ## Approach
 
+Module login contract: the first slice's primary integration proof is reviewer-login-continuation.test.ts, restricted to assigned-profile verification, callback invocation and process cancellation/expiry. Its executable RED receipt does not establish the full feature scenario. The later real stdio slice remains the primary feature proof of linked dispatch, unchanged receipt and terminal verdict.
+
 The riskiest assumption is that a vendor's successful login exit means credentials are usable in the assigned profile. The cheapest proof runs real synthetic vendor executables through login and a separate status command, with an already-authenticated default profile and an unauthenticated assigned profile.
 
 Version-matched real-CLI contract proof is recorded in vendor-contract.json: Claude 2.1.289 and Codex 0.153.4 report authenticated default accounts but exit 1 under fresh empty CLAUDE_CONFIG_DIR/CODEX_HOME using the actual filtered environment. Claude reports the exact isolated configDirectory. No login, logout or credential copying was used. Claude's current documentation explicitly excludes shared Console OAuth profiles from directory partitioning; automatic continuation therefore requires authMethod claude.ai, loggedIn true and a matching configDirectory (available since 2.1.268). Codex must report ChatGPT authentication; API keys, workload/access-token modes do not qualify. Tagged Codex storage source scopes both file storage and keyring keys by CODEX_HOME. Unsupported or unverified status output leaves the review blocked for manual retry.
