@@ -115,7 +115,7 @@ const record=JSON.parse(readFileSync(file,'utf8'));
 appendFileSync(${JSON.stringify(nodePath.join(keyRoot, 'dispatches'))},id+'\n');
 ${options.holdRetry ? `while (!existsSync(${JSON.stringify(nodePath.join(keyRoot, 'release-retry'))})) await new Promise(resolve => setTimeout(resolve, 10));` : ''}
 record.state='completed';record.updated_at=new Date().toISOString();
-record.result=${JSON.stringify(options.retryAuth ? authResult() : createResult({ state: 'healthy', data: { command: 'review run', status: 'approved' } }))};
+record.result=${JSON.stringify(options.retryAuth ? authResult() : createResult({ state: 'healthy', data: { command: 'review run', status: 'approved', reviewer_output: { dispatch_id: 'fixture-dispatch', reviewer_agent: 'claude', verdict: 'approve', summary: 'Reviewed.', findings: [] } } }))};
 delete record.integrity;
 const key=Buffer.from(readFileSync(${JSON.stringify(nodePath.join(keyRoot, 'safeword/review-integrity.key'))},'utf8').trim(),'hex');
 record.integrity=createHmac('sha256',key).update(realpathSync.native(process.cwd())).update('\0').update(JSON.stringify(record)).digest('hex');

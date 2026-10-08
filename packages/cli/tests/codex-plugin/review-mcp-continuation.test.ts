@@ -298,6 +298,7 @@ describe('connected MCP authentication recovery', () => {
         .map(line => JSON.parse(line) as { profile: string; executable: string });
       expect(dispatches).toEqual([
         {
+          reviewer,
           profile: nodePath.join(review.host, reviewer),
           executable: nodePath.join(review.host, 'bin', reviewer),
         },
