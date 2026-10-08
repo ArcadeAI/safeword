@@ -1,6 +1,6 @@
 # Test-first ledger
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: independent whole-source review and passing 53-test matrix confirm shared context and cancellation boundaries; binding-capture cost and duplicated standalone harnesses remain explicit follow-up opportunities
 
 ## Scenarios
 
@@ -52,5 +52,5 @@ The MCP suite also runs both reviewers' negative login/profile checks, deadline,
 | Legacy receipts keep manual retry guidance | Connected MCP recovery and shutdown |
 
 - [x] RED 4338c7ee8
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 201689a1b
+- [x] REFACTOR skip: one server-owned continuation and one display barrier preserve the four-tool interface; no additional restructuring needed
