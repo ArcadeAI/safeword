@@ -24,6 +24,7 @@ import {
   readSurfacedSignatures,
   signatureOf,
 } from './lib/self-report.ts';
+import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
 
 interface HookInput {
   session_id?: string;
@@ -50,7 +51,7 @@ async function main(): Promise<void> {
   // stop-retro-filing.ts guards the same way.
   if (input.stop_hook_active === true) return;
 
-  const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const projectDirectory = resolveSessionProjectDirectory({ sessionId, cwd: input.cwd });
   const config = readSelfReportConfig(projectDirectory);
   if (!config.surface) return; // selfReport.surface = false → stay silent
 

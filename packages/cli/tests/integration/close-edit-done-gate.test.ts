@@ -613,3 +613,37 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     expect(testRunCount(directory)).toBe(baseline + 1);
   });
 });
+
+describe('a session that edits a worktree from the launch checkout (#5467)', () => {
+  // The host keeps CLAUDE_PROJECT_DIR (and here the session cwd) at the launch
+  // checkout while the session edits files in a linked worktree by absolute
+  // path. PostToolUse records that worktree's state; Stop must read it there.
+  it('runs the done gate for the worktree ticket the session closed', () => {
+    const launch = fixture.projectDirectory;
+    const worktree = createTemporaryDirectory();
+    git(launch, `worktree add -q --detach "${worktree}"`);
+    try {
+      setTestExitCode(worktree, 1);
+      setTestExitCode(launch, 0);
+      const launchBaseline = testRunCount(launch);
+      const sessionId = `session-5467-${process.pid}`;
+
+      const ticketFile = commitTaskTicket(worktree, '5467', 'in_progress');
+      editTicketThroughPostToolUse(
+        launch,
+        sessionId,
+        ticketFile,
+        ticketMarkdown('5467', 'done', 'done'),
+      );
+      const result = runDoneGate(launch, sessionId);
+
+      expect(result.decision).toBe('block');
+      expect(result.reason).toContain('Tests failed');
+      expect(testRunCount(worktree)).toBe(1);
+      expect(testRunCount(launch)).toBe(launchBaseline);
+    } finally {
+      git(launch, `worktree remove --force "${worktree}"`);
+      removeTemporaryDirectory(worktree);
+    }
+  });
+});

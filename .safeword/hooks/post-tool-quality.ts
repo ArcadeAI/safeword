@@ -28,6 +28,8 @@ import {
 } from './lib/namespace-root.ts';
 import {
   canonicalEditTarget,
+  isEditTool,
+  recordSessionProject,
   resolveLaunchDirectory,
   resolveToolProjectDirectory,
 } from './lib/project-directory.ts';
@@ -79,6 +81,12 @@ const projectDirectory = resolveToolProjectDirectory(launchProjectDirectory, {
 // after explicit Safeword enrollment; observing a tool must never enroll one.
 if (!hasSafewordProjectMarker(projectDirectory)) {
   process.exit(0);
+}
+
+// Stop and other session-level hooks have no edited file and a cwd that follows
+// `cd`; they find this session's state through the tree its last edit landed in.
+if (isEditTool(input.tool_name ?? '') && editedFile !== '') {
+  recordSessionProject(input.session_id, projectDirectory);
 }
 
 // Codex's adapter marks its child process with the runtime, so resolve its

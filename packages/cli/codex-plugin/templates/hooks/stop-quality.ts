@@ -56,6 +56,7 @@ import { checkSkillInvocations, requiredSkillsForDone } from './lib/skill-invoca
 import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { architectureDocumentNudgeForProject } from './lib/architecture-document-nudge.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
@@ -65,6 +66,7 @@ installCrashCapture('stop-quality');
 
 interface HookInput {
   session_id?: string;
+  cwd?: string;
   transcript_path?: string;
   stop_hook_active?: boolean;
   last_assistant_message?: string;
@@ -109,10 +111,6 @@ const TRANSCRIPT_SYSTEM_BLOCK_PATTERN = /<(system-reminder|task-notification)\b[
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
 const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
-
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const safewordDir = `${projectDir}/.safeword`;
-const ticketsDir = `${resolveNamespaceRoot(projectDir)}/tickets`;
 
 interface TicketInfo {
   phase: BddPhase | undefined;
@@ -402,16 +400,23 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   }
 }
 
-// Not a safeword project, skip silently
-if (!existsSync(safewordDir)) {
-  process.exit(0);
-}
-
 // Read hook input from stdin
 let input: HookInput;
 try {
   input = await Bun.stdin.json();
 } catch {
+  process.exit(0);
+}
+
+// The session's project: the tree its last edit landed in (a worktree, even
+// when the host's cwd and CLAUDE_PROJECT_DIR stay at the launch checkout),
+// else the rule applied to the host cwd (#5467). Every reader below uses it.
+const projectDir = resolveSessionProjectDirectory({ sessionId: input.session_id, cwd: input.cwd });
+const safewordDir = `${projectDir}/.safeword`;
+const ticketsDir = `${resolveNamespaceRoot(projectDir)}/tickets`;
+
+// Not a safeword project, skip silently
+if (!existsSync(safewordDir)) {
   process.exit(0);
 }
 

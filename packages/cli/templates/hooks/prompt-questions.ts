@@ -22,18 +22,12 @@ import {
   readCounters,
   writeCounters,
 } from './lib/quality-state.ts';
+import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
 
 interface HookInput {
+  cwd?: string;
   session_id?: string;
   prompt?: string;
-}
-
-const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const safewordDirectory = `${projectDirectory}/.safeword`;
-
-// Not a safeword project, skip silently
-if (!existsSync(safewordDirectory)) {
-  process.exit(0);
 }
 
 // Read hook input from stdin (same pattern as pre-tool and post-tool hooks)
@@ -42,6 +36,18 @@ try {
   input = await Bun.stdin.json();
 } catch {
   input = {};
+}
+
+// The session's project: where its last edit landed, else the host cwd's tree.
+const projectDirectory = resolveSessionProjectDirectory({
+  sessionId: input.session_id,
+  cwd: input.cwd,
+});
+const safewordDirectory = `${projectDirectory}/.safeword`;
+
+// Not a safeword project, skip silently
+if (!existsSync(safewordDirectory)) {
+  process.exit(0);
 }
 
 // Compact behavioral anchors; SAFEWORD.md carries the full methodology. These
