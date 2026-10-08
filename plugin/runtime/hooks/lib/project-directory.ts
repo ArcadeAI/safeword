@@ -37,7 +37,6 @@ export function resolveProjectDirectory(input: {
   cwd: string | undefined;
 }): string {
   const launchDirectory = input.launchDirectory ?? resolveLaunchDirectory();
-  const cwd = input.cwd ? nodePath.resolve(launchDirectory, input.cwd) : undefined;
   // A path reached through a symlink belongs to the tree it lands in, not the
   // tree its lexical ancestors sit in. Keep the host spelling unless the real
   // path names a different owner.
@@ -50,12 +49,34 @@ export function resolveProjectDirectory(input: {
   };
 
   if (input.editedFile) {
-    const file = nodePath.resolve(cwd ?? launchDirectory, input.editedFile);
+    const file = nodePath.resolve(baseDirectory(launchDirectory, input.cwd), input.editedFile);
     const fileOwner = owner(nodePath.dirname(file), nodePath.dirname(canonicalPathForGate(file)));
     if (fileOwner !== undefined) return fileOwner;
   }
 
-  return (cwd && owner(cwd, canonicalPathForGate(cwd))) ?? launchDirectory;
+  if (!input.cwd) return launchDirectory;
+  const cwd = baseDirectory(launchDirectory, input.cwd);
+  return owner(cwd, canonicalPathForGate(cwd)) ?? launchDirectory;
+}
+
+/**
+ * The real path of an edit target as the host meant it, resolved from the
+ * same base as `resolveProjectDirectory`: the reported `cwd` (which may be a
+ * worktree), else the launch checkout — never the hook process's own cwd.
+ * Empty stays empty.
+ */
+export function canonicalEditTarget(
+  launchDirectory: string,
+  filePath: string,
+  cwd: string | undefined,
+): string {
+  if (filePath === '') return filePath;
+  return canonicalPathForGate(nodePath.resolve(baseDirectory(launchDirectory, cwd), filePath));
+}
+
+/** Where a relative path starts: the reported cwd (itself relative to launch), else launch. */
+function baseDirectory(launchDirectory: string, cwd: string | undefined): string {
+  return cwd ? nodePath.resolve(launchDirectory, cwd) : launchDirectory;
 }
 
 /**

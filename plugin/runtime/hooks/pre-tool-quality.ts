@@ -52,9 +52,12 @@ import {
   hasSafewordProjectMarker,
   isNamespacePath,
   resolveNamespaceRoot,
-  canonicalEditTarget,
 } from './lib/namespace-root.ts';
-import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
+import {
+  canonicalEditTarget,
+  resolveLaunchDirectory,
+  resolveToolProjectDirectory,
+} from './lib/project-directory.ts';
 import { reviewKindForPhase } from './lib/review-receipt.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
@@ -373,7 +376,7 @@ try {
 
 const tool = input.tool_name ?? '';
 const requestedEditedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
-const editedFile = canonicalEditTarget(requestedEditedFile, input.cwd);
+const editedFile = canonicalEditTarget(launchProjectDirectory, requestedEditedFile, input.cwd);
 
 // Work inside another enrolled git worktree (e.g. `.claude/worktrees/<name>`
 // after the session entered it) is gated against that worktree's tickets,

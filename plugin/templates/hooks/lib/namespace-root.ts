@@ -48,16 +48,6 @@ export function canonicalPathForGate(path: string, seen = new Set<string>()): st
 }
 
 /**
- * The real path of an edit target as the host meant it: a relative target is
- * relative to the session's reported `cwd` (which may be a worktree), not to
- * the hook process's cwd (the launch checkout). Empty stays empty.
- */
-export function canonicalEditTarget(filePath: string, cwd: string | undefined): string {
-  if (filePath === '') return filePath;
-  return canonicalPathForGate(nodePath.resolve(cwd || process.cwd(), filePath));
-}
-
-/**
  * The raw non-empty `paths.<key>` string from `.safeword/config.json`, or
  * `undefined` (unset, empty, non-string, or missing/unparseable config).
  * Shared by the hook-side path resolvers (projectRoot here, architecture in
