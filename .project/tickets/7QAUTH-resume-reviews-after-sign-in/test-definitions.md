@@ -51,6 +51,6 @@ The MCP suite also runs both reviewers' negative login/profile checks, deadline,
 | A second authentication failure stops recovery | Bound request and one linked retry |
 | Legacy receipts keep manual retry guidance | Connected MCP recovery and shutdown |
 
-- [ ] RED
+- [x] RED 4338c7ee8
 - [ ] GREEN
 - [ ] REFACTOR
