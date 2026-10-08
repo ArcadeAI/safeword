@@ -143,7 +143,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "e996143dd63e9c0df383a727e28f741b78f31d78dd04b6dd3d782382f3d8ed61"
+      "sha256": "7516181740f32537766704e1bef616f5ffe1733a7562aada85739e6de6e334b6"
     },
     {
       "path": "runtime/dispatch.js",
@@ -623,7 +623,7 @@
     },
     {
       "path": "runtime/review-mcp.js",
-      "sha256": "894b16677a8898007a5d73fc1017289c5c2902a78aebcc8bd5a3b0a486c09dd2"
+      "sha256": "5965023b247325a9be74b1f45ff7a2fca60a7c3e3c4bc0b5e85e8b62258fd15b"
     },
     {
       "path": "skills/audit/SKILL.md",

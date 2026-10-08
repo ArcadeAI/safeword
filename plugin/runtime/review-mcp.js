@@ -1,28 +1,17 @@
-// codex-plugin/review-mcp.ts
-import { lstatSync as lstatSync3, realpathSync as realpathSync4, statSync as statSync2 } from "node:fs";
-import nodePath6 from "node:path";
-import readline from "node:readline";
-
-// review/job.ts
-import { spawn, spawnSync as spawnSync2 } from "node:child_process";
-import { createHash as createHash3, createHmac, randomBytes, randomUUID as randomUUID2, timingSafeEqual } from "node:crypto";
-import {
-  closeSync as closeSync3,
-  existsSync,
-  fstatSync as fstatSync3,
-  mkdirSync as mkdirSync3,
-  openSync as openSync3,
-  readdirSync as readdirSync3,
-  readFileSync as readFileSync2,
-  realpathSync as realpathSync3,
-  renameSync as renameSync2,
-  statSync,
-  unlinkSync,
-  writeFileSync as writeFileSync3,
-  writeSync
-} from "node:fs";
-import { homedir as homedir2 } from "node:os";
-import nodePath3 from "node:path";
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res, err) => function __init() {
+  if (err) throw err[0];
+  try {
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  } catch (e) {
+    throw err = [e], e;
+  }
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 
 // cli-protocol/policy.ts
 function createBestEffortByteSink(write) {
@@ -40,15 +29,20 @@ function createBestEffortByteSink(write) {
     }
   };
 }
+var init_policy = __esm({
+  "cli-protocol/policy.ts"() {
+    "use strict";
+  }
+});
+
+// cli-protocol/review-presentation.ts
+var init_review_presentation = __esm({
+  "cli-protocol/review-presentation.ts"() {
+    "use strict";
+  }
+});
 
 // cli-protocol/result.ts
-var EMPTY_EFFECTS = {
-  files: [],
-  packages: [],
-  configuration: [],
-  network: [],
-  destructive: []
-};
 function createResult(input) {
   return {
     schemaVersion: 1,
@@ -65,6 +59,20 @@ function createResult(input) {
     ...input.data !== void 0 && { data: input.data }
   };
 }
+var EMPTY_EFFECTS;
+var init_result = __esm({
+  "cli-protocol/result.ts"() {
+    "use strict";
+    init_review_presentation();
+    EMPTY_EFFECTS = {
+      files: [],
+      packages: [],
+      configuration: [],
+      network: [],
+      destructive: []
+    };
+  }
+});
 
 // review/command.ts
 function shellQuote(value) {
@@ -89,20 +97,195 @@ function retryCommand(kind, targets, context = [], execution) {
   ].join("");
   return `safeword review run ${kind}${contextOption}${executionOptions} -- ${quoted}`;
 }
+var init_command = __esm({
+  "review/command.ts"() {
+    "use strict";
+  }
+});
 
 // review/contract.ts
-var REVIEW_KINDS = /* @__PURE__ */ new Set([
-  "quality-review",
-  "scenario-gate",
-  "plan-implementation",
-  "plan-execution",
-  "executable-red",
-  "retrospective-eligibility",
-  "retrospective-proof"
-]);
 function isReviewKind(value) {
   return typeof value === "string" && REVIEW_KINDS.has(value);
 }
+var REVIEW_KINDS;
+var init_contract = __esm({
+  "review/contract.ts"() {
+    "use strict";
+    REVIEW_KINDS = /* @__PURE__ */ new Set([
+      "quality-review",
+      "scenario-gate",
+      "plan-implementation",
+      "plan-execution",
+      "executable-red",
+      "retrospective-eligibility",
+      "retrospective-proof"
+    ]);
+  }
+});
+
+// review/environment.ts
+function filteredEnvironment(reviewer, source = process.env, platform = process.platform) {
+  const normalize = (name) => platform === "win32" ? name.toUpperCase() : name;
+  const allowed = new Set(
+    [
+      ...PROCESS_VARIABLES,
+      ...REVIEWER_CONTROL_VARIABLES,
+      ...process.env.NODE_ENV === "test" ? REVIEWER_FIXTURE_VARIABLES : [],
+      ...reviewer === void 0 ? [] : VENDOR_VARIABLES[reviewer]
+    ].map((name) => normalize(name))
+  );
+  const managedProgressSignal = normalize("SAFEWORD_REVIEW_PROGRESS");
+  return Object.fromEntries(
+    Object.entries(source).filter(
+      ([name]) => normalize(name) !== managedProgressSignal && allowed.has(normalize(name))
+    )
+  );
+}
+function reviewerEnvironment(reviewer, source = process.env, platform = process.platform) {
+  const environment = filteredEnvironment(reviewer, source, platform);
+  if (reviewer === "claude") {
+    return { ...environment, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" };
+  }
+  if (reviewer !== "opencode") return environment;
+  let inlineConfig = {};
+  try {
+    const parsed = JSON.parse(environment.OPENCODE_CONFIG_CONTENT ?? "{}");
+    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      inlineConfig = parsed;
+    }
+  } catch {
+  }
+  return {
+    ...environment,
+    OPENCODE_CONFIG_CONTENT: JSON.stringify({ ...inlineConfig, permission: { "*": "deny" } }),
+    OPENCODE_DISABLE_AUTOUPDATE: "true",
+    OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
+    OPENCODE_DISABLE_LSP_DOWNLOAD: "true"
+  };
+}
+var VENDOR_VARIABLES, PROCESS_VARIABLES, REVIEWER_CONTROL_VARIABLES, REVIEWER_FIXTURE_VARIABLES;
+var init_environment = __esm({
+  "review/environment.ts"() {
+    "use strict";
+    VENDOR_VARIABLES = {
+      claude: [
+        "ANTHROPIC_API_KEY",
+        "CLAUDE_CODE_OAUTH_TOKEN",
+        "CLAUDE_CONFIG_DIR",
+        "CLAUDE_SESSION_ID",
+        "CLAUDE_CODE_SESSION_ID"
+      ],
+      codex: [
+        "OPENAI_API_KEY",
+        "AZURE_OPENAI_API_KEY",
+        "CODEX_API_KEY",
+        "CODEX_HOME",
+        "CODEX_THREAD_ID"
+      ],
+      opencode: [
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+        "AZURE_OPENAI_API_KEY",
+        "OPENCODE_CONFIG",
+        "OPENCODE_CONFIG_CONTENT",
+        "OPENCODE_CONFIG_DIR"
+      ]
+    };
+    PROCESS_VARIABLES = [
+      "ALL_PROXY",
+      "APPDATA",
+      "HOME",
+      "HTTP_PROXY",
+      "HTTPS_PROXY",
+      "LANG",
+      "LC_ALL",
+      "LOGNAME",
+      "LOCALAPPDATA",
+      "NODE_EXTRA_CA_CERTS",
+      "NO_PROXY",
+      "PATH",
+      "PATHEXT",
+      "SHELL",
+      "SYSTEMROOT",
+      "SSL_CERT_DIR",
+      "SSL_CERT_FILE",
+      "TEMP",
+      "TERM",
+      "TMP",
+      "TMPDIR",
+      "USER",
+      "USERPROFILE",
+      "COMSPEC",
+      "XDG_CACHE_HOME",
+      "XDG_CONFIG_HOME",
+      "all_proxy",
+      "http_proxy",
+      "https_proxy",
+      "no_proxy"
+    ];
+    REVIEWER_CONTROL_VARIABLES = [
+      "SAFEWORD_REVIEW_RUN_BOUND_MS",
+      "SAFEWORD_REVIEW_TIMEOUT_MS"
+    ];
+    REVIEWER_FIXTURE_VARIABLES = [
+      "SAFEWORD_REVIEW_ACCEPTED_MODEL",
+      "SAFEWORD_REVIEW_BDD_EXPECTED_MODEL",
+      "SAFEWORD_REVIEW_CANDIDATE_LOG",
+      "SAFEWORD_REVIEW_CHILD_PID",
+      "SAFEWORD_REVIEW_COVERAGE_FAIL",
+      "SAFEWORD_REVIEW_COVERAGE_FAIL_CLAUDE",
+      "SAFEWORD_REVIEW_COVERAGE_FAIL_CODEX",
+      "SAFEWORD_REVIEW_COVERAGE_FINDING",
+      "SAFEWORD_REVIEW_COVERAGE_VERDICT",
+      "SAFEWORD_REVIEW_DESCENDANT_PID_FILE",
+      "SAFEWORD_REVIEW_ENV_LOG",
+      "SAFEWORD_REVIEW_FAKE_DELAY_AGENT",
+      "SAFEWORD_REVIEW_FAKE_FAILURE",
+      "SAFEWORD_REVIEW_FAKE_FAILURE_AGENT",
+      "SAFEWORD_REVIEW_FAKE_FAILURE_CLAUDE",
+      "SAFEWORD_REVIEW_FAKE_FAILURE_CODEX",
+      "SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE",
+      "SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS",
+      "SAFEWORD_REVIEW_FAKE_FINDING",
+      "SAFEWORD_REVIEW_FAKE_HELP_FAILURE",
+      "SAFEWORD_REVIEW_FAKE_IDENTITY",
+      "SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY",
+      "SAFEWORD_REVIEW_FAKE_MUTATE",
+      "SAFEWORD_REVIEW_FAKE_MUTATE_AGENT",
+      "SAFEWORD_REVIEW_FAKE_SOURCE_MUTATE_TARGET",
+      "SAFEWORD_REVIEW_FAKE_SUMMARY",
+      "SAFEWORD_REVIEW_FAKE_VERDICT",
+      "SAFEWORD_REVIEW_HELP_MUTATE",
+      "SAFEWORD_REVIEW_LAUNCH_LOG",
+      "SAFEWORD_REVIEW_LOG",
+      "SAFEWORD_REVIEW_MODEL_LOG",
+      "SAFEWORD_REVIEW_MODEL_PROMPT_LOG",
+      "SAFEWORD_REVIEW_PROBE_ENV_LOG",
+      "SAFEWORD_REVIEW_PROMPT_LOG",
+      "SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR",
+      "SAFEWORD_REVIEW_ROUTE_LOG",
+      "SAFEWORD_REVIEW_SCHEMA_COPY",
+      "SAFEWORD_REVIEW_SCHEMA_PATH_LOG",
+      "SAFEWORD_REVIEW_STUBBORN_PID",
+      "SAFEWORD_REVIEW_SWAP_ALIAS",
+      "SAFEWORD_REVIEW_SWAP_TARGET"
+    ];
+  }
+});
+
+// review/scope.ts
+import { AsyncLocalStorage } from "node:async_hooks";
+function recordFinalizedScope(excludedTargets) {
+  const scope = reviewScope.getStore();
+  if (scope !== void 0) scope.excludedTargets = [...excludedTargets];
+}
+var reviewScope;
+var init_scope = __esm({
+  "review/scope.ts"() {
+    "use strict";
+    reviewScope = new AsyncLocalStorage();
+  }
+});
 
 // review/packet.ts
 import { spawnSync } from "node:child_process";
@@ -123,35 +306,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import nodePath from "node:path";
-
-// review/scope.ts
-import { AsyncLocalStorage } from "node:async_hooks";
-var reviewScope = new AsyncLocalStorage();
-function recordFinalizedScope(excludedTargets) {
-  const scope = reviewScope.getStore();
-  if (scope !== void 0) scope.excludedTargets = [...excludedTargets];
-}
-
-// review/packet.ts
-var MAX_FILE_COUNT = 64;
-var MAX_FILE_BYTES = 256 * 1024;
-var MAX_PACKET_BYTES = 1024 * 1024;
-var HIGH_CONFIDENCE_SECRET_PATTERNS = [
-  /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u,
-  /\bAKIA[0-9A-Z]{16}\b/u,
-  /\bgh[pousr]_[A-Za-z0-9]{36,}\b/u,
-  /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/u,
-  /\bsk-(?:proj-|ant-)[\w-]{16,}\b/u,
-  /\bAIza[\w-]{35}\b/u
-];
-var ReviewPacketError = class extends Error {
-  constructor(message, code = "REVIEW_PACKET_INVALID") {
-    super(message);
-    this.code = code;
-  }
-  code;
-  name = "ReviewPacketError";
-};
 function serializedOverflowIndex(kind, files, executionAttestation) {
   const logicalFiles = [];
   const contextFiles = [];
@@ -702,6 +856,129 @@ function prepareReviewPacketReadOnly(cwd, kind, targets, context = [], execution
     throw new ReviewPacketError("Review packet could not be read for verification.");
   }
 }
+var MAX_FILE_COUNT, MAX_FILE_BYTES, MAX_PACKET_BYTES, HIGH_CONFIDENCE_SECRET_PATTERNS, ReviewPacketError;
+var init_packet = __esm({
+  "review/packet.ts"() {
+    "use strict";
+    init_scope();
+    MAX_FILE_COUNT = 64;
+    MAX_FILE_BYTES = 256 * 1024;
+    MAX_PACKET_BYTES = 1024 * 1024;
+    HIGH_CONFIDENCE_SECRET_PATTERNS = [
+      /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u,
+      /\bAKIA[0-9A-Z]{16}\b/u,
+      /\bgh[pousr]_[A-Za-z0-9]{36,}\b/u,
+      /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/u,
+      /\bsk-(?:proj-|ant-)[\w-]{16,}\b/u,
+      /\bAIza[\w-]{35}\b/u
+    ];
+    ReviewPacketError = class extends Error {
+      constructor(message, code = "REVIEW_PACKET_INVALID") {
+        super(message);
+        this.code = code;
+      }
+      code;
+      name = "ReviewPacketError";
+    };
+  }
+});
+
+// codex-plugin/durable-write.ts
+var init_durable_write = __esm({
+  "codex-plugin/durable-write.ts"() {
+    "use strict";
+  }
+});
+
+// review/route-config.ts
+var MODEL_NAME;
+var init_route_config = __esm({
+  "review/route-config.ts"() {
+    "use strict";
+    MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
+  }
+});
+
+// review/preferences.ts
+import nodePath2 from "node:path";
+function resolveSafewordUserConfigPath(input) {
+  const paths2 = input.platform === "windows" ? nodePath2.win32 : nodePath2.posix;
+  const xdg = absolute(input.env.XDG_CONFIG_HOME, paths2);
+  if (xdg !== void 0) return paths2.join(xdg, "safeword", "config.json");
+  if (input.platform === "windows") {
+    const appData = absolute(input.env.APPDATA, paths2);
+    if (appData !== void 0) return paths2.join(appData, "Safeword", "config.json");
+    const profile = absolute(input.env.USERPROFILE, paths2);
+    return profile === void 0 ? void 0 : paths2.join(profile, ".config", "safeword", "config.json");
+  }
+  const home = absolute(input.env.HOME, paths2);
+  return home === void 0 ? void 0 : paths2.join(home, ".config", "safeword", "config.json");
+}
+function absolute(value, paths2) {
+  const trimmed = value?.trim();
+  return trimmed !== void 0 && paths2.isAbsolute(trimmed) ? trimmed : void 0;
+}
+function currentUserConfigPath() {
+  const path = optionalCurrentUserConfigPath();
+  if (path === void 0)
+    throw new ReviewUserConfigPathError("Cannot locate the Safeword user configuration directory.");
+  return path;
+}
+function optionalCurrentUserConfigPath() {
+  return resolveSafewordUserConfigPath({
+    platform: process.platform === "win32" ? "windows" : "unix",
+    env: process.env
+  });
+}
+function scopedConfigPath(cwd, scope) {
+  return scope === "project" ? nodePath2.join(cwd, ".safeword", "config.json") : currentUserConfigPath();
+}
+var ReviewUserConfigPathError;
+var init_preferences = __esm({
+  "review/preferences.ts"() {
+    "use strict";
+    init_durable_write();
+    init_route_config();
+    ReviewUserConfigPathError = class extends Error {
+      name = "ReviewUserConfigPathError";
+    };
+  }
+});
+
+// utils/output.ts
+var init_output = __esm({
+  "utils/output.ts"() {
+    "use strict";
+  }
+});
+
+// review/plan-rubric.generated.ts
+var init_plan_rubric_generated = __esm({
+  "review/plan-rubric.generated.ts"() {
+    "use strict";
+  }
+});
+
+// review/quality-rubric.generated.ts
+var init_quality_rubric_generated = __esm({
+  "review/quality-rubric.generated.ts"() {
+    "use strict";
+  }
+});
+
+// review/red-rubric.generated.ts
+var init_red_rubric_generated = __esm({
+  "review/red-rubric.generated.ts"() {
+    "use strict";
+  }
+});
+
+// review/scenario-rubric.generated.ts
+var init_scenario_rubric_generated = __esm({
+  "review/scenario-rubric.generated.ts"() {
+    "use strict";
+  }
+});
 
 // review/runtime.ts
 import { createHash as createHash2 } from "node:crypto";
@@ -723,191 +1000,7 @@ import {
   writeFileSync as writeFileSync2
 } from "node:fs";
 import { homedir, tmpdir as tmpdir2 } from "node:os";
-import nodePath2 from "node:path";
-
-// review/environment.ts
-var VENDOR_VARIABLES = {
-  claude: [
-    "ANTHROPIC_API_KEY",
-    "CLAUDE_CODE_OAUTH_TOKEN",
-    "CLAUDE_CONFIG_DIR",
-    "CLAUDE_SESSION_ID",
-    "CLAUDE_CODE_SESSION_ID"
-  ],
-  codex: [
-    "OPENAI_API_KEY",
-    "AZURE_OPENAI_API_KEY",
-    "CODEX_API_KEY",
-    "CODEX_HOME",
-    "CODEX_THREAD_ID"
-  ],
-  opencode: [
-    "ANTHROPIC_API_KEY",
-    "OPENAI_API_KEY",
-    "AZURE_OPENAI_API_KEY",
-    "OPENCODE_CONFIG",
-    "OPENCODE_CONFIG_CONTENT",
-    "OPENCODE_CONFIG_DIR"
-  ]
-};
-var PROCESS_VARIABLES = [
-  "ALL_PROXY",
-  "APPDATA",
-  "HOME",
-  "HTTP_PROXY",
-  "HTTPS_PROXY",
-  "LANG",
-  "LC_ALL",
-  "LOGNAME",
-  "LOCALAPPDATA",
-  "NODE_EXTRA_CA_CERTS",
-  "NO_PROXY",
-  "PATH",
-  "PATHEXT",
-  "SHELL",
-  "SYSTEMROOT",
-  "SSL_CERT_DIR",
-  "SSL_CERT_FILE",
-  "TEMP",
-  "TERM",
-  "TMP",
-  "TMPDIR",
-  "USER",
-  "USERPROFILE",
-  "COMSPEC",
-  "XDG_CACHE_HOME",
-  "XDG_CONFIG_HOME",
-  "all_proxy",
-  "http_proxy",
-  "https_proxy",
-  "no_proxy"
-];
-var REVIEWER_CONTROL_VARIABLES = [
-  "SAFEWORD_REVIEW_RUN_BOUND_MS",
-  "SAFEWORD_REVIEW_TIMEOUT_MS"
-];
-var REVIEWER_FIXTURE_VARIABLES = [
-  "SAFEWORD_REVIEW_ACCEPTED_MODEL",
-  "SAFEWORD_REVIEW_BDD_EXPECTED_MODEL",
-  "SAFEWORD_REVIEW_CANDIDATE_LOG",
-  "SAFEWORD_REVIEW_CHILD_PID",
-  "SAFEWORD_REVIEW_COVERAGE_FAIL",
-  "SAFEWORD_REVIEW_COVERAGE_FAIL_CLAUDE",
-  "SAFEWORD_REVIEW_COVERAGE_FAIL_CODEX",
-  "SAFEWORD_REVIEW_COVERAGE_FINDING",
-  "SAFEWORD_REVIEW_COVERAGE_VERDICT",
-  "SAFEWORD_REVIEW_DESCENDANT_PID_FILE",
-  "SAFEWORD_REVIEW_ENV_LOG",
-  "SAFEWORD_REVIEW_FAKE_DELAY_AGENT",
-  "SAFEWORD_REVIEW_FAKE_FAILURE",
-  "SAFEWORD_REVIEW_FAKE_FAILURE_AGENT",
-  "SAFEWORD_REVIEW_FAKE_FAILURE_CLAUDE",
-  "SAFEWORD_REVIEW_FAKE_FAILURE_CODEX",
-  "SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE",
-  "SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS",
-  "SAFEWORD_REVIEW_FAKE_FINDING",
-  "SAFEWORD_REVIEW_FAKE_HELP_FAILURE",
-  "SAFEWORD_REVIEW_FAKE_IDENTITY",
-  "SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY",
-  "SAFEWORD_REVIEW_FAKE_MUTATE",
-  "SAFEWORD_REVIEW_FAKE_MUTATE_AGENT",
-  "SAFEWORD_REVIEW_FAKE_SOURCE_MUTATE_TARGET",
-  "SAFEWORD_REVIEW_FAKE_SUMMARY",
-  "SAFEWORD_REVIEW_FAKE_VERDICT",
-  "SAFEWORD_REVIEW_HELP_MUTATE",
-  "SAFEWORD_REVIEW_LAUNCH_LOG",
-  "SAFEWORD_REVIEW_LOG",
-  "SAFEWORD_REVIEW_MODEL_LOG",
-  "SAFEWORD_REVIEW_MODEL_PROMPT_LOG",
-  "SAFEWORD_REVIEW_PROBE_ENV_LOG",
-  "SAFEWORD_REVIEW_PROMPT_LOG",
-  "SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR",
-  "SAFEWORD_REVIEW_ROUTE_LOG",
-  "SAFEWORD_REVIEW_SCHEMA_COPY",
-  "SAFEWORD_REVIEW_SCHEMA_PATH_LOG",
-  "SAFEWORD_REVIEW_STUBBORN_PID",
-  "SAFEWORD_REVIEW_SWAP_ALIAS",
-  "SAFEWORD_REVIEW_SWAP_TARGET"
-];
-function filteredEnvironment(reviewer, source = process.env, platform = process.platform) {
-  const normalize = (name) => platform === "win32" ? name.toUpperCase() : name;
-  const allowed = new Set(
-    [
-      ...PROCESS_VARIABLES,
-      ...REVIEWER_CONTROL_VARIABLES,
-      ...process.env.NODE_ENV === "test" ? REVIEWER_FIXTURE_VARIABLES : [],
-      ...reviewer === void 0 ? [] : VENDOR_VARIABLES[reviewer]
-    ].map((name) => normalize(name))
-  );
-  const managedProgressSignal = normalize("SAFEWORD_REVIEW_PROGRESS");
-  return Object.fromEntries(
-    Object.entries(source).filter(
-      ([name]) => normalize(name) !== managedProgressSignal && allowed.has(normalize(name))
-    )
-  );
-}
-function reviewerEnvironment(reviewer, source = process.env, platform = process.platform) {
-  const environment = filteredEnvironment(reviewer, source, platform);
-  if (reviewer === "claude") {
-    return { ...environment, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" };
-  }
-  if (reviewer !== "opencode") return environment;
-  let inlineConfig = {};
-  try {
-    const parsed = JSON.parse(environment.OPENCODE_CONFIG_CONTENT ?? "{}");
-    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
-      inlineConfig = parsed;
-    }
-  } catch {
-  }
-  return {
-    ...environment,
-    OPENCODE_CONFIG_CONTENT: JSON.stringify({ ...inlineConfig, permission: { "*": "deny" } }),
-    OPENCODE_DISABLE_AUTOUPDATE: "true",
-    OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
-    OPENCODE_DISABLE_LSP_DOWNLOAD: "true"
-  };
-}
-
-// review/runtime.ts
-var REVIEW_OUTPUT_SCHEMA_SHAPE = {
-  type: "object",
-  properties: {
-    schema_version: { type: "integer", enum: [1] },
-    dispatch_id: { type: "string" },
-    reviewer_agent: { type: "string", enum: ["claude", "codex", "opencode"] },
-    verdict: { type: "string", enum: ["approve", "request_changes"] },
-    summary: { type: "string" },
-    findings: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          severity: { type: "string", enum: ["info", "warning", "error"] },
-          message: { type: "string" }
-        },
-        required: ["severity", "message"],
-        additionalProperties: false
-      }
-    }
-  },
-  required: ["schema_version", "dispatch_id", "reviewer_agent", "verdict", "summary", "findings"],
-  additionalProperties: false
-};
-var REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
-var MAX_OUTPUT_BYTES = 1024 * 1024;
-var ReviewRuntimeError = class extends Error {
-  constructor(failure, message, terminal = false) {
-    super(message);
-    this.failure = failure;
-    this.terminal = terminal;
-    this.name = "ReviewRuntimeError";
-  }
-  failure;
-  terminal;
-};
-var RUN_BOUND_MS = 27e4;
-var BACKGROUND_RUN_BOUND_MS = 18e5;
+import nodePath3 from "node:path";
 function reviewRunCeiling(env) {
   return env.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_RUN_BOUND_MS : RUN_BOUND_MS;
 }
@@ -920,8 +1013,8 @@ function reviewWorkerRunBoundMs(env = process.env) {
   return runBoundMs({ ...env, SAFEWORD_REVIEW_WORKER: "1" });
 }
 function inside(root, candidate) {
-  const relative = nodePath2.relative(root, candidate);
-  return relative === "" || !nodePath2.isAbsolute(relative) && !relative.startsWith(`..${nodePath2.sep}`) && relative !== "..";
+  const relative = nodePath3.relative(root, candidate);
+  return relative === "" || !nodePath3.isAbsolute(relative) && !relative.startsWith(`..${nodePath3.sep}`) && relative !== "..";
 }
 function outsideUntrustedRoot(root, candidate) {
   if (inside(root, candidate)) return false;
@@ -945,7 +1038,7 @@ function hasTrustedExecutableAncestry(candidate) {
   while (true) {
     const metadata = lstatSync2(current);
     if (!pathMetadataIsTrusted(metadata.mode, metadata.uid, currentUid)) return false;
-    const parent = nodePath2.dirname(current);
+    const parent = nodePath3.dirname(current);
     if (parent === current) return true;
     current = parent;
   }
@@ -967,7 +1060,7 @@ function cachedCopyMatchesDigest(copyPath, expectedDigest) {
   }
 }
 function preparedTrustedCacheDirectory(untrustedRoot) {
-  const cacheDirectory = process.env.SAFEWORD_REVIEWER_CACHE_DIR ?? nodePath2.join(homedir(), ".cache", "safeword-reviewers");
+  const cacheDirectory = process.env.SAFEWORD_REVIEWER_CACHE_DIR ?? nodePath3.join(homedir(), ".cache", "safeword-reviewers");
   if (inside(untrustedRoot, cacheDirectory)) return void 0;
   try {
     if (lstatSync2(cacheDirectory).isSymbolicLink()) return void 0;
@@ -993,7 +1086,7 @@ function stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot) {
     if (source === void 0) return void 0;
     const cacheDirectory = preparedTrustedCacheDirectory(untrustedRoot);
     if (cacheDirectory === void 0) return void 0;
-    const copyPath = nodePath2.join(cacheDirectory, `${reviewer}.${source.digest}`);
+    const copyPath = nodePath3.join(cacheDirectory, `${reviewer}.${source.digest}`);
     if (cachedCopyMatchesDigest(copyPath, source.digest)) return copyPath;
     const temporaryPath = `${copyPath}.${process.pid.toString(36)}.${Date.now().toString(36)}.tmp`;
     writeFileSync2(temporaryPath, source.bytes, { mode: 448, flag: "wx" });
@@ -1008,8 +1101,8 @@ function stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot) {
 function executableCandidates(reviewer, untrustedRoot, allowStaging = true) {
   const canonicalUntrustedRoot = realpathSync2(untrustedRoot);
   const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
-  const candidates = (process.env.PATH ?? "").split(nodePath2.delimiter).filter((directory) => directory !== "" && nodePath2.isAbsolute(directory)).flatMap(
-    (directory) => extensions.map((extension) => nodePath2.join(directory, `${reviewer}${extension}`))
+  const candidates = (process.env.PATH ?? "").split(nodePath3.delimiter).filter((directory) => directory !== "" && nodePath3.isAbsolute(directory)).flatMap(
+    (directory) => extensions.map((extension) => nodePath3.join(directory, `${reviewer}${extension}`))
   );
   let rejectedForTrust = false;
   const stageable = [];
@@ -1054,30 +1147,204 @@ function unavailableReviewerError(reviewer, rejectedForTrust) {
   }
   return new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
 }
+var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, MAX_OUTPUT_BYTES, ReviewRuntimeError, RUN_BOUND_MS, BACKGROUND_RUN_BOUND_MS;
+var init_runtime = __esm({
+  "review/runtime.ts"() {
+    "use strict";
+    init_output();
+    init_environment();
+    init_plan_rubric_generated();
+    init_quality_rubric_generated();
+    init_red_rubric_generated();
+    init_scenario_rubric_generated();
+    init_scope();
+    REVIEW_OUTPUT_SCHEMA_SHAPE = {
+      type: "object",
+      properties: {
+        schema_version: { type: "integer", enum: [1] },
+        dispatch_id: { type: "string" },
+        reviewer_agent: { type: "string", enum: ["claude", "codex", "opencode"] },
+        verdict: { type: "string", enum: ["approve", "request_changes"] },
+        summary: { type: "string" },
+        findings: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              severity: { type: "string", enum: ["info", "warning", "error"] },
+              message: { type: "string" }
+            },
+            required: ["severity", "message"],
+            additionalProperties: false
+          }
+        }
+      },
+      required: ["schema_version", "dispatch_id", "reviewer_agent", "verdict", "summary", "findings"],
+      additionalProperties: false
+    };
+    REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
+    MAX_OUTPUT_BYTES = 1024 * 1024;
+    ReviewRuntimeError = class extends Error {
+      constructor(failure, message, terminal = false) {
+        super(message);
+        this.failure = failure;
+        this.terminal = terminal;
+        this.name = "ReviewRuntimeError";
+      }
+      failure;
+      terminal;
+    };
+    RUN_BOUND_MS = 27e4;
+    BACKGROUND_RUN_BOUND_MS = 18e5;
+  }
+});
 
 // review/job.ts
-var COURTESY_WAIT_MS = 75e3;
-var POLL_INTERVAL_MS = 100;
-var WORKER_INSPECTION_INTERVAL_MS = 1e3;
-var JOB_LOCK_WAIT_MS = 2e3;
+var job_exports = {};
+__export(job_exports, {
+  approvedRetrospectiveReview: () => approvedRetrospectiveReview,
+  assertReviewAuthenticationContext: () => assertReviewAuthenticationContext,
+  cancelReviewJob: () => cancelReviewJob,
+  completeReviewJob: () => completeReviewJob,
+  executableRedGate: () => executableRedGate,
+  hasIndependentVerdict: () => hasIndependentVerdict,
+  readReviewRouteProofs: () => readReviewRouteProofs,
+  relayManagedWorkerStderr: () => relayManagedWorkerStderr,
+  resumeReviewAfterAuthentication: () => resumeReviewAfterAuthentication,
+  retrospectiveCloseTag: () => retrospectiveCloseTag,
+  reviewJobStatus: () => reviewJobStatus,
+  reviewJobWorkerInput: () => reviewJobWorkerInput,
+  startReviewJob: () => startReviewJob,
+  validRetrospectiveCloseTag: () => validRetrospectiveCloseTag
+});
+import { spawn, spawnSync as spawnSync2 } from "node:child_process";
+import { createHash as createHash3, createHmac, randomBytes, randomUUID as randomUUID2, timingSafeEqual } from "node:crypto";
+import {
+  closeSync as closeSync3,
+  existsSync,
+  fstatSync as fstatSync3,
+  mkdirSync as mkdirSync3,
+  openSync as openSync3,
+  readdirSync as readdirSync3,
+  readFileSync as readFileSync2,
+  realpathSync as realpathSync3,
+  renameSync as renameSync2,
+  statSync,
+  unlinkSync,
+  writeFileSync as writeFileSync3,
+  writeSync
+} from "node:fs";
+import { homedir as homedir2 } from "node:os";
+import nodePath4 from "node:path";
+function assignedAuthenticationReviewer(data) {
+  const reviewer = data?.assigned_reviewer;
+  return reviewer === "claude" || reviewer === "codex" ? reviewer : void 0;
+}
+function authenticationReviewer(record) {
+  if (!AUTHENTICATION_REVIEW_KINDS.has(record.kind)) return void 0;
+  if (record.retry_of !== void 0 || record.state !== "completed") return void 0;
+  const result = record.result;
+  if (result?.findings.some((finding) => finding.code === "REVIEW_AUTHENTICATION_REQUIRED") !== true)
+    return void 0;
+  const reviewer = assignedAuthenticationReviewer(result.data);
+  if (reviewer === void 0) return void 0;
+  return record.authentication_bindings?.[reviewer] === void 0 ? void 0 : reviewer;
+}
+function authenticationContext(cwd, reviewer) {
+  return {
+    executable: trustedReviewerExecutable(reviewer, cwd),
+    environment: reviewerEnvironment(reviewer)
+  };
+}
+function authenticationBinding(cwd, context) {
+  const root = realpathSync3.native(cwd);
+  const policyPaths = [scopedConfigPath(root, "project"), scopedConfigPath(root, "user")];
+  const controls = Object.entries(process.env).filter(
+    ([name]) => name === "SAFEWORD_AGENT_RUNTIME" || name === "SAFEWORD_REVIEW_EFFORT_CLAUDE" || /^SAFEWORD_REVIEW_(?:PRIMARY|ALTERNATE)_MODEL_(?:CLAUDE|CODEX|OPENCODE)$/u.test(name)
+  ).toSorted(([left], [right]) => left.localeCompare(right));
+  const policies = policyPaths.map((path) => [
+    path,
+    existsSync(path) ? readFileSync2(path).toString("base64") : void 0
+  ]);
+  const executableBytes = readFileSync2(context.executable);
+  return createHmac("sha256", readOrCreateIntegrityKey()).update(
+    JSON.stringify({
+      root,
+      policies,
+      controls,
+      executable: realpathSync3.native(context.executable),
+      executable_bytes: createHash3("sha256").update(executableBytes).digest("hex"),
+      environment: Object.entries(context.environment).toSorted(
+        ([left], [right]) => left.localeCompare(right)
+      )
+    })
+  ).digest("hex");
+}
+function captureAuthenticationBindings(cwd) {
+  const bindings = {};
+  for (const reviewer of ["claude", "codex"]) {
+    try {
+      bindings[reviewer] = authenticationBinding(cwd, authenticationContext(cwd, reviewer));
+    } catch {
+    }
+  }
+  return bindings;
+}
+function authenticationRetryId(parent) {
+  const hex = createHash3("sha256").update(`safeword-authentication-retry:${parent}`).digest("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+function assertReviewAuthenticationContext(cwd, id, reviewer, context) {
+  const original = readJob(cwd, id, true);
+  if (authenticationReviewer(original) !== reviewer)
+    throw new Error(
+      "The review is not eligible for automatic authentication recovery. Retry manually."
+    );
+  if (original.authentication_bindings?.[reviewer] !== authenticationBinding(cwd, context) || reviewIdentity(cwd, original.kind, original.targets, original.context, original.execution, true).fingerprint !== original.source_fingerprint)
+    throw new Error("The review execution context changed. Retry manually.");
+}
+function verifiedAuthenticationParent(cwd, retry) {
+  retry.signal.throwIfAborted();
+  const parent = readJob(cwd, retry.parent, true);
+  assertReviewAuthenticationContext(
+    cwd,
+    parent.id,
+    retry.reviewer,
+    authenticationContext(cwd, retry.reviewer)
+  );
+  return parent;
+}
+function linkedAuthenticationRetry(parent, child) {
+  return child.retry_of === parent.id && child.id === authenticationRetryId(parent.id) && child.kind === parent.kind && child.source_fingerprint === parent.source_fingerprint && JSON.stringify(child.targets) === JSON.stringify(parent.targets) && JSON.stringify(child.context ?? []) === JSON.stringify(parent.context ?? []) && JSON.stringify(child.authentication_bindings) === JSON.stringify(parent.authentication_bindings);
+}
+async function resumeReviewAfterAuthentication(cwd, id, reviewer, signal) {
+  const parent = readJob(cwd, id, true);
+  return startReviewJob({
+    cwd,
+    kind: parent.kind,
+    targets: parent.targets,
+    context: parent.context,
+    authenticationRetry: { parent: id, reviewer, signal }
+  });
+}
 function jobsDirectory(cwd) {
-  return nodePath3.join(cwd, ".safeword", "state", "reviews");
+  return nodePath4.join(cwd, ".safeword", "state", "reviews");
 }
 function jobPath(cwd, id) {
   if (!isJobId(id)) throw new Error("invalid review job id");
-  return nodePath3.join(jobsDirectory(cwd), `${id}.json`);
+  return nodePath4.join(jobsDirectory(cwd), `${id}.json`);
 }
 function integrityKeyPath() {
   const testRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
-  const stateRoot = process.env.NODE_ENV === "test" && testRoot !== void 0 ? testRoot : process.env.XDG_STATE_HOME ?? nodePath3.join(homedir2(), ".local", "state");
-  return nodePath3.join(stateRoot, "safeword", "review-integrity.key");
+  const stateRoot = process.env.NODE_ENV === "test" && testRoot !== void 0 ? testRoot : process.env.XDG_STATE_HOME ?? nodePath4.join(homedir2(), ".local", "state");
+  return nodePath4.join(stateRoot, "safeword", "review-integrity.key");
 }
 function readOrCreateIntegrityKey() {
   const keyPath = integrityKeyPath();
   try {
     return decodeIntegrityKey(readFileSync2(keyPath, "utf8"));
   } catch {
-    mkdirSync3(nodePath3.dirname(keyPath), { recursive: true, mode: 448 });
+    mkdirSync3(nodePath4.dirname(keyPath), { recursive: true, mode: 448 });
     const key = randomBytes(32);
     try {
       const descriptor = openSync3(keyPath, "wx", 384);
@@ -1121,9 +1388,20 @@ function withRecordIntegrity(cwd, record) {
   const unsigned = { ...record, integrity: void 0 };
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
-var DELIVERY_CHECKLIST_MARKER = "<!-- safeword:delivery-checklist:v1 -->";
-var DELIVERY_CHECKLIST_COLUMNS = 9;
-var ORDINARY_PROGRESS_DISPOSITIONS = /* @__PURE__ */ new Set(["open", "complete"]);
+function retrospectiveCloseTag(cwd, content) {
+  return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync3.native(cwd)).update("\0retrospective-close\0").update(content).digest("hex");
+}
+function validRetrospectiveCloseTag(cwd, content, tag) {
+  if (!/^[a-f\d]{64}$/u.test(tag)) return false;
+  try {
+    return timingSafeEqual(
+      Buffer.from(tag, "hex"),
+      Buffer.from(retrospectiveCloseTag(cwd, content), "hex")
+    );
+  } catch {
+    return false;
+  }
+}
 function splitExecutionPlanRow(line) {
   if (!line.trimStart().startsWith("|") || !line.trimEnd().endsWith("|")) return void 0;
   const cells = [];
@@ -1198,7 +1476,7 @@ function normalizedExecutionPlanDigest(content) {
   return createHash3("sha256").update(lines.join("\n")).digest("hex");
 }
 function executionPlanReviewIdentity(content, projectDirectory) {
-  const configPath = nodePath3.join(projectDirectory, ".safeword", "config.json");
+  const configPath = nodePath4.join(projectDirectory, ".safeword", "config.json");
   let designApprovalGate = false;
   if (existsSync(configPath)) {
     const value = JSON.parse(readFileSync2(configPath, "utf8"));
@@ -1215,13 +1493,13 @@ function executionPlanReviewIdentity(content, projectDirectory) {
 function ledgerFingerprintContext(cwd, targets, context, execution) {
   if (execution === void 0) return { context, missing: false };
   const canonicalRoot = realpathSync3.native(cwd);
-  const ledgerPath = nodePath3.resolve(canonicalRoot, execution.ledger);
+  const ledgerPath = nodePath4.resolve(canonicalRoot, execution.ledger);
   if (pathEscapes(canonicalRoot, ledgerPath)) {
     throw new Error(`Executable RED ledger escapes the project: ${execution.ledger}`);
   }
   const missing = !existsSync(ledgerPath);
   const included = [...targets, ...context].some(
-    (target) => nodePath3.resolve(canonicalRoot, target) === ledgerPath
+    (target) => nodePath4.resolve(canonicalRoot, target) === ledgerPath
   );
   return {
     context: included || missing ? context : [...context, execution.ledger],
@@ -1283,8 +1561,8 @@ function reviewFingerprintContent(section, path, content, executionPlanTargetPat
   return content;
 }
 function pathEscapes(root, candidate) {
-  const relative = nodePath3.relative(root, candidate);
-  return relative === ".." || relative.startsWith(`..${nodePath3.sep}`) || nodePath3.isAbsolute(relative);
+  const relative = nodePath4.relative(root, candidate);
+  return relative === ".." || relative.startsWith(`..${nodePath4.sep}`) || nodePath4.isAbsolute(relative);
 }
 function writeJob(cwd, record) {
   const secured = withRecordIntegrity(cwd, record);
@@ -1368,10 +1646,18 @@ function hasReviewJobIdentity(candidate) {
   const hasStrings = ["id", "source_fingerprint", "started_at", "updated_at"].every(
     (key) => typeof candidate[key] === "string"
   );
-  return candidate.schema_version === 1 && hasStrings && isStringArray(candidate.targets) && isOptional(candidate.context, isStringArray) && (candidate.kind === "executable-red" ? isRedExecutionRequest(candidate.execution) : candidate.execution === void 0) && isOptional(
+  return candidate.schema_version === 1 && hasStrings && isStringArray(candidate.targets) && isOptional(candidate.context, isStringArray) && isOptional(
+    candidate.retry_of,
+    (value) => typeof value === "string" && isJobId(value) && value !== candidate.id
+  ) && isOptional(candidate.authentication_bindings, validAuthenticationBindings) && (candidate.kind === "executable-red" ? isRedExecutionRequest(candidate.execution) : candidate.execution === void 0) && isOptional(
     candidate.deadline_at,
     (value) => typeof value === "string" && Number.isFinite(Date.parse(value))
   ) && isReviewKind(candidate.kind);
+}
+function validAuthenticationBindings(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) && Object.entries(value).every(
+    ([reviewer, digest2]) => ["claude", "codex"].includes(reviewer) && typeof digest2 === "string" && /^[a-f\d]{64}$/u.test(digest2)
+  );
 }
 function isRedExecutionRequest(value) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
@@ -1614,7 +1900,7 @@ function effectiveReviewTargets(cwd, record) {
   const excludedPaths = new Set(excluded);
   const root = realpathSync3.native(cwd);
   return record.targets.filter((target) => {
-    const relative = nodePath3.relative(root, nodePath3.resolve(root, target));
+    const relative = nodePath4.relative(root, nodePath4.resolve(root, target));
     return !excludedPaths.has(toReviewPath(relative));
   });
 }
@@ -1635,7 +1921,9 @@ function withReviewProvenance(cwd, record, result, currentExclusions) {
       review_id: record.id,
       review_kind: record.kind,
       review_targets: effectiveReviewTargets(cwd, record) ?? [],
-      review_excluded_targets: verifiedExcludedTargets(record, currentExclusions)
+      review_excluded_targets: verifiedExcludedTargets(record, currentExclusions),
+      ...authenticationReviewer(record) !== void 0 && { authentication_continuation: true },
+      ...record.retry_of !== void 0 && { retry_of: record.retry_of }
     }
   };
 }
@@ -1666,7 +1954,7 @@ function processTool(name) {
   if (process.env.NODE_ENV === "test" && testOverride !== void 0) return testOverride;
   if (process.platform !== "win32") return `/bin/${name}`;
   const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
-  return name === "powershell.exe" ? nodePath3.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", name) : nodePath3.join(systemRoot, "System32", name);
+  return name === "powershell.exe" ? nodePath4.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", name) : nodePath4.join(systemRoot, "System32", name);
 }
 function configuredCourtesyWait() {
   const raw = process.env.SAFEWORD_REVIEW_FOREGROUND_MS;
@@ -1677,10 +1965,10 @@ function cliEntrypoint() {
   const configured = process.env.SAFEWORD_CLI_ENTRYPOINT;
   if (configured !== void 0 && process.env.NODE_ENV === "test") return configured;
   const invoked = process.argv[1];
-  if (invoked !== void 0 && /^cli\.(?:js|ts)$/u.test(nodePath3.basename(invoked))) return invoked;
-  const bundled = nodePath3.join(import.meta.dirname, "cli.js");
+  if (invoked !== void 0 && /^cli\.(?:js|ts)$/u.test(nodePath4.basename(invoked))) return invoked;
+  const bundled = nodePath4.join(import.meta.dirname, "cli.js");
   if (existsSync(bundled)) return bundled;
-  const developmentBuild = nodePath3.resolve(import.meta.dirname, "../../dist/cli.js");
+  const developmentBuild = nodePath4.resolve(import.meta.dirname, "../../dist/cli.js");
   if (existsSync(developmentBuild)) return developmentBuild;
   throw new Error("Safeword CLI entrypoint is unavailable");
 }
@@ -1747,7 +2035,35 @@ function announceBackgroundProgress(progress, managedProgress) {
   progress?.start("Running the independent review in the background\u2026");
   progress?.heartbeat?.("Still waiting for the independent review\u2026");
 }
+function checkAuthenticationAbort(retry) {
+  retry?.signal.throwIfAborted();
+}
+function authenticationParentForRequest(input, context) {
+  if (input.authenticationRetry === void 0) return void 0;
+  const parent = verifiedAuthenticationParent(input.cwd, input.authenticationRetry);
+  if (input.kind !== parent.kind || input.execution !== void 0 || JSON.stringify(input.targets) !== JSON.stringify(parent.targets) || JSON.stringify(context) !== JSON.stringify(parent.context ?? []))
+    throw new Error("The review execution context changed. Retry manually.");
+  checkAuthenticationAbort(input.authenticationRetry);
+  return parent;
+}
+function existingAuthenticationRetry(cwd, parent) {
+  const id = authenticationRetryId(parent.id);
+  if (existsSync(jobPath(cwd, id))) {
+    const child = readJob(cwd, id, true);
+    if (!linkedAuthenticationRetry(parent, child))
+      throw new Error("The linked authentication retry is invalid. Retry manually.");
+    return child;
+  }
+  if (runningJob(cwd, parent.kind, parent.source_fingerprint) !== void 0)
+    throw new Error("Another review of this request is active. Collect it before retrying.");
+  return void 0;
+}
+function bindingsForRequest(input, parent) {
+  if (parent !== void 0) return parent.authentication_bindings;
+  return AUTHENTICATION_REVIEW_KINDS.has(input.kind) ? captureAuthenticationBindings(input.cwd) : void 0;
+}
 async function startReviewJob(input) {
+  checkAuthenticationAbort(input.authenticationRetry);
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(
     input.cwd,
@@ -1757,23 +2073,28 @@ async function startReviewJob(input) {
     input.execution
   );
   mkdirSync3(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
-  const reserved = withFileLock(nodePath3.join(jobsDirectory(input.cwd), "start.lock"), () => {
+  const reserved = withFileLock(nodePath4.join(jobsDirectory(input.cwd), "start.lock"), () => {
+    const parent = authenticationParentForRequest(input, context);
+    const linked = parent === void 0 ? void 0 : existingAuthenticationRetry(input.cwd, parent);
+    if (linked !== void 0) return { existing: true, record: linked };
     const existing = runningJob(input.cwd, input.kind, sourceFingerprint) ?? (input.kind === "executable-red" ? reusableApprovedExecutableRedJob(input.cwd, sourceFingerprint) : void 0);
     if (existing !== void 0) return { existing: true, record: existing };
     const now = (/* @__PURE__ */ new Date()).toISOString();
     const record2 = {
       schema_version: 1,
-      id: randomUUID2(),
+      id: parent === void 0 ? randomUUID2() : authenticationRetryId(parent.id),
       state: "launching",
       kind: input.kind,
       targets: input.targets,
       context,
       execution: input.execution,
-      source_fingerprint: sourceFingerprint,
+      source_fingerprint: parent?.source_fingerprint ?? sourceFingerprint,
       started_at: now,
       updated_at: now,
       deadline_at: new Date(Date.now() + reviewWorkerRunBoundMs()).toISOString(),
-      pid: process.pid
+      pid: process.pid,
+      authentication_bindings: bindingsForRequest(input, parent),
+      retry_of: parent?.id
     };
     writeJob(input.cwd, record2);
     return { existing: false, record: record2 };
@@ -1892,6 +2213,92 @@ function terminateReviewWorker(pid) {
   } catch {
   }
 }
+function completeReviewJob(cwd, id, result, activeOnly = false) {
+  withJobLock(cwd, id, () => {
+    const record = readJob(cwd, id);
+    if (record.state === "completed") {
+      if (activeOnly) return;
+      const invalidated = createResult({
+        state: "failed",
+        errors: [
+          {
+            code: "REVIEW_JOB_PREEMPTED",
+            message: "The review record completed before its worker published the result.",
+            retryable: true
+          }
+        ],
+        data: { command: "review run", status: "failed", review_id: id }
+      });
+      writeJob(cwd, {
+        ...record,
+        state: "failed",
+        result: invalidated,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      });
+      return;
+    }
+    if (record.state !== "launching" && record.state !== "running") return;
+    const completed = {
+      ...record,
+      state: result.state === "failed" ? "failed" : "completed",
+      result,
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    writeJob(cwd, completed);
+  });
+}
+function reviewJobWorkerInput(cwd, id) {
+  const record = withJobLock(cwd, id, () => {
+    const current = readJob(cwd, id);
+    if (current.state !== "launching" && current.state !== "running")
+      throw new Error("review job is not active");
+    const claimed = {
+      ...current,
+      state: "running",
+      pid: process.pid,
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    writeJob(cwd, claimed);
+    return claimed;
+  });
+  return {
+    kind: record.kind,
+    targets: record.targets,
+    context: record.context ?? [],
+    execution: record.execution,
+    sourceFingerprint: record.source_fingerprint,
+    continuation: workerAuthenticationContinuation(cwd, record)
+  };
+}
+function authenticationRetryModel(parent) {
+  const data = parent.result?.data;
+  if (data === void 0) throw new Error("The authentication retry has no route evidence.");
+  const primaryModel = data.preferred_model_failure === void 0 ? data.preferred_model : void 0;
+  const model = data.alternate_model_failure === "not_authenticated" ? data.alternate_model : primaryModel;
+  if (model === void 0) return void 0;
+  if (typeof model !== "string" || !MODEL_NAME.test(model))
+    throw new Error("The authentication retry model is invalid.");
+  return model;
+}
+function workerAuthenticationContinuation(cwd, record) {
+  if (record.retry_of === void 0) return void 0;
+  const parent = readJob(cwd, record.retry_of, true);
+  const reviewer = authenticationReviewer(parent);
+  if (reviewer === void 0 || !linkedAuthenticationRetry(parent, record))
+    throw new Error("The authentication retry is invalid.");
+  const context = authenticationContext(cwd, reviewer);
+  const validate = () => {
+    const currentChild = readJob(cwd, record.id, true);
+    const currentParent = readJob(cwd, parent.id, true);
+    if (!linkedAuthenticationRetry(currentParent, currentChild))
+      throw new Error("The authentication retry is invalid.");
+    const currentContext = authenticationContext(cwd, reviewer);
+    assertReviewAuthenticationContext(cwd, parent.id, reviewer, currentContext);
+    assertReviewAuthenticationContext(cwd, parent.id, reviewer, context);
+  };
+  validate();
+  return { reviewer, model: authenticationRetryModel(parent), ...context, validate };
+}
 function latestJobId(cwd) {
   const directory = jobsDirectory(cwd);
   if (!existsSync(directory)) return void 0;
@@ -1905,6 +2312,60 @@ function latestJobId(cwd) {
   }).toSorted(
     (left, right) => right.record.started_at < left.record.started_at ? -1 : Number(right.record.started_at > left.record.started_at)
   )[0]?.record.id;
+}
+function routeProofFromValue(value, actualReviewer, observedAt) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return void 0;
+  const route = value;
+  if (typeof route.reviewer !== "string" || !["attempted", "unavailable"].includes(String(route.status)))
+    return void 0;
+  const model = typeof route.model === "string" ? route.model : void 0;
+  const failure = typeof route.failure === "string" ? route.failure : void 0;
+  const proven = failure === void 0 && actualReviewer === route.reviewer;
+  if (!proven && failure === void 0) return void 0;
+  return {
+    reviewer: route.reviewer,
+    ...model !== void 0 && { model },
+    runtime_default: model === void 0,
+    proof: proven ? "proven" : "known_failure",
+    ...failure !== void 0 && { failure },
+    observed_at: observedAt
+  };
+}
+function routeProofsFromRecord(record) {
+  const data = record.result?.data;
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return [];
+  const resultData = data;
+  const routes = resultData.review_routes;
+  return Array.isArray(routes) ? routes.flatMap((value) => {
+    const proof = routeProofFromValue(value, resultData.actual_reviewer, record.updated_at);
+    return proof === void 0 ? [] : [proof];
+  }) : [];
+}
+function readReviewRouteProofs(cwd) {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync(directory) || !existsSync(integrityKeyPath())) return [];
+  let entries;
+  try {
+    entries = readdirSync3(directory);
+  } catch {
+    return [];
+  }
+  const records = entries.flatMap((name) => {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name)) return [];
+    try {
+      return [readJob(cwd, name.slice(0, -5))];
+    } catch {
+      return [];
+    }
+  }).toSorted((left, right) => right.updated_at.localeCompare(left.updated_at));
+  const proofs = /* @__PURE__ */ new Map();
+  for (const record of records) {
+    for (const proof of routeProofsFromRecord(record)) {
+      const key = `${proof.reviewer}\0${proof.model ?? "<runtime-default>"}`;
+      if (!proofs.has(key)) proofs.set(key, proof);
+    }
+  }
+  return proofs.values().toArray();
 }
 function runningJob(cwd, kind, sourceFingerprint) {
   const directory = jobsDirectory(cwd);
@@ -1966,18 +2427,88 @@ function approvedCrossAgentReceipt(record) {
   const attestation = data?.execution_attestation;
   return record.state === "completed" && (record.pid === void 0 || inspectReviewWorker(record.pid, record.id) !== "match") && hasIndependentApproval(data) && hasFailingExecutionAttestation(attestation, record.source_fingerprint);
 }
+function executableRedJobsForScenario(cwd, scenario, ledger) {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync(directory)) return [];
+  return readdirSync3(directory).flatMap((name) => {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name)) return [];
+    try {
+      const record = readJob(cwd, name.slice(0, -5));
+      return record.kind === "executable-red" && record.execution?.scenario === scenario && nodePath4.resolve(cwd, record.execution.ledger) === nodePath4.resolve(cwd, ledger) ? [record] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+function hasCurrentFingerprint(cwd, record) {
+  try {
+    return fingerprint(cwd, record.kind, record.targets, record.context, record.execution) === record.source_fingerprint;
+  } catch {
+    return false;
+  }
+}
+function approvedRetrospectiveReview(cwd, id, kind) {
+  try {
+    const record = readJob(cwd, id);
+    const data = record.result?.data;
+    return record.kind === kind && record.state === "completed" && hasCurrentFingerprint(cwd, record) && hasIndependentApproval(data) ? effectiveReviewTargets(cwd, record) : void 0;
+  } catch {
+    return void 0;
+  }
+}
+function approvedExecutableRedGateResult(record, scenario, ledger) {
+  return createResult({
+    state: "healthy",
+    findings: [
+      {
+        code: "EXECUTABLE_RED_GATE_APPROVED",
+        message: `GREEN is authorized for ${scenario} by a fresh independent executable RED review.`,
+        severity: "info"
+      }
+    ],
+    data: {
+      command: "review gate executable-red",
+      status: "approved",
+      review_id: record.id,
+      scenario,
+      ledger
+    }
+  });
+}
+function executableRedGate(cwd, scenario, ledger) {
+  const matching = executableRedJobsForScenario(cwd, scenario, ledger);
+  const current = matching.filter((record) => hasCurrentFingerprint(cwd, record));
+  const approved = current.find((record) => approvedCrossAgentReceipt(record));
+  if (approved !== void 0) return approvedExecutableRedGateResult(approved, scenario, ledger);
+  let reason = matching.length > 0 ? `The current executable RED review for ${scenario} is not an approved independent receipt.` : `No trusted executable RED receipt matches ${scenario}.`;
+  reason = matching.length > 0 && current.length === 0 ? `The executable RED approval for ${scenario} is stale because its declared proof inputs changed.` : reason;
+  return createResult({
+    state: "action_required",
+    findings: [{ code: "EXECUTABLE_RED_GATE_BLOCKED", message: reason, severity: "warning" }],
+    data: { command: "review gate executable-red", status: "blocked", scenario, ledger }
+  });
+}
 function isActiveReviewJob(record) {
   if (record.pid === void 0) return false;
   if (record.state === "launching") return processExists(record.pid);
   return record.state === "running" && inspectReviewWorker(record.pid, record.id) !== "mismatch";
 }
-function reviewJobStatus(cwd, requestedId, readOnly = false) {
-  let id;
+function followAuthenticationRetry(cwd, parent, readOnly) {
+  if (authenticationReviewer(parent) === void 0) return parent;
+  const id = authenticationRetryId(parent.id);
+  if (!existsSync(jobPath(cwd, id))) return parent;
+  const child = readJob(cwd, id, readOnly);
+  return linkedAuthenticationRetry(parent, child) ? child : void 0;
+}
+function requestedReviewId(cwd, requestedId) {
   try {
-    id = requestedId ?? latestJobId(cwd);
+    return requestedId ?? latestJobId(cwd);
   } catch {
-    id = requestedId;
+    return requestedId;
   }
+}
+function reviewJobStatus(cwd, requestedId, readOnly = false) {
+  const id = requestedReviewId(cwd, requestedId);
   if (id === void 0) {
     return createResult({
       state: "failed",
@@ -2005,6 +2536,9 @@ function reviewJobStatus(cwd, requestedId, readOnly = false) {
     });
   }
   try {
+    const linked = followAuthenticationRetry(cwd, record, readOnly);
+    if (linked === void 0) return invalidJobResult(record.id);
+    record = linked;
     const result = currentResult(cwd, record, readOnly);
     return { ...result, effects: { ...result.effects, network: [] } };
   } catch {
@@ -2020,6 +2554,35 @@ function reviewJobStatus(cwd, requestedId, readOnly = false) {
       data: { command: "review status", status: "blocked", review_id: id }
     });
   }
+}
+function cancelReviewJob(cwd, requestedId) {
+  try {
+    const id = requestedId ?? latestJobId(cwd);
+    if (id === void 0) return asCancelResult(reviewJobStatus(cwd, id));
+    const canceled = withJobLock(cwd, id, () => {
+      const record = readJob(cwd, id);
+      if (record.state !== "launching" && record.state !== "running") return record;
+      if (record.state === "running" && record.pid !== void 0 && inspectReviewWorker(record.pid, record.id) === "match") {
+        terminateReviewWorker(record.pid);
+      }
+      const next = {
+        ...record,
+        state: "canceled",
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      return writeJob(cwd, next);
+    });
+    return asCancelResult(currentResult(cwd, canceled));
+  } catch {
+    return asCancelResult(reviewJobStatus(cwd, requestedId));
+  }
+}
+function asCancelResult(result) {
+  return {
+    ...result,
+    effects: { ...result.effects, network: [] },
+    data: { ...result.data, command: "review cancel" }
+  };
 }
 function isJobId(value) {
   return /^[a-f\d-]{36}$/u.test(value);
@@ -2041,6 +2604,39 @@ function inspectReviewWorker(pid, id) {
   if (inspected.status !== 0) return processExists(pid) ? "unavailable" : "mismatch";
   return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`) ? "match" : "mismatch";
 }
+var AUTHENTICATION_REVIEW_KINDS, COURTESY_WAIT_MS, POLL_INTERVAL_MS, WORKER_INSPECTION_INTERVAL_MS, JOB_LOCK_WAIT_MS, DELIVERY_CHECKLIST_MARKER, DELIVERY_CHECKLIST_COLUMNS, ORDINARY_PROGRESS_DISPOSITIONS;
+var init_job = __esm({
+  "review/job.ts"() {
+    "use strict";
+    init_policy();
+    init_result();
+    init_command();
+    init_contract();
+    init_environment();
+    init_packet();
+    init_preferences();
+    init_route_config();
+    init_runtime();
+    AUTHENTICATION_REVIEW_KINDS = /* @__PURE__ */ new Set([
+      "quality-review",
+      "scenario-gate",
+      "plan-implementation"
+    ]);
+    COURTESY_WAIT_MS = 75e3;
+    POLL_INTERVAL_MS = 100;
+    WORKER_INSPECTION_INTERVAL_MS = 1e3;
+    JOB_LOCK_WAIT_MS = 2e3;
+    DELIVERY_CHECKLIST_MARKER = "<!-- safeword:delivery-checklist:v1 -->";
+    DELIVERY_CHECKLIST_COLUMNS = 9;
+    ORDINARY_PROGRESS_DISPOSITIONS = /* @__PURE__ */ new Set(["open", "complete"]);
+  }
+});
+
+// codex-plugin/review-mcp.ts
+init_job();
+import { lstatSync as lstatSync3, realpathSync as realpathSync4, statSync as statSync2 } from "node:fs";
+import nodePath7 from "node:path";
+import readline from "node:readline";
 
 // codex-plugin/review-login-ui.ts
 var REVIEW_LOGIN_URI = "ui://safeword/reviewer-login.html";
@@ -2079,7 +2675,9 @@ var REVIEW_LOGIN_HTML = `<!doctype html>
       token.textContent = value.device_code;
       code.append(token);
     }
-    document.getElementById('help').textContent = value.reviewer === 'claude'
+    document.getElementById('help').textContent = value.automatic_resume_allowed
+      ? 'Complete sign-in. This review resumes automatically while connected; you can close this panel.'
+      : value.reviewer === 'claude'
       ? 'Complete Claude sign-in in your browser, then retry the review.'
       : 'Return here after sign-in, then retry the same review.';
     if (!opened) {
@@ -2108,7 +2706,7 @@ var REVIEW_LOGIN_HTML = `<!doctype html>
 
 // codex-plugin/reviewer-browser.ts
 import { spawn as spawn2 } from "node:child_process";
-import nodePath4 from "node:path";
+import nodePath5 from "node:path";
 var SPAWN_OPTIONS = { shell: false, stdio: "ignore", detached: true };
 function browserOpenerCommand(url, platform = process.platform) {
   if (platform === "darwin")
@@ -2118,7 +2716,7 @@ function browserOpenerCommand(url, platform = process.platform) {
   if (platform === "win32") {
     const windowsRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
     return {
-      command: nodePath4.win32.join(windowsRoot, "System32", "rundll32.exe"),
+      command: nodePath5.win32.join(windowsRoot, "System32", "rundll32.exe"),
       args: ["url.dll,FileProtocolHandler", url],
       options: SPAWN_OPTIONS
     };
@@ -2147,13 +2745,79 @@ async function requestBrowserOpen(url) {
 }
 
 // codex-plugin/reviewer-login.ts
+init_environment();
+init_runtime();
 import { spawn as spawn3 } from "node:child_process";
 import { mkdtempSync as mkdtempSync3, rmSync as rmSync3 } from "node:fs";
-import { tmpdir as tmpdir3 } from "node:os";
-import nodePath5 from "node:path";
+import { homedir as homedir3, tmpdir as tmpdir3 } from "node:os";
+import nodePath6 from "node:path";
+var outcomes = /* @__PURE__ */ new Map();
+function reviewerLoginOutcome(reviewKey) {
+  return outcomes.get(reviewKey);
+}
+function recordOutcome(reviewKey, outcome) {
+  outcomes.delete(reviewKey);
+  outcomes.set(reviewKey, outcome);
+  if (outcomes.size > 100) {
+    const oldest = outcomes.keys().next().value;
+    if (oldest !== void 0) outcomes.delete(oldest);
+  }
+}
 var sessions = /* @__PURE__ */ new Map();
 var LOGIN_TIMEOUT_MS = 3e4;
 var SESSION_TIMEOUT_MS = 10 * 6e4;
+var AUTH_CHECK_TIMEOUT_MS = 1e4;
+function qualifyingAuthentication(reviewer, output, environment) {
+  if (reviewer === "codex") return /^Logged in using ChatGPT\s*$/u.test(output.trim());
+  try {
+    const status = JSON.parse(output);
+    if (status === null || typeof status !== "object") return false;
+    const fields = status;
+    const directory = environment.CLAUDE_CONFIG_DIR ?? nodePath6.join(environment.HOME ?? homedir3(), ".claude");
+    return nodePath6.isAbsolute(directory) && fields.loggedIn === true && fields.authMethod === "claude.ai" && fields.configDirectory === directory;
+  } catch {
+    return false;
+  }
+}
+function authenticationCheck(reviewer, context, cwd, signal, retain) {
+  const args = reviewer === "claude" ? ["auth", "status", "--json"] : ["login", "status"];
+  const child = spawn3(context.executable, args, {
+    cwd,
+    env: context.environment,
+    stdio: ["pipe", "pipe", "pipe"],
+    shell: false,
+    detached: process.platform !== "win32"
+  });
+  retain(child);
+  return new Promise((resolve) => {
+    let output = "";
+    let timedOut = false;
+    const collect = (chunk) => {
+      output = `${output}${chunk.toString()}`.slice(-16384);
+    };
+    child.stdout.on("data", collect);
+    child.stderr.on("data", collect);
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      signalLogin(child, "SIGTERM");
+      const force = setTimeout(() => {
+        signalLogin(child, "SIGKILL");
+      }, 2e3);
+      force.unref();
+    }, AUTH_CHECK_TIMEOUT_MS);
+    timeout.unref();
+    child.once("error", () => {
+      clearTimeout(timeout);
+      resolve(false);
+    });
+    child.once("close", (code) => {
+      clearTimeout(timeout);
+      resolve(
+        !timedOut && !signal.aborted && code === 0 && qualifyingAuthentication(reviewer, output, context.environment)
+      );
+    });
+  });
+}
 function parseReviewerLoginOutput(reviewer, output) {
   const clean = output.replaceAll(/\u{1B}\[[\d;]*m/gu, "");
   const allowed = reviewer === "claude" ? ["claude.com", "platform.claude.com"] : ["auth.openai.com"];
@@ -2196,17 +2860,20 @@ function signalLogin(child, signal) {
     if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) throw error;
   }
 }
-async function startReviewerLogin(reviewKey, reviewer, untrustedRoot) {
+async function startReviewerLogin(reviewKey, reviewer, untrustedRoot, options) {
   if (sessions.has(reviewKey))
     throw new Error("A reviewer login is already running for this review");
   const command = trustedReviewerExecutable(reviewer, untrustedRoot);
+  const context = { executable: command, environment: reviewerEnvironment(reviewer) };
+  options?.validateContext?.(context);
+  outcomes.delete(reviewKey);
   const args = reviewer === "claude" ? ["auth", "login"] : ["login", "--device-auth"];
-  const loginCwd = mkdtempSync3(nodePath5.join(tmpdir3(), "safeword-reviewer-login-"));
+  const loginCwd = mkdtempSync3(nodePath6.join(tmpdir3(), "safeword-reviewer-login-"));
   let child;
   try {
     child = spawn3(command, args, {
       cwd: loginCwd,
-      env: reviewerEnvironment(reviewer),
+      env: context.environment,
       stdio: ["pipe", "pipe", "pipe"],
       shell: false,
       detached: process.platform !== "win32"
@@ -2216,11 +2883,19 @@ async function startReviewerLogin(reviewKey, reviewer, untrustedRoot) {
     throw error;
   }
   let forceStop;
+  const cancellation = new AbortController();
+  const children = [child];
   const stop = () => {
-    signalLogin(child, "SIGTERM");
+    cancellation.abort();
+    for (const owned of children) signalLogin(owned, "SIGTERM");
+    if (options !== void 0)
+      recordOutcome(reviewKey, {
+        status: "manual_retry_required",
+        message: "Sign-in was cancelled or expired. Retry the review manually."
+      });
     if (forceStop === void 0) {
       forceStop = setTimeout(() => {
-        signalLogin(child, "SIGKILL");
+        for (const owned of children) signalLogin(owned, "SIGKILL");
       }, 2e3);
       forceStop.unref();
     }
@@ -2231,16 +2906,52 @@ async function startReviewerLogin(reviewKey, reviewer, untrustedRoot) {
   const sessionTimer = setTimeout(stop, SESSION_TIMEOUT_MS);
   sessionTimer.unref();
   const stopOnServerExit = () => {
-    signalLogin(child, "SIGKILL");
+    cancellation.abort();
+    for (const owned of children) signalLogin(owned, "SIGKILL");
     rmSync3(loginCwd, { recursive: true, force: true });
   };
   process.once("exit", stopOnServerExit);
-  child.once("close", () => {
+  const finish = () => {
     clearTimeout(sessionTimer);
-    clearTimeout(forceStop);
+    if (!cancellation.signal.aborted) clearTimeout(forceStop);
     process.off("exit", stopOnServerExit);
     if (sessions.get(reviewKey) === session) sessions.delete(reviewKey);
     rmSync3(loginCwd, { recursive: true, force: true });
+  };
+  child.once("close", (code) => {
+    void (async () => {
+      if (options === void 0) return;
+      let resumed = false;
+      try {
+        if (code === 0 && session.login !== void 0 && !cancellation.signal.aborted) {
+          const authenticated = await authenticationCheck(
+            reviewer,
+            context,
+            loginCwd,
+            cancellation.signal,
+            (owned) => {
+              children.push(owned);
+            }
+          );
+          if (authenticated && !cancellation.signal.aborted) {
+            await options.onAuthenticated(cancellation.signal);
+            resumed = !cancellation.signal.aborted;
+          }
+        }
+      } catch {
+        resumed = false;
+      }
+      recordOutcome(
+        reviewKey,
+        resumed ? {
+          status: "resumed",
+          message: "The review resumed automatically."
+        } : {
+          status: "manual_retry_required",
+          message: "Automatic resume could not verify the account or original request. Retry the review manually."
+        }
+      );
+    })().finally(finish);
   });
   return new Promise((resolve, reject) => {
     let output = "";
@@ -2285,12 +2996,26 @@ var REVIEW_KINDS2 = /* @__PURE__ */ new Set([
   "scenario-gate",
   "plan-implementation"
 ]);
+var automaticLogins = /* @__PURE__ */ new Set();
+function rememberAutomaticLogin(key) {
+  automaticLogins.add(key);
+  if (automaticLogins.size > 100) {
+    const [oldest] = automaticLogins;
+    if (oldest !== void 0) automaticLogins.delete(oldest);
+  }
+}
+function authenticationRecovery(root, id, data) {
+  const key = `${root}:${id}`;
+  if (!automaticLogins.has(key)) return void 0;
+  if (isRecord(data) && data.review_id !== id) return void 0;
+  return reviewerLoginOutcome(key);
+}
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 function paths(value, label) {
   if (!Array.isArray(value) || value.some(
-    (item) => typeof item !== "string" || item.trim() === "" || nodePath6.isAbsolute(item) || item.split(/[\\/]/u).includes("..")
+    (item) => typeof item !== "string" || item.trim() === "" || nodePath7.isAbsolute(item) || item.split(/[\\/]/u).includes("..")
   )) {
     throw new Error(`${label} must contain project-relative file paths`);
   }
@@ -2300,11 +3025,11 @@ function textResult(value, isError = false) {
   return { content: [{ type: "text", text: JSON.stringify(value) }], ...isError && { isError } };
 }
 function projectRootDirectory(value) {
-  if (!nodePath6.isAbsolute(value) || lstatSync3(value).isSymbolicLink()) {
+  if (!nodePath7.isAbsolute(value) || lstatSync3(value).isSymbolicLink()) {
     throw new Error("project_root must be an absolute Safeword project directory, not a symlink");
   }
   const root = realpathSync4(value);
-  if (!statSync2(root).isDirectory() || !lstatSync3(nodePath6.join(root, ".safeword", "config.json")).isFile()) {
+  if (!statSync2(root).isDirectory() || !lstatSync3(nodePath7.join(root, ".safeword", "config.json")).isFile()) {
     throw new Error("project_root must contain a regular .safeword/config.json project marker");
   }
   return root;
@@ -2314,7 +3039,7 @@ function isCodexDeviceCode(value) {
 }
 function requireRegularFiles(cwd, files) {
   for (const target of files) {
-    if (!lstatSync3(nodePath6.resolve(cwd, target)).isFile()) {
+    if (!lstatSync3(nodePath7.resolve(cwd, target)).isFile()) {
       throw new Error(`Review target is not a regular file: ${target}`);
     }
   }
@@ -2322,7 +3047,7 @@ function requireRegularFiles(cwd, files) {
 function reviewInput(args) {
   if (!isRecord(args)) throw new Error("Review arguments must be an object");
   const { project_root: projectRoot, kind } = args;
-  if (typeof projectRoot !== "string" || !nodePath6.isAbsolute(projectRoot)) {
+  if (typeof projectRoot !== "string" || !nodePath7.isAbsolute(projectRoot)) {
     throw new Error("project_root must be an absolute directory path");
   }
   if (typeof kind !== "string" || !REVIEW_KINDS2.has(kind)) {
@@ -2343,21 +3068,23 @@ async function startReview(args) {
   return textResult(result);
 }
 function reviewStatus(args) {
-  if (!isRecord(args) || typeof args.review_id !== "string" || typeof args.project_root !== "string" || !nodePath6.isAbsolute(args.project_root)) {
+  if (!isRecord(args) || typeof args.review_id !== "string" || typeof args.project_root !== "string" || !nodePath7.isAbsolute(args.project_root)) {
     throw new Error("review_id and absolute project_root are required");
   }
-  const result = reviewJobStatus(projectRootDirectory(args.project_root), args.review_id, true);
+  const root = projectRootDirectory(args.project_root);
+  const result = reviewJobStatus(root, args.review_id, true);
   const data = result.data;
   const independent = hasIndependentVerdict(isRecord(data) ? data : void 0);
   return textResult({
     review_id: args.review_id,
     status: isRecord(data) && typeof data.status === "string" ? data.status : result.state,
     independent,
+    authentication_recovery: authenticationRecovery(root, args.review_id, data),
     result
   });
 }
 function showReviewerLogin(args) {
-  if (!isRecord(args) || typeof args.project_root !== "string" || !nodePath6.isAbsolute(args.project_root) || typeof args.review_id !== "string" || typeof args.auth_url !== "string") {
+  if (!isRecord(args) || typeof args.project_root !== "string" || !nodePath7.isAbsolute(args.project_root) || typeof args.review_id !== "string" || typeof args.auth_url !== "string") {
     throw new Error("project_root, review_id, and auth_url are required");
   }
   const root = projectRootDirectory(args.project_root);
@@ -2379,35 +3106,46 @@ function showReviewerLogin(args) {
   if (captured?.auth_url !== url.href || captured.device_code !== deviceCode) {
     throw new Error("Sign-in details do not match this review\u2019s reviewer CLI");
   }
+  const automatic = isRecord(result.data) && result.data.authentication_continuation === true;
   const value = {
     reviewer,
     auth_url: url.href,
     ...deviceCode !== void 0 && { device_code: deviceCode },
     browser_launch_requested: false,
     automatic_open_allowed: false,
-    message: reviewer === "claude" ? "Open the sign-in link and complete the Claude browser sign-in. Retry the same review after sign-in." : "Open the sign-in link, enter the device code, then retry the same review after sign-in."
+    ...automatic && { automatic_resume_allowed: true },
+    message: loginGuidance(reviewer, automatic)
   };
   return { content: [{ type: "text", text: JSON.stringify(value) }], structuredContent: value };
 }
-async function launchReviewerLogin(args) {
-  if (!isRecord(args) || typeof args.project_root !== "string" || !nodePath6.isAbsolute(args.project_root) || typeof args.review_id !== "string") {
+function loginGuidance(reviewer, automatic) {
+  if (automatic)
+    return "Complete sign-in. This review resumes automatically after account verification while connected.";
+  return reviewer === "claude" ? "Open the sign-in link and complete the Claude browser sign-in. Retry the same review after sign-in." : "Open the sign-in link, enter the device code, then retry the same review after sign-in.";
+}
+function loginLocation(args) {
+  if (!isRecord(args) || typeof args.project_root !== "string" || !nodePath7.isAbsolute(args.project_root) || typeof args.review_id !== "string") {
     throw new Error("project_root and review_id are required");
   }
-  const root = projectRootDirectory(args.project_root);
-  const status = reviewJobStatus(root, args.review_id, true);
+  return { root: projectRootDirectory(args.project_root), id: args.review_id };
+}
+async function launchReviewerLogin(args) {
+  const { root, id } = loginLocation(args);
+  const status = reviewJobStatus(root, id, true);
   const reviewer = isRecord(status.data) ? status.data.assigned_reviewer : void 0;
   if (status.findings.every((finding) => finding.code !== "REVIEW_AUTHENTICATION_REQUIRED") || reviewer !== "claude" && reviewer !== "codex") {
     throw new Error("The review is not waiting for Claude or Codex authentication");
   }
-  const reviewKey = `${root}:${args.review_id}`;
-  const login = await startReviewerLogin(reviewKey, reviewer, root);
+  const reviewKey = `${root}:${id}`;
+  const { login, release } = await startBoundReviewerLogin(root, id, reviewer, status.data);
   try {
     const validated = showReviewerLogin({
       project_root: root,
-      review_id: args.review_id,
+      review_id: id,
       ...login
     });
     const browserLaunchRequested = await requestBrowserOpen(login.auth_url);
+    release?.(true);
     const value = {
       ...validated.structuredContent,
       browser_launch_requested: browserLaunchRequested,
@@ -2415,9 +3153,39 @@ async function launchReviewerLogin(args) {
     };
     return { content: [{ type: "text", text: JSON.stringify(value) }], structuredContent: value };
   } catch (error) {
+    release?.(false);
     cancelReviewerLogin(reviewKey);
     throw error;
   }
+}
+async function startBoundReviewerLogin(root, id, reviewer, data) {
+  const key = `${root}:${id}`;
+  if (!isRecord(data) || data.authentication_continuation !== true)
+    return { login: await startReviewerLogin(key, reviewer, root), release: void 0 };
+  const recovery = await loginContinuation(root, id, reviewer);
+  const login = await startReviewerLogin(key, reviewer, root, recovery.options);
+  rememberAutomaticLogin(key);
+  return { login, release: recovery.release };
+}
+async function loginContinuation(root, id, reviewer) {
+  const { assertReviewAuthenticationContext: assertReviewAuthenticationContext2, resumeReviewAfterAuthentication: resumeReviewAfterAuthentication2 } = await Promise.resolve().then(() => (init_job(), job_exports));
+  let release;
+  const displayed = new Promise((resolve) => {
+    release = resolve;
+  });
+  return {
+    release,
+    options: {
+      validateContext: (context) => {
+        assertReviewAuthenticationContext2(root, id, reviewer, context);
+      },
+      onAuthenticated: async (signal) => {
+        if (!await displayed) throw new Error("Sign-in details could not be displayed.");
+        signal.throwIfAborted();
+        await resumeReviewAfterAuthentication2(root, id, reviewer, signal);
+      }
+    }
+  };
 }
 var tools = [
   {
@@ -2450,7 +3218,7 @@ var tools = [
   },
   {
     name: "start_reviewer_login",
-    description: "Only after a signed review reports REVIEW_AUTHENTICATION_REQUIRED, launch the assigned reviewer CLI sign-in outside the author shell sandbox, request the default browser with its exact URL as one argument without a shell, and display the URL and optional device code. The user completes vendor sign-in; retry the review afterward.",
+    description: "After REVIEW_AUTHENTICATION_REQUIRED, start the assigned reviewer sign-in and show its URL and optional code. Eligible reviews resume once after verified sign-in while connected. Keep polling the original review ID; use result.data.review_id for the resulting receipt.",
     annotations: { readOnlyHint: false, openWorldHint: true },
     _meta: { ui: { resourceUri: REVIEW_LOGIN_URI } },
     inputSchema: {
@@ -2464,7 +3232,7 @@ var tools = [
   },
   {
     name: "show_reviewer_login",
-    description: "Redisplay the sign-in URL and any device code captured by an in-progress start_reviewer_login call for this signed review. The view opens the link only after a user click. Retry the same review after sign-in.",
+    description: "Redisplay captured sign-in details for this review. Eligible reviews resume once after verified sign-in while connected; older receipts require manual retry.",
     annotations: { readOnlyHint: true, openWorldHint: false },
     _meta: { ui: { resourceUri: REVIEW_LOGIN_URI } },
     inputSchema: {
