@@ -21,6 +21,7 @@ import { RETROSPECTIVE_TICKET } from './retrospective-history.js';
 const TEST_TIMEOUT_MS = 180_000;
 const REPORT = 'retrospective-proof-report.json';
 const MAX_PROCESS_OUTPUT = 128 * 1024;
+const VITEST_SUITE_SEPARATOR = String.raw`(?:\s*>\s*|\s+)`;
 
 export interface RetrospectiveProofRequest {
   readonly ticketId: string;
@@ -95,9 +96,11 @@ function safePath(path: string): boolean {
   );
 }
 
-function exactSelection(fullName: string): string {
+export function exactSelection(fullName: string): string {
   const escaped = fullName.replaceAll(/[.*+?^${}()|[\]\\]/gu, character => `\\${character}`);
-  return `^${escaped}$`;
+  // Vitest 5 filters on `suite > test`, while its JSON report still names
+  // `suite test`. The report identity check below remains the final authority.
+  return `^${escaped.replaceAll(' ', () => VITEST_SUITE_SEPARATOR)}$`;
 }
 
 // eslint-disable-next-line complexity -- Every branch rejects an unsafe proof request.
