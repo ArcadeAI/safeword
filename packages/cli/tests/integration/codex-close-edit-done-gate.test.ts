@@ -12,7 +12,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -251,6 +251,25 @@ describe.each(Object.entries(RUNS))(
       expect(continuation.decision).toBe('block');
       expect(continuation.reason).toContain('verify.md');
       expect(testRunCount(directory)).toBe(baseline + 2);
+    });
+
+    it('blocks rather than allowing the Stop when the evidence cannot be read', () => {
+      const directory = fixture.projectDirectory;
+      const run = makeRun('thread-unreadable');
+      const ticketFile = commitTaskTicket(directory, '5638');
+      closeThroughCodexPostToolUse(directory, run, ticketFile);
+      const verifyFile = nodePath.join(nodePath.dirname(ticketFile), 'verify.md');
+      rmSync(verifyFile);
+      mkdirSync(verifyFile);
+      setTestExitCode(directory, 0);
+
+      const first = runCodexStop(directory, run);
+      expect(first.decision).toBe('block');
+      expect(first.reason).toContain('5638');
+
+      rmSync(verifyFile, { recursive: true });
+      writeFileSync(verifyFile, '# Verify\n\n**PR Scope:** ✅ Diff matches ticket scope\n');
+      expect(runCodexStop(directory, run).reason ?? '').not.toContain('5638');
     });
   },
 );

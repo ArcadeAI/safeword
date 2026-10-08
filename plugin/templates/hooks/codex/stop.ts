@@ -100,11 +100,18 @@ function runOwedDoneGate(projectDirectory: string, runIdentity: RunIdentity): st
   const gate = nextOwedDoneGate(projectDirectory, runIdentity, owed);
   if (!gate) return undefined;
 
-  const verdict = evaluateDoneEvidence({
-    projectDir: projectDirectory,
-    ticketDir: nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets', gate.folder),
-    ticketType: gate.type,
-  });
+  let verdict: ReturnType<typeof evaluateDoneEvidence>;
+  try {
+    verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets', gate.folder),
+      ticketType: gate.type,
+    });
+  } catch (error) {
+    // Unreadable evidence must keep the gate owed, never fall through to the
+    // adapter's fail-open catch.
+    return `Done gate for ${gate.ticketId}: its evidence could not be read (${error instanceof Error ? error.message : String(error)}). Fix the ticket folder, then stop again.`;
+  }
   if (!verdict.ok) {
     return `Done gate for ${gate.ticketId}: ${verdict.reason ?? 'Done evidence could not be verified.'}`;
   }

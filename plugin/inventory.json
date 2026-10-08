@@ -1071,7 +1071,7 @@
     },
     {
       "path": "templates/hooks/codex/stop.ts",
-      "sha256": "ffc0e0f3ae2df069795c875d85ed87ce1d3caa41af5dd15596fd67057432cb33"
+      "sha256": "be2b16b051d45945dbe47d18cd94e523b5ee8066208a3acdb8a0a67005377cf8"
     },
     {
       "path": "templates/hooks/cursor/after-file-edit.ts",
