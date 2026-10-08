@@ -202,6 +202,7 @@ if(process.argv.includes('--help')) {
       writeFileSync(executable, source, { mode: 0o755 });
       vi.mocked(trustedReviewerExecutable).mockReturnValue(executable);
       vi.stubEnv('SAFEWORD_REVIEW_CLAUDE_PATH', executable);
+      vi.stubEnv('PATH', `${vendorRoot}:/usr/bin:/bin`);
       vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', nodePath.join(request.keyRoot, 'waiting.mjs'));
       const parent = await jobs.startReviewJob({
         cwd: request.root,

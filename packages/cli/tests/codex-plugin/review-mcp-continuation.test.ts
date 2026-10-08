@@ -1,4 +1,4 @@
-import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
+import { type ChildProcessWithoutNullStreams, spawn, spawnSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import {
   existsSync,
@@ -25,6 +25,9 @@ import {
 
 type Reviewer = 'claude' | 'codex';
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
+const bunExecutable = spawnSync('bun', ['-p', 'process.execPath'], {
+  encoding: 'utf8',
+}).stdout.trim();
 const roots: string[] = [];
 const servers: ChildProcessWithoutNullStreams[] = [];
 
@@ -142,7 +145,7 @@ async function fixture(reviewer: Reviewer, mode = 'success', expires = false) {
     `Object.defineProperty(process,'platform',{value:'simulated-host'});${expires ? 'const timer=globalThis.setTimeout;globalThis.setTimeout=((callback,ms,...args)=>timer(callback,ms===600000?250:ms,...args)) as typeof setTimeout;' : ''}`,
   );
   const server = spawn(
-    'bun',
+    bunExecutable,
     [
       '--preload',
       preload,
@@ -154,6 +157,7 @@ async function fixture(reviewer: Reviewer, mode = 'success', expires = false) {
       env: {
         ...process.env,
         NODE_ENV: 'test',
+        PATH: `${bin}:/usr/bin:/bin`,
         HOME: nodePath.join(host, 'user'),
         XDG_CONFIG_HOME: nodePath.join(host, 'config'),
         CLAUDE_CONFIG_DIR: nodePath.join(host, 'claude'),
