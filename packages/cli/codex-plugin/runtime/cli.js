@@ -3639,7 +3639,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
         ".safeword/hooks/post-tool-dependency-readiness.ts": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be",
         ".safeword/hooks/post-tool-lint.ts": "f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa",
-        ".safeword/hooks/post-tool-quality.ts": "eb8226888626244f196409a3fafea98c5c83908165a3ada1e6394fa745e4fbad",
+        ".safeword/hooks/post-tool-quality.ts": "21a850043772895828c0d75de6d7735bc5566da9711f2ed1eac6ecd8c8cbe5db",
         ".safeword/hooks/post-tool-skill-nudge.ts": "a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4",
         ".safeword/hooks/post-tool-sync-learnings.ts": "bc272acc87b1d52db960b2c96ac36ea553e21fdf161122312b74cd61157acb82",
         ".safeword/hooks/post-tool-work-log.ts": "f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978",
@@ -3664,7 +3664,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
-        ".safeword/hooks/stop-quality.ts": "72cdede9a591ff0ae66b2b129af190b51f6629837962374ae2bed82aa8293c97",
+        ".safeword/hooks/stop-quality.ts": "5acf47f094547cea75cf9ab58b9ab6e49b4c5fef4d4c96c8ebce1e747da49d39",
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "5b0767121376bac1ad9f2b57765f0e705b1c34bff72724133014d31e39c0b916",
@@ -16467,6 +16467,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
         template: "hooks/lib/dependency-readiness.ts"
       },
       ".safeword/hooks/lib/done-gate.ts": { template: "hooks/lib/done-gate.ts" },
+      ".safeword/hooks/lib/ticket-close.ts": { template: "hooks/lib/ticket-close.ts" },
       ".safeword/hooks/lib/jsonl-spool.ts": { template: "hooks/lib/jsonl-spool.ts" },
       ".safeword/hooks/lib/namespace-root.ts": { template: "hooks/lib/namespace-root.ts" },
       ".safeword/hooks/lib/drain-retro-spool.ts": { template: "hooks/lib/drain-retro-spool.ts" },
@@ -19651,8 +19652,11 @@ import { createHash as createHash9 } from "crypto";
 import { existsSync as existsSync11, lstatSync as lstatSync7, readFileSync as readFileSync20 } from "fs";
 import { homedir as homedir4 } from "os";
 import nodePath32 from "path";
-function run(command, arguments_) {
-  const result = spawnSync2(command, arguments_, { encoding: "utf8" });
+function resolveCodexEnvironment(environment = process.env) {
+  return { ...process.env, ...environment };
+}
+function run(command, arguments_, environment = process.env) {
+  const result = spawnSync2(command, arguments_, { encoding: "utf8", env: environment });
   if (result.error)
     throw new Error(`${command} is required. Install it, then re-run this command.`);
   if (result.status !== 0) {
@@ -19682,8 +19686,8 @@ function isOfficialSafewordGitSource(source) {
     "ssh://git@github.com/arcadeai/safeword"
   ]).has(normalized);
 }
-function observeCodexPlugin() {
-  return pluginObservationFromList(run("codex", ["plugin", "list", "--json"]));
+function observeCodexPlugin(environment = process.env) {
+  return pluginObservationFromList(run("codex", ["plugin", "list", "--json"], environment));
 }
 function marketplaceListFromOutput(output) {
   let parsed2;
@@ -19697,9 +19701,9 @@ function marketplaceListFromOutput(output) {
   }
   return parsed2;
 }
-function runCodexMarketplace(arguments_, failureContext) {
+function runCodexMarketplace(arguments_, failureContext, environment) {
   try {
-    return run("codex", ["plugin", "marketplace", ...arguments_]);
+    return run("codex", ["plugin", "marketplace", ...arguments_], environment);
   } catch (error2) {
     throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", `${failureContext}; plugin installation did not run: ${String(error2)}`, { cause: error2 });
   }
@@ -19738,15 +19742,15 @@ function exactVersionReference(ref) {
 function requiredMarketplaceReference() {
   return SAFEWORD_SCHEMA.version.includes("-") ? `v${SAFEWORD_SCHEMA.version}` : "stable";
 }
-function replaceCodexMarketplace(configured) {
+function replaceCodexMarketplace(configured, environment) {
   const source = configured.source ?? MARKETPLACE_SOURCE;
   const requiredReference = requiredMarketplaceReference();
-  runCodexMarketplace(["remove", "safeword", "--json"], "Could not replace the Safeword marketplace");
+  runCodexMarketplace(["remove", "safeword", "--json"], "Could not replace the Safeword marketplace", environment);
   try {
-    runCodexMarketplace(marketplaceAddArguments(MARKETPLACE_SOURCE, requiredReference), `Could not enroll the Safeword ${requiredReference} marketplace channel`);
+    runCodexMarketplace(marketplaceAddArguments(MARKETPLACE_SOURCE, requiredReference), `Could not enroll the Safeword ${requiredReference} marketplace channel`, environment);
   } catch (error2) {
     try {
-      runCodexMarketplace(marketplaceAddArguments(source, configured.ref ?? "main"), "Could not restore the previous Safeword marketplace after enrollment failed");
+      runCodexMarketplace(marketplaceAddArguments(source, configured.ref ?? "main"), "Could not restore the previous Safeword marketplace after enrollment failed", environment);
     } catch (restorationError) {
       const restoreCommand = [
         "codex",
@@ -19786,20 +19790,30 @@ function refreshOfficialGitMarketplace(marketplace, environment) {
     return replaceCodexMarketplace({
       ...configured,
       source: configured?.source ?? source
-    });
+    }, environment);
   }
-  runCodexMarketplace(["upgrade", "safeword", "--json"], "Could not refresh the configured Safeword Codex marketplace");
+  runCodexMarketplace(["upgrade", "safeword", "--json"], "Could not refresh the configured Safeword Codex marketplace", environment);
   return false;
+}
+function isConfiguredLocalMarketplace(source, environment) {
+  const configured = configuredSafewordMarketplace(environment);
+  return configured?.source_type === "local" && typeof source === "string" && nodePath32.isAbsolute(source) && configured.source === source;
+}
+function refreshConfiguredMarketplace(marketplace, environment) {
+  if (marketplace.marketplaceSource?.sourceType === "git") {
+    return refreshOfficialGitMarketplace(marketplace, environment);
+  }
+  if (marketplace.marketplaceSource?.sourceType === "local" && isConfiguredLocalMarketplace(marketplace.marketplaceSource.source, environment)) {
+    return false;
+  }
+  throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "The configured Codex marketplace named safeword is not a Git marketplace or an explicitly configured absolute local source in the user profile. Safeword left it unchanged. For local development, register a persistent checkout with `codex plugin marketplace add <persistent-checkout> --json`. If Codex reports a conflicting registration, remove only safeword with `codex plugin marketplace remove safeword --json`, then add the persistent checkout again. To switch to official releases, remove safeword, then retry Safeword installation.");
 }
 function refreshOrAddCodexMarketplace(marketplaceSource, environment = process.env) {
   if (marketplaceSource === undefined) {
-    const output = runCodexMarketplace(["list", "--json"], "Could not inspect configured Codex marketplaces");
+    const output = runCodexMarketplace(["list", "--json"], "Could not inspect configured Codex marketplaces. Codex loads all configured marketplaces together, so even an unrelated broken source can block Safeword. Inspect the failing registration reported below; restore its manifest or use `codex plugin marketplace add <persistent-source> --json` to repoint it. Remove a registration with `codex plugin marketplace remove <name> --json` only if you no longer need it", environment);
     const marketplace = marketplaceListFromOutput(output).marketplaces.find((candidate) => candidate.name === "safeword");
-    if (marketplace?.marketplaceSource?.sourceType === "git") {
-      return refreshOfficialGitMarketplace(marketplace, environment);
-    }
     if (marketplace !== undefined) {
-      throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "The configured Codex marketplace named safeword is not a Git marketplace. Safeword left it unchanged because replacing an unknown marketplace type is not safely reversible.");
+      return refreshConfiguredMarketplace(marketplace, environment);
     }
   }
   runCodexMarketplace([
@@ -19811,14 +19825,14 @@ function refreshOrAddCodexMarketplace(marketplaceSource, environment = process.e
     "--sparse",
     "packages/cli/codex-plugin",
     "--json"
-  ], "Could not add the Safeword Codex marketplace");
+  ], "Could not add the Safeword Codex marketplace", environment);
   return false;
 }
 function addCodexPluginToProfile(marketplaceSource, environment = process.env) {
   const marketplaceReplaced = refreshOrAddCodexMarketplace(marketplaceSource, environment);
   const recoveryCommand = `codex plugin add ${PLUGIN_ID} --json`;
   try {
-    run("codex", ["plugin", "add", PLUGIN_ID, "--json"]);
+    run("codex", ["plugin", "add", PLUGIN_ID, "--json"], environment);
   } catch (error2) {
     throw new CodexMigrationError("PLUGIN_INSTALL_FAILED", `The Safeword marketplace was configured, but plugin installation failed: ${String(error2)}`, { cause: error2, marketplaceReplaced, profileChanged: true, recoveryCommand });
   }
@@ -19827,7 +19841,7 @@ function addCodexPluginToProfile(marketplaceSource, environment = process.env) {
 function verifyCodexPluginIsEnabled(options = {}) {
   let pluginList;
   try {
-    pluginList = run("codex", ["plugin", "list", "--json"]);
+    pluginList = run("codex", ["plugin", "list", "--json"], options.environment);
   } catch (error2) {
     const prefix = options.installationCompleted === true ? "Plugin installation succeeded, but enablement is unknown" : "Could not verify the Safeword Codex plugin";
     throw new CodexMigrationError(options.installationCompleted === true ? "PLUGIN_ENABLEMENT_UNKNOWN" : "PLUGIN_ENABLEMENT_FAILED", `${prefix}: ${String(error2)}`, { cause: error2, profileChanged: options.installationCompleted === true });
@@ -19842,7 +19856,7 @@ function verifyCodexPluginIsEnabled(options = {}) {
     throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", "Codex did not report the Safeword plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.", { profileChanged: options.installationCompleted === true });
   }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
-    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", `Codex reported Safeword plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword install --agents=codex to update it; project hooks were left unchanged.`, { profileChanged: options.installationCompleted === true });
+    throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", `Codex reported Safeword plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. If using a local marketplace, update that checkout to Safeword ${SAFEWORD_SCHEMA.version} first. Then re-run safeword install --agents=codex; project hooks were left unchanged.`, { profileChanged: options.installationCompleted === true });
   }
 }
 function pathExistsIncludingDanglingSymlink(path3) {
@@ -19870,6 +19884,7 @@ function observeViableLegacyEvents(cwd, legacyEvents, environment) {
   });
 }
 function observeCodexMigrationResult(cwd = process.cwd(), environment = process.env) {
+  environment = resolveCodexEnvironment(environment);
   let legacyEvents = [];
   let configObservationError;
   try {
@@ -19886,7 +19901,7 @@ function observeCodexMigrationResult(cwd = process.cwd(), environment = process.
     plugin = { installed: false, enabled: null, version: null, observation: "unknown" };
   } else {
     try {
-      plugin = observeCodexPlugin();
+      plugin = observeCodexPlugin(environment);
     } catch (error2) {
       plugin = { installed: false, enabled: null, version: null, observation: "unknown" };
       pluginObservationError = error2 instanceof Error ? error2 : new Error(String(error2));
@@ -19939,6 +19954,7 @@ function legacyCodexMigrationState(state) {
   return state === "plugin_installed_app_restart_required" ? "plugin_installed_restart_required" : state;
 }
 function observeCodexMigration(cwd = process.cwd(), environment = process.env) {
+  environment = resolveCodexEnvironment(environment);
   const result = observeCodexMigrationResult(cwd, environment);
   const legacyState = legacyCodexMigrationState(result.state);
   const globalGuidance = legacyGlobalGuidanceDiagnostic(observeLegacyGlobalGuidance(environment));
@@ -20000,6 +20016,7 @@ function reportCodexMigration(cwd, options) {
   process.exitCode = codexMigrationExitCode(result);
 }
 function installCodexPlugin(options = {}) {
+  options = { ...options, environment: resolveCodexEnvironment(options.environment) };
   const cwd = options.cwd ?? process.cwd();
   if (shouldReportExistingMigrationState(cwd, options)) {
     reportCodexMigration(cwd, { json: options.json, environment: options.environment });
@@ -20011,10 +20028,10 @@ function installCodexPlugin(options = {}) {
   }
   let marketplaceReplaced = false;
   try {
-    run("bun", ["--version"]);
-    run("codex", ["--version"]);
+    run("bun", ["--version"], options.environment);
+    run("codex", ["--version"], options.environment);
     marketplaceReplaced = addCodexPluginToProfile(options.marketplaceSource, options.environment);
-    verifyCodexPluginIsEnabled({ installationCompleted: true });
+    verifyCodexPluginIsEnabled({ installationCompleted: true, environment: options.environment });
     if (options.recordActivationPending !== false)
       writeCodexActivationMarker(options.environment);
   } catch (error2) {
@@ -20230,6 +20247,7 @@ function reportCodexWhen(enabled, report) {
     report();
 }
 async function removeLegacyCodexHooks(cwd = process.cwd(), options = {}) {
+  options = { ...options, environment: resolveCodexEnvironment(options.environment) };
   if (codexRecoveryIsRequired(cwd)) {
     reportCodexWhen(options.report !== false, () => {
       reportCodexMigration(cwd, options);
@@ -20261,9 +20279,9 @@ async function removeLegacyCodexHooks(cwd = process.cwd(), options = {}) {
     });
     return false;
   }
-  run("bun", ["--version"]);
-  run("codex", ["--version"]);
-  verifyCodexPluginIsEnabled();
+  run("bun", ["--version"], options.environment);
+  run("codex", ["--version"], options.environment);
+  verifyCodexPluginIsEnabled({ environment: options.environment });
   reportCodexWhen(options.report !== false && options.json !== true, () => {
     success("Safeword Codex plugin is enabled for this profile.");
   });
@@ -20284,14 +20302,15 @@ function legacyCodexHandoffPending(cwd = process.cwd()) {
   const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
   return preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
 }
-function automaticLegacyCodexMigrationNeeded(cwd = process.cwd()) {
+function automaticLegacyCodexMigrationNeeded(cwd = process.cwd(), environment = process.env) {
+  environment = resolveCodexEnvironment(environment);
   if (!legacyCodexHandoffPending(cwd))
     return false;
-  const plugin = observeCodexPlugin();
+  const plugin = observeCodexPlugin(environment);
   return plugin.enabled !== true || !codexPluginVersionMatchesPackage(plugin);
 }
 function automaticallyMigrateLegacyCodex(cwd = process.cwd(), environment = process.env) {
-  if (!automaticLegacyCodexMigrationNeeded(cwd)) {
+  if (!automaticLegacyCodexMigrationNeeded(cwd, environment)) {
     return { migrated: false, marketplaceReplaced: false };
   }
   const marketplaceReplaced = installCodexPlugin({
@@ -53365,7 +53384,7 @@ function readPlanningAuthor(root, phase, identity2) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "d7fdb4ccf2f9f702c0b6a96dbb21a0797217d39e3c70f49bf3c309a6fd3f9850" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "43a32ea70872b88a927dc8046702c8e5112e4b80ffb1738d2900b6bf187af82f" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "d4a9920cbf17051bffa730a93270a245e52477e6dc9a60d6a8eb28516853dfbb" } };
+  const copies = { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "d7fdb4ccf2f9f702c0b6a96dbb21a0797217d39e3c70f49bf3c309a6fd3f9850" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "09405ebd16aa47414d87b068e7257e9031cdd79a767e1f2bfbced974f8801caf" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "7adfe65a82939f576bdf35869aecf0fa5c5e5a9f192594dcaf310961648705e6" } };
   return readPlanningAuthor(packageRoot(), phase, copies[phase]);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {
@@ -60185,7 +60204,7 @@ function safePath(path7) {
 }
 function exactSelection(fullName) {
   const escaped = fullName.replaceAll(/[.*+?^${}()|[\]\\]/gu, (character) => `\\${character}`);
-  return `^${escaped}$`;
+  return `^${escaped.replaceAll(" ", () => VITEST_SUITE_SEPARATOR)}$`;
 }
 function validateRequest(request) {
   if (request.ticketId !== RETROSPECTIVE_TICKET)
@@ -60448,10 +60467,11 @@ function runRetrospectiveProof(projectRoot, request) {
     rmSync9(temporary, { recursive: true, force: true });
   }
 }
-var TEST_TIMEOUT_MS = 180000, REPORT = "retrospective-proof-report.json", MAX_PROCESS_OUTPUT;
+var TEST_TIMEOUT_MS = 180000, REPORT = "retrospective-proof-report.json", MAX_PROCESS_OUTPUT, VITEST_SUITE_SEPARATOR;
 var init_retrospective_proof = __esm(() => {
   init_retrospective_history();
   MAX_PROCESS_OUTPUT = 128 * 1024;
+  VITEST_SUITE_SEPARATOR = String.raw`(?:\s*>\s*|\s+)`;
 });
 
 // src/review/retrospective-scenario-body.ts
@@ -60536,7 +60556,10 @@ function matchingScenario(claim, heading) {
 function ticketNamesClaim(root, claimPath) {
   const ticketPath = nodePath58.join(root, nodePath58.dirname(RETROSPECTIVE_LEDGER), "ticket.md");
   const ticket = frontmatterOf(readFileSync40(ticketPath, "utf8"));
-  return ticket?.id === RETROSPECTIVE_TICKET && ticket.retrospective_claim === claimPath;
+  if (ticket?.id !== RETROSPECTIVE_TICKET || typeof ticket.retrospective_claim !== "string") {
+    return false;
+  }
+  return ticket.retrospective_claim === claimPath || Array.isArray(ticket.retrospective_claims) && ticket.retrospective_claims.includes(claimPath);
 }
 function retrospectiveReviewTargets(root, targets) {
   return targets.map((target) => nodePath58.relative(root, nodePath58.resolve(root, target)).split(nodePath58.sep).join("/"));
@@ -60562,9 +60585,11 @@ function committedFeature(root) {
 }
 function verifiedEligibility(root, targets, request) {
   const target = soleJsonTarget(retrospectiveReviewTargets(root, targets));
-  if (target === undefined || !ticketNamesClaim(root, target))
+  if (target === undefined)
     return;
-  const claim = JSON.parse(readFileSync40(nodePath58.join(root, target), "utf8"));
+  const claim = JSON.parse(readProofInput(root, target).toString("utf8"));
+  if (!ticketNamesClaim(root, target))
+    return;
   if (!claimMatchesMigration(claim))
     return;
   const prerequisite = checkRetrospectivePrerequisites(root, claim, claim.blobs);
@@ -60607,8 +60632,8 @@ function verifiedProof(root, targets, request, eligibility, replay) {
   const paths = retrospectiveReviewTargets(root, targets);
   if (paths.length !== 2 || paths.some((path8) => !path8.endsWith(".json")))
     return false;
-  const proofRequest = JSON.parse(readFileSync40(nodePath58.join(root, paths[0] ?? ""), "utf8"));
-  const reviewed = JSON.parse(readFileSync40(nodePath58.join(root, paths[1] ?? ""), "utf8"));
+  const proofRequest = JSON.parse(readProofInput(root, paths[0] ?? "").toString("utf8"));
+  const reviewed = JSON.parse(readProofInput(root, paths[1] ?? "").toString("utf8"));
   if (!matchingProofRequest(proofRequest, reviewed, request, eligibility))
     return false;
   if (!hasDiscriminatingOutcome(reviewed, proofRequest.testFullName))
@@ -60848,6 +60873,15 @@ function ticketClaim(root) {
   }
   return ticket.retrospective_claim;
 }
+function renewalPath(root) {
+  const ticket = frontmatterOf(readFileSync41(contained(root, TICKET_PATH), "utf8"));
+  const path7 = ticket?.retrospective_renewals;
+  if (path7 === undefined)
+    return;
+  if (typeof path7 !== "string")
+    throw new Error("Retrospective renewals need one file path.");
+  return path7;
+}
 function claimsFromLedger(root) {
   const content = readFileSync41(contained(root, RETROSPECTIVE_LEDGER), "utf8");
   const claims = [];
@@ -60893,6 +60927,34 @@ function claimsFromLedger(root) {
     throw new Error("VERIFIED requires unique scenario headings.");
   return claims;
 }
+function claimsForClose(root) {
+  const claims = claimsFromLedger(root);
+  const path7 = renewalPath(root);
+  if (path7 === undefined)
+    return claims;
+  const manifest = JSON.parse(readFileSync41(contained(root, path7), "utf8"));
+  if (manifest.schema_version !== 1 || !Array.isArray(manifest.rows)) {
+    throw new Error("Retrospective renewal manifest is invalid.");
+  }
+  const remaining = new Set(claims.map((claim) => claim.scenario));
+  const replacements = new Map;
+  for (const row of manifest.rows) {
+    if (typeof row !== "object" || row === null) {
+      throw new Error("Retrospective renewal row is invalid.");
+    }
+    const entry = row;
+    const original = claims.find((claim) => claim.scenario === entry.scenario);
+    if (original === undefined || !remaining.delete(original.scenario) || original.eligibilityId !== entry.originalEligibilityId || original.proofId !== entry.originalProofId || typeof entry.eligibilityId !== "string" || typeof entry.proofId !== "string" || entry.eligibilityId === entry.proofId) {
+      throw new Error("Retrospective renewal does not match one checked row.");
+    }
+    replacements.set(original.scenario, {
+      ...original,
+      eligibilityId: entry.eligibilityId,
+      proofId: entry.proofId
+    });
+  }
+  return claims.map((claim) => replacements.get(claim.scenario) ?? claim);
+}
 function reviewedTargets(root, id2, kind) {
   const targets = approvedRetrospectiveReview(root, id2, kind);
   if (targets === undefined)
@@ -60926,7 +60988,10 @@ function claimInputPaths(root, claim) {
   ];
 }
 function inputPaths(root, claims) {
-  const paths = new Set([RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
+  const paths = new Set([TICKET_PATH, RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
+  const renewal = renewalPath(root);
+  if (renewal !== undefined)
+    paths.add(renewal);
   for (const claim of claims) {
     for (const path7 of claimInputPaths(root, claim))
       paths.add(path7);
@@ -60959,7 +61024,7 @@ function attestRetrospectiveClose(root, ticketId, ledger) {
     }
     const sourceCommit = currentProofCommit(root);
     const claimPath = ticketClaim(root);
-    const claims = claimsFromLedger(root);
+    const claims = claimsForClose(root);
     const paths = inputPaths(root, claims);
     const before = inputDigests(root, paths);
     for (const claim of claims) {
@@ -61009,7 +61074,7 @@ function retrospectiveCloseGate(root, ticketId, ledger) {
     if (record2.schema_version !== 1 || record2.ticket !== RETROSPECTIVE_TICKET || record2.claimPath !== ticketClaim(root) || record2.sourceCommit !== currentProofCommit(root) || !validRetrospectiveCloseTag(root, JSON.stringify(unsigned(record2)), record2.integrity)) {
       throw new Error("Retrospective closing record is invalid.");
     }
-    const claims = claimsFromLedger(root);
+    const claims = claimsForClose(root);
     if (JSON.stringify(record2.claims) !== JSON.stringify(claims)) {
       throw new Error("Retrospective ledger changed after closing proof.");
     }
@@ -61036,7 +61101,7 @@ var init_retrospective_close = __esm(() => {
   init_retrospective_gate();
   init_retrospective_history();
   init_retrospective_proof();
-  TICKET_PATH = nodePath59.join(nodePath59.dirname(RETROSPECTIVE_LEDGER), "ticket.md");
+  TICKET_PATH = nodePath59.posix.join(nodePath59.posix.dirname(RETROSPECTIVE_LEDGER), "ticket.md");
 });
 
 // src/review/red-execution.ts

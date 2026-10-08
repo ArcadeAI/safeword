@@ -89,6 +89,14 @@ export interface QualityState {
   recentCompletedTicket?: string;
   /** True until the verified close commit receives an exact-HEAD receipt. */
   readinessReceiptPending?: boolean;
+  /**
+   * Tickets this session closed (status edited from not-done to done) whose
+   * Stop done gate has not yet passed. PostToolUse clears
+   * activeTicket on close, so Stop reads this instead. Stop removes an entry
+   * once every done-gate check passes, or once the ticket is no longer a closed
+   * task, feature, or epic (reopened, deleted) (#5546).
+   */
+  doneGateOwedTickets?: string[];
   gate: string | null;
   recentFailures: FailureEntry[];
   incrementedPatterns: string[];
