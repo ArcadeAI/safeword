@@ -2,8 +2,8 @@
 id: PKBQ3G
 slug: avoid-unneeded-retro-deploys
 type: patch
-phase: verify
-status: in_progress
+phase: done
+status: done
 scope:
   - skip retro deployments for CLI version-only changes and CI selector edits
   - preserve deploy requests for material retro service and shared input changes
@@ -15,7 +15,7 @@ done_when:
   - focused tests, the full suite, lint, typecheck, and exact-head CI pass
   - independent review finds no blocking issue
 created: 2026-10-08T14:55:09.539Z
-last_modified: 2026-10-08T17:34:16Z
+last_modified: 2026-10-08T17:57:00Z
 ---
 
 # Avoid retro production deploys during CLI releases
@@ -33,3 +33,4 @@ last_modified: 2026-10-08T17:34:16Z
 - 2026-10-08T15:08:00Z The other checkout's live Vitest run exited without intervention. The queued proof lane passed 47/47; the authoritative local BDD command is now green. Three broader root-level failures remain disclosed in verify.md; their source files are identical to origin/main, but the base commit was not executed separately.
 - 2026-10-08T15:34:00Z Added final assertions for workflow push-range wiring, selector-only no-deploy behavior, shared-input deploy behavior, and the worker's CLI-manifest exception. Lint, Gherkin lint, and TypeScript typecheck pass. The focused retry is queued behind a live Vitest run in another checkout; final test and exact-head CI results remain pending, and PR #5636 remains Draft.
 - 2026-10-08T17:34:16Z The lock holder exited without intervention. The focused workflow suite passed 12/12. The first final full suite had one failure in the unchanged OpenCode timeout test because the reviewer probe timed out earlier than expected; that exact test passed alone, and a clean full retry passed 612 files and 10522 tests with 14 skips. Independent review 8a64cbb2 found no blocking error in the final assertions. Exact-head CI remains pending until the final commit.
+- 2026-10-08T17:57:00Z CI run 37817704552 passed at code-and-test head 5b135dfd8, including Node 22/24 suites, all three retro input jobs, lint, parity, contract, OpenCode conformance, and dependency audit. Independent review 71ddef9e approved the ticket evidence with non-blocking notes. A closure-only commit will get fresh exact-head CI before PR promotion.
