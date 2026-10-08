@@ -735,6 +735,33 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
   });
 
+  it('ignores a reinstall sentinel that predates a later interrupted install', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    const inputsChanged = new Date(Date.now() - 60_000);
+    for (const input of ['package.json', 'bun.lock', 'packages/cli/package.json']) {
+      utimesSync(path.join(projectDirectory, input), inputsChanged, inputsChanged);
+    }
+    const sentinel = path.join(artifact, '.safeword-deps-reinstalled');
+    writeFileSync(sentinel, '');
+    const sentinelTouched = new Date(Date.now() - 30_000);
+    utimesSync(sentinel, sentinelTouched, sentinelTouched);
+    const plan = detectDependencyPlan(projectDirectory);
+    if (plan === undefined) throw new Error('expected a dependency plan for the bun fixture');
+    writeDependencyReadinessState(projectDirectory, {
+      status: 'installing',
+      reason: 'install_artifact_stale',
+      fingerprint: dependencyInputFingerprint(projectDirectory, plan),
+      installCommand: 'bun ci',
+      updatedAt: new Date(Date.now() - 1000).toISOString(),
+    });
+
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+  });
+
   it('converts a fresh reinstall sentinel into the content marker, so content stays authoritative', () => {
     writeBunProject();
     const artifact = path.join(projectDirectory, 'node_modules');
