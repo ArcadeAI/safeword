@@ -31,6 +31,8 @@ process.env.SAFEWORD_CLI_ENTRYPOINT = waiting;
 const request = { cwd: root, kind: 'quality-review' as const, targets: ['input.md'] };
 const idOf = (result: { data?: unknown }) => (result.data as { review_id: string }).review_id;
 try {
+  if (!path.isAbsolute(realpathSync(root)))
+    throw new Error('review root must be canonical and absolute');
   const parentId = idOf(await startReviewJob(request));
   const receipt = path.join(root, '.safeword/state/reviews', `${parentId}.json`);
   pids.add(JSON.parse(readFileSync(receipt, 'utf8')).pid);

@@ -31,6 +31,11 @@ for (const reviewer of ['claude', 'codex'] as const) {
   const host = createTrustedReviewerDirectory('auth-mcp-proof-');
   for (const directory of ['claude', 'codex', 'bin', 'user', 'config'])
     mkdirSync(path.join(host, directory));
+  for (const vendor of ['claude', 'codex']) {
+    const defaultProfile = path.join(host, 'user', `.${vendor}`);
+    mkdirSync(defaultProfile);
+    writeFileSync(path.join(defaultProfile, 'authenticated'), '');
+  }
   mkdirSync(path.join(root, '.safeword'));
   writeFileSync(
     path.join(root, '.safeword/config.json'),
@@ -60,7 +65,7 @@ if(args.includes('login')||args.includes('status')){
   let packet='';process.stdin.on('data',chunk=>packet+=chunk);
   process.stdin.on('end',()=>{
     if(!fs.existsSync(profile+'/authenticated')){console.error('Not logged in. Please run /login');process.exit(1)}
-    fs.appendFileSync(host+'/dispatches',JSON.stringify({vendor,profile})+'\n');
+    fs.appendFileSync(host+'/dispatches',JSON.stringify({vendor,profile,executable:process.argv[1]})+'\n');
     const dispatch= /"dispatch_id"\s*:\s*"([^"]+)"/.exec(packet)?.[1];
     const output={schema_version:1,dispatch_id:dispatch,reviewer_agent:vendor,verdict:'approve',summary:'Synthetic vendor contract.',findings:[]};
     console.log(JSON.stringify(vendor==='claude'?{structured_output:output}:{type:'item.completed',item:{type:'agent_message',text:JSON.stringify(output)}}));
@@ -155,7 +160,9 @@ if(args.includes('login')||args.includes('status')){
     const directory = path.join(root, '.safeword/state/reviews');
     const receipt = path.join(directory, `${id}.json`);
     const original = readFileSync(receipt);
-    await call('start_reviewer_login', { project_root: root, review_id: id });
+    const login = await call('start_reviewer_login', { project_root: root, review_id: id });
+    if (login.reviewer !== reviewer || typeof login.auth_url !== 'string')
+      throw new Error('assigned reviewer login must start before release');
     writeFileSync(path.join(host, reviewer, 'authenticated'), '');
     writeFileSync(path.join(host, 'release-login'), '');
     const deadline = Date.now() + 5000;
@@ -169,6 +176,22 @@ if(args.includes('login')||args.includes('status')){
       throw new Error('original receipt must stay byte-identical');
     if (readdirSync(directory).filter(name => name.endsWith('.json')).length !== 2)
       throw new Error('one retry receipt must exist');
+    const dispatches = readFileSync(path.join(host, 'dispatches'), 'utf8')
+      .trim()
+      .split('\n')
+      .map(line => JSON.parse(line) as { vendor: string; profile: string; executable: string });
+    if (
+      dispatches.length !== 1 ||
+      dispatches[0]?.vendor !== reviewer ||
+      dispatches[0]?.profile !== path.join(host, reviewer) ||
+      dispatches[0]?.executable !== path.join(host, 'bin', reviewer)
+    )
+      throw new Error('retry must use the assigned vendor, executable, and profile');
+    if (
+      (value.result as { data: { reviewer_output: { reviewer_agent: string } } }).data
+        .reviewer_output.reviewer_agent !== reviewer
+    )
+      throw new Error('signed verdict must identify the assigned reviewer');
     const actualId = (value.result as { data: { review_id: string } }).data.review_id;
     const child = JSON.parse(readFileSync(path.join(directory, `${actualId}.json`), 'utf8')) as {
       retry_of: string;
