@@ -235,6 +235,28 @@ describe('Retro transfer worker deployment workflow', () => {
 });
 
 describe('Retro deployment input selection', () => {
+  it('passes the push range into each selector and publishes its output', () => {
+    const workflow = parse(readFileSync(ciWorkflowPath, 'utf8')) as {
+      jobs: Record<
+        string,
+        {
+          outputs?: { deploy?: string };
+          steps?: { id?: string; env?: { BEFORE?: string; SHA?: string }; run?: string }[];
+        }
+      >;
+    };
+    for (const service of ['relay', 'collector', 'worker'] as const) {
+      const job = workflow.jobs[`${service}-inputs`];
+      expect(job?.outputs?.deploy).toBe('${{ steps.changed.outputs.deploy }}');
+      expect(job?.steps?.find(step => step.id === 'changed')).toEqual(
+        expect.objectContaining({
+          env: { BEFORE: '${{ github.event.before }}', SHA: '${{ github.sha }}' },
+          run: `node scripts/retro-deploy-inputs.cjs ${service} "$BEFORE" "$SHA"`,
+        }),
+      );
+    }
+  });
+
   const cliBefore = JSON.stringify({
     name: 'safeword',
     version: '1.0.0',
@@ -250,6 +272,10 @@ describe('Retro deployment input selection', () => {
 
   it('does not deploy retro services for a CLI version-only release or CI selector edit', () => {
     for (const service of ['relay', 'collector', 'worker'] as const) {
+      expect(shouldDeploy(service, ['.github/workflows/ci.yml'], versionContents)).toBe(false);
+      expect(shouldDeploy(service, ['scripts/retro-deploy-inputs.cjs'], versionContents)).toBe(
+        false,
+      );
       expect(
         shouldDeploy(
           service,
@@ -276,12 +302,16 @@ describe('Retro deployment input selection', () => {
   });
 
   it('still deploys when the CLI manifest or lockfile changes materially', () => {
+    for (const service of ['relay', 'collector', 'worker'] as const) {
+      expect(shouldDeploy(service, ['tsconfig.json'], versionContents)).toBe(true);
+    }
     const materialContents = (file: string): [string, string] => {
       const [before, after] = versionContents(file);
       return [before, after.replace('"x":"1"', '"x":"2"')];
     };
     expect(shouldDeploy('relay', ['packages/cli/package.json'], materialContents)).toBe(true);
     expect(shouldDeploy('collector', ['packages/cli/package.json'], materialContents)).toBe(true);
+    expect(shouldDeploy('worker', ['packages/cli/package.json'], materialContents)).toBe(false);
     for (const service of ['relay', 'collector', 'worker'] as const) {
       expect(shouldDeploy(service, ['bun.lock'], materialContents)).toBe(true);
     }
