@@ -26,8 +26,8 @@ import {
   NAMESPACE_ROOT_LEGACY,
   canonicalEditTarget,
   canonicalPathForGate,
-  resolveToolProjectDirectory,
 } from './lib/namespace-root.ts';
+import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
 import { resolveRunIdentity } from './lib/run-identity.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
@@ -47,7 +47,7 @@ interface HookInput {
   };
 }
 
-const launchProjectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const launchProjectDirectory = resolveLaunchDirectory();
 
 // Read hook input from stdin
 let input: HookInput;

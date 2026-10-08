@@ -39,15 +39,13 @@ import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledge
 import { readReviewReceipt } from './lib/read-receipt.ts';
 import { receiptGateVerdict, type StampClaim } from './lib/review-receipt.ts';
 import { reviewClaimContext } from './lib/verify-stamp-claims.ts';
-import { resolveNamespaceRoot, resolveWorkingProjectDirectory } from './lib/namespace-root.ts';
+import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { resolveProjectDirectory } from './lib/project-directory.ts';
 import { resolveRunIdentity, type RunIdentity } from './lib/run-identity.ts';
 
 // A worktree session keeps CLAUDE_PROJECT_DIR at the launch checkout; the ticket
 // being stamped lives in the worktree the helper runs from (#5361).
-const projectDirectory = resolveWorkingProjectDirectory(
-  process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-  process.cwd(),
-);
+const projectDirectory = resolveProjectDirectory({ cwd: process.cwd() });
 const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
 
 function fail(message: string): never {

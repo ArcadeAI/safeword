@@ -3619,17 +3619,17 @@ var init_historical_catalogue_generated = __esm(() => {
       },
       hook_files: {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
-        ".safeword/hooks/post-tool-dependency-readiness.ts": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be",
+        ".safeword/hooks/post-tool-dependency-readiness.ts": "6418539671ace93e5df04b4ee4d74b9f28b241ec81bbcf2588017702d3b092f6",
         ".safeword/hooks/post-tool-lint.ts": "f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa",
-        ".safeword/hooks/post-tool-quality.ts": "21a850043772895828c0d75de6d7735bc5566da9711f2ed1eac6ecd8c8cbe5db",
+        ".safeword/hooks/post-tool-quality.ts": "480612bcc790a7dcce9a3ea525b25e2bd5be72df71f80e5f1faca1a4bc81aae0",
         ".safeword/hooks/post-tool-skill-nudge.ts": "a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4",
         ".safeword/hooks/post-tool-sync-learnings.ts": "bc272acc87b1d52db960b2c96ac36ea553e21fdf161122312b74cd61157acb82",
         ".safeword/hooks/post-tool-work-log.ts": "f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978",
         ".safeword/hooks/pre-tool-architecture-stage.ts": "b730b5c63eb5b860203a2b453aaddbf8271050cab8b3479c23bc8fcc47d79205",
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
-        ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
+        ".safeword/hooks/pre-tool-dependency-readiness.ts": "83d1369a1db26474ce498565e1f67711834137276234ca697de3be0f1abbafff",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "8a8bcb71e0718a9609091eb06e310aea939028b0d9c3d4245da2ea5ae3f1fcbd",
+        ".safeword/hooks/pre-tool-quality.ts": "16159a0f24f85295f0af939cf83ab61a409358193234ad69faaa75fafd3a2f56",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -16432,6 +16432,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/lib/ticket-close.ts": { template: "hooks/lib/ticket-close.ts" },
       ".safeword/hooks/lib/jsonl-spool.ts": { template: "hooks/lib/jsonl-spool.ts" },
       ".safeword/hooks/lib/namespace-root.ts": { template: "hooks/lib/namespace-root.ts" },
+      ".safeword/hooks/lib/project-directory.ts": { template: "hooks/lib/project-directory.ts" },
       ".safeword/hooks/lib/drain-retro-spool.ts": { template: "hooks/lib/drain-retro-spool.ts" },
       ".safeword/hooks/lib/retro-draft-spool.ts": { template: "hooks/lib/retro-draft-spool.ts" },
       ".safeword/hooks/lib/retro-debug.ts": { template: "hooks/lib/retro-debug.ts" },
@@ -67514,10 +67515,8 @@ function resolveNamespaceRoot2(projectDirectory) {
     return legacyRoot;
   return defaultRoot;
 }
-var NAMESPACE_ROOT_DEFAULT2 = ".project", NAMESPACE_ROOT_LEGACY2 = ".safeword-project", EDIT_TOOL_NAMES;
-var init_namespace_root2 = __esm(() => {
-  EDIT_TOOL_NAMES = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
-});
+var NAMESPACE_ROOT_DEFAULT2 = ".project", NAMESPACE_ROOT_LEGACY2 = ".safeword-project";
+var init_namespace_root2 = () => {};
 
 // templates/hooks/lib/project-knowledge.ts
 import { readFileSync as readFileSync76, statSync as statSync10 } from "fs";
