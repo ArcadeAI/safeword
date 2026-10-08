@@ -32,6 +32,7 @@ import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { QUALITY_REVIEW_RUBRIC } from './quality-rubric.generated.js';
 import { EXECUTABLE_RED_REVIEW_RUBRIC } from './red-rubric.generated.js';
 import { SCENARIO_REVIEW_RUBRIC } from './scenario-rubric.generated.js';
+import { type ReviewContinuation, reviewContinuation } from './scope.js';
 
 /**
  * The exact shape `parseReviewerOutput` enforces, expressed as JSON Schema so a
@@ -1229,9 +1230,10 @@ async function runCandidate(
   timeoutMs: number,
 ): Promise<UnverifiedReviewerOutput> {
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
+  const continuation = checkedReviewContinuation(reviewer);
   const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath), {
     cwd,
-    env: reviewerEnvironment(reviewer),
+    env: continuation?.environment ?? reviewerEnvironment(reviewer),
     stdio: ['pipe', 'pipe', 'pipe'],
     // Its own process group, so cleanup can reach descendants.
     detached: process.platform !== 'win32',
@@ -1404,9 +1406,13 @@ export async function runHeadlessReviewer(
   options: { readonly model?: string; readonly runDeadline?: number } = {},
 ): Promise<UnverifiedReviewerOutput> {
   const { model, runDeadline } = options;
+  const continuation = checkedReviewContinuation(reviewer);
   // A route never outlives the run: whichever bound arrives first wins.
   const deadline = Math.min(Date.now() + reviewTimeoutMilliseconds(), runDeadline ?? Infinity);
-  const candidates = executableCandidates(reviewer, untrustedRoot);
+  const candidates =
+    continuation === undefined
+      ? executableCandidates(reviewer, untrustedRoot)
+      : { paths: [continuation.executable], rejectedForTrust: false };
   if (candidates.paths.length === 0) {
     throw unavailableReviewerError(reviewer, candidates.rejectedForTrust);
   }
@@ -1417,7 +1423,7 @@ export async function runHeadlessReviewer(
   // temporary path.
   let contract: ContractFile | undefined;
   try {
-    contract = reviewer === 'codex' ? writeContractFile() : undefined;
+    if (reviewer === 'codex') contract = writeContractFile();
   } catch {
     throw new ReviewRuntimeError('process_failed', `The ${reviewer} review could not be prepared`);
   }
@@ -1429,6 +1435,22 @@ export async function runHeadlessReviewer(
     );
   } finally {
     contract?.cleanup();
+  }
+}
+
+function checkedReviewContinuation(reviewer: ReviewAgent): ReviewContinuation | undefined {
+  const continuation = reviewContinuation();
+  if (continuation === undefined) return undefined;
+  try {
+    if (continuation.reviewer !== reviewer) throw new Error('Reviewer changed');
+    continuation.validate();
+    return continuation;
+  } catch {
+    throw new ReviewRuntimeError(
+      'process_failed',
+      'The review execution context changed. Retry manually.',
+      true,
+    );
   }
 }
 
