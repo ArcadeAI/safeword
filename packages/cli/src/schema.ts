@@ -842,6 +842,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/ticket-close.ts': { template: 'hooks/lib/ticket-close.ts' },
     '.safeword/hooks/lib/jsonl-spool.ts': { template: 'hooks/lib/jsonl-spool.ts' },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
+    '.safeword/hooks/lib/project-directory.ts': { template: 'hooks/lib/project-directory.ts' },
     '.safeword/hooks/lib/drain-retro-spool.ts': { template: 'hooks/lib/drain-retro-spool.ts' },
     '.safeword/hooks/lib/retro-draft-spool.ts': { template: 'hooks/lib/retro-draft-spool.ts' },
     '.safeword/hooks/lib/retro-debug.ts': { template: 'hooks/lib/retro-debug.ts' },

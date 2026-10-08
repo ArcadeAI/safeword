@@ -52,9 +52,12 @@ import {
   hasSafewordProjectMarker,
   isNamespacePath,
   resolveNamespaceRoot,
-  canonicalEditTarget,
-  resolveToolProjectDirectory,
 } from './lib/namespace-root.ts';
+import {
+  canonicalEditTarget,
+  resolveLaunchDirectory,
+  resolveToolProjectDirectory,
+} from './lib/project-directory.ts';
 import { reviewKindForPhase } from './lib/review-receipt.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
@@ -183,7 +186,7 @@ function isMissingFrontmatterField(value: string | string[] | undefined): boolea
 // Keep the host-provided spelling as the session identity: state files are keyed
 // by that exact string. Use the canonical form only for filesystem containment
 // and relative-path comparisons (`/var` and `/private/var` alias on macOS).
-const launchProjectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const launchProjectDirectory = resolveLaunchDirectory();
 
 // Tier 1 (per-asset) is off unless `.safeword/config.json` sets `reviewGate: true`
 // — it is per-asset, so it has no phase to select on and stays all-or-nothing.
@@ -373,16 +376,18 @@ try {
 
 const tool = input.tool_name ?? '';
 const requestedEditedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
-const editedFile = canonicalEditTarget(requestedEditedFile, input.cwd);
+const editedFile = canonicalEditTarget(launchProjectDirectory, requestedEditedFile, input.cwd);
 
 // Work inside another enrolled git worktree (e.g. `.claude/worktrees/<name>`
 // after the session entered it) is gated against that worktree's tickets,
 // config, and state — not the launch checkout's. Edits resolve from the edited
 // file (#5247); shell commands from the shell's cwd, so the PR-readiness gate
 // reads the receipt post-tool-quality wrote for that same worktree.
+// The resolver gets the host spelling and canonicalizes on its own, so an edit
+// and a shell command in the same aliased worktree name it identically.
 const projectDirectory = resolveToolProjectDirectory(launchProjectDirectory, {
   tool,
-  editedFile,
+  editedFile: requestedEditedFile,
   cwd: input.cwd,
 });
 const canonicalProjectDirectory = realpathSync(projectDirectory);

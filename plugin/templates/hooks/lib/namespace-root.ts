@@ -22,18 +22,6 @@ export function hasSafewordProjectMarker(projectDirectory: string): boolean {
 }
 
 /**
- * The Safeword checkout that owns `filePath`: its nearest enclosing git
- * working tree, when that tree is enrolled. Hosts keep CLAUDE_PROJECT_DIR at
- * the launch checkout after a session enters a git worktree, so gates that
- * read a ticket's sibling artifacts must root at the edited file's own tree
- * (#5247). Falls back to `launchDirectory` for files outside any enrolled tree.
- */
-export function resolveOwningProjectDirectory(launchDirectory: string, filePath: string): string {
-  if (filePath === '') return launchDirectory;
-  return resolveDirectoryOwner(launchDirectory, nodePath.dirname(filePath));
-}
-
-/**
  * The real path of a tool's target file, resolving symlinks even when the
  * file itself does not exist yet. Pre- and post-tool hooks both canonicalize
  * before resolving ownership, so a path reached through a symlink into an
@@ -57,82 +45,6 @@ export function canonicalPathForGate(path: string, seen = new Set<string>()): st
     if (parent === path) return path;
     return nodePath.join(canonicalPathForGate(parent, seen), nodePath.basename(path));
   }
-}
-
-/**
- * The real path of an edit target as the host meant it: a relative target is
- * relative to the session's reported `cwd` (which may be a worktree), not to
- * the hook process's cwd (the launch checkout). Empty stays empty.
- */
-export function canonicalEditTarget(filePath: string, cwd: string | undefined): string {
-  if (filePath === '') return filePath;
-  return canonicalPathForGate(nodePath.resolve(cwd || process.cwd(), filePath));
-}
-
-/**
- * The project a hook should gate or record against for one tool call. Edits
- * resolve from the edited file (#5247); shell commands have no edited file, so
- * they resolve from the host-reported shell `cwd` — otherwise a session inside
- * `.claude/worktrees/<name>` would have its PR-readiness gate and its readiness
- * receipt read and written in the launch checkout. Pre- and post-tool hooks
- * share this so the gate reads exactly where the observer wrote.
- */
-export function resolveToolProjectDirectory(
-  launchDirectory: string,
-  call: { tool: string; editedFile: string; cwd: string | undefined },
-): string {
-  if (EDIT_TOOL_NAMES.has(call.tool)) {
-    return resolveOwningProjectDirectory(launchDirectory, call.editedFile);
-  }
-  if (call.tool === 'Bash' && call.cwd !== undefined && call.cwd !== '') {
-    // A cwd reached through a symlink belongs to the tree it lands in, not the
-    // tree its lexical ancestors sit in. Keep the host spelling unless the real
-    // path names a different owner.
-    const cwd = nodePath.resolve(launchDirectory, call.cwd);
-    const lexicalOwner = resolveWorkingProjectDirectory(launchDirectory, cwd);
-    const realOwner = resolveWorkingProjectDirectory(launchDirectory, canonicalPathForGate(cwd));
-    return isSameDirectory(lexicalOwner, realOwner) ? lexicalOwner : realOwner;
-  }
-  return launchDirectory;
-}
-
-const EDIT_TOOL_NAMES = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
-
-// Compare real paths so a canonicalized spelling of the launch checkout
-// (macOS `/var` vs `/private/var`) still resolves to the launch spelling.
-function isSameDirectory(left: string, right: string): boolean {
-  if (nodePath.resolve(left) === nodePath.resolve(right)) return true;
-  try {
-    return realpathSync(left) === realpathSync(right);
-  } catch {
-    return false;
-  }
-}
-
-function resolveDirectoryOwner(launchDirectory: string, startDirectory: string): string {
-  let directory = startDirectory;
-  for (;;) {
-    if (existsSync(nodePath.join(directory, '.git'))) {
-      const owns = hasSafewordProjectMarker(directory);
-      return owns && !isSameDirectory(directory, launchDirectory) ? directory : launchDirectory;
-    }
-    const parent = nodePath.dirname(directory);
-    if (parent === directory) return launchDirectory;
-    directory = parent;
-  }
-}
-
-/**
- * The Safeword checkout the process is working in: `launchDirectory`, unless
- * `workingDirectory` sits inside a different enrolled git working tree (a
- * worktree the session entered). Helpers a skill or agent shells out to get
- * no edited file to root at, so they root at their own cwd (#5361).
- */
-export function resolveWorkingProjectDirectory(
-  launchDirectory: string,
-  workingDirectory: string,
-): string {
-  return resolveOwningProjectDirectory(launchDirectory, nodePath.join(workingDirectory, 'cwd'));
 }
 
 /**

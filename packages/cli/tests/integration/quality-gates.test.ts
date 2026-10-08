@@ -1895,6 +1895,35 @@ describe('Quality Gates', () => {
         expect(result.stdout).toBe('');
       });
 
+      it('resolves a relative edit with no reported cwd against the launch checkout (#5467)', () => {
+        // The hook process happens to run inside the worktree, but the host
+        // reported no cwd: the relative target belongs to the launch checkout,
+        // the same base the shared resolver uses, not the hook's own cwd.
+        writeReadyArtifacts(worktreeDirectory);
+
+        const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
+          input: JSON.stringify({
+            session_id: 'test-session',
+            hook_event_name: 'PreToolUse',
+            tool_name: 'Edit',
+            tool_input: {
+              file_path: ticketRelative,
+              old_string: 'phase: intake',
+              new_string: 'phase: define-behavior',
+            },
+          }),
+          cwd: worktreeDirectory,
+          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+          encoding: 'utf8',
+          timeout: TIMEOUT_QUICK,
+        });
+
+        expect(result.status).toBe(0);
+        const output = JSON.parse(result.stdout);
+        expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+        expect(output.hookSpecificOutput.permissionDecisionReason).toContain('dimensions.md');
+      });
+
       it('does not borrow readiness from the launch checkout', () => {
         writeReadyArtifacts(projectDirectory);
 
