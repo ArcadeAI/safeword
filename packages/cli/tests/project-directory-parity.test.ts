@@ -35,11 +35,7 @@ const LEGITIMATE: Record<string, string> = {
 
 const PENDING: Record<string, string> = {
   // Stop and session hooks, plus the session pointer (#5467 PR 2).
-  'templates/hooks/stop-quality.ts': 'PR 2',
-  'templates/hooks/stop-self-report.ts': 'PR 2',
-  'templates/hooks/prompt-questions.ts': 'PR 2',
   'templates/hooks/prompt-retro-nudge.ts': 'PR 2',
-  'templates/hooks/post-tool-skill-nudge.ts': 'PR 2',
   'templates/hooks/post-tool-bypass-warn.ts': 'PR 2',
   'templates/hooks/post-tool-lint.ts': 'PR 2',
   'templates/hooks/post-tool-sync-learnings.ts': 'PR 2',
@@ -49,13 +45,10 @@ const PENDING: Record<string, string> = {
   'templates/hooks/pre-tool-stale-main.ts': 'PR 2',
   'templates/hooks/session-architecture-heal.ts': 'PR 2',
   'templates/hooks/session-auto-upgrade.ts': 'PR 2',
-  'templates/hooks/session-cleanup-quality.ts': 'PR 2',
-  'templates/hooks/session-compact-context.ts': 'PR 2',
   'templates/hooks/session-dependency-readiness.ts': 'PR 2',
   'templates/hooks/session-lint-check.ts': 'PR 2',
   'templates/hooks/session-version.ts': 'PR 2',
   'templates/hooks/lib/lint.ts': 'PR 2',
-  'templates/hooks/lib/test-runner.ts': 'PR 2',
   'templates/hooks/lib/self-report.ts': 'PR 2',
   'templates/hooks/lib/re-entry.ts': 'PR 2',
   'templates/hooks/lib/safeword-context.ts': 'PR 2',

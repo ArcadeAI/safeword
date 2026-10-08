@@ -5,14 +5,16 @@
  * an unenrolled tree yields nothing rather than handing off to an ancestor.
  */
 
-import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  recordSessionProject,
   resolveLaunchDirectory,
   resolveProjectDirectory,
+  resolveSessionProjectDirectory,
   resolveToolProjectDirectory,
 } from '../../templates/hooks/lib/project-directory.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
@@ -224,5 +226,63 @@ describe('resolveLaunchDirectory (#5467)', () => {
     expect(resolveLaunchDirectory({ CLAUDE_PROJECT_DIR: '/repo' })).toBe('/repo');
     expect(resolveLaunchDirectory({ CLAUDE_PROJECT_DIR: '' })).toBe(process.cwd());
     expect(resolveLaunchDirectory({})).toBe(process.cwd());
+  });
+});
+
+describe('session project pointer (#5467)', () => {
+  // Stop has no edited file and its cwd follows `cd`, so PostToolUse records
+  // the tree an edit resolved to, keyed by session rather than by project: the
+  // session may have edited repository B and returned to repository A.
+  let root: string;
+  let pointers: string;
+  let repoA: string;
+  let repoB: string;
+
+  beforeEach(() => {
+    root = createTemporaryDirectory();
+    pointers = nodePath.join(root, 'pointers');
+    mkdirSync(pointers);
+    repoA = tree(nodePath.join(root, 'a'), { enrolled: true });
+    repoB = tree(nodePath.join(root, 'b'), { enrolled: true });
+  });
+
+  afterEach(() => {
+    removeTemporaryDirectory(root);
+  });
+
+  const resolveAtStop = (sessionId: string | undefined) =>
+    resolveSessionProjectDirectory({
+      sessionId,
+      launchDirectory: repoA,
+      cwd: repoA,
+      pointerDirectory: pointers,
+    });
+
+  it('follows the last edit into another repository after the session returns', () => {
+    recordSessionProject('session-1', repoB, pointers);
+    expect(resolveAtStop('session-1')).toBe(repoB);
+  });
+
+  it('keeps sessions apart', () => {
+    recordSessionProject('session-1', repoB, pointers);
+    expect(resolveAtStop('session-2')).toBe(repoA);
+  });
+
+  it('falls back to the rule without a session, a pointer, or an enrolled target', () => {
+    expect(resolveAtStop(undefined)).toBe(repoA);
+    expect(resolveAtStop('never-edited')).toBe(repoA);
+
+    recordSessionProject('session-gone', nodePath.join(root, 'removed-worktree'), pointers);
+    expect(resolveAtStop('session-gone')).toBe(repoA);
+
+    const unenrolled = tree(nodePath.join(root, 'plain'), { enrolled: false });
+    recordSessionProject('session-plain', unenrolled, pointers);
+    expect(resolveAtStop('session-plain')).toBe(repoA);
+  });
+
+  it('never writes outside its pointer directory for a hostile session id', () => {
+    recordSessionProject('../../escape', repoB, pointers);
+    expect(resolveAtStop('../../escape')).toBe(repoB);
+    expect(existsSync(nodePath.join(root, 'escape'))).toBe(false);
   });
 });

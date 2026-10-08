@@ -24,14 +24,14 @@ import {
   type SkillLanguage,
   SKILL_LANGUAGES,
 } from './lib/skill-nudge.ts';
+import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
 
 interface HookInput {
   session_id?: string;
+  cwd?: string;
+  tool_name?: string;
   tool_input?: { file_path?: string };
 }
-
-const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-if (!existsSync(nodePath.join(projectDirectory, '.safeword'))) process.exit(0);
 
 let input: HookInput;
 try {
@@ -42,6 +42,15 @@ try {
 
 const filePath = input.tool_input?.file_path;
 if (!filePath) process.exit(0);
+
+// Same resolution as post-tool-quality on this event, so the nudge reads the
+// state that hook just wrote (the edited file's worktree, not the launch checkout).
+const projectDirectory = resolveToolProjectDirectory(resolveLaunchDirectory(), {
+  tool: input.tool_name ?? '',
+  editedFile: filePath,
+  cwd: input.cwd,
+});
+if (!existsSync(nodePath.join(projectDirectory, '.safeword'))) process.exit(0);
 
 // Cheapest gate first: skip before any disk I/O when the file isn't a
 // skill-backed language source file.

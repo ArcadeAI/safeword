@@ -16,7 +16,8 @@
 // real path (macOS `/var` vs `/private/var`). A parity test keeps every other
 // file from reading CLAUDE_PROJECT_DIR or git's toplevel to pick a project.
 
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { canonicalPathForGate, hasSafewordProjectMarker } from './namespace-root.js';
@@ -92,12 +93,69 @@ export function resolveToolProjectDirectory(
 ): string {
   return resolveProjectDirectory({
     launchDirectory,
-    editedFile: EDIT_TOOL_NAMES.has(call.tool) ? call.editedFile : undefined,
+    editedFile: isEditTool(call.tool) ? call.editedFile : undefined,
     cwd: call.cwd,
   });
 }
 
 const EDIT_TOOL_NAMES = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+
+/** Whether a tool call edits a file, so its project resolves from that file. */
+export function isEditTool(tool: string): boolean {
+  return EDIT_TOOL_NAMES.has(tool);
+}
+
+// Session pointer. Stop and other session-level hooks have no edited file, and
+// the host `cwd` follows every `cd`, so after an edit in another tree the cwd
+// alone can name the wrong project. PostToolUse records the tree each edit
+// resolved to; session-level hooks follow that record. It is keyed by session,
+// not by project — the session may have edited repository B and returned to A —
+// and lives in the OS temp directory beside retro-trigger's per-session
+// markers: sessions don't outlive a reboot, and a lost pointer only falls back
+// to the rule.
+
+function sessionPointerPath(sessionId: string, pointerDirectory: string): string {
+  const name = sessionId.replaceAll(/[^\w.-]/g, '_');
+  return nodePath.join(pointerDirectory, `safeword-session-project-${name}`);
+}
+
+/** Record the project an edit in this session resolved to. Best effort. */
+export function recordSessionProject(
+  sessionId: string | undefined,
+  projectDirectory: string,
+  pointerDirectory: string = tmpdir(),
+): void {
+  if (!sessionId) return;
+  try {
+    writeFileSync(sessionPointerPath(sessionId, pointerDirectory), projectDirectory);
+  } catch {
+    // A session without a pointer resolves by the rule.
+  }
+}
+
+/**
+ * The project for a session-level hook (Stop, prompt, session hooks): the
+ * enrolled tree this session last edited in, else the rule applied to `cwd`.
+ */
+export function resolveSessionProjectDirectory(input: {
+  sessionId: string | undefined;
+  cwd: string | undefined;
+  launchDirectory?: string;
+  pointerDirectory?: string;
+}): string {
+  if (input.sessionId) {
+    try {
+      const recorded = readFileSync(
+        sessionPointerPath(input.sessionId, input.pointerDirectory ?? tmpdir()),
+        'utf8',
+      );
+      if (recorded !== '' && hasSafewordProjectMarker(recorded)) return recorded;
+    } catch {
+      // No pointer yet.
+    }
+  }
+  return resolveProjectDirectory({ launchDirectory: input.launchDirectory, cwd: input.cwd });
+}
 
 /** The first git working tree at or above `start`, when it is enrolled. */
 function enrolledWorkingTree(launchDirectory: string, start: string): string | undefined {

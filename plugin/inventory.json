@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "7b4b41d0cfaefc523e781558da467bb6c5ca0b5bb135cca2b80dda4f7acb67db"
+      "sha256": "6032c74ab9b19a5f06617ed0024070262cb5a37cf6ec9fe1dae4073b3fc9e79c"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "5d698799bd6bc0a89f22eb1e2bd55f04cee64b7ef13d37698214b4590387b827"
+      "sha256": "cb4f20adbe7ed35bbe0ddbccf671eca90b480abc09dc8e0dc79651a1174f82b7"
     },
     {
       "path": "runtime/event-groups.json",
@@ -323,7 +323,7 @@
     },
     {
       "path": "runtime/hooks/lib/project-directory.ts",
-      "sha256": "f7533d5b345e9fece908432aa38630672a05544114f4499d80347e659c3dcc0f"
+      "sha256": "0928ea9f0fe61f0e9d92dcbd88b55573fb00e503ea12fdf047ba1245ff624eaf"
     },
     {
       "path": "runtime/hooks/lib/project-knowledge.ts",
@@ -435,7 +435,7 @@
     },
     {
       "path": "runtime/hooks/lib/test-runner.ts",
-      "sha256": "4ee0521c9704b0db4e911823b01a12ad7cf7dca34a584bb710c1a3ccb5062e18"
+      "sha256": "764fc0cfbdf425278ea33106c9ecd10abae16b09401b2b9a09fdf53e4848e369"
     },
     {
       "path": "runtime/hooks/lib/ticket-close.ts",
@@ -475,11 +475,11 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "0d21cb061022ded18cfed0b995b5c6dc5d880d628ebe0d403ee4f0fb0af0b360"
+      "sha256": "99eb92a899352ea58561d225c354b6ccb295a5e3a39e6375f7aef98caa452847"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
-      "sha256": "a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4"
+      "sha256": "d71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39"
     },
     {
       "path": "runtime/hooks/post-tool-sync-learnings.ts",
@@ -515,7 +515,7 @@
     },
     {
       "path": "runtime/hooks/prompt-questions.ts",
-      "sha256": "aa9d93722e73a6af32d5cdb8b0783157dd105c2d2a1a9526e2325e33374a4887"
+      "sha256": "07fac952d82baabd34d6bd38711d3903a745ecf5a566fe8a46026a39c4c7f648"
     },
     {
       "path": "runtime/hooks/prompt-retro-nudge.ts",
@@ -563,7 +563,7 @@
     },
     {
       "path": "runtime/hooks/session-cleanup-quality.ts",
-      "sha256": "b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2"
+      "sha256": "f86fa64073a8c1fd6c34be118d188f14bb5faa3c1ccf4811de7a53c0a5c805d2"
     },
     {
       "path": "runtime/hooks/session-codex-start.ts",
@@ -571,7 +571,7 @@
     },
     {
       "path": "runtime/hooks/session-compact-context.ts",
-      "sha256": "4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773"
+      "sha256": "9b5276e301d827172bc25bb19e72a52de36eab53b49e7b9bf9385e407e0f851b"
     },
     {
       "path": "runtime/hooks/session-cursor-auto-upgrade.ts",
@@ -603,7 +603,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "2072e7d40c34a2eb5b8e15a8066abcd5b60c596af41d4953c7dd686f4dc81e82"
+      "sha256": "3910886fe007ab564570205958ea99c0dbf1c4a2e68d73b66bf417269344c083"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -619,7 +619,7 @@
     },
     {
       "path": "runtime/hooks/stop-self-report.ts",
-      "sha256": "baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0"
+      "sha256": "52817f62bf1873883933568fcf29e98be59069d838216db371bf9a5ce4ee5fad"
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
@@ -1271,7 +1271,7 @@
     },
     {
       "path": "templates/hooks/lib/project-directory.ts",
-      "sha256": "f7533d5b345e9fece908432aa38630672a05544114f4499d80347e659c3dcc0f"
+      "sha256": "0928ea9f0fe61f0e9d92dcbd88b55573fb00e503ea12fdf047ba1245ff624eaf"
     },
     {
       "path": "templates/hooks/lib/project-knowledge.ts",
@@ -1383,7 +1383,7 @@
     },
     {
       "path": "templates/hooks/lib/test-runner.ts",
-      "sha256": "4ee0521c9704b0db4e911823b01a12ad7cf7dca34a584bb710c1a3ccb5062e18"
+      "sha256": "764fc0cfbdf425278ea33106c9ecd10abae16b09401b2b9a09fdf53e4848e369"
     },
     {
       "path": "templates/hooks/lib/ticket-close.ts",
@@ -1423,11 +1423,11 @@
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",
-      "sha256": "0d21cb061022ded18cfed0b995b5c6dc5d880d628ebe0d403ee4f0fb0af0b360"
+      "sha256": "99eb92a899352ea58561d225c354b6ccb295a5e3a39e6375f7aef98caa452847"
     },
     {
       "path": "templates/hooks/post-tool-skill-nudge.ts",
-      "sha256": "a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4"
+      "sha256": "d71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39"
     },
     {
       "path": "templates/hooks/post-tool-sync-learnings.ts",
@@ -1463,7 +1463,7 @@
     },
     {
       "path": "templates/hooks/prompt-questions.ts",
-      "sha256": "0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462"
+      "sha256": "4ad757453e7fc894a52533d786b38442e9e098735468b06d051582cc376ccc56"
     },
     {
       "path": "templates/hooks/prompt-retro-nudge.ts",
@@ -1511,7 +1511,7 @@
     },
     {
       "path": "templates/hooks/session-cleanup-quality.ts",
-      "sha256": "b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2"
+      "sha256": "f86fa64073a8c1fd6c34be118d188f14bb5faa3c1ccf4811de7a53c0a5c805d2"
     },
     {
       "path": "templates/hooks/session-codex-start.ts",
@@ -1519,7 +1519,7 @@
     },
     {
       "path": "templates/hooks/session-compact-context.ts",
-      "sha256": "4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773"
+      "sha256": "9b5276e301d827172bc25bb19e72a52de36eab53b49e7b9bf9385e407e0f851b"
     },
     {
       "path": "templates/hooks/session-cursor-auto-upgrade.ts",
@@ -1551,7 +1551,7 @@
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "467cb0915a6ee0d6a79f9c10c2123a6184df14fab0f7937eddd966227bd22137"
+      "sha256": "3dd875a8f74f2d8a196fb699f44f854b8666b8b7aacde101c8f7d6ed2d738235"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",
@@ -1567,7 +1567,7 @@
     },
     {
       "path": "templates/hooks/stop-self-report.ts",
-      "sha256": "baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0"
+      "sha256": "52817f62bf1873883933568fcf29e98be59069d838216db371bf9a5ce4ee5fad"
     },
     {
       "path": "templates/hooks/write-review-stamp.ts",

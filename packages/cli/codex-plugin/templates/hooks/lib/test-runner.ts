@@ -88,8 +88,6 @@ const MAX_OUTPUT_LINES = 30;
 /** Maximum characters of test output to inject into the block reason. */
 const MAX_OUTPUT_CHARS = 3000;
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-
 /**
  * Resolve the safeword CLI invocation. `SAFEWORD_CLI` (a path to cli.js/cli.ts run
  * via bun) overrides for tests/dev; otherwise the installed package, then the
@@ -270,7 +268,7 @@ function runSingleTestCommand(testCommand: TestCommand): {
  * - Uses execSync for synchronous, timeout-safe execution (no zombie processes).
  * - Returns skipped=true if no runnable command was found (caller should not block).
  */
-export function runTests(cwd: string = projectDir): TestResult {
+export function runTests(cwd: string): TestResult {
   const resolution = getTestCommands(cwd);
   if (!resolution.ok) {
     return {
