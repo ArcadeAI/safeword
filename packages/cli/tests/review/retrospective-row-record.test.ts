@@ -34,6 +34,9 @@ const replay = vi.hoisted(() => ({
   dirty: false,
   advanceDuringReplay: false,
   absoluteTargets: false,
+  eligibilityTarget: '',
+  proofTarget: '',
+  observationTarget: '',
 }));
 vi.mock('node:child_process', async original => ({
   ...(await original<typeof ChildProcess>()),
@@ -43,8 +46,11 @@ vi.mock('../../src/review/job.js', async original => ({
   ...(await original<typeof ReviewJob>()),
   approvedRetrospectiveReview: (_root: string, id: string) => {
     const targets = {
-      [claim.eligibilityId]: ['eligibility.json'],
-      [claim.proofId]: ['proof.json', 'observation.json'],
+      [claim.eligibilityId]: [replay.eligibilityTarget || 'eligibility.json'],
+      [claim.proofId]: [
+        replay.proofTarget || 'proof.json',
+        replay.observationTarget || 'observation.json',
+      ],
     }[id];
     return targets?.map(target => (replay.absoluteTargets ? path.join(_root, target) : target));
   },
@@ -94,6 +100,9 @@ describe('retrospective row replay record', () => {
     replay.dirty = false;
     replay.advanceDuringReplay = false;
     replay.absoluteTargets = false;
+    replay.eligibilityTarget = '';
+    replay.proofTarget = '';
+    replay.observationTarget = '';
     replay.feature =
       'Feature: Example\n  Scenario: Example\n    Given a behavior\n    Then it holds\n';
     put(RETROSPECTIVE_FEATURE, replay.feature);
@@ -162,6 +171,59 @@ describe('retrospective row replay record', () => {
     replay.absoluteTargets = true;
     expect(attestRetrospectiveRow(root, claim).state).toBe('changed');
     expect(retrospectiveGate(root, claim).state).toBe('healthy');
+  });
+
+  it('accepts an additional reviewed claim without replacing the first ticket claim', () => {
+    put(
+      path.join(path.dirname(RETROSPECTIVE_LEDGER), 'ticket.md'),
+      '---\nid: CKWE2D\nretrospective_claim: first-eligibility.json\nretrospective_claims:\n  - eligibility.json\n---\n',
+    );
+    expect(attestRetrospectiveRow(root, claim).state).toBe('changed');
+    expect(retrospectiveGate(root, claim).state).toBe('healthy');
+  });
+
+  it('rejects an additional claim reviewed outside the project', () => {
+    const outsideRoot = mkdtempSync(path.join(tmpdir(), 'safeword-outside-claim-'));
+    try {
+      const outside = path.join(outsideRoot, 'eligibility.json');
+      writeFileSync(outside, readFileSync(path.join(root, 'eligibility.json')));
+      replay.eligibilityTarget = outside;
+      put(
+        path.join(path.dirname(RETROSPECTIVE_LEDGER), 'ticket.md'),
+        `---\nid: CKWE2D\nretrospective_claim: first-eligibility.json\nretrospective_claims:\n  - ${path.relative(root, outside)}\n---\n`,
+      );
+      expect(attestRetrospectiveRow(root, claim).state).toBe('action_required');
+      expect(retrospectiveGate(root, claim).state).toBe('action_required');
+      expect(replay.calls).toBe(0);
+    } finally {
+      rmSync(outsideRoot, { recursive: true, force: true });
+    }
+  });
+
+  it.each(['proofTarget', 'observationTarget'] as const)(
+    'rejects a %s reviewed outside the project',
+    targetKind => {
+      const outsideRoot = mkdtempSync(path.join(tmpdir(), 'safeword-outside-proof-'));
+      try {
+        const name = targetKind === 'proofTarget' ? 'proof.json' : 'observation.json';
+        const outside = path.join(outsideRoot, name);
+        writeFileSync(outside, readFileSync(path.join(root, name)));
+        replay[targetKind] = outside;
+        expect(attestRetrospectiveRow(root, claim).state).toBe('action_required');
+        expect(retrospectiveGate(root, claim).state).toBe('action_required');
+        expect(replay.calls).toBe(0);
+      } finally {
+        rmSync(outsideRoot, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.each([
+    '---\nid: CKWE2D\nretrospective_claim: first-eligibility.json\n---\n',
+    '---\nid: CKWE2D\nretrospective_claims:\n  - eligibility.json\n---\n',
+  ])('rejects a claim without both the primary opt-in and a matching path', ticket => {
+    put(path.join(path.dirname(RETROSPECTIVE_LEDGER), 'ticket.md'), ticket);
+    expect(attestRetrospectiveRow(root, claim).state).toBe('action_required');
   });
 
   it.each([test, implementation])(
