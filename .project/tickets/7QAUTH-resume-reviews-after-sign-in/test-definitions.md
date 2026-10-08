@@ -18,7 +18,11 @@ Module contract only: a successful login plus a qualifying assigned-profile stat
 
 Proof: job-continuation.test.ts; request drift, tampering, duplicate completion, unchanged receipt, passive status and second authentication failure.
 
-- [ ] RED
+The standalone authentication-retry-proof.ts also exercises the existing review-job API and read-only status with real signed files and synthetic worker processes. It reproduces the duplicate completed attempt without Vitest while another checkout holds the shared runner. This is a signed-job contract proof; the stdio suite remains the primary full-feature proof and the Vitest matrix remains required for GREEN.
+
+Module contract only: the reservation API must return the same linked attempt for repeated authenticationRetry requests. The signed synthetic verdict is a Given for completed-record deduplication, not evidence that a real reviewer ran. This group does not claim the feature's login-completion actor interaction; the real stdio proofs own that boundary.
+
+- [x] RED 300eb0d74
 - [ ] GREEN
 - [ ] REFACTOR
 
