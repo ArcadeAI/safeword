@@ -1043,7 +1043,8 @@ __export(exports_job, {
   completeReviewJob: () => completeReviewJob,
   cancelReviewJob: () => cancelReviewJob,
   assertReviewAuthenticationContext: () => assertReviewAuthenticationContext,
-  approvedRetrospectiveReview: () => approvedRetrospectiveReview
+  approvedRetrospectiveReview: () => approvedRetrospectiveReview,
+  ReviewAuthenticationContextChangedError: () => ReviewAuthenticationContextChangedError
 });
 import { spawn, spawnSync as spawnSync2 } from "child_process";
 import { createHash as createHash3, createHmac, randomBytes, randomUUID as randomUUID2, timingSafeEqual } from "crypto";
@@ -1123,7 +1124,7 @@ function assertReviewAuthenticationContext(cwd, id, reviewer, context) {
   if (authenticationReviewer(original) !== reviewer)
     throw new Error("The review is not eligible for automatic authentication recovery. Retry manually.");
   if (original.authentication_bindings?.[reviewer] !== authenticationBinding(cwd, context) || reviewIdentity(cwd, original.kind, original.targets, original.context, original.execution, true).fingerprint !== original.source_fingerprint)
-    throw new Error("The review execution context changed. Retry manually.");
+    throw new ReviewAuthenticationContextChangedError("The review execution context changed. Retry manually.");
 }
 function verifiedAuthenticationParent(cwd, retry) {
   retry.signal.throwIfAborted();
@@ -2431,7 +2432,7 @@ function inspectReviewWorker(pid, id) {
     return processExists(pid) ? "unavailable" : "mismatch";
   return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`) ? "match" : "mismatch";
 }
-var AUTHENTICATION_REVIEW_KINDS, COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000, DELIVERY_CHECKLIST_MARKER = "<!-- safeword:delivery-checklist:v1 -->", DELIVERY_CHECKLIST_COLUMNS = 9, ORDINARY_PROGRESS_DISPOSITIONS;
+var ReviewAuthenticationContextChangedError, AUTHENTICATION_REVIEW_KINDS, COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000, DELIVERY_CHECKLIST_MARKER = "<!-- safeword:delivery-checklist:v1 -->", DELIVERY_CHECKLIST_COLUMNS = 9, ORDINARY_PROGRESS_DISPOSITIONS;
 var init_job = __esm(() => {
   init_policy();
   init_result();
@@ -2441,6 +2442,9 @@ var init_job = __esm(() => {
   init_preferences();
   init_route_config();
   init_runtime();
+  ReviewAuthenticationContextChangedError = class ReviewAuthenticationContextChangedError extends Error {
+    name = "ReviewAuthenticationContextChangedError";
+  };
   AUTHENTICATION_REVIEW_KINDS = new Set([
     "quality-review",
     "scenario-gate",
@@ -2637,17 +2641,17 @@ function authenticationCheck(reviewer, context, cwd, signal, retain) {
     });
   });
 }
-function parseReviewerLoginOutput(reviewer, output) {
+function parseReviewerLoginOutput(reviewer, output, complete = true) {
   const clean = output.replaceAll(/\u{1B}\[[\d;]*m/gu, "");
   const allowed = reviewer === "claude" ? ["claude.com", "platform.claude.com"] : ["auth.openai.com"];
   let url;
   let urlEnd = 0;
-  for (const match of clean.matchAll(/https:\/\/[^\s<>"'\p{Cc}]+(?=[\s<>"'\p{Cc}])/gu)) {
+  for (const match2 of clean.matchAll(/https:\/\/[^\s<>"'\p{Cc}]+(?=[\s<>"'\p{Cc}])/gu)) {
     try {
-      const candidate = new URL(match[0]);
+      const candidate = new URL(match2[0]);
       if (allowed.includes(candidate.hostname)) {
         url = candidate;
-        urlEnd = (match.index ?? 0) + match[0].length;
+        urlEnd = (match2.index ?? 0) + match2[0].length;
         break;
       }
     } catch {}
@@ -2656,7 +2660,11 @@ function parseReviewerLoginOutput(reviewer, output) {
     return;
   if (reviewer === "claude")
     return { auth_url: url.href };
-  const deviceCode = /\b[A-Z\d]{4,5}-[A-Z\d]{4,5}\b/u.exec(clean.slice(urlEnd))?.[0];
+  const codeOutput = clean.slice(urlEnd);
+  const match = /\b[A-Z\d]{4,5}-[A-Z\d]{4,5}\b/u.exec(codeOutput);
+  if (!complete && match !== null && match.index + match[0].length === codeOutput.length)
+    return;
+  const deviceCode = match?.[0];
   return deviceCode === undefined ? undefined : { auth_url: url.href, device_code: deviceCode };
 }
 function capturedReviewerLogin(reviewKey) {
@@ -2795,7 +2803,7 @@ async function startReviewerLogin(reviewKey, reviewer, untrustedRoot, options) {
       if (settled)
         return;
       output = `${output}${chunk.toString()}`.slice(-16384);
-      const found = parseReviewerLoginOutput(reviewer, output);
+      const found = parseReviewerLoginOutput(reviewer, output, false);
       if (found === undefined)
         return;
       settled = true;
@@ -2935,7 +2943,7 @@ function showReviewerLogin(args) {
   if (captured?.auth_url !== url.href || captured.device_code !== deviceCode) {
     throw new Error("Sign-in details do not match this review\u2019s reviewer CLI");
   }
-  const automatic = isRecord(result.data) && result.data.authentication_continuation === true;
+  const automatic = automaticLogins.has(`${root}:${args.review_id}`) && isRecord(result.data) && result.data.authentication_continuation === true;
   const value = {
     reviewer,
     auth_url: url.href,
@@ -2950,7 +2958,7 @@ function showReviewerLogin(args) {
 function loginGuidance(reviewer, automatic) {
   if (automatic)
     return "Complete sign-in. This review resumes automatically after account verification while connected.";
-  return reviewer === "claude" ? "Open the sign-in link and complete the Claude browser sign-in. Retry the same review after sign-in." : "Open the sign-in link, enter the device code, then retry the same review after sign-in.";
+  return reviewer === "claude" ? "Open the sign-in link and complete the Claude browser sign-in. Retry the same review after sign-in." : "Open the sign-in link and enter the device code. Retry the same review after sign-in.";
 }
 function loginLocation(args) {
   if (!isRecord(args) || typeof args.project_root !== "string" || !nodePath7.isAbsolute(args.project_root) || typeof args.review_id !== "string") {
@@ -2992,18 +3000,31 @@ async function startBoundReviewerLogin(root, id, reviewer, data) {
   if (!isRecord(data) || data.authentication_continuation !== true)
     return { login: await startReviewerLogin(key, reviewer, root), release: undefined };
   const recovery = await loginContinuation(root, id, reviewer);
-  const login = await startReviewerLogin(key, reviewer, root, recovery.options);
-  rememberAutomaticLogin(key);
-  return { login, release: recovery.release };
+  try {
+    const login = await startReviewerLogin(key, reviewer, root, recovery.options);
+    rememberAutomaticLogin(key);
+    return { login, release: recovery.release };
+  } catch (error) {
+    recovery.release(false);
+    if (!recovery.isContextChanged(error))
+      throw error;
+    automaticLogins.delete(key);
+    return { login: await startReviewerLogin(key, reviewer, root), release: undefined };
+  }
 }
 async function loginContinuation(root, id, reviewer) {
-  const { assertReviewAuthenticationContext: assertReviewAuthenticationContext2, resumeReviewAfterAuthentication: resumeReviewAfterAuthentication2 } = await Promise.resolve().then(() => (init_job(), exports_job));
+  const {
+    assertReviewAuthenticationContext: assertReviewAuthenticationContext2,
+    resumeReviewAfterAuthentication: resumeReviewAfterAuthentication2,
+    ReviewAuthenticationContextChangedError: ReviewAuthenticationContextChangedError2
+  } = await Promise.resolve().then(() => (init_job(), exports_job));
   let release;
   const displayed = new Promise((resolve) => {
     release = resolve;
   });
   return {
     release,
+    isContextChanged: (error) => error instanceof ReviewAuthenticationContextChangedError2,
     options: {
       validateContext: (context) => {
         assertReviewAuthenticationContext2(root, id, reviewer, context);

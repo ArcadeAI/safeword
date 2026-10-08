@@ -33688,7 +33688,8 @@ __export(exports_job, {
   completeReviewJob: () => completeReviewJob,
   cancelReviewJob: () => cancelReviewJob,
   assertReviewAuthenticationContext: () => assertReviewAuthenticationContext,
-  approvedRetrospectiveReview: () => approvedRetrospectiveReview
+  approvedRetrospectiveReview: () => approvedRetrospectiveReview,
+  ReviewAuthenticationContextChangedError: () => ReviewAuthenticationContextChangedError
 });
 import { spawn as spawn2, spawnSync as spawnSync6 } from "child_process";
 import { createHash as createHash18, createHmac, randomBytes, randomUUID as randomUUID10, timingSafeEqual } from "crypto";
@@ -33768,7 +33769,7 @@ function assertReviewAuthenticationContext(cwd, id, reviewer, context) {
   if (authenticationReviewer(original) !== reviewer)
     throw new Error("The review is not eligible for automatic authentication recovery. Retry manually.");
   if (original.authentication_bindings?.[reviewer] !== authenticationBinding(cwd, context) || reviewIdentity(cwd, original.kind, original.targets, original.context, original.execution, true).fingerprint !== original.source_fingerprint)
-    throw new Error("The review execution context changed. Retry manually.");
+    throw new ReviewAuthenticationContextChangedError("The review execution context changed. Retry manually.");
 }
 function verifiedAuthenticationParent(cwd, retry) {
   retry.signal.throwIfAborted();
@@ -35076,7 +35077,7 @@ function inspectReviewWorker(pid, id) {
     return processExists(pid) ? "unavailable" : "mismatch";
   return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`) ? "match" : "mismatch";
 }
-var AUTHENTICATION_REVIEW_KINDS, COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000, DELIVERY_CHECKLIST_MARKER = "<!-- safeword:delivery-checklist:v1 -->", DELIVERY_CHECKLIST_COLUMNS = 9, ORDINARY_PROGRESS_DISPOSITIONS;
+var ReviewAuthenticationContextChangedError, AUTHENTICATION_REVIEW_KINDS, COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000, DELIVERY_CHECKLIST_MARKER = "<!-- safeword:delivery-checklist:v1 -->", DELIVERY_CHECKLIST_COLUMNS = 9, ORDINARY_PROGRESS_DISPOSITIONS;
 var init_job = __esm(() => {
   init_policy();
   init_result();
@@ -35086,6 +35087,9 @@ var init_job = __esm(() => {
   init_preferences();
   init_route_config();
   init_runtime();
+  ReviewAuthenticationContextChangedError = class ReviewAuthenticationContextChangedError extends Error {
+    name = "ReviewAuthenticationContextChangedError";
+  };
   AUTHENTICATION_REVIEW_KINDS = new Set([
     "quality-review",
     "scenario-gate",
