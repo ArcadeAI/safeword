@@ -1,4 +1,5 @@
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -9,10 +10,15 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type CliResult, createResult } from '../../src/cli-protocol/result.js';
+import {
+  cancelAllReviewerLogins,
+  startReviewerLogin,
+} from '../../src/codex-plugin/reviewer-login.js';
 import * as jobs from '../../src/review/job.js';
 import type * as runtime from '../../src/review/runtime.js';
 import { trustedReviewerExecutable } from '../../src/review/runtime.js';
@@ -34,6 +40,8 @@ const roots: string[] = [];
 const workerPids = new Set<number>();
 
 afterEach(() => {
+  cancelAllReviewerLogins();
+  vi.useRealTimers();
   for (const pid of workerPids) {
     try {
       process.kill(pid, 'SIGKILL');
@@ -128,6 +136,62 @@ writeFileSync(file+'.tmp',JSON.stringify(record)+'\n');renameSync(file+'.tmp',fi
 }
 
 describe('signed authentication continuation', () => {
+  it('finishes the real linked worker when sign-in completes at 9:59', async () => {
+    const request = await original();
+    const profile = nodePath.join(request.keyRoot, 'profile');
+    mkdirSync(profile);
+    vi.stubEnv('CLAUDE_CONFIG_DIR', profile);
+    for (const variable of ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'])
+      vi.stubEnv(variable, '');
+    const release = nodePath.join(request.keyRoot, 'release-login');
+    writeFileSync(
+      request.executable,
+      `#!/usr/bin/env node
+const fs=require('node:fs');
+if(process.argv.includes('status')) {
+  console.log(JSON.stringify({loggedIn:true,authMethod:'claude.ai',configDirectory:process.env.CLAUDE_CONFIG_DIR}));
+} else {
+  console.log('Open https://claude.com/cai/oauth/authorize?state=fixture');
+  const timer=setInterval(()=>{if(fs.existsSync(${JSON.stringify(release)})){clearInterval(timer);process.exit(0)}},5);
+}
+`,
+    );
+    chmodSync(request.executable, 0o755);
+    // This request captures the final executable and profile before sign-in begins.
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', nodePath.join(request.keyRoot, 'waiting.mjs'));
+    const started = await jobs.startReviewJob({
+      cwd: request.root,
+      kind: 'quality-review',
+      targets: ['input.md'],
+      context: ['context.md'],
+    });
+    const id = (started.data as { review_id: string }).review_id;
+    const owned = JSON.parse(
+      readFileSync(nodePath.join(request.directory, `${id}.json`), 'utf8'),
+    ) as { pid: number };
+    workerPids.add(owned.pid);
+    jobs.completeReviewJob(request.root, id, authResult());
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', nodePath.join(request.keyRoot, 'completed.mjs'));
+    const receipt = nodePath.join(request.directory, `${id}.json`);
+    const bytes = readFileSync(receipt);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await startReviewerLogin(`${request.root}:${id}`, 'claude', request.root, {
+      onAuthenticated: async signal => {
+        await continuation.resumeReviewAfterAuthentication(request.root, id, 'claude', signal);
+      },
+    });
+    await vi.advanceTimersByTimeAsync(599_000);
+    writeFileSync(release, '');
+    const deadline = performance.now() + 5000;
+    while (performance.now() < deadline) {
+      const result = jobs.reviewJobStatus(request.root, id, true);
+      if ((result.data as { status: string }).status === 'approved') break;
+      await delay(10);
+    }
+    expect(jobs.reviewJobStatus(request.root, id, true).data).toMatchObject({ status: 'approved' });
+    expect(readFileSync(receipt)).toEqual(bytes);
+  });
+
   it('reuses the completed automatic attempt instead of paying for another review', async () => {
     const request = await original();
     const start = jobs.startReviewJob as (
