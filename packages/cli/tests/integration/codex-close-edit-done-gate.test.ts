@@ -53,6 +53,11 @@ beforeAll(async () => {
   await setupOrThrow(fixture.projectDirectory, ['setup', '--yes'], {
     env: INSTALL_DEPENDENCIES_ENV,
   });
+  // Silence the unrelated decision-brief correction, so a Stop the owed gate
+  // allows must answer with no continuation at all.
+  const configPath = nodePath.join(fixture.projectDirectory, '.safeword/config.json');
+  const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+  writeFileSync(configPath, JSON.stringify({ ...config, terminalHandoffCorrection: false }));
   git(fixture.projectDirectory, 'add -A');
   git(fixture.projectDirectory, 'commit -q --no-verify -m setup');
   fixture.setupCommit = execSync('git rev-parse HEAD', {
@@ -209,11 +214,11 @@ describe.each(Object.entries(RUNS))(
       expect(testRunCount(directory)).toBe(baseline + 3);
 
       writeFileSync(verifyFile, verifyContent);
-      expect(runCodexStop(directory, run).reason ?? '').not.toMatch(/Tests failed|verify\.md/);
+      expect(runCodexStop(directory, run)).toEqual({});
       expect(testRunCount(directory)).toBe(baseline + 4);
 
       setTestExitCode(directory, 1);
-      runCodexStop(directory, run);
+      expect(runCodexStop(directory, run)).toEqual({});
       expect(testRunCount(directory)).toBe(baseline + 4);
     });
 
@@ -269,7 +274,8 @@ describe.each(Object.entries(RUNS))(
 
       rmSync(verifyFile, { recursive: true });
       writeFileSync(verifyFile, '# Verify\n\n**PR Scope:** ✅ Diff matches ticket scope\n');
-      expect(runCodexStop(directory, run).reason ?? '').not.toContain('5638');
+      expect(runCodexStop(directory, run)).toEqual({});
+      expect(runCodexStop(directory, run)).toEqual({});
     });
   },
 );
