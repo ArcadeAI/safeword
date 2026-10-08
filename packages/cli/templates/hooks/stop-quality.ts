@@ -192,7 +192,7 @@ function owedDoneGateTicketInfo(
 }
 
 function dropOwedDoneGate(sessionId: StateIdentity, ticketId: string): void {
-  updateStopState(sessionId, state => {
+  updateSessionState(projectDir, sessionId, state => {
     state.doneGateOwedTickets = state.doneGateOwedTickets?.filter(id => id !== ticketId);
   });
 }
@@ -205,14 +205,7 @@ function recordStopReviewState(
   sessionId: StateIdentity,
   patch: Pick<QualityState, 'lastReviewedPhase' | 'stopQualityReviewAwaitingUserPrompt'>,
 ): void {
-  updateStopState(sessionId, state => Object.assign(state, patch));
-}
-
-function updateStopState(
-  sessionId: StateIdentity,
-  mutate: (state: Partial<QualityState>) => void,
-): void {
-  updateSessionState(projectDir, sessionId, mutate);
+  updateSessionState(projectDir, sessionId, state => Object.assign(state, patch));
 }
 
 /** Global scan fallback — used when no session state exists */
