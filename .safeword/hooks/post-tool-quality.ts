@@ -71,7 +71,7 @@ const canonicalEditedFile = canonicalEditTarget(launchProjectDirectory, editedFi
 // PR-readiness gate reads them (not the launch checkout).
 const projectDirectory = resolveToolProjectDirectory(launchProjectDirectory, {
   tool: input.tool_name ?? '',
-  editedFile: canonicalEditedFile,
+  editedFile,
   cwd: input.cwd,
 });
 

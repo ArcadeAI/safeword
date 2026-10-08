@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "368648c433da72c2a97524535a4a14deb1ae3e43194afc226a2a16f60ab043da"
+      "sha256": "7b4b41d0cfaefc523e781558da467bb6c5ca0b5bb135cca2b80dda4f7acb67db"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "3597a9acb9e6f783e396321b9906c32d2ca01d0334a3513df145f1780679e7b3"
+      "sha256": "5d698799bd6bc0a89f22eb1e2bd55f04cee64b7ef13d37698214b4590387b827"
     },
     {
       "path": "runtime/event-groups.json",
@@ -475,7 +475,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "764b0771cb6f9b2d5c463d445f6e78dd2634d819f36cd083ba1bc619585556c2"
+      "sha256": "0d21cb061022ded18cfed0b995b5c6dc5d880d628ebe0d403ee4f0fb0af0b360"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -507,7 +507,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "eb1ff5d95071da5ad69f965860c9a61e59f3158e4ed5ae1f085c808fcd2cb96f"
+      "sha256": "41e0d7500257c73c0a2f028ce449059d6a829f27d163d4ff27d6034cb0aca710"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1423,7 +1423,7 @@
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",
-      "sha256": "764b0771cb6f9b2d5c463d445f6e78dd2634d819f36cd083ba1bc619585556c2"
+      "sha256": "0d21cb061022ded18cfed0b995b5c6dc5d880d628ebe0d403ee4f0fb0af0b360"
     },
     {
       "path": "templates/hooks/post-tool-skill-nudge.ts",
@@ -1455,7 +1455,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "8d5973cabeab34ad90f51716aadb843e15cfb5a1be189d906c0c533af6103a6e"
+      "sha256": "2cade11042e2f4bb90ae96188f50e1a65b27b57029e4f1abeb21723e533d363c"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",

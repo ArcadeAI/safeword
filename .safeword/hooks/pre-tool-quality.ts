@@ -383,9 +383,11 @@ const editedFile = canonicalEditTarget(launchProjectDirectory, requestedEditedFi
 // config, and state — not the launch checkout's. Edits resolve from the edited
 // file (#5247); shell commands from the shell's cwd, so the PR-readiness gate
 // reads the receipt post-tool-quality wrote for that same worktree.
+// The resolver gets the host spelling and canonicalizes on its own, so an edit
+// and a shell command in the same aliased worktree name it identically.
 const projectDirectory = resolveToolProjectDirectory(launchProjectDirectory, {
   tool,
-  editedFile,
+  editedFile: requestedEditedFile,
   cwd: input.cwd,
 });
 const canonicalProjectDirectory = realpathSync(projectDirectory);
