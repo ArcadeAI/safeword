@@ -1,6 +1,6 @@
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { reviewerEnvironment } from '../review/environment.js';
@@ -8,6 +8,26 @@ import { trustedReviewerExecutable } from '../review/runtime.js';
 
 type Reviewer = 'claude' | 'codex';
 type LoginResult = { auth_url: string; device_code?: string };
+export type ReviewerLoginContext = { executable: string; environment: NodeJS.ProcessEnv };
+type LoginOptions = {
+  onAuthenticated: (signal: AbortSignal) => Promise<void> | void;
+  validateContext?: (context: ReviewerLoginContext) => void;
+};
+type LoginOutcome = { status: 'resumed' | 'manual_retry_required'; message: string };
+const outcomes = new Map<string, LoginOutcome>();
+
+export function reviewerLoginOutcome(reviewKey: string): LoginOutcome | undefined {
+  return outcomes.get(reviewKey);
+}
+
+function recordOutcome(reviewKey: string, outcome: LoginOutcome): void {
+  outcomes.delete(reviewKey);
+  outcomes.set(reviewKey, outcome);
+  if (outcomes.size > 100) {
+    const oldest = outcomes.keys().next().value;
+    if (oldest !== undefined) outcomes.delete(oldest);
+  }
+}
 
 const sessions = new Map<
   string,
@@ -15,6 +35,79 @@ const sessions = new Map<
 >();
 const LOGIN_TIMEOUT_MS = 30_000;
 const SESSION_TIMEOUT_MS = 10 * 60_000;
+const AUTH_CHECK_TIMEOUT_MS = 10_000;
+
+function qualifyingAuthentication(
+  reviewer: Reviewer,
+  output: string,
+  environment: NodeJS.ProcessEnv,
+): boolean {
+  if (reviewer === 'codex') return /^Logged in using ChatGPT\s*$/u.test(output.trim());
+  try {
+    const status: unknown = JSON.parse(output);
+    if (status === null || typeof status !== 'object') return false;
+    const fields = status as Record<string, unknown>;
+    const directory =
+      environment.CLAUDE_CONFIG_DIR ?? nodePath.join(environment.HOME ?? homedir(), '.claude');
+    return (
+      nodePath.isAbsolute(directory) &&
+      fields.loggedIn === true &&
+      fields.authMethod === 'claude.ai' &&
+      fields.configDirectory === directory
+    );
+  } catch {
+    return false;
+  }
+}
+
+function authenticationCheck(
+  reviewer: Reviewer,
+  context: ReviewerLoginContext,
+  cwd: string,
+  signal: AbortSignal,
+  retain: (child: ChildProcessWithoutNullStreams) => void,
+): Promise<boolean> {
+  const args = reviewer === 'claude' ? ['auth', 'status', '--json'] : ['login', 'status'];
+  const child = spawn(context.executable, args, {
+    cwd,
+    env: context.environment,
+    stdio: ['pipe', 'pipe', 'pipe'],
+    shell: false,
+    detached: process.platform !== 'win32',
+  });
+  retain(child);
+  return new Promise(resolve => {
+    let output = '';
+    let timedOut = false;
+    const collect = (chunk: Buffer): void => {
+      output = `${output}${chunk.toString()}`.slice(-16_384);
+    };
+    child.stdout.on('data', collect);
+    child.stderr.on('data', collect);
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      signalLogin(child, 'SIGTERM');
+      const force = setTimeout(() => {
+        signalLogin(child, 'SIGKILL');
+      }, 2000);
+      force.unref();
+    }, AUTH_CHECK_TIMEOUT_MS);
+    timeout.unref();
+    child.once('error', () => {
+      clearTimeout(timeout);
+      resolve(false);
+    });
+    child.once('close', code => {
+      clearTimeout(timeout);
+      resolve(
+        !timedOut &&
+          !signal.aborted &&
+          code === 0 &&
+          qualifyingAuthentication(reviewer, output, context.environment),
+      );
+    });
+  });
+}
 
 // eslint-disable-next-line complexity -- Parse only complete, allowlisted CLI output and the code following its URL.
 export function parseReviewerLoginOutput(
@@ -77,10 +170,14 @@ export async function startReviewerLogin(
   reviewKey: string,
   reviewer: Reviewer,
   untrustedRoot: string,
+  options?: LoginOptions,
 ): Promise<LoginResult> {
   if (sessions.has(reviewKey))
     throw new Error('A reviewer login is already running for this review');
   const command = trustedReviewerExecutable(reviewer, untrustedRoot);
+  const context = { executable: command, environment: reviewerEnvironment(reviewer) };
+  options?.validateContext?.(context);
+  outcomes.delete(reviewKey);
   const args = reviewer === 'claude' ? ['auth', 'login'] : ['login', '--device-auth'];
   // Authentication needs the user's vendor credential store, but never the project's cwd or environment.
   const loginCwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-reviewer-login-'));
@@ -88,7 +185,7 @@ export async function startReviewerLogin(
   try {
     child = spawn(command, args, {
       cwd: loginCwd,
-      env: reviewerEnvironment(reviewer),
+      env: context.environment,
       stdio: ['pipe', 'pipe', 'pipe'],
       shell: false,
       detached: process.platform !== 'win32',
@@ -98,11 +195,19 @@ export async function startReviewerLogin(
     throw error;
   }
   let forceStop: ReturnType<typeof setTimeout> | undefined;
+  const cancellation = new AbortController();
+  const children = [child];
   const stop = (): void => {
-    signalLogin(child, 'SIGTERM');
+    cancellation.abort();
+    for (const owned of children) signalLogin(owned, 'SIGTERM');
+    if (options !== undefined)
+      recordOutcome(reviewKey, {
+        status: 'manual_retry_required',
+        message: 'Sign-in was cancelled or expired. Retry the review manually.',
+      });
     if (forceStop === undefined) {
       forceStop = setTimeout(() => {
-        signalLogin(child, 'SIGKILL');
+        for (const owned of children) signalLogin(owned, 'SIGKILL');
       }, 2000);
       forceStop.unref();
     }
@@ -117,16 +222,56 @@ export async function startReviewerLogin(
   const sessionTimer = setTimeout(stop, SESSION_TIMEOUT_MS);
   sessionTimer.unref();
   const stopOnServerExit = (): void => {
-    signalLogin(child, 'SIGKILL');
+    cancellation.abort();
+    for (const owned of children) signalLogin(owned, 'SIGKILL');
     rmSync(loginCwd, { recursive: true, force: true });
   };
   process.once('exit', stopOnServerExit);
-  child.once('close', () => {
+  const finish = (): void => {
     clearTimeout(sessionTimer);
-    clearTimeout(forceStop);
+    if (!cancellation.signal.aborted) clearTimeout(forceStop);
     process.off('exit', stopOnServerExit);
     if (sessions.get(reviewKey) === session) sessions.delete(reviewKey);
     rmSync(loginCwd, { recursive: true, force: true });
+  };
+  child.once('close', code => {
+    void (async () => {
+      if (options === undefined) return;
+      let resumed = false;
+      try {
+        if (code === 0 && session.login !== undefined && !cancellation.signal.aborted) {
+          const authenticated = await authenticationCheck(
+            reviewer,
+            context,
+            loginCwd,
+            cancellation.signal,
+            owned => {
+              children.push(owned);
+            },
+          );
+          if (authenticated && !cancellation.signal.aborted) {
+            await options.onAuthenticated(cancellation.signal);
+            resumed = !cancellation.signal.aborted;
+          }
+        }
+      } catch {
+        // Status exposes recovery without leaking vendor output or credential values.
+        resumed = false;
+      }
+      recordOutcome(
+        reviewKey,
+        resumed
+          ? {
+              status: 'resumed',
+              message: 'The review resumed automatically.',
+            }
+          : {
+              status: 'manual_retry_required',
+              message:
+                'Automatic resume could not verify the account or original request. Retry the review manually.',
+            },
+      );
+    })().finally(finish);
   });
   return new Promise<LoginResult>((resolve, reject) => {
     let output = '';
