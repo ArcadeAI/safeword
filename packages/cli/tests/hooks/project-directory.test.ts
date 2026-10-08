@@ -8,7 +8,7 @@
 import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   resolveLaunchDirectory,
@@ -35,27 +35,41 @@ describe('resolveProjectDirectory (#5467)', () => {
   beforeEach(() => {
     root = createTemporaryDirectory();
     launch = tree(nodePath.join(root, 'launch'), { enrolled: true });
+    vi.spyOn(process, 'cwd').mockReturnValue(root);
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     removeTemporaryDirectory(root);
   });
 
   describe('edited file', () => {
     it('keeps the launch checkout for its own files', () => {
-      expect(resolveProjectDirectory({ launchDirectory: launch, editedFile: ticket(launch) })).toBe(
-        launch,
-      );
+      expect(
+        resolveProjectDirectory({
+          launchDirectory: launch,
+          editedFile: ticket(launch),
+          cwd: undefined,
+        }),
+      ).toBe(launch);
     });
 
     it('roots nested and sibling enrolled worktrees at that worktree', () => {
       const nested = tree(nodePath.join(launch, '.claude/worktrees/wt'), { enrolled: true });
       const sibling = tree(nodePath.join(root, 'sibling'), { enrolled: true });
-      expect(resolveProjectDirectory({ launchDirectory: launch, editedFile: ticket(nested) })).toBe(
-        nested,
-      );
       expect(
-        resolveProjectDirectory({ launchDirectory: launch, editedFile: ticket(sibling) }),
+        resolveProjectDirectory({
+          launchDirectory: launch,
+          editedFile: ticket(nested),
+          cwd: undefined,
+        }),
+      ).toBe(nested);
+      expect(
+        resolveProjectDirectory({
+          launchDirectory: launch,
+          editedFile: ticket(sibling),
+          cwd: undefined,
+        }),
       ).toBe(sibling);
     });
 
@@ -95,9 +109,27 @@ describe('resolveProjectDirectory (#5467)', () => {
         resolveProjectDirectory({
           launchDirectory: launch,
           editedFile: nodePath.join(root, 'loose/file.ts'),
+          cwd: undefined,
         }),
       ).toBe(launch);
-      expect(resolveProjectDirectory({ launchDirectory: launch, editedFile: '' })).toBe(launch);
+      expect(
+        resolveProjectDirectory({ launchDirectory: launch, editedFile: '', cwd: undefined }),
+      ).toBe(launch);
+    });
+
+    it('resolves through a symlink to the tree the file really lives in', () => {
+      const target = tree(nodePath.join(root, 'target'), { enrolled: true });
+      mkdirSync(nodePath.join(target, 'src'), { recursive: true });
+      const alias = nodePath.join(launch, 'link');
+      symlinkSync(nodePath.join(target, 'src'), alias);
+      // The file does not exist yet: a Write creating it must still resolve.
+      expect(
+        resolveProjectDirectory({
+          launchDirectory: launch,
+          editedFile: nodePath.join(alias, 'new-file.ts'),
+          cwd: launch,
+        }),
+      ).toBe(realpathSync(target));
     });
   });
 
@@ -133,7 +165,16 @@ describe('resolveProjectDirectory (#5467)', () => {
       expect(resolveProjectDirectory({ launchDirectory: launch, cwd: alias })).toBe(launch);
     });
 
-    it('falls back to the launch checkout without a cwd, in unenrolled trees, or outside git', () => {
+    it('never reads the process cwd itself: callers pass the cwd they mean', () => {
+      const worktree = tree(nodePath.join(launch, '.claude/worktrees/wt'), { enrolled: true });
+      vi.spyOn(process, 'cwd').mockReturnValue(worktree);
+      expect(resolveProjectDirectory({ launchDirectory: launch, cwd: undefined })).toBe(launch);
+      expect(resolveProjectDirectory({ launchDirectory: launch, cwd: process.cwd() })).toBe(
+        worktree,
+      );
+    });
+
+    it('falls back to the launch checkout when neither cwd is in an enrolled tree', () => {
       const vendored = tree(nodePath.join(launch, 'vendor/lib'), { enrolled: false });
       for (const cwd of [undefined, '', vendored, nodePath.join(root, 'loose')]) {
         expect(resolveProjectDirectory({ launchDirectory: launch, cwd })).toBe(launch);
@@ -151,9 +192,11 @@ describe('resolveToolProjectDirectory (#5467)', () => {
     root = createTemporaryDirectory();
     launch = tree(nodePath.join(root, 'launch'), { enrolled: true });
     worktree = tree(nodePath.join(launch, '.claude/worktrees/wt'), { enrolled: true });
+    vi.spyOn(process, 'cwd').mockReturnValue(root);
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     removeTemporaryDirectory(root);
   });
 

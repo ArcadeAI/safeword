@@ -6,7 +6,8 @@
 // order:
 //
 //   1. the edited file's enrolled git working tree;
-//   2. the cwd's enrolled git working tree;
+//   2. the cwd's enrolled git working tree — a hook passes the host-reported
+//      `cwd`, a helper or CLI command passes its own `process.cwd()`;
 //   3. the launch checkout.
 //
 // "Enrolled" means `.safeword/SAFEWORD.md` exists. A walk stops at the first
@@ -25,35 +26,36 @@ export function resolveLaunchDirectory(environment: NodeJS.ProcessEnv = process.
   return environment.CLAUDE_PROJECT_DIR || process.cwd();
 }
 
-/** The project a surface should read and write, by the rule above. */
+/**
+ * The project a surface should read and write, by the rule above. `cwd` is
+ * required so each caller states which working directory it means; the
+ * resolver never reads ambient process state for it.
+ */
 export function resolveProjectDirectory(input: {
   launchDirectory?: string;
   editedFile?: string;
-  cwd?: string;
+  cwd: string | undefined;
 }): string {
   const launchDirectory = input.launchDirectory ?? resolveLaunchDirectory();
-  const enrolledTree = (start: string) => enrolledWorkingTree(launchDirectory, start);
+  const cwd = input.cwd ? nodePath.resolve(launchDirectory, input.cwd) : undefined;
+  // A path reached through a symlink belongs to the tree it lands in, not the
+  // tree its lexical ancestors sit in. Keep the host spelling unless the real
+  // path names a different owner.
+  const owner = (lexicalDirectory: string, realDirectory: string) => {
+    const lexical = enrolledWorkingTree(launchDirectory, lexicalDirectory);
+    const real = enrolledWorkingTree(launchDirectory, realDirectory);
+    return lexical !== undefined && real !== undefined && isSameDirectory(lexical, real)
+      ? lexical
+      : real;
+  };
 
   if (input.editedFile) {
-    const owner = enrolledTree(nodePath.dirname(input.editedFile));
-    if (owner !== undefined) return owner;
+    const file = nodePath.resolve(cwd ?? launchDirectory, input.editedFile);
+    const fileOwner = owner(nodePath.dirname(file), nodePath.dirname(canonicalPathForGate(file)));
+    if (fileOwner !== undefined) return fileOwner;
   }
 
-  if (input.cwd) {
-    // A cwd reached through a symlink belongs to the tree it lands in, not the
-    // tree its lexical ancestors sit in. Keep the host spelling unless the real
-    // path names a different owner.
-    const cwd = nodePath.resolve(launchDirectory, input.cwd);
-    const lexical = enrolledTree(cwd);
-    const real = enrolledTree(canonicalPathForGate(cwd));
-    const owner =
-      lexical !== undefined && real !== undefined && isSameDirectory(lexical, real)
-        ? lexical
-        : real;
-    if (owner !== undefined) return owner;
-  }
-
-  return launchDirectory;
+  return (cwd && owner(cwd, canonicalPathForGate(cwd))) ?? launchDirectory;
 }
 
 /**
