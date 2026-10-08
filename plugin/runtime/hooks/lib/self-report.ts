@@ -19,6 +19,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { appendJsonlRecords, readJsonlRecords, tryAppendJsonlRecords } from './jsonl-spool.js';
+import { resolveLaunchDirectory } from './project-directory.ts';
 
 /** The agent harness safeword is running under. */
 export type AgentId = 'claude' | 'cursor' | 'codex' | 'unknown';
@@ -286,7 +287,7 @@ function readInstalledVersion(projectDirectory: string): string {
  */
 export function installCrashCapture(
   hookName: string,
-  projectDirectory: string = process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+  projectDirectory: string = resolveLaunchDirectory(),
   agent?: AgentId,
 ): void {
   const handler = (reason: unknown): void => {

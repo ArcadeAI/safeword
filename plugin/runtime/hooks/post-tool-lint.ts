@@ -5,10 +5,13 @@
 
 import { lintFile } from './lib/lint.ts';
 import { installCrashCapture } from './lib/self-report.ts';
+import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
 
 installCrashCapture('post-tool-lint');
 
 interface HookInput {
+  tool_name?: string;
+  cwd?: string;
   tool_input?: {
     file_path?: string;
     notebook_path?: string;
@@ -31,7 +34,11 @@ if (!file || !(await Bun.file(file).exists())) {
   process.exit(0);
 }
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDir = resolveToolProjectDirectory(resolveLaunchDirectory(), {
+  tool: input.tool_name ?? '',
+  editedFile: file,
+  cwd: input.cwd,
+});
 process.chdir(projectDir);
 
 const result = await lintFile(file, projectDir);

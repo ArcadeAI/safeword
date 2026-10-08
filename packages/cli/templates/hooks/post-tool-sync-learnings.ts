@@ -8,8 +8,11 @@ import nodePath from 'node:path';
 
 import { hasVerificationStamp } from './lib/learning-verification-stamps.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
 
 interface HookInput {
+  tool_name?: string;
+  cwd?: string;
   tool_input?: {
     file_path?: string;
     notebook_path?: string;
@@ -27,7 +30,11 @@ try {
 const file = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
 if (!file) process.exit(0);
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDir = resolveToolProjectDirectory(resolveLaunchDirectory(), {
+  tool: input.tool_name ?? '',
+  editedFile: file,
+  cwd: input.cwd,
+});
 const learningsDirectory = nodePath.join(resolveNamespaceRoot(projectDir), 'learnings');
 
 // Only fire for files inside the learnings directory.

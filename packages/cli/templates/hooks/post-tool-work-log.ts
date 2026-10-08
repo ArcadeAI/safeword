@@ -16,25 +16,31 @@ import {
   detectPhaseTransition,
   type EditToolInput,
 } from './lib/work-log-stamp.ts';
+import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
 
 installCrashCapture('post-tool-work-log');
 
 interface HookInput {
   tool_name?: string;
+  cwd?: string;
   tool_input?: EditToolInput;
-}
-
-const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-
-// Not a safeword project, skip silently
-if (!existsSync(`${projectDirectory}/.safeword`)) {
-  process.exit(0);
 }
 
 let input: HookInput;
 try {
   input = await Bun.stdin.json();
 } catch {
+  process.exit(0);
+}
+
+const projectDirectory = resolveToolProjectDirectory(resolveLaunchDirectory(), {
+  tool: input.tool_name ?? '',
+  editedFile: input.tool_input?.file_path ?? '',
+  cwd: input.cwd,
+});
+
+// Not a safeword project, skip silently
+if (!existsSync(`${projectDirectory}/.safeword`)) {
   process.exit(0);
 }
 

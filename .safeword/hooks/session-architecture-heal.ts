@@ -9,8 +9,15 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
+import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+let input: { session_id?: string; cwd?: string } = {};
+try {
+  input = await Bun.stdin.json();
+} catch {
+  // No input: resolve from the launch checkout.
+}
+const projectDir = resolveSessionProjectDirectory({ sessionId: input.session_id, cwd: input.cwd });
 
 // Not a safeword project — nothing to do.
 if (!existsSync(nodePath.join(projectDir, '.safeword'))) {
