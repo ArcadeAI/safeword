@@ -47,6 +47,24 @@ parent_contract_digest: fc6cd57babcd3fefc8a71c2f100683aa98d4589e1b14abfe46f8b422
 
 ## Work Log
 
+- 2026-10-08 Human approved the remaining parallel actual-evidence fixture correction; applied and committed as `52ba49bf3`. Commit formatting/lint and all five generated surfaces pass. Targeted package regression again has 77 passes and the same one unavailable-admission failure; no assertion was weakened. Exact affected-case Sol diagnostics pass both fixture-discovery and parallel-safe cases with all existing typed approval assertions and confirmed model identity. The earlier three timeout/process cases separately pass their awake diagnostic (three cases plus identity guard; 60 unselected tests are explicitly skipped by that diagnostic). Neither diagnostic is full qualification.
+
+- 2026-10-08 Fresh detached supervisor PID 53456 runs the frozen candidate with contract digest `8451a6cb6e036335f9ae9457858b053bebf62d8c3faef88188cfb14f41396bfe` and corpus digest `4148e7f0cfc4700467bc0ff073a43f11c73fc55824d3615cb95f59872d778c5f`, Sol first. Claude and capability collection require complete earlier success; a failed full matrix stops later expensive stages. Evidence paths `/tmp/4200-final-proof-supervised-{sol,claude}-{live.log,results.json}` and queue log. The in-progress Sol run has an actual failure in proof-does-not-exercise-boundary: it correctly rejects node --version as non-discriminating proof, but also identifies an extra 'both live transports' proof boundary inconsistent with the binding one-public-command fixture scope and returns plan-implementation. Counts remain partial until the full census completes; no qualification is claimed and no frozen input is edited during the run.
+
+- 2026-10-08 Prepared `/tmp/4200-isolate-unreal-proof-boundary.patch` changes only that unrelated transport-scope label to the accepted public-command authorization boundary, preserving node --version, every proof qualifier, rejection verdict, destination oracle, findings matcher and negative case. Independent Claude review `c676815c-3db3-48f4-8afc-4c18a603fc42` approves the isolation correction. Prepared-module comparison confirms exactly one case changes, every expectation stays identical, the deliberately bad command remains, and the plan parses. Patch applies cleanly but is unapplied pending explicit human approval for this additional fixture edit. Current main fetch remains `53398c672`; no integration, source winner adoption, model admission/default change, PR promotion, merge or epic completion is claimed. All 110 undefined root scenarios and historical failed/unfinished acceptance censuses remain visible.
+
+- 2026-10-08 Prepared `/tmp/4200-parallel-actual-evidence.patch` after the fresh confirmed Sol disagreement and independent blind diagnosis. The bounded correction limits fixture conformance to plan structure, then reuses the existing authenticated `ticket record-delivery-proof` and `ticket delivery-checklist --json` workflow for actual ordered final closure: items 1–10 must be satisfied before item-11 is recorded; contributor-work completion retains pending merge authority. No new verifier, proof ID, consumer dependency, expected verdict or production prompt is introduced. Independent Claude review `2ffbf14f-77e1-4339-8546-7b654cbff42f` approves with advisory wording/placement concerns. Prepared-module inspection confirms only the parallel case changes, all expectations are preserved, and the actual checklist parser accepts the trailing closure with normalized digest `c7e6f4a7a4af264ef22784867958e96c0d1b16a69c3ca478a357336c14ed0400`. Patch applicability passes; source remains unapplied pending explicit approval under the testing guide. A bounded three-case awake Sol diagnostic for the prior two timeout cases and one process failure is queued behind checkout 1514's active shared test lock; no result is claimed and no full matrix or capability run is launched on the known-failing candidate.
+
+- 2026-10-08 Human explicitly approved `/tmp/4200-two-sol-proof-corrections.patch`; both positive-fixture task corrections are applied and checkpointed in `a9060d064`, with unchanged verdicts, thresholds, negative cases, and two-only case delta. Commit formatting/lint and all five generated surfaces pass. Targeted package run completed after another checkout released the shared test lock: 77 passed/1 failed across 78 tests; the failure is the known absent eligible Execution review route, not a weakened assertion. Logs: `/tmp/4200-two-proof-local-wait-green.log`. The preliminary wrapper guard suite separately passed 153/153; it is not the targeted suite.
+
+- 2026-10-08 Corrected isolated candidate `/private/tmp/4200-sol-proof-candidate` retains contract digest `8451a6cb6e036335f9ae9457858b053bebf62d8c3faef88188cfb14f41396bfe` and has approved corpus digest `8bbc9fdb79529548203398bfabd8863ad4bd8980befbb79461c4998da12bee3a`. A first diagnostic accidentally used the older committed contract when reconstructing the frozen worktree; digest checking caught this. Its outputs are preserved separately as `/tmp/4200-two-proof-old-contract-sol-diagnostic*` and are not used as current proof. On the corrected exact candidate, the fixture-discovery diagnostic passes with confirmed Sol; parallel-safe-after-probe rejects because seeded plan-structure fixtures cannot establish actual final delivery evidence. Independent blind Claude diagnosis `6c7a5fa3-3eba-45d0-9b48-e6334123704b` confirms that real defect and confirms the independent consumer dependencies are valid. No full qualification or capability collection was started on this known-failing candidate. The proposed real-evidence correction is unapplied pending review and explicit test-edit approval; it reuses the existing authenticated delivery-proof flow rather than adding a new verifier or sibling dependency. Historical failures and all 110 undefined root scenarios remain open. No new admission, default, promotion, merge, or epic completion is claimed.
+
+- 2026-10-08 Current evidence correction: the former quiet qualification processes had disappeared without complete censuses; earlier assertions that those queues were still running were incorrect. Their incomplete evidence remains unqualified. The detached sequential replacement completed both exact 63-case matrices: Claude Opus 5 25 passed/38 failed/0 unfinished; GPT-6.1 Sol 58 passed/5 failed/0 unfinished. Claude failures are runtime-confounded across observed overnight clamshell and maintenance sleep; Sol has two semantic disagreements, two timeouts, and one native process error. Capability collection correctly did not run. No failed or historical matrix was admitted, no default changed, and no scorer or timeout was weakened. Raw evidence: `/tmp/4200-supervised-{claude,sol}-{live.log,results.json}`. The two Sol findings identify concrete positive-fixture proof omissions; a surgical, unapplied patch is prepared at `/tmp/4200-two-sol-proof-corrections.patch` for explicit test-edit approval.
+
+- 2026-10-08 Checkpoint `c91547387` contains the previously approved corpus/default/legacy changes and R10 contract-shape bindings, plus the acceptance-driven native scaffolding fix and new R11 currency bindings. R10 actual run: six scenarios and 312 steps pass. Current committed R11 actual run: two scenarios and 106 steps pass, including exact packaged scaffold bytes after fresh authenticated approval; stale old verdict remains blocked. Independent Claude review `e4566b99-1231-478e-8580-5d58eb22e721` approved the native fix with assertion-strength/local-precedence advisories. Commit hooks passed formatting, configured lint, and all five generated surfaces. Current root acceptance dry-run: 175 scenarios, 65 defined but not executed by dry-run, 110 undefined; 9277 steps, 8954 skipped and 323 undefined. This is not a passing full acceptance run. Current integration/default regression: 41 pass, three fail from unavailable Execution review routes; `/tmp/4200-checkpoint-regression.log`. Historical six full-acceptance failures and 585 unfinished scenarios remain preserved, along with the later censuses. PR stack remains Draft and unmerged; current CI and final full reviews are still required.
+
+- 2026-10-07T19:00:00Z Resumed this implementing ticket after explicit human approval of the two qualification-fixture clarifications in /tmp/4200-two-clean-fixture-clarifications.patch. This work applies the approved canonical-mirror context and final seven-proof rerun without changing expected verdicts, then requires complete fresh qualification before admission. YCFFNC remains in planning; its earlier work-log entry records ownership and does not start full migration implementation. The separate bounded legacy approval guard remains local work with its disclosed regression proof and review limits.
+
 - 2026-10-07 PR5 main integration: preserved fingerprint-only packet preparation,
   typed missing-context recovery, semantic planning identities, and main's verified
   exclusion handling in both ordinary and continuation receipts. Canonical receipt
@@ -1360,3 +1378,300 @@ proof deferral remain unresolved. No Ready promotion or PR merge is authorized.
   unchecked; no new RGR receipt or acceptance pass is claimed. Gherkin parsing
   and diff hygiene pass. Generated architecture duplication and the remaining
   admission boundaries are disclosed nonblocking warnings, not repaired here.
+
+- 2026-10-07 evening continuation: Sol native reviewer pilot confirms
+  `gpt-6.1-sol` after installing the already pinned 0.160.0 native executable
+  at a trusted versioned path; executable trust remains unchanged. The failed
+  63-process-error Sol matrix remains preserved. Corrected Claude full matrix
+  is running; repaired Sol full matrix is queued sequentially. Capability
+  evidence predates the October 6 access failure (commit 5dc6f2b3a); archived
+  rubric digests are stale. Fresh 18-run Claude/Sol capability collections are
+  queued only if both 63-case task matrices pass. No new model is admitted.
+  Six R10 contract-shape scenarios reproduced undefined. Proposed patch
+  `/tmp/4200-r10-contract-shape.patch` passes in-memory typecheck and apply
+  checks; revised Claude review 42cf2133-97da-41a1-8a3d-54fe9f3ea060 approves
+  with disclosed semantic-proof warnings. Existing test changes await explicit
+  human approval. All 118 undefined scenarios and original acceptance failures
+  remain open; PR5139 still has both failing test jobs at fac0a8d8. Main
+  integration, current-head verification and final stack review remain pending.
+
+- 2026-10-07 R10 continuation: Human “apply” approved the six contract-shape
+  cases, bindings, manifest digest and helper type annotation. Actual applied
+  sources pass lint/typecheck; mechanical import sorting and Reflect deletion
+  retain the approved 25-case digest. Root acceptance reports six passing
+  scenarios, 312 passing steps, zero failures/unfinished scenarios in
+  `/tmp/4200-r10-shape-green.{json,log}`. Full-feature dry run finds 63 defined
+  scenarios (not execution evidence), 112 undefined. Individual judge reports
+  were deleted by existing helper cleanup; their reasons were not inspected.
+  Prepared `/tmp/4200-r10-report-hook.ts` for the already-required final rerun
+  to archive/attach actual reports before cleanup without modifying assertions.
+  No extra paid rerun solely to recapture those details has been launched.
+
+### Oct 8 — approved isolation of the unreal-proof negative
+
+Human approved `/tmp/4200-isolate-unreal-proof-boundary.patch` ("do it"). Applied
+the one-line boundary label correction only to `proof-does-not-exercise-boundary`:
+accepted public review command replaces accidentally claimed two live transports.
+All 63 expectations, required rejection, plan-execution destination, proof/boundary
+matcher, and deliberately invalid `node --version` proof remain unchanged.
+Independent Claude review c676815c-3db3-48f4-8afc-4c18a603fc42 approved. Structural
+comparison proves exactly one case changes; the actual delivery-plan parser accepts it.
+
+Typecheck found the earlier native template schema lookup could be undefined before
+its existing error check. Optional chaining repairs the dereference without changing
+the approval contract. Typecheck now passes. Actual root currency scenarios pass
+2/2 and 106/106 steps (`/tmp/4200-unreal-boundary-currency-green.*`).
+
+Preserved the immutable prior full Sol run. Corrected candidate
+`/private/tmp/4200-sol-boundary-candidate` has unchanged contract digest
+8451a6cb6e036335f9ae9457858b053bebf62d8c3faef88188cfb14f41396bfe and new corpus digest
+b906f3cb783bdf2a4f749f97de0bade2883e66b4966330eee37a7bc0a170aac9.
+Detached `/tmp/4200-boundary-proof-supervisor.py` waits for the prior complete census,
+then regenerates/verifies all five surfaces and runs targeted conformance before
+full Sol, full Claude, and conditional capability evidence. No second Vitest,
+evidence overwrites, auto-adoption, merge, or promotion. Regeneration's first
+lifecycle attempt stopped at the occupied test lock; no test started. Root acceptance
+still contains 110 undefined scenarios; known route-admission failures remain until
+fresh valid evidence is admitted.
+
+The prior full matrix completed: 61/63 passed, two failed, zero unfinished;
+`/tmp/4200-final-proof-supervised-sol-results.json` preserves all 63 identities.
+The second failure is `explicitly-inapplicable-obligations`: reviewer approval
+retains canonical checklist obligation `Deliver Accepted behavior.` assigned to
+Behavior delivery, but the assertion accepts only `Accepted behavior` or its
+comma/colon-prefixed forms. The queued paid rerun was stopped before dispatch.
+Prepared, unapplied `/tmp/4200-inapplicable-owner-label.patch` changes only that
+case's expected ownership label to its exact canonical checklist obligation;
+the shared matcher and all other assertions remain unchanged. Independent
+review requested before any new human approval or expensive rerun.
+
+Applied proof-label correction and safe schema lookup committed as d74a2dc15.
+Typecheck passed; targeted conformance 61/61 passed; actual currency scenarios
+2/2 and 106/106 steps passed. Commit hooks confirm all five generated surfaces
+current. No qualification, admission, merge readiness, or epic completion claimed.
+
+Independent Claude review rejected the proposed single-case label replacement:
+it would reject equally correct upstream-label outputs and diverge from sibling
+cases. Abandoned that patch without applying it. Revised, still unapplied
+`/tmp/4200-canonical-obligation-label.patch` adds exactly one equality alternative
+for `Deliver ${obligation}.` in the existing approval assertion. Existing accepted
+names, comma/colon forms, corpus expectations, and all other assertions remain.
+Claude review c152e604-fe67-451e-8d83-b8f776a65c4c approved the revision; warnings
+note unrelated checklist wording and pre-existing slice ownership limitations.
+No expansion to those issues. Mechanical check accepts bare and canonical behavior
+labels while rejecting unrelated and expanded labels. Fresh full qualification is
+required after human approval; old 61/63 evidence stays failed and preserved.
+No paid qualification process currently runs or is queued.
+
+Human approved the revised assertion correction ("apply"). Applied and committed
+as 720added2. Typecheck passes; static live-file invocation is 64 environment-gated
+skips and supplies no qualification evidence. Frozen candidate retains both corrected
+fixture and assertion bytes, assertion SHA256
+c736dfe9773d98fdc41e116b18aa5454781d29520038c436f0975138c04a864c.
+Started detached `/tmp/4200-approved-label-supervisor.py` with fresh
+`/tmp/4200-approved-label-supervised-*` evidence. Full Sol precedes full Claude;
+capability calls run only if both full matrices pass. Failed prior full census
+61/63 remains unchanged; no model/default/admission change or completion claimed.
+
+Fresh Sol qualification completed successfully: 63/63 semantic cases passed,
+64/64 tests including the identity guard, zero failed or unfinished, 1826.23s.
+Complete evidence is `/tmp/4200-approved-label-supervised-sol-results.json`
+with the corrected frozen corpus and actual confirmed gpt-6.1-sol identity.
+Claude qualification is queued behind an unrelated worktree's package test lock;
+its process is not killed or bypassed. Capability and source adoption remain pending.
+
+Read-only remote refresh finds origin/main d5885e58771cd87f8108196ce67986f7725a1974:
+new #5636 changes retro deployment workflow/test/helper only, not planning contracts
+or frozen qualification inputs. PR #5139 remains Draft at fac0a8d8cdfe16436d34e7be563ace40c804640e
+with two old-head Node test failures. Local corrections remain unpushed.
+Prepared source-only `/tmp/4200-sol-adoption-source-proposal.patch` is unapplied;
+no prompt winner, model/default, or test manifest is auto-adopted.
+
+Fresh Claude qualification also completed: 63/63 semantic cases passed,
+64/64 tests including the identity guard, zero failed or unfinished, 4596.05s.
+`/tmp/4200-approved-label-supervised-claude-results.json` preserves every exact
+claude-opus-5 identity. Both full task matrices are now passing under unchanged
+thresholds. Supervisor started the conditional 36-call capability collection;
+no source defaults or admission evidence have been adopted yet.
+
+One diagnostic Sol call on the unchanged capability `execution-approve` fixture
+approved with no findings and confirmed gpt-6.1-sol. This was a bounded check of
+suspected contract/corpus drift, not capability qualification; no fixture changed.
+Main has not changed the capability corpus, rubric, or schema inputs.
+
+Capability collection finished: Sol 17/18, Claude 17/18, all 36 outcomes retained,
+zero unfinished. Both satisfy the unchanged 90% total and 2/3 per-fixture floors;
+sealed comparison is not_weaker in both directions. Exact comparison and complete
+cohorts are `/tmp/4200-approved-label-capability-comparison.json` and the adjacent
+codex/claude results JSON. No reruns, threshold changes, or discarded failures.
+Sol's failed execution-approve run demanded proof of overlapping retry binding.
+Blind Claude adjudication judged it optional strengthening outside the existing
+coordinator presentation slice, not an accepted blocking obligation. The failed
+run remains scored as failed. Claude's failed execution-approve run returned
+invalid review output; it also remains failed. The unchanged fixture is retained.
+
+Source-only adoption review approved with nonblocking cautions about completion
+wording, upstream routing, capability-fixture final rerun wording, and older native
+Codex compatibility. No further prompt or fixture tuning. Candidate template is
+byte-identical under repository Prettier settings. Qualification used trusted
+native Codex 0.160.0; global 0.153.4 remains incompatible, not silently upgraded.
+
+Prepared `/tmp/4200-adopt-qualified-sol.patch`: source proposal, generated planning
+contracts/rubric, admission from both complete 63-case passing matrices, official
+catalogue generation from both fresh sealed capability cohorts, and both evidence
+files. Astra archive stays untouched. Official preview verify and git apply --check
+pass; no adoption changes are applied. Human approval is required for the prompt
+winner and additional model expectations/manifest changes. Installed mirrors and
+plugins will regenerate through normal workflows after approval. Main integration,
+current-head CI and final reviews, 110 undefined root scenarios, and historical
+broader acceptance failures/unfinished scenarios remain open. No merge or promotion.
+
+### 2026-10-08 — approved Sol adoption applied
+
+Human “apply” approved `/tmp/4200-adopt-qualified-sol.patch`; applied all ten
+source, expectation and evidence files. Contract, rubric and Execution template
+remain byte-identical to the qualified frozen candidate. Capability catalogue
+verification reports both directions `not_weaker`; both 17/18 cohorts retain
+their failed rows. Typecheck passes. Installed planning mirrors synchronized;
+installation reports the branch's 1.0.0 versus active 1.1.0 plugin mismatch.
+
+Targeted regression: 78 passed, one failed. All former reviewer-admission failures
+are resolved. The remaining discovery-routing case starts with a legacy fixture,
+then expects approval without migration despite the intentional legacy discovery
+guard. Separate legacy rejection coverage passes. Prepared
+`/tmp/4200-current-contract-discovery-fixture.patch` to use the existing current
+contract fixture and retain its applicability sections; all assertions remain.
+Additional human approval requested under the testing guide; patch unapplied.
+
+First lifecycle generation verification never started its test because another
+checkout held the package test lock. Retrying with the supported longer wait;
+no foreign processes killed, no lock bypass. Main integration, current-head CI,
+final reviews and all previously recorded acceptance gaps remain open.
+
+### 2026-10-08 — adoption checkpoint and approved discovery correction
+
+Committed qualified Sol adoption as `6b4538fbe`; pre-commit verifies all five
+generated surfaces. Full generation retry succeeded. Independent Claude review
+`1c04cec6-00f8-47cd-8e1f-6d10410363d6` approved with no errors. Its catalogue
+digest question is answered by the official generator's pair digest over both
+cohort digests and successful verify. The coordinator passes `input.kind` into
+builtInReviewRoutes; real task qualification records actual exact model identity.
+No new wiring abstraction or qualification replay. Leave qualified prompt markup
+unchanged, as advised. Other review suggestions remain nonblocking.
+
+Human approved the additional discovery fixture correction. Initial rerun passed
+37/38: the appended revised decision accidentally became part of the final Data
+applicability declaration. Put it under the existing Decisions heading instead,
+retaining all applicability content and assertions. Final rerun passes 38/38.
+Independent Claude fixture review `e857eefc-6dde-4fc4-a701-b9ef337f5689` approves;
+existing concurrency/timing and legacy-isolation suggestions are nonblocking and
+outside this fixture repair. Full package verification is running serially after
+waiting for another checkout's test lock. Main remains d5885e587; no new main
+changes since the prior assessment. No merge, promotion or epic completion claim.
+
+### 2026-10-08 — full verification exposes remaining fixture selectors
+
+Full package verification `/tmp/4200-sol-adoption-full-package.log` remains
+running. Observed 35 failures so far: public review wiring (1), delivery
+prerequisite (18), cold-start journey (2), qualified host gates (2), qualified
+route order (1), coding authorization (10), and amended-commit boundary (1).
+Do not describe these as a terminal full-suite count. Positive fixtures still
+configure the unqualified `opus` alias or the archived Astra/Opus ordered pair;
+one public-command assertion expects the former `opus` default. Prepared and
+git-apply-checked `/tmp/4200-qualified-reviewer-fixtures.patch` (seven model-only
+edits in five files) and `/tmp/4200-coding-authorization-model.patch` (one fixture
+selector). Explicit additional test approvals requested; neither patch applied.
+All rejection, authentication, phase and independence assertions are retained.
+Await final diagnostics rather than assuming the boundary failure is related.
+
+Main integration starts at the toolchain stack base. Its merge has only generated
+output conflicts; regenerated from merged source, with root typechecks passing.
+Lifecycle verification waits behind this checkout's full suite. Merge remains
+uncommitted at `/Users/alex/.codex/worktrees/4200-repo-toolchain/safeword`; log
+`/tmp/4200-toolchain-main-generated.log`. No push or GitHub state change. The old
+`4200-review-truth-pr1` branch is not PR4991's published head: its exploratory
+merge was aborted and its verification note preserved. Published PR1 is the
+`4200-planning-approval` checkout at 1b79d7763a04d5df73022ebe4610c166366b0cb2,
+with a separate retained legacy RED and verification note still unstaged.
+
+### 2026-10-08 — model fixture updates approved and applied
+
+Human approved both prepared model-fixture patches; applied seven model-only
+edits in five files plus the coding-authorization fixture selector. Formatting
+and lint pass. Independent Claude review
+`b81dee19-fbd0-4693-a6c3-3fb1b91a556c` approves with no errors. Its Codex default
+coverage warning is bounded: the separately reviewed execution-defaults test
+pins the switch; these fixtures prove admission through their configured paths.
+The archived Astra evidence remains in Git and its evidence file, not as current
+task admission under the changed contract. Explicit overrides still select their
+configured model; unqualified identities continue to fail closed. No expensive
+Astra requalification or new override authority is added.
+
+Full pre-fix suite is terminal: 11,323 passed, 36 failed, 14 skipped across 717
+files (709 passed, 8 failed), 685.14 seconds. All failures retained in
+`/tmp/4200-sol-adoption-full-package.log`. Exact diagnostics confirm 34 model
+fixture/expectation failures, one stale planning-eval rubric pin, and one Git
+temporary-file error during boundary fixture setup. Disk capacity is ample.
+The seven-file post-fix run (including the unchanged boundary test) is queued
+behind another checkout's legitimate Vitest process; no parallel test was started
+and no process or lock was removed. Log:
+`/tmp/4200-qualified-reviewer-fixtures-green.log`.
+
+Prepared `/tmp/4200-planning-eval-rubric-pin.patch` for only the computed rubric
+digest after approved prompt adoption; corpus, models, judge, calibration and
+3-run/2-agreement settings remain untouched. Additional manifest approval asked;
+patch not applied, and previous eval evidence remains stale until a new full run.
+Toolchain main generation's ten-minute lock wait expired without starting a test;
+retry uses supported longer wait, `/tmp/4200-toolchain-main-generated-retry.log`.
+No CI, Ready or epic-completion claim; all prior acceptance gaps remain open.
+
+### 2026-10-08 — approved rubric pin and main integration in progress
+
+Human approved the rubric-pin patch; applied only rubric_digest
+6136e20b4bd26536b8dfa00945c39e0532b090f297f03057b2b3a53a5e082285.
+Corpus, models, calibration and three-run/two-agreement thresholds are unchanged.
+Preserved the previous report at /tmp/4200-planning-eval-pre-sol-adoption.json.
+The full evaluation is running, with no case filter; its progressively written
+report is partial evidence until complete=true and all 25 fixtures finish.
+No Astra qualification is being repeated.
+
+Toolchain base main sync committed as 945c839a2 after successful typechecks and
+all five generated-surface checks. Cursor lifecycle result hashes changed because
+the merged schema includes the already-approved Execution Planning skill and
+supporting guides; snapshots retain those actual install/uninstall effects.
+Published PR1 is now integrating that parent, with no source conflicts and
+passing typechecks. Its generated lifecycle check and root regression selection
+wait for the shared package test lock. Existing PR1 legacy RED and verification
+notes remain unstaged and preserved. No foreign process was stopped or lock
+bypassed, and no partial paid report is committed.
+
+Acceptance dry-run still reports 175 scenarios: 65 defined and 110 undefined.
+That is a binding inventory, not a passing execution result. Only the previously
+authorized R7 host-retrieval proof is deferred; other gaps remain open. No push,
+Draft promotion, GitHub merge or epic completion is claimed at this checkpoint.
+
+The approved model-fixture regression run finished: seven files, 214 tests pass,
+103.25 seconds, /tmp/4200-qualified-reviewer-fixtures-green.log. The unchanged
+boundary-push fixture passes; its earlier Git temporary-file setup failure is
+retained in the full RED log, with no assertion or production repair applied.
+Published PR1 main sync committed db50bc23d, preserving its unstaged diagnostic.
+PR2 source merge is clean and typechecks plus all five generated surfaces pass.
+The approved rubric-pin unit check is running separately after the regression
+process ended. The full paid planning evaluation remains in progress.
+
+Full planning evaluation is now complete: 25 unique fixtures pass, 75 scored runs,
+zero incorrect judge results, complete=true, and no selected-case filter. The
+manifest retains the approved corpus and rubric digests, Opus 5 reviewer, Sonnet
+5 judge, and three-run/two-agreement threshold. Calibration preceded the run.
+Log: /tmp/4200-planning-eval-current-full.log. This proves this semantic corpus;
+it does not prove the missing actual-host acceptance boundaries.
+
+Fresh committed PR1 slice review 4a2dc35e-c01b-4b8e-a528-f581a7ea3b4f is approved
+by independent Claude with zero errors at db50bc23d. Historical verification
+checklist figures remain historical; fresh current-head CI is still pending.
+Its possible dead-read warning is refuted by ledger being passed directly into
+phaseReviewAdmission. Concurrency determinism and stale-rejection presentation
+are recorded nonblocking limitations, not new rejection findings or grounds
+to expand this slice. Existing unstaged legacy diagnostic remains preserved.
+PR2 main sync committed f9c06a34f; PR3 typechecks pass and its generated lifecycle
+verification is waiting for the shared lock. No merge or promotion is authorized.
