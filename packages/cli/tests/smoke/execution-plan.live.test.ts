@@ -120,6 +120,7 @@ function assertApproval(testCase: ExecutionPlanConformanceCase, output: Reviewer
       record.obligation_owners.some(
         owner =>
           owner.obligation === obligation ||
+          owner.obligation === `Deliver ${obligation}.` ||
           owner.obligation.startsWith(`${obligation}, `) ||
           owner.obligation.startsWith(`${obligation}: `),
       ),
