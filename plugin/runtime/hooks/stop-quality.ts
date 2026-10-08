@@ -7,7 +7,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
-  DONE_GATED_TICKET_TYPES,
   deriveTddStep,
   getActiveTicket,
   getTicketInfo,
@@ -46,10 +45,14 @@ import {
 import {
   EXPLAIN_HINT,
   type FailureEntry,
+  laterOwedDoneGatesMessage,
+  nextOwedDoneGate,
+  type OwedDoneGate,
   type QualityState,
   readSessionState,
   recordFailure,
   resolveQualityStateIdentity,
+  settleOwedDoneGate,
   updateSessionState,
 } from './lib/quality-state.ts';
 import type { RunIdentity } from './lib/run-identity.ts';
@@ -139,8 +142,9 @@ function getCurrentTicketInfo(sessionId: StateIdentity): TicketInfo {
     const state = readSessionState(projectDir, sessionId);
     if (!state) return fallbackGlobalScan();
 
-    const owed = owedDoneGateTicketInfo(sessionId, state.doneGateOwedTickets);
-    if (owed) return owed;
+    owedDoneGate = nextOwedDoneGate(projectDir, sessionId, state.doneGateOwedTickets);
+    if (owedDoneGate)
+      return { phase: 'done', type: owedDoneGate.type, folder: owedDoneGate.folder };
 
     if (!state.activeTicket) return empty;
 
@@ -163,39 +167,8 @@ function getCurrentTicketInfo(sessionId: StateIdentity): TicketInfo {
   return fallbackGlobalScan();
 }
 
-/** The ticket whose owed done gate this Stop is running, settled once it passes. */
-let owedDoneGateTicket: string | undefined;
-/** Other closes still owed after this one; each gets its own Stop. */
-let laterOwedDoneGateTickets: string[] = [];
-
-/**
- * A ticket closed by an edit this session owes the done gate even though
- * PostToolUse cleared activeTicket on close (#5546). An entry that no longer
- * describes a closed build ticket or epic (reopened, deleted, a patch) is
- * dropped so it cannot shadow the session's real binding.
- */
-function owedDoneGateTicketInfo(
-  sessionId: StateIdentity,
-  owedTickets: string[] | undefined,
-): TicketInfo | undefined {
-  const owed = owedTickets ?? [];
-  for (const [index, ticketId] of owed.entries()) {
-    const ticket = getTicketInfo(projectDir, ticketId);
-    if (ticket.status === 'done' && ticket.type && DONE_GATED_TICKET_TYPES.has(ticket.type)) {
-      owedDoneGateTicket = ticketId;
-      laterOwedDoneGateTickets = owed.slice(index + 1);
-      return { phase: 'done', type: ticket.type, folder: ticket.folder };
-    }
-    dropOwedDoneGate(sessionId, ticketId);
-  }
-  return undefined;
-}
-
-function dropOwedDoneGate(sessionId: StateIdentity, ticketId: string): void {
-  updateSessionState(projectDir, sessionId, state => {
-    state.doneGateOwedTickets = state.doneGateOwedTickets?.filter(id => id !== ticketId);
-  });
-}
+/** The owed done gate this Stop is running, settled once it passes. */
+let owedDoneGate: OwedDoneGate | undefined;
 
 /**
  * Record state for a generic Stop review: phase boundaries are deduped against
@@ -893,13 +866,9 @@ if (currentPhase === 'done') {
 
   // Every done-gate check passed. Settle an owed close before the navigation
   // and architecture nudges below exit, or the gate reruns on every Stop.
-  if (owedDoneGateTicket !== undefined) {
-    dropOwedDoneGate(stateIdentity, owedDoneGateTicket);
-    if (laterOwedDoneGateTickets.length > 0) {
-      softBlock(
-        `Done gate passed for ${owedDoneGateTicket}. Ticket(s) ${laterOwedDoneGateTickets.join(', ')} were also closed this session and still need their done gate — stop again to run it.`,
-      );
-    }
+  if (owedDoneGate !== undefined) {
+    settleOwedDoneGate(projectDir, stateIdentity, owedDoneGate.ticketId);
+    if (owedDoneGate.later.length > 0) softBlock(laterOwedDoneGatesMessage(owedDoneGate));
   }
 
   // Evidence passed — mark current ticket done and navigate hierarchy

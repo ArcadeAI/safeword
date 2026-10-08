@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "4caa21655d76c5ef5d4e4f2d92b935a887eb0597efe1a90ec1c4ce99edca911a"
+      "sha256": "bbac77034cdf98a8c5609f3bef70fef50b449d2a538e510edcb9064a8a8af011"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "3fa83936ca09685260ce09a20274235ef7250dcb4d33faf86833f0ea647683b6"
+      "sha256": "e01b5ded191d8fd36268613602134b914e4179f7e99f70678b21c571bd746ae8"
     },
     {
       "path": "runtime/event-groups.json",
@@ -331,7 +331,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality-state.ts",
-      "sha256": "8d402557409f4e3263c720d669076c7cf65cd41819256489862c252791a8006a"
+      "sha256": "31699f3ea66a9b28e395c37a0fd7afe4219563591241621976576139c4015e3f"
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
@@ -599,7 +599,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "47b22708d7eee7a38e5aa529898a02e23a52b1822e39f6018f36b300db89dc1d"
+      "sha256": "3bacb2cf9dbcdcffd0e5bf19f553483e9bb40b529c8a31b2dca0e055e966514b"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -1071,7 +1071,7 @@
     },
     {
       "path": "templates/hooks/codex/stop.ts",
-      "sha256": "eefceb6952d68a29865061378b6b8fc41416b06a6bd680fd2fab07901452eda0"
+      "sha256": "6170b66e49957bad1bce6ac473fc322ec29e2ca05e2e5113203d2b3766a78688"
     },
     {
       "path": "templates/hooks/cursor/after-file-edit.ts",
@@ -1275,7 +1275,7 @@
     },
     {
       "path": "templates/hooks/lib/quality-state.ts",
-      "sha256": "8d402557409f4e3263c720d669076c7cf65cd41819256489862c252791a8006a"
+      "sha256": "31699f3ea66a9b28e395c37a0fd7afe4219563591241621976576139c4015e3f"
     },
     {
       "path": "templates/hooks/lib/quality.ts",
@@ -1543,7 +1543,7 @@
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "4be15be7c0efdbed0445956a78d6453e40f9539c81b6cbf8b3409892095457f7"
+      "sha256": "b3e682b60b3d093b3ebf2664088dbcefcbe06713d0b79f11cc601b29b9c0522f"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",

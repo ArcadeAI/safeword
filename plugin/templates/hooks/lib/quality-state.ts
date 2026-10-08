@@ -5,7 +5,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
-import { getTicketInfo, type TicketDetails } from './active-ticket.js';
+import { DONE_GATED_TICKET_TYPES, getTicketInfo, type TicketDetails } from './active-ticket.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { getRunStorageKey, resolveRunIdentity, type RunIdentity } from './run-identity.js';
 import { captureGateEscalation } from './self-report.js';
@@ -257,6 +257,54 @@ export function updateSessionState(
   } catch {
     // Best effort — a state write failure must not crash the hook.
   }
+}
+
+/** A done gate this run owes for a ticket it closed by an edit (#5546). */
+export interface OwedDoneGate {
+  ticketId: string;
+  type: string;
+  folder: string;
+  /** Other closes still owed after this one; each gets its own Stop. */
+  later: string[];
+}
+
+/**
+ * The first owed done gate that still describes a closed build ticket or epic.
+ * PostToolUse cleared the run's activeTicket on close, so Stop finds the ticket
+ * here. Entries that no longer qualify (reopened, deleted, a patch) are settled
+ * so they cannot shadow the run's real binding. Shared by stop-quality.ts and
+ * the Codex Stop adapter so both honor one contract.
+ */
+export function nextOwedDoneGate(
+  projectDirectory: string,
+  sessionId: string | RunIdentity | undefined,
+  owedTickets: string[] | undefined,
+): OwedDoneGate | undefined {
+  const owed = owedTickets ?? [];
+  for (const [index, ticketId] of owed.entries()) {
+    const { status, type, folder } = getTicketInfo(projectDirectory, ticketId);
+    if (status === 'done' && type && DONE_GATED_TICKET_TYPES.has(type) && folder) {
+      return { ticketId, type, folder, later: owed.slice(index + 1) };
+    }
+    settleOwedDoneGate(projectDirectory, sessionId, ticketId);
+  }
+  return undefined;
+}
+
+/** Settle an owed done gate: it passed every check, or no longer applies. */
+export function settleOwedDoneGate(
+  projectDirectory: string,
+  sessionId: string | RunIdentity | undefined,
+  ticketId: string,
+): void {
+  updateSessionState(projectDirectory, sessionId, state => {
+    state.doneGateOwedTickets = state.doneGateOwedTickets?.filter(id => id !== ticketId);
+  });
+}
+
+/** Continuation after one owed gate passes while others closed this run remain. */
+export function laterOwedDoneGatesMessage(gate: OwedDoneGate): string {
+  return `Done gate passed for ${gate.ticketId}. Ticket(s) ${gate.later.join(', ')} were also closed this session and still need their done gate — stop again to run it.`;
 }
 
 export function readSessionActiveTicket(
