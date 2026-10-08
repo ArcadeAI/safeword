@@ -5,10 +5,17 @@
 
 import { lintFile } from './lib/lint.ts';
 import { installCrashCapture } from './lib/self-report.ts';
+import {
+  canonicalEditTarget,
+  resolveLaunchDirectory,
+  resolveToolProjectDirectory,
+} from './lib/project-directory.ts';
 
-installCrashCapture('post-tool-lint');
+const crashCapture = installCrashCapture('post-tool-lint');
 
 interface HookInput {
+  tool_name?: string;
+  cwd?: string;
   tool_input?: {
     file_path?: string;
     notebook_path?: string;
@@ -24,14 +31,22 @@ try {
   process.exit(0);
 }
 
-const file = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
+const requestedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
+const launchDirectory = resolveLaunchDirectory();
+// A relative edit path is relative to the reported cwd, not this process's.
+const file = canonicalEditTarget(launchDirectory, requestedFile, input.cwd);
 
 // Exit silently if no file or file doesn't exist
 if (!file || !(await Bun.file(file).exists())) {
   process.exit(0);
 }
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDir = resolveToolProjectDirectory(launchDirectory, {
+  tool: input.tool_name ?? '',
+  editedFile: requestedFile,
+  cwd: input.cwd,
+});
+crashCapture.setProject(projectDir);
 process.chdir(projectDir);
 
 const result = await lintFile(file, projectDir);

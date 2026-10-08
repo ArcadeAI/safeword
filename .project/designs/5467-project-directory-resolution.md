@@ -1,6 +1,6 @@
 # Design: one rule for choosing the project directory (#5467)
 
-Status: proposed, under review. Base: origin/main 53398c672 (includes #5571).
+Status: approved; parts 1, 2a and 2b implemented (#5655, #5656, part 2b). Base: origin/main 53398c672 (includes #5571).
 
 ## Problem
 
@@ -27,12 +27,18 @@ so state is written in one checkout and read in another:
 New module `packages/cli/templates/hooks/lib/project-directory.ts` (hooks can't
 import `src/`; `src/` and `templates/scripts` already import `templates/hooks/lib`).
 
-`resolveProjectDirectory({ editedFile?, cwd?, env? })`:
+`resolveProjectDirectory({ launchDirectory?, editedFile?, cwd })`:
 
-1. Nearest enrolled git working tree (`.safeword/SAFEWORD.md`) of the canonical
-   (real-path) edited file.
-2. Else nearest enrolled working tree of the input `cwd`, else `process.cwd()`.
-3. Else the launch checkout: `CLAUDE_PROJECT_DIR`, else `process.cwd()`.
+1. Nearest enrolled git working tree (`.safeword/SAFEWORD.md`) of the edited
+   file, by real path (a symlinked path belongs to the tree it lands in).
+2. Else nearest enrolled working tree of `cwd`. `cwd` is a required input: a
+   hook passes the host-reported cwd, a helper or CLI command passes its own
+   `process.cwd()`. The resolver never reads ambient process state for it.
+3. Else the launch checkout (`resolveLaunchDirectory`: `CLAUDE_PROJECT_DIR`,
+   else `process.cwd()`).
+
+Relative edit paths resolve from the same base everywhere
+(`canonicalEditTarget`): the reported cwd, else the launch checkout.
 
 "Nearest working tree" means the walk stops at the first ancestor holding
 `.git` (directory or gitfile), exactly as `resolveDirectoryOwner` does today.
@@ -109,18 +115,24 @@ latest edit.
 ## Parity guard
 
 Static test over `templates/hooks/**`, `templates/scripts/**`, `src/**`
-(excluding the resolver and tests): fails on `process.env.CLAUDE_PROJECT_DIR`
-reads, `?? process.cwd()` root fallbacks, `rev-parse --show-toplevel`, and
-hand-rolled `.git`/`.safeword` walk-ups, unless allowlisted with a reason (env
-injection into children, hook-manifest strings, git operations needing the
-toplevel). Allowlist starts with not-yet-migrated sites and shrinks per PR.
-Behavioral check: a real `git worktree` fixture runs each Stop/session hook and
-asserts it reads the worktree's state.
+(excluding the resolver and tests, ignoring comment lines): fails on reads of
+`CLAUDE_PROJECT_DIR` and on `--show-toplevel`, unless allowlisted with a
+reason. That catches every project choice that starts from the launch
+variable or git's toplevel; it does not see a bare `process.cwd()` root or a
+hand-written directory walk, which the real-hook tests cover instead. The
+allowlist starts with not-yet-migrated sites and shrinks per PR; a stale entry
+fails.
+
+Known exception: `stop-reentry` and `session-start-reentry` anchor to the
+nearest git root of the host cwd. They already follow the session into a
+worktree and work in unenrolled repositories by design, so they keep their
+own walk.
 
 ## Delivery (epic, four Draft PRs referencing #5467)
 
 1. Module + durable home + guard; existing resolvers delegate. Behavior change:
    non-edit tools use step 2.
-2. Stop/session hooks + session pointer (closes #5256, #5346).
+2. Stop/session hooks + session pointer (2a, closes #5256, #5346); the
+   remaining per-tool and SessionStart hooks and `lib/lint` (2b).
 3. Retro spool + closeout binding to the durable home.
 4. CLI resolvers, Cursor/Codex adapters, final allowlist (closes #5395, #5467).

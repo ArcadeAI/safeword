@@ -1827,31 +1827,31 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
     },
     hook_files: {
       '.safeword/hooks/post-tool-bypass-warn.ts':
-        'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+        '33b1be799f57901e247c9b5478b56e42a727178ad99eebba09ce18a637f69956',
       '.safeword/hooks/post-tool-dependency-readiness.ts':
         '6418539671ace93e5df04b4ee4d74b9f28b241ec81bbcf2588017702d3b092f6',
       '.safeword/hooks/post-tool-lint.ts':
-        'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
+        'de94e4849bc619441199b7e90ca1ef14f49a1b10089cf10f622d74f497550a7b',
       '.safeword/hooks/post-tool-quality.ts':
-        '99eb92a899352ea58561d225c354b6ccb295a5e3a39e6375f7aef98caa452847',
+        '0cc444ec1c5a0fa743294950917a84872f72fabc03f3ab5c56b21cd603b4030b',
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'd71158796facccdd5cbf7b64f460b36ebef0b92c41ee3a2f2a09625483e7af39',
       '.safeword/hooks/post-tool-sync-learnings.ts':
-        'bc272acc87b1d52db960b2c96ac36ea553e21fdf161122312b74cd61157acb82',
+        'd1cc8155abec7f3814ec6238babb9cbc2924447ebe83d8c74c213b91cbd3df28',
       '.safeword/hooks/post-tool-work-log.ts':
-        'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+        'c36969cb1aae65c5edc27d33bb0b3f97feea05406bc762c69c5d4c1ec71f54c3',
       '.safeword/hooks/pre-tool-architecture-stage.ts':
-        'b730b5c63eb5b860203a2b453aaddbf8271050cab8b3479c23bc8fcc47d79205',
+        '2af6111f9229eaed191e4e4b7f475843ef883ced3053aa5d868018b072bbc878',
       '.safeword/hooks/pre-tool-config-guard.ts':
-        '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+        'b9992b51fc6e46e6301d60eb8861a311bf9b40fa8b3f52fee9d77ee52e877165',
       '.safeword/hooks/pre-tool-dependency-readiness.ts':
         '83d1369a1db26474ce498565e1f67711834137276234ca697de3be0f1abbafff',
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '2cade11042e2f4bb90ae96188f50e1a65b27b57029e4f1abeb21723e533d363c',
+        '04c22586d2aa32c798eb72e70a0b74b302567ac8ca862bb4f94e3c54503577d4',
       '.safeword/hooks/pre-tool-stale-main.ts':
-        'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+        '7bb05938c06c15ce412d2c1d816c9678898fe341eb787fd0ae1cb88f1bf9dbdf',
       '.safeword/hooks/prompt-questions.ts':
         '4ad757453e7fc894a52533d786b38442e9e098735468b06d051582cc376ccc56',
       '.safeword/hooks/prompt-retro-nudge.ts':
@@ -1859,11 +1859,11 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/prompt-timestamp.ts':
         'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
       '.safeword/hooks/session-architecture-heal.ts':
-        '76f1b55c3173d3ebc2a819a41e06a814a57d78b94faf30108afed439dc7ce747',
+        '756e75135567ffab0f8b3b8118ca0cd2e683aa6d1c51aa3e487ff888bae06a57',
       '.safeword/hooks/session-author-model.ts':
         '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
       '.safeword/hooks/session-auto-upgrade.ts':
-        '51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0',
+        '3a0cf9d49d0c89a1f9144d45c62345da7dadfd5428e1a8fef0919483eea1a7ff',
       '.safeword/hooks/session-bun-check.sh':
         '47e97a2f787228347213521d8391ab6b001e19270aed8e2795f13d6ea0603c29',
       '.safeword/hooks/session-cleanup-quality.ts':
@@ -1871,9 +1871,9 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-compact-context.ts':
         '9b5276e301d827172bc25bb19e72a52de36eab53b49e7b9bf9385e407e0f851b',
       '.safeword/hooks/session-dependency-readiness.ts':
-        '295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff',
+        '976dee8deaf71d819c15e36b71b0be54ff5ef49267e5ff82c01eaad9ab98bd66',
       '.safeword/hooks/session-lint-check.ts':
-        '6d8e5819bd52208799089d19bfdbd569fc46b9d518df4c45ab2c3b605d9647dc',
+        '2ee5e2e4dc6b1bdfc7f95789c52d20bdef9a31af13ecaaeba5cd38529715ba01',
       '.safeword/hooks/session-reply-format.ts':
         '41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532',
       '.safeword/hooks/session-safeword-context.ts':
@@ -1881,9 +1881,9 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-start-reentry.ts':
         'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
       '.safeword/hooks/session-version.ts':
-        'c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64',
+        '93f99d48724c0fcb3745a738cae66555dc33ac93153cc62fe44496fe9d48fe74',
       '.safeword/hooks/stop-quality.ts':
-        '3dd875a8f74f2d8a196fb699f44f854b8666b8b7aacde101c8f7d6ed2d738235',
+        '8c144d226b2970ea98e69b729ffa91e8ecf13a2b7f36392291c31a132fe53442',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':

@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "6032c74ab9b19a5f06617ed0024070262cb5a37cf6ec9fe1dae4073b3fc9e79c"
+      "sha256": "1f6fb59a6af2741067dd22cc405a3845565fcfe79e9e9e7f1b01037cd65c86da"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "cb4f20adbe7ed35bbe0ddbccf671eca90b480abc09dc8e0dc79651a1174f82b7"
+      "sha256": "e8249c9c59b00dd7aa29aa64531ea05eda0c6c2d8d93bec0ea35820bf956d602"
     },
     {
       "path": "runtime/event-groups.json",
@@ -279,7 +279,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
-      "sha256": "503fe8c21e7e2671c1e6fde886c0b34206ec8d44e86610f4eced4f2a75d328b3"
+      "sha256": "98290ae8c44ce9e9f8d5235ebfd9c5377e4b1f2482129b5ee887aa41886a1529"
     },
     {
       "path": "runtime/hooks/lib/markdown-structure.ts",
@@ -419,7 +419,7 @@
     },
     {
       "path": "runtime/hooks/lib/self-report.ts",
-      "sha256": "ba05b0327b85d11ecaa71bc9109b87b6cd34df61ed7093c452cc3103ee97cc04"
+      "sha256": "083b307e9981f1c60502bb9a51bf74555e8e5c6987d4ea5fa2b6828fe2bac3e3"
     },
     {
       "path": "runtime/hooks/lib/shell-segments.ts",
@@ -463,7 +463,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-bypass-warn.ts",
-      "sha256": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a"
+      "sha256": "33b1be799f57901e247c9b5478b56e42a727178ad99eebba09ce18a637f69956"
     },
     {
       "path": "runtime/hooks/post-tool-dependency-readiness.ts",
@@ -471,11 +471,11 @@
     },
     {
       "path": "runtime/hooks/post-tool-lint.ts",
-      "sha256": "f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa"
+      "sha256": "de94e4849bc619441199b7e90ca1ef14f49a1b10089cf10f622d74f497550a7b"
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "99eb92a899352ea58561d225c354b6ccb295a5e3a39e6375f7aef98caa452847"
+      "sha256": "0cc444ec1c5a0fa743294950917a84872f72fabc03f3ab5c56b21cd603b4030b"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -483,19 +483,19 @@
     },
     {
       "path": "runtime/hooks/post-tool-sync-learnings.ts",
-      "sha256": "663b528c621f0bdeb4c096eac8a35791c8d136cab73733008300808085244c79"
+      "sha256": "57694a2202ac2ea87fefedb7d5eadd12ffafa74c83aee707783da2ea8f0e3a25"
     },
     {
       "path": "runtime/hooks/post-tool-work-log.ts",
-      "sha256": "f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978"
+      "sha256": "c36969cb1aae65c5edc27d33bb0b3f97feea05406bc762c69c5d4c1ec71f54c3"
     },
     {
       "path": "runtime/hooks/pre-tool-architecture-stage.ts",
-      "sha256": "c5f88c575efcf1694bf98b6b272d7da67dfab2840bc972e873af834217b213ae"
+      "sha256": "d6914c21b685193dcf2eebed255b8d445785fd21ac29cb2653e2c08f4c1c615e"
     },
     {
       "path": "runtime/hooks/pre-tool-config-guard.ts",
-      "sha256": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084"
+      "sha256": "b9992b51fc6e46e6301d60eb8861a311bf9b40fa8b3f52fee9d77ee52e877165"
     },
     {
       "path": "runtime/hooks/pre-tool-dependency-readiness.ts",
@@ -507,11 +507,11 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "41e0d7500257c73c0a2f028ce449059d6a829f27d163d4ff27d6034cb0aca710"
+      "sha256": "c8be8a9bcf456132a7ec5a6717e680a5eac00d00764958aa8c7c36cf3d175af8"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
-      "sha256": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e"
+      "sha256": "7bb05938c06c15ce412d2c1d816c9678898fe341eb787fd0ae1cb88f1bf9dbdf"
     },
     {
       "path": "runtime/hooks/prompt-questions.ts",
@@ -547,7 +547,7 @@
     },
     {
       "path": "runtime/hooks/session-architecture-heal.ts",
-      "sha256": "198c54f56d7a2cb995e018e58f8089203cf46f3484cd282a9f075141141c4c37"
+      "sha256": "9d9ac06e2323fd8ca1b535b719e06494c627b0aab311660085cf92fca302634f"
     },
     {
       "path": "runtime/hooks/session-author-model.ts",
@@ -555,7 +555,7 @@
     },
     {
       "path": "runtime/hooks/session-auto-upgrade.ts",
-      "sha256": "51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0"
+      "sha256": "3a0cf9d49d0c89a1f9144d45c62345da7dadfd5428e1a8fef0919483eea1a7ff"
     },
     {
       "path": "runtime/hooks/session-bun-check.sh",
@@ -579,11 +579,11 @@
     },
     {
       "path": "runtime/hooks/session-dependency-readiness.ts",
-      "sha256": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff"
+      "sha256": "976dee8deaf71d819c15e36b71b0be54ff5ef49267e5ff82c01eaad9ab98bd66"
     },
     {
       "path": "runtime/hooks/session-lint-check.ts",
-      "sha256": "6d8e5819bd52208799089d19bfdbd569fc46b9d518df4c45ab2c3b605d9647dc"
+      "sha256": "2ee5e2e4dc6b1bdfc7f95789c52d20bdef9a31af13ecaaeba5cd38529715ba01"
     },
     {
       "path": "runtime/hooks/session-reply-format.ts",
@@ -599,11 +599,11 @@
     },
     {
       "path": "runtime/hooks/session-version.ts",
-      "sha256": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64"
+      "sha256": "93f99d48724c0fcb3745a738cae66555dc33ac93153cc62fe44496fe9d48fe74"
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "3910886fe007ab564570205958ea99c0dbf1c4a2e68d73b66bf417269344c083"
+      "sha256": "fa77a5a35e9fc9312dbb7548d7337e7c909b3b780e92b515949cb4797204837c"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -1231,7 +1231,7 @@
     },
     {
       "path": "templates/hooks/lib/lint.ts",
-      "sha256": "503fe8c21e7e2671c1e6fde886c0b34206ec8d44e86610f4eced4f2a75d328b3"
+      "sha256": "98290ae8c44ce9e9f8d5235ebfd9c5377e4b1f2482129b5ee887aa41886a1529"
     },
     {
       "path": "templates/hooks/lib/markdown-structure.ts",
@@ -1367,7 +1367,7 @@
     },
     {
       "path": "templates/hooks/lib/self-report.ts",
-      "sha256": "d3b3319eded408a06e4cb1e4ebb7a5f35f62619ca8dc9a3fcc63dfc465b46b3b"
+      "sha256": "999adf1dde7ad626e52d873a40ad39b6151121440bfa1f827f10774ba35c5720"
     },
     {
       "path": "templates/hooks/lib/shell-segments.ts",
@@ -1411,7 +1411,7 @@
     },
     {
       "path": "templates/hooks/post-tool-bypass-warn.ts",
-      "sha256": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a"
+      "sha256": "33b1be799f57901e247c9b5478b56e42a727178ad99eebba09ce18a637f69956"
     },
     {
       "path": "templates/hooks/post-tool-dependency-readiness.ts",
@@ -1419,11 +1419,11 @@
     },
     {
       "path": "templates/hooks/post-tool-lint.ts",
-      "sha256": "f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa"
+      "sha256": "de94e4849bc619441199b7e90ca1ef14f49a1b10089cf10f622d74f497550a7b"
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",
-      "sha256": "99eb92a899352ea58561d225c354b6ccb295a5e3a39e6375f7aef98caa452847"
+      "sha256": "0cc444ec1c5a0fa743294950917a84872f72fabc03f3ab5c56b21cd603b4030b"
     },
     {
       "path": "templates/hooks/post-tool-skill-nudge.ts",
@@ -1431,19 +1431,19 @@
     },
     {
       "path": "templates/hooks/post-tool-sync-learnings.ts",
-      "sha256": "bc272acc87b1d52db960b2c96ac36ea553e21fdf161122312b74cd61157acb82"
+      "sha256": "d1cc8155abec7f3814ec6238babb9cbc2924447ebe83d8c74c213b91cbd3df28"
     },
     {
       "path": "templates/hooks/post-tool-work-log.ts",
-      "sha256": "f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978"
+      "sha256": "c36969cb1aae65c5edc27d33bb0b3f97feea05406bc762c69c5d4c1ec71f54c3"
     },
     {
       "path": "templates/hooks/pre-tool-architecture-stage.ts",
-      "sha256": "b730b5c63eb5b860203a2b453aaddbf8271050cab8b3479c23bc8fcc47d79205"
+      "sha256": "2af6111f9229eaed191e4e4b7f475843ef883ced3053aa5d868018b072bbc878"
     },
     {
       "path": "templates/hooks/pre-tool-config-guard.ts",
-      "sha256": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084"
+      "sha256": "b9992b51fc6e46e6301d60eb8861a311bf9b40fa8b3f52fee9d77ee52e877165"
     },
     {
       "path": "templates/hooks/pre-tool-dependency-readiness.ts",
@@ -1455,11 +1455,11 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "2cade11042e2f4bb90ae96188f50e1a65b27b57029e4f1abeb21723e533d363c"
+      "sha256": "04c22586d2aa32c798eb72e70a0b74b302567ac8ca862bb4f94e3c54503577d4"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
-      "sha256": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e"
+      "sha256": "7bb05938c06c15ce412d2c1d816c9678898fe341eb787fd0ae1cb88f1bf9dbdf"
     },
     {
       "path": "templates/hooks/prompt-questions.ts",
@@ -1495,7 +1495,7 @@
     },
     {
       "path": "templates/hooks/session-architecture-heal.ts",
-      "sha256": "76f1b55c3173d3ebc2a819a41e06a814a57d78b94faf30108afed439dc7ce747"
+      "sha256": "756e75135567ffab0f8b3b8118ca0cd2e683aa6d1c51aa3e487ff888bae06a57"
     },
     {
       "path": "templates/hooks/session-author-model.ts",
@@ -1503,7 +1503,7 @@
     },
     {
       "path": "templates/hooks/session-auto-upgrade.ts",
-      "sha256": "51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0"
+      "sha256": "3a0cf9d49d0c89a1f9144d45c62345da7dadfd5428e1a8fef0919483eea1a7ff"
     },
     {
       "path": "templates/hooks/session-bun-check.sh",
@@ -1527,11 +1527,11 @@
     },
     {
       "path": "templates/hooks/session-dependency-readiness.ts",
-      "sha256": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff"
+      "sha256": "976dee8deaf71d819c15e36b71b0be54ff5ef49267e5ff82c01eaad9ab98bd66"
     },
     {
       "path": "templates/hooks/session-lint-check.ts",
-      "sha256": "6d8e5819bd52208799089d19bfdbd569fc46b9d518df4c45ab2c3b605d9647dc"
+      "sha256": "2ee5e2e4dc6b1bdfc7f95789c52d20bdef9a31af13ecaaeba5cd38529715ba01"
     },
     {
       "path": "templates/hooks/session-reply-format.ts",
@@ -1547,11 +1547,11 @@
     },
     {
       "path": "templates/hooks/session-version.ts",
-      "sha256": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64"
+      "sha256": "93f99d48724c0fcb3745a738cae66555dc33ac93153cc62fe44496fe9d48fe74"
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "3dd875a8f74f2d8a196fb699f44f854b8666b8b7aacde101c8f7d6ed2d738235"
+      "sha256": "8c144d226b2970ea98e69b729ffa91e8ecf13a2b7f36392291c31a132fe53442"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",

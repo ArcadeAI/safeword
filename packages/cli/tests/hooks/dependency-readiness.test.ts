@@ -1763,4 +1763,18 @@ describe('dependency readiness in a git worktree nested under the launch checkou
     expect(getDependencyReadiness(worktreeDirectory).status).toBe('ready');
     expect(readTestFile(launchDirectory, MARKER)).toBe('old-fingerprint');
   });
+  it('checks the worktree a session starts in, not the launch checkout (#5467)', () => {
+    writeEnrolledBunProject(launchDirectory, 'stale');
+    writeEnrolledBunProject(worktreeDirectory, 'stale');
+
+    const result = runHook(SESSION_HOOK, {
+      session_id: `session-start-${process.pid}`,
+      hook_event_name: 'SessionStart',
+      cwd: worktreeDirectory,
+    });
+
+    expect(result.status).toBe(0);
+    expect(readDependencyReadinessState(worktreeDirectory)).toBeDefined();
+    expect(readDependencyReadinessState(launchDirectory)).toBeUndefined();
+  });
 });

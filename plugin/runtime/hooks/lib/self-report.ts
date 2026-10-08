@@ -19,6 +19,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { appendJsonlRecords, readJsonlRecords, tryAppendJsonlRecords } from './jsonl-spool.js';
+import { resolveLaunchDirectory } from './project-directory.ts';
 
 /** The agent harness safeword is running under. */
 export type AgentId = 'claude' | 'cursor' | 'codex' | 'unknown';
@@ -283,12 +284,17 @@ function readInstalledVersion(projectDirectory: string): string {
  * swallow-and-continue contract (a hook must never break the host session) while
  * no longer throwing the bug signal away. Expected, explicitly-caught conditions
  * (no stdin, no git) never reach here, so this only fires on genuine bugs.
+ *
+ * Hooks install the backstop before reading input, so it starts on the launch
+ * checkout; once a hook resolves the project it is working in (a worktree, say)
+ * it calls `setProject`, and later crashes are recorded there (#5467).
  */
 export function installCrashCapture(
   hookName: string,
-  projectDirectory: string = process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+  initialProjectDirectory: string = resolveLaunchDirectory(),
   agent?: AgentId,
-): void {
+): { setProject: (projectDirectory: string) => void } {
+  let projectDirectory = initialProjectDirectory;
   const handler = (reason: unknown): void => {
     if (readSelfReportConfig(projectDirectory).capture) {
       const error = reason instanceof Error ? reason : new Error(String(reason));
@@ -310,6 +316,11 @@ export function installCrashCapture(
   };
   process.on('uncaughtException', handler);
   process.on('unhandledRejection', handler);
+  return {
+    setProject: resolved => {
+      projectDirectory = resolved;
+    },
+  };
 }
 
 /**

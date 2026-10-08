@@ -14,9 +14,11 @@ import {
   decideStaleBranchWarning,
   parseCheckoutTarget,
 } from './lib/branch-staleness.ts';
+import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
 
 interface HookInput {
   tool_name?: string;
+  cwd?: string;
   tool_input?: { command?: string };
 }
 
@@ -32,7 +34,11 @@ if ((input.tool_name ?? '') !== 'Bash') process.exit(0);
 const target = parseCheckoutTarget(input.tool_input?.command ?? '');
 if (target === null) process.exit(0);
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDir = resolveToolProjectDirectory(resolveLaunchDirectory(), {
+  tool: 'Bash',
+  editedFile: '',
+  cwd: input.cwd,
+});
 if (!existsSync(nodePath.join(projectDir, '.safeword'))) process.exit(0);
 
 const divergence = readBranchDivergence(projectDir, target);

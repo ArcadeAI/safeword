@@ -16,25 +16,37 @@ import {
   detectPhaseTransition,
   type EditToolInput,
 } from './lib/work-log-stamp.ts';
+import {
+  canonicalEditTarget,
+  resolveLaunchDirectory,
+  resolveToolProjectDirectory,
+} from './lib/project-directory.ts';
 
-installCrashCapture('post-tool-work-log');
+const crashCapture = installCrashCapture('post-tool-work-log');
 
 interface HookInput {
   tool_name?: string;
+  cwd?: string;
   tool_input?: EditToolInput;
-}
-
-const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-
-// Not a safeword project, skip silently
-if (!existsSync(`${projectDirectory}/.safeword`)) {
-  process.exit(0);
 }
 
 let input: HookInput;
 try {
   input = await Bun.stdin.json();
 } catch {
+  process.exit(0);
+}
+
+const launchDirectory = resolveLaunchDirectory();
+const projectDirectory = resolveToolProjectDirectory(launchDirectory, {
+  tool: input.tool_name ?? '',
+  editedFile: input.tool_input?.file_path ?? '',
+  cwd: input.cwd,
+});
+
+// Not a safeword project, skip silently
+crashCapture.setProject(projectDirectory);
+if (!existsSync(`${projectDirectory}/.safeword`)) {
   process.exit(0);
 }
 
@@ -45,7 +57,8 @@ if (tool !== 'Edit' && tool !== 'MultiEdit') {
   process.exit(0);
 }
 
-const filePath = input.tool_input?.file_path ?? '';
+// A relative edit path is relative to the reported cwd, not this process's.
+const filePath = canonicalEditTarget(launchDirectory, input.tool_input?.file_path ?? '', input.cwd);
 if (!filePath.endsWith('/ticket.md') || !isNamespacePath(filePath, 'tickets/')) {
   process.exit(0);
 }

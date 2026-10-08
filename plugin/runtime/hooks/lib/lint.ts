@@ -52,24 +52,39 @@ const PRETTIER_EXTENSIONS = new Set([
   'graphql',
 ]);
 
-// Cache safeword config paths
-const configuredProjectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-const projectDir = existsSync(configuredProjectDir)
-  ? realpathSync(configuredProjectDir)
-  : configuredProjectDir;
-const SAFEWORD_ESLINT = `${projectDir}/.safeword/eslint.config.mjs`;
-const SAFEWORD_RUFF = `${projectDir}/.safeword/ruff.toml`;
-const SAFEWORD_GOLANGCI = `${projectDir}/.safeword/.golangci.yml`;
-const SAFEWORD_SQLFLUFF = `${projectDir}/.safeword/sqlfluff.cfg`;
-const SAFEWORD_CLIPPY = `${projectDir}/.safeword/clippy.toml`;
-const SAFEWORD_RUSTFMT = `${projectDir}/.safeword/rustfmt.toml`;
-const SAFEWORD_PRETTIER = `${projectDir}/.safeword/.prettierrc`;
+/** Safeword config paths for the project a file is linted in (#5467). */
+interface ProjectLintConfig {
+  root: string;
+  eslint: string;
+  ruff: string;
+  golangci: string;
+  sqlfluff: string;
+  clippy: string;
+  rustfmt: string;
+  prettier: string;
+  /**
+   * Whether this repo is owned by a non-Prettier formatter (Biome, dprint,
+   * oxfmt, deno); when true the hook skips Prettier so it never restyles the
+   * customer's files into a competing style (ticket V7GGJZ). ESLint still runs
+   * (security/complexity) — see lintFile.
+   */
+  ownsAlternativeFormatter: boolean;
+}
 
-// Whether this repo is owned by a non-Prettier formatter (Biome, dprint, oxfmt,
-// deno). Computed once from the project root; when true the hook skips Prettier
-// so it never restyles the customer's files into a competing style (ticket
-// V7GGJZ). ESLint still runs (security/complexity) — see lintFile.
-const REPO_OWNS_ALTERNATIVE_FORMATTER = projectOwnsAlternativeFormatter(projectDir);
+function projectLintConfig(projectDirectory: string): ProjectLintConfig {
+  const root = existsSync(projectDirectory) ? realpathSync(projectDirectory) : projectDirectory;
+  return {
+    root,
+    eslint: `${root}/.safeword/eslint.config.mjs`,
+    ruff: `${root}/.safeword/ruff.toml`,
+    golangci: `${root}/.safeword/.golangci.yml`,
+    sqlfluff: `${root}/.safeword/sqlfluff.cfg`,
+    clippy: `${root}/.safeword/clippy.toml`,
+    rustfmt: `${root}/.safeword/rustfmt.toml`,
+    prettier: `${root}/.safeword/.prettierrc`,
+    ownsAlternativeFormatter: projectOwnsAlternativeFormatter(root),
+  };
+}
 
 // Track which tools we've already warned about (once per session)
 const toolWarnings = new Set<string>();
@@ -92,9 +107,9 @@ async function isCommandAvailable(command: string): Promise<boolean> {
  * Walk up from a file's directory looking for a marker file.
  * Stops at the project root. Returns the directory containing the marker, or undefined.
  */
-function findUpward(filePath: string, markerFile: string): string | undefined {
+function findUpward(projectRoot: string, filePath: string, markerFile: string): string | undefined {
   let currentDirectory = nodePath.dirname(filePath);
-  const normalizedProjectDir = normalizeExistingDirectory(projectDir);
+  const normalizedProjectDir = normalizeExistingDirectory(projectRoot);
 
   while (currentDirectory.startsWith(normalizedProjectDir)) {
     if (existsSync(nodePath.join(currentDirectory, markerFile))) {
@@ -111,10 +126,10 @@ function findUpward(filePath: string, markerFile: string): string | undefined {
  * Detect the Python install command for a tool by checking for lockfiles
  * near the edited file. Walks up from the file to find the nearest PM marker.
  */
-function getPythonInstallHint(filePath: string, tool: string): string {
-  if (findUpward(filePath, 'uv.lock')) return `uv add --dev ${tool}`;
-  if (findUpward(filePath, 'poetry.lock')) return `poetry add --group dev ${tool}`;
-  if (findUpward(filePath, 'Pipfile')) return `pipenv install --dev ${tool}`;
+function getPythonInstallHint(projectRoot: string, filePath: string, tool: string): string {
+  if (findUpward(projectRoot, filePath, 'uv.lock')) return `uv add --dev ${tool}`;
+  if (findUpward(projectRoot, filePath, 'poetry.lock')) return `poetry add --group dev ${tool}`;
+  if (findUpward(projectRoot, filePath, 'Pipfile')) return `pipenv install --dev ${tool}`;
   return `pip install ${tool}`;
 }
 
@@ -144,12 +159,13 @@ const MISE_CONFIG_FILES = [
  * formatter disagree, which shows up as churn in their diffs. mise's own answer
  * for non-interactive callers is the shims directory, so hand that back instead.
  */
-function installGuidance(tool: string, fallback: string): string {
+function installGuidance(projectRoot: string, tool: string, fallback: string): string {
   const reachShims = `add ${MISE_SHIMS} to their login PATH, which reaches every mise-managed tool at once`;
   if (existsSync(nodePath.join(MISE_SHIMS, tool))) {
     return `The user already manages "${tool}" with mise; this hook's PATH just can't see it. Ask them to ${reachShims}.`;
   }
-  if (!MISE_CONFIG_FILES.some(file => existsSync(nodePath.join(projectDir, file)))) return fallback;
+  if (!MISE_CONFIG_FILES.some(file => existsSync(nodePath.join(projectRoot, file))))
+    return fallback;
   // Installing through mise only helps once the shims directory is reachable.
   const lead = "This project's toolchain is managed by mise. Ask the user if they'd like you to";
   return (process.env.PATH ?? '').split(nodePath.delimiter).includes(MISE_SHIMS)
@@ -162,6 +178,7 @@ function installGuidance(tool: string, fallback: string): string {
  * Returns true if available, false (with warning added) if missing.
  */
 async function checkToolAvailable(
+  projectRoot: string,
   tool: string,
   language: string,
   installHint: string,
@@ -174,6 +191,7 @@ async function checkToolAvailable(
     warnings.push(
       `${language} linter "${tool}" is not available — ${language} files are not being linted. ` +
         installGuidance(
+          projectRoot,
           tool,
           `Ask the user if they'd like you to install it by running: ${installHint}`,
         ),
@@ -187,12 +205,12 @@ function hasConfig(path: string): boolean {
   return existsSync(path);
 }
 
-function safewordCliCommand(): string[] {
+function safewordCliCommand(projectRoot: string): string[] {
   const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
   if (pluginCli !== undefined) return ['bun', pluginCli];
-  const installedCli = `${projectDir}/node_modules/safeword/dist/cli.js`;
+  const installedCli = `${projectRoot}/node_modules/safeword/dist/cli.js`;
   if (existsSync(installedCli)) return ['bun', installedCli];
-  const sourceCli = `${projectDir}/packages/cli/src/cli.ts`;
+  const sourceCli = `${projectRoot}/packages/cli/src/cli.ts`;
   if (existsSync(sourceCli)) return ['bun', sourceCli];
   return ['bunx', 'safeword'];
 }
@@ -216,9 +234,9 @@ const CARGO_PACKAGE_NAME_REGEX = /\[package\][^[]*name\s*=\s*"([^"]+)"/;
  * Finds the nearest Cargo.toml with a [package] section and extracts the name.
  * Returns undefined for virtual workspace roots or files outside any package.
  */
-function detectRustPackage(filePath: string): string | undefined {
+function detectRustPackage(projectRoot: string, filePath: string): string | undefined {
   let currentDirectory = nodePath.dirname(filePath);
-  const normalizedProjectDir = normalizeExistingDirectory(projectDir);
+  const normalizedProjectDir = normalizeExistingDirectory(projectRoot);
 
   while (currentDirectory.startsWith(normalizedProjectDir)) {
     const cargoPath = nodePath.join(currentDirectory, 'Cargo.toml');
@@ -281,11 +299,11 @@ function warnMissingSafewordConfig(
 }
 
 /** Run prettier with safeword config if available */
-async function runPrettier(file: string): Promise<void> {
+async function runPrettier(project: ProjectLintConfig, file: string): Promise<void> {
   // A non-Prettier formatter owns this repo — defer to it, don't restyle (V7GGJZ).
-  if (REPO_OWNS_ALTERNATIVE_FORMATTER) return;
-  if (hasConfig(SAFEWORD_PRETTIER)) {
-    await $`bunx prettier --config ${SAFEWORD_PRETTIER} --write ${file}`.nothrow().quiet();
+  if (project.ownsAlternativeFormatter) return;
+  if (hasConfig(project.prettier)) {
+    await $`bunx prettier --config ${project.prettier} --write ${file}`.nothrow().quiet();
   } else {
     await $`bunx prettier --write ${file}`.nothrow().quiet();
   }
@@ -302,16 +320,17 @@ async function runPrettier(file: string): Promise<void> {
  * - Other: Prettier only
  *
  * @param file - Path to the file to lint
- * @param _projectDir - Project root directory (cached at module init, kept for backward compat)
+ * @param projectDirectory - The project the file belongs to; its `.safeword/` configs apply
  */
-export async function lintFile(file: string, _projectDir: string): Promise<LintResult> {
+export async function lintFile(file: string, projectDirectory: string): Promise<LintResult> {
+  const project = projectLintConfig(projectDirectory);
   const normalizedFile = existsSync(file) ? realpathSync(file) : file;
   const extension = normalizedFile.split('.').pop()?.toLowerCase() ?? '';
   const warnings: string[] = [];
 
   // JS/TS and framework files - ESLint first (fix code), then Prettier (format)
   if (JS_EXTENSIONS.has(extension)) {
-    const canonicalRoot = normalizeExistingDirectory(_projectDir);
+    const canonicalRoot = normalizeExistingDirectory(projectDirectory);
     const safewordDirectory = nodePath.join(canonicalRoot, '.safeword');
     if (
       normalizedFile === safewordDirectory ||
@@ -319,7 +338,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     ) {
       return { warnings };
     }
-    const host = resolveHostToolchain(normalizedFile, _projectDir);
+    const host = resolveHostToolchain(normalizedFile, projectDirectory);
     if (host?.kind === 'unavailable') {
       return {
         warnings: [
@@ -337,10 +356,10 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       };
     }
     if (host) return runHostToolchain(host);
-    warnMissingSafewordConfig('TypeScript', 'ESLint', SAFEWORD_ESLINT, warnings);
-    const configArguments = configArgs(SAFEWORD_ESLINT);
+    warnMissingSafewordConfig('TypeScript', 'ESLint', project.eslint, warnings);
+    const configArguments = configArgs(project.eslint);
     await $`bunx eslint ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
-    await runPrettier(normalizedFile);
+    await runPrettier(project, normalizedFile);
     const errors = await captureRemainingErrors(
       ['bunx', 'eslint', ...configArguments, normalizedFile],
       warnings,
@@ -352,16 +371,17 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   if (PYTHON_EXTENSIONS.has(extension)) {
     if (
       !(await checkToolAvailable(
+        project.root,
         'ruff',
         'Python',
-        getPythonInstallHint(normalizedFile, 'ruff'),
+        getPythonInstallHint(project.root, normalizedFile, 'ruff'),
         warnings,
       ))
     ) {
       return { warnings };
     }
-    warnMissingSafewordConfig('Python', 'Ruff', SAFEWORD_RUFF, warnings);
-    const configArguments = configArgs(SAFEWORD_RUFF);
+    warnMissingSafewordConfig('Python', 'Ruff', project.ruff, warnings);
+    const configArguments = configArgs(project.ruff);
     await $`ruff check ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
     await $`ruff format ${configArguments} ${normalizedFile}`.nothrow().quiet();
     const errors = await captureRemainingErrors(
@@ -375,6 +395,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   if (GO_EXTENSIONS.has(extension)) {
     if (
       !(await checkToolAvailable(
+        project.root,
         'golangci-lint',
         'Go',
         'curl -sSfL https://golangci-lint.run/install.sh | sh',
@@ -400,8 +421,8 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       }
       toolWarnings.add('golangci-lint-v2-ok');
     }
-    warnMissingSafewordConfig('Go', 'golangci-lint', SAFEWORD_GOLANGCI, warnings);
-    const configArguments = configArgs(SAFEWORD_GOLANGCI);
+    warnMissingSafewordConfig('Go', 'golangci-lint', project.golangci, warnings);
+    const configArguments = configArgs(project.golangci);
     await $`golangci-lint run ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
     await $`golangci-lint fmt ${configArguments} ${normalizedFile}`.nothrow().quiet();
     const errors = await captureRemainingErrors(
@@ -413,14 +434,14 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
 
   // Rust files - clippy for linting (package-level), rustfmt for formatting (file-level)
   if (RUST_EXTENSIONS.has(extension)) {
-    const hasRustConfig = hasConfig(SAFEWORD_RUSTFMT);
-    warnMissingSafewordConfig('Rust', 'rustfmt', SAFEWORD_RUSTFMT, warnings);
+    const hasRustConfig = hasConfig(project.rustfmt);
+    warnMissingSafewordConfig('Rust', 'rustfmt', project.rustfmt, warnings);
 
     // Run clippy with package targeting for workspaces
-    const packageName = detectRustPackage(normalizedFile);
+    const packageName = detectRustPackage(project.root, normalizedFile);
     if (packageName && (await isCommandAvailable('cargo'))) {
-      const clippyEnv = hasConfig(SAFEWORD_CLIPPY)
-        ? { CLIPPY_CONF_DIR: nodePath.dirname(SAFEWORD_CLIPPY) }
+      const clippyEnv = hasConfig(project.clippy)
+        ? { CLIPPY_CONF_DIR: nodePath.dirname(project.clippy) }
         : {};
 
       await $`cargo clippy -p ${packageName} --fix --allow-dirty --allow-staged`
@@ -432,7 +453,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     // Run rustfmt for file-level formatting
     if (await isCommandAvailable('rustfmt')) {
       if (hasRustConfig) {
-        await $`rustfmt --config-path ${SAFEWORD_RUSTFMT} ${normalizedFile}`.nothrow().quiet();
+        await $`rustfmt --config-path ${project.rustfmt} ${normalizedFile}`.nothrow().quiet();
       } else {
         await $`rustfmt ${normalizedFile}`.nothrow().quiet();
       }
@@ -441,6 +462,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       warnings.push(
         'Rust formatter "rustfmt" is not available — Rust files are not being formatted. ' +
           installGuidance(
+            project.root,
             'rustfmt',
             "Ask the user if they'd like you to install it by running: rustup component add rustfmt",
           ),
@@ -461,25 +483,26 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     // project root, which is what makes those carve-outs hold. This bypasses
     // runPrettier's V7GGJZ guard deliberately: plugin presence means the host
     // formats SQL with prettier even when Biome/dprint owns its JS/TS style.
-    if (hostFormatsSqlWithPrettier(projectDir)) {
+    if (hostFormatsSqlWithPrettier(project.root)) {
       const result = await $`bunx prettier --write ${normalizedFile}`.nothrow().quiet();
       if (result.exitCode === 0) return { warnings };
       // Non-zero: the plugin is undeclared in the host config, or the edit
       // itself doesn't parse. Only fall through to sqlfluff when its config
       // already exists — in a host-owned repo it's absent by design. Surface
       // prettier's stderr so the agent sees the parse error instead of silence.
-      if (!hasConfig(SAFEWORD_SQLFLUFF)) {
+      if (!hasConfig(project.sqlfluff)) {
         const stderr = result.stderr.toString().trim();
         return { warnings, ...(stderr && { errors: stderr }) };
       }
     }
-    const hasSqlfluff = hasConfig(SAFEWORD_SQLFLUFF);
+    const hasSqlfluff = hasConfig(project.sqlfluff);
     if (hasSqlfluff) {
       if (
         !(await checkToolAvailable(
+          project.root,
           'sqlfluff',
           'SQL/dbt',
-          getPythonInstallHint(normalizedFile, "'sqlfluff>=4.2.0'"),
+          getPythonInstallHint(project.root, normalizedFile, "'sqlfluff>=4.2.0'"),
           warnings,
         ))
       ) {
@@ -490,11 +513,11 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       // intended edit, so it's opt-in via `sql.fix` (#638). Opted-in hosts
       // carve out frozen files with .sqlfluffignore, which sqlfluff honors
       // even for explicitly passed paths.
-      if (sqlFixOptedIn(projectDir)) {
-        await $`sqlfluff fix --config ${SAFEWORD_SQLFLUFF} ${normalizedFile}`.nothrow().quiet();
+      if (sqlFixOptedIn(project.root)) {
+        await $`sqlfluff fix --config ${project.sqlfluff} ${normalizedFile}`.nothrow().quiet();
       }
       const errors = await captureRemainingErrors(
-        ['sqlfluff', 'lint', '--config', SAFEWORD_SQLFLUFF, normalizedFile],
+        ['sqlfluff', 'lint', '--config', project.sqlfluff, normalizedFile],
         warnings,
       );
       return { warnings, ...(errors && { errors }) };
@@ -505,7 +528,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   // Gherkin feature files - syntax/style lint, no auto-fix available
   if (FEATURE_EXTENSIONS.has(extension)) {
     const errors = await captureRemainingErrors(
-      [...safewordCliCommand(), 'lint-gherkin', normalizedFile],
+      [...safewordCliCommand(project.root), 'lint-gherkin', normalizedFile],
       warnings,
       { stderrIsLintOutput: true },
     );
@@ -514,7 +537,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
 
   // Other supported formats - prettier only
   if (PRETTIER_EXTENSIONS.has(extension)) {
-    await runPrettier(normalizedFile);
+    await runPrettier(project, normalizedFile);
     return { warnings };
   }
 
@@ -530,16 +553,17 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       warnings.push(
         'ShellCheck is not available — shell scripts are not being linted. ' +
           installGuidance(
+            project.root,
             'shellcheck',
             'Install it with your system package manager, for example: brew install shellcheck',
           ),
       );
     }
     if (
-      hasConfig(SAFEWORD_PRETTIER) ||
-      existsSync(`${projectDir}/node_modules/prettier-plugin-sh`)
+      hasConfig(project.prettier) ||
+      existsSync(`${project.root}/node_modules/prettier-plugin-sh`)
     ) {
-      await runPrettier(normalizedFile);
+      await runPrettier(project, normalizedFile);
     }
     return { warnings, ...(shellErrors && { errors: shellErrors }) };
   }

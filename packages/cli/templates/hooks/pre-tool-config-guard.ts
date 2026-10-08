@@ -3,9 +3,11 @@
 // Requires user approval before modifying quality config files
 
 import { existsSync } from 'node:fs';
+import { resolveLaunchDirectory, resolveToolProjectDirectory } from './lib/project-directory.ts';
 
 interface HookInput {
   tool_name?: string;
+  cwd?: string;
   tool_input?: {
     file_path?: string;
     notebook_path?: string;
@@ -46,14 +48,6 @@ const PROTECTED_PATTERNS: Array<{ pattern: RegExp; category: string }> = [
   { pattern: /\.gitlab-ci\.ya?ml$/, category: 'CI config' },
 ];
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const safewordDir = `${projectDir}/.safeword`;
-
-// Not a safeword project, skip silently
-if (!existsSync(safewordDir)) {
-  process.exit(0);
-}
-
 // Read hook input from stdin
 let input: HookInput;
 try {
@@ -63,6 +57,16 @@ try {
 }
 
 const filePath = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
+const projectDir = resolveToolProjectDirectory(resolveLaunchDirectory(), {
+  tool: input.tool_name ?? '',
+  editedFile: filePath ?? '',
+  cwd: input.cwd,
+});
+
+// Not a safeword project, skip silently
+if (!existsSync(`${projectDir}/.safeword`)) {
+  process.exit(0);
+}
 
 // No file path, allow
 if (!filePath) {
