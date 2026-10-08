@@ -1,6 +1,9 @@
 #!/usr/bin/env bun
 // Safeword: Codex Stop adapter for turn-end work.
 //
+// Stop also runs the done gate a ticket owes after this run closed it by edit
+// (#5633), before the behaviors below.
+//
 // Three behaviors share one Stop hook:
 //   1. Architecture-drift advisory: may emit a Codex continuation
 //      (`decision:"block"`) during done-phase work.
@@ -20,18 +23,22 @@ import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { getActiveTicket } from '../lib/active-ticket.ts';
+import { DONE_GATED_TICKET_TYPES, getActiveTicket, getTicketInfo } from '../lib/active-ticket.ts';
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
 import { evaluateDoneEvidence } from '../lib/done-gate.ts';
 import { updateTicketStatus } from '../lib/hierarchy.ts';
 import { resolveNamespaceRoot } from '../lib/namespace-root.ts';
-import { readSessionActiveTicket } from '../lib/quality-state.ts';
+import {
+  readSessionActiveTicket,
+  readSessionState,
+  updateSessionState,
+} from '../lib/quality-state.ts';
 import { isTerminalHandoffCorrectionEnabled } from '../lib/review-ledger.ts';
 import { evaluateDecisionBriefCompliance, renderDecisionBriefCorrection } from '../lib/quality.ts';
 import { recordRetroDebugEvent } from '../lib/retro-debug.ts';
 import { decideRetroFilingGate, formatCodexFilingDispatch } from '../lib/retro-filing-gate.ts';
 import { RETRO_CHILD_ENV, retroChildArgs } from '../lib/retro-extract.ts';
-import { resolveRunIdentity } from '../lib/run-identity.ts';
+import { resolveRunIdentity, type RunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
 import {
   countCompletedToolUsesCodex,
@@ -77,6 +84,52 @@ function isDonePhaseWork(projectDirectory: string, input: CodexStopInput): boole
 function architectureNudge(projectDirectory: string, input: CodexStopInput): string | null {
   if (!isDonePhaseWork(projectDirectory, input)) return null;
   return architectureDocumentNudgeForProject(projectDirectory);
+}
+
+/**
+ * A ticket this run closed by an edit owes the done gate, though PostToolUse
+ * cleared the run's binding on close (#5546). Gate the first owed entry that is
+ * still a closed build ticket or epic; drop entries that no longer are (reopened,
+ * deleted, a patch). An entry settles only once every check passes, so a failed
+ * gate reruns on the next Stop — the same contract as stop-quality.ts. Returns
+ * the block reason, if any.
+ */
+function runOwedDoneGate(projectDirectory: string, runIdentity: RunIdentity): string | undefined {
+  if (runIdentity.sessionKey === null) return undefined;
+  const settle = (ticketId: string): void => {
+    updateSessionState(projectDirectory, runIdentity, state => {
+      state.doneGateOwedTickets = state.doneGateOwedTickets?.filter(id => id !== ticketId);
+    });
+  };
+
+  const owed = readSessionState(projectDirectory, runIdentity)?.doneGateOwedTickets ?? [];
+  for (const [index, ticketId] of owed.entries()) {
+    const ticket = getTicketInfo(projectDirectory, ticketId);
+    if (
+      !ticket.folder ||
+      ticket.status !== 'done' ||
+      !ticket.type ||
+      !DONE_GATED_TICKET_TYPES.has(ticket.type)
+    ) {
+      settle(ticketId);
+      continue;
+    }
+
+    const verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets', ticket.folder),
+      ticketType: ticket.type,
+    });
+    if (!verdict.ok) {
+      return `Done gate for ${ticketId}: ${verdict.reason ?? 'Done evidence could not be verified.'}`;
+    }
+    settle(ticketId);
+    const later = owed.slice(index + 1);
+    return later.length > 0
+      ? `Done gate passed for ${ticketId}. Ticket(s) ${later.join(', ')} were also closed this session and still need their done gate — stop again to run it.`
+      : undefined;
+  }
+  return undefined;
 }
 
 interface DoneTransitionResult {
@@ -244,6 +297,12 @@ async function main(): Promise<string> {
   if (!existsSync(`${projectDirectory}/.safeword`)) return SILENT;
 
   runRetroExtraction(projectDirectory, input);
+
+  const owedGateReason = runOwedDoneGate(
+    projectDirectory,
+    resolveRunIdentity(input, { runtime: 'codex' }),
+  );
+  if (owedGateReason) return JSON.stringify({ decision: 'block', reason: owedGateReason });
 
   const completion = completeSessionDoneTicket(projectDirectory, input);
   if (completion.blockReason) {

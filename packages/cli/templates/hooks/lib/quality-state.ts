@@ -3,7 +3,7 @@
  * Used by both post-tool-quality.ts (observer) and pre-tool-quality.ts (enforcer).
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { getTicketInfo, type TicketDetails } from './active-ticket.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
@@ -135,6 +135,22 @@ export interface QualityState {
 }
 
 /**
+ * The identity a hook keys this run's quality state by. Codex's adapter marks
+ * its child processes with the runtime, so resolve the durable Codex run
+ * identity there — session_id, else CODEX_THREAD_ID when Desktop omits it — and
+ * PostToolUse and Stop address one state file (#5633). Other adapters keep
+ * their raw session_id. `undefined` means the run has no identity at all.
+ */
+export function resolveQualityStateIdentity(
+  input: { session_id?: string },
+  env: Record<string, string | undefined> = process.env,
+): string | RunIdentity | undefined {
+  if (env.SAFEWORD_AGENT_RUNTIME !== 'codex') return input.session_id;
+  const identity = resolveRunIdentity(input, { runtime: 'codex', env });
+  return identity.sessionKey === null ? undefined : identity;
+}
+
+/**
  * Get the per-session state file path.
  */
 export function getStateFilePath(
@@ -210,6 +226,37 @@ export function readSessionState(
     }
   }
   return null;
+}
+
+/**
+ * Read-modify-write this run's state file, best effort. The state is Partial:
+ * the file may be absent (fresh session) or predate a field, and a torn or
+ * user-edited file recovers to an empty root rather than crashing the hook.
+ */
+export function updateSessionState(
+  projectDirectory: string,
+  sessionId: string | RunIdentity | undefined,
+  mutate: (state: Partial<QualityState>) => void,
+): void {
+  if (!sessionId) return;
+  const stateFile = getStateFilePath(projectDirectory, sessionId);
+  try {
+    mkdirSync(nodePath.dirname(stateFile), { recursive: true });
+    let parsed: unknown = {};
+    if (existsSync(stateFile)) {
+      try {
+        parsed = JSON.parse(readFileSync(stateFile, 'utf8'));
+      } catch {
+        // Recover to an empty root and replace it below.
+      }
+    }
+    const state: Partial<QualityState> =
+      typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
+    mutate(state);
+    writeFileSync(stateFile, JSON.stringify(state, null, 2));
+  } catch {
+    // Best effort — a state write failure must not crash the hook.
+  }
 }
 
 export function readSessionActiveTicket(

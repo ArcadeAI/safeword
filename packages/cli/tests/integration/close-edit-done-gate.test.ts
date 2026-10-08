@@ -125,9 +125,10 @@ function commitTaskTicket(directory: string, ticketId: string, status: string): 
 /** Report a tool call on ticket.md to the real PostToolUse hook. */
 function runPostToolUse(
   directory: string,
-  sessionId: string,
+  sessionId: string | undefined,
   toolName: 'Edit' | 'MultiEdit' | 'Write',
   toolInput: Record<string, unknown>,
+  environment?: NodeJS.ProcessEnv,
 ): void {
   const result = spawnSync('bun', ['.safeword/hooks/post-tool-quality.ts'], {
     input: JSON.stringify({
@@ -137,7 +138,7 @@ function runPostToolUse(
       tool_input: toolInput,
     }),
     cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+    env: environment ?? { ...process.env, CLAUDE_PROJECT_DIR: directory },
     encoding: 'utf8',
   });
   expect(result.status, result.stderr).toBe(0);
@@ -207,6 +208,20 @@ function recentFailurePatterns(directory: string, sessionId: string): string[] {
     readFileSync(nodePath.join(directory, '.project', `quality-state-${sessionId}.json`), 'utf8'),
   ) as { recentFailures?: { pattern: string }[] };
   return (state.recentFailures ?? []).map(failure => failure.pattern);
+}
+
+/**
+ * A Codex child environment whose only run identity is CODEX_THREAD_ID: the
+ * adapter marks the runtime, and no ambient Claude/Codex id may leak in.
+ */
+function codexThreadEnvironment(directory: string, threadId: string): NodeJS.ProcessEnv {
+  const environment: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: directory };
+  delete environment.CLAUDE_SESSION_ID;
+  delete environment.CLAUDE_CODE_SESSION_ID;
+  return Object.assign(environment, {
+    SAFEWORD_AGENT_RUNTIME: 'codex',
+    CODEX_THREAD_ID: threadId,
+  });
 }
 
 describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
@@ -610,6 +625,32 @@ describe('closing a ticket by edit owes the Stop done gate (#5546)', () => {
     expect(readFileSync(ticketFile, 'utf8')).toContain('status: done');
     expect(result.decision).toBe('block');
     expect(result.reason).toContain('Tests failed');
+    expect(testRunCount(directory)).toBe(baseline + 1);
+  });
+
+  it('gates a close under the Codex thread identity when session_id is omitted (#5633)', () => {
+    const directory = fixture.projectDirectory;
+    const environment = codexThreadEnvironment(directory, 'thread-5633');
+    const ticketFile = commitTaskTicket(directory, '5633', 'in_progress');
+    setTestExitCode(directory, 1);
+    const baseline = testRunCount(directory);
+
+    const before = readFileSync(ticketFile, 'utf8');
+    writeFileSync(ticketFile, before.replace('status: in_progress', 'status: done'));
+    runPostToolUse(
+      directory,
+      undefined,
+      'Edit',
+      { file_path: ticketFile, old_string: 'status: in_progress', new_string: 'status: done' },
+      environment,
+    );
+    const result = runDoneGate(directory, undefined, environment);
+
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('Tests failed');
+    expect(recentFailurePatterns(directory, 'codex-thread-5633')).toContain(
+      'done-gate-tests-failed',
+    );
     expect(testRunCount(directory)).toBe(baseline + 1);
   });
 });

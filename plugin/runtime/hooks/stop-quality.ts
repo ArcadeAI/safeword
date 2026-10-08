@@ -3,7 +3,7 @@
 // Triggers quality review when edit tools (Write/Edit/MultiEdit/NotebookEdit) are used
 // Phase-aware: reads ticket phase for context-appropriate review questions
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -46,11 +46,13 @@ import {
 import {
   EXPLAIN_HINT,
   type FailureEntry,
-  getStateFilePath,
   type QualityState,
   readSessionState,
   recordFailure,
+  resolveQualityStateIdentity,
+  updateSessionState,
 } from './lib/quality-state.ts';
+import type { RunIdentity } from './lib/run-identity.ts';
 import { shouldReviewPhase } from './lib/review-trigger.ts';
 import { checkSkillInvocations, requiredSkillsForDone } from './lib/skill-invocation-log.ts';
 import { runTests } from './lib/test-runner.ts';
@@ -69,6 +71,9 @@ interface HookInput {
   stop_hook_active?: boolean;
   last_assistant_message?: string;
 }
+
+/** The run identity this Stop keys session state by; see resolveQualityStateIdentity. */
+type StateIdentity = string | RunIdentity | undefined;
 
 interface ContentItem {
   type: string;
@@ -126,7 +131,7 @@ interface TicketInfo {
  * the session state binding (session-scoped); then a global scan
  * (needed for hierarchy navigation after done gate passes).
  */
-function getCurrentTicketInfo(sessionId?: string): TicketInfo {
+function getCurrentTicketInfo(sessionId: StateIdentity): TicketInfo {
   const empty: TicketInfo = { phase: undefined, type: undefined, folder: undefined };
 
   // Try session-scoped resolution first
@@ -170,7 +175,7 @@ let laterOwedDoneGateTickets: string[] = [];
  * dropped so it cannot shadow the session's real binding.
  */
 function owedDoneGateTicketInfo(
-  sessionId: string,
+  sessionId: StateIdentity,
   owedTickets: string[] | undefined,
 ): TicketInfo | undefined {
   const owed = owedTickets ?? [];
@@ -186,7 +191,7 @@ function owedDoneGateTicketInfo(
   return undefined;
 }
 
-function dropOwedDoneGate(sessionId: string | undefined, ticketId: string): void {
+function dropOwedDoneGate(sessionId: StateIdentity, ticketId: string): void {
   updateStopState(sessionId, state => {
     state.doneGateOwedTickets = state.doneGateOwedTickets?.filter(id => id !== ticketId);
   });
@@ -197,43 +202,17 @@ function dropOwedDoneGate(sessionId: string | undefined, ticketId: string): void
  * PostToolUse, and the idle-review marker stays set until UserPromptSubmit.
  */
 function recordStopReviewState(
-  sessionId: string | undefined,
+  sessionId: StateIdentity,
   patch: Pick<QualityState, 'lastReviewedPhase' | 'stopQualityReviewAwaitingUserPrompt'>,
 ): void {
   updateStopState(sessionId, state => Object.assign(state, patch));
 }
 
 function updateStopState(
-  sessionId: string | undefined,
+  sessionId: StateIdentity,
   mutate: (state: Partial<QualityState>) => void,
 ): void {
-  if (!sessionId) return;
-  const stateFile = getStateFilePath(projectDir, sessionId);
-  try {
-    mkdirSync(nodePath.dirname(stateFile), { recursive: true });
-    // Partial, not QualityState: the file may be absent (fresh session) or
-    // predate a field. The shared contract names the shape; the runtime
-    // boundary below keeps a stale or malformed file from crashing the hook.
-    let parsed: unknown = {};
-    if (existsSync(stateFile)) {
-      try {
-        parsed = JSON.parse(readFileSync(stateFile, 'utf8'));
-      } catch {
-        // A torn write must not leave the Stop correction permanently
-        // undeduplicated. Recover to an empty root and replace it below.
-      }
-    }
-    const state = normalizeQualityStateRoot(parsed);
-    mutate(state);
-    writeFileSync(stateFile, JSON.stringify(state, null, 2));
-  } catch {
-    // Best effort — don't crash stop hook on state write failure
-  }
-}
-
-/** Normalize stale or user-edited state before applying a Stop-review patch. */
-function normalizeQualityStateRoot(parsed: unknown): Partial<QualityState> {
-  return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
+  updateSessionState(projectDir, sessionId, mutate);
 }
 
 /** Global scan fallback — used when no session state exists */
@@ -415,6 +394,13 @@ try {
   process.exit(0);
 }
 
+// Every state read and write below goes through the identity PostToolUse
+// wrote under, so a Codex run without session_id still finds its state (#5633).
+const stateIdentity = resolveQualityStateIdentity(input);
+// The skill-invocation log is keyed by the raw run session key.
+const skillSessionId =
+  typeof stateIdentity === 'string' ? stateIdentity : (stateIdentity?.sessionKey ?? undefined);
+
 // Loop guard: if stop hook already triggered a continuation and no new edits,
 // allow Claude to stop. Prevents infinite quality review loops.
 const stopHookActive = input.stop_hook_active ?? false;
@@ -438,9 +424,9 @@ const observedLastAssistantMessage = input.last_assistant_message !== undefined;
 // gate so the done-phase branch runs on any stop at phase: done — closing and its
 // evidence enforcement depend on ticket state, not recent edit activity (ticket
 // AP3FGJ). The edit-tools gate below then guards only the review/backstop path.
-const ticketInfo = getCurrentTicketInfo(input.session_id);
+const ticketInfo = getCurrentTicketInfo(stateIdentity);
 const currentPhase = ticketInfo.phase;
-const sessionState = readSessionState(projectDir, input.session_id);
+const sessionState = readSessionState(projectDir, stateIdentity);
 
 // Artifact gates are phase/state-driven, not edit-activity-driven, so they run BEFORE the
 // edit-tools early-exit below — a missing impl-plan or an unreviewed design must block a stop
@@ -792,7 +778,7 @@ if (currentPhase === 'done') {
   // self-heals on the next install. (Issue #325.)
   const readiness = getDependencyReadiness(projectDir);
   if (readiness.status === 'missing' || readiness.status === 'stale') {
-    recordFailure(projectDir, input.session_id, 'done-gate-deps-missing');
+    recordFailure(projectDir, stateIdentity, 'done-gate-deps-missing');
     hardBlockDone(formatDependencyRecovery(readiness));
   }
 
@@ -804,12 +790,12 @@ if (currentPhase === 'done') {
     // project (no recognized lockfile) whose test binary is still absent. Surface
     // the missing-toolchain cause, not a misleading red-test verdict.
     if (testResult.toolchainMissing) {
-      recordFailure(projectDir, input.session_id, 'done-gate-toolchain-missing');
+      recordFailure(projectDir, stateIdentity, 'done-gate-toolchain-missing');
       hardBlockDone(
         `Test toolchain not found — dependencies are likely not installed. Install them, then retry.\n\n${testResult.output}`,
       );
     }
-    recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
+    recordFailure(projectDir, stateIdentity, 'done-gate-tests-failed');
     if (testResult.resolutionFailed) {
       hardBlockDone(
         `${testResult.output} Ensure the Safeword CLI is available and its test-plan command works, then retry.`,
@@ -846,7 +832,7 @@ if (currentPhase === 'done') {
     const verifyValid = verifyContent.trim().length > 0;
 
     if (!verifyValid) {
-      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
+      recordFailure(projectDir, stateIdentity, 'done-gate-tests-failed');
       hardBlockDone(
         `No valid verify.md found in ticket folder. Run /verify to generate evidence before marking done.`,
       );
@@ -854,7 +840,7 @@ if (currentPhase === 'done') {
 
     const verifyArtifactStatus = checkVerifyArtifact(verifyContent);
     if (!verifyArtifactStatus.ok) {
-      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
+      recordFailure(projectDir, stateIdentity, 'done-gate-tests-failed');
       hardBlockDone(verifyArtifactStatus.reason ?? 'verify.md PR scope evidence is invalid.');
     }
   }
@@ -867,14 +853,14 @@ if (currentPhase === 'done') {
   // invocation in those skills writes the log; hand-written verify.md cannot
   // produce the entries. Honors stop_hook_active.
   const requiredSkills = requiredSkillsForDone(isFeature, wholeTicketPass);
-  if (requiredSkills.length > 0 && !stopHookActive && input.session_id) {
+  if (requiredSkills.length > 0 && !stopHookActive && skillSessionId) {
     const skillCheck = checkSkillInvocations({
-      sessionId: input.session_id,
+      sessionId: skillSessionId,
       required: requiredSkills,
       rootDirectory: projectDir,
     });
     if (!skillCheck.ok) {
-      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
+      recordFailure(projectDir, stateIdentity, 'done-gate-tests-failed');
       const missingList = skillCheck.missing.map(s => `/${s}`).join(' and ');
       hardBlockDone(
         `Required skill invocation(s) missing in this session: ${missingList}. Run ${missingList} before marking this ticket done. The helper-written log (skill-invocations.log under the project namespace root) proves current-session invocation; hand-written verify.md does not satisfy this gate. If you ran ${missingList} but no session-scoped proof was logged, inline shell execution may have been denied, the fallback helper may not have been run, the client may not have provided a compatible session id, or Bun could not run the installed helper. Check the invocation-log block at the top of the skill and "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/record-skill-invocation.ts.`,
@@ -885,13 +871,13 @@ if (currentPhase === 'done') {
   if (isFeature) {
     // Features: require complete scenarios and a referenced Gherkin source without @wip.
     if (!featureScenarioVerdict.ok) {
-      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
+      recordFailure(projectDir, stateIdentity, 'done-gate-tests-failed');
       hardBlockDone(featureScenarioVerdict.reason ?? 'Feature scenario evidence is incomplete.');
     }
   } else if (testResult.skipped) {
     // Tasks with no test command: fall back to text evidence
     if (!TEST_EVIDENCE_PATTERN.test(combinedText)) {
-      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
+      recordFailure(projectDir, stateIdentity, 'done-gate-tests-failed');
       hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, false));
     }
   }
@@ -905,7 +891,7 @@ if (currentPhase === 'done') {
   if (ledgerContent !== undefined) {
     const validation = validateLedger(ledgerContent, createLedgerShaResolver(projectDir));
     if (!validation.ok) {
-      recordFailure(projectDir, input.session_id, 'done-gate-ledger-invalid');
+      recordFailure(projectDir, stateIdentity, 'done-gate-ledger-invalid');
       hardBlockDone(
         `TDD annotation ledger validation failed in test-definitions.md:\n${validation.errors.map(e => `  - ${e}`).join('\n')}`,
       );
@@ -915,7 +901,7 @@ if (currentPhase === 'done') {
   // Every done-gate check passed. Settle an owed close before the navigation
   // and architecture nudges below exit, or the gate reruns on every Stop.
   if (owedDoneGateTicket !== undefined) {
-    dropOwedDoneGate(input.session_id, owedDoneGateTicket);
+    dropOwedDoneGate(stateIdentity, owedDoneGateTicket);
     if (laterOwedDoneGateTickets.length > 0) {
       softBlock(
         `Done gate passed for ${owedDoneGateTicket}. Ticket(s) ${laterOwedDoneGateTickets.join(', ')} were also closed this session and still need their done gate — stop again to run it.`,
@@ -1070,7 +1056,7 @@ if (!observedLastAssistantMessage) {
 }
 
 recordStopReviewState(
-  input.session_id,
+  stateIdentity,
   currentPhase === undefined
     ? { stopQualityReviewAwaitingUserPrompt: true }
     : { lastReviewedPhase: currentPhase },
