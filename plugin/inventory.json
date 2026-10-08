@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "935789a3b3c8c4a02fee8f285a202871e1aa7006f12c53686519a1fa4a47c82f"
+      "sha256": "6032c74ab9b19a5f06617ed0024070262cb5a37cf6ec9fe1dae4073b3fc9e79c"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "cd017784f489ba7d083c965959d547aea8e98a402ec592b7e4ac4740b056946e"
+      "sha256": "cb4f20adbe7ed35bbe0ddbccf671eca90b480abc09dc8e0dc79651a1174f82b7"
     },
     {
       "path": "runtime/event-groups.json",
@@ -619,7 +619,7 @@
     },
     {
       "path": "runtime/hooks/stop-self-report.ts",
-      "sha256": "75a61ec2a82bb8e667fca0822377623656280a31baf809b70f01da8ddf9fdb8d"
+      "sha256": "52817f62bf1873883933568fcf29e98be59069d838216db371bf9a5ce4ee5fad"
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
@@ -1567,7 +1567,7 @@
     },
     {
       "path": "templates/hooks/stop-self-report.ts",
-      "sha256": "75a61ec2a82bb8e667fca0822377623656280a31baf809b70f01da8ddf9fdb8d"
+      "sha256": "52817f62bf1873883933568fcf29e98be59069d838216db371bf9a5ce4ee5fad"
     },
     {
       "path": "templates/hooks/write-review-stamp.ts",

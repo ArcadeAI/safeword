@@ -3650,7 +3650,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "5b0767121376bac1ad9f2b57765f0e705b1c34bff72724133014d31e39c0b916",
-        ".safeword/hooks/stop-self-report.ts": "75a61ec2a82bb8e667fca0822377623656280a31baf809b70f01da8ddf9fdb8d"
+        ".safeword/hooks/stop-self-report.ts": "52817f62bf1873883933568fcf29e98be59069d838216db371bf9a5ce4ee5fad"
       },
       hooks: {
         SessionStart: [

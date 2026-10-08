@@ -28,6 +28,7 @@ import { resolveSessionProjectDirectory } from './lib/project-directory.ts';
 
 interface HookInput {
   session_id?: string;
+  cwd?: string;
   stop_hook_active?: boolean;
 }
 
