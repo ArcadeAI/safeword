@@ -128,6 +128,38 @@ writeFileSync(file+'.tmp',JSON.stringify(record)+'\n');renameSync(file+'.tmp',fi
 }
 
 describe('signed authentication continuation', () => {
+  it('reuses the completed automatic attempt instead of paying for another review', async () => {
+    const request = await original();
+    const start = jobs.startReviewJob as (
+      input: Parameters<typeof jobs.startReviewJob>[0] & {
+        authenticationRetry: { parent: string; reviewer: 'claude'; signal: AbortSignal };
+      },
+    ) => Promise<CliResult>;
+    const input = {
+      cwd: request.root,
+      kind: 'quality-review' as const,
+      targets: ['input.md'],
+      context: ['context.md'],
+      authenticationRetry: {
+        parent: request.id,
+        reviewer: 'claude' as const,
+        signal: request.signal,
+      },
+    };
+    const first = await start(input);
+    const firstId = (first.data as { review_id: string }).review_id;
+    await vi.waitFor(() => {
+      expect(
+        (jobs.reviewJobStatus(request.root, firstId, true).data as { status: string }).status,
+      ).toBe('approved');
+    });
+    const repeated = await start(input);
+    expect(
+      (repeated.data as { review_id: string }).review_id,
+      'automatic retry completions must share one attempt',
+    ).toBe(firstId);
+  });
+
   it('observes the original before, during and after retry without writing receipts', async () => {
     const request = await original({ holdRetry: true });
     expect(
