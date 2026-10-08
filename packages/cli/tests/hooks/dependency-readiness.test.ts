@@ -768,8 +768,12 @@ describe('dependency readiness hook support', () => {
     mkdirSync(artifact);
     writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
     writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    // Backdate every input: coarse filesystem clocks can give a same-tick
+    // sentinel the inputs' exact mtime, which the strict newer-than check rejects.
     const past = new Date(Date.now() - 60_000);
-    utimesSync(path.join(projectDirectory, 'bun.lock'), past, past);
+    for (const input of ['package.json', 'bun.lock', 'packages/cli/package.json']) {
+      utimesSync(path.join(projectDirectory, input), past, past);
+    }
     writeFileSync(path.join(artifact, '.safeword-deps-reinstalled'), '');
 
     const ready = getDependencyReadiness(projectDirectory);
@@ -801,6 +805,12 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
 
     const stale = getDependencyReadiness(projectDirectory);
+    // Keep the inputs strictly older than the sentinel the recovery touches,
+    // even on filesystems with coarse mtime granularity.
+    const inputsChanged = new Date(Date.now() - 30_000);
+    for (const input of ['package.json', 'bun.lock', 'packages/cli/package.json']) {
+      utimesSync(path.join(projectDirectory, input), inputsChanged, inputsChanged);
+    }
     const recovery = formatDependencyRecovery({ ...stale, installCommand: 'true' })
       .split('\n')
       .at(-1)
