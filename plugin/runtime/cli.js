@@ -3604,7 +3604,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/audit/SKILL.md": "02c6353beb320c6370788c7845ec193ec08532f05ed6f6174585aa8a68456470",
         ".claude/skills/bdd/DISCOVERY.md": "9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_EXECUTION.md": "04061409d2a5cd0ade97e0cace2abfea46121423f039afebfc4c3239848f7bcc",
+        ".claude/skills/bdd/PLAN_EXECUTION.md": "15e3e6382e4d29ad4581d3ec4fdf27f65ff2f200cd4caf78d7432fbc7d7c4616",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "8dcf90cf71ecd2f77c14bf4a0bb87d28adb99883efe91c3b35246e0a37e387ef",
         ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
         ".claude/skills/bdd/SKILL.md": "898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90",
@@ -31920,7 +31920,7 @@ var init_policy = __esm(() => {
   DEFAULT_ALTERNATE_MODEL = { claude: "sonnet" };
   EXECUTION_PRIMARY_MODEL = {
     claude: "claude-opus-5",
-    codex: "gpt-6-astra"
+    codex: "gpt-6.1-sol"
   };
 });
 
@@ -32250,35 +32250,35 @@ var PACKAGED_CAPABILITY_REVISION, PACKAGED_CAPABILITY_PAIRS;
 var init_capability_catalogue_generated = __esm(() => {
   PACKAGED_CAPABILITY_REVISION = {
     corpus_digest: "9625362c688a1eb641c0a504cd75d1977c0f9ee05980c0e233a57a76bd99ba92",
-    rubric_digest: "f7a11ed5b1bca5f46e527892f2bfd2cefc77521e0bcede7974c5c6ea5e7aeb66",
-    settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d"
+    rubric_digest: "a4662a8bb68e00b1da37f622ba88f2f0d8f9f3a502edea3777776ebb1d51cdc1",
+    settings_digest: "5e89801fc75ed7f7e0a477a6ba32deca73cbe3896e6a640419aa7637f27c0e34"
   };
   PACKAGED_CAPABILITY_PAIRS = [
     {
       corpus_digest: "9625362c688a1eb641c0a504cd75d1977c0f9ee05980c0e233a57a76bd99ba92",
-      rubric_digest: "f7a11ed5b1bca5f46e527892f2bfd2cefc77521e0bcede7974c5c6ea5e7aeb66",
-      settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
+      rubric_digest: "a4662a8bb68e00b1da37f622ba88f2f0d8f9f3a502edea3777776ebb1d51cdc1",
+      settings_digest: "5e89801fc75ed7f7e0a477a6ba32deca73cbe3896e6a640419aa7637f27c0e34",
       author_provider: "anthropic",
       author_model: "claude-opus-5",
       reviewer_provider: "openai",
-      reviewer_model: "gpt-6-astra",
+      reviewer_model: "gpt-6.1-sol",
       direction: "not_weaker",
       qualification: "pinned-corpus",
-      evidence_date: "2026-09-29",
-      results_digest: "74a528e96f77e9fd7f54e5aefab8614346e0a464cdf1e6ecb3582d06077e8306"
+      evidence_date: "2026-10-08",
+      results_digest: "3ec4c7855b92ea12df5d86cc0554deee54fcd0ae999fe1d192997a37e280fc3b"
     },
     {
       corpus_digest: "9625362c688a1eb641c0a504cd75d1977c0f9ee05980c0e233a57a76bd99ba92",
-      rubric_digest: "f7a11ed5b1bca5f46e527892f2bfd2cefc77521e0bcede7974c5c6ea5e7aeb66",
-      settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
+      rubric_digest: "a4662a8bb68e00b1da37f622ba88f2f0d8f9f3a502edea3777776ebb1d51cdc1",
+      settings_digest: "5e89801fc75ed7f7e0a477a6ba32deca73cbe3896e6a640419aa7637f27c0e34",
       author_provider: "openai",
-      author_model: "gpt-6-astra",
+      author_model: "gpt-6.1-sol",
       reviewer_provider: "anthropic",
       reviewer_model: "claude-opus-5",
       direction: "not_weaker",
       qualification: "pinned-corpus",
-      evidence_date: "2026-09-29",
-      results_digest: "3afa536350b651124201e9c43be9908453dca7ab8c3afe5e6cb00991913d570b"
+      evidence_date: "2026-10-08",
+      results_digest: "de0148daaae8f9f877562af5abe369c3ab46b215f4a498c457ed48aad0cd757c"
     }
   ];
 });
@@ -32955,12 +32955,81 @@ var EXECUTION_PLAN_ADMISSION_EVIDENCE;
 var init_execution_plan_admission_generated = __esm(() => {
   EXECUTION_PLAN_ADMISSION_EVIDENCE = {
     schema_version: 1,
-    contract_sha256: "b41b5a7b566c0e4d0d76b774f63335e109fa5b591f0de28739fffe577d2eb3cc",
-    corpus_sha256: "11ee541f17deb4ba7a470906c33b6bbcea4a189e80f3dd48a3d9f60d126a05c4",
+    contract_sha256: "8451a6cb6e036335f9ae9457858b053bebf62d8c3faef88188cfb14f41396bfe",
+    corpus_sha256: "b906f3cb783bdf2a4f749f97de0bade2883e66b4966330eee37a7bc0a170aac9",
     identities: [
       {
         reviewer: "codex",
-        model: "gpt-6-astra",
+        model: "gpt-6.1-sol",
+        case_ids: [
+          "one-coherent-change",
+          "several-ordered-changes",
+          "omitted-slicing-decision",
+          "complete-slice-record",
+          "generic-checklist",
+          "dismissed-applicable-work",
+          "proof-does-not-exercise-boundary",
+          "purpose-in-rationale",
+          "boundary-in-tasks",
+          "missing-prerequisites",
+          "proof-in-tasks",
+          "missing-completion-signal",
+          "two-independent-purposes",
+          "unresolved-authorization-decision",
+          "ordered-schema-before-reader",
+          "unsafe-intermediate-merge",
+          "many-mechanical-edits",
+          "few-files-two-outcomes",
+          "line-count-only-rationale",
+          "all-obligations-assigned",
+          "all-decisions-unchanged",
+          "vague-data-ownership",
+          "invented-data-ownership",
+          "accepted-data-ownership",
+          "missing-behavior-obligation",
+          "missing-decision-obligation",
+          "missing-proof-strategy-obligation",
+          "missing-migration-obligation",
+          "missing-rollout-obligation",
+          "missing-rollback-obligation",
+          "missing-documentation-obligation",
+          "missing-affected-surface-obligation",
+          "migration-missing-completion-signal",
+          "migration-missing-dependency-order",
+          "explicitly-inapplicable-obligations",
+          "absent-work-is-not-complete",
+          "current-proof-supports-completion",
+          "earlier-proof-remains-open",
+          "known-defect-is-not-complete",
+          "pending-human-authority-is-not-complete",
+          "complete-measurement-execution",
+          "missing-measurement-instrumentation",
+          "missing-measurement-evidence-collection",
+          "changed-measurement-target",
+          "changed-measurement-origin",
+          "weakened-measurement-safeguard",
+          "changed-measurement-failure-behavior",
+          "reopened-authorization-decision",
+          "fixture-discovery-stays-in-execution-planning",
+          "test-command-discovery-stays-in-execution-planning",
+          "path-only-discovery-stays-in-execution-planning",
+          "accepted-design-discovery-returns-to-implementation-planning",
+          "accepted-proof-discovery-returns-to-implementation-planning",
+          "path-and-api-discovery-returns-to-implementation-planning",
+          "fresh-context-first-red",
+          "exact-cli-denial-proof",
+          "missing-cli-subprocess-boundary",
+          "missing-denied-exit-assertion",
+          "later-step-is-not-startable",
+          "blocked-first-prerequisite",
+          "no-executable-steps",
+          "risk-first-ordering",
+          "parallel-safe-after-probe"
+        ]
+      },
+      {
+        reviewer: "claude",
+        model: "claude-opus-5",
         case_ids: [
           "one-coherent-change",
           "several-ordered-changes",
@@ -33111,13 +33180,18 @@ from outside those sources.
   the sole justification.
 - **Complete slices:** Require one record per plan slice, in plan order. Every
   slice has a unique nonblank name, one coherent purpose, a clear boundary, a
-  present prerequisite list, its own proof obligation, a concrete completion
-  signal, and a readable \`relies_on_unmerged_successor\` assertion. Reject a
-  slice with two independently valuable purposes or any implementation choice
-  the approved plan did not settle. A final proof step requiring every applicable
+  prerequisite list explicitly stated in the plan, its own proof obligation, a
+  concrete completion signal, and a readable \`relies_on_unmerged_successor\`
+  assertion. Reject a
+  slice with an omitted prerequisite list even when it is the only slice; an
+  explicit empty list or \`none\` is sufficient. Reject a slice with two
+  independently valuable purposes or any implementation choice the approved
+  plan did not settle. A final proof step requiring every applicable
   proof to pass can establish the slice's completion condition; the completion
   text need not repeat that step. Merely rerunning commands or preserving one
-  snapshot does not establish success for the other required proofs.
+  snapshot does not establish success for the other required proofs. Completion
+  must state that every applicable proof passes after the final edit; earlier
+  passing steps do not establish completion after a later edit.
 - **Startable steps:** Every executable step must name its exact action, inputs,
   prerequisites, and observable expected result. Require the first production
   slice to begin with the highest-risk named RED and state its command or fixture
@@ -33195,7 +33269,12 @@ from outside those sources.
 Always return \`planning_destination\`. Set it to \`plan-execution\` for approvals
 and for denials that only require Execution Plan repair. Set it to
 \`plan-implementation\` when a denial exposes a missing or changed accepted
-decision or proof boundary. For an approval, return \`execution_plan_record\`
+decision or proof boundary. Unreviewed, reopened, or contradictory design choices
+return to Implementation Planning even when removing the choice from the
+Execution Plan would repair it. Incorrect delivery ordering or premature
+activation of already accepted behavior requires Execution Plan repair when
+the accepted design and proof boundaries remain settled; it does not by itself
+reopen an implementation decision. For an approval, return \`execution_plan_record\`
 containing the slicing decision
 and rationale; the complete ordered slices; obligation-owner entries; and
 decision-status entries; \`accepted_scenarios_covered: true\`;
@@ -33208,7 +33287,7 @@ slice's \`relies_on_unmerged_successor\` to \`false\` and every decision status 
 coverage booleans to true only after judging the supplied scenarios and
 approach. For a denial, return the record as null and name each blocking slice,
 field, obligation, dependency, proof, or decision in findings. Never approve
-because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "268399e8245553176143543f9c0ae1a51cac707f88945797ee4b545a086063c6";
+because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "152e81c07e86af9d47f2edc1c45ba1cf750a0b16bab944ba87b96db520382445";
 
 // src/review/plan-rubric.generated.ts
 var PLAN_REVIEW_RUBRIC = `<!-- SAFEWORD:PLANNING_SHARED_START -->
@@ -37015,7 +37094,7 @@ var init_contracts_generated = __esm(() => {
     },
     "plan-execution": {
       relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
-      sha256: "04061409d2a5cd0ade97e0cace2abfea46121423f039afebfc4c3239848f7bcc"
+      sha256: "15e3e6382e4d29ad4581d3ec4fdf27f65ff2f200cd4caf78d7432fbc7d7c4616"
     }
   };
 });
@@ -55747,7 +55826,7 @@ function readPlanningAuthor(root, phase, identity2) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "02d3dd686280264aed7b11d0485a928d363ebcfec1e311fc118f0a44ea9ff4db" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "64776c7a1c82b28fbde97b0c066a060283ddc39ef11a580e1df2f3ddce350741" } };
+  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "02d3dd686280264aed7b11d0485a928d363ebcfec1e311fc118f0a44ea9ff4db" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2450075ef8eab3f9b5d07aca6acf5a3e71026ed1535b86235290f215c9bd2960" } };
   return readPlanningAuthor(packageRoot(), phase, copies[phase]);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {

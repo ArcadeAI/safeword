@@ -114,13 +114,18 @@ from outside those sources.
   the sole justification.
 - **Complete slices:** Require one record per plan slice, in plan order. Every
   slice has a unique nonblank name, one coherent purpose, a clear boundary, a
-  present prerequisite list, its own proof obligation, a concrete completion
-  signal, and a readable `relies_on_unmerged_successor` assertion. Reject a
-  slice with two independently valuable purposes or any implementation choice
-  the approved plan did not settle. A final proof step requiring every applicable
+  prerequisite list explicitly stated in the plan, its own proof obligation, a
+  concrete completion signal, and a readable `relies_on_unmerged_successor`
+  assertion. Reject a
+  slice with an omitted prerequisite list even when it is the only slice; an
+  explicit empty list or `none` is sufficient. Reject a slice with two
+  independently valuable purposes or any implementation choice the approved
+  plan did not settle. A final proof step requiring every applicable
   proof to pass can establish the slice's completion condition; the completion
   text need not repeat that step. Merely rerunning commands or preserving one
-  snapshot does not establish success for the other required proofs.
+  snapshot does not establish success for the other required proofs. Completion
+  must state that every applicable proof passes after the final edit; earlier
+  passing steps do not establish completion after a later edit.
 - **Startable steps:** Every executable step must name its exact action, inputs,
   prerequisites, and observable expected result. Require the first production
   slice to begin with the highest-risk named RED and state its command or fixture
@@ -198,7 +203,12 @@ from outside those sources.
 Always return `planning_destination`. Set it to `plan-execution` for approvals
 and for denials that only require Execution Plan repair. Set it to
 `plan-implementation` when a denial exposes a missing or changed accepted
-decision or proof boundary. For an approval, return `execution_plan_record`
+decision or proof boundary. Unreviewed, reopened, or contradictory design choices
+return to Implementation Planning even when removing the choice from the
+Execution Plan would repair it. Incorrect delivery ordering or premature
+activation of already accepted behavior requires Execution Plan repair when
+the accepted design and proof boundaries remain settled; it does not by itself
+reopen an implementation decision. For an approval, return `execution_plan_record`
 containing the slicing decision
 and rationale; the complete ordered slices; obligation-owner entries; and
 decision-status entries; `accepted_scenarios_covered: true`;

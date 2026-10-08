@@ -26,14 +26,14 @@ it('selects exact Execution reviewer defaults in the existing route order', () =
   expect(builtInReviewRoutes(project(), 'codex', 'plan-execution')).toEqual([
     { reviewer: 'claude', model: 'claude-opus-5', independence: 'cross-agent' },
     { reviewer: 'opencode', independence: 'cross-agent' },
-    { reviewer: 'codex', model: 'gpt-6-astra', independence: 'degraded' },
+    { reviewer: 'codex', model: 'gpt-6.1-sol', independence: 'degraded' },
   ]);
 });
 
 it('pins the independent Codex fallback for Cursor Execution reviews', () => {
   expect(builtInReviewRoutes(project(), 'cursor', 'plan-execution')).toEqual([
     { reviewer: 'claude', model: 'claude-opus-5', independence: 'cross-agent' },
-    { reviewer: 'codex', model: 'gpt-6-astra', independence: 'cross-agent' },
+    { reviewer: 'codex', model: 'gpt-6.1-sol', independence: 'cross-agent' },
   ]);
 });
 

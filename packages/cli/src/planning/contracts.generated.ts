@@ -52,6 +52,6 @@ export const PLANNING_AUTHOR_COPIES = {
   },
   "plan-execution": {
     "relativePath": "templates/skills/bdd/PLAN_EXECUTION.md",
-    "sha256": "04061409d2a5cd0ade97e0cace2abfea46121423f039afebfc4c3239848f7bcc"
+    "sha256": "15e3e6382e4d29ad4581d3ec4fdf27f65ff2f200cd4caf78d7432fbc7d7c4616"
   }
 } as const satisfies Record<PlanningPhase, PlanningAuthorCopyIdentity>;

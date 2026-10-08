@@ -252,7 +252,7 @@ export const REVIEWER_CAPABILITY_MANIFEST: CapabilityManifest = {
   floor: { runs_per_fixture: 3, minimum_fixture_passes: 2, minimum_total_percent: 90 },
   settings: {
     anthropic_model: 'claude-opus-5',
-    openai_model: 'gpt-6-astra',
+    openai_model: 'gpt-6.1-sol',
     tools: 'review prompt forbids tools',
     claude_effort: 'medium',
     codex_reasoning: 'medium',

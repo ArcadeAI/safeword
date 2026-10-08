@@ -60,7 +60,7 @@ const DEFAULT_PRIMARY_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'o
 const DEFAULT_ALTERNATE_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'sonnet' };
 const EXECUTION_PRIMARY_MODEL: Partial<Record<ReviewAgent, string>> = {
   claude: 'claude-opus-5',
-  codex: 'gpt-6-astra',
+  codex: 'gpt-6.1-sol',
 };
 
 export function readConfiguredReviewRoutes(
