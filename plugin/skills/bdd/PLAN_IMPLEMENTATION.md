@@ -330,6 +330,10 @@ receipt controls eligibility for approval and phase advancement.
    safeword ticket approve-plan <ticket-id>
    ```
 
+   Use the authenticated phase stamp from step 1; no additional artifact self-stamp
+   is required. Admission still authenticates reviewer provenance and rechecks
+   the exact reviewed plan bytes. Approved warnings are not rejection findings.
+
    Never replace this command with conversational approval or a manual phase
    edit. It rechecks the exact reviewed plan bytes and the current project
    configuration. When `designApprovalGate` is absent or off, it records `not
