@@ -32,6 +32,7 @@ import {
 } from '../../src/review/job.js';
 import { readReviewReceipt } from '../../templates/hooks/lib/read-receipt.js';
 import { receiptGateVerdict } from '../../templates/hooks/lib/review-receipt.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -153,6 +154,7 @@ function executionPlanWithDeliveryContract(): string {
 
 function executionPlanProject(): string {
   const cwd = project();
+  writePlanningInventories(cwd);
   mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
   writeFileSync(nodePath.join(cwd, '.safeword', 'config.json'), '{"designApprovalGate":false}\n');
   writeFileSync(nodePath.join(cwd, 'execution-plan.md'), executionPlanWithDeliveryContract());

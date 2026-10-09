@@ -199,6 +199,17 @@ function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approv
   mkdirSync(nodePath.join(root, '.safeword', 'templates'), { recursive: true });
   mkdirSync(nodePath.join(root, 'features'), { recursive: true });
   mkdirSync(ticketDirectory, { recursive: true });
+  const inventories = {
+    principles:
+      '# Principles\n\n## Preserve approval authority\n\nCurrent authenticated approval controls advancement.\n',
+    personas:
+      '# Personas\n\n## Builder (BU)\n\n**Role:** A builder requesting planning approval.\n**Context:** Needs current authenticated approval before advancement.\n',
+    surfaces:
+      '# Surfaces\n\n## Safeword CLI\n\n**Kind:** CLI\n**Description:** Requests and presents planning approval.\n**Audience:** Builder (BU)\n',
+  };
+  for (const [role, content] of Object.entries(inventories)) {
+    writeFileSync(nodePath.join(root, '.project', `${role}.md`), content);
+  }
   writeFileSync(
     nodePath.join(root, '.safeword', 'config.json'),
     `${JSON.stringify({ designApprovalGate, reviewGate: true }, undefined, 2)}\n`,

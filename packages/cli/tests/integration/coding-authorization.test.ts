@@ -24,6 +24,7 @@ import {
   runCli,
   TIMEOUT_ACCEPTANCE_LANE,
 } from '../helpers.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -58,6 +59,7 @@ function executionPlan(): string {
     '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
     '| --- | --- | --- | --- | --- | --- | --- |',
     `| proof | command | integration | public authorization | real_boundary | current_required | {"type":"command","cwd":".","argv":[${JSON.stringify(process.execPath)},"--version"]} |`,
+    `| alternate-proof | command | integration | alternative public authorization proof | real_boundary | current_required | {"type":"command","cwd":".","argv":[${JSON.stringify(process.execPath)},"--version"]} |`,
     '',
     '## Delivery checklist',
     '',
@@ -268,6 +270,7 @@ async function featureFixture(
   const implementationTarget = `.project/tickets/${ticketFolder}/impl-plan.md`;
   const executionTarget = `.project/tickets/${ticketFolder}/execution-plan.md`;
   mkdirSync(ticketDirectory, { recursive: true });
+  writePlanningInventories(root);
   mkdirSync(nodePath.join(root, 'features'), { recursive: true });
   mkdirSync(nodePath.join(root, '.claude', 'plans'), { recursive: true });
   mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
@@ -477,6 +480,7 @@ describe('coding authorization', () => {
       data: {
         command: 'ticket coding-authorization',
         coding_authorization: 'authorized',
+        achieved_independence: 'cross-agent',
         grants_authority: false,
       },
     });
@@ -599,6 +603,21 @@ describe('coding authorization', () => {
               path,
               readFileSync(path, 'utf8').replace('Deliver testing.', 'Prove testing.'),
             );
+          },
+        },
+        {
+          name: 'required proof column',
+          authorization: 'denied',
+          refreshFrom: 'execution',
+          apply(root) {
+            const path = nodePath.join(root, '.project/tickets/ABC123-feature/execution-plan.md');
+            const plan = readFileSync(path, 'utf8');
+            const changed = plan.replace(
+              '| item-4 | testing | Deliver testing. | contributor | proof |',
+              '| item-4 | testing | Deliver testing. | contributor | alternate-proof |',
+            );
+            expect(changed).not.toBe(plan);
+            writeFileSync(path, changed);
           },
         },
         {

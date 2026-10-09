@@ -440,7 +440,20 @@ function projectFixtureArguments(args: string[]): string[] {
 interface RunCliOptions {
   cwd?: string;
   env?: Record<string, string>;
+  unsetEnv?: readonly string[];
   timeout?: number;
+}
+
+function cliEnvironment(
+  env: Record<string, string>,
+  omittedVariables: readonly string[] = [],
+): NodeJS.ProcessEnv {
+  const omitted = new Set(omittedVariables);
+  return Object.fromEntries(
+    Object.entries({ ...process.env, NODE_ENV: 'test', ...env }).filter(
+      ([name]) => !omitted.has(name),
+    ),
+  );
 }
 
 /**
@@ -462,7 +475,7 @@ async function executeCli(cliArguments: string[], options: RunCliOptions): Promi
       [testCliPath, ...cliArguments],
       {
         cwd,
-        env: { ...process.env, NODE_ENV: 'test', ...env },
+        env: cliEnvironment(env, options.unsetEnv),
         timeout,
         maxBuffer: CLI_MACHINE_OUTPUT_LIMIT_BYTES,
       },

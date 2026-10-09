@@ -580,6 +580,18 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     },
   ),
   command(
+    'ticket record-review-disposition',
+    'Decline one optional reviewed suggestion',
+    'mutate',
+    {
+      promptPolicy: 'confirm',
+      syntax: 'record-review-disposition <ticketId> <reviewId> <findingNumber>',
+      commandOptions: [
+        { flags: '--reason <reason>', description: 'Explain why the suggestion is declined' },
+      ],
+    },
+  ),
+  command(
     'ticket planning-contract-check',
     'Check active planning author-copy integrity',
     'observe',

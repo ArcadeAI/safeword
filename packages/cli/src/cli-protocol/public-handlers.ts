@@ -356,6 +356,30 @@ async function ticketApprovePlanHandler(invocation: CommandInvocation): Promise<
   return approvePlanResult(invocation.cwd, ticket, { noInput: invocation.noInput });
 }
 
+async function recordReviewDispositionHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const [ticketId, reviewId, findingNumber] = invocation.operands;
+  const reason = stringOption(invocation.options, 'reason');
+  if (
+    [ticketId, reviewId, findingNumber].some(value => typeof value !== 'string' || value === '') ||
+    reason === undefined ||
+    reason.trim() === ''
+  ) {
+    return invalidOperand(
+      'ticket record-review-disposition',
+      'Supply a ticket id, review id, one-based finding number, and --reason.',
+    );
+  }
+  const { recordReviewDisposition } = await import('../commands/review-disposition.js');
+  return recordReviewDisposition({
+    cwd: invocation.cwd,
+    ticketId: ticketId as string,
+    reviewId: reviewId as string,
+    findingNumber: findingNumber as string,
+    reason,
+    noInput: invocation.noInput,
+  });
+}
+
 async function planningContractCheckHandler(invocation: CommandInvocation): Promise<CliResult> {
   const ticket = invocation.operands[0];
   const phase = invocation.operands[1];
@@ -570,6 +594,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket new': ticketNewHandler,
   'ticket reconcile-parent': ticketReconcileParentHandler,
   'ticket approve-plan': ticketApprovePlanHandler,
+  'ticket record-review-disposition': recordReviewDispositionHandler,
   'ticket planning-contract-check': planningContractCheckHandler,
   'ticket delivery-checklist': deliveryChecklistHandler,
   'ticket execution-prerequisite': executionPrerequisiteHandler,

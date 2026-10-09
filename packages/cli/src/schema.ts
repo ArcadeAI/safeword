@@ -58,6 +58,8 @@ export const PLANNING_CONTRACT_TEMPLATE_PATHS = {
   execution: 'skills/bdd/PLAN_EXECUTION.md',
 } as const;
 
+export const PLANNING_DATA_GUIDE_PATH = '.safeword/guides/data-architecture-guide.md';
+
 export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
   // Static string, or a factory resolved with ctx at plan time so the block can
@@ -1064,7 +1066,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/guides/context-files-guide.md': {
       template: 'guides/context-files-guide.md',
     },
-    '.safeword/guides/data-architecture-guide.md': {
+    [PLANNING_DATA_GUIDE_PATH]: {
       template: 'guides/data-architecture-guide.md',
     },
     '.safeword/guides/interface-contract-guide.md': {

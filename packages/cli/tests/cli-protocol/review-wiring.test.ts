@@ -19,6 +19,8 @@ import {
 } from '../../src/execution-plan/delivery-checklist.js';
 import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
+import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
 import { createTrustedReviewerDirectory } from '../review-fixtures.js';
 
 type ReviewAgent = 'claude' | 'codex' | 'opencode';
@@ -299,6 +301,13 @@ describe('cross-agent review public-command wiring', () => {
         const configPath = nodePath.join(directory, '.safeword/config.json');
         const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
         writeFileSync(configPath, JSON.stringify({ ...config, paths: { projectRoot: namespace } }));
+        mkdirSync(nodePath.join(directory, namespace), { recursive: true });
+        for (const role of ['principles', 'personas', 'surfaces']) {
+          writeFileSync(
+            nodePath.join(directory, namespace, `${role}.md`),
+            readFileSync(nodePath.join(directory, '.project', `${role}.md`)),
+          );
+        }
       }
       const ticketPath = `${namespace}/tickets/ABC123-product-review`;
       mkdirSync(nodePath.join(directory, ticketPath), { recursive: true });
@@ -307,10 +316,7 @@ describe('cross-agent review public-command wiring', () => {
         `---\nid: ABC123\ntype: ${type}\nphase: intake\nstatus: in_progress\nproduct_plan_contract: v1\n---\n`,
       );
       const productPath = `${ticketPath}/spec.md`;
-      writeFileSync(
-        nodePath.join(directory, productPath),
-        '# Product Plan\n\nAccepted behavior.\n',
-      );
+      writeFileSync(nodePath.join(directory, productPath), PLANNING_ROLE_PRODUCT);
       mkdirSync(nodePath.join(directory, 'notes'));
       writeFileSync(
         nodePath.join(directory, 'notes/spec.md'),
@@ -678,6 +684,7 @@ describe('cross-agent review public-command wiring', () => {
 
   it('composes the shared severity foundation with the plan-review rubric', async () => {
     const directory = createTemporaryDirectory();
+    writePlanningInventories(directory);
     const reviewLog = nodePath.join(directory, 'review.log');
     const promptLog = nodePath.join(directory, 'prompt.log');
     const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
@@ -717,6 +724,7 @@ describe('cross-agent review public-command wiring', () => {
 
   it('accepts a ticket-owned Implementation Plan through the public review command', async () => {
     const directory = createTemporaryDirectory();
+    writePlanningInventories(directory);
     const reviewLog = nodePath.join(directory, 'review.log');
     const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
     mkdirSync(ticketDirectory, { recursive: true });
@@ -749,6 +757,42 @@ describe('cross-agent review public-command wiring', () => {
       data: { status: 'approved' },
     });
     expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude']);
+  });
+
+  it('rejects repeated host-private planning targets before reviewer dispatch', async () => {
+    const directory = createTemporaryDirectory();
+    const privateDirectory = nodePath.join(directory, '.claude', 'plans');
+    mkdirSync(privateDirectory, { recursive: true });
+    writeFileSync(nodePath.join(privateDirectory, 'impl-plan.md'), '# Host-private plan\n');
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const bin = installFakeReviewer(directory, 'claude');
+    const rejected = await runCli(
+      [
+        'review',
+        'run',
+        'plan-implementation',
+        '.claude/plans/impl-plan.md',
+        './.claude/plans/impl-plan.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+    expect(rejected.exitCode, rejected.stdout).toBe(1);
+    expect(JSON.parse(rejected.stdout)).toMatchObject({
+      errors: [{ code: 'REVIEW_PLAN_TARGET_INVALID' }],
+    });
+    expect(existsSync(reviewLog)).toBe(false);
   });
 
   it('rejects host-private and other unowned Implementation Plans through the public review command', async () => {
@@ -808,6 +852,7 @@ describe('cross-agent review public-command wiring', () => {
 
   it('activates Execution Plan review only for a ticket-owned plan through an admitted route', async () => {
     const directory = createTemporaryDirectory();
+    writePlanningInventories(directory);
     const reviewLog = nodePath.join(directory, 'review.log');
     const promptLog = nodePath.join(directory, 'prompt.log');
     const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
@@ -958,6 +1003,7 @@ describe('cross-agent review public-command wiring', () => {
 
   it('guides the author to record an unresolved pull-request slicing decision', async () => {
     const directory = createTemporaryDirectory();
+    writePlanningInventories(directory);
     const reviewLog = nodePath.join(directory, 'review.log');
     const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
     mkdirSync(ticketDirectory, { recursive: true });
@@ -1076,6 +1122,7 @@ describe('cross-agent review public-command wiring', () => {
     );
     if (testCase === undefined) throw new Error('Missing applicable-work conformance fixture');
     const directory = createTemporaryDirectory();
+    writePlanningInventories(directory);
     const reviewLog = nodePath.join(directory, 'review.log');
     const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
     mkdirSync(ticketDirectory, { recursive: true });
@@ -1136,6 +1183,7 @@ describe('cross-agent review public-command wiring', () => {
     )?.execution_plan;
     if (executionPlan === undefined) throw new Error('Missing accepted execution plan fixture');
     const directory = createTemporaryDirectory();
+    writePlanningInventories(directory);
     const reviewLog = nodePath.join(directory, 'review.log');
     const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
     mkdirSync(ticketDirectory, { recursive: true });
@@ -1190,6 +1238,7 @@ describe('cross-agent review public-command wiring', () => {
 
   it('reviews the ticket plan when a divergent host-private copy exists', async () => {
     const directory = createTemporaryDirectory();
+    writePlanningInventories(directory);
     const reviewLog = nodePath.join(directory, 'review.log');
     const promptLog = nodePath.join(directory, 'prompt.log');
     const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');

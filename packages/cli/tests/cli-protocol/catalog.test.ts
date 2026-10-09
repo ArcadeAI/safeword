@@ -145,6 +145,7 @@ describe('CLI command catalog', () => {
       'ticket new',
       'ticket reconcile-parent',
       'ticket approve-plan',
+      'ticket record-review-disposition',
       'ticket planning-contract-check',
       'ticket delivery-checklist',
       'ticket execution-prerequisite',

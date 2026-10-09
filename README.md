@@ -793,6 +793,29 @@ its child processes. The commit and pre-push hooks use the same launcher. This w
 terminals, IDEs, and non-interactive agent shells without changing your shell profile. A bare `bun` can still select a different global
 version even though `package.json` declares `packageManager`.
 
+### Live Execution Plan Proof
+
+The default acceptance lane excludes `@live` scenarios. Their semantic proofs
+call the real authenticated reviewer and are opt-in. Select Claude, its model
+selector, and the authenticated profile explicitly:
+
+```bash
+scripts/dev env NODE_OPTIONS='--import tsx' \
+  SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER=claude \
+  SAFEWORD_EXECUTION_PLAN_LIVE_MODEL=opus \
+  SAFEWORD_EXECUTION_PLAN_LIVE_CLAUDE_CONFIG_DIR=default \
+  ./node_modules/.bin/cucumber-js features/turn-decisions-into-startable-work.feature \
+  --profile live --tags '@plan-implementability.TBU2.7CAMAD.R13'
+```
+
+`default` uses Claude's normal authenticated profile only for review subprocesses;
+installation fixtures keep their sandbox. A custom profile directory may be
+supplied instead. These calls consume provider usage. The current admission
+catalogue names the `opus` selector; this evidence does not establish the exact
+served model's canonical identity or qualification against a particular author.
+Missing credentials, unqualified routes, malformed results, and wrong judgments
+fail the proof. They never count as a passing fallback.
+
 ### Development Workflow
 
 **Editing Source Templates:**

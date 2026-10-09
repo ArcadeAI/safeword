@@ -54,7 +54,7 @@ Feature: Keep plan reviews current and trustworthy
         | phase | required_inventory |
         | Product Plan | ticket, project, declared parent and milestone boundaries, Rules, epistemic state, principles, personas, and affected surfaces |
         | Implementation Plan | ticket, project, declared parent and milestone boundaries, Rules, scenarios, dimensions when present, principles, personas, affected surfaces, configured architecture records, and triggered data guidance |
-        | Execution Plan | ticket, project, declared parent and milestone boundaries, Rules, scenarios, principles, personas, affected surfaces, and the accepted Implementation Plan |
+        | Execution Plan | ticket, project, declared parent and milestone boundaries, Rules, scenarios, dimensions when present, principles, personas, affected surfaces, configured architecture records, triggered data guidance, and the accepted Implementation Plan |
 
     @surface.claude-code @rejection
     Scenario Outline: Installed dispatch cannot bypass packet completeness
@@ -84,7 +84,8 @@ Feature: Keep plan reviews current and trustworthy
         | configured but blank | dispatch is blocked with reconciliation named |
         | configured but unreadable | dispatch is blocked with reconciliation named |
         | configured but stale | dispatch is blocked with reconciliation named |
-        | configured with only whitespace or comment changes | the project source is included and dispatch is not blocked |
+        | configured with only whitespace or comment changes and a current reconciliation lineage | the project source is included and dispatch is not blocked |
+        | configured with only whitespace or comment changes but a stale reconciliation lineage | dispatch is blocked with reconciliation named |
 
     @surface.claude-code
     Scenario Outline: Local dispatch enforces required context resolution
@@ -113,7 +114,7 @@ Feature: Keep plan reviews current and trustworthy
         | an unrelated persona or surface entry is added | the review remains current |
         | the reviewed plan changes only in whitespace or comments outside normalized Execution Plan checklist progress cells | that plan's review becomes stale because its exact bytes changed |
         | the canonical phase contract changes semantically | the review becomes stale |
-        | a bound context artifact changes semantically | the review becomes stale |
+        | any listed bound context artifact changes semantically | that dependent review becomes stale for every such artifact |
 
   @plan-implementability.TBU4.5F5ZZA.R5
   Rule: plan-implementability.TBU4.5F5ZZA.R5 — Contract identity binds exact canonical bytes

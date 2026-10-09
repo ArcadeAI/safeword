@@ -1,9 +1,11 @@
+import { deepStrictEqual } from 'node:assert';
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 
 import { prepareReviewPacket } from '../../src/review/packet.ts';
 import { runHeadlessReviewer } from '../../src/review/runtime.ts';
+import { writePlanningInventories } from '../planning-fixtures.ts';
 
 interface Input {
   contractState: string;
@@ -16,6 +18,7 @@ const priorNodeEnvironment = process.env.NODE_ENV;
 const priorPath = process.env.PATH;
 
 try {
+  writePlanningInventories(project);
   writeFileSync(nodePath.join(project, 'impl-plan.md'), '# Implementation Plan\n');
   const baseline = prepareReviewPacket(project, 'plan-implementation', ['impl-plan.md']);
   const author = baseline.packet.plan_contract?.author;
@@ -46,21 +49,30 @@ try {
       findings: [],
     };
     const outputPath = nodePath.join(trustedBin, 'review-output.json');
+    const inputPath = nodePath.join(trustedBin, 'received-prompt.txt');
     writeFileSync(outputPath, JSON.stringify({ structured_output: reviewerOutput }));
     writeFileSync(
       executable,
-      `#!/bin/sh\nif [ "\${1:-}" = "--help" ]; then\n  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'\n  exit 0\nfi\n/bin/cat >/dev/null\n/bin/cat '${outputPath}'\n`,
+      `#!/bin/sh\nif [ "\${1:-}" = "--help" ]; then\n  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'\n  exit 0\nfi\n/bin/cat > '${inputPath}'\n/bin/cat '${outputPath}'\n`,
     );
     chmodSync(executable, 0o755);
     process.env.NODE_ENV = 'test';
     process.env.PATH = trustedBin;
     const result = await runHeadlessReviewer('claude', prepared.packet, project, process.cwd());
+    const receivedPacket = JSON.parse(
+      readFileSync(inputPath, 'utf8').trim().split('\n').pop() ?? '',
+    ) as typeof prepared.packet;
+    deepStrictEqual(
+      receivedPacket.plan_contract,
+      prepared.packet.plan_contract,
+      'the reviewer did not receive the prepared plan contract',
+    );
     process.stdout.write(
       JSON.stringify({
         verdict: result.verdict,
         findings: result.findings,
-        authorObligations: author.obligations,
-        reviewerObligations: reviewer.obligations,
+        authorObligations: receivedPacket.plan_contract?.author.obligations,
+        reviewerObligations: receivedPacket.plan_contract?.reviewer.obligations,
       }),
     );
   } finally {

@@ -27,6 +27,7 @@ import { assemblePlanContract } from '../../src/review/packet.js';
 import { extractPlanReviewRubric } from '../../src/review/plan-rubric.js';
 import { reviewPromptContract } from '../../src/review/review-rubric.js';
 import { reconcilePlanContract } from '../../src/review/runtime.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -330,6 +331,7 @@ function runInstalledReview(
   const project = temporaryDirectory('safeword-contract-project-');
   const ticket = nodePath.join(project, '.project/tickets/T1-feature');
   mkdirSync(ticket, { recursive: true });
+  writePlanningInventories(project);
   const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
     candidate => candidate.id === 'one-coherent-change',
   );

@@ -18,6 +18,7 @@ import type {
   ReviewKind,
 } from '../review/contract.js';
 import type {
+  PlanningContextError,
   PlanningContractCopyError,
   ReviewPacketError as ReviewPacketErrorType,
 } from '../review/packet.js';
@@ -48,7 +49,13 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
   }
   if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
   const targets = Array.isArray(rawTargets)
-    ? rawTargets.filter((target): target is string => typeof target === 'string')
+    ? new Map(
+        rawTargets
+          .filter((target): target is string => typeof target === 'string')
+          .map(target => [nodePath.resolve(invocation.cwd, target), target]),
+      )
+        .values()
+        .toArray()
     : [];
   const context = reviewContext(invocation.options.context);
   if (rawKind === 'plan-implementation' || rawKind === 'plan-execution') {
@@ -497,7 +504,9 @@ function withExecutionAttestation(
   };
 }
 
-function planningCopyFindings(error?: PlanningContractCopyError): CliResult['findings'] {
+function planningCopyFindings(
+  error?: PlanningContractCopyError | PlanningContextError,
+): CliResult['findings'] {
   return error === undefined
     ? []
     : [
@@ -505,7 +514,10 @@ function planningCopyFindings(error?: PlanningContractCopyError): CliResult['fin
           code: error.code,
           message: error.message,
           severity: 'error',
-          metadata: { planning_phase: error.phase, contract_path: error.contractPath },
+          metadata:
+            'contextRole' in error
+              ? { context_role: error.contextRole, context_path: error.contextPath }
+              : { planning_phase: error.phase, contract_path: error.contractPath },
         },
       ];
 }
@@ -513,7 +525,7 @@ function planningCopyFindings(error?: PlanningContractCopyError): CliResult['fin
 function failedReviewWorker(
   error: CliResult['errors'][number],
   reviewId?: string,
-  copyError?: PlanningContractCopyError,
+  copyError?: PlanningContractCopyError | PlanningContextError,
 ): CliResult {
   return createResult({
     state: 'failed',
@@ -546,7 +558,7 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
   const [
     { runReview },
     { completeReviewJob, reviewJobWorkerInput },
-    { ReviewPacketError, PlanningContractCopyError },
+    { ReviewPacketError, planningPacketError },
   ] = await Promise.all([
     import('../review/coordinator.js'),
     import('../review/job.js'),
@@ -595,11 +607,7 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
           },
     );
   } catch (error) {
-    result = reviewExecutionFailure(
-      error,
-      ReviewPacketError,
-      error instanceof PlanningContractCopyError ? error : undefined,
-    );
+    result = reviewExecutionFailure(error, ReviewPacketError, planningPacketError(error));
   }
   try {
     completeReviewJob(invocation.cwd, id, result);
@@ -622,7 +630,7 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
 function reviewExecutionFailure(
   error: unknown,
   PacketError: typeof ReviewPacketErrorType,
-  copyError?: PlanningContractCopyError,
+  copyError?: PlanningContractCopyError | PlanningContextError,
 ): CliResult {
   const packetError = error instanceof PacketError;
   return failedReviewWorker(
@@ -643,7 +651,7 @@ async function startReviewInBackground(
   context: readonly string[],
   execution?: RedExecutionRequest,
 ): Promise<CliResult> {
-  const [{ startReviewJob }, { ReviewPacketError, PlanningContractCopyError }] = await Promise.all([
+  const [{ startReviewJob }, { ReviewPacketError, planningPacketError }] = await Promise.all([
     import('../review/job.js'),
     import('../review/packet.js'),
   ]);
@@ -657,18 +665,14 @@ async function startReviewInBackground(
       progress: invocation.progress,
     });
   } catch (error) {
-    return reviewStartFailure(
-      error,
-      ReviewPacketError,
-      error instanceof PlanningContractCopyError ? error : undefined,
-    );
+    return reviewStartFailure(error, ReviewPacketError, planningPacketError(error));
   }
 }
 
 function reviewStartFailure(
   error: unknown,
   PacketError: typeof ReviewPacketErrorType,
-  copyError?: PlanningContractCopyError,
+  copyError?: PlanningContractCopyError | PlanningContextError,
 ): CliResult {
   const packetError = error instanceof PacketError;
   return createResult({

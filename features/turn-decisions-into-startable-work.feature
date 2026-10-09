@@ -1,9 +1,9 @@
 Feature: Turn accepted decisions into startable work
   Safeword turns an approved approach into work a fresh agent can start without inventing decisions.
 
-  # @live marks periodic reviewer-semantic evidence. The regenerated deterministic admission matrix
-  # substitutes only for the live reviewer's verdict; CI still exercises each scenario through the
-  # installed Safeword CLI. A failed live reviewer result fails its case without retry masking.
+  # @live marks periodic installed-CLI reviewer-semantic evidence and is excluded from the default lane.
+  # Those cases require the explicit authenticated live profile; deterministic module or fixture checks
+  # do not substitute for their semantic proof. Failed live results remain failures without retry masking.
 
   @plan-implementability.TBU2.7CAMAD.R1
   Rule: plan-implementability.TBU2.7CAMAD.R1 — Execution Planning requires a reviewed current approach
