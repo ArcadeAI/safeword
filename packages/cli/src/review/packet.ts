@@ -26,9 +26,10 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../execution-plan/delivery-checklist.js';
+import { hasCursorProjectAssets } from '../lifecycle/cursor.js';
 import { PLANNING_AUTHOR_COPIES } from '../planning/contracts.generated.js';
 import type { PlanningAuthorCopyIdentity, PlanningPhase } from '../planning/phase-contract.js';
-import { cursorPlanningContractPath } from '../schema.js';
+import { cursorPlanningContractPath, SAFEWORD_SCHEMA } from '../schema.js';
 import { resolveConfiguredPath, resolveTicketsDirectory } from '../utils/configured-paths.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 import type {
@@ -333,7 +334,12 @@ function packagedPlanningAuthor(phase: PlanningPhase): string {
 /** Raw author-copy integrity is separate from the authenticated reviewer verdict. */
 export function assertActivePlanningAuthorCopy(cwd: string, phase: PlanningPhase): void {
   packagedPlanningAuthor(phase);
-  if (process.env.SAFEWORD_AGENT_RUNTIME !== 'cursor') return;
+  if (
+    process.env.SAFEWORD_AGENT_RUNTIME !== 'cursor' &&
+    !hasCursorProjectAssets(cwd, SAFEWORD_SCHEMA)
+  ) {
+    return;
+  }
   const identity = PLANNING_AUTHOR_COPIES[phase];
   const template = identity.relativePath.replace(/^templates\//u, '');
   readPlanningAuthor(cwd, phase, {
