@@ -1750,3 +1750,161 @@ checkpoint changes only this work log. All historical RED logs remain retained.
 This package pass does not substitute for the four blocked native-installation
 acceptance examples or 110 undefined scenarios. The stable-channel decision
 remains pending, and no #4200 PR has been merged or promoted.
+
+### 2026-10-09 — approved stable promotion; current release and acceptance failures
+
+Human approved advancing stable to published v1.1.0. Normal fast-forward push
+advanced cd7875b0b to d5885e587; pre-push passed 895 tests. Remote verification
+confirms the approved SHA. Log: /tmp/4200-approved-stable-promotion.log.
+No epic PR was merged or promoted. Installed packet-completeness acceptance
+then passed all four scenarios, 212 steps and two hooks:
+/tmp/4200-promoted-context-route.{log,json}.
+
+Fresh complete R1-R5 selection finished with 42 passing and two failing scenarios,
+2,329 passing steps, two failed and one skipped, two hooks passed (44 scenarios;
+2,332 steps; 485.118 seconds). One real plugin marketplace download timed out;
+one trusted planning-checker subprocess timed out before naming reconciliation.
+Log: /tmp/4200-promoted-r1-r5-acceptance.{log,json}. An unchanged bounded rerun
+of those two scenario groups is in progress; no full selection pass is claimed.
+
+PRs 4990, 4991, 5041, 5051 and 5086 have terminal green CI at their main-synced
+heads. PR5 f6794f309 fails the release lane on both Node versions: its capability
+test still selects archived Astra instead of the packaged qualified Sol evidence.
+Prepared /tmp/4200-release-capability-selector.patch changes that selector and
+the inaccurate shipped-default title only; exact pair, digest, revision and
+qualification assertions remain. Additional human test approval is pending.
+The ordinary 720-file suite excludes these release tests; its green result did
+not verify this lane. No new paid qualification is needed for this correction.
+
+Source bootstrap and migrate still report installed Codex 1.0.0. Investigation
+found the shared marketplace explicitly pinned to codex/review-mcp-main-sync;
+the Explain safeword-review approval chat confirms deliberate sign-in testing.
+Requested a separate choice before switching that shared profile to stable.
+No profile pin or other chat's candidate integration was changed. The 110
+undefined acceptance scenarios, historic six failures/585 unfinished baseline,
+deferred retrieval proof and remaining current-head reviews remain open.
+
+The unchanged timeout-group rerun completed successfully: seven scenarios,
+371 steps and two hooks passed in 46.126 seconds. Logs:
+/tmp/4200-promoted-timeout-recheck.{log,json}. This supports subprocess timeouts
+as the two observed failures; it does not relabel the complete 44-case run green.
+Release-test approval and shared-profile choice remain pending.
+
+### 2026-10-09 — approved release selector and shared profile switch
+
+Human approved both pending actions. Applied the two-line release-test correction;
+full release lane now passes 14 files and 82 tests in 13.68 seconds, exit zero.
+Log: /tmp/4200-approved-release-lane.log. Prettier and ESLint pass for the changed
+test. No qualification assertions, scorer, sealed evidence or production code
+were changed. No paid evaluation was rerun.
+
+Backed up the profile config privately before using native Codex marketplace
+remove/add to replace the explicitly approved other-task branch with stable.
+Native plugin add reports installed Safeword 1.1.0. Source migrate and status
+observe installed/enabled 1.1.0, but hook proof remains stale from 1.0.0 and
+requires an actual restart and native event observations. Logs:
+/tmp/4200-approved-codex-stable-{install,migrate,status}.json.
+No candidate MCP integration or other profile settings were edited manually.
+
+Attempted the required independent quality review of the changed release test,
+with only capability catalogue, corpus and evaluator as supporting context.
+The loaded MCP tool fails with "Safeword CLI entrypoint is unavailable" after
+the installed plugin runtime replacement. No review dispatched; no independent
+approval is claimed. The project plugin-setup skill requires "Fully restart
+Codex, then resume this task." Stop here for that host reload, then verify
+status, collect hook proof, rerun the bounded independent review and commit/push
+the approved correction. The correction and this checkpoint are uncommitted;
+the pre-existing YCFFNC changes remain untouched. All epic PRs remain Draft.
+
+### 2026-10-09 — restart restores CLI review; release identity proof needs approval
+
+After the human restart, source status observes enabled 1.1.0 and current
+session-start, user-prompt-submit, pre-tool-use and post-tool-use observations.
+Only stop remains unobserved during this active turn. No additional restart is
+claimed necessary merely to produce that event; no hook proof was fabricated.
+The released 1.1.0 quality-review skill uses its bundled CLI coordinator, so
+the absence of the old MCP namespace is not an unavailable review route.
+Observed the required quality-review invocation log success.
+
+Independent Claude review d7e887d9-0d97-4aba-a065-ee4df4d96c3d requests changes
+for one release-test proof gap: evidence filenames are not checked against their
+internal provider/model fields. Read-only reproduction seals the Sol runs as
+anthropic/wrong-model; both comparison directions still return not_weaker.
+The runtime exact-pair lookup would refuse the intended Sol pair after such a
+catalogue regeneration, while this release test could still report success.
+Logs: /tmp/4200-approved-release-selector-review.{json,log},
+/tmp/4200-release-identity-gap-repro.json. Prepared four provider/model checks
+in /tmp/4200-release-evidence-identity.patch; applies cleanly, but additional
+human test-edit approval is pending. No production changes or paid reruns.
+Warnings about duplicated digest logic and date formatting are not blockers
+and are not added to this correction.
+
+Fresh complete PR4989 diff review at 65f7963af95f102999417a42de218649383b36ac
+is independently approved by Claude: db653570-3d99-4a81-9d73-aa97a9d5388f,
+zero errors. Log /tmp/4200-4989-main-current-review.{json,log}. Remaining warnings
+concern a fixture comment, exact denial-message coupling and a carried-over
+weak generic phase-list check; lower-level execution receipt coverage is not
+claimed by the migrated entry scenarios. Historical six failures and 585
+undefined remain explicit. No source change followed this review.
+
+Current PR5041 main-synced source review is in progress against f9c06a34f:
+three immutable packets include all 87 non-bundled diff files. Two compiled
+CLI bundle diffs are excluded due size; exact-head five-surface generation
+checks supply derivation evidence. This is not raw compiled-byte inspection.
+Cancelled duplicate CI runs are preserved; actual current-head failures were
+not found on PRs 5041, 5051 or 5086. PR5's release-test failures remain open
+until the approved correction receives a clean review and is pushed.
+
+PR5041 main-current review 476581ed-b133-4350-8b4a-0d42ab0b03f2 is terminal
+request_changes, with one concrete error: public approval's installed Cursor
+author-copy check depends on SAFEWORD_AGENT_RUNTIME=cursor. Ordinary terminals
+can omit that variable. The existing public fixture injects it, so the proof
+cannot expose the bypass. Root PR5 retains the same guard. Read-only direct-guard
+reproduction /tmp/4200-cursor-copy-terminal-repro.json confirms schema-owned
+Cursor assets present and a drifted author copy accepted with the variable unset.
+This is not a complete authenticated public-CLI replay; the existing integration
+case must supply that RED proof after its fixture edit is approved.
+
+Figure-it-out decision /tmp/4200-cursor-copy-decision.md selects the existing
+hasCursorProjectAssets(cwd, SAFEWORD_SCHEMA) observer alongside the current host
+signal. Author-copy existence alone would fail to reject a deleted copy; a new
+manifest would add unnecessary state. Prepared source correction
+/tmp/4200-cursor-installed-copy-guard.patch applies cleanly and remains unapplied
+until the RED proof runs. Additional human test approval requested for
+/tmp/4200-cursor-ordinary-terminal-test.patch: only public CLI environment changes,
+all current positive/refusal assertions remain. Source repair is within task 2's
+installed-copy boundary. Do not refresh downstream PR reviews before propagating
+this repair; that would make the new review packets stale immediately.
+Review warnings about generated architecture descriptions, Node iterator helpers
+and generator import effects remain nonblocking; no expanded hardening is planned.
+
+### 2026-10-09 — both test repairs approved; real RED and focused GREEN
+
+Human approved both prepared test corrections. Applied the four release evidence
+provider/model assertions and the ordinary-terminal fixture correction on PR2.
+Current Codex migrate --finalize is healthy/protected with enabled 1.1.0 and
+all five real lifecycle event observations; no further restart is required.
+
+The unchanged public drift-refusal assertion failed as intended without the
+injected Cursor host variable: one failed, one passed, three unselected/skipped.
+Log /tmp/4200-cursor-terminal-red.log. Applied the existing schema-owned Cursor
+asset observer alongside the host signal in assertActivePlanningAuthorCopy.
+All three focused files then passed: ten tests, zero failures, 11.69 seconds.
+Log /tmp/4200-cursor-terminal-green.log. No approval authority, error assertion
+or canonical-byte requirement was removed. Generated plugin surfaces rebuilt
+from this source; their large line diffs are compiler bundle ordering changes,
+not hand-edited runtime logic.
+
+Independent Claude approves the repaired Cursor source and fixture, review
+361785cb-720d-4730-8839-8264a828c879, zero errors. This resolves the concrete
+public-approval error from the complete PR2 review; optional warnings remain.
+Logs /tmp/4200-cursor-terminal-review.{json,log}.
+
+Independent Claude also approves the release test with identity checks, review
+c9963c5a-7a34-4632-96cd-b61a18a6f678, zero errors. Full release lane passes
+14 files/82 tests in 14.19 seconds; Prettier and ESLint pass.
+Logs /tmp/4200-release-identity-{final-review.json,green.log}.
+No paid evaluations were rerun. Source repair will be committed to PR2 and
+integrated forward through PR3, PR4 and PR5; no history rewrite, merge of a PR
+or Draft promotion is authorized. Remaining 110 undefined acceptance scenarios
+and historical six failures/585 unfinished scenarios remain open.
