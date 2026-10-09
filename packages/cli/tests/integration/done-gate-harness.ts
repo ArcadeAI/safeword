@@ -47,7 +47,14 @@ export function runDoneGate(
   projectDirectory: string,
   sessionId: string,
   environment?: NodeJS.ProcessEnv,
-): { exitCode: number; reason: string; stdout: string } {
+  options: { stopHookActive?: boolean } = {},
+): {
+  exitCode: number;
+  decision: string | undefined;
+  reason: string;
+  systemMessage: string;
+  stdout: string;
+} {
   const resolvedEnvironment = environment ?? {
     ...process.env,
     CLAUDE_PROJECT_DIR: projectDirectory,
@@ -67,7 +74,11 @@ export function runDoneGate(
     })}\n`,
   );
   const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
-    input: JSON.stringify({ transcript_path: transcriptPath, session_id: sessionId }),
+    input: JSON.stringify({
+      transcript_path: transcriptPath,
+      session_id: sessionId,
+      stop_hook_active: options.stopHookActive ?? false,
+    }),
     cwd: projectDirectory,
     env: resolvedEnvironment,
     encoding: 'utf8',
@@ -75,11 +86,22 @@ export function runDoneGate(
   const stdout = result.stdout ?? '';
   const exitCode = result.status ?? 0;
   try {
-    return { exitCode, reason: JSON.parse(stdout.trim()).reason ?? '', stdout };
+    const parsed = JSON.parse(stdout.trim()) as {
+      decision?: string;
+      reason?: string;
+      systemMessage?: string;
+    };
+    return {
+      exitCode,
+      decision: parsed.decision,
+      reason: parsed.reason ?? '',
+      systemMessage: parsed.systemMessage ?? '',
+      stdout,
+    };
   } catch {
     // Non-JSON stdout (e.g. a hook crash) yields no parsed reason. Callers
     // asserting the gate PASSED must check exitCode and/or raw stdout — a
     // negative `not.toContain` against an empty reason would pass vacuously.
-    return { exitCode, reason: '', stdout };
+    return { exitCode, decision: undefined, reason: '', systemMessage: '', stdout };
   }
 }

@@ -443,6 +443,9 @@ export function deriveActiveScenario(
   }
 }
 
+/** Ticket types the done gate checks: build tickets (task, feature) and epics. */
+export const DONE_GATED_TICKET_TYPES: ReadonlySet<string> = new Set(['task', 'feature', 'epic']);
+
 /**
  * Resolve the effective Stop-hook phase context for a session's bound ticket,
  * closing the status/phase done-gate sidestep (ticket 2JMQMX).
@@ -477,10 +480,8 @@ export function resolveStopPhase(
   // something to verify: build tickets (task/feature WITH scenarios) and epics.
   // `phase !== 'done'` skips an already-gated ticket so the gate can't loop.
   if (details.status === 'done' && details.phase !== 'done') {
-    const isBuildTicket =
-      (details.type === 'task' || details.type === 'feature') && hasTestDefinitions;
-    const isEpic = details.type === 'epic';
-    if (isBuildTicket || isEpic) {
+    const isGatedType = details.type !== undefined && DONE_GATED_TICKET_TYPES.has(details.type);
+    if (isGatedType && (details.type === 'epic' || hasTestDefinitions)) {
       return { phase: 'done', type: details.type, folder: details.folder };
     }
   }
