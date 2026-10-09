@@ -22,6 +22,7 @@ import { prepareReviewPacket } from '../../src/review/packet.js';
 import {
   inspectReviewRoute,
   parseProcessStat,
+  parseReviewerExecution,
   parseReviewerOutput,
   planReviewRubric,
   procGroupHasRunningMember,
@@ -32,6 +33,7 @@ import {
   reviewTimeoutMilliseconds,
   runBoundMs,
   runHeadlessReviewer,
+  runHeadlessReviewerWithProvenance,
   scenarioReviewRubric,
 } from '../../src/review/runtime.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
@@ -306,6 +308,37 @@ describe('headless reviewer output adapters', () => {
     expect(parseReviewerOutput('claude', envelope)).toEqual(output);
   });
 
+  it('confirms the Claude assistant model without mistaking auxiliary model usage for the reviewer', () => {
+    const stdout = [
+      JSON.stringify({ type: 'system', subtype: 'init', model: 'opus' }),
+      JSON.stringify({ type: 'assistant', message: { model: 'claude-opus-5' } }),
+      JSON.stringify({
+        type: 'result',
+        subtype: 'success',
+        structured_output: output,
+        modelUsage: {
+          'claude-haiku-4-5-20251001': {
+            canonicalModel: 'claude-haiku-4-5',
+            provider: 'firstParty',
+          },
+          'claude-opus-5[1m]': { canonicalModel: 'claude-opus-5', provider: 'firstParty' },
+        },
+      }),
+    ].join('\n');
+
+    expect(parseReviewerExecution('claude', stdout, 'plan-implementation')).toEqual({
+      output,
+      confirmedModel: { provider: 'anthropic', model: 'claude-opus-5' },
+    });
+    expect(
+      parseReviewerExecution(
+        'claude',
+        stdout.replace('"model":"claude-opus-5"', '"model":"claude-sonnet-5"'),
+        'plan-implementation',
+      ).confirmedModel,
+    ).toBeUndefined();
+  });
+
   it('falls back to Claude result JSON when structured output is unusable', () => {
     const envelope = JSON.stringify({ structured_output: 0, result: JSON.stringify(output) });
 
@@ -473,6 +506,28 @@ describe('reviewer arguments', () => {
 
     expect(args.slice(-2)).toEqual(['--model', 'claude-test']);
     expect(args).not.toContain('-');
+  });
+
+  it('requests streamed assistant metadata for planning reviews', () => {
+    const args = reviewerArguments('claude', 'opus', undefined, {}, 'plan-implementation');
+    expect(
+      args.slice(args.indexOf('--output-format'), args.indexOf('--output-format') + 2),
+    ).toEqual(['--output-format', 'stream-json']);
+    expect(args).toContain('--verbose');
+    const productArguments = reviewerArguments(
+      'claude',
+      'opus',
+      undefined,
+      {},
+      { kind: 'quality-review', planning_phase: 'product-plan' },
+    );
+    expect(
+      productArguments.slice(
+        productArguments.indexOf('--output-format'),
+        productArguments.indexOf('--output-format') + 2,
+      ),
+    ).toEqual(['--output-format', 'stream-json']);
+    expect(productArguments).toContain('--verbose');
   });
 
   it('appends an explicitly configured Claude effort level', () => {
@@ -728,6 +783,171 @@ esac
         reviewer_agent: 'claude',
         verdict: 'approve',
       });
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'carries a confirmed planning reviewer model across the process boundary',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      const events = [
+        { type: 'assistant', message: { model: 'claude-opus-5' } },
+        {
+          type: 'result',
+          subtype: 'success',
+          structured_output: output,
+          modelUsage: {
+            'claude-opus-5': { canonicalModel: 'claude-opus-5', provider: 'firstParty' },
+          },
+        },
+      ];
+      const serializedEvents = events.map(event => `'${JSON.stringify(event)}'`).join(' ');
+      writeFileSync(
+        executable,
+        `#!/bin/sh\nif [ "\${1:-}" = "--help" ]; then\n  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'\n  exit 0\nfi\ncase " $* " in *" --effort medium "*) ;; *) exit 8 ;; esac\n/bin/cat >/dev/null\nprintf '%s\\n' ${serializedEvents}\n`,
+        { mode: 0o755 },
+      );
+      vi.stubEnv('PATH', bin);
+
+      await expect(
+        runHeadlessReviewerWithProvenance(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'scenario-gate',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+          { effort: 'medium' },
+        ),
+      ).resolves.toMatchObject({
+        output: { dispatch_id: 'dispatch-1', verdict: 'approve' },
+        confirmedModel: { provider: 'anthropic', model: 'claude-opus-5' },
+      });
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'confirms a Codex planning model only through an app-server turn',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'codex');
+      const codexOutput = { ...output, reviewer_agent: 'codex' };
+      writeFileSync(
+        executable,
+        `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('codex 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(process.argv.includes('app-server') ? '--stdio --config' : ${JSON.stringify(REVIEWER_CAPABILITIES.codex)}); process.exit(0); }\nif (!process.argv.includes('app-server')) process.exit(7);\nlet buffer = '';\nprocess.stdin.setEncoding('utf8');\nprocess.stdin.on('data', chunk => { buffer += chunk; let index; while ((index = buffer.indexOf('\\n')) !== -1) { const line = buffer.slice(0, index); buffer = buffer.slice(index + 1); const message = JSON.parse(line); if (message.id === 1) console.log(JSON.stringify({ id: 1, result: {} })); if (message.id === 2) console.log(JSON.stringify({ id: 2, result: { thread: { id: 'thread-1' }, model: message.params.model, modelProvider: 'openai' } })); if (message.id === 3) { if (message.params.effort !== 'medium') process.exit(8); console.log(JSON.stringify({ id: 3, result: { turn: { id: 'turn-1' } } })); console.log(JSON.stringify({ method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed', items: [{ type: 'agentMessage', phase: 'final_answer', text: JSON.stringify(${JSON.stringify(codexOutput)}) }] } } })); } } });\n`,
+        { mode: 0o755 },
+      );
+      vi.stubEnv('PATH', bin);
+
+      await expect(
+        runHeadlessReviewerWithProvenance(
+          'codex',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'scenario-gate',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+          { model: 'gpt-6-astra', effort: 'medium' },
+        ),
+      ).resolves.toMatchObject({
+        output: { dispatch_id: 'dispatch-1', verdict: 'approve' },
+        confirmedModel: { provider: 'openai', model: 'gpt-6-astra' },
+      });
+      await expect(
+        runHeadlessReviewerWithProvenance(
+          'codex',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'quality-review',
+            planning_phase: 'product-plan',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+          { model: 'gpt-6-astra', effort: 'medium' },
+        ),
+      ).resolves.toMatchObject({
+        output: { dispatch_id: 'dispatch-1', verdict: 'approve' },
+        confirmedModel: { provider: 'openai', model: 'gpt-6-astra' },
+      });
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'reports a rejected Codex turn without waiting for the review deadline',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'codex');
+      writeFileSync(
+        executable,
+        `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('codex 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(process.argv.includes('app-server') ? '--stdio --config' : ${JSON.stringify(REVIEWER_CAPABILITIES.codex)}); process.exit(0); }\nlet buffer = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { buffer += chunk; let index; while ((index = buffer.indexOf('\\n')) !== -1) { const line = buffer.slice(0, index); buffer = buffer.slice(index + 1); const message = JSON.parse(line); if (message.id === 1) console.log(JSON.stringify({ id: 1, result: {} })); if (message.id === 2) console.log(JSON.stringify({ id: 2, result: { thread: { id: 'thread-1' }, model: message.params.model, modelProvider: 'openai' } })); if (message.id === 3) console.log(JSON.stringify({ id: 3, error: { code: -32000, message: 'turn rejected' } })); } });\n`,
+        { mode: 0o755 },
+      );
+      vi.stubEnv('PATH', bin);
+
+      await expect(
+        runHeadlessReviewerWithProvenance(
+          'codex',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'scenario-gate',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+          { model: 'gpt-6-astra', runDeadline: Date.now() + 3000 },
+        ),
+      ).rejects.toMatchObject({ failure: 'process_failed' });
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'reports a failed Codex turn without waiting for the review deadline',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'codex');
+      writeFileSync(
+        executable,
+        `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('codex 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(process.argv.includes('app-server') ? '--stdio --config' : ${JSON.stringify(REVIEWER_CAPABILITIES.codex)}); process.exit(0); }\nlet buffer = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { buffer += chunk; let index; while ((index = buffer.indexOf('\\n')) !== -1) { const line = buffer.slice(0, index); buffer = buffer.slice(index + 1); const message = JSON.parse(line); if (message.id === 1) console.log(JSON.stringify({ id: 1, result: {} })); if (message.id === 2) console.log(JSON.stringify({ id: 2, result: { thread: { id: 'thread-1' }, model: message.params.model, modelProvider: 'openai' } })); if (message.id === 3) { console.log(JSON.stringify({ id: 3, result: { turn: { id: 'turn-1' } } })); console.log(JSON.stringify({ method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'failed', error: { message: 'invalid schema' }, items: [] } } })); } } });\n`,
+        { mode: 0o755 },
+      );
+      vi.stubEnv('PATH', bin);
+
+      await expect(
+        runHeadlessReviewerWithProvenance(
+          'codex',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'plan-execution',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+          { model: 'gpt-6-astra', runDeadline: Date.now() + 3000 },
+        ),
+      ).rejects.toMatchObject({ failure: 'process_failed' });
     },
   );
 

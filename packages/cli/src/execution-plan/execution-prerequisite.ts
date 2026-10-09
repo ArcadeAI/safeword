@@ -53,7 +53,7 @@ interface MissingPrerequisite {
 
 function successful(
   status: ExecutionPrerequisiteStatus,
-  achievedIndependence?: 'cross-agent' | 'degraded',
+  achievedIndependence?: 'cross-agent' | 'reduced' | 'degraded',
   inputIdentity?: string,
   executionPlanArtifact?: ExecutionPlanArtifactFacts,
 ): CliResult {
@@ -250,7 +250,7 @@ function approachPrerequisite(
 type ChecklistPrerequisite =
   | {
       readonly admitted: true;
-      readonly independence: 'cross-agent' | 'degraded';
+      readonly independence: 'cross-agent' | 'reduced' | 'degraded';
       readonly provenance: ReviewProvenance;
       readonly receipt: 'valid';
     }

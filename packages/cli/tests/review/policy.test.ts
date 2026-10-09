@@ -4,8 +4,11 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import type { ReviewAuthor } from '../../src/review/contract.js';
-import { readConfiguredReviewRoutes, reviewRoutePlan } from '../../src/review/policy.js';
+import {
+  builtInReviewRoutes,
+  readConfiguredReviewRoutes,
+  reviewRoutePlan,
+} from '../../src/review/policy.js';
 
 describe('review route policy', () => {
   function project(config: unknown): string {
@@ -36,12 +39,19 @@ describe('review route policy', () => {
     });
   });
 
-  it.each<ReviewAuthor>(['cursor', 'unknown'])(
-    'keeps unsupported author %s outside review routing',
-    author => {
-      expect(reviewRoutePlan(author)).toBeUndefined();
-    },
-  );
+  it('routes Cursor authors through independent CLI reviewers without inventing a headless Cursor reviewer', () => {
+    expect(reviewRoutePlan('cursor')).toEqual({
+      author: 'cursor',
+      preferred: 'claude',
+      independentFallback: 'codex',
+    });
+    expect(
+      builtInReviewRoutes(project({}), 'cursor').every(
+        route => route.independence === 'cross-agent',
+      ),
+    ).toBe(true);
+    expect(reviewRoutePlan('unknown')).toBeUndefined();
+  });
 
   it('uses an ordered reviewer and model list as the complete route authority', () => {
     const cwd = project({

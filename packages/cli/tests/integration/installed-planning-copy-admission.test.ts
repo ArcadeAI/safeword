@@ -135,7 +135,7 @@ process.stdin.on('end', () => {
         '--reviewer-agent',
         'claude',
         '--independence',
-        'cross-agent',
+        'reduced',
         '--review-id',
         id,
         ...artifact,

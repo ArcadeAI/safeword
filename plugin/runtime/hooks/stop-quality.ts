@@ -31,7 +31,7 @@ import {
   modelsMatch,
   parseReviewStamps,
   readCrossAgentReviewPolicy,
-  reviewGateForNextAsset,
+  reviewGateForIndependentDesign,
   reviewScope,
 } from './lib/review-ledger.ts';
 import {
@@ -374,7 +374,7 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   const stamps = existsSync(logPath)
     ? verifiedStamps(parseReviewStamps(readFileSync(logPath, 'utf8')), projectDir, scope)
     : [];
-  if (!reviewGateForNextAsset(scope, stamps, readCrossAgentReviewPolicy(rawConfig)).ok) {
+  if (!reviewGateForIndependentDesign(scope, stamps).ok) {
     hardBlockDone(
       'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, and independence with `bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts impl-plan`; add a model only when independently verified.',
     );

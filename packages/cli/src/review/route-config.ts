@@ -1,4 +1,4 @@
-import type { ReviewAgent } from './contract.js';
+import type { ReviewAgent, SupportedReviewAuthor } from './contract.js';
 
 export interface ReviewRoute {
   readonly reviewer: ReviewAgent;
@@ -20,10 +20,11 @@ export class ReviewRouteConfigError extends Error {
  */
 export const MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
 const REVIEW_AGENTS = new Set<ReviewAgent>(['claude', 'codex', 'opencode']);
+const REVIEW_AUTHORS = new Set<SupportedReviewAuthor>([...REVIEW_AGENTS, 'cursor']);
 
 export function parseConfiguredReviewRoutes(
   config: Record<string, unknown>,
-  author: ReviewAgent,
+  author: SupportedReviewAuthor,
   source: string,
 ): readonly ReviewRoute[] | undefined {
   const configured = config.crossAgentReviewRoutes;
@@ -31,10 +32,13 @@ export function parseConfiguredReviewRoutes(
   if (!isRecord(configured) || Array.isArray(configured))
     throw configError('must be an object', source);
   const unsupportedAuthor = Object.keys(configured).find(
-    key => !REVIEW_AGENTS.has(key as ReviewAgent),
+    key => !REVIEW_AUTHORS.has(key as SupportedReviewAuthor),
   );
   if (unsupportedAuthor !== undefined)
-    throw configError('contains an unsupported author key; use claude, codex, or opencode', source);
+    throw configError(
+      'contains an unsupported author key; use claude, codex, cursor, or opencode',
+      source,
+    );
   const values = configured[author];
   if (values === undefined) return undefined;
   if (!Array.isArray(values) || values.length === 0)
@@ -42,7 +46,7 @@ export function parseConfiguredReviewRoutes(
   return values.map((value, index) => parseRoute(value, index, author, source));
 }
 
-export function parseRouteText(value: string, author: ReviewAgent): ReviewRoute {
+export function parseRouteText(value: string, author: SupportedReviewAuthor): ReviewRoute {
   const separator = value.indexOf('=');
   return parseRoute(
     {
@@ -57,7 +61,7 @@ export function parseRouteText(value: string, author: ReviewAgent): ReviewRoute 
 function parseRoute(
   value: unknown,
   index: number,
-  author: ReviewAgent,
+  author: SupportedReviewAuthor,
   source?: string,
 ): ReviewRoute {
   if (!isRecord(value) || Array.isArray(value))

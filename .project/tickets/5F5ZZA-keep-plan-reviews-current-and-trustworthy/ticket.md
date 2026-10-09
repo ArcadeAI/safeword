@@ -47,6 +47,29 @@ parent_contract_digest: 2afd2f5559eafea9bd752ac826b46fa98e80a30ccdf6bed76a16ff7f
 
 ## Work Log
 
+- 2026-10-07 Fallback slice main integration: inherited the reviewed semantic
+  identity/exclusion union. Typecheck found two continuation callers still using
+  the old provenance signature. Routed both through the existing `terminalResult`
+  reader, so successful and failed continuations receive the same current
+  fingerprint, integrity, and verified-exclusion handling as ordinary status.
+  Typecheck now passes. Nine complete targeted files pass **239 tests**, with
+  **two existing Linux-only runtime cases skipped on macOS**, 241 total.
+  Independent Claude review `8cbda442-3b6f-45f5-95ca-e5718f9b8df4`
+  approved the source/test union. Its raw malformed-output warning does not grant
+  coverage: the actual receipt reader accepts only `review_excluded_targets`,
+  never raw `excluded_targets`. The unsigned tamper case proves integrity;
+  the earlier authenticated retrospective case separately proves classifier
+  intersection. The conservative under-credit asymmetry is inherited and stays
+  fail-closed. Extra packet preparation inside the continuation lock is the
+  accepted cost of reusing the existing current-result boundary. No test was
+  modified beyond preserving both branches' imports. Frozen installation and
+  initial five-surface generation passed; generation is refreshed after the
+  continuation correction. Logs: `/tmp/4200-fallback-main-targeted.log`,
+  `/tmp/4200-fallback-main-typecheck.log` (initial failure),
+  `/tmp/4200-fallback-main-typecheck-retry.log`, and
+  `/tmp/4200-fallback-main-quality.json`. Whole-PR review, final CI, and full
+  acceptance remain required; no Ready or merge claim is made.
+
 - Semantic integration follow-up: the first commit check correctly rejected
   a shadowed `reviewIdentity` helper name. Renamed only the merge adapter to
   `reviewFingerprintIdentity`; all **79 job tests pass** again. A subsequent
@@ -128,6 +151,14 @@ parent_contract_digest: 2afd2f5559eafea9bd752ac826b46fa98e80a30ccdf6bed76a16ff7f
 - 2026-09-09T16:45:00.000Z Returned to scenario gate: Added the shared planning-contract shape and bounded approval meanings learned from the emergency-control plan. Product approval establishes the right behavior, Implementation approval the accepted design, and Execution approval startable delivery; none may claim a downstream state.
 
 - 2026-09-09T21:49:00.000Z Scenario impact: Added the reviewed finding-quality boundary: blockers cite accepted requirements, reviewers expose rather than decide unresolved choices, optional strengthening remains nonblocking, and corrected plan bytes require a fresh verdict.
+
+## Root Cause (PR 4 Claude Product review identity)
+
+Product Plan reviews use `quality-review`, but the Claude adapter selected streamed model metadata only by review kind, so Product reviews returned a verdict without confirmable model identity. After requesting streamed output for the Product phase, a live probe still lacked confirmation: Claude keyed `modelUsage` as `claude-opus-5[1m]` while its assistant event and `canonicalModel` said `claude-opus-5`. Matching the canonical field resolves the current protocol shape. A live Product review then confirmed `claude-opus-5` and returned its actual rejection findings. The competing hypothesis that no assistant model event was emitted was ruled out by the observed event stream.
+
+## Root Cause (PR 4 Codex Execution review timeouts)
+
+The Execution Plan output schema contained `oneOf` for proof invocations. The Codex app-server accepted the turn request, but its model endpoint rejected the nested schema with `invalid_json_schema` because `oneOf` is unsupported. The adapter ignored the resulting `turn/completed` event with `status: failed`, turning a roughly four-second schema rejection into a worker timeout. An event trace captured both the rejection and failed completion; replacing `oneOf` with equivalent `anyOf` yielded a completed live Execution review. The competing hypotheses of a slow model and an unsupported pinned Codex model were ruled out: the rejection occurred before generation, while the same pinned model completed after the schema change.
 
 - 2026-10-07 PR2 alignment: The user delegated the invalidation-policy decision
   with “your call” on 2026-10-04 PDT. Parent TBU2.R11/TBU4.R9 requires semantic

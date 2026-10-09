@@ -153,6 +153,7 @@ describe('CLI command catalog', () => {
       'ticket record-delivery-proof',
       'review run',
       'review status',
+      'review continue',
       'review gate executable-red',
       'review gate retrospective',
       'review attest retrospective',
