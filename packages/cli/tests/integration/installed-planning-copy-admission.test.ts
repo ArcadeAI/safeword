@@ -90,7 +90,10 @@ process.stdin.on('end', () => {
       cwd: project,
       encoding: 'utf8',
       timeout: 30_000,
-      env: args[0] === 'review' ? { ...environment, SAFEWORD_AGENT_RUNTIME: 'codex' } : environment,
+      env: {
+        ...environment,
+        SAFEWORD_AGENT_RUNTIME: args[0] === 'review' ? 'codex' : undefined,
+      },
     });
   const installed = run(['install', '--agents=cursor', '--no-modify', '--offline']);
   expect(installed.status, `${installed.stdout}\n${installed.stderr}`).toBe(0);
