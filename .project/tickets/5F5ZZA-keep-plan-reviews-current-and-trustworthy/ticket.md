@@ -1704,3 +1704,40 @@ missing-context/refusal assertions remain intact. Additional human test approval
 requested; unapplied. Logs /tmp/4200-current-r1-r5-acceptance.{log,json}.
 Do not mistake this selected execution for a full acceptance pass; 110 undefined
 scenarios and the older six failures/585 unfinished baseline remain disclosed.
+
+### 2026-10-09 — both corrections approved; released channel blocks native setup
+
+Human approved both prepared patches; applied the R10 phase-specific selector
+and changed only the installed packet fixture's configured Codex model to Sol.
+The targeted eval contract test now passes 2/2; formatting and ESLint pass.
+Independent Claude review 9221f143-7fa7-40f7-aca9-4e4c994c8a9c approves with zero
+errors. Its existing assertion-strength/scoring suggestions are nonblocking and
+outside these two corrections; no further test edits or added test machinery.
+Log: /tmp/4200-approved-phase-selector-green.log.
+
+The installed native packet selector now fails all four selected examples before
+dispatch, at real installation, with CLAUDE_PLUGIN_UNVERIFIED: required 1.1.0
+is not observed. Log /tmp/4200-approved-context-route-green.{log,json} records
+four failures, four skipped steps and 204 passing steps; this is not GREEN.
+Main sync changed the package version from 1.0.0 to 1.1.0. Both installers consume
+the stable channel. Remote stable still resolves to cd7875b0b219d4b6682f2af46776d2d3b1b9daa6
+(v1.0.0), while v1.1.0 resolves to d5885e58771cd87f8108196ce67986f7725a1974.
+Registry verification confirms safeword@1.1.0 exists. Release run 37828612195
+passed build/test/pack and npm publish, but skipped retro verification and
+stable promotion. Source workflow plus GitHub's current dependency-chain docs
+explain the inherited skip: publish has an explicit status condition, while
+promotion retains the default success condition after a skipped ancestor.
+Primary reference: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idneeds.
+
+The required one-shot bootstrap retry (bunx --bun safeword@latest codex install,
+through scripts/dev) also reports installed Codex 1.0.0 versus required 1.1.0.
+Dependency refresh completed without lockfile changes; removed only the generated
+dependency fingerprint and touched node_modules. No host pin, shell profile,
+installation assertion, receipt, or payload verification was weakened.
+
+Requested explicit authority to advance stable to the already-published v1.1.0
+commit, with customer auto-update impact disclosed; this is not #4200 PR merge
+or promotion authority. No channel mutation performed. A future workflow repair
+is upstream release work, not an additional change in this epic. Full current-main
+package verification is running serially in /tmp/4200-main-synced-full-package.log;
+all pending CI, acceptance bindings and existing legacy diagnostic remain open.

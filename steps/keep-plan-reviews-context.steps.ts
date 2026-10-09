@@ -376,7 +376,7 @@ When(
       JSON.stringify({
         ...config,
         crossAgentReview: 'prefer',
-        crossAgentReviewRoutes: { claude: [{ reviewer: 'codex', model: 'gpt-6-astra' }] },
+        crossAgentReviewRoutes: { claude: [{ reviewer: 'codex', model: 'gpt-6.1-sol' }] },
       }),
     );
     if (state.packetState === 'omits the current personas inventory')

@@ -40,7 +40,12 @@ describe('planning contracts eval contract', () => {
     expect(planningContractCases.filter(item => item.rule === 'R7')).toHaveLength(3);
     expect(
       planningContractCases
-        .filter(item => item.rule === 'R10' && item.expected_verdict === 'request_changes')
+        .filter(
+          item =>
+            item.rule === 'R10' &&
+            item.planning_phase !== undefined &&
+            item.expected_verdict === 'request_changes',
+        )
         .map(item => item.planning_phase),
     ).toEqual(['product-plan', 'plan-implementation', 'plan-execution']);
     for (const phase of ['product-plan', 'plan-implementation', 'plan-execution']) {
