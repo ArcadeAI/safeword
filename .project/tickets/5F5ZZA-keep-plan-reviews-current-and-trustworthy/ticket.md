@@ -1675,3 +1675,32 @@ are recorded nonblocking limitations, not new rejection findings or grounds
 to expand this slice. Existing unstaged legacy diagnostic remains preserved.
 PR2 main sync committed f9c06a34f; PR3 typechecks pass and its generated lifecycle
 verification is waiting for the shared lock. No merge or promotion is authorized.
+
+### 2026-10-08 — complete local main sync; two newly exposed test corrections
+
+Main d5885e587 is integrated through the published stack: toolchain 945c839a2,
+PR1 db50bc23d, PR2 f9c06a34f, PR3 c57165a5d, PR4 d6b45e800, then PR5's local
+merge. Every slice's three-package typecheck and five generated-surface checks
+passed. PR5's canonical PLAN_IMPLEMENTATION, PLAN_EXECUTION, quality rubric,
+both generated plan rubrics and execution conformance source remain byte-identical
+to the frozen qualified candidate; no paid task qualification replay is required.
+These are local commits, not current remote CI or GitHub merge evidence.
+
+The approved rubric-pin unit run exposed a later assertion after the digest
+check passed: its R10 negative selector also picks up three contract-field cases
+without planning_phase. Terminal result: one passed, one failed.
+Prepared /tmp/4200-r10-phase-pair-selector.patch, which selects phase-specific
+negative cases while preserving the exact three phases, positive controls and
+all scoring/corpus assertions. Explicit human approval requested; unapplied.
+Log: /tmp/4200-planning-eval-pin-green.log (despite its filename, this is RED).
+
+Actual existing R1-R5 root acceptance ran: 44 scenarios, 43 passed, one failed;
+2,332 steps, 2,331 passed, one failed, and two hooks passed. The installed native
+packet-completeness Execution fixture selects archived Astra, so current task
+admission correctly reports zero eligible routes before its fake reviewer runs.
+Prepared /tmp/4200-context-qualified-reviewer.patch changes only that fixture's
+explicit model to qualified Sol. Packet capture, real plugin dispatch and all
+missing-context/refusal assertions remain intact. Additional human test approval
+requested; unapplied. Logs /tmp/4200-current-r1-r5-acceptance.{log,json}.
+Do not mistake this selected execution for a full acceptance pass; 110 undefined
+scenarios and the older six failures/585 unfinished baseline remain disclosed.
