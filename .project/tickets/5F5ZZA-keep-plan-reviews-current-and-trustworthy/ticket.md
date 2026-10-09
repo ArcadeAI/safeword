@@ -46,6 +46,18 @@ parent_contract_digest: 2afd2f5559eafea9bd752ac826b46fa98e80a30ccdf6bed76a16ff7f
 
 ## Work Log
 
+- 2026-10-07 Contract slice main integration: inherited main `485d8ac` through
+  approval branch `dc9692ef9`. No production-source conflict required manual
+  resolution. Dependency/generated conflicts use the updated base followed by
+  all five generators; an identical duplicate root override was removed.
+  Frozen installation, typecheck, and generated checks pass. Six complete
+  targeted files pass **189/189 tests**, including canonical generation,
+  installed-copy admission, native-copy dispatch, reconciliation, contract
+  identity, and review wiring. Logs: `/tmp/4200-contract-main-targeted.log`,
+  `/tmp/4200-contract-main-typecheck.log`, and
+  `/tmp/4200-contract-main-generated.log`. This integration does not refresh
+  whole-PR review or claim full acceptance, legacy migration, Ready, or merge.
+
 - 2026-10-07 Main-integration suite result: CLI 660 files passed, one failed; 10929 tests passed, one failed, 14 skipped, exit 1, 657.80s. Retro relay passed 198 tests with one skip; retro collector passed 153 tests. The sole CLI failure occurred at `git add -A` before the assertion: Git could not create a temporary object (`Invalid argument`) while indexing the installed interface-contract guide. The exact original boundary test file then passed unchanged, all 12 tests, in 9.10s (`/tmp/4200-guide-main-boundary-isolated.log`). This identifies fixture staging rather than phase-skip validation as the failing boundary; the underlying intermittent filesystem cause is not established. Disk capacity is ample. No test, retry policy, tool pin or production workaround was changed. The full run remains a failed run, not reclassified as green; a later final integrated-head full check remains required. Frozen install and all 275 template pairs/11 contracts pass. This is an integration checkpoint, not epic completion or PR readiness.
 
 - 2026-10-07 Main-integration full-suite investigation: the active run reports one failure in `does not flag born-past-intake when phase_skips justify the birth (negative)`. No test or production fix applied. Competing causes: phase-skip validation regression, generated CLI mismatch, or a suite/environment interaction. Direct current-source `evaluateTicketWrite` accepts the exact skip list (`/tmp/4200-boundary-birth-pure.log`); a fresh installed Cursor project through the built CLI returns exit 0 with only the unrelated missing-ledger warning and no birth finding (`/tmp/4200-boundary-birth-repro.log`). These checks rule out a simple validator failure and consistent built-CLI mismatch. The exact full-suite assertion output and isolated original test rerun remain required before assigning a root cause. Full-suite evidence is retained in `/tmp/4200-guide-main-full.log`.
@@ -79,3 +91,18 @@ parent_contract_digest: 2afd2f5559eafea9bd752ac826b46fa98e80a30ccdf6bed76a16ff7f
 - 2026-09-09T16:45:00.000Z Returned to scenario gate: Added the shared planning-contract shape and bounded approval meanings learned from the emergency-control plan. Product approval establishes the right behavior, Implementation approval the accepted design, and Execution approval startable delivery; none may claim a downstream state.
 
 - 2026-09-09T21:49:00.000Z Scenario impact: Added the reviewed finding-quality boundary: blockers cite accepted requirements, reviewers expose rather than decide unresolved choices, optional strengthening remains nonblocking, and corrected plan bytes require a fresh verdict.
+
+- 2026-10-07 PR2 alignment: The user delegated the invalidation-policy decision
+  with “your call” on 2026-10-04 PDT. Parent TBU2.R11/TBU4.R9 requires semantic
+  Implementation changes to invalidate both plan approvals; own-review-only is
+  unsupported. That decision and its approved scenario correction were already
+  recorded downstream. Fresh whole-PR reviews ce3ccbd1-713e-475e-a6a8-669c4f858571
+  and ece51d7e-f949-4932-85ca-86ea2e485014 identified stale upstream plan copies.
+  The plan, execution tasks, dimensions, historical proof claims and feature now
+  match the authorized decision without production-code changes. Complete
+  cross-agent review 4b8b5dc4-0e0f-46b7-8411-8f8d69a63481 approves the correction.
+  The existing PR2 real reconciliation matrix owns unsupported-mode rejection;
+  PR3 owns runtime dependency invalidation. The new scenario ledger remains
+  unchecked; no new RGR receipt or acceptance pass is claimed. Gherkin parsing
+  and diff hygiene pass. Generated architecture duplication and the remaining
+  admission boundaries are disclosed nonblocking warnings, not repaired here.

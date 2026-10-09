@@ -53,6 +53,8 @@
     "generate:codex-plugin": "bun scripts/generate-codex-plugin.ts",
     "generate:claude-plugin": "bun scripts/generate-claude-plugin.ts",
     "generate:scenario-rubric": "bun scripts/generate-scenario-rubric.ts",
+    "generate:planning-contracts": "bun scripts/generate-planning-contracts.ts",
+    "check:planning-contracts": "bun scripts/generate-planning-contracts.ts --check",
     "generate:plan-rubric": "bun scripts/generate-plan-rubric.ts",
     "generate:execution-plan-rubric": "bun scripts/generate-execution-plan-rubric.ts",
     "generate:delivery-compatibility-rubric": "bun scripts/generate-delivery-compatibility-rubric.ts",

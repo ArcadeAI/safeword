@@ -6,6 +6,7 @@
 import { execSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
+import { receiptReviewCandidates } from './run-review.ts';
 
 import {
   executionPlanContractProvenance,
@@ -287,8 +288,10 @@ function crossAgentReviewPolicy() {
   );
 }
 
-function safewordCliCommand(): [string, ...string[]] | 'project-writable' | undefined {
-  const explicitCli = process.env.SAFEWORD_PLUGIN_CLI?.trim();
+function safewordCliCommand(
+  cliOverride?: string,
+): [string, ...string[]] | 'project-writable' | undefined {
+  const explicitCli = cliOverride ?? process.env.SAFEWORD_PLUGIN_CLI?.trim();
   const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT?.trim();
   const pluginCli =
     explicitCli !== undefined && explicitCli !== ''
@@ -313,6 +316,105 @@ function safewordCliCommand(): [string, ...string[]] | 'project-writable' | unde
   } catch {
     return undefined;
   }
+}
+
+function assertCursorPlanningContractCopy(ticket: string, phase: string): void {
+  if (process.env.SAFEWORD_AGENT_RUNTIME !== 'cursor') return;
+  const configured = safewordCliCommand();
+  if (configured === 'project-writable') {
+    deny(
+      'Safeword refused a project-writable planning contract checker.',
+      'Point the configured runtime at the installed distribution and retry.',
+    );
+  }
+  let candidate: readonly [string, readonly string[], string?] | undefined;
+  if (configured !== undefined) {
+    candidate = [configured[0], configured.slice(1), projectDirectory];
+  } else {
+    // Reuse the exact-version receipt reader routes. Never resolve bunx from
+    // the project, where node_modules could shadow the trusted distribution.
+    candidate = receiptReviewCandidates(projectDirectory).find(([command, prefix]) => {
+      if (command === 'bunx') return true;
+      const path = prefix[0];
+      if (path === undefined) return false;
+      const trusted = safewordCliCommand(path);
+      if (trusted === 'project-writable') {
+        deny(
+          'Safeword refused a project-writable cached planning checker.',
+          'Install the trusted runtime outside the project and retry.',
+        );
+      }
+      return trusted !== undefined;
+    });
+  }
+  if (candidate === undefined) {
+    deny(
+      'Safeword cannot locate its trusted planning contract checker.',
+      'Install the current version of the Safeword runtime and retry.',
+    );
+  }
+  const [executable, prefix, directory] = candidate;
+  const checked = spawnSync(
+    executable,
+    [
+      ...prefix,
+      '--json',
+      '--no-input',
+      '--cwd',
+      projectDirectory,
+      'ticket',
+      'planning-contract-check',
+      ticket,
+      phase,
+    ],
+    {
+      cwd: directory ?? projectDirectory,
+      encoding: 'utf8',
+      timeout: 5000,
+    },
+  );
+  if (checked.error !== undefined || checked.status === null) {
+    deny(
+      `Safeword's trusted planning checker could not finish. ${checked.error?.message ?? 'The checker exited without a status.'}`,
+      'Check the installed runtime and rerun ticket planning-contract-check; no contract mismatch has been established.',
+    );
+  }
+  try {
+    const result = JSON.parse(checked.stdout) as {
+      state?: unknown;
+      data?: { status?: unknown; planning_phase?: unknown; command?: unknown };
+      findings?: Array<{ code?: unknown; message?: unknown }>;
+    };
+    if (
+      checked.status === 0 &&
+      result.state === 'healthy' &&
+      result.data?.command === 'ticket planning-contract-check' &&
+      result.data.status === 'current' &&
+      result.data.planning_phase === phase
+    )
+      return;
+    const finding = result.findings?.find(
+      item =>
+        (item.code === 'canonical_contract_copy_mismatch' ||
+          item.code === 'missing_generated_contract_copy') &&
+        typeof item.message === 'string',
+    );
+    if (finding !== undefined) {
+      deny(
+        `${finding.code}: ${finding.message}`,
+        'Reconcile the installed planning contract copy and retry.',
+      );
+    }
+  } catch (error) {
+    deny(
+      `Safeword could not read its trusted planning checker response. ${error instanceof Error ? error.message : 'Invalid response.'}`,
+      'Check the installed runtime and rerun ticket planning-contract-check; no contract mismatch has been established.',
+    );
+  }
+  deny(
+    'Safeword could not validate its trusted planning contract checker response.',
+    'Install the current runtime and rerun ticket planning-contract-check; no contract mismatch has been established.',
+  );
 }
 
 function executableRedGateDenial(scenario: string, ledger: string): string | undefined {
@@ -927,6 +1029,7 @@ if (isCanonicalTicketEdit) {
     proposedPhase === 'plan-execution'
   ) {
     const ticketDirectory = nodePath.dirname(editedFile);
+    assertCursorPlanningContractCopy(nodePath.basename(ticketDirectory), 'plan-implementation');
     const verdict = evaluateExecutionPlanningEntry(ticketDirectory, { projectDirectory });
     if (!verdict.ok) deny(verdict.reason, verdict.remediation);
 

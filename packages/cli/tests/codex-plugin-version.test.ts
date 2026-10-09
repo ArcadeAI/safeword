@@ -24,6 +24,7 @@ import {
   type CodexPluginHookEntry,
 } from '../src/codex-plugin/hooks.js';
 import { PROJECT_RUNTIME_HELPERS } from '../src/project-runtime-helpers.js';
+import { PLANNING_CONTRACT_TEMPLATE_PATHS } from '../src/schema.js';
 import {
   assertPackedCodexPlugin,
   extractPackedCliPackage,
@@ -530,9 +531,48 @@ describe('Codex plugin release contract', () => {
         assertBundledHookCommand(command);
       }).not.toThrow();
     }
-    expect(readFileSync(nodePath.join(root, 'codex-plugin/runtime/cli.js'), 'utf8')).toBe(
-      readFileSync(nodePath.resolve(root, '../../plugin/runtime/cli.js'), 'utf8'),
-    );
+    const runtimes = [
+      { host: 'codex', directory: nodePath.join(root, 'codex-plugin') },
+      { host: 'claude', directory: nodePath.resolve(root, '../../plugin') },
+    ].map(({ host, directory }) => {
+      const source = readFileSync(nodePath.join(directory, 'runtime/cli.js'), 'utf8');
+      const declarations = source.matchAll(/^ {2}const copies = (.+);$/gmu).toArray();
+      expect(declarations).toHaveLength(1);
+      const declaration = declarations[0];
+      if (declaration?.[1] === undefined)
+        throw new Error('The bundled runtime must declare its planning-copy identities.');
+      const identities: unknown = JSON.parse(
+        declaration[1].replaceAll(/\b(relativePath|sha256): /gu, '"$1": '),
+      );
+      const expected = Object.fromEntries(
+        Object.entries(PLANNING_CONTRACT_TEMPLATE_PATHS).map(([phase, template]) => {
+          const relativePath =
+            host === 'claude'
+              ? template
+              : nodePath.join(
+                  nodePath.dirname(template),
+                  'references',
+                  nodePath.basename(template),
+                );
+          const kind = phase === 'product' ? 'product-plan' : `plan-${phase}`;
+          return [
+            kind,
+            {
+              relativePath,
+              sha256: createHash('sha256')
+                .update(readFileSync(nodePath.join(directory, relativePath)))
+                .digest('hex'),
+            },
+          ];
+        }),
+      );
+      expect(identities).toEqual(expected);
+      return source.replace(
+        declaration[0],
+        '  const copies = /* verified host-specific identities */ {};',
+      );
+    });
+    expect(runtimes[0]).toBe(runtimes[1]);
   });
 
   it('rejects unsafe plugin hook execution paths', () => {

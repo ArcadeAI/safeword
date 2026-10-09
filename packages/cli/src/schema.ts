@@ -51,6 +51,13 @@ import { MCP_SERVERS } from './utils/install.js';
 import { assignOrPrune } from './utils/json-merge.js';
 import { VERSION } from './version.js';
 
+/** Closed planning-template classifier; registered templates stay literal for catalogue extraction. */
+export const PLANNING_CONTRACT_TEMPLATE_PATHS = {
+  product: 'skills/bdd/DISCOVERY.md',
+  implementation: 'skills/bdd/PLAN_IMPLEMENTATION.md',
+  execution: 'skills/bdd/PLAN_EXECUTION.md',
+} as const;
+
 export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
   // Static string, or a factory resolved with ctx at plan time so the block can
@@ -256,6 +263,15 @@ const CURSOR_SHARED_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.f
     { template: `skills/${path}` },
   ]),
 );
+
+/** Select the active Cursor-owned asset from the managed-file schema. */
+export function cursorPlanningContractPath(template: string): string {
+  const owned = Object.entries(CURSOR_SHARED_SKILL_OWNED_FILES).find(
+    ([, definition]) => definition.template === template,
+  );
+  if (owned === undefined) throw new Error(`No Cursor planning contract owns ${template}.`);
+  return owned[0];
+}
 
 const CURSOR_SHARED_SKILL_DIRS = [
   '.safeword/skills',

@@ -73,7 +73,7 @@ const proofs: Record<string, Proof> = {
     testFile: 'tests/review/execution-plan-conformance.test.ts',
   },
   'Review-contract identity controls semantic approval': {
-    expectedTests: 12,
+    expectedTests: 13,
     selector: 'Execution Plan review-contract identity',
     testFile: 'tests/review/execution-plan-contract-identity.test.ts',
   },
