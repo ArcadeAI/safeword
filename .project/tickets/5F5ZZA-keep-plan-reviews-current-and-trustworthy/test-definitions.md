@@ -789,7 +789,7 @@ not an epic completion claim or a substitute for those remaining boundaries.
 
 ### Scenario: An approving receipt is valid only for its own ticket and review kind
 
-- [ ] RED
+- [x] RED 018603c9b2be01f767e8382d28489fdb79ba9dab
 - [ ] GREEN
 - [ ] REFACTOR
 
