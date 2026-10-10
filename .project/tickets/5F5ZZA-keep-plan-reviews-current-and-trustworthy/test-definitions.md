@@ -586,6 +586,19 @@ scenario and remaining Product/Execution actor paths are still open.
 - [ ] GREEN
 - [ ] REFACTOR
 
+Current corrective R6 RED: the real configured coordinator invokes a model whose
+exact author/reviewer pair has no packaged qualification before rejecting its
+capability. Primary proof: `steps/keep-plan-reviews-route-capability.steps.ts`,
+with the existing independence and reviewer-process fixtures as support. Run
+`scripts/dev node --import tsx node_modules/.bin/cucumber-js
+features/keep-plan-reviews-current-and-trustworthy.feature
+features/keep-plan-reviews-current-and-trustworthy.feature:200:202` from root.
+The qualified pair is the passing control; the unavailable pair must be skipped
+before invocation and continue to the qualified route. Expected failure literal:
+`Unqualified route must not invoke the reviewer process`. The first selected
+run records one pass/one intended failure. Weaker-pair proof remains unbound;
+these two cases do not complete the full scenario or RGR ledger.
+
 ### Scenario: Exhausted routes advance through the fallback ladder in order
 
 - [ ] RED

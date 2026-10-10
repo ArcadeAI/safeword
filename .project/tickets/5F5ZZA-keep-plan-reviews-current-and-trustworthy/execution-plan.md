@@ -69,6 +69,17 @@ must change identity after a semantic upstream edit in
 not new RED claims. The unimplemented upstream contract-byte dependency enters
 the new paired R9 RED loop.
 
+R6's current corrective partition checks known pair qualification before reviewer
+invocation, retaining runtime model confirmation afterward. Its primary proof
+is `steps/keep-plan-reviews-route-capability.steps.ts`, supported by the existing
+independence/process fixtures. Invoke `scripts/dev node --import tsx
+node_modules/.bin/cucumber-js features/keep-plan-reviews-current-and-trustworthy.feature
+features/keep-plan-reviews-current-and-trustworthy.feature:200:202` from root.
+The accepted qualified pair remains the positive control; an unavailable pair
+must not launch and must continue to that qualified route. Only this observed
+missing behavior enters a new RGR loop; no qualification corpus or model changes
+are planned.
+
 R4's primary corrective RED runs from the root:
 
 ```bash

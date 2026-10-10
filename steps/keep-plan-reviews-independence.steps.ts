@@ -27,7 +27,13 @@ interface IndependentState {
       independence: string;
       actual_reviewer: string;
       review_id: string;
-      review_routes: { reviewer: string; status: string; failure?: string }[];
+      review_routes: {
+        reviewer: string;
+        model?: string;
+        independence: string;
+        status: string;
+        failure?: string;
+      }[];
       continuation?: { tier: string; packet: { dispatch_id: string } };
       continuation_attempts?: { tier: string; failure: string }[];
     };
@@ -38,7 +44,7 @@ interface IndependentState {
 }
 const states = new WeakMap<SafewordWorld, IndependentState>();
 
-async function prepare(world: SafewordWorld, verifiedAuthor: boolean) {
+export async function prepare(world: SafewordWorld, verifiedAuthor: boolean) {
   const bun = spawnSync('bun', ['-e', 'process.stdout.write(process.execPath)'], {
     encoding: 'utf8',
   });
@@ -86,7 +92,7 @@ async function prepare(world: SafewordWorld, verifiedAuthor: boolean) {
   return state;
 }
 
-async function coordinate(
+export async function coordinate(
   state: IndependentState,
   reviewer: 'codex' | 'claude' = 'codex',
   status: 'approved' | 'changes_requested' | 'continuation_required' = 'approved',
