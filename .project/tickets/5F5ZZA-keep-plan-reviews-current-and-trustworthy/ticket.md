@@ -2305,3 +2305,15 @@ passes 1/1 (57 steps). Final Claude review
 route-summary completeness are not established by these rows; the separate
 ordering and other typed-result rows remain open. No broader completion claim
 or merge authority is inferred.
+
+### R12 captured scope-context proof — 2026-10-09
+
+Six real prepared-packet cases and the ordinary-input regression pass 7/7
+(399 steps); reports are `/tmp/4200-r12-captured-discriminating-control.json`
+and `/tmp/4200-r12-remaining-and-default-regression.json`. Claude review
+`d3530beb-246e-4188-bab2-50088ad4b31d` approves after removing the omitted-source
+cue and asserting actual captured-role content. Explicit missing-content markers
+and semantic judging limit this proof; no installed-host claim is made. Manifest
+checks pass 2/2 and package typechecks/source lint pass. Fresh inventory has 109
+bound dry-skips and 50 undefined among 159 nondeferred cases; 16 hosts remain
+deferred. Historical six failures/585 unfinished, RGR and R7 deferral remain open.

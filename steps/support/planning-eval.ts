@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -20,27 +21,41 @@ interface EvalRun {
 interface EvalReport {
   selected_case: string;
   complete: boolean;
-  results: { case_id: string; status: string; runs: EvalRun[] }[];
+  results: { case_id: string; input_packet_digest: string; status: string; runs: EvalRun[] }[];
 }
 
 interface EvalState {
   caseId: string;
   reportDirectory: string;
   reportPath: string;
+  packetPath?: string;
+  packetDigest: string;
   output?: ReturnType<typeof spawnSync>;
   report?: EvalReport;
 }
 
 const states = new WeakMap<SafewordWorld, EvalState>();
 
-export function selectPlanningEval(world: SafewordWorld, caseId: string) {
+export function selectPlanningEval(
+  world: SafewordWorld,
+  caseId: string,
+  packet?: { context: string; reviewed_plan: string },
+) {
   const evaluationCase = planningContractCases.find(item => item.id === caseId);
   assert.ok(evaluationCase, `Missing judged case ${caseId}`);
   const reportDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-planning-eval-'));
+  const input = packet ?? {
+    context: evaluationCase.context,
+    reviewed_plan: evaluationCase.reviewed_plan,
+  };
+  const packetPath = packet === undefined ? undefined : path.join(reportDirectory, 'packet.json');
+  if (packetPath) writeFileSync(packetPath, JSON.stringify(input));
   states.set(world, {
     caseId,
     reportDirectory,
     reportPath: path.join(reportDirectory, 'result.json'),
+    packetPath,
+    packetDigest: createHash('sha256').update(JSON.stringify(input)).digest('hex'),
   });
   return evaluationCase;
 }
@@ -62,6 +77,8 @@ export function runPlanningEval(world: SafewordWorld): void {
     SAFEWORD_PLANNING_EVAL_OUTPUT: state.reportPath,
   };
   delete environment.NODE_OPTIONS;
+  delete environment.SAFEWORD_PLANNING_EVAL_PACKET;
+  if (state.packetPath) environment.SAFEWORD_PLANNING_EVAL_PACKET = state.packetPath;
   if (hostClaudeConfigDir === undefined) delete environment.CLAUDE_CONFIG_DIR;
   else environment.CLAUDE_CONFIG_DIR = hostClaudeConfigDir;
   state.output = spawnSync(
@@ -97,6 +114,7 @@ export function assertPlanningEval(
   assert.equal(report.results.length, 1);
   const result = report.results[0];
   assert.equal(result?.case_id, state.caseId);
+  assert.equal(result.input_packet_digest, state.packetDigest);
   assert.equal(result.status, 'pass');
   const matching = result.runs.filter(
     run =>

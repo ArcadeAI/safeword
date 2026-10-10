@@ -1,5 +1,6 @@
 import type { PlanningContractCase } from '../../scripts/lib/planning-contracts-eval.js';
 import { planningContractShapeCases } from './planning-contract-shape-eval.js';
+import { createScopeContextCases } from './planning-scope-context-eval.js';
 
 const accepted =
   'Ticket scope: require explicit user authorization before account changes. Ticket exclusion: no automatic account migration. Project non-goal: no background account mutation. Parent milestone: safe manual approval.';
@@ -351,5 +352,6 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     forbidden_scope_expansion:
       'Do not select a different authorization API or introduce reviewer-owned architecture.',
   },
+  ...createScopeContextCases(completeImplementationPlan),
   ...planningContractShapeCases,
 ];

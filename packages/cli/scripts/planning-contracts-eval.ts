@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -230,13 +231,40 @@ function calibrateJudge(manifest: PlanningEvalManifest, selectedId: string | und
   }
 }
 
+function capturedPlanningInput(
+  selectedId: string | undefined,
+): Pick<PlanningContractCase, 'context' | 'reviewed_plan'> | undefined {
+  const packetFile = process.env.SAFEWORD_PLANNING_EVAL_PACKET;
+  if (packetFile === undefined) return undefined;
+  if (selectedId === undefined)
+    throw new Error('Captured packet requires one named evaluation case.');
+  const suppliedPacket = JSON.parse(readFileSync(packetFile, 'utf8'));
+  if (
+    !isRecord(suppliedPacket) ||
+    typeof suppliedPacket.context !== 'string' ||
+    typeof suppliedPacket.reviewed_plan !== 'string'
+  )
+    throw new Error('Captured packet must supply context and reviewed_plan strings.');
+  return { context: suppliedPacket.context, reviewed_plan: suppliedPacket.reviewed_plan };
+}
+
 function main(): void {
   const manifest = readManifest();
   const selectedId = process.env.SAFEWORD_PLANNING_EVAL_CASE;
+  const suppliedPacket = capturedPlanningInput(selectedId);
   calibrateJudge(manifest, selectedId);
-  const cases = selectedId
+  const selectedCases = selectedId
     ? planningContractCases.filter(evaluationCase => evaluationCase.id === selectedId)
     : planningContractCases;
+  const cases = selectedCases.map(evaluationCase =>
+    suppliedPacket === undefined
+      ? evaluationCase
+      : {
+          ...evaluationCase,
+          context: suppliedPacket.context,
+          reviewed_plan: suppliedPacket.reviewed_plan,
+        },
+  );
   if (cases.length === 0) throw new Error(`Unknown planning eval case: ${selectedId}`);
   const reportPath = selectedId
     ? (process.env.SAFEWORD_PLANNING_EVAL_OUTPUT ??
@@ -265,7 +293,20 @@ function main(): void {
       })),
       manifest,
     );
-    results.push({ case_id: evaluationCase.id, rule: evaluationCase.rule, status, runs });
+    results.push({
+      case_id: evaluationCase.id,
+      rule: evaluationCase.rule,
+      input_packet_digest: createHash('sha256')
+        .update(
+          JSON.stringify({
+            context: evaluationCase.context,
+            reviewed_plan: evaluationCase.reviewed_plan,
+          }),
+        )
+        .digest('hex'),
+      status,
+      runs,
+    });
     mkdirSync(nodePath.dirname(reportPath), { recursive: true });
     writeFileSync(
       reportPath,
