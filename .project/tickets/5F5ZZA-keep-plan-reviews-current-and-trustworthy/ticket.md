@@ -2069,3 +2069,22 @@ the exact Execution-to-implement edit. Prepared shared fixture extraction and
 thin Cucumber bindings remain outside the checkout until the current package
 run and corrective commit finish; no existing assertion is removed or weakened.
 No acceptance count, RGR completion, merge, or promotion is claimed.
+
+R9 receipt-identity proof follow-up: independent executable RED review
+fd631781-29f3-4af0-b49b-e894f05be5a6 rejected the undefined-step run because it
+never reached the gate. That run remains recorded but does not authorize GREEN.
+The shared fixture extraction preserves all existing integration assertions;
+31 affected tests and the package typecheck pass. The new native-hook bindings
+pass all three outline rows against the repaired plugin. The identical proof
+against the full unmodified plugin extracted from pre-fix commit
+95c264f1282884bc803f0ba0db7537380c66bcff has one positive pass and two intended
+Then assertion failures: the old gate omits the mismatched review kind/ticket
+and re-review explanation. This is regression characterization of repaired
+production behavior, not a newly manufactured production RED.
+/tmp/4200-r9-receipt-bdd-baseline.{json,log}; current
+/tmp/4200-r9-receipt-bdd-bound.{json,log}; fixture recheck
+/tmp/4200-r9-receipt-bdd-package-green.log. The first partial baseline extraction
+omitted plugin metadata and failed at setup; it is retained separately and is
+not the intended failing evidence. GREEN remains unchecked pending independent
+review of the actual discriminating proof. User approval covers all epic-related
+test edits; merge and Ready promotion remain unauthorized.
