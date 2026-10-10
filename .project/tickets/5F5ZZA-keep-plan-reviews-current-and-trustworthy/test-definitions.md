@@ -798,7 +798,7 @@ pass and two mismatched-receipt diagnostic failures. Independent review of this
 discriminating regression control is required before GREEN.
 
 - [x] RED 018603c9b2be01f767e8382d28489fdb79ba9dab
-- [ ] GREEN
+- [x] GREEN a99837c0f
 - [ ] REFACTOR
 
 ### Scenario: Installed phase gates enforce invalidated review receipts
