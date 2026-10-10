@@ -2675,3 +2675,24 @@ and 34 undefined among 159 nondeferred scenarios; dry-skips are not passes.
 Current final review and commit provenance will be recorded after they finish.
 The installed cases, unresolved route cases and explicit human/host deferrals
 remain open. Historical six failures/585 unfinished remain visible.
+
+Final current review ad74c5ec-3e2f-49f5-be03-602d778912e9 approves and remains
+approved after fcc3afbf8. It notes that the word match alone cannot establish
+the finding's meaning; the separate judge carries that semantic check. No
+additional lexical hardening or new outcome matrix is introduced. Current
+contract/proof-tag regression passes 52/52. The complete two-row outline now
+records RED at dbe89f82c and GREEN at fcc3afbf8; the other R16 outlines remain
+open. The positive fixture includes accepted dimensions and planned public-CLI
+wiring context; it does not claim the reviewer independently discovers those
+preconditions or that the account endpoint is implemented here.
+
+The ledger requires a Scenario: prefix in its exact RED identity. Fresh review
+52347467-5de1-468e-8d4d-d8fd9533e1a9 approves a replay of the original undefined
+rows from the dbe89f82c archive under that label. The first replay failed before
+Cucumber because of untrusted archived mise configuration; it was rejected as
+infrastructure failure, not credited as RED. The successful replay uses the
+trusted pinned launcher, archived step modules and shared installed dependencies.
+JSON confirms only rows648/649. The reviewer correctly distinguishes missing
+bindings from missing production behavior. It also notes the hybrid dependency
+environment and 110 reporter cleanup hooks. Current GREEN remains the actual
+judged two-way proof, not the historical replay. The GREEN ledger edit now passes.
