@@ -2696,3 +2696,22 @@ JSON confirms only rows648/649. The reviewer correctly distinguishes missing
 bindings from missing production behavior. It also notes the hybrid dependency
 environment and 110 reporter cleanup hooks. Current GREEN remains the actual
 judged two-way proof, not the historical replay. The GREEN ledger edit now passes.
+
+## Root Cause — 2026-10-10 disposition extraction typecheck
+
+CI at dbe89f82c passes both Node test jobs but fails lint's TypeScript step.
+The extracted integration test retained a node:path import after its last use
+moved into the shared fixture. Local package typecheck reproduces the exact
+TS6133 unused-import error and no other error. Remove only that unused import;
+package typecheck and all five disposition integration tests then pass. The
+earlier targeted ESLint check did not enforce this compiler rule; subsequent
+package fixture extractions must include the package typecheck. This is a test
+source cleanup with no production behavior or expectation change.
+
+Scope project setup is shared at 2b5727615 for upcoming native proof consumers.
+A disposable harness executes the six existing scope Given preparations before
+and after the move: every role and supplied/omitted boundary assertion passes.
+That is fixture characterization only (six Given checks and 330 cleanup hooks),
+not six additional semantic acceptance passes. The original role/content guards
+and early cleanup tracking remain. The temporary harness is removed. Native
+reviewer and authenticated host proof are still unfinished.

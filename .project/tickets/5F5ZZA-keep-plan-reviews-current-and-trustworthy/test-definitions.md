@@ -1009,9 +1009,9 @@ admission. Keep the full scenario unchecked until its remaining boundaries pass.
 
 ### Scenario: Scenario review proves every applicable persona outcome
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dbe89f82c
+- [x] GREEN fcc3afbf8
+- [x] REFACTOR skip: no further refactor needed for the paired scenario-coverage proof
 
 ### Scenario: The installed Product Plan gate enforces persona-outcome completeness
 

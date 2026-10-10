@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
