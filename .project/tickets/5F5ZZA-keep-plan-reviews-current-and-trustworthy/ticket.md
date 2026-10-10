@@ -2341,3 +2341,37 @@ The nine-case regression passes 9/9 (513 steps), and final cause controls pass
 proves the host-identity boundary, not a real nested Codex/model execution. Refusal
 means refusal of independent classification, not refusal of permitted reduced
 approval. Weak-model classification and remaining acceptance remain open.
+
+### R6 qualification before launch and fallback repair — 2026-10-10
+
+RED `77b816af3` exposes the actual unqualified launch; executable-RED review
+`de810605-97d7-448e-aae4-52fb8aaafa2a` approves. GREEN `11df809d6` uses the
+existing exact ordered-pair catalogue before launch while retaining runtime
+confirmation. Initial review `63405f79-daef-4a4b-a69c-cb05751e21e4` rejected a
+fallback regression. Added real-CLI controls caught four failures and then a
+saved-job validation mismatch. Both are fixed: only attempted failures or typed
+unknown/weaker qualification skips exhaust independent routes. Skips never claim
+a producer invocation. Require remains blocked with exact-model recovery.
+
+Final verification: 93 package tests plus 27 controls pass; eleven root cases
+pass (627 steps); full normal suite passes 720 files, 11,421 tests, with 14
+existing skips in `/tmp/4200-r6-preflight-sealed-full-normal.log`. All package
+typechecks, targeted lint and five generated surfaces pass. Claude
+`d80c77ea-8749-4f00-b00d-9f3ee39e321f` approves and remains current after commit.
+Its context is `.safeword/logs/4200-r6-capability-exhaustion-repaired-review.md`.
+The interrupted full run (exit 130), failed corrections and incorrect root filter
+(six pass/two undefined weaker rows) remain retained.
+
+Nonblocking limitations: refused-route count could be clearer; real-catalogue
+weaker proof remains unbound. Exact skipped-route evidence and capability
+diagnostic remain visible. No speculative future route mechanism was added.
+Prelaunch qualification refusal intentionally permits the next configured
+fallback under prefer, without fabricating an attempt; require remains blocking.
+
+Fresh dry inventory: 159 nondeferred cases, 115 bound dry-skips, 44 undefined;
+16 OpenCode/cloud cases remain explicitly deferred. Dry-skips are not passes.
+Historical six failures/585 unfinished full acceptance, unfinished RGR,
+human-owned R7 retrieval deferral and final whole-stack acceptance remain open.
+PR4's cancelled current-head CI/advisory runs were rerun without branch changes.
+PR5's published 66bdf9273 head had green CI before this correction. No PR promoted
+or merged.

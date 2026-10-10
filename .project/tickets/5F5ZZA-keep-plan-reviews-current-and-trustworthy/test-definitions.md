@@ -599,6 +599,21 @@ before invocation and continue to the qualified route. Expected failure literal:
 run records one pass/one intended failure. Weaker-pair proof remains unbound;
 these two cases do not complete the full scenario or RGR ledger.
 
+Corrective partition RED: `77b816af3`, executable-RED approval
+`de810605-97d7-448e-aae4-52fb8aaafa2a`. GREEN: `11df809d6` rejects explicit
+unqualified selectors before launch and preserves permitted fallback after typed
+qualification refusals. Both coordinator and authenticated saved-job validator
+require attempted failures or explicit unknown/weaker qualification skips;
+unrelated skips, unavailable and unattempted candidates cannot authorize fallback.
+Runtime identity remains required; require policy remains blocking.
+Verification: 93 package tests plus 27 controls pass; eleven root cases pass
+(627 steps); full normal suite passes 720 files and 11,421 tests with 14 existing
+skips. Claude `d80c77ea-8749-4f00-b00d-9f3ee39e321f` approves and remains current
+after commit. The interrupted full run (exit 130) is not passing evidence.
+Shared fixture extraction preserves all assertions without a new lint exception.
+Full-scenario checkboxes remain unchecked because real-catalogue weaker proof
+remains open.
+
 ### Scenario: Exhausted routes advance through the fallback ladder in order
 
 - [ ] RED
