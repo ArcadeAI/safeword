@@ -616,9 +616,25 @@ remains open.
 
 ### Scenario: Exhausted routes advance through the fallback ladder in order
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: characterization of already implemented ordered recovery; no missing production behavior found
+- [x] GREEN 85e9ee5a1
+- [x] REFACTOR skip: shared installed-project fixture suffices; no production refactor needed
+
+Proof: `steps/keep-plan-reviews-fallback-order.steps.ts`. All three cases pass,
+including valid premature self-review refusal and authenticated same-job recovery.
+Producer observations, exact typed failures, sealed identity, pending-tier refusal
+and public current status establish order. Headless approval issues no host
+continuation. Host context is reported, not observed. Fourteen related root cases
+pass (798 steps), proof-tag checks pass 50/50 and Gherkin lint is healthy. Claude
+`47ec610b-f46f-40c4-b657-663efbd97ca9` approves with current post-commit status.
+
+The ledger also required executable RED approval despite the characterization
+skip. Retrospective wiring RED `663611cc-bdc1-491e-acc1-9859101b8137` approves the
+actual captured pre-binding source command: three undefined examples, nine
+undefined steps, 162 passed background steps, exit 1 without timeout. This is
+the packaged guide's initial undefined-binding path, not a production-regression
+claim or earlier RED chronology. Initial infrastructure/fixture failures and
+nonblocking review limits remain retained.
 
 ### Scenario: Local phase gates enforce the real review result
 

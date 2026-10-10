@@ -2375,3 +2375,37 @@ human-owned R7 retrieval deferral and final whole-stack acceptance remain open.
 PR4's cancelled current-head CI/advisory runs were rerun without branch changes.
 PR5's published 66bdf9273 head had green CI before this correction. No PR promoted
 or merged.
+
+### R6 exact fallback order — 2026-10-10
+
+`85e9ee5a1` binds all three cases through the installed CLI and authenticated
+continuations. Producer events prove independent-before-headless order; valid
+premature self-review is refused without consuming pending fresh-context, then
+correct recovery approves the same sealed job. Exact typed failures and identity
+remain asserted. Host context is reported, not observed. Manual host log entries
+were removed after review; headless approval must issue no continuation. Fourteen
+related root cases pass (798 steps), proof tags pass 50/50 and Gherkin lint is
+healthy. Claude `47ec610b-f46f-40c4-b657-663efbd97ca9` approves with current
+post-commit status. Initial fixture failures remain: trusted-candidate retries
+produced extra Codex starts, and invalid requests exit 1 rather than expected 2.
+
+The ledger refused GREEN despite a truthful characterization RED skip. The
+packaged TDD guide permits undefined Cucumber bindings as the first wiring RED.
+A disposable `git archive 41e38e3e1` snapshot, with current accepted feature test
+source and unchanged production build/dependencies, reproduces the genuine
+missing bindings. No production code or binding was removed. Independent
+execution/review `663611cc-bdc1-491e-acc1-9859101b8137` approves: three undefined
+examples, nine undefined steps, 162 passed background steps, exit 1 without
+timeout. This retrospective wiring reproduction is not a production regression
+or invented prior chronology. Copied mise trust and missing untracked dist
+failures were setup failures only; the original trusted launcher and linked
+unchanged distributions corrected them. The GREEN transition then succeeded.
+
+Nonblocking limits remain: sequential source supports producer exhaustion timing;
+host failures are reported during recovery; the refusal control asserts pending
+status fields but not that status call's exit code. No speculative mechanism was
+added. Fresh inventory: 118 bound dry-skips, 41 undefined among 159 nondeferred
+cases; dry-skips are not passes. Sixteen explicit deferrals and separate R7 human
+deferral remain. PR4's rerun and published PR5 head 41e38e3e1 have green CI.
+Full acceptance, remaining RGR and whole-stack readiness remain open. No PR
+promoted or merged.
