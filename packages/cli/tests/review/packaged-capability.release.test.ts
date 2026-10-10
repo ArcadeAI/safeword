@@ -28,9 +28,13 @@ function evidence(model: string): SealedCapabilityResults {
 }
 
 describe('packaged reviewer capability evidence', () => {
-  it('qualifies both shipped default cross-provider orderings from current sealed results', () => {
+  it('qualifies both packaged cross-provider orderings from current sealed results', () => {
     const claude = evidence('claude-opus-5');
-    const codex = evidence('gpt-6-astra');
+    const codex = evidence('gpt-6.1-sol');
+    expect(claude.provider).toBe('anthropic');
+    expect(claude.model).toBe(REVIEWER_CAPABILITY_MANIFEST.settings.anthropic_model);
+    expect(codex.provider).toBe('openai');
+    expect(codex.model).toBe(REVIEWER_CAPABILITY_MANIFEST.settings.openai_model);
     const revision = capabilityRevision(REVIEWER_CAPABILITY_MANIFEST, REVIEWER_CAPABILITY_RUBRICS);
     expect(PACKAGED_CAPABILITY_REVISION).toEqual(revision);
     expect(PACKAGED_CAPABILITY_PAIRS).toHaveLength(2);

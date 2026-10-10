@@ -131,7 +131,7 @@
     },
     {
       "path": "resources/templates/impl-plan-template.md",
-      "sha256": "dd37ea77bb9f96ccb9a38c7a0d62edcd439351142b10f274cc1e62f43f9156b6"
+      "sha256": "d1227a19350a0ce8967d506ed0d1c7d4c497f720e13e6e2363fab8fb2a5aeedf"
     },
     {
       "path": "resources/templates/task-spec-template.md",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "4f8cc1660af77d4e4dc88bee89a06e16197641092eb04cbfea881dc3ca60463e"
+      "sha256": "ad8857c2a63e4c3a1aab4198751171b0d8302f14ee85f0f157e48777e363f82c"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "6ad1ddecfb12be4e9f8dc39f906f936be8fca7924c6b8625757328ed1da43980"
+      "sha256": "623a7b68750038b287d515aff23c31d4acf0f1416929656bfb05f0fe5c26c2fd"
     },
     {
       "path": "runtime/event-groups.json",
@@ -359,7 +359,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "b27cf9028d662dbfc6ed251bbdd985db96cbe277f2b5491c057f677691d9db55"
+      "sha256": "be5b206a7587b14cf4f290e1feb3a6cb73e1c2132767ebed705c2a59775bc213"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -411,7 +411,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "4b6d872e81ad2794bf25d134ad5af29eeaec51b663a5f0c4a9a22eceb0e3f8da"
+      "sha256": "9887c156f749c54d450ee70d97285334dea1397a0f5c53f377de106c3641978e"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -463,7 +463,7 @@
     },
     {
       "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "3a63367e053e6cd825c008b2e9e0d09da8302993a8348dade8da776c032633bb"
+      "sha256": "4941e7d3e6c30162d4cc5f83edcc22661a31706213b413b55bd997614c299b2f"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -519,7 +519,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "5dd2b0c4e79d637d53c22f732266ced75595e3226e8878992550a138bcd5bbc2"
+      "sha256": "f054beeec9b6dd858c643009a7f35e8987f6eab5669e7631b685dbc464672914"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -643,7 +643,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "4284da78228ccfbf2296cf03f9393b48d3e3727ba0df0e353d506e6a60a857d1"
+      "sha256": "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -651,11 +651,11 @@
     },
     {
       "path": "skills/bdd/PLAN_EXECUTION.md",
-      "sha256": "277a6029ec4017089facf0698a436fb2c642d7205316a0e716303acc661b1cd3"
+      "sha256": "2450075ef8eab3f9b5d07aca6acf5a3e71026ed1535b86235290f215c9bd2960"
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "71bc151079386336167dde29c3e14bd18d71920ca8056678eabe741f290c27e9"
+      "sha256": "02d3dd686280264aed7b11d0485a928d363ebcfec1e311fc118f0a44ea9ff4db"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -991,7 +991,7 @@
     },
     {
       "path": "templates/doc-templates/impl-plan-template.md",
-      "sha256": "dd37ea77bb9f96ccb9a38c7a0d62edcd439351142b10f274cc1e62f43f9156b6"
+      "sha256": "d1227a19350a0ce8967d506ed0d1c7d4c497f720e13e6e2363fab8fb2a5aeedf"
     },
     {
       "path": "templates/doc-templates/task-spec-template.md",
@@ -1327,7 +1327,7 @@
     },
     {
       "path": "templates/hooks/lib/read-receipt.ts",
-      "sha256": "b27cf9028d662dbfc6ed251bbdd985db96cbe277f2b5491c057f677691d9db55"
+      "sha256": "be5b206a7587b14cf4f290e1feb3a6cb73e1c2132767ebed705c2a59775bc213"
     },
     {
       "path": "templates/hooks/lib/readiness-pointer.ts",
@@ -1379,7 +1379,7 @@
     },
     {
       "path": "templates/hooks/lib/review-receipt.ts",
-      "sha256": "4b6d872e81ad2794bf25d134ad5af29eeaec51b663a5f0c4a9a22eceb0e3f8da"
+      "sha256": "9887c156f749c54d450ee70d97285334dea1397a0f5c53f377de106c3641978e"
     },
     {
       "path": "templates/hooks/lib/review-trigger.ts",
@@ -1431,7 +1431,7 @@
     },
     {
       "path": "templates/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "3a63367e053e6cd825c008b2e9e0d09da8302993a8348dade8da776c032633bb"
+      "sha256": "4941e7d3e6c30162d4cc5f83edcc22661a31706213b413b55bd997614c299b2f"
     },
     {
       "path": "templates/hooks/lib/version.ts",
@@ -1487,7 +1487,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "952cd6d26a0afa996cb0b304d0026396d502adae16fa913cddf9b640eed27f18"
+      "sha256": "2d74a19219e8634918d4d10762f96bd3216fe21aa185d7872672a18a3b51dcae"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1643,7 +1643,7 @@
     },
     {
       "path": "templates/skills/bdd/DISCOVERY.md",
-      "sha256": "981a3fb25926b8c298b1d5da3dac26d63f6c567406b4017abaa0d07f4e67dc87"
+      "sha256": "9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557"
     },
     {
       "path": "templates/skills/bdd/DONE.md",
@@ -1651,11 +1651,11 @@
     },
     {
       "path": "templates/skills/bdd/PLAN_EXECUTION.md",
-      "sha256": "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53"
+      "sha256": "15e3e6382e4d29ad4581d3ec4fdf27f65ff2f200cd4caf78d7432fbc7d7c4616"
     },
     {
       "path": "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "32067faf4e8f95926142aea815b5ce7b04e66a1cd0df9f64ae3436df4ad940ba"
+      "sha256": "8dcf90cf71ecd2f77c14bf4a0bb87d28adb99883efe91c3b35246e0a37e387ef"
     },
     {
       "path": "templates/skills/bdd/SCENARIOS.md",

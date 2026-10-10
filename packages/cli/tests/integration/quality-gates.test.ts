@@ -18,6 +18,7 @@ import process from 'node:process';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  createCurrentPlanningCheckerStub,
   createTemporaryDirectory,
   fileExists,
   initGitRepo,
@@ -410,15 +411,23 @@ describe('Quality Gates', () => {
 
     it('2.2b: ticket artifacts stay editable while a feature is at plan-implementation (TXRHMD)', () => {
       seedPlanImplementationFeature();
+      const checker = createCurrentPlanningCheckerStub();
+      const previousCli = process.env.SAFEWORD_PLUGIN_CLI;
+      process.env.SAFEWORD_PLUGIN_CLI = checker.cli;
+      try {
+        const result = runPreToolQuality(
+          projectDirectory,
+          'Edit',
+          nodePath.join(projectDirectory, '.safeword-project/tickets/099-test/impl-plan.md'),
+        );
 
-      const result = runPreToolQuality(
-        projectDirectory,
-        'Edit',
-        nodePath.join(projectDirectory, '.safeword-project/tickets/099-test/impl-plan.md'),
-      );
-
-      expect(result.status).toBe(0);
-      expect(result.stdout).toBe('');
+        expect(result.status).toBe(0);
+        expect(result.stdout).toBe('');
+      } finally {
+        if (previousCli === undefined) delete process.env.SAFEWORD_PLUGIN_CLI;
+        else process.env.SAFEWORD_PLUGIN_CLI = previousCli;
+        removeTemporaryDirectory(checker.directory);
+      }
     });
 
     it('2.2c: permits only the configured durable architecture record during implementation planning', () => {

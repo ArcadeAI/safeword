@@ -4,6 +4,7 @@ import type { PlanningAuthorCopyIdentity, PlanningContract, PlanningPhase } from
 export const PLANNING_CONTRACTS = {
   "product-plan": {
     "phase": "product-plan",
+    "sharedAuthorityDigest": "094aa621afe3cb37e48dc4aebad92e76462f1505b06e61d3c1924aa96a13a38d",
     "purpose": "Define the accepted behavior and its product boundaries.",
     "entryCriteria": "Feature intake with the user's goal and current project context; a child also names its declared parent job and milestone.",
     "requiredContent": "The owning Product Plan or child Contribution, accepted Rules, scope and exclusions, observable done state, personas and affected surfaces. Keep supported facts, assumptions, and unresolved decisions distinct.",
@@ -15,6 +16,7 @@ export const PLANNING_CONTRACTS = {
   },
   "plan-implementation": {
     "phase": "plan-implementation",
+    "sharedAuthorityDigest": "094aa621afe3cb37e48dc4aebad92e76462f1505b06e61d3c1924aa96a13a38d",
     "purpose": "Decide a coherent implementation approach within accepted behavior.",
     "entryCriteria": "Accepted Product Plan Rules and scenarios, with current ticket and project boundaries, principles, personas, affected surfaces, dimensions when present, configured architecture records, and triggered data guidance.",
     "requiredContent": "Approach decisions, affected contracts and surfaces, concrete failure behavior, proof strategy and confidence limits, risks, rollout and rollback, recorded choices, and applicable architecture and data consequences.",
@@ -26,6 +28,7 @@ export const PLANNING_CONTRACTS = {
   },
   "plan-execution": {
     "phase": "plan-execution",
+    "sharedAuthorityDigest": "094aa621afe3cb37e48dc4aebad92e76462f1505b06e61d3c1924aa96a13a38d",
     "purpose": "Turn the accepted approach into startable, dependency-ordered delivery.",
     "entryCriteria": "Current accepted Implementation Plan and scenarios, with current ticket and project boundaries, principles, personas, affected surfaces, dimensions when present, configured architecture records, and triggered data guidance.",
     "requiredContent": "Startable tasks and prerequisites, dependency order, concrete proof specifications, pull-request slicing, reviewed delivery obligations, honest evidence classes, and explicit pending human authority.",
@@ -41,14 +44,14 @@ export const PLANNING_CONTRACTS = {
 export const PLANNING_AUTHOR_COPIES = {
   "product-plan": {
     "relativePath": "templates/skills/bdd/DISCOVERY.md",
-    "sha256": "981a3fb25926b8c298b1d5da3dac26d63f6c567406b4017abaa0d07f4e67dc87"
+    "sha256": "9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557"
   },
   "plan-implementation": {
     "relativePath": "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-    "sha256": "32067faf4e8f95926142aea815b5ce7b04e66a1cd0df9f64ae3436df4ad940ba"
+    "sha256": "8dcf90cf71ecd2f77c14bf4a0bb87d28adb99883efe91c3b35246e0a37e387ef"
   },
   "plan-execution": {
     "relativePath": "templates/skills/bdd/PLAN_EXECUTION.md",
-    "sha256": "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53"
+    "sha256": "15e3e6382e4d29ad4581d3ec4fdf27f65ff2f200cd4caf78d7432fbc7d7c4616"
   }
 } as const satisfies Record<PlanningPhase, PlanningAuthorCopyIdentity>;

@@ -62,6 +62,12 @@ export interface ReviewReceipt {
   readonly actualReviewer?: string;
   /** Model explicitly pinned on the coordinator route, when one was pinned. */
   readonly reviewerModel?: string;
+  /** Canonical resolver failure reported by an authenticated stale review status. */
+  readonly planningContextFailure?: {
+    readonly message: string;
+    readonly role: string;
+    readonly path: string;
+  };
 }
 
 /**

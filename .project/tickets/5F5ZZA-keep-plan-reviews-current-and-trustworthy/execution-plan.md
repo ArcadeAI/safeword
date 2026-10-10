@@ -24,9 +24,16 @@ integrates with those contracts without redefining them.
 
 The repository already has phase-specific reviewers, an authenticated review
 coordinator and job store, an append-only review ledger, and phase admission.
-It does not yet have one complete planning-context resolver, semantic review
-identity, generated shared contract source, or authenticated reduced-
-independence receipt path.
+The stacked branches now implement the planning-context resolver, semantic
+review identity, generated shared contracts, and authenticated reduced-
+independence receipt path. Implementation does not establish current acceptance:
+R4 exact-contract and R8 guidance corrections are uncommitted and need fresh
+RED evidence after fixture changes before GREEN can be claimed. R9's
+unsupported-direction rejection and semantic upstream correction are committed
+at bf758b53f52d40f3d7288f285937dcb717554a26, with current-main verification and
+owning-slice placement pending. R9's upstream canonical-contract dependency
+correction is not implemented. The checklist stays open until current proof is
+recorded.
 
 During this ticket's Implementation Plan approval, an approved cross-agent
 review with warnings still failed `ticket approve-plan`. Phase admission
@@ -36,6 +43,62 @@ reported findings from the latest approved review because it did not restrict
 `latestReviewRejection` to `changes_requested`. A manually added redundant
 stamp allowed the transition, confirming both defects. PR 1 fixes them before
 the broader provenance changes.
+
+### Resume execution status
+
+The tasks below preserve the original build sequence; they are not instructions
+to manufacture fresh REDs for implemented behavior. Their current status is:
+
+| Slice | Implemented behavior to characterize and verify | Open corrective work |
+| --- | --- | --- |
+| PR 1 | Both approval/rejection tasks and their production fix | Exact-head final review and current validation |
+| PR 2 | Shared generation and installed-copy integrity; unsupported-direction rejection committed on the stack | Task 2: place the correction in its owning slice and verify current main |
+| PR 3 | Context resolution, semantic currency, disposition recording; semantic upstream correction committed on the stack | Tasks 2–3: place existing corrections, refresh exact-contract proof, and implement upstream canonical-contract dependency |
+| PR 4 | Fallback routing, installed gates, capability corpus | Task 3: installed advisory guidance; live model confirmation and release proof |
+| PR 5 | Evidence records and scope judgment | Current nondeferred acceptance, evals, and exact-head review; R7 host retrieval remains deferred |
+
+For implemented tasks, run the named command as characterization; passing is
+the expected outcome. Historical RED/GREEN evidence stays in the ledger. A new
+failure is investigated rather than relabeled as the original RED. Only the
+corrective partitions above enter a new RED/GREEN/REFACTOR loop. Characterize
+PR 2's implemented R9 rejection: `scripts/dev bun run --cwd packages/cli test
+ tests/integration/planning-contract-generation.test.ts -t "unsupported own-review-only"`
+must reject the invalid contract. PR 3's implemented semantic upstream correction
+must change identity after a semantic upstream edit in
+`tests/review/execution-role-context.test.ts`. These are characterization runs,
+not new RED claims. The unimplemented upstream contract-byte dependency enters
+the new paired R9 RED loop.
+
+R6's current corrective partition checks known pair qualification before reviewer
+invocation, retaining runtime model confirmation afterward. Its primary proof
+is `steps/keep-plan-reviews-route-capability.steps.ts`, supported by the existing
+independence/process fixtures. Invoke `scripts/dev node --import tsx
+node_modules/.bin/cucumber-js features/keep-plan-reviews-current-and-trustworthy.feature
+features/keep-plan-reviews-current-and-trustworthy.feature:200:202` from root.
+The accepted qualified pair remains the positive control; an unavailable pair
+must not launch and must continue to that qualified route. Only this observed
+missing behavior enters a new RGR loop; no qualification corpus or model changes
+are planned.
+
+R4's primary corrective RED runs from the root:
+
+```bash
+scripts/dev node --import tsx node_modules/.bin/cucumber-js features/keep-plan-reviews-current-and-trustworthy.feature --name '^Context identity ignores cosmetic and unrelated edits$' --tags 'not @wip and not @proof.vitest and not @manual and not @live'
+```
+
+Its missing behavior is the cosmetic bounded-contract example retaining approval;
+the semantic mutation is the passing control. R8's primary corrective RED runs:
+
+```bash
+scripts/dev node --import tsx node_modules/.bin/cucumber-js features/keep-plan-reviews-current-and-trustworthy.feature --name '^(Generated Codex Cloud instructions cannot claim a gated approval|OpenCode Desktop guidance cannot claim a gated approval|Generated guidance identifies gated surfaces as enforced)$' --tags 'not @wip and not @proof.vitest and not @manual and not @live'
+```
+
+Its missing behavior is installed guidance omitting the supported/advisory
+boundary and supported redirect. These commands are the first corrective proofs,
+not a claim that the existing lower-level documentation tests currently fail.
+PR 3 context characterization includes an Execution Plan with no data declaration
+whose accepted Implementation Plan triggers current data guidance; installed
+Claude dispatch must enforce the same completeness boundary.
 
 ## PR 1 — Make approved planning receipts advance truthfully
 
@@ -58,15 +121,18 @@ the broader provenance changes.
 
 ### Tasks and tests
 
-1. RED: Extend
+1. Proof: Extend
    `packages/cli/tests/integration/plan-design-approval.test.ts` with the exact
    reproduced case: a current coordinator approval with warning findings and a
    phase review stamp, but no redundant artifact self-stamp. Run
-   `bun run test tests/integration/plan-design-approval.test.ts`; before GREEN
+   `bun run test tests/integration/plan-design-approval.test.ts`; in the original RED
    it must fail because approval still requires the second stamp.
-2. RED: In the same real CLI harness, prove `changes_requested` returns only
+2. Proof: In the same real CLI harness, prove `changes_requested` returns only
    its rejection findings, while missing or stale evidence returns the typed
    admission failure and never concatenates findings from an approved review.
+   Run `bun run test tests/integration/plan-design-approval.test.ts` through `scripts/dev`; in the original RED, assert the
+   new case fails because approved warning findings appear in a refusal or actual rejection findings are omitted.
+
 3. GREEN: Make `phaseReviewAdmission` the sole authenticated current-review
    decision used by plan approval. Remove the duplicate content-bound
    `currentReview` check rather than teaching users to mint a second weaker
@@ -98,23 +164,25 @@ the broader provenance changes.
 - **Completion signal:** There is one source for shared lifecycle, scope-
   authority, trust, and contract-shape clauses; every installed copy is exact;
   and each approval still claims only behavior, design, or startable delivery.
+  Do not cut a release between PR 2 and PR 4; the merged intermediate slices
+  are development states, not supported published packages.
   No later slice depends on semantic review identity until PR 3 proves that
   identity through the real coordinator and admission path.
 - **Relies on an unmerged successor:** no
 
 ### Tasks and tests
 
-1. RED: Add
+1. Proof: Add
    `packages/cli/tests/integration/planning-contract-generation.test.ts` for R1,
    R5, and R10. Through real generators and a fresh installed project, assert a
    shared-clause edit changes every marked copy, phase-only clauses stay local,
    a missing or altered block fails reconciliation, and no phase approval can
    claim a downstream state. Run
    `bun run test tests/integration/planning-contract-generation.test.ts`;
-   Initial RED established the missing shared-clause source. Subsequent bounded
-   loops attest the missing generator output or lifecycle gate named in their
-   ledger proof row; completed source generation is not relabeled RED.
-2. RED: Add exact-byte partitions for authoring, review dispatch, and phase
+   in the original RED, the new shared-source propagation assertion must fail because
+   no single source updates every marked contract. Historical passing source
+   generation remains checked; corrective missing-copy cases have their own RED.
+2. Proof: Add exact-byte partitions for authoring, review dispatch, and phase
    admission. Each rejects an installed-copy mismatch and accepts canonical
    generated bytes; a missing marked clause returns
    `missing_generated_shared_clause` with its clause ID and affected planning
@@ -127,6 +195,9 @@ the broader provenance changes.
    change. Keep missing, unknown, unknown-suffix, duplicate, and contradictory
    values in `planning-contract-generation.test.ts` as variations of that one
    outcome.
+   Run `bun run test tests/integration/planning-contract-generation.test.ts tests/integration/installed-planning-copy-admission.test.ts` through `scripts/dev`; in the original RED, assert the
+   new case fails because an altered or missing installed contract advances, or an undecidable invalidation declaration writes installed bytes.
+
 3. GREEN: Add the smallest typed shared-clause source and generator. Generate
    the three author contracts and three reviewer-rubric blocks, register every
    canonical/generated asset, and wire one exact-copy conformance check into
@@ -180,7 +251,7 @@ reopening its authority.
 
 ### Tasks and tests
 
-1. RED: Add `packages/cli/tests/review/planning-context.test.ts` for the closed
+1. Proof: Add `packages/cli/tests/review/planning-context.test.ts` for the closed
    `PlanningContextRole` model. Cover each phase's required-role matrix,
    including principles, personas, and affected surfaces for Execution review,
    justified absence, defaults versus stale/blank/unreadable overrides,
@@ -194,7 +265,10 @@ reopening its authority.
    unrelated parent-job edits retain approval. A child Product Plan review must
    receive inherited epistemic fields through the real resolver. A declared
    missing parent or required blank/missing/ambiguous framing fails closed.
-2. RED: Add
+   Run `bun run test tests/review/planning-context.test.ts` through `scripts/dev`; in the original RED, assert the
+   new case fails because required context is absent from the packet or an invalid override resolves permissively.
+
+2. Proof: Add
    `packages/cli/tests/integration/planning-review-identity.test.ts`. Through
    packet preparation, coordinator persistence, status, stamp, and admission,
    mutate whitespace/comments and unrelated inventory, then every decision-
@@ -207,22 +281,41 @@ reopening its authority.
    and unreferenced persona edits retain approval. No fourth planning contract
    or new inventory authority is introduced.
    Exercise the canonical R9 dependency direction with the same mechanics.
-   Generate/reconcile the canonical contract, then review both plans.
-   A semantic upstream Implementation change stales both reviews under
-   `both_plan_reviews`. The upstream role remains required and currency-bearing
-   in the packet and admission validation; missing or invalid input blocks.
-   Reconciliation rejects `implementation_review_only` before changing installed
-   contract bytes. Assert that changing the
-   declaration itself stales old receipts, and malformed/unknown/missing modes
-   fail closed. Do not use a mocked status or a separate per-mode code path.
-3. RED: Change corrected Product/Implementation plan bytes, every stable
-   Execution Plan field, canonical semantic contract bytes, ticket identity,
+   Add paired canonical-contract mutations through the real coordinator,
+   status, stamp, and admission entry points: changing Implementation contract
+   bytes stales both receipts; changing only Execution contract bytes stales
+   only Execution. Capture an authentic failing RED before adding the upstream
+   canonical contract to the existing accepted-upstream dependency projection.
+   Packet-level paired mutation checks in
+   `tests/review/execution-role-context.test.ts` support this integration proof;
+   they do not replace it. Retain outside-marker cosmetic stability and reject
+   missing upstream canonical identity. This correction belongs to PR 3's
+   existing context/currency task, with no new approval store or schema version.
+   A semantic upstream Implementation change must stale both reviews under
+   `both_plan_reviews`; the upstream role remains required and currency-bearing.
+   Reconciliation must reject `implementation_review_only` before changing
+   installed contract bytes. Missing, unknown, duplicate, and contradictory
+   declarations also fail closed. Do not use mocked status or a separate
+   configurable dependency path.
+   Run `bun run test tests/integration/planning-review-identity.test.ts` through `scripts/dev`; in the original RED, assert the
+   new case fails because a changed required dependency retains approval or a cosmetic dependency loses it.
+
+3. Proof: Change corrected Product/Implementation plan bytes, every stable
+   Execution Plan field, exact bounded canonical contract bytes, ticket identity,
    and review kind. None may inherit the prior verdict; a fresh matching verdict
    restores admission. Then change only ordinary contributor-row Disposition,
    Evidence class, Revision, and final evidence cells and prove the accepted
    Execution review remains current. This deterministic proof remains required
    in addition to the later judged eval.
-4. RED: In the same integration harness, authenticate a nonblocking optional
+   Run `bun run test tests/integration/planning-review-identity.test.ts tests/integration/planning-context-currency.test.ts` through `scripts/dev`; in the original RED, assert the
+   new case fails because changed bounded canonical bytes or stable plan definition retains approval.
+   In the authenticated job fixture, retain a pre-feature receipt with no
+   review identity and sealed records with malformed or unsupported-version
+   identities. Real status/stamp/admission must deny them without rewriting
+   history. An older-schema reader must ignore unknown identity fields rather
+   than grant authority; a fresh supported receipt restores admission.
+
+4. Proof: In the same integration harness, authenticate a nonblocking optional
    finding, record the user's decline through a real pseudo-terminal, and assert
    `--no-input`, redirected input, and refusal record nothing. Assert the
    command serializes cooperating writers with an exclusive sibling lock,
@@ -231,11 +324,17 @@ reopening its authority.
    of unchanged plan bytes retain the decline. Prove the accepted-boundary
    digest excludes dispositions, covers ticket/project/parent/milestone
    boundaries, and supplies the matching decline to the fresh reviewer rubric
-   without coordinator filtering. Do not claim protection from an out-of-band
+   without coordinator filtering. The public
+   `tests/integration/planning-review-disposition.test.ts` harness must also
+   recover a dead writer's lock on retry and record the complete disposition;
+   a live owner must return `REVIEW_DISPOSITION_WRITE_UNAVAILABLE`, preserve
+   both ticket bytes and the owner's lock, and never force removal.
+   Do not claim protection from an out-of-band
    writer that ignores the lock.
    Run
-   `bun run test tests/integration/planning-review-identity.test.ts`; before
-   GREEN it must fail because no disposition command or ticket field exists.
+   `scripts/dev bun run --cwd packages/cli test tests/integration/planning-review-identity.test.ts tests/integration/planning-review-disposition.test.ts`.
+   Existing command behavior is characterization and must pass; a missing
+   lock partition is added as a characterization proof, not a fabricated RED.
 5. GREEN: Implement the closed resolver and role-specific canonical projector.
    Callers provide ticket identity and review kind only. Fail closed on missing,
    duplicate, unknown, ambiguous, blank, unreadable, or stale required input.
@@ -278,7 +377,7 @@ reopening its authority.
 
 ### Tasks and tests
 
-1. RED: Add
+1. Proof: Add
    `packages/cli/tests/integration/planning-review-fallback.test.ts` and
    `packages/cli/tests/integration/planning-review-zero-independent.test.ts`, and
    `packages/cli/tests/integration/planning-review-route-order.test.ts` for R6.
@@ -299,7 +398,10 @@ reopening its authority.
    the public coordinator, status, stamp, and admission path, crossing `prefer`
    and `require`. The representative capability-outline rows do not replace
    these required partitions; unknown comparison must never mean “not weaker.”
-2. RED: Add
+   Run `bun run test tests/integration/planning-review-fallback.test.ts tests/integration/planning-review-zero-independent.test.ts tests/integration/planning-review-route-order.test.ts` through `scripts/dev`; in the original RED, assert the
+   new case fails because an unattempted stronger route or unqualified comparison authorizes a fallback.
+
+2. Proof: Add
    `packages/cli/tests/integration/planning-review-host-gates.test.ts` with
    installed lifecycle fixtures for Claude Code, OpenAI Codex, Cursor,
    OpenCode CLI/TUI, Claude Code Cloud, and Cursor Cloud Agents. Mock only the
@@ -318,12 +420,18 @@ reopening its authority.
    a qualified weaker pair is refused even after project/user rank overlays.
    Reversing a pair or changing its evidence/corpus/rubric/settings revision
    cannot inherit qualification. Exercise public routing, stamp, and admission.
-3. RED: Add
+   Run `bun run test tests/integration/planning-review-host-gates.test.ts` through `scripts/dev`; in the original RED, assert the
+   new case fails because unverified model metadata grants independence or a stale receipt advances.
+
+3. Proof: Add
    `packages/cli/tests/integration/planning-documentation.test.ts`. Assert the
    older coordinator ADR carries the reciprocal supersession marker, generated
    Codex Cloud and OpenCode Desktop guidance is advisory only, and every gated
    surface names its actual enforcement boundary.
-4. RED: Add the pinned reviewer-capability manifest and human-labelled Product,
+   Run `bun run test tests/integration/planning-documentation.test.ts` through `scripts/dev`; in the original RED, assert the
+   new case fails because installed advisory guidance claims authoritative approval or omits its supported redirect.
+
+4. Proof: Add the pinned reviewer-capability manifest and human-labelled Product,
    Implementation, and Execution Plan corpus. Add
    `bun run test:eval:reviewer-capability` for three deterministic runs per
    exact model. A run passes only with the expected verdict, every required
@@ -339,6 +447,26 @@ reopening its authority.
    fails when a shipped default cross-vendor pair lacks
    supported ordering or the live adapter confirmation proof required for its
    claimed independence.
+   Run `bun run test:eval:reviewer-capability` through `scripts/dev`; in the original RED, assert the
+   new case fails because an unsupported ordered pair qualifies or a pinned required finding is absent.
+
+   Add `tests/smoke/planning-review-model-confirmation.live.test.ts` before
+   changing adapter behavior. Install the packaged runtime in a fresh project;
+   invoke real Claude and Codex through the public coordinator with each exact
+   packaged default selector. Assert the recorded provider/model equals the
+   launched exact selector, with a completed matching Codex thread/turn and
+   Claude assistant/result agreement. A reroute, unavailable selector, missing
+   metadata, timeout, or skipped route cannot pass. Run
+   `../../scripts/dev env SAFEWORD_RUN_PLANNING_MODEL_LIVE=1 bun run test:smoke:live tests/smoke/planning-review-model-confirmation.live.test.ts`
+   from `packages/cli`; before GREEN, a missing or mismatched confirmed model
+   must fail its exact identity assertion. Process-boundary fixtures retain the
+   adversarial wrong-thread/turn and reroute cases; a live success proves the
+   actual supported protocol, not the absence of every possible reroute.
+   Run `../../scripts/dev bun run test:release` from `packages/cli`; packaged
+   capability and plugin release cases must fail a missing comparison, stale
+   corpus/rubric/settings digest, or unsupported default pair. No skipped live
+   route or historic model confirmation satisfies the current live proof.
+
 5. GREEN: Generate packaged ordered-pair comparisons only from admitted evidence; retain exact
    model, corpus/rubric/settings digests, evidence date, and results digest.
    Provider-documented within-family order may supplement the catalogue, but
@@ -398,25 +526,34 @@ reopening its authority.
   versioned fixed-rubric eval runs three deterministic repetitions and requires
   at least two agreeing correct verdicts per fixture; below threshold is
   inconclusive, never passing. The complete feature runs through Cucumber.
-- **Completion signal:** All accepted scenarios are GREEN/REFACTOR, the pinned eval
-  passes 2-of-3, customer docs explain the bounded planning approvals and host
-  matrix, and the contributor checklist has current evidence.
+- **Completion signal:** The nondeferred scenario boundaries have current
+  GREEN/REFACTOR evidence, the pinned eval passes 2-of-3, and customer docs and
+  contributor proofs are current. R7's planning-agent retrieval boundary remains
+  unproved under the user's deferral; packet or judged proof cannot close it.
+  The open human deferral item prevents claiming complete R7, feature, or epic
+  acceptance. This bounded code-delivery signal grants no merge authority.
 - **Relies on an unmerged successor:** no
 
 ### Tasks and tests
 
-1. RED: Add
+1. Proof: Add
    `packages/cli/tests/integration/planning-evidence-boundary.test.ts`. Through
    real planning/review packet preparation, prove retrieved instructions cannot
    alter scope, code snippets are not run, public evidence remains usable
    without sending private context, and absent reuse limits are not invented.
    Cover both `PlanEvidenceRecordV1` in Implementation Inspiration and the
    reviewer verdict's durable evidence record.
-2. RED: Add a versioned `evidence_records` collection to new job-result fixtures with
+   Run `bun run test tests/integration/planning-evidence-boundary.test.ts` through `scripts/dev`; in the original RED, assert the
+   new case fails because untrusted packet evidence changes accepted authority or loses its reuse limits.
+
+2. Proof: Add a versioned `evidence_records` collection to new job-result fixtures with
    source identity, claims, license, attribution, redistribution, security,
    privacy, and reuse limits. Prove persistence in the existing job record,
    integrity coverage, authority-inert older-schema reading, and no backfill.
-3. RED: Add
+   Run `bun run test tests/review/job.test.ts tests/integration/planning-evidence-boundary.test.ts` through `scripts/dev`; in the original RED, assert the
+   new case fails because an evidence record is dropped, accepted despite broken integrity, or gains authority under an unsupported schema.
+
+3. Proof: Add
    `packages/cli/tests/integration/planning-scope-review.test.ts`. Through the
    installed three phase entry points, cover all binding ticket/project/
    milestone/parent boundaries, omission and overreach, optional strengthening,
@@ -430,11 +567,14 @@ reopening its authority.
    editing customer docs; its new cases must fail until README and website
    content state exact plan/context currency, bounded phase authority, fallback
    assurance, recovery, and the enforced/advisory host split.
-4. RED: Add a versioned judged-eval manifest/corpus for R7 and R10–R16. Pin
+   Run `bun run test tests/integration/planning-scope-review.test.ts tests/integration/planning-documentation.test.ts tests/hooks/product-plan-contract.test.ts` through `scripts/dev`; in the original RED, assert the
+   new case fails because omission or overreach advances, or the customer guidance omits an accepted authority boundary.
+
+4. Proof: Add a versioned judged-eval manifest/corpus for R7 and R10–R16. Pin
    judge identity, rubric digest, deterministic settings, repetitions `3`,
    agreement threshold `2`, expected verdict, allowed finding authority, and
    forbidden scope expansion. Run `bun run test:eval:planning-contracts`;
-   before GREEN it must fail adversarial omissions, overreach, instruction
+   in the original RED it must fail adversarial omissions, overreach, instruction
    injection, and corrected-byte cases.
 5. GREEN: Reuse the existing quarantine/parser, emit `PlanEvidenceRecordV1` in
    Implementation Inspiration entries, and persist reviewer evidence records in
@@ -449,7 +589,7 @@ reopening its authority.
 8. REFACTOR: Remove redundant rubric prose after parity. Keep deterministic
    boundary tests separate from model evals and evals out of default fast tests.
 9. Run:
-   `bun run test tests/integration/planning-evidence-boundary.test.ts tests/integration/planning-scope-review.test.ts tests/integration/planning-documentation.test.ts tests/hooks/product-plan-contract.test.ts tests/review/plan-state-truthfulness.test.ts`.
+   `bun run test tests/integration/planning-evidence-boundary.test.ts tests/integration/planning-scope-review.test.ts tests/integration/planning-documentation.test.ts tests/hooks/product-plan-contract.test.ts tests/integration/plan-state-truthfulness.test.ts`.
 10. Add the aggregate `test:eval:planning-reviews` script, then run it to prove
     both the reviewer-capability catalogue and semantic planning contracts.
 11. Run:
@@ -483,6 +623,15 @@ reopening its authority.
 
 ## Deferred scope ownership
 
+- User-accepted 2026-10-09 deferral: MCWV4B owns OpenCode CLI/TUI and
+  Claude/Cursor Cloud verification after epic #4200. Their four installed
+  stale-receipt examples and 12 pending/current/fallback examples remain intact
+  under explicit manual/deferral tags;
+  they are excluded from the current automated acceptance lane and remain
+  unproven. No local simulation counts as cloud acceptance. This does not
+  defer shared review/security behavior or the other nondeferred scenarios.
+  Cursor repository access setup stops here; no permission change was saved.
+
 - 7CAMAD owns Execution Plan decomposition/content, coding authorization, and
   repair loop; this ticket owns review identity and quality.
 - K3EBHB owns final Non-Technical Builder recovery wording and installed-
@@ -491,8 +640,13 @@ reopening its authority.
   or backfill and keeps older records authority-inert.
 - G1C9PP owns 30–60 minute focused reviewability and its receipt judgment; this
   ticket preserves the bounded contract that judgment consumes.
-- `skip: no other behavior, design, proof, rollout, or documentation obligation
-is deferred outside the five PRs above.`
+- User-accepted 2026-09-30 deferral: host-level hostile-content injection at the
+  planning agent's retrieval boundary. The user owns reopening or changing that
+  deferral; the contributor owns producing its boundary evidence once reopened.
+  Packet quarantine and the judged corpus do not prove host instruction refusal,
+  nonexecution, or nondisclosure. R7, feature, and epic acceptance remain open.
+  The Delivery Checklist's `retrieval-proof-deferral` item retains this gap even
+  if every narrower command passes; the risk acceptance grants no merge authority.
 
 ## Decision accounting
 
@@ -502,8 +656,8 @@ is deferred outside the five PRs above.`
   `changes_requested` reviewer rejection findings. Human design approval remains
   separate. PR 1 and `phase-approval-proof` carry this decision.
 
-- Bind each verdict to exact plan bytes plus semantic canonical-contract and
-  context projections, while gating generated copies by exact bytes separately:
+- Bind each verdict to exact plan bytes plus exact bounded canonical-contract
+  bytes and semantic context projections, while gating generated copies by exact bytes separately:
   unchanged.
 - Extend the existing coordinator and review ledger instead of creating a
   second planning-review subsystem: unchanged.
@@ -512,6 +666,9 @@ is deferred outside the five PRs above.`
 - Treat semantic projection as a closed domain model, not generic Markdown
   normalization: unchanged.
 - Record a user-declined optional strengthening in ticket context: unchanged.
+- Confirm reviewer identity through Codex acknowledged, turn-correlated model
+  metadata and Claude assistant/result usage agreement; never accept argv, a
+  banner, or a selector probe: `unchanged` — PR 4 and `fallback-proof`.
 - Classify reviewer capability from qualified exact ordered pairs and fail closed
   when comparison is unavailable: unchanged.
 - Admit authenticated reduced-independence receipts without discarding stronger
@@ -524,15 +681,20 @@ remains required for structure, wiring, receipt identity, and corrected bytes.
 
 | Proof ID             | Method  | Scope       | Boundary exercised                                                                                                                        | Qualifies as  | Currency         | Invocation                                                                                                                                                                                                                                                                       |
 | -------------------- | ------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| phase-approval-proof | command | integration | Installed CLI plan approval through authenticated phase admission and typed rejection rendering                                           | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/plan-design-approval.test.ts","tests/integration/plan-transition-gate.test.ts","tests/integration/review-receipt-wiring.test.ts"]}                                                          |
-| contract-proof       | command | integration | Canonical generator through schema reconciliation, installed copies, and lifecycle copy checks                                            | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/planning-contract-generation.test.ts","tests/integration/installed-planning-copy-admission.test.ts","tests/review/plan-rubric-generation.test.ts","tests/review/execution-plan-rubric-generation.test.ts","tests/schema.test.ts","tests/parity.test.ts"]} |
-| identity-proof       | command | integration | Filesystem context resolution through coordinator job, ledger stamp, and phase admission                                                  | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/review/planning-context.test.ts","tests/integration/planning-review-identity.test.ts","tests/integration/phase-review-gate.test.ts"]}                                                                   |
-| fallback-proof       | command | integration | Coordinator exhaustion through authenticated fallback receipt and installed host gates                                                    | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/planning-review-fallback.test.ts","tests/integration/planning-review-zero-independent.test.ts","tests/integration/planning-review-route-order.test.ts","tests/integration/planning-review-host-gates.test.ts","tests/review/policy.test.ts","tests/review/surface-parity.test.ts"]}                              |
-| evidence-proof       | command | integration | Retrieval quarantine through durable evidence record and installed planning/review entry points                                           | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/planning-evidence-boundary.test.ts","tests/integration/planning-scope-review.test.ts","tests/hooks/product-plan-contract.test.ts"]}                                                         |
-| documentation-proof  | command | integration | ADR supersession, customer-facing README/website content, and generated host guidance through exact assertions                            | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/planning-documentation.test.ts"]}                                                                                                                                                           |
-| planning-evals-proof | command | eval        | Pinned repeated capability-catalogue and semantic-contract corpora exercise exact planning rubrics and default cross-provider comparisons | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test:eval:planning-reviews"]}                                                                                                                                                                                        |
-| feature-proof        | command | E2E         | Complete feature through real Cucumber entry point and step wiring                                                                        | real_boundary | current_required | {"type":"command","cwd":".","argv":["bun","run","test:bdd:acceptance","--","features/keep-plan-reviews-current-and-trustworthy.feature"]}                                                                                                                                        |
-| release-proof        | command | E2E         | Repository smoke boundary after integrated feature changes                                                                                | real_boundary | current_required | {"type":"command","cwd":".","argv":["bun","run","test:smoke"]}                                                                                                                                                                                                                   |
+| phase-approval-proof | command | integration | Installed CLI plan approval through authenticated phase admission and typed rejection rendering | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test","tests/integration/plan-design-approval.test.ts","tests/integration/plan-transition-gate.test.ts","tests/integration/review-receipt-wiring.test.ts"]} |
+| contract-proof | command | integration | Canonical generator through schema reconciliation, installed copies, and lifecycle copy checks | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test","tests/integration/planning-contract-generation.test.ts","tests/integration/installed-planning-copy-admission.test.ts","tests/review/plan-rubric-generation.test.ts","tests/review/execution-plan-rubric-generation.test.ts","tests/schema.test.ts","tests/parity.test.ts"]} |
+| identity-proof | command | integration | Filesystem context resolution through coordinator job, ledger stamp, and phase admission | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test","tests/review/planning-context.test.ts","tests/integration/planning-review-identity.test.ts","tests/integration/planning-review-disposition.test.ts","tests/integration/phase-review-gate.test.ts","tests/integration/planning-context-currency.test.ts","tests/review/job.test.ts"]} |
+| fallback-proof | command | integration | Coordinator exhaustion through authenticated fallback receipt and installed host gates | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test","tests/integration/planning-review-fallback.test.ts","tests/integration/planning-review-zero-independent.test.ts","tests/integration/planning-review-route-order.test.ts","tests/integration/planning-review-host-gates.test.ts","tests/review/policy.test.ts","tests/review/surface-parity.test.ts"]} |
+| evidence-proof | command | integration | Retrieval quarantine through durable evidence record and installed planning/review entry points | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test","tests/integration/planning-evidence-boundary.test.ts","tests/integration/planning-scope-review.test.ts","tests/hooks/product-plan-contract.test.ts"]} |
+| documentation-proof | command | integration | ADR supersession, customer-facing README/website content, and generated host guidance through exact assertions | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test","tests/integration/planning-documentation.test.ts"]} |
+| planning-evals-proof | command | eval | Pinned repeated capability-catalogue and semantic-contract corpora exercise exact planning rubrics and default cross-provider comparisons | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test:eval:planning-reviews"]} |
+| feature-proof | command | E2E | Complete feature through real Cucumber entry point and step wiring | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","run","test:bdd:acceptance","--","features/keep-plan-reviews-current-and-trustworthy.feature"]} |
+| release-proof | command | E2E | Repository smoke boundary after integrated feature changes | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","run","test:smoke"]} |
+| failure-proof | command | integration | Context, copy, route, identity and origin refusal through their public integration paths | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","sh","-c","bun run test tests/integration/planning-contract-generation.test.ts tests/integration/installed-planning-copy-admission.test.ts tests/review/plan-rubric-generation.test.ts tests/review/execution-plan-rubric-generation.test.ts tests/schema.test.ts tests/parity.test.ts tests/review/planning-context.test.ts tests/integration/planning-review-identity.test.ts tests/integration/planning-review-disposition.test.ts tests/integration/phase-review-gate.test.ts tests/integration/planning-context-currency.test.ts tests/review/job.test.ts tests/integration/planning-review-fallback.test.ts tests/integration/planning-review-zero-independent.test.ts tests/integration/planning-review-route-order.test.ts tests/integration/planning-review-host-gates.test.ts tests/review/policy.test.ts tests/review/surface-parity.test.ts tests/integration/planning-evidence-boundary.test.ts tests/integration/planning-scope-review.test.ts tests/hooks/product-plan-contract.test.ts"]} |
+| complete-testing-proof | command | integration | All named deterministic integration boundaries plus pinned planning evals | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","sh","-c","bun run test tests/integration/plan-design-approval.test.ts tests/integration/plan-transition-gate.test.ts tests/integration/review-receipt-wiring.test.ts tests/integration/planning-contract-generation.test.ts tests/integration/installed-planning-copy-admission.test.ts tests/review/plan-rubric-generation.test.ts tests/review/execution-plan-rubric-generation.test.ts tests/schema.test.ts tests/parity.test.ts tests/review/planning-context.test.ts tests/integration/planning-review-identity.test.ts tests/integration/planning-review-disposition.test.ts tests/integration/phase-review-gate.test.ts tests/integration/planning-context-currency.test.ts tests/review/job.test.ts tests/integration/planning-review-fallback.test.ts tests/integration/planning-review-zero-independent.test.ts tests/integration/planning-review-route-order.test.ts tests/integration/planning-review-host-gates.test.ts tests/review/policy.test.ts tests/review/surface-parity.test.ts tests/integration/planning-evidence-boundary.test.ts tests/integration/planning-scope-review.test.ts tests/hooks/product-plan-contract.test.ts tests/integration/planning-documentation.test.ts && bun run test:eval:planning-reviews"]} |
+| slice-review-proof | review_receipt | integration | Current reviewed slice boundaries, dependencies, and safe intermediate development states; final code review remains required | real_boundary | current_required | {"type":"review_receipt","kind":"plan-execution","targets":[".project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/execution-plan.md"]} |
+| live-model-proof | command | E2E | Fresh installed coordinator through real Claude/Codex exact-selector model confirmation | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","env","SAFEWORD_RUN_PLANNING_MODEL_LIVE=1","bun","run","test:smoke:live","tests/smoke/planning-review-model-confirmation.live.test.ts"]} |
+| packaged-release-proof | command | integration | Packaged default ordered-pair qualification, current generated runtimes, and release conformance | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test:release"]} |
 
 ## Delivery checklist
 
@@ -540,15 +702,18 @@ remains required for structure, wiring, receipt identity, and corrected bytes.
 
 | ID                     | Category                                  | Obligation                                                                                                                                           | Owner       | Required proof       | Disposition    | Evidence class | Revision | Evidence, reason, or dependency                                                |
 | ---------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------------------- | -------------- | -------------- | -------- | ------------------------------------------------------------------------------ |
-| outcome-scope          | outcome and scope                         | Deliver R1–R16 without redefining sibling-owned plan content, migration, recovery copy, or release authority                                         | contributor | feature-proof        | open           | missing        |          |                                                                                |
-| resolved-decisions     | resolved decisions                        | Preserve all eight recorded decisions and exact/fallback/capability/user-authority boundaries                                                        | contributor | feature-proof        | open           | missing        |          |                                                                                |
-| pr-decomposition       | dependency and pull-request decomposition | Land five ordered independently reviewable slices, each safe without a successor                                                                     | contributor | phase-approval-proof | open           | missing        |          |                                                                                |
-| testing                | testing                                   | Complete deterministic boundary proof, all accepted scenario ledgers, the capability-catalogue eval, and the pinned 2-of-3 semantic contract eval    | contributor | planning-evals-proof | open           | missing        |          |                                                                                |
+| outcome-scope          | outcome and scope                         | Deliver the nondeferred R1–R16 boundaries without redefining sibling scope; R7 host acceptance remains open under retrieval-proof-deferral                                         | contributor | feature-proof        | open           | missing        |          |                                                                                |
+| resolved-decisions     | resolved decisions                        | Preserve all nine recorded decisions and exact/fallback/capability/user-authority boundaries                                                        | contributor | feature-proof        | open           | missing        |          |                                                                                |
+| pr-decomposition | dependency and pull-request decomposition | Deliver five ordered slices safe without successors; obtain current review of their boundaries | contributor | slice-review-proof | open | missing |  |  |
+| testing                | testing                                   | Complete nondeferred boundary/ledger proof and pinned evals; preserve unfinished R7 host acceptance regardless of narrower scenario passes          | contributor | complete-testing-proof | open           | missing        |          |                                                                                |
 | data-compatibility     | data and compatibility                    | Add versioned identity/evidence to existing job results and user dispositions to tickets; preserve history with no new store, migration, or backfill | contributor | identity-proof       | open           | missing        |          |                                                                                |
-| monitoring             | monitoring and failure signals            | Expose typed context, copy, route, identity, and origin failures with one recovery action                                                            | contributor | fallback-proof       | open           | missing        |          |                                                                                |
+| monitoring             | monitoring and failure signals            | Expose typed context, copy, route, identity, and origin failures with one recovery action                                                            | contributor | failure-proof       | open           | missing        |          |                                                                                |
 | security-privacy       | security and privacy                      | Preserve credential/privacy boundaries and deny execution or instruction authority to evidence                                                       | contributor | evidence-proof       | open           | missing        |          |                                                                                |
-| rollout-rollback       | rollout and rollback                      | Activate coherent slices; rollback preserves inert records and ledger history                                                                        | contributor | identity-proof       | open           | missing        |          |                                                                                |
+| rollout-rollback       | rollout and rollback                      | Release PR 2–4 together after integration; rollback preserves inert records and ledger history                                                                        | contributor | identity-proof       | open           | missing        |          |                                                                                |
 | documentation          | documentation                             | Update guidance, README, website, ADR marker, and generated host copies                                                                              | contributor | documentation-proof  | open           | missing        |          |                                                                                |
 | ownership-dependencies | ownership and human dependencies          | Keep sibling obligations deferred to named owners and invent no human authority                                                                      | contributor | feature-proof        | open           | missing        |          |                                                                                |
+| live-model-confirmation | testing | Prove current exact packaged reviewer selectors through actual installed Claude and Codex protocols; no skipped route qualifies | contributor | live-model-proof | open | missing | | |
+| packaged-release | rollout and rollback | Verify current packaged default comparisons and coherent generated runtimes before any release | contributor | packaged-release-proof | open | missing | | |
 | design-approval        | ownership and human dependencies          | Obtain configured human design approval                                                                                                              | human       |                      | not_applicable | missing        |          | Project `designApprovalGate` is disabled; review is not human design approval. |
-| completion-evidence    | completion evidence                       | Produce current receipts for all boundaries, complete feature, eval, and verification                                                                | contributor | release-proof        | open           | missing        |          |                                                                                |
+| retrieval-proof-deferral | ownership and human dependencies | Resolve the user-owned R7 host-retrieval proof deferral and establish its boundary evidence before claiming complete R7, feature, or epic acceptance | human | | pending_human | missing | | User deferred this proof on 2026-09-30; narrower packet or judged evidence cannot close this item. |
+| completion-evidence    | completion evidence                       | Produce current receipts for delivered boundaries and evals; do not claim complete feature or epic acceptance while retrieval-proof-deferral is open                                                                | contributor | release-proof        | open           | missing        |          |                                                                                |

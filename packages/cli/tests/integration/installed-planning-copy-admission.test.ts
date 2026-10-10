@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -64,7 +65,8 @@ process.stdin.on('end', () => {
   const packet = JSON.parse(input.slice(input.lastIndexOf('{"schema_version":1')));
   console.log(JSON.stringify({ structured_output: {
     schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude',
-    verdict: 'approve', summary: 'Fixture approval.', findings: []
+    verdict: 'approve', summary: 'Fixture approval.', findings: [],
+    evidence_records: { schema_version: 1, records: [] }
   }}));
 });
 `,
@@ -172,10 +174,129 @@ process.stdin.on('end', () => {
   return { project, ticketPath, run, advance, root, distribution, environment };
 }
 
+const authoringPhases = [
+  {
+    phase: 'product-plan',
+    artifact: 'spec.md',
+    contract: 'DISCOVERY.md',
+    oldString: 'Product Plan',
+    ticketPhase: 'intake',
+  },
+  {
+    phase: 'plan-implementation',
+    artifact: 'impl-plan.md',
+    contract: 'PLAN_IMPLEMENTATION.md',
+    oldString: 'Preserve accepted behavior through one implementation.',
+    ticketPhase: 'plan-implementation',
+  },
+  {
+    phase: 'plan-execution',
+    artifact: 'execution-plan.md',
+    contract: 'PLAN_EXECUTION.md',
+    oldString: 'One step.',
+    ticketPhase: 'plan-execution',
+  },
+] as const;
+
+function alterAuthorCopy(asset: string, state: 'canonical' | 'comment drift' | 'missing copy') {
+  if (state === 'comment drift')
+    writeFileSync(asset, `<!-- authoring-copy drift -->\n${readFileSync(asset, 'utf8')}`);
+  else if (state === 'missing copy') rmSync(asset);
+}
+
+function alterReviewerCopy(distribution: string) {
+  const files = readdirSync(nodePath.join(distribution, 'dist')).filter(file =>
+    file.endsWith('.js'),
+  );
+  const runtime = files
+    .map(file => nodePath.join(distribution, 'dist', file))
+    .find(file => readFileSync(file, 'utf8').includes('var PLAN_REVIEW_RUBRIC = '));
+  if (runtime === undefined) throw new Error('Copied distribution lacks its reviewer rubric');
+  const source = readFileSync(runtime, 'utf8');
+  const start = source.indexOf('var PLAN_REVIEW_RUBRIC = ');
+  const end = source.indexOf('PLAN_REVIEW_RUBRIC_SHA256', start);
+  const clause = 'Accepted scope and exclusions belong to the user.';
+  const clauseIndex = source.indexOf(clause, start);
+  expect(clauseIndex).toBeGreaterThan(start);
+  expect(clauseIndex).toBeLessThan(end);
+  writeFileSync(runtime, source.slice(0, clauseIndex) + source.slice(clauseIndex + clause.length));
+}
+
 describe('Cursor installed planning copy admission', () => {
+  it.each(
+    authoringPhases.flatMap(phase =>
+      (['canonical', 'comment drift', 'missing copy'] as const).map(state => ({ ...phase, state })),
+    ),
+  )(
+    'checks $phase authoring copy with $state before an installed $artifact edit',
+    { timeout: 90_000 },
+    ({ phase, artifact, contract, oldString, ticketPhase, state }) => {
+      const installed = fixture();
+      if (ticketPhase !== 'plan-implementation') {
+        writeFileSync(
+          installed.ticketPath,
+          readFileSync(installed.ticketPath, 'utf8')
+            .split('phase: plan-implementation')
+            .join(`phase: ${ticketPhase}`),
+        );
+      }
+      const asset = nodePath.join(installed.project, '.safeword/skills/bdd', contract);
+      alterAuthorCopy(asset, state);
+      const planPath = nodePath.join(installed.project, '.project/tickets', folder, artifact);
+      if (artifact === 'execution-plan.md')
+        writeFileSync(planPath, '# Execution Plan\n\nOne step.\n');
+      const edited = spawnSync(
+        'bun',
+        [nodePath.join(installed.project, '.safeword/hooks/pre-tool-quality.ts')],
+        {
+          cwd: installed.project,
+          encoding: 'utf8',
+          timeout: 15_000,
+          env: installed.environment,
+          input: JSON.stringify({
+            tool_name: 'Edit',
+            tool_input: {
+              file_path: planPath,
+              old_string: oldString,
+              new_string: `${oldString} reviewed`,
+            },
+          }),
+        },
+      );
+      expect(edited.status, `${edited.stdout}\n${edited.stderr}`).toBe(0);
+      if (state === 'canonical') {
+        expect(edited.stdout.trim(), 'canonical authoring must remain available').toBe('');
+      } else {
+        const findingCode =
+          state === 'missing copy'
+            ? 'missing_generated_contract_copy'
+            : 'canonical_contract_copy_mismatch';
+        expect(
+          edited.stdout.trim(),
+          'installed plan authoring must refuse a drifted contract copy before the edit',
+        ).not.toBe('');
+        const output = JSON.parse(edited.stdout) as {
+          systemMessage?: string;
+          hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
+        };
+        expect(output.hookSpecificOutput?.permissionDecision).toBe('deny');
+        expect(
+          output.systemMessage,
+          'a blocked author should see the contract mismatch without another command',
+        ).toContain(findingCode);
+        expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(findingCode);
+        expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(phase);
+        expect(output.hookSpecificOutput?.permissionDecisionReason).toContain(
+          `.safeword/skills/bdd/${contract}`,
+        );
+      }
+    },
+  );
+
   it.each([
     { state: 'canonical', permission: 'allow' },
     { state: 'comment drift', permission: 'deny' },
+    { state: 'reviewer rubric drift', permission: 'deny' },
     { state: 'project-writable cached runtime', permission: 'deny' },
   ] as const)(
     'checks $state at the installed Cursor adapter without plugin variables',
@@ -212,7 +333,7 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
       const asset = nodePath.join(installed.project, '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md');
       if (state === 'comment drift') {
         writeFileSync(asset, `<!-- cached-runtime copy drift -->\n${readFileSync(asset, 'utf8')}`);
-      }
+      } else if (state === 'reviewer rubric drift') alterReviewerCopy(installed.distribution);
       const environment: NodeJS.ProcessEnv = { ...installed.environment, CODEX_HOME: cacheHome };
       delete environment.SAFEWORD_PLUGIN_CLI;
       delete environment.CLAUDE_PLUGIN_ROOT;
@@ -246,15 +367,62 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
       if (state === 'comment drift') {
         expect(checked.stdout).toContain('canonical_contract_copy_mismatch');
         expect(checked.stdout).toContain('.safeword/skills/bdd/PLAN_IMPLEMENTATION.md');
+      } else if (state === 'reviewer rubric drift') {
+        expect(checked.stdout).toContain('canonical_contract_copy_mismatch');
+        expect(checked.stdout).toContain('src/review/plan-rubric.generated.ts');
       }
       expect(existsSync(marker), 'project-writable authority must never execute').toBe(false);
     },
   );
 
-  it.each(['public approval', 'installed hook'] as const)(
-    'refuses project-copy drift at %s after an authenticated review',
+  it(
+    'refuses public plan approval when the generated reviewer rubric drifts',
     { timeout: 90_000 },
-    boundary => {
+    () => {
+      const installed = fixture();
+      alterReviewerCopy(installed.distribution);
+      const approval = installed.run(['ticket', 'approve-plan', 'CPY123']);
+      expect(approval.status).not.toBe(0);
+      expect(approval.stdout).toContain('canonical_contract_copy_mismatch');
+      expect(approval.stdout).toContain('src/review/plan-rubric.generated.ts');
+      expect(readFileSync(installed.ticketPath, 'utf8')).toContain('phase: plan-implementation');
+    },
+  );
+
+  it(
+    'refuses to reuse an approved review after the reviewer copy drifts',
+    { timeout: 90_000 },
+    () => {
+      const installed = fixture();
+      alterReviewerCopy(installed.distribution);
+      const repeated = installed.run([
+        'review',
+        'run',
+        'plan-implementation',
+        `.project/tickets/${folder}/impl-plan.md`,
+        '--context',
+        `.project/tickets/${folder}/spec.md`,
+      ]);
+      expect(repeated.status).not.toBe(0);
+      const output = JSON.parse(repeated.stdout) as { effects?: { network?: unknown[] } };
+      expect(
+        output.effects?.network,
+        'review dispatch must refuse stale reviewer bytes before launch',
+      ).toEqual([]);
+      expect(repeated.stdout).toContain('canonical_contract_copy_mismatch');
+      expect(repeated.stdout).toContain('src/review/plan-rubric.generated.ts');
+    },
+  );
+
+  it.each([
+    ['public approval', 'comment drift'],
+    ['public approval', 'missing copy'],
+    ['installed hook', 'comment drift'],
+    ['installed hook', 'missing copy'],
+  ] as const)(
+    'refuses %s with %s after an authenticated review',
+    { timeout: 90_000 },
+    (boundary, copyState) => {
       const project = fixture();
       const canonical =
         boundary === 'public approval'
@@ -277,10 +445,12 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
         driftProject.project,
         '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md',
       );
-      writeFileSync(
-        asset,
-        `<!-- installed-copy drift outside reviewer block -->\n${readFileSync(asset, 'utf8')}`,
-      );
+      if (copyState === 'missing copy') rmSync(asset);
+      else
+        writeFileSync(
+          asset,
+          `<!-- installed-copy drift outside reviewer block -->\n${readFileSync(asset, 'utf8')}`,
+        );
       const drifted =
         boundary === 'public approval'
           ? driftProject.run(['ticket', 'approve-plan', 'CPY123'])
@@ -294,7 +464,11 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
         refused,
         'installed lifecycle must refuse project author-copy drift after authenticated approval',
       ).toBe(true);
-      expect(`${drifted.stdout}\n${drifted.stderr}`).toContain('canonical_contract_copy_mismatch');
+      expect(`${drifted.stdout}\n${drifted.stderr}`).toContain(
+        copyState === 'missing copy'
+          ? 'missing_generated_contract_copy'
+          : 'canonical_contract_copy_mismatch',
+      );
       expect(`${drifted.stdout}\n${drifted.stderr}`).toContain(
         '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md',
       );

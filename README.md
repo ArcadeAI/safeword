@@ -440,6 +440,21 @@ not clear it. Hosts without trusted exact author-model metadata cannot
 automatically satisfy that claim today; the existing reasoned skip remains an
 auditable escape hatch, without relabeling fallback as independent.
 
+Product Plan approval means the accepted behavior is ready for scenarios;
+Implementation Plan approval means its design is coherent enough for delivery
+planning; Execution Plan approval means the sequence is startable and provable.
+Each approval covers its own phase and semantic dependencies such as accepted
+scope and prior decisions. Product and Implementation receipts bind exact plan bytes;
+Execution review binds normalized decision bytes, so ordinary Delivery Checklist
+progress does not stale it. A changed reviewed decision calls for re-review before
+the affected phase advances. When independent routes fail,
+`prefer` can admit a completed fallback with its actual reviewer and **reduced
+independence**; `require` cannot. Repair the cause or configure a qualified
+route, then re-review for independent assurance. Local Claude Code, local Codex,
+local Cursor, OpenCode CLI/TUI, Claude Code Cloud, and Cursor Cloud Agents have
+enforced planning entry points. Codex Cloud and OpenCode Desktop are advisory;
+use an enforced host for an authoritative planning approval.
+
 **Codex plugin skills**: Codex gets Safeword workflow skills from the Safeword Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safeword-owned workflow aliases into `.agents/skills/`.
 
 **Language coding-skills** (auto-installed per language): when safeword detects a Go, Python, TypeScript, or Rust project, `install` installs a small third-party coding-skill for that language (via `npx skills`, into `.claude/skills/` and, where supported by the agent, `.agents/skills/`). These are third-party language helpers, not Safeword Codex workflow files. The Claude Code on-edit nudge points the agent at the matching skill the first time you edit that language in a scenario; Cursor's adapter is dormant pending platform bug #534. Best-effort — a missing network or installer error degrades to a warning, never blocks install. Note: frontier models already write most core idioms unaided, so this is a light nudge, not a transformation.

@@ -42,15 +42,22 @@ import type {
 import { ReviewPacketError } from './packet-error.js';
 import { reviewDispositionContext } from './planning-accepted-boundary.js';
 import { PlanningContextError, type PlanningContextRole } from './planning-context-error.js';
+import { planningEvidenceRecords } from './planning-context-identity.js';
 import { type PlanningRoleContext, resolvePlanningRoleContext } from './planning-role-context.js';
 import { planningTicketOwner } from './planning-ticket-owner.js';
 export { ReviewPacketError } from './packet-error.js';
 export { PlanningContextError } from './planning-context-error.js';
-import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
+import {
+  EXECUTION_PLAN_REVIEW_RUBRIC,
+  EXECUTION_PLAN_REVIEW_RUBRIC_SHA256,
+} from './execution-plan-rubric.generated.js';
 import { extractExecutionPlanReviewRubric } from './execution-plan-rubric.js';
-import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
+import { PLAN_REVIEW_RUBRIC, PLAN_REVIEW_RUBRIC_SHA256 } from './plan-rubric.generated.js';
 import { extractPlanReviewRubric } from './plan-rubric.js';
-import { PRODUCT_PLAN_REVIEW_RUBRIC } from './product-plan-rubric.generated.js';
+import {
+  PRODUCT_PLAN_REVIEW_RUBRIC,
+  PRODUCT_PLAN_REVIEW_RUBRIC_SHA256,
+} from './product-plan-rubric.generated.js';
 import { extractProductPlanReviewRubric } from './product-plan-rubric.js';
 import { recordFinalizedScope } from './scope.js';
 
@@ -80,7 +87,7 @@ const PLANNING_KNOWLEDGE_ROLES = ['principles', 'personas', 'surfaces'] as const
 type PlanningKnowledgeRole = (typeof PLANNING_KNOWLEDGE_ROLES)[number];
 type RequiredPlanningContextRole = PlanningContextRole;
 
-function planningOverrides(
+function planningOverrideConfig(
   cwd: string,
   role: PlanningKnowledgeRole,
 ): Record<string, unknown> | undefined {
@@ -93,44 +100,63 @@ function planningOverrides(
     throw new PlanningContextError(role, '.safeword/config.json');
   }
   if (!planningConfigRecord(config)) throw new PlanningContextError(role, '.safeword/config.json');
-  const overrides = config.paths;
-  if (overrides === undefined) return undefined;
-  if (!planningConfigRecord(overrides))
-    throw new PlanningContextError(role, '.safeword/config.json:paths');
-  return overrides;
+  return config;
 }
 function planningConfigRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
-function requireValidPlanningOverride(cwd: string, role: PlanningKnowledgeRole): void {
-  const overrides = planningOverrides(cwd, role);
+function requireCurrentPlanningLineage(
+  config: Record<string, unknown> | undefined,
+  role: PlanningKnowledgeRole,
+): void {
+  const lineage = config?.pathLineage;
+  const entry = planningConfigRecord(lineage) ? lineage[role] : undefined;
+  if (entry === undefined) return;
+  const version = planningConfigRecord(entry) ? entry.packagedSourceVersion : undefined;
+  if (typeof version !== 'string' || version !== SAFEWORD_SCHEMA.version)
+    throw new PlanningContextError(
+      role,
+      `.safeword/config.json:pathLineage.${role}`,
+      undefined,
+      true,
+    );
+}
+function requireValidPlanningOverride(cwd: string, role: PlanningKnowledgeRole): boolean {
+  const config = planningOverrideConfig(cwd, role);
+  const overrides = config?.paths;
+  if (overrides !== undefined && !planningConfigRecord(overrides))
+    throw new PlanningContextError(role, '.safeword/config.json:paths', undefined, true);
   if (overrides !== undefined && Object.hasOwn(overrides, role)) {
     const value = overrides[role];
     if (typeof value !== 'string' || value.trim() === '')
-      throw new PlanningContextError(role, `.safeword/config.json:paths.${role}`);
+      throw new PlanningContextError(role, `.safeword/config.json:paths.${role}`, undefined, true);
+    requireCurrentPlanningLineage(config, role);
+    return true;
   }
+  return false;
 }
 
 function requiredPlanningKnowledgeSource(cwd: string, role: PlanningKnowledgeRole): string {
-  requireValidPlanningOverride(cwd, role);
-  return requiredPlanningSource(cwd, role, resolveConfiguredPath(cwd, role));
+  const configured = requireValidPlanningOverride(cwd, role);
+  return requiredPlanningSource(cwd, role, resolveConfiguredPath(cwd, role), configured);
 }
 
 function requiredPlanningSource(
   cwd: string,
   role: RequiredPlanningContextRole,
   source: string,
+  configured = false,
 ): string {
   const relative = nodePath.relative(cwd, source);
   try {
     if (escapes(cwd, source) || !lstatSync(source).isFile()) {
-      throw new PlanningContextError(role, relative);
+      throw new PlanningContextError(role, relative, undefined, configured);
     }
     if (readFileSync(source, 'utf8').trim() === '') {
-      throw new PlanningContextError(role, relative);
+      throw new PlanningContextError(role, relative, undefined, configured);
     }
   } catch {
-    throw new PlanningContextError(role, relative);
+    throw new PlanningContextError(role, relative, undefined, configured);
   }
   return relative;
 }
@@ -283,6 +309,7 @@ export class PlanningContractCopyError extends ReviewPacketError {
     readonly code: 'canonical_contract_copy_mismatch' | 'missing_generated_contract_copy',
     readonly phase: PlanningPhase,
     readonly contractPath: string,
+    readonly copy: 'authoring' | 'reviewer' = 'authoring',
   ) {
     const generator = {
       'product-plan': 'generate:planning-contracts',
@@ -290,7 +317,7 @@ export class PlanningContractCopyError extends ReviewPacketError {
       'plan-execution': 'generate:execution-plan-rubric',
     }[phase];
     super(
-      `The ${phase} authoring contract copy at ${contractPath} ${code === 'missing_generated_contract_copy' ? 'is unavailable' : 'differs from the canonical contract-byte identity'}. Restore the packaged decision-quality contract by reinstalling or reconciling the intact Safeword distribution and retry. For source builds, restore the canonical authoring contract, run \`bun run ${generator}\` and \`bun run fix:generated-surfaces\`, then rebuild and reinstall.`,
+      `The ${phase} ${copy === 'reviewer' ? 'generated reviewer' : 'authoring'} contract copy at ${contractPath} ${code === 'missing_generated_contract_copy' ? 'is unavailable' : 'differs from the canonical contract-byte identity'}. Restore the packaged decision-quality contract by reinstalling or reconciling the intact Safeword distribution and retry. For source builds, restore the canonical contract, run \`bun run ${generator}\` and \`bun run fix:generated-surfaces\`, then rebuild and reinstall.`,
     );
   }
 }
@@ -346,6 +373,34 @@ export function assertActivePlanningAuthorCopy(cwd: string, phase: PlanningPhase
     relativePath: cursorPlanningContractPath(template),
     sha256: identity.sha256,
   });
+}
+
+export function assertActivePlanningReviewerCopy(phase: PlanningPhase): void {
+  const reviewer = {
+    'product-plan': {
+      bytes: PRODUCT_PLAN_REVIEW_RUBRIC,
+      sha256: PRODUCT_PLAN_REVIEW_RUBRIC_SHA256,
+      path: 'src/review/product-plan-rubric.generated.ts',
+    },
+    'plan-implementation': {
+      bytes: PLAN_REVIEW_RUBRIC,
+      sha256: PLAN_REVIEW_RUBRIC_SHA256,
+      path: 'src/review/plan-rubric.generated.ts',
+    },
+    'plan-execution': {
+      bytes: EXECUTION_PLAN_REVIEW_RUBRIC,
+      sha256: EXECUTION_PLAN_REVIEW_RUBRIC_SHA256,
+      path: 'src/review/execution-plan-rubric.generated.ts',
+    },
+  }[phase];
+  if (digest(reviewer.bytes) !== reviewer.sha256) {
+    throw new PlanningContractCopyError(
+      'canonical_contract_copy_mismatch',
+      phase,
+      reviewer.path,
+      'reviewer',
+    );
+  }
 }
 
 interface CapturedFile {
@@ -723,6 +778,8 @@ interface ReviewPacketExecution {
   readonly planContract?: PlanContractPair;
   /** Fingerprint preparation only: no review is dispatched from this packet. */
   readonly allowMissingExecutableRedAttestation?: boolean;
+  /** Currency uses semantic contract identity; copy integrity is checked at dispatch and admission. */
+  readonly fingerprintOnly?: boolean;
 }
 
 function checkedExecutionAttestation(
@@ -802,6 +859,7 @@ export function packagedPlanContract(
 ): PlanContractPair {
   const authorRubric =
     kind === 'plan-execution' ? packagedExecutionPlanAuthorRubric() : packagedPlanAuthorRubric();
+  assertActivePlanningReviewerCopy(kind);
   const reviewerRubric =
     kind === 'plan-execution' ? EXECUTION_PLAN_REVIEW_RUBRIC : PLAN_REVIEW_RUBRIC;
   return assemblePlanContract(authorRubric, reviewerRubric);
@@ -847,41 +905,66 @@ function ownedPlanningTicket(root: string, target: string): boolean {
 }
 
 function packagedProductPlanContract(): PlanContractPair {
-  return assemblePlanContract(
-    extractProductPlanReviewRubric(packagedPlanningAuthor('product-plan')),
-    PRODUCT_PLAN_REVIEW_RUBRIC,
+  const authorRubric = extractProductPlanReviewRubric(packagedPlanningAuthor('product-plan'));
+  assertActivePlanningReviewerCopy('product-plan');
+  return assemblePlanContract(authorRubric, PRODUCT_PLAN_REVIEW_RUBRIC);
+}
+
+function fingerprintPlanContract(phase: PlanningPhase): PlanContractPair {
+  const reviewer = {
+    'product-plan': PRODUCT_PLAN_REVIEW_RUBRIC,
+    'plan-implementation': PLAN_REVIEW_RUBRIC,
+    'plan-execution': EXECUTION_PLAN_REVIEW_RUBRIC,
+  }[phase];
+  return assemblePlanContract(reviewer, reviewer);
+}
+
+function isOwnedPlanningTarget(cwd: string, targets: readonly string[], expected: string): boolean {
+  const target = targets.length === 1 ? targets[0] : undefined;
+  return (
+    target !== undefined &&
+    nodePath.basename(target) === expected &&
+    ownedPlanningTicket(cwd, target)
   );
 }
 
 function upstreamPlanContract(
   planningTarget: boolean,
   kind: ReviewKind,
+  fingerprintOnly: boolean,
 ): Pick<ReviewPacket, 'upstream_plan_contract'> {
   if (!planningTarget || kind !== 'plan-execution') return {};
-  return { upstream_plan_contract: packagedPlanContract('plan-implementation') };
+  return {
+    upstream_plan_contract: fingerprintOnly
+      ? fingerprintPlanContract('plan-implementation')
+      : packagedPlanContract('plan-implementation'),
+  };
 }
 
 function packetPlanContract(
   kind: ReviewKind,
   configured: PlanContractPair | undefined,
   productTarget: boolean,
-  cwd: string,
-  targets: readonly string[],
+  options: { cwd: string; targets: readonly string[]; fingerprintOnly: boolean },
 ): Pick<ReviewPacket, 'planning_phase' | 'plan_contract' | 'upstream_plan_contract'> {
   if (productTarget)
-    return { planning_phase: 'product-plan', plan_contract: packagedProductPlanContract() };
+    return {
+      planning_phase: 'product-plan',
+      plan_contract: options.fingerprintOnly
+        ? fingerprintPlanContract('product-plan')
+        : packagedProductPlanContract(),
+    };
   if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
-  const canonical = packagedPlanContract(kind);
-  const target = targets.length === 1 ? targets[0] : undefined;
   const expected = kind === 'plan-implementation' ? 'impl-plan.md' : 'execution-plan.md';
-  const planningTarget =
-    target !== undefined &&
-    nodePath.basename(target) === expected &&
-    ownedPlanningTicket(cwd, target);
+  const planningTarget = isOwnedPlanningTarget(options.cwd, options.targets, expected);
+  const canonical =
+    options.fingerprintOnly && planningTarget
+      ? fingerprintPlanContract(kind)
+      : packagedPlanContract(kind);
   return {
     ...(planningTarget && { planning_phase: kind }),
     plan_contract: configured ?? canonical,
-    ...upstreamPlanContract(planningTarget, kind),
+    ...upstreamPlanContract(planningTarget, kind, options.fingerprintOnly),
   };
 }
 
@@ -1091,6 +1174,15 @@ function packetDispositionContext(
   }
 }
 
+function validatePlanEvidenceRecords(
+  kind: ReviewKind,
+  files: readonly { readonly path: string; readonly content: string }[],
+): void {
+  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return;
+  for (const file of files)
+    if (nodePath.basename(file.path) === 'impl-plan.md') planningEvidenceRecords(file.content);
+}
+
 // Keep validation, generated classification, and packet capture in one atomic preflight.
 // eslint-disable-next-line complexity -- A partial packet must never escape this boundary.
 function prepareReviewPacketUnsafe(
@@ -1256,17 +1348,16 @@ function prepareReviewPacketUnsafe(
         'REVIEW_NO_ELIGIBLE_TARGETS',
       );
     }
+    validatePlanEvidenceRecords(kind, [...logicalFiles, ...contextFiles]);
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
     deliveryDefinition = retainedDeliveryDefinition(kind, logicalFiles, canonicalRoot);
-    planningContract = packetPlanContract(
-      kind,
-      execution.planContract,
-      productPlan,
-      canonicalRoot,
-      uniqueTargets,
-    );
+    planningContract = packetPlanContract(kind, execution.planContract, productPlan, {
+      cwd: canonicalRoot,
+      targets: uniqueTargets,
+      fingerprintOnly: execution.fingerprintOnly === true,
+    });
     planningContext = resolvePlanningRoleContext(
       canonicalRoot,
       kind,

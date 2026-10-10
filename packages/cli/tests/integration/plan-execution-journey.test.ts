@@ -202,29 +202,29 @@ fi
 payload=$(cat)
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
 if ! printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[]}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[],"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id"
   exit 0
 fi
 if printf '%s' "$payload" | /usr/bin/grep -Fq '${CONCRETE_PROOF_CONTRACT_SIGNAL}'; then
   if printf '%s' "$payload" | /usr/bin/grep -Fq 'TBD CLI boundary'; then
-    printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"missing subprocess boundary","findings":[{"severity":"error","message":"The test step must name the installed CLI subprocess boundary."}],"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id"
+    printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"missing subprocess boundary","findings":[{"severity":"error","message":"The test step must name the installed CLI subprocess boundary."}],"evidence_records":{"schema_version":1,"records":[]},"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id"
     exit 0
   fi
   if printf '%s' "$payload" | /usr/bin/grep -Fq 'TBD denied-exit result'; then
-    printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"missing exit-code assertion","findings":[{"severity":"error","message":"The test step must name the denied exit-code assertion."}],"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id"
+    printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"missing exit-code assertion","findings":[{"severity":"error","message":"The test step must name the denied exit-code assertion."}],"evidence_records":{"schema_version":1,"records":[]},"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id"
     exit 0
   fi
 fi
 if printf '%s' "$payload" | /usr/bin/grep -Fq '4. TODO: decide whether denied authorization returns an error or an empty result'; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"task 4 requires a behavior decision","findings":[{"severity":"error","message":"Task 4 requires a behavior decision before implementation."}],"planning_destination":"plan-implementation","execution_plan_record":null}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"task 4 requires a behavior decision","findings":[{"severity":"error","message":"Task 4 requires a behavior decision before implementation."}],"evidence_records":{"schema_version":1,"records":[]},"planning_destination":"plan-implementation","execution_plan_record":null}\n' "$dispatch_id"
   exit 0
 fi
 if ! printf '%s' "$payload" | /usr/bin/grep -Fq '${REVIEW_CONTRACT_SIGNAL}'; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"the first step is not startable","findings":[{"severity":"error","message":"Execution Planning does not require a named first RED."}],"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"the first step is not startable","findings":[{"severity":"error","message":"Execution Planning does not require a named first RED."}],"evidence_records":{"schema_version":1,"records":[]},"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id"
   exit 0
 fi
 review_record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
-printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"the named RED is startable","findings":[],"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$review_record"
+printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"the named RED is startable","findings":[],"evidence_records":{"schema_version":1,"records":[]},"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$review_record"
 `,
     { mode: 0o755 },
   );
@@ -280,7 +280,7 @@ describe('Execution Plan cold-start journey', () => {
       mkdirSync(nodePath.join(root, 'src'), { recursive: true });
       writeFileSync(
         nodePath.join(root, '.safeword', 'config.json'),
-        `${JSON.stringify({ designApprovalGate: false, crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'opus' }] } })}\n`,
+        `${JSON.stringify({ designApprovalGate: false, crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'claude-opus-5' }] } })}\n`,
       );
       writeFileSync(nodePath.join(root, '.safeword', 'SAFEWORD.md'), '# Safeword\n');
       writeFileSync(
@@ -538,7 +538,7 @@ describe('Execution Plan cold-start journey', () => {
             '--phase',
             request.kind,
             '--model',
-            'opus',
+            'claude-opus-5',
             '--author-agent',
             'codex',
             '--reviewer-agent',
@@ -773,7 +773,7 @@ describe('Execution Plan cold-start journey', () => {
       mkdirSync(nodePath.join(root, 'tests'), { recursive: true });
       writeFileSync(
         nodePath.join(root, '.safeword', 'config.json'),
-        `${JSON.stringify({ designApprovalGate: false, crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'opus' }] } })}\n`,
+        `${JSON.stringify({ designApprovalGate: false, crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'claude-opus-5' }] } })}\n`,
       );
       writeFileSync(nodePath.join(root, '.safeword', 'SAFEWORD.md'), '# Safeword\n');
       writeFileSync(

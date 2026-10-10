@@ -39,11 +39,19 @@ const parent = `# Product Plan: Trust review
 - **Outcome:** Current evidence is visible.
 - **Constraints:** Preserve authentication.
 
+#### trust.BU1.R1 — Preserve authenticated approval
+
+Only current approval advances.
+
 ### trust.RD1 — Find guidance
 
 **Persona:** Reader (RD)
 
 > When I read a guide, I want an index, so I can find instructions.
+
+#### trust.RD1.R1 — Keep guidance discoverable
+
+Guidance has a readable index.
 
 ## Shape
 
@@ -64,7 +72,7 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-async function fixture() {
+async function fixture(prepare?: (project: string) => void) {
   const project = createTemporaryDirectory();
   projects.push(project);
   await createConfiguredProject(project);
@@ -88,6 +96,7 @@ async function fixture() {
     nodePath.join(project, target),
     '# Feature Contribution: Current review\n\n<!-- safeword:product-plan-contract:v1 -->\n\n## Parent References\n\n- **Parent:** PRT123\n- **Parent job:** trust.BU1\n- **Milestone:** M1\n\n## Contribution\n\nPreserve current approval.\n\n## Rules\n\n#### trust.BU1.CHD123.R1 — Preserve approval\n\nOnly current approval advances.\n\n## Surfaces\n\nAffected:\n- Safeword CLI\n',
   );
+  prepare?.(project);
   const reviewer = createTrustedReviewerDirectory('safeword-context-currency-');
   const capture = nodePath.join(reviewer, 'packet.json');
   writeFileSync(
@@ -102,7 +111,8 @@ process.stdin.on('end', () => {
   const packet = JSON.parse(input.trim().split('\n').pop());
   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
-    reviewer_agent: 'claude', verdict: 'approve', summary: 'Review fixture approves the supplied source.', findings: [] } }));
+    reviewer_agent: 'claude', verdict: 'approve', summary: 'Review fixture approves the supplied source.',
+    findings: [], evidence_records: { schema_version: 1, records: [] } } }));
 });
 `,
     { mode: 0o755 },
@@ -110,7 +120,7 @@ process.stdin.on('end', () => {
   const run = (args: string[]) =>
     runCli([...args, '--cwd', project, '--json', '--no-input'], {
       cwd: project,
-      env: { PATH: `${reviewer}:/usr/bin:/bin`, SAFEWORD_AGENT_RUNTIME: 'codex' },
+      env: { PATH: `${reviewer}:${process.env.PATH ?? ''}`, SAFEWORD_AGENT_RUNTIME: 'codex' },
     });
   const reviewed = await run(['review', 'run', 'quality-review', target]);
   expect(reviewed.exitCode, `${reviewed.stdout}\n${reviewed.stderr}`).toBe(0);
@@ -138,6 +148,79 @@ describe('semantic planning context currency through public review status', () =
     const review = await fixture();
     expect(await review.status()).toBe('approved');
   });
+  it('accepts math in selected Product context and tracks its meaning', async () => {
+    const review = await fixture(project => {
+      const path = nodePath.join(project, parentSpec);
+      writeFileSync(
+        path,
+        readFileSync(path, 'utf8').replace(
+          'Approval authenticates the current source.',
+          () => 'Approval authenticates the current source for $5 to $10.',
+        ),
+      );
+    });
+    review.edit(parentSpec, text => text.replace('$5 to $10', () => '$5 to $11'));
+    expect(await review.status()).toBe('stale');
+  });
+  it('tracks a footnote definition referenced by selected Product context', async () => {
+    const review = await fixture(project => {
+      const path = nodePath.join(project, parentSpec);
+      writeFileSync(
+        path,
+        `${readFileSync(path, 'utf8').replace('Approval authenticates the current source.', 'Approval authenticates the current source.[^source]')}\n[^source]: Evidence requires current approval.\n`,
+      );
+    });
+    review.edit(parentSpec, text =>
+      text.replace('Evidence requires current approval.', 'Evidence permits anonymous approval.'),
+    );
+    expect(await review.status()).toBe('stale');
+  });
+  it('tracks a persona named only in a paragraph-form Product Bet inventory', async () => {
+    const review = await fixture(project => {
+      const specification = nodePath.join(project, parentSpec);
+      writeFileSync(
+        specification,
+        readFileSync(specification, 'utf8').replace(
+          '- **Persona outcome inventory:** Builder receives approval or a named refusal.',
+          '\n**Persona outcome inventory:** Builder receives approval; Reviewer checks the result.\n',
+        ),
+      );
+      const personas = nodePath.join(project, '.project/personas.md');
+      writeFileSync(
+        personas,
+        `${readFileSync(personas, 'utf8')}\n## Reviewer (RV)\n\n**Role:** Checks the result.\n`,
+      );
+    });
+    review.edit('.project/personas.md', text =>
+      text.replace('Checks the result.', 'Accepts an unchecked result.'),
+    );
+    expect(await review.status()).toBe('stale');
+  });
+  it('keeps approval when an unrelated persona name overlaps the referenced persona', async () => {
+    const review = await fixture(project => {
+      const personas = nodePath.join(project, '.project/personas.md');
+      writeFileSync(
+        personas,
+        `${readFileSync(personas, 'utf8').replace('## Builder (BU)', '## Non-Technical Builder (BU)')}\n## Technical Builder (TB)\n\n**Role:** An unrelated technical contributor.\n**Context:** Does not request this approval.\n\n## Builder (BD)\n\n**Role:** Another unrelated contributor.\n`,
+      );
+      const specification = nodePath.join(project, parentSpec);
+      writeFileSync(
+        specification,
+        readFileSync(specification, 'utf8').replace(
+          'Builder receives approval or a named refusal.',
+          'Non-Technical Builder receives approval or a named refusal. Non-Technical Builder also reads the result.',
+        ),
+      );
+    });
+    review.edit('.project/personas.md', text =>
+      text
+        .replace('An unrelated technical contributor.', 'An unrelated technical reader.')
+        .replace('Another unrelated contributor.', 'Another unrelated reader.'),
+    );
+    expect(await review.status(), 'unrelated overlapping persona changed review currency').toBe(
+      'approved',
+    );
+  });
   it.each([
     [
       'administrative ticket progress',
@@ -153,18 +236,32 @@ describe('semantic planning context currency through public review status', () =
       'an unrelated milestone',
       parentSpec,
       (text: string) =>
-        text.replace('Guidance has a readable index.', 'Guidance has a searchable index.'),
+        text.replace(
+          '- **Non-goals:** No approval changes.',
+          '- **Non-goals:** No routing changes.',
+        ),
     ],
     [
       'parent comments and layout',
       parentSpec,
       (text: string) =>
-        text.replace('## Product Bet', '<!-- editorial note -->\n\n\n## Product Bet'),
+        text.replace('## Product Bet\n\n', '## Product Bet\n\n<!-- editorial note -->\n\n'),
     ],
     [
       'an unrelated parent job',
       parentSpec,
       (text: string) => text.replace('I want an index', 'I want a searchable index'),
+    ],
+    [
+      'an unrelated persona entry',
+      '.project/personas.md',
+      // Reader belongs to the unselected parent job; the child selected Builder.
+      (text: string) => `${text}\n## Reader (RD)\n\n**Role:** Reads project guidance.\n`,
+    ],
+    [
+      'an unrelated surface entry',
+      '.project/surfaces.md',
+      (text: string) => `${text}\n## Documentation site\n\n**Kind:** Website\n`,
     ],
   ])('retains approval after %s changes', async (_label, path, transform) => {
     const review = await fixture();
@@ -185,6 +282,16 @@ describe('semantic planning context currency through public review status', () =
       childTicket,
       (text: string) => text.replace('scope: preserve approval', 'scope: allow anonymous approval'),
     ],
+    [
+      'ticket completion criteria',
+      childTicket,
+      (text: string) =>
+        text.replace(
+          'done_when: current approval advances',
+          'done_when: verified delivery advances',
+        ),
+    ],
+    ['ticket type', childTicket, (text: string) => text.replace('type: feature', 'type: task')],
     [
       'parent ticket scope',
       `${parentFolder}/ticket.md`,
@@ -214,6 +321,24 @@ describe('semantic planning context currency through public review status', () =
       'selected parent constraints',
       parentSpec,
       (text: string) => text.replace('Preserve authentication.', 'Remove authentication.'),
+    ],
+    [
+      'a new project principle',
+      '.project/principles.md',
+      (text: string) =>
+        `${text}\n## Require explicit scope\n\nNever infer an additional product goal.\n`,
+    ],
+    [
+      'the referenced persona',
+      '.project/personas.md',
+      (text: string) =>
+        text.replace('Needs current authenticated approval', 'Needs fresh authenticated approval'),
+    ],
+    [
+      'the referenced surface',
+      '.project/surfaces.md',
+      (text: string) =>
+        text.replace('Requests and presents planning approval', 'Rejects planning approval'),
     ],
   ])('invalidates approval after %s changes', async (_label, path, transform) => {
     const review = await fixture();

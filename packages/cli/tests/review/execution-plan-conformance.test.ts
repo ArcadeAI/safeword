@@ -8,6 +8,7 @@ import {
   executionPlanConformanceDigests,
   type ExecutionPlanConformanceResult,
   filterExecutionPlanRoutes,
+  matchesExecutionPlanFindingTerms,
   renderExecutionPlanAdmissionEvidence,
 } from '../../src/review/execution-plan-conformance.js';
 import type { ReviewRoute } from '../../src/review/policy.js';
@@ -21,10 +22,10 @@ const EXPECTED_CASE_IDS = [
   'generic-checklist',
   'dismissed-applicable-work',
   'proof-does-not-exercise-boundary',
-  'missing-purpose',
-  'missing-boundary',
+  'purpose-in-rationale',
+  'boundary-in-tasks',
   'missing-prerequisites',
-  'missing-proof',
+  'proof-in-tasks',
   'missing-completion-signal',
   'two-independent-purposes',
   'unresolved-authorization-decision',
@@ -120,6 +121,60 @@ describe('Execution Plan semantic conformance admission', () => {
     });
   });
 
+  it('requires every finding group while accepting named wording alternatives', () => {
+    const terms = [
+      'migration',
+      ['completion signal', 'completion proof', 'completion condition', 'slice completion'],
+    ] as const;
+    expect(matchesExecutionPlanFindingTerms('Migration lacks a COMPLETION PROOF.', terms)).toBe(
+      true,
+    );
+    expect(matchesExecutionPlanFindingTerms('Migration lacks a completion signal.', terms)).toBe(
+      true,
+    );
+    expect(matchesExecutionPlanFindingTerms('Migration requires a prerequisite.', terms)).toBe(
+      false,
+    );
+    expect(
+      matchesExecutionPlanFindingTerms(
+        'Migration depends on the incomplete Contract prerequisite.',
+        terms,
+      ),
+    ).toBe(false);
+    expect(
+      matchesExecutionPlanFindingTerms('Migration proof is required for slice completion.', terms),
+    ).toBe(true);
+    expect(matchesExecutionPlanFindingTerms('A completion proof is present.', terms)).toBe(false);
+    expect(
+      matchesExecutionPlanFindingTerms('Migration lacks a completion proof.', [[], 'migration']),
+    ).toBe(false);
+  });
+
+  it('requires migration proof and completion without prescribing a phrase', () => {
+    const terms = ['migration', 'proof', 'completion'] as const;
+    expect(
+      matchesExecutionPlanFindingTerms('Migration proof is required for slice completion.', terms),
+    ).toBe(true);
+    expect(
+      matchesExecutionPlanFindingTerms(
+        'Migration lacks implementation and proof; require all seven proofs to pass for completion.',
+        terms,
+      ),
+    ).toBe(true);
+    expect(
+      matchesExecutionPlanFindingTerms(
+        'Migration dependency order must hold before slice completion.',
+        terms,
+      ),
+    ).toBe(false);
+    expect(matchesExecutionPlanFindingTerms('Migration proof command is missing.', terms)).toBe(
+      false,
+    );
+    expect(matchesExecutionPlanFindingTerms('Proof is required for completion.', terms)).toBe(
+      false,
+    );
+  });
+
   it('keeps two independent purposes as a named denial case', () => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
       candidate => candidate.id === 'two-independent-purposes',
@@ -127,7 +182,7 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'request_changes',
-      finding_terms: ['two', 'purpose'],
+      finding_terms: ['independent', 'contract'],
     });
   });
 
@@ -143,8 +198,8 @@ describe('Execution Plan semantic conformance admission', () => {
   });
 
   it.each([
-    ['vague-data-ownership', 'request_changes', ['data', 'unnamed']],
-    ['invented-data-ownership', 'request_changes', ['data', 'invented']],
+    ['vague-data-ownership', 'request_changes', ['delivery.db', 'DeliveryStateService']],
+    ['invented-data-ownership', 'request_changes', ['Redis', 'ReviewService']],
     ['accepted-data-ownership', 'approve', undefined],
   ] as const)('keeps %s as a data-decision specificity case', (caseId, verdict, findingTerms) => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
@@ -189,7 +244,7 @@ describe('Execution Plan semantic conformance admission', () => {
       slice_names: ['Authorization denial'],
     });
     expect(testCase?.execution_plan).toContain(
-      'RED: add the denied-request fixture, run `bun run test tests/auth.test.ts -t denied-request`, `bun run test:failure-signals`, and `bun run test:authorization-boundary` through the public authorization response, and observe exit 1 before editing `src/auth.ts`.',
+      'RED: create the denied-request fixture in tests/fixtures/denied-request.ts with authenticated blocked-user lacking permission for fixture-review, an empty reviewer request journal, and an empty result store. Add the public-CLI denial assertion in tests/auth.test.ts; run bun run test tests/auth.test.ts -t denied-request, bun run test:failure-signals -- --fixture denied-request, and bun run test:authorization-boundary -- --fixture denied-request. Observe exit 1 with unauthorized request reached reviewer because the journal is nonempty before editing src/auth.ts.',
     );
   });
 
@@ -211,7 +266,7 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'request_changes',
-      finding_terms: ['behavior', 'before implementation'],
+      finding_terms: ['behavior', 'decision'],
     });
     expect(testCase?.execution_plan).toContain(
       '1. RED: run `bun run test tests/auth.test.ts -t denied-request`',
@@ -222,8 +277,14 @@ describe('Execution Plan semantic conformance admission', () => {
   });
 
   it.each([
-    ['blocked-first-prerequisite', ['prerequisite', 'startable']],
-    ['no-executable-steps', ['executable', 'step']],
+    ['blocked-first-prerequisite', ['prerequisite', 'Unfinished contract']],
+    [
+      'no-executable-steps',
+      [
+        ['executable', 'startable', 'empty'],
+        ['step', 'task'],
+      ],
+    ],
   ])('keeps %s as a named first-step denial', (caseId, findingTerms) => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
 
@@ -271,12 +332,22 @@ describe('Execution Plan semantic conformance admission', () => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
 
     expect(testCase?.expectation.verdict).toBe('request_changes');
-    expect(testCase?.expectation.finding_terms).toHaveLength(1);
+    if (caseId === 'missing-decision-obligation') {
+      expect(testCase?.expectation.finding_terms).toEqual([
+        'gateway',
+        'transport',
+        'authorization',
+      ]);
+    } else if (caseId === 'missing-proof-strategy-obligation') {
+      expect(testCase?.expectation.finding_terms).toEqual(['edited-plan', 'denial']);
+    } else {
+      expect(testCase?.expectation.finding_terms).toHaveLength(1);
+    }
   });
 
   it.each([
-    ['migration-missing-completion-signal', ['migration', 'completion signal']],
-    ['migration-missing-dependency-order', ['migration', 'dependency order']],
+    ['migration-missing-completion-signal', ['migration', 'proof', 'completion']],
+    ['migration-missing-dependency-order', ['migration', 'dependency']],
   ] as const)('keeps %s as a partial obligation-mapping denial', (caseId, findingTerms) => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
 
@@ -342,7 +413,7 @@ describe('Execution Plan semantic conformance admission', () => {
     [
       'pending-human-authority-is-not-complete',
       'request_changes',
-      ['human', 'pending'],
+      ['human', 'pending', ['complete', 'completion', 'claimed']],
       [
         'Contributor work: complete.',
         'Human authority: pending security approval.',

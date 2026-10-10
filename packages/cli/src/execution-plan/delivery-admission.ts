@@ -24,17 +24,28 @@ export type ExecutionPlanAdmission =
   | { readonly kind: 'missing_verdict' }
   | { readonly kind: 'rejected'; readonly message: string }
   | { readonly kind: 'unearned_assurance' }
+  | { readonly kind: 'mismatched_review_kind'; readonly reviewKind: string }
+  | {
+      readonly kind: 'mismatched_review_target';
+      readonly reviewTargets: readonly string[];
+      readonly expectedPlan: string;
+    }
   | { readonly kind: 'not_admitted' };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function reviewData(cwd: string, reviewId: string): Record<string, unknown> | undefined {
+function reviewData(
+  cwd: string,
+  reviewId: string,
+): { readonly data: Record<string, unknown>; readonly currentStatusHealthy: boolean } | undefined {
   const current = reviewJobStatus(cwd, reviewId);
   if (current.findings.some(finding => finding.code === 'REVIEW_STALE')) return undefined;
   const status = reviewJobStatus(cwd, reviewId, { allowMalformedReviewerOutput: true });
-  return isRecord(status.data) ? status.data : undefined;
+  return isRecord(status.data)
+    ? { data: status.data, currentStatusHealthy: current.state === 'healthy' }
+    : undefined;
 }
 
 function coversPlan(data: Record<string, unknown>, cwd: string, planPath: string): boolean {
@@ -43,6 +54,21 @@ function coversPlan(data: Record<string, unknown>, cwd: string, planPath: string
     Array.isArray(targets) &&
     targets.some(target => typeof target === 'string' && nodePath.resolve(cwd, target) === planPath)
   );
+}
+
+function targetMismatch(
+  data: Record<string, unknown>,
+  planPath: string,
+): Extract<ExecutionPlanAdmission, { kind: 'mismatched_review_target' }> | undefined {
+  const targets = data.review_targets;
+  if (
+    !Array.isArray(targets) ||
+    targets.length === 0 ||
+    targets.some(target => typeof target !== 'string')
+  ) {
+    return undefined;
+  }
+  return { kind: 'mismatched_review_target', reviewTargets: targets, expectedPlan: planPath };
 }
 
 function rejectionMessage(output: Record<string, unknown>): string {
@@ -85,19 +111,32 @@ function reviewCandidate(
   input: Parameters<typeof executionPlanAdmission>[0],
   stamp: ReturnType<typeof parseReviewStamps>[number],
 ):
+  | Extract<ExecutionPlanAdmission, { kind: 'mismatched_review_kind' | 'mismatched_review_target' }>
   | {
       readonly reviewId: string;
+      readonly currentStatusHealthy: boolean;
       readonly data: Record<string, unknown>;
       readonly output: Record<string, unknown>;
     }
   | undefined {
   if (stamp.reviewId === undefined) return undefined;
-  const data = reviewData(input.cwd, stamp.reviewId);
-  if (data?.review_kind !== 'plan-execution') return undefined;
-  if (!coversPlan(data, input.cwd, input.planPath) || !isRecord(data.reviewer_output)) {
-    return undefined;
+  const review = reviewData(input.cwd, stamp.reviewId);
+  if (review === undefined) return undefined;
+  const data = review.data;
+  if (typeof data.review_kind === 'string' && data.review_kind !== 'plan-execution') {
+    return { kind: 'mismatched_review_kind', reviewKind: data.review_kind };
   }
-  return { reviewId: stamp.reviewId, data, output: data.reviewer_output };
+  if (data.review_kind !== 'plan-execution') return undefined;
+  if (!coversPlan(data, input.cwd, input.planPath)) {
+    return targetMismatch(data, input.planPath);
+  }
+  if (!isRecord(data.reviewer_output)) return undefined;
+  return {
+    reviewId: stamp.reviewId,
+    data,
+    output: data.reviewer_output,
+    currentStatusHealthy: review.currentStatusHealthy,
+  };
 }
 
 function candidateAdmission(
@@ -106,14 +145,15 @@ function candidateAdmission(
 ): ExecutionPlanAdmission | undefined {
   const candidate = reviewCandidate(input, stamp);
   if (candidate === undefined) return undefined;
-  const { data, output, reviewId } = candidate;
+  if ('kind' in candidate) return candidate;
+  const { data, output, reviewId, currentStatusHealthy } = candidate;
   if (output.verdict === undefined) return { kind: 'missing_verdict' };
   if (output.verdict === 'request_changes') {
     return { kind: 'rejected', message: rejectionMessage(output) };
   }
   const independence = achievedIndependence(data, output, stamp);
   if (independence === undefined) return { kind: 'unearned_assurance' };
-  if (data.status !== 'approved') return { kind: 'not_admitted' };
+  if (data.status !== 'approved' || !currentStatusHealthy) return { kind: 'not_admitted' };
   const validated = validateExecutionPlanOutput(
     output as unknown as UnverifiedReviewerOutput,
     input.definition,
@@ -146,11 +186,24 @@ export function executionPlanAdmission(input: {
   const candidates = parseReviewStamps(input.ledger)
     .filter(stamp => stamp.scope === scope && stamp.skipReason === undefined)
     .toReversed();
+  let mismatch:
+    | Extract<
+        ExecutionPlanAdmission,
+        { kind: 'mismatched_review_kind' | 'mismatched_review_target' }
+      >
+    | undefined;
   for (const stamp of candidates) {
     const admission = candidateAdmission(input, stamp);
+    if (
+      admission?.kind === 'mismatched_review_kind' ||
+      admission?.kind === 'mismatched_review_target'
+    ) {
+      mismatch ??= admission;
+      continue;
+    }
     if (admission !== undefined) return admission;
   }
-  return { kind: 'not_admitted' };
+  return mismatch ?? { kind: 'not_admitted' };
 }
 
 /** Resolve an admitted review for callers that need the approved plan record. */

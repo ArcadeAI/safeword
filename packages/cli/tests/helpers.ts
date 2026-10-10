@@ -59,6 +59,16 @@ export const TIMEOUT_BUN_INSTALL = 120_000;
 const __dirname = import.meta.dirname;
 export const testCliRoot = process.env.SAFEWORD_TEST_CLI_ROOT ?? nodePath.join(__dirname, '..');
 
+export function createCurrentPlanningCheckerStub(): { directory: string; cli: string } {
+  const directory = createTemporaryDirectory();
+  const cli = nodePath.join(directory, 'planning-checker.js');
+  writeFileSync(
+    cli,
+    `console.log(JSON.stringify({ state: 'healthy', data: { command: 'ticket planning-contract-check', status: 'current', planning_phase: process.argv.at(-1) } }));\n`,
+  );
+  return { directory, cli };
+}
+
 /**
  * Path to the CLI entry point (built)
  */

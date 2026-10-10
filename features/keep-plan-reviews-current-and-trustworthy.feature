@@ -59,7 +59,7 @@ Feature: Keep plan reviews current and trustworthy
     @surface.claude-code @rejection
     Scenario Outline: Installed dispatch cannot bypass packet completeness
       Given a <phase> review packet <packet_state>
-      When actual lifecycle dispatch from installed local project hooks prepares the review with real configuration and collaborators, mocking only the reviewer process boundary
+      When the native plugin review hook dispatches from an installed local project with real configuration and collaborators, mocking only the reviewer process boundary
       Then <dispatch_result>
 
       Examples:
@@ -110,7 +110,7 @@ Feature: Keep plan reviews current and trustworthy
       Examples:
         | context_change | review_state |
         | a bound context artifact changes only in whitespace or comments | the review remains current |
-        | the canonical phase contract changes only in whitespace or comments | the review remains current |
+        | the canonical phase contract changes only in whitespace or comments | the review becomes stale |
         | an unrelated persona or surface entry is added | the review remains current |
         | the reviewed plan changes only in whitespace or comments outside normalized Execution Plan checklist progress cells | that plan's review becomes stale because its exact bytes changed |
         | the canonical phase contract changes semantically | the review becomes stale |
@@ -130,6 +130,7 @@ Feature: Keep plan reviews current and trustworthy
         | the installed authoring contract differs from the canonical source only in whitespace or comments | authoring and approval are blocked until the exact canonical contract bytes are restored |
         | the installed authoring contract is absent | authoring and approval are blocked until the canonical contract is restored |
         | the generated reviewer rubric deletes one clause but retains the canonical version label | review dispatch and approval are blocked until the exact canonical contract bytes are restored |
+        | the generated reviewer rubric is absent | review dispatch and approval are blocked until the canonical contract is restored |
         | the authoring contract and reviewer rubric both match the exact canonical bytes | both copies recompute to the same identity and contract identity does not block authoring, dispatch, or approval |
 
     @surface.claude-code
@@ -145,7 +146,7 @@ Feature: Keep plan reviews current and trustworthy
 
     @surface.claude-code @rejection
     Scenario: Cosmetic canonical changes preserve review currency but require copy reconciliation
-      Given a plan review is current and its canonical phase contract changed only in whitespace or comments after installed copies were generated
+      Given a plan review is current and its authoring guidance changed only in comments outside the canonical contract after installed copies were generated
       When actual lifecycle dispatch from installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary
       Then the review receipt remains current and the phase remains blocked with canonical contract reconciliation named
 
@@ -166,7 +167,7 @@ Feature: Keep plan reviews current and trustworthy
         | a typed retryable-route result naming another unattempted independent route | the phase remains blocked |
         | a pending review | the phase remains blocked |
         | an unrecognized or unparseable reviewer result | the phase remains blocked with no approval recorded |
-        | an approval whose recorded origin is an ungated surface | the phase remains blocked with reviewer-route reconciliation named |
+        | an approval submitted from an ungated surface | the phase remains blocked and the unsupported approval origin is named |
         | every configured independent route was attempted and returned a typed failure, then the permitted fallback declines | the phase remains blocked with no approval recorded |
         | a typed no-independent-route-attempted result | the phase remains blocked with reviewer-route reconciliation named |
 
@@ -187,6 +188,7 @@ Feature: Keep plan reviews current and trustworthy
         | a different agent in the same process using a model at least as capable as the author | independent approval is refused |
         | the authoring agent in the same process | independent approval is refused |
         | a different agent using a weaker model than the author | independent approval is refused |
+        | a different agent when the author model cannot be verified | independent approval is refused |
 
     Scenario Outline: Route selection derives independence from configured model capability
       Given the real review route registry and project configuration select <reviewer_capability>
@@ -197,9 +199,10 @@ Feature: Keep plan reviews current and trustworthy
         | reviewer_capability | selection_result |
         | a reviewer model at least as capable as the verified author model | that route is attempted as an independent review |
         | a reviewer model weaker than the verified author model | that route is not attempted as independent and selection continues to the next permitted route |
+        | a reviewer model with unavailable, stale, or conflicting pair capability | that route is not attempted as independent and selection continues to the next permitted route |
 
     Scenario Outline: Exhausted routes advance through the fallback ladder in order
-      Given every route before <next_tier> was attempted and returned a typed failure
+      Given every route before <next_tier> is configured to return a typed failure when attempted
       When review recovery selects the next permitted route
       Then review recovery selects and attempts <next_tier>, and no later tier is attempted first
 
@@ -227,7 +230,7 @@ Feature: Keep plan reviews current and trustworthy
         | OpenAI Codex | installed Codex hooks | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
         | Cursor | installed Cursor hooks | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
 
-    @surface.opencode
+    @surface.opencode @manual @deferred.MCWV4B
     Scenario Outline: OpenCode CLI and TUI gates enforce the real review result
       Given an OpenCode <entry_point> planning phase has <review_state>
       When actual lifecycle dispatch through the installed profile-level plugins/safeword.js evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary
@@ -242,7 +245,7 @@ Feature: Keep plan reviews current and trustworthy
         | TUI | a current approving receipt | the phase transition proceeds |
         | TUI | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
 
-    @surface.claude-code-cloud @surface.cursor-cloud-agents
+    @surface.claude-code-cloud @surface.cursor-cloud-agents @manual @deferred.MCWV4B
     Scenario Outline: Cloud phase gates enforce the real review result
       Given a planning phase on <cloud_host> in its fresh cloud environment has <review_state>
       When actual lifecycle dispatch from installed project hooks evaluates the phase transition with real configuration and collaborators, mocking only the remote reviewer process boundary
@@ -370,6 +373,8 @@ Feature: Keep plan reviews current and trustworthy
         | change_description | invalidated_reviews |
         | accepted behavior | both plan reviews are invalidated |
         | accepted scope | both plan reviews are invalidated |
+        | canonical Implementation Planning contract bytes change | both plan reviews are invalidated |
+        | only canonical Execution Planning contract bytes change | only the Execution Plan review is invalidated |
         | only the accepted Implementation Plan's formatting bytes | only the Implementation Plan review is invalidated and the Execution Plan review remains current |
         | only the Execution Plan bytes, including formatting-only bytes outside normalized checklist progress cells | only the Execution Plan review is invalidated |
         | only whitespace inside a reviewed Execution Plan checklist row's normalized progress cells | neither plan review is invalidated |
@@ -421,6 +426,12 @@ Feature: Keep plan reviews current and trustworthy
         | Claude Code | installed local project hooks |
         | OpenAI Codex | installed Codex hooks |
         | Cursor | installed Cursor hooks |
+
+      # User deferred these host checks on 2026-10-09; MCWV4B owns their proof.
+      # They remain unproven, and are excluded from the default automated lane.
+      @manual @deferred.MCWV4B
+      Examples: OpenCode and cloud verification deferred to MCWV4B
+        | host_entry | installed_boundary |
         | OpenCode CLI | installed profile-level plugins/safeword.js |
         | OpenCode TUI | installed profile-level plugins/safeword.js |
         | Claude Code Cloud | installed project hooks in its fresh cloud environment |
@@ -465,7 +476,7 @@ Feature: Keep plan reviews current and trustworthy
         | Execution Plan | passed verification and merge authority |
 
     Scenario: A planning approval may claim its own bounded state
-      Given an Implementation Plan has passed its own review
+      Given a coherent Implementation Plan has passed its own design review
       When a judged semantic reviewer evaluation checks a receipt claiming only the accepted coherent implementation design
       Then the receipt is accepted as a bounded Implementation Plan approval
 
