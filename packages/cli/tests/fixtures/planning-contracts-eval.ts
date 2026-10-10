@@ -280,5 +280,41 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     allowed_finding_authority: 'An unsupported assumption is presented as a known fact.',
     forbidden_scope_expansion: 'Do not select a recovery mechanism for the user.',
   },
+  {
+    id: 'r11-unmet-accepted-requirement',
+    rule: 'R11',
+    kind: 'plan-implementation',
+    planning_phase: 'plan-implementation',
+    accepted_boundary: `${accepted} Accepted Rule manual.BU1.R1: authorize the requesting user for the target account before any write.`,
+    context:
+      'Recorded finding: manual.BU1.R1 is unmet. The plan leaves the authorization binding unresolved; resolve it using the accepted consent-token API without migration, background mutation, or a replacement architecture.',
+    reviewed_plan: completeImplementationPlan.replace(
+      'checks a consent token linked to the requesting user and target account before any write',
+      'writes account changes without checking consent, leaving who may authorize which target account unresolved',
+    ),
+    expected_verdict: 'request_changes',
+    allowed_finding_authority:
+      'Name Rule manual.BU1.R1, the unchecked account-write defect, the unresolved user/target authorization binding, and the accepted consent-token/no-migration constraints. These are accepted requirements, not reviewer preferences.',
+    forbidden_scope_expansion:
+      'Do not choose a replacement architecture or require automatic migration.',
+  },
+  {
+    id: 'r11-uniquely-determined-correction',
+    rule: 'R11',
+    kind: 'plan-implementation',
+    planning_phase: 'plan-implementation',
+    accepted_boundary: `${accepted} Accepted Rule manual.BU1.R1: check the existing consent token before any write; the API and user/target binding are already decided.`,
+    context:
+      'Recorded finding: the plan places the accepted consent-token check after the write. The accepted decision uniquely requires moving that same check before the write; no new product or architecture decision is needed.',
+    reviewed_plan: completeImplementationPlan.replace(
+      'before any write',
+      'after the account write',
+    ),
+    expected_verdict: 'request_changes',
+    allowed_finding_authority:
+      'Require the uniquely determined correction: move the existing consent-token check before the account write under Rule manual.BU1.R1.',
+    forbidden_scope_expansion:
+      'Do not select a different authorization API or introduce reviewer-owned architecture.',
+  },
   ...planningContractShapeCases,
 ];

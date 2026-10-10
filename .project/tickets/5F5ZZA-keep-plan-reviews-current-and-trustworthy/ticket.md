@@ -2215,3 +2215,25 @@ duplicate teardown errors if a failed test leaves a completed job. Cleanup still
 runs, and the same-ID and fallback positive controls prevent false approval.
 Stop expanding this fixture review; continue the 70 missing nondeferred bindings.
 This target review is not the whole-head final PR review or full acceptance.
+
+2026-10-09 R11 finding authority: the four root semantic scenarios now execute
+the existing pinned Opus-5 reviewer/Sonnet-5 judge, with three repetitions and
+two agreeing correct verdicts required per case. The complete selected run passes
+4 scenarios/224 steps in `/tmp/4200-r11-finding-authority-complete.{json,log}`.
+The initial narrower run retained 2 passes/2 undefined; nothing was skipped to
+claim completion. The nonblocking event-bus preference fixture covers optional
+resilience and reviewer-authored replacement architecture. Two new adversarial
+cases distinguish unmet accepted authorization from the uniquely determined
+before-write token correction, with accepted Rule/constraint assertions.
+
+The semantic corpus digest is now
+`6e5a9b52bf6593450b718692b0ba90db3902dc50b7ce6414af3eac7c059473ee`;
+rubrics, model pins, repetitions, thresholds, and existing expectations are
+unchanged. Its static manifest/scoring contract passes two tests. The 63-case
+Execution qualification and 18-run capability corpora are separate and unchanged;
+no paid requalification was launched. These are semantic tests, not the two
+still-unbound installed R11 gate cases. Independent target review is in progress.
+The default root binding inventory now has 66 undefined nondeferred scenarios;
+the 16 MCWV4B examples and historical six-failure/585-unfinished aggregate remain
+explicitly open. No complete feature/epic acceptance, Ready promotion, or merge
+is claimed.
