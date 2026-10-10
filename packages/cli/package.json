@@ -112,7 +112,7 @@
     "eslint-plugin-sonarjs": "4.2.2",
     "eslint-plugin-storybook": "10.6.1",
     "eslint-plugin-turbo": "2.11.7",
-    "eslint-plugin-unicorn": "74.0.0",
+    "eslint-plugin-unicorn": "77.0.0",
     "jsonc-parser": "3.3.1",
     "smol-toml": "1.9.0",
     "typescript-eslint": "8.71.0",
