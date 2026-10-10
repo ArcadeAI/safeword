@@ -2847,3 +2847,54 @@ Its rejected wiring-only RED is retained, and the RGR ledger decision remains
 open. Current evidence closes five new native execution gaps, leaving 27
 undefined nondeferred cases; dry bindings are not passes. CI on 211168a98 is
 green. Whole-head review, aggregate acceptance and stack readiness are unfinished.
+
+## 2026-10-10T20:08Z — R15 required proof and user-owned scope choice
+
+The two remaining R15 guidance examples now execute through the existing pinned
+reviewer/judge evaluator. Required CLI denial proof is resolved in its owning
+Execution Plan; a paired input with the same boundary and guidance substitutes
+endpoint-only proof and must receive request_changes naming CLI denial or its
+exit-code proof. The consequential case makes target-owner consent impossible
+under its explicitly synthetic issuer-only API boundary. It records the
+excluded capability as a user-owned pending choice, never selected design or
+delivery, and requires the judged rejection to name that owner and conflict.
+No production contract, qualification corpus, model, rubric or threshold changes.
+Only the semantic corpus digest changes to
+43b17a8c03548ba875eb689f497f01375330ea1f635b5eff9d33f8c75c6b5078.
+
+The initial live pair passes 2/2 (118 reporter steps, 3m23s), but independent
+review 8cebdea7-1d37-42ac-bd0b-856906d2cf50 correctly identifies the required
+decision's positive-only proof as non-discriminating. The paired correction is
+approved by 9187ade1-fde8-461e-90d6-15bab2656fe0. Its live run passes the required
+proof including the endpoint-only negative, but fails the other local assertion:
+all three real scope-choice reviews and judges correctly state "Decision owner:
+the user", which the assertion did not recognize. That failure is retained in
+/tmp/4200-r15-paired-required-scope-live.json (1 pass, 1 fail, 118 reporter steps).
+The exact equivalent owner declaration is added without restoring a broad user
+match. The isolated final rerun passes 1/1 (59 reporter steps, 1m24s):
+/tmp/4200-r15-scope-owner-final.json. No failing run is counted as a pass.
+
+Final scoped independent review 9ebbcac8-fe03-4c97-8424-c1624adb26b4 approves.
+Finding regexes identify the named subject; the independent judge establishes
+semantic correctness and absence of reviewer-owned expansion. A separate
+capability-adoption negative is optional additional coverage, not claimed here;
+existing R13 overreach controls cover rejection of selected excluded design.
+Paired evaluator selections now retain all owned report directories for cleanup
+after success and diagnostics after failure. The cheap cleanup probe passes
+(58 reporter steps, no newly leaked directories); its temporary feature is
+removed. Helper review fb4621eb-e747-423e-8f03-52635a34fcd2 approves. All 52
+evaluator/proof-tag checks pass; root glue is checked by actual Cucumber and
+Prettier, not package tsc. The full R15 outline RGR ledger remains unchecked:
+undefined wiring is not retroactively claimed as a production defect RED.
+
+The fresh dry run reports 159 nondeferred scenarios: 134 bound skips and 25
+undefined. Skips are not passing acceptance. Historical full acceptance remains
+six failures and 585 unfinished; no fresh aggregate replaces it. Sixteen
+OpenCode/cloud cases remain deferred to MCWV4B, and the separate R7 retrieval
+proof and two genuine weaker-pair cases remain open. Main has no new commits to
+integrate. Current c1f062233 CI passes Node 24 and all other relevant jobs except
+Node 22: collector startup remained waiting past its existing one-second setup
+limit before authorization assertions. The unchanged collector passes all 153
+tests locally. The original CI failure is retained; one failed-job rerun starts
+after the original workflow completes. No unrelated collector code or tests
+are changed. All PRs stay Draft; whole-head review and readiness remain open.

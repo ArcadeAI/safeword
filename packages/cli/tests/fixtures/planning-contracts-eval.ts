@@ -256,6 +256,37 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     forbidden_scope_expansion: 'Do not add migration to delivery tasks.',
   },
   {
+    id: 'r15-required-proof-decision',
+    rule: 'R15',
+    kind: 'plan-execution',
+    planning_phase: 'plan-execution',
+    accepted_boundary: `${accepted} Accepted surface: the existing account-change CLI calls the manual endpoint. CLI denial must return a nonzero exit code and leave the account unchanged.`,
+    context:
+      'Testing guidance recommends exercising CLI denial rather than substituting a direct endpoint call. This decision is required by the accepted CLI surface and belongs to the Execution Plan. The accepted Implementation Plan already owns the endpoint and consent check; no new API or capability is proposed.',
+    reviewed_plan: `${completeExecutionPlan} Execution-owned proof decision: invoke the actual CLI against the real endpoint with an expired token, capture its nonzero exit code and refusal text, and compare the account before and after to prove no write. RED binds that denied CLI scenario before implementing the CLI mapping; GREEN preserves the existing endpoint authorization check and maps its refusal to the CLI result; final acceptance runs the same CLI path. A direct endpoint test supports the guard but cannot replace the CLI proof.`,
+    expected_verdict: 'approve',
+    allowed_finding_authority:
+      'The required CLI proof decision is explicitly resolved in its owning Execution Plan without changing accepted scope.',
+    forbidden_scope_expansion:
+      'Do not add automatic migration, a new authorization API, or treat the required CLI proof as optional scope.',
+  },
+  {
+    id: 'r15-consequential-scope-choice',
+    rule: 'R15',
+    kind: 'plan-implementation',
+    planning_phase: 'plan-implementation',
+    accepted_boundary: `${accepted} Accepted outcome requires consent from the target account owner. The user also fixed the implementation boundary to the existing issuer-only authorization API v1 and excluded a new target-owner authorization capability.`,
+    context:
+      'Fixture-owned current API v1 contract: the only usable API attests the issuer, never the target owner. The caller cannot inspect target ownership or independently verify owner consent. No alternate endpoint, upgrade, local consent verifier, or external service is available within the accepted boundary. Architecture guidance identifies a target-owner consent capability as necessary for the accepted outcome, but it is explicitly excluded. Only the user can resolve that scope conflict; guidance and reviewer approval cannot authorize it.',
+    reviewed_plan:
+      'The existing issuer-only API cannot establish the accepted target-owner consent outcome. No implementation or rollout is authorized on that basis. User-owned scope choice remains pending: authorize a target-owner consent capability or revise the accepted outcome and boundary. The candidate is recorded for that decision only; it is not selected as architecture, a delivery task, a dependency, or a capability to build. After the user decides, return to Implementation Planning for a feasible design. Automatic migration and background mutation remain excluded.',
+    expected_verdict: 'request_changes',
+    allowed_finding_authority:
+      'Name the unresolved target-owner consent feasibility conflict and return the consequential scope choice to the user. Do not authorize the excluded capability or approve startable implementation.',
+    forbidden_scope_expansion:
+      'Do not insert a target-owner consent capability into the design or delivery plan, silently change the accepted outcome, or treat the conflicting excluded capability as irrelevant guidance.',
+  },
+  {
     id: 'r16-missing-persona-recovery',
     rule: 'R16',
     kind: 'quality-review',
@@ -352,6 +383,21 @@ export const planningContractCases: readonly PlanningContractCase[] = [
       'Require the uniquely determined correction: move the existing consent-token check before the account write under Rule manual.BU1.R1.',
     forbidden_scope_expansion:
       'Do not select a different authorization API or introduce reviewer-owned architecture.',
+  },
+  {
+    id: 'r15-missing-required-proof-decision',
+    rule: 'R15',
+    kind: 'plan-execution',
+    planning_phase: 'plan-execution',
+    accepted_boundary: `${accepted} Accepted surface: the existing account-change CLI calls the manual endpoint. CLI denial must return a nonzero exit code and leave the account unchanged.`,
+    context:
+      'Testing guidance recommends exercising CLI denial rather than substituting a direct endpoint call. This decision is required by the accepted CLI surface and belongs to the Execution Plan. The accepted Implementation Plan already owns the endpoint and consent check; no new API or capability is proposed.',
+    reviewed_plan: `${completeExecutionPlan} Execution proof decision: direct endpoint tests replace CLI refusal proof; no CLI denial invocation or exit-code check is planned.`,
+    expected_verdict: 'request_changes',
+    allowed_finding_authority:
+      'Name the missing CLI denial and exit-code proof as a required Execution Plan decision. Direct endpoint proof cannot establish the accepted CLI result.',
+    forbidden_scope_expansion:
+      'Do not add automatic migration or a new authorization API; require only proof at the accepted CLI boundary.',
   },
   ...createScopeContextCases(completeImplementationPlan),
   ...planningContractShapeCases,

@@ -26,7 +26,7 @@ interface EvalReport {
 
 interface EvalState {
   caseId: string;
-  reportDirectory: string;
+  reportDirectories: string[];
   reportPath: string;
   packetPath?: string;
   packetDigest: string;
@@ -52,7 +52,7 @@ export function selectPlanningEval(
   if (packetPath) writeFileSync(packetPath, JSON.stringify(input));
   states.set(world, {
     caseId,
-    reportDirectory,
+    reportDirectories: [...(states.get(world)?.reportDirectories ?? []), reportDirectory],
     reportPath: path.join(reportDirectory, 'result.json'),
     packetPath,
     packetDigest: createHash('sha256').update(JSON.stringify(input)).digest('hex'),
@@ -135,6 +135,7 @@ export function assertPlanningEval(
 After(function (this: SafewordWorld, { result }) {
   const state = states.get(this);
   if (state && result?.status !== Status.FAILED)
-    rmSync(state.reportDirectory, { recursive: true, force: true });
+    for (const directory of state.reportDirectories)
+      rmSync(directory, { recursive: true, force: true });
   states.delete(this);
 });
