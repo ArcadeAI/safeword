@@ -795,11 +795,24 @@ evidence. The executable proof at b1eae35b0c079dfa3980c1d43067933f04938449
 replaces it for admission: identical native-hook assertions against the full
 pre-fix plugin from 95c264f1282884bc803f0ba0db7537380c66bcff yield one positive
 pass and two mismatched-receipt diagnostic failures. Independent review of this
-discriminating regression control is required before GREEN.
+discriminating regression control was approved by
+01267d17-e779-4c7f-a53c-a08553ddb16f; the public executable RED gate admitted
+GREEN before its checkbox edit. The repaired native hook then passed all three
+rows at a99837c0f. The baseline binding independently verifies all 452 plugin
+files against Git tree 26c7315c9fe63cb1f123fe7636de10ab30617086 with no mismatch.
+Claude quality review 3c9b94c2-660e-492a-af1b-21c7ef1ac6a0 approved the proof
+with zero errors. Its warnings remain recorded: message-name checks are weaker
+than exact mismatch wording; unchanged ticket bytes alone do not establish a
+blocked phase; the test-only baseline override must be disclosed; temporary
+logs require rerunning the reproducible control. Actual denial is established
+by the native hook's permissionDecision, and current proof used the repository
+plugin without the baseline override. These administrative ledger updates do
+not change the reviewed proof code; the earlier review's ledger context is
+historical rather than newly claimed current after this update.
 
 - [x] RED 018603c9b2be01f767e8382d28489fdb79ba9dab
 - [x] GREEN a99837c0f
-- [ ] REFACTOR
+- [x] REFACTOR skip: No further source restructuring is needed; the shared fixture preserves existing assertions and all three native receipt scenarios pass.
 
 ### Scenario: Installed phase gates enforce invalidated review receipts
 
