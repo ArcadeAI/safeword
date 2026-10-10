@@ -2594,3 +2594,27 @@ and consequential-expansion examples remain undefined; the whole outline stays
 incomplete with no ledger checkbox transition. Fresh inventory is 122 bound
 dry-skips and 37 undefined among 159 nondeferred cases; proof-tag tests pass
 50/50. No broader acceptance, Ready, merge or epic completion is claimed.
+
+## Root Cause — 2026-10-10 release-check timeout
+
+At f32dc058c, CI run 38043437773 failed only the Node 22 release-contract check:
+the synchronous generator/version/inventory check took 30.695 seconds against
+its explicit 30-second test deadline. That deadline is the confirmed failure
+mechanism. CPU contention is plausible but not established by runner metrics.
+The check invokes historical-catalogue and plugin-generation verification before
+performing its version, digest, inventory and documentation assertions.
+
+Competing hypotheses: generated drift is not supported (same head passes Node
+24 and the unchanged 11-test file passes locally in 10.14 seconds); a persistent
+Node 22 incompatibility is not established (the only reported failure is the
+deadline, not a semantic assertion); inadequate timing headroom is confirmed by
+the 30.695-second CI result versus the explicit 30-second deadline. Only this
+test's limit changes to 60 seconds. Every assertion, generator check, other test
+budget, worker count and production file remains unchanged. The failed CI result
+is retained as observed RED; no timing-dependent artificial test is introduced.
+This is a delivery diagnostic within the feature, not reclassification of the
+feature as a bug ticket. Release verification and fresh CI will be recorded below.
+
+The two absent real-weaker catalogue cases remain a qualification/scope decision,
+not a reproduced production failure. That decision blocks those proofs and final
+closeout; it does not prevent work on the other unresolved acceptance cases.
