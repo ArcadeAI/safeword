@@ -789,6 +789,14 @@ not an epic completion claim or a substitute for those remaining boundaries.
 
 ### Scenario: An approving receipt is valid only for its own ticket and review kind
 
+Initial undefined-step evidence at 018603c9b was rejected by independent review
+fd631781-29f3-4af0-b49b-e894f05be5a6. The checked RED row retains that historical
+evidence. The executable proof at b1eae35b0c079dfa3980c1d43067933f04938449
+replaces it for admission: identical native-hook assertions against the full
+pre-fix plugin from 95c264f1282884bc803f0ba0db7537380c66bcff yield one positive
+pass and two mismatched-receipt diagnostic failures. Independent review of this
+discriminating regression control is required before GREEN.
+
 - [x] RED 018603c9b2be01f767e8382d28489fdb79ba9dab
 - [ ] GREEN
 - [ ] REFACTOR
