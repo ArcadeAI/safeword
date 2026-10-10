@@ -612,6 +612,14 @@ reopening its authority.
 
 ## Deferred scope ownership
 
+- User-accepted 2026-10-09 deferral: MCWV4B owns OpenCode CLI/TUI and
+  Claude/Cursor Cloud verification after epic #4200. Their four installed
+  stale-receipt examples remain intact under explicit manual/deferral tags;
+  they are excluded from the current automated acceptance lane and remain
+  unproven. No local simulation counts as cloud acceptance. This does not
+  defer shared review/security behavior or the other nondeferred scenarios.
+  Cursor repository access setup stops here; no permission change was saved.
+
 - 7CAMAD owns Execution Plan decomposition/content, coding authorization, and
   repair loop; this ticket owns review identity and quality.
 - K3EBHB owns final Non-Technical Builder recovery wording and installed-

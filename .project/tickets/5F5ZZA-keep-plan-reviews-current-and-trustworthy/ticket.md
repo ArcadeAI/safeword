@@ -2148,3 +2148,23 @@ mise installer and GitHub API calls without granting GitHub credentials. These
 are setup facts, not cloud acceptance proof. Cursor Cloud's refreshed repository
 list lacks ArcadeAI/safeword; opening its existing GitHub app configuration
 requires human GitHub verification. No app access has been expanded.
+
+2026-10-09: User explicitly deferred OpenCode and cloud verification to a
+follow-on ticket. MCWV4B owns the OpenCode CLI/TUI and Claude/Cursor Cloud
+walkthroughs. Their four R9 examples are preserved with explicit manual and
+deferral tags, excluded from the default automated lane and still unproven.
+This is a scope deferral, not a passing result or evidence substitution.
+GitHub verification was completed; the existing Cursor app selects 19 repos
+and does not include Safeword. No permission change was saved. Stop Cursor
+access setup for this epic. Continue with nondeferred acceptance and current
+reviews; the older R7 retrieval/private-injection deferral remains separately
+recorded. The user has not authorized any merge or Ready promotion.
+
+After this deferral, the default R9 host selection passes 3 scenarios and 168
+steps in `/tmp/4200-r9-nondeferred-hosts.{json,log}`. The root feature's fresh
+binding inventory reports 171 scenarios: 80 skipped by dry-run and 91 undefined,
+with four additional scenarios explicitly deferred to MCWV4B. Dry-run skips are
+not passing execution evidence. `/tmp/4200-post-host-deferral-inventory.{json,log}`.
+The historical six-failure/585-unfinished acceptance record remains unchanged;
+no fresh full acceptance aggregate has run. Continue the 91 nondeferred missing
+bindings and final review/CI rather than treating the host deferral as completion.

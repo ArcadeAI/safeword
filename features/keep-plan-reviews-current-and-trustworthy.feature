@@ -426,6 +426,12 @@ Feature: Keep plan reviews current and trustworthy
         | Claude Code | installed local project hooks |
         | OpenAI Codex | installed Codex hooks |
         | Cursor | installed Cursor hooks |
+
+      # User deferred these host checks on 2026-10-09; MCWV4B owns their proof.
+      # They remain unproven, and are excluded from the default automated lane.
+      @manual @deferred.MCWV4B
+      Examples: OpenCode and cloud verification deferred to MCWV4B
+        | host_entry | installed_boundary |
         | OpenCode CLI | installed profile-level plugins/safeword.js |
         | OpenCode TUI | installed profile-level plugins/safeword.js |
         | Claude Code Cloud | installed project hooks in its fresh cloud environment |
