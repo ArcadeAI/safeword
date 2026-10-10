@@ -2510,3 +2510,33 @@ pair absent from the shipped data; unknown-pair refusal and lower-level weaker
 fixtures are already proven. The user has been asked whether to explicitly defer
 those two proofs or expand qualification, with neither assumed yet. Pending-route
 fixture reuse is prepared separately for the next bounded partition.
+
+## 2026-10-10 — Typed pending receipt uses the installed fixture
+
+Accepted row168 now reuses the existing Cursor native pending-review fixture,
+shared with the prior three host Givens. A small evaluator adapter lets the
+typed-route When use that fixture's own state and existing Then. No second async
+harness, fabricated receipt, production change or additional World callback was
+introduced. It proves actual job pending status, native denial, writer refusal
+without ledger mutation, same-job producer completion, and valid admission after
+completion. Four pending cases pass (12 behavior steps, 216 cleanup hooks);
+expanded controls pass 26 cases (78 behavior steps, 1404 cleanup hooks). Proof-tag
+checks pass 50/50. Earlier normal/typecheck/generated/parity verification remains
+production evidence at e39b7352b; this proof-only addition has its own focused
+checks and will receive CI, not an invented fresh full-normal run.
+
+Independent wiring RED `1accecd1-b700-4150-9687-38820b3314c7` and final Claude
+quality review `ce0e66db-92e2-452d-8e01-105a091d4f69` approve. The timeout advisory
+assumed a five-second default; the root harness already registers a 60-second
+default in retry-safe-retro-filing.steps.ts. The FIFO is created by the running
+reviewer script, not fixture setup; pending public status, successful nonblocking
+release and real completion provide the stronger hold proof. Only Cursor is
+claimed for this typed-row binding; the prior host cases remain separately
+verified. No speculative guard or unrelated fixture rewrite was added.
+
+Inventory now has 120 bound / 39 undefined of 159 nondeferred cases, pending fresh
+dry-run confirmation. The whole ten-row typed-route outline remains incomplete;
+no ledger checkbox changed. Ungated origin and real weaker qualification remain
+unproven, alongside explicit host and R7 deferrals. Old reviews including the
+changed fixture are historical; the current pending review includes unchanged
+core planning diagnostics as supporting source. No Ready, merge or epic close.

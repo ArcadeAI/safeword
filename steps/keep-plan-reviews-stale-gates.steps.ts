@@ -235,6 +235,59 @@ Given(
   },
 );
 
+async function preparePendingGate(this: SafewordWorld, host: string) {
+  await prepareApprovedGate.call(this, host, false);
+  const state = states.get(this);
+  assert.ok(state);
+  const bin = installReviewer(path.join(state.root, 'reviewer-hold'));
+  const reviewed = await installedReviewCli(state.root)(
+    [
+      'review',
+      'run',
+      'plan-implementation',
+      `.project/tickets/${ticketFolder}/impl-plan.md`,
+      '--context',
+      'features/feature.feature',
+      '--context',
+      `.project/tickets/${ticketFolder}/spec.md`,
+      '--json',
+      '--no-input',
+      '--cwd',
+      state.root,
+    ],
+    {
+      cwd: state.root,
+      env: {
+        NODE_ENV: 'test',
+        PATH: `${bin}:/usr/bin:/bin`,
+        SAFEWORD_AGENT_RUNTIME: 'codex',
+        SAFEWORD_REVIEW_KEY_ROOT: path.join(state.root, '.review-keys'),
+        SAFEWORD_NO_UPDATE_CHECK: '1',
+        SAFEWORD_REVIEW_FOREGROUND_MS: '0',
+        SAFEWORD_REVIEW_TIMEOUT_MS: '30000',
+        SAFEWORD_REVIEW_RUN_BOUND_MS: '60000',
+      },
+    },
+  );
+  const result = JSON.parse(reviewed.stdout);
+  state.pendingReviewId = result.data.review_id;
+  assert.ok(state.pendingReviewId, reviewed.stdout);
+  assert.equal(result.data.status, 'pending', reviewed.stdout);
+  const deadline = Date.now() + 10_000;
+  while (!existsSync(path.join(state.root, 'reviewer-hold')) && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  assert.ok(
+    existsSync(path.join(state.root, 'reviewer-hold')),
+    'The reviewer must actually start and remain pending',
+  );
+  // The ledger only locates a job. Its pending authenticated result must never authorize a gate.
+  const ledger = path.join(state.root, '.project/skill-invocations.log');
+  const approved = readFileSync(ledger, 'utf8');
+  assert.match(approved, /review-id:\S+/u);
+  writeFileSync(ledger, approved.replace(/review-id:\S+/gu, `review-id:${state.pendingReviewId}`));
+}
+
 Given(
   /^a planning phase on (Claude Code|OpenAI Codex|Cursor) through (installed local project hooks|installed Codex hooks|installed Cursor hooks) has a pending review$/,
   { timeout: 120_000 },
@@ -247,59 +300,15 @@ Given(
         Cursor: 'installed Cursor hooks',
       }[host],
     );
-    await prepareApprovedGate.call(this, host, false);
-    const state = states.get(this);
-    assert.ok(state);
-    const bin = installReviewer(path.join(state.root, 'reviewer-hold'));
-    const reviewed = await installedReviewCli(state.root)(
-      [
-        'review',
-        'run',
-        'plan-implementation',
-        `.project/tickets/${ticketFolder}/impl-plan.md`,
-        '--context',
-        'features/feature.feature',
-        '--context',
-        `.project/tickets/${ticketFolder}/spec.md`,
-        '--json',
-        '--no-input',
-        '--cwd',
-        state.root,
-      ],
-      {
-        cwd: state.root,
-        env: {
-          NODE_ENV: 'test',
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'codex',
-          SAFEWORD_REVIEW_KEY_ROOT: path.join(state.root, '.review-keys'),
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-          SAFEWORD_REVIEW_FOREGROUND_MS: '0',
-          SAFEWORD_REVIEW_TIMEOUT_MS: '30000',
-          SAFEWORD_REVIEW_RUN_BOUND_MS: '60000',
-        },
-      },
-    );
-    const result = JSON.parse(reviewed.stdout);
-    state.pendingReviewId = result.data.review_id;
-    assert.ok(state.pendingReviewId, reviewed.stdout);
-    assert.equal(result.data.status, 'pending', reviewed.stdout);
-    const deadline = Date.now() + 10_000;
-    while (!existsSync(path.join(state.root, 'reviewer-hold')) && Date.now() < deadline) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    assert.ok(
-      existsSync(path.join(state.root, 'reviewer-hold')),
-      'The reviewer must actually start and remain pending',
-    );
-    // The ledger only locates a job. Its pending authenticated result must never authorize a gate.
-    const ledger = path.join(state.root, '.project/skill-invocations.log');
-    const approved = readFileSync(ledger, 'utf8');
-    assert.match(approved, /review-id:\S+/u);
-    writeFileSync(
-      ledger,
-      approved.replace(/review-id:\S+/gu, `review-id:${state.pendingReviewId}`),
-    );
+    await preparePendingGate.call(this, host);
+  },
+);
+
+Given(
+  'the review coordinator has returned a pending review',
+  { timeout: 120_000 },
+  async function (this: SafewordWorld) {
+    await preparePendingGate.call(this, 'Cursor');
   },
 );
 
@@ -470,6 +479,14 @@ Given(
   },
 );
 
+export function evaluateInstalledPhaseGate(world: SafewordWorld): boolean {
+  const state = states.get(world);
+  if (!state) return false;
+  state.output = dispatch(state);
+  world.nativePlanningGate = { host: state.host, output: state.output };
+  return true;
+}
+
 When(
   /^actual lifecycle dispatch through (installed local project hooks|installed Codex hooks|installed Cursor hooks) evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary$/,
   function (this: SafewordWorld, boundary: string) {
@@ -483,8 +500,7 @@ When(
         Cursor: 'installed Cursor hooks',
       }[state.host],
     );
-    state.output = dispatch(state);
-    this.nativePlanningGate = { host: state.host, output: state.output };
+    assert.ok(evaluateInstalledPhaseGate(this));
   },
 );
 

@@ -12,6 +12,7 @@ import {
   createTrustedReviewerDirectory,
 } from '../packages/cli/tests/review-fixtures.js';
 import { fixtureProject } from './keep-plan-reviews-installed-context.steps.js';
+import { evaluateInstalledPhaseGate } from './keep-plan-reviews-stale-gates.steps.js';
 import type { SafewordWorld } from './world.js';
 
 const folder = '.project/tickets/CTX123-current-context';
@@ -429,7 +430,11 @@ Given(
 
 When('the phase gate evaluates the receipt', async function (this: SafewordWorld) {
   const state = states.get(this);
-  assert.ok(state?.result);
+  if (!state) {
+    assert.ok(evaluateInstalledPhaseGate(this), 'A real coordinator receipt must be prepared');
+    return;
+  }
+  assert.ok(state.result);
   state.gate = state.evaluateGate
     ? await state.evaluateGate()
     : await installedReviewCli(state.root)(
