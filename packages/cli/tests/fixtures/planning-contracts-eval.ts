@@ -419,4 +419,19 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     forbidden_scope_expansion:
       'Do not require, add or treat multi-region failover as accepted. Do not manufacture a user decision.',
   },
+  {
+    id: 'r14-user-accepted-expansion',
+    rule: 'R14',
+    kind: 'plan-implementation',
+    planning_phase: 'plan-implementation',
+    accepted_boundary: `${accepted} The user explicitly accepts manual multi-region failover: an owner-requested secondary-region retry after a pre-commit failure, guarded by the same authoritative owner/target consent contract. Automatic failover remains excluded.`,
+    context:
+      'The user acceptance and authenticated suggestion reference are recorded in the ticket. Its scope and Product Plan boundary changed before Implementation Plan correction; the earlier approval is stale.',
+    reviewed_plan: `${completeImplementationPlan} User-requested regional recovery uses the same authoritative account/consent store and guarded endpoint. Primary pre-commit failure leaves consent and state unchanged; an explicit secondary retry with valid consent produces one mutation and an owner-named receipt. Uncertain post-commit results permit no automatic retry. CLI proofs exercise this sequence and both regions\u{27} refusal/expiry/mismatch paths. Regional routing can be disabled without removing consent checks.`,
+    expected_verdict: 'approve',
+    allowed_finding_authority:
+      'Manual regional recovery is now explicitly accepted by the user. Judge its actual in-scope defects normally; do not call the recorded expansion unauthorized or require automatic failover.',
+    forbidden_scope_expansion:
+      'Do not add automatic failover, account migration, background mutation or another consent authority. Do not manufacture an accepted disposition: acceptance is the recorded user direction and authoritative boundary edit.',
+  },
 ];

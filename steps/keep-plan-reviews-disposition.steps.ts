@@ -5,6 +5,7 @@ import path from 'node:path';
 import { After, Given, Status, Then, When } from '@cucumber/cucumber';
 
 import { prepareReviewPacket } from '../packages/cli/src/review/packet.js';
+import { acceptedBoundaryDigest } from '../packages/cli/src/review/planning-accepted-boundary.js';
 import { planningContractCases } from '../packages/cli/tests/fixtures/planning-contracts-eval.js';
 import {
   createReviewedDispositionProject,
@@ -23,6 +24,7 @@ interface DispositionState {
   project: Awaited<ReturnType<typeof createReviewedDispositionProject>>;
   plan: string;
   reviewId: string;
+  acceptance?: { ticket: string; boundaryDigest: string };
 }
 const states = new WeakMap<SafewordWorld, DispositionState>();
 const roots = new WeakMap<SafewordWorld, string[]>();
@@ -146,6 +148,87 @@ When('the user declines it', function (this: SafewordWorld) {
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stdout, /"status":"recorded"/u);
 });
+
+When('the user accepts it', function (this: SafewordWorld) {
+  const state = recordedSuggestion(this);
+  const { project } = state;
+  const specPath = path.join(project.root, target);
+  const before = acceptedBoundaryDigest(
+    readFileSync(project.ticketPath, 'utf8'),
+    readFileSync(specPath, 'utf8'),
+  );
+  // Synthetic explicit user direction, recorded through the existing authoring
+  // workflow. This is not an identity-authenticated scope-writing command.
+  const ticket =
+    readFileSync(project.ticketPath, 'utf8')
+      .replace(
+        '- require explicit user authorization before account changes\n',
+        '- require explicit user authorization before account changes\n- allow owner-requested manual multi-region failover using the existing consent guard\n',
+      )
+      .replace('- multi-region failover\n', '') +
+    `\n## User-accepted expansion\n\nThe user explicitly accepts the optional manual multi-region failover suggested in authenticated review ${state.reviewId}, finding 1: ${suggestion} Automatic failover and background mutation remain excluded. Record this boundary before correcting the Implementation Plan.\n`;
+  writeFileSync(project.ticketPath, ticket);
+  const spec =
+    readFileSync(specPath, 'utf8')
+      .replace(
+        'No background account mutation or multi-region failover.',
+        'No background account mutation or automatic failover.',
+      )
+      .replace(
+        'Batched account changes and multi-region failover.',
+        'Batched account changes and automatic failover.',
+      ) +
+    `\n## Accepted manual recovery boundary\n\nThe user may explicitly retry a pre-commit failure against a secondary region using the same owner/target consent guard. A successful retry produces one mutation and an owner-named receipt. Denial or another pre-commit failure produces no mutation. An uncertain post-commit result permits no automatic retry. This is user-requested manual multi-region failover; automatic failover stays excluded.\n`;
+  writeFileSync(specPath, spec);
+  const boundaryDigest = acceptedBoundaryDigest(ticket, spec);
+  assert.notEqual(boundaryDigest, before);
+  assert.equal(
+    readFileSync(path.join(project.root, planTarget), 'utf8'),
+    state.plan,
+    'Record acceptance and change the boundary before plan bytes.',
+  );
+  state.acceptance = { ticket, boundaryDigest };
+});
+
+Then(
+  'the expansion is recorded as user-accepted before the plan is corrected and re-reviewed',
+  { timeout: 240_000 },
+  async function (this: SafewordWorld) {
+    const state = recordedSuggestion(this);
+    assert.ok(state.acceptance);
+    const previous = await state.project.run(['review', 'status', state.reviewId]);
+    assert.equal(
+      JSON.parse(previous.stdout).data.status,
+      'stale',
+      'The boundary edit invalidates the previous approval before plan correction.',
+    );
+    const plan = `${state.plan}\n## User-accepted manual regional recovery\n\nUse the existing manual endpoint and authoritative account/consent store for both regions; regional routing does not create an independent consent authority or a second account copy. The caller explicitly selects primary or secondary through the CLI region option. Both routes enforce the same owner/target/expiry guard before the single atomic account mutation. The trusted session owner label supplies the receipt; no credential or caller-supplied owner label is printed.\n\nA pre-commit failure leaves the account and consent unconsumed so the owner can explicitly retry the same target through the secondary region. A successful retry consumes consent and changes one account once. An uncertain post-commit outcome must not claim no mutation or confirmed success, and permits no automatic retry or failover.\n\nProof invokes the real CLI against primary pre-commit failure, verifies unchanged authoritative state, explicitly retries the same target in secondary with valid consent, and verifies one mutation plus the owner-named receipt. Both region routes also prove denied, expired and mismatched consent leaves state unchanged and returns a nonzero CLI exit. Rollout keeps regional routing off until those proofs pass; rollback disables the new region option while retaining the consent guard. Automatic failover, background mutation and account migration remain excluded.\n`;
+    writeFileSync(path.join(state.project.root, planTarget), plan);
+    const packet = prepareReviewPacket(state.project.root, 'plan-implementation', [
+      planTarget,
+    ]).packet;
+    assert.equal(
+      packet.review_disposition_context,
+      undefined,
+      'Acceptance is the authoritative scope edit, not a fabricated disposition.',
+    );
+    selectPlanningEval(this, 'r14-user-accepted-expansion', {
+      context: JSON.stringify(packet),
+      reviewed_plan: plan,
+    });
+    runPlanningEval(this);
+    assertPlanningEval(this, 'approve');
+    assert.equal(readFileSync(state.project.ticketPath, 'utf8'), state.acceptance.ticket);
+    assert.equal(readFileSync(path.join(state.project.root, planTarget), 'utf8'), plan);
+    assert.equal(
+      acceptedBoundaryDigest(
+        state.acceptance.ticket,
+        readFileSync(path.join(state.project.root, target), 'utf8'),
+      ),
+      state.acceptance.boundaryDigest,
+    );
+  },
+);
 
 Then(
   'the unchanged plan is re-reviewed against the accepted boundary and the decline remains recorded',

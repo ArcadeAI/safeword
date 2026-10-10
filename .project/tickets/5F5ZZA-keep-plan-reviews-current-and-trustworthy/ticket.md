@@ -3005,3 +3005,28 @@ own CI. Historical six failures/585 unfinished aggregate, the RGR ledger,
 weaker-pair decision, retrieval/privacy evidence, user deferrals and whole-stack
 readiness remain open. No production policy or qualification changes, merge or
 promotion are claimed.
+
+## 2026-10-10 — Pending and accepted optional scope choices
+
+Pending native review passes in /tmp/4200-r14-pending-wire-final.json: three
+actual reviewer packets contain no invented disposition, correctly judged
+approvals are authenticated and admitted, plan/ticket bytes stay unchanged,
+and the public disposition command re-presents the finding as pending on
+request. This is not automatic host prompting. The older caller-CLI failed
+attempt remains visible; only the established caller-only pin succeeds.
+
+User acceptance passes in /tmp/4200-r14-accepted-selected-live.json. Explicit
+synthetic user direction and the authenticated suggestion reference precede
+the authoritative boundary edit; the previous approval becomes stale before
+the Implementation Plan correction. Real judged review evaluates that corrected
+plan against the user-expanded boundary. No accepted disposition or new command
+is invented. The earlier zero-scenario selection is not evidence.
+
+Final scoped source review 2ae75257-53d9-4055-9b69-8891dfe9c2a7 approves. Its
+warnings and the stale intermediate review are retained in
+.safeword/logs/4200-r14-user-decisions-review.md. The semantic cases are appended
+and their manifest recomputed; qualification inputs/models/rubrics/thresholds
+stay unchanged. Protected tests pass 57/57. Fresh dry run has 159 nondeferred
+cases: 142 bound skips, 17 undefined. Historical six failures/585 unfinished,
+deferred host/privacy proofs, weaker-pair decision, executable-RED ledger and
+whole-stack readiness remain open. No merge or promotion.
