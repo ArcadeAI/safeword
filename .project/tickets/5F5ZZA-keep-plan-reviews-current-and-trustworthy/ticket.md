@@ -2112,3 +2112,39 @@ Execution Plan requires characterization for already implemented behavior, not
 manufactured new production REDs. These nine rows have current passing proof but
 their RGR ledger rows remain unchecked; no gate waiver or complete acceptance
 claim is made. Continue with the separate installed stale-receipt boundaries.
+
+The user explicitly approved all other test edits related to epic #4200. This
+standing approval covers necessary fixture, assertion, and scenario bindings;
+do not repeat individual test-edit approval requests. It does not authorize
+weakening acceptance, merging, promoting Draft PRs, or expanding app access.
+
+R9 now has three additional passing local native-hook characterizations for
+Claude Code, Codex, and Cursor. Each real receipt starts current, is recorded by
+the actual receipt-verifying stamp writer, permits the phase transition, then
+becomes REVIEW_STALE after an accepted scenario changes; the same native hook
+denies the transition and names a new review. The selected seven-row outline
+reports 3 passed, 4 undefined; OpenCode and both cloud rows remain unproven.
+/tmp/4200-r9-local-stale-final.{json,log}. Earlier setup failures remain in
+/tmp/4200-r9-local-stale-{gates-selected,cursor-install,implementation-stamp,current}.{json,log}.
+The initial line-selected invocation merged unrelated default feature paths;
+it was terminated and is not acceptance evidence. Subsequent runs use the
+exact outline name from the root configuration.
+
+Independent Claude review e149c26d-9a4c-4fdd-9537-6e5e42e7f283 approves with no
+blocking errors. Its limitations are retained: Claude settings are produced
+through the actual schema merge rather than the Claude installer, Codex uses
+the generated repository bundle, environment is shared across host fixtures,
+and the re-review text assertion is less specific than the separate strict
+REVIEW_STALE check. These are simulated-host boundary characterizations, not
+completed live-host installation walkthroughs. No RGR completion or aggregate
+acceptance completion is claimed.
+
+Claude Cloud session session_01UipFahenAKsVUsjT8ZXpwp has the exact ef0902846
+tracked tree (bb2b6345427ddac5884ff5b428c3e66f6409ce9e), despite uploaded Git
+history becoming a seed commit. All six checked source/runtime subtrees match.
+The disposable cloud environment now runs pinned Bun 1.3.14 and Node 24.18.1
+through scripts/dev. Official release/checksum installation recovered blocked
+mise installer and GitHub API calls without granting GitHub credentials. These
+are setup facts, not cloud acceptance proof. Cursor Cloud's refreshed repository
+list lacks ArcadeAI/safeword; opening its existing GitHub app configuration
+requires human GitHub verification. No app access has been expanded.
