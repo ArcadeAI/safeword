@@ -552,6 +552,7 @@ function readReviewStamps(
   scope: string,
   requirePinnedReviewerModel = false,
   onPlanningContextFailure?: (message: string) => void,
+  onReceiptFailure?: Parameters<typeof verifiedStamps>[5],
 ): ReviewStamp[] {
   return verifiedStamps(
     recordedReviewStamps(),
@@ -559,6 +560,7 @@ function readReviewStamps(
     scope,
     requirePinnedReviewerModel,
     failure => onPlanningContextFailure?.(failure.message),
+    onReceiptFailure,
   );
 }
 
@@ -1251,10 +1253,20 @@ if (isCanonicalTicketEdit) {
   if (exitedPhase !== undefined && reviewGateAppliesTo(exitedPhase)) {
     const ticketDirectory = nodePath.dirname(editedFile);
     const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
-    const stamps = readReviewStamps(phaseScope);
+    let receiptFailure: { reason: string; blockedRoutes: boolean } | undefined;
+    const stamps = readReviewStamps(phaseScope, false, undefined, (reason, receipt) => {
+      receiptFailure = {
+        reason,
+        blockedRoutes: receipt?.status === 'blocked' && receipt.independence === 'none',
+      };
+    });
     if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
       deny(
-        `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
+        receiptFailure === undefined ||
+          stamps.length > 0 ||
+          (exitedPhase !== 'plan-implementation' && exitedPhase !== 'plan-execution')
+          ? `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`
+          : `${receiptFailure.blockedRoutes ? 'Reviewer-route' : 'Review receipt'} reconciliation is required before leaving "${exitedPhase}": ${receiptFailure.reason}. Run \`safeword review run ${reviewKindForPhase(exitedPhase)} <ticket.md and the work this phase produced>\` against the current sources, then record its result.`,
         `Run \`safeword review run ${reviewKindForPhase(exitedPhase)} <ticket.md and the work this phase produced>\`, then record its author_agent, actual_reviewer, independence, review id, and reviewer_model with \`bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`. To stop gating this exit, narrow \`reviewGate\` in .safeword/config.json to the phases you want (or set it to false).`,
       );
     }

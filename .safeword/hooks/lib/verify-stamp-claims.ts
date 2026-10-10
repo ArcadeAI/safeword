@@ -106,6 +106,7 @@ export function verifiedStamps(
   onPlanningContextFailure?: (
     failure: NonNullable<ReviewReceipt['planningContextFailure']>,
   ) => void,
+  onReceiptFailure?: (reason: string, receipt: ReviewReceipt | undefined) => void,
 ): ReviewStamp[] {
   const readReceipt = createReviewReceiptReader(projectDirectory);
   let claimContext: ReturnType<typeof reviewClaimContext> | undefined;
@@ -134,7 +135,11 @@ export function verifiedStamps(
       const receipt = readReceipt(stamp.reviewId);
       if (receipt?.planningContextFailure !== undefined)
         onPlanningContextFailure?.(receipt.planningContextFailure);
-      if (!receiptGateVerdict(claim, receipt).ok) return false;
+      const verdict = receiptGateVerdict(claim, receipt);
+      if (!verdict.ok) {
+        onReceiptFailure?.(verdict.reason, receipt);
+        return false;
+      }
       return (
         !requirePinnedReviewerModel ||
         (stamp.model !== undefined && receipt?.reviewerModel === stamp.model)

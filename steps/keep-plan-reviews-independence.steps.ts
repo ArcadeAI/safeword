@@ -41,6 +41,7 @@ interface IndependentState {
     errors: unknown[];
   };
   gate?: { exitCode: number; stdout: string; stderr: string };
+  evaluateGate?: () => Promise<{ exitCode: number; stdout: string; stderr: string }>;
 }
 const states = new WeakMap<SafewordWorld, IndependentState>();
 
@@ -429,10 +430,12 @@ Given(
 When('the phase gate evaluates the receipt', async function (this: SafewordWorld) {
   const state = states.get(this);
   assert.ok(state?.result);
-  state.gate = await installedReviewCli(state.root)(
-    ['ticket', 'approve-plan', 'CTX123', '--json', '--no-input', '--cwd', state.root],
-    { cwd: state.root, env: state.env },
-  );
+  state.gate = state.evaluateGate
+    ? await state.evaluateGate()
+    : await installedReviewCli(state.root)(
+        ['ticket', 'approve-plan', 'CTX123', '--json', '--no-input', '--cwd', state.root],
+        { cwd: state.root, env: state.env },
+      );
 });
 
 async function assertCurrentReceipt(

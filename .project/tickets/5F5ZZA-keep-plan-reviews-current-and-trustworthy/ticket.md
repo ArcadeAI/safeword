@@ -2409,3 +2409,104 @@ cases; dry-skips are not passes. Sixteen explicit deferrals and separate R7 huma
 deferral remain. PR4's rerun and published PR5 head 41e38e3e1 have green CI.
 Full acceptance, remaining RGR and whole-stack readiness remain open. No PR
 promoted or merged.
+
+## 2026-10-10 — R6 blocked-receipt diagnostic proof
+
+The installed phase-exit hook refused an invalid receipt but discarded its
+authenticated rejection reason, replacing it with a generic missing-stamp
+message. The verifier now optionally reports that existing reason. The phase
+hook uses it only when no stamp survives verification; verified stamps still
+receive the existing policy diagnostic. Authentication and approval policy are
+unchanged. The root proof uses real installed Cursor dispatch, public CLI,
+configuration, coordinator, authenticated jobs and stamp writer, mocking only
+the reviewer producer. It proves valid admission, exact blocked-review denial,
+unchanged phase/ledger, no unearned fallback launch, and valid admission when a
+good stamp follows the rejected one.
+
+Initial two-case Claude review `c4b8b437-6f26-478e-a597-18e7daf79308` correctly
+rejected treating wrong review kind as proof of ungated host origin. That binding
+was removed; the accepted origin example stays undefined. Its diagnostic-policy
+advisory was also addressed. Final Claude review
+`423f6a01-7ab2-404a-adda-a7537e775519` approves the surgical repair. Remaining
+nonblocking advisories concern a broad reconciliation heading, choosing the last
+rejected ledger entry, and older missing/unreadable-receipt messages. They do not
+change approval and do not justify expanding this partition.
+
+The native functional RED had two intended assertion failures and independent
+execution/review `69a96a26-fa03-44be-8ead-94226e9ea227` approved them. Its invocation
+mistakenly supplied a nonexistent ledger path, so it is not claimed as eligible
+ledger-transition evidence. No typed-route outline checkbox was completed.
+Corrected controls pass nine scenarios / 513 steps; receipt and hook controls
+pass 74 tests; all three package typechecks passed. The earlier concurrent root
+run had two dist-rebuild infrastructure failures; its sequential rerun passed.
+The first full normal run was interrupted after the review finding and is not
+a pass. Final full normal verification remains running at this checkpoint.
+
+All five generated surfaces were regenerated; lifecycle result hashes stay
+identical while Cursor installed-tree hashes change with the hook bytes. ESLint
+ignores these template hooks, so its ignored-file warnings are not lint coverage.
+The shared When fixture changed: earlier reviews fingerprinting it are stale and
+must be refreshed for final readiness. Immutable final review context:
+`.safeword/logs/4200-r6-route-denial-repaired-review.md`.
+
+Fresh dry inventory: 119 bound / 40 undefined of 159 nondeferred cases; bound
+dry-skips are not passes. Sixteen explicit OpenCode/cloud deferrals and separate
+R7 user deferral remain, as do the historical six failures/585 unfinished. The
+published `f3913d1ff` head is CLEAN with both Node CI lanes passing; this local
+repair is not yet published. No merge, promotion, whole acceptance or epic
+completion is claimed.
+
+Further scope verification found two unrelated implementation-phase message
+expectations affected by the broad diagnostic. The second full run was
+interrupted after those two failures (not a pass). The fix now exposes reasons
+only on planning exits; no unrelated test expectation was changed. Expanded
+targeted checks pass 98 tests, including all 24 phase-review gate cases. Installed
+stale controls initially passed Claude/Codex but failed Cursor because that
+adapter omits additionalContext. The actual rerun command now lives in the visible
+message; no adapter was changed. Authenticated blocked/none receipts get the
+reviewer-route heading; other receipt failures get a neutral receipt heading.
+The final literal heading assertion replaces the earlier loose regex.
+
+Final independent Claude review `1f6c784d-573d-40d4-b8c5-a8de5a545f09` approves the
+final source and proof. Source/context remain frozen during verification. Twenty-one
+related root scenarios pass, including all three hosts' pending, approval,
+fallback and stale-receipt cases; the tightened single case also passes. All
+three package typechecks and generated-surface verification pass. Third, final
+full normal verification is running; its result is not yet claimed.
+
+Count clarification: the Cucumber reporter includes hidden After hooks in its
+step totals. JSON accounting `/tmp/4200-r6-pending-wiring-accounting.json` shows
+exactly row168, three visible behavior steps and 54 hidden cleanup hooks. It is
+not another 54 scenarios or background behavior. Thus the reported 1197 steps
+for 21 scenarios comprise 63 behavior steps and 1134 cleanup hooks; the earlier
+57-step single-case reports comprise three behavior steps and 54 cleanup hooks.
+Scenario verdicts are unchanged; raw counts remain retained, not inflated into
+behavioral coverage.
+
+Next pending-route wiring RED `1accecd1-b700-4150-9687-38820b3314c7` approves the
+current undefined Given at accepted row168, using the correct ledger path. It is
+wiring evidence only, not a production regression. Its step-count concern is
+explained by the hidden cleanup-hook accounting above. Existing native pending
+fixtures will be reused; no fabricated receipt or second async harness is
+needed. This single-row proof does not complete the ten-row outline's ledger.
+
+Final normal verification completed successfully: the CLI suite passes 720 files,
+11,421 tests and 14 existing skips; relay and collector suites also pass. Raw
+log: `/tmp/4200-r6-denial-final-full-normal.log`. Dogfood installation updated
+exactly the two changed hook mirrors; parity now passes 276 pairs and 11 contracts.
+The offline install refused declared-online setup; normal install then reported
+`CLAUDE_PLUGIN_UNVERIFIED` despite completing those two file updates and healthy
+Codex enrollment. Narrow read-only diagnosis: this project still lists Claude
+Safeword 0.85.0 while the user scope lists 1.1.0. Claude's explicit project update
+reports already-current 1.1.0 instead of updating that old project entry. No
+uninstall, registry surgery, unrelated production fix or full-setup success is
+claimed. This profile mismatch remains separate from the passing code/fixture
+verification and must not be mistaken for live Claude host proof.
+
+Final review `1f6c784d-573d-40d4-b8c5-a8de5a545f09` remains current after mirror
+sync. Forty undefined acceptance cases remain; no typed-route outline checkbox
+was completed. The two genuine-weaker catalogue cases need a qualified weaker
+pair absent from the shipped data; unknown-pair refusal and lower-level weaker
+fixtures are already proven. The user has been asked whether to explicitly defer
+those two proofs or expand qualification, with neither assumed yet. Pending-route
+fixture reuse is prepared separately for the next bounded partition.
