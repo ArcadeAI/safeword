@@ -97,7 +97,7 @@ export async function prepare(world: SafewordWorld, verifiedAuthor: boolean) {
 export async function coordinate(
   state: IndependentState,
   reviewer: 'codex' | 'claude' = 'codex',
-  status: 'approved' | 'changes_requested' | 'continuation_required' = 'approved',
+  status: 'approved' | 'changes_requested' | 'continuation_required' | 'blocked' = 'approved',
 ) {
   const result = await installedReviewCli(state.root)(
     [
@@ -119,9 +119,10 @@ export async function coordinate(
   assert.equal(result.exitCode, status === 'approved' ? 0 : 2, result.stdout);
   state.result = JSON.parse(result.stdout);
   assert.ok(state.result);
-  assert.deepEqual(state.result.errors, []);
+  if (status !== 'blocked') assert.deepEqual(state.result.errors, []);
   assert.equal(state.result.data.status, status);
-  if (status !== 'continuation_required') assert.equal(state.result.data.actual_reviewer, reviewer);
+  if (status === 'approved' || status === 'changes_requested')
+    assert.equal(state.result.data.actual_reviewer, reviewer);
   assert.ok(existsSync(state.marker), 'The real coordinator must invoke the reviewer process');
 }
 
@@ -518,13 +519,130 @@ Then(
   },
 );
 
+Given(
+  'the review coordinator has returned an unrecognized or unparseable reviewer result',
+  { timeout: 120_000 },
+  async function (this: SafewordWorld) {
+    const state = await prepare(this, true);
+    await coordinate(state);
+    recordApproval(state);
+    const approvedId = state.result?.data.review_id;
+    assert.ok(approvedId);
+    const cli = installedReviewCli(state.root);
+    const approved = await cli(
+      ['ticket', 'approve-plan', 'CTX123', '--json', '--no-input', '--cwd', state.root],
+      { cwd: state.root, env: state.env },
+    );
+    assert.equal(approved.exitCode, 0, approved.stdout);
+    const ticket = path.join(state.root, folder, 'ticket.md');
+    const advanced = readFileSync(ticket, 'utf8');
+    assert.match(advanced, /phase: plan-execution/u);
+    writeFileSync(ticket, advanced.replace('phase: plan-execution', 'phase: plan-implementation'));
+    const plan = path.join(state.root, folder, 'impl-plan.md');
+    writeFileSync(
+      plan,
+      `${readFileSync(plan, 'utf8')}\n<!-- current input for malformed-output proof -->\n`,
+    );
+    const superseded = await cli(['review', 'status', approvedId, '--json', '--cwd', state.root], {
+      cwd: state.root,
+      env: state.env,
+    });
+    assert.equal(JSON.parse(superseded.stdout).data.status, 'stale', superseded.stdout);
+    const configPath = path.join(state.root, '.safeword/config.json');
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        ...JSON.parse(readFileSync(configPath, 'utf8')),
+        crossAgentReview: 'require',
+      }),
+    );
+    const directory = path.dirname(state.marker);
+    const valid = reviewerScript(
+      'codex',
+      state.marker,
+      path.join(directory, 'packet.json'),
+      false,
+      true,
+    );
+    const malformed = valid
+      .replace(
+        'schema_version: 1, dispatch_id: packet.dispatch_id',
+        'schema_version: 0, dispatch_id: packet.dispatch_id',
+      )
+      .replace(
+        'findings: []',
+        "findings: [{ severity: 'error', message: 'Malformed producer finding must not escape.' }]",
+      );
+    assert.notEqual(malformed, valid);
+    rmSync(state.marker);
+    rmSync(path.join(directory, 'packet.json'));
+    writeFileSync(path.join(directory, 'codex'), malformed, { mode: 0o755 });
+    await coordinate(state, 'codex', 'blocked');
+    assert.deepEqual(state.result?.data.review_routes, [
+      {
+        reviewer: 'codex',
+        model: 'gpt-6.1-sol',
+        independence: 'cross-agent',
+        status: 'attempted',
+        failure: 'invalid_output',
+      },
+    ]);
+    assert.equal(state.result?.data.independence, 'none');
+    assert.ok(state.result && !('reviewer_output' in state.result.data));
+  },
+);
+
 Then('the phase remains blocked with no approval recorded', async function (this: SafewordWorld) {
   const state = states.get(this);
   assert.ok(state?.gate && state.result);
   assert.equal(state.gate.exitCode, 2, state.gate.stdout);
-  assert.equal(state.result.data.status, 'changes_requested');
-  assert.match(state.gate.stdout, /The current plan requires repair\./u);
-  await assertCurrentReceipt(state, 'changes_requested', 'claude', 'reduced');
+  if (state.result.data.status === 'changes_requested') {
+    assert.match(state.gate.stdout, /The current plan requires repair\./u);
+    await assertCurrentReceipt(state, 'changes_requested', 'claude', 'reduced');
+  } else {
+    assert.equal(state.result.data.status, 'blocked');
+    assert.equal(state.result.data.review_routes[0]?.failure, 'invalid_output');
+    const current = await installedReviewCli(state.root)(
+      ['review', 'status', state.result.data.review_id, '--json', '--cwd', state.root],
+      { cwd: state.root, env: state.env },
+    );
+    const receipt = JSON.parse(current.stdout).data;
+    assert.equal(receipt.review_id, state.result.data.review_id);
+    assert.equal(receipt.status, 'blocked', current.stdout);
+    assert.equal(receipt.independence, 'none');
+    assert.ok(!('reviewer_output' in receipt));
+    const ledgerPath = path.join(state.root, '.project/skill-invocations.log');
+    const ledgerBefore = readFileSync(ledgerPath, 'utf8');
+    const stamped = spawnSync(
+      'bun',
+      [
+        path.join(state.root, '.safeword/hooks/write-review-stamp.ts'),
+        '--ticket',
+        path.basename(folder),
+        '--phase',
+        'plan-implementation',
+        '--review-id',
+        receipt.review_id,
+        '--author-agent',
+        'claude',
+        '--reviewer-agent',
+        'codex',
+        '--independence',
+        'cross-agent',
+      ],
+      { cwd: state.root, env: { ...process.env, ...state.env }, encoding: 'utf8', timeout: 60_000 },
+    );
+    assert.equal(stamped.status, 1, stamped.stdout + stamped.stderr);
+    assert.match(stamped.stdout + stamped.stderr, /did not approve \(status: blocked\)/u);
+    assert.equal(readFileSync(ledgerPath, 'utf8'), ledgerBefore);
+    assert.ok(
+      !JSON.parse(state.gate.stdout).findings.some(
+        (finding: { code: string }) =>
+          finding.code === 'REVIEWER_FINDING' || finding.code === 'REVIEWER_SUMMARY',
+      ),
+      'An unrecognized result must not be rendered as reviewer findings',
+    );
+  }
   assert.match(
     readFileSync(path.join(state.root, folder, 'ticket.md'), 'utf8'),
     /phase: plan-implementation/u,

@@ -2540,3 +2540,35 @@ no ledger checkbox changed. Ungated origin and real weaker qualification remain
 unproven, alongside explicit host and R7 deferrals. Old reviews including the
 changed fixture are historical; the current pending review includes unchanged
 core planning diagnostics as supporting source. No Ready, merge or epic close.
+
+## 2026-10-10 — Malformed reviewer output cannot earn approval
+
+Accepted row169 now exercises an unrecognized schema using the real coordinator.
+A valid, authenticated approval first advances the public phase gate; a harmless
+plan edit makes that earlier receipt stale. The next producer returns schema 0
+with an error finding. The actual job must be blocked, identify the attempted
+qualified route as invalid_output, and contain no validated reviewer output.
+Public status confirms the same job. The real stamp writer refuses it, explicitly
+names its blocked status, and leaves the approval ledger byte-identical. The
+phase gate preserves refusal and does not render reviewer findings or summary.
+That gate denial uses the earlier stale stamp; it is not credited as a native
+hook inspection of the blocked job. Coordinator and writer assertions provide
+the discriminating malformed-output proof. Only the producer process is mocked;
+no live-provider, native-host or unparseable-JSON branch is claimed.
+
+Wiring RED a5ab59a6-6f1f-4421-9a38-9d027fc6ddd1 approves the initial undefined
+binding. The first setup failed because the required authenticated phase locator
+was absent; the failure remains recorded. Repaired malformed/decline controls
+pass 2/2, including the final writer refusal check. Expanded controls pass 27/27
+(81 behavior steps, 1458 cleanup hooks), and proof-tag tests pass 50/50. Claude
+quality review 8cec0696-7b21-4d6d-84ba-a84a18b1a5b6 approves the final fixture;
+its gate-boundary limitation is recorded above. Earlier reviews of this changing
+fixture are historical. Production remains unchanged since e39b7352b and its
+recorded full-normal pass; no fresh full-normal proof is invented.
+
+Fresh dry inventory is 159 nondeferred scenarios: 121 bound dry-skips and 38
+undefined. These are binding counts, not acceptance passes. No partial-outline
+ledger checkbox changed. Explicit host/R7 deferrals, the missing real weaker
+qualification pair and ungated-origin gap remain open. Historical full acceptance
+still records six failures and 585 unfinished scenarios. No Ready, merge or epic
+completion is claimed.
