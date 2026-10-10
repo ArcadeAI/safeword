@@ -3030,3 +3030,32 @@ stay unchanged. Protected tests pass 57/57. Fresh dry run has 159 nondeferred
 cases: 142 bound skips, 17 undefined. Historical six failures/585 unfinished,
 deferred host/privacy proofs, weaker-pair decision, executable-RED ledger and
 whole-stack readiness remain open. No merge or promotion.
+
+## 2026-10-10 — Public route refusal checkpoint
+
+Only the unsupported-origin route case is retained as passing evidence. Its
+public submission is refused on the same sealed job; the supported-origin
+positive control accepts the same output. Source review
+109934ad-7b86-4a22-a48f-51b367fab9c6 is recollected as approved/current.
+/tmp/4200-r6-ungated-origin-live.json passes one scenario/62 reporter steps.
+Proof-tag tests pass 50/50.
+
+Two budget-based route attempts ran green, but independent review
+04a74aa9-1bc3-4d6e-92b7-5d334ef2fe8c requests changes: budget exhaustion alone
+prevented every launch, so neither proof discriminated its named exhaustion
+guard. The retryable case also lacked the attempted first route and different
+unattempted route. Both bindings and their acceptance claims are removed. Raw
+/tmp/4200-r6-unattempted-final.json remains diagnostic history, not acceptance.
+
+Broader scenario review 7d6bbe8c-baad-4dd6-be34-8b307c4bf2b2 requests changes
+on the R8 OpenCode enforcement/advisory conflict with the parent boundary. This
+unresolved finding belongs to the user-deferred OpenCode work. Both rejections
+and proof limits remain in .safeword/logs/4200-r6-public-route-refusals.md.
+
+Corrected dry run: 159 nondeferred cases, 143 bound skips and 16 undefined. The
+145/14 report included withdrawn bindings and is superseded. Remaining gaps are
+two route constructions, twelve retrieval/privacy producer-boundary proofs and
+two genuine weaker-model cases without a qualified weaker catalogue pair. The
+user-owned host deferral and outstanding weaker-pair decision remain controlling.
+Historical six failures/585 unfinished, RGR ledger and whole-stack readiness stay
+open. No production policy, qualification, merge or promotion.

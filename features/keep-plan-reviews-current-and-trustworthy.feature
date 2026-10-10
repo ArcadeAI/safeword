@@ -167,7 +167,7 @@ Feature: Keep plan reviews current and trustworthy
         | a typed retryable-route result naming another unattempted independent route | the phase remains blocked |
         | a pending review | the phase remains blocked |
         | an unrecognized or unparseable reviewer result | the phase remains blocked with no approval recorded |
-        | an approval whose recorded origin is an ungated surface | the phase remains blocked with reviewer-route reconciliation named |
+        | an approval submitted from an ungated surface | the phase remains blocked and the unsupported approval origin is named |
         | every configured independent route was attempted and returned a typed failure, then the permitted fallback declines | the phase remains blocked with no approval recorded |
         | a typed no-independent-route-attempted result | the phase remains blocked with reviewer-route reconciliation named |
 
