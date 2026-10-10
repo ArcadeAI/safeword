@@ -24,7 +24,7 @@ const hostCodexHome = process.env.CODEX_HOME;
 const folder = 'CTX123-current-context';
 const states = new WeakMap<SafewordWorld, NativeScopeState>();
 
-interface NativeScopeState {
+export interface NativeScopeState {
   roots: string[];
   project: ReturnType<typeof createScopeContextProject>;
   caseId: string;
@@ -37,7 +37,7 @@ interface NativeScopeState {
   }[];
 }
 
-function environment(root: string): Record<string, string> {
+export function nativeReviewEnvironment(root: string): Record<string, string> {
   return {
     NODE_ENV: 'test',
     XDG_STATE_HOME: path.join(root, '.review-keys'),
@@ -63,7 +63,7 @@ function dispatch(root: string): string {
   ).find((hook: { command: string }) => hook.command.includes('pre-tool-quality.ts')).command;
   const result = spawnSync('/bin/sh', ['-c', command], {
     cwd: root,
-    env: { ...process.env, ...environment(root) },
+    env: { ...process.env, ...nativeReviewEnvironment(root) },
     encoding: 'utf8',
     timeout: 60_000,
     input: JSON.stringify({
@@ -92,7 +92,7 @@ async function prepareNativeScope(world: SafewordWorld, caseId: string) {
   states.set(world, { roots, project, caseId, runs: [] });
   const installed = await runCliWithLiteralArguments(
     ['install', '--agents', 'cursor', '--offline', '--no-input', '--json', '--cwd', project.root],
-    { cwd: project.root, env: environment(project.root) },
+    { cwd: project.root, env: nativeReviewEnvironment(project.root) },
   );
   assert.equal(installed.exitCode, 0, installed.stdout + installed.stderr);
   mkdirSync(path.join(project.root, '.claude'), { recursive: true });
@@ -129,7 +129,7 @@ async function prepareNativeScope(world: SafewordWorld, caseId: string) {
   }
   const reconciled = await runCliWithLiteralArguments(
     ['ticket', 'reconcile-parent', 'CTX123', '--accept', '--json', '--cwd', project.root],
-    { cwd: project.root, env: environment(project.root) },
+    { cwd: project.root, env: nativeReviewEnvironment(project.root) },
   );
   assert.equal(reconciled.exitCode, 0, reconciled.stdout + reconciled.stderr);
   const packet = prepareReviewPacket(
@@ -178,127 +178,142 @@ Given(
   },
 );
 
+export async function runJudgedNativeReview(
+  state: NativeScopeState,
+  options: {
+    kind: 'plan-implementation' | 'quality-review';
+    phase: 'plan-implementation' | 'intake';
+    dispatch: (root: string) => string;
+  },
+): Promise<void> {
+  const { project } = state;
+  const original = readFileSync(path.join(project.root, project.planPath), 'utf8');
+  const evaluationCase = planningContractCases.find(item => item.id === state.caseId);
+  assert.ok(evaluationCase);
+  const judgeCase = {
+    ...evaluationCase,
+    ...project.input,
+    accepted_boundary: evaluationCase.accepted_boundary.replaceAll(
+      'manual.BU1.R1',
+      'approval.BU1.CTX123.R1',
+    ),
+    allowed_finding_authority: evaluationCase.allowed_finding_authority.replaceAll(
+      'manual.BU1.R1',
+      'approval.BU1.CTX123.R1',
+    ),
+  };
+  const judgeEnvironment = { ...process.env };
+  if (hostClaudeConfigDir === undefined) delete judgeEnvironment.CLAUDE_CONFIG_DIR;
+  else judgeEnvironment.CLAUDE_CONFIG_DIR = hostClaudeConfigDir;
+  const schema = {
+    type: 'object',
+    additionalProperties: false,
+    properties: { correct: { type: 'boolean' }, reason: { type: 'string' } },
+    required: ['correct', 'reason'],
+  };
+  const calibration = callClaude(
+    'claude-sonnet-5',
+    planningJudgePrompt(
+      judgeCase,
+      {
+        verdict: evaluationCase.expected_verdict === 'approve' ? 'request_changes' : 'approve',
+        summary: 'Require automatic migration outside accepted scope.',
+        findings: ['Require automatic migration.'],
+      },
+      'codex',
+    ),
+    schema,
+    judgeEnvironment,
+  ) as { correct: boolean };
+  assert.equal(calibration.correct, false, 'The judge must reject known-bad output.');
+  for (let index = 0; index < 3; index++) {
+    const result = await runCliWithLiteralArguments(
+      [
+        'review',
+        'run',
+        options.kind,
+        project.planPath,
+        '--json',
+        '--no-input',
+        '--cwd',
+        project.root,
+      ],
+      {
+        cwd: project.root,
+        env: {
+          ...nativeReviewEnvironment(project.root),
+          ...(hostCodexHome === undefined ? {} : { CODEX_HOME: hostCodexHome }),
+        },
+        unsetEnv: [
+          ...(hostClaudeConfigDir === undefined ? ['CLAUDE_CONFIG_DIR'] : []),
+          ...(hostCodexHome === undefined ? ['CODEX_HOME'] : []),
+        ],
+        timeout: 120_000,
+      },
+    );
+    const data = JSON.parse(result.stdout).data;
+    assert.ok(data.reviewer_output, result.stdout + result.stderr);
+    assert.equal(data.actual_reviewer, 'codex');
+    assert.equal(data.reviewer_model, 'gpt-6.1-sol');
+    assert.deepEqual(data.confirmed_reviewer_model, { provider: 'openai', model: 'gpt-6.1-sol' });
+    assert.equal(data.independence, 'cross-agent');
+    const grade = callClaude(
+      'claude-sonnet-5',
+      planningJudgePrompt(judgeCase, data.reviewer_output, 'codex'),
+      schema,
+      judgeEnvironment,
+    ) as { correct: boolean; reason: string };
+    assert.equal(typeof grade.correct, 'boolean');
+    assert.equal(typeof grade.reason, 'string');
+    const stamped = spawnSync(
+      'bun',
+      [
+        path.join(project.root, '.safeword/hooks/write-review-stamp.ts'),
+        '--ticket',
+        folder,
+        '--phase',
+        options.phase,
+        '--review-id',
+        data.review_id,
+        '--author-agent',
+        data.author_agent,
+        '--reviewer-agent',
+        data.actual_reviewer,
+        '--independence',
+        data.independence,
+        '--model',
+        data.reviewer_model,
+      ],
+      {
+        cwd: project.root,
+        env: { ...process.env, ...nativeReviewEnvironment(project.root) },
+        encoding: 'utf8',
+        timeout: 60_000,
+      },
+    );
+    assert.equal(stamped.error, undefined, stamped.error?.message);
+    state.runs.push({
+      output: data.reviewer_output,
+      correct: grade.correct,
+      gate: options.dispatch(project.root),
+      stampStatus: stamped.status,
+      stampOutput: stamped.stdout + stamped.stderr,
+    });
+    assert.equal(readFileSync(path.join(project.root, project.planPath), 'utf8'), original);
+  }
+}
+
 When(
   'actual lifecycle dispatch from installed local project hooks runs its judged Implementation Plan review with real configuration and collaborators, mocking only non-reviewer process boundaries',
   { timeout: 240_000 },
   async function (this: SafewordWorld) {
     const state = states.get(this);
     assert.ok(state);
-    const { project } = state;
-    const original = readFileSync(path.join(project.root, project.planPath), 'utf8');
-    const evaluationCase = planningContractCases.find(item => item.id === state.caseId);
-    assert.ok(evaluationCase);
-    const judgeCase = {
-      ...evaluationCase,
-      ...project.input,
-      accepted_boundary: evaluationCase.accepted_boundary.replaceAll(
-        'manual.BU1.R1',
-        'approval.BU1.CTX123.R1',
-      ),
-      allowed_finding_authority: evaluationCase.allowed_finding_authority.replaceAll(
-        'manual.BU1.R1',
-        'approval.BU1.CTX123.R1',
-      ),
-    };
-    const judgeEnvironment = { ...process.env };
-    if (hostClaudeConfigDir === undefined) delete judgeEnvironment.CLAUDE_CONFIG_DIR;
-    else judgeEnvironment.CLAUDE_CONFIG_DIR = hostClaudeConfigDir;
-    const schema = {
-      type: 'object',
-      additionalProperties: false,
-      properties: { correct: { type: 'boolean' }, reason: { type: 'string' } },
-      required: ['correct', 'reason'],
-    };
-    const calibration = callClaude(
-      'claude-sonnet-5',
-      planningJudgePrompt(
-        judgeCase,
-        {
-          verdict: evaluationCase.expected_verdict === 'approve' ? 'request_changes' : 'approve',
-          summary: 'Require automatic migration outside accepted scope.',
-          findings: ['Require automatic migration.'],
-        },
-        'codex',
-      ),
-      schema,
-      judgeEnvironment,
-    ) as { correct: boolean };
-    assert.equal(calibration.correct, false, 'The judge must reject known-bad output.');
-    for (let index = 0; index < 3; index++) {
-      const result = await runCliWithLiteralArguments(
-        [
-          'review',
-          'run',
-          'plan-implementation',
-          project.planPath,
-          '--json',
-          '--no-input',
-          '--cwd',
-          project.root,
-        ],
-        {
-          cwd: project.root,
-          env: {
-            ...environment(project.root),
-            ...(hostCodexHome === undefined ? {} : { CODEX_HOME: hostCodexHome }),
-          },
-          unsetEnv: [
-            ...(hostClaudeConfigDir === undefined ? ['CLAUDE_CONFIG_DIR'] : []),
-            ...(hostCodexHome === undefined ? ['CODEX_HOME'] : []),
-          ],
-          timeout: 120_000,
-        },
-      );
-      const data = JSON.parse(result.stdout).data;
-      assert.ok(data.reviewer_output, result.stdout + result.stderr);
-      assert.equal(data.actual_reviewer, 'codex');
-      assert.equal(data.reviewer_model, 'gpt-6.1-sol');
-      assert.deepEqual(data.confirmed_reviewer_model, { provider: 'openai', model: 'gpt-6.1-sol' });
-      assert.equal(data.independence, 'cross-agent');
-      const grade = callClaude(
-        'claude-sonnet-5',
-        planningJudgePrompt(judgeCase, data.reviewer_output, 'codex'),
-        schema,
-        judgeEnvironment,
-      ) as { correct: boolean; reason: string };
-      assert.equal(typeof grade.correct, 'boolean');
-      assert.equal(typeof grade.reason, 'string');
-      const stamped = spawnSync(
-        'bun',
-        [
-          path.join(project.root, '.safeword/hooks/write-review-stamp.ts'),
-          '--ticket',
-          folder,
-          '--phase',
-          'plan-implementation',
-          '--review-id',
-          data.review_id,
-          '--author-agent',
-          data.author_agent,
-          '--reviewer-agent',
-          data.actual_reviewer,
-          '--independence',
-          data.independence,
-          '--model',
-          data.reviewer_model,
-        ],
-        {
-          cwd: project.root,
-          env: { ...process.env, ...environment(project.root) },
-          encoding: 'utf8',
-          timeout: 60_000,
-        },
-      );
-      assert.equal(stamped.error, undefined, stamped.error?.message);
-      state.runs.push({
-        output: data.reviewer_output,
-        correct: grade.correct,
-        gate: dispatch(project.root),
-        stampStatus: stamped.status,
-        stampOutput: stamped.stdout + stamped.stderr,
-      });
-      assert.equal(readFileSync(path.join(project.root, project.planPath), 'utf8'), original);
-    }
+    await runJudgedNativeReview(state, {
+      kind: 'plan-implementation',
+      phase: 'plan-implementation',
+      dispatch,
+    });
   },
 );
 
