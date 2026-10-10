@@ -2982,3 +2982,26 @@ and passes 50/50. Relay 198 passes/one existing skip and collector 153 passes
 also remain green. Three package typechecks and formatting checks pass; root
 step code is verified by the actual Cucumber runs, not claimed covered by
 package tsc. No failure is hidden or counted as a pass.
+
+## 2026-10-10 — Native declined-suggestion checkpoint
+
+The real native re-review now carries the current user decline in all three
+actual Codex app-server requests. One scenario passes in
+/tmp/4200-native-disposition-appserver-final.json, with correctly judged
+approval, authenticated same-job stamping, installed-hook admission and
+unchanged plan bytes. Scoped source review
+be6e4d11-e34b-46ed-8a3a-c1765aec196b approves. Earlier fixture omissions and
+incorrect exec instrumentation remain documented in
+.safeword/logs/4200-native-disposition-review.md; they are not passing evidence.
+
+The existing public decline regression passes one scenario/62 reporter steps
+in /tmp/4200-r14-shared-preparation-regression.json. Protected tests pass 57/57
+and three package typechecks pass. Product Plan shared-dispatch preflights pass
+both scenarios. Root step coverage comes from Cucumber, not package tsc.
+
+Fresh dry run reports 159 nondeferred cases: 140 bound skips and 19 undefined.
+Skips are not passes. CI at e1efbb34c is green; this new checkpoint needs its
+own CI. Historical six failures/585 unfinished aggregate, the RGR ledger,
+weaker-pair decision, retrieval/privacy evidence, user deferrals and whole-stack
+readiness remain open. No production policy or qualification changes, merge or
+promotion are claimed.

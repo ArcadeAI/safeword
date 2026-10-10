@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { After, Given, Then, When } from '@cucumber/cucumber';
+import { After, Given, Status, Then, When } from '@cucumber/cucumber';
 
 import { prepareReviewPacket } from '../packages/cli/src/review/packet.js';
 import { planningContractCases } from '../packages/cli/tests/fixtures/planning-contracts-eval.js';
@@ -27,37 +27,34 @@ interface DispositionState {
 const states = new WeakMap<SafewordWorld, DispositionState>();
 const roots = new WeakMap<SafewordWorld, string[]>();
 
-Given(
-  'a nonblocking reviewer suggestion for a useful capability outside the accepted boundary is recorded',
-  { timeout: 60_000 },
-  async function (this: SafewordWorld) {
-    const owned: string[] = [];
-    roots.set(this, owned);
-    const project = await createReviewedDispositionProject(owned, suggestion);
-    const complete = planningContractCases.find(item => item.id === 'r12-complete-scope-context');
-    assert.ok(complete);
-    writeFileSync(
-      project.ticketPath,
-      `---
+export async function prepareRecordedSuggestion(world: SafewordWorld): Promise<void> {
+  const owned: string[] = [];
+  roots.set(world, owned);
+  const project = await createReviewedDispositionProject(owned, suggestion);
+  const complete = planningContractCases.find(item => item.id === 'r12-complete-scope-context');
+  assert.ok(complete);
+  writeFileSync(
+    project.ticketPath,
+    `---
 id: DIS123
 type: feature
 phase: plan-implementation
 status: in_progress
 product_plan_contract: v1
 scope:
-  - require explicit user authorization before account changes
+- require explicit user authorization before account changes
 out_of_scope:
-  - automatic account migration
-  - multi-region failover
+- automatic account migration
+- multi-region failover
 done_when: authorized changes succeed and denied changes do not mutate
 phase_anchors:
-  - scenario-gate: features/manual-change.feature
+- scenario-gate: features/manual-change.feature
 ---
 `,
-    );
-    writeFileSync(
-      path.join(project.root, target),
-      `# Product Plan
+  );
+  writeFileSync(
+    path.join(project.root, target),
+    `# Product Plan
 
 <!-- safeword:product-plan-contract:v1 -->
 
@@ -85,27 +82,27 @@ An owner-authorized token permits one target account change. Absent, expired or 
 Affected:
 - Safeword CLI
 `,
-    );
-    mkdirSync(path.join(project.root, 'features'), { recursive: true });
-    writeFileSync(
-      path.join(project.root, 'features/manual-change.feature'),
-      `@approval.BU1.R1 @surface.safeword-cli
+  );
+  mkdirSync(path.join(project.root, 'features'), { recursive: true });
+  writeFileSync(
+    path.join(project.root, 'features/manual-change.feature'),
+    `@approval.BU1.R1 @surface.safeword-cli
 Feature: Manual authorized account changes
-  Scenario: Authorized change
-    Given valid consent for the requesting owner and target account
-    When a manual account change is requested
-    Then one authorized account changes
-  Scenario: Denied change
-    Given absent expired or mismatched consent
-    When a manual account change is requested
-    Then no account mutation occurs
-  Scenario: Retry a transient failure
-    Given a transient endpoint failure
-    When the same manual change is retried with valid consent
-    Then the retry succeeds without an earlier mutation
+Scenario: Authorized change
+  Given valid consent for the requesting owner and target account
+  When a manual account change is requested
+  Then one authorized account changes
+Scenario: Denied change
+  Given absent expired or mismatched consent
+  When a manual account change is requested
+  Then no account mutation occurs
+Scenario: Retry a transient failure
+  Given a transient endpoint failure
+  When the same manual change is retried with valid consent
+  Then the retry succeeds without an earlier mutation
 `,
-    );
-    const plan = `# Implementation Plan
+  );
+  const plan = `# Implementation Plan
 
 ## Approach
 ${complete.reviewed_plan}
@@ -119,13 +116,26 @@ skip: Existing account schema and consent-token contract stay unchanged; no new 
 ## Measurement applicability
 skip: The Product Plan makes no quantitative promise.
 `;
-    writeFileSync(path.join(project.root, planTarget), plan);
-    const reviewed = await project.run(['review', 'run', 'plan-implementation', planTarget]);
-    assert.equal(reviewed.exitCode, 0, `${reviewed.stdout}\n${reviewed.stderr}`);
-    const data = JSON.parse(reviewed.stdout).data;
-    assert.equal(data.status, 'approved');
-    assert.deepEqual(data.reviewer_output.findings, [{ severity: 'warning', message: suggestion }]);
-    states.set(this, { project, plan, reviewId: data.review_id });
+  writeFileSync(path.join(project.root, planTarget), plan);
+  const reviewed = await project.run(['review', 'run', 'plan-implementation', planTarget]);
+  assert.equal(reviewed.exitCode, 0, `${reviewed.stdout}\n${reviewed.stderr}`);
+  const data = JSON.parse(reviewed.stdout).data;
+  assert.equal(data.status, 'approved');
+  assert.deepEqual(data.reviewer_output.findings, [{ severity: 'warning', message: suggestion }]);
+  states.set(world, { project, plan, reviewId: data.review_id });
+}
+
+export function recordedSuggestion(world: SafewordWorld): DispositionState {
+  const state = states.get(world);
+  assert.ok(state);
+  return state;
+}
+
+Given(
+  'a nonblocking reviewer suggestion for a useful capability outside the accepted boundary is recorded',
+  { timeout: 60_000 },
+  async function (this: SafewordWorld) {
+    await prepareRecordedSuggestion(this);
   },
 );
 
@@ -166,7 +176,11 @@ Then(
   },
 );
 
-After(function (this: SafewordWorld) {
+After(function (this: SafewordWorld, scenario) {
+  if (scenario.result?.status === Status.FAILED) {
+    console.error(`Retained disposition fixture: ${(roots.get(this) ?? []).join(', ')}`);
+    return;
+  }
   for (const root of roots.get(this) ?? []) rmSync(root, { recursive: true, force: true });
   roots.delete(this);
   states.delete(this);

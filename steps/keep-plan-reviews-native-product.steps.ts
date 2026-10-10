@@ -1,5 +1,4 @@
 import { strict as assert } from 'node:assert';
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -13,6 +12,7 @@ import { planningContractCases } from '../packages/cli/tests/fixtures/planning-c
 import { runCliWithLiteralArguments } from '../packages/cli/tests/helpers.js';
 import { fixtureProject } from './keep-plan-reviews-installed-context.steps.js';
 import {
+  dispatchInstalledPhaseExit,
   nativeReviewEnvironment,
   runJudgedNativeReview,
   type NativeScopeState,
@@ -23,30 +23,12 @@ const folder = 'CTX123-current-context';
 const states = new WeakMap<SafewordWorld, NativeScopeState>();
 
 function productDispatch(root: string): string {
-  const settings = JSON.parse(readFileSync(path.join(root, '.claude/settings.json'), 'utf8'));
-  const command = settings.hooks.PreToolUse.flatMap(
-    (group: { hooks: { command: string }[] }) => group.hooks,
-  ).find((hook: { command: string }) => hook.command.includes('pre-tool-quality.ts')).command;
-  const result = spawnSync('/bin/sh', ['-c', command], {
-    cwd: root,
-    env: { ...process.env, ...nativeReviewEnvironment(root) },
-    encoding: 'utf8',
-    timeout: 60_000,
-    input: JSON.stringify({
-      cwd: root,
-      session_id: 'r12-native-scope',
-      hook_event_name: 'PreToolUse',
-      tool_name: 'Edit',
-      tool_input: {
-        file_path: path.join(root, '.project/tickets', folder, 'ticket.md'),
-        old_string: 'phase: intake',
-        new_string: 'phase: define-behavior',
-      },
-    }),
-  });
-  assert.equal(result.error, undefined, result.error?.message);
-  assert.equal(result.status, 0, result.stderr);
-  return result.stdout.trim();
+  return dispatchInstalledPhaseExit(
+    root,
+    `.project/tickets/${folder}/ticket.md`,
+    'intake',
+    'define-behavior',
+  );
 }
 
 Given(

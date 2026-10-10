@@ -56,7 +56,12 @@ export function nativeReviewEnvironment(root: string): Record<string, string> {
   };
 }
 
-function dispatch(root: string): string {
+export function dispatchInstalledPhaseExit(
+  root: string,
+  ticketPath: string,
+  from: string,
+  to: string,
+): string {
   const settings = JSON.parse(readFileSync(path.join(root, '.claude/settings.json'), 'utf8'));
   const command = settings.hooks.PreToolUse.flatMap(
     (group: { hooks: { command: string }[] }) => group.hooks,
@@ -72,15 +77,24 @@ function dispatch(root: string): string {
       hook_event_name: 'PreToolUse',
       tool_name: 'Edit',
       tool_input: {
-        file_path: path.join(root, '.project/tickets', folder, 'ticket.md'),
-        old_string: 'phase: plan-implementation',
-        new_string: 'phase: plan-execution',
+        file_path: path.join(root, ticketPath),
+        old_string: `phase: ${from}`,
+        new_string: `phase: ${to}`,
       },
     }),
   });
   assert.equal(result.error, undefined, result.error?.message);
   assert.equal(result.status, 0, result.stderr);
   return result.stdout.trim();
+}
+
+function dispatch(root: string): string {
+  return dispatchInstalledPhaseExit(
+    root,
+    `.project/tickets/${folder}/ticket.md`,
+    'plan-implementation',
+    'plan-execution',
+  );
 }
 
 async function prepareNativeScope(world: SafewordWorld, caseId: string) {
@@ -184,6 +198,7 @@ export async function runJudgedNativeReview(
     kind: 'plan-implementation' | 'quality-review';
     phase: 'plan-implementation' | 'intake';
     dispatch: (root: string) => string;
+    reviewerSearchPath?: string;
   },
 ): Promise<void> {
   const { project } = state;
@@ -242,6 +257,7 @@ export async function runJudgedNativeReview(
         cwd: project.root,
         env: {
           ...nativeReviewEnvironment(project.root),
+          ...(options.reviewerSearchPath === undefined ? {} : { PATH: options.reviewerSearchPath }),
           ...(hostCodexHome === undefined ? {} : { CODEX_HOME: hostCodexHome }),
         },
         unsetEnv: [
@@ -270,7 +286,7 @@ export async function runJudgedNativeReview(
       [
         path.join(project.root, '.safeword/hooks/write-review-stamp.ts'),
         '--ticket',
-        folder,
+        path.basename(path.dirname(project.planPath)),
         '--phase',
         options.phase,
         '--review-id',
