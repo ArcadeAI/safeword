@@ -404,4 +404,19 @@ export const planningContractCases: readonly PlanningContractCase[] = [
   ...planningContractShapeCases,
   ...createPersonaCoverageCases(completePersonaOutcomes),
   ...createArtifactTrustCases(accepted, completeImplementationPlan),
+  {
+    id: 'r14-pending-strengthening',
+    rule: 'R14',
+    kind: 'plan-implementation',
+    planning_phase: 'plan-implementation',
+    accepted_boundary: `${accepted} Multi-region failover remains outside the accepted boundary.`,
+    context:
+      'An optional multi-region failover suggestion awaits the user decision. No expansion or decline has been authorized.',
+    reviewed_plan: completeImplementationPlan,
+    expected_verdict: 'approve',
+    allowed_finding_authority:
+      'The outstanding optional suggestion is nonblocking. Judge the unchanged plan against its accepted boundary; retain the user decision rather than inventing a decline or acceptance.',
+    forbidden_scope_expansion:
+      'Do not require, add or treat multi-region failover as accepted. Do not manufacture a user decision.',
+  },
 ];
