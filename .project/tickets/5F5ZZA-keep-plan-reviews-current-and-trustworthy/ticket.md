@@ -2618,3 +2618,31 @@ feature as a bug ticket. Release verification and fresh CI will be recorded belo
 The two absent real-weaker catalogue cases remain a qualification/scope decision,
 not a reproduced production failure. That decision blocks those proofs and final
 closeout; it does not prevent work on the other unresolved acceptance cases.
+
+## 2026-10-10 — Authenticated optional decline reaches judged re-review
+
+Shared disposition setup is extracted at f238a118c with the five existing
+integration tests passing before and after, preserving early cleanup tracking.
+R14 row586 now uses the real public coordinator to record an optional failover
+finding and the public PTY-confirmed command to persist its decline. The old
+authenticated receipt becomes stale; the prepared Implementation packet carries
+the same finding, review id and current decline. The exact captured packet and
+unchanged plan reach the existing real reviewer/judge evaluation. The focused
+case passes: three behavior steps and 55 cleanup hooks. The five existing
+disposition integration tests also pass after the optional-message argument.
+
+Wiring RED 7d4f44ea-172a-4153-be92-29de5f7512a1 and bounded final review
+edf0d710-b808-4b07-9e10-8d001c0d336f approve. JSON confirms exactly row586.
+The reviewer notes that the decline/failover record regex is weak on its own;
+the independent judge and no-scope-expansion checks carry the semantic verdict.
+The initial mock only supplies the authenticated optional-finding precondition.
+Neutral eval output is never promoted into an authenticated receipt or stamp.
+Installed native admission, accepted expansion and pending choice remain open.
+This partial outline does not advance its ledger. Historical six failures and
+585 unfinished broad scenarios remain visible. No merge, Ready or epic
+completion is claimed. CI on 1118cee38 still has both Node test jobs running;
+contract, lint, parity, dependency and deployment checks passed.
+
+Fresh root inventory is 123 bound dry-skips and 36 undefined among 159
+nondeferred scenarios. The proof-tag tests pass 50/50. Bound dry-skips are not
+execution passes.

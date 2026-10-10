@@ -13,7 +13,10 @@ export const target = `${folder}/spec.md`;
 export const suggestion = 'Consider adding an optional approval audit export.';
 const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
 
-export async function createReviewedDispositionProject(roots: string[]) {
+export async function createReviewedDispositionProject(
+  roots: string[],
+  findingMessage = suggestion,
+) {
   const root = createTemporaryDirectory();
   roots.push(root);
   await createConfiguredProject(root);
@@ -77,7 +80,7 @@ process.stdin.on('end', () => {
     summary: packet.review_disposition_context?.records[0]
       ? 'The user decline for ' + packet.review_disposition_context.records[0].message + ' is ' + packet.review_disposition_context.records[0].boundary_status + ' in ticket context.'
       : 'The accepted boundary remains intact.',
-    findings: [{ severity: 'warning', message: ${JSON.stringify(suggestion)} }],
+    findings: [{ severity: 'warning', message: ${JSON.stringify(findingMessage)} }],
     evidence_records: { schema_version: 1, records: [] },
   } }));
 });
