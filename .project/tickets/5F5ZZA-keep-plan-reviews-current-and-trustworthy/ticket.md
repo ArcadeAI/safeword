@@ -2174,3 +2174,44 @@ bindings and final review/CI rather than treating the host deferral as completio
 manual/MCWV4B tags, bringing the explicit deferred host count to 16. Shared
 fallback behavior and the nine local host examples remain in this epic. The
 earlier 171-scenario/91-undefined inventory predates this additional discovery.
+
+2026-10-09 local R6 characterization: pending, current approval, and exhausted-route
+fresh-context fallback now execute through the real Claude project, Codex plugin,
+and Cursor hook boundaries. Together with three stale-receipt controls, the
+selected run passes 12 scenarios in `/tmp/4200-local-fallback-fourth.{json,log}`.
+Pending jobs must actually reach a held reviewer before denial, and cleanup
+authenticates cancellation. Fallbacks require actual typed process failures,
+sealed continuation, and the real receipt-verifying stamp writer; Cursor uses
+its installed pre-shell identity bridge. Actual reviewers and reduced independence
+are checked without a false capability-degraded finding. These are private local
+adapter fixtures, not live host installation or cloud acceptance.
+
+Retained failed fixture attempts cover missing Cucumber capture arguments,
+insufficient route budget, a sanitized mock hold variable, missing Bun in the
+reviewer-only PATH, and absent native run identities. No rejection check was
+weakened. Commit 010c6c6ed is explicitly an unfinished checkpoint forced by the
+400-line commit guard; the subsequent PATH/identity repairs are required before
+publishing it. The package fixture regression passes 30 tests, and all three
+package typechecks pass. The fresh dry-run inventory has 159 nondeferred scenarios:
+89 dry-run skips and 70 undefined, with 16 host examples deferred to MCWV4B.
+Dry-run skips are not passes. The historical six failures/585 unfinished remain
+visible; there is still no fresh full acceptance aggregate or current whole-head
+final review. Continue the 70 missing bindings and final review/CI; do not merge
+or promote this Draft PR.
+
+2026-10-09 independent local-gate review c718bedb-5494-4c6e-9124-76cd46bec9be
+requested changes: a generic pending denial could be caused by an invalid stamp.
+The repaired proof verifies the real writer refuses the exact pending job with
+`status: pending`, completes that same held job, and requires the same native
+gate to allow with identical ledger/source bytes before the real writer stamps
+approval. Review 6a997d66-ed3d-46dd-9d4c-214cfe7c5e94 approved this correction.
+Its useful advisories were addressed with nonblocking FIFO release, finally-based
+cleanup, a deny before fallback stamping, and actual-reviewer/reduced-independence
+ledger checks. The final selected run passes 12 scenarios/672 steps in
+`/tmp/4200-local-gates-bounded-final.{json,log}`. Current target review
+87d69430-2948-43b5-8bf4-0d905e69cc9b approves with no errors. Remaining warnings
+are fail-closed FIFO readiness flakes, weaker fallback-denial diagnostics, and
+duplicate teardown errors if a failed test leaves a completed job. Cleanup still
+runs, and the same-ID and fallback positive controls prevent false approval.
+Stop expanding this fixture review; continue the 70 missing nondeferred bindings.
+This target review is not the whole-head final PR review or full acceptance.

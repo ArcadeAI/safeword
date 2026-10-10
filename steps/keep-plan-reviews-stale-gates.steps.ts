@@ -1,6 +1,16 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  constants,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  writeSync,
+} from 'node:fs';
 import path from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
@@ -27,6 +37,7 @@ interface StaleGateState {
   output?: string;
   pendingReviewId?: string;
   fallbackReview?: {
+    review_id: string;
     actual_reviewer: string;
     independence: string;
     review_routes: { status: string; failure?: string }[];
@@ -403,6 +414,33 @@ Given(
       ),
     );
     state.fallbackReview = result.data;
+    const denied = JSON.parse(dispatch(state));
+    if (host === 'Cursor') assert.equal(denied.permission, 'deny');
+    else assert.equal(denied.hookSpecificOutput.permissionDecision, 'deny');
+    const stampEnv = {
+      ...environment(state.root),
+      ...env,
+      PATH: process.env.PATH,
+      CLAUDE_SESSION_ID: author === 'claude' ? `r6-${path.basename(state.root)}` : undefined,
+      CLAUDE_CODE_SESSION_ID: undefined,
+      CODEX_THREAD_ID: author === 'codex' ? `r6-${path.basename(state.root)}` : undefined,
+    };
+    if (host === 'Cursor') {
+      const bridge = spawnSync('bun', ['.safeword/hooks/cursor/before-shell-execution.ts'], {
+        cwd: state.root,
+        env: stampEnv,
+        encoding: 'utf8',
+        timeout: 60_000,
+        input: JSON.stringify({
+          workspace_roots: [state.root],
+          conversation_id: `r6-${path.basename(state.root)}`,
+          command: `bun "${state.root}/.safeword/hooks/write-review-stamp.ts" --phase plan-implementation`,
+        }),
+      });
+      assert.equal(bridge.error, undefined, bridge.error?.message);
+      assert.equal(bridge.status, 0, bridge.stderr);
+      assert.equal(JSON.parse(bridge.stdout).permission, 'allow', bridge.stdout);
+    }
     const stamped = spawnSync(
       'bun',
       [
@@ -422,11 +460,12 @@ Given(
       ],
       {
         cwd: state.root,
-        env: { ...environment(state.root), ...env },
+        env: stampEnv,
         encoding: 'utf8',
         timeout: 60_000,
       },
     );
+    assert.equal(stamped.error, undefined, stamped.error?.message);
     assert.equal(stamped.status, 0, stamped.stdout + stamped.stderr);
   },
 );
@@ -459,13 +498,77 @@ Then('the phase remains blocked with re-review named', function (this: SafewordW
   assert.match(state.output, /review run plan-implementation|fork review of the phase is logged/u);
 });
 
-Then('the phase remains blocked', function (this: SafewordWorld) {
+Then('the phase remains blocked', { timeout: 60_000 }, async function (this: SafewordWorld) {
   const state = states.get(this);
   assert.ok(state?.pendingReviewId && state.output);
   const result = JSON.parse(state.output);
   if (state.host === 'Cursor') assert.equal(result.permission, 'deny');
   else assert.equal(result.hookSpecificOutput.permissionDecision, 'deny');
   assert.match(state.output, /plan-implementation/u);
+  const cli = installedReviewCli(state.root);
+  const status = await cli(['review', 'status', state.pendingReviewId, '--json'], {
+    cwd: state.root,
+    env: { NODE_ENV: 'test' },
+  });
+  assert.equal(JSON.parse(status.stdout).data.status, 'pending', status.stdout);
+  const ledger = path.join(state.root, '.project/skill-invocations.log');
+  const pendingLedger = readFileSync(ledger, 'utf8');
+  const stampArguments = [
+    path.join(state.root, '.safeword/hooks/write-review-stamp.ts'),
+    '--ticket',
+    ticketFolder,
+    '--phase',
+    'plan-implementation',
+    '--review-id',
+    state.pendingReviewId,
+    '--author-agent',
+    'codex',
+    '--reviewer-agent',
+    'claude',
+    '--independence',
+    'reduced',
+  ];
+  const stampOptions = {
+    cwd: state.root,
+    env: environment(state.root),
+    encoding: 'utf8' as const,
+    timeout: 60_000,
+  };
+  const refused = spawnSync('bun', stampArguments, stampOptions);
+  assert.equal(refused.error, undefined, refused.error?.message);
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stdout + refused.stderr, /did not approve \(status: pending\)/u);
+  assert.equal(readFileSync(ledger, 'utf8'), pendingLedger);
+  // Complete this exact job, changing no stamp or reviewed source. The same
+  // native gate must now allow, distinguishing pending denial from a bad stamp.
+  const hold = openSync(
+    path.join(state.root, 'reviewer-hold'),
+    constants.O_WRONLY | constants.O_NONBLOCK,
+  );
+  try {
+    writeSync(hold, 'complete\n');
+  } finally {
+    closeSync(hold);
+  }
+  const deadline = Date.now() + 15_000;
+  let completed;
+  do {
+    completed = await cli(['review', 'status', state.pendingReviewId, '--json'], {
+      cwd: state.root,
+      env: { NODE_ENV: 'test' },
+    });
+    if (JSON.parse(completed.stdout).data.status !== 'pending') break;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  } while (Date.now() < deadline);
+  assert.equal(JSON.parse(completed.stdout).data.status, 'approved', completed.stdout);
+  assert.equal(readFileSync(ledger, 'utf8'), pendingLedger);
+  const allowed = dispatch(state);
+  if (state.host === 'Cursor') assert.equal(JSON.parse(allowed).permission, 'allow', allowed);
+  else assert.equal(allowed, '', allowed);
+  const stamped = spawnSync('bun', stampArguments, stampOptions);
+  assert.equal(stamped.error, undefined, stamped.error?.message);
+  assert.equal(stamped.status, 0, stamped.stdout + stamped.stderr);
+  state.pendingReviewId = undefined;
 });
 
 Then(
@@ -478,6 +581,13 @@ Then(
       state.fallbackReview.actual_reviewer,
       state.host === 'Claude Code' ? 'claude' : state.host === 'Cursor' ? 'cursor' : 'codex',
     );
+    const stamp = readFileSync(path.join(state.root, '.project/skill-invocations.log'), 'utf8')
+      .split('\n')
+      .find(row => row.includes(`review-id:${state.fallbackReview?.review_id}`));
+    assert.ok(stamp);
+    assert.ok(stamp.includes(`reviewer:${state.fallbackReview.actual_reviewer}`));
+    assert.match(stamp, /independence:reduced/u);
+    assert.doesNotMatch(state.output, /degrad/iu);
     if (state.host === 'Cursor')
       assert.equal(JSON.parse(state.output).permission, 'allow', state.output);
     else assert.equal(state.output, '', state.output);
@@ -486,7 +596,8 @@ Then(
 
 After(async function (this: SafewordWorld) {
   const state = states.get(this);
-  if (state) {
+  try {
+    if (!state) return;
     if (state.pendingReviewId) {
       const cancelled = await installedReviewCli(state.root)(
         ['review', 'cancel', state.pendingReviewId, '--json'],
@@ -494,8 +605,9 @@ After(async function (this: SafewordWorld) {
       );
       assert.equal(JSON.parse(cancelled.stdout).data.status, 'canceled', cancelled.stdout);
     }
-    rmSync(state.root, { recursive: true, force: true });
+  } finally {
+    if (state) rmSync(state.root, { recursive: true, force: true });
     cleanupTrustedReviewerDirectories();
+    states.delete(this);
   }
-  states.delete(this);
 });
