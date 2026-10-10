@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { prepareReviewPacket } from '../../packages/cli/src/review/packet.js';
+import { resolveConfiguredPath } from '../../packages/cli/src/utils/configured-paths.js';
 import { planningContractCases } from '../../packages/cli/tests/fixtures/planning-contracts-eval.js';
 import {
   scopeBoundaries,
@@ -190,4 +191,84 @@ Feature: Manual authorized account changes
       reviewed_plan: readFileSync(path.join(root, planPath), 'utf8'),
     },
   };
+}
+
+/** Complete the native fixture's design premises, without supplying omitted scope authority. */
+export function completeNativeScopeProject(project: ReturnType<typeof createScopeContextProject>) {
+  const architecturePath = resolveConfiguredPath(project.root, 'architecture');
+  mkdirSync(path.dirname(architecturePath), { recursive: true });
+  writeFileSync(
+    architecturePath,
+    `# Current account-change architecture
+
+This is a synthetic project's existing, fixture-owned contract, version 1. It is a closed-world test premise, not evidence about a deployed service.
+
+The CLI calls the existing manual account-change endpoint, which delegates writes to the existing consent API v1 and account store. The API's guardedChange(requester, target, consent, change) binds the authenticated session requester and exactly one target to consent. The existing store transaction checks owner, target and expiry at the write using server UTC; expiry equal to now is expired. A refused request or pre-commit failure performs no mutation. The transaction already provides this atomic guard; this feature adds no transaction protocol or new authorization API.
+
+The account store is the authoritative owner of existing account records. The consent API owns opaque consent credentials and issuer keys; callers neither persist nor log tokens. Existing schema, identifiers, retention and issuer policies remain unchanged. A retry after denial needs fresh valid consent. A pre-commit transient failure is retryable without mutation. A transport failure after commit is an uncertain result and must not be represented as a confirmed refusal or automatically retried by this change.
+
+The project owns this contract text; no third-party implementation is copied. Production consent issuance and deployment remain outside the wiring proof.
+`,
+  );
+  const architectureReference = path.relative(project.root, architecturePath);
+  const planFile = path.join(project.root, project.planPath);
+  let plan = readFileSync(planFile, 'utf8');
+  assert.match(plan, /Decision:.*?Proof:/u);
+  assert.ok(
+    plan.includes('A transient endpoint failure returns a retryable error without mutation.'),
+  );
+  assert.ok(
+    plan.includes('skip: No durable architecture record applies to this existing endpoint.'),
+  );
+  assert.ok(
+    plan.includes(
+      'skip: Existing account schema and consent-token contract stay unchanged; no new data shape or migration is introduced.',
+    ),
+  );
+  plan = plan.replace(
+    /Decision:.*?Proof:/u,
+    `Decision: use the existing consent API v1 guardedChange contract documented in ${architectureReference}. The in-scope alternative is duplicating its owner/target/expiry guard at the endpoint; reject that duplication because it splits the authoritative write boundary. This fixture's current v1 contract establishes design suitability; endpoint tests remain future verification, not completed evidence. The choice is reversible by disabling this endpoint's account-change handling. Proof:`,
+  );
+  plan = plan.replace(
+    'A transient endpoint failure returns a retryable error without mutation.',
+    'A pre-commit transient endpoint failure returns a retryable error without mutation. A post-commit transport failure reports an uncertain result without automatic retry or a false no-mutation claim.',
+  );
+  plan = plan.replace(
+    'skip: No durable architecture record applies to this existing endpoint.',
+    `Applicable: ${architectureReference} documents the existing CLI, endpoint, consent API and account store boundary. Reuse its guarded write without changing component ownership or shared interfaces. This is a reversible feature-local wiring choice, so no new durable architecture decision is introduced. Reassess if the v1 contract cannot satisfy the accepted behavior; new authorization APIs require the product owner's decision.`,
+  );
+  plan = plan.replace(
+    'skip: Existing account schema and consent-token contract stay unchanged; no new data shape or migration is introduced.',
+    `Applicable: consent changes access to account writes. Purpose: authorize manual single-account changes. Store and model: reuse the existing account store; no new attempt or token store. Schema and relationships: unchanged account records and owner relationship. Source of truth: the account store remains authoritative. Ownership and access: the authenticated owner and target must match consent at the existing guarded write. Identity and integrity: existing account identity and the v1 atomic guard remain authoritative; server UTC defines expiry and equality is expired. Cross-system flow: CLI to existing endpoint to consent API to account store; no new data transfer or copy. Lifecycle and retention: no new persisted consent or diagnostics; existing retention and issuer policy remain unchanged. Migration and backfill: inapplicable because no schema or data movement changes. Compliance: preserve existing access and credential handling; no new compliance policy or application-managed encryption keys. Rollback: disable this endpoint's change handling without rewriting accounts or changing the API. Tokens never appear in logs.`,
+  );
+  plan +=
+    '\n## Documentation impact\nUpdate the existing CLI account-change usage documentation with named denial, fresh-consent recovery, pre-commit retry and uncertain post-commit result. This introduces no new product behavior.\n';
+  plan +=
+    '\n## Discriminating boundary proof\nDrive the real CLI and endpoint with controlled authoritative server UTC: consent whose expiry equals the guarded-write time must produce a named denial and unchanged account state. Separately inject a transport failure after a committed write; establish committed account state, a visible uncertain result, and no automatic retry. These are planned checks of the stated v1 contract, not claims that tests have already passed.\n';
+  writeFileSync(planFile, plan);
+  const packet = prepareReviewPacket(
+    project.root,
+    'plan-implementation',
+    [project.planPath],
+    [],
+  ).packet;
+  assert.ok(packet.planning_context?.dependencies.some(item => item.role === 'architecture'));
+  assert.ok(packet.planning_context?.dependencies.some(item => item.role === 'data'));
+  const refreshedInput = {
+    context: JSON.stringify({
+      planning_context: packet.planning_context,
+      logical_files: packet.logical_files,
+      context_files: packet.context_files,
+    }),
+    reviewed_plan: plan,
+  };
+  for (const value of Object.values(scopeBoundaries)) {
+    const boundary = value.split(': ')[1].replace(/\.$/u, '');
+    assert.equal(
+      refreshedInput.context.includes(boundary),
+      project.input.context.includes(boundary),
+      `Native fixture completion must preserve supplied or omitted scope: ${boundary}`,
+    );
+  }
+  project.input = refreshedInput;
 }

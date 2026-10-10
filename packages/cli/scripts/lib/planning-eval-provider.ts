@@ -11,7 +11,12 @@ function outputText(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-export function callClaude(model: string, prompt: string, schema: unknown): unknown {
+export function callClaude(
+  model: string,
+  prompt: string,
+  schema: unknown,
+  environment?: NodeJS.ProcessEnv,
+): unknown {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-planning-eval-'));
   try {
     const result = spawnSync(
@@ -35,7 +40,13 @@ export function callClaude(model: string, prompt: string, schema: unknown): unkn
         '--json-schema',
         JSON.stringify(schema),
       ],
-      { cwd: directory, encoding: 'utf8', timeout: 120_000, maxBuffer: 4 * 1024 * 1024 },
+      {
+        cwd: directory,
+        env: environment,
+        encoding: 'utf8',
+        timeout: 120_000,
+        maxBuffer: 4 * 1024 * 1024,
+      },
     );
     const stdout = outputText(result.stdout);
     const stderr = outputText(result.stderr).trim();

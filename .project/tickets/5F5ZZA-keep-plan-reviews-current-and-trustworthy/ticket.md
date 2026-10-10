@@ -2715,3 +2715,84 @@ That is fixture characterization only (six Given checks and 330 cleanup hooks),
 not six additional semantic acceptance passes. The original role/content guards
 and early cleanup tracking remain. The temporary harness is removed. Native
 reviewer and authenticated host proof are still unfinished.
+
+## Progress — 2026-10-10 native scope proof investigation
+
+CI on pushed 849764dae is green: both Node versions, lint, contract, parity,
+dependency and deployment-input checks pass. Conditional deployment jobs skip;
+no PR promotion or merge is authorized. This does not close acceptance.
+The shared provider and canonical judge-prompt extractions at 64d9043c1 and
+fdb19922f each pass the 52 evaluator/proof-tag checks and package typecheck.
+
+Native R12 wiring remains unfinished. Its first attempt fails because the judge
+inherits a temporary Claude fixture configuration; restore the captured host
+configuration only for that subprocess. Two subsequent public coordinator
+attempts return process_failed, without reviewer output. Direct snapshot/runtime
+diagnostics show both failed and completed real Sol turns, so a directory cause
+is not established. Do not credit these diagnostics as authenticated acceptance.
+
+The initial separate judge also supplied a Claude output contract for actual
+Codex output; the shared prompt now accepts the actual reviewer identity while
+keeping the neutral evaluator default unchanged. Independent Claude review
+0ba89526-1e38-4dad-84d9-85632ddcf9af identifies two actual fixture defects: the
+plan asserts an inherited API assumption as verified fact, and attempt recording
+contradicts its measurement/data skips. Correct only the R12 corpus projection:
+label the API assumption, validate it through the named endpoint contract proof
+and return a failed assumption to its product owner; clarify ephemeral,
+token-redacted diagnostics with no new attempt store. Regenerate only the
+semantic corpus digest. Qualified capability evidence is a separate unchanged
+corpus. Keep expected verdicts, required rejection and sampling threshold.
+
+That review classifies the broader atomicity/crash/architecture demands as
+nonblocking; do not turn them into extra fixture or production requirements.
+The R12 positive promises review dispatch, so remove extra writer/native-allow
+conditions from its positive verdict filter. The negative still requires the
+actual missing project non-goals finding, actual writer refusal and installed
+gate denial. A corrected paired live run is in progress; no GREEN is claimed.
+
+The used historical R16 archive was moved outside the workspace immediately
+after its ledger approval was consumed. Keeping a full archive under state
+caused duplicate proof/schema scans; the clean retry passes 895 schema checks.
+Do not change scanners or add ignores to hide that task-owned archive.
+
+The coordinator failure is now traced to the root Cucumber BeforeAll sandbox:
+it replaces CODEX_HOME as well as CLAUDE_CONFIG_DIR. The real Codex subprocess
+therefore lacked authentication and returned HTTP 401. Restore the captured
+host profile only for real reviewer children; installation retains its sandbox.
+The subsequent paired run completes all six authenticated reviews but both
+scenarios fail their semantic threshold (all reviews request changes, all judge
+grades false). Authentication recovery is not acceptance recovery.
+
+The current Implementation Planning guide requires present target-version
+decision evidence and treats changed access as Data applicability even with
+unchanged schema. The earlier external adjudication missed these clauses.
+Complete only the native fixture with one fixture-owned current architecture/API
+v1 contract and inline applicable data decisions. The existing atomic guard is
+a documented test premise, not a new product capability or deployed-service
+claim. Capture the actual packet after install and completion. Preserve omitted
+project non-goals, original expected verdicts, qualified models and three-run
+threshold. The new paired run is pending; no R12 GREEN is claimed.
+
+R12 final native evidence is now GREEN: row547 passes in
+/tmp/4200-native-scope-v1-proof.json (three real coordinator reviews and pinned
+judges; 59 reporter steps, 1m09s), and row548 passes against the same final
+fixture in /tmp/4200-native-scope-v1-negative.json (59 steps, 1m27s).
+The negative names the missing project boundary and the actual writer refuses
+its authenticated review; the installed hook remains denied. The earlier
+intermediate /tmp/4200-native-scope-v1-contract.json is one pass/one failure,
+not replaced. That failure identified missing proof for expiry equality and the
+fixture's stated uncertain post-commit result; the final plan names both checks.
+These are synthetic design/proof premises, not an implemented account feature.
+
+Independent Claude review 5c56713b-a83c-47c4-bbdb-3cecceb6eb7f approves with
+nonblocking fidelity warnings, answered in 4200-native-fixture-options.md.
+The hook gates an Edit and the emulated author invokes the public coordinator;
+the hook does not itself launch review. Claude local project settings use the
+shipped schema after installation, not host-profile/plugin enrollment. R12's
+positive promises dispatch; it does not close other positive-admission cases.
+Exact-replacement and refreshed-boundary guards pass a disposable two-Given
+characterization (114 reporter steps, 2.8s); its temporary feature is removed.
+All 52 targeted evaluator/proof-tag tests and all package typechecks pass.
+Two cases close, leaving 32 nondeferred acceptance gaps from the pushed
+checkpoint's 34. R7 and MCWV4B deferrals and historical 6 failures/585 unfinished
+remain visible. No PR is promoted or merged.
