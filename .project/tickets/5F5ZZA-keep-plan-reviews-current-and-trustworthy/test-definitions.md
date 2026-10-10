@@ -951,6 +951,11 @@ admission. Keep the full scenario unchecked until its remaining boundaries pass.
 - [x] GREEN 0fd918965
 - [x] REFACTOR skip: Shared fixture and judge/provider reuse are already isolated; no further extraction is needed for this paired proof.
 
+Historical reviewer/judge passes are retained, but their writer-refusal claim
+was withdrawn because the simulated author omitted its session identity.
+Corrected native receipt proof now passes in 4200-native-seven-preflighted.json;
+the current source checkpoint is recorded separately in the ticket work log.
+
 ## Rule: plan-implementability.TBU4.5F5ZZA.R13 — Completeness checks both omissions and overreach against that accepted boundary
 
 ### Scenario: Plan completeness is bidirectional

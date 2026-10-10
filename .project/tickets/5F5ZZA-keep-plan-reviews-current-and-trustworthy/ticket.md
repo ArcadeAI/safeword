@@ -2796,3 +2796,54 @@ All 52 targeted evaluator/proof-tag tests and all package typechecks pass.
 Two cases close, leaving 32 nondeferred acceptance gaps from the pushed
 checkpoint's 34. R7 and MCWV4B deferrals and historical 6 failures/585 unfinished
 remain visible. No PR is promoted or merged.
+
+Correction: the stronger R11 positive-admission control exposes an R12 wiring
+gap. All three real reviewers approve, but the writer exits before receipt
+validation because the simulated Claude author omitted CLAUDE_SESSION_ID.
+R12's prior reviewer/judge passes remain real semantic evidence; its claimed
+writer-refusal proof was false because missing run identity caused refusal.
+Historical GREEN rows are immutable under the ledger guard, so retain them
+but reopen current acceptance here and annotate the ledger's current status.
+Supply the test-owned author session identity, require the specific
+changes_requested receipt-refusal message, and rerun R11 and R12. A generic
+writer failure is not authentication evidence. No production change is needed
+for this setup diagnosis. The stronger R11 first pair is one pass/one failure;
+its negative's old generic writer check is likewise not valid receipt proof.
+
+R11 wiring RED is approved by 520784a8-de1a-4d8a-a1b0-1c7537c2eaa8.
+R13 wiring RED is rejected by 950aef28-1d68-4c81-83b3-c6dda6a4bc6c because
+undefined bindings skip the real actor boundary. Preserve that disagreement;
+do not retry for a favorable reviewer. Execute the real R13 actor proof and
+record its observed failure or existing-behavior characterization honestly.
+
+The final preflighted native run passes all seven R11/R12/R13 examples:
+/tmp/4200-native-seven-preflighted.json, 413 reporter steps (21 behavior steps
+and 392 cleanup hooks), 9m22s. Every case executes three real Sol coordinator
+reviews and three pinned Sonnet judges. Positive R11/R13 checks require both
+a successful stamp and actual gate admission. Negatives require the named
+judged defect, the exact changes_requested receipt refusal and hook denial.
+R12's corrected receipt proof is now valid; the earlier weaker claim remains
+withdrawn. Parent reconciliation uses the existing public command before
+capture/review, stamps record the returned model, and receipt verification uses
+the current generated distribution outside the reviewed fixture. Do not weaken
+currency to make the released runtime accept a branch-specific contract.
+
+Cheap readiness checks for all seven Given inputs pass first (399 reporter
+steps, 3.7s); the temporary feature is removed. The driver now checks the real
+plan-section parser and the initial gate's review guidance, preventing paid
+reruns on missing non-review prerequisites. All 52 evaluator/proof-tag tests
+pass. Independent scoped Claude review 60fd3099-1c67-4ae2-830f-2b1a64e588ad
+approves with nonblocking warnings. The semantic judge carries finding-quality
+discrimination; gate stdout uses the existing zero-output-success/deny protocol,
+and R12 positive deliberately promises dispatch rather than admission. The
+two rendered R11 authority fields adapt its legacy Rule ID to the actual child
+Rule; other current rendered fields do not retain that legacy ID. Generated
+surface freshness is checked by repository hooks. No global rewrite, new model
+qualification, production policy change or extra resilience is introduced.
+
+R13 passes as existing-behavior characterization under the testing skill's
+explicit allowance, not a newly demonstrated missing production behavior.
+Its rejected wiring-only RED is retained, and the RGR ledger decision remains
+open. Current evidence closes five new native execution gaps, leaving 27
+undefined nondeferred cases; dry bindings are not passes. CI on 211168a98 is
+green. Whole-head review, aggregate acceptance and stack readiness are unfinished.

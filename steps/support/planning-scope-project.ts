@@ -213,6 +213,8 @@ The project owns this contract text; no third-party implementation is copied. Pr
   const architectureReference = path.relative(project.root, architecturePath);
   const planFile = path.join(project.root, project.planPath);
   let plan = readFileSync(planFile, 'utf8');
+  assert.ok(plan.startsWith('# Implementation Plan\n'));
+  plan = plan.replace('# Implementation Plan\n', '# Implementation Plan\n\n**Status:** planned\n');
   assert.match(plan, /Decision:.*?Proof:/u);
   assert.ok(
     plan.includes('A transient endpoint failure returns a retryable error without mutation.'),
@@ -245,6 +247,8 @@ The project owns this contract text; no third-party implementation is copied. Pr
     '\n## Documentation impact\nUpdate the existing CLI account-change usage documentation with named denial, fresh-consent recovery, pre-commit retry and uncertain post-commit result. This introduces no new product behavior.\n';
   plan +=
     '\n## Discriminating boundary proof\nDrive the real CLI and endpoint with controlled authoritative server UTC: consent whose expiry equals the guarded-write time must produce a named denial and unchanged account state. Separately inject a transport failure after a committed write; establish committed account state, a visible uncertain result, and no automatic retry. These are planned checks of the stated v1 contract, not claims that tests have already passed.\n';
+  plan +=
+    '\n## Decisions\nReuse the documented consent API v1 guarded write rather than duplicating its authoritative guard. The current contract, rejected alternative and reversibility are recorded in Approach; no new API or durable architecture decision is authorized.\n\n## Design alignment\nPreserve approval authority: current owner consent must gate each account mutation. The CLI denial and expiry-equality proofs must demonstrate no write without that consent. Builder (BU) receives success, named refusal, fresh-consent recovery, pre-commit retry or an uncertain post-commit result on the accepted Safeword CLI surface.\n\n## Known deviations\nskip: No deliberate deviation from the accepted boundary or project principle.\n\n## Assessment triggers\nReassess if the existing v1 guarded-write contract cannot satisfy owner, target or expiry enforcement, or if product authority changes the accepted boundary. Return new authorization APIs or expanded behavior to the product owner.\n';
   writeFileSync(planFile, plan);
   const packet = prepareReviewPacket(
     project.root,
