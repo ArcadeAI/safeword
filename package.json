@@ -37,15 +37,15 @@
     "test:bdd:live": "NODE_OPTIONS='--import tsx' cucumber-js --profile live"
   },
   "devDependencies": {
-    "@cucumber/cucumber": "13.2.1",
-    "@openai/codex": "0.160.0",
+    "@cucumber/cucumber": "13.3.0",
+    "@openai/codex": "0.161.0",
     "@types/node": "^26.6.4",
     "dependency-cruiser": "18.5.0",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "jiti": "^2.7.0",
-    "knip": "6.39.0",
+    "knip": "6.40.0",
     "lint-staged": "17.6.0",
     "markdownlint-cli2": "^0.23.3",
     "prettier": "^3.9.9",
