@@ -2331,3 +2331,13 @@ retained, and pinned-tool PATH isolation fixes the local proof. Host context is
 reported, not independently observed. Remaining warnings do not expand scope.
 The committed R12 receipt was refreshed after its context changed; current
 approval is `5bf62b7f-dc41-40b2-8f38-34b00cdc1498`. Its context stays immutable.
+
+### R6 same-context classification — 2026-10-09
+
+The author host submission remains reduced; a claimed different-agent submission
+to the same authenticated self-review tier fails invalid_output and stays blocked.
+The nine-case regression passes 9/9 (513 steps), and final cause controls pass
+3/3 (171 steps). Claude `f7db50a5-246a-4339-9d51-525ba7b8d632` approves. This
+proves the host-identity boundary, not a real nested Codex/model execution. Refusal
+means refusal of independent classification, not refusal of permitted reduced
+approval. Weak-model classification and remaining acceptance remain open.
