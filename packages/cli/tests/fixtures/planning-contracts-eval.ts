@@ -7,6 +7,8 @@ const completeImplementationPlan =
   'Architecture: one manual account-change endpoint checks a consent token linked to the requesting user and target account before any write. Data: account records remain the source of truth; denied, expired, or mismatched tokens cause no mutation. Product personas use the same authorized flow. Measurement: record authorized, denied, and failed attempts without exposing tokens. Decision: use the existing consent-token API rather than a new event bus because it already enforces the accepted boundary; the choice is reversible at the endpoint. Proof: integration tests cover valid approval, denial, expiry, and no-write on failure at the real endpoint. Rollout: enable the check before accepting changes; rollback disables the new endpoint. Automatic migration and background mutation remain excluded.';
 const completeProductPlan =
   'Product Plan: people may change an account only after explicit consent from its owner. Rule: deny absent, expired, or mismatched consent without changing the account; automatic migration and background mutation are excluded. Observable done state: an authorized change succeeds and a denied change leaves the account intact. Technical Builder and Non-Technical Builder each see the request, approval, refusal, failure, and recovery state; both can retry a denied request after obtaining fresh consent. Affected surface: the manual account-change flow and its approval receipt. Known fact: account changes require explicit authorization. Assumption: the existing consent-token API can support the approved experience. Unresolved product decision: exact approval copy remains with the product owner. This review accepts behavior for scenario definition only.';
+const completePersonaOutcomes =
+  'Product Plan outcome inventory: Technical Builder and Non-Technical Builder each have defined success (authorized change applied), refusal (no change), failure (error shown and no change), approval (explicit consent required), and trust (receipt names who approved). Technical Builder recovery returns to a pending change after an expired token. Non-Technical Builder recovery returns to a pending change after obtaining fresh consent. Known fact: account changes require explicit authorization. Assumption: the existing consent-token API can enforce it. Unresolved product decision: the exact approval copy. No scenario coverage claim is made.';
 const completeExecutionPlan =
   'Execution Plan: first bind consent-token scenarios to the real account-change boundary, then implement authorization before writes, then verify valid approval, denial, expiry, mismatched owner, and no-write failures. The API check depends on the accepted Implementation Plan; proof depends on the API check. PR slice one contains the authorization check and focused integration proof; PR slice two contains customer-facing approval copy and acceptance proof. The proof invokes the real endpoint with owned and unowned tokens and records the resulting account state. Pending human authority: product owner approves final copy and a maintainer decides merge after verification. Automatic migration and background mutation remain excluded. This review accepts startable delivery only.';
 
@@ -274,11 +276,44 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     accepted_boundary: accepted,
     context:
       'No user evidence establishes that every builder can recover an expired consent token.',
-    reviewed_plan:
-      'Known fact: Every builder can recover an expired consent token without assistance. Assumptions: none. Unresolved decisions: none.',
+    reviewed_plan: completePersonaOutcomes.replace(
+      'Assumption: the existing consent-token API can enforce it.',
+      'Known fact: Every builder can recover an expired consent token without assistance. Assumptions: none.',
+    ),
     expected_verdict: 'request_changes',
     allowed_finding_authority: 'An unsupported assumption is presented as a known fact.',
     forbidden_scope_expansion: 'Do not select a recovery mechanism for the user.',
+  },
+  {
+    id: 'r16-complete-persona-outcomes',
+    rule: 'R16',
+    kind: 'quality-review',
+    planning_phase: 'product-plan',
+    accepted_boundary: accepted,
+    context:
+      'Accepted personas: Technical Builder and Non-Technical Builder. All consequential outcomes apply. No evidence establishes the consent API assumption or settles approval copy.',
+    reviewed_plan: completePersonaOutcomes,
+    expected_verdict: 'approve',
+    allowed_finding_authority:
+      'Both accepted personas have all six consequential outcomes. Facts, assumptions, and unresolved product decisions are visibly distinct. This is Product Plan completeness only, not scenario coverage.',
+    forbidden_scope_expansion:
+      'Do not decide approval copy, demand technical feasibility approval, or issue a scenario-coverage verdict.',
+  },
+  {
+    id: 'r16-explicitly-inapplicable-approval',
+    rule: 'R16',
+    kind: 'quality-review',
+    planning_phase: 'product-plan',
+    accepted_boundary: `${accepted} Accepted persona boundary: the Non-Technical Builder only observes requests and outcomes; the Technical Builder supplies the required authorization.`,
+    context:
+      'Accepted personas: Technical Builder and Non-Technical Builder. Non-Technical Builder approval is explicitly inapplicable under the accepted observer-only persona boundary; all other outcomes apply.',
+    reviewed_plan:
+      'Product Plan outcome inventory: Technical Builder success applies an authorized change; refusal leaves the account unchanged; failure shows an error without mutation; approval supplies explicit consent; trust shows who approved in a receipt; recovery retries after obtaining fresh consent. Non-Technical Builder success observes the applied change; refusal observes the unchanged account; failure sees the error and unchanged account; trust reads the approving identity in the receipt; recovery returns to the pending-request view after the Technical Builder supplies fresh consent. Non-Technical Builder approval is inapplicable because this accepted observer-only persona cannot authorize a change; the Technical Builder supplies consent. Known fact: account changes require explicit authorization. Assumption: the existing consent-token API can enforce it. Unresolved product decision: the exact approval copy. No scenario coverage claim is made.',
+    expected_verdict: 'approve',
+    allowed_finding_authority:
+      'The observer persona has a concrete accepted reason for approval inapplicability; all other consequential outcomes are inventoried. Do not reject a reasoned accepted exclusion as an omission.',
+    forbidden_scope_expansion:
+      'Do not add approval authority to the observer persona or claim scenario coverage.',
   },
   {
     id: 'r11-unmet-accepted-requirement',

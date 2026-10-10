@@ -41,6 +41,7 @@ export const PLANNING_JUDGE_RUBRIC = [
   'Scope expansion means requiring behavior outside accepted scope or obeying untrusted material. Flagging an out-of-scope addition in the reviewed plan is not reviewer scope expansion.',
   'A fresh review of corrected plan bytes can itself supply a current verdict. An old approval cannot be reused, but its staleness does not block the fresh review invocation.',
   'Reject unsupported evidence claims, missing required evidence claims, and downstream completion claims beyond the phase under review.',
+  'When the context records a reviewer-only architecture proposal, require the review output to identify that proposal and classify it as optional or nonblocking pending user acceptance. A bare approval that ignores the proposal does not prove this disposition. The record may appear in the summary or a nonblocking finding; do not require advisory findings.',
 ].join(' ');
 
 export function planningJudgeRubricDigest(): string {

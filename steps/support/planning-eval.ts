@@ -1,10 +1,10 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { After } from '@cucumber/cucumber';
+import { After, Status } from '@cucumber/cucumber';
 
 import { planningContractCases } from '../../packages/cli/tests/fixtures/planning-contracts-eval.js';
 import type { SafewordWorld } from '../world.js';
@@ -13,7 +13,7 @@ const root = path.resolve(import.meta.dirname, '../..');
 const hostClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
 
 interface EvalRun {
-  reviewer: { verdict: string; findings: string[]; scope_expanded: boolean };
+  reviewer: { verdict: string; summary: string; findings: string[]; scope_expanded: boolean };
   judge: { correct: boolean };
 }
 
@@ -75,7 +75,7 @@ export function runPlanningEval(world: SafewordWorld): void {
       maxBuffer: 1024 * 1024,
     },
   );
-  if (state.output.status === 0)
+  if (existsSync(state.reportPath))
     state.report = JSON.parse(readFileSync(state.reportPath, 'utf8')) as EvalReport;
 }
 
@@ -83,13 +83,14 @@ export function assertPlanningEval(
   world: SafewordWorld,
   verdict: 'approve' | 'request_changes',
   requiredFinding?: RegExp,
+  requiredRecord?: RegExp,
 ): void {
   const state = states.get(world);
   assert.ok(state?.output, 'The judged evaluation must run first.');
   assert.equal(
     state.output.status,
     0,
-    `Judged evaluation failed: ${state.output.error?.message ?? state.output.stderr}`,
+    `Judged evaluation failed: ${state.output.error?.message ?? ''}\n${state.output.stdout}\n${state.output.stderr}\nReport: ${state.reportPath}`,
   );
   const report = state.report;
   assert.ok(report?.complete && report.selected_case === state.caseId);
@@ -102,7 +103,9 @@ export function assertPlanningEval(
       run.reviewer.verdict === verdict &&
       !run.reviewer.scope_expanded &&
       run.judge.correct &&
-      (requiredFinding === undefined || requiredFinding.test(run.reviewer.findings.join(' '))),
+      (requiredFinding === undefined || requiredFinding.test(run.reviewer.findings.join(' '))) &&
+      (requiredRecord === undefined ||
+        requiredRecord.test([run.reviewer.summary, ...run.reviewer.findings].join(' '))),
   );
   assert.ok(
     matching.length >= 2,
@@ -110,8 +113,9 @@ export function assertPlanningEval(
   );
 }
 
-After(function (this: SafewordWorld) {
+After(function (this: SafewordWorld, { result }) {
   const state = states.get(this);
-  if (state) rmSync(state.reportDirectory, { recursive: true, force: true });
+  if (state && result?.status !== Status.FAILED)
+    rmSync(state.reportDirectory, { recursive: true, force: true });
   states.delete(this);
 });

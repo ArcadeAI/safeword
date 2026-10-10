@@ -26,6 +26,16 @@ Given(
     if (caseId !== 'r11-optional-architecture') {
       assert.match(evaluationCase.accepted_boundary, /manual\.BU1\.R1/u);
       assert.equal(evaluationCase.expected_verdict, 'request_changes');
+      assert.match(
+        evaluationCase.reviewed_plan,
+        caseId === 'r11-unmet-accepted-requirement'
+          ? /without checking consent/u
+          : /after the account write/u,
+      );
+      assert.doesNotMatch(
+        evaluationCase.reviewed_plan,
+        /checks a consent token linked to the requesting user and target account before any write/u,
+      );
       return;
     }
     assert.match(
@@ -49,7 +59,7 @@ When(
 Then(
   'the suggestion remains nonblocking until the user accepts it',
   function (this: SafewordWorld) {
-    assertPlanningEval(this, 'approve');
+    assertPlanningEval(this, 'approve', undefined, /event[ -]?bus/iu);
   },
 );
 
@@ -70,7 +80,7 @@ Then(
     assertPlanningEval(
       this,
       'request_changes',
-      /(?=.*(?:consent|token|authoriz))(?=.*before)(?=.*(?:write|mutation))/isu,
+      /(?=.*(?:consent|token|authoriz))(?=.*after)(?=.*before)(?=.*(?:write|mutation))/isu,
     );
   },
 );
@@ -78,6 +88,6 @@ Then(
 Then(
   'the reviewer-authored decision is recorded as a nonblocking suggestion and the review does not block on it',
   function (this: SafewordWorld) {
-    assertPlanningEval(this, 'approve');
+    assertPlanningEval(this, 'approve', undefined, /event[ -]?bus/iu);
   },
 );

@@ -2254,3 +2254,37 @@ The current dry binding inventory is 159 nondeferred scenarios: 96 dry-skipped
 (bound, not actual passes) and 63 undefined. Sixteen host cases remain deferred.
 R11's strengthened summary check subsequently has three passes and one failed
 judged correction case; investigation continues without a completion claim.
+
+2026-10-09 R11/R16 proof repair: review 6ab2f688 rejected bare approval as
+nonblocking-record evidence. The neutral projection now retains the existing
+production summary; assertions/judgment observe the proposal in summary or a
+nonblocking finding without inventing advisory findings. Eval-only disposition
+coaching was removed after review e3bbcd47 identified that limitation. A
+correctly shaped bare-approval calibration must be rejected. The final canonical
+nonblocking root row passes 1/1 (57 steps) in
+`/tmp/4200-r11-canonical-nonblocking.{json,log}`. The unique ordering assertion
+checks before/after/write and the Given checks actual defective bytes.
+
+Five R16 rows now execute pinned semantic evaluations. The first run retains
+3 passes/2 failures: a contradictory inapplicability control rejected by
+review d029002f, and a manifest race from changing corpus bytes during the active
+run. The repaired observer-only inventory removes the approval action and names
+its accepted exclusion reason. With frozen sources, that row plus the unique
+R11 correction pass 2/2 (114 steps) in
+`/tmp/4200-r11-r16-corrections-root.{json,log}`; the epistemic control passes 1/1
+(57 steps) in `/tmp/4200-r16-epistemic-control-current.{json,log}`. The unsupported
+fact case retains complete outcomes to isolate epistemic status. Failed reports
+are now retained and stdout included in errors; earlier lost diagnostics are
+not retroactively claimed recovered. No fresh whole-feature aggregate is claimed.
+
+Final Claude review `e959fb1a-7a29-491b-a83f-3f0ca07a76ac` approves the target
+files. Its pending-run advisory is resolved by the final canonical row above;
+semantic-judge dependence and fail-loudly latency budgets remain acknowledged.
+Static manifest checks pass 2/2; source lint and three package typechecks pass.
+The semantic corpus is `02f2ad7fbc465ff0754bb2f29164048e2ff40df0c4662888143efc717e01bf87`;
+judge digest is `214fd7131e8f64d1d53f4bf604f26bec8abd437697e45476ab397bd607e97943`.
+Production prompts, model pins, 63-case qualification and 18-run capability
+corpora are unchanged. The fresh dry inventory is 159 nondeferred scenarios:
+101 bound dry-skips (not passes), 58 undefined, and 16 host cases deferred.
+Historical six failures/585 unfinished, RGR and retrieval-proof deferral remain
+visible. No completion, Ready promotion, or merge is claimed.
