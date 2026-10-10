@@ -18,9 +18,16 @@ const folder = '.project/tickets/CTX123-current-context';
 interface IndependentState {
   root: string;
   marker: string;
+  fallbackMarker?: string;
   env: Record<string, string>;
   result?: {
-    data: { status: string; independence: string; actual_reviewer: string; review_id: string };
+    data: {
+      status: string;
+      independence: string;
+      actual_reviewer: string;
+      review_id: string;
+      review_routes: { reviewer: string; status: string; failure?: string }[];
+    };
     findings: { code: string }[];
     errors: unknown[];
   };
@@ -72,7 +79,11 @@ async function prepare(world: SafewordWorld, verifiedAuthor: boolean) {
   return state;
 }
 
-async function coordinate(state: IndependentState) {
+async function coordinate(
+  state: IndependentState,
+  reviewer: 'codex' | 'claude' = 'codex',
+  status: 'approved' | 'changes_requested' = 'approved',
+) {
   const result = await installedReviewCli(state.root)(
     [
       'review',
@@ -90,12 +101,12 @@ async function coordinate(state: IndependentState) {
     ],
     { cwd: state.root, env: state.env },
   );
-  assert.equal(result.exitCode, 0, result.stdout);
+  assert.equal(result.exitCode, status === 'approved' ? 0 : 2, result.stdout);
   state.result = JSON.parse(result.stdout);
   assert.ok(state.result);
   assert.deepEqual(state.result.errors, []);
-  assert.equal(state.result.data.status, 'approved');
-  assert.equal(state.result.data.actual_reviewer, 'codex');
+  assert.equal(state.result.data.status, status);
+  assert.equal(state.result.data.actual_reviewer, reviewer);
   assert.ok(existsSync(state.marker), 'The real coordinator must invoke the reviewer process');
 }
 
@@ -114,7 +125,7 @@ function recordApproval(state: IndependentState) {
       '--author-agent',
       'claude',
       '--reviewer-agent',
-      'codex',
+      state.result.data.actual_reviewer,
       '--independence',
       state.result.data.independence,
     ],
@@ -168,6 +179,61 @@ Given(
   },
 );
 
+Given(
+  /^the review coordinator has returned every configured independent route was attempted and returned a typed failure, then the permitted fallback (approves|declines)$/,
+  { timeout: 120_000 },
+  async function (this: SafewordWorld, verdict: string) {
+    const state = await prepare(this, true);
+    const directory = path.dirname(state.marker);
+    const configPath = path.join(state.root, '.safeword/config.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf8'));
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        ...config,
+        crossAgentReviewRoutes: {
+          claude: [{ reviewer: 'codex', model: 'gpt-6.1-sol' }, { reviewer: 'claude' }],
+        },
+      }),
+    );
+    state.fallbackMarker = path.join(directory, 'same-agent-invoked');
+    writeFileSync(
+      path.join(directory, 'codex'),
+      reviewerScript('codex', state.marker, path.join(directory, 'codex-packet.json'), true, true),
+      { mode: 0o755 },
+    );
+    const approval = reviewerScript(
+      'claude',
+      state.fallbackMarker,
+      path.join(directory, 'claude-packet.json'),
+      false,
+      false,
+    );
+    const script =
+      verdict === 'approves'
+        ? approval
+        : approval.replace(
+            "verdict: 'approve', summary: 'Review approved.', findings: []",
+            "verdict: 'request_changes', summary: 'Review declined.', findings: [{ severity: 'error', message: 'The current plan requires repair.' }]",
+          );
+    if (verdict === 'declines') assert.notEqual(script, approval);
+    writeFileSync(path.join(directory, 'claude'), script, { mode: 0o755 });
+    await coordinate(state, 'claude', verdict === 'approves' ? 'approved' : 'changes_requested');
+    assert.ok(existsSync(state.fallbackMarker));
+    const independent = state.result?.data.review_routes.filter(
+      route => route.reviewer === 'codex',
+    );
+    assert.ok(independent?.length);
+    assert.ok(
+      independent.every(
+        route => route.status === 'attempted' && route.failure === 'process_failed',
+      ),
+    );
+    assert.equal(state.result?.data.independence, 'reduced');
+    if (verdict === 'approves') recordApproval(state);
+  },
+);
+
 When('the phase gate evaluates the receipt', async function (this: SafewordWorld) {
   const state = states.get(this);
   assert.ok(state?.result);
@@ -176,6 +242,25 @@ When('the phase gate evaluates the receipt', async function (this: SafewordWorld
     { cwd: state.root, env: state.env },
   );
 });
+
+async function assertCurrentReceipt(
+  state: IndependentState,
+  expectedStatus: 'approved' | 'changes_requested',
+  reviewer: 'claude' | 'codex',
+  independence: 'cross-agent' | 'reduced',
+) {
+  assert.ok(state.result);
+  const status = await installedReviewCli(state.root)(
+    ['review', 'status', state.result.data.review_id, '--json', '--cwd', state.root],
+    { cwd: state.root, env: state.env },
+  );
+  assert.equal(status.exitCode, expectedStatus === 'approved' ? 0 : 2, status.stdout);
+  const receipt = JSON.parse(status.stdout).data;
+  assert.equal(receipt.review_id, state.result.data.review_id);
+  assert.equal(receipt.status, expectedStatus);
+  assert.equal(receipt.independence, independence);
+  assert.equal(receipt.actual_reviewer, reviewer);
+}
 
 Then(
   'the review passes with cross-agent independence recorded',
@@ -190,22 +275,55 @@ Then(
     const stamp = rows.find(row => row.endsWith(`review-id:${state.result?.data.review_id}`));
     assert.ok(stamp, 'The real writer must persist this authenticated review ID');
     assert.match(stamp, /author:claude reviewer:codex independence:cross-agent/u);
-    const status = await installedReviewCli(state.root)(
-      ['review', 'status', state.result.data.review_id, '--json', '--cwd', state.root],
-      { cwd: state.root, env: state.env },
-    );
-    assert.equal(status.exitCode, 0, status.stdout);
-    const receipt = JSON.parse(status.stdout).data;
-    assert.equal(receipt.review_id, state.result.data.review_id);
-    assert.equal(receipt.status, 'approved');
-    assert.equal(receipt.independence, 'cross-agent');
-    assert.equal(receipt.actual_reviewer, 'codex');
+    await assertCurrentReceipt(state, 'approved', 'codex', 'cross-agent');
     assert.match(
       readFileSync(path.join(state.root, folder, 'ticket.md'), 'utf8'),
       /phase: plan-execution/u,
     );
   },
 );
+
+Then(
+  'the review passes with reduced independence and actual reviewer recorded without calling the capability degraded',
+  async function (this: SafewordWorld) {
+    const state = states.get(this);
+    assert.ok(state?.gate && state.result);
+    assert.equal(state.gate.exitCode, 0, state.gate.stdout);
+    const stamp = readFileSync(path.join(state.root, '.project/skill-invocations.log'), 'utf8')
+      .trim()
+      .split('\n')
+      .find(row => row.endsWith(`review-id:${state.result?.data.review_id}`));
+    assert.ok(stamp);
+    assert.match(stamp, /author:claude reviewer:claude independence:reduced/u);
+    await assertCurrentReceipt(state, 'approved', 'claude', 'reduced');
+    assert.ok(
+      !state.result.findings.some(finding => finding.code === 'REVIEW_INDEPENDENCE_DEGRADED'),
+    );
+    assert.ok(!state.gate.stdout.includes('REVIEW_INDEPENDENCE_DEGRADED'));
+    assert.match(
+      readFileSync(path.join(state.root, folder, 'ticket.md'), 'utf8'),
+      /phase: plan-execution/u,
+    );
+  },
+);
+
+Then('the phase remains blocked with no approval recorded', async function (this: SafewordWorld) {
+  const state = states.get(this);
+  assert.ok(state?.gate && state.result);
+  assert.equal(state.gate.exitCode, 2, state.gate.stdout);
+  assert.equal(state.result.data.status, 'changes_requested');
+  assert.match(state.gate.stdout, /The current plan requires repair\./u);
+  await assertCurrentReceipt(state, 'changes_requested', 'claude', 'reduced');
+  assert.match(
+    readFileSync(path.join(state.root, folder, 'ticket.md'), 'utf8'),
+    /phase: plan-implementation/u,
+  );
+  const ledger = path.join(state.root, '.project/skill-invocations.log');
+  assert.ok(
+    !existsSync(ledger) ||
+      !readFileSync(ledger, 'utf8').includes(`review-id:${state.result.data.review_id}`),
+  );
+});
 
 After(function (this: SafewordWorld) {
   const state = states.get(this);

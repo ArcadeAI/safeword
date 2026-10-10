@@ -2288,3 +2288,20 @@ corpora are unchanged. The fresh dry inventory is 159 nondeferred scenarios:
 101 bound dry-skips (not passes), 58 undefined, and 16 host cases deferred.
 Historical six failures/585 unfinished, RGR and retrieval-proof deferral remain
 visible. No completion, Ready promotion, or merge is claimed.
+
+2026-10-09 R6 typed headless results: two additional root rows now use a real
+configured independent Codex route followed by a permitted same-agent Claude
+route, mocking only those reviewer processes. Codex must have the exact attempted
+process_failed outcome. Approval persists the actual reviewer/reduced label,
+re-reads the authenticated current receipt, and admits the phase. Decline retains
+a current authenticated rejection, refuses admission with its actual finding,
+preserves Implementation Planning, and records no approval stamp. The initial
+two-row run failed because the fixture omitted the headless route; that correctly
+returned continuation_required and is retained. The corrected five-row regression
+passes 5/5 (285 steps); the final two-row assertions pass 2/2 (114 steps) in
+`/tmp/4200-r6-typed-headless-final.{json,log}`. The causal rejection check separately
+passes 1/1 (57 steps). Final Claude review
+`d232380a-db8e-438f-b978-0f5e76a50c84` approves. Launch ordering and persisted
+route-summary completeness are not established by these rows; the separate
+ordering and other typed-result rows remain open. No broader completion claim
+or merge authority is inferred.
