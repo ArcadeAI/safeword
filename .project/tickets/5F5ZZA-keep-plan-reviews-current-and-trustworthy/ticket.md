@@ -1908,3 +1908,90 @@ No paid evaluations were rerun. Source repair will be committed to PR2 and
 integrated forward through PR3, PR4 and PR5; no history rewrite, merge of a PR
 or Draft promotion is authorized. Remaining 110 undefined acceptance scenarios
 and historical six failures/585 unfinished scenarios remain open.
+
+### 2026-10-09 — repairs pushed; package and final source review verified
+
+The approved Cursor repair is pushed at PR2 2f8a39d9d, integrated normally into
+PR3 11867f743, PR4 854a37686 and PR5 95c264f12. The release identity assertions
+were committed at 4928ee2a9 and are included in PR5. No PR was merged or promoted.
+All three package typechecks, five generated-surface checks and 895 pre-push
+checks passed during this propagation.
+
+At PR5's repaired source, the complete normal package suite passed 720 files,
+11,415 tests, zero failures and 14 skips in 797.78 seconds. Separate release
+verification passed 82 tests. Logs /tmp/4200-cursor-repaired-full-package.log and
+/tmp/4200-release-identity-green.log. All six canonical proof surfaces remain
+byte-identical to the qualified candidate; no model qualification rerun is
+needed. Binding /tmp/4200-repaired-qualified-byte-binding.json.
+
+Independent complete non-bundled own-slice source reviews approve PR3
+0008014d-125a-4f53-8106-42b43fb9e535 and PR4
+c8c06b49-69ba-496c-948c-6c95a0e07a84. PR5's first dispatch exceeded the packet
+limit without a provider call. Two bounded source/generation reviews then
+approved all 156 non-bundled own-slice files: 71d3cee0-5534-46ac-87ec-fd72e6ef3b07
+and 1e6703d6-ecad-4d47-acab-7488a16d9568. Raw compiled bundle inspection is not
+claimed; regeneration checks passed. Optional warnings are retained, not pursued
+as additional scope. PR descriptions now name the actual pushed heads and leave
+incomplete execution, self-review and acceptance gates BLOCKED.
+
+Full root acceptance was started at the repaired source and remains running;
+it includes live judged semantic cases as well as installed-boundary scenarios.
+It is not a rerun of the paid Execution qualification matrix. Preserve its actual
+result and undefined scenarios in /tmp/4200-repaired-root-acceptance.{json,log}.
+Current-head PR4 CI is terminal green; PR2, PR3 and PR5 still have test jobs
+pending at the last snapshot, with no actual failed jobs. Cancelled superseded
+workflows are not test failures.
+
+A disposable public-CLI R9 probe established a narrower remaining defect:
+matching authenticated approval passes; an authenticated Implementation receipt
+aliased into the Execution ledger scope fails closed even with identical plan
+bytes, but reports only a missing checklist rather than the mismatched review
+kind required by the accepted scenario. No job was forged or internally mocked;
+only the reviewer process boundary was substituted. Evidence
+/tmp/4200-r9-public-provenance-probe.{json,log}. Prepared one additional existing
+integration-test regression in /tmp/4200-receipt-kind-diagnostic.patch; human
+test-edit approval is pending. Production and existing tests are unchanged.
+
+### 2026-10-09 — approved R9 kind diagnostic repaired; sibling proof pending
+
+Human approved /tmp/4200-receipt-kind-diagnostic.patch. The new public-CLI
+regression failed at its required review-kind explanation, with matching
+authenticated approval passing first. RED /tmp/4200-r9-kind-red.log. Added a
+structured internal mismatch diagnosis while preserving the search for a valid
+current matching receipt and all existing authenticated admission checks.
+The affected integration file passed all 28 tests before final contract cleanup.
+
+An initial new public repair code was unnecessary: the complete package run
+passed 11,415 tests with one failure and 14 skips, because the existing six-code
+recovery contract refused the added seventh code. Preserve this failed run in
+/tmp/4200-r9-repaired-full-package.log; it is not a green aggregate. Figure-it-out
+selected the smaller correction: keep missing_admitted_delivery_checklist and
+attach the exact authenticated review-kind explanation and existing re-review
+command. No existing recovery-code test was changed. The approved new regression
+retains its refusal, both kind names and re-review assertions, and also binds the
+existing public code. Decision /tmp/4200-r9-public-code-decision.md.
+
+Focused final recheck passes both affected files, 29 tests, zero failures.
+/tmp/4200-r9-kind-contract-green.log. All three package typechecks, lint and all
+five generated surfaces pass. Independent Claude review
+24ff48e5-892f-4b46-87ac-0feab83b9360 approves the final compatible source and
+regression, zero errors. The earlier type-contract finding is resolved by using
+the existing published code. No fresh all-green full-suite aggregate is claimed.
+
+Root acceptance finished: 175 scenarios, 65 passed, 110 undefined, zero failed;
+9,277 steps, 8,947 passed, seven skipped, 323 undefined; 17m42.422s. It began at
+95c264f12 and overlapped the subsequent R9 source repair, so this is not an
+exact-head full acceptance proof for the new repair. Its R9 provenance rows were
+undefined; the new kind repair is proved separately through the real public CLI.
+/tmp/4200-repaired-root-acceptance.{json,log}. Historical full configured
+acceptance's six failures/585 unfinished scenarios remain unchanged.
+
+Current pushed PR2–PR5 CI is terminal green at the pre-R9 heads. A genuine
+sibling-ticket review with identical plan bytes also fails closed but lacks its
+required named mismatch. Probe /tmp/4200-r9-sibling-public-provenance-probe.{json,log}.
+Prepared /tmp/4200-receipt-ticket-diagnostic.patch reuses the existing fixture
+with an optional folder parameter; human approval remains pending. Its expected
+repair code uses the same existing public code. The disposable generic probe
+JSON was overwritten by its rerun; original console and RED logs are retained,
+and repaired output is separately saved. Do not treat that generic JSON as RED.
+No PR merge, promotion, qualification replay or optional hardening was performed.

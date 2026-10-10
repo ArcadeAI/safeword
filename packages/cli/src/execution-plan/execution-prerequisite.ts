@@ -348,6 +348,17 @@ function reviewedChecklist(
         receipt: 'valid',
       };
     }
+    case 'mismatched_review_kind': {
+      return {
+        admitted: false,
+        missing: {
+          code: 'missing_admitted_delivery_checklist',
+          message: `The receipt has review kind ${review.reviewKind}; plan-execution approval is required.`,
+          command,
+        },
+        receipt: 'missing',
+      };
+    }
     case 'not_admitted': {
       return undefined;
     }

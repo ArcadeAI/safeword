@@ -83322,6 +83322,9 @@ function reviewCandidate2(input, stamp) {
   if (stamp.reviewId === undefined)
     return;
   const data = reviewData(input.cwd, stamp.reviewId);
+  if (typeof data?.review_kind === "string" && data.review_kind !== "plan-execution") {
+    return { kind: "mismatched_review_kind", reviewKind: data.review_kind };
+  }
   if (data?.review_kind !== "plan-execution")
     return;
   if (!coversPlan(data, input.cwd, input.planPath) || !isRecord14(data.reviewer_output)) {
@@ -83333,6 +83336,8 @@ function candidateAdmission(input, stamp) {
   const candidate = reviewCandidate2(input, stamp);
   if (candidate === undefined)
     return;
+  if ("kind" in candidate)
+    return candidate;
   const { data, output, reviewId } = candidate;
   if (output.verdict === undefined)
     return { kind: "missing_verdict" };
@@ -83362,12 +83367,17 @@ function candidateAdmission(input, stamp) {
 function executionPlanAdmission(input) {
   const scope = `${nodePath133.basename(input.ticketDirectory)}:phase@plan-execution`;
   const candidates = parseReviewStamps(input.ledger).filter((stamp) => stamp.scope === scope && stamp.skipReason === undefined).toReversed();
+  let mismatch;
   for (const stamp of candidates) {
     const admission = candidateAdmission(input, stamp);
+    if (admission?.kind === "mismatched_review_kind") {
+      mismatch ??= admission;
+      continue;
+    }
     if (admission !== undefined)
       return admission;
   }
-  return { kind: "not_admitted" };
+  return mismatch ?? { kind: "not_admitted" };
 }
 function admittedExecutionPlanReview(input) {
   const scope = `${nodePath133.basename(input.ticketDirectory)}:phase@plan-execution`;
@@ -84627,6 +84637,17 @@ function reviewedChecklist(review, command2) {
           command: command2
         },
         receipt: "valid"
+      };
+    }
+    case "mismatched_review_kind": {
+      return {
+        admitted: false,
+        missing: {
+          code: "missing_admitted_delivery_checklist",
+          message: `The receipt has review kind ${review.reviewKind}; plan-execution approval is required.`,
+          command: command2
+        },
+        receipt: "missing"
       };
     }
     case "not_admitted": {

@@ -433,6 +433,54 @@ describe('delivery execution prerequisite', () => {
     });
   });
 
+  it('names the wrong review kind even when both plan artifacts have identical bytes', async () => {
+    const root = featureFixture();
+    const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      readFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), 'utf8'),
+    );
+    await admitThroughInstalledCli(root);
+    const invoke = () =>
+      runCli(['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root], {
+        cwd: root,
+        env: { NODE_ENV: 'test', SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys') },
+      });
+    const matching = await invoke();
+    expect(matching.exitCode, matching.stdout).toBe(0);
+
+    const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
+    const rows = readFileSync(ledgerPath, 'utf8').trim().split('\n');
+    const implementation = rows.find(row => row.includes(':phase@plan-implementation '));
+    expect(implementation).toBeDefined();
+    if (implementation === undefined) throw new Error('Missing Implementation review fixture');
+    const executionAlias = implementation.replace(
+      ':phase@plan-implementation ',
+      ':phase@plan-execution ',
+    );
+    writeFileSync(
+      ledgerPath,
+      `${[...rows.filter(row => !row.includes(':phase@plan-execution ')), executionAlias].join('\n')}\n`,
+    );
+    const mismatched = await invoke();
+    expect(mismatched.exitCode, mismatched.stdout).toBe(2);
+    const output = JSON.parse(mismatched.stdout);
+    expect(output.data.grants_authority).toBe(false);
+    expect(output.findings).toContainEqual(
+      expect.objectContaining({ code: 'missing_admitted_delivery_checklist' }),
+    );
+    const diagnostic = output.findings
+      .map((finding: { message: string }) => finding.message)
+      .join('\n');
+    expect(diagnostic).toMatch(/review kind/iu);
+    expect(diagnostic).toContain('plan-implementation');
+    expect(diagnostic).toContain('plan-execution');
+    const recoveryCommands = output.next_actions.map(
+      (action: { command: string }) => action.command,
+    );
+    expect(recoveryCommands).toContainEqual(expect.stringContaining('review run plan-execution'));
+  });
+
   it.each([
     {
       label: 'present artifact with planned status and a valid receipt',

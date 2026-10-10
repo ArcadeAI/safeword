@@ -24,6 +24,7 @@ export type ExecutionPlanAdmission =
   | { readonly kind: 'missing_verdict' }
   | { readonly kind: 'rejected'; readonly message: string }
   | { readonly kind: 'unearned_assurance' }
+  | { readonly kind: 'mismatched_review_kind'; readonly reviewKind: string }
   | { readonly kind: 'not_admitted' };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -85,6 +86,7 @@ function reviewCandidate(
   input: Parameters<typeof executionPlanAdmission>[0],
   stamp: ReturnType<typeof parseReviewStamps>[number],
 ):
+  | Extract<ExecutionPlanAdmission, { kind: 'mismatched_review_kind' }>
   | {
       readonly reviewId: string;
       readonly data: Record<string, unknown>;
@@ -93,6 +95,9 @@ function reviewCandidate(
   | undefined {
   if (stamp.reviewId === undefined) return undefined;
   const data = reviewData(input.cwd, stamp.reviewId);
+  if (typeof data?.review_kind === 'string' && data.review_kind !== 'plan-execution') {
+    return { kind: 'mismatched_review_kind', reviewKind: data.review_kind };
+  }
   if (data?.review_kind !== 'plan-execution') return undefined;
   if (!coversPlan(data, input.cwd, input.planPath) || !isRecord(data.reviewer_output)) {
     return undefined;
@@ -106,6 +111,7 @@ function candidateAdmission(
 ): ExecutionPlanAdmission | undefined {
   const candidate = reviewCandidate(input, stamp);
   if (candidate === undefined) return undefined;
+  if ('kind' in candidate) return candidate;
   const { data, output, reviewId } = candidate;
   if (output.verdict === undefined) return { kind: 'missing_verdict' };
   if (output.verdict === 'request_changes') {
@@ -146,11 +152,16 @@ export function executionPlanAdmission(input: {
   const candidates = parseReviewStamps(input.ledger)
     .filter(stamp => stamp.scope === scope && stamp.skipReason === undefined)
     .toReversed();
+  let mismatch: Extract<ExecutionPlanAdmission, { kind: 'mismatched_review_kind' }> | undefined;
   for (const stamp of candidates) {
     const admission = candidateAdmission(input, stamp);
+    if (admission?.kind === 'mismatched_review_kind') {
+      mismatch ??= admission;
+      continue;
+    }
     if (admission !== undefined) return admission;
   }
-  return { kind: 'not_admitted' };
+  return mismatch ?? { kind: 'not_admitted' };
 }
 
 /** Resolve an admitted review for callers that need the approved plan record. */
