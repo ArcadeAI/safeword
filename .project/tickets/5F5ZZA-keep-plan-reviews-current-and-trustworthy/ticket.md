@@ -2572,3 +2572,25 @@ ledger checkbox changed. Explicit host/R7 deferrals, the missing real weaker
 qualification pair and ungated-origin gap remain open. Historical full acceptance
 still records six failures and 585 unfinished scenarios. No Ready, merge or epic
 completion is claimed.
+
+## 2026-10-10 — Unrelated guidance uses the existing judged case
+
+R15 row611 now binds the unchanged pinned r15-guidance-candidate case through
+the existing real reviewer/judge evaluator. It requires a complete current
+case/packet result, approval without scope expansion and explicit migration
+discussion in at least two of three judged runs. The fixture establishes that
+excluding migration leaves the accepted manual-authorization outcome unchanged.
+The first run failed at the producer's three-turn limit before a verdict; one
+bounded retry passes (three behavior steps and 54 cleanup hooks). The turn limit,
+models, corpus, rubric and qualified catalogue were not changed.
+
+Independent wiring RED bcbd8356-d3c0-40f7-af9b-2e898d468972 and quality review
+a1f32654-78ba-48d0-91cc-d34ecdfe02df approve. The fixture also explicitly excludes
+migration, so it overlaps accepted-scope enforcement and does not isolate the
+guidance clause's causal contribution. The judge carries the semantic distinction
+between dropping the suggestion and retaining it. This is semantic coverage,
+not installed-hook or public authenticated-admission proof. The required-decision
+and consequential-expansion examples remain undefined; the whole outline stays
+incomplete with no ledger checkbox transition. Fresh inventory is 122 bound
+dry-skips and 37 undefined among 159 nondeferred cases; proof-tag tests pass
+50/50. No broader acceptance, Ready, merge or epic completion is claimed.
