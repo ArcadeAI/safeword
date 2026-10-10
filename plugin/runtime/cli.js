@@ -58969,6 +58969,8 @@ function nextStepFor(reviewer, failure) {
     return `Run ${name} --help to diagnose it, then retry review.`;
   if (failure === "launch_failed")
     return `Run ${name} --help and fix its launch failure, then retry review.`;
+  if (failure === "reviewer_capability_unknown" || failure === "reviewer_capability_weaker")
+    return `Pin a supported exact reviewer model for ${name}, then retry review.`;
   return "Run the review again.";
 }
 function degradedDescription(assignedReviewer, actualReviewer, failure) {
@@ -59104,7 +59106,8 @@ function rankedExhaustedResult(input) {
   const independence = hasDegraded && input.planning ? "reduced" : achievedIndependence;
   const evaluatedLabel = evaluated.length === 1 ? "route was" : "routes were";
   const hasWeaker = input.evidence.some((route) => route.failure === "reviewer_capability_weaker");
-  const code = rankedBlockingCode(hasDegraded, input.unqualified !== undefined, hasWeaker);
+  const hasUnknown = input.unqualified !== undefined || input.evidence.some((route) => route.failure === "reviewer_capability_unknown");
+  const code = rankedBlockingCode(hasDegraded, hasUnknown, hasWeaker);
   const failureExplanation = rankedFailureExplanation(input.evidence);
   const failureDetail = failureExplanation === "" ? "" : ` ${failureExplanation}`;
   const message = hasDegraded ? "A same-agent review completed, but the configured independent-review requirement remains unsatisfied." : `${evaluated.length} configured review ${evaluatedLabel} evaluated; no independent check was recorded.${failureDetail}`;
@@ -59135,12 +59138,12 @@ function rankedExhaustedResult(input) {
       review_policy: input.policy,
       independence,
       review_routes: input.evidence,
+      ...hasUnknown && { capability_failure: "reviewer_capability_unknown" },
       ...input.unqualified !== undefined && {
-        capability_failure: "reviewer_capability_unknown",
         actual_reviewer: input.unqualified.output.reviewer_agent,
         reviewer_output: input.unqualified.output
       },
-      ...input.unqualified === undefined && hasWeaker && {
+      ...!hasUnknown && hasWeaker && {
         capability_failure: "reviewer_capability_weaker"
       },
       ...input.degraded !== undefined && {
@@ -59258,7 +59261,7 @@ async function runRankedRoutes({
   return runConfiguredRankedRoutes({ input, author, policy, routes, planning, prepared });
 }
 function cannotAttemptRankedRoute(planning, route, evidence, deadline) {
-  return !canFundRoute(deadline) || planningFallbackLacksIndependentAttempt(planning, route, evidence);
+  return !canFundRoute(deadline) || planningFallbackLacksIndependentExhaustion(planning, route, evidence);
 }
 function rankedReviewerCapabilityFailure(planning, author, route, confirmedModel2) {
   const authorModel = process.env[AUTHOR_MODEL_ENV];
@@ -59269,6 +59272,15 @@ function rankedReviewerCapabilityFailure(planning, author, route, confirmedModel
 function preparedRankedPacket(input, existing) {
   return existing ?? prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
     attestation: input.executionAttestation
+  });
+}
+function requestedReviewerCapabilityFailure(planning, author, route) {
+  if (route.independence !== "cross-agent" || route.model === undefined || route.reviewer === "opencode")
+    return;
+  const provider = route.reviewer === "codex" ? "openai" : "anthropic";
+  return rankedReviewerCapabilityFailure(planning, author, route, {
+    provider,
+    model: route.model
   });
 }
 async function runConfiguredRankedRoutes({
@@ -59288,8 +59300,9 @@ async function runConfiguredRankedRoutes({
   const prepared = preparedRankedPacket(input, existingPrepared);
   try {
     for (const [index, route] of orderedRoutes.entries()) {
-      if (shouldSkipRankedRoute(route, degraded, unavailable)) {
-        evidence.push({ ...route, status: "skipped" });
+      const skipped = skippedRankedRoute(planning, author, route, degraded, unavailable);
+      if (skipped !== undefined) {
+        evidence.push(skipped);
         continue;
       }
       if (cannotAttemptRankedRoute(planning, route, evidence, runDeadline)) {
@@ -59394,11 +59407,11 @@ function rankedTerminalResult(input) {
 function hostContinuationResult(input) {
   if (!input.planning || input.policy !== "prefer" || input.degraded !== undefined)
     return;
-  const attemptedIndependent = input.evidence.some((route) => route.independence === "cross-agent" && route.status === "attempted" && route.failure !== undefined);
+  const independentExhausted = input.evidence.some((route) => independentRouteWasExhausted(route));
   const strongerExhausted = input.evidence.every((route) => route.status !== "unattempted");
   const headlessFailed = input.evidence.some((route) => route.independence === "degraded" && ["attempted", "unavailable"].includes(route.status) && route.failure !== undefined);
   const headlessRoute = input.evidence.some((route) => route.independence === "degraded");
-  if (!attemptedIndependent || !strongerExhausted || headlessRoute && !headlessFailed)
+  if (!independentExhausted || !strongerExhausted || headlessRoute && !headlessFailed)
     return;
   return createResult({
     state: "action_required",
@@ -59436,11 +59449,17 @@ function orderedReviewRoutes(planning, routes) {
     ...routes.filter((route) => route.independence === "degraded")
   ];
 }
-function planningFallbackLacksIndependentAttempt(planning, route, evidence) {
-  return planning && route.independence === "degraded" && evidence.every((candidate) => candidate.independence !== "cross-agent" || candidate.status !== "attempted");
+function independentRouteWasExhausted(route) {
+  return route.independence === "cross-agent" && route.failure !== undefined && (route.status === "attempted" || route.status === "skipped" && (route.failure === "reviewer_capability_unknown" || route.failure === "reviewer_capability_weaker"));
 }
-function shouldSkipRankedRoute(route, degraded, unavailable) {
-  return unavailable.has(route.reviewer) || degraded !== undefined && route.independence === "degraded";
+function planningFallbackLacksIndependentExhaustion(planning, route, evidence) {
+  return planning && route.independence === "degraded" && evidence.every((candidate) => !independentRouteWasExhausted(candidate));
+}
+function skippedRankedRoute(planning, author, route, degraded, unavailable) {
+  if (unavailable.has(route.reviewer) || degraded !== undefined && route.independence === "degraded")
+    return { ...route, status: "skipped" };
+  const failure = requestedReviewerCapabilityFailure(planning, author, route);
+  return failure === undefined ? undefined : { ...route, status: "skipped", failure };
 }
 function changedReviewResult(input) {
   const network = input.network ?? [
@@ -60695,11 +60714,11 @@ function hasExhaustedRoutesForHostContinuation(value) {
   if (!Array.isArray(value))
     return false;
   const routes = value.map((route) => plainRecord2(route));
-  const attemptedIndependent = routes.some((route) => route?.independence === "cross-agent" && route.status === "attempted" && typeof route.failure === "string");
+  const exhaustedIndependent = routes.some((route) => route?.independence === "cross-agent" && typeof route.failure === "string" && (route.status === "attempted" || route.status === "skipped" && ["reviewer_capability_unknown", "reviewer_capability_weaker"].includes(route.failure)));
   const exhausted = routes.every((route) => route !== undefined && route.status !== "unattempted" && (route.status === "skipped" || typeof route.failure === "string"));
   const headlessFailed = routes.some((route) => route?.independence === "degraded" && ["attempted", "unavailable"].includes(String(route.status)) && typeof route.failure === "string");
   const headlessRoute = routes.some((route) => route?.independence === "degraded");
-  return attemptedIndependent && exhausted && (!headlessRoute || headlessFailed);
+  return exhaustedIndependent && exhausted && (!headlessRoute || headlessFailed);
 }
 function isCompletedReviewData(data, state) {
   const output = data.reviewer_output;
