@@ -947,9 +947,9 @@ admission. Keep the full scenario unchecked until its remaining boundaries pass.
 
 ### Scenario: The installed Implementation Plan gate enforces binding scope context
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fdb19922f
+- [x] GREEN 0fd918965
+- [x] REFACTOR skip: Shared fixture and judge/provider reuse are already isolated; no further extraction is needed for this paired proof.
 
 ## Rule: plan-implementability.TBU4.5F5ZZA.R13 — Completeness checks both omissions and overreach against that accepted boundary
 
