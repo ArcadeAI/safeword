@@ -27,8 +27,10 @@ interface IndependentState {
       actual_reviewer: string;
       review_id: string;
       review_routes: { reviewer: string; status: string; failure?: string }[];
+      continuation?: { tier: string; packet: { dispatch_id: string } };
+      continuation_attempts?: { tier: string; failure: string }[];
     };
-    findings: { code: string }[];
+    findings: { code: string; message: string }[];
     errors: unknown[];
   };
   gate?: { exitCode: number; stdout: string; stderr: string };
@@ -36,6 +38,10 @@ interface IndependentState {
 const states = new WeakMap<SafewordWorld, IndependentState>();
 
 async function prepare(world: SafewordWorld, verifiedAuthor: boolean) {
+  const bun = spawnSync('bun', ['-e', 'process.stdout.write(process.execPath)'], {
+    encoding: 'utf8',
+  });
+  assert.equal(bun.status, 0, bun.stderr);
   const root = fixtureProject();
   const reviewer = createTrustedReviewerDirectory('safeword-r6-independent-');
   const marker = path.join(reviewer, 'invoked');
@@ -44,7 +50,7 @@ async function prepare(world: SafewordWorld, verifiedAuthor: boolean) {
     marker,
     env: {
       NODE_ENV: 'test',
-      PATH: `${reviewer}:${process.env.PATH}`,
+      PATH: `${reviewer}:${path.dirname(bun.stdout)}:${path.dirname(process.execPath)}:/usr/bin:/bin`,
       SAFEWORD_AGENT_RUNTIME: 'claude',
       CLAUDE_SESSION_ID: `r6-independent-${path.basename(root)}`,
       CLAUDE_PROJECT_DIR: root,
@@ -82,7 +88,7 @@ async function prepare(world: SafewordWorld, verifiedAuthor: boolean) {
 async function coordinate(
   state: IndependentState,
   reviewer: 'codex' | 'claude' = 'codex',
-  status: 'approved' | 'changes_requested' = 'approved',
+  status: 'approved' | 'changes_requested' | 'continuation_required' = 'approved',
 ) {
   const result = await installedReviewCli(state.root)(
     [
@@ -106,7 +112,7 @@ async function coordinate(
   assert.ok(state.result);
   assert.deepEqual(state.result.errors, []);
   assert.equal(state.result.data.status, status);
-  assert.equal(state.result.data.actual_reviewer, reviewer);
+  if (status !== 'continuation_required') assert.equal(state.result.data.actual_reviewer, reviewer);
   assert.ok(existsSync(state.marker), 'The real coordinator must invoke the reviewer process');
 }
 
@@ -234,6 +240,128 @@ Given(
   },
 );
 
+Given(
+  /^the review coordinator has returned (every independent route and same-agent headless review returned typed failures, then host-reported fresh-context review approves|every earlier route through host-reported fresh-context review returned typed failures, then bounded self-review approves)$/,
+  { timeout: 120_000 },
+  async function (this: SafewordWorld, route: string) {
+    const state = await prepare(this, true);
+    const directory = path.dirname(state.marker);
+    const configPath = path.join(state.root, '.safeword/config.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf8'));
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        ...config,
+        crossAgentReviewRoutes: {
+          claude: [{ reviewer: 'codex', model: 'gpt-6.1-sol' }, { reviewer: 'claude' }],
+        },
+      }),
+    );
+    state.fallbackMarker = path.join(directory, 'headless-failed');
+    writeFileSync(
+      path.join(directory, 'codex'),
+      reviewerScript('codex', state.marker, path.join(directory, 'codex-packet.json'), true, true),
+      { mode: 0o755 },
+    );
+    const script = reviewerScript(
+      'claude',
+      state.fallbackMarker,
+      path.join(directory, 'claude-packet.json'),
+      false,
+      false,
+    );
+    const failed = script.replace(
+      'function reviewOutput(packet)',
+      'process.exit(7);\nfunction reviewOutput(packet)',
+    );
+    assert.notEqual(failed, script);
+    writeFileSync(path.join(directory, 'claude'), failed, { mode: 0o755 });
+    await coordinate(state, 'claude', 'continuation_required');
+    assert.ok(existsSync(state.fallbackMarker));
+    assert.ok(state.result?.data.review_routes.some(item => item.reviewer === 'codex'));
+    assert.ok(state.result?.data.review_routes.some(item => item.reviewer === 'claude'));
+    assert.ok(
+      state.result?.data.review_routes.every(
+        item => item.status === 'attempted' && item.failure === 'process_failed',
+      ),
+      JSON.stringify(state.result?.data.review_routes),
+    );
+    assert.equal(state.result.data.continuation?.tier, 'fresh-context');
+    assert.ok(state.result.data.continuation);
+    const reviewId = state.result.data.review_id;
+    const dispatchId = state.result.data.continuation.packet.dispatch_id;
+    const tier = route.includes('bounded self-review') ? 'self-review' : 'fresh-context';
+    const cli = installedReviewCli(state.root);
+    if (tier === 'self-review') {
+      const failure = await cli(
+        [
+          'review',
+          'continue',
+          reviewId,
+          '--tier',
+          'fresh-context',
+          '--failure',
+          'process_failed',
+          '--offline',
+          '--json',
+          '--cwd',
+          state.root,
+        ],
+        { cwd: state.root, env: state.env },
+      );
+      assert.equal(failure.exitCode, 2, failure.stdout);
+      state.result = JSON.parse(failure.stdout);
+      assert.ok(state.result);
+      assert.equal(state.result.data.review_id, reviewId);
+      assert.equal(state.result.data.status, 'continuation_required');
+      assert.equal(state.result.data.continuation?.tier, 'self-review');
+      assert.deepEqual(state.result.data.continuation_attempts, [
+        { tier: 'fresh-context', failure: 'process_failed' },
+      ]);
+    }
+    assert.equal(state.result.data.continuation?.packet.dispatch_id, dispatchId);
+    writeFileSync(
+      path.join(state.root, 'host-review.json'),
+      JSON.stringify({
+        schema_version: 1,
+        dispatch_id: dispatchId,
+        reviewer_agent: 'claude',
+        verdict: 'approve',
+        summary: `Approved by host-reported ${tier}.`,
+        findings: [],
+        evidence_records: { schema_version: 1, records: [] },
+      }),
+    );
+    const completed = await cli(
+      [
+        'review',
+        'continue',
+        reviewId,
+        '--tier',
+        tier,
+        '--output',
+        'host-review.json',
+        '--offline',
+        '--json',
+        '--cwd',
+        state.root,
+      ],
+      { cwd: state.root, env: state.env },
+    );
+    assert.equal(completed.exitCode, 0, completed.stdout);
+    state.result = JSON.parse(completed.stdout);
+    assert.ok(state.result);
+    assert.equal(state.result.data.review_id, reviewId);
+    assert.equal(state.result.data.status, 'approved');
+    assert.equal(state.result.data.actual_reviewer, 'claude');
+    assert.equal(state.result.data.independence, 'reduced');
+    assert.equal(state.result.data.continuation?.tier, tier);
+    assert.ok(state.result.data.continuation);
+    assert.equal(state.result.data.continuation.packet.dispatch_id, dispatchId);
+    recordApproval(state);
+  },
+);
+
 When('the phase gate evaluates the receipt', async function (this: SafewordWorld) {
   const state = states.get(this);
   assert.ok(state?.result);
@@ -284,10 +412,21 @@ Then(
 );
 
 Then(
-  'the review passes with reduced independence and actual reviewer recorded without calling the capability degraded',
-  async function (this: SafewordWorld) {
+  /^the review passes with reduced independence and (actual reviewer recorded without calling the capability degraded|the host-reported fresh-context reviewer recorded|the bounded self-reviewer recorded)$/,
+  async function (this: SafewordWorld, label: string) {
     const state = states.get(this);
     assert.ok(state?.gate && state.result);
+    if (label.includes('fresh-context') || label.includes('self-reviewer')) {
+      const tier = label.includes('fresh-context') ? 'fresh-context' : 'self-review';
+      assert.equal(state.result.data.continuation?.tier, tier);
+      assert.ok(
+        state.result.findings.some(
+          item =>
+            item.code === 'REVIEW_INDEPENDENCE_REDUCED' &&
+            item.message.includes(tier === 'fresh-context' ? 'fresh context' : 'own context'),
+        ),
+      );
+    }
     assert.equal(state.gate.exitCode, 0, state.gate.stdout);
     const stamp = readFileSync(path.join(state.root, '.project/skill-invocations.log'), 'utf8')
       .trim()

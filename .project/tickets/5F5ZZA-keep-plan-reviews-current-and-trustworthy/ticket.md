@@ -2317,3 +2317,17 @@ and semantic judging limit this proof; no installed-host claim is made. Manifest
 checks pass 2/2 and package typechecks/source lint pass. Fresh inventory has 109
 bound dry-skips and 50 undefined among 159 nondeferred cases; 16 hosts remain
 deferred. Historical six failures/585 unfinished, RGR and R7 deferral remain open.
+
+### R6 host continuation receipts — 2026-10-09
+
+Fresh-context and self-review rows now use actual authenticated continuations
+after typed process failures, preserving the same job/dispatch ID and proving
+persisted reduced approval plus actual phase admission. Seven related cases
+pass 7/7 (399 steps); final job-binding checks pass 2/2 (114 steps) in
+`/tmp/4200-r6-host-continuation-bound-job.json`. Claude review
+`d937b58a-0148-4396-9e8e-9bb068f8c2b9` approves. The initial fixture accidentally
+exposed additional installed candidates through inherited PATH; failed runs are
+retained, and pinned-tool PATH isolation fixes the local proof. Host context is
+reported, not independently observed. Remaining warnings do not expand scope.
+The committed R12 receipt was refreshed after its context changed; current
+approval is `5bf62b7f-dc41-40b2-8f38-34b00cdc1498`. Its context stays immutable.
