@@ -2946,3 +2946,39 @@ genuine weaker-pair cases remain open. CI at c1f062233 is green after one bounde
 Node 22 rerun; the original collector startup timeout remains retained. No
 collector code or assertion changed. All PRs remain Draft, with whole-head
 review, full acceptance and readiness still unfinished.
+
+## 2026-10-10 — Native Product Plan persona-outcome checkpoint
+
+The shared authenticated native review loop is extracted in b1e2d9052 rather
+than duplicated for Product Plan review. Its R12 negative and positive real
+regressions pass separately in /tmp/4200-native-loop-extraction.json and
+/tmp/4200-native-loop-positive.json. Source review
+637809ab-3068-4fa0-a9da-6d92b1a5e4cf approves with retained proof limits.
+
+Product Plan fixtures pass cheap readiness/installed-hook preflight before paid
+calls. /tmp/4200-native-product-live.json passes both rows 659–660, 122 reporter
+steps, six real Sol reviews, six Sonnet judges and two known-bad controls, at the
+existing two-of-three threshold. The positive requires same-job authenticated
+stamping and actual intake admission. The negative removes the recovery sentence
+without advertising the defect; it requires a correctly judged finding naming
+Non-Technical Builder recovery, exact changes_requested stamp refusal and hook
+denial. The actual Product Plan bytes remain unchanged. Source review
+a669571b-1815-40d3-ab84-26c1a80119f0 approves; setup/diagnostic limits are recorded
+in .safeword/logs/4200-native-product-review.md. Host-profile enrollment, shipping
+and Scenario Gate coverage are not claimed by these two tests.
+
+CI at 41ead470b is green. The new extraction and Product Plan checkpoint need
+their own CI. No canonical qualification input, semantic corpus, model, rubric,
+threshold or production policy changed. Characterization does not supply a
+production defect RED or close the RGR ledger. Historical six failures and 585
+unfinished full-acceptance cases, deferrals, remaining undefined cases and
+whole-stack readiness stay visible. No merge or promotion is performed.
+
+Fresh root dry run /tmp/4200-native-product-dry.json reports 159 nondeferred
+cases: 139 bound skips and 20 undefined. Skips are not passes. The protected
+evaluator tests pass 2/2; the initially mistyped proof-tag path selected no
+proof-tag tests, so the correct tests/bdd-proof-tags.test.ts is run separately
+and passes 50/50. Relay 198 passes/one existing skip and collector 153 passes
+also remain green. Three package typechecks and formatting checks pass; root
+step code is verified by the actual Cucumber runs, not claimed covered by
+package tsc. No failure is hidden or counted as a pass.
