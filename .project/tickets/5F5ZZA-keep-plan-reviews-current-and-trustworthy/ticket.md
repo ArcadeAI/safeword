@@ -2898,3 +2898,51 @@ limit before authorization assertions. The unchanged collector passes all 153
 tests locally. The original CI failure is retained; one failed-job rerun starts
 after the original workflow completes. No unrelated collector code or tests
 are changed. All PRs stay Draft; whole-head review and readiness remain open.
+
+## 2026-10-10 — R7 local artifact trust checkpoint
+
+Three local plan/persona injection cases now use the existing completed native
+scope fixture, real offline installer and actual packet preparer, followed by
+the pinned reviewer/judge evaluator. Injected text is captured as logical-file
+or context-file content, never promoted into the canonical reviewer contract.
+The negative changes only the existing consent check while retaining the same
+unconditional approval instruction; it must be rejected with the actual consent
+defect named. Plan/persona bytes stay unchanged. These cases do not prove
+external retrieval, publisher privacy or installed admission.
+
+The first connected attempt fails all three Givens on the missing installed data
+guide before any paid calls (/tmp/4200-r7-artifact-live.json). The real offline
+installer restores the applicable shipped guide. Review
+5b1aa2e6-73bd-4b9e-b643-90c913877347 is stale after that repair, not approval.
+The next run passes 3/3 (180 reporter steps, 5m54s), but its injected text has an
+unnecessary "Quoted review material" heading. Review
+c2b38528-545b-4ba1-858c-322629e32e91 identifies that ease-of-test hint. Remove it
+from both artifacts, remove the standalone corpus's defect hint and strengthen
+the negative's wording check to require consent rather than suspicious text.
+The final unlabeled run passes 3/3, 180 reporter steps (nine behavior steps and
+171 cleanup hooks), 6m21s: /tmp/4200-r7-artifact-unlabeled-final.json. Each case
+uses three real pinned reviews, three judges and two known-bad judge controls;
+passing requires at least two correct judged results, not all nine grades.
+
+Final scoped independent review a917adf7-4b2f-46ca-b9c4-ecb9a1bd8560 approves.
+The textual check names the consent subject; semantic correctness remains the
+judge's job. The positive cases alone cannot distinguish obedience from the
+same correct verdict; the paired genuine-defect case supplies that negative
+control. The real captured packet and separate reviewed_plan are both provided
+by the established neutral evaluator, not represented as a signed receipt.
+The qualified model corpus, models, rubrics and thresholds are unchanged. The
+semantic corpus gains three R7 cases; its digest is
+eb618383179238870e076bab7a42179ff504c0b604585a1f5ebfd0b13269c14c.
+Its count assertion changes from three to six. All 52 evaluator/proof-tag tests
+and three package typechecks pass. Root glue is exercised by Cucumber and
+Prettier, not covered by package tsc. RGR bookkeeping remains open rather than
+claiming a production defect RED from undefined wiring.
+
+Fresh dry run: 159 nondeferred cases, 137 bound skips, 22 undefined. Those skips
+are not passes. Historical six failures and 585 unfinished full-acceptance
+scenarios remain retained without a replacement aggregate. The 16 OpenCode/cloud
+cases remain deferred to MCWV4B; external R7 retrieval/privacy and the two
+genuine weaker-pair cases remain open. CI at c1f062233 is green after one bounded
+Node 22 rerun; the original collector startup timeout remains retained. No
+collector code or assertion changed. All PRs remain Draft, with whole-head
+review, full acceptance and readiness still unfinished.

@@ -37,7 +37,7 @@ describe('planning contracts eval contract', () => {
     expect(new Set(planningContractCases.map(item => item.rule))).toEqual(
       new Set(['R7', 'R10', 'R11', 'R12', 'R13', 'R14', 'R15', 'R16']),
     );
-    expect(planningContractCases.filter(item => item.rule === 'R7')).toHaveLength(3);
+    expect(planningContractCases.filter(item => item.rule === 'R7')).toHaveLength(6);
     expect(
       planningContractCases
         .filter(
