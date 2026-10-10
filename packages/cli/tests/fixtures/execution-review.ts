@@ -1,4 +1,5 @@
 import { strict as assert } from 'node:assert';
+import { spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -17,6 +18,33 @@ export type ReviewFixtureCli = (
 ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
 
 type PlanningReviewKind = 'scenario-gate' | 'plan-implementation' | 'plan-execution';
+
+/** Run the built public CLI in the fixture's own authenticated profile. */
+export function installedReviewCli(root: string): ReviewFixtureCli {
+  return (args, options) => {
+    const result = spawnSync(
+      process.execPath,
+      [nodePath.resolve(import.meta.dirname, '../../dist/cli.js'), ...args],
+      {
+        cwd: options.cwd,
+        encoding: 'utf8',
+        timeout: 60_000,
+        maxBuffer: 20 * 1024 * 1024,
+        env: {
+          ...process.env,
+          ...options.env,
+          XDG_STATE_HOME: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+    assert.equal(result.error, undefined, result.error?.message ?? 'CLI subprocess must start');
+    return Promise.resolve({
+      exitCode: result.status ?? 1,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    });
+  };
+}
 
 const CATEGORIES = [
   'outcome and scope',

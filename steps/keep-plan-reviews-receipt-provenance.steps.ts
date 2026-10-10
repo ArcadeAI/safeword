@@ -9,12 +9,11 @@ import {
   admitThroughInstalledCli,
   executionPlan,
   featureFixture,
-  type ReviewFixtureCli,
+  installedReviewCli,
 } from '../packages/cli/tests/fixtures/execution-review.js';
 import { cleanupTrustedReviewerDirectories } from '../packages/cli/tests/review-fixtures.js';
 import type { SafewordWorld } from './world.js';
 
-const packageRoot = path.resolve(import.meta.dirname, '../packages/cli');
 // A committed pre-fix plugin can run the identical assertions as a regression control.
 const pluginRoot = path.resolve(
   process.env.SAFEWORD_RECEIPT_PROOF_PLUGIN_ROOT ?? path.resolve(import.meta.dirname, '../plugin'),
@@ -29,28 +28,6 @@ interface ReceiptState {
   gate?: ReturnType<typeof spawnSync>;
 }
 const states = new WeakMap<SafewordWorld, ReceiptState>();
-
-function fixtureCli(root: string): ReviewFixtureCli {
-  return (args, options) => {
-    const result = spawnSync(process.execPath, [path.join(packageRoot, 'dist/cli.js'), ...args], {
-      cwd: options.cwd,
-      encoding: 'utf8',
-      timeout: 60_000,
-      maxBuffer: 20 * 1024 * 1024,
-      env: {
-        ...process.env,
-        ...options.env,
-        XDG_STATE_HOME: path.join(root, '.review-keys'),
-      },
-    });
-    assert.equal(result.error, undefined, result.error?.message);
-    return Promise.resolve({
-      exitCode: result.status ?? 1,
-      stdout: result.stdout,
-      stderr: result.stderr,
-    });
-  };
-}
 
 Given(
   /^the Execution Plan gate receives (.+)$/,
@@ -70,7 +47,7 @@ Given(
       writeFileSync(path.join(ticketDirectory, 'impl-plan.md'), commonPlan);
       writeFileSync(path.join(ticketDirectory, 'execution-plan.md'), commonPlan);
     }
-    const runCli = fixtureCli(root);
+    const runCli = installedReviewCli(root);
     current.reviewer = await admitThroughInstalledCli(runCli, root);
     const positive = await runCli(
       ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],

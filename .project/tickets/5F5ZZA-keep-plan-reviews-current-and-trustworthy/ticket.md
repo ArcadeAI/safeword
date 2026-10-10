@@ -2088,3 +2088,27 @@ omitted plugin metadata and failed at setup; it is retained separately and is
 not the intended failing evidence. GREEN remains unchecked pending independent
 review of the actual discriminating proof. User approval covers all epic-related
 test edits; merge and Ready promotion remain unauthorized.
+
+R9 dependency characterization now runs the eight declared-change rows plus the
+canonical upstream-direction row through authentic review status. Together with
+the three native receipt rows, 12 scenarios and 660 steps pass; the affected
+package recheck passes 31 tests and the package typecheck passes. Initial fixture
+runs retained five failures, then one: legacy fixtures had no owned v1 planning
+identity, and the progress example used an invalid evidence class/locator.
+Corrected fixtures assert owned identities, make real valid semantic/byte
+changes, preserve valid Delivery Checklist structure, and keep all expected
+status assertions. No production change was needed. The progress locator is
+fixture input, not proof of authenticated delivery completion.
+/tmp/4200-r9-dependency-final-valid-characterization.{json,log};
+/tmp/4200-r9-dependency-package-green.log.
+
+Independent Claude quality review 95284dae-11f2-43e9-9223-77b17b8c80c6 approves
+with zero errors. Its warnings are retained: review-status proof does not replace
+the still-missing installed-phase-gate outline; canonical-byte simulation edits
+the copied embedded rubric/hash rather than installed authoring bytes; fixture
+ledger aliases do not test the real stamp writer; receipt-message checks and
+ambient test environment have the previously recorded limitations. The accepted
+Execution Plan requires characterization for already implemented behavior, not
+manufactured new production REDs. These nine rows have current passing proof but
+their RGR ledger rows remain unchecked; no gate waiver or complete acceptance
+claim is made. Continue with the separate installed stale-receipt boundaries.
