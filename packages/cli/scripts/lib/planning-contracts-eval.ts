@@ -56,6 +56,7 @@ export interface PlanningEvalRun {
 
 export function planningContractRubricDigest(): string {
   const rubrics = [
+    reviewerPromptInstructions('scenario-gate', 'claude'),
     reviewerPromptInstructions('quality-review', 'claude', 'product-plan'),
     reviewerPromptInstructions('plan-implementation', 'claude', 'plan-implementation'),
     reviewerPromptInstructions('plan-execution', 'claude', 'plan-execution'),

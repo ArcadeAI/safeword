@@ -101,7 +101,7 @@ export function assertPlanningEval(
   verdict: 'approve' | 'request_changes',
   requiredFinding?: RegExp,
   requiredRecord?: RegExp,
-): void {
+) {
   const state = states.get(world);
   assert.ok(state?.output, 'The judged evaluation must run first.');
   assert.equal(
@@ -129,6 +129,7 @@ export function assertPlanningEval(
     matching.length >= 2,
     `Only ${matching.length}/3 judged runs supported ${state.caseId}.`,
   );
+  return matching;
 }
 
 After(function (this: SafewordWorld, { result }) {

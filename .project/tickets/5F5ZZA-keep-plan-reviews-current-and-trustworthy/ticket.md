@@ -2646,3 +2646,32 @@ contract, lint, parity, dependency and deployment checks passed.
 Fresh root inventory is 123 bound dry-skips and 36 undefined among 159
 nondeferred scenarios. The proof-tag tests pass 50/50. Bound dry-skips are not
 execution passes.
+
+## 2026-10-10 — Scenario coverage uses its own judged contract
+
+Source investigation confirms semantic acceptance and reviewer-capability
+qualification are separate corpora. Adding semantic cases does not invalidate
+the packaged qualified pair. The existing semantic evaluator is reused rather
+than adding a runner or second registry; its manifest now binds the generated
+Scenario Review rubric and paired coverage cases. Models, judge, settings,
+qualification evidence and capability catalogue remain unchanged.
+
+R16 rows648 and649 pass through real reviewer and separate judge processes.
+Both have the same approved two-persona inventory and accepted boundary. Four
+representative scenarios per persona cover six outcome categories: the
+authorized-change receipt jointly proves success, approval and trust; refusal,
+failure and recovery have their own examples. The negative removes only the
+Non-Technical Builder recovery scenario. It is rejected with that gap named;
+the complete set is approved. This is scenario-gate coverage, not an
+Implementation Plan verdict or native installed-hook admission.
+
+Wiring RED a978f125-60a5-470c-878b-f3c8dd4a3d2d approves. The first final review
+5f4072eb-802a-4460-addc-4835f84f870d identified a weak cross-finding match. Only
+the new negative assertion is strengthened: at least two correct judged
+rejections must each name the persona and recovery in one finding. The focused
+row649 rerun passes. The shared helper returns its already-qualified matching
+runs without changing prior assertions. Fresh inventory is 125 bound dry-skips
+and 34 undefined among 159 nondeferred scenarios; dry-skips are not passes.
+Current final review and commit provenance will be recorded after they finish.
+The installed cases, unresolved route cases and explicit human/host deferrals
+remain open. Historical six failures/585 unfinished remain visible.

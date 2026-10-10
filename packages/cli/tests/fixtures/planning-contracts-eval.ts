@@ -1,5 +1,6 @@
 import type { PlanningContractCase } from '../../scripts/lib/planning-contracts-eval.js';
 import { planningContractShapeCases } from './planning-contract-shape-eval.js';
+import { createPersonaCoverageCases } from './planning-persona-coverage-eval.js';
 import { createScopeContextCases } from './planning-scope-context-eval.js';
 
 const accepted =
@@ -354,4 +355,5 @@ export const planningContractCases: readonly PlanningContractCase[] = [
   },
   ...createScopeContextCases(completeImplementationPlan),
   ...planningContractShapeCases,
+  ...createPersonaCoverageCases(completePersonaOutcomes),
 ];
