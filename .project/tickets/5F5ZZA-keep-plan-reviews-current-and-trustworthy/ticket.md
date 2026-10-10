@@ -3059,3 +3059,32 @@ two genuine weaker-model cases without a qualified weaker catalogue pair. The
 user-owned host deferral and outstanding weaker-pair decision remain controlling.
 Historical six failures/585 unfinished, RGR ledger and whole-stack readiness stay
 open. No production policy, qualification, merge or promotion.
+
+## 2026-10-10 — Funded independent-first fallback proof
+
+The budget-only fallback claim remains withdrawn. A replacement keeps normal
+reviewer funding, ranks headless first and holds only the independent mock
+producer. During that real job's pending interval, the independent producer is
+working, headless is uninvoked, approve-plan refuses and the phase is unchanged.
+After release produces an independent process failure, the same job invokes
+headless and records reduced approval with exact ordered route evidence.
+
+The initial startup-race failure remains retained. The bounded launch-marker
+barrier fixes that setup assumption without changing funding or hiding a wrong
+first producer. /tmp/4200-r6-funded-fallback-barrier.json passes one scenario/63
+reporter steps. Source review b03f6d2b-e2a7-4fd4-be62-01a84a1cce3d approves
+the ordering proof; it does not independently cover the redundant exhaustion
+guard. Limits are recorded in .safeword/logs/4200-r6-funded-fallback-review.md.
+
+Fresh dry run: 159 nondeferred cases, 144 bound skips and 15 undefined. The
+remaining second-route retryable case, two weaker-pair cases and twelve
+retrieval/privacy producer cases are unproved. OpenCode authority conflict,
+historical six failures/585 unfinished, RGR ledger and readiness remain open.
+No production policy, qualification, merge or promotion.
+
+The final variant additionally submits a public fresh-context continuation on
+the pending job and requires explicit REVIEW_JOB_INVALID refusal before normal
+recovery. /tmp/4200-r6-funded-explicit-refusal.json passes one scenario/63 steps.
+Final source review 5329609e-4f2d-4f1c-a03a-a83639d07df1 approves; timing and
+separate redundant-guard coverage limits remain recorded. No further proof gap
+is silently closed.
