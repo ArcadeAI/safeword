@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
@@ -9,6 +9,8 @@ import {
   admitThroughInstalledCli,
   featureFixture,
   installedReviewCli,
+  installFailingReviewers,
+  installReviewer,
 } from '../packages/cli/tests/fixtures/execution-review.js';
 import { cleanupTrustedReviewerDirectories } from '../packages/cli/tests/review-fixtures.js';
 import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
@@ -23,6 +25,12 @@ interface StaleGateState {
   root: string;
   host: string;
   output?: string;
+  pendingReviewId?: string;
+  fallbackReview?: {
+    actual_reviewer: string;
+    independence: string;
+    review_routes: { status: string; failure?: string }[];
+  };
 }
 
 function environment(root: string): NodeJS.ProcessEnv {
@@ -99,99 +107,327 @@ function dispatch(state: StaleGateState): string {
   return result.stdout.trim();
 }
 
+async function prepareApprovedGate(this: SafewordWorld, host: string, invalidate: boolean) {
+  const root = featureFixture();
+  const state = { root, host };
+  states.set(this, state);
+  const owned = fixtureProject();
+  try {
+    for (const file of ['ticket.md', 'spec.md', 'impl-plan.md']) {
+      writeFileSync(
+        path.join(root, '.project/tickets', ticketFolder, file),
+        readFileSync(path.join(owned, '.project/tickets/CTX123-current-context', file), 'utf8')
+          .replaceAll('CTX123', 'ABC123')
+          .replaceAll('features/current-context.feature', 'features/feature.feature'),
+      );
+    }
+    writeFileSync(
+      path.join(root, 'features/feature.feature'),
+      readFileSync(path.join(owned, 'features/current-context.feature'), 'utf8'),
+    );
+  } finally {
+    rmSync(owned, { recursive: true, force: true });
+  }
+  const cli = installedReviewCli(root);
+  const installed = await cli(
+    ['install', '--agents', 'cursor', '--no-input', '--offline', '--json', '--cwd', root],
+    { cwd: root, env: { NODE_ENV: 'test' } },
+  );
+  assert.equal(installed.exitCode, 0, installed.stdout);
+  if (host === 'Claude Code') {
+    // Exercise the supported local-project delivery contract, without enrolling a user profile.
+    mkdirSync(path.join(root, '.claude'), { recursive: true });
+    const settings = SAFEWORD_SCHEMA.jsonMerges['.claude/settings.json'].merge({});
+    writeFileSync(path.join(root, '.claude/settings.json'), JSON.stringify(settings));
+  }
+  await admitThroughInstalledCli(cli, root, ['plan-implementation']);
+  const ledger = path.join(root, '.project/skill-invocations.log');
+  const rows = readFileSync(ledger, 'utf8').trim().split('\n');
+  writeFileSync(ledger, '');
+  // Earn the native ledger stamps through the real receipt-verifying writer.
+  for (const row of rows) {
+    const phase = /:phase@(\S+)/u.exec(row)?.[1];
+    const id = /review-id:(\S+)/u.exec(row)?.[1];
+    assert.ok(phase && id);
+    const stamped = spawnSync(
+      'bun',
+      [
+        path.join(root, '.safeword/hooks/write-review-stamp.ts'),
+        '--ticket',
+        ticketFolder,
+        '--phase',
+        phase,
+        '--review-id',
+        id,
+        '--author-agent',
+        'codex',
+        '--reviewer-agent',
+        'claude',
+        '--independence',
+        'reduced',
+      ],
+      {
+        cwd: root,
+        env: environment(root),
+        encoding: 'utf8',
+        timeout: 60_000,
+      },
+    );
+    assert.equal(stamped.status, 0, stamped.stdout + stamped.stderr);
+  }
+  const allowed = dispatch(state);
+  if (host === 'Cursor') assert.equal(JSON.parse(allowed).permission, 'allow', allowed);
+  else assert.equal(allowed, '', allowed);
+  if (!invalidate) return;
+  const scenarios = path.join(root, 'features/feature.feature');
+  const before = readFileSync(scenarios, 'utf8');
+  const changed = before.replace(
+    'Then the current context reaches review',
+    'Then changed acceptance reaches review',
+  );
+  assert.notEqual(changed, before);
+  writeFileSync(scenarios, changed);
+  const id = /review-id:(\S+)/u.exec(rows[0])?.[1];
+  assert.ok(id);
+  const status = await cli(['review', 'status', id, '--json'], {
+    cwd: root,
+    env: { NODE_ENV: 'test' },
+  });
+  assert.equal(status.exitCode, 2, status.stdout);
+  const stale = JSON.parse(status.stdout);
+  assert.deepEqual(stale.errors, []);
+  assert.equal(stale.data.status, 'stale', status.stdout);
+  assert.ok(stale.findings.some((finding: { code: string }) => finding.code === 'REVIEW_STALE'));
+}
+
 Given(
   /^a planning phase on (Claude Code|OpenAI Codex|Cursor) has an approving receipt invalidated by a changed accepted scenario$/,
   { timeout: 120_000 },
   async function (this: SafewordWorld, host: string) {
-    const root = featureFixture();
-    const state = { root, host };
-    states.set(this, state);
-    const owned = fixtureProject();
-    try {
-      for (const file of ['ticket.md', 'spec.md', 'impl-plan.md']) {
-        writeFileSync(
-          path.join(root, '.project/tickets', ticketFolder, file),
-          readFileSync(path.join(owned, '.project/tickets/CTX123-current-context', file), 'utf8')
-            .replaceAll('CTX123', 'ABC123')
-            .replaceAll('features/current-context.feature', 'features/feature.feature'),
-        );
-      }
-      writeFileSync(
-        path.join(root, 'features/feature.feature'),
-        readFileSync(path.join(owned, 'features/current-context.feature'), 'utf8'),
-      );
-    } finally {
-      rmSync(owned, { recursive: true, force: true });
-    }
-    const cli = installedReviewCli(root);
-    const installed = await cli(
-      ['install', '--agents', 'cursor', '--no-input', '--offline', '--json', '--cwd', root],
-      { cwd: root, env: { NODE_ENV: 'test' } },
+    await prepareApprovedGate.call(this, host, true);
+  },
+);
+
+Given(
+  /^a planning phase on (Claude Code|OpenAI Codex|Cursor) through (installed local project hooks|installed Codex hooks|installed Cursor hooks) has a current approving receipt$/,
+  { timeout: 120_000 },
+  async function (this: SafewordWorld, host: string, boundary: string) {
+    assert.equal(
+      boundary,
+      {
+        'Claude Code': 'installed local project hooks',
+        'OpenAI Codex': 'installed Codex hooks',
+        Cursor: 'installed Cursor hooks',
+      }[host],
     );
-    assert.equal(installed.exitCode, 0, installed.stdout);
-    if (host === 'Claude Code') {
-      // Exercise the supported local-project delivery contract, without enrolling a user profile.
-      mkdirSync(path.join(root, '.claude'), { recursive: true });
-      const settings = SAFEWORD_SCHEMA.jsonMerges['.claude/settings.json'].merge({});
-      writeFileSync(path.join(root, '.claude/settings.json'), JSON.stringify(settings));
-    }
-    await admitThroughInstalledCli(cli, root, ['plan-implementation']);
-    const ledger = path.join(root, '.project/skill-invocations.log');
-    const rows = readFileSync(ledger, 'utf8').trim().split('\n');
-    writeFileSync(ledger, '');
-    // Earn the native ledger stamps through the real receipt-verifying writer.
-    for (const row of rows) {
-      const phase = /:phase@(\S+)/u.exec(row)?.[1];
-      const id = /review-id:(\S+)/u.exec(row)?.[1];
-      assert.ok(phase && id);
-      const stamped = spawnSync(
-        'bun',
-        [
-          path.join(root, '.safeword/hooks/write-review-stamp.ts'),
-          '--ticket',
-          ticketFolder,
-          '--phase',
-          phase,
-          '--review-id',
-          id,
-          '--author-agent',
-          'codex',
-          '--reviewer-agent',
-          'claude',
-          '--independence',
-          'reduced',
-        ],
-        {
-          cwd: root,
-          env: environment(root),
-          encoding: 'utf8',
-          timeout: 60_000,
+    await prepareApprovedGate.call(this, host, false);
+  },
+);
+
+Given(
+  /^a planning phase on (Claude Code|OpenAI Codex|Cursor) through (installed local project hooks|installed Codex hooks|installed Cursor hooks) has a pending review$/,
+  { timeout: 120_000 },
+  async function (this: SafewordWorld, host: string, boundary: string) {
+    assert.equal(
+      boundary,
+      {
+        'Claude Code': 'installed local project hooks',
+        'OpenAI Codex': 'installed Codex hooks',
+        Cursor: 'installed Cursor hooks',
+      }[host],
+    );
+    await prepareApprovedGate.call(this, host, false);
+    const state = states.get(this);
+    assert.ok(state);
+    const bin = installReviewer(path.join(state.root, 'reviewer-hold'));
+    const reviewed = await installedReviewCli(state.root)(
+      [
+        'review',
+        'run',
+        'plan-implementation',
+        `.project/tickets/${ticketFolder}/impl-plan.md`,
+        '--context',
+        'features/feature.feature',
+        '--context',
+        `.project/tickets/${ticketFolder}/spec.md`,
+        '--json',
+        '--no-input',
+        '--cwd',
+        state.root,
+      ],
+      {
+        cwd: state.root,
+        env: {
+          NODE_ENV: 'test',
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_KEY_ROOT: path.join(state.root, '.review-keys'),
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+          SAFEWORD_REVIEW_FOREGROUND_MS: '0',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '30000',
+          SAFEWORD_REVIEW_RUN_BOUND_MS: '60000',
         },
-      );
-      assert.equal(stamped.status, 0, stamped.stdout + stamped.stderr);
+      },
+    );
+    const result = JSON.parse(reviewed.stdout);
+    state.pendingReviewId = result.data.review_id;
+    assert.ok(state.pendingReviewId, reviewed.stdout);
+    assert.equal(result.data.status, 'pending', reviewed.stdout);
+    const deadline = Date.now() + 10_000;
+    while (!existsSync(path.join(state.root, 'reviewer-hold')) && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
-    const allowed = dispatch(state);
-    if (host === 'Cursor') assert.equal(JSON.parse(allowed).permission, 'allow', allowed);
-    else assert.equal(allowed, '', allowed);
-    const scenarios = path.join(root, 'features/feature.feature');
-    const before = readFileSync(scenarios, 'utf8');
+    assert.ok(
+      existsSync(path.join(state.root, 'reviewer-hold')),
+      'The reviewer must actually start and remain pending',
+    );
+    // The ledger only locates a job. Its pending authenticated result must never authorize a gate.
+    const ledger = path.join(state.root, '.project/skill-invocations.log');
+    const approved = readFileSync(ledger, 'utf8');
+    assert.match(approved, /review-id:\S+/u);
+    writeFileSync(
+      ledger,
+      approved.replace(/review-id:\S+/gu, `review-id:${state.pendingReviewId}`),
+    );
+  },
+);
+
+Given(
+  /^a planning phase on (Claude Code|OpenAI Codex|Cursor) through (installed local project hooks|installed Codex hooks|installed Cursor hooks) has a permitted fallback approval after every configured independent route was attempted and returned a typed failure$/,
+  { timeout: 120_000 },
+  async function (this: SafewordWorld, host: string, boundary: string) {
+    assert.equal(
+      boundary,
+      {
+        'Claude Code': 'installed local project hooks',
+        'OpenAI Codex': 'installed Codex hooks',
+        Cursor: 'installed Cursor hooks',
+      }[host],
+    );
+    await prepareApprovedGate.call(this, host, false);
+    const state = states.get(this);
+    assert.ok(state);
+    const author = host === 'Claude Code' ? 'claude' : host === 'Cursor' ? 'cursor' : 'codex';
+    const configPath = path.join(state.root, '.safeword/config.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf8'));
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        ...config,
+        crossAgentReviewRoutes: {
+          [author]: [{ reviewer: author === 'codex' ? 'claude' : 'codex' }],
+        },
+      }),
+    );
+    const target = `.project/tickets/${ticketFolder}/impl-plan.md`;
+    const planPath = path.join(state.root, target);
+    const before = readFileSync(planPath, 'utf8');
     const changed = before.replace(
-      'Then the current context reaches review',
-      'Then changed acceptance reaches review',
+      '## Approach\n',
+      '## Approach\n\nPreserve authenticated review when independent routes fail.\n',
     );
     assert.notEqual(changed, before);
-    writeFileSync(scenarios, changed);
-    const id = /review-id:(\S+)/u.exec(rows[0])?.[1];
-    assert.ok(id);
-    const status = await cli(['review', 'status', id, '--json'], {
-      cwd: root,
-      env: { NODE_ENV: 'test' },
-    });
-    assert.equal(status.exitCode, 2, status.stdout);
-    const stale = JSON.parse(status.stdout);
-    assert.deepEqual(stale.errors, []);
-    assert.equal(stale.data.status, 'stale', status.stdout);
-    assert.ok(stale.findings.some((finding: { code: string }) => finding.code === 'REVIEW_STALE'));
+    writeFileSync(planPath, changed);
+    const cli = installedReviewCli(state.root);
+    const env = {
+      NODE_ENV: 'test',
+      PATH: `${installFailingReviewers()}:/usr/bin:/bin`,
+      SAFEWORD_AGENT_RUNTIME: author,
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+      SAFEWORD_REVIEW_KEY_ROOT: path.join(state.root, '.review-keys'),
+      SAFEWORD_REVIEW_TIMEOUT_MS: '3000',
+      SAFEWORD_REVIEW_RUN_BOUND_MS: '10000',
+    };
+    const exhausted = await cli(
+      [
+        'review',
+        'run',
+        'plan-implementation',
+        target,
+        '--context',
+        'features/feature.feature',
+        '--context',
+        `.project/tickets/${ticketFolder}/spec.md`,
+        '--json',
+        '--no-input',
+        '--cwd',
+        state.root,
+      ],
+      { cwd: state.root, env },
+    );
+    const pending = JSON.parse(exhausted.stdout);
+    assert.equal(pending.data.status, 'continuation_required', exhausted.stdout);
+    assert.equal(pending.data.continuation.tier, 'fresh-context');
+    assert.ok(pending.data.review_routes.length > 0);
+    for (const route of pending.data.review_routes) {
+      assert.equal(route.status, 'attempted', exhausted.stdout);
+      assert.equal(typeof route.failure, 'string', exhausted.stdout);
+    }
+    writeFileSync(
+      path.join(state.root, 'fallback-review.json'),
+      JSON.stringify({
+        schema_version: 1,
+        dispatch_id: pending.data.continuation.packet.dispatch_id,
+        reviewer_agent: author,
+        verdict: 'approve',
+        summary: 'Current plan approved in a fresh host context.',
+        findings: [],
+        evidence_records: { schema_version: 1, records: [] },
+      }),
+    );
+    const continued = await cli(
+      [
+        'review',
+        'continue',
+        pending.data.review_id,
+        '--tier',
+        'fresh-context',
+        '--output',
+        'fallback-review.json',
+        '--offline',
+        '--json',
+        '--no-input',
+        '--cwd',
+        state.root,
+      ],
+      { cwd: state.root, env },
+    );
+    assert.equal(continued.exitCode, 0, continued.stdout);
+    const result = JSON.parse(continued.stdout);
+    assert.equal(result.data.status, 'approved', continued.stdout);
+    assert.equal(result.data.actual_reviewer, author);
+    assert.equal(result.data.independence, 'reduced');
+    assert.ok(
+      !result.findings.some(
+        (finding: { code: string }) => finding.code === 'REVIEW_INDEPENDENCE_DEGRADED',
+      ),
+    );
+    state.fallbackReview = result.data;
+    const stamped = spawnSync(
+      'bun',
+      [
+        path.join(state.root, '.safeword/hooks/write-review-stamp.ts'),
+        '--ticket',
+        ticketFolder,
+        '--phase',
+        'plan-implementation',
+        '--review-id',
+        pending.data.review_id,
+        '--author-agent',
+        author,
+        '--reviewer-agent',
+        author,
+        '--independence',
+        'reduced',
+      ],
+      {
+        cwd: state.root,
+        env: { ...environment(state.root), ...env },
+        encoding: 'utf8',
+        timeout: 60_000,
+      },
+    );
+    assert.equal(stamped.status, 0, stamped.stdout + stamped.stderr);
   },
 );
 
@@ -209,6 +445,7 @@ When(
       }[state.host],
     );
     state.output = dispatch(state);
+    this.nativePlanningGate = { host: state.host, output: state.output };
   },
 );
 
@@ -222,9 +459,41 @@ Then('the phase remains blocked with re-review named', function (this: SafewordW
   assert.match(state.output, /review run plan-implementation|fork review of the phase is logged/u);
 });
 
-After(function (this: SafewordWorld) {
+Then('the phase remains blocked', function (this: SafewordWorld) {
+  const state = states.get(this);
+  assert.ok(state?.pendingReviewId && state.output);
+  const result = JSON.parse(state.output);
+  if (state.host === 'Cursor') assert.equal(result.permission, 'deny');
+  else assert.equal(result.hookSpecificOutput.permissionDecision, 'deny');
+  assert.match(state.output, /plan-implementation/u);
+});
+
+Then(
+  'the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded',
+  function (this: SafewordWorld) {
+    const state = states.get(this);
+    assert.ok(state?.fallbackReview && state.output !== undefined);
+    assert.equal(state.fallbackReview.independence, 'reduced');
+    assert.equal(
+      state.fallbackReview.actual_reviewer,
+      state.host === 'Claude Code' ? 'claude' : state.host === 'Cursor' ? 'cursor' : 'codex',
+    );
+    if (state.host === 'Cursor')
+      assert.equal(JSON.parse(state.output).permission, 'allow', state.output);
+    else assert.equal(state.output, '', state.output);
+  },
+);
+
+After(async function (this: SafewordWorld) {
   const state = states.get(this);
   if (state) {
+    if (state.pendingReviewId) {
+      const cancelled = await installedReviewCli(state.root)(
+        ['review', 'cancel', state.pendingReviewId, '--json'],
+        { cwd: state.root, env: { NODE_ENV: 'test' } },
+      );
+      assert.equal(JSON.parse(cancelled.stdout).data.status, 'canceled', cancelled.stdout);
+    }
     rmSync(state.root, { recursive: true, force: true });
     cleanupTrustedReviewerDirectories();
   }

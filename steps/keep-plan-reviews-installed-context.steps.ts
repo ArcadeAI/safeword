@@ -580,6 +580,12 @@ When(
 );
 
 Then('the phase transition proceeds', function (this: SafewordWorld) {
+  if (this.nativePlanningGate) {
+    const { host, output } = this.nativePlanningGate;
+    if (host === 'Cursor') assert.equal(JSON.parse(output).permission, 'allow', output);
+    else assert.equal(output, '', output);
+    return;
+  }
   const gate = states.get(this)?.gate;
   assert.ok(gate);
   assert.equal(gate.status, 0, `${gate.stdout}\n${gate.stderr}`);

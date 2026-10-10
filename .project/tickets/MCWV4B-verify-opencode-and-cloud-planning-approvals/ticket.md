@@ -29,6 +29,13 @@ change an accepted scenario, then prove the same boundary denies advancement
 and names the required new review. Report each host separately; local adapter
 simulation is not cloud proof. Retain all failures and unfinished cases.
 
+Also verify R6's pending-review denial, current-approval advancement, and
+exhausted-route fallback advancement on all four hosts (12 examples). Assert
+fallback records reduced independence and the actual reviewer without falsely
+calling the capability degraded. Together with the four R9 stale-receipt
+examples, 16 host scenarios are explicitly deferred here. Shared fallback
+selection and local Claude/Codex/Cursor checks remain in #4200.
+
 The four deferred examples remain in
 `features/keep-plan-reviews-current-and-trustworthy.feature`, under
 `Installed phase gates enforce invalidated review receipts`. Keep their steps

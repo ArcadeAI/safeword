@@ -120,7 +120,21 @@ export function featureFixture(designApprovalGate = false, phase = 'plan-executi
   return root;
 }
 
-function installReviewer(): string {
+export function installFailingReviewers(): string {
+  const bin = createTrustedReviewerDirectory('safeword-failing-reviewers-');
+  for (const reviewer of ['claude', 'codex'] as const) {
+    writeFileSync(
+      nodePath.join(bin, reviewer),
+      `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('${reviewer} 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES[reviewer])}); process.exit(0); }\nprocess.exit(7);\n`,
+      { mode: 0o755 },
+    );
+  }
+  return bin;
+}
+
+export function installReviewer(holdPath?: string): string {
+  const escapedHoldPath = holdPath?.replaceAll("'", String.raw`'\''`);
+  const holdArgument = escapedHoldPath === undefined ? "''" : `'${escapedHoldPath}'`;
   const directory = createTrustedReviewerDirectory('safeword-prerequisite-');
   const bin = nodePath.join(directory, 'bin');
   mkdirSync(bin, { recursive: true });
@@ -135,6 +149,11 @@ if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
   exit 0
 fi
 payload=$(cat)
+hold=${holdArgument}
+if [ -n "$hold" ]; then
+  /usr/bin/mkfifo "$hold"
+  /bin/cat "$hold" >/dev/null
+fi
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
 record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
 verdict=$(printenv SAFEWORD_REVIEW_FAKE_VERDICT || true)

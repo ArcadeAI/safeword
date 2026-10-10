@@ -230,7 +230,7 @@ Feature: Keep plan reviews current and trustworthy
         | OpenAI Codex | installed Codex hooks | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
         | Cursor | installed Cursor hooks | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
 
-    @surface.opencode
+    @surface.opencode @manual @deferred.MCWV4B
     Scenario Outline: OpenCode CLI and TUI gates enforce the real review result
       Given an OpenCode <entry_point> planning phase has <review_state>
       When actual lifecycle dispatch through the installed profile-level plugins/safeword.js evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary
@@ -245,7 +245,7 @@ Feature: Keep plan reviews current and trustworthy
         | TUI | a current approving receipt | the phase transition proceeds |
         | TUI | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
 
-    @surface.claude-code-cloud @surface.cursor-cloud-agents
+    @surface.claude-code-cloud @surface.cursor-cloud-agents @manual @deferred.MCWV4B
     Scenario Outline: Cloud phase gates enforce the real review result
       Given a planning phase on <cloud_host> in its fresh cloud environment has <review_state>
       When actual lifecycle dispatch from installed project hooks evaluates the phase transition with real configuration and collaborators, mocking only the remote reviewer process boundary

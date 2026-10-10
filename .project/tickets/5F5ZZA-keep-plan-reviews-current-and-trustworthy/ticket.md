@@ -2168,3 +2168,9 @@ not passing execution evidence. `/tmp/4200-post-host-deferral-inventory.{json,lo
 The historical six-failure/585-unfinished acceptance record remains unchanged;
 no fresh full acceptance aggregate has run. Continue the 91 nondeferred missing
 bindings and final review/CI rather than treating the host deferral as completion.
+
+2026-10-09 follow-up inventory: the same user-owned host deferral also covers
+12 R6 OpenCode/cloud pending/current/fallback examples. They remain intact with
+manual/MCWV4B tags, bringing the explicit deferred host count to 16. Shared
+fallback behavior and the nine local host examples remain in this epic. The
+earlier 171-scenario/91-undefined inventory predates this additional discovery.
