@@ -2237,3 +2237,20 @@ The default root binding inventory now has 66 undefined nondeferred scenarios;
 the 16 MCWV4B examples and historical six-failure/585-unfinished aggregate remain
 explicitly open. No complete feature/epic acceptance, Ready promotion, or merge
 is claimed.
+
+2026-10-09 R6 independent classification: three new root characterizations pass
+in `/tmp/4200-r6-independent-recorded.{json,log}`; the selected group still has
+12 undefined cases. Real coordinator/model-pair catalogue dispatch, authenticated
+stamp writing, persisted author/reviewer/independence, current receipt re-read,
+and real plan admission are observed. Unknown author identity refuses cross-agent
+classification while permitting honestly reduced approval. The shared reviewer
+process extraction regression passes seven package tests. Fixture failures from
+missing stamp, argument shape, run identity, PATH, and mixed runtime bundles are
+retained and corrected. Review `2fadd5b1-86b1-4154-bee8-1b4b90dc73c3` rejected
+the missing persisted-label proof; its repair earned Claude approval
+`d2e8e945-95a8-4459-86c3-a15ca9661af7`. The happy-path mock does not prove model
+mismatch handling or absent-author handling, and these are not live host tests.
+The current dry binding inventory is 159 nondeferred scenarios: 96 dry-skipped
+(bound, not actual passes) and 63 undefined. Sixteen host cases remain deferred.
+R11's strengthened summary check subsequently has three passes and one failed
+judged correction case; investigation continues without a completion claim.
