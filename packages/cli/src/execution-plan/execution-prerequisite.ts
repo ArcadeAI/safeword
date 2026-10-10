@@ -359,6 +359,17 @@ function reviewedChecklist(
         receipt: 'missing',
       };
     }
+    case 'mismatched_review_target': {
+      return {
+        admitted: false,
+        missing: {
+          code: 'missing_admitted_delivery_checklist',
+          message: `The receipt covers ${review.reviewTargets.join(', ')}; approval for ${review.expectedPlan} is required.`,
+          command,
+        },
+        receipt: 'missing',
+      };
+    }
     case 'not_admitted': {
       return undefined;
     }

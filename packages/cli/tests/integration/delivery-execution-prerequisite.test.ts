@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import {
   chmodSync,
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -191,8 +192,9 @@ async function admitThroughInstalledCli(
   ],
   designApprovalGate = false,
   slicingDecision: 'one_pull_request' | 'multiple_pull_requests' = 'one_pull_request',
+  ticketFolder = 'ABC123-feature',
 ): Promise<string> {
-  const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
+  const ticketDirectory = nodePath.join(root, '.project', 'tickets', ticketFolder);
   const plan = readFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), 'utf8');
   const parsed = parseDeliveryPlanContract(plan);
   if (!parsed.ok) throw new Error(parsed.message);
@@ -231,10 +233,10 @@ async function admitThroughInstalledCli(
         ];
   const record = {
     slicing_decision: slicingDecision,
-    rationale:
-      slicingDecision === 'one_pull_request'
-        ? 'One coherent contribution.'
-        : 'Two independently provable dependency-ordered changes.',
+    rationale: {
+      one_pull_request: 'One coherent contribution.',
+      multiple_pull_requests: 'Two independently provable dependency-ordered changes.',
+    }[slicingDecision],
     slices,
     obligation_owners: [{ obligation: 'Contribution', slices: slices.map(slice => slice.name) }],
     decision_statuses: [{ decision: 'Use the accepted plans', status: 'unchanged' }],
@@ -302,7 +304,7 @@ async function admitThroughInstalledCli(
     const id = (JSON.parse(reviewed.stdout) as { data: { review_id: string } }).data.review_id;
     expect(id).toBeTypeOf('string');
     stamps.push(
-      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:reduced review-id:${id}`,
+      `2026-09-13T00:00:00.000Z fixture review:${ticketFolder}:phase@${reviewKind} author:codex reviewer:claude independence:reduced review-id:${id}`,
     );
   }
   writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), `${stamps.join('\n')}\n`);
@@ -391,7 +393,9 @@ describe('delivery execution prerequisite', () => {
       name: 'ticket execution-prerequisite',
       effectClass: 'observe',
       networkPolicy: 'never',
-      registration: expect.objectContaining({ syntax: 'execution-prerequisite <ticketId>' }),
+      registration: expect.objectContaining({
+        syntax: 'execution-prerequisite <ticketId>',
+      }),
     });
   });
 
@@ -444,7 +448,10 @@ describe('delivery execution prerequisite', () => {
     const invoke = () =>
       runCli(['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root], {
         cwd: root,
-        env: { NODE_ENV: 'test', SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys') },
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
       });
     const matching = await invoke();
     expect(matching.exitCode, matching.stdout).toBe(0);
@@ -475,6 +482,122 @@ describe('delivery execution prerequisite', () => {
     expect(diagnostic).toMatch(/review kind/iu);
     expect(diagnostic).toContain('plan-implementation');
     expect(diagnostic).toContain('plan-execution');
+    const recoveryCommands = output.next_actions.map(
+      (action: { command: string }) => action.command,
+    );
+    expect(recoveryCommands).toContainEqual(expect.stringContaining('review run plan-execution'));
+  });
+
+  it('refuses approval when a signed malformed receipt bypasses current-context validation', async () => {
+    const root = featureFixture();
+    await admitThroughInstalledCli(root);
+    const options = {
+      cwd: root,
+      env: {
+        NODE_ENV: 'test',
+        SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+      },
+    };
+    const args = ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root];
+    const matching = await runCli(args, options);
+    expect(matching.exitCode, matching.stdout).toBe(0);
+
+    const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
+    const rows = readFileSync(ledgerPath, 'utf8').trim().split('\n');
+    const execution = rows.find(row => row.includes(':phase@plan-execution '));
+    const reviewId = /review-id:(\S+)/u.exec(execution ?? '')?.[1];
+    if (reviewId === undefined) throw new Error('Missing Execution review fixture');
+    const jobPath = nodePath.join(root, '.safeword', 'state', 'reviews', `${reviewId}.json`);
+    const job = JSON.parse(readFileSync(jobPath, 'utf8'));
+    const { integrity: _integrity, ...unsigned } = job;
+    // Model an authenticated receipt whose result envelope the strict reader cannot validate.
+    unsigned.result.schemaVersion = 0;
+    const key = Buffer.from(
+      readFileSync(
+        nodePath.join(root, '.review-keys', 'safeword', 'review-integrity.key'),
+        'utf8',
+      ).trim(),
+      'hex',
+    );
+    const integrity = createHmac('sha256', key)
+      .update(realpathSync.native(root))
+      .update('\0')
+      .update(JSON.stringify(unsigned))
+      .digest('hex');
+    writeFileSync(jobPath, `${JSON.stringify({ ...unsigned, integrity })}\n`);
+
+    writeFileSync(
+      nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'impl-plan.md'),
+      '# Implementation Plan\n\n## Approach\nA changed accepted implementation boundary.\n',
+    );
+    await admitThroughInstalledCli(root, ['plan-implementation']);
+    const currentImplementation = readFileSync(ledgerPath, 'utf8').trim();
+    writeFileSync(
+      ledgerPath,
+      `${[...rows.filter(row => !row.includes(':phase@plan-implementation ')), currentImplementation].join('\n')}\n`,
+    );
+    const strict = await runCli(['review', 'status', reviewId, '--json', '--cwd', root], options);
+    expect(strict.exitCode, strict.stdout).toBe(1);
+    expect(JSON.parse(strict.stdout).errors).toContainEqual(
+      expect.objectContaining({ code: 'REVIEW_JOB_INVALID' }),
+    );
+    const blocked = await runCli(args, options);
+    expect(blocked.exitCode, blocked.stdout).toBe(2);
+    const output = JSON.parse(blocked.stdout);
+    expect(output.data.grants_authority).toBe(false);
+    expect(output.data.prerequisite_status).not.toBe('satisfied');
+    expect(output.findings).toContainEqual(
+      expect.objectContaining({ code: 'missing_admitted_delivery_checklist' }),
+    );
+  });
+
+  it('names the sibling ticket when its authenticated approval covers identical plan bytes', async () => {
+    const root = featureFixture();
+    const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
+    await admitThroughInstalledCli(root);
+    const invoke = (ticketId: string) =>
+      runCli(['ticket', 'execution-prerequisite', ticketId, '--json', '--cwd', root], {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      });
+    const matching = await invoke('ABC123');
+    expect(matching.exitCode, matching.stdout).toBe(0);
+    const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
+    const currentRows = readFileSync(ledgerPath, 'utf8').trim().split('\n');
+
+    const siblingDirectory = nodePath.join(root, '.project', 'tickets', 'XYZ789-feature');
+    cpSync(ticketDirectory, siblingDirectory, { recursive: true });
+    await admitThroughInstalledCli(
+      root,
+      ['plan-execution'],
+      false,
+      'one_pull_request',
+      'XYZ789-feature',
+    );
+    expect(readFileSync(nodePath.join(siblingDirectory, 'execution-plan.md'), 'utf8')).toBe(
+      readFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), 'utf8'),
+    );
+    const siblingReceipt = readFileSync(ledgerPath, 'utf8').trim();
+    const alias = siblingReceipt.replace('review:XYZ789-feature:', 'review:ABC123-feature:');
+    writeFileSync(
+      ledgerPath,
+      `${[...currentRows.filter(row => !row.includes(':phase@plan-execution ')), alias].join('\n')}\n`,
+    );
+    const mismatched = await invoke('ABC123');
+    expect(mismatched.exitCode, mismatched.stdout).toBe(2);
+    const output = JSON.parse(mismatched.stdout);
+    expect(output.data.grants_authority).toBe(false);
+    expect(output.findings).toContainEqual(
+      expect.objectContaining({ code: 'missing_admitted_delivery_checklist' }),
+    );
+    const diagnostic = output.findings
+      .map((finding: { message: string }) => finding.message)
+      .join('\n');
+    expect(diagnostic).toContain('XYZ789-feature');
+    expect(diagnostic).toContain('ABC123-feature');
     const recoveryCommands = output.next_actions.map(
       (action: { command: string }) => action.command,
     );
@@ -568,7 +691,9 @@ describe('delivery execution prerequisite', () => {
     expect(result.data).toEqual({
       command: 'ticket execution-prerequisite',
       grants_authority: false,
-      ...(testCase.expectedExitCode === 0 && { prerequisite_status: 'satisfied' }),
+      ...(testCase.expectedExitCode === 0 && {
+        prerequisite_status: 'satisfied',
+      }),
       execution_plan_artifact: testCase.expectedFacts,
     });
     expect(JSON.stringify(result)).not.toMatch(
@@ -654,7 +779,9 @@ describe('delivery execution prerequisite', () => {
       ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
       { cwd: root, env: { NODE_ENV: 'test' } },
     );
-    const result = JSON.parse(invoked.stdout) as { findings: { code: string }[] };
+    const result = JSON.parse(invoked.stdout) as {
+      findings: { code: string }[];
+    };
 
     expect(invoked.exitCode).toBe(2);
     expect(result.findings.map(finding => finding.code)).toEqual([
@@ -777,16 +904,22 @@ describe('delivery execution prerequisite', () => {
       );
       expect(prerequisite.exitCode, prerequisite.stdout).toBe(0);
       execFileSync('git', ['init', '--quiet'], { cwd: root });
-      execFileSync('git', ['config', 'user.email', 'proof@example.com'], { cwd: root });
+      execFileSync('git', ['config', 'user.email', 'proof@example.com'], {
+        cwd: root,
+      });
       execFileSync('git', ['config', 'user.name', 'Proof Test'], { cwd: root });
       execFileSync('git', ['add', '.'], { cwd: root });
-      execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root });
+      execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], {
+        cwd: root,
+      });
 
       const invoked = await runCli(
         ['ticket', 'record-delivery-proof', 'ABC123', 'item-3', 'proof', '--json', '--cwd', root],
         { cwd: root, env: reviewEnvironment },
       );
-      const result = JSON.parse(invoked.stdout) as { data?: Record<string, unknown> };
+      const result = JSON.parse(invoked.stdout) as {
+        data?: Record<string, unknown>;
+      };
 
       expect(invoked.exitCode, invoked.stdout).toBe(0);
       expect(
@@ -927,7 +1060,11 @@ describe('delivery execution prerequisite', () => {
       const data = (
         JSON.parse(observed.stdout) as {
           data: {
-            contributor_evidence: { item_id: string; status: string; evidence_class: string }[];
+            contributor_evidence: {
+              item_id: string;
+              status: string;
+              evidence_class: string;
+            }[];
           };
         }
       ).data;
@@ -971,7 +1108,10 @@ describe('delivery execution prerequisite', () => {
     expect(invoked.exitCode).toBe(0);
     expect(result).toMatchObject({
       state: 'healthy',
-      data: { prerequisite_status: 'not_applicable', grants_authority: false },
+      data: {
+        prerequisite_status: 'not_applicable',
+        grants_authority: false,
+      },
     });
     expect(result.effects).toEqual({
       files: [],
@@ -998,7 +1138,10 @@ describe('delivery execution prerequisite', () => {
       expect(invoked.exitCode).toBe(0);
       expect(result).toMatchObject({
         state: 'healthy',
-        data: { prerequisite_status: 'not_applicable', grants_authority: false },
+        data: {
+          prerequisite_status: 'not_applicable',
+          grants_authority: false,
+        },
       });
     },
   );

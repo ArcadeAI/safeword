@@ -1995,3 +1995,77 @@ repair code uses the same existing public code. The disposable generic probe
 JSON was overwritten by its rerun; original console and RED logs are retained,
 and repaired output is separately saved. Do not treat that generic JSON as RED.
 No PR merge, promotion, qualification replay or optional hardening was performed.
+
+### 2026-10-09 — approved sibling diagnostic passes; strict admission defect reproduced
+
+Human approved /tmp/4200-receipt-ticket-diagnostic.patch. Applied the sibling
+regression and optional folder parameter. Actual RED failed only on the missing
+XYZ789-feature explanation; matching current approval passed first. The minimal
+source repair names authenticated reviewed targets and the expected current
+Execution Plan, retaining the existing public repair code and valid-match search.
+/tmp/4200-r9-ticket-red.log; /tmp/4200-r9-ticket-corrected-green.log: two files,
+30 passed, zero failures, 34.51 seconds. Typechecks, final affected lint and all
+five generated surfaces pass. No test assertion was weakened. A fixture cleanup
+accidentally changed one unrelated structural-case argument; independent review
+caught it, the original line was restored exactly, and the intervening run's
+four failures/26 passes remain in /tmp/4200-r9-ticket-final-green.log.
+
+Independent Claude review accf4920-0d52-476d-9415-7a504e50a33a requests changes
+for an inherited strict-status bypass. Confirmed through a disposable public CLI
+probe, /tmp/4200-r9-strict-status-probe.{json,log}: current matching approval
+exits zero; a signed invalid result envelope makes strict status report
+REVIEW_JOB_INVALID; after changed and freshly approved Implementation context,
+execution prerequisite still exits zero with satisfied. This models a trusted
+persisted-result compatibility failure, not unsigned forgery. The loose reader
+remains useful for diagnostics but must not admit approval without healthy
+strict currency validation. Figure-it-out decision and investigation domains:
+/tmp/4200-r9-strict-status-decision.md. Prepared, unapplied additional test:
+/tmp/4200-receipt-strict-status-regression.patch. Prepared source repair:
+/tmp/4200-receipt-strict-status-source.patch. Both apply-checks pass. Explicit
+human approval for the additional regression is needed under the testing guide.
+No commit or push of the current diagnostic repair while this error remains.
+Other reviewer warnings stay non-blocking; no optional hardening is included.
+
+PR5 CI at pushed e8ac23390609b5c58a5681c0ec0650c6f0978a57 is terminal green
+with explained conditional skips; /tmp/4200-pr5139-e8-checks.json. Root acceptance
+remains 65 passed/110 undefined, and historical full configured acceptance retains
+six failures/585 unfinished scenarios. No new full aggregate, Cucumber binding,
+RGR completion, qualification replay, merge or Ready promotion is claimed.
+The unrelated YCFFNC worklog edit and existing untracked evidence are preserved.
+
+### 2026-10-09 — strict receipt regression approved and repaired
+
+Human approved the additional strict-status regression, then explicitly approved
+all other test edits related to epic #4200 at 2026-10-10T01:39Z. This authorizes
+the remaining epic's test work; it does not authorize merges, Ready promotion,
+weakened proof, hidden failures, or unrelated test changes.
+
+The approved regression failed at the intended public boundary: invalid signed
+receipt plus changed/reapproved Implementation context incorrectly exited zero
+instead of two. /tmp/4200-r9-strict-status-red.log. The source carries the first
+strict status result into admission and requires a healthy current status before
+admitting approval. Authenticated malformed receipts remain available for refusal
+diagnostics. No extra status call, public repair code, authority or model is added.
+Both affected files pass all 31 tests, zero failures, 35.95 seconds;
+/tmp/4200-r9-strict-status-green.log. Typechecks and final lint pass. All five
+generated surfaces were regenerated and verified after the final simplification.
+Independent Claude review f726e2ef-a29b-4e4d-a18a-06d66895a44c approves with
+cross-agent independence and no errors; current status remains approved.
+Warnings are retained as non-blocking scope limits rather than optional hardening.
+The full package run completed: 720 files and 11,418 tests passed, zero failures,
+14 existing skips, 711.26 seconds. This is a fresh normal-package aggregate for
+the repaired source; it does not replace the unfinished acceptance lane.
+/tmp/4200-r9-strict-status-full-package.log.
+
+The three accepted R9 receipt-identity outline rows have a fresh executable
+Cucumber RED: three undefined scenarios, 150 passed and nine undefined steps.
+/tmp/4200-r9-receipt-bdd-red.{json,log}. They are not GREEN yet. A disposable
+native-gate positive control established the necessary structurally valid
+Implementation Plan, ticket id, and shared isolated profile state. Packaged
+runtimes deliberately omit the test-only integrity-key override; setting normal
+XDG_STATE_HOME to the same fixture-owned profile lets genuine receipts validate.
+/tmp/4200-r9-native-valid-gate-isolated-state-probe.log. Native gate then permits
+the exact Execution-to-implement edit. Prepared shared fixture extraction and
+thin Cucumber bindings remain outside the checkout until the current package
+run and corrective commit finish; no existing assertion is removed or weakened.
+No acceptance count, RGR completion, merge, or promotion is claimed.

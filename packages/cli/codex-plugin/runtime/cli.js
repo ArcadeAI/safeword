@@ -83290,11 +83290,18 @@ function reviewData(cwd, reviewId) {
   if (current.findings.some((finding2) => finding2.code === "REVIEW_STALE"))
     return;
   const status = reviewJobStatus(cwd, reviewId, { allowMalformedReviewerOutput: true });
-  return isRecord14(status.data) ? status.data : undefined;
+  return isRecord14(status.data) ? { data: status.data, currentStatusHealthy: current.state === "healthy" } : undefined;
 }
 function coversPlan(data, cwd, planPath) {
   const targets = data.review_targets;
   return Array.isArray(targets) && targets.some((target) => typeof target === "string" && nodePath133.resolve(cwd, target) === planPath);
+}
+function targetMismatch(data, planPath) {
+  const targets = data.review_targets;
+  if (!Array.isArray(targets) || targets.length === 0 || targets.some((target) => typeof target !== "string")) {
+    return;
+  }
+  return { kind: "mismatched_review_target", reviewTargets: targets, expectedPlan: planPath };
 }
 function rejectionMessage2(output) {
   const findings = output.findings;
@@ -83321,16 +83328,26 @@ function achievedIndependence(data, output, stamp) {
 function reviewCandidate2(input, stamp) {
   if (stamp.reviewId === undefined)
     return;
-  const data = reviewData(input.cwd, stamp.reviewId);
-  if (typeof data?.review_kind === "string" && data.review_kind !== "plan-execution") {
+  const review = reviewData(input.cwd, stamp.reviewId);
+  if (review === undefined)
+    return;
+  const data = review.data;
+  if (typeof data.review_kind === "string" && data.review_kind !== "plan-execution") {
     return { kind: "mismatched_review_kind", reviewKind: data.review_kind };
   }
-  if (data?.review_kind !== "plan-execution")
+  if (data.review_kind !== "plan-execution")
     return;
-  if (!coversPlan(data, input.cwd, input.planPath) || !isRecord14(data.reviewer_output)) {
-    return;
+  if (!coversPlan(data, input.cwd, input.planPath)) {
+    return targetMismatch(data, input.planPath);
   }
-  return { reviewId: stamp.reviewId, data, output: data.reviewer_output };
+  if (!isRecord14(data.reviewer_output))
+    return;
+  return {
+    reviewId: stamp.reviewId,
+    data,
+    output: data.reviewer_output,
+    currentStatusHealthy: review.currentStatusHealthy
+  };
 }
 function candidateAdmission(input, stamp) {
   const candidate = reviewCandidate2(input, stamp);
@@ -83338,7 +83355,7 @@ function candidateAdmission(input, stamp) {
     return;
   if ("kind" in candidate)
     return candidate;
-  const { data, output, reviewId } = candidate;
+  const { data, output, reviewId, currentStatusHealthy } = candidate;
   if (output.verdict === undefined)
     return { kind: "missing_verdict" };
   if (output.verdict === "request_changes") {
@@ -83347,7 +83364,7 @@ function candidateAdmission(input, stamp) {
   const independence = achievedIndependence(data, output, stamp);
   if (independence === undefined)
     return { kind: "unearned_assurance" };
-  if (data.status !== "approved")
+  if (data.status !== "approved" || !currentStatusHealthy)
     return { kind: "not_admitted" };
   const validated = validateExecutionPlanOutput(output, input.definition, input.digest);
   if (validated.kind !== "approved")
@@ -83370,7 +83387,7 @@ function executionPlanAdmission(input) {
   let mismatch;
   for (const stamp of candidates) {
     const admission = candidateAdmission(input, stamp);
-    if (admission?.kind === "mismatched_review_kind") {
+    if (admission?.kind === "mismatched_review_kind" || admission?.kind === "mismatched_review_target") {
       mismatch ??= admission;
       continue;
     }
@@ -84645,6 +84662,17 @@ function reviewedChecklist(review, command2) {
         missing: {
           code: "missing_admitted_delivery_checklist",
           message: `The receipt has review kind ${review.reviewKind}; plan-execution approval is required.`,
+          command: command2
+        },
+        receipt: "missing"
+      };
+    }
+    case "mismatched_review_target": {
+      return {
+        admitted: false,
+        missing: {
+          code: "missing_admitted_delivery_checklist",
+          message: `The receipt covers ${review.reviewTargets.join(", ")}; approval for ${review.expectedPlan} is required.`,
           command: command2
         },
         receipt: "missing"
