@@ -202,7 +202,7 @@ Feature: Keep plan reviews current and trustworthy
         | a reviewer model with unavailable, stale, or conflicting pair capability | that route is not attempted as independent and selection continues to the next permitted route |
 
     Scenario Outline: Exhausted routes advance through the fallback ladder in order
-      Given every route before <next_tier> was attempted and returned a typed failure
+      Given every route before <next_tier> is configured to return a typed failure when attempted
       When review recovery selects the next permitted route
       Then review recovery selects and attempts <next_tier>, and no later tier is attempted first
 
