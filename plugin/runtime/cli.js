@@ -90310,7 +90310,9 @@ import nodePath69 from "path";
 var LEDGER_RECOVERY_PROFILE = {
   ticket: "5F5ZZA",
   ledger: ".project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/test-definitions.md",
-  ledgerSha256: "975589886672e20bbc74d3a472aefc896741f9e20d6817434cc98b7a339f069e"
+  ledgerSha256: "975589886672e20bbc74d3a472aefc896741f9e20d6817434cc98b7a339f069e",
+  feature: "features/keep-plan-reviews-current-and-trustworthy.feature",
+  featureSha256: "9c2d14f1442c8acf483cf6e7e08533812826258ec24faf4f1516dfa1309f86ac"
 };
 
 // src/cli-protocol/review-handlers.ts
@@ -90398,12 +90400,18 @@ function ledgerRecoveryGateHandler(invocation) {
     return Promise.resolve(invalidOperand("review gate ledger-recovery", "Ticket is required."));
   const matchingScope = ticket === LEDGER_RECOVERY_PROFILE.ticket;
   const ledger = nodePath69.join(invocation.cwd, LEDGER_RECOVERY_PROFILE.ledger);
+  const feature = nodePath69.join(invocation.cwd, LEDGER_RECOVERY_PROFILE.feature);
+  const scopeChanged = matchingScope && existsSync28(feature) && createHash32("sha256").update(readFileSync46(feature)).digest("hex") !== LEDGER_RECOVERY_PROFILE.featureSha256;
   const historyChanged = matchingScope && existsSync28(ledger) && createHash32("sha256").update(readFileSync46(ledger)).digest("hex") !== LEDGER_RECOVERY_PROFILE.ledgerSha256;
   let code = "LEDGER_RECOVERY_SCOPE_MISMATCH";
   let message = "Completion recovery is limited to the approved 5F5ZZA scope.";
   if (matchingScope) {
     code = "LEDGER_RECOVERY_EVIDENCE_MISSING";
     message = "Authenticated current completion evidence is required.";
+  }
+  if (scopeChanged) {
+    code = "LEDGER_RECOVERY_SCOPE_CHANGED";
+    message = "Completion recovery requires the exact accepted feature bytes and inherited scope.";
   }
   if (historyChanged) {
     code = "LEDGER_RECOVERY_HISTORY_CHANGED";

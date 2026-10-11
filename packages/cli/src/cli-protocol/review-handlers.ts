@@ -147,6 +147,12 @@ export function ledgerRecoveryGateHandler(invocation: CommandInvocation): Promis
     return Promise.resolve(invalidOperand('review gate ledger-recovery', 'Ticket is required.'));
   const matchingScope = ticket === LEDGER_RECOVERY_PROFILE.ticket;
   const ledger = nodePath.join(invocation.cwd, LEDGER_RECOVERY_PROFILE.ledger);
+  const feature = nodePath.join(invocation.cwd, LEDGER_RECOVERY_PROFILE.feature);
+  const scopeChanged =
+    matchingScope &&
+    existsSync(feature) &&
+    createHash('sha256').update(readFileSync(feature)).digest('hex') !==
+      LEDGER_RECOVERY_PROFILE.featureSha256;
   const historyChanged =
     matchingScope &&
     existsSync(ledger) &&
@@ -157,6 +163,10 @@ export function ledgerRecoveryGateHandler(invocation: CommandInvocation): Promis
   if (matchingScope) {
     code = 'LEDGER_RECOVERY_EVIDENCE_MISSING';
     message = 'Authenticated current completion evidence is required.';
+  }
+  if (scopeChanged) {
+    code = 'LEDGER_RECOVERY_SCOPE_CHANGED';
+    message = 'Completion recovery requires the exact accepted feature bytes and inherited scope.';
   }
   if (historyChanged) {
     code = 'LEDGER_RECOVERY_HISTORY_CHANGED';
