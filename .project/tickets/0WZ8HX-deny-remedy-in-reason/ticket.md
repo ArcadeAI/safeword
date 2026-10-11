@@ -39,12 +39,12 @@ adapter. The reason field is the only one all four hosts deliver: Claude shows i
 
 **Tests:**
 
-- [ ] A deny with a remedy (test-definitions.md created before ticket.md) carries the remedy text
+- [x] A deny with a remedy (test-definitions.md created before ticket.md) carries the remedy text
       (`apply_patch`, `ordered patches`) in `permissionDecisionReason`, before the `/explain` hint, and
       emits no `additionalContext`.
-- [ ] A deny without a remedy (LOC gate) still emits no `additionalContext`.
-- [ ] The Cursor gate adapter turns a remedy-bearing deny into an `agent_message` containing the remedy.
-- [ ] A Bash append to a ticket.md is denied with a plain-language reason that names the Edit/Write tool
+- [x] A deny without a remedy (LOC gate) still emits no `additionalContext`.
+- [x] The Cursor gate adapter turns a remedy-bearing deny into an `agent_message` containing the remedy.
+- [x] A Bash append to a ticket.md is denied with a plain-language reason that names the Edit/Write tool
       and `apply_patch` and contains neither "activation artifact" nor "downgrade".
 
 ## Work Log
