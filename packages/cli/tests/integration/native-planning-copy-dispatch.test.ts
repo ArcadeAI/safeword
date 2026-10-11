@@ -40,7 +40,8 @@ process.stdin.on('end', () => {
   require('node:fs').appendFileSync(${JSON.stringify(calls)}, 'review' + String.fromCharCode(10));
   process.stdout.write(JSON.stringify({ structured_output: {
     schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude',
-    verdict: 'approve', summary: 'Native copy fixture approval.', findings: []
+    verdict: 'approve', summary: 'Native copy fixture approval.', findings: [],
+    evidence_records: { schema_version: 1, records: [] }
   }}));
 });
 `,

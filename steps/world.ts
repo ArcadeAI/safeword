@@ -14,6 +14,7 @@ export interface CommandResult {
 
 export class SafewordWorld extends World {
   result: CommandResult = { stdout: '', stderr: '', exitCode: 0 };
+  nativePlanningGate?: { host: string; output: string };
 }
 
 setWorldConstructor(SafewordWorld);

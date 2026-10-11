@@ -62,3 +62,17 @@ matrices. No accepted Rule is excluded.
 | Finding authority                | accepted defect; unresolved choice; optional strengthening; reviewer-authored scope or architecture                                                                                                                                                                                                                                                                                                                   |
 | Accepted boundary                | ticket scope; ticket exclusion; project non-goal; milestone non-goal; inherited parent boundary                                                                                                                                                                                                                                                                                                                       |
 | Product Plan completeness        | persona success; refusal; failure; approval; trust; recovery; explicit inapplicability; fact; assumption; unresolved decision                                                                                                                                                                                                                                                                                         |
+
+## User-approved proof exclusions — 2026-10-10 PDT
+
+The user explicitly narrowed this delivery to implemented local approval and
+packet boundaries. Twelve actual retrieval/evidence producer cases are retained
+under @manual @deferred.FC33HK; the failed-first/different-unattempted-reviewer
+case is @deferred.DRD65E; two genuine weaker-model cases are @deferred.KKP2R3.
+Eighteen OpenCode/cloud host and OpenCode guidance cases remain in MCWV4B.
+The earlier R6–R8 matrix rows state desired eventual proof, not current evidence
+for these excluded cases. No narrower local test establishes their claims.
+Current OpenCode enforcement wording conflicts with the parent advisory boundary;
+the user reiterated deferring that work before any production correction.
+These exclusions allow scoped completion only after delivered-boundary checks,
+review ledger and readiness pass. They do not grant merge/promotion authority.

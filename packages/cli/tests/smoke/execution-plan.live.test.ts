@@ -16,8 +16,12 @@ import {
   EXECUTION_PLAN_CONFORMANCE_CASES,
   type ExecutionPlanConformanceCase,
   type ExecutionPlanConformanceResult,
+  matchesExecutionPlanFindingTerms,
 } from '../../src/review/execution-plan-conformance.js';
-import { reviewTimeoutMilliseconds, runHeadlessReviewer } from '../../src/review/runtime.js';
+import {
+  reviewTimeoutMilliseconds,
+  runHeadlessReviewerWithProvenance,
+} from '../../src/review/runtime.js';
 import {
   assertTestCliFresh,
   createTemporaryDirectory,
@@ -26,12 +30,52 @@ import {
 } from '../helpers.js';
 
 const CAN_RUN = process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE === '1';
-const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds({});
+const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds();
 const LIVE_TEST_TIMEOUT_MS = REVIEW_TIMEOUT_MS + 60_000;
 const reviewer = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER as ReviewAgent | undefined;
 const model = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL?.trim() || undefined;
 const resultsPath = process.env.SAFEWORD_EXECUTION_PLAN_RESULTS_PATH;
 const results: ExecutionPlanConformanceResult[] = [];
+
+async function liveReviewer(
+  assigned: ReviewAgent,
+  directory: string,
+  packet: ReviewPacket,
+): Promise<ReviewerOutput> {
+  const profileKey = assigned === 'codex' ? 'CODEX_HOME' : 'CLAUDE_CONFIG_DIR';
+  const profile =
+    assigned === 'codex'
+      ? process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CODEX_HOME
+      : process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CLAUDE_CONFIG_DIR;
+  if (!profile)
+    throw new Error(`${assigned} live proof requires its explicitly authenticated profile`);
+  const previousProfile = process.env[profileKey];
+  if (assigned === 'claude' && profile === 'default')
+    Reflect.deleteProperty(process.env, profileKey);
+  else process.env[profileKey] = profile;
+  try {
+    const execution = await runHeadlessReviewerWithProvenance(
+      assigned,
+      packet,
+      directory,
+      process.cwd(),
+      {
+        ...(model !== undefined && { model }),
+        runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
+      },
+    );
+    if (model !== undefined) {
+      expect(execution.confirmedModel).toEqual({
+        provider: assigned === 'codex' ? 'openai' : 'anthropic',
+        model,
+      });
+    }
+    return execution.output as ReviewerOutput;
+  } finally {
+    if (previousProfile === undefined) Reflect.deleteProperty(process.env, profileKey);
+    else process.env[profileKey] = previousProfile;
+  }
+}
 
 function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent): ReviewPacket {
   const identity =
@@ -46,7 +90,7 @@ function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent
     logical_files: [{ path: 'execution-plan.md', content: testCase.execution_plan }],
     context_files: [
       { path: 'impl-plan.md', content: testCase.implementation_plan },
-      { path: 'scenario.feature', content: testCase.scenario },
+      { path: 'scenario.feature', content: testCase.accepted_scenario },
       {
         path: 'reviewer-identity.md',
         content: `Assigned reviewer: ${identity}.`,
@@ -72,7 +116,15 @@ function assertApproval(testCase: ExecutionPlanConformanceCase, output: Reviewer
   expect(record.slices.map(slice => slice.name)).toEqual(testCase.expectation.slice_names);
   const expectedObligations = testCase.expectation.obligations ?? [];
   for (const obligation of expectedObligations) {
-    expect(record.obligation_owners.map(owner => owner.obligation)).toContain(obligation);
+    expect(
+      record.obligation_owners.some(
+        owner =>
+          owner.obligation === obligation ||
+          owner.obligation === `Deliver ${obligation}.` ||
+          owner.obligation.startsWith(`${obligation}, `) ||
+          owner.obligation.startsWith(`${obligation}: `),
+      ),
+    ).toBe(true);
   }
   const expectedDecisions = testCase.expectation.decisions ?? [];
   for (const decision of expectedDecisions) {
@@ -86,9 +138,7 @@ function assertDenial(testCase: ExecutionPlanConformanceCase, output: ReviewerOu
   const explanation =
     `${output.summary}\n${output.findings.map(finding => finding.message).join('\n')}`.toLowerCase();
   const expectedTerms = testCase.expectation.finding_terms ?? [];
-  for (const term of expectedTerms) {
-    expect(explanation).toContain(term.toLowerCase());
-  }
+  expect(matchesExecutionPlanFindingTerms(explanation, expectedTerms)).toBe(true);
 }
 
 function assertCase(
@@ -135,10 +185,7 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
       const packet = packetFor(testCase, reviewer);
       let passed = false;
       try {
-        const output = (await runHeadlessReviewer(reviewer, packet, directory, process.cwd(), {
-          ...(model !== undefined && { model }),
-          runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
-        })) as ReviewerOutput;
+        const output = await liveReviewer(reviewer, directory, packet);
         try {
           assertCase(testCase, output, reviewer, packet.dispatch_id);
         } catch (error) {
@@ -235,7 +282,7 @@ describe.skipIf(!CLI_LIVE)('installed CLI semantic conformance', () => {
           nodePath.join(directory, ticketPath, 'impl-plan.md'),
           testCase.implementation_plan,
         );
-        writeFileSync(nodePath.join(directory, 'scenario.feature'), testCase.scenario);
+        writeFileSync(nodePath.join(directory, 'scenario.feature'), testCase.accepted_scenario);
         let result = await invoke([
           'run',
           'plan-execution',

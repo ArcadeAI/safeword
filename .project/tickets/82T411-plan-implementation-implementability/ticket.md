@@ -22,6 +22,8 @@ scope:
   - prove that a plain feature request can travel automatically from intake through contract-quality plans and tested delivery into a completed review-ready pull request
 out_of_scope:
   - external tracker storage or tracker-specific project-management ceremony
+  - user-deferred verification claims owned by FC33HK, DRD65E and KKP2R3; scoped epic completion does not establish their retrieval/privacy or route behavior
+  - OpenCode/cloud host and OpenCode guidance work deferred to MCWV4B; retain its known parent-advisory conflict without treating current enforcement wording as proof
   - splitting the two plans by human versus agent audience
   - adding formal planning artifacts or independent planning reviews to tasks and patches
   - using structural parsers to judge semantic decision quality or implementability

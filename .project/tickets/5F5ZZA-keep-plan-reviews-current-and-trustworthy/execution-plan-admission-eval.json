@@ -1,0 +1,2166 @@
+{
+  "schema_version": 1,
+  "purpose": "Live Execution Plan reviewer admission for the exact current contract and 63-case corpus.",
+  "started_at": "2026-09-29T13:40:30.845Z",
+  "finished_at": "2026-09-29T14:08:24.584Z",
+  "digests": {
+    "contract_sha256": "0007a2f66fdc391067505a162be398fd6e51c4812b7ba0fef852fb35e854c62b",
+    "corpus_sha256": "833df049ac3d3cbe119fac7f8ecf43c614e1cf6c4d64b97c4f0781e4ee8f6309"
+  },
+  "reviewer": {
+    "agent": "claude",
+    "route_model_alias": "opus",
+    "confirmed_model": "claude-opus-5",
+    "effort": "low",
+    "max_turns": 3,
+    "tools_disabled": true,
+    "session_persistence": false,
+    "schema": "reviewOutputSchema(plan-execution, plan-execution)"
+  },
+  "packet": {
+    "kind": "plan-execution",
+    "planning_phase": "plan-execution",
+    "logical_files": [
+      "execution-plan.md"
+    ],
+    "context_files": [
+      "implementation-plan.md",
+      "accepted-scenarios.feature"
+    ],
+    "accepted_scenarios": "Feature: Accepted delivery\n  Scenario: Users receive reviewed execution outcomes\n    Given an accepted implementation design\n    When the Execution Plan is reviewed\n    Then accepted behavior, migration, rollout, rollback, documentation, and affected-surface work are delivered with observable proofs",
+    "trusted_definition": "createExecutionPlanDeliveryDefinition(parseDeliveryPlanContract(case.execution_plan), false)",
+    "normalized_digest": "normalizedExecutionPlanDigest(case.execution_plan)"
+  },
+  "scoring": {
+    "strict_passes": 60,
+    "strict_failures": 3,
+    "semantic_passes_after_adjudication": 63,
+    "judge_model": "claude-sonnet-5",
+    "negative_control": {
+      "correct": false,
+      "reason": "The reviewer's findings concern missing/vague data ownership contract (store naming, decision accounting) not a missing rollback command or rollback exit code. The question asks about rollback defect specifically, which is unrelated to what the reviewer actually flagged."
+    },
+    "adjudicated_cases": [
+      "vague-data-ownership",
+      "invented-data-ownership",
+      "missing-denied-exit-assertion"
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "one-coherent-change",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "8451b390b7db39c950d48d023d845ffaecb4617eee2321c00acd51967d216a0b",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "several-ordered-changes",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "multiple_pull_requests",
+        "slice_names": [
+          "Contract",
+          "Activation"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "multiple_pull_requests",
+        "slice_names": [
+          "Contract",
+          "Activation"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "213a2be2be68e5ea80088d7c9a7d036698b19d866d645e37261f319f4f25c59d",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "omitted-slicing-decision",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "slicing",
+          "decision"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Missing slicing decision: the \"Pull-request slicing\" section states only that the decision is \"unspecified\" and gives a rationale that concedes the omission. An explicit `one_pull_request` or `multiple_pull_requests` decision with a nonblank rationale grounded in conceptual cohesion and independent proof is required. With two slices present (Contract, Activation) but no declared decision, the delivery decomposition and its intermediate-merge guarantee cannot be judged.",
+        "Obligation ownership misassigns Accepted behavior: \"Accepted behavior: Contract\", but the Contract slice's only proof is `data-compatibility` (`bun run test:schema-compatibility`), which exercises migration and backward-compatibility boundaries, not the public CLI behavior boundary. Checklist items item-1 and item-4 require `behavior-boundary`, which only the Activation slice runs. As written, the Contract slice can report completion with exit 0 while the accepted behavior claim is unproven; the proof is non-discriminating for the obligation it is assigned to."
+      ]
+    },
+    {
+      "case_id": "complete-slice-record",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Typed review result"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Typed review result"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "d04126e8a91e35e641f59dd58f4ee77ea9a3888f65ba863bb1391d916b7fe489",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "generic-checklist",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "checklist",
+          "accepted"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Obligation ownership is false: the only slice (\"Contract\") has purpose \"Package the canonical Execution Planning contract\" with boundary \"Contract template, schema registration, and generated assets\" and completion signal \"The inert contract ships\". It cannot deliver accepted behavior, migration, rollout, rollback, documentation, or affected-surface work, yet all six obligations are mapped to it. The plan can be fully executed (contract bytes match) while the accepted user-facing outcome is entirely undelivered.",
+        "Delivery Checklist obligations are generic placeholders: all eleven items read \"Complete the standard delivery work.\" None restates an accepted behavior, migration, rollout, rollback, or documentation obligation, so the checklist does not cover the accepted scenario \"Users receive reviewed execution outcomes\" and leaves behavior for the implementer to invent.",
+        "Proof coverage is non-discriminating: the slice's only proof obligation is data-compatibility (`bun run test:schema-compatibility`). Items 1,2,3,4,6,7,8,9,10,11 require behavior-boundary, plan-integrity, failure-signals, security-boundary, rollout-rollback, and documentation-contract, but no slice step invokes any of them. Every named slice check can pass while the accepted claim is false.",
+        "Slice tasks are not startable for the accepted work: the RED step (`bun run test:schema-compatibility` with the generated-contract fixture, expecting `canonical contract bytes differ`) is not the highest-risk accepted behavior. No step names a fixture, command, edit action, or real actor boundary for authorization, rollout, rollback, or documentation work."
+      ]
+    },
+    {
+      "case_id": "dismissed-applicable-work",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "item-4",
+          "behavior-boundary"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Checklist item-4 (testing, \"Prove Accepted behavior at the named boundary.\") is recorded with an empty Required proof and reviewed_disposition not_applicable with the reason \"No runtime proof is needed.\" The accepted Implementation Plan states under Accepted proof boundaries: \"Accepted behavior must be proven through behavior-boundary; this is applicable contributor work.\" Only optional categories explicitly recorded as inapplicable by the accepted Implementation Plan may be dispositioned not_applicable. As written, the checklist can be fully satisfied while the accepted testing obligation is never exercised, and the plan would report completion while the accepted user-facing proof claim is false. Restore item-4 as an open contributor obligation with required_proof behavior-boundary (a real_boundary, current_required proof already in the table)."
+      ]
+    },
+    {
+      "case_id": "proof-does-not-exercise-boundary",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "proof",
+          "boundary"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Proof specification `complete-delivery` claims scope E2E and boundary \"Customer authorization across both live transports\" but its invocation is `node --version` in `.`. That command exits 0 regardless of the authorization implementation, so all eleven checklist items (item-1 through item-11) can be reported satisfied while the accepted behavior is entirely broken. Its `qualifies_as: real_boundary` classification is unsupported; supplied proof is non-discriminating.",
+        "The Contract slice names its proof as \"data-compatibility: package tests compare every installed contract byte\", a proof ID that does not appear in the Proof specifications table. Every contributor Required proof must resolve to a unique declared proof; this slice's proof obligation is unresolvable.",
+        "The Contract slice's purpose and boundary (\"Package the canonical Execution Planning contract\", template registry and generated mirrors) and its RED/GREEN/REFACTOR steps (`bun run test:schema-compatibility`) are unrelated to the accepted obligations it owns (Accepted behavior, Migration, Rollout, Rollback, Documentation, Affected-surface work) and to the accepted scenario about customer authorization. The ownership map assigns all six accepted obligations to a slice whose tasks deliver none of them, so accepted scenario coverage is not established.",
+        "Obligation coverage is generic and incomplete: `item-8` collapses Rollout work and Rollback work into one obligation with no distinct completion signal, and no slice step performs migration, rollout, rollback, documentation, or monitoring work. The single slice's completion signal (\"The inert contract ships\") cannot signal completion of any of those accepted obligations."
+      ]
+    },
+    {
+      "case_id": "missing-purpose",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "purpose"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Slice \"Contract\" has no purpose statement. The record lists only Boundary, Prerequisites, Proof, Completion signal, and Relies-on-unmerged-successor. Without a stated purpose the slice's one coherent concern cannot be judged, and a reviewer cannot tell whether the contract/template/asset work is the same concern as the behavior, rollout, and documentation obligations assigned to it.",
+        "Obligation ownership assigns Accepted behavior, Migration work, Rollout work, Rollback work, Documentation work, and Affected-surface work all to the single slice \"Contract\", but that slice declares exactly one proof obligation (data-compatibility, comparing installed contract bytes). Checklist items item-1/item-4 (behavior-boundary), item-6 (failure-signals), item-7 (security-boundary), item-8 (rollout-rollback), and item-9 (documentation-contract) therefore have no slice-level proof obligation. The plan can pass its only named slice proof while accepted behavior, rollout, rollback, documentation, and failure-signal work is entirely unbuilt.",
+        "The first production slice does not begin with the highest-risk named RED for accepted behavior. Task 1 reds on `bun run test:schema-compatibility` with `canonical contract bytes differ`, which exercises only the migration/compatibility boundary. No step names a fixture, command, or failure signal for behavior-boundary (`bun run test:review-cli`) or for the failure-signal, security, rollout, or documentation proofs, leaving those implementations for the implementer to invent.",
+        "Slice \"Contract\" bundles independently valuable outcomes. Its boundary (\"Contract template, schema registration, and generated assets\") describes inert contract shipping, yet it also owns rollout activation, rollback recovery, authorization/privacy behavior, and published documentation \u2014 concerns that can be understood and proven independently. Either slice them so each concern carries its own proof and completion signal, or restate a single purpose these tasks actually satisfy."
+      ]
+    },
+    {
+      "case_id": "missing-boundary",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "boundary"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Slice \"Contract\" owns Accepted behavior, Rollout work, Rollback work, Documentation work, and Affected-surface work under \"Obligation ownership\", but its only Proof is data-compatibility and its three tasks only add and deduplicate canonical contract text verified by `bun run test:schema-compatibility`. Those obligations have no executable step, so the slice can merge green while none of the accepted scenario outcomes are delivered.",
+        "Non-discriminating proof: checklist items item-1/item-4 (behavior-boundary), item-6 (failure-signals), item-7 (security-boundary), item-8 (rollout-rollback), item-9 (documentation-contract), and item-2/item-3/item-10/item-11 (plan-integrity) name proofs that no slice step ever invokes. `bun run test:schema-compatibility` is the only command in the plan, so every named behavior could be broken while the slice's stated checks still pass.",
+        "The first production slice does not begin with the highest-risk named RED for accepted behavior. Its RED step targets the generated-contract fixture with failure signal `canonical contract bytes differ`, exercising contract byte equality rather than the public CLI boundary that behavior-boundary claims to prove.",
+        "Slice \"Contract\" carries two independently valuable purposes: shipping an inert contract package (its stated Purpose and Completion signal) and delivering all six accepted obligations (its ownership list). Its completion signal, \"The inert contract ships and the repository remains supported\", is not a concrete completion signal for behavior, rollout, rollback, documentation, or affected-surface work."
+      ]
+    },
+    {
+      "case_id": "missing-prerequisites",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "prerequisite"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Slice \"Contract\" has no prerequisite list. Every slice record must present a prerequisites field (empty is acceptable for a first slice, but it must be stated) so dependency order is readable.",
+        "Slice \"Contract\" carries a single proof obligation (data-compatibility) yet is assigned all six accepted obligations. Required proofs behavior-boundary, failure-signals, security-boundary, rollout-rollback, documentation-contract, and plan-integrity resolve to no slice, so contributor items item-1, item-2, item-3, item-4, item-6, item-7, item-8, item-9, item-10, and item-11 have no owning work that can produce them.",
+        "Slice purpose and boundary (\"Package the canonical Execution Planning contract\"; template registry, schema registration, generated assets) do not implement the accepted scenario's behavior, migration, rollout, rollback, documentation, and affected-surface delivery. The obligation-ownership section maps those obligations onto a slice whose stated work cannot deliver them, so accepted scenario coverage fails.",
+        "Tasks and tests contain only schema-compatibility RED/GREEN/REFACTOR steps. The first production slice's highest-risk RED must target the accepted behavior boundary; no step names a fixture, command, edit action, expected exit, or real actor boundary for accepted behavior, security, rollout, or documentation work, leaving that work for the implementer to invent.",
+        "Slicing rationale (\"The contribution claims to be one coherent change.\") is circular and does not ground the one_pull_request decision in conceptual cohesion or independent provability, especially given six distinct accepted obligations with six distinct proof boundaries."
+      ]
+    },
+    {
+      "case_id": "missing-proof",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "proof"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Slice \"Contract\" owns Accepted behavior, Migration, Rollout, Rollback, Documentation, and Affected-surface work, but its only tasks add contract template text and run `bun run test:schema-compatibility`. Checklist items item-1/item-4 (behavior-boundary), item-6 (failure-signals), item-7 (security-boundary), item-8 (rollout-rollback), and item-9 (documentation-contract) have no executable step that invokes their required proof, so every named check can pass while the accepted behavior is undelivered.",
+        "Obligation ownership is nominal, not real coverage: a slice whose boundary is \"Contract template, schema registration, and generated assets\" and whose completion signal is \"The inert contract ships\" cannot deliver the accepted scenario (accepted behavior, migration, rollout, rollback, documentation, and affected-surface work delivered with observable proofs). Accepted scenario coverage and the accepted approach are not preserved.",
+        "The first production slice's RED step is `bun run test:schema-compatibility` on a generated-contract fixture \u2014 a data-compatibility proof, not the highest-risk accepted-behavior boundary. No RED step, fixture, or failure signal is specified for behavior-boundary, security-boundary, failure-signals, rollout-rollback, or documentation-contract, leaving proof sequencing for the implementer to invent.",
+        "The `one_pull_request` rationale (\"The contribution claims to be one coherent change.\") is a bare restatement rather than a justification grounded in conceptual cohesion and independent provability, while the slice bundles six independently valuable accepted obligations into one boundary."
+      ]
+    },
+    {
+      "case_id": "missing-completion-signal",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "completion signal"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Slice \"Contract\" has no completion signal. Every slice record must state a concrete observable completion signal; without it the slice can be declared done while accepted behavior, rollout, rollback, documentation, and affected-surface work remain unproven.",
+        "Slice \"Contract\" declares only `Proof: data-compatibility`, yet Obligation ownership assigns Accepted behavior, Rollout work, Rollback work, Documentation work, and Affected-surface work to that same slice. Required proofs behavior-boundary, rollout-rollback, documentation-contract, failure-signals, security-boundary, and plan-integrity are owned by no slice and invoked by no task step, so checklist items 1, 3, 4, 6, 7, 8, 9, 10, and 11 cannot resolve to executed real-boundary proof.",
+        "The first production slice's RED step (`bun run test:schema-compatibility` expecting `canonical contract bytes differ`) is non-discriminating for the accepted scenario: accepted behavior, rollout, rollback, documentation, and affected-surface delivery could all be broken while that single named check still passes."
+      ]
+    },
+    {
+      "case_id": "two-independent-purposes",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "two",
+          "purpose"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Slice \"Contract\" states two independently valuable purposes \u2014 \"Package the contract and independently activate public CLI routing\" \u2014 with a boundary of \"Contract generation plus unrelated public command activation\" and proof that explicitly separates package tests from CLI tests. Each concern can be understood and proven independently, so it must be split into separate slices (or the CLI activation removed from this slice).",
+        "The one_pull_request rationale (\"The author put both outcomes together because they touch review code\") is not grounded in conceptual cohesion or independent proof; shared file locality is not a valid slicing justification, and it contradicts the slice's own admission that the two outcomes are unrelated and separately proven.",
+        "Obligation ownership assigns Accepted behavior, Rollout work, Rollback work, Documentation work, and Affected-surface work to the \"Contract\" slice, but the slice's tasks and tests contain only schema-compatibility (data-compatibility) steps. No executable step, command, fixture, or completion signal exists for behavior-boundary, rollout-rollback, documentation-contract, failure-signals, or security-boundary, so those obligations are unowned in practice and cannot be started or finished from this sequence.",
+        "The slice completion signal (\"The inert contract ships and the repository remains supported\") does not discriminate delivery of the CLI-activation purpose or of the five obligations above; the slice could be reported complete while the accepted behavior, rollout, rollback, documentation, and affected-surface outcomes are entirely absent.",
+        "The first production slice's highest-risk RED is a schema-compatibility fixture, not the highest-risk accepted behavior at the behavior-boundary proof (bun run test:review-cli). No RED step with a named fixture, command, and failure signal precedes the CLI-activation production edit."
+      ]
+    },
+    {
+      "case_id": "unresolved-authorization-decision",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "authorization"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md slice \"Contract\" boundary states \"The implementer will decide whether each transport or one service owns authorization\", reopening the accepted Implementation Plan decision \"One shared authorization service owns permission checks for every transport.\" The same plan records that decision as `unchanged`, so the two statements cannot both hold; delivery could ship per-transport authorization while the decision-status entry claims preservation. Remove the implementer choice and state the accepted shared-authorization-service design in the slice boundary.",
+        "execution-plan.md assigns all six accepted obligations (Accepted behavior, Migration, Rollout, Rollback, Documentation, Affected-surface) to the single \"Contract\" slice, but the slice's Proof line names only data-compatibility and all three tasks run only `bun run test:schema-compatibility`. The contributor required proofs behavior-boundary, plan-integrity, failure-signals, security-boundary, rollout-rollback, and documentation-contract are never exercised by any step, so every named check can pass while accepted behavior, rollout/rollback, security, and documentation obligations are unimplemented. Give the slice proof obligations and startable steps that invoke each required proof, or split into slices that do.",
+        "execution-plan.md first production slice does not begin with the highest-risk named RED for the accepted behavior: step 1 is a schema-compatibility RED with the failure signal `canonical contract bytes differ`, and no step names a fixture, command, or failure signal for the accepted-behavior CLI boundary (behavior-boundary / `bun run test:review-cli`). Add the highest-risk RED with its fixture, command, and failure signal before any production edit.",
+        "execution-plan.md slicing rationale \"The slice is mechanically complete.\" is not grounded in conceptual cohesion or independent proof, and the slice's stated purpose (\"Package the canonical Execution Planning contract\") does not encompass the rollout, rollback, security, and documentation obligations assigned to it. Provide a rationale grounded in one coherent concern, or choose multiple_pull_requests with per-concern slices."
+      ]
+    },
+    {
+      "case_id": "ordered-schema-before-reader",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "multiple_pull_requests",
+        "slice_names": [
+          "Schema",
+          "Reader"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "multiple_pull_requests",
+        "slice_names": [
+          "Schema",
+          "Reader"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "9af8f583b3cc336bb145bf4a92015cbb4edb798802570795e16392651ab26033",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "unsafe-intermediate-merge",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "supported",
+          "prerequisite"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Unsupported intermediate merge. The \"Contract\" slice states its purpose is to \"Emit a required state that no merged code can handle\" and lists no prerequisites, while \"Activation\" \u2014 described as \"the only handler for the required state\" \u2014 also lists no prerequisites and does not depend on Contract. Merging Contract alone leaves the repository emitting a state with no handler. This directly contradicts the recorded decision \"Host-neutral dependency order keeps every intermediate merge supported,\" which the plan simultaneously records as status unchanged. Both slices' `relies_on_unmerged_successor: no` assertions are therefore unsupported: Contract is safe only after Activation merges.",
+        "Obligation ownership does not match slice content or proof. \"Accepted behavior\" is owned by the Contract slice, but Contract's only proof is `data-compatibility` and its boundary is templates/schema registration; the `behavior-boundary` proof (checklist item-1 and item-4) and all review-routing work live in Activation. Conversely \"Migration work\" (item-5, required proof `data-compatibility`) is owned by Activation, whose proof list does not include `data-compatibility`. Contributor required proofs item-1, item-4, and item-5 therefore do not resolve to a real-boundary proof within their owning slice.",
+        "The Activation slice bundles independently valuable outcomes. Its boundary spans review routing, result retention, CLI presentation, failure signals, authorization, rollout, rollback, and documentation, and it owns five of the six accepted obligations behind a single completion signal. These concerns can be understood and proven independently (each already has a distinct proof ID), so the slice fails the conceptual-reviewability boundary and gives no per-obligation completion signal."
+      ]
+    },
+    {
+      "case_id": "many-mechanical-edits",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Contract mirrors"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Contract mirrors"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "68e671f8aeebfe436195dfa39495aa7bf40d3aaab551ae6da8d4bda9c22460cd",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "few-files-two-outcomes",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "multiple_pull_requests",
+        "slice_names": [
+          "Inert schema",
+          "Public activation"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "multiple_pull_requests",
+        "slice_names": [
+          "Inert schema",
+          "Public activation"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "11cd04ddeea144eb74c81a2ad0b29e36ecb2ce57078449d4766477e34150c93f",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "line-count-only-rationale",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "conceptual",
+          "proof"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Pull-request slicing rationale (\"reviewable only because it is below 400 changed lines\") uses line count as the sole justification. Required: a rationale grounded in conceptual cohesion and independent provability.",
+        "The single slice \"Contract\" is assigned all six accepted obligations (Accepted behavior, Migration, Rollout, Rollback, Documentation, Affected-surface) but its stated purpose and boundary cover only contract template packaging, schema registration, and generated assets. Behavior, rollout/rollback, documentation, and affected-surface obligations are unowned in substance despite the nominal mapping.",
+        "Slice \"Contract\" declares a single proof (data-compatibility). Checklist items item-1/item-4 (behavior-boundary), item-6 (failure-signals), item-7 (security-boundary), item-8 (rollout-rollback), item-9 (documentation-contract), and item-2/3/10/11 (plan-integrity) have no slice that obligates running those proofs, so no slice proves the accepted scenario's observable proofs.",
+        "Startable steps are incomplete: the only RED/GREEN/REFACTOR sequence targets the schema-compatibility fixture. There is no named first RED for the highest-risk accepted behavior at the CLI boundary, and no steps exist for rollout activation, rollback recovery, failure-signal exposure, authorization behavior, or documentation. Implementers would have to invent them."
+      ]
+    },
+    {
+      "case_id": "all-obligations-assigned",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "multiple_pull_requests",
+        "slice_names": [
+          "Contract owner",
+          "Release owner"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "multiple_pull_requests",
+        "slice_names": [
+          "Contract owner",
+          "Release owner"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "df0bf3a042c59bbe58c9c38b9012c0af6cd7cd594f2f1f12ac64e609b00d2b63",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "all-decisions-unchanged",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "4aa1224b3df5a1d0494386cc1fede16862739893b2bf121523b55bfcadc40c8e",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "vague-data-ownership",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "data",
+          "unnamed"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": false,
+      "strict_reasons": [
+        "finding_term:unnamed"
+      ],
+      "semantic_pass": true,
+      "error_findings": [
+        "Decision accounting bullet 3 (\"Use the appropriate store and ownership contract during implementation.\") defers an already-accepted decision to the implementer and carries no readable status. Every Recorded Decision entry must be accounted for with the status `unchanged`; this line instead reopens the accepted data design and must be removed or restated as the accepted store and owner with status `unchanged`.",
+        "Tasks 3, 4, and 11 route all persistence through `src/review/result-store.ts` and never name the accepted data design (project-local SQLite `delivery.db` with DeliveryStateService owning all reads and writes). Two reasonable implementations are permitted \u2014 one writing a new store that bypasses DeliveryStateService \u2014 and `test:schema-compatibility` as specified (legacy-result round-trip) would pass either way, so the accepted ownership invariant can be violated while item-5 reports complete. Name the store, the owning service, and the assertion that reads/writes go through it."
+      ],
+      "adjudication": {
+        "judge_model": "claude-sonnet-5",
+        "correct": true,
+        "reason": "Reviewer correctly identifies that the accepted data store and ownership (SQLite delivery.db with DeliveryStateService) are left unnamed, with tasks routing through a generic result-store.ts that could bypass the accepted design, matching expected verdict/destination."
+      }
+    },
+    {
+      "case_id": "invented-data-ownership",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-implementation",
+        "finding_terms": [
+          "data",
+          "invented"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-implementation",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": false,
+      "strict_reasons": [
+        "finding_term:invented"
+      ],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md, \"Decision accounting\": the entry \"Store delivery evidence in Redis and let ReviewService own reads and writes.\" is not one of the accepted Implementation Plan's Recorded decisions (only the shared authorization service and host-neutral dependency order are accepted). Execution Planning may not introduce a new storage technology or read/write ownership boundary; this is an unreviewed design and data decision that expands accepted scope. Remove it, or have the user accept it in the Implementation Plan and return through implementation review.",
+        "execution-plan.md, \"Decision accounting\": the Redis/ReviewService entry carries no decision status, so decision accounting is not fully readable. Every listed decision must resolve to an accepted Recorded Decision with an explicit `unchanged` status; this one resolves to neither."
+      ],
+      "adjudication": {
+        "judge_model": "claude-sonnet-5",
+        "correct": true,
+        "reason": "The reviewer correctly identifies that the Redis/ReviewService ownership decision is not part of the accepted Implementation Plan's recorded decisions, flags it as an unreviewed scope-expanding data/ownership decision, and requests changes with destination plan-implementation, matching the expected verdict and destination."
+      }
+    },
+    {
+      "case_id": "accepted-data-ownership",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport",
+          "Host-neutral dependency order keeps every intermediate merge supported",
+          "The project-local SQLite database `delivery.db` stores delivery evidence",
+          "DeliveryStateService owns all reads and writes for that store"
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport",
+          "Host-neutral dependency order keeps every intermediate merge supported",
+          "The project-local SQLite database `delivery.db` stores delivery evidence",
+          "DeliveryStateService owns all reads and writes for that store"
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "063dcd50bd77e6f1fc6dcbb5cc6ea1687ce7af4ff415c855aa6ef4c101a2c522",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "missing-behavior-obligation",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "Accepted behavior"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Obligation ownership omits the accepted obligation \"Accepted behavior\" (implementation-plan.md). Checklist items item-1 and item-4 require proof behavior-boundary, but no slice owns that work, so delivery could complete with every named slice signal satisfied while the accepted user-facing behavior ships unimplemented.",
+        "The sole slice \"Contract\" lists only one proof (data-compatibility) yet is assigned Rollout, Rollback, Documentation, and Affected-surface work, whose required proofs are rollout-rollback, documentation-contract, failure-signals, and security-boundary. Its completion signal (\"the inert contract ships\") cannot discriminate whether those obligations were delivered; the proof is non-discriminating for four of five owned obligations.",
+        "The slice's stated boundary (contract template, schema registration, generated assets) does not encompass the rollout, rollback, monitoring, and authorization work assigned to it, so no executable step names the action, inputs, or observable result for those obligations. Tasks 1-3 cover only contract bytes, leaving the implementer to invent the rest.",
+        "The first production slice's RED step is not the highest-risk named RED: it asserts `canonical contract bytes differ` for an explicitly inert contract rather than any accepted behavior, migration, security, or rollout failure signal."
+      ]
+    },
+    {
+      "case_id": "missing-decision-obligation",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "decision-derived work"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Unowned accepted obligation: the Implementation Plan's accepted decision-derived work, \"Apply the shared authorization decision to both gateway transports,\" appears in no slice, no obligation-ownership entry, and no checklist item. The recorded decision is listed as 'unchanged' in decision accounting, but recording a decision status is not the same as owning its derived implementation.",
+        "Non-discriminating proof / boundary mismatch: the \"Contract\" slice declares Proof: data-compatibility only (`bun run test:schema-compatibility`, comparing contract bytes), yet it is named owner of Accepted behavior, Rollout work, Rollback work, Documentation work, and Affected-surface work. Those obligations' required proofs (behavior-boundary, rollout-rollback, documentation-contract, failure-signals, security-boundary) are exercised by no slice task, so the slice can pass its only named check with every one of those obligations unimplemented.",
+        "Slice purpose does not cover accepted scope: the slice's stated purpose and boundary are \"Package the canonical Execution Planning contract\" over template/registry/generated assets, and its completion signal is \"The inert contract ships.\" An inert contract shipping cannot satisfy the accepted scenario requiring accepted behavior, migration, rollout, rollback, documentation, and affected-surface work to be delivered with observable proofs. The one-pull-request rationale (\"The contribution claims to preserve the accepted approach\") is not grounded in conceptual cohesion or independent proof.",
+        "Missing startable steps: no executable step names the action, inputs, or expected result for the authorization service, rollout/rollback activation, documentation, failure signals, or the public CLI behavior boundary. The first production slice's highest-risk RED is a contract-bytes comparison, not the highest-risk accepted behavior, leaving that implementation for the implementer to invent."
+      ]
+    },
+    {
+      "case_id": "missing-proof-strategy-obligation",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "proof-strategy work"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Missing accepted proof-strategy obligation: implementation-plan.md records \"Implement the edited-plan denial proof through the installed CLI subprocess.\" No slice, obligation-ownership entry, task, or checklist item owns it. An implementer could ship the contract and report completion while the accepted proof-strategy work is absent.",
+        "Obligation ownership is non-discriminating: the single \"Contract\" slice is assigned Accepted behavior, Migration, Rollout, Rollback, Documentation, and Affected-surface work, but its only declared Proof is data-compatibility and its only completion signal is \"the inert contract ships\". behavior-boundary, failure-signals, security-boundary, rollout-rollback, and documentation-contract are named in the checklist yet no slice step runs them, so every one of those obligations can be broken while the slice's named check (test:schema-compatibility) still passes.",
+        "Slice boundary does not match its purpose: \"Contract\" is scoped to \"Contract template, schema registration, and generated assets\" and its tasks only edit templates and regenerate mirrors, yet it owns Rollout, Rollback, Documentation, and Affected-surface work. The steps therefore leave the behavior, rollout, and monitoring work for the implementer to invent, violating the startable-steps requirement.",
+        "Slicing rationale is not grounded: \"The contribution claims to preserve the accepted proof boundary\" states no conceptual cohesion or independent-proof reason for one pull request, and it is contradicted by the six proof boundaries the single slice never exercises."
+      ]
+    },
+    {
+      "case_id": "missing-migration-obligation",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "Migration work"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Obligation ownership omits the accepted obligation \"Migration work\" listed in implementation-plan.md. Every applicable accepted obligation must map to an existing slice name with a completion signal; the checklist item-5 (\"Complete Migration work.\") therefore has no owning slice.",
+        "The single slice \"Contract\" declares only \"Proof: data-compatibility\" and its tasks exercise only `bun run test:schema-compatibility`, yet it is named owner for Accepted behavior, Rollout, Rollback, Documentation, and Affected-surface work. Those obligations' required proofs (behavior-boundary, rollout-rollback, documentation-contract, failure-signals, security-boundary, plan-integrity) are never invoked by any startable step, so the plan can be executed to completion while the accepted user-facing behavior is never delivered or proven.",
+        "Slice boundary and completion signal (\"The inert contract ships\") do not match the accepted scenario, which requires accepted behavior, migration, rollout, rollback, documentation, and affected-surface work delivered with observable proofs. Accepted scenario coverage fails."
+      ]
+    },
+    {
+      "case_id": "missing-rollout-obligation",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "Rollout work"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Obligation ownership omits \"Rollout work\", which the accepted Implementation Plan lists and checklist item-8 requires (\"Complete Rollout work and Rollback work.\"). Only \"Rollback work: Contract\" is recorded, so rollout activation has no owning slice, dependency position, or completion signal.",
+        "The single \"Contract\" slice's purpose and boundary are limited to contract template packaging, schema registration, and generated assets, and its only Proof is data-compatibility. It is nonetheless assigned Accepted behavior, Rollback work, Documentation work, and Affected-surface work. No task exercises behavior-boundary, failure-signals, security-boundary, rollout-rollback, or documentation-contract, so those obligations have no startable step and could be reported complete while the accepted scenario's observable proofs are never run.",
+        "The slice's completion signal (\"The inert contract ships and the repository remains supported.\") is non-discriminating for the obligations it owns: every accepted behavior, rollout, documentation, and affected-surface outcome could be broken while `bun run test:schema-compatibility` still exits 0."
+      ]
+    },
+    {
+      "case_id": "missing-rollback-obligation",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "Rollback work"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Obligation ownership omits the accepted obligation \"Rollback work\" listed in implementation-plan.md and required by the accepted scenario. No slice owns rollback, and no completion signal covers it, even though checklist item-8 asserts \"Complete Rollout work and Rollback work.\" The checklist can pass ownership review while an accepted obligation has no owner.",
+        "The single slice \"Contract\" declares a boundary of \"Contract template, schema registration, and generated assets\" and only one proof (data-compatibility), yet obligation ownership assigns Accepted behavior, Migration work, Rollout work, Documentation work, and Affected-surface work to it. Its tasks are exclusively `test:schema-compatibility` steps, so behavior-boundary, failure-signals, security-boundary, rollout-rollback, and documentation-contract proofs are never invoked by any executable step. Delivery can complete every named step while the accepted user-facing behavior is unproven.",
+        "The first production slice's RED step (`bun run test:schema-compatibility` with failure signal `canonical contract bytes differ`) is not the highest-risk accepted behavior; the accepted scenario's behavior obligation (behavior-boundary at the public CLI boundary) has no RED step at all before production edits.",
+        "The slice has two independently valuable purposes bundled under one boundary: shipping an \"inert contract\" (per its completion signal) versus delivering accepted behavior, rollout/rollback, security, and documentation work. The completion signal \"The inert contract ships and the repository remains supported\" is non-discriminating for the accepted scenario \u2014 it can be satisfied while none of the accepted behavior is delivered."
+      ]
+    },
+    {
+      "case_id": "missing-documentation-obligation",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "Documentation work"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Obligation ownership omits the accepted Implementation Plan obligation \"Documentation work\" (implementation-plan.md). Every other accepted obligation names an owning slice; this one names none, and the accepted Implementation Plan does not record documentation as inapplicable. Checklist item-9 therefore has no slice, step, or completion signal behind it, so delivery could finish with the documentation-contract proof never run.",
+        "The sole slice \"Contract\" claims ownership of Accepted behavior, Migration work, Rollout work, Rollback work, and Affected-surface work, but its Proof field names only data-compatibility and all three tasks run `bun run test:schema-compatibility`. Contributor Required proofs behavior-boundary, failure-signals, security-boundary, and rollout-rollback resolve to no slice proof obligation, so the named checks can all pass while accepted behavior, failure signals, authorization, and rollback are unimplemented \u2014 non-discriminating proof for those obligations.",
+        "Startable-steps requirement unmet: the first production slice's highest-risk RED is a contract-byte comparison (`canonical contract bytes differ`), not a RED against the accepted behavior at the public CLI boundary. No step names the fixture, command, edit action, or expected assertion for accepted behavior, rollout activation, rollback recovery, or the authorization boundary, leaving those for the implementer to invent.",
+        "Slice boundary and completion signal do not carry the accepted scenario. The completion signal is \"The inert contract ships and the repository remains supported,\" which can be satisfied while accepted-scenarios.feature (\"accepted behavior, migration, rollout, rollback, documentation, and affected-surface work are delivered with observable proofs\") remains false."
+      ]
+    },
+    {
+      "case_id": "missing-affected-surface-obligation",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "Affected-surface work"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Missing obligation owner: the accepted Implementation Plan lists \"Affected-surface work\" as an accepted obligation, but the Obligation ownership section names owners only for Accepted behavior, Migration work, Rollout work, Rollback work, and Documentation work. Checklist items item-6 and item-7 reference Affected-surface work with no owning slice, dependency order, or completion signal.",
+        "Slice \"Contract\" is unowned in substance for five of the six obligations it claims. Its purpose, boundary, tasks, proof (data-compatibility only), and completion signal (\"the inert contract ships\") cover only contract packaging. No step produces Accepted behavior, Migration, Rollout, Rollback, or Documentation outcomes, so those obligations have no startable action and the implementer would have to invent them.",
+        "Non-discriminating proof: contributor Required proofs behavior-boundary, failure-signals, security-boundary, rollout-rollback, and documentation-contract are declared in the Proof specifications table but are not attached to any slice. Every slice proof can pass (bun run test:schema-compatibility, exit 0) while the accepted user-facing scenario \"accepted behavior, migration, rollout, rollback, documentation, and affected-surface work are delivered with observable proofs\" is false.",
+        "Accepted scenario coverage fails: accepted-scenarios.feature requires all six work streams delivered with observable proofs; the plan's single slice completion signal certifies only that an inert contract ships and the repository remains supported, permitting a reported-complete delivery with the accepted claim unsatisfied."
+      ]
+    },
+    {
+      "case_id": "migration-missing-completion-signal",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "migration",
+          "completion signal"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md, slice \"Behavior delivery\": prerequisite \"Contract\" does not name a unique earlier slice. The plan declares one_pull_request with exactly one slice, so no earlier slice can exist. The dependency list is unresolvable and the slice is not startable as written.",
+        "execution-plan.md, \"Tasks and tests\": the slice claims the data-compatibility proof (`bun run test:schema-compatibility`), but no task step ever runs it. Steps 2 and 3 enumerate six commands and omit schema-compatibility. Migration work (item-5) can therefore be reported complete while its only required real-boundary proof is never executed \u2014 non-discriminating proof for an accepted obligation.",
+        "execution-plan.md: the implementation plan's accepted migration order (\"Complete Migration work before activating Accepted behavior\") has no execution mechanics. The RED step begins at review routing/behavior activation, no step sequences migration ahead of it, and the completion signal is only \"Accepted behavior passes at the public boundary.\" There is no concrete completion signal for Migration work, so an implementer may activate behavior before migrating and still satisfy every named signal."
+      ]
+    },
+    {
+      "case_id": "migration-missing-dependency-order",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "migration",
+          "dependency order"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Slice \"Behavior activation\" lists \"Prerequisites: none\", but implementation-plan.md's \"Accepted migration order\" states Migration work must complete before activating Accepted behavior. With both slices prerequisite-free, activation can merge first, leaving an intermediate merge in which typed review routing is live without the canonical contract shipped \u2014 contradicting the recorded decision \"Host-neutral dependency order keeps every intermediate merge supported.\" Name \"Migration\" as the prerequisite of \"Behavior activation\".",
+        "Obligation-ownership and checklist item-3 (\"Keep slice dependencies and pull-request boundaries supported\") cannot be satisfied as written: the only dependency-order evidence in the plan asserts no ordering at all, so plan-integrity would pass against a dependency graph that violates the accepted migration order. The ordering must be stated in the slice records before the proof is discriminating."
+      ]
+    },
+    {
+      "case_id": "explicitly-inapplicable-obligations",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Behavior delivery"
+        ],
+        "obligations": [
+          "Accepted behavior"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Behavior delivery"
+        ],
+        "obligations": [
+          "Accepted behavior"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "0f365eaee82ac8a8166d3a73384db600ddde22698746303247bfe654e5b1e6aa",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "absent-work-is-not-complete",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "absent",
+          "complete"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md 'Current-to-target state' records the obligation \"Prove Accepted behavior at the named boundary.\" with `Current implementation: absent`, `Evidence: missing`, and target work still outstanding, yet asserts `Claimed delivery state: complete`. Absent implementation with no current-revision real-boundary proof is target work and must be recorded as open/incomplete; as written the plan can be read as satisfying item-4 (required proof `behavior-boundary`) while no proof has been collected, contradicting the checklist row that correctly shows disposition `open` / evidence class `missing`. Correct the claimed delivery state to open (target work outstanding)."
+      ]
+    },
+    {
+      "case_id": "current-proof-supports-completion",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "bdfec000ecfd5c80e5f9712d43844b09b475ed1824ffe78981042dfd58fec5b6",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "earlier-proof-remains-open",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "earlier",
+          "open"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Checklist item-4 (testing, \"Prove Accepted behavior at the named boundary.\", required proof behavior-boundary) is marked disposition `complete` with evidence class `reusable_earlier_revision` at revision bbbbbbbb\u2026. Reusable earlier-revision proof remains open for current proof, and behavior-boundary is specified `currency: current_required`. Recording it complete permits merging with stale proof while the accepted user-facing behavior claim is unverified at the merge candidate. Set item-4 to open with the earlier receipt retained as reusable-but-insufficient evidence.",
+        "The Current-to-target state section states \"Claimed delivery state: implemented and proven at the current revision.\" while the same block records \"Evidence: reusable earlier-revision proof only\" and \"Target work: collect current-revision real-boundary proof.\" The claim contradicts its own evidence line and must be restated as target work with missing current-revision proof."
+      ]
+    },
+    {
+      "case_id": "known-defect-is-not-complete",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "defect",
+          "complete"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md, Current-to-target state: the obligation \"Deliver Accepted behavior.\" is recorded with \"Current implementation: known defect contradicts the accepted design\" and \"Target work: correct the defect and collect current-revision real-boundary proof\", yet \"Claimed delivery state: complete.\" A known defect with outstanding target work and no current-revision real-boundary proof must remain open target work; only matching implementation with current-revision real-boundary proof may be recorded as implemented and proven. This also contradicts checklist item-1 (disposition open, evidence class missing), so the plan asserts two incompatible delivery states for the same accepted obligation and permits completion to be claimed while the accepted behavior is known-broken. Repair: set the claimed delivery state to open/target work and keep the defect separate from its correction."
+      ]
+    },
+    {
+      "case_id": "pending-human-authority-is-not-complete",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "human",
+          "pending"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md 'Current-to-target state': the entry lists 'Human authority: pending security approval' and 'Target work: obtain the named security approval' yet asserts 'Claimed delivery state: complete'. This is an untruthful completion claim over an open human dependency (checklist item-7, owner human, disposition pending_human, evidence class missing). Change the claimed delivery state to open/blocked-on-human-authority, keeping contributor work complete and the human approval pending as separate states.",
+        "execution-plan.md Delivery checklist item-4: recorded complete with evidence class current_revision_real_boundary and a receipt, while item-1 ('Deliver Accepted behavior.'), which shares the same required proof behavior-boundary, is open with missing evidence, and task step 1 states the current CLI exits 2 with 'typed review result is unavailable'. Absent implementation is target work with missing proof; a behavior-boundary proof cannot currently pass. Reset item-4 to open/missing, or cite the distinct current-revision evidence that reconciles it with item-1."
+      ]
+    },
+    {
+      "case_id": "complete-measurement-execution",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "9899664aee1511cf1dcbd137f53ec70b29f03a6a67ee639131a3c51bd9e0acb4",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "missing-measurement-instrumentation",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "instrumentation"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Missing measurement instrumentation step: the accepted Implementation Plan requires publishing the `gateway_authorization_seconds` histogram with transport and outcome dimensions, recorded at the gateway authorization boundary before response serialization. Tasks 1-11 of the 'Complete delivery' slice never add or exercise that instrumentation (steps 5-6 touch only authorization denial and identity). Delivery could be declared complete with every named proof passing while no latency measurement exists, so the accepted outcome claim would be unsupported.",
+        "Measurement proof is unowned and non-discriminating: the 'Measurement execution' section names tests (population coverage, synthetic-probe exclusion, rejection below 99 percent sample coverage) and an evidence-collection query, but the Proof specifications table contains no proof ID for any of them, and no task step names a command, fixture, expected exit, or assertion for them. `test:authorization-boundary` exercises authorization and privacy, not latency or sample validity, so the measurement completion signal cannot be proven by any listed proof.",
+        "Measurement obligation absent from the Delivery Checklist: items item-1 through item-11 cover behavior, decisions, decomposition, testing, data, failure signals, security, rollout/rollback, documentation, ownership, and completion evidence, but none carries the p95-at-200ms measurement obligation, its validity safeguards, or its failure behavior (keep rollout disabled, report invalid). item-8 (rollout and rollback, proof rollout-rollback) does not encode the measurement-gated disable condition, so rollout could be activated with the measurement invalid and item-8 would still pass."
+      ]
+    },
+    {
+      "case_id": "missing-measurement-evidence-collection",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "evidence",
+          "collection"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Measurement execution lacks startable steps: tasks 1-11 never add the gateway authorization-boundary timing instrumentation or publish the `gateway_authorization_seconds` histogram with transport and outcome dimensions. The accepted measurement contract in implementation-plan.md is therefore unimplemented target work with no named action, input, or expected result, leaving the implementer to invent it.",
+        "No proof specification covers the measurement contract. All seven proofs (behavior-boundary, plan-integrity, data-compatibility, failure-signals, security-boundary, rollout-rollback, documentation-contract) exercise other boundaries; none validates sample coverage >= 99 percent, exclusion of documented synthetic probes, or the p95 <= 200ms completion signal. The stated measurement tests resolve to no invocation, so the claimed measurement completion signal is non-discriminating.",
+        "No Delivery Checklist item owns measurement instrumentation, validity safeguards, or current-revision evidence collection. Items 1-11 map only the six accepted obligations; the measurement obligation has no ID, owner, required proof, or completion evidence, so every checklist item can close while authorization latency evidence is never gathered.",
+        "Measurement failure behavior ('keep rollout disabled and report the measurement as invalid when a validity safeguard fails') is not delivered. Task 8 implements the rollout switch and rollback reader with no link to measurement validity, and rollout-rollback proof does not exercise the safeguard-failure path, so a build could enable rollout with invalid measurement evidence and still pass every named command."
+      ]
+    },
+    {
+      "case_id": "changed-measurement-target",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-implementation",
+        "finding_terms": [
+          "target",
+          "200"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-implementation",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md Measurement execution: the completion signal states \"p95 authorization latency at or below 300 milliseconds\", but implementation-plan.md's accepted measurement contract sets the target at \"p95 authorization latency is at most 200 milliseconds over a rolling seven-day window\". The plan simultaneously claims \"the accepted outcome, population, target, ... remain unchanged\", so delivery could report the measurement obligation satisfied at 250 ms while the accepted target is violated. Changing an accepted measurement term must return through plan-implementation, even though restoring 200 ms would be a one-word edit."
+      ]
+    },
+    {
+      "case_id": "changed-measurement-origin",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-implementation",
+        "finding_terms": [
+          "measurement origin",
+          "gateway"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-implementation",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Measurement execution changes the accepted measurement origin. Implementation Plan: 'record the duration at the gateway authorization boundary before response serialization.' Execution Plan instrumentation: 'record the duration in the client after response parsing.' Client-side post-parse timing includes network and serialization time, so the p95 <=200ms target measures a different quantity and could pass or fail independently of the accepted contract. The 'Preserved contract' line asserting the measurement origin is unchanged is therefore false."
+      ]
+    },
+    {
+      "case_id": "weakened-measurement-safeguard",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-implementation",
+        "finding_terms": [
+          "validity",
+          "99"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-implementation",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Measurement execution contradicts the accepted validity safeguard. execution-plan.md 'Measurement execution' \u2192 Tests states the instrumentation tests 'accept evidence at any sample coverage', while implementation-plan.md 'Validity safeguards' requires rejecting evidence when sample coverage is below 99 percent. As written, a run with 40 percent coverage would pass the named tests and could be reported as satisfying the p95 target, so the accepted measurement claim can be falsely reported as met. The plan simultaneously asserts 'Preserved contract: ... validity safeguards ... remain unchanged', which is untrue, and its completion signal still demands 99 percent coverage \u2014 two reasonable implementations are permitted and one violates the accepted contract.",
+        "The supplied proof for the measurement obligation is non-discriminating with respect to the safeguard. No proof specification exercises sample-coverage rejection, and the tests as described explicitly tolerate any coverage, so the safeguard can be broken while every named proof command (including plan-integrity) still passes."
+      ]
+    },
+    {
+      "case_id": "changed-measurement-failure-behavior",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-implementation",
+        "finding_terms": [
+          "failure",
+          "rollout"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-implementation",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md, Measurement execution > Failure handling: \"continue rollout and treat missing samples as a passing measurement\" contradicts the accepted Failure behavior in implementation-plan.md (\"keep rollout disabled and report the measurement as invalid when a validity safeguard fails\"). This changes an accepted measurement term, and it permits the completion signal (p95 <= 200 ms with >= 99 percent valid sample coverage) to be reported as satisfied when samples are missing \u2014 a concrete path to a false completion claim. The same section also asserts \"the accepted ... failure behavior remain unchanged,\" which is false as written.",
+        "Because an accepted measurement term is changed rather than merely an execution mechanic, repair cannot stay in plan-execution; planning_destination is plan-implementation. Restoring the accepted failure behavior verbatim is required even though the edit is small, and the corrected bytes need fresh Implementation Plan review before execution review can be retained."
+      ]
+    },
+    {
+      "case_id": "reopened-authorization-decision",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-implementation",
+        "finding_terms": [
+          "authorization"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-implementation",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Decision accounting reopens a Recorded Decision: 'One shared authorization service owns permission checks for every transport: changed to per-transport checks'. Every accepted decision must be recorded as 'unchanged'; changing the accepted authorization design is not an execution-only decision and must return through Implementation Planning.",
+        "The slicing rationale ('The slice replaces the accepted authorization design') and the slice purpose ('Move authorization into each transport') both assert an approach change the accepted Implementation Plan did not settle. Prohibited content: a competing approach / unreviewed design choice.",
+        "Obligation ownership maps all six accepted obligations (Accepted behavior, Migration, Rollout, Rollback, Documentation, Affected-surface) to the single 'Contract' slice, but that slice's boundary (contract template, schema registration, generated assets), its only proof (data-compatibility), and its completion signal ('The inert contract ships') cannot exercise behavior-boundary, failure-signals, security-boundary, rollout-rollback, or documentation-contract. Checklist items 1, 4, 6, 7, 8, 9 therefore have no slice that can produce their required real-boundary proof; delivery could report completion with accepted behavior undelivered.",
+        "Startable-steps failure: no task exists for accepted behavior, migration beyond contract bytes, rollout/rollback, documentation, or affected-surface monitoring/security work. The first production slice's highest-risk RED is a schema-byte comparison, not the highest-risk accepted behavior, leaving that work for the implementer to invent."
+      ]
+    },
+    {
+      "case_id": "fixture-discovery-stays-in-execution-planning",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "aa5a742424af14763e35089da1e401d418c0d039187e5a80c93ceca300488685",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "test-command-discovery-stays-in-execution-planning",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "fa37096f63e74aa0228f3dcdbf538be5af5927145582d176bbcd29e460ed5cfa",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "path-only-discovery-stays-in-execution-planning",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Complete delivery"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "489e1dd1beb9469990975e19efee312f068a03c48eee82ff1856408873113414",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "accepted-design-discovery-returns-to-implementation-planning",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-implementation",
+        "finding_terms": [
+          "authorization",
+          "decision"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-implementation",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md Discovery states \"Implementation requires moving authorization ownership from the accepted shared service into each transport.\" This directly contradicts the Recorded Decision \"One shared authorization service owns permission checks for every transport.\" in implementation-plan.md, which the Decision accounting section simultaneously records as `unchanged`. The plan cannot both preserve and reverse that decision; step 6 also instructs the implementer to \"call the accepted shared authorization service from src/review/command.ts\", leaving the actual authorization ownership for the implementer to invent. This is a changed accepted design decision, so routing is plan-implementation.",
+        "Decision accounting in execution-plan.md asserts status `unchanged` for the shared-authorization-service decision while the same document declares that decision must change. The decision-status record is therefore not supported by the source evidence and cannot be retained; it must be resolved in the owning Implementation Plan before execution review can approve."
+      ]
+    },
+    {
+      "case_id": "accepted-proof-discovery-returns-to-implementation-planning",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-implementation",
+        "finding_terms": [
+          "proof",
+          "boundary"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-implementation",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md Discovery: \"The accepted public CLI proof cannot run; replace it with a parser unit test that does not exercise that boundary.\" This changes the accepted proof boundary itself (public CLI E2E -> parser unit), not merely the command or fixture. The behavior-boundary proof backs contributor items item-1 and item-4; a parser unit test cannot exercise the accepted public CLI behavior, so accepted behavior could be reported complete while the user-facing claim is unproven. Route to plan-implementation to re-decide the proof boundary; only an inadequate command or fixture under an unchanged boundary would stay in plan-execution."
+      ]
+    },
+    {
+      "case_id": "path-and-api-discovery-returns-to-implementation-planning",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-implementation",
+        "finding_terms": [
+          "api",
+          "contract"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-implementation",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md Discovery: \"Move the handler file and replace the accepted public command response with a new API contract.\" The file move alone would stay in plan-execution, but replacing the accepted public command response changes the accepted API contract that behavior-boundary and documentation-contract prove. Classified by semantics, this requires a new accepted decision and returns to plan-implementation; the Execution Plan cannot absorb it."
+      ]
+    },
+    {
+      "case_id": "fresh-context-first-red",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Authorization denial"
+        ],
+        "obligations": [
+          "Accepted behavior"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Authorization denial"
+        ],
+        "obligations": [
+          "Accepted behavior"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "a1d42dfd5eb6eacf341e4661c0fc65f6869604095cd37900c6acb6e279505d6d",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "exact-cli-denial-proof",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Edited-plan denial proof"
+        ],
+        "obligations": [
+          "Accepted behavior"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "one_pull_request",
+        "slice_names": [
+          "Edited-plan denial proof"
+        ],
+        "obligations": [
+          "Accepted behavior"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "b16330d742eb5fb40a7711f18849e6b91e1bbc2990ba74bfa444f4e52468997e",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "missing-cli-subprocess-boundary",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "subprocess",
+          "boundary"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md slice \"Edited-plan denial proof\", task 1: the RED step routes assertions \"through the TBD CLI boundary\", leaving the real actor boundary for the implementer to invent. The accepted proof strategy requires the installed CLI subprocess boundary; an in-process implementation would satisfy the written step while failing the accepted claim.",
+        "execution-plan.md slice \"Edited-plan denial proof\", task 1: it cites fixture `tests/fixtures/edited-plan` \"from prerequisite step 1\", but the slice records `Prerequisites: none` and no earlier step exists. The fixture's provenance/creation is unspecified, so the RED step is not startable.",
+        "execution-plan.md slice \"Edited-plan denial proof\", tasks 2 and 3: GREEN and REFACTOR instruct \"observe exit code 0\", which contradicts both the accepted proof strategy (\"must assert exit code 2\") and the slice's own completion signal (\"exits 2 for the edited-plan fixture\"). As written, a build that stops denying edited plans passes the named check, making the proof non-discriminating for the accepted behavior.",
+        "execution-plan.md: the slice's Required proof is `behavior-boundary`, whose invocation is `bun run test:review-cli` (cwd `.`), but every task names `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan`. The executed command does not resolve to the declared real-boundary proof, so completion evidence for item-1 and item-4 cannot be tied to the proof specification."
+      ]
+    },
+    {
+      "case_id": "missing-denied-exit-assertion",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "exit",
+          "assertion"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": false,
+      "strict_reasons": [
+        "finding_term:assertion"
+      ],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md slice \"Edited-plan denial proof\", task 1 (RED): the step says to \"assert the TBD denied-exit result\", leaving the expected observable result unspecified. The accepted proof strategy states the edited-plan denial \"must assert exit code 2\". As written the implementer may assert any exit status (or none), so the RED step can pass while the accepted denial behavior is wrong or absent \u2014 a non-discriminating proof for the plan's only behavior obligation. Replace \"TBD\" with the concrete expected exit code 2 and the observable failure signal before any production edit."
+      ],
+      "adjudication": {
+        "judge_model": "claude-sonnet-5",
+        "correct": true,
+        "reason": "The finding correctly identifies the TBD placeholder in the RED step, notes the missing concrete exit code 2 assertion, explains it makes the proof non-discriminating, and requests changes routed to plan-execution matching expectations."
+      }
+    },
+    {
+      "case_id": "later-step-is-not-startable",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-implementation",
+        "finding_terms": [
+          "behavior",
+          "before implementation"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-implementation",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "execution-plan.md slice \"Authorization denial\", task 4: \"TODO: decide whether denied authorization returns an error or an empty result before implementation.\" leaves an accepted behavior contract for the implementer to invent. The step names no action, inputs, or observable expected result, so the slice is not startable. It also contradicts the slice completion signal (\"The denied request returns the accepted error\"), permitting a shipped empty-result implementation that would falsely report the accepted claim as satisfied.",
+        "The supplied Implementation Plan records no decision on the denied-authorization response shape, and no decision-status entry covers it. Because the Execution Plan must not settle an unreviewed design decision, this is a newly required accepted decision and returns to plan-implementation rather than being repairable as execution sequencing."
+      ]
+    },
+    {
+      "case_id": "blocked-first-prerequisite",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "prerequisite",
+          "startable"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Slicing decision is \"multiple pull requests\" but only one slice (Activation) is recorded. Multiple pull requests require at least two slices; the rationale (\"Activation follows a contract that is not yet complete\") does not justify the mismatch.",
+        "Activation's prerequisite \"Unfinished contract\" does not name a unique earlier slice. No such slice exists in the plan, so the first (and only) slice is blocked on an unresolved, unowned dependency and is not startable.",
+        "Obligation ownership assigns \"Migration work\" to Activation, but Activation's proof list omits data-compatibility (item-5's required proof). The migration obligation therefore has no real-boundary proof inside any slice, and the slice completion signal could be claimed satisfied with migration unproven."
+      ]
+    },
+    {
+      "case_id": "no-executable-steps",
+      "expectation": {
+        "verdict": "request_changes",
+        "planning_destination": "plan-execution",
+        "finding_terms": [
+          "executable",
+          "step"
+        ]
+      },
+      "actual_verdict": "request_changes",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "error_findings": [
+        "Slice \"Authorization change\": the \"#### Tasks and tests\" section is empty. No executable step names an action, input, prerequisite, or observable expected result, so an implementer must invent the entire delivery. Required startable steps are absent.",
+        "No RED-first step exists. The only production slice must begin with the highest-risk failing test naming its command or fixture and the failure signal before any production edit; the plan states none.",
+        "Slice purpose/boundary drift: the slice claims to \"Package the canonical Execution Planning contract\" with a \"Contract template, schema registration, and generated assets\" boundary and an \"inert contract ships\" completion signal. That does not deliver the accepted obligations (Accepted behavior, Migration, Rollout, Rollback, Documentation, Affected-surface work) that the same slice is assigned to own in Obligation ownership. Accepted scenarios are therefore not covered.",
+        "Slice proof is insufficient: the slice declares only \"data-compatibility\" proof, while its owned obligations require behavior-boundary, failure-signals, security-boundary, rollout-rollback, documentation-contract, and plan-integrity. Every contributor Required proof must resolve to a real-boundary proof exercised by this slice; six of seven are unexercised.",
+        "Completion signal is non-discriminating: \"The inert contract ships and the repository remains supported\" can be satisfied while every accepted behavior obligation is unimplemented, so success can be reported while the accepted user-facing claim is false."
+      ]
+    },
+    {
+      "case_id": "risk-first-ordering",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "multiple_pull_requests",
+        "slice_names": [
+          "Risk probe",
+          "Activation"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "multiple_pull_requests",
+        "slice_names": [
+          "Risk probe",
+          "Activation"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "6807aa9f82a98f263cfcee48f5e31bd19097d993ae09455277eb133f6812d840",
+        "trusted_definition_exact_match": true
+      }
+    },
+    {
+      "case_id": "parallel-safe-after-probe",
+      "expectation": {
+        "verdict": "approve",
+        "planning_destination": "plan-execution",
+        "slicing_decision": "multiple_pull_requests",
+        "slice_names": [
+          "Risk probe",
+          "CLI consumer",
+          "Documentation consumer"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ]
+      },
+      "actual_verdict": "approve",
+      "actual_destination": "plan-execution",
+      "confirmed_model": {
+        "provider": "anthropic",
+        "model": "claude-opus-5"
+      },
+      "strict_pass": true,
+      "strict_reasons": [],
+      "semantic_pass": true,
+      "approved_record": {
+        "slicing_decision": "multiple_pull_requests",
+        "slice_names": [
+          "Risk probe",
+          "CLI consumer",
+          "Documentation consumer"
+        ],
+        "obligations": [
+          "Accepted behavior",
+          "Migration work",
+          "Rollout work",
+          "Rollback work",
+          "Documentation work",
+          "Affected-surface work"
+        ],
+        "unchanged_decisions": [
+          "One shared authorization service owns permission checks for every transport.",
+          "Host-neutral dependency order keeps every intermediate merge supported."
+        ],
+        "accepted_scenarios_covered": true,
+        "accepted_approach_preserved": true,
+        "normalized_plan_digest": "d88b4985531369c8a041d75b4eddbb447e810448fff966bae08890fddefa5e9c",
+        "trusted_definition_exact_match": true
+      }
+    }
+  ]
+}

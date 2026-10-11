@@ -86,7 +86,7 @@ describe('planning fallback after independent route exhaustion', () => {
     );
     writeFileSync(
       nodePath.join(reviewer, 'claude'),
-      `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nif (${hostContinuation} || process.argv.includes('no-such-model')) process.exit(7);\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Current plan approved.', findings: [] } })); });\n`,
+      `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nif (${hostContinuation} || process.argv.includes('no-such-model')) process.exit(7);\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Current plan approved.', findings: [], evidence_records: { schema_version: 1, records: [] } } })); });\n`,
       { mode: 0o755 },
     );
     const target = `${ticket}/impl-plan.md`;
@@ -152,6 +152,7 @@ describe('planning fallback after independent route exhaustion', () => {
         verdict: 'approve',
         summary: 'Current plan approved in a fresh host context.',
         findings: [],
+        evidence_records: { schema_version: 1, records: [] },
       };
       writeFileSync(
         nodePath.join(project, 'host-review.json'),

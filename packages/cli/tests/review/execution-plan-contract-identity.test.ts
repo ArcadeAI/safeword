@@ -181,6 +181,7 @@ process.stdin.on('end', () => {
     planning_destination: 'plan-execution',
     summary: 'approved',
     findings: [],
+    evidence_records: { schema_version: 1, records: [] },
     execution_plan_record: {
       slicing_decision: 'one_pull_request',
       rationale: 'One coherent change.',
@@ -425,9 +426,13 @@ describe('Execution Plan review-contract identity', () => {
   it.each([
     ['missing-author', 'authoring contract copy', 'missing_generated_contract_copy'],
     ['edited-author', 'authoring contract copy', 'canonical_contract_copy_mismatch'],
-    ['missing-reviewer', 'generated reviewer contract copy'],
-    ['stale-reviewer', 'stale generated reviewer contract'],
-    ['stale-slicing-contract', 'canonical contract-byte identity'],
+    ['missing-reviewer', 'generated reviewer contract copy', 'canonical_contract_copy_mismatch'],
+    ['stale-reviewer', 'generated reviewer contract copy', 'canonical_contract_copy_mismatch'],
+    [
+      'stale-slicing-contract',
+      'canonical contract-byte identity',
+      'canonical_contract_copy_mismatch',
+    ],
     ['incomplete-pair', 'canonical contract-byte identity', 'canonical_contract_copy_mismatch'],
     ['stale-delivery-taxonomy', 'canonical delivery-contract identity'],
   ] as const)(
@@ -448,7 +453,10 @@ describe('Execution Plan review-contract identity', () => {
             message: expect.stringContaining(expected),
             metadata: {
               planning_phase: 'plan-execution',
-              contract_path: 'templates/skills/bdd/PLAN_EXECUTION.md',
+              contract_path:
+                state.endsWith('reviewer') || state === 'stale-slicing-contract'
+                  ? 'src/review/execution-plan-rubric.generated.ts'
+                  : 'templates/skills/bdd/PLAN_EXECUTION.md',
             },
           }),
         );

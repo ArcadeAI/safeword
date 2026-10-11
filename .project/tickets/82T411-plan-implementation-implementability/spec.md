@@ -21,7 +21,7 @@
 - **Unresolved product decisions:** None inside the accepted boundary. Technical
   approach choices belong to Implementation Planning; sequencing and test
   mechanics belong to Execution Planning.
-- **Persona outcome inventory:**
+- **Persona outcome inventory:** Consequential outcomes for the accepted personas:
   - **Technical Builder:** Success means reaching an accepted approach and then
     startable, provable work. Unsafe phase advancement is refused. Failure means
     a false, stale, or over-broad approval. Approval authority remains explicit

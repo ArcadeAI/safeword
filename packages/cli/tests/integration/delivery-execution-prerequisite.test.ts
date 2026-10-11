@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import {
-  chmodSync,
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -17,93 +17,12 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { findCommandDefinition } from '../../src/cli-protocol/catalog.js';
 import {
-  createExecutionPlanDeliveryDefinition,
-  normalizedExecutionPlanDigest,
-  parseDeliveryPlanContract,
-} from '../../src/execution-plan/delivery-checklist.js';
+  admitThroughInstalledCli,
+  executionPlan,
+  featureFixture,
+} from '../fixtures/execution-review.js';
 import { assertTestCliFresh, runCli, testCliPath } from '../helpers.js';
-import { writePlanningInventories } from '../planning-fixtures.js';
-import {
-  cleanupTrustedReviewerDirectories,
-  createTrustedReviewerDirectory,
-  REVIEWER_CAPABILITIES,
-} from '../review-fixtures.js';
-
-type PlanningReviewKind = 'scenario-gate' | 'plan-implementation' | 'plan-execution';
-
-const CATEGORIES = [
-  'outcome and scope',
-  'resolved decisions',
-  'dependency and pull-request decomposition',
-  'testing',
-  'data and compatibility',
-  'monitoring and failure signals',
-  'security and privacy',
-  'rollout and rollback',
-  'documentation',
-  'ownership and human dependencies',
-  'completion evidence',
-] as const;
-
-function executionPlan(): string {
-  const rows = CATEGORIES.map(
-    (category, index) =>
-      `| item-${index + 1} | ${category} | Deliver ${category}. | contributor | proof | open | missing |  |  |`,
-  );
-  return [
-    '# Execution Plan',
-    '',
-    '**Status:** planned',
-    '',
-    '## Proof specifications',
-    '',
-    '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
-    '| --- | --- | --- | --- | --- | --- | --- |',
-    `| proof | command | integration | public prerequisite | real_boundary | current_required | {"type":"command","cwd":".","argv":[${JSON.stringify(process.execPath)},"--version"]} |`,
-    '',
-    '## Delivery checklist',
-    '',
-    '<!-- safeword:delivery-checklist:v1 -->',
-    '',
-    '| ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-    ...rows,
-    '',
-  ].join('\n');
-}
-
-function featureFixture(designApprovalGate = false, phase = 'plan-execution'): string {
-  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-prerequisite-'));
-  const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
-  const featurePath = nodePath.join(root, 'features', 'feature.feature');
-  const implementationPath = nodePath.join(ticketDirectory, 'impl-plan.md');
-  const executionPath = nodePath.join(ticketDirectory, 'execution-plan.md');
-  const plan = executionPlan();
-  mkdirSync(ticketDirectory, { recursive: true });
-  writePlanningInventories(root);
-  mkdirSync(nodePath.dirname(featurePath), { recursive: true });
-  mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
-  writeFileSync(nodePath.join(root, '.gitignore'), '.safeword/state/\n.review-keys/\n');
-  writeFileSync(
-    nodePath.join(root, '.safeword', 'config.json'),
-    `${JSON.stringify({
-      designApprovalGate,
-      crossAgentReviewRoutes: {
-        codex: [{ reviewer: 'claude', model: 'opus' }],
-      },
-    })}\n`,
-  );
-  writeFileSync(
-    nodePath.join(ticketDirectory, 'ticket.md'),
-    `---\ntype: feature\nphase: ${phase}\n---\n`,
-  );
-  writeFileSync(featurePath, 'Feature: Accepted behavior\n');
-  writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Product Plan\n');
-  writeFileSync(implementationPath, '# Implementation Plan\n');
-  writeFileSync(executionPath, plan);
-  writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), '');
-  return root;
-}
+import { cleanupTrustedReviewerDirectories } from '../review-fixtures.js';
 
 function legacyFeatureFixture(phase: 'implement' | 'verify'): string {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-prerequisite-legacy-'));
@@ -114,39 +33,6 @@ function legacyFeatureFixture(phase: 'implement' | 'verify'): string {
     `---\ntype: feature\nphase: ${phase}\n---\n`,
   );
   return root;
-}
-
-function installReviewer(): string {
-  const directory = createTrustedReviewerDirectory('safeword-prerequisite-');
-  const bin = nodePath.join(directory, 'bin');
-  mkdirSync(bin, { recursive: true });
-  const executable = nodePath.join(bin, 'claude');
-  writeFileSync(
-    executable,
-    String.raw`#!/bin/sh
-set -eu
-if [ "${'$'}{1:-}" = "--version" ]; then printf 'claude 1.0.0\n'; exit 0; fi
-if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
-  printf '%s\n' '${REVIEWER_CAPABILITIES.claude}'
-  exit 0
-fi
-payload=$(cat)
-dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
-record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
-verdict=$(printenv SAFEWORD_REVIEW_FAKE_VERDICT || true)
-finding=$(printenv SAFEWORD_REVIEW_FAKE_FINDING || true)
-if [ "$verdict" = "request_changes" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan needs repair","findings":[{"severity":"error","message":"%s"}],"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id" "$finding"
-elif [ -n "$record" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[],"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$record"
-else
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[]}\n' "$dispatch_id"
-fi
-`,
-    { mode: 0o755 },
-  );
-  chmodSync(executable, 0o755);
-  return bin;
 }
 
 function rejectAdmittedScenarioReview(root: string): void {
@@ -180,133 +66,6 @@ function rejectAdmittedScenarioReview(root: string): void {
     .update(JSON.stringify(changed))
     .digest('hex');
   writeFileSync(path, `${JSON.stringify({ ...changed, integrity })}\n`);
-}
-
-async function admitThroughInstalledCli(
-  root: string,
-  admitted: readonly PlanningReviewKind[] = [
-    'scenario-gate',
-    'plan-implementation',
-    'plan-execution',
-  ],
-  designApprovalGate = false,
-  slicingDecision: 'one_pull_request' | 'multiple_pull_requests' = 'one_pull_request',
-): Promise<string> {
-  const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
-  const plan = readFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), 'utf8');
-  const parsed = parseDeliveryPlanContract(plan);
-  if (!parsed.ok) throw new Error(parsed.message);
-  const slices =
-    slicingDecision === 'one_pull_request'
-      ? [
-          {
-            name: 'Contribution',
-            purpose: 'Deliver the contribution.',
-            boundary: 'Public prerequisite.',
-            prerequisites: [] as string[],
-            proof: 'Integration test.',
-            completion_signal: 'The prerequisite is observable.',
-            relies_on_unmerged_successor: false,
-          },
-        ]
-      : [
-          {
-            name: 'Foundation',
-            purpose: 'Deliver the prerequisite.',
-            boundary: 'Shared contract.',
-            prerequisites: [] as string[],
-            proof: 'Contract test.',
-            completion_signal: 'The contract is independently usable.',
-            relies_on_unmerged_successor: false,
-          },
-          {
-            name: 'Contribution',
-            purpose: 'Deliver the contribution.',
-            boundary: 'Public prerequisite.',
-            prerequisites: ['Foundation'],
-            proof: 'Integration test.',
-            completion_signal: 'The prerequisite is observable.',
-            relies_on_unmerged_successor: false,
-          },
-        ];
-  const record = {
-    slicing_decision: slicingDecision,
-    rationale:
-      slicingDecision === 'one_pull_request'
-        ? 'One coherent contribution.'
-        : 'Two independently provable dependency-ordered changes.',
-    slices,
-    obligation_owners: [{ obligation: 'Contribution', slices: slices.map(slice => slice.name) }],
-    decision_statuses: [{ decision: 'Use the accepted plans', status: 'unchanged' }],
-    accepted_scenarios_covered: true,
-    accepted_approach_preserved: true,
-    normalized_plan_digest: normalizedExecutionPlanDigest(plan),
-    delivery_definition: createExecutionPlanDeliveryDefinition(parsed, designApprovalGate),
-  };
-  const bin = installReviewer();
-  const implementationTarget = nodePath.relative(
-    root,
-    nodePath.join(ticketDirectory, 'impl-plan.md'),
-  );
-  const executionTarget = nodePath.relative(
-    root,
-    nodePath.join(ticketDirectory, 'execution-plan.md'),
-  );
-  const specContext = nodePath.relative(root, nodePath.join(ticketDirectory, 'spec.md'));
-  const requests = [
-    ['scenario-gate', 'features/feature.feature', [specContext], undefined],
-    [
-      'plan-implementation',
-      implementationTarget,
-      ['features/feature.feature', specContext],
-      undefined,
-    ],
-    [
-      'plan-execution',
-      executionTarget,
-      [implementationTarget, 'features/feature.feature'],
-      JSON.stringify(record),
-    ],
-  ] as const;
-  const stamps: string[] = [];
-  const reviewKeyRoot = nodePath.join(root, '.review-keys');
-  for (const [reviewKind, target, context, executionRecord] of requests) {
-    if (!admitted.includes(reviewKind)) continue;
-    const reviewed = await runCli(
-      [
-        'review',
-        'run',
-        reviewKind,
-        target,
-        ...context.flatMap(contextPath => ['--context', contextPath]),
-        '--json',
-        '--no-input',
-        '--cwd',
-        root,
-      ],
-      {
-        cwd: root,
-        env: {
-          PATH: `${bin}:/usr/bin:/bin`,
-          NODE_ENV: 'test',
-          SAFEWORD_AGENT_RUNTIME: 'codex',
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-          SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
-          ...(executionRecord !== undefined && {
-            SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: executionRecord,
-          }),
-        },
-      },
-    );
-    expect(reviewed.exitCode, reviewed.stdout).toBe(0);
-    const id = (JSON.parse(reviewed.stdout) as { data: { review_id: string } }).data.review_id;
-    expect(id).toBeTypeOf('string');
-    stamps.push(
-      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:reduced review-id:${id}`,
-    );
-  }
-  writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), `${stamps.join('\n')}\n`);
-  return bin;
 }
 
 type DeliveryState = 'missing' | 'current' | 'earlier' | 'defect' | 'human';
@@ -391,13 +150,15 @@ describe('delivery execution prerequisite', () => {
       name: 'ticket execution-prerequisite',
       effectClass: 'observe',
       networkPolicy: 'never',
-      registration: expect.objectContaining({ syntax: 'execution-prerequisite <ticketId>' }),
+      registration: expect.objectContaining({
+        syntax: 'execution-prerequisite <ticketId>',
+      }),
     });
   });
 
   it('runs through the installed CLI with integrity-checked admitted reviews', async () => {
     const root = featureFixture();
-    await admitThroughInstalledCli(root);
+    await admitThroughInstalledCli(runCli, root);
 
     const result = await runCli(
       ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
@@ -431,6 +192,169 @@ describe('delivery execution prerequisite', () => {
       network: [],
       destructive: [],
     });
+  });
+
+  it('names the wrong review kind even when both plan artifacts have identical bytes', async () => {
+    const root = featureFixture();
+    const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      readFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), 'utf8'),
+    );
+    await admitThroughInstalledCli(runCli, root);
+    const invoke = () =>
+      runCli(['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root], {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      });
+    const matching = await invoke();
+    expect(matching.exitCode, matching.stdout).toBe(0);
+
+    const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
+    const rows = readFileSync(ledgerPath, 'utf8').trim().split('\n');
+    const implementation = rows.find(row => row.includes(':phase@plan-implementation '));
+    expect(implementation).toBeDefined();
+    if (implementation === undefined) throw new Error('Missing Implementation review fixture');
+    const executionAlias = implementation.replace(
+      ':phase@plan-implementation ',
+      ':phase@plan-execution ',
+    );
+    writeFileSync(
+      ledgerPath,
+      `${[...rows.filter(row => !row.includes(':phase@plan-execution ')), executionAlias].join('\n')}\n`,
+    );
+    const mismatched = await invoke();
+    expect(mismatched.exitCode, mismatched.stdout).toBe(2);
+    const output = JSON.parse(mismatched.stdout);
+    expect(output.data.grants_authority).toBe(false);
+    expect(output.findings).toContainEqual(
+      expect.objectContaining({ code: 'missing_admitted_delivery_checklist' }),
+    );
+    const diagnostic = output.findings
+      .map((finding: { message: string }) => finding.message)
+      .join('\n');
+    expect(diagnostic).toMatch(/review kind/iu);
+    expect(diagnostic).toContain('plan-implementation');
+    expect(diagnostic).toContain('plan-execution');
+    const recoveryCommands = output.next_actions.map(
+      (action: { command: string }) => action.command,
+    );
+    expect(recoveryCommands).toContainEqual(expect.stringContaining('review run plan-execution'));
+  });
+
+  it('refuses approval when a signed malformed receipt bypasses current-context validation', async () => {
+    const root = featureFixture();
+    await admitThroughInstalledCli(runCli, root);
+    const options = {
+      cwd: root,
+      env: {
+        NODE_ENV: 'test',
+        SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+      },
+    };
+    const args = ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root];
+    const matching = await runCli(args, options);
+    expect(matching.exitCode, matching.stdout).toBe(0);
+
+    const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
+    const rows = readFileSync(ledgerPath, 'utf8').trim().split('\n');
+    const execution = rows.find(row => row.includes(':phase@plan-execution '));
+    const reviewId = /review-id:(\S+)/u.exec(execution ?? '')?.[1];
+    if (reviewId === undefined) throw new Error('Missing Execution review fixture');
+    const jobPath = nodePath.join(root, '.safeword', 'state', 'reviews', `${reviewId}.json`);
+    const job = JSON.parse(readFileSync(jobPath, 'utf8'));
+    const { integrity: _integrity, ...unsigned } = job;
+    // Model an authenticated receipt whose result envelope the strict reader cannot validate.
+    unsigned.result.schemaVersion = 0;
+    const key = Buffer.from(
+      readFileSync(
+        nodePath.join(root, '.review-keys', 'safeword', 'review-integrity.key'),
+        'utf8',
+      ).trim(),
+      'hex',
+    );
+    const integrity = createHmac('sha256', key)
+      .update(realpathSync.native(root))
+      .update('\0')
+      .update(JSON.stringify(unsigned))
+      .digest('hex');
+    writeFileSync(jobPath, `${JSON.stringify({ ...unsigned, integrity })}\n`);
+
+    writeFileSync(
+      nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'impl-plan.md'),
+      '# Implementation Plan\n\n## Approach\nA changed accepted implementation boundary.\n',
+    );
+    await admitThroughInstalledCli(runCli, root, ['plan-implementation']);
+    const currentImplementation = readFileSync(ledgerPath, 'utf8').trim();
+    writeFileSync(
+      ledgerPath,
+      `${[...rows.filter(row => !row.includes(':phase@plan-implementation ')), currentImplementation].join('\n')}\n`,
+    );
+    const strict = await runCli(['review', 'status', reviewId, '--json', '--cwd', root], options);
+    expect(strict.exitCode, strict.stdout).toBe(1);
+    expect(JSON.parse(strict.stdout).errors).toContainEqual(
+      expect.objectContaining({ code: 'REVIEW_JOB_INVALID' }),
+    );
+    const blocked = await runCli(args, options);
+    expect(blocked.exitCode, blocked.stdout).toBe(2);
+    const output = JSON.parse(blocked.stdout);
+    expect(output.data.grants_authority).toBe(false);
+    expect(output.data.prerequisite_status).not.toBe('satisfied');
+    expect(output.findings).toContainEqual(
+      expect.objectContaining({ code: 'missing_admitted_delivery_checklist' }),
+    );
+  });
+
+  it('names the sibling ticket when its authenticated approval covers identical plan bytes', async () => {
+    const root = featureFixture();
+    const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
+    await admitThroughInstalledCli(runCli, root);
+    const invoke = (ticketId: string) =>
+      runCli(['ticket', 'execution-prerequisite', ticketId, '--json', '--cwd', root], {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      });
+    const matching = await invoke('ABC123');
+    expect(matching.exitCode, matching.stdout).toBe(0);
+    const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
+    const currentRows = readFileSync(ledgerPath, 'utf8').trim().split('\n');
+
+    const siblingDirectory = nodePath.join(root, '.project', 'tickets', 'XYZ789-feature');
+    cpSync(ticketDirectory, siblingDirectory, { recursive: true });
+    await admitThroughInstalledCli(runCli, root, ['plan-execution'], {
+      ticketFolder: 'XYZ789-feature',
+    });
+    expect(readFileSync(nodePath.join(siblingDirectory, 'execution-plan.md'), 'utf8')).toBe(
+      readFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), 'utf8'),
+    );
+    const siblingReceipt = readFileSync(ledgerPath, 'utf8').trim();
+    const alias = siblingReceipt.replace('review:XYZ789-feature:', 'review:ABC123-feature:');
+    writeFileSync(
+      ledgerPath,
+      `${[...currentRows.filter(row => !row.includes(':phase@plan-execution ')), alias].join('\n')}\n`,
+    );
+    const mismatched = await invoke('ABC123');
+    expect(mismatched.exitCode, mismatched.stdout).toBe(2);
+    const output = JSON.parse(mismatched.stdout);
+    expect(output.data.grants_authority).toBe(false);
+    expect(output.findings).toContainEqual(
+      expect.objectContaining({ code: 'missing_admitted_delivery_checklist' }),
+    );
+    const diagnostic = output.findings
+      .map((finding: { message: string }) => finding.message)
+      .join('\n');
+    expect(diagnostic).toContain('XYZ789-feature');
+    expect(diagnostic).toContain('ABC123-feature');
+    const recoveryCommands = output.next_actions.map(
+      (action: { command: string }) => action.command,
+    );
+    expect(recoveryCommands).toContainEqual(expect.stringContaining('review run plan-execution'));
   });
 
   it.each([
@@ -490,7 +414,7 @@ describe('delivery execution prerequisite', () => {
     },
   ])('reports structural facts for a $label without a semantic verdict', async testCase => {
     const root = featureFixture();
-    await admitThroughInstalledCli(root);
+    await admitThroughInstalledCli(runCli, root);
     const executionPath = nodePath.join(
       root,
       '.project',
@@ -520,7 +444,9 @@ describe('delivery execution prerequisite', () => {
     expect(result.data).toEqual({
       command: 'ticket execution-prerequisite',
       grants_authority: false,
-      ...(testCase.expectedExitCode === 0 && { prerequisite_status: 'satisfied' }),
+      ...(testCase.expectedExitCode === 0 && {
+        prerequisite_status: 'satisfied',
+      }),
       execution_plan_artifact: testCase.expectedFacts,
     });
     expect(JSON.stringify(result)).not.toMatch(
@@ -570,7 +496,7 @@ describe('delivery execution prerequisite', () => {
 
   it('denies an authenticated scenario review that requested changes', async () => {
     const root = featureFixture();
-    await admitThroughInstalledCli(root);
+    await admitThroughInstalledCli(runCli, root);
     rejectAdmittedScenarioReview(root);
 
     const invoked = await runCli(
@@ -606,7 +532,9 @@ describe('delivery execution prerequisite', () => {
       ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
       { cwd: root, env: { NODE_ENV: 'test' } },
     );
-    const result = JSON.parse(invoked.stdout) as { findings: { code: string }[] };
+    const result = JSON.parse(invoked.stdout) as {
+      findings: { code: string }[];
+    };
 
     expect(invoked.exitCode).toBe(2);
     expect(result.findings.map(finding => finding.code)).toEqual([
@@ -642,7 +570,7 @@ describe('delivery execution prerequisite', () => {
     'denies only the missing %s prerequisite with one repair',
     async (_label, admitted, expectedCode, expectedMessage, expectedCommand) => {
       const root = featureFixture();
-      await admitThroughInstalledCli(root, admitted);
+      await admitThroughInstalledCli(runCli, root, admitted);
 
       const invoked = await runCli(
         ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
@@ -673,9 +601,10 @@ describe('delivery execution prerequisite', () => {
   it('requires configured human design approval as part of the accepted approach', async () => {
     const root = featureFixture(true);
     await admitThroughInstalledCli(
+      runCli,
       root,
       ['scenario-gate', 'plan-implementation', 'plan-execution'],
-      true,
+      { designApprovalGate: true },
     );
 
     const invoked = await runCli(
@@ -718,7 +647,7 @@ describe('delivery execution prerequisite', () => {
     'returns the reviewed %s slicing outcome when its checklist item is completed',
     async (decision, rationale, expectedSlices) => {
       const root = featureFixture();
-      await admitThroughInstalledCli(root, undefined, false, decision);
+      await admitThroughInstalledCli(runCli, root, undefined, { slicingDecision: decision });
       const reviewEnvironment = {
         NODE_ENV: 'test',
         SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
@@ -729,16 +658,22 @@ describe('delivery execution prerequisite', () => {
       );
       expect(prerequisite.exitCode, prerequisite.stdout).toBe(0);
       execFileSync('git', ['init', '--quiet'], { cwd: root });
-      execFileSync('git', ['config', 'user.email', 'proof@example.com'], { cwd: root });
+      execFileSync('git', ['config', 'user.email', 'proof@example.com'], {
+        cwd: root,
+      });
       execFileSync('git', ['config', 'user.name', 'Proof Test'], { cwd: root });
       execFileSync('git', ['add', '.'], { cwd: root });
-      execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root });
+      execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], {
+        cwd: root,
+      });
 
       const invoked = await runCli(
         ['ticket', 'record-delivery-proof', 'ABC123', 'item-3', 'proof', '--json', '--cwd', root],
         { cwd: root, env: reviewEnvironment },
       );
-      const result = JSON.parse(invoked.stdout) as { data?: Record<string, unknown> };
+      const result = JSON.parse(invoked.stdout) as {
+        data?: Record<string, unknown>;
+      };
 
       expect(invoked.exitCode, invoked.stdout).toBe(0);
       expect(
@@ -767,7 +702,7 @@ describe('delivery execution prerequisite', () => {
       const root = featureFixture();
       const planPath = nodePath.join(root, '.project/tickets/ABC123-feature/execution-plan.md');
       prepareDeliveryState(root, planPath, state);
-      await admitThroughInstalledCli(root);
+      await admitThroughInstalledCli(runCli, root);
       const git = (args: string[]): void => {
         execFileSync('git', args, { cwd: root });
       };
@@ -820,7 +755,7 @@ describe('delivery execution prerequisite', () => {
         );
       }
       writeFileSync(planPath, plan);
-      const bin = await admitThroughInstalledCli(root);
+      const bin = await admitThroughInstalledCli(runCli, root);
       const git = (args: string[]): void => {
         execFileSync('git', args, { cwd: root });
       };
@@ -879,7 +814,11 @@ describe('delivery execution prerequisite', () => {
       const data = (
         JSON.parse(observed.stdout) as {
           data: {
-            contributor_evidence: { item_id: string; status: string; evidence_class: string }[];
+            contributor_evidence: {
+              item_id: string;
+              status: string;
+              evidence_class: string;
+            }[];
           };
         }
       ).data;
@@ -923,7 +862,10 @@ describe('delivery execution prerequisite', () => {
     expect(invoked.exitCode).toBe(0);
     expect(result).toMatchObject({
       state: 'healthy',
-      data: { prerequisite_status: 'not_applicable', grants_authority: false },
+      data: {
+        prerequisite_status: 'not_applicable',
+        grants_authority: false,
+      },
     });
     expect(result.effects).toEqual({
       files: [],
@@ -950,7 +892,10 @@ describe('delivery execution prerequisite', () => {
       expect(invoked.exitCode).toBe(0);
       expect(result).toMatchObject({
         state: 'healthy',
-        data: { prerequisite_status: 'not_applicable', grants_authority: false },
+        data: {
+          prerequisite_status: 'not_applicable',
+          grants_authority: false,
+        },
       });
     },
   );

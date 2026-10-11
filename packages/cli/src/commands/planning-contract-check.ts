@@ -1,6 +1,10 @@
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import type { PlanningPhase } from '../planning/phase-contract.js';
-import { assertActivePlanningAuthorCopy, PlanningContractCopyError } from '../review/packet.js';
+import {
+  assertActivePlanningAuthorCopy,
+  assertActivePlanningReviewerCopy,
+  PlanningContractCopyError,
+} from '../review/packet.js';
 import { planningContractCopyFailure } from '../utils/planning-contract-copy-failure.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
 
@@ -23,6 +27,7 @@ export function checkPlanningContractCopy(
   }
   try {
     assertActivePlanningAuthorCopy(cwd, phase);
+    assertActivePlanningReviewerCopy(phase);
     return createResult({
       state: 'healthy',
       data: { command: 'ticket planning-contract-check', status: 'current', planning_phase: phase },

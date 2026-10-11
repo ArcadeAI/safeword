@@ -318,8 +318,7 @@ function safewordCliCommand(
   }
 }
 
-function assertCursorPlanningContractCopy(ticket: string, phase: string): void {
-  if (process.env.SAFEWORD_AGENT_RUNTIME !== 'cursor') return;
+function assertPlanningContractCopy(ticket: string, phase: string): void {
   const configured = safewordCliCommand();
   if (configured === 'project-writable') {
     deny(
@@ -403,6 +402,7 @@ function assertCursorPlanningContractCopy(ticket: string, phase: string): void {
       deny(
         `${finding.code}: ${finding.message}`,
         'Reconcile the installed planning contract copy and retry.',
+        true,
       );
     }
   } catch (error) {
@@ -548,12 +548,19 @@ function recordedReviewStamps(): ReviewStamp[] {
   return parseReviewStamps(readFileSync(logFile, 'utf8'));
 }
 
-function readReviewStamps(scope: string, requirePinnedReviewerModel = false): ReviewStamp[] {
+function readReviewStamps(
+  scope: string,
+  requirePinnedReviewerModel = false,
+  onPlanningContextFailure?: (message: string) => void,
+  onReceiptFailure?: Parameters<typeof verifiedStamps>[5],
+): ReviewStamp[] {
   return verifiedStamps(
     recordedReviewStamps(),
     projectDirectory,
     scope,
     requirePinnedReviewerModel,
+    failure => onPlanningContextFailure?.(failure.message),
+    onReceiptFailure,
   );
 }
 
@@ -946,6 +953,21 @@ const isCanonicalTicketEdit =
   nodePath.basename(editedFile) === 'ticket.md' && isNamespacePath(editedFile, 'tickets/');
 const isCanonicalSpecEdit =
   nodePath.basename(editedFile) === 'spec.md' && isNamespacePath(editedFile, 'tickets/');
+const planningArtifactPhase = isNamespacePath(editedFile, 'tickets/')
+  ? (
+      {
+        'spec.md': 'product-plan',
+        'impl-plan.md': 'plan-implementation',
+        'execution-plan.md': 'plan-execution',
+      } as const
+    )[nodePath.basename(editedFile) as 'spec.md' | 'impl-plan.md' | 'execution-plan.md']
+  : undefined;
+if (planningArtifactPhase !== undefined) {
+  assertPlanningContractCopy(
+    nodePath.basename(nodePath.dirname(editedFile)),
+    planningArtifactPhase,
+  );
+}
 
 // Some hosts report a ticket/spec save without exposing either complete content
 // or an applicable edit delta. There is no proposed state to validate in that
@@ -1029,7 +1051,7 @@ if (isCanonicalTicketEdit) {
     proposedPhase === 'plan-execution'
   ) {
     const ticketDirectory = nodePath.dirname(editedFile);
-    assertCursorPlanningContractCopy(nodePath.basename(ticketDirectory), 'plan-implementation');
+    assertPlanningContractCopy(nodePath.basename(ticketDirectory), 'plan-implementation');
     const verdict = evaluateExecutionPlanningEntry(ticketDirectory, { projectDirectory });
     if (!verdict.ok) deny(verdict.reason, verdict.remediation);
 
@@ -1038,12 +1060,20 @@ if (isCanonicalTicketEdit) {
       const planContent = existsSync(planPath) ? readFileSync(planPath, 'utf8') : '';
       const ticketScope = nodePath.basename(ticketDirectory);
       const planScope = reviewScope(ticketScope, 'impl-plan', hashArtifact(planContent));
+      let planningContextFailure: string | undefined;
       const reviewVerdict = reviewGateForNextAsset(
         planScope,
-        readReviewStamps(planScope),
+        readReviewStamps(planScope, false, message => {
+          planningContextFailure = message;
+        }),
         crossAgentReviewPolicy(),
       );
       if (!reviewVerdict.ok) {
+        if (planningContextFailure !== undefined)
+          deny(
+            planningContextFailure,
+            'Reconcile the configured planning source and rerun the Implementation Plan review before retrying the transition.',
+          );
         const planScopePrefix = `${ticketScope}:impl-plan@`;
         const hasSupersededReview = recordedReviewStamps().some(
           stamp => stamp.scope.startsWith(planScopePrefix) && stamp.scope !== planScope,
@@ -1223,10 +1253,20 @@ if (isCanonicalTicketEdit) {
   if (exitedPhase !== undefined && reviewGateAppliesTo(exitedPhase)) {
     const ticketDirectory = nodePath.dirname(editedFile);
     const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
-    const stamps = readReviewStamps(phaseScope);
+    let receiptFailure: { reason: string; blockedRoutes: boolean } | undefined;
+    const stamps = readReviewStamps(phaseScope, false, undefined, (reason, receipt) => {
+      receiptFailure = {
+        reason,
+        blockedRoutes: receipt?.status === 'blocked' && receipt.independence === 'none',
+      };
+    });
     if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
       deny(
-        `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
+        receiptFailure === undefined ||
+          stamps.length > 0 ||
+          (exitedPhase !== 'plan-implementation' && exitedPhase !== 'plan-execution')
+          ? `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`
+          : `${receiptFailure.blockedRoutes ? 'Reviewer-route' : 'Review receipt'} reconciliation is required before leaving "${exitedPhase}": ${receiptFailure.reason}. Run \`safeword review run ${reviewKindForPhase(exitedPhase)} <ticket.md and the work this phase produced>\` against the current sources, then record its result.`,
         `Run \`safeword review run ${reviewKindForPhase(exitedPhase)} <ticket.md and the work this phase produced>\`, then record its author_agent, actual_reviewer, independence, review id, and reviewer_model with \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\`. To stop gating this exit, narrow \`reviewGate\` in .safeword/config.json to the phases you want (or set it to false).`,
       );
     }

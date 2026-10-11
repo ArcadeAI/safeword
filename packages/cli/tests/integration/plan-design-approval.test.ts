@@ -34,6 +34,7 @@ import {
 import { appendDesignDecision } from '../../src/review/approval-ledger.js';
 import { hashArtifact, reviewScope } from '../../templates/hooks/lib/review-ledger.js';
 import { assertTestCliFresh, runCli, testCliPath } from '../helpers.js';
+import { PLANNING_ROLE_PRODUCT, writeImplementationRoleInputs } from '../planning-role-fixtures.js';
 
 const TICKET_ID = 'PLAN42';
 const TICKET_FOLDER = `${TICKET_ID}-review-the-approach`;
@@ -189,7 +190,24 @@ function projectFiles(directory: string, root = directory): string[] {
   });
 }
 
-function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approved'): Fixture {
+function supplyCurrentContext(root: string, ticketDirectory: string, enabled: boolean): void {
+  if (!enabled) return;
+  writeFileSync(
+    nodePath.join(ticketDirectory, 'spec.md'),
+    `${PLANNING_ROLE_PRODUCT}\n## Surfaces\n\nAffected:\n- Safeword CLI\n`,
+  );
+  writeImplementationRoleInputs(
+    root,
+    `${nodePath.relative(root, ticketDirectory)}/impl-plan.md`,
+    'review-the-approach.feature',
+  );
+}
+
+function fixture(
+  designApprovalGate: boolean,
+  reviewState: ReviewState = 'approved',
+  currentContext = false,
+): Fixture {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-plan-approval-'));
   fixtures.push(root);
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', TICKET_FOLDER);
@@ -222,6 +240,13 @@ function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approv
       'type: feature',
       'phase: plan-implementation',
       'status: in_progress',
+      ...(currentContext
+        ? [
+            'product_plan_contract: v1',
+            'phase_anchors:',
+            '  - scenario-gate: features/review-the-approach.feature',
+          ]
+        : []),
       'scope: review one approach',
       'out_of_scope: unrelated work',
       'done_when: execution planning begins safely',
@@ -237,6 +262,7 @@ function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approv
     nodePath.join(root, 'features', 'review-the-approach.feature'),
     'Feature: Review the approach\n',
   );
+  supplyCurrentContext(root, ticketDirectory, currentContext);
   writeFileSync(
     nodePath.join(root, '.safeword', 'templates', 'execution-plan-template.md'),
     EXECUTION_PLAN_TEMPLATE,
@@ -283,7 +309,8 @@ function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approv
   const reviewId = payload.data?.review_id;
   if (reviewId === undefined)
     throw new Error(`Implementation Plan review failed: ${reviewed.stdout}`);
-  const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(PLAN));
+  const currentPlan = readFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), 'utf8');
+  const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(currentPlan));
   const existingLedger = readFileSync(ledgerPath, 'utf8');
   writeFileSync(
     ledgerPath,
@@ -533,7 +560,7 @@ dispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\([^"
 if printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
   review_record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
   if [ -n "$review_record" ]; then
-    printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"replan approved","findings":[],"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$review_record"
+    printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"replan approved","findings":[],"evidence_records":{"schema_version":1,"records":[]},"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$review_record"
     exit 0
   fi
   if printf '%s' "$payload" | /usr/bin/grep -Fq 'Accepted authorization approach changed'; then
@@ -541,15 +568,15 @@ if printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
   else
     destination=plan-execution
   fi
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"implementation discovery","findings":[{"severity":"error","message":"Repair the affected plan."}],"planning_destination":"%s","execution_plan_record":null}\n' "$dispatch_id" "$destination"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"implementation discovery","findings":[{"severity":"error","message":"Repair the affected plan."}],"evidence_records":{"schema_version":1,"records":[]},"planning_destination":"%s","execution_plan_record":null}\n' "$dispatch_id" "$destination"
   exit 0
 fi
 if [ "${'$'}{SAFEWORD_REVIEW_FAKE_VERDICT:-approve}" = "request_changes" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan is blocked","findings":[{"severity":"error","message":"Authorization boundary is missing."}]}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan is blocked","findings":[{"severity":"error","message":"Authorization boundary is missing."}],"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id"
 elif [ "${'$'}{SAFEWORD_REVIEW_FAKE_FINDING:-}" = "1" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"plan is approved with advice","findings":[{"severity":"warning","message":"Consider documenting the optional recovery example."}]}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"plan is approved with advice","findings":[{"severity":"warning","message":"Consider documenting the optional recovery example."}],"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id"
 else
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"plan is approved","findings":[]}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"plan is approved","findings":[],"evidence_records":{"schema_version":1,"records":[]}}\n' "$dispatch_id"
 fi
 `,
     { mode: 0o755 },
@@ -679,7 +706,7 @@ describe('implementation-time discoveries return to the affected planning phase'
   ] as const)(
     'routes %s repair from implementation through the installed CLI',
     async (discovery, planningDestination, expectedPhase) => {
-      const project = fixture(false);
+      const project = fixture(false, 'approved', true);
       writeFileSync(
         project.ticketPath,
         readFileSync(project.ticketPath, 'utf8').replace(
@@ -733,7 +760,14 @@ describe('implementation-time discoveries return to the affected planning phase'
       expect(result.stdout).toContain(`"planning_destination":"${planningDestination}"`);
 
       if (planningDestination === 'plan-implementation') {
-        const revisedImplementationPlan = `${PLAN}\nAccepted authorization uses the revised boundary.\n`;
+        const currentImplementationPlan = readFileSync(
+          nodePath.join(project.ticketDirectory, 'impl-plan.md'),
+          'utf8',
+        );
+        const revisedImplementationPlan = currentImplementationPlan.replace(
+          '## Decisions\n',
+          '## Decisions\n\nAccepted authorization uses the revised boundary.\n',
+        );
         writeFileSync(
           nodePath.join(project.ticketDirectory, 'impl-plan.md'),
           revisedImplementationPlan,
@@ -797,6 +831,92 @@ describe('implementation-time discoveries return to the affected planning phase'
       );
     },
   );
+});
+
+describe('repair must precede renewed planning approval', () => {
+  it('refuses reuse of the old current-context approval after an execution discovery', async () => {
+    const project = fixture(false, 'approved', true);
+    const args = ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID];
+    const accepted = await runCli(args, { cwd: project.root, env: reviewEnvironment(project) });
+    expect(accepted.exitCode, accepted.stdout).toBe(0);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    writeFileSync(
+      project.ticketPath,
+      readFileSync(project.ticketPath, 'utf8').replace('phase: plan-execution', 'phase: implement'),
+    );
+    const executionPlanPath = nodePath.join(project.ticketDirectory, 'execution-plan.md');
+    writeFileSync(
+      executionPlanPath,
+      replanExecutionPlan('Accepted authorization approach changed'),
+    );
+    const reviewerBin = installBlockingReviewer();
+    const reviewed = await runCli(
+      [
+        '--json',
+        '--no-input',
+        'review',
+        'run',
+        'plan-execution',
+        nodePath.relative(project.root, executionPlanPath),
+        '--context',
+        nodePath.relative(project.root, nodePath.join(project.ticketDirectory, 'impl-plan.md')),
+        '--context',
+        'features/review-the-approach.feature',
+        '--cwd',
+        project.root,
+      ],
+      {
+        cwd: project.root,
+        env: {
+          PATH: `${reviewerBin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+          SAFEWORD_REVIEW_FOREGROUND_MS: '5000',
+          ...reviewEnvironment(project),
+        },
+      },
+    );
+    expect(reviewed.exitCode, reviewed.stdout).toBe(2);
+    expect(reviewed.stdout).toContain('"planning_destination":"plan-implementation"');
+    const returned = await runCli(args, { cwd: project.root, env: reviewEnvironment(project) });
+    expect(returned.exitCode, returned.stdout).toBe(2);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    const unrepaired = await runCli(args, { cwd: project.root, env: reviewEnvironment(project) });
+    expect(unrepaired.exitCode, unrepaired.stdout).toBe(2);
+    expect(unrepaired.stdout).toContain(
+      'no current authenticated Implementation Plan review receipt',
+    );
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+  });
+});
+
+describe('legacy review reuse after a planning return', () => {
+  it('preserves an untouched legacy review but refuses it after a recorded discovery', async () => {
+    const project = fixture(false);
+    const legacyId = 'PLAN43';
+    addReviewedTicket(project, legacyId, 'The retained legacy approach.');
+    const legacyPath = nodePath.join(
+      project.root,
+      '.project',
+      'tickets',
+      `${legacyId}-review-the-approach`,
+      'ticket.md',
+    );
+    const args = ['--json', '--no-input', 'ticket', 'approve-plan', legacyId];
+    const untouched = await runCli(args, { cwd: project.root, env: reviewEnvironment(project) });
+    expect(untouched.exitCode, untouched.stdout).toBe(0);
+    writeFileSync(
+      legacyPath,
+      `${readFileSync(legacyPath, 'utf8').replace(
+        'phase: plan-execution',
+        'phase: plan-implementation',
+      )}\n### Execution discovery requiring fresh planning review\n\n> Repair the accepted authorization boundary.\n`,
+    );
+    const returned = await runCli(args, { cwd: project.root, env: reviewEnvironment(project) });
+    expect(returned.exitCode, returned.stdout).toBe(2);
+    expect(phase(legacyPath)).toBe('plan-implementation');
+    expect(returned.stdout).toContain('Convert its retained plan and design decisions');
+  });
 });
 
 describe('an accepted design enters Execution Planning', () => {

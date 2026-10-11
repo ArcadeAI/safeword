@@ -57,8 +57,14 @@ export function readReviewReceipt(
     if (run.error !== undefined || run.stdout === '') continue;
 
     let data: Record<string, unknown>;
+    let findings: unknown;
     try {
-      data = (JSON.parse(run.stdout) as { data?: Record<string, unknown> }).data ?? {};
+      const result = JSON.parse(run.stdout) as {
+        data?: Record<string, unknown>;
+        findings?: unknown;
+      };
+      data = result.data ?? {};
+      findings = result.findings;
     } catch {
       continue;
     }
@@ -70,6 +76,21 @@ export function readReviewReceipt(
 
     const text = (field: string): string | undefined =>
       typeof data[field] === 'string' ? (data[field] as string) : undefined;
+    const contextFinding = Array.isArray(findings)
+      ? findings.find(finding => finding?.code === 'missing_planning_context')
+      : undefined;
+    const metadata = contextFinding?.metadata;
+    const planningContextFailure =
+      text('status') === 'stale' &&
+      typeof contextFinding?.message === 'string' &&
+      typeof metadata?.context_role === 'string' &&
+      typeof metadata?.context_path === 'string'
+        ? {
+            message: contextFinding.message as string,
+            role: metadata.context_role as string,
+            path: metadata.context_path as string,
+          }
+        : undefined;
     // Only status provenance may waive coverage. Legacy raw excluded_targets
     // describe packet output without this verification contract. Never salvage
     // a partially malformed verified list: it is authorization scope.
@@ -91,6 +112,7 @@ export function readReviewReceipt(
       authorAgent: text('author_agent'),
       actualReviewer: text('actual_reviewer'),
       reviewerModel: text('reviewer_model'),
+      planningContextFailure,
     };
     // A legacy CLI may know the id but not expose the provenance fields this
     // gate requires. Let a later current, distribution-owned route answer.

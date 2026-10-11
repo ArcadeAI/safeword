@@ -6,6 +6,25 @@ import { describe, expect, it } from 'vitest';
 const root = nodePath.resolve(import.meta.dirname, '../../../..');
 
 describe('planning fallback documentation', () => {
+  it('explains bounded approvals, currency, recovery, and host enforcement in public guidance', () => {
+    const readme = readFileSync(nodePath.join(root, 'README.md'), 'utf8');
+    const workflow = readFileSync(
+      nodePath.join(root, 'packages/website/src/content/docs/getting-started/workflow.mdx'),
+      'utf8',
+    );
+    for (const content of [readme, workflow]) {
+      expect(content).toContain('Product Plan approval');
+      expect(content).toContain('Implementation Plan approval');
+      expect(content).toContain('Execution Plan approval');
+      expect(content).toContain('exact plan bytes');
+      expect(content).toContain('semantic dependencies');
+      expect(content).toContain('re-review');
+      expect(content).toMatch(/reduced\s+independence/u);
+      expect(content).toContain('Codex Cloud');
+      expect(content).toContain('OpenCode Desktop');
+      expect(content).toContain('OpenCode CLI');
+    }
+  });
   it('marks the older coordinator decision as superseded in part', () => {
     const architecture = readFileSync(nodePath.join(root, 'ARCHITECTURE.md'), 'utf8');
     const olderRecord = architecture

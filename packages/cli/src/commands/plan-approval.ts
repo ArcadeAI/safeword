@@ -15,14 +15,21 @@ import { evaluateExecutionPlanningEntry } from '../../templates/hooks/lib/plan-g
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { appendDesignDecision, currentDesignDecision } from '../review/approval-ledger.js';
 import { reviewJobStatus } from '../review/job.js';
-import { assertActivePlanningAuthorCopy, PlanningContractCopyError } from '../review/packet.js';
+import {
+  assertActivePlanningAuthorCopy,
+  assertActivePlanningReviewerCopy,
+  PlanningContractCopyError,
+} from '../review/packet.js';
 import { phaseReviewAdmission } from '../review/phase-admission.js';
+import { SAFEWORD_SCHEMA } from '../schema.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
+import { getTemplatesDirectory } from '../utils/fs.js';
 import { planningContractCopyFailure } from '../utils/planning-contract-copy-failure.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
 
 type ApprovalStatus = 'approved' | 'declined' | 'not-required' | 'pending';
+const EXECUTION_DISCOVERY_HEADING = '### Execution discovery requiring fresh planning review';
 
 function interruptApprovalForTest(boundary: 'after-decision' | 'before-decision'): void {
   if (
@@ -93,6 +100,17 @@ function currentReview(
 ):
   | { readonly ok: true; readonly independence: AchievedReviewIndependence }
   | { readonly ok: false; readonly reason: string } {
+  const ticket = readFileSync(context.ticketPath, 'utf8');
+  if (
+    readFrontmatterScalar(ticket, 'product_plan_contract') !== 'v1' &&
+    ticket.includes(EXECUTION_DISCOVERY_HEADING)
+  ) {
+    return {
+      ok: false,
+      reason:
+        'This legacy ticket returned to planning after an Execution review discovery. Convert its retained plan and design decisions to the current planning contract, then obtain a fresh Implementation Plan review before approving it.',
+    };
+  }
   const gate = evaluateExecutionPlanningEntry(context.ticketDirectory, {
     projectDirectory: context.cwd,
   });
@@ -132,7 +150,11 @@ function reviewsPlan(data: Record<string, unknown>, context: ApprovalContext): b
 }
 
 type ExecutionDiscovery =
-  | { readonly destination: 'plan-execution' | 'plan-implementation' }
+  | {
+      readonly destination: 'plan-execution' | 'plan-implementation';
+      readonly reviewId: string;
+      readonly findings: readonly string[];
+    }
   | { readonly destination: 'invalid' };
 
 function reviewTargetsPath(
@@ -147,13 +169,17 @@ function reviewTargetsPath(
   );
 }
 
-function discoveryDestination(output: unknown): ExecutionDiscovery {
+function discoveryDestination(
+  output: unknown,
+  reviewId: string,
+  findings: readonly string[],
+): ExecutionDiscovery {
   if (typeof output !== 'object' || output === null || Array.isArray(output)) {
     return { destination: 'invalid' };
   }
   const destination = (output as Record<string, unknown>).planning_destination;
   return destination === 'plan-execution' || destination === 'plan-implementation'
-    ? { destination }
+    ? { destination, reviewId, findings }
     : { destination: 'invalid' };
 }
 
@@ -176,7 +202,24 @@ function currentExecutionDiscovery(context: ApprovalContext): ExecutionDiscovery
   ) {
     return undefined;
   }
-  return discoveryDestination(data.reviewer_output);
+  return discoveryDestination(
+    data.reviewer_output,
+    String(data.review_id),
+    review.findings
+      .filter(finding => finding.code === 'REVIEWER_FINDING')
+      .map(finding => finding.message),
+  );
+}
+
+function executionDiscoveryNotice(
+  discovery: Exclude<ExecutionDiscovery, { destination: 'invalid' }>,
+): string {
+  const messages = [
+    `Execution review ${discovery.reviewId} requested Implementation Plan repair.`,
+    ...discovery.findings,
+  ];
+  const quoted = messages.flatMap(message => message.split(/\r?\n/u).map(line => `> ${line}`));
+  return `\n\n${EXECUTION_DISCOVERY_HEADING}\n\n${quoted.join('\n')}\n`;
 }
 
 function applyExecutionDiscovery(
@@ -189,7 +232,9 @@ function applyExecutionDiscovery(
     if (currentPhase !== 'plan-execution' && currentPhase !== 'implement') {
       throw new Error(`Ticket is in ${String(currentPhase)}, not plan-execution or implement.`);
     }
-    const changed = replaceTicketPhase(context, currentPhase, discovery.destination);
+    const notice =
+      discovery.destination === 'plan-implementation' ? executionDiscoveryNotice(discovery) : '';
+    const changed = replaceTicketPhase(context, currentPhase, discovery.destination, notice);
     const target = nodePath.relative(context.cwd, context.ticketPath);
     const implementationDecision = discovery.destination === 'plan-implementation';
     return createResult({
@@ -271,6 +316,7 @@ function replaceTicketPhase(
   context: ApprovalContext,
   from: 'implement' | 'plan-execution' | 'plan-implementation',
   to: 'plan-execution' | 'plan-implementation',
+  notice = '',
 ): boolean {
   const ticket = readFileSync(context.ticketPath, 'utf8');
   const phase = readFrontmatterScalar(ticket, 'phase');
@@ -287,7 +333,7 @@ function replaceTicketPhase(
     throw new Error(`Ticket phase "${from}" could not be updated safely.`);
   }
   const temporary = `${context.ticketPath}.${process.pid}.${randomUUID()}.tmp`;
-  writeFileSync(temporary, updated);
+  writeFileSync(temporary, updated + notice);
   renameSync(temporary, context.ticketPath);
   return true;
 }
@@ -296,12 +342,14 @@ function scaffoldExecutionPlan(context: ApprovalContext): string | undefined {
   const planPath = nodePath.join(context.ticketDirectory, 'execution-plan.md');
   if (existsSync(planPath)) return undefined;
 
-  const templatePath = nodePath.join(
-    context.cwd,
-    '.safeword',
-    'templates',
-    'execution-plan-template.md',
-  );
+  const installedPath = '.safeword/templates/execution-plan-template.md';
+  const projectTemplatePath = nodePath.join(context.cwd, installedPath);
+  const packagedTemplate = SAFEWORD_SCHEMA.ownedFiles[installedPath]?.template;
+  if (packagedTemplate === undefined) throw new Error('Execution Plan template is not registered.');
+  // Native distributions keep workflow templates in their package, rather than the project.
+  const templatePath = existsSync(projectTemplatePath)
+    ? projectTemplatePath
+    : nodePath.join(getTemplatesDirectory(), packagedTemplate);
   if (!existsSync(templatePath)) {
     throw new Error(
       'The installed Execution Plan template is missing. Repair the Safeword installation before approving the plan.',
@@ -499,6 +547,7 @@ function currentApprovalResult(
 
 async function approve(context: ApprovalContext, noInput: boolean): Promise<CliResult> {
   assertActivePlanningAuthorCopy(context.cwd, 'plan-implementation');
+  assertActivePlanningReviewerCopy('plan-implementation');
   const executionDiscovery = currentExecutionDiscovery(context);
   if (executionDiscovery !== undefined) {
     return applyExecutionDiscovery(context, executionDiscovery);

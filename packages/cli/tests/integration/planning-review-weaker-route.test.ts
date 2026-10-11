@@ -62,7 +62,7 @@ afterEach(() => {
   projects.length = 0;
 });
 
-it('discards a weaker approval and continues to the next independent route', async () => {
+it('skips a weaker selector and continues to the next independent route', async () => {
   const project = createTemporaryDirectory();
   projects.push(project);
   await createConfiguredProject(project);
@@ -112,12 +112,13 @@ it('discards a weaker approval and continues to the next independent route', asy
     status: 'changes_requested',
     independence: 'cross-agent',
     review_routes: [
-      { model: 'gpt-6-luna', status: 'attempted', failure: 'reviewer_capability_weaker' },
+      { model: 'gpt-6-luna', status: 'skipped', failure: 'reviewer_capability_weaker' },
       { model: 'gpt-6-astra', status: 'attempted' },
     ],
     reviewer_output: { summary: 'Qualified rejection.', verdict: 'request_changes' },
   });
   expect(JSON.stringify(result)).not.toContain('Weak approval.');
+  expect(dispatchedPackets).toHaveLength(1);
 
   writeFileSync(
     configPath,
@@ -141,6 +142,7 @@ it('discards a weaker approval and continues to the next independent route', asy
     expect.objectContaining({ code: 'REVIEW_CONTINUATION_REQUIRED' }),
   );
   expect(JSON.stringify(exhausted)).not.toContain('Weak approval.');
+  expect(dispatchedPackets).toHaveLength(1);
 
   writeFileSync(configPath, JSON.stringify(config));
   const defaulted = await runReview({

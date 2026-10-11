@@ -1,0 +1,255 @@
+#!/usr/bin/env bun
+
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { reviewerPromptInstructions } from '../src/review/review-rubric.js';
+import { planningContractCases } from '../tests/fixtures/planning-contracts-eval.js';
+import {
+  type PlanningContractCase,
+  planningContractCorpusDigest,
+  planningContractRubricDigest,
+  type PlanningEvalManifest,
+  planningJudgePrompt,
+  planningJudgeRubricDigest,
+  scorePlanningCase,
+} from './lib/planning-contracts-eval.js';
+import { callClaude } from './lib/planning-eval-provider.js';
+
+const packageRoot = nodePath.resolve(import.meta.dirname, '..');
+const manifestPath = nodePath.join(
+  packageRoot,
+  'tests/fixtures/planning-contracts-eval/manifest.json',
+);
+const outputPath = nodePath.resolve(
+  packageRoot,
+  '../../.project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/planning-contracts-eval.json',
+);
+
+const reviewSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    verdict: { type: 'string', enum: ['approve', 'request_changes'] },
+    summary: { type: 'string' },
+    findings: { type: 'array', items: { type: 'string' } },
+    scope_expanded: { type: 'boolean' },
+    evidence_claims: { type: 'array', items: { type: 'string' } },
+  },
+  required: ['verdict', 'summary', 'findings', 'scope_expanded', 'evidence_claims'],
+} as const;
+
+const judgeSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    correct: { type: 'boolean' },
+    reason: { type: 'string' },
+  },
+  required: ['correct', 'reason'],
+} as const;
+
+interface ReviewerAnswer {
+  readonly verdict: 'approve' | 'request_changes';
+  readonly summary: string;
+  readonly findings: readonly string[];
+  readonly scope_expanded: boolean;
+  readonly evidence_claims: readonly string[];
+}
+
+interface JudgeAnswer {
+  readonly correct: boolean;
+  readonly reason: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function reviewerAnswer(value: unknown): ReviewerAnswer {
+  if (
+    !isRecord(value) ||
+    (value.verdict !== 'approve' && value.verdict !== 'request_changes') ||
+    typeof value.summary !== 'string' ||
+    typeof value.scope_expanded !== 'boolean' ||
+    !Array.isArray(value.findings) ||
+    value.findings.some((item: unknown) => typeof item !== 'string') ||
+    !Array.isArray(value.evidence_claims) ||
+    value.evidence_claims.some((item: unknown) => typeof item !== 'string')
+  )
+    throw new Error('Reviewer eval output does not match the fixed schema.');
+  return value as unknown as ReviewerAnswer;
+}
+
+function judgeAnswer(value: unknown): JudgeAnswer {
+  if (!isRecord(value) || typeof value.correct !== 'boolean' || typeof value.reason !== 'string')
+    throw new Error('Judge eval output does not match the fixed schema.');
+  return value as unknown as JudgeAnswer;
+}
+
+function reviewerPrompt(evaluationCase: PlanningContractCase): string {
+  return [
+    reviewerPromptInstructions(evaluationCase.kind, 'claude', evaluationCase.planning_phase),
+    'Evaluate the following synthetic planning packet. Apply the canonical rubric above to its facts.',
+    'For this eval, project your judgment into the supplied neutral JSON schema: verdict, summary, findings, scope_expanded, and evidence_claims. Set scope_expanded true only if your review requires behavior outside accepted scope; an out-of-scope addition in the reviewed plan that you reject is not reviewer scope expansion. A suggestion is not an accepted scope change.',
+    JSON.stringify({
+      accepted_boundary: evaluationCase.reviewer_boundary ?? evaluationCase.accepted_boundary,
+      context: evaluationCase.context,
+      reviewed_plan: evaluationCase.reviewed_plan,
+    }),
+  ].join('\n\n');
+}
+
+function readManifest(): PlanningEvalManifest {
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as PlanningEvalManifest;
+  const mismatches = [
+    manifest.version !== 1,
+    manifest.rubric_digest !== planningContractRubricDigest(),
+    manifest.corpus_digest !== planningContractCorpusDigest(planningContractCases),
+    manifest.judge_rubric_version !== 1,
+    manifest.judge_rubric_digest !== planningJudgeRubricDigest(),
+    JSON.stringify(manifest.settings) !==
+      JSON.stringify({
+        effort: 'low',
+        max_turns: 3,
+        tools_disabled: true,
+        session_persistence: false,
+      }),
+    manifest.repetitions !== 3,
+    manifest.agreement_threshold !== 2,
+    manifest.reviewer_model !== 'claude-opus-5',
+    manifest.judge_model !== 'claude-sonnet-5',
+  ];
+  if (mismatches.some(Boolean)) throw new Error('Planning eval manifest is stale or incomplete.');
+  return manifest;
+}
+
+function calibrateJudge(manifest: PlanningEvalManifest, selectedId: string | undefined): void {
+  for (const evaluationCase of [planningContractCases[0], planningContractCases[6]]) {
+    if (evaluationCase === undefined) throw new Error('Planning eval calibration case is missing.');
+    const wrong: ReviewerAnswer = {
+      verdict: evaluationCase.expected_verdict === 'approve' ? 'request_changes' : 'approve',
+      summary: 'Require automatic migration outside accepted scope.',
+      findings: ['The reviewer demands automatic migration.'],
+      scope_expanded: true,
+      evidence_claims: [],
+    };
+    if (
+      judgeAnswer(
+        callClaude(manifest.judge_model, planningJudgePrompt(evaluationCase, wrong), judgeSchema),
+      ).correct
+    )
+      throw new Error(`Planning eval judge accepted known-bad output for ${evaluationCase.id}.`);
+  }
+  if (selectedId === undefined || selectedId === 'r11-optional-architecture') {
+    const optional = planningContractCases.find(item => item.id === 'r11-optional-architecture');
+    if (optional === undefined) throw new Error('Optional-proposal calibration case is missing.');
+    const bareApproval: ReviewerAnswer = {
+      verdict: 'approve',
+      summary: 'The plan meets the accepted authorization boundary.',
+      findings: [],
+      scope_expanded: false,
+      evidence_claims: [],
+    };
+    if (
+      judgeAnswer(
+        callClaude(manifest.judge_model, planningJudgePrompt(optional, bareApproval), judgeSchema),
+      ).correct
+    )
+      throw new Error('Planning eval judge accepted approval that ignored the recorded proposal.');
+  }
+}
+
+function capturedPlanningInput(
+  selectedId: string | undefined,
+): Pick<PlanningContractCase, 'context' | 'reviewed_plan'> | undefined {
+  const packetFile = process.env.SAFEWORD_PLANNING_EVAL_PACKET;
+  if (packetFile === undefined) return undefined;
+  if (selectedId === undefined)
+    throw new Error('Captured packet requires one named evaluation case.');
+  const suppliedPacket = JSON.parse(readFileSync(packetFile, 'utf8'));
+  if (
+    !isRecord(suppliedPacket) ||
+    typeof suppliedPacket.context !== 'string' ||
+    typeof suppliedPacket.reviewed_plan !== 'string'
+  )
+    throw new Error('Captured packet must supply context and reviewed_plan strings.');
+  return { context: suppliedPacket.context, reviewed_plan: suppliedPacket.reviewed_plan };
+}
+
+function main(): void {
+  const manifest = readManifest();
+  const selectedId = process.env.SAFEWORD_PLANNING_EVAL_CASE;
+  const suppliedPacket = capturedPlanningInput(selectedId);
+  calibrateJudge(manifest, selectedId);
+  const selectedCases = selectedId
+    ? planningContractCases.filter(evaluationCase => evaluationCase.id === selectedId)
+    : planningContractCases;
+  const cases = selectedCases.map(evaluationCase =>
+    suppliedPacket === undefined
+      ? evaluationCase
+      : {
+          ...evaluationCase,
+          context: suppliedPacket.context,
+          reviewed_plan: suppliedPacket.reviewed_plan,
+        },
+  );
+  if (cases.length === 0) throw new Error(`Unknown planning eval case: ${selectedId}`);
+  const reportPath = selectedId
+    ? (process.env.SAFEWORD_PLANNING_EVAL_OUTPUT ??
+      nodePath.join(nodePath.dirname(outputPath), `planning-contracts-eval-${selectedId}.json`))
+    : outputPath;
+  const results: Record<string, unknown>[] = [];
+  for (const evaluationCase of cases) {
+    const runs = Array.from({ length: manifest.repetitions }, (_, index) => {
+      const reviewer = reviewerAnswer(
+        callClaude(manifest.reviewer_model, reviewerPrompt(evaluationCase), reviewSchema),
+      );
+      const judge = judgeAnswer(
+        callClaude(
+          manifest.judge_model,
+          planningJudgePrompt(evaluationCase, reviewer),
+          judgeSchema,
+        ),
+      );
+      process.stdout.write(
+        `${evaluationCase.id} ${index + 1}/${manifest.repetitions}: ${reviewer.verdict}, judge=${judge.correct}\n`,
+      );
+      return { reviewer, judge };
+    });
+    const status = scorePlanningCase(
+      evaluationCase,
+      runs.map(({ reviewer, judge }) => ({
+        verdict: reviewer.verdict,
+        scope_expanded: reviewer.scope_expanded,
+        judge_correct: judge.correct,
+      })),
+      manifest,
+    );
+    results.push({
+      case_id: evaluationCase.id,
+      rule: evaluationCase.rule,
+      input_packet_digest: createHash('sha256')
+        .update(
+          JSON.stringify({
+            context: evaluationCase.context,
+            reviewed_plan: evaluationCase.reviewed_plan,
+          }),
+        )
+        .digest('hex'),
+      status,
+      runs,
+    });
+    mkdirSync(nodePath.dirname(reportPath), { recursive: true });
+    writeFileSync(
+      reportPath,
+      `${JSON.stringify({ version: 1, manifest, recorded_at: new Date().toISOString(), complete: results.length === cases.length, selected_case: selectedId, results }, undefined, 2)}\n`,
+    );
+  }
+  const passed = results.filter(result => result.status === 'pass').length;
+  process.stdout.write(`Planning contracts eval: ${passed}/${results.length} fixtures passed.\n`);
+  if (passed !== results.length) process.exitCode = 1;
+}
+
+main();
