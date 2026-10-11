@@ -74,6 +74,7 @@ interface ContentItem {
   type: string;
   text?: string;
   name?: string; // tool_use: tool name
+  input?: { run_in_background?: unknown }; // tool_use: arguments
 }
 
 interface TranscriptMessage {
@@ -458,9 +459,11 @@ checkArchitectureReviewGate(ticketInfo);
 // the prior bounded fallback. The done phase always falls through to its gate.
 const editsToReview = detectEditsToReview(lines);
 const currentTurnToolEvidence = detectToolUseInCurrentUserTurn(lines, () => true);
+// A turn whose last tool call launches background work is waiting, not handing off;
+// the results arrive in a new turn that is checked on its own stop (#5765, #1431).
 const terminalHandoffEvidence = editsToReview
   ? 'current-turn-edit'
-  : currentTurnToolEvidence === true
+  : currentTurnToolEvidence === true && !isBackgroundLaunch(lastToolUseInCurrentUserTurn(lines))
     ? 'current-turn-tool'
     : 'none';
 
@@ -593,6 +596,32 @@ function detectToolUseInCurrentUserTurn(
   }
   if (firstRecord > 0) return CURRENT_TURN_BOUNDARY_EXHAUSTED;
   return undefined;
+}
+
+/** The current user turn's final tool call, or undefined when it made none. */
+function lastToolUseInCurrentUserTurn(transcriptLines: string[]): ContentItem | undefined {
+  const firstRecord = Math.max(0, transcriptLines.length - MAX_CURRENT_TURN_SCAN_RECORDS);
+  for (let i = transcriptLines.length - 1; i >= firstRecord; i--) {
+    const message = parseTranscriptLine(transcriptLines[i]);
+    if (message === undefined) continue;
+    const precedingMessage = i > 0 ? parseTranscriptLine(transcriptLines[i - 1]) : undefined;
+    if (startsNewTurn(message, precedingMessage)) return undefined;
+    if (!isAssistantMessage(message)) continue;
+    const toolUse = normalizeContentItems(message.message?.content).findLast(
+      item => item.type === 'tool_use',
+    );
+    if (toolUse) return toolUse;
+  }
+  return undefined;
+}
+
+/** Claude Code's background launches: Bash/Agent with run_in_background, and Monitor. */
+function isBackgroundLaunch(toolUse: ContentItem | undefined): boolean {
+  if (toolUse?.name === 'Monitor') return true;
+  return (
+    (toolUse?.name === 'Bash' || toolUse?.name === 'Agent') &&
+    toolUse.input?.run_in_background === true
+  );
 }
 
 function normalizeContentItems(content: ContentItem[] | string | undefined): ContentItem[] {
