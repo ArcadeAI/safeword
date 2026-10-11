@@ -57,6 +57,23 @@ describe('recovery observation authentication', () => {
     expect(validLedgerRecoveryObservationTag(fixture.root, content, tag)).toBe(true);
     expect(validRetrospectiveCloseTag(fixture.root, content, tag)).toBe(false);
   });
+  it('binds the same observation and root to the profile-owned key', () => {
+    const content = observation();
+    const tag = ledgerRecoveryObservationTag(fixture.root, content);
+    expect(validLedgerRecoveryObservationTag(fixture.root, content, tag)).toBe(true);
+    vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', nodePath.join(fixture.temporary, 'different-key'));
+    const otherKeyControl = retrospectiveCloseTag(fixture.root, content);
+    expect(validRetrospectiveCloseTag(fixture.root, content, otherKeyControl)).toBe(true);
+    expect(validLedgerRecoveryObservationTag(fixture.root, content, tag)).toBe(false);
+    vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', fixture.state);
+    expect(validLedgerRecoveryObservationTag(fixture.root, content, tag)).toBe(true);
+  });
+  it('refuses malformed tags without creating a key', () => {
+    for (const tag of ['bad', '0'.repeat(63), 'g'.repeat(64), '0'.repeat(66)]) {
+      expect(validLedgerRecoveryObservationTag(fixture.root, observation(), tag)).toBe(false);
+    }
+    expect(existsSync(fixture.state)).toBe(false);
+  });
   it('refuses another kind, ticket or profile before signing', () => {
     for (const field of [
       { kind: 'retrospective-close' },
