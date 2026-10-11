@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
 const roots: string[] = [];
 
-function recoveryGate(root: string, ticket: string) {
+function recoveryGate(root: string, ticket: string, operation = 'gate') {
   return spawnSync(
     process.execPath,
     [
@@ -18,7 +18,7 @@ function recoveryGate(root: string, ticket: string) {
       '--cwd',
       root,
       'review',
-      'gate',
+      operation,
       'ledger-recovery',
       '--ticket',
       ticket,
@@ -128,6 +128,22 @@ describe('bounded completion recovery through the public CLI', () => {
       'LEDGER_RECOVERY_SCOPE_CHANGED',
     );
     expect(readFileSync(nodePath.join(root, featurePath), 'utf8')).toBe(changed);
+  });
+
+  it('refuses observation outside the approved ticket and baseline without writing', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-ledger-observer-baseline-'));
+    roots.push(root);
+    const other = recoveryGate(root, 'OTHER1', 'observe');
+    expect(JSON.parse(other.stdout).findings[0]?.code, other.stdout + other.stderr).toBe(
+      'LEDGER_RECOVERY_SCOPE_MISMATCH',
+    );
+    expect(other.status).toBe(2);
+    const missing = recoveryGate(root, '5F5ZZA', 'observe');
+    expect(missing.status).toBe(2);
+    expect(JSON.parse(missing.stdout).findings[0]?.code, missing.stdout + missing.stderr).toBe(
+      'LEDGER_RECOVERY_BASELINE_REQUIRED',
+    );
+    expect(readdirSync(root)).toEqual([]);
   });
 
   it('proves the same empty-project fixture reaches the existing retrospective scope guard', () => {
