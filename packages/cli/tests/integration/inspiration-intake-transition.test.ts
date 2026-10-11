@@ -228,6 +228,26 @@ describe('activated intake inspiration transition wiring', () => {
     expect(reason).not.toMatch(/activation artifact|downgrade/i);
   });
 
+  it('carries the remedy through exit-code mode, which keeps only the reason (OpenCode)', () => {
+    const result = spawnSync('bun', [CODEX_HOOK_PATH], {
+      cwd: projectRoot,
+      input: JSON.stringify({
+        session_id: 'exit-code-remedy',
+        tool_name: 'Bash',
+        tool_input: { command: `echo x >> ${ticketFile}` },
+      }),
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: projectRoot,
+        SAFEWORD_CODEX_DENY_MODE: 'exit-code',
+      },
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('Edit or Write tool (apply_patch in Codex)');
+  });
+
   it('denies silent signal removal after an activated scaffold was committed', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), spec(true));
     expect(spawnSync('git', ['init'], { cwd: projectRoot }).status).toBe(0);
