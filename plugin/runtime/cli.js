@@ -62393,7 +62393,8 @@ __export(exports_job, {
   executableRedGate: () => executableRedGate,
   completeReviewJob: () => completeReviewJob,
   cancelReviewJob: () => cancelReviewJob,
-  approvedRetrospectiveReview: () => approvedRetrospectiveReview
+  approvedRetrospectiveReview: () => approvedRetrospectiveReview,
+  approvedLedgerRecoveryReview: () => approvedLedgerRecoveryReview
 });
 import { spawn as spawn2, spawnSync as spawnSync7 } from "child_process";
 import { createHash as createHash27, createHmac, randomBytes, randomUUID as randomUUID11, timingSafeEqual } from "crypto";
@@ -63656,6 +63657,9 @@ function hasCurrentFingerprint(cwd, record3) {
   } catch {
     return false;
   }
+}
+function approvedLedgerRecoveryReview(_cwd, _id) {
+  return;
 }
 function approvedRetrospectiveReview(cwd, id2, kind) {
   try {

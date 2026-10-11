@@ -38,6 +38,7 @@ import {
 } from './contract.js';
 import { hostContinuationCompletion } from './coordinator.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
+import type { LedgerRecoveryCertification } from './ledger-recovery-certification.js';
 import {
   LEDGER_RECOVERY_PROFILE,
   ledgerRecoveryProfileIdentity,
@@ -1835,6 +1836,20 @@ function hasCurrentFingerprint(cwd: string, record: ReviewJobRecord): boolean {
   } catch {
     return false;
   }
+}
+
+/** Recovery receipts remain unavailable until the independent reader is implemented. */
+export function approvedLedgerRecoveryReview(
+  _cwd: string,
+  _id: string,
+):
+  | {
+      readonly targets: readonly string[];
+      readonly context: readonly string[];
+      readonly certification: LedgerRecoveryCertification;
+    }
+  | undefined {
+  return undefined;
 }
 
 /** Authenticated review identity for the CKWE2D migration gate. */

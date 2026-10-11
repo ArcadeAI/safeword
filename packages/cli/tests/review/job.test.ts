@@ -21,6 +21,7 @@ import { createResult } from '../../src/cli-protocol/result.js';
 import { DELIVERY_CHECKLIST_CATEGORIES } from '../../src/execution-plan/delivery-checklist.js';
 import type { RedExecutionRequest } from '../../src/review/contract.js';
 import {
+  approvedLedgerRecoveryReview,
   approvedRetrospectiveReview,
   cancelReviewJob,
   completeReviewJob,
@@ -31,6 +32,9 @@ import {
   startReviewJob,
   submitReviewContinuation,
 } from '../../src/review/job.js';
+import cases from '../../src/review/ledger-recovery-cases.json' with { type: 'json' };
+import { RECOVERY_CONFIRMATIONS } from '../../src/review/ledger-recovery-certification.js';
+import { ledgerRecoveryProfileIdentity } from '../../src/review/ledger-recovery-profile.js';
 import { readReviewReceipt } from '../../templates/hooks/lib/read-receipt.js';
 import { receiptGateVerdict } from '../../templates/hooks/lib/review-receipt.js';
 import { runCli } from '../helpers.js';
@@ -763,6 +767,79 @@ describe('durable review jobs', () => {
       review_kind: 'quality-review',
       review_targets: ['input.md'],
     });
+  });
+
+  it('reads only authenticated independent current recovery certification', async () => {
+    const cwd = project();
+    writeFileSync(nodePath.join(cwd, 'support.md'), 'Actual proof context.\n');
+    const certification = {
+      profile: ledgerRecoveryProfileIdentity(),
+      cases: cases
+        .filter(item => !item.deferred)
+        .slice(0, 1)
+        .map(item => item.digest),
+      confirmations: Object.fromEntries(RECOVERY_CONFIRMATIONS.map(name => [name, true])),
+    };
+    const completingWorker = COMPLETE_WORKER.replace(
+      'const canonicalProject',
+      () =>
+        `record.result.data.reviewer_output.recovery_certification = ${JSON.stringify(certification)};\nconst canonicalProject`,
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, completingWorker));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const result = await startReviewJob({
+      cwd,
+      kind: 'ledger-recovery',
+      targets: ['input.md'],
+      context: ['support.md'],
+    });
+    const id = (result.data as { review_id: string }).review_id;
+    const expected = { targets: ['input.md'], context: ['support.md'], certification };
+    expect(
+      approvedLedgerRecoveryReview(cwd, id),
+      'Only current cross-agent recovery receipts grant certification',
+    ).toEqual(expected);
+    const path = nodePath.join(cwd, '.safeword/state/reviews', `${id}.json`);
+    const original = JSON.parse(readFileSync(path, 'utf8'));
+    const changes = [
+      (record: typeof original) => {
+        record.kind = 'quality-review';
+      },
+      (record: typeof original) => {
+        record.result.data.author_agent = 'codex';
+      },
+      (record: typeof original) => {
+        record.result.data.independence = 'same-agent';
+      },
+      (record: typeof original) => {
+        record.result.data.author_agent = 'opencode';
+      },
+      (record: typeof original) => {
+        record.result.data.reviewer_output.verdict = 'request_changes';
+      },
+      (record: typeof original) => {
+        record.result.data.reviewer_output.recovery_certification.profile = '0'.repeat(64);
+      },
+      (record: typeof original) => {
+        record.result.data.reviewer_output.recovery_certification.confirmations.source_fidelity = false;
+      },
+    ];
+    for (const change of changes) {
+      const record = structuredClone(original);
+      change(record);
+      record.integrity = signRecord(cwd, record);
+      writeFileSync(path, JSON.stringify(record));
+      expect(approvedLedgerRecoveryReview(cwd, id)).toBeUndefined();
+    }
+    writeFileSync(path, JSON.stringify(original));
+    expect(approvedLedgerRecoveryReview(cwd, id)).toEqual(expected);
+    writeFileSync(nodePath.join(cwd, 'support.md'), 'Changed proof context.\n');
+    expect(approvedLedgerRecoveryReview(cwd, id)).toBeUndefined();
+    writeFileSync(nodePath.join(cwd, 'support.md'), 'Actual proof context.\n');
+    const unsigned = structuredClone(original);
+    Reflect.deleteProperty(unsigned, 'integrity');
+    writeFileSync(path, JSON.stringify(unsigned));
+    expect(approvedLedgerRecoveryReview(cwd, id)).toBeUndefined();
   });
 
   it('does not credit an excluded generated target as independently reviewed', async () => {
