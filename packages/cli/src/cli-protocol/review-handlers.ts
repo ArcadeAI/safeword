@@ -141,10 +141,10 @@ export async function executableRedGateHandler(invocation: CommandInvocation): P
   return executableRedGate(invocation.cwd, scenario, ledger);
 }
 
-export function ledgerRecoveryGateHandler(invocation: CommandInvocation): Promise<CliResult> {
+export async function ledgerRecoveryGateHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { ticket } = invocation.options;
   if (typeof ticket !== 'string' || ticket.trim() === '')
-    return Promise.resolve(invalidOperand('review gate ledger-recovery', 'Ticket is required.'));
+    return invalidOperand('review gate ledger-recovery', 'Ticket is required.');
   const matchingScope = ticket === LEDGER_RECOVERY_PROFILE.ticket;
   const ledger = nodePath.join(invocation.cwd, LEDGER_RECOVERY_PROFILE.ledger);
   const feature = nodePath.join(invocation.cwd, LEDGER_RECOVERY_PROFILE.feature);
@@ -172,19 +172,27 @@ export function ledgerRecoveryGateHandler(invocation: CommandInvocation): Promis
     code = 'LEDGER_RECOVERY_HISTORY_CHANGED';
     message = 'Completion recovery requires the exact reviewed historical ledger.';
   }
-  return Promise.resolve(
-    createResult({
-      state: 'action_required',
-      findings: [
-        {
-          code,
-          severity: 'warning',
-          message,
-        },
-      ],
-      data: { command: 'review gate ledger-recovery', status: 'blocked' },
-    }),
-  );
+  return recoveryGateResult(invocation.cwd, code, message);
+}
+
+async function recoveryGateResult(cwd: string, code: string, message: string): Promise<CliResult> {
+  if (code === 'LEDGER_RECOVERY_EVIDENCE_MISSING') {
+    const { ledgerRecoveryCompletion, RECOVERY_MANIFEST_PATH } =
+      await import('../review/ledger-recovery-completion.js');
+    if (existsSync(nodePath.join(cwd, RECOVERY_MANIFEST_PATH)))
+      return ledgerRecoveryCompletion(cwd);
+  }
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code,
+        severity: 'warning',
+        message,
+      },
+    ],
+    data: { command: 'review gate ledger-recovery', status: 'blocked' },
+  });
 }
 
 export async function ledgerRecoveryObserveHandler(

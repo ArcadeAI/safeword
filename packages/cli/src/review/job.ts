@@ -1876,6 +1876,17 @@ export function approvedLedgerRecoveryReview(
 }
 
 /** Authenticated review identity for the CKWE2D migration gate. */
+export function approvedLedgerRecoveryReviews(cwd: string) {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory).flatMap(name => {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name)) return [];
+    const receipt = approvedLedgerRecoveryReview(cwd, name.slice(0, -5));
+    return receipt === undefined ? [] : [receipt];
+  });
+}
+
+/** Authenticated review identity for the CKWE2D migration gate. */
 export function approvedRetrospectiveReview(
   cwd: string,
   id: string,
