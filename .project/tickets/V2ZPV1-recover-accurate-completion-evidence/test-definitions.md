@@ -41,6 +41,16 @@ single authorized REFACTOR erratum as a separate correction.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Recovery refuses inherited scope changes
+
+Given the exact pinned ledger and feature, current proof remains required.
+Changing an inherited rule tag without changing the number of cases produces
+LEDGER_RECOVERY_SCOPE_CHANGED and does not rewrite the feature.
+
+- [x] RED e1668c35b
+- [x] GREEN 89fda7fbf
+- [x] REFACTOR skip: scope and history checks share the existing fixed profile
+
 ### Scenario: Recovery requires the exact active case set
 
 Given an otherwise valid signed observation with one active Examples row
