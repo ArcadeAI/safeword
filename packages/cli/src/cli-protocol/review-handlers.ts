@@ -7,6 +7,7 @@
  * behind dynamic imports.
  */
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -19,6 +20,7 @@ import type {
   ReviewFailure,
   ReviewKind,
 } from '../review/contract.js';
+import { LEDGER_RECOVERY_PROFILE } from '../review/ledger-recovery-profile.js';
 import type {
   PlanningContextError,
   PlanningContractCopyError,
@@ -143,19 +145,31 @@ export function ledgerRecoveryGateHandler(invocation: CommandInvocation): Promis
   const { ticket } = invocation.options;
   if (typeof ticket !== 'string' || ticket.trim() === '')
     return Promise.resolve(invalidOperand('review gate ledger-recovery', 'Ticket is required.'));
-  const matchingScope = ticket === '5F5ZZA';
+  const matchingScope = ticket === LEDGER_RECOVERY_PROFILE.ticket;
+  const ledger = nodePath.join(invocation.cwd, LEDGER_RECOVERY_PROFILE.ledger);
+  const historyChanged =
+    matchingScope &&
+    existsSync(ledger) &&
+    createHash('sha256').update(readFileSync(ledger)).digest('hex') !==
+      LEDGER_RECOVERY_PROFILE.ledgerSha256;
+  let code = 'LEDGER_RECOVERY_SCOPE_MISMATCH';
+  let message = 'Completion recovery is limited to the approved 5F5ZZA scope.';
+  if (matchingScope) {
+    code = 'LEDGER_RECOVERY_EVIDENCE_MISSING';
+    message = 'Authenticated current completion evidence is required.';
+  }
+  if (historyChanged) {
+    code = 'LEDGER_RECOVERY_HISTORY_CHANGED';
+    message = 'Completion recovery requires the exact reviewed historical ledger.';
+  }
   return Promise.resolve(
     createResult({
       state: 'action_required',
       findings: [
         {
-          code: matchingScope
-            ? 'LEDGER_RECOVERY_EVIDENCE_MISSING'
-            : 'LEDGER_RECOVERY_SCOPE_MISMATCH',
+          code,
           severity: 'warning',
-          message: matchingScope
-            ? 'Authenticated current completion evidence is required.'
-            : 'Completion recovery is limited to the approved 5F5ZZA scope.',
+          message,
         },
       ],
       data: { command: 'review gate ledger-recovery', status: 'blocked' },
