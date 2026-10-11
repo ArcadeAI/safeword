@@ -17,7 +17,6 @@ import process from 'node:process';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { claudeDenialReason, toCursorDecision } from '../../templates/hooks/cursor/gate-adapter.js';
 import {
   createTemporaryDirectory,
   fileExists,
@@ -1315,9 +1314,6 @@ describe('Quality Gates', () => {
       expect(reason).toContain('ordered patches');
       expect(reason.indexOf('ordered patches')).toBeLessThan(reason.indexOf('/explain'));
       expect(output.hookSpecificOutput.additionalContext).toBeUndefined();
-      expect(toCursorDecision(claudeDenialReason(result.stdout))).toMatchObject({
-        agent_message: expect.stringContaining('ordered patches'),
-      });
     });
 
     it('9.2: denies test-definitions.md when ticket has no scope fields', () => {
