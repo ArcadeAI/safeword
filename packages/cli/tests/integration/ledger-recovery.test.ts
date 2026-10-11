@@ -49,6 +49,40 @@ describe('bounded completion recovery through the public CLI', () => {
     expect(readdirSync(root)).toEqual([]);
   });
 
+  it('keeps the approved ticket blocked without authenticated current proof', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-ledger-recovery-missing-'));
+    roots.push(root);
+    const result = spawnSync(
+      process.execPath,
+      [
+        cli,
+        '--json',
+        '--no-input',
+        '--cwd',
+        root,
+        'review',
+        'gate',
+        'ledger-recovery',
+        '--ticket',
+        '5F5ZZA',
+      ],
+      { encoding: 'utf8', timeout: 10_000 },
+    );
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(2);
+    const envelope = JSON.parse(result.stdout);
+    expect(envelope.state).toBe('action_required');
+    expect(envelope.findings).toEqual([
+      {
+        code: 'LEDGER_RECOVERY_EVIDENCE_MISSING',
+        severity: 'warning',
+        message: 'Authenticated current completion evidence is required.',
+      },
+    ]);
+    expect(envelope.changed).toBe(false);
+    expect(envelope.effects.files).toEqual([]);
+    expect(readdirSync(root)).toEqual([]);
+  });
+
   it('proves the same empty-project fixture reaches the existing retrospective scope guard', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-ledger-recovery-control-'));
     roots.push(root);
