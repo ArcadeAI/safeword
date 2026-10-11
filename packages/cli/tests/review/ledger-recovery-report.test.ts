@@ -24,7 +24,7 @@ const census = JSON.parse(
   }[];
 };
 const active = census.cases.filter(item => item.status === 'active-proof-unmapped');
-const deferred = census.cases.find(item => item.status !== 'active-proof-unmapped');
+const deferred = census.cases.find(item => item.sourceLines.includes(462));
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error('Synthetic control is missing required fixture data.');
   return value;
@@ -55,19 +55,24 @@ describe('exact current-scope recovery report contract', () => {
   });
   it('refuses a same-count replacement by a deferred Examples row', () => {
     const report = passingReport();
+    expect(assessRecoveryReport(report, 0)).toBeDefined();
     const replacement = required(deferred);
-    required(required(report[0]).elements[0]).name = replacement.name;
-    required(required(report[0]).elements[0]).line = replacement.sourceLines.at(-1);
+    const mixed = required(required(report[0]).elements.find(item => item.line === 453));
+    expect(mixed.name).toBe(replacement.name);
+    expect(replacement.status).toBe('deferred-unverified');
+    mixed.line = replacement.sourceLines.at(-1);
     expect(required(report[0]).elements).toHaveLength(142);
     expect(assessRecoveryReport(report, 0)).toBeUndefined();
   });
   it('refuses duplicates even with 142 results', () => {
     const report = passingReport();
+    expect(assessRecoveryReport(report, 0)).toBeDefined();
     required(report[0]).elements[1] = required(required(report[0]).elements[0]);
     expect(assessRecoveryReport(report, 0)).toBeUndefined();
   });
   it('refuses skipped steps and failed hidden hooks', () => {
     const skipped = passingReport();
+    expect(assessRecoveryReport(skipped, 0)).toBeDefined();
     required(required(required(skipped[0]).elements[0]).steps[0]).result.status = 'skipped';
     expect(assessRecoveryReport(skipped, 0)).toBeUndefined();
     const hook = passingReport();
@@ -80,6 +85,7 @@ describe('exact current-scope recovery report contract', () => {
   });
   it('refuses missing assertions and nonzero process exit', () => {
     const report = passingReport();
+    expect(assessRecoveryReport(report, 0)).toBeDefined();
     required(required(report[0]).elements[0]).steps.pop();
     expect(assessRecoveryReport(report, 0)).toBeUndefined();
     expect(assessRecoveryReport(passingReport(), 1)).toBeUndefined();

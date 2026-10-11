@@ -1,0 +1,3256 @@
+[
+  {
+    "name": "Editing the canonical shared clause changes both generated phase contracts",
+    "line": 10,
+    "digest": "308e43912f1a9db4f7795484398316a444760220c7ec7d6b7573c8ff3543c229",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the canonical scope clause changed after both phase contracts were generated",
+        "location": "steps/keep-plan-reviews-current.steps.ts:181"
+      },
+      {
+        "name": "the Safeword CLI reconciles the installed phase contracts through real project configuration",
+        "location": "steps/keep-plan-reviews-current.steps.ts:226"
+      },
+      {
+        "name": "both generated contracts contain the same changed clause and neither retains the old text",
+        "location": "steps/keep-plan-reviews-current.steps.ts:235"
+      }
+    ]
+  },
+  {
+    "name": "Phase-only clauses remain in their owning contract",
+    "line": 16,
+    "digest": "d4e650bafde8d0dfdc6bf6c1aee0b17f849dc5de6f15acd283f184cd14bfe868",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "one clause belongs only to the Execution Plan contract and a different clause belongs only to the Implementation Plan contract",
+        "location": "steps/keep-plan-reviews-current.steps.ts:194"
+      },
+      {
+        "name": "the Safeword CLI reconciles both installed phase contracts through real project configuration",
+        "location": "steps/keep-plan-reviews-current.steps.ts:230"
+      },
+      {
+        "name": "each clause appears only in its owning phase contract and neither appears in the other contract",
+        "location": "steps/keep-plan-reviews-current.steps.ts:251"
+      }
+    ]
+  },
+  {
+    "name": "A missing generated shared clause blocks reconciliation",
+    "line": 22,
+    "digest": "13c72ea9f279306c88c747410838588d90a8d74e35f43d9c8b821830333321a4",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the contract generator omits a canonical shared clause from one expected phase-contract output",
+        "location": "steps/keep-plan-reviews-current.steps.ts:202"
+      },
+      {
+        "name": "the Safeword CLI reconciles the installed phase contracts through real project configuration",
+        "location": "steps/keep-plan-reviews-current.steps.ts:226"
+      },
+      {
+        "name": "reconciliation is blocked with the missing shared clause and affected phase contract named",
+        "location": "steps/keep-plan-reviews-current.steps.ts:271"
+      }
+    ]
+  },
+  {
+    "name": "A review packet cannot omit required phase context",
+    "line": 37,
+    "digest": "864d9c48be1f8edbcd95c9be4ef0fd99b4250d584a7fd0f3a351b4030f09276c",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Product Plan review packet omits one required current input",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "review dispatch is prepared",
+        "location": "steps/keep-plan-reviews-context.steps.ts:295"
+      },
+      {
+        "name": "dispatch is blocked until that current context is included",
+        "location": "steps/keep-plan-reviews-context.steps.ts:487"
+      }
+    ]
+  },
+  {
+    "name": "A review packet cannot omit required phase context",
+    "line": 38,
+    "digest": "28512ac0e26848723cd0bfd9d0969613f71ee610f446d5b4515f723fa84a829b",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Product Plan review packet includes every required current phase input",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "review dispatch is prepared",
+        "location": "steps/keep-plan-reviews-context.steps.ts:295"
+      },
+      {
+        "name": "dispatch proceeds to the semantic reviewer",
+        "location": "steps/keep-plan-reviews-context.steps.ts:504"
+      }
+    ]
+  },
+  {
+    "name": "A review packet cannot omit required phase context",
+    "line": 39,
+    "digest": "5152dd59023a7b767b4eb117f831d28718dbf73053108d035108012b988619db",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Implementation Plan review packet omits one required current input",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "review dispatch is prepared",
+        "location": "steps/keep-plan-reviews-context.steps.ts:295"
+      },
+      {
+        "name": "dispatch is blocked until that current context is included",
+        "location": "steps/keep-plan-reviews-context.steps.ts:487"
+      }
+    ]
+  },
+  {
+    "name": "A review packet cannot omit required phase context",
+    "line": 40,
+    "digest": "ed3158c91a8be8935d19127b2b728a86683cd9d2edf458f5946c1bf9cb23a1ef",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Implementation Plan review packet includes every required current phase input",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "review dispatch is prepared",
+        "location": "steps/keep-plan-reviews-context.steps.ts:295"
+      },
+      {
+        "name": "dispatch proceeds to the semantic reviewer",
+        "location": "steps/keep-plan-reviews-context.steps.ts:504"
+      }
+    ]
+  },
+  {
+    "name": "A review packet cannot omit required phase context",
+    "line": 41,
+    "digest": "fef52b8afabc338c1c93ce9918272fe2b5cef60ebd4831d50909317257eccf77",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Execution Plan review packet omits the accepted Implementation Plan",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "review dispatch is prepared",
+        "location": "steps/keep-plan-reviews-context.steps.ts:295"
+      },
+      {
+        "name": "dispatch is blocked until that current context is included",
+        "location": "steps/keep-plan-reviews-context.steps.ts:487"
+      }
+    ]
+  },
+  {
+    "name": "A review packet cannot omit required phase context",
+    "line": 42,
+    "digest": "c170a16f25451f7933e91fe8589f6ea6685fd635583e3a2666e92368e9ef71cc",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Execution Plan review packet includes every required current phase input, including the accepted Implementation Plan",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "review dispatch is prepared",
+        "location": "steps/keep-plan-reviews-context.steps.ts:295"
+      },
+      {
+        "name": "dispatch proceeds to the semantic reviewer",
+        "location": "steps/keep-plan-reviews-context.steps.ts:504"
+      }
+    ]
+  },
+  {
+    "name": "A review packet cannot omit required phase context",
+    "line": 43,
+    "digest": "46938ae86ae18b3d7293cc6667f76b50133d7b984c7dc6592175d3f966ace126",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Implementation Plan review packet omits a conditionally required input whose trigger applies",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "review dispatch is prepared",
+        "location": "steps/keep-plan-reviews-context.steps.ts:295"
+      },
+      {
+        "name": "dispatch is blocked until that current context is included",
+        "location": "steps/keep-plan-reviews-context.steps.ts:487"
+      }
+    ]
+  },
+  {
+    "name": "A review packet cannot omit required phase context",
+    "line": 44,
+    "digest": "4eed47fcc6f057883c9a884d97e8c5fd335547e11002ae8ca2e5621c9da4325c",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Implementation Plan review packet omits a conditionally required input whose trigger does not apply and records the justified absence",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "review dispatch is prepared",
+        "location": "steps/keep-plan-reviews-context.steps.ts:295"
+      },
+      {
+        "name": "dispatch proceeds to the semantic reviewer",
+        "location": "steps/keep-plan-reviews-context.steps.ts:504"
+      }
+    ]
+  },
+  {
+    "name": "A review packet cannot omit required phase context",
+    "line": 45,
+    "digest": "a1b1f7d29e4a7b21d6382bc32c67198f646fcaef33d87c650609b23ab1b1163e",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Implementation Plan review packet omits an optional supporting input while including every required input",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "review dispatch is prepared",
+        "location": "steps/keep-plan-reviews-context.steps.ts:295"
+      },
+      {
+        "name": "dispatch proceeds to the semantic reviewer",
+        "location": "steps/keep-plan-reviews-context.steps.ts:504"
+      }
+    ]
+  },
+  {
+    "name": "Canonical phase entry requirements bind every required input",
+    "line": 55,
+    "digest": "d2c363c15b5c54fdecc20b6c95ff6e734a2d503f7823ccd31663c9f77b8b3083",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the canonical Product Plan contract requires ticket, project, declared parent and milestone boundaries, Rules, epistemic state, principles, personas, and affected surfaces as review entry context",
+        "location": "steps/keep-plan-reviews-context.steps.ts:243"
+      },
+      {
+        "name": "review dispatch receives a packet missing any listed required role",
+        "location": "steps/keep-plan-reviews-context.steps.ts:251"
+      },
+      {
+        "name": "dispatch is blocked with the missing role named",
+        "location": "steps/keep-plan-reviews-context.steps.ts:278"
+      }
+    ]
+  },
+  {
+    "name": "Canonical phase entry requirements bind every required input",
+    "line": 56,
+    "digest": "f999a9f9e92ca7942ea17f2961cabd5fff7ad4e2cffa0856b60e32565dc57a41",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the canonical Implementation Plan contract requires ticket, project, declared parent and milestone boundaries, Rules, scenarios, dimensions when present, principles, personas, affected surfaces, configured architecture records, and triggered data guidance as review entry context",
+        "location": "steps/keep-plan-reviews-context.steps.ts:243"
+      },
+      {
+        "name": "review dispatch receives a packet missing any listed required role",
+        "location": "steps/keep-plan-reviews-context.steps.ts:251"
+      },
+      {
+        "name": "dispatch is blocked with the missing role named",
+        "location": "steps/keep-plan-reviews-context.steps.ts:278"
+      }
+    ]
+  },
+  {
+    "name": "Canonical phase entry requirements bind every required input",
+    "line": 57,
+    "digest": "9d127c171def9ecbe604a3f90ddfe0ffa2cdb0a886cb56a0711f13380ac73397",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the canonical Execution Plan contract requires ticket, project, declared parent and milestone boundaries, Rules, scenarios, dimensions when present, principles, personas, affected surfaces, configured architecture records, triggered data guidance, and the accepted Implementation Plan as review entry context",
+        "location": "steps/keep-plan-reviews-context.steps.ts:243"
+      },
+      {
+        "name": "review dispatch receives a packet missing any listed required role",
+        "location": "steps/keep-plan-reviews-context.steps.ts:251"
+      },
+      {
+        "name": "dispatch is blocked with the missing role named",
+        "location": "steps/keep-plan-reviews-context.steps.ts:278"
+      }
+    ]
+  },
+  {
+    "name": "Installed dispatch cannot bypass packet completeness",
+    "line": 67,
+    "digest": "3670072ca22e7df0e1492c98fd8c78459e316f14ab9b5b1c17a12041696b8570",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Implementation Plan review packet omits the current personas inventory",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "the native plugin review hook dispatches from an installed local project with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-context.steps.ts:332"
+      },
+      {
+        "name": "dispatch remains blocked until the current personas inventory is included",
+        "location": "steps/keep-plan-reviews-context.steps.ts:450"
+      }
+    ]
+  },
+  {
+    "name": "Installed dispatch cannot bypass packet completeness",
+    "line": 68,
+    "digest": "8aec9a84f9b685fff59bad18c070cf52371fb9276ff5ccf8ce3bbda4bd5eb24b",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Implementation Plan review packet includes the current personas inventory and every other required input",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "the native plugin review hook dispatches from an installed local project with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-context.steps.ts:332"
+      },
+      {
+        "name": "dispatch proceeds to the semantic reviewer",
+        "location": "steps/keep-plan-reviews-context.steps.ts:504"
+      }
+    ]
+  },
+  {
+    "name": "Installed dispatch cannot bypass packet completeness",
+    "line": 69,
+    "digest": "94a5f46b64118b98db01ba47d8b19b20cdffe957817dd5409f650fa0ab096c6b",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Execution Plan review packet omits the accepted Implementation Plan",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "the native plugin review hook dispatches from an installed local project with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-context.steps.ts:332"
+      },
+      {
+        "name": "dispatch remains blocked until the accepted Implementation Plan is included",
+        "location": "steps/keep-plan-reviews-context.steps.ts:473"
+      }
+    ]
+  },
+  {
+    "name": "Installed dispatch cannot bypass packet completeness",
+    "line": 70,
+    "digest": "2fdfb6b0c7246ca5d28bbd43cd095e4bbc2835f4cdec681016bc85c47c7eb2d3",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Execution Plan review packet includes the accepted Implementation Plan and every other required input",
+        "location": "steps/keep-plan-reviews-context.steps.ts:236"
+      },
+      {
+        "name": "the native plugin review hook dispatches from an installed local project with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-context.steps.ts:332"
+      },
+      {
+        "name": "dispatch proceeds to the semantic reviewer",
+        "location": "steps/keep-plan-reviews-context.steps.ts:504"
+      }
+    ]
+  },
+  {
+    "name": "Context resolution distinguishes defaults from broken overrides",
+    "line": 82,
+    "digest": "a1f77108e0b7ee929048408785a041d2fe12fe0dd08cff210dedf0d8484abaf9",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase has a required project-knowledge input that is not configured, where stale means its reconciliation lineage names a superseded packaged-source version",
+        "location": "steps/keep-plan-reviews-context.steps.ts:543"
+      },
+      {
+        "name": "a plan review packet is resolved",
+        "location": "steps/keep-plan-reviews-context.steps.ts:582"
+      },
+      {
+        "name": "the installed default is included",
+        "location": "steps/keep-plan-reviews-context.steps.ts:599"
+      }
+    ]
+  },
+  {
+    "name": "Context resolution distinguishes defaults from broken overrides",
+    "line": 83,
+    "digest": "ab3379d84a74c35a2cf8af007b43e7f4f6277ab827f8b640fef55645bf4c1efd",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase has a required project-knowledge input that is configured and current with project-specific content absent from the installed default, where stale means its reconciliation lineage names a superseded packaged-source version",
+        "location": "steps/keep-plan-reviews-context.steps.ts:543"
+      },
+      {
+        "name": "a plan review packet is resolved",
+        "location": "steps/keep-plan-reviews-context.steps.ts:582"
+      },
+      {
+        "name": "the project source is included with that project-specific content",
+        "location": "steps/keep-plan-reviews-context.steps.ts:605"
+      }
+    ]
+  },
+  {
+    "name": "Context resolution distinguishes defaults from broken overrides",
+    "line": 84,
+    "digest": "823b804c5bf9c43f2ea373e646f38e479fa6fc7c17053f407fd8f9488fa38407",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase has a required project-knowledge input that is configured but blank, where stale means its reconciliation lineage names a superseded packaged-source version",
+        "location": "steps/keep-plan-reviews-context.steps.ts:543"
+      },
+      {
+        "name": "a plan review packet is resolved",
+        "location": "steps/keep-plan-reviews-context.steps.ts:582"
+      },
+      {
+        "name": "dispatch is blocked with reconciliation named",
+        "location": "steps/keep-plan-reviews-context.steps.ts:620"
+      }
+    ]
+  },
+  {
+    "name": "Context resolution distinguishes defaults from broken overrides",
+    "line": 85,
+    "digest": "13cf43c58a14843da464b0c1c2403500957f17325b33bae6a570072a927e80a2",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase has a required project-knowledge input that is configured but unreadable, where stale means its reconciliation lineage names a superseded packaged-source version",
+        "location": "steps/keep-plan-reviews-context.steps.ts:543"
+      },
+      {
+        "name": "a plan review packet is resolved",
+        "location": "steps/keep-plan-reviews-context.steps.ts:582"
+      },
+      {
+        "name": "dispatch is blocked with reconciliation named",
+        "location": "steps/keep-plan-reviews-context.steps.ts:620"
+      }
+    ]
+  },
+  {
+    "name": "Context resolution distinguishes defaults from broken overrides",
+    "line": 86,
+    "digest": "1e87803ca72f5183dbfa06598abc8f78a6f88dfd9195f0cf8c4203b57aa6627f",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase has a required project-knowledge input that is configured but stale, where stale means its reconciliation lineage names a superseded packaged-source version",
+        "location": "steps/keep-plan-reviews-context.steps.ts:543"
+      },
+      {
+        "name": "a plan review packet is resolved",
+        "location": "steps/keep-plan-reviews-context.steps.ts:582"
+      },
+      {
+        "name": "dispatch is blocked with reconciliation named",
+        "location": "steps/keep-plan-reviews-context.steps.ts:620"
+      }
+    ]
+  },
+  {
+    "name": "Context resolution distinguishes defaults from broken overrides",
+    "line": 87,
+    "digest": "2e008fbb34a61ccea8648a165db5b96878ee8c6c6227f6b2bc7aaadc75e83b18",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase has a required project-knowledge input that is configured with only whitespace or comment changes and a current reconciliation lineage, where stale means its reconciliation lineage names a superseded packaged-source version",
+        "location": "steps/keep-plan-reviews-context.steps.ts:543"
+      },
+      {
+        "name": "a plan review packet is resolved",
+        "location": "steps/keep-plan-reviews-context.steps.ts:582"
+      },
+      {
+        "name": "the project source is included and dispatch is not blocked",
+        "location": "steps/keep-plan-reviews-context.steps.ts:629"
+      }
+    ]
+  },
+  {
+    "name": "Context resolution distinguishes defaults from broken overrides",
+    "line": 88,
+    "digest": "b2d7f9da96bc2a6ec3199adddaf89aed35cce503539df79749dfed53f8427286",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase has a required project-knowledge input that is configured with only whitespace or comment changes but a stale reconciliation lineage, where stale means its reconciliation lineage names a superseded packaged-source version",
+        "location": "steps/keep-plan-reviews-context.steps.ts:543"
+      },
+      {
+        "name": "a plan review packet is resolved",
+        "location": "steps/keep-plan-reviews-context.steps.ts:582"
+      },
+      {
+        "name": "dispatch is blocked with reconciliation named",
+        "location": "steps/keep-plan-reviews-context.steps.ts:620"
+      }
+    ]
+  },
+  {
+    "name": "Local dispatch enforces required context resolution",
+    "line": 98,
+    "digest": "fde43cd1c3e21b03f5f6d54984ebc3fcc6d8bfc217e8f83778615ce3e7bcf275",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase with a current approving receipt has a required project-knowledge override that is current and nonblank",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:262"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:546"
+      },
+      {
+        "name": "the phase transition proceeds",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:582"
+      }
+    ]
+  },
+  {
+    "name": "Local dispatch enforces required context resolution",
+    "line": 99,
+    "digest": "13fe200ce8cc31783f497913ce698909df451cbf320f2f1d043821203e20ef69",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase with a current approving receipt has a required project-knowledge override that is blank",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:262"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:546"
+      },
+      {
+        "name": "the phase remains blocked with override reconciliation named",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:641"
+      }
+    ]
+  },
+  {
+    "name": "Local dispatch enforces required context resolution",
+    "line": 100,
+    "digest": "eb18bacb41efbc9af0ed66778a6a8931fa21aaef8dbf0b17ec312cdce38e486b",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase with a current approving receipt has a required project-knowledge override that is stale because its reconciliation lineage names a superseded packaged-source version",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:262"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:546"
+      },
+      {
+        "name": "the phase remains blocked with override reconciliation named",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:641"
+      }
+    ]
+  },
+  {
+    "name": "Context identity ignores cosmetic and unrelated edits",
+    "line": 112,
+    "digest": "d3e6e973abf2396a79c2c9f6ba7fee931a7676cd39a7c83c794a08aca8c6b0fa",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a plan has a current review recorded against its canonical phase contract, accepted scope, Rules, scenarios, plan decisions, applicable principles, applicable dimensions and data guidance, configured architecture records, and the project's surfaces and personas inventories",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:139"
+      },
+      {
+        "name": "a bound context artifact changes only in whitespace or comments occurs",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:229"
+      },
+      {
+        "name": "the review remains current",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:453"
+      }
+    ]
+  },
+  {
+    "name": "Context identity ignores cosmetic and unrelated edits",
+    "line": 113,
+    "digest": "cc77f08980965437aafceec9a32d88d44f7fd90133b8bc9404c05cc05de1d090",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a plan has a current review recorded against its canonical phase contract, accepted scope, Rules, scenarios, plan decisions, applicable principles, applicable dimensions and data guidance, configured architecture records, and the project's surfaces and personas inventories",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:139"
+      },
+      {
+        "name": "the canonical phase contract changes only in whitespace or comments occurs",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:315"
+      },
+      {
+        "name": "the review becomes stale",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:464"
+      }
+    ]
+  },
+  {
+    "name": "Context identity ignores cosmetic and unrelated edits",
+    "line": 114,
+    "digest": "378ad47edbbb0ed03f533d879ca1235b4e3ac8fedfa5908b88ffcbd8dfaedbb3",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a plan has a current review recorded against its canonical phase contract, accepted scope, Rules, scenarios, plan decisions, applicable principles, applicable dimensions and data guidance, configured architecture records, and the project's surfaces and personas inventories",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:139"
+      },
+      {
+        "name": "an unrelated persona or surface entry is added occurs",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:296"
+      },
+      {
+        "name": "the review remains current",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:453"
+      }
+    ]
+  },
+  {
+    "name": "Context identity ignores cosmetic and unrelated edits",
+    "line": 115,
+    "digest": "6e34f9dc6f80b31cc71abab0f81247996cfb5f15655bdf2f297555fab58dc157",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a plan has a current review recorded against its canonical phase contract, accepted scope, Rules, scenarios, plan decisions, applicable principles, applicable dimensions and data guidance, configured architecture records, and the project's surfaces and personas inventories",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:139"
+      },
+      {
+        "name": "the reviewed plan changes only in whitespace or comments outside normalized Execution Plan checklist progress cells occurs",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:370"
+      },
+      {
+        "name": "that plan's review becomes stale because its exact bytes changed",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:475"
+      }
+    ]
+  },
+  {
+    "name": "Context identity ignores cosmetic and unrelated edits",
+    "line": 116,
+    "digest": "19dc46339a26fe57fc90a615bffb785dcbc8a1e2524acdf6fb59e97c4a1ef008",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a plan has a current review recorded against its canonical phase contract, accepted scope, Rules, scenarios, plan decisions, applicable principles, applicable dimensions and data guidance, configured architecture records, and the project's surfaces and personas inventories",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:139"
+      },
+      {
+        "name": "the canonical phase contract changes semantically occurs",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:332"
+      },
+      {
+        "name": "the review becomes stale",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:464"
+      }
+    ]
+  },
+  {
+    "name": "Context identity ignores cosmetic and unrelated edits",
+    "line": 117,
+    "digest": "5020350f19541460b49e6a8dc0e9bfa6bb8766e863f79510cc41df26469a80c7",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a plan has a current review recorded against its canonical phase contract, accepted scope, Rules, scenarios, plan decisions, applicable principles, applicable dimensions and data guidance, configured architecture records, and the project's surfaces and personas inventories",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:139"
+      },
+      {
+        "name": "any listed bound context artifact changes semantically occurs",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:379"
+      },
+      {
+        "name": "that dependent review becomes stale for every such artifact",
+        "location": "steps/keep-plan-reviews-currency.steps.ts:482"
+      }
+    ]
+  },
+  {
+    "name": "Installed contract identity controls authoring and approval",
+    "line": 129,
+    "digest": "ed0dba7755eaa94522bc5fd827b1afc8de948fb122e7cb2c27be98f1c6c0445c",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the installed authoring contract deletes one clause but retains the canonical version label",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:288"
+      },
+      {
+        "name": "the content identity of every generated contract copy is recomputed",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:395"
+      },
+      {
+        "name": "authoring and approval are blocked until the exact canonical contract bytes are restored",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:473"
+      }
+    ]
+  },
+  {
+    "name": "Installed contract identity controls authoring and approval",
+    "line": 130,
+    "digest": "61a9869bcb13544085f16772be4fb95bc3cd280f1a4a15161a1e39b363634aa4",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the installed authoring contract differs from the canonical source only in whitespace or comments",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:288"
+      },
+      {
+        "name": "the content identity of every generated contract copy is recomputed",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:395"
+      },
+      {
+        "name": "authoring and approval are blocked until the exact canonical contract bytes are restored",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:473"
+      }
+    ]
+  },
+  {
+    "name": "Installed contract identity controls authoring and approval",
+    "line": 131,
+    "digest": "262c5253bf3a37751f260dc11edcf4f9e149a6bcd1e43ebda314670ea53c976a",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the installed authoring contract is absent",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:288"
+      },
+      {
+        "name": "the content identity of every generated contract copy is recomputed",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:395"
+      },
+      {
+        "name": "authoring and approval are blocked until the canonical contract is restored",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:473"
+      }
+    ]
+  },
+  {
+    "name": "Installed contract identity controls authoring and approval",
+    "line": 132,
+    "digest": "dd22452fbd9e2e05a46f9a2455cd2c4cf58a8a372cd8c5e4fcc40936dbc13bb2",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the generated reviewer rubric deletes one clause but retains the canonical version label",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:312"
+      },
+      {
+        "name": "the content identity of every generated contract copy is recomputed",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:395"
+      },
+      {
+        "name": "review dispatch and approval are blocked until the exact canonical contract bytes are restored",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:492"
+      }
+    ]
+  },
+  {
+    "name": "Installed contract identity controls authoring and approval",
+    "line": 133,
+    "digest": "fd459da373cce63e76abb412f0b7036aa51712f91abed90abeacb49bb2e45170",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the generated reviewer rubric is absent",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:312"
+      },
+      {
+        "name": "the content identity of every generated contract copy is recomputed",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:395"
+      },
+      {
+        "name": "review dispatch and approval are blocked until the canonical contract is restored",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:492"
+      }
+    ]
+  },
+  {
+    "name": "Installed contract identity controls authoring and approval",
+    "line": 134,
+    "digest": "c2fa0aed8272dba8d977801f7f54e60a1e8e9fa73f64f2c202cf79183a3e065c",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the authoring contract and reviewer rubric both match the exact canonical bytes",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:312"
+      },
+      {
+        "name": "the content identity of every generated contract copy is recomputed",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:395"
+      },
+      {
+        "name": "both copies recompute to the same identity and contract identity does not block authoring, dispatch, or approval",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:533"
+      }
+    ]
+  },
+  {
+    "name": "Local dispatch enforces canonical contract identity",
+    "line": 144,
+    "digest": "1de962d7d6d253588aae03c496a3f0c08c7cd3e9f5d844485aa97c4364f470df",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase with a current approving receipt has an installed authoring contract that matches the exact canonical bytes",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:267"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:546"
+      },
+      {
+        "name": "the phase transition proceeds",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:582"
+      }
+    ]
+  },
+  {
+    "name": "Local dispatch enforces canonical contract identity",
+    "line": 145,
+    "digest": "ea443e4649e3c13deb71a78300225918d50892697afc7e6e42c03d092148d4ee",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase with a current approving receipt has an installed authoring contract that deletes one clause but retains the canonical version label",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:267"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:546"
+      },
+      {
+        "name": "the phase remains blocked with canonical contract reconciliation named",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:595"
+      }
+    ]
+  },
+  {
+    "name": "Cosmetic canonical changes preserve review currency but require copy reconciliation",
+    "line": 148,
+    "digest": "1577646c35c3f80e0945e0d5e5545baea0bd1288cf381baa61db280acb2eef82",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a plan review is current and its authoring guidance changed only in comments outside the canonical contract after installed copies were generated",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:349"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:546"
+      },
+      {
+        "name": "the review receipt remains current and the phase remains blocked with canonical contract reconciliation named",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:617"
+      }
+    ]
+  },
+  {
+    "name": "The review gate follows the typed route result",
+    "line": 163,
+    "digest": "bb10765d4eaa4929c66098cb131eb9d4335ade271d0f2c74e518ab7fefadfc29",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the review coordinator has returned an independent reviewer approval",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:221"
+      },
+      {
+        "name": "the phase gate evaluates the receipt",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:432"
+      },
+      {
+        "name": "the review passes with cross-agent independence recorded",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:466"
+      }
+    ]
+  },
+  {
+    "name": "The review gate follows the typed route result",
+    "line": 164,
+    "digest": "e47f135f2da542c21501cd356b40f2a80bd1179dd0760612cbd2ba503f0742b5",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the review coordinator has returned every configured independent route was attempted and returned a typed failure, then the permitted fallback approves",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:232"
+      },
+      {
+        "name": "the phase gate evaluates the receipt",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:432"
+      },
+      {
+        "name": "the review passes with reduced independence and actual reviewer recorded without calling the capability degraded",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:487"
+      }
+    ]
+  },
+  {
+    "name": "The review gate follows the typed route result",
+    "line": 165,
+    "digest": "bde0d89e2008bfb157caa2f76b8e63ab6bd5111f852ae7282c04e9ea6fa32e97",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the review coordinator has returned every independent route and same-agent headless review returned typed failures, then host-reported fresh-context review approves",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:411"
+      },
+      {
+        "name": "the phase gate evaluates the receipt",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:432"
+      },
+      {
+        "name": "the review passes with reduced independence and the host-reported fresh-context reviewer recorded",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:487"
+      }
+    ]
+  },
+  {
+    "name": "The review gate follows the typed route result",
+    "line": 166,
+    "digest": "b4e0d3a4c5e375d0644403128945defe52f6d0efed72b5c0988fbc9df2fcde5f",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the review coordinator has returned every earlier route through host-reported fresh-context review returned typed failures, then bounded self-review approves",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:411"
+      },
+      {
+        "name": "the phase gate evaluates the receipt",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:432"
+      },
+      {
+        "name": "the review passes with reduced independence and the bounded self-reviewer recorded",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:487"
+      }
+    ]
+  },
+  {
+    "name": "The review gate follows the typed route result",
+    "line": 167,
+    "digest": "47151af59fe4ae2452d8649a599e22319814d1e9eecb157cb54013053d98c7be",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the review coordinator has returned a pending review",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:307"
+      },
+      {
+        "name": "the phase gate evaluates the receipt",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:432"
+      },
+      {
+        "name": "the phase remains blocked",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:517"
+      }
+    ]
+  },
+  {
+    "name": "The review gate follows the typed route result",
+    "line": 168,
+    "digest": "681f37cb8fd5c9e1bbba510abe3ddc01b5be6eec6a1adb500f03496d2c49499c",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the review coordinator has returned an unrecognized or unparseable reviewer result",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:522"
+      },
+      {
+        "name": "the phase gate evaluates the receipt",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:432"
+      },
+      {
+        "name": "the phase remains blocked with no approval recorded",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:595"
+      }
+    ]
+  },
+  {
+    "name": "The review gate follows the typed route result",
+    "line": 169,
+    "digest": "5c4f3fad20153df2a520af504ff269794528c3f26ce62faf418b759fa8e9b28d",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the review coordinator has returned an approval submitted from an ungated surface",
+        "location": "steps/keep-plan-reviews-ungated-origin.steps.ts:19"
+      },
+      {
+        "name": "the phase gate evaluates the receipt",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:432"
+      },
+      {
+        "name": "the phase remains blocked and the unsupported approval origin is named",
+        "location": "steps/keep-plan-reviews-ungated-origin.steps.ts:82"
+      }
+    ]
+  },
+  {
+    "name": "The review gate follows the typed route result",
+    "line": 170,
+    "digest": "9f921b920c01a594d1113c5941373dfce4b4f4a8a2ded8d3d718965486156297",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the review coordinator has returned every configured independent route was attempted and returned a typed failure, then the permitted fallback declines",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:232"
+      },
+      {
+        "name": "the phase gate evaluates the receipt",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:432"
+      },
+      {
+        "name": "the phase remains blocked with no approval recorded",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:595"
+      }
+    ]
+  },
+  {
+    "name": "The review gate follows the typed route result",
+    "line": 171,
+    "digest": "27e9398e48a9e199e0f818d8f16b46b9009393934b883a31940d98dd21054be0",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the review coordinator has returned a typed no-independent-route-attempted result",
+        "location": "steps/keep-plan-reviews-route-denials.steps.ts:45"
+      },
+      {
+        "name": "the phase gate evaluates the receipt",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:432"
+      },
+      {
+        "name": "the phase remains blocked with reviewer-route reconciliation named",
+        "location": "steps/keep-plan-reviews-route-denials.steps.ts:159"
+      }
+    ]
+  },
+  {
+    "name": "An unattempted independent route prevents exhausted-route approval",
+    "line": 174,
+    "digest": "e7299481d8b9406f16a9c6e1006df0121183e1cb39568576d1867527ddb48d81",
+    "deferred": true,
+    "owners": ["DRD65E"],
+    "steps": []
+  },
+  {
+    "name": "Fallback cannot bypass an available independent route",
+    "line": 180,
+    "digest": "f14b415bc81fe2d2ecf4bdc052f1a50ffef81a1df369a9cb4492cb092f55d76b",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "at least one independent reviewer route remains available and unattempted",
+        "location": "steps/keep-plan-reviews-premature-fallback.steps.ts:16"
+      },
+      {
+        "name": "the permitted fallback is requested",
+        "location": "steps/keep-plan-reviews-premature-fallback.steps.ts:61"
+      },
+      {
+        "name": "fallback is refused and the phase remains blocked pending independent review",
+        "location": "steps/keep-plan-reviews-premature-fallback.steps.ts:116"
+      }
+    ]
+  },
+  {
+    "name": "Independent approval requires a genuinely independent reviewer",
+    "line": 192,
+    "digest": "e5429699a16e3f1962dd12194add83dd9e87df942975e86b0b659eb9ea0bacdb",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an approval is returned by a different agent in a separate process using a model at least as capable as the author",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:158"
+      },
+      {
+        "name": "the coordinator classifies its independence",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:166"
+      },
+      {
+        "name": "cross-agent independence is accepted",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:184"
+      }
+    ]
+  },
+  {
+    "name": "Independent approval requires a genuinely independent reviewer",
+    "line": 193,
+    "digest": "c52b900c26517ef8687c959b7aa950d6e6fe8a2fc4f0b7a7c9cffb753e4aa93f",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an approval is returned by a different agent in the same process using a model at least as capable as the author",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:422"
+      },
+      {
+        "name": "the coordinator classifies its independence",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:166"
+      },
+      {
+        "name": "independent approval is refused",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:188"
+      }
+    ]
+  },
+  {
+    "name": "Independent approval requires a genuinely independent reviewer",
+    "line": 194,
+    "digest": "ad956e3ceae4a8579ab076197bd862b9236c2fc46d18a2863d5e71c009078f38",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an approval is returned by the authoring agent in the same process",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:422"
+      },
+      {
+        "name": "the coordinator classifies its independence",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:166"
+      },
+      {
+        "name": "independent approval is refused",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:188"
+      }
+    ]
+  },
+  {
+    "name": "Independent approval requires a genuinely independent reviewer",
+    "line": 195,
+    "digest": "2fab5d7ddedce32bcd0528ca6b5fb25ec680b8ac62aaf808cbaf232d577258d0",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an approval is returned by a different agent when the author model cannot be verified",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:158"
+      },
+      {
+        "name": "the coordinator classifies its independence",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:166"
+      },
+      {
+        "name": "independent approval is refused",
+        "location": "steps/keep-plan-reviews-independence.steps.ts:188"
+      }
+    ]
+  },
+  {
+    "name": "Route selection derives independence from configured model capability",
+    "line": 204,
+    "digest": "c514a2ac0a0aefc089c7ce76b7415d3805ff6f028b568e5df36eddc611ec81b2",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the real review route registry and project configuration select a reviewer model at least as capable as the verified author model",
+        "location": "steps/keep-plan-reviews-route-capability.steps.ts:14"
+      },
+      {
+        "name": "the coordinator selects an independent route while mocking only the agent invocation",
+        "location": "steps/keep-plan-reviews-route-capability.steps.ts:58"
+      },
+      {
+        "name": "that route is attempted as an independent review",
+        "location": "steps/keep-plan-reviews-route-capability.steps.ts:68"
+      }
+    ]
+  },
+  {
+    "name": "Route selection derives independence from configured model capability",
+    "line": 205,
+    "digest": "6ae5dd50a9de441b96112f191f395395376ccac694f0a84195cd958d3be3a8f2",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the real review route registry and project configuration select a reviewer model with unavailable, stale, or conflicting pair capability",
+        "location": "steps/keep-plan-reviews-route-capability.steps.ts:14"
+      },
+      {
+        "name": "the coordinator selects an independent route while mocking only the agent invocation",
+        "location": "steps/keep-plan-reviews-route-capability.steps.ts:58"
+      },
+      {
+        "name": "that route is not attempted as independent and selection continues to the next permitted route",
+        "location": "steps/keep-plan-reviews-route-capability.steps.ts:84"
+      }
+    ]
+  },
+  {
+    "name": "A genuinely weaker reviewer cannot provide independent approval",
+    "line": 208,
+    "digest": "181068c9c5a5564f1b29f9839a82010a52221b58a3021676c799d0eeda91309c",
+    "deferred": true,
+    "owners": ["KKP2R3"],
+    "steps": []
+  },
+  {
+    "name": "A genuinely weaker reviewer is excluded before independent launch",
+    "line": 214,
+    "digest": "b12277d29065eb421b6639c6088b597c1b6ba9a15b5aefd938166d4718bb13f8",
+    "deferred": true,
+    "owners": ["KKP2R3"],
+    "steps": []
+  },
+  {
+    "name": "Exhausted routes advance through the fallback ladder in order",
+    "line": 226,
+    "digest": "882891477fda808be4b48f21fd24e16956898ea38e7d20b0a6c4fa327a017f4c",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "every route before same-agent headless review is configured to return a typed failure when attempted",
+        "location": "steps/keep-plan-reviews-fallback-order.steps.ts:22"
+      },
+      {
+        "name": "review recovery selects the next permitted route",
+        "location": "steps/keep-plan-reviews-fallback-order.steps.ts:165"
+      },
+      {
+        "name": "review recovery selects and attempts same-agent headless review, and no later tier is attempted first",
+        "location": "steps/keep-plan-reviews-fallback-order.steps.ts:184"
+      }
+    ]
+  },
+  {
+    "name": "Exhausted routes advance through the fallback ladder in order",
+    "line": 227,
+    "digest": "9ab3cb846bf484aeac3191f9fe92a13623a21055b9896d419c2def8049f81220",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "every route before host-reported fresh-context review is configured to return a typed failure when attempted",
+        "location": "steps/keep-plan-reviews-fallback-order.steps.ts:22"
+      },
+      {
+        "name": "review recovery selects the next permitted route",
+        "location": "steps/keep-plan-reviews-fallback-order.steps.ts:165"
+      },
+      {
+        "name": "review recovery selects and attempts host-reported fresh-context review, and no later tier is attempted first",
+        "location": "steps/keep-plan-reviews-fallback-order.steps.ts:184"
+      }
+    ]
+  },
+  {
+    "name": "Exhausted routes advance through the fallback ladder in order",
+    "line": 228,
+    "digest": "e1a36dd08a6c54a464e2d187e9a228b9a98ed8424f25dc06dc9068c2fd3fddaf",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "every route before bounded self-review is configured to return a typed failure when attempted",
+        "location": "steps/keep-plan-reviews-fallback-order.steps.ts:22"
+      },
+      {
+        "name": "review recovery selects the next permitted route",
+        "location": "steps/keep-plan-reviews-fallback-order.steps.ts:165"
+      },
+      {
+        "name": "review recovery selects and attempts bounded self-review, and no later tier is attempted first",
+        "location": "steps/keep-plan-reviews-fallback-order.steps.ts:184"
+      }
+    ]
+  },
+  {
+    "name": "Local phase gates enforce the real review result",
+    "line": 238,
+    "digest": "e98c13ebd1393126c592404741551f70aa2122ec0ae3409bf9882c67b8570ceb",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase on Claude Code through installed local project hooks has a pending review",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:291"
+      },
+      {
+        "name": "actual lifecycle dispatch through installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:490"
+      },
+      {
+        "name": "the phase remains blocked",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:517"
+      }
+    ]
+  },
+  {
+    "name": "Local phase gates enforce the real review result",
+    "line": 239,
+    "digest": "200b4276cd6dbc39a2fec77ef8669ffeca8bb6760ea20d248f189e8d9b5165b0",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase on Claude Code through installed local project hooks has a current approving receipt",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:222"
+      },
+      {
+        "name": "actual lifecycle dispatch through installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:490"
+      },
+      {
+        "name": "the phase transition proceeds",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:582"
+      }
+    ]
+  },
+  {
+    "name": "Local phase gates enforce the real review result",
+    "line": 240,
+    "digest": "9d6726f00b686cf82c9071383936c43f4fb24d67347a9b8107dfcd37a9996067",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase on OpenAI Codex through installed Codex hooks has a pending review",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:291"
+      },
+      {
+        "name": "actual lifecycle dispatch through installed Codex hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:490"
+      },
+      {
+        "name": "the phase remains blocked",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:517"
+      }
+    ]
+  },
+  {
+    "name": "Local phase gates enforce the real review result",
+    "line": 241,
+    "digest": "44570c13613e30b5fa599e0f68c368eafcdf99c7eddc0f23a0656604853d0214",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase on OpenAI Codex through installed Codex hooks has a current approving receipt",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:222"
+      },
+      {
+        "name": "actual lifecycle dispatch through installed Codex hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:490"
+      },
+      {
+        "name": "the phase transition proceeds",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:582"
+      }
+    ]
+  },
+  {
+    "name": "Local phase gates enforce the real review result",
+    "line": 242,
+    "digest": "e7af189ac0c65a9ba8ec6e2fe25616ee3605394add63440ec28d326d6dd6abf0",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase on Cursor through installed Cursor hooks has a pending review",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:291"
+      },
+      {
+        "name": "actual lifecycle dispatch through installed Cursor hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:490"
+      },
+      {
+        "name": "the phase remains blocked",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:517"
+      }
+    ]
+  },
+  {
+    "name": "Local phase gates enforce the real review result",
+    "line": 243,
+    "digest": "7c839707839288c444a19297fe7f6baffb7e313607773e873646e77ec871f8b5",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase on Cursor through installed Cursor hooks has a current approving receipt",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:222"
+      },
+      {
+        "name": "actual lifecycle dispatch through installed Cursor hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:490"
+      },
+      {
+        "name": "the phase transition proceeds",
+        "location": "steps/keep-plan-reviews-installed-context.steps.ts:582"
+      }
+    ]
+  },
+  {
+    "name": "Local phase gates enforce the real review result",
+    "line": 244,
+    "digest": "02fea069641325204834882adc820b65d12aa54dc1d63324ea95eaef65b58fdd",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase on Claude Code through installed local project hooks has a permitted fallback approval after every configured independent route was attempted and returned a typed failure",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:315"
+      },
+      {
+        "name": "actual lifecycle dispatch through installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:490"
+      },
+      {
+        "name": "the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:590"
+      }
+    ]
+  },
+  {
+    "name": "Local phase gates enforce the real review result",
+    "line": 245,
+    "digest": "80d1d39067f84cf7e19095dbad53414bcf47d74149f0b476e37a38e15a10a778",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase on OpenAI Codex through installed Codex hooks has a permitted fallback approval after every configured independent route was attempted and returned a typed failure",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:315"
+      },
+      {
+        "name": "actual lifecycle dispatch through installed Codex hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:490"
+      },
+      {
+        "name": "the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:590"
+      }
+    ]
+  },
+  {
+    "name": "Local phase gates enforce the real review result",
+    "line": 246,
+    "digest": "b4762a827125515c338f565540fda98c3aeb5e7e231146ed6af626d31f886831",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase on Cursor through installed Cursor hooks has a permitted fallback approval after every configured independent route was attempted and returned a typed failure",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:315"
+      },
+      {
+        "name": "actual lifecycle dispatch through installed Cursor hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:490"
+      },
+      {
+        "name": "the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:590"
+      }
+    ]
+  },
+  {
+    "name": "OpenCode CLI and TUI gates enforce the real review result",
+    "line": 256,
+    "digest": "eee991501f06d1c0730734ef8a7216380c13fdbd2e084c16bee3835d78f2d2c0",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "OpenCode CLI and TUI gates enforce the real review result",
+    "line": 257,
+    "digest": "1c856f93762f34b20b68720f50bb734a2ebb367bc16fa807127e51d2d9682b89",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "OpenCode CLI and TUI gates enforce the real review result",
+    "line": 258,
+    "digest": "80177f0db15143556dcfaf90fec50cee5c5049b223076950c6f6ed4dceb91387",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "OpenCode CLI and TUI gates enforce the real review result",
+    "line": 259,
+    "digest": "692e20e764b786d5e38e1b689b658481e5621528127cf7109538c21c3945d401",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "OpenCode CLI and TUI gates enforce the real review result",
+    "line": 260,
+    "digest": "ca148cb03c7e8450de87f06ecb660a5e55470768c9cdd04a6053ca96e743bd16",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "OpenCode CLI and TUI gates enforce the real review result",
+    "line": 261,
+    "digest": "0f4f9577b32957373da6401db774c3c31f183edcdc68d3c21093cdbbaf45ca04",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Cloud phase gates enforce the real review result",
+    "line": 271,
+    "digest": "13454fe29976b9591c908e914116fb5ddeea356f7f7def75d6ce9da136b15082",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Cloud phase gates enforce the real review result",
+    "line": 272,
+    "digest": "df24d4776fc80c388cb8037bf72e632a7989d642a9dcbe4eece9faa3f5544316",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Cloud phase gates enforce the real review result",
+    "line": 273,
+    "digest": "37cfb42a0c53fd668c19aa346900a5483ea536ed9db5d5e651fe7bed4b55dfd0",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Cloud phase gates enforce the real review result",
+    "line": 274,
+    "digest": "d9ba529653c23735460fdbf4b0d72ec45236ef5707b1e791cb702cf1649e0440",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Cloud phase gates enforce the real review result",
+    "line": 275,
+    "digest": "5164d87378c2977284550189940c0bb53aff833191dc5fdb1b57f0d319fcbd2d",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Cloud phase gates enforce the real review result",
+    "line": 276,
+    "digest": "539fbd633cc36a806dad5b3b928975248635243529102b8e74b2f685801e0517",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Retrieved instructions cannot change accepted scope",
+    "line": 289,
+    "digest": "72fa976b933e3c02e06b10d13955e1d41e02f1723539ac9230413383cc087cb8",
+    "deferred": true,
+    "owners": ["FC33HK"],
+    "steps": []
+  },
+  {
+    "name": "Retrieved instructions cannot change accepted scope",
+    "line": 290,
+    "digest": "bf3b2642983c3ba39cd4f6f2f1abd7421082a32e7394da36ceb80d951191f910",
+    "deferred": true,
+    "owners": ["FC33HK"],
+    "steps": []
+  },
+  {
+    "name": "Retrieved executable code remains untrusted evidence",
+    "line": 300,
+    "digest": "21733f08c9d6318524ef5993e3267731cd0b51549e74d3d3b4c8c270181f3f9d",
+    "deferred": true,
+    "owners": ["FC33HK"],
+    "steps": []
+  },
+  {
+    "name": "Retrieved executable code remains untrusted evidence",
+    "line": 301,
+    "digest": "02a392ac77da546f39fe9d0dbde4308da50f18f3983ebaac5d33a2d5a3b32f59",
+    "deferred": true,
+    "owners": ["FC33HK"],
+    "steps": []
+  },
+  {
+    "name": "Private-context requests do not prevent public evidence use",
+    "line": 311,
+    "digest": "052fa3c0535c89fe631f57e3512426d352f38657588887cc4e9a2cae070d58c8",
+    "deferred": true,
+    "owners": ["FC33HK"],
+    "steps": []
+  },
+  {
+    "name": "Private-context requests do not prevent public evidence use",
+    "line": 312,
+    "digest": "f350c7bdc4f1e6ca89a43dc68cb710593803c0f1979fe94281804104a29838ed",
+    "deferred": true,
+    "owners": ["FC33HK"],
+    "steps": []
+  },
+  {
+    "name": "Reusable evidence records declared reuse limits",
+    "line": 322,
+    "digest": "dddc7e849ee62363b0fe156495c9463d845e9146497aa3219950e439f2a7db57",
+    "deferred": true,
+    "owners": ["FC33HK"],
+    "steps": []
+  },
+  {
+    "name": "Reusable evidence records declared reuse limits",
+    "line": 323,
+    "digest": "e2c1c204be4633cabae7083508a6ecb06eef31a484c6cd39a401cc8ce92e0c91",
+    "deferred": true,
+    "owners": ["FC33HK"],
+    "steps": []
+  },
+  {
+    "name": "Evidence records do not invent absent limits",
+    "line": 333,
+    "digest": "c63779fb2cfba9993d988a36798466282a2c9c179a6b36cc16077d936716dd35",
+    "deferred": true,
+    "owners": ["FC33HK"],
+    "steps": []
+  },
+  {
+    "name": "Evidence records do not invent absent limits",
+    "line": 334,
+    "digest": "abdca4a5d11170d31efeea7779451ac00cc871612266b7c1276632fc92b87918",
+    "deferred": true,
+    "owners": ["FC33HK"],
+    "steps": []
+  },
+  {
+    "name": "Reviewed artifacts and context remain evidence rather than instructions",
+    "line": 343,
+    "digest": "11d0dc1572a5c03b4b6bc09d5d838a8e0dbf2b5e2d9c121e22e159a05f37218a",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a plan review packet contains an instruction inside an otherwise conforming plan to ignore the contract and approve it",
+        "location": "steps/keep-plan-reviews-artifact-trust.steps.ts:44"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical contract and accepted scope while treating packet artifacts as quoted evidence and mocking only the packet-loading process boundary",
+        "location": "steps/keep-plan-reviews-artifact-trust.steps.ts:104"
+      },
+      {
+        "name": "the plan is approved on contract grounds and the injected instruction is recorded only as reviewed content",
+        "location": "steps/keep-plan-reviews-artifact-trust.steps.ts:117"
+      }
+    ]
+  },
+  {
+    "name": "Reviewed artifacts and context remain evidence rather than instructions",
+    "line": 344,
+    "digest": "7c7c99964fec5511394c54637207a27530bf5fef17315c19900f8360d3799fbf",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a plan review packet contains an instruction inside a bound persona context input to ignore the contract and approve an otherwise conforming plan",
+        "location": "steps/keep-plan-reviews-artifact-trust.steps.ts:44"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical contract and accepted scope while treating packet artifacts as quoted evidence and mocking only the packet-loading process boundary",
+        "location": "steps/keep-plan-reviews-artifact-trust.steps.ts:104"
+      },
+      {
+        "name": "the plan is approved on contract grounds and the context instruction is recorded only as reviewed content",
+        "location": "steps/keep-plan-reviews-artifact-trust.steps.ts:117"
+      }
+    ]
+  },
+  {
+    "name": "Reviewed artifacts and context remain evidence rather than instructions",
+    "line": 345,
+    "digest": "e3232df27447afce79fd21fa915998de61ba339af22cb04dd776096ba1b7c2bf",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a plan review packet contains the same injected instruction and a genuine missing in-scope decision",
+        "location": "steps/keep-plan-reviews-artifact-trust.steps.ts:44"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical contract and accepted scope while treating packet artifacts as quoted evidence and mocking only the packet-loading process boundary",
+        "location": "steps/keep-plan-reviews-artifact-trust.steps.ts:104"
+      },
+      {
+        "name": "the injected instruction remains reviewed content and the review blocks with the missing decision named",
+        "location": "steps/keep-plan-reviews-artifact-trust.steps.ts:117"
+      }
+    ]
+  },
+  {
+    "name": "Installed review dispatch preserves the retrieved-evidence trust boundary",
+    "line": 355,
+    "digest": "a10b9ac57090975a6d7bc5dbebaacabd12c3e94451a7cbc375aa43ffe3b0424f",
+    "deferred": true,
+    "owners": ["FC33HK"],
+    "steps": []
+  },
+  {
+    "name": "Installed review dispatch preserves the retrieved-evidence trust boundary",
+    "line": 356,
+    "digest": "620c820dd60c7898e4fa82b11a34042991912b7fa24c162ac930a0b56eea6175",
+    "deferred": true,
+    "owners": ["FC33HK"],
+    "steps": []
+  },
+  {
+    "name": "Generated Codex Cloud instructions cannot claim a gated approval",
+    "line": 362,
+    "digest": "623876cb006497653ca62bc3711e9e51ec60c1d2143f22d2a93b8318b298399e",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "repository instructions are generated for use by local Codex and may be read by Codex Cloud",
+        "location": "steps/keep-plan-reviews-host-guidance.steps.ts:56"
+      },
+      {
+        "name": "the Safeword CLI reconciles the installed repository guidance through real project configuration",
+        "location": "steps/keep-plan-reviews-host-guidance.steps.ts:77"
+      },
+      {
+        "name": "it labels Codex Cloud execution advisory, claims neither review nor approval there, and directs authoritative planning to a supported gated surface",
+        "location": "steps/keep-plan-reviews-host-guidance.steps.ts:136"
+      }
+    ]
+  },
+  {
+    "name": "OpenCode Desktop guidance cannot claim a gated approval",
+    "line": 368,
+    "digest": "046e0ae66b8fe6594f8f406d3982a391479526c1ce470d054e6f09f942e6e70b",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Generated OpenCode guidance identifies proven gated surfaces as enforced",
+    "line": 376,
+    "digest": "9b8df9b375f28b4a3918919045122e12b5b68c8beb521bbf668d69b77a23918e",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Generated guidance identifies gated surfaces as enforced",
+    "line": 389,
+    "digest": "85b33e413d2afdc9e82e8b99a048b21d6e7f40ee81267915a989d2cffc8968e1",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "planning guidance is generated for local Claude Code",
+        "location": "steps/keep-plan-reviews-host-guidance.steps.ts:70"
+      },
+      {
+        "name": "the Safeword CLI reconciles that installed guidance through real project configuration",
+        "location": "steps/keep-plan-reviews-host-guidance.steps.ts:77"
+      },
+      {
+        "name": "it states that planning review and approval are enforced there and does not label that surface advisory",
+        "location": "steps/keep-plan-reviews-host-guidance.steps.ts:169"
+      }
+    ]
+  },
+  {
+    "name": "A declared change invalidates exactly its dependent reviews",
+    "line": 401,
+    "digest": "8be01045d2d34b6e26aca054b469cf04460186e1bfec74edf361c2d399211a00",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "both plans have current review receipts",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:154"
+      },
+      {
+        "name": "accepted behavior occurs",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:249"
+      },
+      {
+        "name": "both plan reviews are invalidated",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:282"
+      }
+    ]
+  },
+  {
+    "name": "A declared change invalidates exactly its dependent reviews",
+    "line": 402,
+    "digest": "3b90fe3a785a82efe0644cc65b9a92822a0856a2e6aebba0a1aaa9ffc57d40f9",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "both plans have current review receipts",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:154"
+      },
+      {
+        "name": "accepted scope occurs",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:249"
+      },
+      {
+        "name": "both plan reviews are invalidated",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:282"
+      }
+    ]
+  },
+  {
+    "name": "A declared change invalidates exactly its dependent reviews",
+    "line": 403,
+    "digest": "3cfac8bd00256c7966384847ec9e5a1e810f6193ea5cd5ba18fb42978eeee347",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "both plans have current review receipts",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:154"
+      },
+      {
+        "name": "canonical Implementation Planning contract bytes change occurs",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:249"
+      },
+      {
+        "name": "both plan reviews are invalidated",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:282"
+      }
+    ]
+  },
+  {
+    "name": "A declared change invalidates exactly its dependent reviews",
+    "line": 404,
+    "digest": "b7371ff3505c3b3e1f028c4234ef27261e489816a42142ad7e6e65506b4c8bb3",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "both plans have current review receipts",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:154"
+      },
+      {
+        "name": "only canonical Execution Planning contract bytes change occurs",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:249"
+      },
+      {
+        "name": "only the Execution Plan review is invalidated",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:282"
+      }
+    ]
+  },
+  {
+    "name": "A declared change invalidates exactly its dependent reviews",
+    "line": 405,
+    "digest": "daebffd102c457a1af7ab623ab5dd94391d96e50be95816f5e6e551305af0202",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "both plans have current review receipts",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:154"
+      },
+      {
+        "name": "only the accepted Implementation Plan's formatting bytes occurs",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:249"
+      },
+      {
+        "name": "only the Implementation Plan review is invalidated and the Execution Plan review remains current",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:282"
+      }
+    ]
+  },
+  {
+    "name": "A declared change invalidates exactly its dependent reviews",
+    "line": 406,
+    "digest": "7e484d9155e1178441badc2c488f09646860ad7c0a92fed9cb82a02ef61f0484",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "both plans have current review receipts",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:154"
+      },
+      {
+        "name": "only the Execution Plan bytes, including formatting-only bytes outside normalized checklist progress cells occurs",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:249"
+      },
+      {
+        "name": "only the Execution Plan review is invalidated",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:282"
+      }
+    ]
+  },
+  {
+    "name": "A declared change invalidates exactly its dependent reviews",
+    "line": 407,
+    "digest": "75921169f6b19e9197f5a7c521ab871c1528d1a118766aa0c7192b6e03e9623e",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "both plans have current review receipts",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:154"
+      },
+      {
+        "name": "only whitespace inside a reviewed Execution Plan checklist row's normalized progress cells occurs",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:249"
+      },
+      {
+        "name": "neither plan review is invalidated",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:282"
+      }
+    ]
+  },
+  {
+    "name": "A declared change invalidates exactly its dependent reviews",
+    "line": 408,
+    "digest": "6427455673d9bd181ee746e0169d594190eeef89ba0e9e0b3b9d00397bc2c6c6",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "both plans have current review receipts",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:154"
+      },
+      {
+        "name": "only ordinary progress in a reviewed Execution Plan checklist row's Disposition, Evidence class, Revision, or final evidence cell occurs",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:249"
+      },
+      {
+        "name": "neither plan review is invalidated",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:282"
+      }
+    ]
+  },
+  {
+    "name": "Invalidation follows the canonical Execution Planning dependency direction",
+    "line": 417,
+    "digest": "46613695b760679e795dec4cc61b069205233cad053aaaf1f7cd574b0b746abc",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "current plan-review receipts and a canonical Execution Planning contract that declares accepted Implementation Plan changes invalidate both plan reviews",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:162"
+      },
+      {
+        "name": "the accepted Implementation Plan changes semantically",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:262"
+      },
+      {
+        "name": "both plan reviews are invalidated",
+        "location": "steps/keep-plan-reviews-dependencies.steps.ts:282"
+      }
+    ]
+  },
+  {
+    "name": "An unsupported upstream invalidation direction blocks reconciliation",
+    "line": 420,
+    "digest": "ef9c84396bf385233d416ecc332323adc101468ecda9475f3d2d119f0aa7aad7",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the canonical Execution Planning contract declares that accepted Implementation Plan changes invalidate only their own review",
+        "location": "steps/keep-plan-reviews-current.steps.ts:129"
+      },
+      {
+        "name": "the Safeword CLI reconciles the installed phase contracts through real project configuration",
+        "location": "steps/keep-plan-reviews-current.steps.ts:226"
+      },
+      {
+        "name": "reconciliation is blocked with invalid_invalidation_contract, the Execution phase, and the canonical contract path named",
+        "location": "steps/keep-plan-reviews-current.steps.ts:143"
+      },
+      {
+        "name": "the installed phase-contract bytes remain unchanged",
+        "location": "steps/keep-plan-reviews-current.steps.ts:168"
+      }
+    ]
+  },
+  {
+    "name": "An undecidable Execution invalidation contract blocks reconciliation",
+    "line": 427,
+    "digest": "b5095bda5855a7364bfa33369cc2f3400ea9d77daf4d7e687b304ac2c524f2b0",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the canonical Execution Planning owner does not declare exactly one supported upstream invalidation direction",
+        "location": "steps/keep-plan-reviews-current.steps.ts:136"
+      },
+      {
+        "name": "the Safeword CLI reconciles the installed phase contracts through real project configuration",
+        "location": "steps/keep-plan-reviews-current.steps.ts:226"
+      },
+      {
+        "name": "reconciliation is blocked with invalid_invalidation_contract, the Execution phase, and the canonical contract path named",
+        "location": "steps/keep-plan-reviews-current.steps.ts:143"
+      },
+      {
+        "name": "the installed phase-contract bytes remain unchanged",
+        "location": "steps/keep-plan-reviews-current.steps.ts:168"
+      }
+    ]
+  },
+  {
+    "name": "An approving receipt is valid only for its own ticket and review kind",
+    "line": 441,
+    "digest": "cdb388a0b47fc42eabb2e830d39bdb37d6714b81411fcb2742dfe725e7ccfdaa",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the Execution Plan gate receives an Execution Plan approval for the current ticket and exact current plan bytes",
+        "location": "steps/keep-plan-reviews-receipt-provenance.steps.ts:32"
+      },
+      {
+        "name": "the gate validates receipt provenance",
+        "location": "steps/keep-plan-reviews-receipt-provenance.steps.ts:105"
+      },
+      {
+        "name": "the matching receipt does not block the phase transition",
+        "location": "steps/keep-plan-reviews-receipt-provenance.steps.ts:135"
+      }
+    ]
+  },
+  {
+    "name": "An approving receipt is valid only for its own ticket and review kind",
+    "line": 442,
+    "digest": "b85ec0172b63bd2177b017010d4e2590f02dcee229613b6d2afd9dcd1205a8f6",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the Execution Plan gate receives an Implementation Plan approval for the current ticket and same plan bytes",
+        "location": "steps/keep-plan-reviews-receipt-provenance.steps.ts:32"
+      },
+      {
+        "name": "the gate validates receipt provenance",
+        "location": "steps/keep-plan-reviews-receipt-provenance.steps.ts:105"
+      },
+      {
+        "name": "the phase remains blocked with the mismatched review kind and re-review named",
+        "location": "steps/keep-plan-reviews-receipt-provenance.steps.ts:142"
+      }
+    ]
+  },
+  {
+    "name": "An approving receipt is valid only for its own ticket and review kind",
+    "line": 443,
+    "digest": "c90504405065fb5ddb05315bbec3f57e46e1caaffdcecbfa13b63b913f08852b",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the Execution Plan gate receives an Execution Plan approval for a sibling ticket and same plan bytes",
+        "location": "steps/keep-plan-reviews-receipt-provenance.steps.ts:32"
+      },
+      {
+        "name": "the gate validates receipt provenance",
+        "location": "steps/keep-plan-reviews-receipt-provenance.steps.ts:105"
+      },
+      {
+        "name": "the phase remains blocked with the mismatched ticket and re-review named",
+        "location": "steps/keep-plan-reviews-receipt-provenance.steps.ts:142"
+      }
+    ]
+  },
+  {
+    "name": "Installed phase gates enforce invalidated review receipts",
+    "line": 453,
+    "digest": "2fca32198614d6a6dac26f66cbee4144080e267153e6f1b2c6e331d76e20f11d",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase on Claude Code has an approving receipt invalidated by a changed accepted scenario",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:214"
+      },
+      {
+        "name": "actual lifecycle dispatch through installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:490"
+      },
+      {
+        "name": "the phase remains blocked with re-review named",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:507"
+      }
+    ]
+  },
+  {
+    "name": "Installed phase gates enforce invalidated review receipts",
+    "line": 454,
+    "digest": "a63502b12dd4ee5986b448ff89b636d7cf144c6f6a4e433327000964b29a9586",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase on OpenAI Codex has an approving receipt invalidated by a changed accepted scenario",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:214"
+      },
+      {
+        "name": "actual lifecycle dispatch through installed Codex hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:490"
+      },
+      {
+        "name": "the phase remains blocked with re-review named",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:507"
+      }
+    ]
+  },
+  {
+    "name": "Installed phase gates enforce invalidated review receipts",
+    "line": 455,
+    "digest": "bdc5b405564bb6d7412e2d6e835f9a953f953d4fd53e4cf45f597f6a64320f91",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a planning phase on Cursor has an approving receipt invalidated by a changed accepted scenario",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:214"
+      },
+      {
+        "name": "actual lifecycle dispatch through installed Cursor hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:490"
+      },
+      {
+        "name": "the phase remains blocked with re-review named",
+        "location": "steps/keep-plan-reviews-stale-gates.steps.ts:507"
+      }
+    ]
+  },
+  {
+    "name": "Installed phase gates enforce invalidated review receipts",
+    "line": 462,
+    "digest": "f592c532e791fa639e1404066a9331b343bce3d74aa9d293f2f2c52c621c0335",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Installed phase gates enforce invalidated review receipts",
+    "line": 463,
+    "digest": "616e93accaccbc686f23a58d836a58835bc40aa060e9595a2b924beec64cb8df",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Installed phase gates enforce invalidated review receipts",
+    "line": 464,
+    "digest": "c8e916f77a7f798b16aabd3d55769a50984d30a134aff4694a1935675db76d6e",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Installed phase gates enforce invalidated review receipts",
+    "line": 465,
+    "digest": "1171ced01a6fd986643ae475d0bb1a1851598ea1583a878ed0a7d8440f88f516",
+    "deferred": true,
+    "owners": ["MCWV4B"],
+    "steps": []
+  },
+  {
+    "name": "Each planning contract declares its bounded decision",
+    "line": 477,
+    "digest": "6817eb84542e64dbf7f010c25690a3e7da37d9f65fa86baa0873849264d7a57b",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the canonical Product Plan/spec contract is presented",
+        "location": "steps/planning-contract-shape.steps.ts:40"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation checks its completeness against the canonical contract-shape rubric",
+        "location": "steps/planning-contract-shape.steps.ts:78"
+      },
+      {
+        "name": "it declares purpose, entry requirements, required and prohibited content, its review question, approval meaning, invalidating changes, and return path and limits approval to the right complete behavior for accepted personas",
+        "location": "steps/planning-contract-shape.steps.ts:86"
+      }
+    ]
+  },
+  {
+    "name": "Each planning contract declares its bounded decision",
+    "line": 478,
+    "digest": "b472e4d2c979c7f68b9b3f39326deb7bd14760ac640aeaa4a24f830479e09053",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the canonical Implementation Plan contract is presented",
+        "location": "steps/planning-contract-shape.steps.ts:40"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation checks its completeness against the canonical contract-shape rubric",
+        "location": "steps/planning-contract-shape.steps.ts:78"
+      },
+      {
+        "name": "it declares purpose, entry requirements, required and prohibited content, its review question, approval meaning, invalidating changes, and return path and limits approval to the accepted coherent implementation design",
+        "location": "steps/planning-contract-shape.steps.ts:86"
+      }
+    ]
+  },
+  {
+    "name": "Each planning contract declares its bounded decision",
+    "line": 479,
+    "digest": "444678dcf5ee5405370aee3caac5fbe7db39c5d1b1ea48b6e785b00063a81b33",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the canonical Execution Plan contract is presented",
+        "location": "steps/planning-contract-shape.steps.ts:40"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation checks its completeness against the canonical contract-shape rubric",
+        "location": "steps/planning-contract-shape.steps.ts:78"
+      },
+      {
+        "name": "it declares purpose, entry requirements, required and prohibited content, its review question, approval meaning, invalidating changes, and return path and limits approval to startable and provable delivery of the accepted design",
+        "location": "steps/planning-contract-shape.steps.ts:86"
+      }
+    ]
+  },
+  {
+    "name": "An incomplete planning contract cannot pass completeness checking",
+    "line": 489,
+    "digest": "115b56d27d3625bad53a90540ea87909acc578c7abebcaaa96330870db3d5e1f",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a canonical planning contract omits its review question",
+        "location": "steps/planning-contract-shape.steps.ts:64"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation checks its completeness against the canonical contract-shape rubric",
+        "location": "steps/planning-contract-shape.steps.ts:78"
+      },
+      {
+        "name": "the contract is rejected with the missing its review question named",
+        "location": "steps/planning-contract-shape.steps.ts:97"
+      }
+    ]
+  },
+  {
+    "name": "An incomplete planning contract cannot pass completeness checking",
+    "line": 490,
+    "digest": "b0c85f13c5e739dcbeeeebaf228cc82bdef84f18f74a3f1b7d6f4b63934cfc55",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a canonical planning contract omits prohibited content",
+        "location": "steps/planning-contract-shape.steps.ts:64"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation checks its completeness against the canonical contract-shape rubric",
+        "location": "steps/planning-contract-shape.steps.ts:78"
+      },
+      {
+        "name": "the contract is rejected with the missing prohibited content named",
+        "location": "steps/planning-contract-shape.steps.ts:97"
+      }
+    ]
+  },
+  {
+    "name": "An incomplete planning contract cannot pass completeness checking",
+    "line": 491,
+    "digest": "46706ec3d48b14c9259d8ed7f6da2cad0370c0a1334c2c53d7cf725fbd134886",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a canonical planning contract omits its return path",
+        "location": "steps/planning-contract-shape.steps.ts:64"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation checks its completeness against the canonical contract-shape rubric",
+        "location": "steps/planning-contract-shape.steps.ts:78"
+      },
+      {
+        "name": "the contract is rejected with the missing its return path named",
+        "location": "steps/planning-contract-shape.steps.ts:97"
+      }
+    ]
+  },
+  {
+    "name": "A planning approval cannot claim its downstream state",
+    "line": 501,
+    "digest": "f52b293497751a46303f59f7bb06e7947bc1335e5f8e8464a708f95006472d60",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "Product Plan/spec has passed its own review",
+        "location": "steps/keep-plan-reviews-approval-meaning.steps.ts:25"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation checks a receipt that claims technical feasibility and approved design",
+        "location": "steps/keep-plan-reviews-approval-meaning.steps.ts:35"
+      },
+      {
+        "name": "the receipt is rejected with the unsupported downstream claim named",
+        "location": "steps/keep-plan-reviews-approval-meaning.steps.ts:44"
+      }
+    ]
+  },
+  {
+    "name": "A planning approval cannot claim its downstream state",
+    "line": 502,
+    "digest": "3b0e6ebf9ada788e41474199967d750c1372982f70753f85c40c13a80eadf21f",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "Implementation Plan has passed its own review",
+        "location": "steps/keep-plan-reviews-approval-meaning.steps.ts:25"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation checks a receipt that claims completed implementation and release approval",
+        "location": "steps/keep-plan-reviews-approval-meaning.steps.ts:35"
+      },
+      {
+        "name": "the receipt is rejected with the unsupported downstream claim named",
+        "location": "steps/keep-plan-reviews-approval-meaning.steps.ts:44"
+      }
+    ]
+  },
+  {
+    "name": "A planning approval cannot claim its downstream state",
+    "line": 503,
+    "digest": "c5873c975b124f3b07c3eb37457acb6f4eb0f0f31232296195686a5b2dee5ebe",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "Execution Plan has passed its own review",
+        "location": "steps/keep-plan-reviews-approval-meaning.steps.ts:25"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation checks a receipt that claims passed verification and merge authority",
+        "location": "steps/keep-plan-reviews-approval-meaning.steps.ts:35"
+      },
+      {
+        "name": "the receipt is rejected with the unsupported downstream claim named",
+        "location": "steps/keep-plan-reviews-approval-meaning.steps.ts:44"
+      }
+    ]
+  },
+  {
+    "name": "A planning approval may claim its own bounded state",
+    "line": 505,
+    "digest": "9bd8bc1a06c3cd4593beab7d78afd237f26776696a3e2eaa77a92ca0bee38928",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a coherent Implementation Plan has passed its own design review",
+        "location": "steps/keep-plan-reviews-approval-meaning.steps.ts:54"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation checks a receipt claiming only the accepted coherent implementation design",
+        "location": "steps/keep-plan-reviews-approval-meaning.steps.ts:62"
+      },
+      {
+        "name": "the receipt is accepted as a bounded Implementation Plan approval",
+        "location": "steps/keep-plan-reviews-approval-meaning.steps.ts:72"
+      }
+    ]
+  },
+  {
+    "name": "Finding authority controls whether a review may block",
+    "line": 521,
+    "digest": "d1a0c17f9179d6bc9f983b4b68b59b636a53c6f59c50eb2beb77279b175ce442",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a recorded planning-review finding of a requirement accepted upstream is unmet",
+        "location": "steps/keep-plan-reviews-finding-authority.steps.ts:20"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical finding-authority rubric against the accepted contract and scope",
+        "location": "steps/keep-plan-reviews-finding-authority.steps.ts:51"
+      },
+      {
+        "name": "the review blocks with the violated Rule, defect, unresolved choice, and constraints named",
+        "location": "steps/keep-plan-reviews-finding-authority.steps.ts:66"
+      }
+    ]
+  },
+  {
+    "name": "Finding authority controls whether a review may block",
+    "line": 522,
+    "digest": "84fdba2944c5d06f950a5b7bc6a0d5fa3e75cf00e827ebf85d6b16ee3a244faf",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a recorded planning-review finding of an optional resilience improvement outside accepted scope",
+        "location": "steps/keep-plan-reviews-finding-authority.steps.ts:20"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical finding-authority rubric against the accepted contract and scope",
+        "location": "steps/keep-plan-reviews-finding-authority.steps.ts:51"
+      },
+      {
+        "name": "the suggestion remains nonblocking until the user accepts it",
+        "location": "steps/keep-plan-reviews-finding-authority.steps.ts:59"
+      }
+    ]
+  },
+  {
+    "name": "Finding authority controls whether a review may block",
+    "line": 523,
+    "digest": "c5d258970d3293f0e3a095d131ef150ba062cddfd2f4e9d5694381351c3f10c5",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a recorded planning-review finding of a replacement architecture selected only by the reviewer",
+        "location": "steps/keep-plan-reviews-finding-authority.steps.ts:20"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical finding-authority rubric against the accepted contract and scope",
+        "location": "steps/keep-plan-reviews-finding-authority.steps.ts:51"
+      },
+      {
+        "name": "the reviewer-authored decision is recorded as a nonblocking suggestion and the review does not block on it",
+        "location": "steps/keep-plan-reviews-finding-authority.steps.ts:88"
+      }
+    ]
+  },
+  {
+    "name": "Finding authority controls whether a review may block",
+    "line": 524,
+    "digest": "e056841b251a5c25910cc661c1808b9c68c06aa2c1b2f921081dc96b0d5b28b4",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a recorded planning-review finding of a uniquely determined correction under an accepted decision",
+        "location": "steps/keep-plan-reviews-finding-authority.steps.ts:20"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical finding-authority rubric against the accepted contract and scope",
+        "location": "steps/keep-plan-reviews-finding-authority.steps.ts:51"
+      },
+      {
+        "name": "the review blocks with the uniquely determined correction named",
+        "location": "steps/keep-plan-reviews-finding-authority.steps.ts:77"
+      }
+    ]
+  },
+  {
+    "name": "The installed Implementation Plan gate enforces finding authority",
+    "line": 534,
+    "digest": "25e61ff739b032a0fdf47e99271165a9a520ebd3e3486a2b458359a28941a004",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an Implementation Plan in the installed Claude Code workflow satisfies every requirement accepted upstream",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:182"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks runs its judged Implementation Plan review with real configuration and collaborators, mocking only non-reviewer process boundaries",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:333"
+      },
+      {
+        "name": "Implementation Plan approval proceeds",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:359"
+      }
+    ]
+  },
+  {
+    "name": "The installed Implementation Plan gate enforces finding authority",
+    "line": 535,
+    "digest": "ddd1c3153ade9259de0dc961834250b88b01cc1fae4337e63061b914aca11d96",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an Implementation Plan in the installed Claude Code workflow leaves a requirement accepted upstream unmet",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:182"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks runs its judged Implementation Plan review with real configuration and collaborators, mocking only non-reviewer process boundaries",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:333"
+      },
+      {
+        "name": "Implementation Plan approval remains blocked with the violated Rule and unmet requirement named",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:374"
+      }
+    ]
+  },
+  {
+    "name": "Corrected plan bytes cannot inherit the prior verdict",
+    "line": 538,
+    "digest": "d664327284f83b3cfa69fa428b999c48ec5c7ec86a3091a1f1b8a0769f965de9",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a review blocked on a uniquely determined correction under an accepted decision",
+        "location": "steps/planning-correction-currency.steps.ts:110"
+      },
+      {
+        "name": "the correction changes the plan bytes without a fresh review",
+        "location": "steps/planning-correction-currency.steps.ts:118"
+      },
+      {
+        "name": "the corrected plan remains blocked until a verdict is recorded against those exact bytes",
+        "location": "steps/planning-correction-currency.steps.ts:128"
+      }
+    ]
+  },
+  {
+    "name": "A fresh verdict can clear the corrected-plan block",
+    "line": 543,
+    "digest": "670f8c42e23a6a21ad533d64b48cabb8c9f11b55fc2b8dbdd797b8ded95d672f",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "corrected plan bytes have a fresh approving verdict recorded against those exact bytes",
+        "location": "steps/planning-correction-currency.steps.ts:145"
+      },
+      {
+        "name": "the phase gate reevaluates the prior correction block",
+        "location": "steps/planning-correction-currency.steps.ts:177"
+      },
+      {
+        "name": "the prior block is cleared and that correction no longer prevents the phase transition",
+        "location": "steps/planning-correction-currency.steps.ts:183"
+      }
+    ]
+  },
+  {
+    "name": "No binding scope source can be omitted from review",
+    "line": 559,
+    "digest": "a55c01383c4b3d516acfef2abea527aa1bbef4db4c3d6d97ecf58b452702b342",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a child plan is bound by ticket scope, ticket exclusions, project non-goals, milestone non-goals, and inherited parent boundaries and its review packet includes every structurally required role and path but preserves every binding boundary in those supplied sources",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:32"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical accepted-boundary completeness rubric to the packet",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:41"
+      },
+      {
+        "name": "missing boundary context does not block review dispatch or approval",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:49"
+      }
+    ]
+  },
+  {
+    "name": "No binding scope source can be omitted from review",
+    "line": 560,
+    "digest": "7495415eb7e86cd6ba297c0769488c50b1502a9323572e69d8093eb891f0107b",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a child plan is bound by ticket scope, ticket exclusions, project non-goals, milestone non-goals, and inherited parent boundaries and its review packet includes every structurally required role and path but the supplied ticket context omits its positive scope",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:32"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical accepted-boundary completeness rubric to the packet",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:41"
+      },
+      {
+        "name": "review cannot approve and names the missing ticket scope",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:56"
+      }
+    ]
+  },
+  {
+    "name": "No binding scope source can be omitted from review",
+    "line": 561,
+    "digest": "ccb0ae7afd39267cf889fac068dbb257432ce141cb62ce540c66f97aa0116671",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a child plan is bound by ticket scope, ticket exclusions, project non-goals, milestone non-goals, and inherited parent boundaries and its review packet includes every structurally required role and path but the supplied ticket context omits its exclusions",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:32"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical accepted-boundary completeness rubric to the packet",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:41"
+      },
+      {
+        "name": "review cannot approve and names the missing ticket boundary",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:56"
+      }
+    ]
+  },
+  {
+    "name": "No binding scope source can be omitted from review",
+    "line": 562,
+    "digest": "ee43d0313d767954f60cbb8b095b4e2f0f1c32a4bdbdc5f5ec0466c787c8a2f6",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a child plan is bound by ticket scope, ticket exclusions, project non-goals, milestone non-goals, and inherited parent boundaries and its review packet includes every structurally required role and path but the supplied project context omits its non-goals",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:32"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical accepted-boundary completeness rubric to the packet",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:41"
+      },
+      {
+        "name": "review cannot approve and names the missing project boundary",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:56"
+      }
+    ]
+  },
+  {
+    "name": "No binding scope source can be omitted from review",
+    "line": 563,
+    "digest": "f0f892ec16b3bf8a0184505bbcae6832cd7e078623c20f1ff11a7f56197af4a8",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a child plan is bound by ticket scope, ticket exclusions, project non-goals, milestone non-goals, and inherited parent boundaries and its review packet includes every structurally required role and path but the supplied milestone context omits its non-goals",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:32"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical accepted-boundary completeness rubric to the packet",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:41"
+      },
+      {
+        "name": "review cannot approve and names the missing milestone boundary",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:56"
+      }
+    ]
+  },
+  {
+    "name": "No binding scope source can be omitted from review",
+    "line": 564,
+    "digest": "6f72049e2c1cbf91fad8bd79e774e6c627b733d5cd911c2795562a995dea542d",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a child plan is bound by ticket scope, ticket exclusions, project non-goals, milestone non-goals, and inherited parent boundaries and its review packet includes every structurally required role and path but the supplied parent context omits its inherited boundary",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:32"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical accepted-boundary completeness rubric to the packet",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:41"
+      },
+      {
+        "name": "review cannot approve and names the unchecked inherited boundary",
+        "location": "steps/keep-plan-reviews-scope-context.steps.ts:56"
+      }
+    ]
+  },
+  {
+    "name": "The installed Implementation Plan gate enforces binding scope context",
+    "line": 574,
+    "digest": "84bc8f9ebdd48d5364a586c12c902936da0f21033e183161a78ed653a5f62bba",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an Implementation Plan in the installed Claude Code workflow has a review packet that contains every binding scope source",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:170"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks runs its judged Implementation Plan review with real configuration and collaborators, mocking only non-reviewer process boundaries",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:333"
+      },
+      {
+        "name": "Implementation Plan review dispatch proceeds",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:347"
+      }
+    ]
+  },
+  {
+    "name": "The installed Implementation Plan gate enforces binding scope context",
+    "line": 575,
+    "digest": "1f989d2d5725ae9e1f5f9248b9e1e20d95dd97fea53ead48550f76d40d7d8e4a",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an Implementation Plan in the installed Claude Code workflow has a review packet that omits the project non-goals",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:170"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks runs its judged Implementation Plan review with real configuration and collaborators, mocking only non-reviewer process boundaries",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:333"
+      },
+      {
+        "name": "Implementation Plan approval remains blocked with the missing project boundary named",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:400"
+      }
+    ]
+  },
+  {
+    "name": "Plan completeness is bidirectional",
+    "line": 587,
+    "digest": "b8e3627e11df9727d9d211a948f2b79365c9d7609b98f7320f9cbda7145d0286",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an accepted boundary requires authorization and excludes automatic account migration and the plan omits authorization behavior",
+        "location": "steps/keep-plan-reviews-scope-eval.steps.ts:18"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical bidirectional scope-completeness rubric to the plan",
+        "location": "steps/keep-plan-reviews-scope-eval.steps.ts:29"
+      },
+      {
+        "name": "approval is blocked with the in-scope omission named",
+        "location": "steps/keep-plan-reviews-scope-eval.steps.ts:37"
+      }
+    ]
+  },
+  {
+    "name": "Plan completeness is bidirectional",
+    "line": 588,
+    "digest": "7b3bbf0cec8b0be245f4c9c2a344c89b2eaf3cb3cef67eb324ecce6bc7bc0ca0",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an accepted boundary requires authorization and excludes automatic account migration and the plan includes automatic account migration",
+        "location": "steps/keep-plan-reviews-scope-eval.steps.ts:18"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical bidirectional scope-completeness rubric to the plan",
+        "location": "steps/keep-plan-reviews-scope-eval.steps.ts:29"
+      },
+      {
+        "name": "approval is blocked with the out-of-scope proposal named",
+        "location": "steps/keep-plan-reviews-scope-eval.steps.ts:41"
+      }
+    ]
+  },
+  {
+    "name": "Plan completeness is bidirectional",
+    "line": 589,
+    "digest": "ac40a36a5644ddd75f756940285aaf9e9d2ee65e11b197365c35ec1040c91553",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an accepted boundary requires authorization and excludes automatic account migration and the plan decides authorization and excludes account migration",
+        "location": "steps/keep-plan-reviews-scope-eval.steps.ts:18"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical bidirectional scope-completeness rubric to the plan",
+        "location": "steps/keep-plan-reviews-scope-eval.steps.ts:29"
+      },
+      {
+        "name": "scope completeness does not block approval",
+        "location": "steps/keep-plan-reviews-scope-eval.steps.ts:45"
+      }
+    ]
+  },
+  {
+    "name": "The installed Implementation Plan gate enforces bidirectional scope completeness",
+    "line": 599,
+    "digest": "5e3bca9c22a38f06d9a08fdcf0e087842c29d1226ad6c133f6ecba59a2f4991a",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an Implementation Plan in the installed Claude Code workflow covers every accepted behavior without adding excluded behavior",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:182"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks runs its judged Implementation Plan review with real configuration and collaborators, mocking only non-reviewer process boundaries",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:333"
+      },
+      {
+        "name": "Implementation Plan approval proceeds",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:359"
+      }
+    ]
+  },
+  {
+    "name": "The installed Implementation Plan gate enforces bidirectional scope completeness",
+    "line": 600,
+    "digest": "f2c856e5fa32e5e40150216ccb8ab18b42676c605926eda1ac95bfca88d8f4d1",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an Implementation Plan in the installed Claude Code workflow omits an accepted behavior",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:182"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks runs its judged Implementation Plan review with real configuration and collaborators, mocking only non-reviewer process boundaries",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:333"
+      },
+      {
+        "name": "Implementation Plan approval remains blocked with the omission named",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:374"
+      }
+    ]
+  },
+  {
+    "name": "The installed Implementation Plan gate enforces bidirectional scope completeness",
+    "line": 601,
+    "digest": "c3bbd8ea9c20fceb0bee04fc4e7d579db8814c7dcca478f4719e677f5cf44fa6",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an Implementation Plan in the installed Claude Code workflow adds an excluded behavior",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:182"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks runs its judged Implementation Plan review with real configuration and collaborators, mocking only non-reviewer process boundaries",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:333"
+      },
+      {
+        "name": "Implementation Plan approval remains blocked with the overreach named",
+        "location": "steps/keep-plan-reviews-native-scope.steps.ts:374"
+      }
+    ]
+  },
+  {
+    "name": "Optional strengthening changes only through user authority",
+    "line": 613,
+    "digest": "ebb525aaa0ae8f0b21de385a99068fe7eb4edacaf0fb2edb9c188f8120666c49",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a nonblocking reviewer suggestion for a useful capability outside the accepted boundary is recorded",
+        "location": "steps/keep-plan-reviews-disposition.steps.ts:136"
+      },
+      {
+        "name": "the user declines it",
+        "location": "steps/keep-plan-reviews-disposition.steps.ts:144"
+      },
+      {
+        "name": "the unchanged plan is re-reviewed against the accepted boundary and the decline remains recorded",
+        "location": "steps/keep-plan-reviews-disposition.steps.ts:233"
+      }
+    ]
+  },
+  {
+    "name": "Optional strengthening changes only through user authority",
+    "line": 614,
+    "digest": "fcec5b7d29346775c040b0ffe6471365375b0cb75b49ee9a26df3429a443ab15",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a nonblocking reviewer suggestion for a useful capability outside the accepted boundary is recorded",
+        "location": "steps/keep-plan-reviews-disposition.steps.ts:136"
+      },
+      {
+        "name": "the user accepts it",
+        "location": "steps/keep-plan-reviews-disposition.steps.ts:152"
+      },
+      {
+        "name": "the expansion is recorded as user-accepted before the plan is corrected and re-reviewed",
+        "location": "steps/keep-plan-reviews-disposition.steps.ts:193"
+      }
+    ]
+  },
+  {
+    "name": "An undecided optional suggestion cannot alter or block the plan",
+    "line": 616,
+    "digest": "82190114057b22dd8515019c842b93e7d2727e054ac357aa43480408c14858e4",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a nonblocking suggestion outside the accepted boundary awaits a user decision",
+        "location": "steps/keep-plan-reviews-native-disposition.steps.ts:195"
+      },
+      {
+        "name": "the unchanged plan is re-reviewed while that decision remains outstanding",
+        "location": "steps/keep-plan-reviews-native-disposition.steps.ts:203"
+      },
+      {
+        "name": "the reviewed plan bytes remain unchanged, the gate does not block on or silently add the suggestion, and the outstanding choice is re-presented for the user to decide",
+        "location": "steps/keep-plan-reviews-native-disposition.steps.ts:218"
+      }
+    ]
+  },
+  {
+    "name": "Installed re-review retains a declined optional strengthening",
+    "line": 622,
+    "digest": "51fbd814c83fe4c0d2822e09b4189bac8700ebe5e6b4f42c5f600c3a0ee1ef01",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the user recorded a decline for an optional strengthening under the current accepted boundary and left the plan unchanged",
+        "location": "steps/keep-plan-reviews-native-disposition.steps.ts:187"
+      },
+      {
+        "name": "a later judged re-review runs through installed local project hooks with real configuration and collaborators, mocking only non-reviewer process boundaries",
+        "location": "steps/keep-plan-reviews-native-disposition.steps.ts:271"
+      },
+      {
+        "name": "the decline is supplied to the reviewer, the suggestion remains nonblocking, and any approval is recorded against the unchanged plan bytes",
+        "location": "steps/keep-plan-reviews-native-disposition.steps.ts:286"
+      }
+    ]
+  },
+  {
+    "name": "Guidance respects the accepted boundary",
+    "line": 637,
+    "digest": "55ef02a46ed987a0b89381d46b32343af553eea6ca097367b3087c4b3ac00054",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a recorded architecture, data, testing, domain, or research suggestion proposes a decision required by accepted behavior",
+        "location": "steps/keep-plan-reviews-guidance.steps.ts:12"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical accepted-boundary guidance rubric to the suggestion",
+        "location": "steps/keep-plan-reviews-guidance.steps.ts:55"
+      },
+      {
+        "name": "the decision is surfaced and resolved in its owning plan",
+        "location": "steps/keep-plan-reviews-guidance.steps.ts:67"
+      }
+    ]
+  },
+  {
+    "name": "Guidance respects the accepted boundary",
+    "line": 638,
+    "digest": "640fae1b3076f150eb77c4bf468b186014dfcdbb77504c51b7cb4ba819f82c6d",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a recorded architecture, data, testing, domain, or research suggestion proposes an unrelated capability whose exclusion does not change the accepted outcome",
+        "location": "steps/keep-plan-reviews-guidance.steps.ts:38"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical accepted-boundary guidance rubric to the suggestion",
+        "location": "steps/keep-plan-reviews-guidance.steps.ts:55"
+      },
+      {
+        "name": "the capability is dropped",
+        "location": "steps/keep-plan-reviews-guidance.steps.ts:63"
+      }
+    ]
+  },
+  {
+    "name": "Guidance respects the accepted boundary",
+    "line": 639,
+    "digest": "a7a105d1bacccc7e56c997457b4f0c8b59c0ef101b6aac08c7f9ddc6b79faad7",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a recorded architecture, data, testing, domain, or research suggestion proposes a capability outside accepted behavior whose exclusion would change the accepted outcome",
+        "location": "steps/keep-plan-reviews-guidance.steps.ts:23"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical accepted-boundary guidance rubric to the suggestion",
+        "location": "steps/keep-plan-reviews-guidance.steps.ts:55"
+      },
+      {
+        "name": "the capability is surfaced as a user-owned scope choice and does not enter the plan",
+        "location": "steps/keep-plan-reviews-guidance.steps.ts:86"
+      }
+    ]
+  },
+  {
+    "name": "Product Plan approval requires every accepted persona outcome",
+    "line": 652,
+    "digest": "92deca52e259a3c1ee117848367add3536c3b58d3a5455df7366ed37d81ecb53",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the Product Plan accepts a Technical Builder and a Non-Technical Builder and inventories every accepted persona's consequential success, refusal, failure, approval, trust, and recovery outcomes",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:20"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical Product Plan completeness rubric",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:58"
+      },
+      {
+        "name": "persona-outcome completeness does not block Product Plan approval",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:66"
+      }
+    ]
+  },
+  {
+    "name": "Product Plan approval requires every accepted persona outcome",
+    "line": 653,
+    "digest": "3055e5a22e0de901127bb70715f0f5714c1353ca190b81eae9957e16c5ef36a8",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the Product Plan accepts a Technical Builder and a Non-Technical Builder and marks the Non-Technical Builder's approval outcome explicitly inapplicable with a stated reason and inventories the rest",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:20"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical Product Plan completeness rubric",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:58"
+      },
+      {
+        "name": "persona-outcome completeness does not block Product Plan approval",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:66"
+      }
+    ]
+  },
+  {
+    "name": "Product Plan approval requires every accepted persona outcome",
+    "line": 654,
+    "digest": "7855fb11d926e20f19eb9ce8f9a32242aeab5740b8f27bd572927f55e295ee03",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the Product Plan accepts a Technical Builder and a Non-Technical Builder and omits the Non-Technical Builder's recovery outcome",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:20"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical Product Plan completeness rubric",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:58"
+      },
+      {
+        "name": "Product Plan approval is blocked naming that missing recovery outcome and reports no scenario-coverage verdict",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:77"
+      }
+    ]
+  },
+  {
+    "name": "Product Plan approval requires honest epistemic status",
+    "line": 664,
+    "digest": "09c55b1fb3fd422cc537ce6629d1daeb4987415dd0f78327a9d63e202728c352",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the Product Plan contains known facts, assumptions, and unresolved product decisions and presents an assumption as a known fact",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:38"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical Product Plan completeness rubric",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:58"
+      },
+      {
+        "name": "Product Plan approval is blocked with the epistemic-status defect named",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:84"
+      }
+    ]
+  },
+  {
+    "name": "Product Plan approval requires honest epistemic status",
+    "line": 665,
+    "digest": "32604be9fb5a1010942d830ba4a6a18e2f899a9b98c988d943f6c17084a5bf6a",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "the Product Plan contains known facts, assumptions, and unresolved product decisions and keeps known facts, assumptions, and unresolved product decisions distinct",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:38"
+      },
+      {
+        "name": "a judged semantic reviewer evaluation applies the canonical Product Plan completeness rubric",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:58"
+      },
+      {
+        "name": "epistemic status does not block Product Plan approval",
+        "location": "steps/keep-plan-reviews-product-outcomes.steps.ts:73"
+      }
+    ]
+  },
+  {
+    "name": "Scenario review proves every applicable persona outcome",
+    "line": 675,
+    "digest": "ea021b2aa3dba275132d507d506ed0dd21ef1457a50fe31be7b348bca0d53aec",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an approved Product Plan persona-outcome inventory has at least one accepted scenario for every applicable outcome",
+        "location": "steps/keep-plan-reviews-persona-coverage.steps.ts:19"
+      },
+      {
+        "name": "the scenario gate evaluates behavior coverage",
+        "location": "steps/keep-plan-reviews-persona-coverage.steps.ts:33"
+      },
+      {
+        "name": "scenario coverage does not block approval",
+        "location": "steps/keep-plan-reviews-persona-coverage.steps.ts:41"
+      }
+    ]
+  },
+  {
+    "name": "Scenario review proves every applicable persona outcome",
+    "line": 676,
+    "digest": "032cb0c6ecca1086750d0bf4a9a8a5b0c7dde88ecd89cd16e585b7b9dede0296",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "an approved Product Plan persona-outcome inventory has no accepted scenario for the Non-Technical Builder recovery outcome",
+        "location": "steps/keep-plan-reviews-persona-coverage.steps.ts:19"
+      },
+      {
+        "name": "the scenario gate evaluates behavior coverage",
+        "location": "steps/keep-plan-reviews-persona-coverage.steps.ts:33"
+      },
+      {
+        "name": "scenario approval is blocked with that uncovered recovery outcome named",
+        "location": "steps/keep-plan-reviews-persona-coverage.steps.ts:45"
+      }
+    ]
+  },
+  {
+    "name": "The installed Product Plan gate enforces persona-outcome completeness",
+    "line": 686,
+    "digest": "a9c4b29e53aeee5d8c850dd2b99dd0e74aae71fcdb2c785bd5f4ed812b08da64",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Product Plan in the installed Claude Code workflow inventories every accepted persona's consequential outcomes",
+        "location": "steps/keep-plan-reviews-native-product.steps.ts:34"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks runs its judged Product Plan review with real configuration and collaborators, mocking only non-reviewer process boundaries",
+        "location": "steps/keep-plan-reviews-native-product.steps.ts:135"
+      },
+      {
+        "name": "Product Plan approval proceeds",
+        "location": "steps/keep-plan-reviews-native-product.steps.ts:149"
+      }
+    ]
+  },
+  {
+    "name": "The installed Product Plan gate enforces persona-outcome completeness",
+    "line": 687,
+    "digest": "1e1dcdc430abec0d41806996cb051abc78e5bc3c127ce89560869b32c28758eb",
+    "deferred": false,
+    "owners": [],
+    "steps": [
+      {
+        "name": "a Product Plan in the installed Claude Code workflow omits the Non-Technical Builder's recovery outcome",
+        "location": "steps/keep-plan-reviews-native-product.steps.ts:34"
+      },
+      {
+        "name": "actual lifecycle dispatch from installed local project hooks runs its judged Product Plan review with real configuration and collaborators, mocking only non-reviewer process boundaries",
+        "location": "steps/keep-plan-reviews-native-product.steps.ts:135"
+      },
+      {
+        "name": "Product Plan approval remains blocked with the missing persona outcome named",
+        "location": "steps/keep-plan-reviews-native-product.steps.ts:164"
+      }
+    ]
+  }
+]
