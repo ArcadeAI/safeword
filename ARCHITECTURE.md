@@ -635,6 +635,40 @@ Published files: `dist/` + `schemas/` + `templates/` (bundled for setup converge
 
 ## Key Decisions
 
+### Exact completion-evidence recovery for 5F5ZZA
+
+**Status:** Accepted design; implementation and trusted deployment pending.
+
+**Date:** 2026-10-11
+
+The user authorized current certification for this one ticket without inventing
+historical RED. An installed profile binds its accepted scope, feature, original
+ledger, case identities and one append-only REFACTOR erratum. It preserves checked
+history and reports exactly 33 accepted deferred cases as unverified. Recovery
+grants no waiver: the ordinary whole-ticket review and cross-scenario row remain
+required prerequisites and must be completed before the profile is frozen.
+
+A fixed observer executes the committed root Cucumber lane and signs its actual
+report in a domain separate from CKWE2D. All 142 active cases must execute with
+every step passed and no missing, duplicate, unexpected, skipped or undefined
+case or step; deferred cases receive no credit. Cross-agent certification reviews the
+same current proof, its actor-facing controls and executed source. Completion
+checks authenticate both records and compare the complete product tree, allowing
+only explicitly named audit artifacts to change after observation. An audit
+artifact cannot hide executable inputs or changed accepted scope. Claude, Codex
+and Cursor use an explicit supported-host check. OpenCode is excluded and uses
+the unchanged path; cloud proof remains deferred. Producing commits must descend
+from the pinned baseline; ancestry-breaking rebases require a reviewed re-pin.
+
+This is a bounded trust exception, not a general retrospective migration. Caller
+reports, arbitrary commands, ordinary quality-review receipts and rewritten
+checkboxes cannot confer recovery authority. CKWE2D retains its existing rules.
+Merge, promotion and deployment still require separate human authorization.
+
+Reassess and retire this exact profile after the authorized 5F5ZZA recovery is
+complete. Any different ticket, changed baseline, feature, history or accepted
+scope requires a new reviewed decision rather than widening this profile.
+
 ### Collector-to-relay ownership transfer
 
 | Field         | Decision                                                                                                                                                                                                                                                                                                                                                                                                         |

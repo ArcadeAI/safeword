@@ -1032,4 +1032,4 @@ the current source checkpoint is recorded separately in the ticket work log.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: whole-source review found no required cross-loop restructuring; the deferred-host documentation claim was corrected separately at 6bde6bfd0

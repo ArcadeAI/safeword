@@ -1,0 +1,2865 @@
+{
+  "status": "inventory-only-no-completion-credit",
+  "ledgerSha256": "da4f2cf58cd8853b1119587d0cd07862039923292d61f4c0fba6c58eabd1090f",
+  "counts": {
+    "headings": 57,
+    "checked": 41,
+    "unchecked": 136,
+    "activeCases": 142,
+    "deferredCases": 30,
+    "uncheckedIncludingCrossScenario": 137,
+    "unmappedDeferredCases": 3,
+    "totalDeferredCases": 33
+  },
+  "records": [
+    {
+      "heading": "Editing the canonical shared clause changes both generated phase contracts",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            10
+          ],
+          "caseDigest": "308e43912f1a9db4f7795484398316a444760220c7ec7d6b7573c8ff3543c229",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Phase-only clauses remain in their owning contract",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            16
+          ],
+          "caseDigest": "d4e650bafde8d0dfdc6bf6c1aee0b17f849dc5de6f15acd283f184cd14bfe868",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "A missing generated shared clause blocks reconciliation",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            22
+          ],
+          "caseDigest": "13c72ea9f279306c88c747410838588d90a8d74e35f43d9c8b821830333321a4",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "A review packet cannot omit required phase context",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            30,
+            37
+          ],
+          "caseDigest": "864d9c48be1f8edbcd95c9be4ef0fd99b4250d584a7fd0f3a351b4030f09276c",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            30,
+            38
+          ],
+          "caseDigest": "28512ac0e26848723cd0bfd9d0969613f71ee610f446d5b4515f723fa84a829b",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            30,
+            39
+          ],
+          "caseDigest": "5152dd59023a7b767b4eb117f831d28718dbf73053108d035108012b988619db",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            30,
+            40
+          ],
+          "caseDigest": "ed3158c91a8be8935d19127b2b728a86683cd9d2edf458f5946c1bf9cb23a1ef",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            30,
+            41
+          ],
+          "caseDigest": "fef52b8afabc338c1c93ce9918272fe2b5cef60ebd4831d50909317257eccf77",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            30,
+            42
+          ],
+          "caseDigest": "c170a16f25451f7933e91fe8589f6ea6685fd635583e3a2666e92368e9ef71cc",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            30,
+            43
+          ],
+          "caseDigest": "46938ae86ae18b3d7293cc6667f76b50133d7b984c7dc6592175d3f966ace126",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            30,
+            44
+          ],
+          "caseDigest": "4eed47fcc6f057883c9a884d97e8c5fd335547e11002ae8ca2e5621c9da4325c",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            30,
+            45
+          ],
+          "caseDigest": "a1b1f7d29e4a7b21d6382bc32c67198f646fcaef33d87c650609b23ab1b1163e",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Installed dispatch cannot bypass packet completeness",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            60,
+            67
+          ],
+          "caseDigest": "3670072ca22e7df0e1492c98fd8c78459e316f14ab9b5b1c17a12041696b8570",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            60,
+            68
+          ],
+          "caseDigest": "8aec9a84f9b685fff59bad18c070cf52371fb9276ff5ccf8ce3bbda4bd5eb24b",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            60,
+            69
+          ],
+          "caseDigest": "94a5f46b64118b98db01ba47d8b19b20cdffe957817dd5409f650fa0ab096c6b",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            60,
+            70
+          ],
+          "caseDigest": "2fdfb6b0c7246ca5d28bbd43cd095e4bbc2835f4cdec681016bc85c47c7eb2d3",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Canonical phase entry requirements bind every required input",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            48,
+            55
+          ],
+          "caseDigest": "d2c363c15b5c54fdecc20b6c95ff6e734a2d503f7823ccd31663c9f77b8b3083",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            48,
+            56
+          ],
+          "caseDigest": "f999a9f9e92ca7942ea17f2961cabd5fff7ad4e2cffa0856b60e32565dc57a41",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            48,
+            57
+          ],
+          "caseDigest": "9d127c171def9ecbe604a3f90ddfe0ffa2cdb0a886cb56a0711f13380ac73397",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Context resolution distinguishes defaults from broken overrides",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "b1d1740cc"
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            75,
+            82
+          ],
+          "caseDigest": "a1f77108e0b7ee929048408785a041d2fe12fe0dd08cff210dedf0d8484abaf9",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            75,
+            83
+          ],
+          "caseDigest": "ab3379d84a74c35a2cf8af007b43e7f4f6277ab827f8b640fef55645bf4c1efd",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            75,
+            84
+          ],
+          "caseDigest": "823b804c5bf9c43f2ea373e646f38e479fa6fc7c17053f407fd8f9488fa38407",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            75,
+            85
+          ],
+          "caseDigest": "13cf43c58a14843da464b0c1c2403500957f17325b33bae6a570072a927e80a2",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            75,
+            86
+          ],
+          "caseDigest": "1e87803ca72f5183dbfa06598abc8f78a6f88dfd9195f0cf8c4203b57aa6627f",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            75,
+            87
+          ],
+          "caseDigest": "2e008fbb34a61ccea8648a165db5b96878ee8c6c6227f6b2bc7aaadc75e83b18",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            75,
+            88
+          ],
+          "caseDigest": "b2d7f9da96bc2a6ec3199adddaf89aed35cce503539df79749dfed53f8427286",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Local dispatch enforces required context resolution",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "f44d0b9e4"
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            91,
+            98
+          ],
+          "caseDigest": "fde43cd1c3e21b03f5f6d54984ebc3fcc6d8bfc217e8f83778615ce3e7bcf275",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            91,
+            99
+          ],
+          "caseDigest": "13fe200ce8cc31783f497913ce698909df451cbf320f2f1d043821203e20ef69",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            91,
+            100
+          ],
+          "caseDigest": "eb18bacb41efbc9af0ed66778a6a8931fa21aaef8dbf0b17ec312cdce38e486b",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Context identity ignores cosmetic and unrelated edits",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "1ec6d2e09"
+        },
+        {
+          "step": "GREEN",
+          "checked": true,
+          "annotation": "fd833c0fe"
+        },
+        {
+          "step": "REFACTOR",
+          "checked": true,
+          "annotation": "6569bc614"
+        },
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "5b965631f3417952425f2549aca7e1ca6c422b7e"
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            105,
+            112
+          ],
+          "caseDigest": "d3e6e973abf2396a79c2c9f6ba7fee931a7676cd39a7c83c794a08aca8c6b0fa",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            105,
+            113
+          ],
+          "caseDigest": "cc77f08980965437aafceec9a32d88d44f7fd90133b8bc9404c05cc05de1d090",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            105,
+            114
+          ],
+          "caseDigest": "378ad47edbbb0ed03f533d879ca1235b4e3ac8fedfa5908b88ffcbd8dfaedbb3",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            105,
+            115
+          ],
+          "caseDigest": "6e34f9dc6f80b31cc71abab0f81247996cfb5f15655bdf2f297555fab58dc157",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            105,
+            116
+          ],
+          "caseDigest": "19dc46339a26fe57fc90a615bffb785dcbc8a1e2524acdf6fb59e97c4a1ef008",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            105,
+            117
+          ],
+          "caseDigest": "5020350f19541460b49e6a8dc0e9bfa6bb8766e863f79510cc41df26469a80c7",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Installed contract identity controls authoring and approval",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            122,
+            129
+          ],
+          "caseDigest": "ed0dba7755eaa94522bc5fd827b1afc8de948fb122e7cb2c27be98f1c6c0445c",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            122,
+            130
+          ],
+          "caseDigest": "61a9869bcb13544085f16772be4fb95bc3cd280f1a4a15161a1e39b363634aa4",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            122,
+            131
+          ],
+          "caseDigest": "262c5253bf3a37751f260dc11edcf4f9e149a6bcd1e43ebda314670ea53c976a",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            122,
+            132
+          ],
+          "caseDigest": "dd22452fbd9e2e05a46f9a2455cd2c4cf58a8a372cd8c5e4fcc40936dbc13bb2",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            122,
+            133
+          ],
+          "caseDigest": "fd459da373cce63e76abb412f0b7036aa51712f91abed90abeacb49bb2e45170",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            122,
+            134
+          ],
+          "caseDigest": "c2fa0aed8272dba8d977801f7f54e60a1e8e9fa73f64f2c202cf79183a3e065c",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Local dispatch enforces canonical contract identity",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "9e0f7c2fc"
+        },
+        {
+          "step": "GREEN",
+          "checked": true,
+          "annotation": "9e0f7c2fc"
+        },
+        {
+          "step": "REFACTOR",
+          "checked": true,
+          "annotation": "skip: no structural change remained after the minimal gate fix"
+        },
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "9221612ef"
+        },
+        {
+          "step": "GREEN",
+          "checked": true,
+          "annotation": "b73b7ee89"
+        },
+        {
+          "step": "REFACTOR",
+          "checked": true,
+          "annotation": "skip: the minimal shared hook check needed no further restructuring"
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            137,
+            144
+          ],
+          "caseDigest": "1de962d7d6d253588aae03c496a3f0c08c7cd3e9f5d844485aa97c4364f470df",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            137,
+            145
+          ],
+          "caseDigest": "ea443e4649e3c13deb71a78300225918d50892697afc7e6e42c03d092148d4ee",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Cosmetic canonical changes preserve review currency but require copy reconciliation",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "e81dbf2a1"
+        },
+        {
+          "step": "GREEN",
+          "checked": true,
+          "annotation": "1d9c54b2d"
+        },
+        {
+          "step": "REFACTOR",
+          "checked": true,
+          "annotation": "skip: the status-only fingerprint and exact dispatch check needed no further restructuring"
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            148
+          ],
+          "caseDigest": "1577646c35c3f80e0945e0d5e5545baea0bd1288cf381baa61db280acb2eef82",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "The review gate follows the typed route result",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            156,
+            163
+          ],
+          "caseDigest": "bb10765d4eaa4929c66098cb131eb9d4335ade271d0f2c74e518ab7fefadfc29",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            156,
+            164
+          ],
+          "caseDigest": "e47f135f2da542c21501cd356b40f2a80bd1179dd0760612cbd2ba503f0742b5",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            156,
+            165
+          ],
+          "caseDigest": "bde0d89e2008bfb157caa2f76b8e63ab6bd5111f852ae7282c04e9ea6fa32e97",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            156,
+            166
+          ],
+          "caseDigest": "b4e0d3a4c5e375d0644403128945defe52f6d0efed72b5c0988fbc9df2fcde5f",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            156,
+            167
+          ],
+          "caseDigest": "47151af59fe4ae2452d8649a599e22319814d1e9eecb157cb54013053d98c7be",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            156,
+            168
+          ],
+          "caseDigest": "681f37cb8fd5c9e1bbba510abe3ddc01b5be6eec6a1adb500f03496d2c49499c",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            156,
+            169
+          ],
+          "caseDigest": "5c4f3fad20153df2a520af504ff269794528c3f26ce62faf418b759fa8e9b28d",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            156,
+            170
+          ],
+          "caseDigest": "9f921b920c01a594d1113c5941373dfce4b4f4a8a2ded8d3d718965486156297",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            156,
+            171
+          ],
+          "caseDigest": "27e9398e48a9e199e0f818d8f16b46b9009393934b883a31940d98dd21054be0",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Fallback cannot bypass an available independent route",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            180
+          ],
+          "caseDigest": "f14b415bc81fe2d2ecf4bdc052f1a50ffef81a1df369a9cb4492cb092f55d76b",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Independent approval requires a genuinely independent reviewer",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            185,
+            192
+          ],
+          "caseDigest": "e5429699a16e3f1962dd12194add83dd9e87df942975e86b0b659eb9ea0bacdb",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            185,
+            193
+          ],
+          "caseDigest": "c52b900c26517ef8687c959b7aa950d6e6fe8a2fc4f0b7a7c9cffb753e4aa93f",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            185,
+            194
+          ],
+          "caseDigest": "ad956e3ceae4a8579ab076197bd862b9236c2fc46d18a2863d5e71c009078f38",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            185,
+            195
+          ],
+          "caseDigest": "2fab5d7ddedce32bcd0528ca6b5fb25ec680b8ac62aaf808cbaf232d577258d0",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Route selection derives independence from configured model capability",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            197,
+            204
+          ],
+          "caseDigest": "c514a2ac0a0aefc089c7ce76b7415d3805ff6f028b568e5df36eddc611ec81b2",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            197,
+            205
+          ],
+          "caseDigest": "6ae5dd50a9de441b96112f191f395395376ccac694f0a84195cd958d3be3a8f2",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Exhausted routes advance through the fallback ladder in order",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "skip: characterization of already implemented ordered recovery; no missing production behavior found"
+        },
+        {
+          "step": "GREEN",
+          "checked": true,
+          "annotation": "85e9ee5a1"
+        },
+        {
+          "step": "REFACTOR",
+          "checked": true,
+          "annotation": "skip: shared installed-project fixture suffices; no production refactor needed"
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            219,
+            226
+          ],
+          "caseDigest": "882891477fda808be4b48f21fd24e16956898ea38e7d20b0a6c4fa327a017f4c",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            219,
+            227
+          ],
+          "caseDigest": "9ab3cb846bf484aeac3191f9fe92a13623a21055b9896d419c2def8049f81220",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            219,
+            228
+          ],
+          "caseDigest": "e1a36dd08a6c54a464e2d187e9a228b9a98ed8424f25dc06dc9068c2fd3fddaf",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Local phase gates enforce the real review result",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            231,
+            238
+          ],
+          "caseDigest": "e98c13ebd1393126c592404741551f70aa2122ec0ae3409bf9882c67b8570ceb",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            231,
+            239
+          ],
+          "caseDigest": "200b4276cd6dbc39a2fec77ef8669ffeca8bb6760ea20d248f189e8d9b5165b0",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            231,
+            240
+          ],
+          "caseDigest": "9d6726f00b686cf82c9071383936c43f4fb24d67347a9b8107dfcd37a9996067",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            231,
+            241
+          ],
+          "caseDigest": "44570c13613e30b5fa599e0f68c368eafcdf99c7eddc0f23a0656604853d0214",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            231,
+            242
+          ],
+          "caseDigest": "e7af189ac0c65a9ba8ec6e2fe25616ee3605394add63440ec28d326d6dd6abf0",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            231,
+            243
+          ],
+          "caseDigest": "7c839707839288c444a19297fe7f6baffb7e313607773e873646e77ec871f8b5",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            231,
+            244
+          ],
+          "caseDigest": "02fea069641325204834882adc820b65d12aa54dc1d63324ea95eaef65b58fdd",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            231,
+            245
+          ],
+          "caseDigest": "80d1d39067f84cf7e19095dbad53414bcf47d74149f0b476e37a38e15a10a778",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            231,
+            246
+          ],
+          "caseDigest": "b4762a827125515c338f565540fda98c3aeb5e7e231146ed6af626d31f886831",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "OpenCode CLI and TUI gates enforce the real review result",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [],
+      "deferredCases": [
+        {
+          "sourceLines": [
+            249,
+            256
+          ],
+          "caseDigest": "eee991501f06d1c0730734ef8a7216380c13fdbd2e084c16bee3835d78f2d2c0",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            249,
+            257
+          ],
+          "caseDigest": "1c856f93762f34b20b68720f50bb734a2ebb367bc16fa807127e51d2d9682b89",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            249,
+            258
+          ],
+          "caseDigest": "80177f0db15143556dcfaf90fec50cee5c5049b223076950c6f6ed4dceb91387",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            249,
+            259
+          ],
+          "caseDigest": "692e20e764b786d5e38e1b689b658481e5621528127cf7109538c21c3945d401",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            249,
+            260
+          ],
+          "caseDigest": "ca148cb03c7e8450de87f06ecb660a5e55470768c9cdd04a6053ca96e743bd16",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            249,
+            261
+          ],
+          "caseDigest": "0f4f9577b32957373da6401db774c3c31f183edcdc68d3c21093cdbbaf45ca04",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        }
+      ]
+    },
+    {
+      "heading": "Cloud phase gates enforce the real review result",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [],
+      "deferredCases": [
+        {
+          "sourceLines": [
+            264,
+            271
+          ],
+          "caseDigest": "13454fe29976b9591c908e914116fb5ddeea356f7f7def75d6ce9da136b15082",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            264,
+            272
+          ],
+          "caseDigest": "df24d4776fc80c388cb8037bf72e632a7989d642a9dcbe4eece9faa3f5544316",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            264,
+            273
+          ],
+          "caseDigest": "37cfb42a0c53fd668c19aa346900a5483ea536ed9db5d5e651fe7bed4b55dfd0",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            264,
+            274
+          ],
+          "caseDigest": "d9ba529653c23735460fdbf4b0d72ec45236ef5707b1e791cb702cf1649e0440",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            264,
+            275
+          ],
+          "caseDigest": "5164d87378c2977284550189940c0bb53aff833191dc5fdb1b57f0d319fcbd2d",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            264,
+            276
+          ],
+          "caseDigest": "539fbd633cc36a806dad5b3b928975248635243529102b8e74b2f685801e0517",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        }
+      ]
+    },
+    {
+      "heading": "Retrieved instructions cannot change accepted scope",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [],
+      "deferredCases": [
+        {
+          "sourceLines": [
+            282,
+            289
+          ],
+          "caseDigest": "72fa976b933e3c02e06b10d13955e1d41e02f1723539ac9230413383cc087cb8",
+          "owners": [
+            "FC33HK"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            282,
+            290
+          ],
+          "caseDigest": "bf3b2642983c3ba39cd4f6f2f1abd7421082a32e7394da36ceb80d951191f910",
+          "owners": [
+            "FC33HK"
+          ],
+          "status": "deferred-unverified"
+        }
+      ]
+    },
+    {
+      "heading": "Retrieved executable code remains untrusted evidence",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [],
+      "deferredCases": [
+        {
+          "sourceLines": [
+            293,
+            300
+          ],
+          "caseDigest": "21733f08c9d6318524ef5993e3267731cd0b51549e74d3d3b4c8c270181f3f9d",
+          "owners": [
+            "FC33HK"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            293,
+            301
+          ],
+          "caseDigest": "02a392ac77da546f39fe9d0dbde4308da50f18f3983ebaac5d33a2d5a3b32f59",
+          "owners": [
+            "FC33HK"
+          ],
+          "status": "deferred-unverified"
+        }
+      ]
+    },
+    {
+      "heading": "Private-context requests do not prevent public evidence use",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [],
+      "deferredCases": [
+        {
+          "sourceLines": [
+            304,
+            311
+          ],
+          "caseDigest": "052fa3c0535c89fe631f57e3512426d352f38657588887cc4e9a2cae070d58c8",
+          "owners": [
+            "FC33HK"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            304,
+            312
+          ],
+          "caseDigest": "f350c7bdc4f1e6ca89a43dc68cb710593803c0f1979fe94281804104a29838ed",
+          "owners": [
+            "FC33HK"
+          ],
+          "status": "deferred-unverified"
+        }
+      ]
+    },
+    {
+      "heading": "Reusable evidence records declared reuse limits",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [],
+      "deferredCases": [
+        {
+          "sourceLines": [
+            315,
+            322
+          ],
+          "caseDigest": "dddc7e849ee62363b0fe156495c9463d845e9146497aa3219950e439f2a7db57",
+          "owners": [
+            "FC33HK"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            315,
+            323
+          ],
+          "caseDigest": "e2c1c204be4633cabae7083508a6ecb06eef31a484c6cd39a401cc8ce92e0c91",
+          "owners": [
+            "FC33HK"
+          ],
+          "status": "deferred-unverified"
+        }
+      ]
+    },
+    {
+      "heading": "Evidence records do not invent absent limits",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [],
+      "deferredCases": [
+        {
+          "sourceLines": [
+            326,
+            333
+          ],
+          "caseDigest": "c63779fb2cfba9993d988a36798466282a2c9c179a6b36cc16077d936716dd35",
+          "owners": [
+            "FC33HK"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            326,
+            334
+          ],
+          "caseDigest": "abdca4a5d11170d31efeea7779451ac00cc871612266b7c1276632fc92b87918",
+          "owners": [
+            "FC33HK"
+          ],
+          "status": "deferred-unverified"
+        }
+      ]
+    },
+    {
+      "heading": "Reviewed artifacts and context remain evidence rather than instructions",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            336,
+            343
+          ],
+          "caseDigest": "11d0dc1572a5c03b4b6bc09d5d838a8e0dbf2b5e2d9c121e22e159a05f37218a",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            336,
+            344
+          ],
+          "caseDigest": "7c7c99964fec5511394c54637207a27530bf5fef17315c19900f8360d3799fbf",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            336,
+            345
+          ],
+          "caseDigest": "e3232df27447afce79fd21fa915998de61ba339af22cb04dd776096ba1b7c2bf",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Installed review dispatch preserves the retrieved-evidence trust boundary",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [],
+      "deferredCases": [
+        {
+          "sourceLines": [
+            348,
+            355
+          ],
+          "caseDigest": "a10b9ac57090975a6d7bc5dbebaacabd12c3e94451a7cbc375aa43ffe3b0424f",
+          "owners": [
+            "FC33HK"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            348,
+            356
+          ],
+          "caseDigest": "620c820dd60c7898e4fa82b11a34042991912b7fa24c162ac930a0b56eea6175",
+          "owners": [
+            "FC33HK"
+          ],
+          "status": "deferred-unverified"
+        }
+      ]
+    },
+    {
+      "heading": "Generated Codex Cloud instructions cannot claim a gated approval",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "5b965631f3417952425f2549aca7e1ca6c422b7e"
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            362
+          ],
+          "caseDigest": "623876cb006497653ca62bc3711e9e51ec60c1d2143f22d2a93b8318b298399e",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "OpenCode Desktop guidance cannot claim a gated approval",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "5b965631f3417952425f2549aca7e1ca6c422b7e"
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [],
+      "deferredCases": [
+        {
+          "sourceLines": [
+            368
+          ],
+          "caseDigest": "046e0ae66b8fe6594f8f406d3982a391479526c1ce470d054e6f09f942e6e70b",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        }
+      ]
+    },
+    {
+      "heading": "Generated OpenCode guidance identifies proven gated surfaces as enforced",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [],
+      "deferredCases": [
+        {
+          "sourceLines": [
+            376
+          ],
+          "caseDigest": "9b8df9b375f28b4a3918919045122e12b5b68c8beb521bbf668d69b77a23918e",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        }
+      ]
+    },
+    {
+      "heading": "Generated guidance identifies gated surfaces as enforced",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "5b965631f3417952425f2549aca7e1ca6c422b7e"
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            382,
+            389
+          ],
+          "caseDigest": "85b33e413d2afdc9e82e8b99a048b21d6e7f40ee81267915a989d2cffc8968e1",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "A declared change invalidates exactly its dependent reviews",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "80a46b0c3"
+        },
+        {
+          "step": "GREEN",
+          "checked": true,
+          "annotation": "15a7c84aa"
+        },
+        {
+          "step": "REFACTOR",
+          "checked": true,
+          "annotation": "15a7c84aa"
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            394,
+            401
+          ],
+          "caseDigest": "8be01045d2d34b6e26aca054b469cf04460186e1bfec74edf361c2d399211a00",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            394,
+            402
+          ],
+          "caseDigest": "3b90fe3a785a82efe0644cc65b9a92822a0856a2e6aebba0a1aaa9ffc57d40f9",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            394,
+            403
+          ],
+          "caseDigest": "3cfac8bd00256c7966384847ec9e5a1e810f6193ea5cd5ba18fb42978eeee347",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            394,
+            404
+          ],
+          "caseDigest": "b7371ff3505c3b3e1f028c4234ef27261e489816a42142ad7e6e65506b4c8bb3",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            394,
+            405
+          ],
+          "caseDigest": "daebffd102c457a1af7ab623ab5dd94391d96e50be95816f5e6e551305af0202",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            394,
+            406
+          ],
+          "caseDigest": "7e484d9155e1178441badc2c488f09646860ad7c0a92fed9cb82a02ef61f0484",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            394,
+            407
+          ],
+          "caseDigest": "75921169f6b19e9197f5a7c521ab871c1528d1a118766aa0c7192b6e03e9623e",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            394,
+            408
+          ],
+          "caseDigest": "6427455673d9bd181ee746e0169d594190eeef89ba0e9e0b3b9d00397bc2c6c6",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Invalidation follows the canonical Execution Planning dependency direction",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            410,
+            417
+          ],
+          "caseDigest": "46613695b760679e795dec4cc61b069205233cad053aaaf1f7cd574b0b746abc",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "An unsupported upstream invalidation direction blocks reconciliation",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "5b965631f3417952425f2549aca7e1ca6c422b7e"
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            420
+          ],
+          "caseDigest": "ef9c84396bf385233d416ecc332323adc101468ecda9475f3d2d119f0aa7aad7",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "An undecidable Execution invalidation contract blocks reconciliation",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            427
+          ],
+          "caseDigest": "b5095bda5855a7364bfa33369cc2f3400ea9d77daf4d7e687b304ac2c524f2b0",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "An approving receipt is valid only for its own ticket and review kind",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "018603c9b2be01f767e8382d28489fdb79ba9dab"
+        },
+        {
+          "step": "GREEN",
+          "checked": true,
+          "annotation": "a99837c0f"
+        },
+        {
+          "step": "REFACTOR",
+          "checked": true,
+          "annotation": "skip: No further source restructuring is needed; the shared fixture preserves existing assertions and all three native receipt scenarios pass."
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            434,
+            441
+          ],
+          "caseDigest": "cdb388a0b47fc42eabb2e830d39bdb37d6714b81411fcb2742dfe725e7ccfdaa",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            434,
+            442
+          ],
+          "caseDigest": "b85ec0172b63bd2177b017010d4e2590f02dcee229613b6d2afd9dcd1205a8f6",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            434,
+            443
+          ],
+          "caseDigest": "c90504405065fb5ddb05315bbec3f57e46e1caaffdcecbfa13b63b913f08852b",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Installed phase gates enforce invalidated review receipts",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            446,
+            453
+          ],
+          "caseDigest": "2fca32198614d6a6dac26f66cbee4144080e267153e6f1b2c6e331d76e20f11d",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            446,
+            454
+          ],
+          "caseDigest": "a63502b12dd4ee5986b448ff89b636d7cf144c6f6a4e433327000964b29a9586",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            446,
+            455
+          ],
+          "caseDigest": "bdc5b405564bb6d7412e2d6e835f9a953f953d4fd53e4cf45f597f6a64320f91",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": [
+        {
+          "sourceLines": [
+            446,
+            462
+          ],
+          "caseDigest": "f592c532e791fa639e1404066a9331b343bce3d74aa9d293f2f2c52c621c0335",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            446,
+            463
+          ],
+          "caseDigest": "616e93accaccbc686f23a58d836a58835bc40aa060e9595a2b924beec64cb8df",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            446,
+            464
+          ],
+          "caseDigest": "c8e916f77a7f798b16aabd3d55769a50984d30a134aff4694a1935675db76d6e",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        },
+        {
+          "sourceLines": [
+            446,
+            465
+          ],
+          "caseDigest": "1171ced01a6fd986643ae475d0bb1a1851598ea1583a878ed0a7d8440f88f516",
+          "owners": [
+            "MCWV4B"
+          ],
+          "status": "deferred-unverified"
+        }
+      ]
+    },
+    {
+      "heading": "Each planning contract declares its bounded decision",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            470,
+            477
+          ],
+          "caseDigest": "6817eb84542e64dbf7f010c25690a3e7da37d9f65fa86baa0873849264d7a57b",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            470,
+            478
+          ],
+          "caseDigest": "b472e4d2c979c7f68b9b3f39326deb7bd14760ac640aeaa4a24f830479e09053",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            470,
+            479
+          ],
+          "caseDigest": "444678dcf5ee5405370aee3caac5fbe7db39c5d1b1ea48b6e785b00063a81b33",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "An incomplete planning contract cannot pass completeness checking",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            482,
+            489
+          ],
+          "caseDigest": "115b56d27d3625bad53a90540ea87909acc578c7abebcaaa96330870db3d5e1f",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            482,
+            490
+          ],
+          "caseDigest": "b0c85f13c5e739dcbeeeebaf228cc82bdef84f18f74a3f1b7d6f4b63934cfc55",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            482,
+            491
+          ],
+          "caseDigest": "46706ec3d48b14c9259d8ed7f6da2cad0370c0a1334c2c53d7cf725fbd134886",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "A planning approval cannot claim its downstream state",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "ddaebbdb0cc9de196ac06ab6671c6493101b6d85"
+        },
+        {
+          "step": "GREEN",
+          "checked": true,
+          "annotation": "4b71e1817"
+        },
+        {
+          "step": "REFACTOR",
+          "checked": true,
+          "annotation": "skip: the shared judged-eval harness was extracted at its second use; no further cleanup is needed"
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            494,
+            501
+          ],
+          "caseDigest": "f52b293497751a46303f59f7bb06e7947bc1335e5f8e8464a708f95006472d60",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            494,
+            502
+          ],
+          "caseDigest": "3b0e6ebf9ada788e41474199967d750c1372982f70753f85c40c13a80eadf21f",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            494,
+            503
+          ],
+          "caseDigest": "c5873c975b124f3b07c3eb37457acb6f4eb0f0f31232296195686a5b2dee5ebe",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "A planning approval may claim its own bounded state",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "f6469b7a6"
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            505
+          ],
+          "caseDigest": "9bd8bc1a06c3cd4593beab7d78afd237f26776696a3e2eaa77a92ca0bee38928",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Finding authority controls whether a review may block",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            514,
+            521
+          ],
+          "caseDigest": "d1a0c17f9179d6bc9f983b4b68b59b636a53c6f59c50eb2beb77279b175ce442",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            514,
+            522
+          ],
+          "caseDigest": "84fdba2944c5d06f950a5b7bc6a0d5fa3e75cf00e827ebf85d6b16ee3a244faf",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            514,
+            523
+          ],
+          "caseDigest": "c5d258970d3293f0e3a095d131ef150ba062cddfd2f4e9d5694381351c3f10c5",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            514,
+            524
+          ],
+          "caseDigest": "e056841b251a5c25910cc661c1808b9c68c06aa2c1b2f921081dc96b0d5b28b4",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "The installed Implementation Plan gate enforces finding authority",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            527,
+            534
+          ],
+          "caseDigest": "25e61ff739b032a0fdf47e99271165a9a520ebd3e3486a2b458359a28941a004",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            527,
+            535
+          ],
+          "caseDigest": "ddd1c3153ade9259de0dc961834250b88b01cc1fae4337e63061b914aca11d96",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Corrected plan bytes cannot inherit the prior verdict",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            538
+          ],
+          "caseDigest": "d664327284f83b3cfa69fa428b999c48ec5c7ec86a3091a1f1b8a0769f965de9",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "A fresh verdict can clear the corrected-plan block",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            543
+          ],
+          "caseDigest": "670f8c42e23a6a21ad533d64b48cabb8c9f11b55fc2b8dbdd797b8ded95d672f",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "No binding scope source can be omitted from review",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            552,
+            559
+          ],
+          "caseDigest": "a55c01383c4b3d516acfef2abea527aa1bbef4db4c3d6d97ecf58b452702b342",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            552,
+            560
+          ],
+          "caseDigest": "7495415eb7e86cd6ba297c0769488c50b1502a9323572e69d8093eb891f0107b",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            552,
+            561
+          ],
+          "caseDigest": "ccb0ae7afd39267cf889fac068dbb257432ce141cb62ce540c66f97aa0116671",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            552,
+            562
+          ],
+          "caseDigest": "ee43d0313d767954f60cbb8b095b4e2f0f1c32a4bdbdc5f5ec0466c787c8a2f6",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            552,
+            563
+          ],
+          "caseDigest": "f0f892ec16b3bf8a0184505bbcae6832cd7e078623c20f1ff11a7f56197af4a8",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            552,
+            564
+          ],
+          "caseDigest": "6f72049e2c1cbf91fad8bd79e774e6c627b733d5cd911c2795562a995dea542d",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "The installed Implementation Plan gate enforces binding scope context",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "fdb19922f"
+        },
+        {
+          "step": "GREEN",
+          "checked": true,
+          "annotation": "0fd918965"
+        },
+        {
+          "step": "REFACTOR",
+          "checked": true,
+          "annotation": "skip: Shared fixture and judge/provider reuse are already isolated; no further extraction is needed for this paired proof."
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            567,
+            574
+          ],
+          "caseDigest": "84bc8f9ebdd48d5364a586c12c902936da0f21033e183161a78ed653a5f62bba",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            567,
+            575
+          ],
+          "caseDigest": "1f989d2d5725ae9e1f5f9248b9e1e20d95dd97fea53ead48550f76d40d7d8e4a",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Plan completeness is bidirectional",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "ddaebbdb0cc9de196ac06ab6671c6493101b6d85"
+        },
+        {
+          "step": "GREEN",
+          "checked": true,
+          "annotation": "481b2cc76"
+        },
+        {
+          "step": "REFACTOR",
+          "checked": true,
+          "annotation": "118e2a384"
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            580,
+            587
+          ],
+          "caseDigest": "b8e3627e11df9727d9d211a948f2b79365c9d7609b98f7320f9cbda7145d0286",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            580,
+            588
+          ],
+          "caseDigest": "7b3bbf0cec8b0be245f4c9c2a344c89b2eaf3cb3cef67eb324ecce6bc7bc0ca0",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            580,
+            589
+          ],
+          "caseDigest": "ac40a36a5644ddd75f756940285aaf9e9d2ee65e11b197365c35ec1040c91553",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "The installed Implementation Plan gate enforces bidirectional scope completeness",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            592,
+            599
+          ],
+          "caseDigest": "5e3bca9c22a38f06d9a08fdcf0e087842c29d1226ad6c133f6ecba59a2f4991a",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            592,
+            600
+          ],
+          "caseDigest": "f2c856e5fa32e5e40150216ccb8ab18b42676c605926eda1ac95bfca88d8f4d1",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            592,
+            601
+          ],
+          "caseDigest": "c3bbd8ea9c20fceb0bee04fc4e7d579db8814c7dcca478f4719e677f5cf44fa6",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Optional strengthening changes only through user authority",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            606,
+            613
+          ],
+          "caseDigest": "ebb525aaa0ae8f0b21de385a99068fe7eb4edacaf0fb2edb9c188f8120666c49",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            606,
+            614
+          ],
+          "caseDigest": "fcec5b7d29346775c040b0ffe6471365375b0cb75b49ee9a26df3429a443ab15",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "An undecided optional suggestion cannot alter or block the plan",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            616
+          ],
+          "caseDigest": "82190114057b22dd8515019c842b93e7d2727e054ac357aa43480408c14858e4",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Installed re-review retains a declined optional strengthening",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            622
+          ],
+          "caseDigest": "51fbd814c83fe4c0d2822e09b4189bac8700ebe5e6b4f42c5f600c3a0ee1ef01",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Guidance respects the accepted boundary",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            630,
+            637
+          ],
+          "caseDigest": "55ef02a46ed987a0b89381d46b32343af553eea6ca097367b3087c4b3ac00054",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            630,
+            638
+          ],
+          "caseDigest": "640fae1b3076f150eb77c4bf468b186014dfcdbb77504c51b7cb4ba819f82c6d",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            630,
+            639
+          ],
+          "caseDigest": "a7a105d1bacccc7e56c997457b4f0c8b59c0ef101b6aac08c7f9ddc6b79faad7",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Product Plan approval requires every accepted persona outcome",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            645,
+            652
+          ],
+          "caseDigest": "92deca52e259a3c1ee117848367add3536c3b58d3a5455df7366ed37d81ecb53",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            645,
+            653
+          ],
+          "caseDigest": "3055e5a22e0de901127bb70715f0f5714c1353ca190b81eae9957e16c5ef36a8",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            645,
+            654
+          ],
+          "caseDigest": "7855fb11d926e20f19eb9ce8f9a32242aeab5740b8f27bd572927f55e295ee03",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Product Plan approval requires honest epistemic status",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            657,
+            664
+          ],
+          "caseDigest": "09c55b1fb3fd422cc537ce6629d1daeb4987415dd0f78327a9d63e202728c352",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            657,
+            665
+          ],
+          "caseDigest": "32604be9fb5a1010942d830ba4a6a18e2f899a9b98c988d943f6c17084a5bf6a",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "Scenario review proves every applicable persona outcome",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": true,
+          "annotation": "dbe89f82c"
+        },
+        {
+          "step": "GREEN",
+          "checked": true,
+          "annotation": "fcc3afbf8"
+        },
+        {
+          "step": "REFACTOR",
+          "checked": true,
+          "annotation": "skip: no further refactor needed for the paired scenario-coverage proof"
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            668,
+            675
+          ],
+          "caseDigest": "ea021b2aa3dba275132d507d506ed0dd21ef1457a50fe31be7b348bca0d53aec",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            668,
+            676
+          ],
+          "caseDigest": "032cb0c6ecca1086750d0bf4a9a8a5b0c7dde88ecd89cd16e585b7b9dede0296",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    },
+    {
+      "heading": "The installed Product Plan gate enforces persona-outcome completeness",
+      "rows": [
+        {
+          "step": "RED",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "GREEN",
+          "checked": false,
+          "annotation": ""
+        },
+        {
+          "step": "REFACTOR",
+          "checked": false,
+          "annotation": ""
+        }
+      ],
+      "activeCases": [
+        {
+          "sourceLines": [
+            679,
+            686
+          ],
+          "caseDigest": "a9c4b29e53aeee5d8c850dd2b99dd0e74aae71fcdb2c785bd5f4ed812b08da64",
+          "status": "current-certification-not-issued"
+        },
+        {
+          "sourceLines": [
+            679,
+            687
+          ],
+          "caseDigest": "1e1dcdc430abec0d41806996cb051abc78e5bc3c127ce89560869b32c28758eb",
+          "status": "current-certification-not-issued"
+        }
+      ],
+      "deferredCases": []
+    }
+  ],
+  "unmappedCases": [
+    {
+      "name": "An unattempted independent route prevents exhausted-route approval",
+      "sourceLines": [
+        174
+      ],
+      "caseDigest": "e7299481d8b9406f16a9c6e1006df0121183e1cb39568576d1867527ddb48d81",
+      "status": "deferred-unverified",
+      "owners": [
+        "DRD65E"
+      ]
+    },
+    {
+      "name": "A genuinely weaker reviewer cannot provide independent approval",
+      "sourceLines": [
+        208
+      ],
+      "caseDigest": "181068c9c5a5564f1b29f9839a82010a52221b58a3021676c799d0eeda91309c",
+      "status": "deferred-unverified",
+      "owners": [
+        "KKP2R3"
+      ]
+    },
+    {
+      "name": "A genuinely weaker reviewer is excluded before independent launch",
+      "sourceLines": [
+        214
+      ],
+      "caseDigest": "b12277d29065eb421b6639c6088b597c1b6ba9a15b5aefd938166d4718bb13f8",
+      "status": "deferred-unverified",
+      "owners": [
+        "KKP2R3"
+      ]
+    }
+  ],
+  "crossScenario": {
+    "checked": false,
+    "annotation": "",
+    "status": "requires-whole-ticket-review-and-explicit-refactor-or-skip"
+  },
+  "normalPrerequisite": {
+    "status": "cross-scenario-review-completed-no-structural-refactor",
+    "reviewedRevision": "b722f9a27a1815abcfb08e6f6ca09dc7317efa46",
+    "sourceReviews": [
+      "88d41d12-3057-45e7-88c8-22c40c55f010",
+      "a5475f94-55f4-46c2-9419-b35ac27498a3",
+      "6b807574-31a6-429e-8dbc-6e8b999e644b"
+    ],
+    "resolvedFinding": {
+      "revision": "6bde6bfd0c7526dd23a002e19798826e5afeb841",
+      "review": "7109ebb6-e22f-4f5b-9c78-e2e649f338e1",
+      "claim": "Public guidance no longer claims verified OpenCode/cloud planning enforcement."
+    },
+    "currentLedgerSha256": "975589886672e20bbc74d3a472aefc896741f9e20d6817434cc98b7a339f069e",
+    "completionCredit": "none: current certification has not been issued"
+  }
+}
