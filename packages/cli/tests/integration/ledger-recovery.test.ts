@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -46,6 +46,7 @@ describe('bounded completion recovery through the public CLI', () => {
       },
     ]);
     expect(envelope.changed).toBe(false);
+    expect(readdirSync(root)).toEqual([]);
   });
 
   it('proves the same empty-project fixture reaches the existing retrospective scope guard', () => {
