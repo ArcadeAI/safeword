@@ -252,9 +252,7 @@ Every new public or lifecycle entry point receives a real wiring proof: CLI conf
 ### Affected surfaces
 
 - **Safeword CLI, Claude Code, OpenAI Codex, Cursor:** the real local phase boundary is covered by the shared wiring proof plus host-specific adapter integration.
-- **Claude Code Cloud and Cursor Cloud Agents:** the checked-in project hook path is covered in a fresh-project fixture; external provider execution remains outside deterministic proof.
-- **OpenCode CLI/TUI:** the profile plugin boundary is covered by exact-version real-process conformance; **OpenCode Desktop** is explicitly advisory and covered by generated-copy assertions.
-- **OpenAI Codex Cloud and Claude Code on the Web:** `skip:` the accepted feature marks them unaffected or advisory; no approval is claimed there.
+- **OpenCode and cloud hosts:** host enforcement and guidance verification are deferred to MCWV4B and unverified. Local fixtures do not establish those hosts. The known OpenCode enforcement-label conflict remains recorded in that follow-on ticket.
 
 ### Runtime boundaries
 
@@ -470,11 +468,21 @@ Implementation contract-byte change invalidates both reviews, while an
 Execution-only contract-byte change invalidates only Execution. Mock only the
 reviewer process; a packet-only assertion is supporting proof, not acceptance.
 
-The exact bounded canonical-contract identity decision (R4) has an uncommitted
-production correction in the current worktree. Its earlier RED receipt became
-stale after fixture changes; refresh authentic RED before claiming GREEN.
-R8's explicit advisory-only guidance correction is also present but uncommitted,
-with the same proof-refresh obligation. Neither correction is completed delivery.
+The earlier R4 characterization binds changes to the embedded reviewer rubric,
+but does not establish currency after the actual installed canonical authoring
+contract changes. The 2026-10-10 PDT regression exposes this gap in both a
+review's own contract and Execution's upstream Implementation contract: both
+canonical-file mutations leave both receipts approved. Correct the bounded
+installed-contract input in status reconstruction; keep exact full-copy
+integrity at authoring, dispatch, and admission separate. Dispatch and status in
+the primary proof must use the same copied distribution, and the mutation must
+provably change bytes inside the extracted canonical rubric. The six other
+dependency rows are positive controls. A fresh independent executable-RED
+receipt is required before implementation.
+
+R8's attempted OpenCode guidance correction was withdrawn at the user's
+direction. OpenCode guidance and host proofs belong to MCWV4B and remain
+deferred and unverified; no OpenCode production correction is present.
 
 R9's rejection of unsupported invalidation directions and removal of the
 snapshot-only upstream exception are committed at

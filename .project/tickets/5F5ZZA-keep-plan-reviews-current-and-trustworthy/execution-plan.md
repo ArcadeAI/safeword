@@ -27,8 +27,11 @@ coordinator and job store, an append-only review ledger, and phase admission.
 The stacked branches now implement the planning-context resolver, semantic
 review identity, generated shared contracts, and authenticated reduced-
 independence receipt path. Implementation does not establish current acceptance:
-R4 exact-contract and R8 guidance corrections are uncommitted and need fresh
-RED evidence after fixture changes before GREEN can be claimed. R9's
+R4's earlier embedded-rubric characterization does not prove currency after
+actual installed canonical authoring bytes change. The corrected 2026-10-10
+PDT regression reproduces that missing own-phase and upstream input; fresh
+independent RED and passing real-boundary proof are required. R8's OpenCode
+guidance correction was withdrawn and deferred to MCWV4B, not delivered. R9's
 unsupported-direction rejection and semantic upstream correction are committed
 at bf758b53f52d40f3d7288f285937dcb717554a26, with current-main verification and
 owning-slice placement pending. R9's upstream canonical-contract dependency
@@ -530,8 +533,9 @@ reopening its authority.
   GREEN/REFACTOR evidence, the pinned eval passes 2-of-3, and customer docs and
   contributor proofs are current. R7's planning-agent retrieval boundary remains
   unproved under the user's deferral; packet or judged proof cannot close it.
-  The open human deferral item prevents claiming complete R7, feature, or epic
-  acceptance. This bounded code-delivery signal grants no merge authority.
+  The user's 2026-10-10 PDT scope decision permits completion of the retained
+  local delivery; deferred proofs remain unverified in their follow-on tickets.
+  It does not establish complete original R7 coverage or grant merge authority.
 - **Relies on an unmerged successor:** no
 
 ### Tasks and tests

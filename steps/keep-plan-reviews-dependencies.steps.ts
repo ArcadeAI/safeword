@@ -1,20 +1,18 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
-import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../packages/cli/src/review/execution-plan-rubric.generated.js';
-import { PLAN_REVIEW_RUBRIC } from '../packages/cli/src/review/plan-rubric.generated.js';
 import { parsePlanningContract } from '../packages/cli/src/planning/phase-contract.js';
 import { parseDeliveryPlanContract } from '../packages/cli/src/execution-plan/delivery-checklist.js';
+import { extractExecutionPlanReviewRubric } from '../packages/cli/src/review/execution-plan-rubric.js';
+import { extractPlanReviewRubric } from '../packages/cli/src/review/plan-rubric.js';
 import {
   admitThroughInstalledCli,
   featureFixture,
-  installedReviewCli,
 } from '../packages/cli/tests/fixtures/execution-review.js';
 import { cleanupTrustedReviewerDirectories } from '../packages/cli/tests/review-fixtures.js';
 import type { SafewordWorld } from './world.js';
@@ -29,6 +27,33 @@ interface DependencyState {
   implementation: string;
   execution: string;
   observed?: readonly string[];
+  canonicalChanged?: boolean;
+}
+
+function executionAdmission(state: DependencyState): string {
+  const result = spawnSync('bun', [path.join(state.runtime, 'runtime/hooks/pre-tool-quality.ts')], {
+    cwd: state.root,
+    encoding: 'utf8',
+    timeout: 30_000,
+    input: JSON.stringify({
+      session_id: 'r9-dependency',
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: path.join(state.root, ticketDirectory, 'ticket.md'),
+        old_string: 'phase: plan-execution',
+        new_string: 'phase: implement',
+      },
+    }),
+    env: {
+      ...process.env,
+      XDG_STATE_HOME: path.join(state.root, '.review-keys'),
+      CLAUDE_PROJECT_DIR: state.root,
+      CLAUDE_PLUGIN_ROOT: state.runtime,
+    },
+  });
+  assert.equal(result.error, undefined, result.error?.message);
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  return result.stdout.trim();
 }
 
 function reviewStatuses(state: DependencyState): readonly string[] {
@@ -70,7 +95,8 @@ async function currentReceipts(world: SafewordWorld): Promise<void> {
         'utf8',
       )
         .replaceAll('CTX123', 'ABC123')
-        .replaceAll('features/current-context.feature', 'features/feature.feature');
+        .replaceAll('features/current-context.feature', 'features/feature.feature')
+        .replace('phase: plan-implementation', 'phase: plan-execution');
       writeFileSync(path.join(root, ticketDirectory, file), content);
     }
     writeFileSync(
@@ -81,7 +107,27 @@ async function currentReceipts(world: SafewordWorld): Promise<void> {
     rmSync(owned, { recursive: true, force: true });
   }
   cpSync(path.resolve(import.meta.dirname, '../plugin'), runtime, { recursive: true });
-  await admitThroughInstalledCli(installedReviewCli(root), root);
+  // Dispatch and currency reconstruction use the same installed distribution.
+  await admitThroughInstalledCli(async (args, options) => {
+    const reviewed = spawnSync('bun', [path.join(runtime, 'runtime/cli.js'), ...args], {
+      cwd: options.cwd,
+      encoding: 'utf8',
+      timeout: 60_000,
+      env: {
+        ...process.env,
+        ...options.env,
+        PATH: `${options.env.PATH}:${process.env.PATH ?? ''}`,
+        XDG_STATE_HOME: path.join(root, '.review-keys'),
+        CLAUDE_PLUGIN_ROOT: runtime,
+      },
+    });
+    assert.equal(reviewed.error, undefined, reviewed.error?.message);
+    return {
+      exitCode: reviewed.status ?? 1,
+      stdout: reviewed.stdout,
+      stderr: reviewed.stderr,
+    };
+  }, root);
   const ledger = readFileSync(path.join(root, '.project/skill-invocations.log'), 'utf8');
   for (const [field, kind] of [
     ['implementation', 'plan-implementation'],
@@ -97,6 +143,11 @@ async function currentReceipts(world: SafewordWorld): Promise<void> {
     reviewStatuses(state),
     ['approved', 'approved'],
     'both authentic receipts must start current',
+  );
+  assert.equal(
+    executionAdmission(state),
+    '',
+    'the current authenticated receipts must admit coding',
   );
 }
 
@@ -127,29 +178,21 @@ Given(
 );
 
 function changeCanonicalContract(state: DependencyState, implementation: boolean): void {
-  const prefix = implementation ? 'PLAN' : 'EXECUTION_PLAN';
-  const rubric = implementation ? PLAN_REVIEW_RUBRIC : EXECUTION_PLAN_REVIEW_RUBRIC;
-  const runtime = path.join(state.runtime, 'runtime/cli.js');
-  const bundle = readFileSync(runtime, 'utf8');
-  const start = bundle.indexOf(`var ${prefix}_REVIEW_RUBRIC = \``);
-  const end = bundle.indexOf(`${prefix}_REVIEW_RUBRIC_SHA256`, start);
-  assert.ok(start >= 0 && end > start);
+  const file = implementation ? 'PLAN_IMPLEMENTATION.md' : 'PLAN_EXECUTION.md';
   const before = '- **Purpose:**';
   const after = '- **Purpose:**   ';
-  const block = bundle.slice(start, end);
-  assert.ok(block.includes(before));
-  const digest = (content: string) => createHash('sha256').update(content).digest('hex');
-  const oldHash = digest(rubric);
-  const newHash = digest(rubric.replace(before, () => after));
-  assert.notEqual(oldHash, newHash);
-  assert.ok(bundle.includes(`${prefix}_REVIEW_RUBRIC_SHA256 = "${oldHash}"`));
-  writeFileSync(
-    runtime,
-    (bundle.slice(0, start) + block.replace(before, () => after) + bundle.slice(end)).replace(
-      `${prefix}_REVIEW_RUBRIC_SHA256 = "${oldHash}"`,
-      () => `${prefix}_REVIEW_RUBRIC_SHA256 = "${newHash}"`,
-    ),
-  );
+  const extract = implementation ? extractPlanReviewRubric : extractExecutionPlanReviewRubric;
+  // Change the actual canonical and installed authoring files, leaving the
+  // previously approved runtime and reviewer copy untouched.
+  for (const directory of ['templates/skills/bdd', 'skills/bdd']) {
+    const contract = path.join(state.runtime, directory, file);
+    const content = readFileSync(contract, 'utf8');
+    assert.ok(content.includes(before), `the ${file} contract must declare its purpose`);
+    const changed = content.replace(before, () => after);
+    assert.notEqual(extract(changed), extract(content), 'the exact bounded contract must change');
+    writeFileSync(contract, changed);
+  }
+  state.canonicalChanged = true;
 }
 
 function changeFile(
@@ -242,6 +285,16 @@ Then(
     const state = states.get(this);
     assert.ok(state?.observed);
     assert.deepEqual(state.observed, expectedStatuses[result], result);
+    if (state.canonicalChanged) {
+      const output = executionAdmission(state);
+      assert.notEqual(output, '', 'a changed canonical contract must not admit coding');
+      const denied = JSON.parse(output);
+      assert.equal(denied.hookSpecificOutput?.permissionDecision, 'deny', output);
+      assert.match(
+        denied.hookSpecificOutput?.permissionDecisionReason ?? '',
+        /contract|stale|review/iu,
+      );
+    }
   },
 );
 
