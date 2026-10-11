@@ -20,6 +20,16 @@ An unknown-command failure is not the required refusal.
 The remaining rows implement the already-reviewed plan; none is completed by
 the scope refusal above. Current certification never records historical RED.
 
+### Scenario: Recovery refuses rewritten historical proof
+
+Given the exact pinned original ledger, the gate still requires authenticated current proof.
+After a checked historical RED row is unchecked, the public gate reports
+LEDGER_RECOVERY_HISTORY_CHANGED and preserves the supplied bytes.
+
+- [x] RED 4ca627324
+- [x] GREEN 61994536f
+- [x] REFACTOR skip: the fixed profile and direct gate check need no structural change
+
 ### Scenario: Recovery preserves the exact original history
 
 Given the pinned 5F5ZZA ledger and authenticated current certification,
