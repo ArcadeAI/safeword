@@ -16108,7 +16108,7 @@ function schemaForSharedAgentRuntime(schema, needed) {
     return schema;
   return filterSchemaPaths(schema, (path3) => !isSharedAgentRuntimePath(path3));
 }
-var PLANNING_CONTRACT_TEMPLATE_PATHS, PLANNING_DATA_GUIDE_PATH = ".safeword/guides/data-architecture-guide.md", MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, SAFEWORD_TRANSIENT_ROOT_ENTRIES, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", TERMINAL_HANDOFF_CONTRACT_MARKERS, SAFEWORD_SCHEMA, ALL_SCHEMA_PATH_COLLECTIONS, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
+var PLANNING_CONTRACT_TEMPLATE_PATHS, PLANNING_DATA_GUIDE_PATH = ".safeword/guides/data-architecture-guide.md", LEDGER_RECOVERY_CONTRACT_PATH = ".safeword/guides/ledger-recovery-contract.md", MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, SAFEWORD_TRANSIENT_ROOT_ENTRIES, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", TERMINAL_HANDOFF_CONTRACT_MARKERS, SAFEWORD_SCHEMA, ALL_SCHEMA_PATH_COLLECTIONS, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
 var init_schema = __esm(() => {
   init_historical_ownership();
   init_inventory();
@@ -16646,6 +16646,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".cursor/agents/safeword-retro-filer.md": { template: "agents/safeword-retro-filer.md" },
       ".claude/agents/safeword-reviewer.md": { template: "agents/safeword-reviewer.md" },
       ".cursor/agents/safeword-reviewer.md": { template: "agents/safeword-reviewer.md" },
+      [LEDGER_RECOVERY_CONTRACT_PATH]: {
+        template: "guides/ledger-recovery-contract.md"
+      },
       ".safeword/guides/architecture-guide.md": {
         template: "guides/architecture-guide.md"
       },
@@ -35314,58 +35317,34 @@ approach. For a denial, return the record as null and name each blocking slice,
 field, obligation, dependency, proof, or decision in findings. Never approve
 because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "152e81c07e86af9d47f2edc1c45ba1cf750a0b16bab944ba87b96db520382445";
 
-// src/review/ledger-recovery-certification.ts
-function validRecoveryCertification(value, approval) {
-  if (!record(value) || Object.keys(value).length !== 3 || value.profile !== ledgerRecoveryProfileIdentity())
-    return false;
-  if (!Array.isArray(value.cases) || value.cases.length === 0 || new Set(value.cases).size !== value.cases.length)
-    return false;
-  if (value.cases.some((digest2) => !(typeof digest2 === "string" && activeCases.includes(digest2))))
-    return false;
-  const confirmations = value.confirmations;
-  return record(confirmations) && Object.keys(confirmations).length === RECOVERY_CONFIRMATIONS.length && RECOVERY_CONFIRMATIONS.every((name) => typeof confirmations[name] === "boolean" && (!approval || confirmations[name]));
-}
-function record(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-var RECOVERY_CONFIRMATIONS, activeCases, RECOVERY_CERTIFICATION_SCHEMA, LEDGER_RECOVERY_REVIEW_RUBRIC;
-var init_ledger_recovery_certification = __esm(() => {
-  init_ledger_recovery_cases();
-  init_ledger_recovery_profile();
-  RECOVERY_CONFIRMATIONS = [
-    "actor_boundary_fidelity",
-    "real_rejection_controls",
-    "source_fidelity",
-    "no_historical_red_claim",
-    "sole_exact_erratum",
-    "exact_unverified_deferrals"
-  ];
-  activeCases = ledger_recovery_cases_default.filter((item) => !item.deferred).map((item) => item.digest);
-  RECOVERY_CERTIFICATION_SCHEMA = {
-    type: "object",
-    properties: {
-      profile: { type: "string", enum: [ledgerRecoveryProfileIdentity()] },
-      cases: {
-        type: "array",
-        minItems: 1,
-        uniqueItems: true,
-        items: { type: "string", enum: activeCases }
-      },
-      confirmations: {
-        type: "object",
-        properties: Object.fromEntries(RECOVERY_CONFIRMATIONS.map((name) => [name, { type: "boolean" }])),
-        required: RECOVERY_CONFIRMATIONS,
-        additionalProperties: false
-      }
-    },
-    required: ["profile", "cases", "confirmations"],
-    additionalProperties: false
-  };
-  LEDGER_RECOVERY_REVIEW_RUBRIC = `Review only the installed 5F5ZZA recovery profile ${ledgerRecoveryProfileIdentity()}.
-Targets must include the same recovery manifest, recomputed evidence summary and installed recovery contract. Context is a bounded slice of the observation's resolved execution inputs. Inspect the actual cases using this slice, and identify those exact active case digests in recovery_certification.cases. Do not claim cases you have not assessed or treat file coverage as behavior coverage.
-Confirm all six obligations only when supported: actor_boundary_fidelity (actual contributor/host boundaries), real_rejection_controls (actual rejection assertions retain their causes), source_fidelity (frozen product and resolved execution inputs match the observed candidate), no_historical_red_claim (current passing proof never claims historical RED), sole_exact_erratum (only REFACTOR 15a7c84aa under \u201CA declared change invalidates exactly its dependent reviews\u201D receives the reviewed virtual correction), exact_unverified_deferrals (exactly 33 named cases remain deferred and unverified).
-An ordinary quality review, passing summary, same-agent receipt or stale provenance cannot grant certification. Do not invent findings to populate confirmations: findings report actual issues only. Return request_changes for unsupported certification, with its actual reason. This contract excludes OpenCode and cloud recovery and grants no merge, promotion or release authority.`;
-});
+// src/review/ledger-recovery-rubric.generated.ts
+var LEDGER_RECOVERY_REVIEW_RUBRIC = `# Bounded completion recovery for 5F5ZZA
+
+This contract applies only to the runtime's fixed 5F5ZZA profile. It grants no
+merge, promotion or release authority. OpenCode and cloud recovery are excluded.
+
+Review targets must contain the same recovery manifest, recomputed evidence
+summary and this installed contract. Context is a bounded slice of the signed
+observation's resolved execution inputs. Assess the actual cases using that
+slice and return their exact active digests in \`recovery_certification.cases\`.
+File coverage alone is insufficient. Do not claim unassessed cases.
+
+Approve certification only when all six obligations are supported:
+
+- \`actor_boundary_fidelity\`: proof exercises the actual contributor/host boundaries.
+- \`real_rejection_controls\`: rejection assertions retain their actual causes.
+- \`source_fidelity\`: frozen product and execution inputs match the producing candidate.
+- \`no_historical_red_claim\`: current proof makes no claim of historical RED work.
+- \`sole_exact_erratum\`: only REFACTOR 15a7c84aa under \u201CA declared change invalidates exactly its dependent reviews\u201D receives the approved virtual correction.
+- \`exact_unverified_deferrals\`: exactly the 33 named deferred cases remain unverified.
+
+Preserve original checkboxes and missing historical work. Current certification
+credits only the exact active scope. Ordinary quality review, a passing summary,
+same-agent approval and stale provenance cannot grant this certification.
+
+Findings contain actual issues only; do not invent findings to fill confirmation
+fields. Return \`request_changes\` with the actual reason for unsupported proof.
+`;
 
 // src/review/plan-rubric.generated.ts
 var PLAN_REVIEW_RUBRIC = `<!-- SAFEWORD:PLANNING_SHARED_START -->
@@ -35819,32 +35798,30 @@ function reviewerPromptInstructions(kind, reviewer, planningPhase) {
   return promptContract(kind, reviewer, planningPhase);
 }
 var QUALITY_REVIEW_FOCUS = "Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.", RETROSPECTIVE_ELIGIBILITY_RUBRIC = "Review only the CKWE2D retrospective migration. For every named scenario, compare its exact fixed-cutoff Given/When/Then body and cited baseline implementation blobs with current behavior. Cite each baseline implementation path and explain why the scenario behavior already existed at the named baseline commit. Reject a missing or changed scenario body, missing or mismatched baseline blob, ambiguous path mapping, post-cutoff-only implementation, or rationale that does not explain why ordinary RED evidence is unavailable. A passing current test alone does not prove historical implementation. Approval establishes historical eligibility only; each VERIFIED row still needs its own independently reviewed passing and behavior-removal proof.", RETROSPECTIVE_PROOF_RUBRIC = "Review only the CKWE2D retrospective migration. Judge the exact named test against every actor-facing Given/When/Then clause, whether the declared mutation removes that scenario's behavior, whether the reported failure is at its own assertion rather than syntax, setup, or unrelated behavior, and whether the declared support files cover every input that could flip the result. Inspect the request and observation for mismatched source identities or extra mutated differences. The review job is not execution evidence: the edit and done gates must independently rerun the request and compare its result with the reviewed observation. Approval covers only the named scenario and is insufficient without separate historical eligibility.", REVIEWER_PLACEHOLDER = "{{reviewer}}";
-var init_review_rubric = __esm(() => {
-  init_ledger_recovery_certification();
-});
+var init_review_rubric = () => {};
 
 // src/review/codex-app-server-proof.ts
-function record2(value) {
+function record(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function unique(messages2, predicate) {
-  const matches = messages2.filter((message) => record2(message) && predicate(message));
+  const matches = messages2.filter((message) => record(message) && predicate(message));
   return matches.length === 1 ? matches[0] : undefined;
 }
 function startedTurn(messages2) {
   const start = unique(messages2, (message) => message.id === 2);
   const turnStart = unique(messages2, (message) => message.id === 3);
-  if (!record2(start?.result) || !record2(start.result.thread) || !record2(turnStart?.result))
+  if (!record(start?.result) || !record(start.result.thread) || !record(turnStart?.result))
     return;
   const threadId = start.result.thread.id;
   const turn = turnStart.result.turn;
-  if (typeof threadId !== "string" || !record2(turn) || typeof turn.id !== "string")
+  if (typeof threadId !== "string" || !record(turn) || typeof turn.id !== "string")
     return;
   return { threadId, turnId: turn.id, start: start.result };
 }
 function completedTurn(messages2, threadId, turnId) {
-  const completed = unique(messages2, (message) => message.method === "turn/completed" && record2(message.params) && message.params.threadId === threadId && record2(message.params.turn) && message.params.turn.id === turnId);
-  if (!record2(completed?.params) || !record2(completed.params.turn))
+  const completed = unique(messages2, (message) => message.method === "turn/completed" && record(message.params) && message.params.threadId === threadId && record(message.params.turn) && message.params.turn.id === turnId);
+  if (!record(completed?.params) || !record(completed.params.turn))
     return;
   const finishedTurn = completed.params.turn;
   if (finishedTurn.status !== "completed" || !Array.isArray(finishedTurn.items))
@@ -35855,18 +35832,18 @@ function codexAppServerFailedTurn(messages2) {
   const started = startedTurn(messages2);
   if (started === undefined)
     return false;
-  return messages2.some((message) => record2(message) && message.method === "turn/completed" && record2(message.params) && message.params.threadId === started.threadId && record2(message.params.turn) && message.params.turn.id === started.turnId && message.params.turn.status === "failed");
+  return messages2.some((message) => record(message) && message.method === "turn/completed" && record(message.params) && message.params.threadId === started.threadId && record(message.params.turn) && message.params.turn.id === started.turnId && message.params.turn.status === "failed");
 }
 function finalAnswer(turn) {
   if (!Array.isArray(turn.items))
     return;
-  const answers = turn.items.filter((item) => record2(item) && item.type === "agentMessage" && item.phase === "final_answer" && typeof item.text === "string");
+  const answers = turn.items.filter((item) => record(item) && item.type === "agentMessage" && item.phase === "final_answer" && typeof item.text === "string");
   if (answers.length !== 1 || typeof answers[0]?.text !== "string")
     return;
   return answers[0].text;
 }
 function wasRerouted(messages2, threadId, turnId) {
-  return messages2.some((message) => record2(message) && message.method === "model/rerouted" && record2(message.params) && message.params.threadId === threadId && message.params.turnId === turnId);
+  return messages2.some((message) => record(message) && message.method === "model/rerouted" && record(message.params) && message.params.threadId === threadId && message.params.turnId === turnId);
 }
 function confirmedModel(start, selectedModel) {
   const model = start.model;
@@ -36038,8 +36015,8 @@ var init_environment = __esm(() => {
 function isEvidenceRecord(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value))
     return false;
-  const record3 = value;
-  return Object.keys(record3).length === EVIDENCE_RECORD_FIELDS.length && EVIDENCE_RECORD_FIELDS.every((field) => typeof record3[field] === "string" && record3[field].trim() !== "");
+  const record2 = value;
+  return Object.keys(record2).length === EVIDENCE_RECORD_FIELDS.length && EVIDENCE_RECORD_FIELDS.every((field) => typeof record2[field] === "string" && record2[field].trim() !== "");
 }
 function isPlanEvidenceRecord(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value))
@@ -36113,9 +36090,9 @@ function decisionTripwireFinding(value, index) {
   const name = isNonblank(value.decision) ? value.decision : `decision ${index + 1}`;
   return `Execution Plan decision "${name}" has status "${value.status}" instead of unchanged.`;
 }
-function readableTripwireFindings(record3) {
-  const sliceFindings = Array.isArray(record3.slices) ? record3.slices.map((slice, index) => successorTripwireFinding(slice, index)).filter((finding) => finding !== undefined) : [];
-  const decisionFindings = Array.isArray(record3.decision_statuses) ? record3.decision_statuses.map((decision, index) => decisionTripwireFinding(decision, index)).filter((finding) => finding !== undefined) : [];
+function readableTripwireFindings(record2) {
+  const sliceFindings = Array.isArray(record2.slices) ? record2.slices.map((slice, index) => successorTripwireFinding(slice, index)).filter((finding) => finding !== undefined) : [];
+  const decisionFindings = Array.isArray(record2.decision_statuses) ? record2.decision_statuses.map((decision, index) => decisionTripwireFinding(decision, index)).filter((finding) => finding !== undefined) : [];
   return [...sliceFindings, ...decisionFindings];
 }
 function isValidSlice(value) {
@@ -36246,9 +36223,9 @@ function hasValidDeliveryDefinition(definition) {
   }
   return hasUniqueDefinitionIds(definition) && hasEveryDefinitionCategory(definition) && contributorProofsAreReal(definition);
 }
-function hasValidSliceGraph(record3) {
-  const slices = record3.slices;
-  const countMatchesDecision = record3.slicing_decision === "one_pull_request" ? slices.length === 1 : slices.length >= 2;
+function hasValidSliceGraph(record2) {
+  const slices = record2.slices;
+  const countMatchesDecision = record2.slicing_decision === "one_pull_request" ? slices.length === 1 : slices.length >= 2;
   const sliceNames = slices.map((slice) => slice.name);
   const namesAreUnique = new Set(sliceNames).size === sliceNames.length;
   const prerequisitesAreEarlier = slices.every((slice, index) => {
@@ -36269,22 +36246,22 @@ function isValidObligationOwner(value, sliceNames, seen) {
   seen.add(value.obligation);
   return true;
 }
-function hasValidObligationOwners(record3) {
-  if (record3.obligation_owners.length === 0)
+function hasValidObligationOwners(record2) {
+  if (record2.obligation_owners.length === 0)
     return false;
-  const sliceNames = record3.slices.map((slice) => slice.name);
+  const sliceNames = record2.slices.map((slice) => slice.name);
   const seen = new Set;
-  const valid = record3.obligation_owners.every((owner) => isValidObligationOwner(owner, sliceNames, seen));
+  const valid = record2.obligation_owners.every((owner) => isValidObligationOwner(owner, sliceNames, seen));
   if (!valid)
     return false;
-  const owned = new Set(record3.obligation_owners.flatMap((owner) => owner.slices));
+  const owned = new Set(record2.obligation_owners.flatMap((owner) => owner.slices));
   return sliceNames.every((slice) => owned.has(slice));
 }
-function hasValidDecisionStatuses(record3) {
-  if (record3.decision_statuses.length === 0)
+function hasValidDecisionStatuses(record2) {
+  if (record2.decision_statuses.length === 0)
     return false;
   const seen = new Set;
-  return record3.decision_statuses.every((decision) => {
+  return record2.decision_statuses.every((decision) => {
     if (!isRecord6(decision) || !hasExactKeys3(decision, ["decision", "status"]))
       return false;
     if (!isNonblank(decision.decision) || seen.has(decision.decision))
@@ -36298,8 +36275,8 @@ function hasValidDecisionStatuses(record3) {
 function isValidExecutionPlanRecord(value) {
   if (!isRecord6(value) || !hasValidRecordHeader(value))
     return false;
-  const record3 = value;
-  return hasValidSliceGraph(record3) && hasValidObligationOwners(record3) && hasValidDecisionStatuses(record3) && hasValidDeliveryDefinition(record3.delivery_definition);
+  const record2 = value;
+  return hasValidSliceGraph(record2) && hasValidObligationOwners(record2) && hasValidDecisionStatuses(record2) && hasValidDeliveryDefinition(record2.delivery_definition);
 }
 function hasValidPlanningDestination(output) {
   const destination = output.planning_destination;
@@ -36330,6 +36307,55 @@ var NULL_EXECUTION_PLAN_RECORD;
 var init_execution_plan_output = __esm(() => {
   init_delivery_checklist();
   NULL_EXECUTION_PLAN_RECORD = JSON.parse("null");
+});
+
+// src/review/ledger-recovery-certification.ts
+function validRecoveryCertification(value, approval) {
+  if (!record2(value) || Object.keys(value).length !== 3 || value.profile !== ledgerRecoveryProfileIdentity())
+    return false;
+  if (!Array.isArray(value.cases) || value.cases.length === 0 || new Set(value.cases).size !== value.cases.length)
+    return false;
+  if (value.cases.some((digest2) => !(typeof digest2 === "string" && activeCases.includes(digest2))))
+    return false;
+  const confirmations = value.confirmations;
+  return record2(confirmations) && Object.keys(confirmations).length === RECOVERY_CONFIRMATIONS.length && RECOVERY_CONFIRMATIONS.every((name) => typeof confirmations[name] === "boolean" && (!approval || confirmations[name]));
+}
+function record2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+var RECOVERY_CONFIRMATIONS, activeCases, RECOVERY_CERTIFICATION_SCHEMA;
+var init_ledger_recovery_certification = __esm(() => {
+  init_ledger_recovery_cases();
+  init_ledger_recovery_profile();
+  RECOVERY_CONFIRMATIONS = [
+    "actor_boundary_fidelity",
+    "real_rejection_controls",
+    "source_fidelity",
+    "no_historical_red_claim",
+    "sole_exact_erratum",
+    "exact_unverified_deferrals"
+  ];
+  activeCases = ledger_recovery_cases_default.filter((item) => !item.deferred).map((item) => item.digest);
+  RECOVERY_CERTIFICATION_SCHEMA = {
+    type: "object",
+    properties: {
+      profile: { type: "string", enum: [ledgerRecoveryProfileIdentity()] },
+      cases: {
+        type: "array",
+        minItems: 1,
+        uniqueItems: true,
+        items: { type: "string", enum: activeCases }
+      },
+      confirmations: {
+        type: "object",
+        properties: Object.fromEntries(RECOVERY_CONFIRMATIONS.map((name) => [name, { type: "boolean" }])),
+        required: RECOVERY_CONFIRMATIONS,
+        additionalProperties: false
+      }
+    },
+    required: ["profile", "cases", "confirmations"],
+    additionalProperties: false
+  };
 });
 
 // src/review/runtime.ts
@@ -63658,8 +63684,27 @@ function hasCurrentFingerprint(cwd, record3) {
     return false;
   }
 }
-function approvedLedgerRecoveryReview(_cwd, _id) {
-  return;
+function approvedLedgerRecoveryReview(cwd, id2) {
+  try {
+    const record3 = readJob(cwd, id2);
+    const data = record3.result?.data;
+    const output = data?.reviewer_output;
+    const certification = output?.recovery_certification;
+    if (!validRecoveryCertification(certification, true))
+      return;
+    const approved2 = [
+      record3.kind === "ledger-recovery",
+      record3.state === "completed",
+      hasCurrentFingerprint(cwd, record3),
+      hasIndependentApproval(data),
+      ["claude", "codex", "cursor"].includes(data?.author_agent),
+      ["claude", "codex"].includes(data?.actual_reviewer),
+      output?.verdict === "approve"
+    ].every(Boolean);
+    return approved2 ? { targets: effectiveReviewTargets(cwd, record3), context: record3.context, certification } : undefined;
+  } catch {
+    return;
+  }
 }
 function approvedRetrospectiveReview(cwd, id2, kind) {
   try {
@@ -63825,6 +63870,7 @@ var init_job = __esm(() => {
   init_contract();
   init_coordinator();
   init_execution_plan_output();
+  init_ledger_recovery_certification();
   init_ledger_recovery_profile();
   init_packet();
   init_planning_context_error();

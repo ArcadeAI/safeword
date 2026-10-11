@@ -72,8 +72,3 @@ export function validRecoveryCertification(
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
-
-export const LEDGER_RECOVERY_REVIEW_RUBRIC = `Review only the installed 5F5ZZA recovery profile ${ledgerRecoveryProfileIdentity()}.
-Targets must include the same recovery manifest, recomputed evidence summary and installed recovery contract. Context is a bounded slice of the observation's resolved execution inputs. Inspect the actual cases using this slice, and identify those exact active case digests in recovery_certification.cases. Do not claim cases you have not assessed or treat file coverage as behavior coverage.
-Confirm all six obligations only when supported: actor_boundary_fidelity (actual contributor/host boundaries), real_rejection_controls (actual rejection assertions retain their causes), source_fidelity (frozen product and resolved execution inputs match the observed candidate), no_historical_red_claim (current passing proof never claims historical RED), sole_exact_erratum (only REFACTOR 15a7c84aa under “A declared change invalidates exactly its dependent reviews” receives the reviewed virtual correction), exact_unverified_deferrals (exactly 33 named cases remain deferred and unverified).
-An ordinary quality review, passing summary, same-agent receipt or stale provenance cannot grant certification. Do not invent findings to populate confirmations: findings report actual issues only. Return request_changes for unsupported certification, with its actual reason. This contract excludes OpenCode and cloud recovery and grants no merge, promotion or release authority.`;

@@ -50,6 +50,10 @@
       "sha256": "35b82657cbea2fa0195391f2033ad9ec0635567a32f1330badfc13077ebc961a"
     },
     {
+      "path": "resources/guides/ledger-recovery-contract.md",
+      "sha256": "58c39dfec88c65dcaa584eb0537048614245d2cf1911e4aa0106dd99e2cc6462"
+    },
+    {
       "path": "resources/guides/llm-evals-guide.md",
       "sha256": "deab002e6cb9ddb9adea1040f16b56fdcf8b8ec3a9520acb5d91e7523162719c"
     },
@@ -155,7 +159,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "40bf5fd9a8875a0f304d50f0417f8fcc120b48332c595795953fb95a0f572561"
+      "sha256": "b6ea461cb17f70022b1736b2b3f406c7134cd0029f66cdcaf253ec880d9d1933"
     },
     {
       "path": "runtime/dispatch.js",
@@ -1044,6 +1048,10 @@
     {
       "path": "templates/guides/learning-extraction.md",
       "sha256": "f7cebad40f6b1f4f61cec68535a4424bfecb795366384b37138570b716aa5965"
+    },
+    {
+      "path": "templates/guides/ledger-recovery-contract.md",
+      "sha256": "58c39dfec88c65dcaa584eb0537048614245d2cf1911e4aa0106dd99e2cc6462"
     },
     {
       "path": "templates/guides/llm-evals-guide.md",

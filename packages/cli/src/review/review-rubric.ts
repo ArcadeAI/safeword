@@ -1,7 +1,7 @@
 import type { ReviewKind, ReviewPacket } from './contract.js';
 import { DELIVERY_COMPATIBILITY_REVIEW_RUBRIC } from './delivery-compatibility-rubric.generated.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
-import { LEDGER_RECOVERY_REVIEW_RUBRIC } from './ledger-recovery-certification.js';
+import { LEDGER_RECOVERY_REVIEW_RUBRIC } from './ledger-recovery-rubric.generated.js';
 import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { PRODUCT_PLAN_REVIEW_RUBRIC } from './product-plan-rubric.generated.js';
 import { QUALITY_REVIEW_RUBRIC } from './quality-rubric.generated.js';

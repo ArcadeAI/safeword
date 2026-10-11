@@ -11,6 +11,7 @@ import { codexPluginHookCommand, type CodexPluginHookEntry } from '../src/codex-
 import { VERSION } from '../src/version.js';
 import { generateDeliveryCompatibilityRubric } from './generate-delivery-compatibility-rubric.js';
 import { generateExecutionPlanRubric } from './generate-execution-plan-rubric.js';
+import { generateLedgerRecoveryRubric } from './generate-ledger-recovery-rubric.js';
 import { generatePlanRubric } from './generate-plan-rubric.js';
 import { generateQualityRubric } from './generate-quality-rubric.js';
 import { generateRedRubric } from './generate-red-rubric.js';
@@ -41,6 +42,7 @@ if (
 }
 
 const rubricResults = [
+  generateLedgerRecoveryRubric(options.checkOnly),
   generateScenarioRubric(options.checkOnly),
   generatePlanRubric(options.checkOnly),
   generateExecutionPlanRubric(options.checkOnly),
