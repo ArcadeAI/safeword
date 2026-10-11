@@ -274,9 +274,18 @@ export async function runJudgedNativeReview(
     assert.equal(data.reviewer_model, 'gpt-6.1-sol');
     assert.deepEqual(data.confirmed_reviewer_model, { provider: 'openai', model: 'gpt-6.1-sol' });
     assert.equal(data.independence, 'cross-agent');
+    // The coordinator authenticated this dispatch. The separately prepared
+    // fixture packet has the same semantic inputs but its own correlation ID.
+    const dispatchedCase = {
+      ...judgeCase,
+      context: JSON.stringify({
+        ...JSON.parse(judgeCase.context),
+        dispatch_id: data.reviewer_output.dispatch_id,
+      }),
+    };
     const grade = callClaude(
       'claude-sonnet-5',
-      planningJudgePrompt(judgeCase, data.reviewer_output, 'codex'),
+      planningJudgePrompt(dispatchedCase, data.reviewer_output, 'codex'),
       schema,
       judgeEnvironment,
     ) as { correct: boolean; reason: string };
