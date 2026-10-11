@@ -728,7 +728,7 @@ nonblocking review limits remain retained.
 
 ### Scenario: A declared change invalidates exactly its dependent reviews
 
-- [ ] RED
+- [x] RED 80a46b0c3
 - [ ] GREEN
 - [ ] REFACTOR
 
