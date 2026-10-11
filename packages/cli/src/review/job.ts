@@ -180,6 +180,19 @@ export function validRetrospectiveCloseTag(cwd: string, content: string, tag: st
   }
 }
 
+/** Recovery observations have their own protocol; no CKWE2D authority is borrowed. */
+export function ledgerRecoveryObservationTag(_cwd: string, _content: string): string {
+  return '';
+}
+
+export function validLedgerRecoveryObservationTag(
+  _cwd: string,
+  _content: string,
+  _tag: string,
+): boolean {
+  return false;
+}
+
 interface LedgerFingerprintContext {
   readonly context: readonly string[];
   readonly missing: boolean;

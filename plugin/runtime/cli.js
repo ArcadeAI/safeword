@@ -31524,16 +31524,21 @@ function retryCommand(kind, targets, context = [], execution) {
   return `safeword review run ${kind}${contextOption}${executionOptions} -- ${quoted}`;
 }
 
+// src/review/ledger-recovery-cases.json
+var init_ledger_recovery_cases = () => {};
+
 // src/review/ledger-recovery-profile.ts
 var LEDGER_RECOVERY_PROFILE;
 var init_ledger_recovery_profile = __esm(() => {
+  init_ledger_recovery_cases();
   LEDGER_RECOVERY_PROFILE = {
     ticket: "5F5ZZA",
     baseline: "b722f9a27a1815abcfb08e6f6ca09dc7317efa46",
     ledger: ".project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/test-definitions.md",
     ledgerSha256: "975589886672e20bbc74d3a472aefc896741f9e20d6817434cc98b7a339f069e",
     feature: "features/keep-plan-reviews-current-and-trustworthy.feature",
-    featureSha256: "9c2d14f1442c8acf483cf6e7e08533812826258ec24faf4f1516dfa1309f86ac"
+    featureSha256: "9c2d14f1442c8acf483cf6e7e08533812826258ec24faf4f1516dfa1309f86ac",
+    authoritySha256: "9eb05409f76bc20632f7aba249c2d6c3a41072b8bb877f18b4eac64039ebab28"
   };
 });
 
@@ -60314,6 +60319,7 @@ var exports_job = {};
 __export(exports_job, {
   withFileLock: () => withFileLock,
   validRetrospectiveCloseTag: () => validRetrospectiveCloseTag,
+  validLedgerRecoveryObservationTag: () => validLedgerRecoveryObservationTag,
   submitReviewContinuation: () => submitReviewContinuation,
   startReviewJob: () => startReviewJob,
   reviewJobWorkerInput: () => reviewJobWorkerInput,
@@ -60322,6 +60328,7 @@ __export(exports_job, {
   retrospectiveCloseTag: () => retrospectiveCloseTag,
   relayManagedWorkerStderr: () => relayManagedWorkerStderr,
   readReviewRouteProofs: () => readReviewRouteProofs,
+  ledgerRecoveryObservationTag: () => ledgerRecoveryObservationTag,
   executableRedGate: () => executableRedGate,
   completeReviewJob: () => completeReviewJob,
   cancelReviewJob: () => cancelReviewJob,
@@ -60424,6 +60431,12 @@ function validRetrospectiveCloseTag(cwd, content, tag) {
   } catch {
     return false;
   }
+}
+function ledgerRecoveryObservationTag(_cwd, _content) {
+  return "";
+}
+function validLedgerRecoveryObservationTag(_cwd, _content, _tag) {
+  return false;
 }
 function ledgerFingerprintContext(cwd, targets, context, execution) {
   if (execution === undefined)
