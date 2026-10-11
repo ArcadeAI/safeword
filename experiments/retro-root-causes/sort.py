@@ -133,7 +133,7 @@ def api(method: str, path: str, body: dict | None = None) -> dict:
         return json.loads(resp.read())
 
 
-def submit_and_wait(chunk: dict[str, dict]) -> list[dict]:
+def submit(chunk: dict[str, dict]) -> str:
     batch = api(
         "POST",
         "/batches",
@@ -145,7 +145,7 @@ def submit_and_wait(chunk: dict[str, dict]) -> list[dict]:
         },
     )
     print(f"  batch {batch['id']}: {len(chunk)} requests", flush=True)
-    return wait(batch["id"])
+    return batch["id"]
 
 
 def wait(batch_id: str) -> list[dict]:
@@ -181,8 +181,12 @@ def run_batch(name: str, params_by_id: dict[str, dict]) -> dict[str, dict]:
     tokens_in = tokens_out = 0
     ids = list(params_by_id)
     print(f"{name}: {len(ids)} requests", flush=True)
-    for i in range(0, len(ids), CHUNK):
-        for r in submit_and_wait({cid: params_by_id[cid] for cid in ids[i : i + CHUNK]}):
+    batch_ids = [
+        submit({c: params_by_id[c] for c in ids[i : i + CHUNK]}) for i in range(0, len(ids), CHUNK)
+    ]
+    (DATA / f"{name}.batches").write_text("\n".join(batch_ids) + "\n")
+    for batch_id in batch_ids:
+        for r in wait(batch_id):
             resp = r.get("response") or {}
             msg = resp.get("body") or {}
             if r.get("error") or resp.get("status_code") != 200:
@@ -279,23 +283,50 @@ def cmd_assign() -> None:
     ids = [c["id"] for c in causes]
     schema = {
         "type": "object",
-        "properties": {"cause": {"type": "string", "enum": ids}},
-        "required": ["cause"],
+        "properties": {
+            "assignments": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "issue": {"type": "integer"},
+                        "cause": {"type": "string", "enum": ids},
+                    },
+                    "required": ["issue", "cause"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        "required": ["assignments"],
         "additionalProperties": False,
     }
-    system = "Assign the issue to exactly one root cause. Root causes:\n\n" + "\n\n".join(
-        f"{c['id']}: {c['name']}\n{c['description']}\n"
-        f"Typical mechanisms: {', '.join(c['mechanisms'])}"
-        for c in causes
-    )
-    by_number = {str(i["number"]): i for i in load_issues()}
-    params = {
-        n: json_params(
-            system, f"{issue_text(by_number[n])}\n\nLabel: {json.dumps(lab)}", schema, "low", 2048
+    system = (
+        "Assign every labelled issue below to exactly one root cause; return one entry per issue.\n"
+        "Root causes:\n\n"
+        + "\n\n".join(
+            f"{c['id']}: {c['name']}\n{c['description']}\n"
+            f"Typical mechanisms: {', '.join(c['mechanisms'])}"
+            for c in causes
         )
-        for n, lab in labels.items()
+    )
+    numbers = sorted(labels, key=int)
+    params = {
+        f"chunk-{i}": json_params(
+            system,
+            compact_labels({n: labels[n] for n in numbers[i : i + 100]}),
+            schema,
+            "low",
+            16000,
+        )
+        for i in range(0, len(numbers), 100)
     }
-    run_batch("assignments", params)
+    chunks = run_batch("assignments-raw", params)
+    assign = {
+        str(a["issue"]): {"cause": a["cause"]} for c in chunks.values() for a in c["assignments"]
+    }
+    missing = set(labels) - set(assign)
+    print(f"assigned {len(assign)}/{len(labels)}; missing {len(missing)}")
+    (DATA / "assignments.json").write_text(json.dumps(assign, indent=1))
 
 
 def cmd_report() -> None:
