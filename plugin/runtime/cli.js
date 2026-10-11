@@ -62416,7 +62416,7 @@ async function createSetupPlan(cwd, schema, options = {}) {
         ...plannedNamespaceEffects(cwd, migrateNamespace),
         ...compatibilityFiles,
         ...plannedPackEffects(cwd),
-        ...plannedCodexBootstrapEffect(cwd, options.codexBootstrap),
+        ...plannedCodexBootstrapEffect(cwd, options.codexSelected),
         ...plannedArchitectureEffects(cwd),
         ...plannedWorkspaceEffects(cwd, context),
         ...plannedOptionalEslintEffects(cwd, context, options.noModify),
@@ -62545,7 +62545,7 @@ async function convergeSetupValidated(cwd, options) {
       offline: options.offline === true,
       packageJsonCreated,
       noModify: options.noModify === true,
-      codexBootstrap: options.codexBootstrap,
+      codexSelected: options.codexSelected,
       namespaceMigration,
       preliminaryFileEffects: [...versionMarkerEffects, ...freshDefaultEffects],
       adapters,
@@ -63126,7 +63126,7 @@ async function applySetup(cwd, input) {
   };
   try {
     applyCompatibilityMigrations(cwd, completedEffects);
-    convergeCodexBootstrap(cwd, input.codexBootstrap, completedEffects);
+    convergeCodexBootstrap(cwd, input.codexSelected, completedEffects);
     const codexHandoffFindings = migrateLegacyCodexDuringSetup(cwd, completedEffects, input.offline);
     const architectureEffects = observeFileStage(cwd, [".safeword/depcruise-config.cjs", ".dependency-cruiser.cjs"], completedEffects, () => adapters.configureArchitecture(cwd));
     observeFileStage(cwd, workspacePackageJsonTargets(cwd, context), completedEffects, () => adapters.configureWorkspaces(cwd, context));
@@ -63468,7 +63468,7 @@ async function installProjectSurface(invocation, agents) {
   const projectSchema = projectLifecycleSchema(invocation.cwd, agents);
   return convergeSetup(invocation.cwd, {
     offline: invocation.offline,
-    codexBootstrap: agents.includes("codex"),
+    codexSelected: agents.includes("codex"),
     noModify: invocation.options.modify === false,
     repairVersionMarker: invocation.options.repairVersionMarker === true,
     migrateNamespace: typeof invocation.options.migrateNamespace === "boolean" ? invocation.options.migrateNamespace : undefined,
@@ -63573,7 +63573,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
   const project = uninstalling ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema) : {
     plan: await createSetupPlan(cwd, projectSchema, {
       ...installOptions,
-      codexBootstrap: selected.has("codex")
+      codexSelected: selected.has("codex")
     }),
     dryRun: undefined
   };

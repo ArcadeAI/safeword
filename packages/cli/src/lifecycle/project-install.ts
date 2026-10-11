@@ -413,7 +413,8 @@ function pythonObservationTargets(cwd: string): string[] {
 }
 
 export interface SetupPlanOptions {
-  readonly codexBootstrap?: boolean;
+  /** Codex was selected; omitted means selected, preserving pre-selection callers. */
+  readonly codexSelected?: boolean;
   readonly migrateNamespace?: boolean;
   readonly noModify?: boolean;
   readonly repairVersionMarker?: boolean;
@@ -586,7 +587,7 @@ export async function createSetupPlan(
         ...plannedNamespaceEffects(cwd, migrateNamespace),
         ...compatibilityFiles,
         ...plannedPackEffects(cwd),
-        ...plannedCodexBootstrapEffect(cwd, options.codexBootstrap),
+        ...plannedCodexBootstrapEffect(cwd, options.codexSelected),
         ...plannedArchitectureEffects(cwd),
         ...plannedWorkspaceEffects(cwd, context),
         ...plannedOptionalEslintEffects(cwd, context, options.noModify),
@@ -711,7 +712,7 @@ function publicRetroConfigRefusal(cwd: string): CliResult | undefined {
 }
 
 interface ConvergeSetupOptions {
-  codexBootstrap?: boolean;
+  codexSelected?: boolean;
   offline?: boolean;
   noModify?: boolean;
   migrateNamespace?: boolean;
@@ -789,7 +790,7 @@ async function convergeSetupValidated(
       offline: options.offline === true,
       packageJsonCreated,
       noModify: options.noModify === true,
-      codexBootstrap: options.codexBootstrap,
+      codexSelected: options.codexSelected,
       namespaceMigration,
       preliminaryFileEffects: [...versionMarkerEffects, ...freshDefaultEffects],
       adapters,
@@ -1434,7 +1435,7 @@ function applyPackageCompatibility(
 }
 
 interface ApplySetupInput {
-  readonly codexBootstrap?: boolean;
+  readonly codexSelected?: boolean;
   readonly configured: boolean;
   readonly offline: boolean;
   readonly packageJsonCreated: boolean;
@@ -1579,7 +1580,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
 
   try {
     applyCompatibilityMigrations(cwd, completedEffects);
-    convergeCodexBootstrap(cwd, input.codexBootstrap, completedEffects);
+    convergeCodexBootstrap(cwd, input.codexSelected, completedEffects);
     const codexHandoffFindings = migrateLegacyCodexDuringSetup(
       cwd,
       completedEffects,
