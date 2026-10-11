@@ -729,7 +729,7 @@ nonblocking review limits remain retained.
 ### Scenario: A declared change invalidates exactly its dependent reviews
 
 - [x] RED 80a46b0c3
-- [ ] GREEN
+- [x] GREEN 15a7c84aa
 - [ ] REFACTOR
 
 ### Scenario: Invalidation follows the canonical Execution Planning dependency direction
