@@ -102,8 +102,9 @@ export function codexProjectBootstrapEnrolled(cwd: string): boolean {
     const content = readFileSync(configPath, 'utf8');
     return content.includes(BEGIN_MARKER) || content.includes(BOOTSTRAP_COMMAND);
   } catch {
-    // Let the install path report an unsafe or unreadable config.
-    return true;
+    // An unsafe or unreadable config is not proof of enrollment. Selecting
+    // Codex still reaches the install path, which reports it.
+    return false;
   }
 }
 

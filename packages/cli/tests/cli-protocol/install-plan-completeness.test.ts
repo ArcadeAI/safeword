@@ -8,6 +8,7 @@ import {
   readFileSync,
   readlinkSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import nodePath from 'node:path';
@@ -1013,5 +1014,22 @@ fs.writeFileSync("package-lock.json", JSON.stringify(lock, null, 2) + "\\n");
     const config = readFileSync(nodePath.join(directory, '.codex/config.toml'), 'utf8');
     expect(config).toContain('model = "kept"');
     expect(config).toContain('safeword@latest codex bootstrap');
+  });
+
+  it('leaves an unsafe Codex config alone when Codex is not selected', async () => {
+    const directory = temporaryDirectory();
+    const target = nodePath.join(directory, 'elsewhere.toml');
+    writeFileSync(target, 'model = "kept"\n');
+    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
+    symlinkSync(target, nodePath.join(directory, '.codex/config.toml'));
+
+    const installed = await runCliWithoutInstall(
+      ['install', '--agents=none', '--no-input', '--no-modify', '--json', '--cwd', directory],
+      { cwd: directory },
+    );
+
+    expect(installed.exitCode, installed.stdout).toBe(0);
+    expect(lstatSync(nodePath.join(directory, '.codex/config.toml')).isSymbolicLink()).toBe(true);
+    expect(readFileSync(target, 'utf8')).toBe('model = "kept"\n');
   });
 });

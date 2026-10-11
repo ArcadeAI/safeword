@@ -19545,7 +19545,7 @@ function codexProjectBootstrapEnrolled(cwd) {
     const content = readFileSync19(configPath, "utf8");
     return content.includes(BEGIN_MARKER) || content.includes(BOOTSTRAP_COMMAND);
   } catch {
-    return true;
+    return false;
   }
 }
 function installCodexProjectBootstrap(cwd) {
