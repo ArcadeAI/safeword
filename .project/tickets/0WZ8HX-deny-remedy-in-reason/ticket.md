@@ -2,8 +2,8 @@
 id: 0WZ8HX
 slug: deny-remedy-in-reason
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/5760
 scope:
   - deny() in templates/hooks/pre-tool-quality.ts appends the remedy to permissionDecisionReason (reason, remedy, /explain hint) and stops emitting additionalContext, so the remedy reaches Claude once and reaches Cursor, Codex and OpenCode at all.
@@ -51,3 +51,5 @@ adapter. The reason field is the only one all four hosts deliver: Claude shows i
 
 - 2026-10-11T15:43:15.735Z Started: Created ticket 0WZ8HX
 - 2026-10-11T15:44:10.927Z Phase: intake → implement
+- 2026-10-11T15:49:36.182Z Phase: implement → verify
+- 2026-10-11T16:20:33.581Z Phase: verify → done
