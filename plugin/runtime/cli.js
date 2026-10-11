@@ -33966,7 +33966,8 @@ var init_contract = __esm(() => {
     "delivery-compatibility",
     "executable-red",
     "retrospective-eligibility",
-    "retrospective-proof"
+    "retrospective-proof",
+    "ledger-recovery"
   ]);
 });
 
@@ -35313,6 +35314,59 @@ approach. For a denial, return the record as null and name each blocking slice,
 field, obligation, dependency, proof, or decision in findings. Never approve
 because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "152e81c07e86af9d47f2edc1c45ba1cf750a0b16bab944ba87b96db520382445";
 
+// src/review/ledger-recovery-certification.ts
+function validRecoveryCertification(value, approval) {
+  if (!record(value) || Object.keys(value).length !== 3 || value.profile !== ledgerRecoveryProfileIdentity())
+    return false;
+  if (!Array.isArray(value.cases) || value.cases.length === 0 || new Set(value.cases).size !== value.cases.length)
+    return false;
+  if (value.cases.some((digest2) => !(typeof digest2 === "string" && activeCases.includes(digest2))))
+    return false;
+  const confirmations = value.confirmations;
+  return record(confirmations) && Object.keys(confirmations).length === RECOVERY_CONFIRMATIONS.length && RECOVERY_CONFIRMATIONS.every((name) => typeof confirmations[name] === "boolean" && (!approval || confirmations[name]));
+}
+function record(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+var RECOVERY_CONFIRMATIONS, activeCases, RECOVERY_CERTIFICATION_SCHEMA, LEDGER_RECOVERY_REVIEW_RUBRIC;
+var init_ledger_recovery_certification = __esm(() => {
+  init_ledger_recovery_cases();
+  init_ledger_recovery_profile();
+  RECOVERY_CONFIRMATIONS = [
+    "actor_boundary_fidelity",
+    "real_rejection_controls",
+    "source_fidelity",
+    "no_historical_red_claim",
+    "sole_exact_erratum",
+    "exact_unverified_deferrals"
+  ];
+  activeCases = ledger_recovery_cases_default.filter((item) => !item.deferred).map((item) => item.digest);
+  RECOVERY_CERTIFICATION_SCHEMA = {
+    type: "object",
+    properties: {
+      profile: { type: "string", enum: [ledgerRecoveryProfileIdentity()] },
+      cases: {
+        type: "array",
+        minItems: 1,
+        uniqueItems: true,
+        items: { type: "string", enum: activeCases }
+      },
+      confirmations: {
+        type: "object",
+        properties: Object.fromEntries(RECOVERY_CONFIRMATIONS.map((name) => [name, { type: "boolean" }])),
+        required: RECOVERY_CONFIRMATIONS,
+        additionalProperties: false
+      }
+    },
+    required: ["profile", "cases", "confirmations"],
+    additionalProperties: false
+  };
+  LEDGER_RECOVERY_REVIEW_RUBRIC = `Review only the installed 5F5ZZA recovery profile ${ledgerRecoveryProfileIdentity()}.
+Targets must include the same recovery manifest, recomputed evidence summary and installed recovery contract. Context is a bounded slice of the observation's resolved execution inputs. Inspect the actual cases using this slice, and identify those exact active case digests in recovery_certification.cases. Do not claim cases you have not assessed or treat file coverage as behavior coverage.
+Confirm all six obligations only when supported: actor_boundary_fidelity (actual contributor/host boundaries), real_rejection_controls (actual rejection assertions retain their causes), source_fidelity (frozen product and resolved execution inputs match the observed candidate), no_historical_red_claim (current passing proof never claims historical RED), sole_exact_erratum (only REFACTOR 15a7c84aa under \u201CA declared change invalidates exactly its dependent reviews\u201D receives the reviewed virtual correction), exact_unverified_deferrals (exactly 33 named cases remain deferred and unverified).
+An ordinary quality review, passing summary, same-agent receipt or stale provenance cannot grant certification. Do not invent findings to populate confirmations: findings report actual issues only. Return request_changes for unsupported certification, with its actual reason. This contract excludes OpenCode and cloud recovery and grants no merge, promotion or release authority.`;
+});
+
 // src/review/plan-rubric.generated.ts
 var PLAN_REVIEW_RUBRIC = `<!-- SAFEWORD:PLANNING_SHARED_START -->
 
@@ -35725,6 +35779,8 @@ function retrospectiveProofRubric() {
   return composeReviewRubric(RETROSPECTIVE_PROOF_RUBRIC);
 }
 function reviewRubric(kind) {
+  if (kind === "ledger-recovery")
+    return composeReviewRubric(LEDGER_RECOVERY_REVIEW_RUBRIC);
   if (kind === "scenario-gate")
     return scenarioReviewRubric();
   if (kind === "plan-implementation")
@@ -35763,30 +35819,32 @@ function reviewerPromptInstructions(kind, reviewer, planningPhase) {
   return promptContract(kind, reviewer, planningPhase);
 }
 var QUALITY_REVIEW_FOCUS = "Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.", RETROSPECTIVE_ELIGIBILITY_RUBRIC = "Review only the CKWE2D retrospective migration. For every named scenario, compare its exact fixed-cutoff Given/When/Then body and cited baseline implementation blobs with current behavior. Cite each baseline implementation path and explain why the scenario behavior already existed at the named baseline commit. Reject a missing or changed scenario body, missing or mismatched baseline blob, ambiguous path mapping, post-cutoff-only implementation, or rationale that does not explain why ordinary RED evidence is unavailable. A passing current test alone does not prove historical implementation. Approval establishes historical eligibility only; each VERIFIED row still needs its own independently reviewed passing and behavior-removal proof.", RETROSPECTIVE_PROOF_RUBRIC = "Review only the CKWE2D retrospective migration. Judge the exact named test against every actor-facing Given/When/Then clause, whether the declared mutation removes that scenario's behavior, whether the reported failure is at its own assertion rather than syntax, setup, or unrelated behavior, and whether the declared support files cover every input that could flip the result. Inspect the request and observation for mismatched source identities or extra mutated differences. The review job is not execution evidence: the edit and done gates must independently rerun the request and compare its result with the reviewed observation. Approval covers only the named scenario and is insufficient without separate historical eligibility.", REVIEWER_PLACEHOLDER = "{{reviewer}}";
-var init_review_rubric = () => {};
+var init_review_rubric = __esm(() => {
+  init_ledger_recovery_certification();
+});
 
 // src/review/codex-app-server-proof.ts
-function record(value) {
+function record2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function unique(messages2, predicate) {
-  const matches = messages2.filter((message) => record(message) && predicate(message));
+  const matches = messages2.filter((message) => record2(message) && predicate(message));
   return matches.length === 1 ? matches[0] : undefined;
 }
 function startedTurn(messages2) {
   const start = unique(messages2, (message) => message.id === 2);
   const turnStart = unique(messages2, (message) => message.id === 3);
-  if (!record(start?.result) || !record(start.result.thread) || !record(turnStart?.result))
+  if (!record2(start?.result) || !record2(start.result.thread) || !record2(turnStart?.result))
     return;
   const threadId = start.result.thread.id;
   const turn = turnStart.result.turn;
-  if (typeof threadId !== "string" || !record(turn) || typeof turn.id !== "string")
+  if (typeof threadId !== "string" || !record2(turn) || typeof turn.id !== "string")
     return;
   return { threadId, turnId: turn.id, start: start.result };
 }
 function completedTurn(messages2, threadId, turnId) {
-  const completed = unique(messages2, (message) => message.method === "turn/completed" && record(message.params) && message.params.threadId === threadId && record(message.params.turn) && message.params.turn.id === turnId);
-  if (!record(completed?.params) || !record(completed.params.turn))
+  const completed = unique(messages2, (message) => message.method === "turn/completed" && record2(message.params) && message.params.threadId === threadId && record2(message.params.turn) && message.params.turn.id === turnId);
+  if (!record2(completed?.params) || !record2(completed.params.turn))
     return;
   const finishedTurn = completed.params.turn;
   if (finishedTurn.status !== "completed" || !Array.isArray(finishedTurn.items))
@@ -35797,18 +35855,18 @@ function codexAppServerFailedTurn(messages2) {
   const started = startedTurn(messages2);
   if (started === undefined)
     return false;
-  return messages2.some((message) => record(message) && message.method === "turn/completed" && record(message.params) && message.params.threadId === started.threadId && record(message.params.turn) && message.params.turn.id === started.turnId && message.params.turn.status === "failed");
+  return messages2.some((message) => record2(message) && message.method === "turn/completed" && record2(message.params) && message.params.threadId === started.threadId && record2(message.params.turn) && message.params.turn.id === started.turnId && message.params.turn.status === "failed");
 }
 function finalAnswer(turn) {
   if (!Array.isArray(turn.items))
     return;
-  const answers = turn.items.filter((item) => record(item) && item.type === "agentMessage" && item.phase === "final_answer" && typeof item.text === "string");
+  const answers = turn.items.filter((item) => record2(item) && item.type === "agentMessage" && item.phase === "final_answer" && typeof item.text === "string");
   if (answers.length !== 1 || typeof answers[0]?.text !== "string")
     return;
   return answers[0].text;
 }
 function wasRerouted(messages2, threadId, turnId) {
-  return messages2.some((message) => record(message) && message.method === "model/rerouted" && record(message.params) && message.params.threadId === threadId && message.params.turnId === turnId);
+  return messages2.some((message) => record2(message) && message.method === "model/rerouted" && record2(message.params) && message.params.threadId === threadId && message.params.turnId === turnId);
 }
 function confirmedModel(start, selectedModel) {
   const model = start.model;
@@ -35980,8 +36038,8 @@ var init_environment = __esm(() => {
 function isEvidenceRecord(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value))
     return false;
-  const record2 = value;
-  return Object.keys(record2).length === EVIDENCE_RECORD_FIELDS.length && EVIDENCE_RECORD_FIELDS.every((field) => typeof record2[field] === "string" && record2[field].trim() !== "");
+  const record3 = value;
+  return Object.keys(record3).length === EVIDENCE_RECORD_FIELDS.length && EVIDENCE_RECORD_FIELDS.every((field) => typeof record3[field] === "string" && record3[field].trim() !== "");
 }
 function isPlanEvidenceRecord(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value))
@@ -36055,9 +36113,9 @@ function decisionTripwireFinding(value, index) {
   const name = isNonblank(value.decision) ? value.decision : `decision ${index + 1}`;
   return `Execution Plan decision "${name}" has status "${value.status}" instead of unchanged.`;
 }
-function readableTripwireFindings(record2) {
-  const sliceFindings = Array.isArray(record2.slices) ? record2.slices.map((slice, index) => successorTripwireFinding(slice, index)).filter((finding) => finding !== undefined) : [];
-  const decisionFindings = Array.isArray(record2.decision_statuses) ? record2.decision_statuses.map((decision, index) => decisionTripwireFinding(decision, index)).filter((finding) => finding !== undefined) : [];
+function readableTripwireFindings(record3) {
+  const sliceFindings = Array.isArray(record3.slices) ? record3.slices.map((slice, index) => successorTripwireFinding(slice, index)).filter((finding) => finding !== undefined) : [];
+  const decisionFindings = Array.isArray(record3.decision_statuses) ? record3.decision_statuses.map((decision, index) => decisionTripwireFinding(decision, index)).filter((finding) => finding !== undefined) : [];
   return [...sliceFindings, ...decisionFindings];
 }
 function isValidSlice(value) {
@@ -36188,9 +36246,9 @@ function hasValidDeliveryDefinition(definition) {
   }
   return hasUniqueDefinitionIds(definition) && hasEveryDefinitionCategory(definition) && contributorProofsAreReal(definition);
 }
-function hasValidSliceGraph(record2) {
-  const slices = record2.slices;
-  const countMatchesDecision = record2.slicing_decision === "one_pull_request" ? slices.length === 1 : slices.length >= 2;
+function hasValidSliceGraph(record3) {
+  const slices = record3.slices;
+  const countMatchesDecision = record3.slicing_decision === "one_pull_request" ? slices.length === 1 : slices.length >= 2;
   const sliceNames = slices.map((slice) => slice.name);
   const namesAreUnique = new Set(sliceNames).size === sliceNames.length;
   const prerequisitesAreEarlier = slices.every((slice, index) => {
@@ -36211,22 +36269,22 @@ function isValidObligationOwner(value, sliceNames, seen) {
   seen.add(value.obligation);
   return true;
 }
-function hasValidObligationOwners(record2) {
-  if (record2.obligation_owners.length === 0)
+function hasValidObligationOwners(record3) {
+  if (record3.obligation_owners.length === 0)
     return false;
-  const sliceNames = record2.slices.map((slice) => slice.name);
+  const sliceNames = record3.slices.map((slice) => slice.name);
   const seen = new Set;
-  const valid = record2.obligation_owners.every((owner) => isValidObligationOwner(owner, sliceNames, seen));
+  const valid = record3.obligation_owners.every((owner) => isValidObligationOwner(owner, sliceNames, seen));
   if (!valid)
     return false;
-  const owned = new Set(record2.obligation_owners.flatMap((owner) => owner.slices));
+  const owned = new Set(record3.obligation_owners.flatMap((owner) => owner.slices));
   return sliceNames.every((slice) => owned.has(slice));
 }
-function hasValidDecisionStatuses(record2) {
-  if (record2.decision_statuses.length === 0)
+function hasValidDecisionStatuses(record3) {
+  if (record3.decision_statuses.length === 0)
     return false;
   const seen = new Set;
-  return record2.decision_statuses.every((decision) => {
+  return record3.decision_statuses.every((decision) => {
     if (!isRecord6(decision) || !hasExactKeys3(decision, ["decision", "status"]))
       return false;
     if (!isNonblank(decision.decision) || seen.has(decision.decision))
@@ -36240,8 +36298,8 @@ function hasValidDecisionStatuses(record2) {
 function isValidExecutionPlanRecord(value) {
   if (!isRecord6(value) || !hasValidRecordHeader(value))
     return false;
-  const record2 = value;
-  return hasValidSliceGraph(record2) && hasValidObligationOwners(record2) && hasValidDecisionStatuses(record2) && hasValidDeliveryDefinition(record2.delivery_definition);
+  const record3 = value;
+  return hasValidSliceGraph(record3) && hasValidObligationOwners(record3) && hasValidDecisionStatuses(record3) && hasValidDeliveryDefinition(record3.delivery_definition);
 }
 function hasValidPlanningDestination(output) {
   const destination = output.planning_destination;
@@ -36299,7 +36357,11 @@ import { homedir as homedir5, tmpdir as tmpdir3 } from "os";
 import nodePath46 from "path";
 function reviewOutputSchema(kind, planningPhase, dispatchId) {
   const planningSchema = planningPhase === "product-plan" || kind === "scenario-gate" || kind === "plan-implementation" ? PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE : REVIEW_OUTPUT_SCHEMA_SHAPE;
-  const schema = kind === "plan-execution" ? EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE : planningSchema;
+  let schema = planningSchema;
+  if (kind === "ledger-recovery")
+    schema = LEDGER_RECOVERY_OUTPUT_SCHEMA_SHAPE;
+  else if (kind === "plan-execution")
+    schema = EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE;
   return JSON.stringify(dispatchId === undefined ? schema : {
     ...schema,
     properties: {
@@ -36443,7 +36505,8 @@ function reviewerOutputKeys(kind) {
   if (kind === "plan-execution") {
     keys.add("planning_destination");
     keys.add("execution_plan_record");
-  }
+  } else if (kind === "ledger-recovery")
+    keys.add("recovery_certification");
   return keys;
 }
 function hasValidEvidenceRecords(value) {
@@ -36454,6 +36517,8 @@ function hasValidEvidenceRecords(value) {
   return value.records.every(isEvidenceRecord);
 }
 function hasKindSpecificOutput(value, kind) {
+  if (kind === "ledger-recovery")
+    return validRecoveryCertification(value.recovery_certification, value.verdict === "approve");
   return kind !== "plan-execution" || (value.planning_destination === "plan-execution" || value.planning_destination === "plan-implementation") && Object.hasOwn(value, "execution_plan_record");
 }
 function hasValidOutputExtensions(value, kind) {
@@ -37373,12 +37438,13 @@ function writeContractFile(kind, planningPhase, dispatchId) {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, EVIDENCE_RECORDS_SCHEMA, PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE, JSON_NULL2, REVIEW_OUTPUT_SCHEMA, EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA, EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA, EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA, EXECUTION_PLAN_RECORD_SCHEMA, EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, NULL_EXECUTION_PLAN_RECORD2, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, EVIDENCE_RECORDS_SCHEMA, PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE, JSON_NULL2, REVIEW_OUTPUT_SCHEMA, EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA, EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA, EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA, EXECUTION_PLAN_RECORD_SCHEMA, EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE, LEDGER_RECOVERY_OUTPUT_SCHEMA_SHAPE, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, NULL_EXECUTION_PLAN_RECORD2, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_delivery_checklist();
   init_environment();
   init_evidence_record();
   init_execution_plan_output();
+  init_ledger_recovery_certification();
   init_review_rubric();
   init_review_rubric();
   REVIEW_OUTPUT_SCHEMA_SHAPE = {
@@ -37614,6 +37680,14 @@ var init_runtime = __esm(() => {
       "planning_destination",
       "execution_plan_record"
     ]
+  };
+  LEDGER_RECOVERY_OUTPUT_SCHEMA_SHAPE = {
+    ...REVIEW_OUTPUT_SCHEMA_SHAPE,
+    properties: {
+      ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+      recovery_certification: RECOVERY_CERTIFICATION_SCHEMA
+    },
+    required: [...REVIEW_OUTPUT_SCHEMA_SHAPE.required, "recovery_certification"]
   };
   CLAUDE_EFFORT_LEVELS = new Set(["low", "medium", "high", "xhigh", "max"]);
   ARGUMENTS = {
@@ -40622,9 +40696,9 @@ function readSmallMetadataFile(path7) {
 function isLeaseRecord(value, expectedPid) {
   if (typeof value !== "object" || value === null || Array.isArray(value))
     return false;
-  const record2 = value;
-  const hasExactFields = Object.keys(record2).length === 2 && Object.hasOwn(record2, "pid") && Object.hasOwn(record2, "procStart");
-  return hasExactFields && Number.isSafeInteger(record2.pid) && record2.pid === expectedPid && typeof record2.procStart === "string" && record2.procStart.length > 0;
+  const record3 = value;
+  const hasExactFields = Object.keys(record3).length === 2 && Object.hasOwn(record3, "pid") && Object.hasOwn(record3, "procStart");
+  return hasExactFields && Number.isSafeInteger(record3.pid) && record3.pid === expectedPid && typeof record3.procStart === "string" && record3.procStart.length > 0;
 }
 function leaseMarkerPid(name) {
   const infix = name.indexOf(LEASE_TEMP_INFIX);
@@ -58421,12 +58495,12 @@ function stableValue(value) {
     return value.map((child) => stableValue(child));
   if (value === null || typeof value !== "object")
     return value;
-  const record2 = value;
-  return Object.fromEntries(Object.keys(record2).toSorted((a, b) => {
+  const record3 = value;
+  return Object.fromEntries(Object.keys(record3).toSorted((a, b) => {
     if (a === b)
       return 0;
     return a < b ? -1 : 1;
-  }).map((key) => [key, stableValue(record2[key])]));
+  }).map((key) => [key, stableValue(record3[key])]));
 }
 function identity(value) {
   const canonical = stableValue(value);
@@ -62385,26 +62459,26 @@ function decodeIntegrityKey(value) {
     throw new Error("invalid review integrity key");
   return Buffer.from(encoded, "hex");
 }
-function unsignedRecord(record2) {
-  const { integrity: _integrity, ...unsigned } = record2;
+function unsignedRecord(record3) {
+  const { integrity: _integrity, ...unsigned } = record3;
   return unsigned;
 }
-function recordIntegrity(cwd, record2) {
-  return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync10.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record2))).digest("hex");
+function recordIntegrity(cwd, record3) {
+  return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync10.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record3))).digest("hex");
 }
-function hasValidIntegrity(cwd, record2) {
-  if (record2.integrity === undefined || !/^[a-f\d]{64}$/u.test(record2.integrity))
+function hasValidIntegrity(cwd, record3) {
+  if (record3.integrity === undefined || !/^[a-f\d]{64}$/u.test(record3.integrity))
     return false;
   try {
-    const actual = Buffer.from(record2.integrity, "hex");
-    const expected = Buffer.from(recordIntegrity(cwd, record2), "hex");
+    const actual = Buffer.from(record3.integrity, "hex");
+    const expected = Buffer.from(recordIntegrity(cwd, record3), "hex");
     return timingSafeEqual(actual, expected);
   } catch {
     return false;
   }
 }
-function withRecordIntegrity(cwd, record2) {
-  const unsigned = { ...record2, integrity: undefined };
+function withRecordIntegrity(cwd, record3) {
+  const unsigned = { ...record3, integrity: undefined };
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
 function retrospectiveCloseTag(cwd, content) {
@@ -62570,8 +62644,8 @@ function pathEscapes(root, candidate) {
   const relative = nodePath62.relative(root, candidate);
   return relative === ".." || relative.startsWith(`..${nodePath62.sep}`) || nodePath62.isAbsolute(relative);
 }
-function writeJob(cwd, record2) {
-  const secured = withRecordIntegrity(cwd, record2);
+function writeJob(cwd, record3) {
+  const secured = withRecordIntegrity(cwd, record3);
   if (!isReviewJobRecord(secured))
     throw new Error("invalid review job record");
   const directory = jobsDirectory(cwd);
@@ -62689,16 +62763,16 @@ function hasReviewJobLifecycle(candidate) {
 function isCoherentTerminalResult(candidate, failed) {
   return isCliResult(candidate.result) && candidate.result.state === "failed" === failed && hasContinuationJobIdentity(candidate) && typeof candidate.integrity === "string";
 }
-function hasContinuationJobIdentity(record2) {
-  const result = plainRecord2(record2.result);
+function hasContinuationJobIdentity(record3) {
+  const result = plainRecord2(record3.result);
   const data = plainRecord2(result?.data);
   if (data?.status !== "continuation_required")
     return true;
   const continuation = plainRecord2(data.continuation);
   const packet = plainRecord2(continuation?.packet);
   const logicalFiles = packet?.logical_files;
-  const targets = record2.targets;
-  return packet?.kind === record2.kind && (record2.kind === "scenario-gate" || record2.kind === "plan-implementation" || record2.kind === "plan-execution" || record2.kind === "quality-review" && packet?.planning_phase === "product-plan") && Array.isArray(targets) && Array.isArray(logicalFiles) && JSON.stringify(logicalFiles.map((file) => plainRecord2(file)?.path)) === JSON.stringify(targets);
+  const targets = record3.targets;
+  return packet?.kind === record3.kind && (record3.kind === "scenario-gate" || record3.kind === "plan-implementation" || record3.kind === "plan-execution" || record3.kind === "quality-review" && packet?.planning_phase === "product-plan") && Array.isArray(targets) && Array.isArray(logicalFiles) && JSON.stringify(logicalFiles.map((file) => plainRecord2(file)?.path)) === JSON.stringify(targets);
 }
 function isOptional(value, predicate) {
   return value === undefined || predicate(value);
@@ -62812,7 +62886,7 @@ function authenticatedReviewReceiptData(cwd, id2) {
     review_targets: receipt.targets
   };
 }
-function pendingResult(record2) {
+function pendingResult(record3) {
   return createResult({
     state: "action_required",
     findings: [
@@ -62824,7 +62898,7 @@ function pendingResult(record2) {
     ],
     nextActions: [
       {
-        command: reviewStatusCommand(record2.id),
+        command: reviewStatusCommand(record3.id),
         mutates: false,
         requiresHuman: false
       }
@@ -62832,8 +62906,8 @@ function pendingResult(record2) {
     data: {
       command: "review run",
       status: "pending",
-      review_id: record2.id,
-      started_at: record2.started_at
+      review_id: record3.id,
+      started_at: record3.started_at
     }
   });
 }
@@ -62845,7 +62919,7 @@ function shellQuote4(value) {
 function reviewStatusCommand(id2) {
   return `${shellQuote4(process.execPath)} ${shellQuote4(cliEntrypoint())} review status ${id2}`;
 }
-function staleResult(record2, contextError) {
+function staleResult(record3, contextError) {
   return createResult({
     state: "action_required",
     findings: [
@@ -62868,7 +62942,7 @@ function staleResult(record2, contextError) {
     ],
     nextActions: [
       {
-        command: retryCommand(record2.kind, record2.targets, record2.context, record2.execution),
+        command: retryCommand(record3.kind, record3.targets, record3.context, record3.execution),
         mutates: true,
         requiresHuman: false
       }
@@ -62876,40 +62950,40 @@ function staleResult(record2, contextError) {
     data: {
       command: "review status",
       status: "stale",
-      review_id: record2.id,
-      ...record2.review_identity !== undefined && { review_identity: record2.review_identity }
+      review_id: record3.id,
+      ...record3.review_identity !== undefined && { review_identity: record3.review_identity }
     }
   });
 }
-function currentResult(cwd, record2) {
-  if (isActiveJobPastDeadline(record2))
-    return failTimedOutJob(cwd, record2);
-  if (record2.state === "launching") {
-    if (record2.pid !== undefined && processExists(record2.pid))
-      return pendingResult(record2);
-    return failExitedJob(cwd, record2);
+function currentResult(cwd, record3) {
+  if (isActiveJobPastDeadline(record3))
+    return failTimedOutJob(cwd, record3);
+  if (record3.state === "launching") {
+    if (record3.pid !== undefined && processExists(record3.pid))
+      return pendingResult(record3);
+    return failExitedJob(cwd, record3);
   }
-  if (record2.state === "running") {
-    if (workerDefinitelyMismatches(record2)) {
-      return failExitedJob(cwd, record2);
+  if (record3.state === "running") {
+    if (workerDefinitelyMismatches(record3)) {
+      return failExitedJob(cwd, record3);
     }
-    return pendingResult(record2);
+    return pendingResult(record3);
   }
-  return terminalResult(cwd, record2);
+  return terminalResult(cwd, record3);
 }
-function isActiveJobPastDeadline(record2) {
-  if (record2.state !== "launching" && record2.state !== "running")
+function isActiveJobPastDeadline(record3) {
+  if (record3.state !== "launching" && record3.state !== "running")
     return false;
-  const deadline = record2.deadline_at === undefined ? NaN : Date.parse(record2.deadline_at);
+  const deadline = record3.deadline_at === undefined ? NaN : Date.parse(record3.deadline_at);
   return Number.isFinite(deadline) && Date.now() >= deadline;
 }
-function failActiveJob(cwd, record2, error2) {
+function failActiveJob(cwd, record3, error2) {
   const failed = createResult({
     state: "failed",
     errors: [{ code: error2.code, message: error2.message, retryable: true }],
-    data: { command: "review status", status: "failed", review_id: record2.id }
+    data: { command: "review status", status: "failed", review_id: record3.id }
   });
-  const latest = updateActiveJob(cwd, record2.id, (current) => ({
+  const latest = updateActiveJob(cwd, record3.id, (current) => ({
     ...current,
     state: "failed",
     result: failed,
@@ -62917,68 +62991,68 @@ function failActiveJob(cwd, record2, error2) {
   }));
   return latest.state === "failed" && latest.result === failed ? failed : terminalResult(cwd, latest);
 }
-function failTimedOutJob(cwd, record2) {
-  if (record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "match") {
-    terminateReviewWorker(record2.pid);
+function failTimedOutJob(cwd, record3) {
+  if (record3.pid !== undefined && inspectReviewWorker(record3.pid, record3.id) === "match") {
+    terminateReviewWorker(record3.pid);
   }
-  return failActiveJob(cwd, record2, {
+  return failActiveJob(cwd, record3, {
     code: "REVIEW_WORKER_TIMED_OUT",
     message: "The background review worker exceeded its deadline before recording a result."
   });
 }
-function failExitedJob(cwd, record2) {
-  return failActiveJob(cwd, record2, {
+function failExitedJob(cwd, record3) {
+  return failActiveJob(cwd, record3, {
     code: "REVIEW_WORKER_EXITED",
     message: "The background review worker exited before recording a result."
   });
 }
-function terminalResult(cwd, record2) {
-  if (!hasValidIntegrity(cwd, record2))
-    return invalidJobResult(record2.id);
-  if (record2.state === "canceled") {
+function terminalResult(cwd, record3) {
+  if (!hasValidIntegrity(cwd, record3))
+    return invalidJobResult(record3.id);
+  if (record3.state === "canceled") {
     return createResult({
       state: "action_required",
       findings: [
         { code: "REVIEW_CANCELED", message: "The review was canceled.", severity: "warning" }
       ],
-      data: { command: "review status", status: "canceled", review_id: record2.id }
+      data: { command: "review status", status: "canceled", review_id: record3.id }
     });
   }
   try {
-    const current = reviewFingerprintIdentity(cwd, record2.kind, record2.targets, record2.context, record2.execution);
-    if (current.fingerprint !== record2.source_fingerprint)
-      return staleResult(record2);
-    if (record2.result !== undefined)
-      return withReviewProvenance(cwd, record2, record2.result, current.excludedTargets);
+    const current = reviewFingerprintIdentity(cwd, record3.kind, record3.targets, record3.context, record3.execution);
+    if (current.fingerprint !== record3.source_fingerprint)
+      return staleResult(record3);
+    if (record3.result !== undefined)
+      return withReviewProvenance(cwd, record3, record3.result, current.excludedTargets);
   } catch (error2) {
-    return staleResult(record2, error2 instanceof PlanningContextError ? error2 : undefined);
+    return staleResult(record3, error2 instanceof PlanningContextError ? error2 : undefined);
   }
   return createResult({
     state: "failed",
     errors: [
       { code: "REVIEW_JOB_INVALID", message: "The review job has no result.", retryable: true }
     ],
-    data: { command: "review status", status: "failed", review_id: record2.id }
+    data: { command: "review status", status: "failed", review_id: record3.id }
   });
 }
-function effectiveReviewTargets(cwd, record2) {
-  const data = record2.result?.data;
+function effectiveReviewTargets(cwd, record3) {
+  const data = record3.result?.data;
   if (typeof data !== "object" || data === null || Array.isArray(data))
-    return record2.targets;
+    return record3.targets;
   const excluded = data.excluded_targets;
   if (excluded === undefined)
-    return record2.targets;
+    return record3.targets;
   if (!Array.isArray(excluded) || excluded.some((target) => typeof target !== "string"))
     return;
   const excludedPaths = new Set(excluded);
   const root = realpathSync10.native(cwd);
-  return record2.targets.filter((target) => {
+  return record3.targets.filter((target) => {
     const relative = nodePath62.relative(root, nodePath62.resolve(root, target));
     return !excludedPaths.has(toReviewPath(relative));
   });
 }
-function verifiedExcludedTargets(record2, current) {
-  const data = record2.result?.data;
+function verifiedExcludedTargets(record3, current) {
+  const data = record3.result?.data;
   const recorded = data?.excluded_targets;
   if (!Array.isArray(recorded) || recorded.some((target) => typeof target !== "string"))
     return [];
@@ -62987,17 +63061,17 @@ function verifiedExcludedTargets(record2, current) {
   const recordedPaths = new Set(recorded);
   return current.filter((target) => recordedPaths.has(target));
 }
-function withReviewProvenance(cwd, record2, result, currentExclusions) {
+function withReviewProvenance(cwd, record3, result, currentExclusions) {
   const data = typeof result.data === "object" && result.data !== null && !Array.isArray(result.data) ? result.data : {};
   return {
     ...result,
     data: {
       ...data,
-      review_id: record2.id,
-      review_kind: record2.kind,
-      review_targets: effectiveReviewTargets(cwd, record2) ?? [],
-      ...record2.review_identity !== undefined && { review_identity: record2.review_identity },
-      review_excluded_targets: verifiedExcludedTargets(record2, currentExclusions)
+      review_id: record3.id,
+      review_kind: record3.kind,
+      review_targets: effectiveReviewTargets(cwd, record3) ?? [],
+      ...record3.review_identity !== undefined && { review_identity: record3.review_identity },
+      review_excluded_targets: verifiedExcludedTargets(record3, currentExclusions)
     }
   };
 }
@@ -63121,7 +63195,7 @@ async function startReviewJob(input) {
     if (existing !== undefined)
       return { existing: true, record: existing };
     const now = new Date().toISOString();
-    const record3 = {
+    const record4 = {
       schema_version: 1,
       id: randomUUID11(),
       state: "launching",
@@ -63136,13 +63210,13 @@ async function startReviewJob(input) {
       deadline_at: new Date(Date.now() + reviewWorkerRunBoundMs()).toISOString(),
       pid: process.pid
     };
-    writeJob(input.cwd, record3);
-    return { existing: false, record: record3 };
+    writeJob(input.cwd, record4);
+    return { existing: false, record: record4 };
   });
   if (reserved.existing)
     return currentResult(input.cwd, reserved.record);
-  const record2 = reserved.record;
-  const id2 = record2.id;
+  const record3 = reserved.record;
+  const id2 = record3.id;
   const entrypoint = cliEntrypoint();
   const managedProgress = input.progress?.managed === true;
   const child = launchReviewWorker({
@@ -63192,7 +63266,7 @@ async function startReviewJob(input) {
         data: { command: "review run", status: "failed", review_id: id2 }
       });
       writeJob(input.cwd, {
-        ...record2,
+        ...record3,
         state: "failed",
         result: failed,
         updated_at: new Date().toISOString()
@@ -63231,14 +63305,14 @@ async function startReviewJob(input) {
     closeManagedProgress();
   }
 }
-function isActivatedChild(record2, pid) {
-  return record2.state === "running" && record2.pid === pid;
+function isActivatedChild(record3, pid) {
+  return record3.state === "running" && record3.pid === pid;
 }
-function workerDefinitelyMismatches(record2) {
-  return record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "mismatch";
+function workerDefinitelyMismatches(record3) {
+  return record3.pid !== undefined && inspectReviewWorker(record3.pid, record3.id) === "mismatch";
 }
-function terminateUnactivatedWorker(record2, pid) {
-  if (record2.state !== "completed" && record2.state !== "failed" && inspectReviewWorker(pid, record2.id) === "match")
+function terminateUnactivatedWorker(record3, pid) {
+  if (record3.state !== "completed" && record3.state !== "failed" && inspectReviewWorker(pid, record3.id) === "match")
     terminateReviewWorker(pid);
 }
 function terminateReviewWorker(pid) {
@@ -63256,8 +63330,8 @@ function terminateReviewWorker(pid) {
 }
 function completeReviewJob(cwd, id2, result) {
   withJobLock(cwd, id2, () => {
-    const record2 = readJob(cwd, id2);
-    if (record2.state === "completed") {
+    const record3 = readJob(cwd, id2);
+    if (record3.state === "completed") {
       const invalidated = createResult({
         state: "failed",
         errors: [
@@ -63270,17 +63344,17 @@ function completeReviewJob(cwd, id2, result) {
         data: { command: "review run", status: "failed", review_id: id2 }
       });
       writeJob(cwd, {
-        ...record2,
+        ...record3,
         state: "failed",
         result: invalidated,
         updated_at: new Date().toISOString()
       });
       return;
     }
-    if (record2.state !== "launching" && record2.state !== "running")
+    if (record3.state !== "launching" && record3.state !== "running")
       return;
     const completed = {
-      ...record2,
+      ...record3,
       state: result.state === "failed" ? "failed" : "completed",
       result,
       updated_at: new Date().toISOString()
@@ -63295,8 +63369,8 @@ function continuationFailure(id2, code, message) {
     data: { command: "review status", status: "failed", review_id: id2 }
   });
 }
-function failedHostContinuation(record2, tier, failure) {
-  const data = record2.result?.data;
+function failedHostContinuation(record3, tier, failure) {
+  const data = record3.result?.data;
   const continuation = data.continuation;
   const nextTier = tier === "fresh-context" ? "self-review" : undefined;
   return createResult({
@@ -63308,7 +63382,7 @@ function failedHostContinuation(record2, tier, failure) {
         severity: "warning"
       }
     ],
-    effects: { ...record2.result?.effects, network: [] },
+    effects: { ...record3.result?.effects, network: [] },
     data: {
       ...data,
       status: nextTier === undefined ? "blocked" : "continuation_required",
@@ -63338,26 +63412,26 @@ function validatedHostOutput(value, kind, packet, author) {
 function submitReviewContinuation(cwd, id2, tier, output, options) {
   try {
     return withJobLock(cwd, id2, () => {
-      const record2 = readJob(cwd, id2);
-      const pending = record2.result;
+      const record3 = readJob(cwd, id2);
+      const pending = record3.result;
       if (pending === undefined)
         return invalidJobResult(id2);
       const data = plainRecord2(pending.data);
       if (data?.status !== "continuation_required")
         return continuationFailure(id2, "REVIEW_CONTINUATION_ALREADY_USED", "This review has no pending continuation.");
-      if (!hasCurrentFingerprint(cwd, record2))
-        return staleResult(record2);
+      if (!hasCurrentFingerprint(cwd, record3))
+        return staleResult(record3);
       if (data.author_agent !== options.origin)
         return continuationFailure(id2, "REVIEW_CONTINUATION_ORIGIN_UNVERIFIED", "The current agent origin does not match the review author.");
       const continuation = plainRecord2(data.continuation);
       const packet = plainRecord2(continuation?.packet);
       if (continuation?.tier !== tier || packet === undefined)
         return continuationFailure(id2, "REVIEW_CONTINUATION_TIER_INVALID", "This continuation tier is not pending.");
-      const validated = options.failure === undefined ? validatedHostOutput(output, record2.kind, packet, data.author_agent) : undefined;
+      const validated = options.failure === undefined ? validatedHostOutput(output, record3.kind, packet, data.author_agent) : undefined;
       if (validated === undefined) {
-        const result2 = failedHostContinuation(record2, tier, options.failure ?? "invalid_output");
+        const result2 = failedHostContinuation(record3, tier, options.failure ?? "invalid_output");
         const updated = writeJob(cwd, {
-          ...record2,
+          ...record3,
           result: result2,
           updated_at: new Date().toISOString()
         });
@@ -63368,11 +63442,11 @@ function submitReviewContinuation(cwd, id2, tier, output, options) {
         output: validated,
         tier,
         cwd,
-        kind: record2.kind,
-        targets: record2.targets
+        kind: record3.kind,
+        targets: record3.targets
       });
       const completed = writeJob(cwd, {
-        ...record2,
+        ...record3,
         result,
         updated_at: new Date().toISOString()
       });
@@ -63383,7 +63457,7 @@ function submitReviewContinuation(cwd, id2, tier, output, options) {
   }
 }
 function reviewJobWorkerInput(cwd, id2) {
-  const record2 = withJobLock(cwd, id2, () => {
+  const record3 = withJobLock(cwd, id2, () => {
     const current = readJob(cwd, id2);
     if (current.state !== "launching" && current.state !== "running")
       throw new Error("review job is not active");
@@ -63397,11 +63471,11 @@ function reviewJobWorkerInput(cwd, id2) {
     return claimed;
   });
   return {
-    kind: record2.kind,
-    targets: record2.targets,
-    context: record2.context ?? [],
-    execution: record2.execution,
-    sourceFingerprint: record2.source_fingerprint
+    kind: record3.kind,
+    targets: record3.targets,
+    context: record3.context ?? [],
+    execution: record3.execution,
+    sourceFingerprint: record3.source_fingerprint
   };
 }
 function latestJobId(cwd) {
@@ -63438,14 +63512,14 @@ function routeProofFromValue(value, actualReviewer, observedAt) {
     observed_at: observedAt
   };
 }
-function routeProofsFromRecord(record2) {
-  const data = record2.result?.data;
+function routeProofsFromRecord(record3) {
+  const data = record3.result?.data;
   if (typeof data !== "object" || data === null || Array.isArray(data))
     return [];
   const resultData = data;
   const routes = resultData.review_routes;
   return Array.isArray(routes) ? routes.flatMap((value) => {
-    const proof = routeProofFromValue(value, resultData.actual_reviewer, record2.updated_at);
+    const proof = routeProofFromValue(value, resultData.actual_reviewer, record3.updated_at);
     return proof === undefined ? [] : [proof];
   }) : [];
 }
@@ -63469,8 +63543,8 @@ function readReviewRouteProofs(cwd) {
     }
   }).toSorted((left, right) => right.updated_at.localeCompare(left.updated_at));
   const proofs = new Map;
-  for (const record2 of records) {
-    for (const proof of routeProofsFromRecord(record2)) {
+  for (const record3 of records) {
+    for (const proof of routeProofsFromRecord(record3)) {
       const key = `${proof.reviewer}\x00${proof.model ?? "<runtime-default>"}`;
       if (!proofs.has(key))
         proofs.set(key, proof);
@@ -63486,9 +63560,9 @@ function runningJob(cwd, kind, sourceFingerprint) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       continue;
     try {
-      const record2 = readJob(cwd, name.slice(0, -5));
-      if (isActiveReviewJob(record2) && record2.kind === kind && record2.source_fingerprint === sourceFingerprint) {
-        return record2;
+      const record3 = readJob(cwd, name.slice(0, -5));
+      if (isActiveReviewJob(record3) && record3.kind === kind && record3.source_fingerprint === sourceFingerprint) {
+        return record3;
       }
     } catch {}
   }
@@ -63502,9 +63576,9 @@ function reusableApprovedExecutableRedJob(cwd, sourceFingerprint) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       continue;
     try {
-      const record2 = readJob(cwd, name.slice(0, -5));
-      if (record2.kind === "executable-red" && record2.source_fingerprint === sourceFingerprint && approvedCrossAgentReceipt(record2))
-        return record2;
+      const record3 = readJob(cwd, name.slice(0, -5));
+      if (record3.kind === "executable-red" && record3.source_fingerprint === sourceFingerprint && approvedCrossAgentReceipt(record3))
+        return record3;
     } catch {}
   }
   return;
@@ -63524,10 +63598,10 @@ function reusableApprovedCompatibilityJob(cwd, sourceFingerprint) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       continue;
     try {
-      const record2 = readJob(cwd, name.slice(0, -5));
-      const data = record2.result?.data;
-      if (record2.kind === "delivery-compatibility" && record2.source_fingerprint === sourceFingerprint && record2.state === "completed" && hasIndependentApproval(data)) {
-        return record2;
+      const record3 = readJob(cwd, name.slice(0, -5));
+      const data = record3.result?.data;
+      if (record3.kind === "delivery-compatibility" && record3.source_fingerprint === sourceFingerprint && record3.state === "completed" && hasIndependentApproval(data)) {
+        return record3;
       }
     } catch {}
   }
@@ -63556,10 +63630,10 @@ function hasFailingExecutionAttestation(attestation, sourceFingerprint) {
     termination?.timed_out === false
   ].every(Boolean);
 }
-function approvedCrossAgentReceipt(record2) {
-  const data = record2.result?.data;
+function approvedCrossAgentReceipt(record3) {
+  const data = record3.result?.data;
   const attestation = data?.execution_attestation;
-  return record2.state === "completed" && (record2.pid === undefined || inspectReviewWorker(record2.pid, record2.id) !== "match") && hasIndependentApproval(data) && hasFailingExecutionAttestation(attestation, record2.source_fingerprint);
+  return record3.state === "completed" && (record3.pid === undefined || inspectReviewWorker(record3.pid, record3.id) !== "match") && hasIndependentApproval(data) && hasFailingExecutionAttestation(attestation, record3.source_fingerprint);
 }
 function executableRedJobsForScenario(cwd, scenario, ledger) {
   const directory = jobsDirectory(cwd);
@@ -63569,30 +63643,30 @@ function executableRedJobsForScenario(cwd, scenario, ledger) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       return [];
     try {
-      const record2 = readJob(cwd, name.slice(0, -5));
-      return record2.kind === "executable-red" && record2.execution?.scenario === scenario && nodePath62.resolve(cwd, record2.execution.ledger) === nodePath62.resolve(cwd, ledger) ? [record2] : [];
+      const record3 = readJob(cwd, name.slice(0, -5));
+      return record3.kind === "executable-red" && record3.execution?.scenario === scenario && nodePath62.resolve(cwd, record3.execution.ledger) === nodePath62.resolve(cwd, ledger) ? [record3] : [];
     } catch {
       return [];
     }
   });
 }
-function hasCurrentFingerprint(cwd, record2) {
+function hasCurrentFingerprint(cwd, record3) {
   try {
-    return fingerprint(cwd, record2.kind, record2.targets, record2.context, record2.execution) === record2.source_fingerprint;
+    return fingerprint(cwd, record3.kind, record3.targets, record3.context, record3.execution) === record3.source_fingerprint;
   } catch {
     return false;
   }
 }
 function approvedRetrospectiveReview(cwd, id2, kind) {
   try {
-    const record2 = readJob(cwd, id2);
-    const data = record2.result?.data;
-    return record2.kind === kind && record2.state === "completed" && hasCurrentFingerprint(cwd, record2) && hasIndependentApproval(data) ? effectiveReviewTargets(cwd, record2) : undefined;
+    const record3 = readJob(cwd, id2);
+    const data = record3.result?.data;
+    return record3.kind === kind && record3.state === "completed" && hasCurrentFingerprint(cwd, record3) && hasIndependentApproval(data) ? effectiveReviewTargets(cwd, record3) : undefined;
   } catch {
     return;
   }
 }
-function approvedExecutableRedGateResult(record2, scenario, ledger) {
+function approvedExecutableRedGateResult(record3, scenario, ledger) {
   return createResult({
     state: "healthy",
     findings: [
@@ -63605,7 +63679,7 @@ function approvedExecutableRedGateResult(record2, scenario, ledger) {
     data: {
       command: "review gate executable-red",
       status: "approved",
-      review_id: record2.id,
+      review_id: record3.id,
       scenario,
       ledger
     }
@@ -63613,8 +63687,8 @@ function approvedExecutableRedGateResult(record2, scenario, ledger) {
 }
 function executableRedGate(cwd, scenario, ledger) {
   const matching = executableRedJobsForScenario(cwd, scenario, ledger);
-  const current = matching.filter((record2) => hasCurrentFingerprint(cwd, record2));
-  const approved2 = current.find((record2) => approvedCrossAgentReceipt(record2));
+  const current = matching.filter((record3) => hasCurrentFingerprint(cwd, record3));
+  const approved2 = current.find((record3) => approvedCrossAgentReceipt(record3));
   if (approved2 !== undefined)
     return approvedExecutableRedGateResult(approved2, scenario, ledger);
   let reason = matching.length > 0 ? `The current executable RED review for ${scenario} is not an approved independent receipt.` : `No trusted executable RED receipt matches ${scenario}.`;
@@ -63625,17 +63699,17 @@ function executableRedGate(cwd, scenario, ledger) {
     data: { command: "review gate executable-red", status: "blocked", scenario, ledger }
   });
 }
-function isActiveReviewJob(record2) {
-  if (record2.pid === undefined)
+function isActiveReviewJob(record3) {
+  if (record3.pid === undefined)
     return false;
-  if (record2.state === "launching")
-    return processExists(record2.pid);
-  return record2.state === "running" && inspectReviewWorker(record2.pid, record2.id) !== "mismatch";
+  if (record3.state === "launching")
+    return processExists(record3.pid);
+  return record3.state === "running" && inspectReviewWorker(record3.pid, record3.id) !== "mismatch";
 }
 function validatedReviewJobStatus(cwd, id2) {
-  let record2;
+  let record3;
   try {
-    record2 = readJob(cwd, id2);
+    record3 = readJob(cwd, id2);
   } catch {
     const exists3 = isJobId(id2) && existsSync25(jobPath(cwd, id2));
     return createResult({
@@ -63651,7 +63725,7 @@ function validatedReviewJobStatus(cwd, id2) {
     });
   }
   try {
-    const result = currentResult(cwd, record2);
+    const result = currentResult(cwd, record3);
     return { ...result, effects: { ...result.effects, network: [] } };
   } catch {
     return createResult({
@@ -63696,14 +63770,14 @@ function cancelReviewJob(cwd, requestedId) {
     if (id2 === undefined)
       return asCancelResult(reviewJobStatus(cwd, id2));
     const canceled = withJobLock(cwd, id2, () => {
-      const record2 = readJob(cwd, id2);
-      if (record2.state !== "launching" && record2.state !== "running")
-        return record2;
-      if (record2.state === "running" && record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "match") {
-        terminateReviewWorker(record2.pid);
+      const record3 = readJob(cwd, id2);
+      if (record3.state !== "launching" && record3.state !== "running")
+        return record3;
+      if (record3.state === "running" && record3.pid !== undefined && inspectReviewWorker(record3.pid, record3.id) === "match") {
+        terminateReviewWorker(record3.pid);
       }
       const next = {
-        ...record2,
+        ...record3,
         state: "canceled",
         updated_at: new Date().toISOString()
       };
@@ -63766,7 +63840,7 @@ function assessRecoveryReport(report, exitCode) {
     return;
   const seen = new Set;
   for (const element of elements) {
-    if (!record2(element))
+    if (!record3(element))
       return;
     const expected = active.find((item) => item.name === element.name && item.line === element.line);
     if (expected === undefined || seen.has(expected.digest))
@@ -63785,22 +63859,22 @@ function featureElements(report) {
   if (!Array.isArray(report) || report.length !== 1)
     return;
   const feature = report[0];
-  if (!record2(feature) || feature.uri !== LEDGER_RECOVERY_PROFILE.feature)
+  if (!record3(feature) || feature.uri !== LEDGER_RECOVERY_PROFILE.feature)
     return;
   return Array.isArray(feature.elements) ? feature.elements : undefined;
 }
-function record2(value) {
+function record3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function validSteps(steps, expected) {
-  if (!Array.isArray(steps) || steps.some((step) => !record2(step)))
+  if (!Array.isArray(steps) || steps.some((step) => !record3(step)))
     return false;
-  if (steps.some((step) => !record2(step.result) || step.result.status !== "passed"))
+  if (steps.some((step) => !record3(step.result) || step.result.status !== "passed"))
     return false;
   const assertions = steps.filter((step) => step.hidden !== true);
   return assertions.length === expected.length && assertions.every((step, index) => {
     const assertion = expected[index];
-    return assertion !== undefined && record2(step.match) && createHash28("sha256").update(JSON.stringify([step.name, step.match.location])).digest("hex") === assertion;
+    return assertion !== undefined && record3(step.match) && createHash28("sha256").update(JSON.stringify([step.name, step.match.location])).digest("hex") === assertion;
   });
 }
 var init_ledger_recovery_report = __esm(() => {
@@ -64084,21 +64158,21 @@ function narrativeEvidenceRecord(recordedDecisions) {
   return { present, values };
 }
 function validateNarrativeImplementationEvidence(recordedDecisions, baseline, evaluationDate) {
-  const record3 = narrativeEvidenceRecord(recordedDecisions);
-  if (!record3.present)
+  const record4 = narrativeEvidenceRecord(recordedDecisions);
+  if (!record4.present)
     return;
-  if (record3.duplicate) {
-    return evidenceFailure(`Implementation decision evidence repeats the ${record3.duplicate}. Keep exactly one value.`);
+  if (record4.duplicate) {
+    return evidenceFailure(`Implementation decision evidence repeats the ${record4.duplicate}. Keep exactly one value.`);
   }
   for (const field of NARRATIVE_EVIDENCE_FIELDS) {
-    if (record3.values[field] === undefined) {
+    if (record4.values[field] === undefined) {
       return evidenceFailure(`Implementation decision evidence is missing the ${field}.`);
     }
   }
-  if (!isHttpsUrl(record3.values["evidence reference"])) {
+  if (!isHttpsUrl(record4.values["evidence reference"])) {
     return evidenceFailure("Implementation evidence references must be absolute HTTPS URLs.");
   }
-  if (!dateInRange(record3.values["retrieval date"], baseline, evaluationDate)) {
+  if (!dateInRange(record4.values["retrieval date"], baseline, evaluationDate)) {
     return evidenceFailure("Implementation evidence retrieval dates must fall between planning and evaluation.");
   }
   return { ok: true, path: "reference" };
@@ -66170,8 +66244,8 @@ function historyStillReachable(root, claims) {
   }
   return true;
 }
-function unsigned(record3) {
-  const { integrity: _integrity, ...body } = record3;
+function unsigned(record4) {
+  const { integrity: _integrity, ...body } = record4;
   return body;
 }
 function attestRetrospectiveClose(root, ticketId, ledger) {
@@ -66200,7 +66274,7 @@ function attestRetrospectiveClose(root, ticketId, ledger) {
       claims,
       inputs: before
     };
-    const record3 = {
+    const record4 = {
       ...body,
       integrity: retrospectiveCloseTag(root, JSON.stringify(body))
     };
@@ -66208,7 +66282,7 @@ function attestRetrospectiveClose(root, ticketId, ledger) {
     mkdirSync17(nodePath67.dirname(destination), { recursive: true });
     const temporary = `${destination}.${randomUUID13()}.tmp`;
     try {
-      writeFileSync17(temporary, `${JSON.stringify(record3)}
+      writeFileSync17(temporary, `${JSON.stringify(record4)}
 `, { mode: 384 });
       renameSync10(temporary, destination);
     } finally {
@@ -66227,16 +66301,16 @@ function retrospectiveCloseGate(root, ticketId, ledger) {
     if (!existsSync27(nodePath67.join(root, RECORD_PATH))) {
       throw new Error("No retrospective closing record exists.");
     }
-    const record3 = JSON.parse(readFileSync44(nodePath67.join(root, RECORD_PATH), "utf8"));
-    if (record3.schema_version !== 1 || record3.ticket !== RETROSPECTIVE_TICKET || record3.claimPath !== ticketClaim(root) || record3.sourceCommit !== currentProofCommit(root) || !validRetrospectiveCloseTag(root, JSON.stringify(unsigned(record3)), record3.integrity)) {
+    const record4 = JSON.parse(readFileSync44(nodePath67.join(root, RECORD_PATH), "utf8"));
+    if (record4.schema_version !== 1 || record4.ticket !== RETROSPECTIVE_TICKET || record4.claimPath !== ticketClaim(root) || record4.sourceCommit !== currentProofCommit(root) || !validRetrospectiveCloseTag(root, JSON.stringify(unsigned(record4)), record4.integrity)) {
       throw new Error("Retrospective closing record is invalid.");
     }
     const claims = claimsForClose(root);
-    if (JSON.stringify(record3.claims) !== JSON.stringify(claims)) {
+    if (JSON.stringify(record4.claims) !== JSON.stringify(claims)) {
       throw new Error("Retrospective ledger changed after closing proof.");
     }
     const paths = inputPaths(root, claims);
-    if (JSON.stringify(record3.inputs) !== JSON.stringify(inputDigests(root, paths))) {
+    if (JSON.stringify(record4.inputs) !== JSON.stringify(inputDigests(root, paths))) {
       throw new Error("Retrospective proof inputs changed after closing proof.");
     }
     if (!historyStillReachable(root, claims)) {
@@ -74499,16 +74573,16 @@ var init_catalogue2 = __esm(() => {
 function exactRecord(value, requiredKeys, optionalKeys = []) {
   if (typeof value !== "object" || value === null || Array.isArray(value))
     return;
-  const record3 = value;
+  const record4 = value;
   const allowed = new Set([...requiredKeys, ...optionalKeys]);
-  const keys = Object.keys(record3);
-  if (requiredKeys.some((key) => !Object.hasOwn(record3, key)) || keys.some((key) => !allowed.has(key))) {
+  const keys = Object.keys(record4);
+  if (requiredKeys.some((key) => !Object.hasOwn(record4, key)) || keys.some((key) => !allowed.has(key))) {
     return;
   }
-  return record3;
+  return record4;
 }
-function matchesRecord(record3, validators) {
-  return record3 !== undefined && Object.entries(validators).every(([key, validate]) => validate(record3[key]));
+function matchesRecord(record4, validators) {
+  return record4 !== undefined && Object.entries(validators).every(([key, validate]) => validate(record4[key]));
 }
 function isSha2563(value) {
   return typeof value === "string" && /^[a-f\d]{64}$/u.test(value);
@@ -74537,12 +74611,12 @@ function isConformanceResult(value) {
 function optional(value, validate) {
   return value === undefined || validate(value);
 }
-function hasValidActivationBindings(record3) {
-  const event = record3.event;
-  return optional(record3.opencode_version, isNonEmptyString) && optional(record3.session_id_sha256, isSha2563) && optional(record3.call_id_sha256, isSha2563) && (!SESSION_BOUND_EVENTS.has(event) || Boolean(record3.session_id_sha256)) && (!CALL_BOUND_EVENTS.has(event) || Boolean(record3.call_id_sha256));
+function hasValidActivationBindings(record4) {
+  const event = record4.event;
+  return optional(record4.opencode_version, isNonEmptyString) && optional(record4.session_id_sha256, isSha2563) && optional(record4.call_id_sha256, isSha2563) && (!SESSION_BOUND_EVENTS.has(event) || Boolean(record4.session_id_sha256)) && (!CALL_BOUND_EVENTS.has(event) || Boolean(record4.call_id_sha256));
 }
 function parseOpenCodeActivation(value) {
-  const record3 = exactRecord(value, [
+  const record4 = exactRecord(value, [
     "schema_version",
     "safeword_version",
     "plugin_sha256",
@@ -74550,7 +74624,7 @@ function parseOpenCodeActivation(value) {
     "event",
     "observed_at"
   ], ["opencode_version", "session_id_sha256", "call_id_sha256"]);
-  if (!matchesRecord(record3, {
+  if (!matchesRecord(record4, {
     schema_version: isSchemaVersion,
     safeword_version: isNonEmptyString,
     plugin_sha256: isSha2563,
@@ -74559,12 +74633,12 @@ function parseOpenCodeActivation(value) {
     observed_at: isTimestamp
   }))
     return;
-  if (!hasValidActivationBindings(record3))
+  if (!hasValidActivationBindings(record4))
     return;
-  return record3;
+  return record4;
 }
 function parseOpenCodeConformance(value) {
-  const record3 = exactRecord(value, [
+  const record4 = exactRecord(value, [
     "schema_version",
     "safeword_version",
     "opencode_version",
@@ -74579,7 +74653,7 @@ function parseOpenCodeConformance(value) {
     "checked_at",
     "result"
   ]);
-  if (!matchesRecord(record3, {
+  if (!matchesRecord(record4, {
     schema_version: isSchemaVersion,
     safeword_version: isNonEmptyString,
     opencode_version: isNonEmptyString,
@@ -74595,7 +74669,7 @@ function parseOpenCodeConformance(value) {
     result: isConformanceResult
   }))
     return;
-  return record3;
+  return record4;
 }
 function writePassingOpenCodeConformance(directory, value) {
   const evidence = parseOpenCodeConformance(value);
@@ -74608,14 +74682,14 @@ function writePassingOpenCodeConformance(directory, value) {
   return path8;
 }
 function parseOpenCodeProfileError(value) {
-  const record3 = exactRecord(value, [
+  const record4 = exactRecord(value, [
     "schema_version",
     "safeword_version",
     "plugin_sha256",
     "error_code",
     "observed_at"
   ]);
-  if (!matchesRecord(record3, {
+  if (!matchesRecord(record4, {
     schema_version: isSchemaVersion,
     safeword_version: isNonEmptyString,
     plugin_sha256: isSha2563,
@@ -74623,7 +74697,7 @@ function parseOpenCodeProfileError(value) {
     observed_at: isTimestamp
   }))
     return;
-  return record3;
+  return record4;
 }
 var ACTIVATION_EVENTS, CALL_BOUND_EVENTS, SESSION_BOUND_EVENTS;
 var init_evidence = __esm(() => {
@@ -74655,20 +74729,20 @@ var init_evidence = __esm(() => {
 // src/opencode/identity.ts
 import nodePath96 from "path";
 function isManagedAsset(value) {
-  const record3 = exactRecord(value, ["path", "sha256"]);
-  return record3 !== undefined && isNonEmptyString(record3.path) && !nodePath96.isAbsolute(record3.path) && !record3.path.split(/[\\/]/u).includes("..") && isSha2563(record3.sha256);
+  const record4 = exactRecord(value, ["path", "sha256"]);
+  return record4 !== undefined && isNonEmptyString(record4.path) && !nodePath96.isAbsolute(record4.path) && !record4.path.split(/[\\/]/u).includes("..") && isSha2563(record4.sha256);
 }
-function hasValidAssets(record3) {
-  return !("assets" in record3) || Array.isArray(record3.assets) && record3.assets.every(isManagedAsset);
+function hasValidAssets(record4) {
+  return !("assets" in record4) || Array.isArray(record4.assets) && record4.assets.every(isManagedAsset);
 }
-function isIdentityRecord(record3) {
-  return record3?.schema_version === 1 && record3.plugin_path === "plugins/safeword.js" && isNonEmptyString(record3.safeword_version) && isSha2563(record3.plugin_sha256) && isNonEmptyString(record3.runtime_path) && isNonEmptyString(record3.dispatcher_path) && isSha2563(record3.dispatcher_sha256);
+function isIdentityRecord(record4) {
+  return record4?.schema_version === 1 && record4.plugin_path === "plugins/safeword.js" && isNonEmptyString(record4.safeword_version) && isSha2563(record4.plugin_sha256) && isNonEmptyString(record4.runtime_path) && isNonEmptyString(record4.dispatcher_path) && isSha2563(record4.dispatcher_sha256);
 }
 function parseOpenCodeIdentity(value) {
-  const record3 = exactRecord(value, CURRENT_IDENTITY_KEYS) ?? exactRecord(value, IDENTITY_KEYS);
-  if (!isIdentityRecord(record3) || record3 === undefined || !hasValidAssets(record3))
+  const record4 = exactRecord(value, CURRENT_IDENTITY_KEYS) ?? exactRecord(value, IDENTITY_KEYS);
+  if (!isIdentityRecord(record4) || record4 === undefined || !hasValidAssets(record4))
     return;
-  return record3;
+  return record4;
 }
 var IDENTITY_KEYS, CURRENT_IDENTITY_KEYS;
 var init_identity = __esm(() => {
@@ -75181,16 +75255,16 @@ function readEvidence(directory, parse5) {
 }
 function hasCurrentActivation(directory, identity2, now, expectedProjectSha256) {
   const maximumAge = 7 * 24 * 60 * 60 * 1000;
-  return readEvidence(directory, parseOpenCodeActivation).some((record3) => {
-    const observedAt = Date.parse(record3.value.observed_at);
+  return readEvidence(directory, parseOpenCodeActivation).some((record4) => {
+    const observedAt = Date.parse(record4.value.observed_at);
     const age = now - observedAt;
-    return record3.name === `${record3.value.project_sha256}-${record3.value.event}.json` && record3.value.safeword_version === identity2.safeword_version && record3.value.plugin_sha256 === identity2.plugin_sha256 && (record3.value.event === "plugin_load" || record3.value.event === "pre_tool") && (expectedProjectSha256 === undefined || record3.value.project_sha256 === expectedProjectSha256) && age >= 0 && age <= maximumAge;
+    return record4.name === `${record4.value.project_sha256}-${record4.value.event}.json` && record4.value.safeword_version === identity2.safeword_version && record4.value.plugin_sha256 === identity2.plugin_sha256 && (record4.value.event === "plugin_load" || record4.value.event === "pre_tool") && (expectedProjectSha256 === undefined || record4.value.project_sha256 === expectedProjectSha256) && age >= 0 && age <= maximumAge;
   });
 }
-function isPassingConformance(record3, identity2, opencodeVersion) {
-  const evidence = record3.value;
+function isPassingConformance(record4, identity2, opencodeVersion) {
+  const evidence = record4.value;
   return [
-    record3.name === `${evidence.opencode_version}-${identity2.plugin_sha256}.json`,
+    record4.name === `${evidence.opencode_version}-${identity2.plugin_sha256}.json`,
     evidence.opencode_version.startsWith("1."),
     opencodeVersion === undefined || evidence.opencode_version === opencodeVersion,
     evidence.safeword_version === identity2.safeword_version,
@@ -75206,7 +75280,7 @@ function isPassingConformance(record3, identity2, opencodeVersion) {
   ].every(Boolean);
 }
 function hasPassingConformance(directory, identity2, opencodeVersion) {
-  return readEvidence(directory, parseOpenCodeConformance).some((record3) => isPassingConformance(record3, identity2, opencodeVersion));
+  return readEvidence(directory, parseOpenCodeConformance).some((record4) => isPassingConformance(record4, identity2, opencodeVersion));
 }
 function observeProtectionEvidence(paths, identity2, input) {
   let expectedProjectSha256;
@@ -80825,7 +80899,7 @@ function readTransactionBytes(path8) {
       closeSync12(descriptor);
   }
 }
-function record3(value) {
+function record4(value) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("Claude cleanup transaction is malformed.");
   }
@@ -80874,7 +80948,7 @@ function hasValidQuarantinePath(entry, deleting) {
   return entry.quarantine_path.startsWith(".safeword/claude-plugin/quarantine/") && entry.quarantine_path.endsWith(".retired") && !nodePath114.isAbsolute(entry.quarantine_path) && !entry.quarantine_path.split("/").includes("..");
 }
 function validateCleanupEntry(value) {
-  const entry = record3(value);
+  const entry = record4(value);
   const before = canonicalBase64(entry.before_base64);
   if (!hasValidBeforeImage(entry, before)) {
     throw new Error("Claude cleanup entry is malformed.");
@@ -80907,7 +80981,7 @@ function hasValidPluginModeMetadata(pluginMode) {
   return typeof pluginMode.plugin_version === "string" && Array.isArray(pluginMode.unresolved_paths) && pluginMode.unresolved_paths.every((path8) => typeof path8 === "string") && (pluginMode.advisory === undefined || typeof pluginMode.advisory === "string");
 }
 function validatePluginMode(value) {
-  const pluginMode = record3(value);
+  const pluginMode = record4(value);
   const expectedKeys = expectedPluginModeKeys(pluginMode);
   if (!hasExactKeys5(pluginMode, expectedKeys) || !hasValidPluginModeDigests(pluginMode) || !hasValidPluginModeMetadata(pluginMode)) {
     throw new Error("Claude cleanup plugin mode is malformed.");
@@ -80931,7 +81005,7 @@ function hasValidTransactionEntries(value) {
 function parseTransaction(cwd) {
   const bytes = readTransactionBytes(transactionPath(cwd));
   const parsed2 = JSON.parse(bytes.toString("utf8"));
-  const value = record3(parsed2);
+  const value = record4(parsed2);
   if (!hasValidTransactionHeader(value) || !hasValidTransactionEntries(value)) {
     throw new Error("Claude cleanup transaction is malformed.");
   }
@@ -81312,13 +81386,13 @@ function parsePersonalPreference(content, path8) {
   if (parsed2 === null || Array.isArray(parsed2) || typeof parsed2 !== "object") {
     return { path: path8, error: "must be a JSON object" };
   }
-  const record4 = parsed2;
-  if (Object.keys(record4).length !== 1 || !Object.hasOwn(record4, "testExecution")) {
+  const record5 = parsed2;
+  if (Object.keys(record5).length !== 1 || !Object.hasOwn(record5, "testExecution")) {
     return { path: path8, error: "must contain only testExecution" };
   }
-  if (!isExecutionMode(record4.testExecution))
+  if (!isExecutionMode(record5.testExecution))
     return { path: path8, error: "uses an unsupported execution mode" };
-  return { path: path8, mode: record4.testExecution };
+  return { path: path8, mode: record5.testExecution };
 }
 function readPersonalExecutionPreference(cwd) {
   const path8 = personalPath(cwd);
@@ -88654,8 +88728,8 @@ function parseCodexHookInput(raw) {
     return;
   }
 }
-function optionalString(record4, key) {
-  return typeof record4[key] === "string" ? record4[key] : undefined;
+function optionalString(record5, key) {
+  return typeof record5[key] === "string" ? record5[key] : undefined;
 }
 function normalizeToolInput(value) {
   if (typeof value !== "object" || value === null)
