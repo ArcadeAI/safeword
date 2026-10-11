@@ -1,6 +1,6 @@
 ## Verify Checklist
 
-**Test Suite:** ✓ 10522/10522 tests pass (612 files; 14 skipped by design)
+**Test Suite:** ✓ 10523/10523 tests pass (612 files; 14 skipped by design) — re-verified at head debe79dd1; PR CI 13/13 green
 **Gherkin:** ✅ Acceptance lane passes (596 scenarios, 11118 steps)
 **Build:** ✅ Success
 **Lint:** ✅ Clean (ESLint + Prettier on changed tests; the hook template is excluded from ESLint by project config)
