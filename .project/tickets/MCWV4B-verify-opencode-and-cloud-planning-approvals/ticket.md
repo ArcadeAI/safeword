@@ -56,6 +56,25 @@ not expanded. Any later access expansion requires its own explicit approval.
 No merge, PR promotion, profile changes, or unrelated host hardening belongs
 to this ticket.
 
+## OpenCode guidance follow-up
+
+The user's 2026-10-10 PDT reminder keeps OpenCode work deferred, including the
+two R8 guidance cases now tagged @manual @deferred.MCWV4B. This brings the
+explicit host/guidance deferral to eighteen cases. Their existing assertions
+are retained as future expectations, not present authority or passing proof.
+
+Resolve review c8761cef-813c-40ca-836b-8d76b202a7ed before claiming completion:
+the parent 82T411 calls OpenCode advisory until native enforcement is proven,
+while current source guidance names CLI/TUI as enforced. Either establish the
+native proof and accepted parent boundary, or reconcile guidance/expectations
+to advisory. No present reviewer can manufacture that missing authority.
+
+An attempted narrow wording correction in #4200 reached a real actor-boundary
+RED and approved executable-RED reviews, but the user reiterated the deferral
+before implementation. The test edits were reverted; no production template,
+generated surface or ledger credit changed. Raw diagnostic reports remain
+/tmp/4200-opencode-advisory-attested-red*.json; they are not GREEN acceptance.
+
 ## Work Log
 
 - 2026-10-10T04:15:40.122Z Started: Created ticket MCWV4B

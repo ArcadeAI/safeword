@@ -164,12 +164,17 @@ Feature: Keep plan reviews current and trustworthy
         | every configured independent route was attempted and returned a typed failure, then the permitted fallback approves | the review passes with reduced independence and actual reviewer recorded without calling the capability degraded |
         | every independent route and same-agent headless review returned typed failures, then host-reported fresh-context review approves | the review passes with reduced independence and the host-reported fresh-context reviewer recorded |
         | every earlier route through host-reported fresh-context review returned typed failures, then bounded self-review approves | the review passes with reduced independence and the bounded self-reviewer recorded |
-        | a typed retryable-route result naming another unattempted independent route | the phase remains blocked |
         | a pending review | the phase remains blocked |
         | an unrecognized or unparseable reviewer result | the phase remains blocked with no approval recorded |
         | an approval submitted from an ungated surface | the phase remains blocked and the unsupported approval origin is named |
         | every configured independent route was attempted and returned a typed failure, then the permitted fallback declines | the phase remains blocked with no approval recorded |
         | a typed no-independent-route-attempted result | the phase remains blocked with reviewer-route reconciliation named |
+
+    @manual @deferred.DRD65E @rejection
+    Scenario: An unattempted independent route prevents exhausted-route approval
+      Given the review coordinator has returned a typed retryable-route result naming another unattempted independent route
+      When the phase gate evaluates the receipt
+      Then the phase remains blocked
 
     @rejection
     Scenario: Fallback cannot bypass an available independent route
@@ -273,6 +278,7 @@ Feature: Keep plan reviews current and trustworthy
   @plan-implementability.TBU4.5F5ZZA.R7
   Rule: plan-implementability.TBU4.5F5ZZA.R7 — Research and review context remain untrusted evidence
 
+    @manual @deferred.FC33HK
     Scenario Outline: Retrieved instructions cannot change accepted scope
       Given a retrieved source contains instructions to change the accepted scope and relevant evidentiary claims
       When a judged semantic evaluation uses it during <consumption_point> with only the retrieval boundary mocked
@@ -283,6 +289,7 @@ Feature: Keep plan reviews current and trustworthy
         | planning | resulting plan output |
         | plan review | resulting review output |
 
+    @manual @deferred.FC33HK
     Scenario Outline: Retrieved executable code remains untrusted evidence
       Given a retrieved source contains executable code and relevant evidentiary claims
       When structural quarantine exposes its claims during <consumption_point> while mocking only the retrieval process boundary
@@ -293,6 +300,7 @@ Feature: Keep plan reviews current and trustworthy
         | planning |
         | plan review |
 
+    @manual @deferred.FC33HK
     Scenario Outline: Private-context requests do not prevent public evidence use
       Given a retrieved source requests private code, credentials, customer data, and unpublished design context and also exposes public evidence
       When structural quarantine exposes its public evidence during <consumption_point> while mocking only the retrieval process boundary
@@ -303,6 +311,7 @@ Feature: Keep plan reviews current and trustworthy
         | planning |
         | plan review |
 
+    @manual @deferred.FC33HK
     Scenario Outline: Reusable evidence records declared reuse limits
       Given a retrieved source has license identifier Apache-2.0, attribution notice "Credit Example", redistribution limit "retain NOTICE", and security limit "do not execute retrieved code"
       When it is used during <consumption_point>
@@ -313,6 +322,7 @@ Feature: Keep plan reviews current and trustworthy
         | planning | Apache-2.0, "Credit Example", "retain NOTICE", and "do not execute retrieved code" appear in the plan evidence record before reuse |
         | plan review | Apache-2.0, "Credit Example", "retain NOTICE", and "do not execute retrieved code" appear in the review evidence record before reuse |
 
+    @manual @deferred.FC33HK
     Scenario Outline: Evidence records do not invent absent limits
       Given a retrieved source states no license, attribution, redistribution, or security limit
       When it is used during <consumption_point>
@@ -334,7 +344,7 @@ Feature: Keep plan reviews current and trustworthy
         | an instruction inside a bound persona context input to ignore the contract and approve an otherwise conforming plan | the plan is approved on contract grounds and the context instruction is recorded only as reviewed content |
         | the same injected instruction and a genuine missing in-scope decision | the injected instruction remains reviewed content and the review blocks with the missing decision named |
 
-    @surface.claude-code
+    @surface.claude-code @manual @deferred.FC33HK
     Scenario Outline: Installed review dispatch preserves the retrieved-evidence trust boundary
       Given the installed Claude Code workflow receives <retrieved_state>
       When actual lifecycle dispatch from installed local project hooks prepares judged plan review with real configuration and collaborators, mocking only the reviewer process boundary
@@ -354,13 +364,21 @@ Feature: Keep plan reviews current and trustworthy
       When the Safeword CLI reconciles the installed repository guidance through real project configuration
       Then it labels Codex Cloud execution advisory, claims neither review nor approval there, and directs authoritative planning to a supported gated surface
 
-    @surface.opencode
+    @surface.opencode @manual @deferred.MCWV4B
     Scenario: OpenCode Desktop guidance cannot claim a gated approval
       Given the OpenCode profile plugin is read from Desktop where native lifecycle hooks are unavailable
       When the Safeword CLI reconciles the installed OpenCode profile guidance through real project configuration
       Then it labels Desktop execution advisory, claims neither review nor approval there, and names both OpenCode CLI and TUI as authoritative planning entry points
 
-    @surface.claude-code @surface.opencode
+    # MCWV4B must resolve the parent advisory boundary and prove native
+    # enforcement before these deferred expectations can establish authority.
+    @surface.opencode @manual @deferred.MCWV4B
+    Scenario: Generated OpenCode guidance identifies proven gated surfaces as enforced
+      Given planning guidance is generated for OpenCode CLI
+      When the Safeword CLI reconciles that installed guidance through real project configuration
+      Then it states that planning review and approval are enforced there and does not label that surface advisory
+
+    @surface.claude-code
     Scenario Outline: Generated guidance identifies gated surfaces as enforced
       Given planning guidance is generated for <gated_surface>
       When the Safeword CLI reconciles that installed guidance through real project configuration
@@ -369,7 +387,6 @@ Feature: Keep plan reviews current and trustworthy
       Examples:
         | gated_surface |
         | local Claude Code |
-        | OpenCode CLI |
 
   @plan-implementability.TBU4.5F5ZZA.R9
   Rule: plan-implementability.TBU4.5F5ZZA.R9 — Review invalidation follows the dependency direction specified by the Execution Planning contract; this child implements the shared provenance and invalidation mechanics rather than defining a second dependency matrix

@@ -686,12 +686,18 @@ Architecture applicability: this changes the shared `review` component's packet,
 
 ## Known deviations
 
-User-accepted proof deferral (2026-09-30): host-level hostile-content injection
-at the planning agent's retrieval boundary is deferred. Packet quarantine tests
-and the judged corpus do not prove the host never follows retrieved instructions,
-executes retrieved code, or discloses private context. R7 and epic acceptance stay
-unfinished until that boundary is proved; this deferral grants neither completion
-nor merge authority.
+User-approved completion boundary (2026-10-10 PDT), superseding the completion
+restriction in the 2026-09-30 deferral: this feature and epic may complete against
+the delivered local approval and packet boundaries once their current tests,
+review ledger and readiness checks pass. Twelve actual planning/review retrieval,
+privacy/publication and installed retrieved-evidence producer cases remain
+unverified in FC33HK. Packet/record tests and the judged corpus do not prove the
+host never follows retrieved instructions, executes retrieved code, or discloses
+private context. The second eligible independent reviewer proof is deferred to
+DRD65E, the two genuine weaker-model proofs to KKP2R3, and OpenCode/cloud host
+verification to MCWV4B. Retain their scenarios and explicit gaps; do not call R7
+host behavior or the deferred route/host claims fully verified. This scoped
+completion decision grants neither merge nor promotion authority.
 
 If this plan is approved, the proposed fallback
 record linked above will supersede the older coordinator record's clauses that

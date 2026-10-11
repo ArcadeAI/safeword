@@ -21,6 +21,21 @@ canonical contract, exact plan, complete context, and honestly recorded route.
 
 ## Rules
 
+### User-approved delivery boundary — 2026-10-10 PDT
+
+The user approved completing #4200 against the delivered local approval and
+packet boundaries after current verification and readiness pass. Twelve actual
+retrieval/evidence producer cases remain unverified in FC33HK; the second
+eligible independent reviewer proof is deferred to DRD65E; two genuine
+weaker-model cases belong to KKP2R3. OpenCode/cloud verification and both
+OpenCode guidance cases remain deferred to MCWV4B, as the user reiterated.
+Their existing scenarios and required outcomes remain visible as follow-on
+expectations, not present proof or authority. Current OpenCode enforcement
+wording conflicts with the parent's advisory boundary; that known mismatch
+must be resolved in MCWV4B before any OpenCode authority claim is accepted.
+These explicit delivery exclusions do not weaken authenticated approval,
+grant merge/promotion authority, or establish host retrieval/privacy safety.
+
 <!-- Rules stay at h4 even without an h3 above them: scenario-coverage.ts reads
 each `#### ` heading as a Rule/AC id, so demoting these to h3 would break child
 lineage parsing to satisfy a cosmetic heading rule. -->

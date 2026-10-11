@@ -640,13 +640,15 @@ reopening its authority.
   or backfill and keeps older records authority-inert.
 - G1C9PP owns 30–60 minute focused reviewability and its receipt judgment; this
   ticket preserves the bounded contract that judgment consumes.
-- User-accepted 2026-09-30 deferral: host-level hostile-content injection at the
-  planning agent's retrieval boundary. The user owns reopening or changing that
-  deferral; the contributor owns producing its boundary evidence once reopened.
-  Packet quarantine and the judged corpus do not prove host instruction refusal,
-  nonexecution, or nondisclosure. R7, feature, and epic acceptance remain open.
-  The Delivery Checklist's `retrieval-proof-deferral` item retains this gap even
-  if every narrower command passes; the risk acceptance grants no merge authority.
+- User-approved 2026-10-10 PDT completion scope supersedes the prior requirement
+  to keep the feature and epic open for host retrieval proof. FC33HK owns twelve
+  actual retrieval/evidence producer cases, DRD65E the second eligible independent
+  reviewer proof, and KKP2R3 the two weaker-model cases. MCWV4B still owns deferred
+  OpenCode/cloud hosts. The contributor may complete only the delivered approval
+  and local packet boundaries after current verification and readiness pass.
+  Packet/record tests and judged output do not prove host instruction refusal,
+  nonexecution or nondisclosure. All deferred claims remain visibly unverified;
+  scoped completion grants no merge or promotion authority.
 
 ## Decision accounting
 
@@ -702,10 +704,10 @@ remains required for structure, wiring, receipt identity, and corrected bytes.
 
 | ID                     | Category                                  | Obligation                                                                                                                                           | Owner       | Required proof       | Disposition    | Evidence class | Revision | Evidence, reason, or dependency                                                |
 | ---------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------------------- | -------------- | -------------- | -------- | ------------------------------------------------------------------------------ |
-| outcome-scope          | outcome and scope                         | Deliver the nondeferred R1–R16 boundaries without redefining sibling scope; R7 host acceptance remains open under retrieval-proof-deferral                                         | contributor | feature-proof        | open           | missing        |          |                                                                                |
+| outcome-scope          | outcome and scope                         | Deliver the nondeferred local approval/packet boundaries; retain FC33HK, DRD65E, KKP2R3 and MCWV4B as explicit unverified follow-ons                                         | contributor | feature-proof        | open           | missing        |          |                                                                                |
 | resolved-decisions     | resolved decisions                        | Preserve all nine recorded decisions and exact/fallback/capability/user-authority boundaries                                                        | contributor | feature-proof        | open           | missing        |          |                                                                                |
 | pr-decomposition | dependency and pull-request decomposition | Deliver five ordered slices safe without successors; obtain current review of their boundaries | contributor | slice-review-proof | open | missing |  |  |
-| testing                | testing                                   | Complete nondeferred boundary/ledger proof and pinned evals; preserve unfinished R7 host acceptance regardless of narrower scenario passes          | contributor | complete-testing-proof | open           | missing        |          |                                                                                |
+| testing                | testing                                   | Complete nondeferred boundary/ledger proof and pinned evals; retain the named follow-on gaps without calling them passed          | contributor | complete-testing-proof | open           | missing        |          |                                                                                |
 | data-compatibility     | data and compatibility                    | Add versioned identity/evidence to existing job results and user dispositions to tickets; preserve history with no new store, migration, or backfill | contributor | identity-proof       | open           | missing        |          |                                                                                |
 | monitoring             | monitoring and failure signals            | Expose typed context, copy, route, identity, and origin failures with one recovery action                                                            | contributor | failure-proof       | open           | missing        |          |                                                                                |
 | security-privacy       | security and privacy                      | Preserve credential/privacy boundaries and deny execution or instruction authority to evidence                                                       | contributor | evidence-proof       | open           | missing        |          |                                                                                |
@@ -715,5 +717,5 @@ remains required for structure, wiring, receipt identity, and corrected bytes.
 | live-model-confirmation | testing | Prove current exact packaged reviewer selectors through actual installed Claude and Codex protocols; no skipped route qualifies | contributor | live-model-proof | open | missing | | |
 | packaged-release | rollout and rollback | Verify current packaged default comparisons and coherent generated runtimes before any release | contributor | packaged-release-proof | open | missing | | |
 | design-approval        | ownership and human dependencies          | Obtain configured human design approval                                                                                                              | human       |                      | not_applicable | missing        |          | Project `designApprovalGate` is disabled; review is not human design approval. |
-| retrieval-proof-deferral | ownership and human dependencies | Resolve the user-owned R7 host-retrieval proof deferral and establish its boundary evidence before claiming complete R7, feature, or epic acceptance | human | | pending_human | missing | | User deferred this proof on 2026-09-30; narrower packet or judged evidence cannot close this item. |
-| completion-evidence    | completion evidence                       | Produce current receipts for delivered boundaries and evals; do not claim complete feature or epic acceptance while retrieval-proof-deferral is open                                                                | contributor | release-proof        | open           | missing        |          |                                                                                |
+| retrieval-proof-deferral | ownership and human dependencies | Actual retrieval/evidence producer proof remains outside this scoped delivery in FC33HK | human | | not_applicable | missing | | User explicitly narrowed completion on 2026-10-10 PDT; twelve retained cases remain unverified. No local proof establishes host privacy or retrieval safety. |
+| completion-evidence    | completion evidence                       | Produce current receipts for the user-approved delivered boundaries and evals; keep follow-on retrieval, route and host claims explicitly unverified                                                                | contributor | release-proof        | open           | missing        |          |                                                                                |

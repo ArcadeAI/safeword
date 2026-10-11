@@ -712,6 +712,12 @@ nonblocking review limits remain retained.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Generated OpenCode guidance identifies proven gated surfaces as enforced
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Generated guidance identifies gated surfaces as enforced
 
 - [x] RED 5b965631f3417952425f2549aca7e1ca6c422b7e

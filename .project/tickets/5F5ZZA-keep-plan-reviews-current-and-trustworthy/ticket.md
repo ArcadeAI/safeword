@@ -21,6 +21,10 @@ scope:
   - make Product Plan review enforce persona-outcome coverage and visibly separate facts, assumptions, and unresolved product decisions
 out_of_scope:
   - defining Implementation Plan approach content, defining Execution Plan decomposition content, changing accepted scope, and migration policy
+  - actual planning/review retrieval, privacy, publication and installed retrieved-evidence producer proof; twelve retained scenarios belong to FC33HK
+  - failed first independent reviewer followed by a different eligible unattempted reviewer; the retained rejection scenario belongs to DRD65E
+  - genuine weaker-model qualification and its two retained rejection proofs; follow-on KKP2R3
+  - OpenCode and cloud host verification deferred to MCWV4B; no local proof establishes those hosts
 done_when:
   - missing, unreadable, stale, or digest-mismatched required context cannot produce approval
   - semantic context changes invalidate dependent receipts while formatting and unrelated inventory changes do not; exact plan changes invalidate their own review except normalized Execution Plan checklist progress
@@ -3108,3 +3112,46 @@ conflict. Its remaining warnings are retained in the raw report
 /tmp/4200-weaker-deferral-scenario-review-final.json. No whole-feature approval
 is claimed. The first dispatch refused incorrect context ordering before any
 review; the corrected dispatch supplied the authoritative spec first.
+
+## 2026-10-10 — Remaining proof-boundary investigation
+
+At aa6ae15b8, local evidence-record tests pass 6/6 in
+/tmp/4200-r7-boundary-investigation-tests.log. These parse authored plan records
+and reviewer output; they do not exercise a host retrieval or publication
+producer. Twelve R7 producer cases remain undefined. The other undefined route
+case needs a failed first independent reviewer and a different eligible route;
+duplicating the sole qualified reviewer does not supply that proof. No binding
+was fabricated, no production policy changed and no acceptance gap closed.
+
+The accepted Known deviations section expressly prevents epic completion while
+retrieval-proof-deferral remains pending_human. A scope decision was raised:
+retain that proof requirement and resume host investigation, or explicitly move
+the thirteen producer/route cases to follow-ons and narrow completion to the
+delivered boundaries. No answer is presumed. The bounded options and current
+source anchors are in .safeword/logs/4200-remaining-proof-boundaries.md.
+
+The separate OpenCode advisory/enforcement conflict remains a current review
+rejection. /tmp/4200-opencode-advisory-proposal.patch is an unapplied two-template
+correction consistent with the inherited parent; scenario assertions and all
+generated surfaces would also need reconciliation if applied. This is not an
+OpenCode host proof, merge approval, or completion claim. Current CI remains
+in progress with no reported failure at the latest check.
+
+## 2026-10-10 — Approved narrower completion and OpenCode reminder
+
+The user answered “do it” to narrowing completion and moving thirteen cases to
+follow-ons. FC33HK owns the twelve actual retrieval/evidence producer cases;
+DRD65E owns the second eligible independent reviewer rejection. All assertions
+are retained under explicit manual/deferral tags. KKP2R3 still owns the two
+weaker-model cases. Spec, ticket exclusions and both plans now distinguish the
+deliverable local approval/packet boundaries from those unverified claims.
+This supersedes the earlier requirement to keep the epic open solely for the
+host-retrieval proof, not the outstanding delivered-boundary verification,
+review ledger or readiness requirements. No merge or promotion is authorized.
+
+The user then reiterated that OpenCode is deferred. The attempted guidance
+correction stopped before production implementation; its root assertion edits
+were reverted. No template or generated surface changed. Two OpenCode guidance
+cases join MCWV4B, bringing that deferral to eighteen host/guidance cases. The
+known enforcement/advisory conflict and RED diagnostics remain visible there;
+deferred expectations are not present authority or passing evidence.
