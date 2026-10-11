@@ -329,6 +329,7 @@ function readPlanningAuthor(
   root: string,
   phase: PlanningPhase,
   identity: PlanningAuthorCopyIdentity,
+  verifyWholeCopy = true,
 ): string {
   let bytes: Buffer;
   try {
@@ -340,7 +341,7 @@ function readPlanningAuthor(
       identity.relativePath,
     );
   }
-  if (digest(bytes) !== identity.sha256) {
+  if (verifyWholeCopy && digest(bytes) !== identity.sha256) {
     throw new PlanningContractCopyError(
       'canonical_contract_copy_mismatch',
       phase,
@@ -350,12 +351,12 @@ function readPlanningAuthor(
   return bytes.toString('utf8');
 }
 
-function packagedPlanningAuthor(phase: PlanningPhase): string {
+function packagedPlanningAuthor(phase: PlanningPhase, verifyWholeCopy = true): string {
   const copies =
     typeof __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__ === 'object'
       ? __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__
       : PLANNING_AUTHOR_COPIES;
-  return readPlanningAuthor(packageRoot(), phase, copies[phase]);
+  return readPlanningAuthor(packageRoot(), phase, copies[phase], verifyWholeCopy);
 }
 
 /** Raw author-copy integrity is separate from the authenticated reviewer verdict. */
@@ -916,7 +917,21 @@ function fingerprintPlanContract(phase: PlanningPhase): PlanContractPair {
     'plan-implementation': PLAN_REVIEW_RUBRIC,
     'plan-execution': EXECUTION_PLAN_REVIEW_RUBRIC,
   }[phase];
-  return assemblePlanContract(reviewer, reviewer);
+  // Currency follows the bounded contract; whole-file copy integrity is checked
+  // separately at dispatch and admission so editorial changes do not rereview.
+  const source = packagedPlanningAuthor(phase, false);
+  const extract = {
+    'product-plan': extractProductPlanReviewRubric,
+    'plan-implementation': extractPlanReviewRubric,
+    'plan-execution': extractExecutionPlanReviewRubric,
+  }[phase];
+  const contract = assemblePlanContract(extract(source), reviewer);
+  if (contract.author.sha256 !== contract.reviewer.sha256) {
+    throw new ReviewPacketError(
+      'The current canonical planning contract differs from the reviewed contract.',
+    );
+  }
+  return contract;
 }
 
 function isOwnedPlanningTarget(cwd: string, targets: readonly string[], expected: string): boolean {

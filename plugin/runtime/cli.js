@@ -57894,21 +57894,21 @@ function resolvedPlanningContext(cwd, kind, targets, context, productPlan = fals
   }
   return resolved;
 }
-function readPlanningAuthor(root, phase, identity2) {
+function readPlanningAuthor(root, phase, identity2, verifyWholeCopy = true) {
   let bytes;
   try {
     bytes = readFileSync37(nodePath60.join(root, identity2.relativePath));
   } catch {
     throw new PlanningContractCopyError("missing_generated_contract_copy", phase, identity2.relativePath);
   }
-  if (digest4(bytes) !== identity2.sha256) {
+  if (verifyWholeCopy && digest4(bytes) !== identity2.sha256) {
     throw new PlanningContractCopyError("canonical_contract_copy_mismatch", phase, identity2.relativePath);
   }
   return bytes.toString("utf8");
 }
-function packagedPlanningAuthor(phase) {
+function packagedPlanningAuthor(phase, verifyWholeCopy = true) {
   const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "02d3dd686280264aed7b11d0485a928d363ebcfec1e311fc118f0a44ea9ff4db" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2450075ef8eab3f9b5d07aca6acf5a3e71026ed1535b86235290f215c9bd2960" } };
-  return readPlanningAuthor(packageRoot(), phase, copies[phase]);
+  return readPlanningAuthor(packageRoot(), phase, copies[phase], verifyWholeCopy);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {
   packagedPlanningAuthor(phase);
@@ -58267,7 +58267,17 @@ function fingerprintPlanContract(phase) {
     "plan-implementation": PLAN_REVIEW_RUBRIC,
     "plan-execution": EXECUTION_PLAN_REVIEW_RUBRIC
   }[phase];
-  return assemblePlanContract(reviewer, reviewer);
+  const source = packagedPlanningAuthor(phase, false);
+  const extract = {
+    "product-plan": extractProductPlanReviewRubric,
+    "plan-implementation": extractPlanReviewRubric,
+    "plan-execution": extractExecutionPlanReviewRubric
+  }[phase];
+  const contract = assemblePlanContract(extract(source), reviewer);
+  if (contract.author.sha256 !== contract.reviewer.sha256) {
+    throw new ReviewPacketError("The current canonical planning contract differs from the reviewed contract.");
+  }
+  return contract;
 }
 function isOwnedPlanningTarget(cwd, targets, expected) {
   const target = targets.length === 1 ? targets[0] : undefined;
