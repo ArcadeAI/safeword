@@ -290,9 +290,13 @@ Then(
       assert.notEqual(output, '', 'a changed canonical contract must not admit coding');
       const denied = JSON.parse(output);
       assert.equal(denied.hookSpecificOutput?.permissionDecision, 'deny', output);
-      assert.match(
-        denied.hookSpecificOutput?.permissionDecisionReason ?? '',
-        /contract|stale|review/iu,
+      const requiredApproval =
+        state.observed[0] === 'stale'
+          ? 'An accepted implementation approach is required before execution.'
+          : 'An admitted Delivery Checklist is required before execution.';
+      assert.ok(
+        denied.hookSpecificOutput?.permissionDecisionReason?.startsWith(requiredApproval),
+        output,
       );
     }
   },

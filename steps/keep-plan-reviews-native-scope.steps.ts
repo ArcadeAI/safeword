@@ -31,6 +31,7 @@ export interface NativeScopeState {
   runs: {
     output: ReviewerOutput;
     correct: boolean;
+    judgeReason: string;
     gate: string;
     stampStatus: number | null;
     stampOutput: string;
@@ -311,6 +312,7 @@ export async function runJudgedNativeReview(
     state.runs.push({
       output: data.reviewer_output,
       correct: grade.correct,
+      judgeReason: grade.reason,
       gate: options.dispatch(project.root),
       stampStatus: stamped.status,
       stampOutput: stamped.stdout + stamped.stderr,
