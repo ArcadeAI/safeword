@@ -32,7 +32,13 @@ When(
         '--ticket',
         '5F5ZZA',
       ],
-      { cwd: root, encoding: 'utf8', timeout: 7_100_000, maxBuffer: 8_000_000 },
+      {
+        cwd: root,
+        env: { ...process.env, NODE_OPTIONS: undefined },
+        encoding: 'utf8',
+        timeout: 7_100_000,
+        maxBuffer: 8_000_000,
+      },
     );
     this.result = {
       stdout: result.stdout,
