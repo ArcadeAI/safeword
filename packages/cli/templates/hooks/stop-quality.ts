@@ -74,7 +74,10 @@ interface ContentItem {
   type: string;
   text?: string;
   name?: string; // tool_use: tool name
+  id?: string; // tool_use: call id
   input?: { run_in_background?: unknown }; // tool_use: arguments
+  tool_use_id?: string; // tool_result: the call it answers
+  is_error?: boolean; // tool_result: the call failed
 }
 
 interface TranscriptMessage {
@@ -463,7 +466,7 @@ const currentTurnToolEvidence = detectToolUseInCurrentUserTurn(lines, () => true
 // the results arrive in a new turn that is checked on its own stop (#5765, #1431).
 const terminalHandoffEvidence = editsToReview
   ? 'current-turn-edit'
-  : currentTurnToolEvidence === true && !isBackgroundLaunch(lastToolUseInCurrentUserTurn(lines))
+  : currentTurnToolEvidence === true && !endsWaitingOnBackgroundWork(lines)
     ? 'current-turn-tool'
     : 'none';
 
@@ -598,28 +601,39 @@ function detectToolUseInCurrentUserTurn(
   return undefined;
 }
 
-/** The current user turn's final tool call, or undefined when it made none. */
-function lastToolUseInCurrentUserTurn(transcriptLines: string[]): ContentItem | undefined {
+/**
+ * Whether the current user turn's final tool call launched background work that
+ * actually started — an errored launch started nothing, so the turn is not waiting.
+ */
+function endsWaitingOnBackgroundWork(transcriptLines: string[]): boolean {
+  // Results follow their call, so scanning backward meets a failed result first.
+  const failedToolUseIds = new Set<string>();
   const firstRecord = Math.max(0, transcriptLines.length - MAX_CURRENT_TURN_SCAN_RECORDS);
   for (let i = transcriptLines.length - 1; i >= firstRecord; i--) {
     const message = parseTranscriptLine(transcriptLines[i]);
     if (message === undefined) continue;
     const precedingMessage = i > 0 ? parseTranscriptLine(transcriptLines[i - 1]) : undefined;
-    if (startsNewTurn(message, precedingMessage)) return undefined;
-    if (!isAssistantMessage(message)) continue;
-    const toolUse = normalizeContentItems(message.message?.content).findLast(
-      item => item.type === 'tool_use',
-    );
-    if (toolUse) return toolUse;
+    if (startsNewTurn(message, precedingMessage)) return false;
+    const content = normalizeContentItems(message.message?.content);
+    if (!isAssistantMessage(message)) {
+      for (const item of content) {
+        if (item.type === 'tool_result' && item.is_error === true && item.tool_use_id) {
+          failedToolUseIds.add(item.tool_use_id);
+        }
+      }
+      continue;
+    }
+    const toolUse = content.findLast(item => item.type === 'tool_use');
+    if (toolUse) return isBackgroundLaunch(toolUse) && !failedToolUseIds.has(toolUse.id ?? '');
   }
-  return undefined;
+  return false;
 }
 
 /** Claude Code's background launches: Bash/Agent with run_in_background, and Monitor. */
-function isBackgroundLaunch(toolUse: ContentItem | undefined): boolean {
-  if (toolUse?.name === 'Monitor') return true;
+function isBackgroundLaunch(toolUse: ContentItem): boolean {
+  if (toolUse.name === 'Monitor') return true;
   return (
-    (toolUse?.name === 'Bash' || toolUse?.name === 'Agent') &&
+    (toolUse.name === 'Bash' || toolUse.name === 'Agent') &&
     toolUse.input?.run_in_background === true
   );
 }
