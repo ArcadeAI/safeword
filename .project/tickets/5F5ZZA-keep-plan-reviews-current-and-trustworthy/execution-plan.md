@@ -34,9 +34,10 @@ independent RED and passing real-boundary proof are required. R8's OpenCode
 guidance correction was withdrawn and deferred to MCWV4B, not delivered. R9's
 unsupported-direction rejection and semantic upstream correction are committed
 at bf758b53f52d40f3d7288f285937dcb717554a26, with current-main verification and
-owning-slice placement pending. R9's upstream canonical-contract dependency
-correction is not implemented. The checklist stays open until current proof is
-recorded.
+owning-slice placement pending. The missing own-phase and upstream canonical
+currency input is corrected at 15a7c84aa, with eight installed-runtime cases
+passing and independent RED and quality reviews approved. The overall checklist
+stays open for the remaining current acceptance and readiness evidence.
 
 During this ticket's Implementation Plan approval, an approved cross-agent
 review with warnings still failed `ticket approve-plan`. Phase admission

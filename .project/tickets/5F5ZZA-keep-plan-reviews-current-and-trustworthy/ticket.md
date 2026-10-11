@@ -3165,3 +3165,54 @@ were reverted. No template or generated surface changed. Two OpenCode guidance
 cases join MCWV4B, bringing that deferral to eighteen host/guidance cases. The
 known enforcement/advisory conflict and RED diagnostics remain visible there;
 deferred expectations are not present authority or passing evidence.
+
+## 2026-10-10 — Canonical currency correction and remaining acceptance failures
+
+The corrected installed-runtime R9 proof produced six passing controls and two
+intended canonical-input failures. Independent executable-RED review
+be7e01ce-9c75-4c65-a834-16149ed7c564 approved it. The historical checked RED row
+remains intact. Commit 15a7c84aa reads the bounded installed author contract for
+currency, preserves separate whole-copy conformance checks, and invalidates
+own-phase and upstream receipts without changing receipt schema or authority.
+Independent quality review b6d0ae2c-2a74-4edd-b860-dfe095a7bd8e approved the fix.
+Primary proof /tmp/4200-currency-primary-green.json passes 8/8; the separate
+contract/currency controls passed 15/15. Focused package verification passes
+116/116, with lint and typecheck passing. GREEN and REFACTOR are recorded.
+
+The immutable pre-correction acceptance run
+/tmp/4200-narrowed-scope-acceptance.json finished 137/142 passing, five failing,
+with 8,943/8,948 steps passing. Two evaluations failed before producing a
+verdict (Claude timeout and turn exhaustion). Three native cases failed judged
+agreement despite expected actual verdicts, stamps, and gate decisions. The
+diagnostic rerun passes the pending-suggestion case but reproduces both Product
+Plan failures: the judge compared the actual authenticated dispatch ID with a
+different preliminary packet ID. The harness now aligns only that incidental
+ID, retains judge reasons, and preserves coordinator provenance and all semantic
+requirements. Independent quality review
+366c56d7-f264-4029-b761-28efc7ca540c approved this correction. All three affected
+native scenarios pass at 1072d36d6 in
+/tmp/4200-native-judge-aligned-green.json. The unchanged declined-suggestion
+packet passes 3/3 judged evaluations in /tmp/4200-r14-provider-retry.json. The
+correct missing-ticket-scope packet passes 2/3 judged evaluations, with the
+required ticket/scope finding, in /tmp/4200-r12-missing-scope-provider-retry.json.
+The accepted threshold remains two of three; the disagreeing judgment is
+retained. These targeted reruns supplement the immutable 137/142 baseline;
+they are not a claim that a fresh single-run aggregate passed 142/142.
+All original failures and the original six-failure/585-unfinished
+historical aggregate remain visible. No full acceptance or merge readiness is
+claimed yet.
+
+The first direct retry of the timeout packet mistakenly selected the complete
+scope case for the missing-ticket-scope packet. Its three rejected reviews are
+retained at /tmp/4200-r12-provider-retry.json as an invalid diagnostic pairing,
+not product failure or passing acceptance. The correct missing-scope case must
+be paired only with its correct oracle. OpenCode and cloud remain deferred under
+MCWV4B.
+
+The remaining ledger has 57 scenario blocks, 41 checked entries and 137
+unchecked entries. Deferred claims and implemented characterization rows do not
+acquire historical RED proof from a passing current test. The installed
+retrospective gate only authorizes CKWE2D, not this ticket; copying its receipts,
+inventing RED commits or checking deferred cases would misstate authority.
+No new generic retrospective mechanism is added to this epic. Current checks,
+stack readiness and this completion-policy gap must be reported separately.

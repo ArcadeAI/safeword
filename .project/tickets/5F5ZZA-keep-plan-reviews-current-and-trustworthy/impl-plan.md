@@ -487,9 +487,13 @@ deferred and unverified; no OpenCode production correction is present.
 R9's rejection of unsupported invalidation directions and removal of the
 snapshot-only upstream exception are committed at
 bf758b53f52d40f3d7288f285937dcb717554a26. Current-main verification and placement
-in the owning PR slices remain pending. The upstream canonical-contract
-dependency correction described above is still proposed and has no production
-implementation or passing proof. The ledger owns detailed proof state.
+in the owning PR slices remain pending. The own-phase and upstream canonical
+currency correction is implemented at 15a7c84aa. The same installed runtime
+now passes all eight dependency rows, including both canonical-file mutations
+and real admission denial. Independent executable-RED review
+be7e01ce-9c75-4c65-a834-16149ed7c564 approved the failing proof; independent
+quality review b6d0ae2c-2a74-4edd-b860-dfe095a7bd8e approved the fix.
+The ledger retains the historical RED and records GREEN and REFACTOR.
 The Execution Plan retains current live model-confirmation and package-release
 proof obligations; historical confirmed models and deterministic fixtures cannot
 claim those current boundaries. These gaps are unfinished delivery, not accepted
