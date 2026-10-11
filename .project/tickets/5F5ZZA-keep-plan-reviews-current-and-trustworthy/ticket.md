@@ -3088,3 +3088,23 @@ recovery. /tmp/4200-r6-funded-explicit-refusal.json passes one scenario/63 steps
 Final source review 5329609e-4f2d-4f1c-a03a-a83639d07df1 approves; timing and
 separate redundant-guard coverage limits remain recorded. No further proof gap
 is silently closed.
+
+## 2026-10-10 — User defers two genuine weaker-model proofs
+
+The user chose “defer” after the explicit two-case decision. Follow-on KKP2R3
+owns qualification and real-catalogue coordinator/prelaunch refusal proofs.
+Both rejection scenarios remain intact as standalone manual cases tagged
+@deferred.KKP2R3; none is marked passed. No qualification or model change ran.
+The other thirteen unbound cases, OpenCode authority conflict, executable-RED
+ledger, historical six failures/585 unfinished and whole-stack readiness remain
+open. Current pushed head 336fb964f has successful CI run 38092399877; this
+does not replace acceptance evidence or approve a merge/promotion.
+
+Deferral dry run /tmp/4200-weaker-deferral-dry.json: 157 nondeferred cases,
+144 bound skips and 13 undefined; dry skips are not passes. Scenario review
+c8761cef-813c-40ca-836b-8d76b202a7ed explicitly accepts the KKP2R3 partition
+but still requests changes on the existing OpenCode enforcement/advisory
+conflict. Its remaining warnings are retained in the raw report
+/tmp/4200-weaker-deferral-scenario-review-final.json. No whole-feature approval
+is claimed. The first dispatch refused incorrect context ordering before any
+review; the corrected dispatch supplied the authoritative spec first.

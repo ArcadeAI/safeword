@@ -187,7 +187,6 @@ Feature: Keep plan reviews current and trustworthy
         | a different agent in a separate process using a model at least as capable as the author | cross-agent independence is accepted |
         | a different agent in the same process using a model at least as capable as the author | independent approval is refused |
         | the authoring agent in the same process | independent approval is refused |
-        | a different agent using a weaker model than the author | independent approval is refused |
         | a different agent when the author model cannot be verified | independent approval is refused |
 
     Scenario Outline: Route selection derives independence from configured model capability
@@ -198,8 +197,19 @@ Feature: Keep plan reviews current and trustworthy
       Examples:
         | reviewer_capability | selection_result |
         | a reviewer model at least as capable as the verified author model | that route is attempted as an independent review |
-        | a reviewer model weaker than the verified author model | that route is not attempted as independent and selection continues to the next permitted route |
         | a reviewer model with unavailable, stale, or conflicting pair capability | that route is not attempted as independent and selection continues to the next permitted route |
+
+    @manual @deferred.KKP2R3 @rejection
+    Scenario: A genuinely weaker reviewer cannot provide independent approval
+      Given an approval is returned by a different agent using a weaker model than the author
+      When the coordinator classifies its independence
+      Then independent approval is refused
+
+    @manual @deferred.KKP2R3 @rejection
+    Scenario: A genuinely weaker reviewer is excluded before independent launch
+      Given the real review route registry and project configuration select a reviewer model weaker than the verified author model
+      When the coordinator selects an independent route while mocking only the agent invocation
+      Then that route is not attempted as independent and selection continues to the next permitted route
 
     Scenario Outline: Exhausted routes advance through the fallback ladder in order
       Given every route before <next_tier> is configured to return a typed failure when attempted
