@@ -94,6 +94,19 @@ export function preparedCodexProjectBootstrap(cwd: string, baseContent?: string)
   return codexProjectBootstrapContent(content);
 }
 
+/** Whether this project's Codex config already carries a Safeword bootstrap. */
+export function codexProjectBootstrapEnrolled(cwd: string): boolean {
+  const configPath = nodePath.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
+  try {
+    if (regularCodexConfigMetadata(configPath).kind === 'missing') return false;
+    const content = readFileSync(configPath, 'utf8');
+    return content.includes(BEGIN_MARKER) || content.includes(BOOTSTRAP_COMMAND);
+  } catch {
+    // Let the install path report an unsafe or unreadable config.
+    return true;
+  }
+}
+
 export function installCodexProjectBootstrap(cwd: string): boolean {
   const configPath = nodePath.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
   const metadata = regularCodexConfigMetadata(configPath);

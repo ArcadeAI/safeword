@@ -19537,6 +19537,17 @@ function preparedCodexProjectBootstrap(cwd, baseContent) {
   }
   return codexProjectBootstrapContent(content);
 }
+function codexProjectBootstrapEnrolled(cwd) {
+  const configPath = nodePath31.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
+  try {
+    if (regularCodexConfigMetadata(configPath).kind === "missing")
+      return false;
+    const content = readFileSync19(configPath, "utf8");
+    return content.includes(BEGIN_MARKER) || content.includes(BOOTSTRAP_COMMAND);
+  } catch {
+    return true;
+  }
+}
 function installCodexProjectBootstrap(cwd) {
   const configPath = nodePath31.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
   const metadata = regularCodexConfigMetadata(configPath);
@@ -62143,7 +62154,12 @@ function applyPendingFreshInstallDefaults(cwd) {
     applyFreshInstallDefaults(cwd);
   return diffFileSnapshots(before, snapshotFiles(cwd, [target]));
 }
-function plannedCodexBootstrapEffect(cwd) {
+function codexBootstrapWanted(cwd, selected) {
+  return selected !== false || codexProjectBootstrapEnrolled(cwd);
+}
+function plannedCodexBootstrapEffect(cwd, selected) {
+  if (!codexBootstrapWanted(cwd, selected))
+    return [];
   const target = ".codex/config.toml";
   const path8 = nodePath108.join(cwd, target);
   const original = existsSync48(path8) ? readFileSync67(path8, "utf8") : "";
@@ -62400,7 +62416,7 @@ async function createSetupPlan(cwd, schema, options = {}) {
         ...plannedNamespaceEffects(cwd, migrateNamespace),
         ...compatibilityFiles,
         ...plannedPackEffects(cwd),
-        ...plannedCodexBootstrapEffect(cwd),
+        ...plannedCodexBootstrapEffect(cwd, options.codexBootstrap),
         ...plannedArchitectureEffects(cwd),
         ...plannedWorkspaceEffects(cwd, context),
         ...plannedOptionalEslintEffects(cwd, context, options.noModify),
@@ -62529,6 +62545,7 @@ async function convergeSetupValidated(cwd, options) {
       offline: options.offline === true,
       packageJsonCreated,
       noModify: options.noModify === true,
+      codexBootstrap: options.codexBootstrap,
       namespaceMigration,
       preliminaryFileEffects: [...versionMarkerEffects, ...freshDefaultEffects],
       adapters,
@@ -62887,7 +62904,8 @@ function setupResult(input) {
     pythonSetup,
     namespaceMigration,
     completedEffects,
-    claudeProjectPluginEnrolled
+    claudeProjectPluginEnrolled,
+    codexBootstrapEnrolled
   } = input;
   const files2 = uniqueEffects([
     ...packageJsonCreated ? [{ kind: "create", target: "package.json" }] : [],
@@ -62912,7 +62930,7 @@ function setupResult(input) {
   const claudePluginReloadEligible = claudeProjectPluginEnrolled && !changed2;
   const resultFindings = [
     ...findings,
-    ...actionRequired2 || handoffDeferred ? [] : [
+    ...actionRequired2 || handoffDeferred || !codexBootstrapEnrolled ? [] : [
       {
         code: "SETUP_CODEX_PLUGIN_HANDOFF",
         message: "Codex bootstrap is enrolled for this project; each developer profile is checked automatically at task start.",
@@ -63080,6 +63098,11 @@ function migrateLegacyCodexDuringSetup(cwd, completedEffects, offline) {
 function setupPackageChecksAreSkipped(offline) {
   return offline || Boolean(process.env.SAFEWORD_SKIP_INSTALL);
 }
+function convergeCodexBootstrap(cwd, selected, completedEffects) {
+  if (!codexBootstrapWanted(cwd, selected))
+    return;
+  observeFileStage(cwd, [".codex/config.toml"], completedEffects, () => installCodexProjectBootstrap(cwd));
+}
 async function applySetup(cwd, input) {
   const {
     adapters,
@@ -63103,7 +63126,7 @@ async function applySetup(cwd, input) {
   };
   try {
     applyCompatibilityMigrations(cwd, completedEffects);
-    observeFileStage(cwd, [".codex/config.toml"], completedEffects, () => installCodexProjectBootstrap(cwd));
+    convergeCodexBootstrap(cwd, input.codexBootstrap, completedEffects);
     const codexHandoffFindings = migrateLegacyCodexDuringSetup(cwd, completedEffects, input.offline);
     const architectureEffects = observeFileStage(cwd, [".safeword/depcruise-config.cjs", ".dependency-cruiser.cjs"], completedEffects, () => adapters.configureArchitecture(cwd));
     observeFileStage(cwd, workspacePackageJsonTargets(cwd, context), completedEffects, () => adapters.configureWorkspaces(cwd, context));
@@ -63155,7 +63178,8 @@ async function applySetup(cwd, input) {
       pythonSetup,
       namespaceMigration,
       completedEffects,
-      claudeProjectPluginEnrolled: projectClaudePluginEnrolled(cwd)
+      claudeProjectPluginEnrolled: projectClaudePluginEnrolled(cwd),
+      codexBootstrapEnrolled: codexProjectBootstrapEnrolled(cwd)
     });
     const health = await checkHealth(cwd, {
       skipPackageChecks: setupPackageChecksAreSkipped(input.offline),
@@ -63444,6 +63468,7 @@ async function installProjectSurface(invocation, agents) {
   const projectSchema = projectLifecycleSchema(invocation.cwd, agents);
   return convergeSetup(invocation.cwd, {
     offline: invocation.offline,
+    codexBootstrap: agents.includes("codex"),
     noModify: invocation.options.modify === false,
     repairVersionMarker: invocation.options.repairVersionMarker === true,
     migrateNamespace: typeof invocation.options.migrateNamespace === "boolean" ? invocation.options.migrateNamespace : undefined,
@@ -63546,7 +63571,10 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
   const projectSchema = projectLifecycleSchema(cwd, agents, operation, remainingNativeProfile);
   const uninstallOperation = full ? "uninstall-full" : "uninstall";
   const project = uninstalling ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema) : {
-    plan: await createSetupPlan(cwd, projectSchema, installOptions),
+    plan: await createSetupPlan(cwd, projectSchema, {
+      ...installOptions,
+      codexBootstrap: selected.has("codex")
+    }),
     dryRun: undefined
   };
   const integrationSurfaces = observedSurfaces.filter((surface) => selected.has(surface.name));

@@ -198,7 +198,7 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(existsSync(nodePath.join(temporaryDirectory, '.codex'))).toBe(false);
     });
 
-    it('enrolls Codex automatically and teaches only the canonical route', async () => {
+    it('leaves Codex unenrolled when the project never selected it', async () => {
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
@@ -210,7 +210,8 @@ describe('Setup Command - Reconcile Integration', () => {
       });
 
       expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain(
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain(
         'each developer profile is checked automatically at task start',
       );
       expect(`${result.stdout}\n${result.stderr}`).not.toContain('codex install');
@@ -269,12 +270,8 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(result.exitCode, result.stderr).toBe(0);
       expect(result.stdout).toContain('Complete');
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(true);
-      const codexConfig = readFileSync(
-        nodePath.join(temporaryDirectory, '.codex/config.toml'),
-        'utf8',
-      );
-      expect(codexConfig).toContain('[[hooks.SessionStart]]');
-      expect(codexConfig).not.toContain('[[hooks.PreToolUse]]');
+      // The helper selects Cursor only, so Codex startup hooks stay out.
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex'))).toBe(false);
     });
 
     it('should converge an already configured project', async () => {

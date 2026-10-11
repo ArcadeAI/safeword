@@ -503,7 +503,7 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(readFileSync(legacySkillPath, 'utf8')).toBe(legacySkill);
     });
 
-    it('enrolls Codex automatically and teaches only the canonical route', async () => {
+    it('leaves Codex unenrolled when the project never selected it', async () => {
       createConfiguredProject('0.5.0');
 
       const result = await runCli(['upgrade', '--no-migrate-namespace'], {
@@ -512,7 +512,8 @@ statusMessage = "Checking safeword PreToolUse gates"
       });
 
       expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain(
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain(
         'each developer profile is checked automatically at task start',
       );
       expect(`${result.stdout}\n${result.stderr}`).not.toContain('codex install');

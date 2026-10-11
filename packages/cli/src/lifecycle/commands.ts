@@ -155,6 +155,7 @@ async function installProjectSurface(
   const projectSchema = projectLifecycleSchema(invocation.cwd, agents);
   return convergeSetup(invocation.cwd, {
     offline: invocation.offline,
+    codexBootstrap: agents.includes('codex'),
     noModify: invocation.options.modify === false,
     repairVersionMarker: invocation.options.repairVersionMarker === true,
     migrateNamespace:
@@ -343,7 +344,10 @@ async function prepareLifecycle(
   const project = uninstalling
     ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema)
     : {
-        plan: await createSetupPlan(cwd, projectSchema, installOptions),
+        plan: await createSetupPlan(cwd, projectSchema, {
+          ...installOptions,
+          codexBootstrap: selected.has('codex'),
+        }),
         dryRun: undefined,
       };
   const integrationSurfaces = observedSurfaces.filter(surface => selected.has(surface.name));

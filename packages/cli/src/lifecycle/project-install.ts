@@ -47,6 +47,7 @@ import {
   legacyCodexHandoffPending,
 } from '../codex-plugin/operations.js';
 import {
+  codexProjectBootstrapEnrolled,
   installCodexProjectBootstrap,
   preparedCodexProjectBootstrap,
 } from '../codex-plugin/project-bootstrap.js';
@@ -233,7 +234,16 @@ function applyPendingFreshInstallDefaults(cwd: string): Effect[] {
   return diffFileSnapshots(before, snapshotFiles(cwd, [target]));
 }
 
-function plannedCodexBootstrapEffect(cwd: string): Effect[] {
+/**
+ * Codex startup hooks belong to projects that selected Codex. An existing
+ * enrollment keeps converging so upgrades never strand a stale bootstrap.
+ */
+function codexBootstrapWanted(cwd: string, selected: boolean | undefined): boolean {
+  return selected !== false || codexProjectBootstrapEnrolled(cwd);
+}
+
+function plannedCodexBootstrapEffect(cwd: string, selected: boolean | undefined): Effect[] {
+  if (!codexBootstrapWanted(cwd, selected)) return [];
   const target = '.codex/config.toml';
   const path = nodePath.join(cwd, target);
   const original = existsSync(path) ? readFileSync(path, 'utf8') : '';
@@ -403,6 +413,7 @@ function pythonObservationTargets(cwd: string): string[] {
 }
 
 export interface SetupPlanOptions {
+  readonly codexBootstrap?: boolean;
   readonly migrateNamespace?: boolean;
   readonly noModify?: boolean;
   readonly repairVersionMarker?: boolean;
@@ -575,7 +586,7 @@ export async function createSetupPlan(
         ...plannedNamespaceEffects(cwd, migrateNamespace),
         ...compatibilityFiles,
         ...plannedPackEffects(cwd),
-        ...plannedCodexBootstrapEffect(cwd),
+        ...plannedCodexBootstrapEffect(cwd, options.codexBootstrap),
         ...plannedArchitectureEffects(cwd),
         ...plannedWorkspaceEffects(cwd, context),
         ...plannedOptionalEslintEffects(cwd, context, options.noModify),
@@ -700,6 +711,7 @@ function publicRetroConfigRefusal(cwd: string): CliResult | undefined {
 }
 
 interface ConvergeSetupOptions {
+  codexBootstrap?: boolean;
   offline?: boolean;
   noModify?: boolean;
   migrateNamespace?: boolean;
@@ -777,6 +789,7 @@ async function convergeSetupValidated(
       offline: options.offline === true,
       packageJsonCreated,
       noModify: options.noModify === true,
+      codexBootstrap: options.codexBootstrap,
       namespaceMigration,
       preliminaryFileEffects: [...versionMarkerEffects, ...freshDefaultEffects],
       adapters,
@@ -1185,6 +1198,7 @@ interface SetupResultInput {
   readonly namespaceMigration: NamespaceConvergence;
   readonly completedEffects: CompletedSetupEffects;
   readonly claudeProjectPluginEnrolled: boolean;
+  readonly codexBootstrapEnrolled: boolean;
 }
 
 interface CompletedSetupEffects {
@@ -1261,6 +1275,7 @@ function setupResult(input: SetupResultInput): CliResult {
     namespaceMigration,
     completedEffects,
     claudeProjectPluginEnrolled,
+    codexBootstrapEnrolled,
   } = input;
   const files = uniqueEffects([
     ...(packageJsonCreated ? [{ kind: 'create', target: 'package.json' }] : []),
@@ -1300,7 +1315,7 @@ function setupResult(input: SetupResultInput): CliResult {
     ...findings,
     // Suppressed while a handoff is deferred: claiming enrollment succeeded
     // would contradict the warning this run just emitted.
-    ...(actionRequired || handoffDeferred
+    ...(actionRequired || handoffDeferred || !codexBootstrapEnrolled
       ? []
       : [
           {
@@ -1419,6 +1434,7 @@ function applyPackageCompatibility(
 }
 
 interface ApplySetupInput {
+  readonly codexBootstrap?: boolean;
   readonly configured: boolean;
   readonly offline: boolean;
   readonly packageJsonCreated: boolean;
@@ -1528,6 +1544,17 @@ function setupPackageChecksAreSkipped(offline: boolean): boolean {
   return offline || Boolean(process.env.SAFEWORD_SKIP_INSTALL);
 }
 
+function convergeCodexBootstrap(
+  cwd: string,
+  selected: boolean | undefined,
+  completedEffects: CompletedSetupEffects,
+): void {
+  if (!codexBootstrapWanted(cwd, selected)) return;
+  observeFileStage(cwd, ['.codex/config.toml'], completedEffects, () =>
+    installCodexProjectBootstrap(cwd),
+  );
+}
+
 async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResult> {
   const {
     adapters,
@@ -1552,9 +1579,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
 
   try {
     applyCompatibilityMigrations(cwd, completedEffects);
-    observeFileStage(cwd, ['.codex/config.toml'], completedEffects, () =>
-      installCodexProjectBootstrap(cwd),
-    );
+    convergeCodexBootstrap(cwd, input.codexBootstrap, completedEffects);
     const codexHandoffFindings = migrateLegacyCodexDuringSetup(
       cwd,
       completedEffects,
@@ -1628,6 +1653,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       namespaceMigration,
       completedEffects,
       claudeProjectPluginEnrolled: projectClaudePluginEnrolled(cwd),
+      codexBootstrapEnrolled: codexProjectBootstrapEnrolled(cwd),
     });
     const health = await checkHealth(cwd, {
       skipPackageChecks: setupPackageChecksAreSkipped(input.offline),

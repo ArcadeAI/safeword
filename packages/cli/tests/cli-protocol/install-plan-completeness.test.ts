@@ -603,7 +603,6 @@ describe('install plan completeness', () => {
     const { envelope: planEnvelope } = await planProject(directory);
     expectEffectsInclude(planEnvelope, 'files', [
       { kind: 'update', target: '.safeword/config.json' },
-      { kind: 'create', target: '.codex/config.toml' },
       { kind: 'create', target: '.safeword/depcruise-config.cjs' },
       { kind: 'create', target: '.dependency-cruiser.cjs' },
       { kind: 'update', target: 'packages/app/package.json' },
@@ -970,5 +969,49 @@ fs.writeFileSync("package-lock.json", JSON.stringify(lock, null, 2) + "\\n");
     expect(installed.exitCode, installed.stdout).toBe(0);
     expect(existsSync(log)).toBe(false);
     expect((JSON.parse(installed.stdout) as LifecycleEnvelope).effects.network).toEqual([]);
+  });
+
+  it('leaves Codex startup hooks out of a project that did not select Codex', async () => {
+    const directory = temporaryDirectory();
+
+    const { envelope } = await planProject(directory);
+    expect((envelope.data.plan.effects.files ?? []).map(effect => effect.target)).not.toContain(
+      '.codex/config.toml',
+    );
+
+    const installed = await runCliWithoutInstall(
+      ['install', '--agents=none', '--no-input', '--no-modify', '--json', '--cwd', directory],
+      { cwd: directory },
+    );
+    expect(installed.exitCode, installed.stdout).toBe(0);
+    expect(existsSync(nodePath.join(directory, '.codex'))).toBe(false);
+    expect(installed.stdout).not.toContain('SETUP_CODEX_PLUGIN_HANDOFF');
+  });
+
+  it('keeps refreshing an existing Codex enrollment when Codex is not selected', async () => {
+    const directory = temporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
+    const stale = [
+      'model = "kept"',
+      '',
+      '# --- safeword codex bootstrap: begin ---',
+      '[[hooks.SessionStart]]',
+      'matcher = ""',
+      '# --- safeword codex bootstrap: end ---',
+      '',
+    ].join('\n');
+    writeFileSync(nodePath.join(directory, '.codex/config.toml'), stale);
+
+    const { envelope } = await planProject(directory);
+    expectEffectsInclude(envelope, 'files', [{ kind: 'update', target: '.codex/config.toml' }]);
+
+    const installed = await runCliWithoutInstall(
+      ['install', '--agents=none', '--no-input', '--no-modify', '--json', '--cwd', directory],
+      { cwd: directory },
+    );
+    expect(installed.exitCode, installed.stdout).toBe(0);
+    const config = readFileSync(nodePath.join(directory, '.codex/config.toml'), 'utf8');
+    expect(config).toContain('model = "kept"');
+    expect(config).toContain('safeword@latest codex bootstrap');
   });
 });
