@@ -329,6 +329,11 @@ def cmd_assign() -> None:
     (DATA / "assignments.json").write_text(json.dumps(assign, indent=1))
 
 
+# Kinds where a gate or guard cost the agent work. The blocked_legitimate_work flag alone runs
+# strict: a gate that fires as designed on correct work is labelled extra_toil, not wrong_block.
+GATE_FRICTION = {"wrong_block", "extra_toil", "right_block_bad_message"}
+
+
 def cmd_report() -> None:
     issues = {str(i["number"]): i for i in load_issues()}
     labels = json.loads((DATA / "labels.json").read_text())
@@ -350,7 +355,7 @@ def cmd_report() -> None:
         "",
         "## Root causes, by issue count",
         "",
-        "| # | Root cause | Issues | Wrong blocks | Share | Top mechanisms | Examples |",
+        "| # | Root cause | Issues | Gate friction | Wrong blocks | Top mechanisms | Examples |",
         "|---|---|---|---|---|---|---|",
     ]
     members = collections.defaultdict(list)
@@ -359,11 +364,13 @@ def cmd_report() -> None:
     ranked = sorted(members.items(), key=lambda kv: -len(kv[1]))
     for rank, (cid, ns) in enumerate(ranked, 1):
         wrong = sum(labels[n]["blocked_legitimate_work"] for n in ns)
+        friction = sum(labels[n]["kind"] in GATE_FRICTION for n in ns)
         mechs = collections.Counter(labels[n]["mechanism"].lower() for n in ns).most_common(3)
         ex = ", ".join(f"#{n}" for n in sorted(ns, key=int)[-3:])
         lines.append(
-            f"| {rank} | **{causes[cid]['name']}** | {len(ns)} | {wrong} | {wrong / len(ns):.0%} | "
-            f"{'; '.join(f'{m} ({c})' for m, c in mechs)} | {ex} |"
+            f"| {rank} | **{causes[cid]['name']}** | {len(ns)} "
+            f"| {friction} ({friction / len(ns):.0%}) | {wrong} "
+            f"| {'; '.join(f'{m} ({c})' for m, c in mechs)} | {ex} |"
         )
 
     lines += [
