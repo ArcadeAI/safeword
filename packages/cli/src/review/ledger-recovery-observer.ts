@@ -6,8 +6,14 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { writeDurableFileExclusive } from '../codex-plugin/durable-write.js';
+import { writeDurableFile, writeDurableFileExclusive } from '../codex-plugin/durable-write.js';
 import { ledgerRecoveryObservationTag } from './job.js';
+import {
+  RECOVERY_MANIFEST_PATH,
+  RECOVERY_SUMMARY_PATH,
+  recoveryEvidenceSummary,
+  type RecoveryInput,
+} from './ledger-recovery-completion.js';
 import {
   LEDGER_RECOVERY_PROFILE,
   ledgerRecoveryProfileIdentity,
@@ -161,13 +167,25 @@ function runObservation(root: string): CliResult {
       { mode: 0o600 },
     );
     const reportBytes = readFileSync(report);
-    const summary = assessRecoveryReport(JSON.parse(reportBytes.toString()), result.status ?? 1);
+    const parsedReport: unknown = JSON.parse(reportBytes.toString());
+    const summary = assessRecoveryReport(parsedReport, result.status ?? 1);
     if (result.error !== undefined || summary === undefined) {
       throw new Error(
         `Current acceptance did not pass the exact active scope. Retained evidence: ${directory}`,
       );
     }
-    const inputs = observedInputs(root, copy, capture);
+    const inputs = observedInputs(root, copy, capture).map(input => {
+      if (input.path !== 'bun.lock') return input;
+      const bytes = readProofInput(copy, input.path);
+      const split = bytes.indexOf('\n', Math.floor(bytes.length / 2)) + 1;
+      if (split <= 0) throw new Error('The observed lockfile cannot be split at a line boundary.');
+      const reviewParts = [bytes.subarray(0, split), bytes.subarray(split)].map((part, index) => {
+        const absolute = nodePath.join(directory, `bun.lock-part-${index + 1}.txt`);
+        writeDurableFileExclusive(absolute, part, { mode: 0o600 });
+        return { path: nodePath.relative(root, absolute), sha256: recoveryDigest(part) };
+      });
+      return { ...input, reviewParts };
+    });
     assertRecoverySource(root);
     if (
       recoveryProductTree(root) !== productTree ||
@@ -176,7 +194,7 @@ function runObservation(root: string): CliResult {
       throw new Error('Recovery candidate changed during observation.');
     }
     const observation = nodePath.join(directory, 'observation.json');
-    const content = JSON.stringify({
+    const record = {
       kind: 'ledger-recovery-observation:v1',
       ticket: LEDGER_RECOVERY_PROFILE.ticket,
       profile: ledgerRecoveryProfileIdentity(),
@@ -185,13 +203,30 @@ function runObservation(root: string): CliResult {
       observerContractSha256: recoveryDigest(INPUT_PLUGIN),
       report,
       reportSha256: recoveryDigest(reportBytes),
-      exitCode: result.status,
+      exitCode: result.status ?? 1,
       inputs,
       summary,
-    });
+    };
+    const content = JSON.stringify(record);
     const tag = nodePath.join(directory, 'observation.tag');
     writeDurableFileExclusive(observation, content, { mode: 0o600 });
     writeDurableFileExclusive(tag, ledgerRecoveryObservationTag(root, content), { mode: 0o600 });
+    const relative = nodePath.relative(root, observation);
+    writeDurableFile(
+      nodePath.join(root, RECOVERY_MANIFEST_PATH),
+      JSON.stringify({
+        kind: 'ledger-recovery-manifest:v1',
+        ticket: LEDGER_RECOVERY_PROFILE.ticket,
+        profile: ledgerRecoveryProfileIdentity(),
+        observation: relative,
+      }),
+      { mode: 0o600 },
+    );
+    writeDurableFile(
+      nodePath.join(root, RECOVERY_SUMMARY_PATH),
+      JSON.stringify(recoveryEvidenceSummary(record, relative, parsedReport)),
+      { mode: 0o600 },
+    );
     return createResult({
       state: 'healthy',
       changed: true,
@@ -246,11 +281,7 @@ function runPreparation(copy: string, environment: NodeJS.ProcessEnv, directory:
   }
 }
 
-function observedInputs(
-  root: string,
-  copy: string,
-  capture: string,
-): { path: string; sha256: string }[] {
+function observedInputs(root: string, copy: string, capture: string): RecoveryInput[] {
   const captured: { path: string; sha256: string }[] = JSON.parse(readFileSync(capture, 'utf8'));
   if (!Array.isArray(captured) || captured.length === 0)
     throw new Error('No resolved execution inputs were captured.');
