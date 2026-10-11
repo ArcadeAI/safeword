@@ -159,7 +159,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b6ea461cb17f70022b1736b2b3f406c7134cd0029f66cdcaf253ec880d9d1933"
+      "sha256": "7208bbe28df482caa4505e4819d1ef74f3fc1b0c81b8211ba6a7cec7152adb1f"
     },
     {
       "path": "runtime/dispatch.js",
@@ -243,7 +243,7 @@
     },
     {
       "path": "runtime/hooks/lib/done-gate.ts",
-      "sha256": "7ae0babe0c1435a4f64eb36f600b614ed4776520b30a0cd352a7e09f1362702e"
+      "sha256": "891ce48f125b1d87305ec8ee5719db8aea2ed84bf8953657fb734d453926c3e4"
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
@@ -288,6 +288,10 @@
     {
       "path": "runtime/hooks/lib/ledger-git.ts",
       "sha256": "c09cedbf74875a3f4aaf08bda560313716edbb14ab2e1b1889f1f9bf1d9bd976"
+    },
+    {
+      "path": "runtime/hooks/lib/ledger-recovery-gate.ts",
+      "sha256": "89ea6bb6ee95257e18a65f19a4bf4d551cbd451bb2af0803b17f66639bec11ce"
     },
     {
       "path": "runtime/hooks/lib/ledger-validation.ts",
@@ -407,7 +411,7 @@
     },
     {
       "path": "runtime/hooks/lib/retrospective-gate.ts",
-      "sha256": "c408a3a94a240be25802df86704edd3789518837d3367ffd052edb5e56074ad6"
+      "sha256": "858433a39539bd32ea43c6e9033f37d29260b0b9ba81f221553a96a0b20cd36c"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
@@ -1219,7 +1223,7 @@
     },
     {
       "path": "templates/hooks/lib/done-gate.ts",
-      "sha256": "7ae0babe0c1435a4f64eb36f600b614ed4776520b30a0cd352a7e09f1362702e"
+      "sha256": "891ce48f125b1d87305ec8ee5719db8aea2ed84bf8953657fb734d453926c3e4"
     },
     {
       "path": "templates/hooks/lib/drain-retro-spool.ts",
@@ -1264,6 +1268,10 @@
     {
       "path": "templates/hooks/lib/ledger-git.ts",
       "sha256": "c09cedbf74875a3f4aaf08bda560313716edbb14ab2e1b1889f1f9bf1d9bd976"
+    },
+    {
+      "path": "templates/hooks/lib/ledger-recovery-gate.ts",
+      "sha256": "89ea6bb6ee95257e18a65f19a4bf4d551cbd451bb2af0803b17f66639bec11ce"
     },
     {
       "path": "templates/hooks/lib/ledger-validation.ts",
@@ -1379,7 +1387,7 @@
     },
     {
       "path": "templates/hooks/lib/retrospective-gate.ts",
-      "sha256": "c408a3a94a240be25802df86704edd3789518837d3367ffd052edb5e56074ad6"
+      "sha256": "858433a39539bd32ea43c6e9033f37d29260b0b9ba81f221553a96a0b20cd36c"
     },
     {
       "path": "templates/hooks/lib/review-ledger.ts",

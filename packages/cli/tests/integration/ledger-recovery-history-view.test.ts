@@ -48,6 +48,13 @@ it('returns only the exact authorized historical erratum and preserves missing h
   expect(envelope.data.missingHistory).toHaveLength(
     (original.match(/^- \[ \] (?:RED|GREEN|REFACTOR)\b/gm) ?? []).length,
   );
+  expect(
+    envelope.data.missingHistory.map((item: { annotation: string }) => item.annotation),
+  ).toEqual(original.match(/^- \[ \] (?:RED|GREEN|REFACTOR)\b.*$/gm));
+  for (const item of envelope.data.missingHistory) {
+    expect(original.split('\n')[item.line - 1]).toBe(item.annotation);
+    expect(item.scenario).not.toBe('');
+  }
   expect(envelope.data.ticket).toBe('5F5ZZA');
   expect(envelope.data.ledger).toBe(ledger);
   expect(readFileSync(nodePath.join(fixture.root, ledger), 'utf8')).toBe(original);

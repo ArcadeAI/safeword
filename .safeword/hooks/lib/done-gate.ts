@@ -19,6 +19,7 @@ import nodePath from 'node:path';
 
 import { balancedFenceBodyLines } from './checkbox-transitions.js';
 import { formatDependencyRecovery, getDependencyReadiness } from './dependency-readiness.js';
+import { recoveryClosingView } from './ledger-recovery-gate.js';
 import { parseRetrospectiveAnnotation } from './retrospective-annotation.js';
 import { retrospectiveCloseDenial } from './retrospective-gate.js';
 import { analyzeScenarioFormat } from './scenario-format.js';
@@ -132,6 +133,7 @@ export interface DoneEvidenceParams {
   ticketDir: string;
   /** The ticket's `type` frontmatter ('feature' | 'task' | ...); features also need scenarios. */
   ticketType: string | undefined;
+  host?: string;
 }
 
 export interface DoneEvidenceVerdict {
@@ -139,6 +141,7 @@ export interface DoneEvidenceVerdict {
   ok: boolean;
   /** Human-readable explanation of the first failing check (undefined when ok). */
   reason?: string;
+  deferredCases?: { name: string; status: string }[];
 }
 
 /**
@@ -209,8 +212,7 @@ export function evaluateDoneEvidence(params: DoneEvidenceParams): DoneEvidenceVe
   // 4. Features must have every scenario checked off in test-definitions.md and
   //    their referenced Gherkin source must no longer carry development-only @wip.
   if (ticketType === 'feature') {
-    const scenarioVerdict = checkFeatureScenarios(projectDir, ticketDir);
-    if (!scenarioVerdict.ok) return scenarioVerdict;
+    return checkFeatureScenarios(projectDir, ticketDir, params.host);
   }
 
   return { ok: true };
@@ -221,7 +223,11 @@ export function evaluateDoneEvidence(params: DoneEvidenceParams): DoneEvidenceVe
  * still carries @wip. Legacy ledgers without `Feature source:` keep their existing
  * checkbox-only behavior.
  */
-export function checkFeatureScenarios(projectDir: string, ticketDir: string): DoneEvidenceVerdict {
+export function checkFeatureScenarios(
+  projectDir: string,
+  ticketDir: string,
+  host?: string,
+): DoneEvidenceVerdict {
   const testDefsPath = nodePath.join(ticketDir, 'test-definitions.md');
   if (!existsSync(testDefsPath)) {
     return {
@@ -243,6 +249,7 @@ export function checkFeatureScenarios(projectDir: string, ticketDir: string): Do
   }
   const retrospective = verifiedScenarioView(projectDir, ticketDir, testDefinitions);
   if (retrospective.error !== undefined) return { ok: false, reason: retrospective.error };
+  const recovery = recoveryClosingView(projectDir, ticketDir, host);
   const { checked, unchecked, isUnrecognized } = analyzeScenarioFormat(retrospective.content);
   if (isUnrecognized) {
     return {
@@ -252,7 +259,7 @@ export function checkFeatureScenarios(projectDir: string, ticketDir: string): Do
     };
   }
   const total = checked + unchecked;
-  if (total === 0 || unchecked > 0) {
+  if (recovery === undefined && (total === 0 || unchecked > 0)) {
     return {
       ok: false,
       reason:
@@ -314,5 +321,7 @@ export function checkFeatureScenarios(projectDir: string, ticketDir: string): Do
     };
   }
 
-  return { ok: true };
+  return recovery === undefined
+    ? { ok: true }
+    : { ok: true, deferredCases: recovery.deferredCases };
 }

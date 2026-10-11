@@ -875,6 +875,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/lib/parse-annotation.ts': { template: 'hooks/lib/parse-annotation.ts' },
     '.safeword/hooks/lib/retrospective-gate.ts': { template: 'hooks/lib/retrospective-gate.ts' },
+    '.safeword/hooks/lib/ledger-recovery-gate.ts': {
+      template: 'hooks/lib/ledger-recovery-gate.ts',
+    },
     '.safeword/hooks/lib/retrospective-annotation.ts': {
       template: 'hooks/lib/retrospective-annotation.ts',
     },

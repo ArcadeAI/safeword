@@ -248,9 +248,18 @@ export function ledgerRecoveryCompletion(root: string): CliResult {
         'An active case lacks independent certification of its actual execution inputs.',
       );
     }
+    const { historicalView, missingHistory } = recoveryHistoryViews(root);
     return createResult({
       state: 'healthy',
-      data: { command: 'review gate ledger-recovery', status: 'approved', summary },
+      data: {
+        command: 'review gate ledger-recovery',
+        status: 'approved',
+        summary,
+        ticket: LEDGER_RECOVERY_PROFILE.ticket,
+        ledger: LEDGER_RECOVERY_PROFILE.ledger,
+        historicalView,
+        missingHistory,
+      },
     });
   } catch (error: unknown) {
     return createResult({
@@ -265,4 +274,26 @@ export function ledgerRecoveryCompletion(root: string): CliResult {
       data: { command: 'review gate ledger-recovery', status: 'blocked' },
     });
   }
+}
+
+function recoveryHistoryViews(root: string) {
+  const history = readProofInput(root, LEDGER_RECOVERY_PROFILE.ledger).toString();
+  requireCondition(
+    history.split('\n').every(line => !/^- \[[ xX]\] VERIFIED\b/u.test(line.trim())),
+    'Recovery cannot coexist with VERIFIED annotations.',
+  );
+  const historicalView = history.replace(
+    '- [x] REFACTOR 15a7c84aa',
+    '- [x] REFACTOR skip: reviewed recovery erratum; no separate refactor was warranted',
+  );
+  requireCondition(historicalView !== history, 'The sole approved historical erratum is missing.');
+  const missingHistory: { scenario: string; line: number; annotation: string }[] = [];
+  let scenario = '';
+  for (const [index, line] of history.split('\n').entries()) {
+    const heading = /^#{2,6} Scenario: (.+)$/u.exec(line);
+    if (heading !== null) scenario = heading[1] ?? '';
+    if (/^- \[ \] (?:RED|GREEN|REFACTOR)\b/u.test(line))
+      missingHistory.push({ scenario, line: index + 1, annotation: line });
+  }
+  return { historicalView, missingHistory };
 }

@@ -21,7 +21,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-it('credits authenticated active proof at supported local closing boundaries without rewriting history', async () => {
+it('credits authenticated active proof in the completion composite without rewriting history', async () => {
   const fixture = await simulatedRecoveryFixture();
   fixtures.push(fixture);
   // Built runtime outside this detached project models installed runtime ownership.
@@ -53,11 +53,24 @@ it('credits authenticated active proof at supported local closing boundaries wit
     expect(verdict.deferredCases?.every(item => item.status === 'deferred-unverified')).toBe(true);
   }
   expect(check('opencode').ok).toBe(false);
+  expect(check('unknown').ok).toBe(false);
   expect(check().ok).toBe(false);
+  writeFileSync(nodePath.join(ticket, 'verify.md'), '**PR Scope:** ❌ Out of scope\n');
+  expect(check('codex')).toMatchObject({
+    ok: false,
+    reason: expect.stringContaining('PR scope failed'),
+  });
+  writeFileSync(
+    nodePath.join(ticket, 'verify.md'),
+    '# Verify\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
+  );
   const job = nodePath.join(fixture.root, '.safeword/state/reviews', `${fixture.id}.json`);
   const jobBytes = readFileSync(job, 'utf8');
   writeFileSync(job, '{}');
-  expect(check('codex').ok).toBe(false);
+  expect(check('codex')).toMatchObject({
+    ok: false,
+    reason: expect.stringContaining('Not all scenarios are complete'),
+  });
   writeFileSync(job, jobBytes);
   expect(check('codex').ok).toBe(true);
   expect(readFileSync(ledger, 'utf8')).toBe(before);
