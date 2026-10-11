@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { Then, When } from '@cucumber/cucumber';
 
+import { validLedgerRecoveryObservationTag } from '../packages/cli/src/review/job.js';
+import cases from '../packages/cli/src/review/ledger-recovery-cases.json' with { type: 'json' };
+import { assessRecoveryReport } from '../packages/cli/src/review/ledger-recovery-report.js';
 import { SafewordWorld } from './world.js';
 
 const root = nodePath.resolve(import.meta.dirname, '..');
@@ -50,9 +54,26 @@ Then(
     assert.equal(observation.summary.passed, 142);
     assert.equal(observation.summary.deferred, 33);
     assert.equal(observation.summary.cases.length, 142);
+    assert.deepEqual(
+      observation.summary.cases,
+      cases.filter(item => !item.deferred).map(item => item.digest),
+    );
     assert.equal(observation.exitCode, 0);
     assert.match(observation.productTree, /^[a-f0-9]{64}$/);
     assert.match(observation.reportSha256, /^[a-f0-9]{64}$/);
+    const report = readFileSync(observation.report);
+    assert.equal(createHash('sha256').update(report).digest('hex'), observation.reportSha256);
+    assert.deepEqual(
+      assessRecoveryReport(JSON.parse(report.toString()), observation.exitCode),
+      observation.summary,
+    );
+    const content = readFileSync(envelope.data.observation, 'utf8');
+    assert.equal(
+      validLedgerRecoveryObservationTag(root, content, readFileSync(envelope.data.tag, 'utf8')),
+      true,
+    );
+    const head = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' });
+    assert.equal(observation.revision, head.stdout.trim());
     assert.ok(observation.inputs.some((input: { path: string }) => input.path === 'cucumber.mjs'));
   },
 );
