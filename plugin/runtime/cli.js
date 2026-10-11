@@ -90382,6 +90382,23 @@ async function executableRedGateHandler(invocation) {
   const { executableRedGate: executableRedGate2 } = await Promise.resolve().then(() => (init_job(), exports_job));
   return executableRedGate2(invocation.cwd, scenario, ledger);
 }
+function ledgerRecoveryGateHandler(invocation) {
+  const { ticket } = invocation.options;
+  if (typeof ticket !== "string" || ticket.trim() === "")
+    return Promise.resolve(invalidOperand("review gate ledger-recovery", "Ticket is required."));
+  const matchingScope = ticket === "5F5ZZA";
+  return Promise.resolve(createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: matchingScope ? "LEDGER_RECOVERY_EVIDENCE_MISSING" : "LEDGER_RECOVERY_SCOPE_MISMATCH",
+        severity: "warning",
+        message: matchingScope ? "Authenticated current completion evidence is required." : "Completion recovery is limited to the approved 5F5ZZA scope."
+      }
+    ],
+    data: { command: "review gate ledger-recovery", status: "blocked" }
+  }));
+}
 async function retrospectiveGateHandler(invocation) {
   return retrospectiveHandler(invocation, false);
 }
@@ -91669,6 +91686,7 @@ var HANDLERS = {
   "ticket record-delivery-proof": recordDeliveryProofHandler,
   "review run": reviewRunHandler,
   "review gate executable-red": executableRedGateHandler,
+  "review gate ledger-recovery": ledgerRecoveryGateHandler,
   "review gate retrospective": retrospectiveGateHandler,
   "review attest retrospective": retrospectiveAttestHandler,
   "review attest retrospective-close": retrospectiveCloseAttestHandler,
@@ -92270,6 +92288,16 @@ var CANONICAL_COMMANDS = [
         "--ledger",
         ".project/tickets/FIXTURE/test-definitions.md"
       ],
+      environment: MACHINE_ENVIRONMENT
+    }
+  }),
+  command2("review gate ledger-recovery", "Check bounded completion recovery", "observe", {
+    syntax: "ledger-recovery",
+    commandOptions: [
+      { flags: "--ticket <id>", description: "Ticket claiming completion recovery" }
+    ],
+    fixture: {
+      argv: ["review", "gate", "ledger-recovery", "--ticket", "OTHER1"],
       environment: MACHINE_ENVIRONMENT
     }
   }),

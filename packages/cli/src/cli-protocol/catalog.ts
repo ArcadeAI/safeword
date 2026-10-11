@@ -765,6 +765,16 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
+  command('review gate ledger-recovery', 'Check bounded completion recovery', 'observe', {
+    syntax: 'ledger-recovery',
+    commandOptions: [
+      { flags: '--ticket <id>', description: 'Ticket claiming completion recovery' },
+    ],
+    fixture: {
+      argv: ['review', 'gate', 'ledger-recovery', '--ticket', 'OTHER1'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
   command('review gate retrospective', 'Check CKWE2D retrospective receipts', 'observe', {
     syntax: 'retrospective',
     commandOptions: [

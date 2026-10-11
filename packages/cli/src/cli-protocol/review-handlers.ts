@@ -139,6 +139,30 @@ export async function executableRedGateHandler(invocation: CommandInvocation): P
   return executableRedGate(invocation.cwd, scenario, ledger);
 }
 
+export function ledgerRecoveryGateHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { ticket } = invocation.options;
+  if (typeof ticket !== 'string' || ticket.trim() === '')
+    return Promise.resolve(invalidOperand('review gate ledger-recovery', 'Ticket is required.'));
+  const matchingScope = ticket === '5F5ZZA';
+  return Promise.resolve(
+    createResult({
+      state: 'action_required',
+      findings: [
+        {
+          code: matchingScope
+            ? 'LEDGER_RECOVERY_EVIDENCE_MISSING'
+            : 'LEDGER_RECOVERY_SCOPE_MISMATCH',
+          severity: 'warning',
+          message: matchingScope
+            ? 'Authenticated current completion evidence is required.'
+            : 'Completion recovery is limited to the approved 5F5ZZA scope.',
+        },
+      ],
+      data: { command: 'review gate ledger-recovery', status: 'blocked' },
+    }),
+  );
+}
+
 export async function retrospectiveGateHandler(invocation: CommandInvocation): Promise<CliResult> {
   return retrospectiveHandler(invocation, false);
 }
