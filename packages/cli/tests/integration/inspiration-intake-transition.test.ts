@@ -216,10 +216,16 @@ describe('activated intake inspiration transition wiring', () => {
     const specFile = nodePath.join(ticketDirectory, 'spec.md');
     writeFileSync(specFile, spec(false));
 
-    expectHookDeny(
-      bashThroughHook(`sed -i 's/inspiration_contract[^[:space:]]*//' ${ticketFile} ${specFile}`),
-      'inspiration activation artifacts',
+    const result = bashThroughHook(
+      `sed -i 's/inspiration_contract[^[:space:]]*//' ${ticketFile} ${specFile}`,
     );
+    expectHookDeny(result, 'Edit or Write tool');
+    // Plain language that names the allowed tools on every host (#5760).
+    const reason = (
+      JSON.parse(result.stdout) as { hookSpecificOutput: { permissionDecisionReason: string } }
+    ).hookSpecificOutput.permissionDecisionReason;
+    expect(reason).toContain('apply_patch');
+    expect(reason).not.toMatch(/activation artifact|downgrade/i);
   });
 
   it('denies silent signal removal after an activated scaffold was committed', () => {
