@@ -42,51 +42,12 @@ import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
+  SIGNED_REVIEW_COMPLETION_WORKER as COMPLETE_WORKER,
 } from '../review-fixtures.js';
 
 const PACKAGE_ROOT = nodePath.resolve(import.meta.dirname, '../..');
 const PRE_TOOL_QUALITY = nodePath.join(PACKAGE_ROOT, 'templates/hooks/pre-tool-quality.ts');
 const SOURCE_CLI = nodePath.join(PACKAGE_ROOT, 'src/cli.ts');
-
-const COMPLETE_WORKER = String.raw`
-import { createHmac, randomBytes } from 'node:crypto';
-import { mkdirSync, openSync, closeSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-const id = process.env.SAFEWORD_REVIEW_JOB_ID;
-const path = join(process.cwd(), '.safeword', 'state', 'reviews', id + '.json');
-const record = JSON.parse(readFileSync(path, 'utf8'));
-record.state = 'completed';
-record.updated_at = new Date().toISOString();
-record.result = {
-  schemaVersion: 1, ok: true, state: 'healthy', changed: false,
-  findings: [{ code: 'REVIEWER_SUMMARY', message: 'Independent review complete.', severity: 'info' }],
-  effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
-  errors: [], recovery: [], nextActions: [],
-  data: {
-    command: 'review run', status: 'approved', author_agent: 'claude',
-    actual_reviewer: 'codex', independence: 'cross-agent',
-    reviewer_output: {
-      schema_version: 1, dispatch_id: 'fixture-dispatch', reviewer_agent: 'codex',
-      verdict: 'approve', summary: 'Independent review complete.', findings: []
-    }
-  }
-};
-const canonicalProject = realpathSync.native(process.cwd());
-const keyPath = join(process.env.SAFEWORD_REVIEW_KEY_ROOT, 'safeword', 'review-integrity.key');
-mkdirSync(dirname(keyPath), { recursive: true, mode: 0o700 });
-let key;
-try { key = Buffer.from(readFileSync(keyPath, 'utf8').trim(), 'hex'); }
-catch {
-  key = randomBytes(32);
-  try { const descriptor = openSync(keyPath, 'wx', 0o600); writeFileSync(descriptor, key.toString('hex') + '\n'); closeSync(descriptor); }
-  catch { key = Buffer.from(readFileSync(keyPath, 'utf8').trim(), 'hex'); }
-}
-delete record.integrity;
-record.integrity = createHmac('sha256', key)
-  .update(canonicalProject).update('\0').update(JSON.stringify(record)).digest('hex');
-writeFileSync(path + '.worker.tmp', JSON.stringify(record) + '\n', { mode: 0o600 });
-renameSync(path + '.worker.tmp', path);
-`;
 
 const REQUEST_CHANGES_WORKER = COMPLETE_WORKER.replace(
   "const record = JSON.parse(readFileSync(path, 'utf8'));",
