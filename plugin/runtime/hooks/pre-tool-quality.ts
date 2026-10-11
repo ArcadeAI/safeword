@@ -151,8 +151,10 @@ function withOrderingNote(context: string): string {
   return `${context} ${APPLY_PATCH_ORDERING_NOTE}`;
 }
 
-function deny(reason: string, additionalContext?: string, exposeReasonToUser = false): never {
-  const fullReason = `${reason}\n\n${EXPLAIN_HINT}`;
+function deny(reason: string, remedy?: string, exposeReasonToUser = false): never {
+  // The remedy rides in the reason, never additionalContext: the reason is the one
+  // field Claude, Cursor, Codex and OpenCode all hand to the agent (#5760).
+  const fullReason = [reason, remedy, EXPLAIN_HINT].filter(Boolean).join('\n\n');
   const output: Record<string, unknown> = {
     // systemMessage is the top-level field Claude Code surfaces to the USER
     // (permissionDecisionReason goes to the model and can be swallowed before the
@@ -163,7 +165,6 @@ function deny(reason: string, additionalContext?: string, exposeReasonToUser = f
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',
       permissionDecisionReason: fullReason,
-      ...(additionalContext ? { additionalContext } : {}),
     },
   };
   console.log(JSON.stringify(output));
@@ -426,8 +427,8 @@ if (tool === 'Bash') {
   const inspirationWrite = detectInspirationArtifactWrite(command);
   if (inspirationWrite) {
     deny(
-      `Bash writes to inspiration activation artifacts are blocked (${inspirationWrite.shape} targeting ${inspirationWrite.path}). Shell commands bypass the prior/proposed-content validation that prevents activation downgrade.`,
-      `Make the change with the Edit or Write tool on ${inspirationWrite.path}, so Safeword can preserve at least one v1 activation signal until durable Git provenance exists.`,
+      `Shell commands can't change ${inspirationWrite.path} (${inspirationWrite.shape}), because Safeword can't check what a shell command writes to a ticket file.`,
+      `Make the change with the Edit or Write tool (apply_patch in Codex). To only read the file, use cat, grep, or the Read tool.`,
     );
   }
   const processKill = detectBroadProcessKill(command);
