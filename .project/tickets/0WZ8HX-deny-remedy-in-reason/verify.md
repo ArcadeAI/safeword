@@ -6,7 +6,7 @@
 **Lint:** ✅ Clean (ESLint + Prettier on changed tests; the hook template is excluded from ESLint by project config)
 **Typecheck:** ✅ Clean (0 `error TS`)
 **Scenarios:** All 4 scenarios marked complete (inline task tests in ticket.md)
-**Refactor:** ✅ No change warranted — the change is a three-line `deny()` edit plus one message rewrite; nothing to restructure
+**Refactor:** ✅ Completed — 181bfdc0c renamed `GateDenial.additionalContext` → `remedy` (it now feeds `deny()`'s remedy); 5932f3f24 renamed the no-remedy deny test. Struck: Suite 5 header (historical label), helper for the single exit-code test (one use)
 **PR Scope:** ✅ Diff matches ticket scope — `templates/hooks/pre-tool-quality.ts`, two integration tests, regenerated surfaces (dogfood, Claude/Codex plugins, catalogue, lifecycle fixtures), and this ticket
 **Dep Drift:** ✅ Clean — no dependency manifests or lockfiles changed
 **Parent Epic:** N/A (tracked under GitHub epic #5749; no local parent)
