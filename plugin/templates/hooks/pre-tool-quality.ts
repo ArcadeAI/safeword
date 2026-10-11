@@ -973,7 +973,7 @@ if (isCanonicalTicketEdit) {
     return { found: info.folder !== undefined, status: info.status };
   });
   if (denial !== undefined) {
-    deny(denial.reason, denial.additionalContext);
+    deny(denial.reason, denial.remedy);
   }
 }
 
