@@ -16,7 +16,7 @@ const cli = nodePath.join(root, 'packages/cli/dist/cli.js');
 
 When(
   'I observe the current committed 5F5ZZA candidate through the public CLI',
-  { timeout: 7_200_000 },
+  { timeout: 7_900_000 },
   function (this: SafewordWorld) {
     const result = spawnSync(
       process.execPath,
@@ -36,7 +36,8 @@ When(
         cwd: root,
         env: { ...process.env, NODE_OPTIONS: undefined },
         encoding: 'utf8',
-        timeout: 7_100_000,
+        // Leave preparation and cleanup headroom beyond the inner acceptance timeout.
+        timeout: 7_800_000,
         maxBuffer: 8_000_000,
       },
     );

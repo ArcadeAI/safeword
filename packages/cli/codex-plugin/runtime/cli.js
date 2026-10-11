@@ -93052,7 +93052,7 @@ async function reviewRunHandler(invocation) {
       errors: [
         {
           code: "REVIEW_KIND_INVALID",
-          message: "Review kind must be quality-review, scenario-gate, plan-implementation, plan-execution, delivery-compatibility, executable-red, retrospective-eligibility, or retrospective-proof.",
+          message: "Review kind must be quality-review, scenario-gate, plan-implementation, plan-execution, delivery-compatibility, executable-red, retrospective-eligibility, retrospective-proof, or ledger-recovery.",
           retryable: false
         }
       ]
