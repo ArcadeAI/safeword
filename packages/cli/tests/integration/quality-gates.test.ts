@@ -729,7 +729,7 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
 
-    it('2: deny without additionalContext omits the field', () => {
+    it('2: a deny with no remedy emits no additionalContext', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 450,
