@@ -63464,11 +63464,14 @@ function combineInstallResults(agents, surfaces) {
     }
   });
 }
+function selectsCodex(agents) {
+  return agents.includes("codex");
+}
 async function installProjectSurface(invocation, agents) {
   const projectSchema = projectLifecycleSchema(invocation.cwd, agents);
   return convergeSetup(invocation.cwd, {
     offline: invocation.offline,
-    codexSelected: agents.includes("codex"),
+    codexSelected: selectsCodex(agents),
     noModify: invocation.options.modify === false,
     repairVersionMarker: invocation.options.repairVersionMarker === true,
     migrateNamespace: typeof invocation.options.migrateNamespace === "boolean" ? invocation.options.migrateNamespace : undefined,
@@ -63573,7 +63576,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
   const project = uninstalling ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema) : {
     plan: await createSetupPlan(cwd, projectSchema, {
       ...installOptions,
-      codexSelected: selected.has("codex")
+      codexSelected: selectsCodex(agents)
     }),
     dryRun: undefined
   };

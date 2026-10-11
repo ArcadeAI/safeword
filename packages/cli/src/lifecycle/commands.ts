@@ -148,6 +148,11 @@ function combineInstallResults(
   });
 }
 
+/** Plan and apply must agree on whether Codex startup hooks are in scope. */
+function selectsCodex(agents: readonly string[]): boolean {
+  return agents.includes('codex');
+}
+
 async function installProjectSurface(
   invocation: CommandInvocation,
   agents: readonly string[],
@@ -155,7 +160,7 @@ async function installProjectSurface(
   const projectSchema = projectLifecycleSchema(invocation.cwd, agents);
   return convergeSetup(invocation.cwd, {
     offline: invocation.offline,
-    codexSelected: agents.includes('codex'),
+    codexSelected: selectsCodex(agents),
     noModify: invocation.options.modify === false,
     repairVersionMarker: invocation.options.repairVersionMarker === true,
     migrateNamespace:
@@ -346,7 +351,7 @@ async function prepareLifecycle(
     : {
         plan: await createSetupPlan(cwd, projectSchema, {
           ...installOptions,
-          codexSelected: selected.has('codex'),
+          codexSelected: selectsCodex(agents),
         }),
         dryRun: undefined,
       };
