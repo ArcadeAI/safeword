@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -70,6 +70,36 @@ describe('bounded completion recovery through the public CLI', () => {
     expect(envelope.changed).toBe(false);
     expect(envelope.effects.files).toEqual([]);
     expect(readdirSync(root)).toEqual([]);
+  });
+
+  it('rejects a rewritten checked historical row and retains the altered bytes', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-ledger-recovery-history-'));
+    roots.push(root);
+    const folder = nodePath.join(
+      root,
+      '.project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy',
+    );
+    mkdirSync(folder, { recursive: true });
+    const ledger = nodePath.join(folder, 'test-definitions.md');
+    const source = readFileSync(
+      nodePath.resolve(
+        import.meta.dirname,
+        '../../../../.project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/test-definitions.md',
+      ),
+      'utf8',
+    );
+    writeFileSync(ledger, source);
+    const valid = recoveryGate(root, '5F5ZZA');
+    expect(JSON.parse(valid.stdout).findings[0]?.code).toBe('LEDGER_RECOVERY_EVIDENCE_MISSING');
+    const changed = source.replace('- [x] RED', '- [ ] RED');
+    expect(changed).not.toBe(source);
+    writeFileSync(ledger, changed);
+    const result = recoveryGate(root, '5F5ZZA');
+    expect(result.status).toBe(2);
+    expect(JSON.parse(result.stdout).findings[0]?.code, result.stdout + result.stderr).toBe(
+      'LEDGER_RECOVERY_HISTORY_CHANGED',
+    );
+    expect(readFileSync(ledger, 'utf8')).toBe(changed);
   });
 
   it('proves the same empty-project fixture reaches the existing retrospective scope guard', () => {
