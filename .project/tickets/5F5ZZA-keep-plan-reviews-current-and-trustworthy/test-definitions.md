@@ -730,7 +730,7 @@ nonblocking review limits remain retained.
 
 - [x] RED 80a46b0c3
 - [x] GREEN 15a7c84aa
-- [ ] REFACTOR
+- [x] REFACTOR 15a7c84aa
 
 ### Scenario: Invalidation follows the canonical Execution Planning dependency direction
 
