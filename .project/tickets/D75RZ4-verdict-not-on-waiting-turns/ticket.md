@@ -2,7 +2,7 @@
 id: D75RZ4
 slug: verdict-not-on-waiting-turns
 type: task
-phase: implement
+phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/5765
 scope:
@@ -39,14 +39,17 @@ which is still checked. Verified in a real transcript: background launches recor
 
 **Tests:**
 
-- [ ] A turn ending with a background Bash, background Agent, or Monitor launch and a plain status
+- [x] A turn ending with a background Bash, background Agent, or Monitor launch and a plain status
       reply gets no correction.
-- [ ] A turn that launches background work and then runs a foreground tool is still corrected.
-- [ ] A foreground-only tool turn is still corrected (existing test).
-- [ ] A turn that edits files and then launches background work is still corrected (edit evidence wins;
+- [x] A turn that launches background work and then runs a foreground tool is still corrected.
+- [x] A turn whose background launch failed (errored tool_result) is still corrected (implement
+      review aa516999).
+- [x] A foreground-only tool turn is still corrected (existing test).
+- [x] A turn that edits files and then launches background work is still corrected (edit evidence wins;
       intake review effdaf3e).
 
 ## Work Log
 
 - 2026-10-11T23:28:14.125Z Started: Created ticket D75RZ4
 - 2026-10-11T23:29:09.141Z Phase: intake → implement
+- 2026-10-11T23:38:38.442Z Phase: implement → verify
