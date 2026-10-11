@@ -38,7 +38,10 @@ import {
 } from './contract.js';
 import { hostContinuationCompletion } from './coordinator.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
-import type { LedgerRecoveryCertification } from './ledger-recovery-certification.js';
+import {
+  type LedgerRecoveryCertification,
+  validRecoveryCertification,
+} from './ledger-recovery-certification.js';
 import {
   LEDGER_RECOVERY_PROFILE,
   ledgerRecoveryProfileIdentity,
@@ -1838,10 +1841,10 @@ function hasCurrentFingerprint(cwd: string, record: ReviewJobRecord): boolean {
   }
 }
 
-/** Recovery receipts remain unavailable until the independent reader is implemented. */
+/** Authenticated provenance only; completion separately requires observation and coverage. */
 export function approvedLedgerRecoveryReview(
-  _cwd: string,
-  _id: string,
+  cwd: string,
+  id: string,
 ):
   | {
       readonly targets: readonly string[];
@@ -1849,7 +1852,27 @@ export function approvedLedgerRecoveryReview(
       readonly certification: LedgerRecoveryCertification;
     }
   | undefined {
-  return undefined;
+  try {
+    const record = readJob(cwd, id);
+    const data = record.result?.data as Record<string, unknown> | undefined;
+    const output = data?.reviewer_output as Record<string, unknown> | undefined;
+    const certification = output?.recovery_certification;
+    if (!validRecoveryCertification(certification, true)) return undefined;
+    const approved = [
+      record.kind === 'ledger-recovery',
+      record.state === 'completed',
+      hasCurrentFingerprint(cwd, record),
+      hasIndependentApproval(data),
+      ['claude', 'codex', 'cursor'].includes(data?.author_agent as string),
+      ['claude', 'codex'].includes(data?.actual_reviewer as string),
+      output?.verdict === 'approve',
+    ].every(Boolean);
+    return approved
+      ? { targets: effectiveReviewTargets(cwd, record), context: record.context, certification }
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Authenticated review identity for the CKWE2D migration gate. */
