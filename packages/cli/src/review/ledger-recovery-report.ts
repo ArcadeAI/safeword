@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import cases from './ledger-recovery-cases.json' with { type: 'json' };
 import { LEDGER_RECOVERY_PROFILE } from './ledger-recovery-profile.js';
 
@@ -21,7 +23,7 @@ export function assessRecoveryReport(
     if (!record(element)) return undefined;
     const expected = active.find(item => item.name === element.name && item.line === element.line);
     if (expected === undefined || seen.has(expected.digest)) return undefined;
-    if (!validSteps(element.steps, expected.steps)) return undefined;
+    if (!validSteps(element.steps, expected.stepDigests)) return undefined;
     seen.add(expected.digest);
   }
   return {
@@ -42,10 +44,7 @@ function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function validSteps(
-  steps: unknown,
-  expected: readonly { name: string; location: string }[],
-): boolean {
+function validSteps(steps: unknown, expected: readonly string[]): boolean {
   if (!Array.isArray(steps) || steps.some(step => !record(step))) return false;
   if (steps.some(step => !record(step.result) || step.result.status !== 'passed')) return false;
   const assertions = steps.filter(step => step.hidden !== true);
@@ -55,9 +54,10 @@ function validSteps(
       const assertion = expected[index];
       return (
         assertion !== undefined &&
-        step.name === assertion.name &&
         record(step.match) &&
-        step.match.location === assertion.location
+        createHash('sha256')
+          .update(JSON.stringify([step.name, step.match.location]))
+          .digest('hex') === assertion
       );
     })
   );
