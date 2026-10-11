@@ -187,6 +187,16 @@ export function ledgerRecoveryGateHandler(invocation: CommandInvocation): Promis
   );
 }
 
+export async function ledgerRecoveryObserveHandler(
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const { ticket } = invocation.options;
+  if (typeof ticket !== 'string' || ticket.trim() === '')
+    return invalidOperand('review observe ledger-recovery', 'Ticket is required.');
+  const { observeLedgerRecovery } = await import('../review/ledger-recovery-observer.js');
+  return observeLedgerRecovery(invocation.cwd, ticket);
+}
+
 export async function retrospectiveGateHandler(invocation: CommandInvocation): Promise<CliResult> {
   return retrospectiveHandler(invocation, false);
 }

@@ -240,7 +240,7 @@ function projectPath(root: string, candidate: string): boolean {
 }
 
 /** Resolve proof tooling outside the project; committed test scripts still require review. */
-function proofExecutable(root: string, name: string, label: string): string {
+export function proofExecutable(root: string, name: string, label: string): string {
   const project = realpathSync.native(root);
   const directories = (process.env.PATH ?? '').split(nodePath.delimiter);
   for (const directory of directories) {

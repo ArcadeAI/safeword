@@ -25,6 +25,7 @@ import {
 import {
   executableRedGateHandler,
   ledgerRecoveryGateHandler,
+  ledgerRecoveryObserveHandler,
   retrospectiveAttestHandler,
   retrospectiveCloseAttestHandler,
   retrospectiveCloseGateHandler,
@@ -605,6 +606,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'review run': reviewRunHandler,
   'review gate executable-red': executableRedGateHandler,
   'review gate ledger-recovery': ledgerRecoveryGateHandler,
+  'review observe ledger-recovery': ledgerRecoveryObserveHandler,
   'review gate retrospective': retrospectiveGateHandler,
   'review attest retrospective': retrospectiveAttestHandler,
   'review attest retrospective-close': retrospectiveCloseAttestHandler,

@@ -31524,6 +31524,19 @@ function retryCommand(kind, targets, context = [], execution) {
   return `safeword review run ${kind}${contextOption}${executionOptions} -- ${quoted}`;
 }
 
+// src/review/ledger-recovery-profile.ts
+var LEDGER_RECOVERY_PROFILE;
+var init_ledger_recovery_profile = __esm(() => {
+  LEDGER_RECOVERY_PROFILE = {
+    ticket: "5F5ZZA",
+    baseline: "b722f9a27a1815abcfb08e6f6ca09dc7317efa46",
+    ledger: ".project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/test-definitions.md",
+    ledgerSha256: "975589886672e20bbc74d3a472aefc896741f9e20d6817434cc98b7a339f069e",
+    feature: "features/keep-plan-reviews-current-and-trustworthy.feature",
+    featureSha256: "9c2d14f1442c8acf483cf6e7e08533812826258ec24faf4f1516dfa1309f86ac"
+  };
+});
+
 // templates/hooks/lib/parse-annotation.ts
 function parseCheckboxAnnotation(line) {
   const match = CHECKBOX_LINE.exec(line);
@@ -61721,6 +61734,425 @@ var init_job = __esm(() => {
   init_runtime();
 });
 
+// src/review/retrospective-history-core.ts
+import { spawnSync as spawnSync8 } from "child_process";
+function git(projectRoot, args) {
+  const environment = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")));
+  const result = spawnSync8("git", ["--no-replace-objects", "-C", projectRoot, ...args], {
+    encoding: "utf8",
+    timeout: 5000,
+    maxBuffer: 4096,
+    env: environment
+  });
+  return { status: result.status, stdout: result.stdout ?? "", error: result.error !== undefined };
+}
+function requiredCommitError(projectRoot, sha) {
+  const commitSuffix = "^{commit}";
+  const resolved = git(projectRoot, ["rev-parse", "--verify", "--quiet", `${sha}${commitSuffix}`]);
+  if (resolved.error || resolved.status === null)
+    return "Git could not inspect migration history.";
+  if (resolved.status !== 0 || resolved.stdout.trim() !== sha)
+    return `Required commit ${sha} is unavailable.`;
+  return;
+}
+function ancestorError(projectRoot, ancestor, descendant, orderingError) {
+  const result = git(projectRoot, ["merge-base", "--is-ancestor", ancestor, descendant]);
+  if (result.error || result.status === null || result.status > 1)
+    return "Git could not inspect migration history.";
+  return result.status === 1 ? orderingError : undefined;
+}
+function checkHistoryAgainstTrustedCutoff(projectRoot, request, trustedCutoff) {
+  const deny = (reason) => ({
+    eligibleForReview: false,
+    reason
+  });
+  if (request.ticketId !== RETROSPECTIVE_TICKET)
+    return deny("Only CKWE2D may use VERIFIED.");
+  if (!/^[0-9a-f]{40}$/u.test(trustedCutoff))
+    return deny("The trusted cutoff must be a full lowercase commit SHA.");
+  if (request.cutoff !== trustedCutoff)
+    return deny("The migration cutoff changed.");
+  if (!/^[0-9a-f]{40}$/u.test(request.baseline))
+    return deny("The baseline must be a full lowercase commit SHA.");
+  if (request.rationale.trim() === "")
+    return deny("The RED-unavailability explanation is missing.");
+  for (const sha of [trustedCutoff, request.baseline]) {
+    const error2 = requiredCommitError(projectRoot, sha);
+    if (error2 !== undefined)
+      return deny(error2);
+  }
+  const cutoffError = ancestorError(projectRoot, trustedCutoff, "HEAD", "The fixed migration cutoff is not reachable from HEAD.");
+  if (cutoffError !== undefined)
+    return deny(cutoffError);
+  const baselineError = ancestorError(projectRoot, request.baseline, trustedCutoff, "The baseline must be an ancestor-or-equal of the cutoff.");
+  if (baselineError !== undefined)
+    return deny(baselineError);
+  return { eligibleForReview: true };
+}
+var RETROSPECTIVE_TICKET = "CKWE2D";
+var init_retrospective_history_core = () => {};
+
+// src/review/retrospective-history.ts
+function checkRetrospectiveHistory(projectRoot, request) {
+  return checkHistoryAgainstTrustedCutoff(projectRoot, request, RETROSPECTIVE_CUTOFF);
+}
+var RETROSPECTIVE_CUTOFF = "690536ec56c07c2b042108d9c31d28bc3bc82619", RETROSPECTIVE_LEDGER = ".project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/test-definitions.md", RETROSPECTIVE_FEATURE = "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature";
+var init_retrospective_history = __esm(() => {
+  init_retrospective_history_core();
+  init_retrospective_history_core();
+});
+
+// src/review/retrospective-proof.ts
+import { spawnSync as spawnSync9 } from "child_process";
+import { createHash as createHash27 } from "crypto";
+import {
+  accessSync as accessSync3,
+  constants as constants5,
+  existsSync as existsSync26,
+  lstatSync as lstatSync14,
+  mkdirSync as mkdirSync15,
+  mkdtempSync as mkdtempSync7,
+  readFileSync as readFileSync40,
+  realpathSync as realpathSync11,
+  rmSync as rmSync10,
+  symlinkSync as symlinkSync2,
+  writeFileSync as writeFileSync15
+} from "fs";
+import { tmpdir as tmpdir5 } from "os";
+import nodePath63 from "path";
+function sha2566(bytes) {
+  return createHash27("sha256").update(bytes).digest("hex");
+}
+function hasNoControlCharacters(value) {
+  for (let index = 0;index < value.length; index += 1) {
+    const code = value.codePointAt(index) ?? 0;
+    if (code < 32 || code === 127)
+      return false;
+  }
+  return true;
+}
+function safePath(path7) {
+  return path7 !== "" && !nodePath63.isAbsolute(path7) && !path7.includes("\\") && path7.split("/").every((part) => !["", ".", ".."].includes(part)) && hasNoControlCharacters(path7);
+}
+function exactSelection(fullName) {
+  const escaped = fullName.replaceAll(/[.*+?^${}()|[\]\\]/gu, (character) => `\\${character}`);
+  return `^${escaped.replaceAll(" ", () => VITEST_SUITE_SEPARATOR)}$`;
+}
+function validateRequest(request) {
+  if (request.ticketId !== RETROSPECTIVE_TICKET)
+    throw new Error("Only CKWE2D may use retrospective proof.");
+  if (request.scenario.trim() === "" || request.testFullName.trim() === "") {
+    throw new Error("Retrospective proof needs one named scenario and test.");
+  }
+  if (!safePath(request.testFile) || !request.testFile.startsWith("packages/cli/tests/") || !request.testFile.endsWith(".test.ts") || !safePath(request.implementationPath) || !request.implementationPath.startsWith("packages/cli/src/")) {
+    throw new Error("Retrospective proof paths must name CLI source and a CLI test.");
+  }
+  if (request.mutation.before === "" || request.mutation.after === request.mutation.before || request.mutation.expectedFailure.trim() === "" || request.mutation.assertionLocation.trim() === "") {
+    throw new Error("Retrospective proof needs a specific behavior removal and assertion.");
+  }
+  if (request.supportFiles.length === 0 || new Set(request.supportFiles).size !== request.supportFiles.length || request.supportFiles.some((path7) => !safePath(path7))) {
+    throw new Error("Retrospective proof needs distinct contained support files.");
+  }
+}
+function git2(root, args) {
+  const result = spawnSync9(proofExecutable(root, "git", "Git"), ["--no-replace-objects", "-C", root, ...args], {
+    encoding: "buffer",
+    timeout: 30000,
+    maxBuffer: 128 * 1024 * 1024,
+    env: Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")))
+  });
+  if (result.error !== undefined || result.status !== 0 || !Buffer.isBuffer(result.stdout)) {
+    throw new Error("Retrospective proof could not inspect committed Git source.");
+  }
+  return result.stdout;
+}
+function snapshot(root, destination, commit) {
+  const archive = git2(root, ["archive", "--format=tar", commit]);
+  const extract = spawnSync9(proofExecutable(root, "tar", "Tar"), ["-xf", "-", "-C", destination], {
+    input: archive,
+    encoding: "buffer",
+    timeout: 30000,
+    maxBuffer: 1024 * 1024
+  });
+  if (extract.error !== undefined || extract.status !== 0) {
+    throw new Error("Retrospective proof could not create an isolated source copy.");
+  }
+}
+function installProofDependencies(passing, mutated, executable) {
+  const result = spawnSync9(executable, ["install", "--frozen-lockfile", "--ignore-scripts"], {
+    cwd: passing,
+    env: proofEnvironment(executable),
+    encoding: "utf8",
+    timeout: TEST_TIMEOUT_MS,
+    maxBuffer: MAX_PROCESS_OUTPUT,
+    windowsHide: true
+  });
+  if (result.error !== undefined || result.status !== 0) {
+    throw new Error("Could not install retrospective proof dependencies from the frozen lockfile.");
+  }
+  for (const relative of ["node_modules", "packages/cli/node_modules"]) {
+    const dependencyRoot = nodePath63.join(passing, relative);
+    if (!existsSync26(dependencyRoot)) {
+      if (relative === "node_modules")
+        throw new Error(`Missing proof dependency: ${relative}`);
+      continue;
+    }
+    symlinkSync2(dependencyRoot, nodePath63.join(mutated, relative), "dir");
+  }
+}
+function proofEnvironment(executable) {
+  return Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("SAFEWORD_REVIEW_") && !name.startsWith("GIT_")).map(([name, value]) => [
+    name,
+    name === "PATH" ? `${nodePath63.dirname(executable)}${nodePath63.delimiter}${value ?? ""}` : value
+  ]));
+}
+function assertionFromReport(path7, fullName, expectedStatus) {
+  const report = JSON.parse(readFileSync40(path7, "utf8"));
+  if (!Array.isArray(report.testResults))
+    throw new Error("Proof has no test report.");
+  const assertions = report.testResults.flatMap((result) => {
+    if (typeof result !== "object" || result === null)
+      return [];
+    const values = result.assertionResults;
+    return Array.isArray(values) ? values : [];
+  });
+  const selected = assertions.filter((value) => value.status !== "skipped" && value.status !== "pending");
+  if (selected.length !== 1 || selected[0]?.fullName !== fullName || selected[0].status !== expectedStatus) {
+    throw new Error(`Proof did not execute exactly the named ${expectedStatus} test.`);
+  }
+  return { report, assertion: selected[0] };
+}
+function projectPath(root, candidate) {
+  const relative = nodePath63.relative(root, candidate);
+  return relative === "" || relative !== ".." && !relative.startsWith(`..${nodePath63.sep}`) && !nodePath63.isAbsolute(relative);
+}
+function proofExecutable(root, name, label) {
+  const project = realpathSync11.native(root);
+  const directories = (process.env.PATH ?? "").split(nodePath63.delimiter);
+  for (const directory of directories) {
+    const candidate = nodePath63.resolve(root, directory, process.platform === "win32" ? `${name}.exe` : name);
+    if (!existsSync26(candidate))
+      continue;
+    const canonical = realpathSync11.native(candidate);
+    if (projectPath(root, candidate) || projectPath(project, candidate) || projectPath(project, canonical)) {
+      throw new Error(`${label} executable must be outside the project.`);
+    }
+    try {
+      accessSync3(canonical, constants5.X_OK);
+      return canonical;
+    } catch {}
+  }
+  throw new Error(`An installed ${label} executable is required for retrospective proof.`);
+}
+function runTest(copy, argv, fullName, expectedStatus) {
+  const cwd = nodePath63.join(copy, "packages/cli");
+  const executable = argv[0];
+  if (executable === undefined)
+    throw new Error("Proof command is empty.");
+  rmSync10(nodePath63.join(cwd, REPORT), { force: true });
+  const result = spawnSync9(executable, argv.slice(1), {
+    cwd,
+    env: proofEnvironment(executable),
+    encoding: "utf8",
+    timeout: TEST_TIMEOUT_MS,
+    maxBuffer: MAX_PROCESS_OUTPUT,
+    windowsHide: true
+  });
+  if (result.error !== undefined || result.signal !== null || result.status === null) {
+    throw new Error("Proof command failed to finish normally.");
+  }
+  const { report, assertion } = assertionFromReport(nodePath63.join(cwd, REPORT), fullName, expectedStatus);
+  if (expectedStatus === "passed") {
+    if (result.status !== 0 || report.numPassedTests !== 1 || report.numFailedTests !== 0) {
+      throw new Error("The named current test did not pass.");
+    }
+  } else if (result.status === 0 || report.numPassedTests !== 0 || report.numFailedTests !== 1) {
+    throw new Error("The named mutated test did not fail.");
+  }
+  const messages3 = assertion.failureMessages;
+  return {
+    exitCode: result.status,
+    failure: Array.isArray(messages3) ? messages3.filter((value) => typeof value === "string").join(`
+`) : ""
+  };
+}
+function requireArchivedSource(copy, path7, source) {
+  if (!readProofInput(copy, path7).equals(source)) {
+    throw new Error("Archived implementation differs from the committed source.");
+  }
+}
+function readProofInput(root, path7) {
+  if (!safePath(path7))
+    throw new Error("Proof input path escapes the project.");
+  const parts = path7.split("/");
+  let candidate = root;
+  for (const [index, part] of parts.entries()) {
+    candidate = nodePath63.join(candidate, part);
+    const stat3 = lstatSync14(candidate);
+    if (stat3.isSymbolicLink() || (index === parts.length - 1 ? !stat3.isFile() : !stat3.isDirectory())) {
+      throw new Error(`Proof input must be a regular file without symlink components: ${path7}`);
+    }
+  }
+  return readFileSync40(candidate);
+}
+function archiveDigests(copy, paths) {
+  return Object.fromEntries(paths.map((path7) => [path7, sha2566(readProofInput(copy, path7))]));
+}
+function requireDigests(actual, expected, message) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected))
+    throw new Error(message);
+}
+function currentProofCommit(root) {
+  const commit = git2(root, ["rev-parse", "--verify", "HEAD^{commit}"]).toString("utf8").trim();
+  const trackedChanges = git2(root, ["status", "--porcelain", "--untracked-files=no"]);
+  if (trackedChanges.toString("utf8").trim() !== "") {
+    throw new Error("Commit tracked changes before running retrospective proof.");
+  }
+  return commit;
+}
+function runRetrospectiveProof(projectRoot, request) {
+  validateRequest(request);
+  const root = nodePath63.resolve(projectRoot);
+  const repoRoot = git2(root, ["rev-parse", "--show-toplevel"]).toString("utf8").trim();
+  if (nodePath63.resolve(repoRoot) !== root) {
+    throw new Error("Retrospective proof requires the Git repository root.");
+  }
+  const commit = currentProofCommit(root);
+  const inputs = [
+    ...new Set([
+      request.testFile,
+      request.implementationPath,
+      ...request.supportFiles,
+      "bun.lock",
+      "package.json",
+      "packages/cli/package.json"
+    ])
+  ];
+  const supportSha256 = {};
+  for (const path7 of inputs) {
+    const bytes = readProofInput(root, path7);
+    const committed = git2(root, ["show", `${commit}:${path7}`]);
+    if (!bytes.equals(committed))
+      throw new Error(`Proof input differs from HEAD: ${path7}`);
+    supportSha256[path7] = sha2566(bytes);
+  }
+  const sourceBytes = readProofInput(root, request.implementationPath);
+  const source = sourceBytes.toString("utf8");
+  if (!Buffer.from(source, "utf8").equals(sourceBytes)) {
+    throw new Error("Retrospective proof implementation must be valid UTF-8.");
+  }
+  if (source.split(request.mutation.before).length !== 2) {
+    throw new Error("Behavior-removal anchor must occur exactly once in the implementation.");
+  }
+  const mutant = source.replace(request.mutation.before, () => request.mutation.after);
+  const argv = [
+    proofExecutable(root, "bun", "Bun"),
+    "run",
+    "test",
+    request.testFile.slice("packages/cli/".length),
+    "--testNamePattern",
+    exactSelection(request.testFullName),
+    "--reporter=json",
+    `--outputFile=${REPORT}`
+  ];
+  const temporary = mkdtempSync7(nodePath63.join(tmpdir5(), "safeword-retrospective-proof-"));
+  try {
+    const passingCopy = nodePath63.join(temporary, "passing");
+    const mutatedCopy = nodePath63.join(temporary, "mutated");
+    mkdirSync15(passingCopy);
+    mkdirSync15(mutatedCopy);
+    snapshot(root, passingCopy, commit);
+    snapshot(root, mutatedCopy, commit);
+    requireArchivedSource(passingCopy, request.implementationPath, sourceBytes);
+    requireArchivedSource(mutatedCopy, request.implementationPath, sourceBytes);
+    const passingDigests = archiveDigests(passingCopy, inputs);
+    requireDigests(passingDigests, supportSha256, "Archived proof inputs differ from committed source.");
+    writeFileSync15(nodePath63.join(mutatedCopy, request.implementationPath), mutant);
+    const mutatedSupportSha256 = archiveDigests(mutatedCopy, inputs);
+    const expectedMutated = { ...supportSha256, [request.implementationPath]: sha2566(mutant) };
+    requireDigests(mutatedSupportSha256, expectedMutated, "Mutated proof inputs differ beyond the declared mutation.");
+    installProofDependencies(passingCopy, mutatedCopy, argv[0]);
+    runTest(passingCopy, argv, request.testFullName, "passed");
+    const mutated = runTest(mutatedCopy, argv, request.testFullName, "failed");
+    if (!mutated.failure.includes(request.mutation.expectedFailure) || !mutated.failure.includes(request.mutation.assertionLocation)) {
+      throw new Error(`The mutation did not fail at the declared scenario assertion: ${mutated.failure.slice(0, 1000)}`);
+    }
+    return {
+      commit,
+      request,
+      argv,
+      cwd: "packages/cli",
+      sourceSha256: sha2566(sourceBytes),
+      mutantSha256: sha2566(mutant),
+      supportSha256,
+      mutatedSupportSha256,
+      passing: { exitCode: 0, test: request.testFullName, passedTests: 1, failedTests: 0 },
+      mutated: {
+        exitCode: mutated.exitCode,
+        test: request.testFullName,
+        passedTests: 0,
+        failedTests: 1,
+        failure: mutated.failure
+      }
+    };
+  } finally {
+    rmSync10(temporary, { recursive: true, force: true });
+  }
+}
+var TEST_TIMEOUT_MS = 180000, REPORT = "retrospective-proof-report.json", MAX_PROCESS_OUTPUT, VITEST_SUITE_SEPARATOR;
+var init_retrospective_proof = __esm(() => {
+  init_retrospective_history();
+  MAX_PROCESS_OUTPUT = 128 * 1024;
+  VITEST_SUITE_SEPARATOR = String.raw`(?:\s*>\s*|\s+)`;
+});
+
+// src/review/ledger-recovery-observer.ts
+var exports_ledger_recovery_observer = {};
+__export(exports_ledger_recovery_observer, {
+  observeLedgerRecovery: () => observeLedgerRecovery
+});
+import { spawnSync as spawnSync10 } from "child_process";
+function observeLedgerRecovery(cwd, ticket) {
+  if (ticket !== LEDGER_RECOVERY_PROFILE.ticket) {
+    return blocked("LEDGER_RECOVERY_SCOPE_MISMATCH", "Completion recovery is limited to the approved 5F5ZZA scope.");
+  }
+  let git3;
+  try {
+    git3 = proofExecutable(cwd, "git", "Git");
+  } catch {
+    return blocked("LEDGER_RECOVERY_BASELINE_REQUIRED", "An external Git executable is required to inspect the approved baseline.");
+  }
+  const ancestry = spawnSync10(git3, [
+    "--no-replace-objects",
+    "-C",
+    cwd,
+    "merge-base",
+    "--is-ancestor",
+    LEDGER_RECOVERY_PROFILE.baseline,
+    "HEAD"
+  ], {
+    encoding: "utf8",
+    timeout: 30000,
+    env: Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")))
+  });
+  if (ancestry.error !== undefined || ancestry.status !== 0) {
+    return blocked("LEDGER_RECOVERY_BASELINE_REQUIRED", "Observation requires a committed candidate descended from the approved baseline.");
+  }
+  return blocked("LEDGER_RECOVERY_OBSERVATION_REQUIRED", "Authenticated observation through the fixed current-scope runner is still required.");
+}
+function blocked(code, message) {
+  return createResult({
+    state: "action_required",
+    findings: [{ code, message, severity: "warning" }],
+    data: { command: "review observe ledger-recovery", status: "blocked" }
+  });
+}
+var init_ledger_recovery_observer = __esm(() => {
+  init_result();
+  init_ledger_recovery_profile();
+  init_retrospective_proof();
+});
+
 // templates/hooks/lib/hierarchy.ts
 function parseFrontmatter(yaml) {
   const result = {};
@@ -62753,78 +63185,10 @@ var init_phase_provenance = __esm(() => {
   NOT_APPLICABLE = { kind: "not-applicable" };
 });
 
-// src/review/retrospective-history-core.ts
-import { spawnSync as spawnSync8 } from "child_process";
-function git(projectRoot, args) {
-  const environment = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")));
-  const result = spawnSync8("git", ["--no-replace-objects", "-C", projectRoot, ...args], {
-    encoding: "utf8",
-    timeout: 5000,
-    maxBuffer: 4096,
-    env: environment
-  });
-  return { status: result.status, stdout: result.stdout ?? "", error: result.error !== undefined };
-}
-function requiredCommitError(projectRoot, sha) {
-  const commitSuffix = "^{commit}";
-  const resolved = git(projectRoot, ["rev-parse", "--verify", "--quiet", `${sha}${commitSuffix}`]);
-  if (resolved.error || resolved.status === null)
-    return "Git could not inspect migration history.";
-  if (resolved.status !== 0 || resolved.stdout.trim() !== sha)
-    return `Required commit ${sha} is unavailable.`;
-  return;
-}
-function ancestorError(projectRoot, ancestor, descendant, orderingError) {
-  const result = git(projectRoot, ["merge-base", "--is-ancestor", ancestor, descendant]);
-  if (result.error || result.status === null || result.status > 1)
-    return "Git could not inspect migration history.";
-  return result.status === 1 ? orderingError : undefined;
-}
-function checkHistoryAgainstTrustedCutoff(projectRoot, request, trustedCutoff) {
-  const deny = (reason) => ({
-    eligibleForReview: false,
-    reason
-  });
-  if (request.ticketId !== RETROSPECTIVE_TICKET)
-    return deny("Only CKWE2D may use VERIFIED.");
-  if (!/^[0-9a-f]{40}$/u.test(trustedCutoff))
-    return deny("The trusted cutoff must be a full lowercase commit SHA.");
-  if (request.cutoff !== trustedCutoff)
-    return deny("The migration cutoff changed.");
-  if (!/^[0-9a-f]{40}$/u.test(request.baseline))
-    return deny("The baseline must be a full lowercase commit SHA.");
-  if (request.rationale.trim() === "")
-    return deny("The RED-unavailability explanation is missing.");
-  for (const sha of [trustedCutoff, request.baseline]) {
-    const error2 = requiredCommitError(projectRoot, sha);
-    if (error2 !== undefined)
-      return deny(error2);
-  }
-  const cutoffError = ancestorError(projectRoot, trustedCutoff, "HEAD", "The fixed migration cutoff is not reachable from HEAD.");
-  if (cutoffError !== undefined)
-    return deny(cutoffError);
-  const baselineError = ancestorError(projectRoot, request.baseline, trustedCutoff, "The baseline must be an ancestor-or-equal of the cutoff.");
-  if (baselineError !== undefined)
-    return deny(baselineError);
-  return { eligibleForReview: true };
-}
-var RETROSPECTIVE_TICKET = "CKWE2D";
-var init_retrospective_history_core = () => {};
-
-// src/review/retrospective-history.ts
-function checkRetrospectiveHistory(projectRoot, request) {
-  return checkHistoryAgainstTrustedCutoff(projectRoot, request, RETROSPECTIVE_CUTOFF);
-}
-var RETROSPECTIVE_CUTOFF = "690536ec56c07c2b042108d9c31d28bc3bc82619", RETROSPECTIVE_LEDGER = ".project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/test-definitions.md", RETROSPECTIVE_FEATURE = "packages/cli/features/keep-reviews-focused-on-authored-inputs.feature";
-var init_retrospective_history = __esm(() => {
-  init_retrospective_history_core();
-  init_retrospective_history_core();
-});
-
 // src/review/retrospective-baseline.ts
-import { spawnSync as spawnSync9 } from "child_process";
-import { lstatSync as lstatSync14, readFileSync as readFileSync40, realpathSync as realpathSync11 } from "fs";
-import nodePath63 from "path";
+import { spawnSync as spawnSync11 } from "child_process";
+import { lstatSync as lstatSync15, readFileSync as readFileSync41, realpathSync as realpathSync12 } from "fs";
+import nodePath64 from "path";
 function hasControlCharacter(value) {
   for (const character of value) {
     if ((character.codePointAt(0) ?? 0) < 32)
@@ -62833,11 +63197,11 @@ function hasControlCharacter(value) {
   return false;
 }
 function validRelativePath(path7) {
-  return path7 !== "" && !nodePath63.posix.isAbsolute(path7) && !path7.includes("\\") && !hasControlCharacter(path7) && path7.split("/").every((part) => part !== "" && part !== "." && part !== "..");
+  return path7 !== "" && !nodePath64.posix.isAbsolute(path7) && !path7.includes("\\") && !hasControlCharacter(path7) && path7.split("/").every((part) => part !== "" && part !== "." && part !== "..");
 }
-function git2(projectRoot, args) {
+function git3(projectRoot, args) {
   const environment = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")));
-  const result = spawnSync9("git", ["--no-replace-objects", "--literal-pathspecs", "-C", projectRoot, ...args], {
+  const result = spawnSync11("git", ["--no-replace-objects", "--literal-pathspecs", "-C", projectRoot, ...args], {
     encoding: "utf8",
     timeout: 5000,
     maxBuffer: 1024 * 1024,
@@ -62847,22 +63211,22 @@ function git2(projectRoot, args) {
 }
 function currentFileInside(root, relativePath) {
   try {
-    const canonicalRoot = realpathSync11.native(root);
+    const canonicalRoot = realpathSync12.native(root);
     let cursor = canonicalRoot;
     for (const component of relativePath.split("/")) {
-      cursor = nodePath63.join(cursor, component);
-      if (lstatSync14(cursor).isSymbolicLink())
+      cursor = nodePath64.join(cursor, component);
+      if (lstatSync15(cursor).isSymbolicLink())
         return false;
     }
-    const canonicalFile = realpathSync11.native(cursor);
-    const relative = nodePath63.relative(canonicalRoot, canonicalFile);
-    return relative !== ".." && !relative.startsWith(`..${nodePath63.sep}`) && !nodePath63.isAbsolute(relative) && lstatSync14(canonicalFile).isFile();
+    const canonicalFile = realpathSync12.native(cursor);
+    const relative = nodePath64.relative(canonicalRoot, canonicalFile);
+    return relative !== ".." && !relative.startsWith(`..${nodePath64.sep}`) && !nodePath64.isAbsolute(relative) && lstatSync15(canonicalFile).isFile();
   } catch {
     return false;
   }
 }
 function committedBlob(projectRoot, baseline, path7) {
-  const result = git2(projectRoot, ["ls-tree", "-z", baseline, "--", path7]);
+  const result = git3(projectRoot, ["ls-tree", "-z", baseline, "--", path7]);
   if (result.status !== 0)
     return;
   const [entry, extra] = result.stdout.split("\x00", 2);
@@ -62883,14 +63247,14 @@ function excerptError(projectRoot, baseline, claim) {
   if (claim.baselineExcerpts !== undefined) {
     if (claim.baselineExcerpts.length === 0 || claim.baselineExcerpts.some((excerpt) => !excerpt))
       return `Baseline excerpts for ${claim.baselinePath} are missing.`;
-    const source = git2(projectRoot, ["show", `${baseline}:${claim.baselinePath}`]);
+    const source = git3(projectRoot, ["show", `${baseline}:${claim.baselinePath}`]);
     if (source.status !== 0 || claim.baselineExcerpts.some((excerpt) => !source.stdout.includes(excerpt)))
       return `Baseline excerpts for ${claim.baselinePath} do not match Git.`;
   }
   if (claim.currentExcerpts !== undefined) {
     if (claim.currentExcerpts.length === 0 || claim.currentExcerpts.some((excerpt) => !excerpt))
       return `Current excerpts for ${claim.currentPath} are missing.`;
-    const source = readFileSync40(nodePath63.join(projectRoot, claim.currentPath), "utf8");
+    const source = readFileSync41(nodePath64.join(projectRoot, claim.currentPath), "utf8");
     if (claim.currentExcerpts.some((excerpt) => !source.includes(excerpt)))
       return `Current excerpts for ${claim.currentPath} do not match the file.`;
   }
@@ -62902,7 +63266,7 @@ function claimError(projectRoot, baseline, claim) {
   if (!currentFileInside(projectRoot, claim.currentPath))
     return `Current implementation file ${claim.currentPath} is unavailable.`;
   if (claim.currentBlobSha !== undefined) {
-    const current = git2(projectRoot, ["hash-object", "--no-filters", "--", claim.currentPath]);
+    const current = git3(projectRoot, ["hash-object", "--no-filters", "--", claim.currentPath]);
     if (!SHA.test(claim.currentBlobSha) || current.status !== 0 || current.stdout.trim() !== claim.currentBlobSha)
       return `Current blob ${claim.currentPath} does not match its claimed digest.`;
   }
@@ -62914,7 +63278,7 @@ function validateBaselineBlobClaims(projectRoot, baseline, claims) {
   const deny = (reason) => ({ valid: false, reason });
   if (!SHA.test(baseline))
     return deny("The baseline must be a full lowercase commit SHA.");
-  if (git2(projectRoot, ["cat-file", "-t", baseline]).stdout.trim() !== "commit")
+  if (git3(projectRoot, ["cat-file", "-t", baseline]).stdout.trim() !== "commit")
     return deny("The baseline commit is unavailable.");
   if (claims.length === 0)
     return deny("No baseline implementation blobs were named.");
@@ -62947,310 +63311,6 @@ function checkRetrospectivePrerequisites(projectRoot, request, blobs) {
 var init_retrospective_prerequisites = __esm(() => {
   init_retrospective_baseline();
   init_retrospective_history();
-});
-
-// src/review/retrospective-proof.ts
-import { spawnSync as spawnSync10 } from "child_process";
-import { createHash as createHash27 } from "crypto";
-import {
-  accessSync as accessSync3,
-  constants as constants5,
-  existsSync as existsSync26,
-  lstatSync as lstatSync15,
-  mkdirSync as mkdirSync15,
-  mkdtempSync as mkdtempSync7,
-  readFileSync as readFileSync41,
-  realpathSync as realpathSync12,
-  rmSync as rmSync10,
-  symlinkSync as symlinkSync2,
-  writeFileSync as writeFileSync15
-} from "fs";
-import { tmpdir as tmpdir5 } from "os";
-import nodePath64 from "path";
-function sha2566(bytes) {
-  return createHash27("sha256").update(bytes).digest("hex");
-}
-function hasNoControlCharacters(value) {
-  for (let index = 0;index < value.length; index += 1) {
-    const code = value.codePointAt(index) ?? 0;
-    if (code < 32 || code === 127)
-      return false;
-  }
-  return true;
-}
-function safePath(path7) {
-  return path7 !== "" && !nodePath64.isAbsolute(path7) && !path7.includes("\\") && path7.split("/").every((part) => !["", ".", ".."].includes(part)) && hasNoControlCharacters(path7);
-}
-function exactSelection(fullName) {
-  const escaped = fullName.replaceAll(/[.*+?^${}()|[\]\\]/gu, (character) => `\\${character}`);
-  return `^${escaped.replaceAll(" ", () => VITEST_SUITE_SEPARATOR)}$`;
-}
-function validateRequest(request) {
-  if (request.ticketId !== RETROSPECTIVE_TICKET)
-    throw new Error("Only CKWE2D may use retrospective proof.");
-  if (request.scenario.trim() === "" || request.testFullName.trim() === "") {
-    throw new Error("Retrospective proof needs one named scenario and test.");
-  }
-  if (!safePath(request.testFile) || !request.testFile.startsWith("packages/cli/tests/") || !request.testFile.endsWith(".test.ts") || !safePath(request.implementationPath) || !request.implementationPath.startsWith("packages/cli/src/")) {
-    throw new Error("Retrospective proof paths must name CLI source and a CLI test.");
-  }
-  if (request.mutation.before === "" || request.mutation.after === request.mutation.before || request.mutation.expectedFailure.trim() === "" || request.mutation.assertionLocation.trim() === "") {
-    throw new Error("Retrospective proof needs a specific behavior removal and assertion.");
-  }
-  if (request.supportFiles.length === 0 || new Set(request.supportFiles).size !== request.supportFiles.length || request.supportFiles.some((path7) => !safePath(path7))) {
-    throw new Error("Retrospective proof needs distinct contained support files.");
-  }
-}
-function git3(root, args) {
-  const result = spawnSync10(proofExecutable(root, "git", "Git"), ["--no-replace-objects", "-C", root, ...args], {
-    encoding: "buffer",
-    timeout: 30000,
-    maxBuffer: 128 * 1024 * 1024,
-    env: Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")))
-  });
-  if (result.error !== undefined || result.status !== 0 || !Buffer.isBuffer(result.stdout)) {
-    throw new Error("Retrospective proof could not inspect committed Git source.");
-  }
-  return result.stdout;
-}
-function snapshot(root, destination, commit) {
-  const archive = git3(root, ["archive", "--format=tar", commit]);
-  const extract = spawnSync10(proofExecutable(root, "tar", "Tar"), ["-xf", "-", "-C", destination], {
-    input: archive,
-    encoding: "buffer",
-    timeout: 30000,
-    maxBuffer: 1024 * 1024
-  });
-  if (extract.error !== undefined || extract.status !== 0) {
-    throw new Error("Retrospective proof could not create an isolated source copy.");
-  }
-}
-function installProofDependencies(passing, mutated, executable) {
-  const result = spawnSync10(executable, ["install", "--frozen-lockfile", "--ignore-scripts"], {
-    cwd: passing,
-    env: proofEnvironment(executable),
-    encoding: "utf8",
-    timeout: TEST_TIMEOUT_MS,
-    maxBuffer: MAX_PROCESS_OUTPUT,
-    windowsHide: true
-  });
-  if (result.error !== undefined || result.status !== 0) {
-    throw new Error("Could not install retrospective proof dependencies from the frozen lockfile.");
-  }
-  for (const relative of ["node_modules", "packages/cli/node_modules"]) {
-    const dependencyRoot = nodePath64.join(passing, relative);
-    if (!existsSync26(dependencyRoot)) {
-      if (relative === "node_modules")
-        throw new Error(`Missing proof dependency: ${relative}`);
-      continue;
-    }
-    symlinkSync2(dependencyRoot, nodePath64.join(mutated, relative), "dir");
-  }
-}
-function proofEnvironment(executable) {
-  return Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("SAFEWORD_REVIEW_") && !name.startsWith("GIT_")).map(([name, value]) => [
-    name,
-    name === "PATH" ? `${nodePath64.dirname(executable)}${nodePath64.delimiter}${value ?? ""}` : value
-  ]));
-}
-function assertionFromReport(path7, fullName, expectedStatus) {
-  const report = JSON.parse(readFileSync41(path7, "utf8"));
-  if (!Array.isArray(report.testResults))
-    throw new Error("Proof has no test report.");
-  const assertions = report.testResults.flatMap((result) => {
-    if (typeof result !== "object" || result === null)
-      return [];
-    const values = result.assertionResults;
-    return Array.isArray(values) ? values : [];
-  });
-  const selected = assertions.filter((value) => value.status !== "skipped" && value.status !== "pending");
-  if (selected.length !== 1 || selected[0]?.fullName !== fullName || selected[0].status !== expectedStatus) {
-    throw new Error(`Proof did not execute exactly the named ${expectedStatus} test.`);
-  }
-  return { report, assertion: selected[0] };
-}
-function projectPath(root, candidate) {
-  const relative = nodePath64.relative(root, candidate);
-  return relative === "" || relative !== ".." && !relative.startsWith(`..${nodePath64.sep}`) && !nodePath64.isAbsolute(relative);
-}
-function proofExecutable(root, name, label) {
-  const project = realpathSync12.native(root);
-  const directories = (process.env.PATH ?? "").split(nodePath64.delimiter);
-  for (const directory of directories) {
-    const candidate = nodePath64.resolve(root, directory, process.platform === "win32" ? `${name}.exe` : name);
-    if (!existsSync26(candidate))
-      continue;
-    const canonical = realpathSync12.native(candidate);
-    if (projectPath(root, candidate) || projectPath(project, candidate) || projectPath(project, canonical)) {
-      throw new Error(`${label} executable must be outside the project.`);
-    }
-    try {
-      accessSync3(canonical, constants5.X_OK);
-      return canonical;
-    } catch {}
-  }
-  throw new Error(`An installed ${label} executable is required for retrospective proof.`);
-}
-function runTest(copy, argv, fullName, expectedStatus) {
-  const cwd = nodePath64.join(copy, "packages/cli");
-  const executable = argv[0];
-  if (executable === undefined)
-    throw new Error("Proof command is empty.");
-  rmSync10(nodePath64.join(cwd, REPORT), { force: true });
-  const result = spawnSync10(executable, argv.slice(1), {
-    cwd,
-    env: proofEnvironment(executable),
-    encoding: "utf8",
-    timeout: TEST_TIMEOUT_MS,
-    maxBuffer: MAX_PROCESS_OUTPUT,
-    windowsHide: true
-  });
-  if (result.error !== undefined || result.signal !== null || result.status === null) {
-    throw new Error("Proof command failed to finish normally.");
-  }
-  const { report, assertion } = assertionFromReport(nodePath64.join(cwd, REPORT), fullName, expectedStatus);
-  if (expectedStatus === "passed") {
-    if (result.status !== 0 || report.numPassedTests !== 1 || report.numFailedTests !== 0) {
-      throw new Error("The named current test did not pass.");
-    }
-  } else if (result.status === 0 || report.numPassedTests !== 0 || report.numFailedTests !== 1) {
-    throw new Error("The named mutated test did not fail.");
-  }
-  const messages3 = assertion.failureMessages;
-  return {
-    exitCode: result.status,
-    failure: Array.isArray(messages3) ? messages3.filter((value) => typeof value === "string").join(`
-`) : ""
-  };
-}
-function requireArchivedSource(copy, path7, source) {
-  if (!readProofInput(copy, path7).equals(source)) {
-    throw new Error("Archived implementation differs from the committed source.");
-  }
-}
-function readProofInput(root, path7) {
-  if (!safePath(path7))
-    throw new Error("Proof input path escapes the project.");
-  const parts = path7.split("/");
-  let candidate = root;
-  for (const [index, part] of parts.entries()) {
-    candidate = nodePath64.join(candidate, part);
-    const stat3 = lstatSync15(candidate);
-    if (stat3.isSymbolicLink() || (index === parts.length - 1 ? !stat3.isFile() : !stat3.isDirectory())) {
-      throw new Error(`Proof input must be a regular file without symlink components: ${path7}`);
-    }
-  }
-  return readFileSync41(candidate);
-}
-function archiveDigests(copy, paths) {
-  return Object.fromEntries(paths.map((path7) => [path7, sha2566(readProofInput(copy, path7))]));
-}
-function requireDigests(actual, expected, message) {
-  if (JSON.stringify(actual) !== JSON.stringify(expected))
-    throw new Error(message);
-}
-function currentProofCommit(root) {
-  const commit = git3(root, ["rev-parse", "--verify", "HEAD^{commit}"]).toString("utf8").trim();
-  const trackedChanges = git3(root, ["status", "--porcelain", "--untracked-files=no"]);
-  if (trackedChanges.toString("utf8").trim() !== "") {
-    throw new Error("Commit tracked changes before running retrospective proof.");
-  }
-  return commit;
-}
-function runRetrospectiveProof(projectRoot, request) {
-  validateRequest(request);
-  const root = nodePath64.resolve(projectRoot);
-  const repoRoot = git3(root, ["rev-parse", "--show-toplevel"]).toString("utf8").trim();
-  if (nodePath64.resolve(repoRoot) !== root) {
-    throw new Error("Retrospective proof requires the Git repository root.");
-  }
-  const commit = currentProofCommit(root);
-  const inputs = [
-    ...new Set([
-      request.testFile,
-      request.implementationPath,
-      ...request.supportFiles,
-      "bun.lock",
-      "package.json",
-      "packages/cli/package.json"
-    ])
-  ];
-  const supportSha256 = {};
-  for (const path7 of inputs) {
-    const bytes = readProofInput(root, path7);
-    const committed = git3(root, ["show", `${commit}:${path7}`]);
-    if (!bytes.equals(committed))
-      throw new Error(`Proof input differs from HEAD: ${path7}`);
-    supportSha256[path7] = sha2566(bytes);
-  }
-  const sourceBytes = readProofInput(root, request.implementationPath);
-  const source = sourceBytes.toString("utf8");
-  if (!Buffer.from(source, "utf8").equals(sourceBytes)) {
-    throw new Error("Retrospective proof implementation must be valid UTF-8.");
-  }
-  if (source.split(request.mutation.before).length !== 2) {
-    throw new Error("Behavior-removal anchor must occur exactly once in the implementation.");
-  }
-  const mutant = source.replace(request.mutation.before, () => request.mutation.after);
-  const argv = [
-    proofExecutable(root, "bun", "Bun"),
-    "run",
-    "test",
-    request.testFile.slice("packages/cli/".length),
-    "--testNamePattern",
-    exactSelection(request.testFullName),
-    "--reporter=json",
-    `--outputFile=${REPORT}`
-  ];
-  const temporary = mkdtempSync7(nodePath64.join(tmpdir5(), "safeword-retrospective-proof-"));
-  try {
-    const passingCopy = nodePath64.join(temporary, "passing");
-    const mutatedCopy = nodePath64.join(temporary, "mutated");
-    mkdirSync15(passingCopy);
-    mkdirSync15(mutatedCopy);
-    snapshot(root, passingCopy, commit);
-    snapshot(root, mutatedCopy, commit);
-    requireArchivedSource(passingCopy, request.implementationPath, sourceBytes);
-    requireArchivedSource(mutatedCopy, request.implementationPath, sourceBytes);
-    const passingDigests = archiveDigests(passingCopy, inputs);
-    requireDigests(passingDigests, supportSha256, "Archived proof inputs differ from committed source.");
-    writeFileSync15(nodePath64.join(mutatedCopy, request.implementationPath), mutant);
-    const mutatedSupportSha256 = archiveDigests(mutatedCopy, inputs);
-    const expectedMutated = { ...supportSha256, [request.implementationPath]: sha2566(mutant) };
-    requireDigests(mutatedSupportSha256, expectedMutated, "Mutated proof inputs differ beyond the declared mutation.");
-    installProofDependencies(passingCopy, mutatedCopy, argv[0]);
-    runTest(passingCopy, argv, request.testFullName, "passed");
-    const mutated = runTest(mutatedCopy, argv, request.testFullName, "failed");
-    if (!mutated.failure.includes(request.mutation.expectedFailure) || !mutated.failure.includes(request.mutation.assertionLocation)) {
-      throw new Error(`The mutation did not fail at the declared scenario assertion: ${mutated.failure.slice(0, 1000)}`);
-    }
-    return {
-      commit,
-      request,
-      argv,
-      cwd: "packages/cli",
-      sourceSha256: sha2566(sourceBytes),
-      mutantSha256: sha2566(mutant),
-      supportSha256,
-      mutatedSupportSha256,
-      passing: { exitCode: 0, test: request.testFullName, passedTests: 1, failedTests: 0 },
-      mutated: {
-        exitCode: mutated.exitCode,
-        test: request.testFullName,
-        passedTests: 0,
-        failedTests: 1,
-        failure: mutated.failure
-      }
-    };
-  } finally {
-    rmSync10(temporary, { recursive: true, force: true });
-  }
-}
-var TEST_TIMEOUT_MS = 180000, REPORT = "retrospective-proof-report.json", MAX_PROCESS_OUTPUT, VITEST_SUITE_SEPARATOR;
-var init_retrospective_proof = __esm(() => {
-  init_retrospective_history();
-  MAX_PROCESS_OUTPUT = 128 * 1024;
-  VITEST_SUITE_SEPARATOR = String.raw`(?:\s*>\s*|\s+)`;
 });
 
 // src/review/retrospective-scenario-body.ts
@@ -63314,7 +63374,7 @@ __export(exports_retrospective_gate, {
   retrospectiveGate: () => retrospectiveGate,
   attestRetrospectiveRow: () => attestRetrospectiveRow
 });
-import { spawnSync as spawnSync11 } from "child_process";
+import { spawnSync as spawnSync12 } from "child_process";
 import { createHash as createHash29 } from "crypto";
 import { readFileSync as readFileSync42 } from "fs";
 import nodePath65 from "path";
@@ -63348,7 +63408,7 @@ function soleJsonTarget(targets) {
   return targets.length === 1 && target?.endsWith(".json") ? target : undefined;
 }
 function committedFeature(root) {
-  const result = spawnSync11("git", [
+  const result = spawnSync12("git", [
     "--no-replace-objects",
     "-C",
     root,
@@ -63889,13 +63949,13 @@ __export(exports_red_execution, {
   executeRedProof: () => executeRedProof,
   executeNoShellCommand: () => executeNoShellCommand
 });
-import { spawn as spawn3, spawnSync as spawnSync12 } from "child_process";
+import { spawn as spawn3, spawnSync as spawnSync13 } from "child_process";
 import { createHash as createHash31 } from "crypto";
 import { realpathSync as realpathSync14 } from "fs";
 import nodePath67 from "path";
 function terminateProofTree(child) {
   if (process.platform === "win32" && child.pid !== undefined) {
-    const terminated = spawnSync12("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
+    const terminated = spawnSync13("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
       stdio: "ignore",
       timeout: 1000,
       windowsHide: true
@@ -64768,7 +64828,7 @@ var init_github_request = () => {};
 
 // src/pr-review/readiness.ts
 function scanGates(rest) {
-  let blocked = false;
+  let blocked2 = false;
   let gates = 0;
   for (const line of rest) {
     if (HEAD_LINE.test(line))
@@ -64778,11 +64838,11 @@ function scanGates(rest) {
       break;
     gates += 1;
     if (BLOCKED_GATE_LINE.test(line))
-      blocked = true;
+      blocked2 = true;
     if (gates === 7)
       break;
   }
-  return { blocked, gates };
+  return { blocked: blocked2, gates };
 }
 function evidenceBlocks(body) {
   const lines = body.split(/\r?\n/u);
@@ -64791,9 +64851,9 @@ function evidenceBlocks(body) {
     const sha = HEAD_LINE.exec(line)?.[1];
     if (sha === undefined)
       continue;
-    const { blocked, gates } = scanGates(lines.slice(index + 1));
+    const { blocked: blocked2, gates } = scanGates(lines.slice(index + 1));
     if (gates === 7)
-      blocks.push({ blocked, sha: sha.toLowerCase() });
+      blocks.push({ blocked: blocked2, sha: sha.toLowerCase() });
   }
   return blocks;
 }
@@ -64815,9 +64875,9 @@ function evaluateReadinessEvidence(input) {
   const stale = blocks.find((block) => !head.startsWith(block.sha));
   if (stale !== undefined)
     return report("stale", stale.sha);
-  const blocked = blocks.find((block) => block.blocked);
-  if (blocked !== undefined)
-    return report("blocked", blocked.sha);
+  const blocked2 = blocks.find((block) => block.blocked);
+  if (blocked2 !== undefined)
+    return report("blocked", blocked2.sha);
   return report("current", blocks[0]?.sha);
 }
 var DESCRIPTIONS, READINESS_DESCRIPTIONS, FAILING, HEAD_LINE, GATE_LINE, BLOCKED_GATE_LINE;
@@ -70476,7 +70536,7 @@ __export(exports_profile, {
   installClaudePlugin: () => installClaudePlugin,
   claudeInstallRequiresMutation: () => claudeInstallRequiresMutation
 });
-import { spawnSync as spawnSync13 } from "child_process";
+import { spawnSync as spawnSync14 } from "child_process";
 import { createHash as createHash35 } from "crypto";
 import {
   closeSync as closeSync9,
@@ -70497,7 +70557,7 @@ function runClaude(cwd, arguments_, effects) {
   const outputDescriptor = openSync9(outputPath, "w");
   let outputOpen = true;
   try {
-    const result2 = spawnSync13("claude", arguments_, {
+    const result2 = spawnSync14("claude", arguments_, {
       cwd,
       encoding: "utf8",
       maxBuffer: MAXIMUM_CLAUDE_OUTPUT_BYTES,
@@ -73214,7 +73274,7 @@ var init_profile2 = __esm(() => {
 });
 
 // src/opencode/conformance-fixture.ts
-import { spawn as spawn4, spawnSync as spawnSync14 } from "child_process";
+import { spawn as spawn4, spawnSync as spawnSync15 } from "child_process";
 import { randomUUID as randomUUID13 } from "crypto";
 import {
   chmodSync as chmodSync4,
@@ -73272,7 +73332,7 @@ function prepareCatalogueFixture(root, profile, fault) {
   return project;
 }
 function runHost(executable, args, cwd, environment) {
-  return spawnSync14(executable, args, {
+  return spawnSync15(executable, args, {
     cwd,
     encoding: "utf8",
     env: environment,
@@ -73562,7 +73622,7 @@ __export(exports_conformance, {
   runOpenCodeConformance: () => runOpenCodeConformance,
   observeOpenCodeVersion: () => observeOpenCodeVersion
 });
-import { spawnSync as spawnSync15 } from "child_process";
+import { spawnSync as spawnSync16 } from "child_process";
 import { createHash as createHash38 } from "crypto";
 import { accessSync as accessSync4, constants as constants6, lstatSync as lstatSync20, readFileSync as readFileSync65, realpathSync as realpathSync18, statSync as statSync8 } from "fs";
 import nodePath98 from "path";
@@ -73648,7 +73708,7 @@ function observeOpenCodeVersion(environment) {
   const executable = resolveExecutable(environment);
   if (executable === undefined)
     return;
-  const version2 = spawnSync15(executable, ["--version"], {
+  const version2 = spawnSync16(executable, ["--version"], {
     encoding: "utf8",
     env: { ...environment, OPENCODE_DISABLE_AUTOUPDATE: "true" },
     timeout: 1e4
@@ -73662,7 +73722,7 @@ function executableBoundary(environment) {
       result: executableRemediation("OPENCODE_EXECUTABLE_UNRESOLVED", "OpenCode is not executable from PATH.")
     };
   }
-  const version2 = spawnSync15(executable, ["--version"], {
+  const version2 = spawnSync16(executable, ["--version"], {
     encoding: "utf8",
     env: { ...environment, OPENCODE_DISABLE_AUTOUPDATE: "true" },
     timeout: 1e4
@@ -77578,9 +77638,9 @@ async function installLifecycle(invocation, adapters) {
   if (invocation.offline && requiresProfileNetwork)
     return onlineRequired("install");
   const preflight = await preflightAgentSurfaces(invocation.cwd, agents, scope.value);
-  const blocked = preflight.filter((surface) => surface.result.state === "failed" || surface.result.state === "action_required");
-  if (blocked.length > 0)
-    return combineInstallResults(agents, blocked);
+  const blocked2 = preflight.filter((surface) => surface.result.state === "failed" || surface.result.state === "action_required");
+  if (blocked2.length > 0)
+    return combineInstallResults(agents, blocked2);
   const projectResult = await installProjectSurface(invocation, agents);
   const surfaces = await installAgentSurfaces(invocation.cwd, agents, scope.value, projectResult, adapters);
   return combineInstallResults(agents, [{ name: "project", result: projectResult }, ...surfaces]);
@@ -78824,7 +78884,7 @@ var init_cleanup_command = __esm(() => {
 });
 
 // src/test-execution/config.ts
-import { spawnSync as spawnSync16 } from "child_process";
+import { spawnSync as spawnSync17 } from "child_process";
 import {
   closeSync as closeSync13,
   constants as constants7,
@@ -78901,10 +78961,10 @@ function validatePersonalDirectory(cwd, path8) {
 }
 function validateGitPrivacy(cwd, path8) {
   const relativePath = nodePath114.relative(cwd, path8);
-  const ignored = spawnSync16("git", ["-C", cwd, "check-ignore", "--quiet", "--", relativePath], {
+  const ignored = spawnSync17("git", ["-C", cwd, "check-ignore", "--quiet", "--", relativePath], {
     stdio: "ignore"
   });
-  const tracked = spawnSync16("git", ["-C", cwd, "ls-files", "--error-unmatch", "--", relativePath], {
+  const tracked = spawnSync17("git", ["-C", cwd, "ls-files", "--error-unmatch", "--", relativePath], {
     stdio: "ignore"
   });
   if (ignored.error !== undefined || tracked.error !== undefined || ignored.status === null || tracked.status === null) {
@@ -79978,7 +80038,7 @@ var init_shell_segments = __esm(() => {
 });
 
 // src/test-plan/resolve.ts
-import { spawnSync as spawnSync17 } from "child_process";
+import { spawnSync as spawnSync18 } from "child_process";
 import { existsSync as existsSync53, lstatSync as lstatSync27, readFileSync as readFileSync77 } from "fs";
 import nodePath119 from "path";
 import process18 from "process";
@@ -80114,9 +80174,9 @@ function defaultIsToolAvailable(tool) {
   if (fake !== undefined)
     return fakeToolProbe(fake)(tool);
   if (process18.platform === "win32") {
-    return spawnSync17("where.exe", [tool], { stdio: "ignore" }).status === 0;
+    return spawnSync18("where.exe", [tool], { stdio: "ignore" }).status === 0;
   }
-  return spawnSync17("/bin/sh", ["-c", 'command -v "$1"', "safeword-tool-probe", tool], {
+  return spawnSync18("/bin/sh", ["-c", 'command -v "$1"', "safeword-tool-probe", tool], {
     stdio: "ignore"
   }).status === 0;
 }
@@ -80494,7 +80554,7 @@ __export(exports_test_execution, {
   observeRemoteWorkflowStatus: () => observeRemoteWorkflowStatus,
   disableManagedRemoteWorkflow: () => disableManagedRemoteWorkflow
 });
-import { spawnSync as spawnSync18 } from "child_process";
+import { spawnSync as spawnSync19 } from "child_process";
 import { readFileSync as readFileSync78 } from "fs";
 import nodePath120 from "path";
 function shellInvocation(command) {
@@ -80505,7 +80565,7 @@ function shellInvocation(command) {
 }
 function spawnPlanEntry(entry2, captureOutput) {
   const [executable, arguments_] = shellInvocation(entry2.command);
-  return spawnSync18(executable, arguments_, {
+  return spawnSync19(executable, arguments_, {
     cwd: entry2.cwd,
     env: process.env,
     encoding: "utf8",
@@ -80649,7 +80709,7 @@ function prepareRemoteProject(cwd, command, delivery) {
   if (command === undefined)
     return;
   const [executable, arguments_] = shellInvocation(command);
-  const result2 = spawnSync18(executable, arguments_, {
+  const result2 = spawnSync19(executable, arguments_, {
     cwd,
     env: process.env,
     encoding: "utf8",
@@ -81547,11 +81607,11 @@ var init_namespace_root = __esm(() => {
 });
 
 // templates/hooks/lib/feature-provenance.ts
-import { spawnSync as spawnSync19 } from "child_process";
+import { spawnSync as spawnSync20 } from "child_process";
 import { existsSync as existsSync56, readFileSync as readFileSync81 } from "fs";
 import nodePath125 from "path";
 function git4(ticketDirectory, args, stderr = "ignore") {
-  return spawnSync19("git", args, {
+  return spawnSync20("git", args, {
     cwd: ticketDirectory,
     encoding: "utf8",
     stdio: ["ignore", "pipe", stderr]
@@ -83452,7 +83512,7 @@ var init_delivery_admission = __esm(() => {
 });
 
 // src/execution-plan/delivery-compatibility.ts
-import { spawnSync as spawnSync20 } from "child_process";
+import { spawnSync as spawnSync21 } from "child_process";
 import { createHash as createHash49 } from "crypto";
 import { mkdirSync as mkdirSync26, writeFileSync as writeFileSync34 } from "fs";
 import nodePath134 from "path";
@@ -83467,7 +83527,7 @@ function relativePathspec(projectRoot, path8) {
   return relative.split(nodePath134.sep).join("/");
 }
 function git5(projectRoot, args) {
-  return spawnSync20("git", args, {
+  return spawnSync21("git", args, {
     cwd: projectRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"]
@@ -83597,10 +83657,10 @@ var init_delivery_compatibility = __esm(() => {
 });
 
 // src/execution-plan/delivery-proof.ts
-import { spawnSync as spawnSync21 } from "child_process";
+import { spawnSync as spawnSync22 } from "child_process";
 import nodePath135 from "path";
 function git6(projectRoot, args) {
-  const result3 = spawnSync21("git", args, {
+  const result3 = spawnSync22("git", args, {
     cwd: projectRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"]
@@ -85042,14 +85102,14 @@ var init_cursor_run_identity = __esm(() => {
 });
 
 // templates/hooks/lib/project-state.ts
-import { spawnSync as spawnSync22 } from "child_process";
+import { spawnSync as spawnSync23 } from "child_process";
 import { appendFileSync as appendFileSync4, existsSync as existsSync67, mkdirSync as mkdirSync28, readFileSync as readFileSync92, writeFileSync as writeFileSync36 } from "fs";
 import nodePath141 from "path";
 function gitAlreadyIgnores(cwd, path8) {
   const relativePath = nodePath141.relative(cwd, path8);
   if (relativePath.startsWith("..") || nodePath141.isAbsolute(relativePath))
     return false;
-  return spawnSync22("git", ["check-ignore", "--no-index", "--quiet", "--", relativePath], {
+  return spawnSync23("git", ["check-ignore", "--no-index", "--quiet", "--", relativePath], {
     cwd,
     stdio: "ignore"
   }).status === 0;
@@ -85224,7 +85284,7 @@ var exports_project_runtime = {};
 __export(exports_project_runtime, {
   runProjectRuntime: () => runProjectRuntime
 });
-import { spawnSync as spawnSync23 } from "child_process";
+import { spawnSync as spawnSync24 } from "child_process";
 import { existsSync as existsSync68 } from "fs";
 import nodePath143 from "path";
 function completedResult(helper, status, stdout, stderr) {
@@ -85265,7 +85325,7 @@ function projectRuntimeEnvironment(projectDirectory) {
     environment.SAFEWORD_PLUGIN_CLI = reentrantCli;
   return environment;
 }
-function runProjectRuntime(cwd, helper, args, runner = spawnSync23) {
+function runProjectRuntime(cwd, helper, args, runner = spawnSync24) {
   const definition = projectRuntimeHelperDefinition(helper);
   if (helper === undefined || definition === undefined)
     return Promise.resolve(createResult({
@@ -86234,7 +86294,7 @@ __export(exports_codex_hook, {
   commandInvokesWriteReviewStamp: () => commandInvokesWriteReviewStamp,
   codexHook: () => codexHook
 });
-import { spawnSync as spawnSync24 } from "child_process";
+import { spawnSync as spawnSync25 } from "child_process";
 import {
   cpSync as cpSync5,
   existsSync as existsSync73,
@@ -86492,7 +86552,7 @@ function hookRuntime(hookPath) {
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
   const { runtime, args } = hookRuntime(hookPath);
-  const result3 = spawnSync24(runtime, args, {
+  const result3 = spawnSync25(runtime, args, {
     cwd: nodePath150.dirname(hookPath),
     input: rawInput,
     encoding: "utf8",
@@ -90302,26 +90362,16 @@ async function retroReconcileHandler(invocation) {
 
 // src/cli-protocol/review-handlers.ts
 init_run_identity();
-import { createHash as createHash32 } from "crypto";
-import { existsSync as existsSync28, readFileSync as readFileSync46, statSync as statSync6 } from "fs";
-import nodePath69 from "path";
-
-// src/review/ledger-recovery-profile.ts
-var LEDGER_RECOVERY_PROFILE = {
-  ticket: "5F5ZZA",
-  ledger: ".project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/test-definitions.md",
-  ledgerSha256: "975589886672e20bbc74d3a472aefc896741f9e20d6817434cc98b7a339f069e",
-  feature: "features/keep-plan-reviews-current-and-trustworthy.feature",
-  featureSha256: "9c2d14f1442c8acf483cf6e7e08533812826258ec24faf4f1516dfa1309f86ac"
-};
-
-// src/cli-protocol/review-handlers.ts
+init_ledger_recovery_profile();
 init_policy();
 init_preferences();
 init_route_config();
 init_configured_paths();
 init_online_required();
 init_result();
+import { createHash as createHash32 } from "crypto";
+import { existsSync as existsSync28, readFileSync as readFileSync46, statSync as statSync6 } from "fs";
+import nodePath69 from "path";
 async function reviewRunHandler(invocation) {
   if (invocation.offline)
     return onlineRequired("review run");
@@ -90428,6 +90478,13 @@ function ledgerRecoveryGateHandler(invocation) {
     ],
     data: { command: "review gate ledger-recovery", status: "blocked" }
   }));
+}
+async function ledgerRecoveryObserveHandler(invocation) {
+  const { ticket } = invocation.options;
+  if (typeof ticket !== "string" || ticket.trim() === "")
+    return invalidOperand("review observe ledger-recovery", "Ticket is required.");
+  const { observeLedgerRecovery: observeLedgerRecovery2 } = await Promise.resolve().then(() => (init_ledger_recovery_observer(), exports_ledger_recovery_observer));
+  return observeLedgerRecovery2(invocation.cwd, ticket);
 }
 async function retrospectiveGateHandler(invocation) {
   return retrospectiveHandler(invocation, false);
@@ -91717,6 +91774,7 @@ var HANDLERS = {
   "review run": reviewRunHandler,
   "review gate executable-red": executableRedGateHandler,
   "review gate ledger-recovery": ledgerRecoveryGateHandler,
+  "review observe ledger-recovery": ledgerRecoveryObserveHandler,
   "review gate retrospective": retrospectiveGateHandler,
   "review attest retrospective": retrospectiveAttestHandler,
   "review attest retrospective-close": retrospectiveCloseAttestHandler,
@@ -92328,6 +92386,17 @@ var CANONICAL_COMMANDS = [
     ],
     fixture: {
       argv: ["review", "gate", "ledger-recovery", "--ticket", "OTHER1"],
+      environment: MACHINE_ENVIRONMENT
+    }
+  }),
+  command2("review observe ledger-recovery", "Observe the committed current-scope candidate", "mutate", {
+    syntax: "ledger-recovery",
+    networkPolicy: "declared",
+    commandOptions: [
+      { flags: "--ticket <id>", description: "Ticket requesting bounded recovery observation" }
+    ],
+    fixture: {
+      argv: ["review", "observe", "ledger-recovery", "--ticket", "OTHER1"],
       environment: MACHINE_ENVIRONMENT
     }
   }),

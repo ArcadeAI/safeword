@@ -775,6 +775,22 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
+  command(
+    'review observe ledger-recovery',
+    'Observe the committed current-scope candidate',
+    'mutate',
+    {
+      syntax: 'ledger-recovery',
+      networkPolicy: 'declared',
+      commandOptions: [
+        { flags: '--ticket <id>', description: 'Ticket requesting bounded recovery observation' },
+      ],
+      fixture: {
+        argv: ['review', 'observe', 'ledger-recovery', '--ticket', 'OTHER1'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('review gate retrospective', 'Check CKWE2D retrospective receipts', 'observe', {
     syntax: 'retrospective',
     commandOptions: [
