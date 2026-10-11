@@ -205,7 +205,10 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
 
   // A turn whose last tool call launches background work is waiting, not handing
   // off: its results return in a new turn, which is still checked (#5765).
-  function writeToolTurn(toolUses: { name: string; input?: Record<string, unknown> }[]): string {
+  // Each tool call is followed by its tool_result, as in a real Claude Code transcript.
+  function writeToolTurn(
+    toolUses: { name: string; input?: Record<string, unknown>; failed?: boolean }[],
+  ): string {
     writeFileSync(nodePath.join(state.projectDirectory, '.safeword', 'config.json'), '{}\n');
     const transcriptPath = nodePath.join(state.projectDirectory, 'tool-turn.jsonl');
     writeFileSync(
@@ -215,7 +218,7 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
           type: 'user',
           message: { role: 'user', content: [{ type: 'text', text: 'Run the suite.' }] },
         }),
-        ...toolUses.map((tool, index) =>
+        ...toolUses.flatMap(({ failed = false, ...tool }, index) => [
           JSON.stringify({
             type: 'assistant',
             message: {
@@ -223,7 +226,21 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
               content: [{ type: 'tool_use', id: `toolu_${index}`, ...tool }],
             },
           }),
-        ),
+          JSON.stringify({
+            type: 'user',
+            message: {
+              role: 'user',
+              content: [
+                {
+                  type: 'tool_result',
+                  tool_use_id: `toolu_${index}`,
+                  is_error: failed,
+                  content: failed ? 'launch failed' : 'ok',
+                },
+              ],
+            },
+          }),
+        ]),
       ].join('\n'),
     );
     return transcriptPath;
@@ -248,6 +265,19 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
     const transcriptPath = writeToolTurn([
       { name: 'Bash', input: { run_in_background: true } },
       { name: 'Bash', input: { command: 'git status' } },
+    ]);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath, undefined, WAITING_REPLY);
+
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('terminal-handoff/v1 correction.');
+  });
+
+  it('still corrects a turn whose background launch failed', () => {
+    const transcriptPath = writeToolTurn([
+      { name: 'Read' },
+      { name: 'Bash', input: { run_in_background: true }, failed: true },
     ]);
 
     const result = runStopHook(state.projectDirectory, transcriptPath, undefined, WAITING_REPLY);
