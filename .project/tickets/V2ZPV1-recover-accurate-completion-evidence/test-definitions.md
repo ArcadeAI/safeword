@@ -1,8 +1,8 @@
 # Completion-evidence recovery proof
 
 This task's new proof is separate from the unchanged 5F5ZZA historical ledger.
-The remaining observer, exact-case, authenticated-correction and host-closing
-tests are not implemented or certified by this first loop.
+The observer, authenticated-correction, certification and host-closing tests
+remain open. Completed refusal and parser checks do not grant completion credit.
 
 ## Scenarios
 
@@ -74,6 +74,16 @@ The matching 142-case observation is the positive control.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Recovery observation refuses another ticket or missing baseline
+
+The public observer refuses OTHER1 with the exact scope finding.
+For 5F5ZZA without the pinned Git ancestry it returns
+LEDGER_RECOVERY_BASELINE_REQUIRED and leaves the project unchanged.
+
+- [x] RED a23a21e8f
+- [x] GREEN 31dbcd9ff
+- [x] REFACTOR skip: reuse the existing external proof-tool resolver
+
 ### Scenario: Recovery observes the committed candidate itself
 
 Given a clean candidate descended from the pinned baseline,
@@ -82,7 +92,44 @@ then the retained signed record binds the actual process result, complete report
 and producing product tree. Caller reports, failed runs and dirty execution
 inputs cannot produce a passing observation.
 
-- [ ] RED
+- [x] RED 152b9adea
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Recovery observations use their own authenticated protocol
+
+A genuine recovery tag validates only unchanged observation bytes for the same
+root and installed profile. CKWE2D tags cannot authorize recovery, and recovery
+tags cannot authorize CKWE2D. Wrong kind, ticket or profile cannot be signed;
+verification of an unauthenticated record cannot create an integrity key.
+Changing only the profile-owned key invalidates a genuine tag, and restoring
+the original key validates it again; an unkeyed checksum cannot pass this control.
+
+- [x] RED 2e690eaf9
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Recovery requires typed case-bound certification metadata
+
+The dedicated review contract accepts actual empty findings. Approval requires
+the installed profile, distinct active cases and all six confirmations. Ordinary
+approval, wrong profiles, duplicate or deferred cases and missing or false
+approval confirmations are refused. These parser controls grant no job authority.
+
+- [x] RED a008c55f9
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Recovery reads only authenticated independent receipt provenance
+
+Given a signed review job with current target/context fingerprints and valid
+case-bound certification metadata, the internal reader returns its authenticated
+targets, context and certification. Wrong kind, same-agent, contradictory verdict,
+unsupported author, wrong profile, false confirmation, stale context and unsigned
+records return no receipt. This pure contract does not grant completion credit;
+the public gate still requires the matching passing observation and all targets.
+
+- [x] RED daa750959
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -95,9 +142,13 @@ then the supplied receipt cannot grant current certification.
 A fresh cross-agent recovery receipt with every required confirmation is the
 positive control; missing or false confirmations remain rejected.
 
-- [ ] RED
+- [x] RED daa750959
 - [ ] GREEN
 - [ ] REFACTOR
+
+Review 18560ec0 rejected daa750959 as proof of this public-boundary scenario:
+it tests only the internal receipt reader. The actual public gate proof remains
+required; this failed review grants no GREEN authority.
 
 ### Scenario: Recovery survives only the named audit changes
 
@@ -118,7 +169,54 @@ then current active evidence is credited without changing historical checkboxes
 or crediting any of the 33 unverified deferred cases. Removing that authority
 restores the ordinary rejection. OpenCode cannot receive the recovery view.
 
-- [ ] RED
+- [x] RED 290f1453a
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Recovery credits only authenticated proof through the public CLI
+
+Given a matching signed observation and an independent case-bound certification,
+when the contributor checks the public CLI recovery gate,
+then the gate credits all 142 active cases and displays all 33 deferred cases as
+unverified without modifying the historical ledger. Report tampering, deferred
+credit, invalid authentication, a signed failed run and an unsigned receipt are
+each rejected; restoring the valid evidence restores approval. This is simulated
+host boundary proof, not current live acceptance evidence.
+
+- [x] RED 14e01c20a
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Recovery exposes honest views through the completion composite
+
+Given simulated passing dependency and test prerequisites, a valid in-scope
+verify artifact and authenticated current certification, the shared completion
+composite credits only supported local hosts and displays all 33 cases as
+deferred-unverified. Missing receipts, unknown hosts and OpenCode remain blocked.
+The public gate exposes a historical validation view that corrects only the
+exact approved REFACTOR annotation and enumerates every missing historical row;
+the original ledger bytes remain unchanged. This component proof does not claim
+that native hook adapters have already been wired or exercised.
+
+- [x] RED 02bf86d09
+- [ ] GREEN
+- [ ] REFACTOR
+
+The earlier supported-boundary RED 290f1453a was rejected because it called only
+the internal scenario helper. Native Stop and closing-edit coverage remains
+required independently; no approval or GREEN credit is inferred from that RED.
+
+### Scenario: Recovery reaches the actual local hook adapters
+
+Given an actual frozen dependency install, an explicitly simulated passing test
+plan, an in-scope verify artifact and signed fixture certification, the real
+Cursor closing-edit, Codex Stop and Claude Stop source entrypoints admit current
+active proof. Removing certification denies each boundary; OpenCode's actual
+pre-tool dispatcher remains denied. The original historical ledger is unchanged.
+This simulated-host wiring proof is not installed-host qualification or actual
+current acceptance, both of which remain separately required.
+
+- [x] RED bfd814971
 - [ ] GREEN
 - [ ] REFACTOR
 

@@ -137,7 +137,11 @@ for (const translated of translatedInputs) {
   }
   if (ticketType !== 'feature') continue;
 
-  const verdict = checkFeatureScenarios(projectRoot, ticketDirectory);
+  const verdict = checkFeatureScenarios(
+    projectRoot,
+    ticketDirectory,
+    process.env.SAFEWORD_AGENT_RUNTIME ?? 'codex',
+  );
   if (!verdict.ok) denyDoneTransition(verdict.reason ?? 'Feature scenario evidence is incomplete.');
 }
 

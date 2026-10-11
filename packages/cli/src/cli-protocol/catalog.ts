@@ -1221,6 +1221,11 @@ export const commandFamilies = [
   { route: 'review', description: 'Run independent adversarial reviews', visibility: 'public' },
   { route: 'review attest', description: 'Attest reviewed evidence', visibility: 'public' },
   { route: 'review gate', description: 'Check review admission gates', visibility: 'public' },
+  {
+    route: 'review observe',
+    description: 'Observe bounded recovery evidence',
+    visibility: 'public',
+  },
   { route: 'review routes', description: 'Manage ranked review routes', visibility: 'public' },
   {
     route: 'review-pr',

@@ -124,6 +124,7 @@ function completeSessionDoneTicket(
     projectDir: projectDirectory,
     ticketDir: ticketDirectory,
     ticketType: ticket.type,
+    host: process.env.SAFEWORD_AGENT_RUNTIME ?? 'codex',
   });
   if (!verdict.ok) {
     return {

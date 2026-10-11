@@ -7,7 +7,7 @@ import nodePath from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 
 import { getDependencyReadiness } from '../../templates/hooks/lib/dependency-readiness.js';
-import { simulatedRecoveryFixture } from '../review/ledger-recovery-fixture.js';
+import { fixtureGit, simulatedRecoveryFixture } from '../review/ledger-recovery-fixture.js';
 
 const fixtures: Awaited<ReturnType<typeof simulatedRecoveryFixture>>[] = [];
 const repo = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -18,7 +18,24 @@ afterEach(() => {
 });
 
 it('routes honest recovery through Cursor closing, Codex Stop and Claude Stop while OpenCode stays blocked', async () => {
-  const fixture = await simulatedRecoveryFixture();
+  const fixture = await simulatedRecoveryFixture(root => {
+    // Model completed plan reconciliation before signing this simulated candidate.
+    const plan = '.project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/impl-plan.md';
+    const absolute = nodePath.join(root, plan);
+    const content = readFileSync(absolute, 'utf8');
+    if (!content.includes('**Status:** planned')) return;
+    writeFileSync(absolute, content.replace('**Status:** planned', '**Status:** implemented'));
+    fixtureGit(root, ['add', plan]);
+    fixtureGit(root, [
+      '-c',
+      'core.hooksPath=/dev/null',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '-m',
+      'Simulate the completed plan prerequisite',
+    ]);
+  });
   fixtures.push(fixture);
   const installation = spawnSync(
     nodePath.join(fixture.root, 'scripts/dev'),
@@ -58,7 +75,11 @@ it('routes honest recovery through Cursor closing, Codex Stop and Claude Stop wh
     spawnSync('bun', [nodePath.join(hooks, hook)], {
       cwd: fixture.root,
       input: JSON.stringify(payload),
-      env: { ...environment, SAFEWORD_AGENT_RUNTIME: host },
+      env: {
+        ...environment,
+        SAFEWORD_AGENT_RUNTIME: host,
+        SAFEWORD_CODEX_DENY_MODE: host === 'opencode' ? 'exit-code' : undefined,
+      },
       encoding: 'utf8',
       timeout: 60_000,
     });
@@ -131,8 +152,8 @@ it('routes honest recovery through Cursor closing, Codex Stop and Claude Stop wh
     expect(recorded.status, recorded.stdout + recorded.stderr).toBe(0);
   }
   const transcript = nodePath.join(
-    fixture.root,
-    '.safeword/state/simulated-recovery-transcript.jsonl',
+    nodePath.dirname(fixture.root),
+    'simulated-recovery-transcript.jsonl',
   );
   writeFileSync(
     transcript,
@@ -158,12 +179,32 @@ it('routes honest recovery through Cursor closing, Codex Stop and Claude Stop wh
   expect(JSON.parse(deniedClaude.stdout).decision).toBe('block');
   expect(JSON.parse(deniedClaude.stdout).reason).toContain('Not all scenarios are complete');
   writeFileSync(jobPath, job);
+  const currentGate = spawnSync(
+    process.execPath,
+    [
+      nodePath.join(repo, 'packages/cli/dist/cli.js'),
+      '--json',
+      '--no-input',
+      '--cwd',
+      fixture.root,
+      'review',
+      'gate',
+      'ledger-recovery',
+      '--ticket',
+      '5F5ZZA',
+    ],
+    { env: environment, encoding: 'utf8', timeout: 30_000 },
+  );
+  expect(
+    currentGate.status,
+    currentGate.stdout + currentGate.stderr + fixtureGit(fixture.root, ['status', '--short']),
+  ).toBe(0);
   const claude = run('stop-quality.ts', claudePayload, 'claude');
   expect(claude.status, claude.stdout + claude.stderr).toBe(0);
   expect(
-    claude.stdout,
-    'Claude must accept both current completion and the sole historical erratum',
-  ).not.toContain('"decision":"block"');
+    readFileSync(ticket, 'utf8'),
+    `Claude must accept both current completion and the sole historical erratum: ${claude.stdout}${claude.stderr}`,
+  ).toMatch(/^status: done$/m);
 
   const opencodePayload = {
     session_id: 'simulated-recovery-opencode',
@@ -174,7 +215,7 @@ it('routes honest recovery through Cursor closing, Codex Stop and Claude Stop wh
     },
   };
   const opencode = run('codex/pre-tool-quality.ts', opencodePayload, 'opencode');
-  expect(opencode.status, opencode.stdout + opencode.stderr).toBe(0);
-  expect(JSON.parse(opencode.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+  expect(opencode.status, opencode.stdout + opencode.stderr).toBe(3);
+  expect(opencode.stderr).toContain('Not all scenarios are complete');
   expect(readFileSync(ledger, 'utf8')).toBe(ledgerBytes);
 }, 180_000);

@@ -65,6 +65,8 @@ canonical commands below.
 | `review status`                         | mutate      | Collect a durable independent review                                                                                                             |
 | `review continue`                       | mutate      | Complete a sealed planning review continuation                                                                                                   |
 | `review gate executable-red`            | observe     | Check whether a scenario may claim GREEN                                                                                                         |
+| `review gate ledger-recovery`           | observe     | Check bounded completion recovery                                                                                                                |
+| `review observe ledger-recovery`        | mutate      | Observe the committed current-scope candidate                                                                                                    |
 | `review gate retrospective`             | observe     | Check CKWE2D retrospective receipts                                                                                                              |
 | `review attest retrospective`           | mutate      | Replay one CKWE2D proof before checking its row                                                                                                  |
 | `review attest retrospective-close`     | mutate      | Replay CKWE2D proofs for closing                                                                                                                 |

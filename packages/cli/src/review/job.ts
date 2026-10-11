@@ -1856,20 +1856,21 @@ export function approvedLedgerRecoveryReview(
     const record = readJob(cwd, id);
     const data = record.result?.data as Record<string, unknown> | undefined;
     const output = data?.reviewer_output as Record<string, unknown> | undefined;
-    const certification = output?.recovery_certification;
+    if (data === undefined || output === undefined) return undefined;
+    const certification = output.recovery_certification;
     if (!validRecoveryCertification(certification, true)) return undefined;
+    const targets = effectiveReviewTargets(cwd, record);
+    if (targets === undefined) return undefined;
     const approved = [
       record.kind === 'ledger-recovery',
       record.state === 'completed',
       hasCurrentFingerprint(cwd, record),
       hasIndependentApproval(data),
-      ['claude', 'codex', 'cursor'].includes(data?.author_agent as string),
-      ['claude', 'codex'].includes(data?.actual_reviewer as string),
-      output?.verdict === 'approve',
+      ['claude', 'codex', 'cursor'].includes(data.author_agent as string),
+      ['claude', 'codex'].includes(data.actual_reviewer as string),
+      output.verdict === 'approve',
     ].every(Boolean);
-    return approved
-      ? { targets: effectiveReviewTargets(cwd, record), context: record.context, certification }
-      : undefined;
+    return approved ? { targets, context: record.context ?? [], certification } : undefined;
   } catch {
     return undefined;
   }

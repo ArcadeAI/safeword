@@ -159,11 +159,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "7208bbe28df482caa4505e4819d1ef74f3fc1b0c81b8211ba6a7cec7152adb1f"
+      "sha256": "e53c2c0777f753bc2e7fff18b2051ad5f043ed380bea02f55597b9efc11aa4e8"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "623a7b68750038b287d515aff23c31d4acf0f1416929656bfb05f0fe5c26c2fd"
+      "sha256": "a7f7e1724081b463c9a5df7a002e3afb0243b122ae1934cdc52236f9787b4567"
     },
     {
       "path": "runtime/event-groups.json",
@@ -623,7 +623,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "0b816db83b44260b8e5c3989f991fe2c1d1257350809757d26ca9b1f0a299671"
+      "sha256": "7d5622097cfe9ac513763c0dc0a86bf8dce4d81e842d5063e11a6ec60dcc11d8"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -1119,11 +1119,11 @@
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality.ts",
-      "sha256": "a493c91ee667ed38dc04522fc48e859834c84ba520acbb413bfd9ca50ec0187e"
+      "sha256": "80dc34e44086fd3f3f23921950b56c330e797ce027a6325bc9b56b14fca4a6e9"
     },
     {
       "path": "templates/hooks/codex/stop.ts",
-      "sha256": "864acac6b4b7b8881b8cd6fe2c386f6e765fedf5ed84996201f89e0a93868087"
+      "sha256": "63f65dbe8f5bc73d673714267398c1a4da3029e70081a0ce6b43fdf96dc90a3d"
     },
     {
       "path": "templates/hooks/cursor/after-file-edit.ts",
@@ -1147,7 +1147,7 @@
     },
     {
       "path": "templates/hooks/cursor/pre-tool-quality.ts",
-      "sha256": "705d01fe0aa6ae4989b0eecae905f6f7ebdb761894b2b2793f1b513d2a77df83"
+      "sha256": "b1e5c08f91421a3802b16c826b10bc60aa07ce85a7176731050c6a8692c52e53"
     },
     {
       "path": "templates/hooks/cursor/stop.ts",
@@ -1599,7 +1599,7 @@
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "5acf47f094547cea75cf9ab58b9ab6e49b4c5fef4d4c96c8ebce1e747da49d39"
+      "sha256": "03272b1ed5ce34ce353c7a5b9fac6cbb62060da8c64efb253e603dff99e5a13d"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",

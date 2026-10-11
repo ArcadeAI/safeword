@@ -3664,7 +3664,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
-        ".safeword/hooks/stop-quality.ts": "5acf47f094547cea75cf9ab58b9ab6e49b4c5fef4d4c96c8ebce1e747da49d39",
+        ".safeword/hooks/stop-quality.ts": "03272b1ed5ce34ce353c7a5b9fac6cbb62060da8c64efb253e603dff99e5a13d",
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "5b0767121376bac1ad9f2b57765f0e705b1c34bff72724133014d31e39c0b916",
@@ -63693,19 +63693,24 @@ function approvedLedgerRecoveryReview(cwd, id2) {
     const record3 = readJob(cwd, id2);
     const data = record3.result?.data;
     const output = data?.reviewer_output;
-    const certification = output?.recovery_certification;
+    if (data === undefined || output === undefined)
+      return;
+    const certification = output.recovery_certification;
     if (!validRecoveryCertification(certification, true))
+      return;
+    const targets = effectiveReviewTargets(cwd, record3);
+    if (targets === undefined)
       return;
     const approved2 = [
       record3.kind === "ledger-recovery",
       record3.state === "completed",
       hasCurrentFingerprint(cwd, record3),
       hasIndependentApproval(data),
-      ["claude", "codex", "cursor"].includes(data?.author_agent),
-      ["claude", "codex"].includes(data?.actual_reviewer),
-      output?.verdict === "approve"
+      ["claude", "codex", "cursor"].includes(data.author_agent),
+      ["claude", "codex"].includes(data.actual_reviewer),
+      output.verdict === "approve"
     ].every(Boolean);
-    return approved2 ? { targets: effectiveReviewTargets(cwd, record3), context: record3.context, certification } : undefined;
+    return approved2 ? { targets, context: record3.context ?? [], certification } : undefined;
   } catch {
     return;
   }
@@ -95457,6 +95462,11 @@ var commandFamilies = [
   { route: "review", description: "Run independent adversarial reviews", visibility: "public" },
   { route: "review attest", description: "Attest reviewed evidence", visibility: "public" },
   { route: "review gate", description: "Check review admission gates", visibility: "public" },
+  {
+    route: "review observe",
+    description: "Observe bounded recovery evidence",
+    visibility: "public"
+  },
   { route: "review routes", description: "Manage ranked review routes", visibility: "public" },
   {
     route: "review-pr",

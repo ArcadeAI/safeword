@@ -33,7 +33,7 @@ export function fixtureGit(root: string, args: readonly string[]): string {
   return result.stdout.trim();
 }
 
-export async function simulatedRecoveryFixture() {
+export async function simulatedRecoveryFixture(prepare?: (root: string) => void) {
   const prefix = nodePath.join(tmpdir(), 'safeword-recovery-gate-test-');
   const temporary = realpathSync(mkdtempSync(prefix));
   const root = nodePath.join(temporary, 'candidate');
@@ -43,8 +43,11 @@ export async function simulatedRecoveryFixture() {
     rmSync(temporary, { recursive: true, force: true });
   };
   try {
+    prepare?.(root);
     vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', nodePath.join(temporary, 'keys'));
     const report = parserReport();
+    const feature = report[0];
+    if (feature === undefined) throw new Error('Simulated feature is missing.');
     const summary = assessRecoveryReport(report, 0);
     if (summary === undefined) throw new Error('Simulated active report is invalid.');
     const inputPaths = [
@@ -57,7 +60,7 @@ export async function simulatedRecoveryFixture() {
         'package.json',
         LEDGER_RECOVERY_PROFILE.feature,
         'steps/world.ts',
-        ...report[0].elements.flatMap(item =>
+        ...feature.elements.flatMap(item =>
           item.steps.map(step => step.match.location.replace(/:\d+$/, '')),
         ),
       ]),
@@ -119,7 +122,7 @@ export async function simulatedRecoveryFixture() {
           .filter(item => !item.deferred)
           .map(({ name, line, digest }) => ({ name, line, digest })),
         inputs,
-        caseInputs: report[0].elements.map(item => {
+        caseInputs: feature.elements.map(item => {
           const expected = cases.find(
             candidate => candidate.name === item.name && candidate.line === item.line,
           );

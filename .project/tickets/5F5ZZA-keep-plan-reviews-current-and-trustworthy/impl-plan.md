@@ -1,6 +1,6 @@
 # Impl Plan: Keep plan reviews current and trustworthy
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-09-20
 
 ## Approach
@@ -697,6 +697,8 @@ permission for the reviewer or agent to alter accepted scope.
 Architecture applicability: this changes the shared `review` component's packet, provenance, and admission contract and the generated planning contracts consumed by every supported host. It honors [Separate Implementation and Execution Planning Gates](../../../ARCHITECTURE.md#separate-implementation-and-execution-planning-gates), [Conformance-Gated Execution Plan Review](../../../ARCHITECTURE.md#conformance-gated-execution-plan-review), the packet/routing/integrity boundaries of [Host-owned cross-agent adversarial review coordinator](../../../ARCHITECTURE.md#host-owned-cross-agent-adversarial-review-coordinator), and [Digest-Bound Planning Decisions in the Shared Review Ledger](../../../ARCHITECTURE.md#digest-bound-planning-decisions-in-the-shared-review-ledger). The new difficult-to-reverse identity and fallback-authority decisions are proposed in [Semantically Projected Planning Review Provenance](../../../ARCHITECTURE.md#semantically-projected-planning-review-provenance) and [Authenticated Reduced-Independence Planning Review Fallback](../../../ARCHITECTURE.md#authenticated-reduced-independence-planning-review-fallback); they become accepted authority only after this plan is approved.
 
 ## Known deviations
+
+Current-scope reconciliation (2026-10-11): the implemented local planning-review boundaries retain authenticated approval and actual rejection findings. The user-approved V2ZPV1 recovery requires one authenticated passing aggregate for exactly 142 active cases, fresh independent case-bound certification and trusted installed-runtime proof. Exactly 33 previously deferred cases remain deferred and unverified; original historical TDD entries remain unchanged. Implemented status records source delivery, not completed verification, installed deployment, epic closure, merge or PR promotion. The normal cross-scenario disposition remains a prerequisite. Current source and installed 1.1.0 fingerprint protocols differ; source evidence does not override installed authority.
 
 User-approved completion boundary (2026-10-10 PDT), superseding the completion
 restriction in the 2026-09-30 deferral: this feature and epic may complete against
