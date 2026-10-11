@@ -4,8 +4,16 @@ import nodePath from 'node:path';
 
 import { afterEach, expect, it, vi } from 'vitest';
 
-import { checkFeatureScenarios } from '../../templates/hooks/lib/done-gate.js';
+import { evaluateDoneEvidence } from '../../templates/hooks/lib/done-gate.js';
 import { simulatedRecoveryFixture } from '../review/ledger-recovery-fixture.js';
+
+vi.mock('../../templates/hooks/lib/dependency-readiness.js', () => ({
+  getDependencyReadiness: () => ({ status: 'ready' }),
+  formatDependencyRecovery: () => 'Dependencies are missing.',
+}));
+vi.mock('../../templates/hooks/lib/test-runner.js', () => ({
+  runTests: () => ({ passed: true, skipped: false, output: 'Simulated prerequisite: tests pass.' }),
+}));
 
 const fixtures: Awaited<ReturnType<typeof simulatedRecoveryFixture>>[] = [];
 afterEach(() => {
@@ -24,20 +32,33 @@ it('credits authenticated active proof at supported local closing boundaries wit
   );
   const ledger = nodePath.join(ticket, 'test-definitions.md');
   const before = readFileSync(ledger, 'utf8');
+  writeFileSync(
+    nodePath.join(ticket, 'verify.md'),
+    '# Verify\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
+  );
+  const check = (host?: string) =>
+    evaluateDoneEvidence({
+      projectDir: fixture.root,
+      ticketDir: ticket,
+      ticketType: 'feature',
+      host,
+    });
   for (const host of ['claude', 'codex', 'cursor']) {
-    const verdict = checkFeatureScenarios(fixture.root, ticket, host);
+    const verdict = check(host);
     expect(
       verdict.ok,
       `Authenticated current proof must permit ${host} closing: ${verdict.reason}`,
     ).toBe(true);
+    expect(verdict.deferredCases).toHaveLength(33);
+    expect(verdict.deferredCases?.every(item => item.status === 'deferred-unverified')).toBe(true);
   }
-  expect(checkFeatureScenarios(fixture.root, ticket, 'opencode').ok).toBe(false);
-  expect(checkFeatureScenarios(fixture.root, ticket).ok).toBe(false);
+  expect(check('opencode').ok).toBe(false);
+  expect(check().ok).toBe(false);
   const job = nodePath.join(fixture.root, '.safeword/state/reviews', `${fixture.id}.json`);
   const jobBytes = readFileSync(job, 'utf8');
   writeFileSync(job, '{}');
-  expect(checkFeatureScenarios(fixture.root, ticket, 'codex').ok).toBe(false);
+  expect(check('codex').ok).toBe(false);
   writeFileSync(job, jobBytes);
-  expect(checkFeatureScenarios(fixture.root, ticket, 'codex').ok).toBe(true);
+  expect(check('codex').ok).toBe(true);
   expect(readFileSync(ledger, 'utf8')).toBe(before);
 }, 60_000);
