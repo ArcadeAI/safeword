@@ -38,6 +38,10 @@ import {
 } from './contract.js';
 import { hostContinuationCompletion } from './coordinator.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
+import {
+  LEDGER_RECOVERY_PROFILE,
+  ledgerRecoveryProfileIdentity,
+} from './ledger-recovery-profile.js';
 import { prepareReviewPacket, toReviewPath } from './packet.js';
 import { PlanningContextError } from './planning-context-error.js';
 import {
@@ -181,16 +185,46 @@ export function validRetrospectiveCloseTag(cwd: string, content: string, tag: st
 }
 
 /** Recovery observations have their own protocol; no CKWE2D authority is borrowed. */
-export function ledgerRecoveryObservationTag(_cwd: string, _content: string): string {
-  return '';
+export function ledgerRecoveryObservationTag(cwd: string, content: string): string {
+  if (!hasRecoveryObservationIdentity(content))
+    throw new Error('Recovery observation identity does not match the installed profile.');
+  return createHmac('sha256', readOrCreateIntegrityKey())
+    .update(realpathSync.native(cwd))
+    .update('\0ledger-recovery-observation\0')
+    .update(content)
+    .digest('hex');
 }
 
 export function validLedgerRecoveryObservationTag(
-  _cwd: string,
-  _content: string,
-  _tag: string,
+  cwd: string,
+  content: string,
+  tag: string,
 ): boolean {
-  return false;
+  if (!/^[a-f\d]{64}$/u.test(tag) || !reviewIntegrityKeyExists()) return false;
+  try {
+    return timingSafeEqual(
+      Buffer.from(tag, 'hex'),
+      Buffer.from(ledgerRecoveryObservationTag(cwd, content), 'hex'),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hasRecoveryObservationIdentity(content: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return false;
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return false;
+  const identity = parsed as Record<string, unknown>;
+  return (
+    identity.kind === 'ledger-recovery-observation:v1' &&
+    identity.ticket === LEDGER_RECOVERY_PROFILE.ticket &&
+    identity.profile === ledgerRecoveryProfileIdentity()
+  );
 }
 
 interface LedgerFingerprintContext {

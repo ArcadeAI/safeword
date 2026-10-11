@@ -31525,9 +31525,1987 @@ function retryCommand(kind, targets, context = [], execution) {
 }
 
 // src/review/ledger-recovery-cases.json
-var init_ledger_recovery_cases = () => {};
+var ledger_recovery_cases_default;
+var init_ledger_recovery_cases = __esm(() => {
+  ledger_recovery_cases_default = [
+    {
+      name: "Editing the canonical shared clause changes both generated phase contracts",
+      line: 10,
+      digest: "308e43912f1a9db4f7795484398316a444760220c7ec7d6b7573c8ff3543c229",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "c5c860e323bb1db3b6a500042219d403a6c959afea6c1bbabf913e068b46eb9e",
+        "b7e0d429731b84bed24d8edc2e0bc797b075a3b2002ec56dabee769e76a84417",
+        "1189c249cde5b7ad9b65f8d495bd4b0c262ffea936c2fa5c01f6f7e0a7408630"
+      ]
+    },
+    {
+      name: "Phase-only clauses remain in their owning contract",
+      line: 16,
+      digest: "d4e650bafde8d0dfdc6bf6c1aee0b17f849dc5de6f15acd283f184cd14bfe868",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "109c1ee4425aac5a1afb6287f30b4f2f20f098f57634104a5a480de8b2eae43f",
+        "b75dd71abe8f979023dea6f55f402b7f42e7077936fb84aa78e3a8a1d07ab9df",
+        "966cc9e3d42bd682b400daf20f1fbc1fa3dc96f6b3500ca0bcac07772d60a1f8"
+      ]
+    },
+    {
+      name: "A missing generated shared clause blocks reconciliation",
+      line: 22,
+      digest: "13c72ea9f279306c88c747410838588d90a8d74e35f43d9c8b821830333321a4",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "154454bdd30e5fe76780b10c13e25a980ea718b2ee8a086022848db108b72278",
+        "b7e0d429731b84bed24d8edc2e0bc797b075a3b2002ec56dabee769e76a84417",
+        "2910d17dc89929651c057dfe2bb685ed08e2d316ea971e8903303456e4c68976"
+      ]
+    },
+    {
+      name: "A review packet cannot omit required phase context",
+      line: 37,
+      digest: "864d9c48be1f8edbcd95c9be4ef0fd99b4250d584a7fd0f3a351b4030f09276c",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "83053cd7373724c1fd3aaffed972565015eba153e7f7feb63b9445c0636bb258",
+        "0757fbf42dcdbb2135104149a12f3aa99a9d66f2f8e57bf49ccd51f3031b7e75",
+        "29643442166655fc11dce35ff906a7faaa53c3dba19acf34d53f4fe6ba157799"
+      ]
+    },
+    {
+      name: "A review packet cannot omit required phase context",
+      line: 38,
+      digest: "28512ac0e26848723cd0bfd9d0969613f71ee610f446d5b4515f723fa84a829b",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "332e6941ee8b8846d88744b3949a405af4af4437eb0686b9b9c272311a4d1587",
+        "0757fbf42dcdbb2135104149a12f3aa99a9d66f2f8e57bf49ccd51f3031b7e75",
+        "b41d92c72db531ad52c3112f7b6d02d1c1c2b7f4c2d6b460c42504cba926bfbd"
+      ]
+    },
+    {
+      name: "A review packet cannot omit required phase context",
+      line: 39,
+      digest: "5152dd59023a7b767b4eb117f831d28718dbf73053108d035108012b988619db",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "ec69bf02ce1b8c30ca9cc8991913fc65137c561bd90ffa37704f2e3ba7f5875d",
+        "0757fbf42dcdbb2135104149a12f3aa99a9d66f2f8e57bf49ccd51f3031b7e75",
+        "29643442166655fc11dce35ff906a7faaa53c3dba19acf34d53f4fe6ba157799"
+      ]
+    },
+    {
+      name: "A review packet cannot omit required phase context",
+      line: 40,
+      digest: "ed3158c91a8be8935d19127b2b728a86683cd9d2edf458f5946c1bf9cb23a1ef",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "67152857f2963898bdc252774656392eb77f878a16a0f926a2ef994311952988",
+        "0757fbf42dcdbb2135104149a12f3aa99a9d66f2f8e57bf49ccd51f3031b7e75",
+        "b41d92c72db531ad52c3112f7b6d02d1c1c2b7f4c2d6b460c42504cba926bfbd"
+      ]
+    },
+    {
+      name: "A review packet cannot omit required phase context",
+      line: 41,
+      digest: "fef52b8afabc338c1c93ce9918272fe2b5cef60ebd4831d50909317257eccf77",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "c13a481fb65c17a0f651254d0379044bed349a2d55c4411ab664010e455f066a",
+        "0757fbf42dcdbb2135104149a12f3aa99a9d66f2f8e57bf49ccd51f3031b7e75",
+        "29643442166655fc11dce35ff906a7faaa53c3dba19acf34d53f4fe6ba157799"
+      ]
+    },
+    {
+      name: "A review packet cannot omit required phase context",
+      line: 42,
+      digest: "c170a16f25451f7933e91fe8589f6ea6685fd635583e3a2666e92368e9ef71cc",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "27fba4943ace2bb5386798273a58b740f77ad750325a0abda321d7274105f74d",
+        "0757fbf42dcdbb2135104149a12f3aa99a9d66f2f8e57bf49ccd51f3031b7e75",
+        "b41d92c72db531ad52c3112f7b6d02d1c1c2b7f4c2d6b460c42504cba926bfbd"
+      ]
+    },
+    {
+      name: "A review packet cannot omit required phase context",
+      line: 43,
+      digest: "46938ae86ae18b3d7293cc6667f76b50133d7b984c7dc6592175d3f966ace126",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "664974525795035e9e79ed0b54e22da7611695d207d1150eaf732ea36a0c3889",
+        "0757fbf42dcdbb2135104149a12f3aa99a9d66f2f8e57bf49ccd51f3031b7e75",
+        "29643442166655fc11dce35ff906a7faaa53c3dba19acf34d53f4fe6ba157799"
+      ]
+    },
+    {
+      name: "A review packet cannot omit required phase context",
+      line: 44,
+      digest: "4eed47fcc6f057883c9a884d97e8c5fd335547e11002ae8ca2e5621c9da4325c",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "906aa66d19dbc3d41e68707d962410eaeef72ff2fd8babedd28bfa3f0369ef96",
+        "0757fbf42dcdbb2135104149a12f3aa99a9d66f2f8e57bf49ccd51f3031b7e75",
+        "b41d92c72db531ad52c3112f7b6d02d1c1c2b7f4c2d6b460c42504cba926bfbd"
+      ]
+    },
+    {
+      name: "A review packet cannot omit required phase context",
+      line: 45,
+      digest: "a1b1f7d29e4a7b21d6382bc32c67198f646fcaef33d87c650609b23ab1b1163e",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "da1ac167a63a50af48547e8f7b97719c2094aa6a15547b60b250d49143d6c567",
+        "0757fbf42dcdbb2135104149a12f3aa99a9d66f2f8e57bf49ccd51f3031b7e75",
+        "b41d92c72db531ad52c3112f7b6d02d1c1c2b7f4c2d6b460c42504cba926bfbd"
+      ]
+    },
+    {
+      name: "Canonical phase entry requirements bind every required input",
+      line: 55,
+      digest: "d2c363c15b5c54fdecc20b6c95ff6e734a2d503f7823ccd31663c9f77b8b3083",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "7cd5938941000d5ecf4a2926d779eca18d507ec6a5a2d67d8e0ad819ca91fe6a",
+        "2632931ca3aa4f6a0142cf58c7b85f6f8e1c89ee65c56c4615132ce95e01733b",
+        "4edb256893495b10ffa1d233e1fcb8623a87547ca9241f52d05bbff0d9699976"
+      ]
+    },
+    {
+      name: "Canonical phase entry requirements bind every required input",
+      line: 56,
+      digest: "f999a9f9e92ca7942ea17f2961cabd5fff7ad4e2cffa0856b60e32565dc57a41",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "93f6e755009ddbf26f0b721f9271713ee76ebf6a67520bd65fa0a91439e6bbf8",
+        "2632931ca3aa4f6a0142cf58c7b85f6f8e1c89ee65c56c4615132ce95e01733b",
+        "4edb256893495b10ffa1d233e1fcb8623a87547ca9241f52d05bbff0d9699976"
+      ]
+    },
+    {
+      name: "Canonical phase entry requirements bind every required input",
+      line: 57,
+      digest: "9d127c171def9ecbe604a3f90ddfe0ffa2cdb0a886cb56a0711f13380ac73397",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "9d5c46cbab4b17df3a0f77222f0626358799b3fa034f706a67c5f6e29ee9258d",
+        "2632931ca3aa4f6a0142cf58c7b85f6f8e1c89ee65c56c4615132ce95e01733b",
+        "4edb256893495b10ffa1d233e1fcb8623a87547ca9241f52d05bbff0d9699976"
+      ]
+    },
+    {
+      name: "Installed dispatch cannot bypass packet completeness",
+      line: 67,
+      digest: "3670072ca22e7df0e1492c98fd8c78459e316f14ab9b5b1c17a12041696b8570",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "203e848123a995158fb92b7449c8a3fd988500d1bf9b1d48909004661dc7e7e4",
+        "b033e90f2e70161d2a791af21e3b54f98475808f9c6a2b93d2f57d41c6fdfbf9",
+        "41e52cf1300b5e43db2b94a961e7108fb44da6c3d3a5977b619f3b6a103139f8"
+      ]
+    },
+    {
+      name: "Installed dispatch cannot bypass packet completeness",
+      line: 68,
+      digest: "8aec9a84f9b685fff59bad18c070cf52371fb9276ff5ccf8ce3bbda4bd5eb24b",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "e9a5a8fcb247d199f67bf9ba65cd34d35b2cd86915feb3923a13b8f4e4c0f6de",
+        "b033e90f2e70161d2a791af21e3b54f98475808f9c6a2b93d2f57d41c6fdfbf9",
+        "b41d92c72db531ad52c3112f7b6d02d1c1c2b7f4c2d6b460c42504cba926bfbd"
+      ]
+    },
+    {
+      name: "Installed dispatch cannot bypass packet completeness",
+      line: 69,
+      digest: "94a5f46b64118b98db01ba47d8b19b20cdffe957817dd5409f650fa0ab096c6b",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "c13a481fb65c17a0f651254d0379044bed349a2d55c4411ab664010e455f066a",
+        "b033e90f2e70161d2a791af21e3b54f98475808f9c6a2b93d2f57d41c6fdfbf9",
+        "2f7eedc4f69334675a16713880cee775f5bf100a5c963884d82c1fb69646d1a7"
+      ]
+    },
+    {
+      name: "Installed dispatch cannot bypass packet completeness",
+      line: 70,
+      digest: "2fdfb6b0c7246ca5d28bbd43cd095e4bbc2835f4cdec681016bc85c47c7eb2d3",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "18c2b549d9795c22aa7d55f9fb4ba1b2d0b6b8f3b444bfd99c2f5c8add39d307",
+        "b033e90f2e70161d2a791af21e3b54f98475808f9c6a2b93d2f57d41c6fdfbf9",
+        "b41d92c72db531ad52c3112f7b6d02d1c1c2b7f4c2d6b460c42504cba926bfbd"
+      ]
+    },
+    {
+      name: "Context resolution distinguishes defaults from broken overrides",
+      line: 82,
+      digest: "a1f77108e0b7ee929048408785a041d2fe12fe0dd08cff210dedf0d8484abaf9",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "e90e41e4faec4664c79ae099ad8f71c24777bbb51e31efebb4f597a879cb3cac",
+        "a89c098cab412d3d33424e25419676466a3883d4759208845039050c3e61ce05",
+        "6779afe3d8bca285549443962a5cccf1fa149dc1ab5953860af1558c6b2b983d"
+      ]
+    },
+    {
+      name: "Context resolution distinguishes defaults from broken overrides",
+      line: 83,
+      digest: "ab3379d84a74c35a2cf8af007b43e7f4f6277ab827f8b640fef55645bf4c1efd",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "879fbdaac39a7671e1eda442f441eecb500b227e34284d66668e6c701387618c",
+        "a89c098cab412d3d33424e25419676466a3883d4759208845039050c3e61ce05",
+        "80052a2deed728a67d9c3c5e9554cb03f84ab30d7d053a9d43072a9ac7c24296"
+      ]
+    },
+    {
+      name: "Context resolution distinguishes defaults from broken overrides",
+      line: 84,
+      digest: "823b804c5bf9c43f2ea373e646f38e479fa6fc7c17053f407fd8f9488fa38407",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "88d6a0d82a188d83527eb11abc8a852c7eaf5156ef87ea05f607defbb63c1ef1",
+        "a89c098cab412d3d33424e25419676466a3883d4759208845039050c3e61ce05",
+        "f898bdcbedee6b629c567a8c5fddbd0553ab7bfeda9c20f6db37af2c467d02d2"
+      ]
+    },
+    {
+      name: "Context resolution distinguishes defaults from broken overrides",
+      line: 85,
+      digest: "13cf43c58a14843da464b0c1c2403500957f17325b33bae6a570072a927e80a2",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "15ffeffb190d190a2e247b7195ef4c882b52102612ea27b8b14bf6159d2e07f3",
+        "a89c098cab412d3d33424e25419676466a3883d4759208845039050c3e61ce05",
+        "f898bdcbedee6b629c567a8c5fddbd0553ab7bfeda9c20f6db37af2c467d02d2"
+      ]
+    },
+    {
+      name: "Context resolution distinguishes defaults from broken overrides",
+      line: 86,
+      digest: "1e87803ca72f5183dbfa06598abc8f78a6f88dfd9195f0cf8c4203b57aa6627f",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "d09166ca77509b09e8145dea251a29781a28ac3c8b80f1eb8d7a6a954815125a",
+        "a89c098cab412d3d33424e25419676466a3883d4759208845039050c3e61ce05",
+        "f898bdcbedee6b629c567a8c5fddbd0553ab7bfeda9c20f6db37af2c467d02d2"
+      ]
+    },
+    {
+      name: "Context resolution distinguishes defaults from broken overrides",
+      line: 87,
+      digest: "2e008fbb34a61ccea8648a165db5b96878ee8c6c6227f6b2bc7aaadc75e83b18",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "2bbe84fca3e5e325c88b02467e4903eaad1678ee38bb7db2d59b9b0ff94ab50a",
+        "a89c098cab412d3d33424e25419676466a3883d4759208845039050c3e61ce05",
+        "9adcb0b987682edd65274d5c190e0ae1bdee7375a32195dff5631deeefcfafa3"
+      ]
+    },
+    {
+      name: "Context resolution distinguishes defaults from broken overrides",
+      line: 88,
+      digest: "b2d7f9da96bc2a6ec3199adddaf89aed35cce503539df79749dfed53f8427286",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "a9f98b1fe2c907ea391d144dc8dbbd8b59c2ccbd971bf97a16dd1e8ad44021ed",
+        "a89c098cab412d3d33424e25419676466a3883d4759208845039050c3e61ce05",
+        "f898bdcbedee6b629c567a8c5fddbd0553ab7bfeda9c20f6db37af2c467d02d2"
+      ]
+    },
+    {
+      name: "Local dispatch enforces required context resolution",
+      line: 98,
+      digest: "fde43cd1c3e21b03f5f6d54984ebc3fcc6d8bfc217e8f83778615ce3e7bcf275",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "1cacb0b71d9d220ca0ead62aee1b641eabd5f18b15beb7385e312d7e5c635145",
+        "e0250c65e0a2398edca17ade7b3c8080c5e6f7425d4c963bee448ab8c1f5bad5",
+        "f0b4e50787a546e0003abaa3296f63b72e81dc6a9d2b06122b38cf17e8ed9be8"
+      ]
+    },
+    {
+      name: "Local dispatch enforces required context resolution",
+      line: 99,
+      digest: "13fe200ce8cc31783f497913ce698909df451cbf320f2f1d043821203e20ef69",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "481fd71656c84f48086ea41bd10004efaa5f75b0c8298071a9590d44be0da03c",
+        "e0250c65e0a2398edca17ade7b3c8080c5e6f7425d4c963bee448ab8c1f5bad5",
+        "44f9e10d5fdc36aa5d7b6bb5ccc2571a6e1b268586e1e71a0d0328387c8625ee"
+      ]
+    },
+    {
+      name: "Local dispatch enforces required context resolution",
+      line: 100,
+      digest: "eb18bacb41efbc9af0ed66778a6a8931fa21aaef8dbf0b17ec312cdce38e486b",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "ee253cb728535b5d635186575e721f33293fec7cb89efe7b35a9dccb61261db2",
+        "e0250c65e0a2398edca17ade7b3c8080c5e6f7425d4c963bee448ab8c1f5bad5",
+        "44f9e10d5fdc36aa5d7b6bb5ccc2571a6e1b268586e1e71a0d0328387c8625ee"
+      ]
+    },
+    {
+      name: "Context identity ignores cosmetic and unrelated edits",
+      line: 112,
+      digest: "d3e6e973abf2396a79c2c9f6ba7fee931a7676cd39a7c83c794a08aca8c6b0fa",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "b28ac664501bc787a21174b30c70d53d44dc358b0968a130bc18171b99dcefe9",
+        "f8d9ca111688c9c2f842b7843ffe8d6b11235ec4f18b1e3fc035c827b2fef932",
+        "2a6ae67531d5aa2121c6fcb443c822a39c93e5501d410076cca1e1b886ffac37"
+      ]
+    },
+    {
+      name: "Context identity ignores cosmetic and unrelated edits",
+      line: 113,
+      digest: "cc77f08980965437aafceec9a32d88d44f7fd90133b8bc9404c05cc05de1d090",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "b28ac664501bc787a21174b30c70d53d44dc358b0968a130bc18171b99dcefe9",
+        "eb10e2e95478ecb60ec4ed64a3fc8145e32c3246da2e2776b99783ee1785d304",
+        "dc37f5cee12dce7da53651294fd42f4e37dc22b09eafac090c3b0890e25c807c"
+      ]
+    },
+    {
+      name: "Context identity ignores cosmetic and unrelated edits",
+      line: 114,
+      digest: "378ad47edbbb0ed03f533d879ca1235b4e3ac8fedfa5908b88ffcbd8dfaedbb3",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "b28ac664501bc787a21174b30c70d53d44dc358b0968a130bc18171b99dcefe9",
+        "58fd0ce65b7c895cf1a99e97926d618f1a44f72c735545b1e9041bfa3d1ffd89",
+        "2a6ae67531d5aa2121c6fcb443c822a39c93e5501d410076cca1e1b886ffac37"
+      ]
+    },
+    {
+      name: "Context identity ignores cosmetic and unrelated edits",
+      line: 115,
+      digest: "6e34f9dc6f80b31cc71abab0f81247996cfb5f15655bdf2f297555fab58dc157",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "b28ac664501bc787a21174b30c70d53d44dc358b0968a130bc18171b99dcefe9",
+        "0058f3a52ee21275f6f8e136aa69f2878724c3e2cff06aa144629deab6cd62f7",
+        "c16e8e70f7335d3cdb55b5e98933037857f1defd8236427c237ce33b51b02339"
+      ]
+    },
+    {
+      name: "Context identity ignores cosmetic and unrelated edits",
+      line: 116,
+      digest: "19dc46339a26fe57fc90a615bffb785dcbc8a1e2524acdf6fb59e97c4a1ef008",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "b28ac664501bc787a21174b30c70d53d44dc358b0968a130bc18171b99dcefe9",
+        "162e398c2c912aaf58e1f0f7cc0f82b141acd8a0d60ae74f181d8d3598b5ceae",
+        "dc37f5cee12dce7da53651294fd42f4e37dc22b09eafac090c3b0890e25c807c"
+      ]
+    },
+    {
+      name: "Context identity ignores cosmetic and unrelated edits",
+      line: 117,
+      digest: "5020350f19541460b49e6a8dc0e9bfa6bb8766e863f79510cc41df26469a80c7",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "b28ac664501bc787a21174b30c70d53d44dc358b0968a130bc18171b99dcefe9",
+        "c66b91852ba69ae78901d918192e4b9ad5a75a11d6c9e48d2da50dedc3e86c43",
+        "38d5cced075d9860c8ea28db084d65576edf498569e33d82d93cbfc4b8ddd65c"
+      ]
+    },
+    {
+      name: "Installed contract identity controls authoring and approval",
+      line: 129,
+      digest: "ed0dba7755eaa94522bc5fd827b1afc8de948fb122e7cb2c27be98f1c6c0445c",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "cb1d7791bcca4856ae9af144ee20b0478024acec15fcad23311d28bf42357eb7",
+        "c4ee06e4fb7120fbbf255d476144fdc05e680d5293cc8a51a8532a712e4e74f8",
+        "1198485c8de273e4f77cd4e5a3781ea20a7429baae945d36182e920e139f550a"
+      ]
+    },
+    {
+      name: "Installed contract identity controls authoring and approval",
+      line: 130,
+      digest: "61a9869bcb13544085f16772be4fb95bc3cd280f1a4a15161a1e39b363634aa4",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "cd8f11565935d31e7982eacf068aa4bdc34977ec80bae5542647ca8e301f276d",
+        "c4ee06e4fb7120fbbf255d476144fdc05e680d5293cc8a51a8532a712e4e74f8",
+        "1198485c8de273e4f77cd4e5a3781ea20a7429baae945d36182e920e139f550a"
+      ]
+    },
+    {
+      name: "Installed contract identity controls authoring and approval",
+      line: 131,
+      digest: "262c5253bf3a37751f260dc11edcf4f9e149a6bcd1e43ebda314670ea53c976a",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "b87e7a506db393adc73f4daf2bf55cfabf4903d8a99bb0eaaf0ac37d20de1fe3",
+        "c4ee06e4fb7120fbbf255d476144fdc05e680d5293cc8a51a8532a712e4e74f8",
+        "28739c33439866b5094a3cac09f4af83cd61d537fe97480100cb27059819de03"
+      ]
+    },
+    {
+      name: "Installed contract identity controls authoring and approval",
+      line: 132,
+      digest: "dd22452fbd9e2e05a46f9a2455cd2c4cf58a8a372cd8c5e4fcc40936dbc13bb2",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "9e79985fc35e0990835480a648dc048bf8c8c23257bc14da5684f8b32f7ec585",
+        "c4ee06e4fb7120fbbf255d476144fdc05e680d5293cc8a51a8532a712e4e74f8",
+        "fd3ba10769ca77f08ddc0298ebabfa1866339286041ad5b259f7e1ff9b3c69c0"
+      ]
+    },
+    {
+      name: "Installed contract identity controls authoring and approval",
+      line: 133,
+      digest: "fd459da373cce63e76abb412f0b7036aa51712f91abed90abeacb49bb2e45170",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "fe4b7970017064003cd8717adc14dcda2f59586dbc825e9652ae3194dc747346",
+        "c4ee06e4fb7120fbbf255d476144fdc05e680d5293cc8a51a8532a712e4e74f8",
+        "13b6706ed9cbaf44666ce3336a166138fc0bbd565f59888e021d8d115a02c629"
+      ]
+    },
+    {
+      name: "Installed contract identity controls authoring and approval",
+      line: 134,
+      digest: "c2fa0aed8272dba8d977801f7f54e60a1e8e9fa73f64f2c202cf79183a3e065c",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "7ac6f948eaa284adbd710ff6110e169ceb494757516bd90b61a3b467c0160fbd",
+        "c4ee06e4fb7120fbbf255d476144fdc05e680d5293cc8a51a8532a712e4e74f8",
+        "8aee7d44876a1b80c77bb1f5a1c83cf3afed097ee346c5dd0c0f93be8e546c59"
+      ]
+    },
+    {
+      name: "Local dispatch enforces canonical contract identity",
+      line: 144,
+      digest: "1de962d7d6d253588aae03c496a3f0c08c7cd3e9f5d844485aa97c4364f470df",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "9e6b4b888452ff143c0ccd2201647990c896bd7b7fdca1d8fff5db9806a9fdea",
+        "e0250c65e0a2398edca17ade7b3c8080c5e6f7425d4c963bee448ab8c1f5bad5",
+        "f0b4e50787a546e0003abaa3296f63b72e81dc6a9d2b06122b38cf17e8ed9be8"
+      ]
+    },
+    {
+      name: "Local dispatch enforces canonical contract identity",
+      line: 145,
+      digest: "ea443e4649e3c13deb71a78300225918d50892697afc7e6e42c03d092148d4ee",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "08d97edb5a2f273fd133cbd094a88893930df436f35ab305fa143cce2c55ed34",
+        "e0250c65e0a2398edca17ade7b3c8080c5e6f7425d4c963bee448ab8c1f5bad5",
+        "11546b22dcafcddb22623724019a4400e7abbcb9e92a7387848f056e213039e6"
+      ]
+    },
+    {
+      name: "Cosmetic canonical changes preserve review currency but require copy reconciliation",
+      line: 148,
+      digest: "1577646c35c3f80e0945e0d5e5545baea0bd1288cf381baa61db280acb2eef82",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "b39fbe28f7160567044c73c46d137ecc040e741e3914e8ff0b45a32f53ae968e",
+        "e0250c65e0a2398edca17ade7b3c8080c5e6f7425d4c963bee448ab8c1f5bad5",
+        "7532df71ef035e578e525f72678f92b917a3f4c351aff6ec432f2f8254a383fd"
+      ]
+    },
+    {
+      name: "The review gate follows the typed route result",
+      line: 163,
+      digest: "bb10765d4eaa4929c66098cb131eb9d4335ade271d0f2c74e518ab7fefadfc29",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "277f654d5fa8636a6fa3fab0defb9acf848d653e189abd18a3569b863a778828",
+        "a0c9022d2dc9298a0ed71c9b64b37a87648e66c002eb615d0011970fbff52bcb",
+        "08dabf35d20aec1b16191c1ceb2a5ee96ada8fab53f90cb04b8e8b6087459548"
+      ]
+    },
+    {
+      name: "The review gate follows the typed route result",
+      line: 164,
+      digest: "e47f135f2da542c21501cd356b40f2a80bd1179dd0760612cbd2ba503f0742b5",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "19467a471488584ad905e188903e3d9ae1c3dc4135f7772bf6bc9ecca8826843",
+        "a0c9022d2dc9298a0ed71c9b64b37a87648e66c002eb615d0011970fbff52bcb",
+        "232d470b2cb515ac23d391d23015fc0f41fa9644c224470ebe827326b9ca079f"
+      ]
+    },
+    {
+      name: "The review gate follows the typed route result",
+      line: 165,
+      digest: "bde0d89e2008bfb157caa2f76b8e63ab6bd5111f852ae7282c04e9ea6fa32e97",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "caa9242c5fb3aa2fcba9573c3cfbf794c78f850784140004e2b3aed47ee10182",
+        "a0c9022d2dc9298a0ed71c9b64b37a87648e66c002eb615d0011970fbff52bcb",
+        "7830fc674c15b0e5bac491c3fee295a6edfd936b8f41968bc08effd7a3fe18a2"
+      ]
+    },
+    {
+      name: "The review gate follows the typed route result",
+      line: 166,
+      digest: "b4e0d3a4c5e375d0644403128945defe52f6d0efed72b5c0988fbc9df2fcde5f",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f4c09f7b2f85800d3026e8ab2894768e19b2d20c82cb8b4c61e7f6db5bcb00cd",
+        "a0c9022d2dc9298a0ed71c9b64b37a87648e66c002eb615d0011970fbff52bcb",
+        "2030b6c47fe9a4a01ac3a30d7f506d884eca81f45087f7753374a7e619ed700a"
+      ]
+    },
+    {
+      name: "The review gate follows the typed route result",
+      line: 167,
+      digest: "47151af59fe4ae2452d8649a599e22319814d1e9eecb157cb54013053d98c7be",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "e496f077d8cebe8e226f987132317fac727ab84844acb557468d0dd0ba3ca775",
+        "a0c9022d2dc9298a0ed71c9b64b37a87648e66c002eb615d0011970fbff52bcb",
+        "82efdff2dca5e51a8c530db393caf215f9be737c24c05c101bc0f3619599275e"
+      ]
+    },
+    {
+      name: "The review gate follows the typed route result",
+      line: 168,
+      digest: "681f37cb8fd5c9e1bbba510abe3ddc01b5be6eec6a1adb500f03496d2c49499c",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "bc2bf2b781478b759779a3b5d34201c3568cd042f654d30d848ddd4b5ab10b4f",
+        "a0c9022d2dc9298a0ed71c9b64b37a87648e66c002eb615d0011970fbff52bcb",
+        "deaa2e802a184a8bfa9f1bfc849a6d784b56389d831292ba7874e4c14d7e2f23"
+      ]
+    },
+    {
+      name: "The review gate follows the typed route result",
+      line: 169,
+      digest: "5c4f3fad20153df2a520af504ff269794528c3f26ce62faf418b759fa8e9b28d",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "e9fb0ca11f49852da48bab61786d7b876ab18054100b5bb45a14bc5259fc0241",
+        "a0c9022d2dc9298a0ed71c9b64b37a87648e66c002eb615d0011970fbff52bcb",
+        "cf4506eee5f6610f85e5e21b55b6d622465e1459fd925b6164fece081fb0b5e0"
+      ]
+    },
+    {
+      name: "The review gate follows the typed route result",
+      line: 170,
+      digest: "9f921b920c01a594d1113c5941373dfce4b4f4a8a2ded8d3d718965486156297",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "9f2a7a95ffcc60ba6018df8c67fefe650f5968c800fdd6fe79675b294d52c34e",
+        "a0c9022d2dc9298a0ed71c9b64b37a87648e66c002eb615d0011970fbff52bcb",
+        "deaa2e802a184a8bfa9f1bfc849a6d784b56389d831292ba7874e4c14d7e2f23"
+      ]
+    },
+    {
+      name: "The review gate follows the typed route result",
+      line: 171,
+      digest: "27e9398e48a9e199e0f818d8f16b46b9009393934b883a31940d98dd21054be0",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "4bffdf7acb42b1821927b7cdca07f70d3d3325cffde6763f23d679c623c8d9f4",
+        "a0c9022d2dc9298a0ed71c9b64b37a87648e66c002eb615d0011970fbff52bcb",
+        "832ae724813fbddd1e2b8461fcd3c9cb981f20b8ff71e55df3af372976ecdb2a"
+      ]
+    },
+    {
+      name: "An unattempted independent route prevents exhausted-route approval",
+      line: 174,
+      digest: "e7299481d8b9406f16a9c6e1006df0121183e1cb39568576d1867527ddb48d81",
+      deferred: true,
+      owners: ["DRD65E"],
+      stepDigests: []
+    },
+    {
+      name: "Fallback cannot bypass an available independent route",
+      line: 180,
+      digest: "f14b415bc81fe2d2ecf4bdc052f1a50ffef81a1df369a9cb4492cb092f55d76b",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "4a558c8c97cf11fb636b0b68d8627fa0c8a44ab47a5170d1e3858fca460ad1de",
+        "b81dd224a9545d2314d1dc31addd3bc9768dade2678b8e5276cafcb92d57f115",
+        "702e9198301461b15ecb606bf5d1154ac869f0bfdcd961952e5fc2e16aa00bbe"
+      ]
+    },
+    {
+      name: "Independent approval requires a genuinely independent reviewer",
+      line: 192,
+      digest: "e5429699a16e3f1962dd12194add83dd9e87df942975e86b0b659eb9ea0bacdb",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "8def4514dbac59d778594475997a873c10a945b763ee35219c3882b09f966ae4",
+        "44f145ffb975c117eab821a223899fb21604927cbfdcdec924b6a51051c916cc",
+        "b74d1314e9b93370b1f657e7ff2accdd578b7b6a21f1973c5cdf12fc8e84de2c"
+      ]
+    },
+    {
+      name: "Independent approval requires a genuinely independent reviewer",
+      line: 193,
+      digest: "c52b900c26517ef8687c959b7aa950d6e6fe8a2fc4f0b7a7c9cffb753e4aa93f",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "5bcbacbd91512ebd5dd7e96a0651e37ed86c44b886099ab845eb7df7147c903b",
+        "44f145ffb975c117eab821a223899fb21604927cbfdcdec924b6a51051c916cc",
+        "39c4066ca3c00332860106c033dffbae222bc85d5102fb2d3a3e88ce0f65aac3"
+      ]
+    },
+    {
+      name: "Independent approval requires a genuinely independent reviewer",
+      line: 194,
+      digest: "ad956e3ceae4a8579ab076197bd862b9236c2fc46d18a2863d5e71c009078f38",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "ae6f9bec93bc24fdb085b64d23ccab3739297af02268cabcde41f80dd2cad41f",
+        "44f145ffb975c117eab821a223899fb21604927cbfdcdec924b6a51051c916cc",
+        "39c4066ca3c00332860106c033dffbae222bc85d5102fb2d3a3e88ce0f65aac3"
+      ]
+    },
+    {
+      name: "Independent approval requires a genuinely independent reviewer",
+      line: 195,
+      digest: "2fab5d7ddedce32bcd0528ca6b5fb25ec680b8ac62aaf808cbaf232d577258d0",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "077c73cea1ab4d496447110f286f88ccbf1f0c9a51b09ad5693fda80627f9cc7",
+        "44f145ffb975c117eab821a223899fb21604927cbfdcdec924b6a51051c916cc",
+        "39c4066ca3c00332860106c033dffbae222bc85d5102fb2d3a3e88ce0f65aac3"
+      ]
+    },
+    {
+      name: "Route selection derives independence from configured model capability",
+      line: 204,
+      digest: "c514a2ac0a0aefc089c7ce76b7415d3805ff6f028b568e5df36eddc611ec81b2",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "01aed7e060ae37717315f654d2860e6f669634e0d1feb12871064889296e47ab",
+        "c776216759106e7ceff16e3540902db3deda0da80e9ed81e19eee732cd615e1e",
+        "5a42028f02736aa6b7f46daf906bbae0e0d003a03f949d99d1cee44283d3e9bf"
+      ]
+    },
+    {
+      name: "Route selection derives independence from configured model capability",
+      line: 205,
+      digest: "6ae5dd50a9de441b96112f191f395395376ccac694f0a84195cd958d3be3a8f2",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "9a0b6575bba088b03290efa065e63321047b774324a1b327de7e2bd3ea06226d",
+        "c776216759106e7ceff16e3540902db3deda0da80e9ed81e19eee732cd615e1e",
+        "4fff89896951a33c3c93c67679b8efc8bee056a647a5f4558fed7f1df885a8b6"
+      ]
+    },
+    {
+      name: "A genuinely weaker reviewer cannot provide independent approval",
+      line: 208,
+      digest: "181068c9c5a5564f1b29f9839a82010a52221b58a3021676c799d0eeda91309c",
+      deferred: true,
+      owners: ["KKP2R3"],
+      stepDigests: []
+    },
+    {
+      name: "A genuinely weaker reviewer is excluded before independent launch",
+      line: 214,
+      digest: "b12277d29065eb421b6639c6088b597c1b6ba9a15b5aefd938166d4718bb13f8",
+      deferred: true,
+      owners: ["KKP2R3"],
+      stepDigests: []
+    },
+    {
+      name: "Exhausted routes advance through the fallback ladder in order",
+      line: 226,
+      digest: "882891477fda808be4b48f21fd24e16956898ea38e7d20b0a6c4fa327a017f4c",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "c17eb032606b152b96cdefa6c0e7e9586f8eff34eb78f0a24fe2a0a080fe4b36",
+        "1a46f7674a8b54960c413fd556896195ff2723482e06468435bc422899f2125e",
+        "d3d055cbb8f50a8b36f9d3605abadd176ca430356f70cfeb8f450c83d9679484"
+      ]
+    },
+    {
+      name: "Exhausted routes advance through the fallback ladder in order",
+      line: 227,
+      digest: "9ab3cb846bf484aeac3191f9fe92a13623a21055b9896d419c2def8049f81220",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "39b6923cbfd2985694869d46870f9e2b11a62b9b1cb6463e3031c5affde04eca",
+        "1a46f7674a8b54960c413fd556896195ff2723482e06468435bc422899f2125e",
+        "1497a295022c87a736d90e75640509287895c6bec7445c0e07217983ba005e39"
+      ]
+    },
+    {
+      name: "Exhausted routes advance through the fallback ladder in order",
+      line: 228,
+      digest: "e1a36dd08a6c54a464e2d187e9a228b9a98ed8424f25dc06dc9068c2fd3fddaf",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f4b30f3adc6c80109214aed918395d75005d8923024cddc47a9f9e4151f80d35",
+        "1a46f7674a8b54960c413fd556896195ff2723482e06468435bc422899f2125e",
+        "36f77819483fea7ef11b4d7560aa9a896f76a481592aee7ddd239cb6a14a8188"
+      ]
+    },
+    {
+      name: "Local phase gates enforce the real review result",
+      line: 238,
+      digest: "e98c13ebd1393126c592404741551f70aa2122ec0ae3409bf9882c67b8570ceb",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "8bb0e54170654987814d20927a4a60233fc8c213c511ad6cfc694e3c1b43c40d",
+        "1a86d168f1c07dd797f11c1643776ca5d52d56410ae6bcba862d62fbe817418f",
+        "82efdff2dca5e51a8c530db393caf215f9be737c24c05c101bc0f3619599275e"
+      ]
+    },
+    {
+      name: "Local phase gates enforce the real review result",
+      line: 239,
+      digest: "200b4276cd6dbc39a2fec77ef8669ffeca8bb6760ea20d248f189e8d9b5165b0",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "37ee4d1b3479122faf458a159ea729458ecb79c29b73c3be139cfd80f70bc28d",
+        "1a86d168f1c07dd797f11c1643776ca5d52d56410ae6bcba862d62fbe817418f",
+        "f0b4e50787a546e0003abaa3296f63b72e81dc6a9d2b06122b38cf17e8ed9be8"
+      ]
+    },
+    {
+      name: "Local phase gates enforce the real review result",
+      line: 240,
+      digest: "9d6726f00b686cf82c9071383936c43f4fb24d67347a9b8107dfcd37a9996067",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "97f07dae72ed449f51f75ae2afb0650c0fbc2622e76f248d24a9f81cf92073f9",
+        "feeff88cc7ffb29dc4d20ad0bb214e5acb13d4d6c63b6c570b97daadb131bd41",
+        "82efdff2dca5e51a8c530db393caf215f9be737c24c05c101bc0f3619599275e"
+      ]
+    },
+    {
+      name: "Local phase gates enforce the real review result",
+      line: 241,
+      digest: "44570c13613e30b5fa599e0f68c368eafcdf99c7eddc0f23a0656604853d0214",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "7bcca7e66b0a7f8c674e0f4b0ed58b2741a57b476a4c0ff1100fbddf558e7542",
+        "feeff88cc7ffb29dc4d20ad0bb214e5acb13d4d6c63b6c570b97daadb131bd41",
+        "f0b4e50787a546e0003abaa3296f63b72e81dc6a9d2b06122b38cf17e8ed9be8"
+      ]
+    },
+    {
+      name: "Local phase gates enforce the real review result",
+      line: 242,
+      digest: "e7af189ac0c65a9ba8ec6e2fe25616ee3605394add63440ec28d326d6dd6abf0",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "49f589a8498ed0551a531239bdad1ccb80e12de30bf93bbefb104119c8909765",
+        "32fd11b359616042ae52e50e52f0d76e44b7bbddc273c0dc3642e33105710d64",
+        "82efdff2dca5e51a8c530db393caf215f9be737c24c05c101bc0f3619599275e"
+      ]
+    },
+    {
+      name: "Local phase gates enforce the real review result",
+      line: 243,
+      digest: "7c839707839288c444a19297fe7f6baffb7e313607773e873646e77ec871f8b5",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "fa301918117b4deb2f356887fb58431bcb11210b189e3d51804d357ccfa5b8ee",
+        "32fd11b359616042ae52e50e52f0d76e44b7bbddc273c0dc3642e33105710d64",
+        "f0b4e50787a546e0003abaa3296f63b72e81dc6a9d2b06122b38cf17e8ed9be8"
+      ]
+    },
+    {
+      name: "Local phase gates enforce the real review result",
+      line: 244,
+      digest: "02fea069641325204834882adc820b65d12aa54dc1d63324ea95eaef65b58fdd",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "ff96493cb40530cf231a4a2eeda7a04e8fbf2f942df2439d84b56f21fbdc9a83",
+        "1a86d168f1c07dd797f11c1643776ca5d52d56410ae6bcba862d62fbe817418f",
+        "2c6f82972ebc5592a3557dfcaae68c2722b6174f0ce36675d64e2b211b08185f"
+      ]
+    },
+    {
+      name: "Local phase gates enforce the real review result",
+      line: 245,
+      digest: "80d1d39067f84cf7e19095dbad53414bcf47d74149f0b476e37a38e15a10a778",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f5e58773c446e3c3946c838984668381b42406fdba3c6d7b8219d58cb9e1c090",
+        "feeff88cc7ffb29dc4d20ad0bb214e5acb13d4d6c63b6c570b97daadb131bd41",
+        "2c6f82972ebc5592a3557dfcaae68c2722b6174f0ce36675d64e2b211b08185f"
+      ]
+    },
+    {
+      name: "Local phase gates enforce the real review result",
+      line: 246,
+      digest: "b4762a827125515c338f565540fda98c3aeb5e7e231146ed6af626d31f886831",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "57075d9d9e4eb28dddf7a28deb0a69b810d6f6df50e9793c6e61d0d46c55a875",
+        "32fd11b359616042ae52e50e52f0d76e44b7bbddc273c0dc3642e33105710d64",
+        "2c6f82972ebc5592a3557dfcaae68c2722b6174f0ce36675d64e2b211b08185f"
+      ]
+    },
+    {
+      name: "OpenCode CLI and TUI gates enforce the real review result",
+      line: 256,
+      digest: "eee991501f06d1c0730734ef8a7216380c13fdbd2e084c16bee3835d78f2d2c0",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "OpenCode CLI and TUI gates enforce the real review result",
+      line: 257,
+      digest: "1c856f93762f34b20b68720f50bb734a2ebb367bc16fa807127e51d2d9682b89",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "OpenCode CLI and TUI gates enforce the real review result",
+      line: 258,
+      digest: "80177f0db15143556dcfaf90fec50cee5c5049b223076950c6f6ed4dceb91387",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "OpenCode CLI and TUI gates enforce the real review result",
+      line: 259,
+      digest: "692e20e764b786d5e38e1b689b658481e5621528127cf7109538c21c3945d401",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "OpenCode CLI and TUI gates enforce the real review result",
+      line: 260,
+      digest: "ca148cb03c7e8450de87f06ecb660a5e55470768c9cdd04a6053ca96e743bd16",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "OpenCode CLI and TUI gates enforce the real review result",
+      line: 261,
+      digest: "0f4f9577b32957373da6401db774c3c31f183edcdc68d3c21093cdbbaf45ca04",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Cloud phase gates enforce the real review result",
+      line: 271,
+      digest: "13454fe29976b9591c908e914116fb5ddeea356f7f7def75d6ce9da136b15082",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Cloud phase gates enforce the real review result",
+      line: 272,
+      digest: "df24d4776fc80c388cb8037bf72e632a7989d642a9dcbe4eece9faa3f5544316",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Cloud phase gates enforce the real review result",
+      line: 273,
+      digest: "37cfb42a0c53fd668c19aa346900a5483ea536ed9db5d5e651fe7bed4b55dfd0",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Cloud phase gates enforce the real review result",
+      line: 274,
+      digest: "d9ba529653c23735460fdbf4b0d72ec45236ef5707b1e791cb702cf1649e0440",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Cloud phase gates enforce the real review result",
+      line: 275,
+      digest: "5164d87378c2977284550189940c0bb53aff833191dc5fdb1b57f0d319fcbd2d",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Cloud phase gates enforce the real review result",
+      line: 276,
+      digest: "539fbd633cc36a806dad5b3b928975248635243529102b8e74b2f685801e0517",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Retrieved instructions cannot change accepted scope",
+      line: 289,
+      digest: "72fa976b933e3c02e06b10d13955e1d41e02f1723539ac9230413383cc087cb8",
+      deferred: true,
+      owners: ["FC33HK"],
+      stepDigests: []
+    },
+    {
+      name: "Retrieved instructions cannot change accepted scope",
+      line: 290,
+      digest: "bf3b2642983c3ba39cd4f6f2f1abd7421082a32e7394da36ceb80d951191f910",
+      deferred: true,
+      owners: ["FC33HK"],
+      stepDigests: []
+    },
+    {
+      name: "Retrieved executable code remains untrusted evidence",
+      line: 300,
+      digest: "21733f08c9d6318524ef5993e3267731cd0b51549e74d3d3b4c8c270181f3f9d",
+      deferred: true,
+      owners: ["FC33HK"],
+      stepDigests: []
+    },
+    {
+      name: "Retrieved executable code remains untrusted evidence",
+      line: 301,
+      digest: "02a392ac77da546f39fe9d0dbde4308da50f18f3983ebaac5d33a2d5a3b32f59",
+      deferred: true,
+      owners: ["FC33HK"],
+      stepDigests: []
+    },
+    {
+      name: "Private-context requests do not prevent public evidence use",
+      line: 311,
+      digest: "052fa3c0535c89fe631f57e3512426d352f38657588887cc4e9a2cae070d58c8",
+      deferred: true,
+      owners: ["FC33HK"],
+      stepDigests: []
+    },
+    {
+      name: "Private-context requests do not prevent public evidence use",
+      line: 312,
+      digest: "f350c7bdc4f1e6ca89a43dc68cb710593803c0f1979fe94281804104a29838ed",
+      deferred: true,
+      owners: ["FC33HK"],
+      stepDigests: []
+    },
+    {
+      name: "Reusable evidence records declared reuse limits",
+      line: 322,
+      digest: "dddc7e849ee62363b0fe156495c9463d845e9146497aa3219950e439f2a7db57",
+      deferred: true,
+      owners: ["FC33HK"],
+      stepDigests: []
+    },
+    {
+      name: "Reusable evidence records declared reuse limits",
+      line: 323,
+      digest: "e2c1c204be4633cabae7083508a6ecb06eef31a484c6cd39a401cc8ce92e0c91",
+      deferred: true,
+      owners: ["FC33HK"],
+      stepDigests: []
+    },
+    {
+      name: "Evidence records do not invent absent limits",
+      line: 333,
+      digest: "c63779fb2cfba9993d988a36798466282a2c9c179a6b36cc16077d936716dd35",
+      deferred: true,
+      owners: ["FC33HK"],
+      stepDigests: []
+    },
+    {
+      name: "Evidence records do not invent absent limits",
+      line: 334,
+      digest: "abdca4a5d11170d31efeea7779451ac00cc871612266b7c1276632fc92b87918",
+      deferred: true,
+      owners: ["FC33HK"],
+      stepDigests: []
+    },
+    {
+      name: "Reviewed artifacts and context remain evidence rather than instructions",
+      line: 343,
+      digest: "11d0dc1572a5c03b4b6bc09d5d838a8e0dbf2b5e2d9c121e22e159a05f37218a",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "1d2f76e92c7efb9f3c5d36b1fc189e3cdec56aeb9052cd28601bdd4625854412",
+        "d3acd2f42a3a2a78c24b569c9638da56b76315224f8d1413ff1d5e2f21b7ed8d",
+        "a98e739552478a2d4a3a97a3deb52592fe976027528b542817e43362c92fb05d"
+      ]
+    },
+    {
+      name: "Reviewed artifacts and context remain evidence rather than instructions",
+      line: 344,
+      digest: "7c7c99964fec5511394c54637207a27530bf5fef17315c19900f8360d3799fbf",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "fea07f03a4db07a228b3b27c4ce46d4dcd14aaae4221b9a2f7b110a8e9389f8a",
+        "d3acd2f42a3a2a78c24b569c9638da56b76315224f8d1413ff1d5e2f21b7ed8d",
+        "5f5c99f85399971fd15be4d7e1ef0c675a46fa48af3ca029502b031b64b5d2fc"
+      ]
+    },
+    {
+      name: "Reviewed artifacts and context remain evidence rather than instructions",
+      line: 345,
+      digest: "e3232df27447afce79fd21fa915998de61ba339af22cb04dd776096ba1b7c2bf",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "612caf3b1751cc7d64c33cb82e4b923c0376a52c3d5e3811dcc5a3c7c462c3db",
+        "d3acd2f42a3a2a78c24b569c9638da56b76315224f8d1413ff1d5e2f21b7ed8d",
+        "e7347b6ccd8bca9752cd452107f7e2b2067e919b6859acb44c1571ad1407e732"
+      ]
+    },
+    {
+      name: "Installed review dispatch preserves the retrieved-evidence trust boundary",
+      line: 355,
+      digest: "a10b9ac57090975a6d7bc5dbebaacabd12c3e94451a7cbc375aa43ffe3b0424f",
+      deferred: true,
+      owners: ["FC33HK"],
+      stepDigests: []
+    },
+    {
+      name: "Installed review dispatch preserves the retrieved-evidence trust boundary",
+      line: 356,
+      digest: "620c820dd60c7898e4fa82b11a34042991912b7fa24c162ac930a0b56eea6175",
+      deferred: true,
+      owners: ["FC33HK"],
+      stepDigests: []
+    },
+    {
+      name: "Generated Codex Cloud instructions cannot claim a gated approval",
+      line: 362,
+      digest: "623876cb006497653ca62bc3711e9e51ec60c1d2143f22d2a93b8318b298399e",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "916534f97aadc2756b7c6217f309adc7c7a1814adcbe16051632feb4b1cd0e58",
+        "f7ba24494c4b4d0d8be884faa8b0aed134a58851f7ba80fdb757768df4278afd",
+        "beb3ba740ce580ff3fc190f24f5709ffa0386ec3fa196047c8cb3a5a323050be"
+      ]
+    },
+    {
+      name: "OpenCode Desktop guidance cannot claim a gated approval",
+      line: 368,
+      digest: "046e0ae66b8fe6594f8f406d3982a391479526c1ce470d054e6f09f942e6e70b",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Generated OpenCode guidance identifies proven gated surfaces as enforced",
+      line: 376,
+      digest: "9b8df9b375f28b4a3918919045122e12b5b68c8beb521bbf668d69b77a23918e",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Generated guidance identifies gated surfaces as enforced",
+      line: 389,
+      digest: "85b33e413d2afdc9e82e8b99a048b21d6e7f40ee81267915a989d2cffc8968e1",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "0725de44ea784be3d4470f65e59c79c2172a79fe5908da79a84706f2297d3e00",
+        "c4d6c9c9cc161cee2ac4b941c6788016091db8becc1aa9b61fd658519464c775",
+        "342432b963f4f624cf1ddbbab0cc981ba8d7236e4a7e4ee50def33a27e794d89"
+      ]
+    },
+    {
+      name: "A declared change invalidates exactly its dependent reviews",
+      line: 401,
+      digest: "8be01045d2d34b6e26aca054b469cf04460186e1bfec74edf361c2d399211a00",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f9cb98fc694403cfa31c6d896c8e07cd4d0fcebf38adb48bee9401be00a528d6",
+        "286b07f3a8ef85d633044498d7f1a5b79b57af015061d6ba04ea4ada35559ab8",
+        "6c7931ba5a2441dccf721266ce557dbbd93db6aa7caceecf19a9a68271a57d7d"
+      ]
+    },
+    {
+      name: "A declared change invalidates exactly its dependent reviews",
+      line: 402,
+      digest: "3b90fe3a785a82efe0644cc65b9a92822a0856a2e6aebba0a1aaa9ffc57d40f9",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f9cb98fc694403cfa31c6d896c8e07cd4d0fcebf38adb48bee9401be00a528d6",
+        "766d3c11fe77d0eadec40c3d0ff8a03ebfb374e4869c0a4bba0085f7d3ac0f30",
+        "6c7931ba5a2441dccf721266ce557dbbd93db6aa7caceecf19a9a68271a57d7d"
+      ]
+    },
+    {
+      name: "A declared change invalidates exactly its dependent reviews",
+      line: 403,
+      digest: "3cfac8bd00256c7966384847ec9e5a1e810f6193ea5cd5ba18fb42978eeee347",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f9cb98fc694403cfa31c6d896c8e07cd4d0fcebf38adb48bee9401be00a528d6",
+        "07733082bc82b366004d0291ff086b146eb7d0e6bfdab9c75f1a2330f9898dfd",
+        "6c7931ba5a2441dccf721266ce557dbbd93db6aa7caceecf19a9a68271a57d7d"
+      ]
+    },
+    {
+      name: "A declared change invalidates exactly its dependent reviews",
+      line: 404,
+      digest: "b7371ff3505c3b3e1f028c4234ef27261e489816a42142ad7e6e65506b4c8bb3",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f9cb98fc694403cfa31c6d896c8e07cd4d0fcebf38adb48bee9401be00a528d6",
+        "7f232c05e7dfb59ef4fe81dd9e2acbeded1363a1f164c5a9b7edd6eedde16c99",
+        "cf58846e3d4cc5aadb84f9820206a10f66f2ccd4d42afbf9d032234469738301"
+      ]
+    },
+    {
+      name: "A declared change invalidates exactly its dependent reviews",
+      line: 405,
+      digest: "daebffd102c457a1af7ab623ab5dd94391d96e50be95816f5e6e551305af0202",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f9cb98fc694403cfa31c6d896c8e07cd4d0fcebf38adb48bee9401be00a528d6",
+        "d8c5be63d136deca90b4e5df436f1df9c16ac86edf91e75e63e922aa3a03c091",
+        "6598a45f4bd107883d2b2349b9ab436e6a4a43367af2487c1d45703110747efb"
+      ]
+    },
+    {
+      name: "A declared change invalidates exactly its dependent reviews",
+      line: 406,
+      digest: "7e484d9155e1178441badc2c488f09646860ad7c0a92fed9cb82a02ef61f0484",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f9cb98fc694403cfa31c6d896c8e07cd4d0fcebf38adb48bee9401be00a528d6",
+        "5f8313915a14e09408c051b18e15b503bdf79827c2957f24ec0f0804b9a5d6e2",
+        "cf58846e3d4cc5aadb84f9820206a10f66f2ccd4d42afbf9d032234469738301"
+      ]
+    },
+    {
+      name: "A declared change invalidates exactly its dependent reviews",
+      line: 407,
+      digest: "75921169f6b19e9197f5a7c521ab871c1528d1a118766aa0c7192b6e03e9623e",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f9cb98fc694403cfa31c6d896c8e07cd4d0fcebf38adb48bee9401be00a528d6",
+        "12ea605b5559d2682ecc1bbc51a061707d940a257192c16104aca26747e7ec12",
+        "ada3c39474484222e6975268806ab576372993db438dae17b78f65d900b9b5dc"
+      ]
+    },
+    {
+      name: "A declared change invalidates exactly its dependent reviews",
+      line: 408,
+      digest: "6427455673d9bd181ee746e0169d594190eeef89ba0e9e0b3b9d00397bc2c6c6",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f9cb98fc694403cfa31c6d896c8e07cd4d0fcebf38adb48bee9401be00a528d6",
+        "6a6389151bb471367e2c49ae60db3babfa1ed83afca74863a05311b498b6014b",
+        "ada3c39474484222e6975268806ab576372993db438dae17b78f65d900b9b5dc"
+      ]
+    },
+    {
+      name: "Invalidation follows the canonical Execution Planning dependency direction",
+      line: 417,
+      digest: "46613695b760679e795dec4cc61b069205233cad053aaaf1f7cd574b0b746abc",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "c91a366812b8f5d0b87e7b809b4ba2b83c653cebb507905c162b0e62ea92039e",
+        "e21fe0f1ec43800adefb77fda64024b87e6823158f233c14712f6e7296df03b1",
+        "6c7931ba5a2441dccf721266ce557dbbd93db6aa7caceecf19a9a68271a57d7d"
+      ]
+    },
+    {
+      name: "An unsupported upstream invalidation direction blocks reconciliation",
+      line: 420,
+      digest: "ef9c84396bf385233d416ecc332323adc101468ecda9475f3d2d119f0aa7aad7",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "e0a26cf0cd037408658e6fe61fd15994b6078de79c7abfe7286376093d7d3f78",
+        "b7e0d429731b84bed24d8edc2e0bc797b075a3b2002ec56dabee769e76a84417",
+        "5b424465bea9d8a56702e9f34192504c59b0be5afae5ef7d479cedc49500231d",
+        "1f435f3a0890197df7c399f39d8d78453a477454e8f96f36cfffdd41d62b9930"
+      ]
+    },
+    {
+      name: "An undecidable Execution invalidation contract blocks reconciliation",
+      line: 427,
+      digest: "b5095bda5855a7364bfa33369cc2f3400ea9d77daf4d7e687b304ac2c524f2b0",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "56878eadc68a0eb945d534b0edd03cae04879493815e7ea70d1783f9e711a33c",
+        "b7e0d429731b84bed24d8edc2e0bc797b075a3b2002ec56dabee769e76a84417",
+        "5b424465bea9d8a56702e9f34192504c59b0be5afae5ef7d479cedc49500231d",
+        "1f435f3a0890197df7c399f39d8d78453a477454e8f96f36cfffdd41d62b9930"
+      ]
+    },
+    {
+      name: "An approving receipt is valid only for its own ticket and review kind",
+      line: 441,
+      digest: "cdb388a0b47fc42eabb2e830d39bdb37d6714b81411fcb2742dfe725e7ccfdaa",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "348b4f005aa830278c66472d388c8ceeb99949db24b2b9d536b9dac8f894827e",
+        "f8be42513ed6e97ab60a1e3dffa130727b6adb04f96365ef69c8938bb62c0605",
+        "bd75be3c382eed3cd2864e8127c34e1eb6bafce17348d7375d59c98663715577"
+      ]
+    },
+    {
+      name: "An approving receipt is valid only for its own ticket and review kind",
+      line: 442,
+      digest: "b85ec0172b63bd2177b017010d4e2590f02dcee229613b6d2afd9dcd1205a8f6",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "c792a5955c1b25ea686957f0126401adfcbaef652e53537ab1c3b4ce8d02d6e0",
+        "f8be42513ed6e97ab60a1e3dffa130727b6adb04f96365ef69c8938bb62c0605",
+        "ab1770ccd7b45595a40d3f2108e4e415f40b22c5d28c61a1adad50e94f3ce58a"
+      ]
+    },
+    {
+      name: "An approving receipt is valid only for its own ticket and review kind",
+      line: 443,
+      digest: "c90504405065fb5ddb05315bbec3f57e46e1caaffdcecbfa13b63b913f08852b",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "3e54f65edfe8fe86d39212f9c4227429f1e29a6195828f6d919e4a3392a5f23e",
+        "f8be42513ed6e97ab60a1e3dffa130727b6adb04f96365ef69c8938bb62c0605",
+        "d1ea4c3e0d18a3df0b1cd565fcb0497bb15b4439e4bf4ece4fd5aea575212ad6"
+      ]
+    },
+    {
+      name: "Installed phase gates enforce invalidated review receipts",
+      line: 453,
+      digest: "2fca32198614d6a6dac26f66cbee4144080e267153e6f1b2c6e331d76e20f11d",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "e970fba9f2a712ecf3eeead07dd8eae176acc4417c0958a0795dfa3fc16fb2fa",
+        "1a86d168f1c07dd797f11c1643776ca5d52d56410ae6bcba862d62fbe817418f",
+        "0aa4ffaabaa3a1eeb3514ea9ba525561a3e4b0de436a528ca9a9536cf64ef4fc"
+      ]
+    },
+    {
+      name: "Installed phase gates enforce invalidated review receipts",
+      line: 454,
+      digest: "a63502b12dd4ee5986b448ff89b636d7cf144c6f6a4e433327000964b29a9586",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "220ef109bd6ab3e544848b689957dfbc81f6be327ed676f806b9f87579ccb981",
+        "feeff88cc7ffb29dc4d20ad0bb214e5acb13d4d6c63b6c570b97daadb131bd41",
+        "0aa4ffaabaa3a1eeb3514ea9ba525561a3e4b0de436a528ca9a9536cf64ef4fc"
+      ]
+    },
+    {
+      name: "Installed phase gates enforce invalidated review receipts",
+      line: 455,
+      digest: "bdc5b405564bb6d7412e2d6e835f9a953f953d4fd53e4cf45f597f6a64320f91",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "4735f59c3c7fadeadd324122b1ae6ac628ff09fc321afa5b95d3393557d70d9d",
+        "32fd11b359616042ae52e50e52f0d76e44b7bbddc273c0dc3642e33105710d64",
+        "0aa4ffaabaa3a1eeb3514ea9ba525561a3e4b0de436a528ca9a9536cf64ef4fc"
+      ]
+    },
+    {
+      name: "Installed phase gates enforce invalidated review receipts",
+      line: 462,
+      digest: "f592c532e791fa639e1404066a9331b343bce3d74aa9d293f2f2c52c621c0335",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Installed phase gates enforce invalidated review receipts",
+      line: 463,
+      digest: "616e93accaccbc686f23a58d836a58835bc40aa060e9595a2b924beec64cb8df",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Installed phase gates enforce invalidated review receipts",
+      line: 464,
+      digest: "c8e916f77a7f798b16aabd3d55769a50984d30a134aff4694a1935675db76d6e",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Installed phase gates enforce invalidated review receipts",
+      line: 465,
+      digest: "1171ced01a6fd986643ae475d0bb1a1851598ea1583a878ed0a7d8440f88f516",
+      deferred: true,
+      owners: ["MCWV4B"],
+      stepDigests: []
+    },
+    {
+      name: "Each planning contract declares its bounded decision",
+      line: 477,
+      digest: "6817eb84542e64dbf7f010c25690a3e7da37d9f65fa86baa0873849264d7a57b",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f7a1ec29a8d0c5d93eba2ab559079e57467bce73f6c6d81607c102497e8ac1bb",
+        "7512d95a75f08da421b0a0b8740a4884500f6678e2eaacc927b576d39d3b0d35",
+        "20fa0e2390f086f00bda577313f8e4dabb95a75f7d2b0ec4e3bf9532e5182fb2"
+      ]
+    },
+    {
+      name: "Each planning contract declares its bounded decision",
+      line: 478,
+      digest: "b472e4d2c979c7f68b9b3f39326deb7bd14760ac640aeaa4a24f830479e09053",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "330db6a3c6e566a0a8309ff04bd541c19a1d6617a3a4484e9d26904aef3cc010",
+        "7512d95a75f08da421b0a0b8740a4884500f6678e2eaacc927b576d39d3b0d35",
+        "513aafa0b695aa89e961f3c50516534212f48dbcab9e9c725dee416cc75404be"
+      ]
+    },
+    {
+      name: "Each planning contract declares its bounded decision",
+      line: 479,
+      digest: "444678dcf5ee5405370aee3caac5fbe7db39c5d1b1ea48b6e785b00063a81b33",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "a35727f1b20370df3e011f7035c57c12e006603afe7179a6b27709a69278012c",
+        "7512d95a75f08da421b0a0b8740a4884500f6678e2eaacc927b576d39d3b0d35",
+        "b8b3ca36d8449e4ab750ab0f571323b9802a65c073b1fd027b5444a0eaf15b63"
+      ]
+    },
+    {
+      name: "An incomplete planning contract cannot pass completeness checking",
+      line: 489,
+      digest: "115b56d27d3625bad53a90540ea87909acc578c7abebcaaa96330870db3d5e1f",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "a5cb7fcf4b9e22a6b73b95ae1d4e10fd5b9e74ec52044949e12b991b7e6b4783",
+        "7512d95a75f08da421b0a0b8740a4884500f6678e2eaacc927b576d39d3b0d35",
+        "8241c45c4353985bf58c1edb5460dbb99280d874f682ecab3e508ae5c21d6887"
+      ]
+    },
+    {
+      name: "An incomplete planning contract cannot pass completeness checking",
+      line: 490,
+      digest: "b0c85f13c5e739dcbeeeebaf228cc82bdef84f18f74a3f1b7d6f4b63934cfc55",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "bffeee9c96f01170fc2f594de805e49926996ee927710a045a2295cea1e7de2c",
+        "7512d95a75f08da421b0a0b8740a4884500f6678e2eaacc927b576d39d3b0d35",
+        "612eff74cee1b096df438b3d812aef9c9eb04a534dd3759a065e77bdf780bd84"
+      ]
+    },
+    {
+      name: "An incomplete planning contract cannot pass completeness checking",
+      line: 491,
+      digest: "46706ec3d48b14c9259d8ed7f6da2cad0370c0a1334c2c53d7cf725fbd134886",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "bf2f1014eedb610cb2534287d1c48d350052a4c6f24728a610af963ecc65b59e",
+        "7512d95a75f08da421b0a0b8740a4884500f6678e2eaacc927b576d39d3b0d35",
+        "44a9a0961a5bfb5f77989c4f36e25d2dc8862219793476736491f520932d6ccc"
+      ]
+    },
+    {
+      name: "A planning approval cannot claim its downstream state",
+      line: 501,
+      digest: "f52b293497751a46303f59f7bb06e7947bc1335e5f8e8464a708f95006472d60",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "526e5bb377df9a556597bc67a2652fda8d58b078bcc85ef5a0599d0135e2c0c5",
+        "09f08743f854c91d5c86b2c0b3b6c26f6168b82e6066fd4b6de5a85e29a714ae",
+        "131311ee0ae6b7378fcf098263d3c938492756434f25108dfa1ea1e7834b14cd"
+      ]
+    },
+    {
+      name: "A planning approval cannot claim its downstream state",
+      line: 502,
+      digest: "3b0e6ebf9ada788e41474199967d750c1372982f70753f85c40c13a80eadf21f",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "9945425ec63af59d11c1b0d5e3f94ee3839e260e7ab215e28447e42321928183",
+        "504b38fd2658b38f22990e46ef27ba7a03736f57711672ce6283ad12961902bd",
+        "131311ee0ae6b7378fcf098263d3c938492756434f25108dfa1ea1e7834b14cd"
+      ]
+    },
+    {
+      name: "A planning approval cannot claim its downstream state",
+      line: 503,
+      digest: "c5873c975b124f3b07c3eb37457acb6f4eb0f0f31232296195686a5b2dee5ebe",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "7973cb30a58961655f4d30be9c84f090192a1243db4e5b44633c2889e889cee0",
+        "59ef08f65c76c7ecef54f864126b1f5808b5fb3fccb7a9da4791026728683678",
+        "131311ee0ae6b7378fcf098263d3c938492756434f25108dfa1ea1e7834b14cd"
+      ]
+    },
+    {
+      name: "A planning approval may claim its own bounded state",
+      line: 505,
+      digest: "9bd8bc1a06c3cd4593beab7d78afd237f26776696a3e2eaa77a92ca0bee38928",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "ad9184d71c2b8700ab5a4d82c549a279d9a31d505d9ffb3d11b93996cb3f73d2",
+        "67b1c4c580aba3b50bd4aced0066b6b46a8f4bc34b336450d6eda8d9cc92319f",
+        "2d50a14207be3f4d16c3de958797f516b8a4e4f9574fb35425a6f51924b55c8e"
+      ]
+    },
+    {
+      name: "Finding authority controls whether a review may block",
+      line: 521,
+      digest: "d1a0c17f9179d6bc9f983b4b68b59b636a53c6f59c50eb2beb77279b175ce442",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "d734cddf08a8adbf27b6af9d935849204121a06a8a65babb2b27ae954ac6df31",
+        "cc8d381cc6443214471c6ad687aab7589a37488d095d3cf6948490fb9099420c",
+        "a10bfdc977773f5bed4d17390d0eb805e1332b0d248e668dd061dc82fd3d4bd5"
+      ]
+    },
+    {
+      name: "Finding authority controls whether a review may block",
+      line: 522,
+      digest: "84fdba2944c5d06f950a5b7bc6a0d5fa3e75cf00e827ebf85d6b16ee3a244faf",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "eb7d640029f6330d5db0e3f2045e0b1216a35f2a89e8f44a2a73dda09e8daead",
+        "cc8d381cc6443214471c6ad687aab7589a37488d095d3cf6948490fb9099420c",
+        "5d3a067007156a290b5383f79170b9682658c9b5e9c6daeba215d4601351ca72"
+      ]
+    },
+    {
+      name: "Finding authority controls whether a review may block",
+      line: 523,
+      digest: "c5d258970d3293f0e3a095d131ef150ba062cddfd2f4e9d5694381351c3f10c5",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "023a2c214becaaec59f52c68e65414614ab6344c43035af884272a2b6c7fea22",
+        "cc8d381cc6443214471c6ad687aab7589a37488d095d3cf6948490fb9099420c",
+        "59750b6f82265f90968b7f80aa5bf5226e60317f3fd749f3f12d1a3c9b7e840d"
+      ]
+    },
+    {
+      name: "Finding authority controls whether a review may block",
+      line: 524,
+      digest: "e056841b251a5c25910cc661c1808b9c68c06aa2c1b2f921081dc96b0d5b28b4",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "bdec224743cce8ea297970f3db009ed2ae46f139cd28f4895874f1aafab4e56a",
+        "cc8d381cc6443214471c6ad687aab7589a37488d095d3cf6948490fb9099420c",
+        "672148b622bcc86fa7342851395f6b4d92bf42c872e8ba96fc0942732c24aff8"
+      ]
+    },
+    {
+      name: "The installed Implementation Plan gate enforces finding authority",
+      line: 534,
+      digest: "25e61ff739b032a0fdf47e99271165a9a520ebd3e3486a2b458359a28941a004",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "743ad5f20149da212bb210821ec51f60b951ded6f9c1d0d5ea11ef41297488e7",
+        "d8cbbf1f7084280ca2c55cc191cea11319d2fa0cb3855a13d36751a95ed8bde2",
+        "203b1ed8374ebd78681fb2c56c2b700a985ce5efface51b887fb8be6fc2afd87"
+      ]
+    },
+    {
+      name: "The installed Implementation Plan gate enforces finding authority",
+      line: 535,
+      digest: "ddd1c3153ade9259de0dc961834250b88b01cc1fae4337e63061b914aca11d96",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "a422abe35d15befcb55eccbd165e867e562e5294ffa93800d1beee8e04643cac",
+        "d8cbbf1f7084280ca2c55cc191cea11319d2fa0cb3855a13d36751a95ed8bde2",
+        "5fb62b4f5a349055bb75487e8390bbf79a2822837b048bcf86a54cc732edcccd"
+      ]
+    },
+    {
+      name: "Corrected plan bytes cannot inherit the prior verdict",
+      line: 538,
+      digest: "d664327284f83b3cfa69fa428b999c48ec5c7ec86a3091a1f1b8a0769f965de9",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "989568f968b472e760033f6997d9aea633776a45421938bf64ca7897e93297f0",
+        "abada7ec9655faedd67e2121d31d1ee47aaca2ec0385a125e3ea2063f771162c",
+        "6e2e8ebf094d75bb682b4c9af6f4815e2454f3dffd2c04ee83dd57973f725585"
+      ]
+    },
+    {
+      name: "A fresh verdict can clear the corrected-plan block",
+      line: 543,
+      digest: "670f8c42e23a6a21ad533d64b48cabb8c9f11b55fc2b8dbdd797b8ded95d672f",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "34b6341440632466a8064ad5b036eb6ea5b4ce96ec3e94177f21505130aec7d7",
+        "b4a8c395474311c33b57873f2c2e76f5c27cb3499839ee95e01a8cd24206a484",
+        "4e3272dcb5ed49c6ec6b599671d976d2e0f5ec6844d66cde23afcec00b22b6a0"
+      ]
+    },
+    {
+      name: "No binding scope source can be omitted from review",
+      line: 559,
+      digest: "a55c01383c4b3d516acfef2abea527aa1bbef4db4c3d6d97ecf58b452702b342",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "6d417c54fd959166312248505bc3d88753a9a50be878314a6311b1d19609c132",
+        "cf2333db74db2792cceb3bbc115753d00b1255f914499dfeeb93795edcb99a73",
+        "564bb5733b60e68ad1d010380eb56e2a1e6c66e7e740b56a1c41cea4757da8e3"
+      ]
+    },
+    {
+      name: "No binding scope source can be omitted from review",
+      line: 560,
+      digest: "7495415eb7e86cd6ba297c0769488c50b1502a9323572e69d8093eb891f0107b",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "3bf2697a554eaf64e9fd60e3774d432240052c10fb828ea6bfc7e1a066e1c058",
+        "cf2333db74db2792cceb3bbc115753d00b1255f914499dfeeb93795edcb99a73",
+        "f2a396371b646a261bc84af1d5885568da4a0b9fbb99b37b8a257fa7c8135568"
+      ]
+    },
+    {
+      name: "No binding scope source can be omitted from review",
+      line: 561,
+      digest: "ccb0ae7afd39267cf889fac068dbb257432ce141cb62ce540c66f97aa0116671",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "c6786777ef14358240ccc0517f0225318a679dcc292fe3cb5cf06316a680d007",
+        "cf2333db74db2792cceb3bbc115753d00b1255f914499dfeeb93795edcb99a73",
+        "9f6a96455cf0f325d0d37f817c358a2288746e31f0610cf55ffe3aabefffe2da"
+      ]
+    },
+    {
+      name: "No binding scope source can be omitted from review",
+      line: 562,
+      digest: "ee43d0313d767954f60cbb8b095b4e2f0f1c32a4bdbdc5f5ec0466c787c8a2f6",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "d828e0663c2d85d1eee970476e01ede4858a8dd1c228d139b37193057ad0135e",
+        "cf2333db74db2792cceb3bbc115753d00b1255f914499dfeeb93795edcb99a73",
+        "6a3b1697fd768676f7d911c9b0817762500cfb1ea129f023fc3189902c530c84"
+      ]
+    },
+    {
+      name: "No binding scope source can be omitted from review",
+      line: 563,
+      digest: "f0f892ec16b3bf8a0184505bbcae6832cd7e078623c20f1ff11a7f56197af4a8",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "c7278b07d19fbaf10e7a32cb07dc22b9d9e82f7f84224666ac317f18e95b7f7d",
+        "cf2333db74db2792cceb3bbc115753d00b1255f914499dfeeb93795edcb99a73",
+        "7c71e94965f4bef1dcf5a21b2f9644768c51ad5934928e97e340e308589908fe"
+      ]
+    },
+    {
+      name: "No binding scope source can be omitted from review",
+      line: 564,
+      digest: "6f72049e2c1cbf91fad8bd79e774e6c627b733d5cd911c2795562a995dea542d",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "068208ab9f64d80af4e8a6050a2b958c84436cb12996a74ae0022a0e935d914a",
+        "cf2333db74db2792cceb3bbc115753d00b1255f914499dfeeb93795edcb99a73",
+        "7403aa686a4aa31b7e6840000544775b63c18b00d9fea1e386afe7d3c9f39fd3"
+      ]
+    },
+    {
+      name: "The installed Implementation Plan gate enforces binding scope context",
+      line: 574,
+      digest: "84bc8f9ebdd48d5364a586c12c902936da0f21033e183161a78ed653a5f62bba",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "8d866fb107010002e5b296ef2cfb3848f1df31f685d7d1e4d02056861497e281",
+        "d8cbbf1f7084280ca2c55cc191cea11319d2fa0cb3855a13d36751a95ed8bde2",
+        "a3e9c91c82bd6222335bb486437d42e4517a567e75e3f8e0c0092cf4ec9c897c"
+      ]
+    },
+    {
+      name: "The installed Implementation Plan gate enforces binding scope context",
+      line: 575,
+      digest: "1f989d2d5725ae9e1f5f9248b9e1e20d95dd97fea53ead48550f76d40d7d8e4a",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "096181a30866b9b381079787fb839510a32903ad27888f8d8b6be566038bf941",
+        "d8cbbf1f7084280ca2c55cc191cea11319d2fa0cb3855a13d36751a95ed8bde2",
+        "056c4c8d6c4db3cdd83be92273047b6842d1242fbf0a2cbfa42ea555262c2366"
+      ]
+    },
+    {
+      name: "Plan completeness is bidirectional",
+      line: 587,
+      digest: "b8e3627e11df9727d9d211a948f2b79365c9d7609b98f7320f9cbda7145d0286",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "2c84c4450d386d455bf493ab4ebae475f1191b021660a38bde5d9b5e5870f4ee",
+        "e5193a508bd0caeee7dd8bbdc35b108faf594dd34a4d6afa38c5e8cafbae1c6d",
+        "0b3ce093315084db33751a857c731e1ddd3d29272c80e387c0e456abdd875468"
+      ]
+    },
+    {
+      name: "Plan completeness is bidirectional",
+      line: 588,
+      digest: "7b3bbf0cec8b0be245f4c9c2a344c89b2eaf3cb3cef67eb324ecce6bc7bc0ca0",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "d2672c441e1263fcba10071b4fbaebfcd59cfa5c8c2d260c8d6a1e2c46e81b1c",
+        "e5193a508bd0caeee7dd8bbdc35b108faf594dd34a4d6afa38c5e8cafbae1c6d",
+        "ee9fe8ab01a368f6cb9352d873dc3c101ce4aeac41652252f8c14362394ccc2e"
+      ]
+    },
+    {
+      name: "Plan completeness is bidirectional",
+      line: 589,
+      digest: "ac40a36a5644ddd75f756940285aaf9e9d2ee65e11b197365c35ec1040c91553",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "8af6ba8dd2b2ca402975eff43ea5c5f2ac3e41844007eaae151fba031b03edf2",
+        "e5193a508bd0caeee7dd8bbdc35b108faf594dd34a4d6afa38c5e8cafbae1c6d",
+        "55c6f657301efe4910ae4c7c8918d5d19df8c17162241c02516e5e726c3e94d4"
+      ]
+    },
+    {
+      name: "The installed Implementation Plan gate enforces bidirectional scope completeness",
+      line: 599,
+      digest: "5e3bca9c22a38f06d9a08fdcf0e087842c29d1226ad6c133f6ecba59a2f4991a",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "986dd87ced1a8f79468f446f20f469cc9ac95cd9be006329188fa3c829ab5809",
+        "d8cbbf1f7084280ca2c55cc191cea11319d2fa0cb3855a13d36751a95ed8bde2",
+        "203b1ed8374ebd78681fb2c56c2b700a985ce5efface51b887fb8be6fc2afd87"
+      ]
+    },
+    {
+      name: "The installed Implementation Plan gate enforces bidirectional scope completeness",
+      line: 600,
+      digest: "f2c856e5fa32e5e40150216ccb8ab18b42676c605926eda1ac95bfca88d8f4d1",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "c250158bfaefd85de52d8180d63ac6f2cdf273c432a4be369d29ab02fa3a4c7e",
+        "d8cbbf1f7084280ca2c55cc191cea11319d2fa0cb3855a13d36751a95ed8bde2",
+        "a1fe20dbb27bc5fc51fba20e9e938e99bec612cbfe99cc17fe10a8ece3c71337"
+      ]
+    },
+    {
+      name: "The installed Implementation Plan gate enforces bidirectional scope completeness",
+      line: 601,
+      digest: "c3bbd8ea9c20fceb0bee04fc4e7d579db8814c7dcca478f4719e677f5cf44fa6",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "52a91ff034a42b7b871b3f16a8e9eb38031e7cca1032ad88a87bd01b0a7da274",
+        "d8cbbf1f7084280ca2c55cc191cea11319d2fa0cb3855a13d36751a95ed8bde2",
+        "3489b1b494b31d4d5b1da417c9ecd86cf65a9b59c1ac7445ac6192aecc51e68d"
+      ]
+    },
+    {
+      name: "Optional strengthening changes only through user authority",
+      line: 613,
+      digest: "ebb525aaa0ae8f0b21de385a99068fe7eb4edacaf0fb2edb9c188f8120666c49",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "55180824f19225013718782d3f466c5aabfa3bdbb30536a8cd8a943aae64feba",
+        "97aa1cd4a95b8c818fe0d12e5eab190bb71f2eb6589b279704b7cba562656756",
+        "1314f03b7590fbc0d11e51cd2cd3d87c3b0d919cff1097574d63667123b539ef"
+      ]
+    },
+    {
+      name: "Optional strengthening changes only through user authority",
+      line: 614,
+      digest: "fcec5b7d29346775c040b0ffe6471365375b0cb75b49ee9a26df3429a443ab15",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "55180824f19225013718782d3f466c5aabfa3bdbb30536a8cd8a943aae64feba",
+        "85241a8aab9cca57b9550cd99ad9965b0309df3c4bd88e0af83ab2308c3fccbf",
+        "4857c1556e90a4a4b0f5c5825765c9b9cbfed5843207243ea5fcf49000280272"
+      ]
+    },
+    {
+      name: "An undecided optional suggestion cannot alter or block the plan",
+      line: 616,
+      digest: "82190114057b22dd8515019c842b93e7d2727e054ac357aa43480408c14858e4",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "ac623a40cfc03cad4549e48a5eb341d2ae1437b1eb15b83e96f90897a5fecb8a",
+        "cd33499b61f1764afcfe97e67fa7e012d9b1f0e17a8bc6baf86d34b087d7cde2",
+        "80c211448e4c3603de9131b6adf46ab6541a9e58dfa17300fe03adeda51fc117"
+      ]
+    },
+    {
+      name: "Installed re-review retains a declined optional strengthening",
+      line: 622,
+      digest: "51fbd814c83fe4c0d2822e09b4189bac8700ebe5e6b4f42c5f600c3a0ee1ef01",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "90b1725180c9ee4ba88dd16880d8b95c4de7d97b2b682c0ef07638ccf52dbe47",
+        "6f542ea466ed100e8d226d3d047912501804062d489eea9d973412c6185bd4ff",
+        "681917fe06b8edae8b586cf8e2798dea723cb83fc6f6d29ed11530adfe833085"
+      ]
+    },
+    {
+      name: "Guidance respects the accepted boundary",
+      line: 637,
+      digest: "55ef02a46ed987a0b89381d46b32343af553eea6ca097367b3087c4b3ac00054",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "e3896308341ea851db68df4b8a49ddf9afdd831c33f06f32164eacd6524866a4",
+        "19824bb04ba44568ff850905c74743161b20f0c318fedcbf649ecd29be8a2912",
+        "ed0c7ade786ce9fd109965bd07e1b279c51180b56b6313a4f6a1d9e440509dd2"
+      ]
+    },
+    {
+      name: "Guidance respects the accepted boundary",
+      line: 638,
+      digest: "640fae1b3076f150eb77c4bf468b186014dfcdbb77504c51b7cb4ba819f82c6d",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "c61f5808cef996b81996adacfa7743bfaca35ae5ca8fde0de80ba95640a79c02",
+        "19824bb04ba44568ff850905c74743161b20f0c318fedcbf649ecd29be8a2912",
+        "6465b7961dbf4dabc27b1269d9b1a1318ad2fb5bc9312a0647688a773d561b24"
+      ]
+    },
+    {
+      name: "Guidance respects the accepted boundary",
+      line: 639,
+      digest: "a7a105d1bacccc7e56c997457b4f0c8b59c0ef101b6aac08c7f9ddc6b79faad7",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f24a261439b38daa602488d6c7d478b81cc82abf888df69121c2a43ec502a81a",
+        "19824bb04ba44568ff850905c74743161b20f0c318fedcbf649ecd29be8a2912",
+        "3ea29d090e7e872e2a62544d0d86639d94cb8d46172255d40ff61d00a50c8ccf"
+      ]
+    },
+    {
+      name: "Product Plan approval requires every accepted persona outcome",
+      line: 652,
+      digest: "92deca52e259a3c1ee117848367add3536c3b58d3a5455df7366ed37d81ecb53",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "03bb412028411f0e573eb8022c5129251617e3a7ebf4db4d73e934fd40d70512",
+        "0a65815c3ff60c48b1554bb442af829afd8a8210927c145d5d6797e6190fa58f",
+        "991ea3de7eac7ecf7114be8620bceb632aa03ff7595b5209d3bc23c69ffe5e90"
+      ]
+    },
+    {
+      name: "Product Plan approval requires every accepted persona outcome",
+      line: 653,
+      digest: "3055e5a22e0de901127bb70715f0f5714c1353ca190b81eae9957e16c5ef36a8",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "0a450ecdd343e38a08a138dc8e3e770499358dfff44fecd9bdcd587a44e21b75",
+        "0a65815c3ff60c48b1554bb442af829afd8a8210927c145d5d6797e6190fa58f",
+        "991ea3de7eac7ecf7114be8620bceb632aa03ff7595b5209d3bc23c69ffe5e90"
+      ]
+    },
+    {
+      name: "Product Plan approval requires every accepted persona outcome",
+      line: 654,
+      digest: "7855fb11d926e20f19eb9ce8f9a32242aeab5740b8f27bd572927f55e295ee03",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "f63f90f818dd7359dc1303dc6ab7e8e36d91a427c74eaff59fa8f28f9420d91f",
+        "0a65815c3ff60c48b1554bb442af829afd8a8210927c145d5d6797e6190fa58f",
+        "016d2157bf4d29735342c87fe9cea40c34c6e1c878df9d3a3e16ba4e9b1e6aa3"
+      ]
+    },
+    {
+      name: "Product Plan approval requires honest epistemic status",
+      line: 664,
+      digest: "09c55b1fb3fd422cc537ce6629d1daeb4987415dd0f78327a9d63e202728c352",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "a1e2fbca0324ec750448a833ee601a272bf5b7cb3dfac0aea8db4f733167010c",
+        "0a65815c3ff60c48b1554bb442af829afd8a8210927c145d5d6797e6190fa58f",
+        "66647c5832387c608c37facb22f2a4d9b7e297e0dc802fc68e2c23bac7a3c25d"
+      ]
+    },
+    {
+      name: "Product Plan approval requires honest epistemic status",
+      line: 665,
+      digest: "32604be9fb5a1010942d830ba4a6a18e2f899a9b98c988d943f6c17084a5bf6a",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "12d0530797eebea2d3b426ed8eea4bc50842f213ff0d4e4ab52d7a7162d3d958",
+        "0a65815c3ff60c48b1554bb442af829afd8a8210927c145d5d6797e6190fa58f",
+        "a2321148390cb46ea2551033dad7b5d7c4c3edd813cf1584178813e776facd60"
+      ]
+    },
+    {
+      name: "Scenario review proves every applicable persona outcome",
+      line: 675,
+      digest: "ea021b2aa3dba275132d507d506ed0dd21ef1457a50fe31be7b348bca0d53aec",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "af11b0eccf37ef15ffcd75a2c048f19d6129f3794ccb9dbc8ae8aef9f1938acd",
+        "b127ac26df662a562e7c43c0c57acfdc294fde1c109bc255e84e6701ac65ef26",
+        "aaa546ccac4228094804fbd9e3eadf3c22f2615c3fec588f63dda0e44ce3ad80"
+      ]
+    },
+    {
+      name: "Scenario review proves every applicable persona outcome",
+      line: 676,
+      digest: "032cb0c6ecca1086750d0bf4a9a8a5b0c7dde88ecd89cd16e585b7b9dede0296",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "effb443271d148eeff032e5f108a6ad31e92c1baa522f72c8e7c98303647352d",
+        "b127ac26df662a562e7c43c0c57acfdc294fde1c109bc255e84e6701ac65ef26",
+        "db93bd437f7c4680fdb5ea032babb267a3701a6d5f624b014cd35d36be80bcc5"
+      ]
+    },
+    {
+      name: "The installed Product Plan gate enforces persona-outcome completeness",
+      line: 686,
+      digest: "a9c4b29e53aeee5d8c850dd2b99dd0e74aae71fcdb2c785bd5f4ed812b08da64",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "9e6bafebd57c28d919bcab3e96e631ecff2035932f35f597a86ca02d0c123604",
+        "16ab245e6097592a3d2da247ee494fb65da4d8c56e7aeb8d6c43ff96ad38bac5",
+        "b89b4f64967848ee5538a12eaa5e843dc8b47a40fbd64daa1fecfb08ee8f71d9"
+      ]
+    },
+    {
+      name: "The installed Product Plan gate enforces persona-outcome completeness",
+      line: 687,
+      digest: "1e1dcdc430abec0d41806996cb051abc78e5bc3c127ce89560869b32c28758eb",
+      deferred: false,
+      owners: [],
+      stepDigests: [
+        "69e0b516d926c8b9a8018fe46d8e58577865343a8d2a6bf4833ba3764ea80a4a",
+        "16ab245e6097592a3d2da247ee494fb65da4d8c56e7aeb8d6c43ff96ad38bac5",
+        "6026f8bdd36242fa90f9513c146088e8712bb63287a71e20c17c989808927500"
+      ]
+    }
+  ];
+});
 
 // src/review/ledger-recovery-profile.ts
+import { createHash as createHash16 } from "crypto";
+function ledgerRecoveryProfileIdentity() {
+  return createHash16("sha256").update(JSON.stringify({ profile: LEDGER_RECOVERY_PROFILE, cases: ledger_recovery_cases_default })).digest("hex");
+}
 var LEDGER_RECOVERY_PROFILE;
 var init_ledger_recovery_profile = __esm(() => {
   init_ledger_recovery_cases();
@@ -32097,7 +34075,7 @@ var init_policy2 = __esm(() => {
 });
 
 // src/execution-plan/review-identity.ts
-import { createHash as createHash16 } from "crypto";
+import { createHash as createHash17 } from "crypto";
 import { existsSync as existsSync15, readFileSync as readFileSync30 } from "fs";
 import nodePath45 from "path";
 function splitRow(line) {
@@ -32174,7 +34152,7 @@ function normalizedExecutionPlanDigest(content) {
       lines[index] = normalizeProgressCells(line);
     }
   }
-  return createHash16("sha256").update(lines.join(`
+  return createHash17("sha256").update(lines.join(`
 `)).digest("hex");
 }
 function hasExecutionPlanDeliveryChecklist(content) {
@@ -32347,7 +34325,7 @@ var init_capability_catalogue = __esm(() => {
 });
 
 // src/execution-plan/delivery-checklist.ts
-import { createHash as createHash17, randomUUID as randomUUID8 } from "crypto";
+import { createHash as createHash18, randomUUID as randomUUID8 } from "crypto";
 import {
   closeSync as closeSync4,
   constants as constants2,
@@ -32372,7 +34350,7 @@ function hasCanonicalDeliveryContractIdentity() {
     proofQualifications: [...PROOF_QUALIFICATIONS],
     proofCurrencies: [...PROOF_CURRENCIES]
   };
-  return createHash17("sha256").update(JSON.stringify(contract)).digest("hex") === CANONICAL_DELIVERY_CONTRACT_SHA256;
+  return createHash18("sha256").update(JSON.stringify(contract)).digest("hex") === CANONICAL_DELIVERY_CONTRACT_SHA256;
 }
 function invalid(code, message) {
   return { ok: false, code, message };
@@ -34289,7 +36267,7 @@ var init_execution_plan_output = __esm(() => {
 
 // src/review/runtime.ts
 import { spawn } from "child_process";
-import { createHash as createHash18 } from "crypto";
+import { createHash as createHash19 } from "crypto";
 import {
   accessSync as accessSync2,
   chmodSync as chmodSync3,
@@ -34623,7 +36601,7 @@ function digestOpenFile(fd) {
   if (!fstatSync2(fd).isFile())
     return;
   const bytes = readFileSync32(fd);
-  return { bytes, digest: createHash18("sha256").update(bytes).digest("hex") };
+  return { bytes, digest: createHash19("sha256").update(bytes).digest("hex") };
 }
 function cachedCopyMatchesDigest(copyPath, expectedDigest) {
   let cachedFd;
@@ -35705,7 +37683,7 @@ var init_runtime = __esm(() => {
 });
 
 // src/review/execution-plan-conformance.ts
-import { createHash as createHash19 } from "crypto";
+import { createHash as createHash20 } from "crypto";
 function stagedOwners(prerequisite, activation) {
   return { "Accepted behavior": activation, "Migration work": prerequisite };
 }
@@ -35930,7 +37908,7 @@ function missingObligationCase(id, obligation) {
   }), [obligation]);
 }
 function sha2564(value) {
-  return createHash19("sha256").update(value).digest("hex");
+  return createHash20("sha256").update(value).digest("hex");
 }
 function executionPlanConformanceDigests() {
   return {
@@ -38781,7 +40759,7 @@ var init_project_root = __esm(() => {
 });
 
 // src/claude-plugin/plugin-data.ts
-import { createHash as createHash20 } from "crypto";
+import { createHash as createHash21 } from "crypto";
 import { homedir as homedir6 } from "os";
 import nodePath50 from "path";
 function claudeConfigDirectory(environment = process.env) {
@@ -38798,7 +40776,7 @@ function claudePluginDataDirectory(environment = process.env) {
   return nodePath50.join(claudeConfigDirectory(environment), CLAUDE_MIGRATION_SCHEMA.data.pluginsRoot, claudePluginDataId());
 }
 function claudeProjectDigest(canonicalProjectRoot) {
-  return createHash20("sha256").update(canonicalProjectRoot).digest("hex");
+  return createHash21("sha256").update(canonicalProjectRoot).digest("hex");
 }
 function claudeProofDirectory(environment = process.env) {
   return nodePath50.join(claudePluginDataDirectory(environment), CLAUDE_MIGRATION_SCHEMA.data.proofs);
@@ -38813,7 +40791,7 @@ var init_plugin_data = __esm(() => {
 });
 
 // src/claude-plugin/migration-state.ts
-import { createHash as createHash21, randomUUID as randomUUID9 } from "crypto";
+import { createHash as createHash22, randomUUID as randomUUID9 } from "crypto";
 import { cpSync, existsSync as existsSync18, mkdirSync as mkdirSync12, readFileSync as readFileSync34, renameSync as renameSync8, rmSync as rmSync8 } from "fs";
 import nodePath51 from "path";
 function createClaudePluginMode(marker) {
@@ -38824,7 +40802,7 @@ function createClaudePluginMode(marker) {
   };
 }
 function digest2(value) {
-  return createHash21("sha256").update(value).digest("hex");
+  return createHash22("sha256").update(value).digest("hex");
 }
 function relocateLegacyState(from, to, rename2 = renameSync8, copy = (source, destination) => {
   cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
@@ -38911,7 +40889,7 @@ function claudeWatchedSettingsDigest(cwd) {
     nodePath51.join(cwd, ".claude/settings.json"),
     nodePath51.join(configDirectory, "settings.json")
   ];
-  const hash = createHash21("sha256");
+  const hash = createHash22("sha256");
   for (const path7 of paths) {
     hash.update(path7);
     hash.update("\x00");
@@ -39262,7 +41240,7 @@ function findTicketFolderMatch(names, ticketId) {
 }
 
 // src/utils/product-plan-contract.ts
-import { createHash as createHash22 } from "crypto";
+import { createHash as createHash23 } from "crypto";
 import { existsSync as existsSync21, readdirSync as readdirSync10, readFileSync as readFileSync35 } from "fs";
 import nodePath54 from "path";
 function sectionAfterHeading(content, level, id) {
@@ -39328,7 +41306,7 @@ function canonicalizeContractValue(value) {
 }
 function digestParentContract(values) {
   const canonical = CONTRACT_KEYS.map((key) => [key, canonicalizeContractValue(values[key])]);
-  return createHash22("sha256").update(JSON.stringify(canonical)).digest("hex");
+  return createHash23("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
 function resolveTicketDirectory(cwd, ticketId) {
   const root = resolveTicketsDirectory(cwd);
@@ -39402,7 +41380,7 @@ var init_product_plan_contract = __esm(() => {
 });
 
 // src/review/planning-accepted-boundary.ts
-import { createHash as createHash23 } from "crypto";
+import { createHash as createHash24 } from "crypto";
 function acceptedTerms(value, field) {
   const terms = typeof value === "string" ? [value] : value;
   if (!Array.isArray(terms) || terms.length === 0 || terms.some((term) => typeof term !== "string" || term.trim() === ""))
@@ -39449,7 +41427,7 @@ function acceptedBoundaryDigest(ticketContent, productSpec) {
     const values = parentContractValuesFromSpec(productSpec, metadata.parent_job, metadata.milestone);
     productBoundary = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, canonicalizeContractValue(value)]));
   }
-  return createHash23("sha256").update(JSON.stringify({ version: 1, scope, exclusions, parent: productBoundary })).digest("hex");
+  return createHash24("sha256").update(JSON.stringify({ version: 1, scope, exclusions, parent: productBoundary })).digest("hex");
 }
 function isRecord8(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -39465,7 +41443,7 @@ function reviewDispositionContext(ticketContent, productSpec, reviewKind) {
   const records = dispositions.map((value) => {
     if (!isRecord8(value) || value.version !== 1 || typeof value.review_kind !== "string" || typeof value.review_id !== "string" || value.disposition !== "declined" || typeof value.finding_fingerprint !== "string" || value.finding_severity !== "info" && value.finding_severity !== "warning" || typeof value.finding_message !== "string" || typeof value.accepted_boundary_digest !== "string" || typeof value.reason !== "string")
       throw new Error("The ticket review dispositions are invalid.");
-    const fingerprint = createHash23("sha256").update(JSON.stringify({ severity: value.finding_severity, message: value.finding_message })).digest("hex");
+    const fingerprint = createHash24("sha256").update(JSON.stringify({ severity: value.finding_severity, message: value.finding_message })).digest("hex");
     if (value.finding_fingerprint !== fingerprint)
       throw new Error("The ticket review dispositions are invalid.");
     return {
@@ -56420,7 +58398,7 @@ var init_scenario_coverage = __esm(() => {
 });
 
 // src/review/planning-context-identity.ts
-import { createHash as createHash24 } from "crypto";
+import { createHash as createHash25 } from "crypto";
 import nodePath55 from "path";
 function parseMarkdown(content) {
   const ast = Reflect.apply(ru.markdown.parse, undefined, [content, {}]);
@@ -56876,7 +58854,7 @@ function planningSurfaceIdentity(packet, content) {
   return identity({ version: 1, preamble, selected });
 }
 function sha2565(content) {
-  return createHash24("sha256").update(content).digest("hex");
+  return createHash25("sha256").update(content).digest("hex");
 }
 function semanticRoleIdentity(packet, role, content) {
   if (role === "ticket")
@@ -57740,7 +59718,7 @@ __export(exports_packet, {
   PlanningContextError: () => PlanningContextError
 });
 import { spawnSync as spawnSync6 } from "child_process";
-import { createHash as createHash25, randomUUID as randomUUID10 } from "crypto";
+import { createHash as createHash26, randomUUID as randomUUID10 } from "crypto";
 import {
   closeSync as closeSync7,
   constants as constants4,
@@ -58196,7 +60174,7 @@ function planningPacketError(error2) {
   return error2 instanceof PlanningContractCopyError || error2 instanceof PlanningContextError ? error2 : undefined;
 }
 function digest4(content) {
-  return createHash25("sha256").update(content).digest("hex");
+  return createHash26("sha256").update(content).digest("hex");
 }
 function planObligations(contract) {
   return Array.from(contract.matchAll(/^- \*\*([^*]+):\*\*/gmu), (match) => match[1]?.trim() ?? "");
@@ -60335,7 +62313,7 @@ __export(exports_job, {
   approvedRetrospectiveReview: () => approvedRetrospectiveReview
 });
 import { spawn as spawn2, spawnSync as spawnSync7 } from "child_process";
-import { createHash as createHash26, createHmac, randomBytes, randomUUID as randomUUID11, timingSafeEqual } from "crypto";
+import { createHash as createHash27, createHmac, randomBytes, randomUUID as randomUUID11, timingSafeEqual } from "crypto";
 import {
   closeSync as closeSync8,
   existsSync as existsSync25,
@@ -60432,11 +62410,31 @@ function validRetrospectiveCloseTag(cwd, content, tag) {
     return false;
   }
 }
-function ledgerRecoveryObservationTag(_cwd, _content) {
-  return "";
+function ledgerRecoveryObservationTag(cwd, content) {
+  if (!hasRecoveryObservationIdentity(content))
+    throw new Error("Recovery observation identity does not match the installed profile.");
+  return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync10.native(cwd)).update("\x00ledger-recovery-observation\x00").update(content).digest("hex");
 }
-function validLedgerRecoveryObservationTag(_cwd, _content, _tag) {
-  return false;
+function validLedgerRecoveryObservationTag(cwd, content, tag) {
+  if (!/^[a-f\d]{64}$/u.test(tag) || !reviewIntegrityKeyExists())
+    return false;
+  try {
+    return timingSafeEqual(Buffer.from(tag, "hex"), Buffer.from(ledgerRecoveryObservationTag(cwd, content), "hex"));
+  } catch {
+    return false;
+  }
+}
+function hasRecoveryObservationIdentity(content) {
+  let parsed2;
+  try {
+    parsed2 = JSON.parse(content);
+  } catch {
+    return false;
+  }
+  if (typeof parsed2 !== "object" || parsed2 === null || Array.isArray(parsed2))
+    return false;
+  const identity2 = parsed2;
+  return identity2.kind === "ledger-recovery-observation:v1" && identity2.ticket === LEDGER_RECOVERY_PROFILE.ticket && identity2.profile === ledgerRecoveryProfileIdentity();
 }
 function ledgerFingerprintContext(cwd, targets, context, execution) {
   if (execution === undefined)
@@ -60475,7 +62473,7 @@ function reviewInputs(cwd, kind, targets, context, options) {
   try {
     const reviewIdentity = createPlanningReviewIdentity(prepared.packet);
     const projectedContext = planningFingerprintContext(prepared.packet, reviewIdentity);
-    const hash = createHash26("sha256");
+    const hash = createHash27("sha256");
     hash.update(`kind\x00${kind}\x00`);
     hash.update(planningIdentityFingerprint(reviewIdentity));
     if (execution !== undefined)
@@ -61740,6 +63738,7 @@ var init_job = __esm(() => {
   init_contract();
   init_coordinator();
   init_execution_plan_output();
+  init_ledger_recovery_profile();
   init_packet();
   init_planning_context_error();
   init_planning_context_identity();
@@ -61817,7 +63816,7 @@ var init_retrospective_history = __esm(() => {
 
 // src/review/retrospective-proof.ts
 import { spawnSync as spawnSync9 } from "child_process";
-import { createHash as createHash27 } from "crypto";
+import { createHash as createHash28 } from "crypto";
 import {
   accessSync as accessSync3,
   constants as constants5,
@@ -61834,7 +63833,7 @@ import {
 import { tmpdir as tmpdir5 } from "os";
 import nodePath63 from "path";
 function sha2566(bytes) {
-  return createHash27("sha256").update(bytes).digest("hex");
+  return createHash28("sha256").update(bytes).digest("hex");
 }
 function hasNoControlCharacters(value) {
   for (let index = 0;index < value.length; index += 1) {
@@ -63327,7 +65326,7 @@ var init_retrospective_prerequisites = __esm(() => {
 });
 
 // src/review/retrospective-scenario-body.ts
-import { createHash as createHash28 } from "crypto";
+import { createHash as createHash29 } from "crypto";
 function scenarioTitle(line) {
   const trimmed = line.trimStart();
   const prefixes = ["Scenario Outline:", "Scenario Template:", "Scenario:", "Example:"];
@@ -63376,7 +65375,7 @@ function scenarioBodyDigest(feature, heading) {
   const boundaries = scenarioBoundaries(lines);
   const matches = boundaries.flatMap((boundary, index) => boundary.title === heading ? [lines.slice(boundary.index, boundaries[index + 1]?.index ?? lines.length).join("")] : []);
   const [match] = matches;
-  return matches.length === 1 && match !== undefined ? createHash28("sha256").update(match).digest("hex") : undefined;
+  return matches.length === 1 && match !== undefined ? createHash29("sha256").update(match).digest("hex") : undefined;
 }
 var init_retrospective_scenario_body = () => {};
 
@@ -63388,7 +65387,7 @@ __export(exports_retrospective_gate, {
   attestRetrospectiveRow: () => attestRetrospectiveRow
 });
 import { spawnSync as spawnSync12 } from "child_process";
-import { createHash as createHash29 } from "crypto";
+import { createHash as createHash30 } from "crypto";
 import { readFileSync as readFileSync42 } from "fs";
 import nodePath65 from "path";
 function deny(reason) {
@@ -63508,10 +65507,10 @@ function matchingProofRequest(proof, reviewed, request, eligibility) {
 }
 function currentReplayRecord(root, path7, content, inputs) {
   const integrity = readFileSync42(path7, "utf8").trim();
-  return validRetrospectiveCloseTag(root, content, integrity) && Object.entries(inputs).every(([input, digest5]) => createHash29("sha256").update(readProofInput(root, input)).digest("hex") === digest5);
+  return validRetrospectiveCloseTag(root, content, integrity) && Object.entries(inputs).every(([input, digest5]) => createHash30("sha256").update(readProofInput(root, input)).digest("hex") === digest5);
 }
 function rowRecordPath(root, request) {
-  const identity2 = createHash29("sha256").update(rowIdentity(request)).digest("hex");
+  const identity2 = createHash30("sha256").update(rowIdentity(request)).digest("hex");
   return nodePath65.join(root, ".safeword/state/reviews", `retrospective-row-${identity2}.tag`);
 }
 function rowIdentity(request) {
@@ -63668,7 +65667,7 @@ __export(exports_retrospective_close, {
   retrospectiveCloseGate: () => retrospectiveCloseGate,
   attestRetrospectiveClose: () => attestRetrospectiveClose
 });
-import { createHash as createHash30, randomUUID as randomUUID12 } from "crypto";
+import { createHash as createHash31, randomUUID as randomUUID12 } from "crypto";
 import {
   existsSync as existsSync27,
   mkdirSync as mkdirSync16,
@@ -63705,7 +65704,7 @@ function result(command, status, reason) {
   });
 }
 function sha2567(bytes) {
-  return createHash30("sha256").update(bytes).digest("hex");
+  return createHash31("sha256").update(bytes).digest("hex");
 }
 function contained(root, relative) {
   if (relative === "" || nodePath66.isAbsolute(relative) || relative.split("/").some((part) => ["", ".", ".."].includes(part)))
@@ -63963,7 +65962,7 @@ __export(exports_red_execution, {
   executeNoShellCommand: () => executeNoShellCommand
 });
 import { spawn as spawn3, spawnSync as spawnSync13 } from "child_process";
-import { createHash as createHash31 } from "crypto";
+import { createHash as createHash32 } from "crypto";
 import { realpathSync as realpathSync14 } from "fs";
 import nodePath67 from "path";
 function terminateProofTree(child) {
@@ -63997,7 +65996,7 @@ function proofEnvironment2() {
 }
 function environmentIdentity(environment) {
   const entries = Object.entries(environment).toSorted(([left], [right]) => left.localeCompare(right));
-  const sha2568 = createHash31("sha256").update(JSON.stringify(entries)).digest("hex");
+  const sha2568 = createHash32("sha256").update(JSON.stringify(entries)).digest("hex");
   return {
     sha256: sha2568,
     variable_count: entries.length,
@@ -64010,7 +66009,7 @@ function environmentIdentity(environment) {
 
 class StreamEvidence {
   expected;
-  #hash = createHash31("sha256");
+  #hash = createHash32("sha256");
   #chunks = [];
   #retained = 0;
   #bytes = 0;
@@ -68082,7 +70081,7 @@ var init_shared_contract = __esm(() => {
 });
 
 // src/planning/shared-clause-integrity.ts
-import { createHash as createHash33 } from "crypto";
+import { createHash as createHash34 } from "crypto";
 function sharedBlocks(content) {
   return content.matchAll(sharedBlockPattern).map((match) => match[1] ?? "").toArray();
 }
@@ -68093,7 +70092,7 @@ function sharedAuthorityDigest(content) {
   const authority = (blocks[0] ?? "").replaceAll(/<!--[\s\S]*?-->/gu, "").replaceAll(/\s+/gu, " ").trim();
   if (authority === "")
     throw new Error("Planning shared authority block cannot be empty.");
-  return createHash33("sha256").update(authority).digest("hex");
+  return createHash34("sha256").update(authority).digest("hex");
 }
 function assertGeneratedSharedClauses(content, contractPath) {
   const block = sharedBlocks(content)[0] ?? "";
@@ -69492,9 +71491,9 @@ var init_detect = __esm(() => {
 });
 
 // src/utils/cucumber-template-revisions.ts
-import { createHash as createHash34 } from "crypto";
+import { createHash as createHash35 } from "crypto";
 function isShippedCucumberTemplateRevision(content) {
-  const hash = createHash34("sha256").update(content).digest("hex");
+  const hash = createHash35("sha256").update(content).digest("hex");
   return CUCUMBER_TEMPLATE_REVISION_HASHES.has(hash);
 }
 var CUCUMBER_TEMPLATE_REVISION_HASHES;
@@ -70550,7 +72549,7 @@ __export(exports_profile, {
   claudeInstallRequiresMutation: () => claudeInstallRequiresMutation
 });
 import { spawnSync as spawnSync14 } from "child_process";
-import { createHash as createHash35 } from "crypto";
+import { createHash as createHash36 } from "crypto";
 import {
   closeSync as closeSync9,
   cpSync as cpSync2,
@@ -71093,7 +73092,7 @@ function convergePlugin(cwd, scope, effects) {
   }
 }
 function fileSha256(path8) {
-  return createHash35("sha256").update(readFileSync60(path8)).digest("hex");
+  return createHash36("sha256").update(readFileSync60(path8)).digest("hex");
 }
 function assertInstalledAsset(installPath, asset) {
   if (typeof asset.path !== "string" || nodePath90.isAbsolute(asset.path) || asset.path.split(/[\\/]/u).includes("..") || typeof asset.sha256 !== "string") {
@@ -71105,7 +73104,7 @@ function assertInstalledAsset(installPath, asset) {
   }
 }
 function assertInstalledIdentity(identity2, inventory, inventoryContent) {
-  if (identity2.schema_version !== 1 || identity2.plugin_version !== VERSION || identity2.inventory_sha256 !== createHash35("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
+  if (identity2.schema_version !== 1 || identity2.plugin_version !== VERSION || identity2.inventory_sha256 !== createHash36("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
     throw new TypeError("installed identity or inventory is inconsistent");
   }
 }
@@ -71404,7 +73403,7 @@ var init_profile = __esm(() => {
 });
 
 // src/claude-plugin/hook-manifest.ts
-import { createHash as createHash36 } from "crypto";
+import { createHash as createHash37 } from "crypto";
 function adaptHookValue(value) {
   if (typeof value === "string") {
     return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
@@ -71454,7 +73453,7 @@ function pluginHookManifest() {
 `;
 }
 function currentClaudePluginHookManifestSha256() {
-  return createHash36("sha256").update(pluginHookManifest()).digest("hex");
+  return createHash37("sha256").update(pluginHookManifest()).digest("hex");
 }
 var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun --no-env-file --cwd "${CLAUDE_PLUGIN_ROOT}" "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js', EVENT_GROUP_EVENTS;
 var init_hook_manifest = __esm(() => {
@@ -72654,7 +74653,7 @@ __export(exports_profile2, {
   installOpenCodeProfile: () => installOpenCodeProfile,
   generateOpenCodeProfilePlugin: () => generateOpenCodeProfilePlugin
 });
-import { createHash as createHash37 } from "crypto";
+import { createHash as createHash38 } from "crypto";
 import {
   existsSync as existsSync46,
   lstatSync as lstatSync19,
@@ -72712,7 +74711,7 @@ function observeFile2(path8) {
   }
 }
 function sha2568(value) {
-  return createHash37("sha256").update(value).digest("hex");
+  return createHash38("sha256").update(value).digest("hex");
 }
 function packagedDispatcherPath() {
   const moduleDirectory = import.meta.dirname;
@@ -73636,7 +75635,7 @@ __export(exports_conformance, {
   observeOpenCodeVersion: () => observeOpenCodeVersion
 });
 import { spawnSync as spawnSync16 } from "child_process";
-import { createHash as createHash38 } from "crypto";
+import { createHash as createHash39 } from "crypto";
 import { accessSync as accessSync4, constants as constants6, lstatSync as lstatSync20, readFileSync as readFileSync65, realpathSync as realpathSync18, statSync as statSync8 } from "fs";
 import nodePath98 from "path";
 function resolveExecutable(environment) {
@@ -73691,7 +75690,7 @@ function profileRemediation() {
   });
 }
 function sha2569(value) {
-  return createHash38("sha256").update(value).digest("hex");
+  return createHash39("sha256").update(value).digest("hex");
 }
 function installedProfile(environment) {
   const root = resolveOpenCodeConfigRoot({
@@ -74625,7 +76624,7 @@ var init_doctor = __esm(() => {
 });
 
 // src/cli-protocol/reconciliation.ts
-import { createHash as createHash39 } from "crypto";
+import { createHash as createHash40 } from "crypto";
 import { lstatSync as lstatSync21, readdirSync as readdirSync29, readFileSync as readFileSync66, readlinkSync as readlinkSync3 } from "fs";
 import nodePath99 from "path";
 function actionTargets(action) {
@@ -74676,7 +76675,7 @@ function hashPath(hash, absolutePath, relativePath, readFile3) {
   }
 }
 function preconditionDigestForPaths(cwd, paths, readFile3 = readFileForDigest) {
-  const hash = createHash39("sha256");
+  const hash = createHash40("sha256");
   const targets = [...new Set(paths)].toSorted((left, right) => left.localeCompare(right));
   for (const target of targets) {
     hashField(hash, "target", target);
@@ -75406,7 +77405,7 @@ To wire the warn-only boundary gate, add under repos:
 
 // src/utils/namespace-migration.ts
 import { execSync } from "child_process";
-import { createHash as createHash40 } from "crypto";
+import { createHash as createHash41 } from "crypto";
 import {
   closeSync as closeSync10,
   constants as fsConstants3,
@@ -75455,7 +77454,7 @@ function validateDirectoryRoot(path8, label) {
 }
 function conflictArchivePath(source, relative) {
   const metadata = lstatSync22(source);
-  const digest5 = createHash40("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync69(source)).digest("hex");
+  const digest5 = createHash41("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync69(source)).digest("hex");
   return nodePath106.join(".safeword", "namespace-migration-conflicts-v1", digest5, relative);
 }
 function plannedNamespaceMigrationFiles(cwd) {
@@ -76167,7 +78166,7 @@ var init_vendored_ignores_nudge = __esm(() => {
 });
 
 // src/lifecycle/project-install.ts
-import { createHash as createHash41 } from "crypto";
+import { createHash as createHash42 } from "crypto";
 import {
   closeSync as closeSync11,
   constants as fsConstants4,
@@ -76468,7 +78467,7 @@ function setupPreconditionDigest(cwd, reconciliationDigest, effects, context, op
     ...effects.files.map((effect) => effect.target),
     ...effects.destructive.map((effect) => effect.target)
   ].filter((target) => !target.includes(" \u2192 "));
-  return createHash41("sha256").update(JSON.stringify([
+  return createHash42("sha256").update(JSON.stringify([
     reconciliationDigest,
     effects,
     JSON.stringify(context, (_key, value) => typeof value === "string" ? value.replaceAll(cwd, "<project>") : value),
@@ -77511,7 +79510,7 @@ __export(exports_commands, {
   planLifecycle: () => planLifecycle,
   installLifecycle: () => installLifecycle
 });
-import { createHash as createHash42 } from "crypto";
+import { createHash as createHash43 } from "crypto";
 function activationActionsFor(surface) {
   if (surface.name === "claude" && surface.result.changed)
     return ["run /reload-plugins"];
@@ -77707,7 +79706,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
   };
   const integrationSurfaces = observedSurfaces.filter((surface) => selected.has(surface.name));
   const surfaces = [{ name: "project", effects: project.plan.effects }, ...integrationSurfaces];
-  const preconditionDigest2 = createHash42("sha256").update(JSON.stringify([
+  const preconditionDigest2 = createHash43("sha256").update(JSON.stringify([
     project.plan.preconditionDigest,
     agents,
     scope,
@@ -78007,7 +80006,7 @@ __export(exports_cleanup, {
   claudeLegacyMutations: () => claudeLegacyMutations,
   claudeCleanupPreconditionDigest: () => claudeCleanupPreconditionDigest
 });
-import { createHash as createHash43, randomUUID as randomUUID14 } from "crypto";
+import { createHash as createHash44, randomUUID as randomUUID14 } from "crypto";
 import {
   closeSync as closeSync12,
   constants as fsConstants5,
@@ -78027,7 +80026,7 @@ import {
 } from "fs";
 import nodePath113 from "path";
 function sha25610(content) {
-  return createHash43("sha256").update(content).digest("hex");
+  return createHash44("sha256").update(content).digest("hex");
 }
 function containsJsonComments(content) {
   let found = false;
@@ -79064,7 +81063,7 @@ function resolveExecutionMode(input) {
 }
 
 // src/test-execution/remote-workflow-contract.ts
-import { createHash as createHash44 } from "crypto";
+import { createHash as createHash45 } from "crypto";
 function mapping(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
 }
@@ -79208,7 +81207,7 @@ function hasFixedUpload(steps) {
 }
 function resultViolations(steps) {
   const reportRun = stepById(steps, "report")?.run;
-  const reportValid = typeof reportRun === "string" && createHash44("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
+  const reportValid = typeof reportRun === "string" && createHash45("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
   return reportValid && hasFixedUpload(steps) ? [] : ["fixed_result_protocol"];
 }
 function hasSecretsKey(value) {
@@ -79466,7 +81465,7 @@ var init_remote_workflow_fs = __esm(() => {
 });
 
 // src/test-execution/remote-workflow-state.ts
-import { createHash as createHash45 } from "crypto";
+import { createHash as createHash46 } from "crypto";
 import nodePath116 from "path";
 function observationError(error2, path8) {
   const code = filesystemErrorCode(error2);
@@ -79481,7 +81480,7 @@ function normalizeLineEndings2(content) {
 `);
 }
 function workflowDigest(content) {
-  return createHash45("sha256").update(normalizeLineEndings2(content)).digest("hex");
+  return createHash46("sha256").update(normalizeLineEndings2(content)).digest("hex");
 }
 function readOpenedWorkflow(descriptor, filesystem) {
   const metadata = filesystem.fstat(descriptor);
@@ -82085,7 +84084,7 @@ var init_plan_gate = __esm(() => {
 });
 
 // src/review/approval-ledger.ts
-import { createHash as createHash46, randomUUID as randomUUID16 } from "crypto";
+import { createHash as createHash47, randomUUID as randomUUID16 } from "crypto";
 import {
   closeSync as closeSync15,
   constants as constants9,
@@ -82204,7 +84203,7 @@ function positionedEvents(ledger) {
   ];
 }
 function decisionIdempotencyKey(identity2, supersedesPosition) {
-  return createHash46("sha256").update(JSON.stringify([
+  return createHash47("sha256").update(JSON.stringify([
     identity2.ticket,
     identity2.planDigest,
     identity2.decision,
@@ -82213,7 +84212,7 @@ function decisionIdempotencyKey(identity2, supersedesPosition) {
   ])).digest("hex");
 }
 function deliveryIdempotencyKey(identity2) {
-  return createHash46("sha256").update(JSON.stringify([
+  return createHash47("sha256").update(JSON.stringify([
     identity2.ticket,
     identity2.itemId,
     identity2.proofId,
@@ -82222,7 +84221,7 @@ function deliveryIdempotencyKey(identity2) {
   ])).digest("hex");
 }
 function deliveryCompatibilityIdempotencyKey(identity2) {
-  return createHash46("sha256").update(JSON.stringify([
+  return createHash47("sha256").update(JSON.stringify([
     identity2.ticket,
     identity2.itemId,
     identity2.proofId,
@@ -82677,7 +84676,7 @@ var exports_plan_approval = {};
 __export(exports_plan_approval, {
   approvePlanResult: () => approvePlanResult
 });
-import { createHash as createHash47, randomUUID as randomUUID17 } from "crypto";
+import { createHash as createHash48, randomUUID as randomUUID17 } from "crypto";
 import {
   appendFileSync as appendFileSync3,
   existsSync as existsSync61,
@@ -82695,7 +84694,7 @@ function interruptApprovalForTest(boundary) {
   }
 }
 function planDigest(content) {
-  return createHash47("sha256").update(content).digest("hex");
+  return createHash48("sha256").update(content).digest("hex");
 }
 function readContext2(cwd, ticketId) {
   const ticketDirectory = resolveTicketDirectory(cwd, ticketId);
@@ -83108,7 +85107,7 @@ var exports_review_disposition = {};
 __export(exports_review_disposition, {
   recordReviewDisposition: () => recordReviewDisposition
 });
-import { createHash as createHash48, randomUUID as randomUUID18 } from "crypto";
+import { createHash as createHash49, randomUUID as randomUUID18 } from "crypto";
 import { existsSync as existsSync62, readFileSync as readFileSync87, renameSync as renameSync18, statSync as statSync13, unlinkSync as unlinkSync9, writeFileSync as writeFileSync33 } from "fs";
 import nodePath132 from "path";
 import process20 from "process";
@@ -83141,7 +85140,7 @@ function pending(request, kind, finding2) {
   });
 }
 function digest5(value) {
-  return createHash48("sha256").update(value).digest("hex");
+  return createHash49("sha256").update(value).digest("hex");
 }
 function currentBoundaryDigest(cwd, ticketPath, content) {
   const { metadata } = parseTicketMetadata(content);
@@ -83526,11 +85525,11 @@ var init_delivery_admission = __esm(() => {
 
 // src/execution-plan/delivery-compatibility.ts
 import { spawnSync as spawnSync21 } from "child_process";
-import { createHash as createHash49 } from "crypto";
+import { createHash as createHash50 } from "crypto";
 import { mkdirSync as mkdirSync26, writeFileSync as writeFileSync34 } from "fs";
 import nodePath134 from "path";
 function sha25611(value) {
-  return createHash49("sha256").update(value).digest("hex");
+  return createHash50("sha256").update(value).digest("hex");
 }
 function relativePathspec(projectRoot, path8) {
   const relative = nodePath134.relative(projectRoot, nodePath134.resolve(path8));
@@ -83781,7 +85780,7 @@ __export(exports_delivery_checklist, {
   observeDeliveryChecklist: () => observeDeliveryChecklist,
   hasAdmittedDeliveryChecklist: () => hasAdmittedDeliveryChecklist
 });
-import { createHash as createHash50 } from "crypto";
+import { createHash as createHash51 } from "crypto";
 import { existsSync as existsSync63, readFileSync as readFileSync88 } from "fs";
 import nodePath136 from "path";
 function findingResult(command2, code, message, recovery) {
@@ -83793,7 +85792,7 @@ function findingResult(command2, code, message, recovery) {
   });
 }
 function sha25612(value) {
-  return createHash50("sha256").update(value).digest("hex");
+  return createHash51("sha256").update(value).digest("hex");
 }
 function designApprovalEnabled2(cwd) {
   const path8 = nodePath136.join(cwd, ".safeword", "config.json");
@@ -84542,7 +86541,7 @@ var init_delivery_checklist2 = __esm(() => {
 });
 
 // src/execution-plan/execution-prerequisite.ts
-import { createHash as createHash51 } from "crypto";
+import { createHash as createHash52 } from "crypto";
 import { existsSync as existsSync64, readFileSync as readFileSync89 } from "fs";
 import nodePath137 from "path";
 function successful(status, achievedIndependence2, inputIdentity, executionPlanArtifact) {
@@ -84605,7 +86604,7 @@ function designDecisionAccepted(input) {
     return true;
   if (!existsSync64(input.implementationPath))
     return false;
-  const planDigest2 = createHash51("sha256").update(readFileSync89(input.implementationPath, "utf8")).digest("hex");
+  const planDigest2 = createHash52("sha256").update(readFileSync89(input.implementationPath, "utf8")).digest("hex");
   return currentDesignDecision(input.ledgerPath, input.ticketId, planDigest2) === "approved";
 }
 function contractedFeature(ticketDirectory, phase) {
@@ -84815,7 +86814,7 @@ function checklistPrerequisite(context, inspection) {
   };
 }
 function digest6(content) {
-  return createHash51("sha256").update(content).digest("hex");
+  return createHash52("sha256").update(content).digest("hex");
 }
 function fileDigest2(path8) {
   return path8 !== undefined && existsSync64(path8) ? digest6(readFileSync89(path8, "utf8")) : "missing";
@@ -90382,7 +92381,7 @@ init_route_config();
 init_configured_paths();
 init_online_required();
 init_result();
-import { createHash as createHash32 } from "crypto";
+import { createHash as createHash33 } from "crypto";
 import { existsSync as existsSync28, readFileSync as readFileSync46, statSync as statSync6 } from "fs";
 import nodePath69 from "path";
 async function reviewRunHandler(invocation) {
@@ -90464,8 +92463,8 @@ function ledgerRecoveryGateHandler(invocation) {
   const matchingScope = ticket === LEDGER_RECOVERY_PROFILE.ticket;
   const ledger = nodePath69.join(invocation.cwd, LEDGER_RECOVERY_PROFILE.ledger);
   const feature = nodePath69.join(invocation.cwd, LEDGER_RECOVERY_PROFILE.feature);
-  const scopeChanged = matchingScope && existsSync28(feature) && createHash32("sha256").update(readFileSync46(feature)).digest("hex") !== LEDGER_RECOVERY_PROFILE.featureSha256;
-  const historyChanged = matchingScope && existsSync28(ledger) && createHash32("sha256").update(readFileSync46(ledger)).digest("hex") !== LEDGER_RECOVERY_PROFILE.ledgerSha256;
+  const scopeChanged = matchingScope && existsSync28(feature) && createHash33("sha256").update(readFileSync46(feature)).digest("hex") !== LEDGER_RECOVERY_PROFILE.featureSha256;
+  const historyChanged = matchingScope && existsSync28(ledger) && createHash33("sha256").update(readFileSync46(ledger)).digest("hex") !== LEDGER_RECOVERY_PROFILE.ledgerSha256;
   let code = "LEDGER_RECOVERY_SCOPE_MISMATCH";
   let message = "Completion recovery is limited to the approved 5F5ZZA scope.";
   if (matchingScope) {
