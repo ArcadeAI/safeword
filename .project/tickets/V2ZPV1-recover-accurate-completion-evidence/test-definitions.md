@@ -51,6 +51,17 @@ LEDGER_RECOVERY_SCOPE_CHANGED and does not rewrite the feature.
 - [x] GREEN 89fda7fbf
 - [x] REFACTOR skip: scope and history checks share the existing fixed profile
 
+### Scenario: Recovery summarizes only the exact passing active report
+
+Synthetic parser controls exercise the exact 142 case identities and their assertions.
+A same-count deferred substitution, duplicate, skipped step, failed hidden hook,
+missing assertion or failed process cannot produce a summary. A summary is not
+authenticated observation, certification or actor-facing acceptance proof.
+
+- [x] RED 82584dbe2
+- [x] GREEN c1df9c691
+- [x] REFACTOR d552f52af
+
 ### Scenario: Recovery requires the exact active case set
 
 Given an otherwise valid signed observation with one active Examples row
