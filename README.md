@@ -450,10 +450,12 @@ progress does not stale it. A changed reviewed decision calls for re-review befo
 the affected phase advances. When independent routes fail,
 `prefer` can admit a completed fallback with its actual reviewer and **reduced
 independence**; `require` cannot. Repair the cause or configure a qualified
-route, then re-review for independent assurance. Local Claude Code, local Codex,
-local Cursor, OpenCode CLI/TUI, Claude Code Cloud, and Cursor Cloud Agents have
-enforced planning entry points. Codex Cloud and OpenCode Desktop are advisory;
-use an enforced host for an authoritative planning approval.
+route, then re-review for independent assurance. Local Claude Code, local Codex
+and local Cursor have verified enforced planning entry points. Verification for
+OpenCode CLI/TUI, Claude Code Cloud and Cursor Cloud Agents is deferred under
+MCWV4B; their enforcement is not established by this delivery. Codex Cloud and
+OpenCode Desktop are advisory; use a verified enforced host for an authoritative
+planning approval.
 
 **Codex plugin skills**: Codex gets Safeword workflow skills from the Safeword Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safeword-owned workflow aliases into `.agents/skills/`.
 
