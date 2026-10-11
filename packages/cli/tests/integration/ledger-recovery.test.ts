@@ -102,6 +102,34 @@ describe('bounded completion recovery through the public CLI', () => {
     expect(readFileSync(ledger, 'utf8')).toBe(changed);
   });
 
+  it('rejects changed inherited scope tags even when case counts stay identical', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-ledger-recovery-scope-'));
+    roots.push(root);
+    const repo = nodePath.resolve(import.meta.dirname, '../../../..');
+    const ledgerPath =
+      '.project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/test-definitions.md';
+    mkdirSync(nodePath.dirname(nodePath.join(root, ledgerPath)), { recursive: true });
+    writeFileSync(nodePath.join(root, ledgerPath), readFileSync(nodePath.join(repo, ledgerPath)));
+    const featurePath = 'features/keep-plan-reviews-current-and-trustworthy.feature';
+    mkdirSync(nodePath.join(root, 'features'));
+    const feature = readFileSync(nodePath.join(repo, featurePath), 'utf8');
+    writeFileSync(nodePath.join(root, featurePath), feature);
+    const valid = recoveryGate(root, '5F5ZZA');
+    expect(JSON.parse(valid.stdout).findings[0]?.code).toBe('LEDGER_RECOVERY_EVIDENCE_MISSING');
+    const changed = feature.replace(
+      '@plan-implementability.TBU4.5F5ZZA.R1',
+      '@plan-implementability.TBU4.OTHER1.R1',
+    );
+    expect(changed).not.toBe(feature);
+    writeFileSync(nodePath.join(root, featurePath), changed);
+    const result = recoveryGate(root, '5F5ZZA');
+    expect(result.status).toBe(2);
+    expect(JSON.parse(result.stdout).findings[0]?.code, result.stdout + result.stderr).toBe(
+      'LEDGER_RECOVERY_SCOPE_CHANGED',
+    );
+    expect(readFileSync(nodePath.join(root, featurePath), 'utf8')).toBe(changed);
+  });
+
   it('proves the same empty-project fixture reaches the existing retrospective scope guard', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-ledger-recovery-control-'));
     roots.push(root);
