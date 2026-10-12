@@ -193,6 +193,7 @@ async function reviewThroughCli(
     );
   }
   expect(envelope.data?.actual_reviewer, invoked.stdout).toBe(assigned);
+  assertConfirmedModel(envelope.data, assigned, invoked.stdout);
   // The synthetic author has no attested model; preserve the CLI's reduced assurance.
   expect(envelope.data?.independence, invoked.stdout).toBe('reduced');
   const output = envelope.data?.reviewer_output as ReviewerOutput | undefined;
@@ -200,6 +201,19 @@ async function reviewThroughCli(
   expect(invoked.exitCode, invoked.stdout).toBe(testCase.expectation.verdict === 'approve' ? 0 : 2);
   await assertCliDiscovery(testCase, root, ticket, output, options);
   return output;
+}
+
+function assertConfirmedModel(
+  data: { confirmed_reviewer_model?: unknown },
+  assigned: ReviewAgent,
+  evidence: string,
+): void {
+  if (model !== undefined) {
+    expect(data.confirmed_reviewer_model, evidence).toEqual({
+      provider: assigned === 'codex' ? 'openai' : 'anthropic',
+      model,
+    });
+  }
 }
 
 async function assertCliDiscovery(
@@ -390,7 +404,10 @@ describe.skipIf(!CLI_LIVE)('installed CLI semantic conformance', () => {
           env,
           timeout: 30_000,
           // Empty selects cwd in Claude; remove the override for its default profile.
-          unsetEnv: liveProfile === 'default' ? ['CLAUDE_CONFIG_DIR'] : [],
+          unsetEnv: [
+            'SAFEWORD_AUTHOR_MODEL',
+            ...(liveProfile === 'default' ? ['CLAUDE_CONFIG_DIR'] : []),
+          ],
         });
       try {
         mkdirSync(nodePath.join(directory, '.safeword'));
@@ -440,7 +457,8 @@ describe.skipIf(!CLI_LIVE)('installed CLI semantic conformance', () => {
         expect(result.timedOut).toBe(false);
         expect(response.errors, JSON.stringify(response)).toEqual([]);
         expect(response.data?.actual_reviewer).toBe(reviewer);
-        expect(response.data?.independence).toBe('cross-agent');
+        expect(response.data?.independence).toBe('reduced');
+        assertConfirmedModel(response.data, reviewer, JSON.stringify(response));
         expect(response.data?.status).toBe(
           testCase.expectation.verdict === 'approve' ? 'approved' : 'changes_requested',
         );
@@ -455,7 +473,10 @@ describe.skipIf(!CLI_LIVE)('installed CLI semantic conformance', () => {
               cwd: directory,
               env,
               timeout: 30_000,
-              unsetEnv: liveProfile === 'default' ? ['CLAUDE_CONFIG_DIR'] : [],
+              unsetEnv: [
+                'SAFEWORD_AUTHOR_MODEL',
+                ...(liveProfile === 'default' ? ['CLAUDE_CONFIG_DIR'] : []),
+              ],
             },
           );
           const transition = JSON.parse(applied.stdout);

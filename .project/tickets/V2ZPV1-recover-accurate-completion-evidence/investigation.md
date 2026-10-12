@@ -265,3 +265,45 @@ under request_changes. The host producer removes its pending-only policy.
 The unrelated-warning regression failed against the old implementation; final
 result tests passed51/51 on recovery and49/49 on the base. Source review and
 commit checks remain in progress for these final repairs.
+
+### October 12 native access retry
+
+A minimal real native Sol request completed successfully. Qualification access
+remains intermittent: the four-case retry passed complete-measurement-execution
+and failed three native turns (one guard also passed; 59 unselected tests).
+The subsequent three-case run passed all-obligations-assigned and
+fresh-context-first-red, but accepted-data-ownership still failed (60 unselected).
+Logs and actual result arrays remain under /tmp/4200-sol-four-case-retry*and
+/tmp/4200-sol-three-case-second-retry*. These runs are not a fresh complete
+63-case qualification and do not replace the earlier failed aggregate.
+
+A disposable diagnostic test retained the accepted-data-ownership failed turn.
+The backend again returned HTTP400 invalid_request_error: gpt-6.1-sol is not
+supported when using Codex with a ChatGPT account. The same case succeeded
+in a separate direct call for all-obligations-assigned; neither a simple
+probe nor isolated successes establish reliable qualification access.
+/tmp/4200-sol-data-diagnostic.log retains the failure. Both temporary source
+copies were removed. No credential values were printed.
+
+Independent review found the public CLI proof recorded the configured model
+without requiring the coordinator's confirmed model. Both CLI paths now require
+confirmed_reviewer_model matching provider and model. The legacy opt-in CLI
+path also preserves reduced assurance for its unattested Codex author and
+unsets inherited author model metadata. Review a299d34b-ef74-4a8a-a221-a019c2171598
+requested the model check; the subsequent assurance finding was corrected.
+/tmp/4200-model-proof-assurance-review.json records approval of the final
+semantic changes; optional warnings remain. Full live public CLI proof is still
+unverified. No admission regeneration, recovery observation, merge, promotion
+or completion credit occurred. The remaining blocker is reliable authorized
+native Sol access; repeated retries and replacing Sol with Astra do not solve
+that requirement.
+
+Final current source review ae97df6c-ca11-43fd-88b7-58aae4e6044a approved
+the confirmed-model and reduced-assurance assertions after the shared assertion
+helper was extracted to keep complexity within the existing limit. Optional
+profile/cancellation warnings remain; no further scope expansion was made.
+Deterministic conformance:61/61 passed. Final file lint and CLI typecheck passed;
+logs /tmp/4200-model-proof-conformance-tests.log,
+/tmp/4200-model-proof-final-lint.log and
+/tmp/4200-model-proof-final-typecheck.log. These checks do not substitute for
+the blocked complete live qualification or 142-case recovery observation.
