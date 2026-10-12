@@ -357,7 +357,7 @@ Before(
       proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName, true));
       const result = await proofCache.get(key)!;
       this.result = { stderr: result.output, stdout: '', exitCode: result.exitCode };
-      if (result.exitCode !== 0 || corpusProof) return;
+      if (result.exitCode !== 0) return;
     }
     const key = `${proof.testFile}:${proof.selector}`;
     proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName));
