@@ -1370,7 +1370,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
   ),
   decisionChangingDiscovery(
     'unresolved-authorization-decision',
-    'A formally complete slice leaving authorization ownership undecided is denied.',
+    'A vague component boundary leaving the accepted authorization architecture undecided is denied.',
     executionPlan({
       decision: 'one pull request',
       rationale: 'The slice is mechanically complete.',
@@ -1378,11 +1378,11 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
         {
           ...CONTRACT_SLICE,
           boundary:
-            'The implementer will decide whether each transport or one service owns authorization.',
+            'Use the appropriate component boundary for authorization; the implementer will decide whether each transport or one service owns authorization.',
         },
       ],
     }),
-    ['authorization'],
+    ['authorization', ['architecture', 'component', 'transport', 'service']],
   ),
   approved(
     'ordered-schema-before-reader',
@@ -1866,7 +1866,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
     'later-step-is-not-startable',
     'A concrete first RED cannot hide an unresolved behavior decision in the fourth step.',
     LATER_UNSTARTABLE_PLAN,
-    ['behavior', 'decision'],
+    ['behavior', 'decision', ['step 4', 'task 4', 'fourth', '4. TODO']],
   ),
   denied(
     'blocked-first-prerequisite',

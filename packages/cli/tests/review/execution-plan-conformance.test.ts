@@ -193,8 +193,10 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'request_changes',
-      finding_terms: ['authorization'],
+      finding_terms: ['authorization', ['architecture', 'component', 'transport', 'service']],
     });
+    expect(testCase?.execution_plan).toContain('the appropriate component boundary');
+    expect(testCase?.implementation_plan).toContain('One shared authorization service');
   });
 
   it.each([
@@ -266,7 +268,7 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'request_changes',
-      finding_terms: ['behavior', 'decision'],
+      finding_terms: ['behavior', 'decision', ['step 4', 'task 4', 'fourth', '4. TODO']],
     });
     expect(testCase?.execution_plan).toContain(
       '1. RED: run `bun run test tests/auth.test.ts -t denied-request`',

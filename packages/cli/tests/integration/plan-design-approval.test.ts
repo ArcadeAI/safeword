@@ -1164,6 +1164,24 @@ describe('Implementation Plan review admission controls Execution Planning', () 
     );
   });
 
+  it('preserves authenticated cross-agent assurance in Execution Planning', async () => {
+    const project = fixture(false);
+    // Simulate a trusted worker receipt; this is not live model-capability evidence.
+    mutateReview(project, data => ({ ...data, independence: 'cross-agent' }));
+    rewriteReviewStamps(project, line =>
+      line.replace('independence:reduced', 'independence:cross-agent'),
+    );
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: { approval_status: 'not-required', achieved_independence: 'cross-agent' },
+    });
+  });
+
   it('preserves a permitted fallback as degraded assurance', async () => {
     const project = fixture(false);
     mutateReview(project, data => ({ ...data, independence: 'degraded' }));

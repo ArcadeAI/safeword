@@ -107,12 +107,18 @@ function liveReviewerEnvironment(
   assigned: ReviewAgent,
   author: string,
 ): Record<string, string | undefined> {
+  const claudeProfile =
+    process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CLAUDE_CONFIG_DIR ??
+    process.env.SAFEWORD_LIVE_CLAUDE_CONFIG_DIR;
+  const codexProfile =
+    process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CODEX_HOME ?? process.env.SAFEWORD_LIVE_CODEX_HOME;
   return {
     SAFEWORD_AGENT_RUNTIME: author,
+    SAFEWORD_AUTHOR_MODEL: undefined,
     ...(assigned === 'claude' && {
-      CLAUDE_CONFIG_DIR: process.env.SAFEWORD_LIVE_CLAUDE_CONFIG_DIR || undefined,
+      CLAUDE_CONFIG_DIR: claudeProfile === 'default' ? undefined : claudeProfile || undefined,
     }),
-    ...(assigned === 'codex' && { CODEX_HOME: process.env.SAFEWORD_LIVE_CODEX_HOME || undefined }),
+    ...(assigned === 'codex' && { CODEX_HOME: codexProfile || undefined }),
   };
 }
 
@@ -137,7 +143,7 @@ async function reviewThroughCli(
     nodePath.join(ticket, 'impl-plan.md'),
     `**Status:** planned\n\n${testCase.implementation_plan}`,
   );
-  writeFileSync(nodePath.join(ticket, 'scenario.feature'), testCase.scenario);
+  writeFileSync(nodePath.join(ticket, 'scenario.feature'), testCase.accepted_scenario);
   writeFileSync(
     nodePath.join(ticket, 'ticket.md'),
     '---\nid: CASE01\nslug: conformance\ntype: feature\nphase: plan-execution\nscope:\n  - Deliver the accepted obligations in the Implementation Plan.\nout_of_scope:\n  - Change the accepted approach.\ndone_when:\n  - Every accepted obligation has startable reviewed work.\n---\n',
@@ -187,7 +193,8 @@ async function reviewThroughCli(
     );
   }
   expect(envelope.data?.actual_reviewer, invoked.stdout).toBe(assigned);
-  expect(envelope.data?.independence, invoked.stdout).toBe('cross-agent');
+  // The synthetic author has no attested model; preserve the CLI's reduced assurance.
+  expect(envelope.data?.independence, invoked.stdout).toBe('reduced');
   const output = envelope.data?.reviewer_output as ReviewerOutput | undefined;
   if (!output) throw new Error(`Public CLI did not return a reviewer output: ${invoked.stdout}`);
   expect(invoked.exitCode, invoked.stdout).toBe(testCase.expectation.verdict === 'approve' ? 0 : 2);
@@ -238,6 +245,7 @@ function assertApproval(testCase: ExecutionPlanConformanceCase, output: Reviewer
         owner =>
           owner.obligation === obligation ||
           owner.obligation === `Deliver ${obligation}.` ||
+          owner.obligation.startsWith(`Deliver and prove ${obligation}: `) ||
           owner.obligation.startsWith(`${obligation}, `) ||
           owner.obligation.startsWith(`${obligation}: `),
       ),

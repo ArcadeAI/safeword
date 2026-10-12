@@ -30,7 +30,7 @@ const FEATURE_PATH = nodePath.join(
   'features/turn-decisions-into-startable-work.feature',
 );
 const TIMEOUT_MS =
-  EXECUTION_PLAN_CONFORMANCE_CASES.length * (reviewTimeoutMilliseconds({}) + 60_000) + 180_000;
+  EXECUTION_PLAN_CONFORMANCE_CASES.length * (reviewTimeoutMilliseconds() + 60_000) + 180_000;
 
 interface Proof {
   readonly expectedTests: number;
@@ -40,13 +40,13 @@ interface Proof {
 
 const proofs: Record<string, Proof> = {
   'Implementation Plan review state controls Execution Planning': {
-    expectedTests: 14,
+    expectedTests: 15,
     selector:
       'Implementation Plan review admission controls Execution Planning|advances non-interactively and records not-required when the gate is disabled',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'Review routes preserve their actual provenance': {
-    expectedTests: 14,
+    expectedTests: 15,
     selector:
       'Implementation Plan review admission controls Execution Planning|advances non-interactively and records not-required when the gate is disabled',
     testFile: 'tests/integration/plan-design-approval.test.ts',
@@ -123,9 +123,9 @@ const proofs: Record<string, Proof> = {
     testFile: 'tests/integration/coding-authorization.test.ts',
   },
   'Execution Plan verdict and recorded assurance control coding authorization': {
-    expectedTests: 7,
+    expectedTests: 8,
     selector:
-      'authorizes coding from current project-local reviewed plans|rejects a semantic receipt|reports a semantic receipt|authorizes a permitted fallback|rejects a receipt with no validated|ignores an author-written|limits an approved result to coding authorization',
+      'authorizes coding from current project-local reviewed plans|rejects a semantic receipt|reports a semantic receipt|authorizes a permitted fallback|rejects a receipt with no validated|ignores an author-written|limits an approved result to coding authorization|preserves authenticated cross-agent assurance in coding authorization',
     testFile: 'tests/integration/coding-authorization.test.ts',
   },
   'Every accepted obligation must map to startable work': {
@@ -240,16 +240,6 @@ const proofs: Record<string, Proof> = {
 };
 
 const proofCache = new Map<string, Promise<{ exitCode: number; output: string }>>();
-let buildPromise: Promise<void> | undefined;
-
-function buildCli(): Promise<void> {
-  buildPromise ??= execFileAsync('bun', ['run', 'build'], {
-    cwd: CLI_PACKAGE,
-    env: { ...process.env, NODE_OPTIONS: undefined },
-  }).then(() => undefined);
-  return buildPromise;
-}
-
 async function runProof(
   scenarioName: string,
   liveSemantic = false,
@@ -269,7 +259,6 @@ async function runProof(
       testFile: 'tests/smoke/execution-plan.live.test.ts',
     };
   }
-  await buildCli();
   const temporaryDirectory = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'safeword-7camad-'));
   const reportPath = nodePath.join(temporaryDirectory, 'report.json');
   const retainedDirectory = nodePath.join(PROJECT_ROOT, '.safeword/logs');
@@ -297,10 +286,12 @@ async function runProof(
           NODE_OPTIONS: undefined,
           ...(semantic && {
             SAFEWORD_EXECUTION_PLAN_LIVE_CLI: '1',
+            SAFEWORD_RUN_EXECUTION_PLAN_CLI_LIVE: '0',
+            SAFEWORD_EXECUTION_PLAN_CLI_LIVE_CASES: undefined,
             SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER:
-              process.env.SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER ?? 'claude',
+              process.env.SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER ?? 'codex',
             SAFEWORD_EXECUTION_PLAN_LIVE_MODEL:
-              process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL ?? 'opus',
+              process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL ?? 'gpt-6.1-sol',
             SAFEWORD_EXECUTION_PLAN_RESULTS_PATH: semanticResultsPath,
           }),
         },

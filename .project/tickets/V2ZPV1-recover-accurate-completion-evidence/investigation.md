@@ -163,3 +163,105 @@ The frozen 6f9ccdbb observer ended after 80m22s with exit 1: all 142 cases execu
 Competing explanations: (1) actual missing independent approach decisions, (2) reviewer overblocking, (3) the negative fixture fails to isolate its claimed unique defect. The baseline uses generic no-write proof wording and leaves atomicity implicit while the case claims all approach choices are already decided. The judge itself disagrees across similar additional findings; this is not clean evidence for weakening its rules. The surgical correction is to state the already-accepted single atomic mutation and zero-write-invocation proof boundaries in this synthetic fixture, while keeping the reviewed architecture's wrong after-write ordering and the required request_changes verdict unchanged. This changes no production rubric, expected verdict, judge rule, model, repetition count, agreement threshold, case identity, or deferred scope. All epic test edits were explicitly authorized by the user.
 
 The corpus manifest digest was recomputed from the actual changed fixture; the initial stale-manifest refusal is retained. The corrected isolated native run passed 3/3 reviewer/judge attempts, each request_changes, at /tmp/4200-recovery-r11-isolated-eval.json (log /tmp/4200-recovery-r11-isolated-eval-current.log). This targeted pass is not substituted for a fresh complete aggregate. Source review, source integration, generators and final frozen aggregate are still required.
+
+### Current-main foundation integration — 2026-10-12
+
+Root Draft #4906 was updated to ab11903b7 through normal hooks and push; its
+GitHub conflict is cleared and CI restarted. No PR was promoted or merged.
+Local recovery integration 35c1a7053 and 8f3477b38 retains the stacked source.
+Generated conflicts were regenerated from canonical source. Four test-input
+conflicts were reconciled; an initial conflict-reconstruction script truncated
+files, which failed parser/type verification before commit. The files were
+reconstructed from the actual three source versions with bounded marker
+matching, then typechecked; this failed attempt remains in the retained logs.
+Two integration fixture failures (duplicate proof declaration and a mutation
+that still searched for cross-agent after the fixture became reduced) were
+corrected, preserving rejection assertions. Coding authorization passed16/16.
+
+The shared semantic acceptance matrix now runs once, then each scenario runs
+its exact supporting corpus selector. The live reviewer uses the current
+qualified Sol model and pinned client; paid model upgrades are not implicit.
+A public CLI positive review approved under pinned Codex0.160.0 but correctly
+reported reduced assurance for the synthetic author without an attested model.
+The test must retain this exact assurance, not claim cross-agent strength.
+Root review still reports architecture-specificity coverage absent in its
+pre-stack corpus, and its pre-stack journey stops at RED. The stacked journey
+already exercises GREEN and REFACTOR; architecture coverage needs current
+source investigation before any completion claim.
+
+### Proof-fidelity repairs and current qualification
+
+Independent source review 20bb4bd5-c708-4453-8822-8038d5112f0d approved the
+corrected proof bindings. It retains warnings about bootstrap order, indirect
+downstream authority checks, and approved discovery phase checks. The public
+CLI now receives accepted_scenario rather than the answer-bearing case title;
+the synthetic author deliberately has no attested model and must report the
+actual reduced assurance. Separate signed-fixture tests check preservation of
+cross-agent assurance and explicitly do not claim live capability evidence.
+The architecture specificity case reuses the accepted authorization ownership
+boundary; no case was removed or added. The fourth-step denial now must name
+that step, using explicit wording alternatives. Corpus contract tests pass
+61/61. Root live bindings resolve all 47 scenarios and 3009 steps in dry run;
+that result is unverified rather than a live pass.
+
+The first changed architecture native run returned the correct rejection and
+named its architecture boundary, but an incorrectly pipe-encoded alternative
+failed the test oracle. The alternatives were corrected to the existing array
+representation. Another native full qualification was stopped with exit 130
+when source review found the missing fourth-step assertion; it receives no
+aggregate credit. The corrected 63-case Sol qualification is now running with
+source inputs frozen. Existing admission evidence is intentionally stale until
+new actual complete qualification is generated. The resulting integration
+run had 39 passing and 17 failing tests due to exhausted unqualified execution
+review routes; it is retained and will be rerun after admission regeneration.
+The existing evidence contains Sol and Claude Opus 5 identities; neither may
+be silently carried into the changed corpus or removed to hide failures.
+
+All eight existing Draft PRs have green CI and no GitHub conflicts. No merge or
+promotion occurred. Current source still requires qualification, generated
+surfaces, full verification, real CLI acceptance, the exact 142-case observation,
+case-bound certification, and installed-authority deployment.
+
+During the final base review, a read-only formatter reproduction showed an
+approved warning saying an architecture record already exists rendered as
+“Check: Durable architecture link — failed.” It is retained at
+/tmp/4200-approved-review-presentation-reproduction.json. The formatter repair
+is queued until the frozen qualification ends; it is not counted as fixed.
+
+### Current native model-access blocker — 2026-10-12
+
+The complete corrected Sol qualification ended with 63 cases executed: 59
+passed, four failed. Log /tmp/4200-final-reviewed-sol-qualification.log and raw
+results /tmp/4200-final-reviewed-sol-qualification-results.json are retained.
+The fresh-context approval assigned “Deliver and prove Accepted behavior…” to
+the correct slice; the oracle only recognized narrower action phrasing. The
+bounded explicit phrase was added without removing the ownership requirement.
+The other three cases failed at the native turn, before semantic output.
+
+A disposable copy of the real runtime retained the failed turn event for those
+three exact cases. All three reproduced the backend failure. Its temporary
+source file was removed; no wrapper, fake reply or receipt was installed.
+The backend error is HTTP400 invalid_request_error: gpt-6.1-sol is not supported
+when using Codex with a ChatGPT account. Client version remains0.160.0. The
+same isolated-auth-profile model/list advertises gpt-6.1-sol, but official
+OpenAI documentation says this may be a cached catalog and is not entitlement
+proof. The documented Responses route queried with the existing access token
+returned HTTP403. Credentials were never printed or copied into tracked files.
+Evidence: /tmp/4200-native-turn-failure-detail.json,
+/tmp/4200-native-turn-diagnosis.log, /tmp/4200-native-model-list.json.
+
+Decision: do not replace Sol with Astra, relax qualification, fabricate current
+admission, or build a new OAuth integration in this epic. A working authorized
+native Sol profile is required; the user has been asked whether one exists.
+Current missing qualification remains visible. No 142-case observation or
+certification is claimed after these source changes.
+
+The unrelated approved-warning presentation defect was repaired with real RED
+and GREEN: three regressions first failed; then48 tests passed. Independent
+review found a warning could also produce a failed architecture check during
+an unrelated rejection, and a host continuation retained a pending-only policy.
+The matching architecture prefix now requires an actual typed error finding
+under request_changes. The host producer removes its pending-only policy.
+The unrelated-warning regression failed against the old implementation; final
+result tests passed51/51 on recovery and49/49 on the base. Source review and
+commit checks remain in progress for these final repairs.

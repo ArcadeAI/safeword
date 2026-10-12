@@ -2429,12 +2429,14 @@ function isRecord(value) {
 function reviewCoverage(data) {
   const author = data.author_agent;
   const reviewer = data.actual_reviewer;
-  if (typeof author !== "string" || !REVIEW_AUTHORS.has(author) || typeof reviewer !== "string") {
+  if (typeof author !== "string" || !REVIEW_AUTHORS.has(author) || typeof reviewer !== "string" || !REVIEW_AGENTS.has(reviewer)) {
     return "incomplete";
   }
-  if (data.independence === "degraded" && REVIEW_AGENTS.has(reviewer) && reviewer === author)
+  if (data.independence === "reduced")
+    return "reduced";
+  if (data.independence === "degraded" && reviewer === author)
     return "standard";
-  if (data.independence === "cross-agent" && REVIEW_AGENTS.has(reviewer) && reviewer !== author) {
+  if (data.independence === "cross-agent" && reviewer !== author) {
     return "independent";
   }
   return "incomplete";
@@ -2548,10 +2550,13 @@ function suggestionForFailure(failure, label) {
   }
   return;
 }
-function planArchitectureReceiptLines(data, messages) {
-  if (data.review_kind !== "plan-implementation")
+function planArchitectureReceiptLines(data) {
+  if (data.review_kind !== "plan-implementation" || data.status !== "changes_requested")
     return;
-  const architectureBlocker = messages.find((message) => /shared-contract choice.+durable architecture (?:record|link)/iu.test(message));
+  const output = data.reviewer_output;
+  if (!isRecord(output) || output.verdict !== "request_changes" || !Array.isArray(output.findings))
+    return;
+  const architectureBlocker = output.findings.find((finding) => isRecord(finding) && finding.severity === "error" && typeof finding.message === "string" && /shared-contract choice.+durable architecture (?:record|link)/iu.test(finding.message));
   if (architectureBlocker === undefined)
     return;
   const targets = Array.isArray(data.review_targets) ? data.review_targets.filter((target) => typeof target === "string") : [];
@@ -2571,7 +2576,7 @@ function reviewResultLines(result, options) {
     return;
   const messages = result.findings.filter((finding) => !REPLACED_REVIEW_FINDINGS.has(finding.code)).map((finding) => finding.message);
   messages.push(...result.errors.map((error2) => error2.message));
-  const planReceipt = planArchitectureReceiptLines(result.data, messages) ?? [];
+  const planReceipt = planArchitectureReceiptLines(result.data) ?? [];
   const lines = [...planReceipt, reviewCoverageLine(result.data, result.state), ...messages];
   if (options.verbose === true) {
     const suggestion = reviewUpgradeSuggestion(result.data, result.state);
@@ -38889,16 +38894,16 @@ After Risk probe, CLI consumer, and Documentation consumer are integrated into t
         }
       ]
     }), ["independent", "contract"]),
-    decisionChangingDiscovery("unresolved-authorization-decision", "A formally complete slice leaving authorization ownership undecided is denied.", executionPlan({
+    decisionChangingDiscovery("unresolved-authorization-decision", "A vague component boundary leaving the accepted authorization architecture undecided is denied.", executionPlan({
       decision: "one pull request",
       rationale: "The slice is mechanically complete.",
       slices: [
         {
           ...CONTRACT_SLICE,
-          boundary: "The implementer will decide whether each transport or one service owns authorization."
+          boundary: "Use the appropriate component boundary for authorization; the implementer will decide whether each transport or one service owns authorization."
         }
       ]
-    }), ["authorization"]),
+    }), ["authorization", ["architecture", "component", "transport", "service"]]),
     approved("ordered-schema-before-reader", "Schema addition precedes reader activation.", ORDERED_SCHEMA_PLAN, "multiple_pull_requests", ["Schema", "Reader"]),
     denied("unsafe-intermediate-merge", "An earlier merge requiring an unmerged handler is denied with its missing prerequisite.", executionPlan({
       decision: "multiple pull requests",
@@ -39192,7 +39197,7 @@ Move the handler file and replace the accepted public command response with a ne
       ...denied("missing-denied-exit-assertion", "A proof step with a placeholder denied-exit result is denied with the missing exit assertion named.", MISSING_DENIED_EXIT_ASSERTION_PLAN, ["exit", "assertion"]),
       implementation_plan: PROOF_ONLY_IMPLEMENTATION_PLAN
     },
-    decisionChangingDiscovery("later-step-is-not-startable", "A concrete first RED cannot hide an unresolved behavior decision in the fourth step.", LATER_UNSTARTABLE_PLAN, ["behavior", "decision"]),
+    decisionChangingDiscovery("later-step-is-not-startable", "A concrete first RED cannot hide an unresolved behavior decision in the fourth step.", LATER_UNSTARTABLE_PLAN, ["behavior", "decision", ["step 4", "task 4", "fourth", "4. TODO"]]),
     denied("blocked-first-prerequisite", "The first planned slice depends on an incomplete prerequisite and is not startable.", BLOCKED_FIRST_PREREQUISITE_PLAN, ["prerequisite", "Unfinished contract"]),
     denied("no-executable-steps", "A plan with no executable task leaves a fresh agent with no startable step.", NO_EXECUTABLE_STEPS_PLAN, [
       ["executable", "startable", "empty"],
@@ -60960,7 +60965,8 @@ function reviewerFeedback(output) {
   ];
 }
 function hostContinuationCompletion(input) {
-  const data = input.pending.data;
+  const data = { ...input.pending.data };
+  Reflect.deleteProperty(data, "review_policy");
   return createResult({
     state: input.output.verdict === "approve" ? "healthy" : "action_required",
     findings: [

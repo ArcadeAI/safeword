@@ -300,7 +300,8 @@ export function hostContinuationCompletion(input: {
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
 }): CliResult {
-  const data = input.pending.data as Record<string, unknown>;
+  const data = { ...(input.pending.data as Record<string, unknown>) };
+  Reflect.deleteProperty(data, 'review_policy');
   return createResult({
     state: input.output.verdict === 'approve' ? 'healthy' : 'action_required',
     findings: [

@@ -546,6 +546,22 @@ describe('coding authorization', () => {
     }
   });
 
+  it('preserves authenticated cross-agent assurance in coding authorization', async () => {
+    const root = await featureFixture(true);
+    // Simulate a trusted worker receipt; this is not live model-capability evidence.
+    mutateExecutionReview(root, data => ({ ...data, independence: 'cross-agent' }));
+    rewriteExecutionReviewStamp(root, line =>
+      line.replace('independence:reduced', 'independence:cross-agent'),
+    );
+    const result = await codingAuthorization(root);
+    expect(result.exitCode).toBe(0);
+    expect(result.data).toMatchObject({
+      coding_authorization: 'authorized',
+      achieved_independence: 'cross-agent',
+      grants_authority: false,
+    });
+  });
+
   it(
     'identifies every stable authorization input but ignores checklist progress',
     async () => {
