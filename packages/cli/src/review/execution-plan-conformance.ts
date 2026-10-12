@@ -1611,7 +1611,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       'pending-human-authority-is-not-complete',
       'Completed contributor work remains incomplete while required human authority is pending.',
       PENDING_HUMAN_CLAIMED_COMPLETE_PLAN,
-      ['human', 'pending', ['complete', 'completion', 'claimed']],
+      [['human', 'security owner'], 'pending', ['complete', 'completion', 'claimed']],
     ),
     implementation_plan: `${IMPLEMENTATION_PLAN}
 ## Existing human authority for this fixture

@@ -39023,7 +39023,7 @@ After Risk probe, CLI consumer, and Documentation consumer are integrated into t
     denied("earlier-proof-remains-open", "Reusable earlier-revision proof remains open until current proof is collected.", EARLIER_PROOF_CLAIMED_CURRENT_PLAN, ["earlier", "open"]),
     denied("known-defect-is-not-complete", "A known defect remains separate target correction work and cannot be called complete.", KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN, ["defect", "complete"]),
     {
-      ...denied("pending-human-authority-is-not-complete", "Completed contributor work remains incomplete while required human authority is pending.", PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, ["human", "pending", ["complete", "completion", "claimed"]]),
+      ...denied("pending-human-authority-is-not-complete", "Completed contributor work remains incomplete while required human authority is pending.", PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, [["human", "security owner"], "pending", ["complete", "completion", "claimed"]]),
       implementation_plan: `${IMPLEMENTATION_PLAN}
 ## Existing human authority for this fixture
 

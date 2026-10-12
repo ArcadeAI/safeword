@@ -307,3 +307,88 @@ logs /tmp/4200-model-proof-conformance-tests.log,
 /tmp/4200-model-proof-final-lint.log and
 /tmp/4200-model-proof-final-typecheck.log. These checks do not substitute for
 the blocked complete live qualification or 142-case recovery observation.
+
+### Frozen qualification and parallel readiness preparation — 2026-10-12
+
+The accepted-data-ownership case passed on its later real native Sol retry:
+/tmp/4200-sol-data-1120-retry.log and its result array record one case plus the
+identity guard passing. Together the four earlier failures have isolated
+passing reruns. This remains targeted diagnosis, not a complete matrix.
+
+Full Sol qualification started at frozen source revision
+4febf56b1cf90a7842fcc854db515fb328aa1f4e. Its destination is
+/tmp/4200-current-full-sol-results.json; its log is
+/tmp/4200-current-full-sol.log. No current complete passing result is claimed
+while it runs. Claude qualification is queued behind it; one Vitest process
+remains the limit. Product/test inputs remain unchanged during this run.
+
+Parallel preparation checked all eight remote Draft heads: no failed or pending
+CI checks at the snapshot. Skipped jobs are not execution proof. Root #4906's
+description was rewritten around its actual 711e324126e937bc2029f4962d6ad2add311fe21
+head; the other seven descriptions now carry current-head checkpoints while
+preserving historical evidence. Nothing was merged or promoted. Merge order is
+PRs #4906, #4989, #4990, #4991, #5041, #5051, #5086, #5139, then the still-unpublished
+recovery Draft. The prepared checklist is /tmp/4200-merge-and-release-plan.md;
+source readiness and trusted installed deployment remain separate.
+
+Fresh independent ordinary source review e0172925-9a68-4ff9-8998-a124f84951e7
+approved the six recovery-core files without blocking errors. Follow-up review
+0dce82c0-3f4c-411c-90fc-5b2b2de5aa9f approved job/runtime authentication and
+closing-hook integration without blocking errors. These are source approvals,
+not typed case-bound recovery certifications or whole-stack readiness.
+
+Warning dispositions: job.js enforces observation kind/ticket/profile binding,
+fresh target/context fingerprints, cross-agent approval and true typed
+confirmations. The frozen ledger hash pins the sole erratum deterministically.
+Symlink-path denial, cleanup-error masking and absent-report recovery wording
+are fail-closed robustness limits; no optional repair was added. Resolved
+Cucumber inputs do not enumerate every transitive helper dependency; complete
+product-tree identity still binds those committed bytes, and certification
+must not imply broader loaded-input enumeration. Loader rejection covers the
+named Node/Bun overrides, with the local host/dependency environment trusted.
+The hook's exact fixed counts are intentional for this bounded profile. A
+suggestion to require only deferred unchecked rows conflicts with the approved
+policy preserving missing active historical RED; the trusted runtime must
+validate the pinned ledger and current certification instead. Existing CKWE2D
+key-creation behavior was not changed. Normal receipt locks/state and current
+fingerprints remain required; approval with false confirmations fails closed.
+
+Sibling verification and administrative records remain stale/incomplete and
+must be reconciled against actual current evidence before epic closure. Neither
+the eight green CI snapshots nor eventual 5F5ZZA recovery credit mass-closes
+siblings or erases the historical six failures/585 unfinished scenarios.
+
+The full Sol attempt at 4febf56b1 completed all63 native cases:58 passed and
+five failed (the identity guard also passed). Four failed before semantic
+output: one-coherent-change, several-ordered-changes, all-obligations-assigned
+and complete-measurement-execution. The fifth, pending-human-authority-is-not-complete,
+correctly rejected claimed completion while security-owner approval was pending,
+but the assertion required the literal word human. The full failed report and
+result array remain /tmp/4200-current-full-sol.log and
+/tmp/4200-current-full-sol-results.json; no full qualification pass is claimed.
+
+A new deterministic regression failed against the old wording condition.
+The narrow correction accepts human or the fixture's actual security owner,
+while still requiring pending authority and a false completion claim. Controls
+reject unrelated pending implementation and an owner mention without the
+completion defect. Corrected deterministic suite:62/62 passed. Lint and CLI
+typecheck passed. Independent source review
+8977d145-ed79-45df-84c0-b460e87f9df5 approved the correction. RED/GREEN logs
+remain /tmp/4200-security-owner-oracle-red.log and
+/tmp/4200-security-owner-oracle-green.log. Corpus identity changes, so the
+existing generated admission deliberately remains stale until actual current
+qualification is complete. No verdict, scope or rejection requirement changed.
+
+A temporary instrumented direct retry of one-coherent-change approved and
+confirmed gpt-6.1-sol. That proves an isolated request, not dependable access
+or a passing full matrix. The temporary source was removed; the actual result
+is /tmp/4200-full-run-native-diagnosis.log. A five-case test retry is running
+against the corrected scorer and does not replace a complete qualification.
+
+Sibling binding inventory found418 undefined scenarios in five active features:
+ZSHVEB119, K3EBHB33, YCFFNC79, 3EG00H144 and 26FK4243. The dry run retained
+1256 undefined steps and25082 skipped steps, so it establishes missing bindings,
+not passing behavior or that every implementation is absent. Report:
+/tmp/4200-sibling-binding-inventory.json. These are additional closeout gaps;
+the3–4hour estimate covers current-stack verification, not completing these
+siblings. No new deferrals or exclusions were taken.

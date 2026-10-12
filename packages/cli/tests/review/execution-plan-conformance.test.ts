@@ -415,7 +415,7 @@ describe('Execution Plan semantic conformance admission', () => {
     [
       'pending-human-authority-is-not-complete',
       'request_changes',
-      ['human', 'pending', ['complete', 'completion', 'claimed']],
+      [['human', 'security owner'], 'pending', ['complete', 'completion', 'claimed']],
       [
         'Contributor work: complete.',
         'Human authority: pending security approval.',
@@ -432,6 +432,26 @@ describe('Execution Plan semantic conformance admission', () => {
       for (const text of requiredPlanText) expect(testCase?.execution_plan).toContain(text);
     },
   );
+
+  it('recognizes the observed pending security-owner denial without requiring the word human', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'pending-human-authority-is-not-complete',
+    );
+    const terms = testCase?.expectation.finding_terms;
+    expect(terms).toBeDefined();
+    const explanation =
+      'Claimed delivery state: complete contradicts the explicitly pending security approval. Delivery remains incomplete until the existing security owner approves.';
+    expect(matchesExecutionPlanFindingTerms(explanation, terms ?? [])).toBe(true);
+    expect(
+      matchesExecutionPlanFindingTerms(
+        'Completion is pending because implementation is unfinished.',
+        terms ?? [],
+      ),
+    ).toBe(false);
+    expect(matchesExecutionPlanFindingTerms('The security owner is pending.', terms ?? [])).toBe(
+      false,
+    );
+  });
 
   it('keeps every authoritative scenario example as its own case', () => {
     expect(EXECUTION_PLAN_CONFORMANCE_CASES.map(testCase => testCase.id)).toEqual(
