@@ -2,8 +2,8 @@
 id: D75RZ4
 slug: verdict-not-on-waiting-turns
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/5765
 scope:
   - In the Claude Code Stop hook (templates/hooks/stop-quality.ts), a non-editing turn whose last tool call launches background work (Bash or Agent with run_in_background true, or Monitor) yields terminal-handoff evidence `none`, so a plain status reply is not corrected.
@@ -53,3 +53,4 @@ which is still checked. Verified in a real transcript: background launches recor
 - 2026-10-11T23:28:14.125Z Started: Created ticket D75RZ4
 - 2026-10-11T23:29:09.141Z Phase: intake → implement
 - 2026-10-11T23:38:38.442Z Phase: implement → verify
+- 2026-10-12T00:47:38.841Z Phase: verify → done
