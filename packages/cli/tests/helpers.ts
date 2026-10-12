@@ -449,13 +449,13 @@ function projectFixtureArguments(args: string[]): string[] {
 
 interface RunCliOptions {
   cwd?: string;
-  env?: Record<string, string>;
+  env?: Record<string, string | undefined>;
   unsetEnv?: readonly string[];
   timeout?: number;
 }
 
 function cliEnvironment(
-  env: Record<string, string>,
+  env: Record<string, string | undefined>,
   omittedVariables: readonly string[] = [],
 ): NodeJS.ProcessEnv {
   const omitted = new Set(omittedVariables);

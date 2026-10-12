@@ -257,14 +257,14 @@ Before `test-definitions.md` can be created, the ticket frontmatter must contain
 
 ### Canonical format
 
-Rule grouping (Gherkin 6+ `Rule:` keyword + Matt Wynne's Example Mapping) wraps nested `Scenario`s in the feature lane's `<slug>.feature`. Each scenario carries lineage as `@<jtbd>.R#` (numbered Rule; legacy specs use `@<jtbd>.AC#`). test-definitions.md is the R/G/R ledger: it lists the same scenario names with `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — `parseTddStep` in `hooks/lib/active-ticket.ts` parses them to inject TDD-step guidance during implement.
+Rule grouping (Gherkin 6+ `Rule:` keyword + Matt Wynne's Example Mapping) wraps nested `Scenario`s in the feature lane's `<slug>.feature`. Each `Rule:` block carries lineage as a `@<jtbd>.R#` tag that its scenarios inherit (legacy specs tag each scenario `@<jtbd>.AC#`); scenario names stay plain English. test-definitions.md is the R/G/R ledger: it lists the same scenario names with `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — `parseTddStep` in `hooks/lib/active-ticket.ts` parses them to inject TDD-step guidance during implement.
 
 ```gherkin
 Feature: Init dry-run
 
-  Rule: Dry-run shows expected output
+  @init-dry-run.TB1.R1
+  Rule: init-dry-run.TB1.R1 — dry-run shows expected output
 
-    @init-dry-run.TB1.AC1
     Scenario: Empty directory lists would-be files
       Given an empty target directory
       When user runs `init --dry-run`

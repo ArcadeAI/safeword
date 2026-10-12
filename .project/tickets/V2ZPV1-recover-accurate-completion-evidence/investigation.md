@@ -53,3 +53,113 @@ Premortem: the profile becomes a blanket waiver through an overly broad scenario
 - [x] Enumerate evidence, authorization, delivery and maintenance domains.
 - [x] Inspect current source and primary external guidance.
 - [x] Recommend the smallest bounded approach; isolate its additional completion-policy decision.
+
+## Frozen candidate verification and review dispositions — 2026-10-11
+
+The user approved the bounded recovery policy. The implemented contract in
+`impl-plan.md` supersedes the exploratory per-row VERIFIED proposal above:
+one authenticated complete observation plus independently reviewed current
+case coverage; no new historical RED claims or replacement checkboxes.
+
+Candidate `6f9ccdbb22a1bdc10097e823e0a1c0e0cd7977bd` passed the final full
+repository run: relay 198 passing / 1 skipped, collector 153 passing, CLI
+728 passing files with 11,448 passing / 14 skipped tests. The earlier full
+runs remain failed evidence, including the stale-build setup failure caused
+by editing source during verification. Final lint/typecheck emitted no errors.
+The single live observer started after these checks; no current 142-case
+observation or live certification is claimed by this entry.
+
+Current external Claude source reviews approved all three packets:
+233b2a17-510b-444c-b112-f3b9ecff64e8, 42f5e71b-3c2a-4140-9aa8-a909708e9ecb,
+and 59556314-a027-49d3-9116-f1d1c8c8b97d. Their warnings remain material:
+
+- Report negative coverage could directly mutate assertion names/locations,
+  feature URI and unexpected elements. The parser enforces these predicates;
+  current tests do not independently kill every such mutation. This is a
+  coverage limitation, not proof of a bypass or historical RED.
+- The profile identifier alone does not hash the audit exclusions, scope-field
+  list or observer arguments. Complete candidate product identity and current
+  execution-input digests separately bind those implementation bytes. Approval
+  is for this frozen implementation, not another runtime sharing its profile ID.
+- Cleanup failure can turn a durable successful observation into a failed CLI
+  result; a missing report can produce an unhelpful ENOENT. These fail closed.
+  Retain the evidence and inspect actual failures; do not infer success from
+  durable artifacts alone or introduce speculative cleanup machinery.
+- Outer timeout headroom is 100 seconds beyond the maximum install, build and
+  inner Cucumber budgets, not the sum of all Git worst cases. Typical work
+  leaves substantially more time. An outer timeout remains failed evidence,
+  with possible retained temporary checkout; no timeout grants credit.
+- A concurrent HEAD change between baseline check and capture is a trusted-host
+  race. This observation freezes HEAD throughout; admission separately checks
+  the observed revision and current product. Concurrent source changes are
+  outside this proof, not silently accepted.
+- Codex provider support for the certification schema's array keywords is not
+  live-qualified here. This Codex-authored delivery requires the actual Claude
+  reviewer route. No Claude-authored/Codex-reviewed recovery claim is made.
+- Context coverage was inspected in packet preparation: context files are
+  captured with containment, regular-file and size checks; capture errors
+  reject preparation instead of silently omitting a file. Actual certification
+  must still include the resolved inputs and both exact lockfile parts.
+- Simulated signed-worker fixtures prove admission controls, not the real
+  coordinator's typed certification transport. The live certification remains
+  a separate required checkpoint.
+- Absolute report paths and exact context path spellings can undercredit moved
+  or symlink-aliased projects. Use the canonical producing root and relative
+  context paths. Moving the project is not covered by this observation.
+- OpenCode's production dispatcher explicitly sets the OpenCode host marker.
+  The fixture exercises a delegated adapter, not actual OpenCode qualification;
+  OpenCode and cloud remain deferred and unverified.
+- Closing hooks do not themselves enumerate the 33 deferred cases. The CLI
+  summary and reconciliation artifact must display them; preserving the ledger
+  does not turn them into verified host outcomes.
+- The exact-ticket hook helper ships inert outside the fixed profile. Retirement
+  must remove its template and schema registration with the profile. No general
+  customer recovery framework is being introduced.
+- Claude Stop asks the gate twice, adding latency and allowing a fail-closed
+  mismatch. No actual deadline failure is established. Reusing one result is
+  optional follow-up simplification, not a new acceptance prerequisite.
+
+PR5's previously rejected first source packet was repaired and freshly approved
+by Claude review 2535f9c0-fdd3-463b-88b8-4d170dc63502. That repair does not erase
+the prior rejection, qualify deferred hosts, or confer installed-runtime,
+promotion, merge or release authority.
+
+Diff audit above PR5 head `6bde6bfd0` completed its code, learning and domain
+checks without errors. Dependency-cruiser reported one `no-orphans` warning for
+the dedicated opt-in Cucumber configuration; the documented invocation loads it
+explicitly. Repository-wide unused-code, clone and dependency-upgrade discovery
+were intentionally outside this diff audit. No new dependency or agent-config
+file was added; the package manifest adds only the rubric generator command.
+Configured documentation coverage was README plus the generated CLI reference;
+the architecture decision records the bounded design and pending trusted
+deployment. Its acceptance-time implementation status is not current completion
+proof. Current implementation and verification status is recorded here.
+
+The automatic active-ticket principle check refused an ambiguous ticket
+selection. Explicit factual checks of the V2ZPV1 and 5F5ZZA plan paths then
+completed with exit zero and no findings. This resolves the selection failure
+without changing any ticket's authority. Source review covered the new parser,
+authentication, public admission, closing-composite and native-entry tests:
+fresh fixtures, precise positive outcomes, tamper/revoke/restore controls, and
+explicit synthetic-versus-real proof limits. Live observation and real typed
+certification remain required despite those passing fixture tests.
+
+
+### Base PR source review during frozen observation — 2026-10-11
+
+A separate managed checkout is repairing #4906 at c60ac8bd5 with actual main d5885e587. Eleven generated conflicts were regenerated from templates. Parity passed 276 pairs and 11 contracts. Cursor install/uninstall result digest changes are exactly the main-added ticket-close.ts create/remove effect: filtering only that effect reproduces both original hashes. The lifecycle diagnostic passed 14 tests and its temporary source copy was removed. Five generated surfaces verify. No GitHub merge or promotion occurred.
+
+Seven bounded reviews cover immutable changed-hunk snapshots for 260 unique non-generated paths; generated outputs and mirrors have separate verification. Group 1 found contradictory escalation guidance; groups 5/7 found older Product Plan/lineage and bundled-hook documentation displacing main. Those exact documentation regressions were repaired in the base checkout; full-current-source Claude review 9ed4bd60-29f6-4b17-b654-1a135efc10ea approved the guidance and phase-anchor paths. The alleged legacy anchor blocker did not persist under full-source review: current health/boundary behavior is advisory, so no migration bypass was added.
+
+Group 4 (85bffcc6-9814-4fa0-ae8f-8c3915d184d6) found delivery admission skips later rejections and omits the assurance cross-check. Two public CLI regression cases are written; their RED execution is waiting for a foreign checkout's Vitest lock. No product fix was applied before RED. A minimal shared-admission repair is prepared outside the repository. Group 7 (97b364af-f21a-4fff-85cc-a772e5f927cb) found reviewer-semantic acceptance cases bound to corpus-shape checks. A test-adapter correction is prepared to reuse actual opt-in live conformance, retain its case receipts, and refuse semantic credit without real execution. Warnings remain retained in /tmp/4200-base-review-dispositions.json.
+
+The recovery checkout remains at frozen 6f9ccdbb while its original 142-case observer runs. The base source repairs also affect the final candidate's product/input identities when propagated. Its original observation will remain history; it must not certify a later changed candidate. No additional OpenCode/cloud case was deferred, and no source change was made to the running detached candidate.
+
+
+### Actual aggregate failure and bounded R11 fixture isolation — 2026-10-11
+
+The frozen 6f9ccdbb observer ended after 80m22s with exit 1: all 142 cases executed; 141 passed and one failed, with three nonpassing steps in that one case (one failure and two skipped following it). Retained report: .safeword/state/reviews/ledger-recovery-478cfe9d-6b84-4a4a-8834-30c5cd2d1cc9/report.json; stdout/stderr: execution.log. It produced no successful observation or certification. The failure is the R11 uniquely-determined-correction fixture. Every reviewer requested the required rejection; only one of three judges accepted the resulting findings. Two reviewers demanded additional atomicity/crash or proof-observation decisions, and two judges rejected those as invented scope. Raw native output remains /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-planning-eval-U4Z2VT/result.json.
+
+Competing explanations: (1) actual missing independent approach decisions, (2) reviewer overblocking, (3) the negative fixture fails to isolate its claimed unique defect. The baseline uses generic no-write proof wording and leaves atomicity implicit while the case claims all approach choices are already decided. The judge itself disagrees across similar additional findings; this is not clean evidence for weakening its rules. The surgical correction is to state the already-accepted single atomic mutation and zero-write-invocation proof boundaries in this synthetic fixture, while keeping the reviewed architecture's wrong after-write ordering and the required request_changes verdict unchanged. This changes no production rubric, expected verdict, judge rule, model, repetition count, agreement threshold, case identity, or deferred scope. All epic test edits were explicitly authorized by the user.
+
+The corpus manifest digest was recomputed from the actual changed fixture; the initial stale-manifest refusal is retained. The corrected isolated native run passed 3/3 reviewer/judge attempts, each request_changes, at /tmp/4200-recovery-r11-isolated-eval.json (log /tmp/4200-recovery-r11-isolated-eval-current.log). This targeted pass is not substituted for a fresh complete aggregate. Source review, source integration, generators and final frozen aggregate are still required.

@@ -375,10 +375,10 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     accepted_boundary: `${accepted} Accepted Rule manual.BU1.R1: check the existing consent token before any write; the API and user/target binding are already decided.`,
     context:
       'Recorded finding: the plan places the accepted consent-token check after the write. The accepted decision uniquely requires moving that same check before the write; no new product or architecture decision is needed.',
-    reviewed_plan: completeImplementationPlan.replace(
+    reviewed_plan: `${completeImplementationPlan.replace(
       'before any write',
       'after the account write',
-    ),
+    )} Accepted data decision: the existing endpoint performs one atomic account-record write after successful token validation; compensating writes are excluded. Accepted proof strategy: real-endpoint integration proof observes account-write invocation, including zero invocations for denied, expired, and mismatched tokens; final-state absence alone is not its proof boundary.`,
     expected_verdict: 'request_changes',
     allowed_finding_authority:
       'Require the uniquely determined correction: move the existing consent-token check before the account write under Rule manual.BU1.R1.',

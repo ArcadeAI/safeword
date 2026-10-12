@@ -67,7 +67,7 @@
     },
     {
       "path": "resources/guides/planning-guide.md",
-      "sha256": "cc22996fc32f45f565be3cee69f12be9b233743a3ecb54b4a4cd5071821670ed"
+      "sha256": "c2123444dbad01dba709c5c8c5c28032e21318eee8dc147e27e907798c569b19"
     },
     {
       "path": "resources/guides/release-recovery-guide.md",
@@ -99,7 +99,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "1a0cc0336cfe85947c86589dcc149e0bcb1387b6ace23f7f6b9f79b2a36ac34d"
+      "sha256": "07eeabc1929e6b7821a34a379a53607d76ea758aafe243cf1aacdde1784506d5"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -159,11 +159,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "36dbac0b18722911e007d8825a20c4e331c87511efffcf7fc75fbcd961299aff"
+      "sha256": "7b6bfe4a0d582ef93ba1e5d8ad16d0eaeb6bef65b21e5008ebd68b589740b1b4"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "a7f7e1724081b463c9a5df7a002e3afb0243b122ae1934cdc52236f9787b4567"
+      "sha256": "3114816bb437013bfc88a8d798a5c03f9a57161c2283f62207749b54387b4582"
     },
     {
       "path": "runtime/event-groups.json",
@@ -751,7 +751,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "b6a776f0ab4a7e83f4c362a76816bcee1dde67670457429a375f8c669b844aad"
+      "sha256": "a447970e86638723dd5a36adc6acfd702bc91ee4bb03c722067708e2ab73d371"
     },
     {
       "path": "skills/self-review/SKILL.md",
@@ -1071,7 +1071,7 @@
     },
     {
       "path": "templates/guides/planning-guide.md",
-      "sha256": "dbc991902b81107c1fca888475dc0ba770175e946a094e74e33bb1b1d0942152"
+      "sha256": "45eb5ac575724ee340537aee9d9cc7c2481f4829664bee031d9631f572eab7a8"
     },
     {
       "path": "templates/guides/release-recovery-guide.md",
@@ -1635,7 +1635,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "571e9754fe2359626a3ec1ec4a081efcf1e0a66d46eba853a2305f514b86a35f"
+      "sha256": "5dae1e973d253518209009015044ba4774d4a591dfa7eb1476754cea9e106753"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",
@@ -1759,7 +1759,7 @@
     },
     {
       "path": "templates/skills/review-spec/SKILL.md",
-      "sha256": "2d39641656e0d91d8c6788fba4fdf1981b77ef53852715c58b5df75fcc56762d"
+      "sha256": "c8f780832cf160bbae051b59a8e6a1e0510558996170a04caefc0ae19c6f0e9b"
     },
     {
       "path": "templates/skills/self-review/SKILL.md",

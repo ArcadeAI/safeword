@@ -3627,7 +3627,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "c437336466eedacbac427d85841e6137757a4d81864fefc9317569412c0ebc78",
         ".claude/skills/retro/SKILL.md": "da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb",
-        ".claude/skills/review-spec/SKILL.md": "2d39641656e0d91d8c6788fba4fdf1981b77ef53852715c58b5df75fcc56762d",
+        ".claude/skills/review-spec/SKILL.md": "c8f780832cf160bbae051b59a8e6a1e0510558996170a04caefc0ae19c6f0e9b",
         ".claude/skills/self-review/SKILL.md": "7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "fb05b617ffb02bb6d06897d12fb5f121fc553536701f27b8696160041cb5269c",
@@ -86149,24 +86149,8 @@ function executionPlanAdmission(input) {
   return mismatch ?? { kind: "not_admitted" };
 }
 function admittedExecutionPlanReview(input) {
-  const scope = `${nodePath135.basename(input.ticketDirectory)}:phase@plan-execution`;
-  const candidates = parseReviewStamps(input.ledger).filter((stamp) => stamp.scope === scope && stamp.skipReason === undefined).toReversed();
-  for (const stamp of candidates) {
-    if (stamp.reviewId === undefined)
-      continue;
-    const status = reviewJobStatus(input.cwd, stamp.reviewId);
-    if (status.state !== "healthy" || !isRecord14(status.data))
-      continue;
-    const data = status.data;
-    if (data.status !== "approved" || data.review_kind !== "plan-execution" || !coversPlan(data, input.cwd, input.planPath) || !isRecord14(data.reviewer_output)) {
-      continue;
-    }
-    const validated = validateExecutionPlanOutput(data.reviewer_output, input.definition, input.digest);
-    if (validated.kind === "approved") {
-      return { reviewId: stamp.reviewId, record: validated.output.execution_plan_record };
-    }
-  }
-  return;
+  const admission = executionPlanAdmission(input);
+  return admission.kind === "admitted" ? { reviewId: admission.reviewId, record: admission.record } : undefined;
 }
 var init_delivery_admission = __esm(() => {
   init_review_ledger();
