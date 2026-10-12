@@ -40,13 +40,15 @@ interface Proof {
 
 const proofs: Record<string, Proof> = {
   'Implementation Plan review state controls Execution Planning': {
-    expectedTests: 8,
-    selector: 'Implementation Plan review admission controls Execution Planning',
+    expectedTests: 9,
+    selector:
+      'Implementation Plan review admission controls Execution Planning|advances non-interactively and records not-required when the gate is disabled',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'Review routes preserve their actual provenance': {
-    expectedTests: 8,
-    selector: 'Implementation Plan review admission controls Execution Planning',
+    expectedTests: 9,
+    selector:
+      'Implementation Plan review admission controls Execution Planning|advances non-interactively and records not-required when the gate is disabled',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'An unearned fallback receipt cannot authorize planning': {
