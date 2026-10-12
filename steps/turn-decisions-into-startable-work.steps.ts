@@ -40,18 +40,20 @@ interface Proof {
 
 const proofs: Record<string, Proof> = {
   'Implementation Plan review state controls Execution Planning': {
-    expectedTests: 13,
-    selector: 'Implementation Plan review admission controls Execution Planning',
+    expectedTests: 14,
+    selector:
+      'Implementation Plan review admission controls Execution Planning|advances non-interactively and records not-required when the gate is disabled',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'Review routes preserve their actual provenance': {
-    expectedTests: 13,
-    selector: 'Implementation Plan review admission controls Execution Planning',
+    expectedTests: 14,
+    selector:
+      'Implementation Plan review admission controls Execution Planning|advances non-interactively and records not-required when the gate is disabled',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'An unearned fallback receipt cannot authorize planning': {
     expectedTests: 1,
-    selector: 'rejects assurance text that disagrees with the authenticated review',
+    selector: 'rejects an approving receipt with no achieved independence',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'A self-authored independence claim cannot authorize planning': {
@@ -254,8 +256,7 @@ async function runProof(
 ): Promise<{ exitCode: number; output: string }> {
   let proof = proofs[scenarioName];
   assert.ok(proof, `missing acceptance proof for ${scenarioName}`);
-  const semantic =
-    liveSemantic || proof.testFile === 'tests/review/execution-plan-conformance.test.ts';
+  const semantic = liveSemantic;
   if (semantic) {
     assert.equal(
       process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE,
@@ -294,7 +295,6 @@ async function runProof(
         env: {
           ...process.env,
           NODE_OPTIONS: undefined,
-          TMPDIR: temporaryDirectory,
           ...(semantic && {
             SAFEWORD_EXECUTION_PLAN_LIVE_CLI: '1',
             SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER:
@@ -355,7 +355,7 @@ Before(
       proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName, true));
       const result = await proofCache.get(key)!;
       this.result = { stderr: result.output, stdout: '', exitCode: result.exitCode };
-      if (result.exitCode !== 0 || corpusProof) return;
+      if (result.exitCode !== 0) return;
     }
     const key = `${proof.testFile}:${proof.selector}`;
     proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName));
