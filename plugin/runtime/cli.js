@@ -2429,12 +2429,14 @@ function isRecord(value) {
 function reviewCoverage(data) {
   const author = data.author_agent;
   const reviewer = data.actual_reviewer;
-  if (typeof author !== "string" || !REVIEW_AUTHORS.has(author) || typeof reviewer !== "string") {
+  if (typeof author !== "string" || !REVIEW_AUTHORS.has(author) || typeof reviewer !== "string" || !REVIEW_AGENTS.has(reviewer)) {
     return "incomplete";
   }
-  if (data.independence === "degraded" && REVIEW_AGENTS.has(reviewer) && reviewer === author)
+  if (data.independence === "reduced")
+    return "reduced";
+  if (data.independence === "degraded" && reviewer === author)
     return "standard";
-  if (data.independence === "cross-agent" && REVIEW_AGENTS.has(reviewer) && reviewer !== author) {
+  if (data.independence === "cross-agent" && reviewer !== author) {
     return "independent";
   }
   return "incomplete";
@@ -2548,10 +2550,13 @@ function suggestionForFailure(failure, label) {
   }
   return;
 }
-function planArchitectureReceiptLines(data, messages) {
-  if (data.review_kind !== "plan-implementation")
+function planArchitectureReceiptLines(data) {
+  if (data.review_kind !== "plan-implementation" || data.status !== "changes_requested")
     return;
-  const architectureBlocker = messages.find((message) => /shared-contract choice.+durable architecture (?:record|link)/iu.test(message));
+  const output = data.reviewer_output;
+  if (!isRecord(output) || output.verdict !== "request_changes" || !Array.isArray(output.findings))
+    return;
+  const architectureBlocker = output.findings.find((finding) => isRecord(finding) && finding.severity === "error" && typeof finding.message === "string" && /shared-contract choice.+durable architecture (?:record|link)/iu.test(finding.message));
   if (architectureBlocker === undefined)
     return;
   const targets = Array.isArray(data.review_targets) ? data.review_targets.filter((target) => typeof target === "string") : [];
@@ -2571,7 +2576,7 @@ function reviewResultLines(result, options) {
     return;
   const messages = result.findings.filter((finding) => !REPLACED_REVIEW_FINDINGS.has(finding.code)).map((finding) => finding.message);
   messages.push(...result.errors.map((error2) => error2.message));
-  const planReceipt = planArchitectureReceiptLines(result.data, messages) ?? [];
+  const planReceipt = planArchitectureReceiptLines(result.data) ?? [];
   const lines = [...planReceipt, reviewCoverageLine(result.data, result.state), ...messages];
   if (options.verbose === true) {
     const suggestion = reviewUpgradeSuggestion(result.data, result.state);
