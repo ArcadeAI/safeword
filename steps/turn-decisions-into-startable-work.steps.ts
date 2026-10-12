@@ -53,7 +53,7 @@ const proofs: Record<string, Proof> = {
   },
   'An unearned fallback receipt cannot authorize planning': {
     expectedTests: 1,
-    selector: 'rejects assurance text that disagrees with the authenticated review',
+    selector: 'rejects an approving receipt with no achieved independence',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'A self-authored independence claim cannot authorize planning': {
@@ -256,8 +256,7 @@ async function runProof(
 ): Promise<{ exitCode: number; output: string }> {
   let proof = proofs[scenarioName];
   assert.ok(proof, `missing acceptance proof for ${scenarioName}`);
-  const semantic =
-    liveSemantic || proof.testFile === 'tests/review/execution-plan-conformance.test.ts';
+  const semantic = liveSemantic;
   if (semantic) {
     assert.equal(
       process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE,
@@ -296,7 +295,6 @@ async function runProof(
         env: {
           ...process.env,
           NODE_OPTIONS: undefined,
-          TMPDIR: temporaryDirectory,
           ...(semantic && {
             SAFEWORD_EXECUTION_PLAN_LIVE_CLI: '1',
             SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER:
