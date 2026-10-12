@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   currentProofCommit,
+  exactSelection,
   type RetrospectiveProofRequest,
   runRetrospectiveProof,
 } from '../../src/review/retrospective-proof.js';
@@ -38,6 +39,18 @@ const request: RetrospectiveProofRequest = {
 };
 
 describe('retrospective proof boundary', () => {
+  it('selects the same named test under Vitest 4 and Vitest 5 suite separators', () => {
+    // eslint-disable-next-line security/detect-non-literal-regexp -- The fixed test name is escaped by the production selector.
+    const pattern = new RegExp(exactSelection(request.testFullName));
+    expect(pattern.test(request.testFullName)).toBe(true);
+    expect(
+      pattern.test(
+        'generated review targets > uses repository-relative paths for a project nested below the Git root',
+      ),
+    ).toBe(true);
+    expect(pattern.test('generated review targets > uses a different project root')).toBe(false);
+  });
+
   it.runIf(process.platform !== 'win32')(
     'rejects project-controlled Git before inspecting proof history',
     () => {

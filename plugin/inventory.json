@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "3b3db27e0f83fc08a1e47861c47620b4a13c943c78073768585815bd3ed1206c"
+      "sha256": "5be7c4da11bf5010a119ba8863387a4f6130c0d5e9a1ebc5b67ac94c22f65472"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -63,7 +63,7 @@
     },
     {
       "path": "resources/guides/planning-guide.md",
-      "sha256": "cc22996fc32f45f565be3cee69f12be9b233743a3ecb54b4a4cd5071821670ed"
+      "sha256": "c2123444dbad01dba709c5c8c5c28032e21318eee8dc147e27e907798c569b19"
     },
     {
       "path": "resources/guides/release-recovery-guide.md",
@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "8a0e3b614c5a21579b6a45245c2c418d57b2bf54c6a146cb7dffde9d80af1ba8"
+      "sha256": "4f11c8c9a2b82f757cb3310ce9bd27ed95892ac406e3f40b799241fc520b5f6a"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "95f92b1bd4f5c81f339f42675ef53d2987e6ba7a1311a2c87f7ac3116a0d5131"
+      "sha256": "d48814cb3c28fe1e8055210009bb24071f555bcf180ea684ff2e2dc7e4e8494d"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "9a5413d6877d60db3d1b17eb10d3dd14a68d6c502e425357d67c8ca5f6b59c69"
+      "sha256": "5324abe4838b1833e9db5588c2894fa812e2eb06eb0a817759def9c7aebd6309"
     },
     {
       "path": "runtime/event-groups.json",
@@ -175,7 +175,7 @@
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
-      "sha256": "8d48bc0937c4ecadedb6b8a2a97c26a9152d630c43906b08c7bb9ecab091b274"
+      "sha256": "43d2aeee793d07aec225b05b0785ae9c12dc68602cbc8d5911b9ab868ae52edb"
     },
     {
       "path": "runtime/hooks/lib/architecture-document-nudge.ts",
@@ -347,7 +347,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality-state.ts",
-      "sha256": "69ed2cd005be5571f40d186671b5baf6695b9bc5f4712bca7b6bf1c98de2b8d3"
+      "sha256": "939597a0cdf328d7eb244fb8179c427874547e92d09ab466c887e1be222e9fef"
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
@@ -450,6 +450,10 @@
       "sha256": "4ee0521c9704b0db4e911823b01a12ad7cf7dca34a584bb710c1a3ccb5062e18"
     },
     {
+      "path": "runtime/hooks/lib/ticket-close.ts",
+      "sha256": "1d4dd4f5fd15b9a7a97d4278b78bf384e5b42fe0e82ccb484b4d73732b35b762"
+    },
+    {
       "path": "runtime/hooks/lib/typecheck-gate.ts",
       "sha256": "67b80f003b1435df517c55d022a4041f78e47969bb27095b06508b40d6b64458"
     },
@@ -483,7 +487,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "eb8226888626244f196409a3fafea98c5c83908165a3ada1e6394fa745e4fbad"
+      "sha256": "21a850043772895828c0d75de6d7735bc5566da9711f2ed1eac6ecd8c8cbe5db"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -611,7 +615,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "5bdb79ce3d66b6a4eb384942d5115f2041fa9aa501f0d18af5aeaf35446742c3"
+      "sha256": "2072e7d40c34a2eb5b8e15a8066abcd5b60c596af41d4953c7dd686f4dc81e82"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -739,7 +743,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "800fabc037ec4734e5ae206898f556f8f3b030d09da2c381f7741c89f81209ea"
+      "sha256": "ac70b0c23afcbe9de9673f4976d0ce6cc830fe061177a6b8a13278103711489b"
     },
     {
       "path": "skills/self-review/SKILL.md",
@@ -1055,7 +1059,7 @@
     },
     {
       "path": "templates/guides/planning-guide.md",
-      "sha256": "dbc991902b81107c1fca888475dc0ba770175e946a094e74e33bb1b1d0942152"
+      "sha256": "45eb5ac575724ee340537aee9d9cc7c2481f4829664bee031d9631f572eab7a8"
     },
     {
       "path": "templates/guides/release-recovery-guide.md",
@@ -1143,7 +1147,7 @@
     },
     {
       "path": "templates/hooks/lib/active-ticket.ts",
-      "sha256": "8d48bc0937c4ecadedb6b8a2a97c26a9152d630c43906b08c7bb9ecab091b274"
+      "sha256": "43d2aeee793d07aec225b05b0785ae9c12dc68602cbc8d5911b9ab868ae52edb"
     },
     {
       "path": "templates/hooks/lib/architecture-document-nudge.ts",
@@ -1311,7 +1315,7 @@
     },
     {
       "path": "templates/hooks/lib/quality-state.ts",
-      "sha256": "69ed2cd005be5571f40d186671b5baf6695b9bc5f4712bca7b6bf1c98de2b8d3"
+      "sha256": "939597a0cdf328d7eb244fb8179c427874547e92d09ab466c887e1be222e9fef"
     },
     {
       "path": "templates/hooks/lib/quality.ts",
@@ -1414,6 +1418,10 @@
       "sha256": "4ee0521c9704b0db4e911823b01a12ad7cf7dca34a584bb710c1a3ccb5062e18"
     },
     {
+      "path": "templates/hooks/lib/ticket-close.ts",
+      "sha256": "1d4dd4f5fd15b9a7a97d4278b78bf384e5b42fe0e82ccb484b4d73732b35b762"
+    },
+    {
       "path": "templates/hooks/lib/typecheck-gate.ts",
       "sha256": "d8c4f565e545f8c465b98fdf0498804c56dd5b78c2d03de39a6c2ebaf057eafc"
     },
@@ -1447,7 +1455,7 @@
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",
-      "sha256": "eb8226888626244f196409a3fafea98c5c83908165a3ada1e6394fa745e4fbad"
+      "sha256": "21a850043772895828c0d75de6d7735bc5566da9711f2ed1eac6ecd8c8cbe5db"
     },
     {
       "path": "templates/hooks/post-tool-skill-nudge.ts",
@@ -1575,7 +1583,7 @@
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "1858b5639255295d82e17ca841df994e6a3ce876d93b3744cb515a42baae9bc6"
+      "sha256": "467cb0915a6ee0d6a79f9c10c2123a6184df14fab0f7937eddd966227bd22137"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",
@@ -1611,7 +1619,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "44fa498fd42413551bf4e43808d5b047ea61c8ceade40f30844a5c4c44e91025"
+      "sha256": "8fdc448b63be1aa6dd95fed68e63fc43df47f9647406718eac467c3084a7fcba"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",
@@ -1735,7 +1743,7 @@
     },
     {
       "path": "templates/skills/review-spec/SKILL.md",
-      "sha256": "bca4e90c57cd4868219ebe9366fbca8c126837f1289671a3e7b495bca894b052"
+      "sha256": "bccfacb85f2ffb865572a3e56a6b0807a7de98f8de89ee143dd049ede1ae82fb"
     },
     {
       "path": "templates/skills/self-review/SKILL.md",

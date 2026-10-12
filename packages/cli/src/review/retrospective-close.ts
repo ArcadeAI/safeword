@@ -43,7 +43,7 @@ interface CloseRecord {
 }
 
 const RECORD_PATH = '.safeword/state/reviews/retrospective-close.json';
-const TICKET_PATH = nodePath.join(nodePath.dirname(RETROSPECTIVE_LEDGER), 'ticket.md');
+const TICKET_PATH = nodePath.posix.join(nodePath.posix.dirname(RETROSPECTIVE_LEDGER), 'ticket.md');
 
 function result(
   command: 'review attest retrospective-close' | 'review gate retrospective-close',
@@ -108,6 +108,14 @@ function ticketClaim(root: string): string {
   return ticket.retrospective_claim;
 }
 
+function renewalPath(root: string): string | undefined {
+  const ticket = frontmatterOf(readFileSync(contained(root, TICKET_PATH), 'utf8'));
+  const path = ticket?.retrospective_renewals;
+  if (path === undefined) return undefined;
+  if (typeof path !== 'string') throw new Error('Retrospective renewals need one file path.');
+  return path;
+}
+
 // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Ledger claims require distinct headings and receipts.
 function claimsFromLedger(root: string): RetrospectiveGateRequest[] {
   const content = readFileSync(contained(root, RETROSPECTIVE_LEDGER), 'utf8');
@@ -146,6 +154,47 @@ function claimsFromLedger(root: string): RetrospectiveGateRequest[] {
   if (claims.length === 0) throw new Error('No checked VERIFIED rows need closing proof.');
   if (duplicateHeading) throw new Error('VERIFIED requires unique scenario headings.');
   return claims;
+}
+
+/** A renewal keeps the checked row intact while replaying fresh, separately reviewed receipts. */
+// eslint-disable-next-line complexity -- Each check binds the renewal to one original checked row.
+function claimsForClose(root: string): RetrospectiveGateRequest[] {
+  const claims = claimsFromLedger(root);
+  const path = renewalPath(root);
+  if (path === undefined) return claims;
+  const manifest = JSON.parse(readFileSync(contained(root, path), 'utf8')) as {
+    schema_version?: unknown;
+    rows?: unknown;
+  };
+  if (manifest.schema_version !== 1 || !Array.isArray(manifest.rows)) {
+    throw new Error('Retrospective renewal manifest is invalid.');
+  }
+  const remaining = new Set(claims.map(claim => claim.scenario));
+  const replacements = new Map<string, RetrospectiveGateRequest>();
+  for (const row of manifest.rows) {
+    if (typeof row !== 'object' || row === null) {
+      throw new Error('Retrospective renewal row is invalid.');
+    }
+    const entry = row as Record<string, unknown>;
+    const original = claims.find(claim => claim.scenario === entry.scenario);
+    if (
+      original === undefined ||
+      !remaining.delete(original.scenario) ||
+      original.eligibilityId !== entry.originalEligibilityId ||
+      original.proofId !== entry.originalProofId ||
+      typeof entry.eligibilityId !== 'string' ||
+      typeof entry.proofId !== 'string' ||
+      entry.eligibilityId === entry.proofId
+    ) {
+      throw new Error('Retrospective renewal does not match one checked row.');
+    }
+    replacements.set(original.scenario, {
+      ...original,
+      eligibilityId: entry.eligibilityId,
+      proofId: entry.proofId,
+    });
+  }
+  return claims.map(claim => replacements.get(claim.scenario) ?? claim);
 }
 
 function reviewedTargets(
@@ -192,7 +241,9 @@ function claimInputPaths(root: string, claim: RetrospectiveGateRequest): string[
 }
 
 function inputPaths(root: string, claims: readonly RetrospectiveGateRequest[]): string[] {
-  const paths = new Set([RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
+  const paths = new Set([TICKET_PATH, RETROSPECTIVE_LEDGER, RETROSPECTIVE_FEATURE]);
+  const renewal = renewalPath(root);
+  if (renewal !== undefined) paths.add(renewal);
   for (const claim of claims) {
     for (const path of claimInputPaths(root, claim)) paths.add(path);
   }
@@ -237,7 +288,7 @@ export function attestRetrospectiveClose(
     }
     const sourceCommit = currentProofCommit(root);
     const claimPath = ticketClaim(root);
-    const claims = claimsFromLedger(root);
+    const claims = claimsForClose(root);
     const paths = inputPaths(root, claims);
     const before = inputDigests(root, paths);
     for (const claim of claims) {
@@ -309,7 +360,7 @@ export function retrospectiveCloseGate(root: string, ticketId: string, ledger: s
     ) {
       throw new Error('Retrospective closing record is invalid.');
     }
-    const claims = claimsFromLedger(root);
+    const claims = claimsForClose(root);
     if (JSON.stringify(record.claims) !== JSON.stringify(claims)) {
       throw new Error('Retrospective ledger changed after closing proof.');
     }

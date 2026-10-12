@@ -7,7 +7,7 @@
  * missing verify.md hard-blocks the stop — the sidestep no longer escapes.
  */
 
-import { execSync, spawnSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -22,6 +22,7 @@ import {
   setupOrThrow,
   writeTestFile,
 } from '../helpers.js';
+import { runDoneGate } from './done-gate-harness.js';
 
 const fixture: { projectDirectory: string } = { projectDirectory: '' };
 
@@ -84,49 +85,12 @@ function writeSessionState(directory: string, sessionId: string, ticketId: strin
   );
 }
 
-function runStopHook(
-  targetDirectory: string,
-  sessionId: string,
-  stopHookActive = false,
-): { reason: string; systemMessage: string } {
-  const transcriptPath = nodePath.join(targetDirectory, 'transcript.jsonl');
-  writeFileSync(
-    transcriptPath,
-    `${JSON.stringify({
-      type: 'assistant',
-      message: {
-        role: 'assistant',
-        content: [
-          { type: 'text', text: 'done' },
-          { type: 'tool_use', name: 'Edit' },
-        ],
-      },
-    })}\n`,
-  );
-  const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
-    input: JSON.stringify({
-      transcript_path: transcriptPath,
-      session_id: sessionId,
-      stop_hook_active: stopHookActive,
-    }),
-    cwd: targetDirectory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
-    encoding: 'utf8',
-  });
-  try {
-    const parsed = JSON.parse(result.stdout.trim());
-    return { reason: parsed.reason ?? '', systemMessage: parsed.systemMessage ?? '' };
-  } catch {
-    return { reason: '', systemMessage: '' };
-  }
-}
-
 describe('status-close done-gate (2JMQMX)', () => {
   it('blocks a feature closed by status:done with no verify.md', () => {
     writeFeatureClosedByStatus(fixture.projectDirectory, '910');
     writeSessionState(fixture.projectDirectory, 'session-910', '910');
 
-    const result = runStopHook(fixture.projectDirectory, 'session-910');
+    const result = runDoneGate(fixture.projectDirectory, 'session-910');
 
     // The surfaced phase:'done' reached the real done-gate, which blocked on the
     // missing evidence — the sidestep is closed.
@@ -142,7 +106,9 @@ describe('status-close done-gate (2JMQMX)', () => {
     writeSessionState(fixture.projectDirectory, 'session-911', '911');
 
     // Re-entry skips the session skill-invocation check so this fixture reaches the scenario verdict.
-    const result = runStopHook(fixture.projectDirectory, 'session-911', true);
+    const result = runDoneGate(fixture.projectDirectory, 'session-911', undefined, {
+      stopHookActive: true,
+    });
 
     expect(result.reason).toContain('features/911.feature');
     expect(result.reason).toContain('@wip');

@@ -1,9 +1,9 @@
 Feature: Turn accepted decisions into startable work
   Safeword turns an approved approach into work a fresh agent can start without inventing decisions.
 
-  # @live marks periodic reviewer-semantic evidence. The regenerated deterministic admission matrix
-  # substitutes only for the live reviewer's verdict; CI still exercises each scenario through the
-  # installed Safeword CLI. A failed live reviewer result fails its case without retry masking.
+  # @live marks opt-in reviewer-semantic evidence from the real reviewer process.
+  # Related semantic cases share one live conformance matrix; corpus-shape tests are supporting
+  # evidence only. CLI scenarios retain their installed-boundary proofs. Failures are not retried.
 
   @plan-implementability.TBU2.7CAMAD.R1
   Rule: plan-implementability.TBU2.7CAMAD.R1 — Execution Planning requires a reviewed current approach
@@ -271,7 +271,7 @@ Feature: Turn accepted decisions into startable work
   @plan-implementability.TBU2.7CAMAD.R12
   Rule: plan-implementability.TBU2.7CAMAD.R12 — The Execution Plan distinguishes current implementation from target work and uses the canonical evidence-currency taxonomy owned by A639WN.R7
 
-    @surface.safeword-cli
+    @live @surface.safeword-cli
     Scenario Outline: Evidence state controls the delivery claim
       Given an Execution Plan obligation has <delivery_state>
       When the installed Safeword CLI records its current-to-target state

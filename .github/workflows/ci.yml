@@ -391,27 +391,7 @@ jobs:
         env:
           BEFORE: ${{ github.event.before }}
           SHA: ${{ github.sha }}
-        run: |
-          if [ "$GITHUB_REF" != 'refs/heads/main' ] || [ -z "$BEFORE" ]; then
-            echo 'deploy=false' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ "$BEFORE" = '0000000000000000000000000000000000000000' ]; then
-            echo 'deploy=true' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          git fetch --no-tags --depth=1 origin "$BEFORE"
-          git diff --name-only "$BEFORE" "$SHA" | while IFS= read -r changed; do
-            case "$changed" in
-              packages/retro-relay/*|packages/cli/package.json|packages/website/package.json|package.json|bun.lock|tsconfig.json|.dockerignore|railway.json|.github/workflows/deploy-retro-relay.yml|.github/workflows/ci.yml)
-                echo 'deploy=true' >> "$GITHUB_OUTPUT"
-                exit 0
-                ;;
-            esac
-          done
-          if ! grep -q '^deploy=true$' "$GITHUB_OUTPUT"; then
-            echo 'deploy=false' >> "$GITHUB_OUTPUT"
-          fi
+        run: node scripts/retro-deploy-inputs.cjs relay "$BEFORE" "$SHA"
 
   deploy-retro-relay:
     name: Deploy Retro Relay
@@ -478,27 +458,7 @@ jobs:
         env:
           BEFORE: ${{ github.event.before }}
           SHA: ${{ github.sha }}
-        run: |
-          if [ "$GITHUB_REF" != 'refs/heads/main' ] || [ -z "$BEFORE" ]; then
-            echo 'deploy=false' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ "$BEFORE" = '0000000000000000000000000000000000000000' ]; then
-            echo 'deploy=true' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          git fetch --no-tags --depth=1 origin "$BEFORE"
-          git diff --name-only "$BEFORE" "$SHA" | while IFS= read -r changed; do
-            case "$changed" in
-              packages/retro-collector/*|packages/cli/package.json|packages/website/package.json|package.json|bun.lock|tsconfig.json|.dockerignore|railway.json|.github/workflows/deploy-retro-collector.yml|.github/workflows/ci.yml)
-                echo 'deploy=true' >> "$GITHUB_OUTPUT"
-                exit 0
-                ;;
-            esac
-          done
-          if ! grep -q '^deploy=true$' "$GITHUB_OUTPUT"; then
-            echo 'deploy=false' >> "$GITHUB_OUTPUT"
-          fi
+        run: node scripts/retro-deploy-inputs.cjs collector "$BEFORE" "$SHA"
 
   deploy-retro-collector:
     name: Deploy Retro Collector
@@ -565,27 +525,7 @@ jobs:
         env:
           BEFORE: ${{ github.event.before }}
           SHA: ${{ github.sha }}
-        run: |
-          if [ "$GITHUB_REF" != 'refs/heads/main' ] || [ -z "$BEFORE" ]; then
-            echo 'deploy=false' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ "$BEFORE" = '0000000000000000000000000000000000000000' ]; then
-            echo 'deploy=true' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          git fetch --no-tags --depth=1 origin "$BEFORE"
-          git diff --name-only "$BEFORE" "$SHA" | while IFS= read -r changed; do
-            case "$changed" in
-              packages/retro-collector/*|packages/retro-relay/*|package.json|bun.lock|tsconfig.json|.dockerignore|railway.json|.github/workflows/deploy-retro-worker.yml|.github/workflows/ci.yml)
-                echo 'deploy=true' >> "$GITHUB_OUTPUT"
-                exit 0
-                ;;
-            esac
-          done
-          if ! grep -q '^deploy=true$' "$GITHUB_OUTPUT"; then
-            echo 'deploy=false' >> "$GITHUB_OUTPUT"
-          fi
+        run: node scripts/retro-deploy-inputs.cjs worker "$BEFORE" "$SHA"
 
   deploy-retro-worker:
     name: Deploy Retro Worker

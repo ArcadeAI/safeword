@@ -1813,7 +1813,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         'da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb',
       '.claude/skills/review-spec/SKILL.md':
-        'bca4e90c57cd4868219ebe9366fbca8c126837f1289671a3e7b495bca894b052',
+        'bccfacb85f2ffb865572a3e56a6b0807a7de98f8de89ee143dd049ede1ae82fb',
       '.claude/skills/self-review/SKILL.md':
         '7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc',
       '.claude/skills/spike/SKILL.md':
@@ -1835,7 +1835,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-lint.ts':
         'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
       '.safeword/hooks/post-tool-quality.ts':
-        'eb8226888626244f196409a3fafea98c5c83908165a3ada1e6394fa745e4fbad',
+        '21a850043772895828c0d75de6d7735bc5566da9711f2ed1eac6ecd8c8cbe5db',
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
       '.safeword/hooks/post-tool-sync-learnings.ts':
@@ -1885,7 +1885,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-version.ts':
         'c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64',
       '.safeword/hooks/stop-quality.ts':
-        '1858b5639255295d82e17ca841df994e6a3ce876d93b3744cb515a42baae9bc6',
+        '467cb0915a6ee0d6a79f9c10c2123a6184df14fab0f7937eddd966227bd22137',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':

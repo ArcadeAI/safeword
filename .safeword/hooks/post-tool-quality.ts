@@ -18,6 +18,7 @@ import {
   type QualityState,
 } from './lib/quality-state.ts';
 import { shouldReviewPhase } from './lib/review-trigger.ts';
+import { isTicketCloseEdit } from './lib/ticket-close.ts';
 import {
   hasSafewordProjectMarker,
   isNamespacePath,
@@ -293,6 +294,14 @@ if (
         // actually be unfinished so merely observing an old done ticket cannot
         // bless an unrelated HEAD.
         if (wasActiveTicket || completedSinceHead) state.readinessReceiptPending = true;
+        // A real close owes Stop's done gate, which can no longer find the
+        // ticket through activeTicket (#5546). It fails closed: only positive
+        // evidence that the ticket was already done rules a close out.
+        const realClose = isTicketCloseEdit(content, input.tool_input);
+        const owed = state.doneGateOwedTickets ?? [];
+        if (realClose && !owed.includes(ticketId)) {
+          state.doneGateOwedTickets = [...owed, ticketId];
+        }
       }
       state.activeTicket = null;
     }

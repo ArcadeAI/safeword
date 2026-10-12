@@ -16,7 +16,10 @@ import { RETROSPECTIVE_LEDGER } from '../../src/review/retrospective-history.js'
 
 const eligibilityId = '70d17bbe-4174-4f02-a45f-5e58e3990761';
 const proofId = '316b1708-61e4-486d-87ad-693b393a8e87';
+const renewedEligibilityId = '74af50e1-5c4a-4ba7-a198-27b7dc359e1d';
+const renewedProofId = '0c0ffab2-d661-47c7-91e1-e2ae35c5f402';
 const claimPath = '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/eligibility.json';
+const renewalPath = '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/renewals.json';
 const proofPath = '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/proof.json';
 const observationPath =
   '.project/tickets/SBSJ40-verify-implemented-scenarios-honestly/observation.json';
@@ -25,14 +28,20 @@ const replay = vi.hoisted<{
   calls: number;
   root: string;
   request: unknown;
-}>(() => ({ state: 'changed', calls: 0, root: '', request: undefined }));
+  historyEligible: boolean;
+}>(() => ({ state: 'changed', calls: 0, root: '', request: undefined, historyEligible: true }));
 
 vi.mock('../../src/review/job.js', async importOriginal => {
   const actual = await importOriginal<typeof ReviewJob>();
   return {
     ...actual,
     approvedRetrospectiveReview: (_root: string, id: string) =>
-      ({ [eligibilityId]: [claimPath], [proofId]: [proofPath, observationPath] })[id],
+      ({
+        [eligibilityId]: [claimPath],
+        [proofId]: [proofPath, observationPath],
+        [renewedEligibilityId]: [claimPath],
+        [renewedProofId]: [proofPath, observationPath],
+      })[id],
   };
 });
 
@@ -48,7 +57,10 @@ vi.mock('../../src/review/retrospective-gate.js', async original => ({
 
 vi.mock('../../src/review/retrospective-history.js', async importOriginal => {
   const actual = await importOriginal<typeof History>();
-  return { ...actual, checkRetrospectiveHistory: () => ({ eligibleForReview: true }) };
+  return {
+    ...actual,
+    checkRetrospectiveHistory: () => ({ eligibleForReview: replay.historyEligible }),
+  };
 });
 
 function put(root: string, relative: string, content: string): void {
@@ -121,6 +133,7 @@ describe('retrospective closing replay record', () => {
     replay.calls = 0;
     replay.root = '';
     replay.request = undefined;
+    replay.historyEligible = true;
     root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-close-test-'));
     previousKeyRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
     process.env.SAFEWORD_REVIEW_KEY_ROOT = nodePath.join(root, 'profile-state');
@@ -144,6 +157,12 @@ describe('retrospective closing replay record', () => {
       'action_required',
     );
     expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
+    const record = JSON.parse(
+      readFileSync(nodePath.join(root, '.safeword/state/reviews/retrospective-close.json'), 'utf8'),
+    ) as { inputs: Record<string, string> };
+    expect(Object.keys(record.inputs)).toContain(
+      '.project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/ticket.md',
+    );
     expect(replay.calls).toBe(1);
     expect(replay.root).toBe(root);
     expect(replay.request).toEqual({
@@ -169,6 +188,102 @@ describe('retrospective closing replay record', () => {
     expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
       'action_required',
     );
+  });
+
+  it('rejects a cutoff that becomes unreachable after closing attestation', () => {
+    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
+    replay.historyEligible = false;
+    expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
+      'action_required',
+    );
+  });
+
+  it('replays a reviewed renewal while retaining the original checked row', () => {
+    put(
+      root,
+      nodePath.join(nodePath.dirname(RETROSPECTIVE_LEDGER), 'ticket.md'),
+      `---\nid: CKWE2D\nretrospective_claim: ${claimPath}\nretrospective_renewals: ${renewalPath}\n---\n`,
+    );
+    put(
+      root,
+      renewalPath,
+      JSON.stringify({
+        schema_version: 1,
+        rows: [
+          {
+            scenario: 'A nested project uses its committed generated marker',
+            originalEligibilityId: eligibilityId,
+            originalProofId: proofId,
+            eligibilityId: renewedEligibilityId,
+            proofId: renewedProofId,
+          },
+        ],
+      }),
+    );
+    put(root, `.safeword/state/reviews/${renewedEligibilityId}.json`, '{}');
+    put(root, `.safeword/state/reviews/${renewedProofId}.json`, '{}');
+    put(root, '.gitignore', `${renewalPath}\n`);
+    commitFixture(root);
+    const renewal = attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER);
+    expect(renewal.state, renewal.findings[0]?.message).toBe('changed');
+    expect(replay.request).toMatchObject({
+      eligibilityId: renewedEligibilityId,
+      proofId: renewedProofId,
+    });
+    expect(readFileSync(nodePath.join(root, RETROSPECTIVE_LEDGER), 'utf8')).toContain(
+      `VERIFIED eligibility=${eligibilityId} proof=${proofId}`,
+    );
+    expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('healthy');
+    put(root, renewalPath, '{"schema_version":1,"rows":[]}');
+    expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
+      'action_required',
+    );
+  });
+
+  it('rejects a changed ignored review receipt without a Git change', () => {
+    const receipt = `.safeword/state/reviews/${proofId}.json`;
+    execFileSync('git', ['-C', root, 'rm', '--cached', '-q', receipt]);
+    put(root, '.gitignore', '.safeword/state/reviews/\n');
+    commitFixture(root);
+    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe('changed');
+    put(root, receipt, '{"swapped":true}');
+    expect(retrospectiveCloseGate(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
+      'action_required',
+    );
+  });
+
+  it.each([
+    ['a different original proof', { originalProofId: renewedProofId }],
+    ['an unknown scenario', { scenario: 'An unrecorded scenario' }],
+    ['the same renewed review for both roles', { proofId: renewedEligibilityId }],
+  ])('rejects a renewal bound to %s', (_label, change) => {
+    put(
+      root,
+      nodePath.join(nodePath.dirname(RETROSPECTIVE_LEDGER), 'ticket.md'),
+      `---\nid: CKWE2D\nretrospective_claim: ${claimPath}\nretrospective_renewals: ${renewalPath}\n---\n`,
+    );
+    put(
+      root,
+      renewalPath,
+      JSON.stringify({
+        schema_version: 1,
+        rows: [
+          {
+            scenario: 'A nested project uses its committed generated marker',
+            originalEligibilityId: eligibilityId,
+            originalProofId: proofId,
+            eligibilityId: renewedEligibilityId,
+            proofId: renewedProofId,
+            ...change,
+          },
+        ],
+      }),
+    );
+    commitFixture(root);
+    expect(attestRetrospectiveClose(root, 'CKWE2D', RETROSPECTIVE_LEDGER).state).toBe(
+      'action_required',
+    );
+    expect(replay.calls).toBe(0);
   });
 
   it.each(['committed', 'uncommitted'] as const)(
