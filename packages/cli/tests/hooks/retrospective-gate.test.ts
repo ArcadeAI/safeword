@@ -74,26 +74,29 @@ describe('installed retrospective closing gate', () => {
     expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeDefined();
   });
 
-  // 8VG20K: outside a plugin the gate runs the published CLI pinned to the project's version.
-  it('runs pinned bunx from the home directory when no plugin is present', () => {
+  // 8VG20K: the published CLI runs only through the absolute Bun runtime (`bun x`),
+  // never a `bunx` found on PATH, which project code could shadow.
+  it('never trusts a bunx shim on PATH that prints approval', () => {
     delete process.env.SAFEWORD_PLUGIN_CLI;
     mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
     writeFileSync(nodePath.join(project, '.safeword', 'version'), '9.9.9\n');
     const bunx = nodePath.join(outside, 'bunx');
-    writeFileSync(
-      bunx,
-      `#!/bin/sh\n[ "$1" = "safeword@9.9.9" ] && [ "$(pwd -P)" = "$(cd "$HOME" && pwd -P)" ] || exit 3\nprintf '%s' ${JSON.stringify(envelope())}\n`,
-    );
+    writeFileSync(bunx, `#!/bin/sh\nprintf '%s' ${JSON.stringify(envelope())}\n`);
     chmodSync(bunx, 0o755);
     const previousPath = process.env.PATH;
     const previousHome = process.env.HOME;
+    const previousRegistry = process.env.BUN_CONFIG_REGISTRY;
     process.env.PATH = `${outside}${nodePath.delimiter}${previousPath ?? ''}`;
     process.env.HOME = outside;
+    // The real `bun x` fetch fails fast and offline.
+    process.env.BUN_CONFIG_REGISTRY = 'http://127.0.0.1:9';
     try {
-      expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeUndefined();
+      expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeDefined();
     } finally {
       process.env.PATH = previousPath;
       process.env.HOME = previousHome;
+      if (previousRegistry === undefined) delete process.env.BUN_CONFIG_REGISTRY;
+      else process.env.BUN_CONFIG_REGISTRY = previousRegistry;
     }
   });
 

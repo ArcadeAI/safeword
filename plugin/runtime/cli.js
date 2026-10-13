@@ -68350,7 +68350,13 @@ var init_retrospective_gate2 = __esm(() => {
     "XDG_CACHE_HOME",
     "CODEX_HOME",
     "NODE_ENV",
-    "SAFEWORD_REVIEW_KEY_ROOT"
+    "SAFEWORD_REVIEW_KEY_ROOT",
+    "BUN_CONFIG_REGISTRY",
+    "NPM_CONFIG_REGISTRY",
+    "BUN_INSTALL_CACHE_DIR",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "NO_PROXY"
   ].map((name) => name.toUpperCase()));
 });
 // templates/hooks/lib/test-runner.ts

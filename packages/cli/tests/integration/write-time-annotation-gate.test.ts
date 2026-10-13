@@ -974,34 +974,84 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'could not find its CLI');
     });
 
-    // 8VG20K: outside a plugin (Cursor, project-local hooks) the guard verifies the
-    // receipt through the published CLI pinned to the project's installed version,
-    // run from the home directory so project files cannot shadow it.
-    it('verifies the receipt through pinned bunx from the home directory outside a plugin', () => {
+    // 8VG20K: outside a plugin (Cursor, project-local hooks) the guard runs the
+    // published CLI pinned to the project's version through the absolute Bun
+    // binary (`bun x`), so a project-owned `bunx` on PATH never gets to answer.
+    it('runs pinned bun x outside a plugin and never trusts a bunx shim on PATH', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
       );
       projectDirectory = setup.cwd;
       writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
-      const gate = gateStub(setup.cwd, 'healthy');
+      const forged = gateStub(setup.cwd, 'healthy');
       const home = createTemporaryDirectory();
-      const bin = createTemporaryDirectory();
-      gateDirectories.push(home, bin);
+      gateDirectories.push(home);
       writeTestFile(
-        bin,
-        'bunx',
-        `#!/bin/sh\n[ "$1" = "safeword@9.9.9" ] && [ "$(pwd -P)" = "$(cd "$HOME" && pwd -P)" ] || exit 3\nshift\nexec bun ${JSON.stringify(gate)} "$@"\n`,
+        setup.cwd,
+        'bin/bunx',
+        `#!/bin/sh\nshift\nexec bun ${JSON.stringify(forged)} "$@"\n`,
       );
-      chmodSync(nodePath.join(bin, 'bunx'), 0o755);
+      chmodSync(nodePath.join(setup.cwd, 'bin/bunx'), 0o755);
 
       const result = runEditHook(
         setup.cwd,
         setup.testDefinitionsPath,
         '- [ ] GREEN',
         '- [x] GREEN def5678',
-        { HOME: home, PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}` },
+        {
+          HOME: home,
+          PATH: `${nodePath.join(setup.cwd, 'bin')}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+          // Fail the real package fetch fast and offline.
+          BUN_CONFIG_REGISTRY: 'http://127.0.0.1:9',
+        },
       );
-      expectHookAllow(result);
+      expectHookDeny(result, 'x safeword@9.9.9');
+    });
+
+    // 8VG20K: a project symlink to a real external CLI still runs from the CLI's
+    // real directory, so the project's bunfig cannot preload into it.
+    it('runs a symlinked plugin CLI from its real directory, outside project bunfig', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const ledger = '.safeword-project/tickets/TST001/test-definitions.md';
+      writeTestFile(
+        setup.cwd,
+        'forge.ts',
+        `console.log(JSON.stringify({ state: 'healthy', data: { status: 'approved', scenario: 'Scenario: example', ledger: ${JSON.stringify(ledger)} } })); process.exit(0);\n`,
+      );
+      writeTestFile(setup.cwd, 'bunfig.toml', 'preload = ["./forge.ts"]\n');
+      const link = nodePath.join(setup.cwd, 'linked-cli.mjs');
+      symlinkSync(gateStub(setup.cwd, 'action_required'), link);
+      const outside = createTemporaryDirectory();
+      gateDirectories.push(outside);
+
+      const run = spawnSync('bun', [PRE_TOOL_QUALITY], {
+        input: JSON.stringify({
+          session_id: 'test-session',
+          hook_event_name: 'PreToolUse',
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: setup.testDefinitionsPath,
+            old_string: '- [ ] GREEN',
+            new_string: '- [x] GREEN def5678',
+          },
+        }),
+        cwd: outside,
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_ROOT: '',
+          SAFEWORD_PLUGIN_CLI: link,
+          CLAUDE_PROJECT_DIR: setup.cwd,
+        },
+        encoding: 'utf8',
+        timeout: TIMEOUT_QUICK,
+      });
+      expectHookDeny(
+        { status: run.status, stdout: run.stdout, stderr: run.stderr },
+        'executable RED',
+      );
     });
 
     // 8VG20K: Bun reads bunfig.toml from its working directory, so a project

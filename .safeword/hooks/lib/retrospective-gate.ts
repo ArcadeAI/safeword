@@ -1,6 +1,4 @@
 import { spawnSync } from 'node:child_process';
-import { realpathSync } from 'node:fs';
-import nodePath from 'node:path';
 
 import { trustedSafewordClis } from './safeword-cli.ts';
 
@@ -12,32 +10,12 @@ export interface RetrospectiveGateClaim {
   readonly proofId: string;
 }
 
-/** The first trusted CLI, run by a Bun runtime that project code cannot replace either. */
+/** The first trusted CLI; the shared lookup keeps runtime and script outside the project. */
 function trustedCommand(
   projectRoot: string,
 ): { argv: readonly [string, ...string[]]; cwd: string } | undefined {
   const cli = trustedSafewordClis(projectRoot)[0];
-  if (cli === undefined) return undefined;
-  if (cli.command === 'bunx') return { argv: ['bunx', ...cli.args], cwd: cli.cwd };
-  const path = cli.args.at(-1) ?? '';
-  try {
-    const runtime = realpathSync.native(process.execPath);
-    const project = realpathSync.native(projectRoot);
-    const relative = nodePath.relative(project, runtime);
-    const runtimeInsideProject =
-      relative === '' ||
-      (relative !== '..' &&
-        !relative.startsWith(`..${nodePath.sep}`) &&
-        !nodePath.isAbsolute(relative));
-    if (runtimeInsideProject) {
-      return undefined;
-    }
-    const argv: [string, ...string[]] =
-      process.versions.bun === undefined ? [runtime, path] : [runtime, '--no-env-file', path];
-    return { argv, cwd: cli.cwd };
-  } catch {
-    return undefined;
-  }
+  return cli === undefined ? undefined : { argv: [cli.command, ...cli.args], cwd: cli.cwd };
 }
 
 const RUNTIME_ENVIRONMENT = new Set(
@@ -54,6 +32,13 @@ const RUNTIME_ENVIRONMENT = new Set(
     'CODEX_HOME',
     'NODE_ENV',
     'SAFEWORD_REVIEW_KEY_ROOT',
+    // `bun x safeword@<version>` needs the host's registry, cache, and proxy settings.
+    'BUN_CONFIG_REGISTRY',
+    'NPM_CONFIG_REGISTRY',
+    'BUN_INSTALL_CACHE_DIR',
+    'HTTPS_PROXY',
+    'HTTP_PROXY',
+    'NO_PROXY',
   ].map(name => name.toUpperCase()),
 );
 

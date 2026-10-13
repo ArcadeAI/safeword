@@ -1,10 +1,21 @@
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { safewordClis, trustedSafewordClis } from '../../templates/hooks/lib/safeword-cli.js';
+import {
+  safewordClis,
+  type TrustedRuntime,
+  trustedSafewordClis,
+} from '../../templates/hooks/lib/safeword-cli.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
 
 // Ticket 8VG20K: every hook finds the Safeword CLI through one shared lookup.
@@ -40,33 +51,39 @@ function pluginRoot(): string {
 }
 
 describe('trusted Safeword CLI lookup', () => {
-  it('prefers the plugin bundle, then pinned bunx run from the home directory', () => {
+  /** A Bun binary outside every project, as an absolute path. */
+  function runtime(): TrustedRuntime {
+    return { path: write(scratchDirectory(), 'bin/bun'), isBun: true };
+  }
+  const real = (path: string) => realpathSync(path);
+
+  it('prefers the plugin bundle, then bun x pinned to the project version from home', () => {
     const root = project();
     const plugin = pluginRoot();
+    const bun = runtime();
+    const cli = real(nodePath.join(plugin, 'runtime/cli.js'));
 
-    expect(trustedSafewordClis(root, { CLAUDE_PLUGIN_ROOT: plugin })).toEqual([
-      {
-        command: 'bun',
-        args: ['--no-env-file', nodePath.join(plugin, 'runtime/cli.js')],
-        cwd: nodePath.join(plugin, 'runtime'),
-      },
-      { command: 'bunx', args: ['safeword@1.2.3'], cwd: homedir() },
+    expect(trustedSafewordClis(root, { CLAUDE_PLUGIN_ROOT: plugin }, bun)).toEqual([
+      { command: real(bun.path), args: ['--no-env-file', cli], cwd: nodePath.dirname(cli) },
+      { command: real(bun.path), args: ['x', 'safeword@1.2.3'], cwd: homedir() },
     ]);
   });
 
-  it('uses pinned bunx when no plugin is present', () => {
-    expect(trustedSafewordClis(project(), {})).toEqual([
-      { command: 'bunx', args: ['safeword@1.2.3'], cwd: homedir() },
+  it('uses pinned bun x when no plugin is present', () => {
+    const bun = runtime();
+    expect(trustedSafewordClis(project(), {}, bun)).toEqual([
+      { command: real(bun.path), args: ['x', 'safeword@1.2.3'], cwd: homedir() },
     ]);
   });
 
   it('includes the Codex plugin cache for the pinned version', () => {
     const root = project();
     const codexHome = scratchDirectory();
-    const cached = write(codexHome, 'plugins/cache/safeword/safeword/1.2.3/runtime/cli.js');
+    const cached = real(write(codexHome, 'plugins/cache/safeword/safeword/1.2.3/runtime/cli.js'));
+    const bun = runtime();
 
-    expect(trustedSafewordClis(root, { CODEX_HOME: codexHome })[0]).toEqual({
-      command: 'bun',
+    expect(trustedSafewordClis(root, { CODEX_HOME: codexHome }, bun)[0]).toEqual({
+      command: real(bun.path),
       args: ['--no-env-file', cached],
       cwd: nodePath.dirname(cached),
     });
@@ -77,8 +94,26 @@ describe('trusted Safeword CLI lookup', () => {
     const inside = write(root, 'evil/runtime/cli.js');
 
     expect(
-      trustedSafewordClis(root, { SAFEWORD_PLUGIN_CLI: inside }).map(cli => cli.command),
-    ).toEqual(['bunx']);
+      trustedSafewordClis(root, { SAFEWORD_PLUGIN_CLI: inside }, runtime()).map(cli => cli.args[0]),
+    ).toEqual(['x']);
+  });
+
+  it("runs a symlinked plugin CLI from its real directory, not the link's", () => {
+    const root = project();
+    const external = real(write(scratchDirectory(), 'runtime/cli.js'));
+    const link = nodePath.join(root, 'linked-cli.js');
+    symlinkSync(external, link);
+
+    expect(trustedSafewordClis(root, { SAFEWORD_PLUGIN_CLI: link }, runtime())[0]?.cwd).toBe(
+      nodePath.dirname(external),
+    );
+  });
+
+  it('refuses a runtime inside the project', () => {
+    const root = project();
+    const bun: TrustedRuntime = { path: write(root, 'bin/bun'), isBun: true };
+
+    expect(trustedSafewordClis(root, { CLAUDE_PLUGIN_ROOT: pluginRoot() }, bun)).toEqual([]);
   });
 
   it('refuses this repo source and the installed package', () => {
@@ -87,11 +122,11 @@ describe('trusted Safeword CLI lookup', () => {
     write(root, 'packages/cli/src/cli.ts');
     write(root, 'node_modules/.bin/safeword');
 
-    expect(trustedSafewordClis(root, {}).map(cli => cli.command)).toEqual(['bunx']);
+    expect(trustedSafewordClis(root, {}, runtime()).map(cli => cli.args[0])).toEqual(['x']);
   });
 
   it('returns nothing for a project with no pinned version and no plugin', () => {
-    expect(trustedSafewordClis(scratchDirectory(), {})).toEqual([]);
+    expect(trustedSafewordClis(scratchDirectory(), {}, runtime())).toEqual([]);
   });
 });
 

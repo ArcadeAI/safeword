@@ -77,45 +77,85 @@ export function projectWritablePluginCli(
   return plugin !== undefined && isInside(projectDirectory, plugin) ? plugin : undefined;
 }
 
-/**
- * A trusted CLI script, run from its own directory with no env file: Bun reads
- * `bunfig.toml` (including `preload`) and `.env` from its working directory, so
- * running from the project would let project files answer for the CLI.
- */
-function trustedBunScript(path: string): SafewordCli {
-  return { command: 'bun', args: ['--no-env-file', path], cwd: nodePath.dirname(path) };
+/** The runtime a trust check runs under: an absolute binary, never a PATH lookup. */
+export interface TrustedRuntime {
+  path: string;
+  isBun: boolean;
 }
 
-/** CLIs a trust check may run: none of them can be changed by the project's own files. */
+function currentRuntime(environment: NodeJS.ProcessEnv): TrustedRuntime {
+  if (process.versions.bun !== undefined) return { path: process.execPath, isBun: true };
+  // Under Node (the npm-installed CLI, tests), find Bun on PATH; the caller still
+  // refuses it when it resolves inside the project.
+  for (const directory of (environment.PATH ?? '').split(nodePath.delimiter)) {
+    const candidate = nodePath.join(directory, 'bun');
+    if (directory !== '' && existsSync(candidate)) return { path: candidate, isBun: true };
+  }
+  return { path: process.execPath, isBun: false };
+}
+
+/**
+ * CLIs a trust check may run. Nothing project files can change gets to answer:
+ * - the runtime is the absolute binary already running this hook, outside the
+ *   project (a PATH lookup could find a project-owned `bun` or `bunx` shim);
+ * - each script is canonicalized and must resolve outside the project, then runs
+ *   from its own real directory with no env file, because Bun loads `bunfig.toml`
+ *   (including `preload`) and `.env` from its working directory;
+ * - the published package runs as `bun x safeword@<.safeword/version>` from the
+ *   home directory, so project `node_modules` cannot shadow it.
+ */
 export function trustedSafewordClis(
   projectDirectory: string,
   environment: NodeJS.ProcessEnv = process.env,
+  runtime: TrustedRuntime = currentRuntime(environment),
 ): SafewordCli[] {
-  const candidates: SafewordCli[] = [];
-  const plugin = pluginCli(environment);
-  if (plugin !== undefined && !isInside(projectDirectory, plugin)) {
-    candidates.push(trustedBunScript(plugin));
+  let runtimePath: string;
+  try {
+    runtimePath = realpathSync(runtime.path);
+  } catch {
+    return [];
   }
+  if (isInside(projectDirectory, runtimePath)) return [];
+
+  const scripts: string[] = [];
+  const plugin = pluginCli(environment);
+  if (plugin !== undefined) scripts.push(plugin);
   const version = pinnedSafewordVersion(projectDirectory);
   if (version !== undefined) {
     const codexHome = environment.CODEX_HOME || nodePath.join(homedir(), '.codex');
-    const codexCli = nodePath.join(
-      codexHome,
-      'plugins',
-      'cache',
-      'safeword',
-      'safeword',
-      version,
-      'runtime',
-      'cli.js',
+    scripts.push(
+      nodePath.join(
+        codexHome,
+        'plugins',
+        'cache',
+        'safeword',
+        'safeword',
+        version,
+        'runtime',
+        'cli.js',
+      ),
     );
-    if (existsSync(codexCli) && !isInside(projectDirectory, codexCli)) {
-      candidates.push(trustedBunScript(codexCli));
-    }
   }
-  // `bunx` resolves the caller's node_modules first; running from the home
-  // directory keeps project contents from shadowing the published package.
-  return [...candidates, ...pinnedBunx(projectDirectory, homedir())];
+
+  const candidates: SafewordCli[] = [];
+  for (const script of scripts) {
+    let real: string;
+    try {
+      real = realpathSync(script);
+    } catch {
+      continue;
+    }
+    if (isInside(projectDirectory, real)) continue;
+    candidates.push({
+      command: runtimePath,
+      args: runtime.isBun ? ['--no-env-file', real] : [real],
+      cwd: nodePath.dirname(real),
+    });
+  }
+  if (version !== undefined && runtime.isBun) {
+    candidates.push({ command: runtimePath, args: ['x', `safeword@${version}`], cwd: homedir() });
+  }
+  return candidates;
 }
 
 /** This repo's own CLI source, only when the checkout really is the safeword package. */
