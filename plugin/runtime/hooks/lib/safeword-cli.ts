@@ -77,6 +77,15 @@ export function projectWritablePluginCli(
   return plugin !== undefined && isInside(projectDirectory, plugin) ? plugin : undefined;
 }
 
+/**
+ * A trusted CLI script, run from its own directory with no env file: Bun reads
+ * `bunfig.toml` (including `preload`) and `.env` from its working directory, so
+ * running from the project would let project files answer for the CLI.
+ */
+function trustedBunScript(path: string): SafewordCli {
+  return { command: 'bun', args: ['--no-env-file', path], cwd: nodePath.dirname(path) };
+}
+
 /** CLIs a trust check may run: none of them can be changed by the project's own files. */
 export function trustedSafewordClis(
   projectDirectory: string,
@@ -85,7 +94,7 @@ export function trustedSafewordClis(
   const candidates: SafewordCli[] = [];
   const plugin = pluginCli(environment);
   if (plugin !== undefined && !isInside(projectDirectory, plugin)) {
-    candidates.push({ command: 'bun', args: [plugin], cwd: projectDirectory });
+    candidates.push(trustedBunScript(plugin));
   }
   const version = pinnedSafewordVersion(projectDirectory);
   if (version !== undefined) {
@@ -101,7 +110,7 @@ export function trustedSafewordClis(
       'cli.js',
     );
     if (existsSync(codexCli) && !isInside(projectDirectory, codexCli)) {
-      candidates.push({ command: 'bun', args: [codexCli], cwd: projectDirectory });
+      candidates.push(trustedBunScript(codexCli));
     }
   }
   // `bunx` resolves the caller's node_modules first; running from the home

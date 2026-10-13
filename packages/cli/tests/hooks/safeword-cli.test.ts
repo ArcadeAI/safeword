@@ -45,7 +45,11 @@ describe('trusted Safeword CLI lookup', () => {
     const plugin = pluginRoot();
 
     expect(trustedSafewordClis(root, { CLAUDE_PLUGIN_ROOT: plugin })).toEqual([
-      { command: 'bun', args: [nodePath.join(plugin, 'runtime/cli.js')], cwd: root },
+      {
+        command: 'bun',
+        args: ['--no-env-file', nodePath.join(plugin, 'runtime/cli.js')],
+        cwd: nodePath.join(plugin, 'runtime'),
+      },
       { command: 'bunx', args: ['safeword@1.2.3'], cwd: homedir() },
     ]);
   });
@@ -63,8 +67,8 @@ describe('trusted Safeword CLI lookup', () => {
 
     expect(trustedSafewordClis(root, { CODEX_HOME: codexHome })[0]).toEqual({
       command: 'bun',
-      args: [cached],
-      cwd: root,
+      args: ['--no-env-file', cached],
+      cwd: nodePath.dirname(cached),
     });
   });
 

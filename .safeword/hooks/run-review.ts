@@ -154,9 +154,11 @@ export function receiptReviewCandidates(
   projectDirectory = process.cwd(),
   environment: NodeJS.ProcessEnv = process.env,
 ): Candidate[] {
-  return trustedSafewordClis(projectDirectory, environment).map(cli =>
-    cli.command === 'bunx' ? [cli.command, cli.args, cli.cwd] : [cli.command, cli.args],
-  );
+  return trustedSafewordClis(projectDirectory, environment).map(cli => [
+    cli.command,
+    cli.args,
+    cli.cwd,
+  ]);
 }
 
 export function runReview(arguments_: string[]): never {

@@ -19,7 +19,7 @@ function trustedCommand(
   const cli = trustedSafewordClis(projectRoot)[0];
   if (cli === undefined) return undefined;
   if (cli.command === 'bunx') return { argv: ['bunx', ...cli.args], cwd: cli.cwd };
-  const path = cli.args[0] ?? '';
+  const path = cli.args.at(-1) ?? '';
   try {
     const runtime = realpathSync.native(process.execPath);
     const project = realpathSync.native(projectRoot);
@@ -34,7 +34,7 @@ function trustedCommand(
     }
     const argv: [string, ...string[]] =
       process.versions.bun === undefined ? [runtime, path] : [runtime, '--no-env-file', path];
-    return { argv, cwd: nodePath.dirname(path) };
+    return { argv, cwd: cli.cwd };
   } catch {
     return undefined;
   }

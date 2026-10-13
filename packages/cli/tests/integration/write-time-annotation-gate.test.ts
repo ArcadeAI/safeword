@@ -1017,15 +1017,35 @@ describe('write-time annotation gate', () => {
         `console.log(JSON.stringify({ state: 'healthy', data: { status: 'approved', scenario: 'Scenario: example', ledger: '.safeword-project/tickets/TST001/test-definitions.md' } })); process.exit(0);\n`,
       );
       writeTestFile(setup.cwd, 'bunfig.toml', 'preload = ["./forge.ts"]\n');
-
-      const result = runEditHook(
-        setup.cwd,
-        setup.testDefinitionsPath,
-        '- [ ] GREEN',
-        '- [x] GREEN def5678',
-        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      // Start the hook outside the project so only the CLI it launches could read
+      // the project's bunfig; the hook still targets the project via CLAUDE_PROJECT_DIR.
+      const outside = createTemporaryDirectory();
+      gateDirectories.push(outside);
+      const run = spawnSync('bun', [PRE_TOOL_QUALITY], {
+        input: JSON.stringify({
+          session_id: 'test-session',
+          hook_event_name: 'PreToolUse',
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: setup.testDefinitionsPath,
+            old_string: '- [ ] GREEN',
+            new_string: '- [x] GREEN def5678',
+          },
+        }),
+        cwd: outside,
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_ROOT: '',
+          SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required'),
+          CLAUDE_PROJECT_DIR: setup.cwd,
+        },
+        encoding: 'utf8',
+        timeout: TIMEOUT_QUICK,
+      });
+      expectHookDeny(
+        { status: run.status, stdout: run.stdout, stderr: run.stderr },
+        'executable RED',
       );
-      expectHookDeny(result, 'executable RED');
     });
 
     it('discovers the bundled CLI from CLAUDE_PLUGIN_ROOT', () => {

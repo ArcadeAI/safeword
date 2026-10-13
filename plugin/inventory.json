@@ -387,7 +387,7 @@
     },
     {
       "path": "runtime/hooks/lib/retrospective-gate.ts",
-      "sha256": "3c96ba049104cc73574b38349b4fe68ba4229d9c84da590273dfb9908015bf91"
+      "sha256": "1cc211225a1739d9eb0364b3b465b65e49ca70c5f9e729b6c310886743ee79ea"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
@@ -407,7 +407,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-cli.ts",
-      "sha256": "a93196090ed693ce6bdd2bd9ab80dd27170f8bcf233d415f2f4f36e98532b706"
+      "sha256": "7c2535de7a413e3eca7dc38b6f0602cb0f07723fb3f4d499967f66250c71d39a"
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
@@ -543,7 +543,7 @@
     },
     {
       "path": "runtime/hooks/run-review.ts",
-      "sha256": "65b2788be9a94f14f48c2050954839e9023f52ae8d076627b1cbcc41b14519b2"
+      "sha256": "123c2a3ba8ea2f2efdc4e26ca61b07101c5d8fe96147b5405b280533706e3a80"
     },
     {
       "path": "runtime/hooks/session-architecture-heal.ts",
@@ -1335,7 +1335,7 @@
     },
     {
       "path": "templates/hooks/lib/retrospective-gate.ts",
-      "sha256": "3c96ba049104cc73574b38349b4fe68ba4229d9c84da590273dfb9908015bf91"
+      "sha256": "1cc211225a1739d9eb0364b3b465b65e49ca70c5f9e729b6c310886743ee79ea"
     },
     {
       "path": "templates/hooks/lib/review-ledger.ts",
@@ -1355,7 +1355,7 @@
     },
     {
       "path": "templates/hooks/lib/safeword-cli.ts",
-      "sha256": "a93196090ed693ce6bdd2bd9ab80dd27170f8bcf233d415f2f4f36e98532b706"
+      "sha256": "7c2535de7a413e3eca7dc38b6f0602cb0f07723fb3f4d499967f66250c71d39a"
     },
     {
       "path": "templates/hooks/lib/safeword-context.ts",
@@ -1491,7 +1491,7 @@
     },
     {
       "path": "templates/hooks/run-review.ts",
-      "sha256": "65b2788be9a94f14f48c2050954839e9023f52ae8d076627b1cbcc41b14519b2"
+      "sha256": "123c2a3ba8ea2f2efdc4e26ca61b07101c5d8fe96147b5405b280533706e3a80"
     },
     {
       "path": "templates/hooks/session-architecture-heal.ts",
