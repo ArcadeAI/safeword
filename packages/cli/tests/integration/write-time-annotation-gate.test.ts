@@ -96,6 +96,36 @@ function runEditHook(
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
+/** Run pre-tool-quality for the standard GREEN tick, optionally from outside the project. */
+function runGreenTickHook(
+  setup: { cwd: string; testDefinitionsPath: string },
+  options: { hookCwd?: string; environment?: NodeJS.ProcessEnv; timeout?: number } = {},
+): HookResult {
+  const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: 'test-session',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: setup.testDefinitionsPath,
+        old_string: '- [ ] GREEN',
+        new_string: '- [x] GREEN def5678',
+      },
+    }),
+    cwd: options.hookCwd ?? setup.cwd,
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
+      SAFEWORD_PLUGIN_CLI: '',
+      ...options.environment,
+      CLAUDE_PROJECT_DIR: setup.cwd,
+    },
+    encoding: 'utf8',
+    timeout: options.timeout ?? TIMEOUT_QUICK,
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
 function runReplaceAllEditHook(
   cwd: string,
   filePath: string,
@@ -1032,35 +1062,18 @@ describe('write-time annotation gate', () => {
     ): HookResult {
       const home = createTemporaryDirectory();
       gateDirectories.push(home);
-      const run = spawnSync('bun', [PRE_TOOL_QUALITY], {
-        input: JSON.stringify({
-          session_id: 'test-session',
-          hook_event_name: 'PreToolUse',
-          tool_name: 'Edit',
-          tool_input: {
-            file_path: setup.testDefinitionsPath,
-            old_string: '- [ ] GREEN',
-            new_string: '- [x] GREEN def5678',
-          },
-        }),
-        cwd: setup.cwd,
-        env: {
-          ...process.env,
-          CLAUDE_PLUGIN_ROOT: '',
-          SAFEWORD_PLUGIN_CLI: '',
+      return runGreenTickHook(setup, {
+        environment: {
           HOME: home,
           BUN_CONFIG_REGISTRY: published.registry,
           BUN_INSTALL_CACHE_DIR: published.cache,
           // bun x keeps installed packages under TMPDIR; isolate each test's package.
           TMPDIR: home,
           ...environment,
-          CLAUDE_PROJECT_DIR: setup.cwd,
         },
-        encoding: 'utf8',
         // A real package fetch: leave headroom past the guard's own 30s download budget.
         timeout: 40_000,
       });
-      return { status: run.status, stdout: run.stdout, stderr: run.stderr };
     }
 
     it('approves GREEN through the pinned published package outside a plugin', () => {
@@ -1180,31 +1193,11 @@ describe('write-time annotation gate', () => {
       const outside = createTemporaryDirectory();
       gateDirectories.push(outside);
 
-      const run = spawnSync('bun', [PRE_TOOL_QUALITY], {
-        input: JSON.stringify({
-          session_id: 'test-session',
-          hook_event_name: 'PreToolUse',
-          tool_name: 'Edit',
-          tool_input: {
-            file_path: setup.testDefinitionsPath,
-            old_string: '- [ ] GREEN',
-            new_string: '- [x] GREEN def5678',
-          },
-        }),
-        cwd: outside,
-        env: {
-          ...process.env,
-          CLAUDE_PLUGIN_ROOT: '',
-          SAFEWORD_PLUGIN_CLI: link,
-          CLAUDE_PROJECT_DIR: setup.cwd,
-        },
-        encoding: 'utf8',
-        timeout: TIMEOUT_QUICK,
+      const run = runGreenTickHook(setup, {
+        hookCwd: outside,
+        environment: { SAFEWORD_PLUGIN_CLI: link },
       });
-      expectHookDeny(
-        { status: run.status, stdout: run.stdout, stderr: run.stderr },
-        'executable RED',
-      );
+      expectHookDeny(run, 'executable RED');
     });
 
     // 8VG20K: Bun reads bunfig.toml from its working directory, so a project
@@ -1224,31 +1217,11 @@ describe('write-time annotation gate', () => {
       // the project's bunfig; the hook still targets the project via CLAUDE_PROJECT_DIR.
       const outside = createTemporaryDirectory();
       gateDirectories.push(outside);
-      const run = spawnSync('bun', [PRE_TOOL_QUALITY], {
-        input: JSON.stringify({
-          session_id: 'test-session',
-          hook_event_name: 'PreToolUse',
-          tool_name: 'Edit',
-          tool_input: {
-            file_path: setup.testDefinitionsPath,
-            old_string: '- [ ] GREEN',
-            new_string: '- [x] GREEN def5678',
-          },
-        }),
-        cwd: outside,
-        env: {
-          ...process.env,
-          CLAUDE_PLUGIN_ROOT: '',
-          SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required'),
-          CLAUDE_PROJECT_DIR: setup.cwd,
-        },
-        encoding: 'utf8',
-        timeout: TIMEOUT_QUICK,
+      const run = runGreenTickHook(setup, {
+        hookCwd: outside,
+        environment: { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
       });
-      expectHookDeny(
-        { status: run.status, stdout: run.stdout, stderr: run.stderr },
-        'executable RED',
-      );
+      expectHookDeny(run, 'executable RED');
     });
 
     it('discovers the bundled CLI from CLAUDE_PLUGIN_ROOT', () => {
