@@ -16,13 +16,15 @@
  */
 
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 export interface SafewordCli {
   command: string;
   args: string[];
   cwd: string;
+  /** Runs a package runner that may download the pinned package on first use. */
+  downloads?: boolean;
 }
 
 const SEMVER =
@@ -65,7 +67,9 @@ function pluginCli(environment: NodeJS.ProcessEnv): string | undefined {
 
 function pinnedBunx(projectDirectory: string, cwd: string): SafewordCli[] {
   const version = pinnedSafewordVersion(projectDirectory);
-  return version === undefined ? [] : [{ command: 'bunx', args: [`safeword@${version}`], cwd }];
+  return version === undefined
+    ? []
+    : [{ command: 'bunx', args: [`safeword@${version}`], cwd, downloads: true }];
 }
 
 /** The plugin CLI a trust check refused because project code could edit it, if any. */
@@ -152,13 +156,19 @@ export function trustedSafewordClis(
       cwd: nodePath.dirname(real),
     });
   }
-  if (version !== undefined && runtime.isBun) {
+  // Bun also reads bunfig.toml from the package runner's working directory, so it
+  // must sit outside the project too (a project can be the home directory).
+  const runnerDirectory = [homedir(), tmpdir(), nodePath.parse(homedir()).root].find(
+    directory => !isInside(projectDirectory, directory),
+  );
+  if (version !== undefined && runtime.isBun && runnerDirectory !== undefined) {
     // `--bun` runs the package under this Bun even though its bin has a Node
     // shebang; otherwise `bun x` would look `node` up on PATH.
     candidates.push({
       command: runtimePath,
       args: ['x', '--bun', `safeword@${version}`],
-      cwd: homedir(),
+      cwd: runnerDirectory,
+      downloads: true,
     });
   }
   return candidates;

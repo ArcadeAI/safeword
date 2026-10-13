@@ -1015,9 +1015,12 @@ describe('write-time annotation gate', () => {
     const REGISTRY_SERVER = `import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 const tarball = readFileSync('safeword-9.9.9.tgz');
-const server = createServer((request, response) => {
+const delay = Number(process.env.DELAY_MS ?? 0);
+const server = createServer(async (request, response) => {
   const base = 'http://127.0.0.1:' + server.address().port;
   const route = (request.url ?? '').split('?')[0];
+  // A slow registry: only the first (metadata) request waits.
+  if (route === '/safeword') await new Promise(resolve => setTimeout(resolve, delay));
   if (route.endsWith('.tgz')) {
     response.writeHead(200, { 'content-type': 'application/octet-stream' });
     response.end(tarball);
@@ -1042,7 +1045,10 @@ server.listen(0, '127.0.0.1', () => writeFileSync('port', String(server.address(
 `;
 
     /** Serve safeword@9.9.9 whose bin (a Node-shebang script, like the real one) is `cli`. */
-    function publishSafeword(cli: string): { registry: string; cache: string; stop: () => void } {
+    function publishSafeword(
+      cli: string,
+      delayMs = 0,
+    ): { registry: string; cache: string; stop: () => void } {
       const root = createTemporaryDirectory();
       gateDirectories.push(root);
       writeTestFile(
@@ -1053,7 +1059,11 @@ server.listen(0, '127.0.0.1', () => writeFileSync('port', String(server.address(
       writeTestFile(root, 'package/cli.js', `#!/usr/bin/env node\n${readFileSync(cli, 'utf8')}`);
       execFileSync('tar', ['-czf', 'safeword-9.9.9.tgz', 'package'], { cwd: root });
       writeTestFile(root, 'server.mjs', REGISTRY_SERVER);
-      const server = spawn(process.execPath, ['server.mjs'], { cwd: root, stdio: 'ignore' });
+      const server = spawn(process.execPath, ['server.mjs'], {
+        cwd: root,
+        env: { ...process.env, DELAY_MS: String(delayMs) },
+        stdio: 'ignore',
+      });
       const portFile = nodePath.join(root, 'port');
       const deadline = Date.now() + 10_000;
       while (!existsSync(portFile) && Date.now() < deadline) {
@@ -1099,6 +1109,21 @@ server.listen(0, '127.0.0.1', () => writeFileSync('port', String(server.address(
       const published = publishSafeword(
         gateStub(setup.cwd, 'healthy', 'Scenario: example', ledger),
       );
+      try {
+        expectHookAllow(runPinnedFallback(setup, published));
+      } finally {
+        published.stop();
+      }
+    });
+
+    // A cold first download can take longer than a local bundle's 5s budget.
+    it('gives a cold pinned package download more than five seconds', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
+      const published = publishSafeword(gateStub(setup.cwd, 'healthy'), 5500);
       try {
         expectHookAllow(runPinnedFallback(setup, published));
       } finally {

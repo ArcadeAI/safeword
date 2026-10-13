@@ -65,14 +65,24 @@ describe('trusted Safeword CLI lookup', () => {
 
     expect(trustedSafewordClis(root, { CLAUDE_PLUGIN_ROOT: plugin }, bun)).toEqual([
       { command: real(bun.path), args: ['--no-env-file', cli], cwd: nodePath.dirname(cli) },
-      { command: real(bun.path), args: ['x', '--bun', 'safeword@1.2.3'], cwd: homedir() },
+      {
+        command: real(bun.path),
+        args: ['x', '--bun', 'safeword@1.2.3'],
+        cwd: homedir(),
+        downloads: true,
+      },
     ]);
   });
 
   it('uses pinned bun x when no plugin is present', () => {
     const bun = runtime();
     expect(trustedSafewordClis(project(), {}, bun)).toEqual([
-      { command: real(bun.path), args: ['x', '--bun', 'safeword@1.2.3'], cwd: homedir() },
+      {
+        command: real(bun.path),
+        args: ['x', '--bun', 'safeword@1.2.3'],
+        cwd: homedir(),
+        downloads: true,
+      },
     ]);
   });
 
@@ -107,6 +117,20 @@ describe('trusted Safeword CLI lookup', () => {
     expect(trustedSafewordClis(root, { SAFEWORD_PLUGIN_CLI: link }, runtime())[0]?.cwd).toBe(
       nodePath.dirname(external),
     );
+  });
+
+  it('runs the package from outside the project when the project is the home directory', () => {
+    const root = project();
+    const previousHome = process.env.HOME;
+    process.env.HOME = root;
+    try {
+      const runner = trustedSafewordClis(root, {}, runtime()).at(-1);
+      expect(runner?.args).toEqual(['x', '--bun', 'safeword@1.2.3']);
+      expect(runner?.cwd).not.toBe(root);
+      expect(realpathSync(runner?.cwd ?? root).startsWith(realpathSync(root))).toBe(false);
+    } finally {
+      process.env.HOME = previousHome;
+    }
   });
 
   it('refuses a runtime inside the project', () => {
@@ -151,7 +175,7 @@ describe('working Safeword CLI lookup', () => {
     expect(safewordClis(root, {})).toEqual([
       { command: 'bun', args: [source], cwd: root },
       { command: installed, args: [], cwd: root },
-      { command: 'bunx', args: ['safeword@1.2.3'], cwd: root },
+      { command: 'bunx', args: ['safeword@1.2.3'], cwd: root, downloads: true },
     ]);
   });
 
