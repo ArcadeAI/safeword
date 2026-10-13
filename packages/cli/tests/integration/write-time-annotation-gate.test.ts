@@ -11,7 +11,14 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  readFileSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -965,6 +972,36 @@ describe('write-time annotation gate', () => {
         { SAFEWORD_PLUGIN_CLI: '' },
       );
       expectHookDeny(result, 'could not find its local CLI');
+    });
+
+    // 8VG20K: outside a plugin (Cursor, project-local hooks) the guard verifies the
+    // receipt through the published CLI pinned to the project's installed version,
+    // run from the home directory so project files cannot shadow it.
+    it('verifies the receipt through pinned bunx from the home directory outside a plugin', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
+      const gate = gateStub(setup.cwd, 'healthy');
+      const home = createTemporaryDirectory();
+      const bin = createTemporaryDirectory();
+      gateDirectories.push(home, bin);
+      writeTestFile(
+        bin,
+        'bunx',
+        `#!/bin/sh\n[ "$1" = "safeword@9.9.9" ] && [ "$(pwd -P)" = "$(cd "$HOME" && pwd -P)" ] || exit 3\nshift\nexec bun ${JSON.stringify(gate)} "$@"\n`,
+      );
+      chmodSync(nodePath.join(bin, 'bunx'), 0o755);
+
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { HOME: home, PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}` },
+      );
+      expectHookAllow(result);
     });
 
     it('discovers the bundled CLI from CLAUDE_PLUGIN_ROOT', () => {
