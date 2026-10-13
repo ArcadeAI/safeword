@@ -84,7 +84,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
       '.safeword/hooks/post-tool-sync-learnings.ts':
-        'eba8dc6c246fd35cfff0a3efb1e2062d0e6fbe830dc7c01046c0580fd11ecb2c',
+        'de5f52c221b2f029841beded78d65af80217949072a99c2790d503f492528290',
       '.safeword/hooks/post-tool-work-log.ts':
         'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
       '.safeword/hooks/pre-tool-architecture-stage.ts':
@@ -136,7 +136,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/stop-retro-filing.ts':
         'ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d',
       '.safeword/hooks/stop-retro.ts':
-        '87ee67eef3037c3914d0858e206be7719d3770e8a629ace5a5f794de6587727e',
+        'ecdb55e277a4188e5daf1c9a9de3f5e28bed724a14064e374eb4db10a9d0921e',
       '.safeword/hooks/stop-self-report.ts':
         'baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0',
     },

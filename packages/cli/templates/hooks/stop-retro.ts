@@ -16,8 +16,6 @@
 // never blocks Stop.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import nodePath from 'node:path';
 
 import { safewordCli } from './lib/safeword-cli.ts';
 import process from 'node:process';

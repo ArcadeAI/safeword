@@ -3,7 +3,7 @@
 // Ticket #130. Verification-stamp warning added in ticket XV72DT.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { safewordCli } from './lib/safeword-cli.ts';
