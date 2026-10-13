@@ -854,3 +854,102 @@ real Sol rejection. This fixture correction does not change the separate
 63-case Execution Plan corpus or erase the need to qualify its changed
 552b5b9b schema corpus. No further wording changes are planned absent an
 actual blocking defect.
+
+### Corrected corpus qualifies both current model directions
+
+At frozen source 2f83add20178e4b594d4b62be5b7268d3776299e, both exact
+models pass all 18 scored runs. Current capability corpus is
+d5b762adcb4130b905f5be7baa83d8789c85b5b4e28d7be1ecfc169a986dd8b4;
+rubric is 5ebe7a4897e3c791328f03c618f9867f70ab9a3cea9a94136a261482344f07f8.
+The unchanged evaluator generates not_weaker in both directions. Independent
+review d71e588b-f7d2-420d-b596-29904a4fb4af approves the actual sealed
+records and catalogue with no errors. Operator-observed metadata remains
+separate from harness-confirmed model identity; the toy corpus ceiling and
+broad finding substrings limit any general model-strength claim. One Sol
+rejection run also names a help-proof issue absent from its positive
+Implementation counterpart; preserve this calibration warning rather than
+claiming perfect finding consistency. Byte-for-byte evaluator verify passes.
+
+Generated bundles were refreshed. The --fix command then refused to start
+a lifecycle Vitest check because the one Sol admission matrix held the lock;
+it exited 75 via its child, and no second Vitest process started. Do not
+count that lifecycle test as passed. The normal non-mutating generated-surface
+check succeeds, including the templates-digest fixture check. The complete
+lifecycle contract check waits until the active matrix finishes. No lock was
+removed, runner killed, or test disabled.
+
+Sol is running the fresh full 63-case admission matrix for execution corpus
+552b5b9b3661d7d57100b7865dc066e6183e69e3f1f5d64081c95fefee1d9399.
+It includes schema guidance and cannot borrow old corpus evidence. Claude
+qualification must follow sequentially under the one-Vitest rule. The earlier
+47/47 public CLI acceptance and all earlier failed reports stay historical
+for their producing source. New complete results are pending.
+
+Fresh Sol model admission completes one uninterrupted 63/63 case matrix,
+plus its identity guard (64/64 tests) in 1686.85 seconds. Actual results and
+raw log are retained in 4200-schema-fixed-sol-proof with operator-observed
+source/context metadata. No earlier false record was selected into it.
+Claude's fresh 63-case run remains required before final admission generation.
+
+The queued lifecycle and independent route-order checks pass 24/24 when run
+from packages/cli through ../../scripts/dev. The initial root-level command
+ran the root script's relay suite first and failed one of 199 tests on
+EADDRINUSE at 0.0.0.0:52254 (197 passed, 1 skipped); CLI checks never started.
+Raw failure is retained. No listener on that port remained when inspected.
+The helper closes a 127.0.0.1 port reservation before runtime binds 0.0.0.0,
+so a race is possible but the original owner is not known. A complete relay
+rerun follows without changing or disabling a test. Do not turn that inference
+into a confirmed root cause. Final full-workspace verification is still pending.
+
+The unchanged full relay rerun passes 198/199 with its one existing skip.
+The earlier EADDRINUSE failure remains retained; neither an existing skip
+nor a passing retry hides it. No relay source or test was changed. Fresh
+Claude 63-case qualification now runs in the single Vitest slot using its
+explicit default authenticated profile and exact claude-opus-5 selector.
+
+### Complete current admission and release verification
+
+Claude's fresh matrix passes 63/63 actual cases plus identity guard, 64/64
+tests in 4023.05 seconds. Sol's fresh matrix passes the same 63 cases and
+guard in 1686.85 seconds. Both results are retained independently and supplied
+directly to admission generation for corpus 552b5b9b. No synthetic or old
+corpus records supplied generation. All five generated surfaces now
+regenerate and verify, including the previously queued lifecycle contract.
+Release verification passes 82/82 tests across 14 files. Current lifecycle
+and independent route-order checks passed 24/24 earlier.
+
+Admission review ce46d663-3a80-4b91-bac2-6d7ad665a583 approves with no
+errors. Preserve its provenance limits: the harness does not embed corpus
+digests or CLI versions in its result records, and raw success logs alone
+do not corroborate selected identities. Actual command/env transcript,
+operator-observed source hashes and live confirmed-model assertions supply
+that linkage for this run. Do not describe it as harness-authenticated
+version attribution or generalize the six-fixture capability ceiling. No new
+integrity-envelope framework or tuned acceptance rule was added. Final
+workspace units, new-head CI, public acceptance and authenticated recovery
+observation/certification remain required.
+
+Audit invocation is recorded for this run. Scoped depcruise reports 0 errors
+and one no-orphans warning on the opt-in observer proof config. That config
+is an outer public-observer proof wrapper, not the inner 142-case lane. Its
+invocation is now documented in the task ledger without changing checkboxes,
+and it will reuse one actual signed observation for both purposes. The
+automatic principle checker found conflicting ticket candidates; explicit
+factual checks of V2ZPV1 and 5F5ZZA plans both pass. Learning/domain-doc
+checks have no findings. Documentation inventory comes from configured
+README/website paths. The CLI kind-list omission is corrected outside the
+generated command-table markers. Test-quality and final complete-diff review
+remain to finish; no full audit pass or Ready status is claimed yet.
+
+Final workspace verification found one CLI collection failure: job.test.ts
+collects-a-completed-result returns state/status failed instead of
+healthy/approved. Relay and collector pass; CLI has 11,462 passes, 14 skips
+and one failure across 729 files, duration 736.13 seconds. Preserve that
+aggregate. Its original assertion omitted the actual error reason. The
+isolated case passes without changes, then the entire 83-case job suite
+passes after adding only a JSON diagnostic message to the unchanged
+approval assertion. This is observability, not a claimed production fix.
+A second complete workspace run follows once with that diagnostic retained;
+if it fails, investigate the actual reason rather than replacing the expected
+approval, extending a timeout or rerunning indefinitely. Native 63-case
+results, catalogue evidence and their underlying sources are unaffected.

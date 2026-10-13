@@ -4,6 +4,20 @@ This task's new proof is separate from the unchanged 5F5ZZA historical ledger.
 The observer, authenticated-correction, certification and host-closing tests
 remain open. Completed refusal and parser checks do not grant completion credit.
 
+## Observer boundary invocation
+
+The opt-in Cucumber configuration proves the observer itself through the real
+public CLI, including its signed 142-case report and refusal to close without
+independent certification. It is separate from the inner observed lane's root
+`cucumber.mjs`. Build the final committed CLI first, then run from the root:
+
+```bash
+NODE_OPTIONS='--import tsx' scripts/dev node node_modules/.bin/cucumber-js --config features/recovery-observation.cucumber.mjs
+```
+
+This invokes the expensive observation once; the wrapper checks that same actual
+record. It grants no credit for a failed run or caller-authored report.
+
 ## Scenarios
 
 ### Scenario: Recovery refuses authority for another ticket
