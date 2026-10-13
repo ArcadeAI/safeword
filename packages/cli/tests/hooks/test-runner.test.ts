@@ -1,4 +1,12 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -179,6 +187,51 @@ process.exit(kind === 'test' ? 2 : 0);\n`,
       expect(result.output).toContain('Go test lane skipped: go is not installed.');
       expect(readFileSync(nodePath.join(project, 'later.marker'), 'utf8')).toBe('ok');
       expect(readFileSync(nodePath.join(project, 'bdd.marker'), 'utf8')).toBe('ok');
+    } finally {
+      process.env.SAFEWORD_CLI = originalCli;
+    }
+  });
+
+  // 8VG20K: with no SAFEWORD_CLI override, the shared lookup finds the project's own
+  // installed safeword when it is the pinned version.
+  it('resolves the test plan through the installed safeword at the pinned version', () => {
+    const project = makeProject({});
+    mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(project, '.safeword', 'version'), '1.2.3\n');
+    mkdirSync(nodePath.join(project, 'node_modules', 'safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(project, 'node_modules', 'safeword', 'package.json'),
+      '{"name":"safeword","version":"1.2.3"}',
+    );
+    const plan = JSON.stringify({
+      schema_version: 1,
+      data: {
+        plan: [
+          {
+            language: 'javascript',
+            cwd: project,
+            command: 'touch installed.marker',
+            runner: 'sh',
+            available: true,
+          },
+        ],
+      },
+    });
+    const bin = nodePath.join(project, 'node_modules', '.bin', 'safeword');
+    mkdirSync(nodePath.dirname(bin), { recursive: true });
+    writeFileSync(
+      bin,
+      `#!/bin/sh\ncase "$*" in *"--kind test"*) printf '%s' '${plan}' ;; *) printf '%s' '{"schema_version":1,"data":{"plan":[]}}' ;; esac\n`,
+    );
+    chmodSync(bin, 0o755);
+    const originalCli = process.env.SAFEWORD_CLI;
+    delete process.env.SAFEWORD_CLI;
+
+    try {
+      const result = runTests(project);
+
+      expect(result.passed).toBe(true);
+      expect(existsSync(nodePath.join(project, 'installed.marker'))).toBe(true);
     } finally {
       process.env.SAFEWORD_CLI = originalCli;
     }

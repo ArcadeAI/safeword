@@ -130,7 +130,8 @@ describe('trusted Safeword CLI lookup', () => {
       expect(runner?.cwd).not.toBe(root);
       expect(realpathSync(runner?.cwd ?? root).startsWith(realpathSync(root))).toBe(false);
     } finally {
-      process.env.HOME = previousHome;
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
     }
   });
 
@@ -169,7 +170,7 @@ describe('working Safeword CLI lookup', () => {
     ]);
   });
 
-  it('prefers the plugin bundle', () => {
+  it('uses the plugin bundle when there is no source checkout', () => {
     const root = project();
     const plugin = write(pluginRoot(), 'runtime/cli.js');
 
@@ -180,7 +181,7 @@ describe('working Safeword CLI lookup', () => {
     });
   });
 
-  it('then this repo source, the installed package, and pinned bunx', () => {
+  it('falls back from this repo source to the matching installed package, then pinned bunx', () => {
     const root = project();
     const source = write(root, 'packages/cli/src/cli.ts');
     write(root, 'packages/cli/package.json', '{"name":"safeword"}');
