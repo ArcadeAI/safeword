@@ -521,3 +521,31 @@ case corpus stays 0b590cee5bee6967c5714e7052c202101558a9311b7573d77b165fcdaf4045
 The old 8451a6cb qualification cannot be admitted under this changed contract.
 Generated model admission remains deliberately stale until real new-contract
 qualification; a new complete 142-case observation is still required afterward.
+
+### New-contract qualification blocked by native access — 2026-10-13
+
+Clean committed 419210344 qualification executed all 63 Sol cases: 53 passed,
+10 failed before semantic output with codex turn failed. The unchanged-harness
+bounded retry executed those 10: 6 passed and 4 failed before semantic output.
+There are 59 distinct actual passing cases; no complete qualification or clean
+aggregate is claimed. Logs/results: /tmp/4200-new-contract-full-sol*and
+/tmp/4200-new-contract-sol-ten-retry*. No old-contract record is reused.
+
+A temporary runtime copy exposed only completed-turn error detail. The four-case
+diagnostic approved few-files-two-outcomes and accepted-data-ownership, but
+all-obligations-assigned and parallel-safe-after-probe returned HTTP 400:
+The 'gpt-6.1-sol' model is not supported when using Codex with a ChatGPT account.
+All diagnostic results are excluded from admission, and the copy was removed.
+Log: /tmp/4200-new-contract-four-diagnosis.log. This repeats the prior confirmed
+native access failure. An isolated success does not establish reliable access.
+
+Ruled out: host sleep (awake, AC-powered runs); deterministic rejection or
+schema failure for every affected input (actual approvals on identical inputs);
+local deadline expiry (failed turns occur around 64s, below the 120s deadline).
+The explicit account/model rejection is an external backend/profile limit.
+Do not change model identity, relax required verdicts, synthesize successes,
+borrow old-contract admission or switch paid billing without authorization.
+Current generated admission remains stale/fail-closed. Claude's new-contract
+qualification, a fresh 142-case observation/certification, final verification
+and recovery Draft publication remain undone; the original failures, 418
+sibling binding gaps and exactly 33 deferred cases remain visible.
