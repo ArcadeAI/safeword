@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -126,5 +126,36 @@ describe('working Safeword CLI lookup', () => {
 
   it('never falls back to an unpinned or latest bunx', () => {
     expect(safewordClis(scratchDirectory(), {})).toEqual([]);
+  });
+});
+
+describe('every hook uses the shared lookup', () => {
+  const HOOKS = nodePath.resolve(import.meta.dirname, '../../templates/hooks');
+  // Auto-upgrade deliberately runs the newest version.
+  const UPGRADE = new Set(['lib/auto-upgrade.ts']);
+
+  function hookSources(): [string, string][] {
+    return readdirSync(HOOKS, { recursive: true, encoding: 'utf8' })
+      .filter(path => path.endsWith('.ts') && !UPGRADE.has(path))
+      .map(path => [path, readFileSync(nodePath.join(HOOKS, path), 'utf8')]);
+  }
+
+  it('never runs safeword@latest or an unpinned bunx safeword', () => {
+    const offenders = hookSources()
+      .filter(([, source]) => /safeword@latest|'bunx',\s*'safeword'/u.test(source))
+      .map(([path]) => path);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('never resolves the plugin CLI path outside the shared module', () => {
+    const offenders = hookSources()
+      .filter(
+        ([path, source]) =>
+          path !== 'lib/safeword-cli.ts' && /'runtime',\s*'cli\.js'/u.test(source),
+      )
+      .map(([path]) => path);
+
+    expect(offenders).toEqual([]);
   });
 });
