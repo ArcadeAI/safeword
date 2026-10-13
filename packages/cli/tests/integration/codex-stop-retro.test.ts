@@ -161,14 +161,7 @@ function runHook(directory: string, input: unknown, env: Record<string, string |
   return spawnSync('bun', [HOOK], {
     input: typeof input === 'string' ? input : JSON.stringify(input),
     cwd: directory,
-    env: {
-      ...process.env,
-      CLAUDE_PROJECT_DIR: directory,
-      // The done gate asks the CLI for a test plan; use this repo's CLI rather than
-      // downloading a published one mid-test.
-      SAFEWORD_CLI: nodePath.join(SAFEWORD_ROOT, 'packages/cli/src/cli.ts'),
-      ...env,
-    },
+    env: { ...process.env, CLAUDE_PROJECT_DIR: directory, ...env },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
