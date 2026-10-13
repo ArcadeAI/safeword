@@ -65,14 +65,14 @@ describe('trusted Safeword CLI lookup', () => {
 
     expect(trustedSafewordClis(root, { CLAUDE_PLUGIN_ROOT: plugin }, bun)).toEqual([
       { command: real(bun.path), args: ['--no-env-file', cli], cwd: nodePath.dirname(cli) },
-      { command: real(bun.path), args: ['x', 'safeword@1.2.3'], cwd: homedir() },
+      { command: real(bun.path), args: ['x', '--bun', 'safeword@1.2.3'], cwd: homedir() },
     ]);
   });
 
   it('uses pinned bun x when no plugin is present', () => {
     const bun = runtime();
     expect(trustedSafewordClis(project(), {}, bun)).toEqual([
-      { command: real(bun.path), args: ['x', 'safeword@1.2.3'], cwd: homedir() },
+      { command: real(bun.path), args: ['x', '--bun', 'safeword@1.2.3'], cwd: homedir() },
     ]);
   });
 

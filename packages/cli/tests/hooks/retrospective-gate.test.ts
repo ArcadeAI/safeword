@@ -90,11 +90,14 @@ describe('installed retrospective closing gate', () => {
     process.env.HOME = outside;
     // The real `bun x` fetch fails fast and offline.
     process.env.BUN_CONFIG_REGISTRY = 'http://127.0.0.1:9';
+    const previousTmpdir = process.env.TMPDIR;
+    process.env.TMPDIR = outside;
     try {
       expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeDefined();
     } finally {
       process.env.PATH = previousPath;
       process.env.HOME = previousHome;
+      process.env.TMPDIR = previousTmpdir;
       if (previousRegistry === undefined) delete process.env.BUN_CONFIG_REGISTRY;
       else process.env.BUN_CONFIG_REGISTRY = previousRegistry;
     }

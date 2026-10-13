@@ -10,7 +10,7 @@
  * allowed — the validation is forward-looking.
  */
 
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -1003,9 +1003,129 @@ describe('write-time annotation gate', () => {
           PATH: `${nodePath.join(setup.cwd, 'bin')}${nodePath.delimiter}${process.env.PATH ?? ''}`,
           // Fail the real package fetch fast and offline.
           BUN_CONFIG_REGISTRY: 'http://127.0.0.1:9',
+          // bun x keeps installed packages under TMPDIR; keep them out of the shared one.
+          TMPDIR: home,
         },
       );
-      expectHookDeny(result, 'x safeword@9.9.9');
+      expectHookDeny(result, 'x --bun safeword@9.9.9');
+    });
+
+    // 8VG20K: the pinned published package, served by a local npm registry so the
+    // real `bun x --bun safeword@<version>` route runs end to end without the network.
+    const REGISTRY_SERVER = `import { createServer } from 'node:http';
+import { readFileSync, writeFileSync } from 'node:fs';
+const tarball = readFileSync('safeword-9.9.9.tgz');
+const server = createServer((request, response) => {
+  const base = 'http://127.0.0.1:' + server.address().port;
+  const route = (request.url ?? '').split('?')[0];
+  if (route.endsWith('.tgz')) {
+    response.writeHead(200, { 'content-type': 'application/octet-stream' });
+    response.end(tarball);
+    return;
+  }
+  if (route === '/safeword') {
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({
+      name: 'safeword',
+      'dist-tags': { latest: '9.9.9' },
+      versions: { '9.9.9': {
+        name: 'safeword', version: '9.9.9', bin: { safeword: 'cli.js' },
+        dist: { tarball: base + '/safeword/-/safeword-9.9.9.tgz' },
+      } },
+    }));
+    return;
+  }
+  response.writeHead(404);
+  response.end();
+});
+server.listen(0, '127.0.0.1', () => writeFileSync('port', String(server.address().port)));
+`;
+
+    /** Serve safeword@9.9.9 whose bin (a Node-shebang script, like the real one) is `cli`. */
+    function publishSafeword(cli: string): { registry: string; cache: string; stop: () => void } {
+      const root = createTemporaryDirectory();
+      gateDirectories.push(root);
+      writeTestFile(
+        root,
+        'package/package.json',
+        JSON.stringify({ name: 'safeword', version: '9.9.9', bin: { safeword: 'cli.js' } }),
+      );
+      writeTestFile(root, 'package/cli.js', `#!/usr/bin/env node\n${readFileSync(cli, 'utf8')}`);
+      execFileSync('tar', ['-czf', 'safeword-9.9.9.tgz', 'package'], { cwd: root });
+      writeTestFile(root, 'server.mjs', REGISTRY_SERVER);
+      const server = spawn(process.execPath, ['server.mjs'], { cwd: root, stdio: 'ignore' });
+      const portFile = nodePath.join(root, 'port');
+      const deadline = Date.now() + 10_000;
+      while (!existsSync(portFile) && Date.now() < deadline) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
+      }
+      return {
+        registry: `http://127.0.0.1:${readFileSync(portFile, 'utf8').trim()}`,
+        cache: nodePath.join(root, 'cache'),
+        stop: () => server.kill(),
+      };
+    }
+
+    function runPinnedFallback(
+      setup: { cwd: string; testDefinitionsPath: string },
+      published: { registry: string; cache: string },
+      environment: NodeJS.ProcessEnv = {},
+    ): HookResult {
+      const home = createTemporaryDirectory();
+      gateDirectories.push(home);
+      return runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        {
+          HOME: home,
+          BUN_CONFIG_REGISTRY: published.registry,
+          BUN_INSTALL_CACHE_DIR: published.cache,
+          // bun x keeps installed packages under TMPDIR; isolate each test's package.
+          TMPDIR: home,
+          ...environment,
+        },
+      );
+    }
+
+    it('approves GREEN through the pinned published package outside a plugin', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
+      const ledger = '.safeword-project/tickets/TST001/test-definitions.md';
+      const published = publishSafeword(
+        gateStub(setup.cwd, 'healthy', 'Scenario: example', ledger),
+      );
+      try {
+        expectHookAllow(runPinnedFallback(setup, published));
+      } finally {
+        published.stop();
+      }
+    });
+
+    it('denies through the pinned package even when a project node shim forges approval', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
+      const forged = gateStub(setup.cwd, 'healthy');
+      writeTestFile(setup.cwd, 'bin/node', `#!/bin/sh\nexec bun ${JSON.stringify(forged)} "$@"\n`);
+      chmodSync(nodePath.join(setup.cwd, 'bin/node'), 0o755);
+      const published = publishSafeword(gateStub(setup.cwd, 'action_required'));
+      try {
+        expectHookDeny(
+          runPinnedFallback(setup, published, {
+            PATH: `${nodePath.join(setup.cwd, 'bin')}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+          }),
+          'executable RED',
+        );
+      } finally {
+        published.stop();
+      }
     });
 
     // 8VG20K: a project symlink to a real external CLI still runs from the CLI's

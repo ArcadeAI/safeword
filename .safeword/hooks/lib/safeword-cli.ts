@@ -101,7 +101,7 @@ function currentRuntime(environment: NodeJS.ProcessEnv): TrustedRuntime {
  * - each script is canonicalized and must resolve outside the project, then runs
  *   from its own real directory with no env file, because Bun loads `bunfig.toml`
  *   (including `preload`) and `.env` from its working directory;
- * - the published package runs as `bun x safeword@<.safeword/version>` from the
+ * - the published package runs as `bun x --bun safeword@<.safeword/version>` from the
  *   home directory, so project `node_modules` cannot shadow it.
  */
 export function trustedSafewordClis(
@@ -153,7 +153,13 @@ export function trustedSafewordClis(
     });
   }
   if (version !== undefined && runtime.isBun) {
-    candidates.push({ command: runtimePath, args: ['x', `safeword@${version}`], cwd: homedir() });
+    // `--bun` runs the package under this Bun even though its bin has a Node
+    // shebang; otherwise `bun x` would look `node` up on PATH.
+    candidates.push({
+      command: runtimePath,
+      args: ['x', '--bun', `safeword@${version}`],
+      cwd: homedir(),
+    });
   }
   return candidates;
 }

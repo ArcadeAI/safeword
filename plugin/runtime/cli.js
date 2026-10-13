@@ -68354,6 +68354,7 @@ var init_retrospective_gate2 = __esm(() => {
     "BUN_CONFIG_REGISTRY",
     "NPM_CONFIG_REGISTRY",
     "BUN_INSTALL_CACHE_DIR",
+    "TMPDIR",
     "HTTPS_PROXY",
     "HTTP_PROXY",
     "NO_PROXY"
