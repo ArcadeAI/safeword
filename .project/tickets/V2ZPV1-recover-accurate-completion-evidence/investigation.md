@@ -577,3 +577,35 @@ lock, with the established 210-second native review limit. No foreign lock or
 process was disturbed. Admission, fresh 142-case observation/certification,
 final verification and Draft publication remain pending. All historical
 acceptance failures, 418 sibling binding gaps and 33 deferrals remain visible.
+
+### Both current reviewer identities qualified — 2026-10-13
+
+The uninterrupted current-contract Claude/claude-opus-5 matrix passed all 63
+cases plus the identity guard (64/64 tests, 4361.26 seconds). Actual results
+and log are retained under state/reviews/4200-current-claude-proof; metadata
+was observed during the run and explicitly labeled as external to the harness.
+Final Sol proof review 7a734f90-4911-4a58-96de-dbea25e2f83e approved all actual
+63 selected passes with retained failure history and source-build limitations.
+Generated admission now binds the current 7c2d9249 contract and unchanged
+0b590cee corpus for both exact identities. Independent admission review
+c4cbfe7c-de61-43c4-8fce-3f83e4fef147 approved it with no error findings.
+Compositional Sol qualification remains distinct from single-run Claude proof
+and from whole-ticket acceptance. The 142-case observation is a later gate,
+not a prerequisite to generating model admission. No acceptance credit or
+certification has been issued. All five generated surfaces verified.
+
+The user's latest-CLI cleanup also aligns the repository devDependency and
+lockfile to 0.162.1. Upstream openai/codex#18115 remains open (checked through
+GitHub); native plugin add help still has no project scope option. The existing
+project-enrollment workaround is preserved. Its version tripwire failed after
+the manifest upgrade, then passed after re-pinning its expected version.
+Logs: /tmp/4200-codex-alignment-tripwire-red.log and corresponding green.log.
+No Bun/Node pin or contributor shell configuration changed. Full sequential
+workspace unit verification is running before freezing the acceptance candidate.
+
+Current sequential workspace unit verification passed: relay 198 passing
+with one skipped; collector 153 passing; CLI 729 files and 11,462 passing
+with 14 skipped. Log: /tmp/4200-qualified-current-full-unit.log. All three
+package type checks and root lint (ESLint, Gherkin, CLI types) passed. This
+is unit/build validation, not a claim that broad acceptance or deferred cases
+passed. The fresh 142-case observer and typed certification remain pending.
