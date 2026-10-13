@@ -67,6 +67,15 @@ function pinnedBunx(projectDirectory: string, cwd: string): SafewordCli[] {
   return version === undefined ? [] : [{ command: 'bunx', args: [`safeword@${version}`], cwd }];
 }
 
+/** The plugin CLI a trust check refused because project code could edit it, if any. */
+export function projectWritablePluginCli(
+  projectDirectory: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+  const plugin = pluginCli(environment);
+  return plugin !== undefined && isInside(projectDirectory, plugin) ? plugin : undefined;
+}
+
 /** CLIs a trust check may run: none of them can be changed by the project's own files. */
 export function trustedSafewordClis(
   projectDirectory: string,

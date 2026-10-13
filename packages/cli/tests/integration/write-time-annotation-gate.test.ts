@@ -971,7 +971,7 @@ describe('write-time annotation gate', () => {
         '- [x] GREEN def5678',
         { SAFEWORD_PLUGIN_CLI: '' },
       );
-      expectHookDeny(result, 'could not find its local CLI');
+      expectHookDeny(result, 'could not find its CLI');
     });
 
     // 8VG20K: outside a plugin (Cursor, project-local hooks) the guard verifies the
