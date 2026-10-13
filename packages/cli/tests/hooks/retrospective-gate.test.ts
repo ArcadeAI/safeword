@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -72,6 +72,29 @@ describe('installed retrospective closing gate', () => {
   ])('rejects %s from the CLI process', (_case, output) => {
     stub(outside, output);
     expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeDefined();
+  });
+
+  // 8VG20K: outside a plugin the gate runs the published CLI pinned to the project's version.
+  it('runs pinned bunx from the home directory when no plugin is present', () => {
+    delete process.env.SAFEWORD_PLUGIN_CLI;
+    mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(project, '.safeword', 'version'), '9.9.9\n');
+    const bunx = nodePath.join(outside, 'bunx');
+    writeFileSync(
+      bunx,
+      `#!/bin/sh\n[ "$1" = "safeword@9.9.9" ] && [ "$(pwd -P)" = "$(cd "$HOME" && pwd -P)" ] || exit 3\nprintf '%s' ${JSON.stringify(envelope())}\n`,
+    );
+    chmodSync(bunx, 0o755);
+    const previousPath = process.env.PATH;
+    const previousHome = process.env.HOME;
+    process.env.PATH = `${outside}${nodePath.delimiter}${previousPath ?? ''}`;
+    process.env.HOME = outside;
+    try {
+      expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeUndefined();
+    } finally {
+      process.env.PATH = previousPath;
+      process.env.HOME = previousHome;
+    }
   });
 
   it('rejects a project-writable CLI even when it prints approval', () => {
