@@ -66,10 +66,23 @@ export function createTrustedReviewerDirectory(prefix: string): string {
 // Models the trusted host worker in simulated contract tests, never live review proof.
 export const SIGNED_REVIEW_COMPLETION_WORKER = String.raw`
 import { createHmac, randomBytes } from 'node:crypto';
-import { mkdirSync, openSync, closeSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
+import { mkdirSync, openSync, closeSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 const id = process.env.SAFEWORD_REVIEW_JOB_ID;
 const path = join(process.cwd(), '.safeword', 'state', 'reviews', id + '.json');
+// The simulated worker must serialize completion with the real parent's writes.
+const lock = path + '.lock';
+const deadline = Date.now() + 10000;
+let lockDescriptor;
+while (lockDescriptor === undefined) {
+  try { lockDescriptor = openSync(lock, 'wx', 0o600); }
+  catch (error) {
+    if (error.code !== 'EEXIST' || Date.now() >= deadline) throw error;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+  }
+}
+try {
+writeFileSync(lockDescriptor, String(process.pid));
 const record = JSON.parse(readFileSync(path, 'utf8'));
 record.state = 'completed';
 record.updated_at = new Date().toISOString();
@@ -102,4 +115,8 @@ record.integrity = createHmac('sha256', key)
   .update(canonicalProject).update('\0').update(JSON.stringify(record)).digest('hex');
 writeFileSync(path + '.worker.tmp', JSON.stringify(record) + '\n', { mode: 0o600 });
 renameSync(path + '.worker.tmp', path);
+} finally {
+  closeSync(lockDescriptor);
+  unlinkSync(lock);
+}
 `;

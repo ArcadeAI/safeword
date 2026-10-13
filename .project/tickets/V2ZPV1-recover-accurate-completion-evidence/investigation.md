@@ -953,3 +953,52 @@ A second complete workspace run follows once with that diagnostic retained;
 if it fails, investigate the actual reason rather than replacing the expected
 approval, extending a timeout or rerunning indefinitely. Native 63-case
 results, catalogue evidence and their underlying sources are unaffected.
+
+The second complete workspace run also fails one job test, this time
+retains-review-evidence-limits: 11,462 passes, 14 skips, one failure across
+729 CLI files in 731.61 seconds. Both saved failing job records were
+recovered and preserved under ignored 4200-collection-investigation state.
+Both report REVIEW_WORKER_EXITED, not an integrity-key error or a deadline.
+The earlier original assertion therefore did not lose all diagnostic evidence.
+
+## Root cause investigation: simulated completion writes
+
+The shared signed completion worker bypasses the job lock, whereas both the
+real parent's updateActiveJob and production completeReviewJob acquire it.
+A disposable probe holds that same lock while executing the original worker:
+the child exits zero and publishes approval while the parent owns the lock;
+a following parent write loses that approval. This confirms a fixture protocol
+defect and a concrete lost-update path. It does not prove the precise
+interleaving of either historical full-suite failure; stderr was discarded.
+The saved records rule out the reported timeout and invalid-integrity outcomes.
+An independent 150-spawn command-line probe found no startup mismatches;
+that does not rule out every load-dependent process-inspection race.
+
+A new focused test fails before correction because the simulated worker ignores
+the parent lock. It requires blocking until release and an approved completed
+result afterward. The fixture now acquires the same lock around its record
+read/sign/write, with bounded acquisition and finally cleanup. Production
+code, approval assertions, model fixtures and authentication are unchanged.
+All 84 job tests pass after correction. RED is retained in
+/tmp/4200-fixture-lock-red.log; GREEN in /tmp/4200-fixture-lock-green.log.
+Fresh complete-suite proof and independent review remain required; no historical
+failure is replaced by that targeted pass.
+
+Independent Claude review 40315089-1b11-4331-a5e0-3906de3d58be approves
+the final fixture/test source with no errors. Its acknowledged simulation
+limits are retained in the ignored review-response artifact: no new terminal
+state/integrity simulation, dead-owner recovery or inode replacement logic was
+added to this positive worker. Actual production controls remain separate.
+The new timeout assertion required a TypeScript-only object-field match; the
+exact ETIMEDOUT expectation is unchanged. Final targeted ESLint and package
+typecheck pass. Root ESLint and Gherkin lint passed before that assertion edit;
+the initial root command's type failure is retained rather than called green.
+
+The corrected complete workspace run now exits zero: relay 198 passed/1 skipped,
+collector 153 passed, CLI 11,464 passed/14 skipped across 729 files in 747.83
+seconds. Log: /tmp/4200-fixture-lock-final-full-units.log. The equivalent
+assertion typing edit happened while this run was active; production and model
+qualification source did not change. Both preceding complete-suite failures
+remain visible. This is current passing verification of the corrected fixture,
+not proof of the precise historical interleavings. New-head CI, public live
+acceptance, observation, certification and trusted-host closeout remain pending.

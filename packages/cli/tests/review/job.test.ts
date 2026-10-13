@@ -227,6 +227,38 @@ afterEach(() => {
 });
 
 describe('durable review jobs', () => {
+  it('keeps simulated completion behind the parent job lock', () => {
+    const cwd = project();
+    const id = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+    const directory = nodePath.join(cwd, '.safeword/state/reviews');
+    mkdirSync(directory, { recursive: true });
+    const path = nodePath.join(directory, `${id}.json`);
+    writeFileSync(path, JSON.stringify({ id, state: 'running' }));
+    const lock = `${path}.lock`;
+    writeFileSync(lock, String(process.pid), { flag: 'wx', mode: 0o600 });
+    const entrypoint = worker(cwd, COMPLETE_WORKER);
+    const run = () =>
+      spawnSync(process.execPath, [entrypoint], {
+        cwd,
+        env: { ...process.env, SAFEWORD_REVIEW_JOB_ID: id },
+        encoding: 'utf8',
+        timeout: 2000,
+      });
+    try {
+      const blocked = run();
+      expect(blocked.error).toMatchObject({ code: 'ETIMEDOUT' });
+      expect(JSON.parse(readFileSync(path, 'utf8')).state).toBe('running');
+    } finally {
+      unlinkSync(lock);
+    }
+    const completed = run();
+    expect(completed.status, completed.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({
+      state: 'completed',
+      result: { state: 'healthy', data: { status: 'approved' } },
+    });
+  });
+
   it('retains a packet-bound host continuation in the authenticated job result', async () => {
     const cwd = project();
     writePlanningInventories(cwd);
@@ -2083,7 +2115,8 @@ describe('durable review jobs', () => {
     });
     const id = (completed.data as { review_id: string }).review_id;
 
-    expect(reviewJobStatus(cwd, id)).toMatchObject({
+    const collected = reviewJobStatus(cwd, id);
+    expect(collected, JSON.stringify(collected)).toMatchObject({
       state: 'healthy',
       data: { status: 'approved' },
     });
