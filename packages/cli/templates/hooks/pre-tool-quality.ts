@@ -18,6 +18,7 @@ import { retrospectiveGateDenial } from './lib/retrospective-gate.ts';
 import {
   projectWritablePluginCli,
   type SafewordCli,
+  trustedEnvironment,
   trustedSafewordClis,
 } from './lib/safeword-cli.ts';
 import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
@@ -248,7 +249,12 @@ function receiptGateVerdict(
       ledger,
     ],
     // A first `bunx` run may download the pinned package.
-    { cwd: cli.cwd, encoding: 'utf8', timeout: cli.downloads === true ? 30_000 : 5000 },
+    {
+      cwd: cli.cwd,
+      env: trustedEnvironment(),
+      encoding: 'utf8',
+      timeout: cli.downloads === true ? 30_000 : 5000,
+    },
   );
   try {
     const parsed = JSON.parse(checked.stdout) as {

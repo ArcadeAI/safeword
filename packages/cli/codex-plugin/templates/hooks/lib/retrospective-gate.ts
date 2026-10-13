@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 
-import { trustedSafewordClis } from './safeword-cli.ts';
+import { trustedEnvironment, trustedSafewordClis } from './safeword-cli.ts';
 
 export interface RetrospectiveGateClaim {
   readonly ticketId: string;
@@ -19,37 +19,6 @@ function trustedCommand(
   // A first `bun x` run may download the pinned package.
   const timeout = cli.downloads === true ? 30_000 : 10_000;
   return { argv: [cli.command, ...cli.args], cwd: cli.cwd, timeout };
-}
-
-const RUNTIME_ENVIRONMENT = new Set(
-  [
-    'PATH',
-    'HOME',
-    'USERPROFILE',
-    'APPDATA',
-    'LOCALAPPDATA',
-    'SystemRoot',
-    'XDG_STATE_HOME',
-    'XDG_CONFIG_HOME',
-    'XDG_CACHE_HOME',
-    'CODEX_HOME',
-    'NODE_ENV',
-    'SAFEWORD_REVIEW_KEY_ROOT',
-    // `bun x safeword@<version>` needs the host's registry, cache, and proxy settings.
-    'BUN_CONFIG_REGISTRY',
-    'NPM_CONFIG_REGISTRY',
-    'BUN_INSTALL_CACHE_DIR',
-    'TMPDIR',
-    'HTTPS_PROXY',
-    'HTTP_PROXY',
-    'NO_PROXY',
-  ].map(name => name.toUpperCase()),
-);
-
-function runtimeEnvironment(): NodeJS.ProcessEnv {
-  return Object.fromEntries(
-    Object.entries(process.env).filter(([name]) => RUNTIME_ENVIRONMENT.has(name.toUpperCase())),
-  );
 }
 
 /** Invoke the installed runtime, never a project-writable source file. */
@@ -84,7 +53,7 @@ export function retrospectiveGateDenial(
     ],
     {
       cwd: command.cwd,
-      env: runtimeEnvironment(),
+      env: trustedEnvironment(),
       encoding: 'utf8',
       timeout: 30_000,
       maxBuffer: 1024 * 1024,
@@ -143,7 +112,7 @@ export function retrospectiveCloseDenial(
     ],
     {
       cwd: command.cwd,
-      env: runtimeEnvironment(),
+      env: trustedEnvironment(),
       encoding: 'utf8',
       timeout: command.timeout,
       maxBuffer: 1024 * 1024,

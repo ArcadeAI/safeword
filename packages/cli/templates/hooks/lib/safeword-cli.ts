@@ -174,6 +174,44 @@ export function trustedSafewordClis(
   return candidates;
 }
 
+const TRUSTED_ENVIRONMENT = new Set(
+  [
+    'PATH',
+    'HOME',
+    'USERPROFILE',
+    'APPDATA',
+    'LOCALAPPDATA',
+    'SystemRoot',
+    'XDG_STATE_HOME',
+    'XDG_CONFIG_HOME',
+    'XDG_CACHE_HOME',
+    'CODEX_HOME',
+    'NODE_ENV',
+    'SAFEWORD_REVIEW_KEY_ROOT',
+    // `bun x safeword@<version>` needs the host's registry, cache, and proxy settings.
+    'BUN_CONFIG_REGISTRY',
+    'NPM_CONFIG_REGISTRY',
+    'BUN_INSTALL_CACHE_DIR',
+    'TMPDIR',
+    'HTTPS_PROXY',
+    'HTTP_PROXY',
+    'NO_PROXY',
+  ].map(name => name.toUpperCase()),
+);
+
+/**
+ * The environment a trust check passes to its CLI: host paths, state, and
+ * registry settings only. Runtime option variables (BUN_OPTIONS, NODE_OPTIONS)
+ * can preload arbitrary scripts, so nothing outside this list is inherited.
+ */
+export function trustedEnvironment(
+  environment: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(environment).filter(([name]) => TRUSTED_ENVIRONMENT.has(name.toUpperCase())),
+  );
+}
+
 /** This repo's own CLI source, only when the checkout really is the safeword package. */
 function sourceCli(projectDirectory: string): string | undefined {
   const source = nodePath.join(projectDirectory, 'packages', 'cli', 'src', 'cli.ts');

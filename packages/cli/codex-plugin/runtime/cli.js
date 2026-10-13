@@ -3629,7 +3629,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "6d096e205a3ccee908e68683178d3b101c744038c74d79964c2b77a9a248809a",
+        ".safeword/hooks/pre-tool-quality.ts": "149a0dba3d7f5f4d4d98ef350334ad4a946b2ecb576cccb36d60afa58ed23198",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -68332,13 +68332,9 @@ var init_dependency_readiness = __esm(() => {
 });
 
 // templates/hooks/lib/safeword-cli.ts
-var init_safeword_cli = () => {};
-
-// templates/hooks/lib/retrospective-gate.ts
-var RUNTIME_ENVIRONMENT;
-var init_retrospective_gate2 = __esm(() => {
-  init_safeword_cli();
-  RUNTIME_ENVIRONMENT = new Set([
+var TRUSTED_ENVIRONMENT;
+var init_safeword_cli = __esm(() => {
+  TRUSTED_ENVIRONMENT = new Set([
     "PATH",
     "HOME",
     "USERPROFILE",
@@ -68359,6 +68355,11 @@ var init_retrospective_gate2 = __esm(() => {
     "HTTP_PROXY",
     "NO_PROXY"
   ].map((name) => name.toUpperCase()));
+});
+
+// templates/hooks/lib/retrospective-gate.ts
+var init_retrospective_gate2 = __esm(() => {
+  init_safeword_cli();
 });
 // templates/hooks/lib/test-runner.ts
 var BDD_TEST_TIMEOUT_MS, projectDir;

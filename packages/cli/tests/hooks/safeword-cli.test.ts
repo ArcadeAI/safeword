@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   safewordClis,
+  trustedEnvironment,
   type TrustedRuntime,
   trustedSafewordClis,
 } from '../../templates/hooks/lib/safeword-cli.js';
@@ -220,5 +221,24 @@ describe('every hook uses the shared lookup', () => {
       .map(([path]) => path);
 
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('trusted CLI environment', () => {
+  it('keeps host paths and registry settings but drops runtime preload options', () => {
+    expect(
+      trustedEnvironment({
+        PATH: '/usr/bin',
+        HOME: '/home/user',
+        BUN_CONFIG_REGISTRY: 'https://registry.example',
+        BUN_OPTIONS: '--preload ./forge.ts',
+        NODE_OPTIONS: '--require ./forge.js',
+        SAFEWORD_PLUGIN_CLI: '/plugin/runtime/cli.js',
+      }),
+    ).toEqual({
+      PATH: '/usr/bin',
+      HOME: '/home/user',
+      BUN_CONFIG_REGISTRY: 'https://registry.example',
+    });
   });
 });
