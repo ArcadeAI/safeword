@@ -1041,11 +1041,12 @@ const INAPPLICABLE_OPTIONAL_WORK_PLAN = executionPlan({
 function missingFieldCase(
   id: string,
   field: keyof Omit<SliceInput, 'name'>,
-  term: string,
+  term: string | readonly [string, ...string[]],
 ): ExecutionPlanConformanceCase {
+  const label = typeof term === 'string' ? term : term[0];
   return denied(
     id,
-    `A planned pull request omits its ${term}; review names ${term} as required.`,
+    `A planned pull request omits its ${label}; review names ${label} as required.`,
     executionPlan({
       decision: 'one pull request',
       rationale: COMPLETE_DELIVERY_RATIONALE,
@@ -1350,7 +1351,10 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
     'one_pull_request',
     ['Complete delivery'],
   ),
-  missingFieldCase('missing-completion-signal', 'completion', 'completion signal'),
+  missingFieldCase('missing-completion-signal', 'completion', [
+    'completion signal',
+    'completion condition',
+  ]),
   denied(
     'two-independent-purposes',
     'One slice with two independently valuable purposes is denied.',

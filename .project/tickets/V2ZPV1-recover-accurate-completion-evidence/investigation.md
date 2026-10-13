@@ -1002,3 +1002,38 @@ qualification source did not change. Both preceding complete-suite failures
 remain visible. This is current passing verification of the corrected fixture,
 not proof of the precise historical interleavings. New-head CI, public live
 acceptance, observation, certification and trusted-host closeout remain pending.
+
+At pushed dca9bd8c9, CI run 38481581765 is terminal green on both Node
+versions, including release checks; deployment jobs are skipped. Final root
+lint also exits zero. Current live public-CLI acceptance nevertheless fails:
+62/63 actual Sol case records plus the passing identity guard, all 47 linked
+scenarios failed, 2,867 passed steps, 95 skipped and 47 failed. The complete
+reports are retained under ignored 4200-dca9-cli-failure state.
+
+The sole failed matrix case is missing-completion-signal. Actual Sol output
+correctly returns request_changes, plan-execution destination and a null
+record, with an error explaining that Complete delivery task 11 reruns seven
+proofs but only asserts the public snapshot. Without the removed completion
+condition, other accepted boundaries can remain broken after the final edit.
+The oracle rejects this correct finding solely because it requires literal
+"completion signal" while the reviewer says "completion condition".
+
+The surgical correction uses the existing word-alternative syntax for this
+one field. Its plan, accepted scenario, rejection verdict, destination and
+canonical contract stay unchanged. The existing missing-field helper accepts
+a nonempty term group and preserves the first term as the canonical label.
+No new matcher, judge, receipt or threshold is introduced. New RED reproduces
+the actual summary; GREEN passes 63 unit guards and rejects unrelated missing
+purpose/proof-command findings. Final lint and types pass. Independent Claude
+review 6f49cbc8-7661-4d86-a4a5-c041576bf170 approves the final source with no
+errors. Preserve its known substring-matching limitation; the type-import note
+concerns an existing re-export and is outside this patch.
+
+The corpus digest is now 6f825af3c7bfed5fd78d519729c18cf308f5c9ac3c492af2f1abff792331ca38;
+the execution contract remains 7c2d9249. Existing admission refers to the older
+552b5b9b corpus and fails closed until refreshed from actual complete passing
+live evidence. Neither unit GREEN nor the old native/model reports establishes
+current admission at the changed corpus. Keep the correction local and Draft
+until qualification, generated carriers, current CLI acceptance and observation
+are genuinely complete. Do not reinterpret the failed 47-case aggregate as a
+pass or rewrite its original model result records.

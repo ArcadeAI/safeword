@@ -175,6 +175,27 @@ describe('Execution Plan semantic conformance admission', () => {
     );
   });
 
+  it('recognizes the observed missing completion condition while rejecting unrelated findings', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'missing-completion-signal',
+    );
+    const terms = testCase?.expectation.finding_terms;
+    expect(terms).toBeDefined();
+    expect(testCase?.expectation.verdict).toBe('request_changes');
+    expect(
+      matchesExecutionPlanFindingTerms(
+        'The final completion condition does not require every applicable proof to pass after the last production edit.',
+        terms ?? [],
+      ),
+    ).toBe(true);
+    expect(matchesExecutionPlanFindingTerms('The slice is missing its purpose.', terms ?? [])).toBe(
+      false,
+    );
+    expect(
+      matchesExecutionPlanFindingTerms('The final proof command is missing.', terms ?? []),
+    ).toBe(false);
+  });
+
   it('keeps two independent purposes as a named denial case', () => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
       candidate => candidate.id === 'two-independent-purposes',
