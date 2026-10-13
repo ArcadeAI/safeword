@@ -2,7 +2,7 @@
 id: 8VG20K
 slug: one-cli-lookup
 type: task
-phase: intake
+phase: implement
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/5807
 scope:
@@ -32,3 +32,4 @@ last_modified: 2026-10-13T06:02:39.412Z
 
 - 2026-10-13T06:02:39.412Z Started: Created ticket 8VG20K
 - 2026-10-13T06:10Z Scope agreed with user ("unify"): one shared lookup; bundled copy on plugin hosts, pinned bunx elsewhere; Cursor plugin and dropping the bundles are out of scope.
+- 2026-10-13T06:04:23.639Z Phase: intake → implement
