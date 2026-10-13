@@ -10,7 +10,7 @@
  * allowed — the validation is forward-looking.
  */
 
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -34,6 +34,7 @@ import {
   TIMEOUT_QUICK,
   writeTestFile,
 } from '../helpers';
+import { type PublishedSafeword, publishSafeword } from '../helpers/local-npm-registry.js';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const SAFEWORD_CLI = nodePath.join(SAFEWORD_ROOT, 'packages/cli/src/cli.ts');
@@ -1012,68 +1013,16 @@ describe('write-time annotation gate', () => {
 
     // 8VG20K: the pinned published package, served by a local npm registry so the
     // real `bun x --bun safeword@<version>` route runs end to end without the network.
-    const REGISTRY_SERVER = `import { createServer } from 'node:http';
-import { readFileSync, writeFileSync } from 'node:fs';
-const tarball = readFileSync('safeword-9.9.9.tgz');
-const delay = Number(process.env.DELAY_MS ?? 0);
-const server = createServer(async (request, response) => {
-  const base = 'http://127.0.0.1:' + server.address().port;
-  const route = (request.url ?? '').split('?')[0];
-  // A slow registry: only the first (metadata) request waits.
-  if (route === '/safeword') await new Promise(resolve => setTimeout(resolve, delay));
-  if (route.endsWith('.tgz')) {
-    response.writeHead(200, { 'content-type': 'application/octet-stream' });
-    response.end(tarball);
-    return;
-  }
-  if (route === '/safeword') {
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({
-      name: 'safeword',
-      'dist-tags': { latest: '9.9.9' },
-      versions: { '9.9.9': {
-        name: 'safeword', version: '9.9.9', bin: { safeword: 'cli.js' },
-        dist: { tarball: base + '/safeword/-/safeword-9.9.9.tgz' },
-      } },
-    }));
-    return;
-  }
-  response.writeHead(404);
-  response.end();
-});
-server.listen(0, '127.0.0.1', () => writeFileSync('port', String(server.address().port)));
-`;
-
-    /** Serve safeword@9.9.9 whose bin (a Node-shebang script, like the real one) is `cli`. */
-    function publishSafeword(
-      cli: string,
-      delayMs = 0,
-    ): { registry: string; cache: string; stop: () => void } {
+    /** Serve safeword@9.9.9 whose bin runs the gate stub at `cli`. */
+    function publishGate(cli: string, delayMs = 0): PublishedSafeword {
       const root = createTemporaryDirectory();
       gateDirectories.push(root);
-      writeTestFile(
+      return publishSafeword({
         root,
-        'package/package.json',
-        JSON.stringify({ name: 'safeword', version: '9.9.9', bin: { safeword: 'cli.js' } }),
-      );
-      writeTestFile(root, 'package/cli.js', `#!/usr/bin/env node\n${readFileSync(cli, 'utf8')}`);
-      execFileSync('tar', ['-czf', 'safeword-9.9.9.tgz', 'package'], { cwd: root });
-      writeTestFile(root, 'server.mjs', REGISTRY_SERVER);
-      const server = spawn(process.execPath, ['server.mjs'], {
-        cwd: root,
-        env: { ...process.env, DELAY_MS: String(delayMs) },
-        stdio: 'ignore',
+        version: '9.9.9',
+        cliSource: readFileSync(cli, 'utf8'),
+        delayMs,
       });
-      const portFile = nodePath.join(root, 'port');
-      const deadline = Date.now() + 10_000;
-      while (!existsSync(portFile) && Date.now() < deadline) {
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
-      }
-      return {
-        registry: `http://127.0.0.1:${readFileSync(portFile, 'utf8').trim()}`,
-        cache: nodePath.join(root, 'cache'),
-        stop: () => server.kill(),
-      };
     }
 
     function runPinnedFallback(
@@ -1121,9 +1070,7 @@ server.listen(0, '127.0.0.1', () => writeFileSync('port', String(server.address(
       projectDirectory = setup.cwd;
       writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
       const ledger = '.safeword-project/tickets/TST001/test-definitions.md';
-      const published = publishSafeword(
-        gateStub(setup.cwd, 'healthy', 'Scenario: example', ledger),
-      );
+      const published = publishGate(gateStub(setup.cwd, 'healthy', 'Scenario: example', ledger));
       try {
         expectHookAllow(runPinnedFallback(setup, published));
       } finally {
@@ -1138,7 +1085,7 @@ server.listen(0, '127.0.0.1', () => writeFileSync('port', String(server.address(
       );
       projectDirectory = setup.cwd;
       writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
-      const published = publishSafeword(gateStub(setup.cwd, 'healthy'), 5500);
+      const published = publishGate(gateStub(setup.cwd, 'healthy'), 5500);
       try {
         expectHookAllow(runPinnedFallback(setup, published));
       } finally {
@@ -1155,7 +1102,7 @@ server.listen(0, '127.0.0.1', () => writeFileSync('port', String(server.address(
       const forged = gateStub(setup.cwd, 'healthy');
       writeTestFile(setup.cwd, 'bin/node', `#!/bin/sh\nexec bun ${JSON.stringify(forged)} "$@"\n`);
       chmodSync(nodePath.join(setup.cwd, 'bin/node'), 0o755);
-      const published = publishSafeword(gateStub(setup.cwd, 'action_required'));
+      const published = publishGate(gateStub(setup.cwd, 'action_required'));
       try {
         expectHookDeny(
           runPinnedFallback(setup, published, {
