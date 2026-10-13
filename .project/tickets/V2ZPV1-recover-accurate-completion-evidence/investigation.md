@@ -549,3 +549,31 @@ Current generated admission remains stale/fail-closed. Claude's new-contract
 qualification, a fresh 142-case observation/certification, final verification
 and recovery Draft publication remain undone; the original failures, 418
 sibling binding gaps and exactly 33 deferred cases remain visible.
+
+### Shared latest CLI restored remaining Sol cases — 2026-10-13
+
+The unchanged four-case retry on 0.160.0 passed all-obligations-assigned and
+failed the other three before semantic output. All prior attempts remain.
+At the user's request, the standalone CLI was consolidated on latest stable
+0.162.1; the old standalone and separate reviewer copies were removed. The
+unchanged final three-case harness passed 3/3 plus its identity guard. Logs:
+/tmp/4200-new-contract-sol-four-after-wait.log and
+/tmp/4200-shared-cli-01621-sol-three.log; adjacent results JSONs are retained.
+
+Actual current-contract Sol coverage is now 63 unique passing cases across
+four attempts (53 + 6 + 1 + 3); all 17 failed records remain. The first evidence
+review 81ede11f-7925-4cdc-9b70-cb56668b2ad6 rejected missing failure-class proof.
+After retaining the raw logs, raw JSON bytes, hashes, indices and per-attempt
+metadata, independent review 034f5d0f-e12f-4372-9329-19ba90ae6e1a approved the
+bounded derivation. Evidence lives under ignored state/reviews/4200-current-sol-proof.
+Warnings remain explicit: native CLI metadata was reconstructed from the
+transcript; source runtime is unchanged across the audit-only commit, while
+compiled dist embeds revisions and is not claimed byte-identical; grouped
+Vitest stacks show presemantic turn failure, not per-case backend HTTP detail.
+No complete 0.162.1-only aggregate or reliable-access guarantee is claimed.
+
+Current-contract Claude qualification is queued through the normal package
+lock, with the established 210-second native review limit. No foreign lock or
+process was disturbed. Admission, fresh 142-case observation/certification,
+final verification and Draft publication remain pending. All historical
+acceptance failures, 418 sibling binding gaps and 33 deferrals remain visible.
