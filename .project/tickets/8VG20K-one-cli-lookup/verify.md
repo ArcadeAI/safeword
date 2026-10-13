@@ -1,23 +1,36 @@
 # Verify: Run the same Safeword CLI from every hook on every host (8VG20K)
 
-**Verified on:** 2026-10-13 · **Head:** `42b5c8af3`
+**Verified on:** 2026-10-13 · **Head:** `bb19d7597`
 
-**PR Scope:** `fix/one-cli-lookup` against `main` contains only 8VG20K work — the shared lookup module, the hooks moved onto it, the fail-closed test-plan fix in the same function, their tests, the regenerated plugin/installed copies, and the ARCHITECTURE.md decision. No unrelated changes.
+## Verify Checklist
 
-## Done-when evidence
+**Test Suite:** ✓ 10554/10554 tests pass (614 files, 14 skipped)
+**Gherkin:** ✅ Acceptance lane passes — 596/596 scenarios (dedicated lane and a confirming rerun)
+**Build:** ✅ Success
+**Lint:** ✅ Clean
+**Typecheck:** ✅ Clean
+**Scenarios:** ⏭️ Skipped — task ticket, no scenario ledger
+**Refactor:** ✅ Completed — `bd73986aa` one containment check; `9b19185bc` each trusted env name listed once; `c27920b46` one package.json reader; `5c928ee50` one GREEN-tick hook helper in tests. Deferred: the retrospective gate's two spawn blocks predate this ticket.
+**PR Scope:** ✅ Diff matches ticket scope — the shared lookup module, the hooks moved onto it, the fail-closed test-plan fix and learnings stamp fix in functions this change touched, their tests, regenerated plugin/installed copies, and the ARCHITECTURE.md decision. No unrelated changes.
+**Dep Drift:** ✅ Clean — no dependency manifest changed
+**Parent Epic:** N/A
+**Reconcile:** ✅ No pattern deviation — the change removes nine divergent lookups in favor of one
+**Experience:** ⏭️ N/A — not persona-facing (hook plumbing; users see only fewer false "could not find its local CLI" blocks)
+**Surface Evidence:** ✅ 3/3 affected hosts have recorded proof
+**Evidence limits:** ⚠️ One acceptance scenario ("Nothing a reviewer emits reaches the explanation") failed once inside the full test-suite lane under machine load and passed alone twice and in both dedicated Gherkin runs; a duplicate test-suite invocation and one proof-lane run could not start because another session held the machine-wide test lock (exit 75). Neither is product evidence. Dependency audit reports 8 pre-existing advisories (2 high, 3 moderate, 3 low); this PR changes no manifests.
 
-| Done when | Evidence |
-| --- | --- |
-| Unit tests prove each lookup's order, version pinning, and that the trusted lookup refuses project-writable paths | `tests/hooks/safeword-cli.test.ts`, 18 tests (incl. trusted environment allow-list and project-contained directory settings): trusted order and pinning, Codex cache, project-writable plugin refused, symlink canonicalized, runtime inside the project refused, project-is-home runner directory, repo source and installed package refused for trust; working-lookup order, lookalike source refused, no unpinned fallback; contract that no hook mentions `safeword@latest` or resolves the plugin path itself |
-| A real GREEN-guard hook process outside a plugin verifies a receipt through pinned bunx | `tests/integration/write-time-annotation-gate.test.ts`: the real `bun x --bun safeword@9.9.9` route against a local npm registry approves the exact scenario and ledger; denies a rejecting package even with a forging project `node` shim; survives a 5.5s cold registry. A forged `bun x` cache under a project TMPDIR is denied. `tests/integration/action-hook-cli-version.test.ts` runs the real `bunx` against a local registry: a mismatched node_modules safeword loses to the pinned published version. The shim, symlink, preload, cache, and version tests each fail against the previous module |
-| No hook template contains `safeword@latest` (outside auto-upgrade) or an unpinned `bunx safeword`; generated surfaces regenerated; full suite green | Contract test above; `bun packages/cli/scripts/check-generated-surfaces.ts` reports all 5 surfaces current; full suite 614 files, 10,552 passed, 14 skipped, 0 failed |
+| Affected surface | Proof | Result |
+| --- | --- | --- |
+| Claude Code (plugin and project-local hooks) | `tests/integration/write-time-annotation-gate.test.ts` real GREEN-guard processes: plugin bundle, pinned `bun x --bun` via local npm registry, preload/symlink/shim/cache forgeries denied | pass |
+| OpenAI Codex | `tests/integration/codex-stop-retro.test.ts`; Codex plugin hook-parity acceptance scenario "Packaged Stop runs retro extraction invisibly" | pass |
+| Cursor / project-local delivery | `tests/integration/action-hook-cli-version.test.ts` real session hook + real `bunx` against a local registry; `tests/hooks/retrospective-gate.test.ts` | pass |
 
-## Reviews
+## Reviews and audit
 
 - Intake: independent review `6e8dbcb3` (Codex, cross-agent) approved.
-- Quality review: independent passes requested changes on trust-boundary and fail-closed defects (project bunfig preload, symlinked CLI, PATH and node shims, project-as-home runner directory, download timeout, inherited preload options, project-contained temp/cache directories, installed-version mismatch); each was fixed with a test that fails against the previous code. Final full-scope review `0de89bf4` approved all 28 authored files; its predecessor's warning (learnings stamp scan skipped without a CLI) was fixed in `e33c63c4f`.
-- Implement phase exit: logged skip — the full change set (81 files) exceeds the 64-file review packet; the 53 others are generated copies verified by `check-generated-surfaces`.
-- Audit (diff scope): 0 errors; 1 warning (cold-download test timing margin) fixed in `dabe0e0d9`.
+- TDD test-quality review: fixed stale test names, an unsafe env restore, and a proof gap (the test runner's real lookup had no test without the suite-wide `SAFEWORD_CLI` override) in `8c62c3be2`.
+- Quality review: earlier passes requested changes on trust-boundary and fail-closed defects, each fixed with a test that fails against the previous code; final review `d332d63e` (Codex, cross-agent) approved; its timeout warning fixed in `bb19d7597`.
+- Audit passed — diff scope on the final code: 0 errors, no dependency violations (428 modules), no learning, principle-trace, or domain-doc findings.
 
 ## Known limits
 
