@@ -68331,9 +68331,13 @@ var init_dependency_readiness = __esm(() => {
   REPORT_ONLY_INSTALL_FLAGS = new Set(["--version", "-v", "--help", "-h"]);
 });
 
+// templates/hooks/lib/safeword-cli.ts
+var init_safeword_cli = () => {};
+
 // templates/hooks/lib/retrospective-gate.ts
 var RUNTIME_ENVIRONMENT;
 var init_retrospective_gate2 = __esm(() => {
+  init_safeword_cli();
   RUNTIME_ENVIRONMENT = new Set([
     "PATH",
     "HOME",

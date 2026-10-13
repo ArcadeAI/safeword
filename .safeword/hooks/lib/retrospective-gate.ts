@@ -2,6 +2,8 @@ import { spawnSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { trustedSafewordClis } from './safeword-cli.ts';
+
 export interface RetrospectiveGateClaim {
   readonly ticketId: string;
   readonly scenario: string;
@@ -10,26 +12,29 @@ export interface RetrospectiveGateClaim {
   readonly proofId: string;
 }
 
-function trustedCommand(projectRoot: string): readonly [string, ...string[]] | undefined {
-  const explicit = process.env.SAFEWORD_PLUGIN_CLI?.trim();
-  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT?.trim();
-  const candidate = explicit || (pluginRoot ? nodePath.join(pluginRoot, 'runtime', 'cli.js') : '');
-  if (candidate === '') return undefined;
+/** The first trusted CLI, run by a Bun runtime that project code cannot replace either. */
+function trustedCommand(
+  projectRoot: string,
+): { argv: readonly [string, ...string[]]; cwd: string } | undefined {
+  const cli = trustedSafewordClis(projectRoot)[0];
+  if (cli === undefined) return undefined;
+  if (cli.command === 'bunx') return { argv: ['bunx', ...cli.args], cwd: cli.cwd };
+  const path = cli.args[0] ?? '';
   try {
-    const cli = realpathSync.native(candidate);
-    const project = realpathSync.native(projectRoot);
     const runtime = realpathSync.native(process.execPath);
-    const inside = [cli, runtime].some(path => {
-      const relative = nodePath.relative(project, path);
-      return (
-        relative === '' ||
-        (relative !== '..' &&
-          !relative.startsWith(`..${nodePath.sep}`) &&
-          !nodePath.isAbsolute(relative))
-      );
-    });
-    if (inside) return undefined;
-    return process.versions.bun === undefined ? [runtime, cli] : [runtime, '--no-env-file', cli];
+    const project = realpathSync.native(projectRoot);
+    const relative = nodePath.relative(project, runtime);
+    const runtimeInsideProject =
+      relative === '' ||
+      (relative !== '..' &&
+        !relative.startsWith(`..${nodePath.sep}`) &&
+        !nodePath.isAbsolute(relative));
+    if (runtimeInsideProject) {
+      return undefined;
+    }
+    const argv: [string, ...string[]] =
+      process.versions.bun === undefined ? [runtime, path] : [runtime, '--no-env-file', path];
+    return { argv, cwd: nodePath.dirname(path) };
   } catch {
     return undefined;
   }
@@ -65,7 +70,7 @@ export function retrospectiveGateDenial(
 ): string | undefined {
   const command = trustedCommand(projectRoot);
   if (command === undefined) return 'A trusted installed Safeword CLI is unavailable.';
-  const [executable, ...prefix] = command;
+  const [executable, ...prefix] = command.argv;
   const result = spawnSync(
     executable,
     [
@@ -89,7 +94,7 @@ export function retrospectiveGateDenial(
       claim.proofId,
     ],
     {
-      cwd: nodePath.dirname(prefix.at(-1) ?? executable),
+      cwd: command.cwd,
       env: runtimeEnvironment(),
       encoding: 'utf8',
       timeout: 30_000,
@@ -130,7 +135,7 @@ export function retrospectiveCloseDenial(
 ): string | undefined {
   const command = trustedCommand(projectRoot);
   if (command === undefined) return 'A trusted installed Safeword CLI is unavailable.';
-  const [executable, ...prefix] = command;
+  const [executable, ...prefix] = command.argv;
   const result = spawnSync(
     executable,
     [
@@ -148,7 +153,7 @@ export function retrospectiveCloseDenial(
       ledger,
     ],
     {
-      cwd: nodePath.dirname(prefix.at(-1) ?? executable),
+      cwd: command.cwd,
       env: runtimeEnvironment(),
       encoding: 'utf8',
       timeout: 10_000,
