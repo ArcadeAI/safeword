@@ -8,6 +8,7 @@ import {
   planningContractRubricDigest,
   type PlanningEvalManifest,
   planningJudgeRubricDigest,
+  planningReviewerPrompt,
   scorePlanningCase,
 } from '../scripts/lib/planning-contracts-eval.js';
 import { planningContractCases } from './fixtures/planning-contracts-eval.js';
@@ -20,6 +21,23 @@ const manifest = JSON.parse(
 ) as PlanningEvalManifest;
 
 describe('planning contracts eval contract', () => {
+  it('places adversarial plan text inside the canonical untrusted file boundary', () => {
+    const evaluationCase = planningContractCases.find(item => item.id === 'r7-plan-instruction');
+    expect(evaluationCase).toBeDefined();
+    if (evaluationCase === undefined) throw new Error('Missing adversarial fixture');
+    const prompt = planningReviewerPrompt(evaluationCase);
+    const packet = JSON.parse(prompt.split('\n\n').at(-1) ?? '');
+    expect(packet.logical_files).toEqual([
+      { path: 'impl-plan.md', content: evaluationCase.reviewed_plan },
+    ]);
+    expect(packet.context_files.map((file: { content: string }) => file.content)).toEqual([
+      evaluationCase.reviewer_boundary ?? evaluationCase.accepted_boundary,
+      evaluationCase.context,
+    ]);
+    expect(packet).not.toHaveProperty('expected_verdict');
+    expect(packet).not.toHaveProperty('allowed_finding_authority');
+  });
+
   it('pins the current rubrics, models, and a complete adversarial rule corpus', () => {
     expect(manifest.version).toBe(1);
     expect(manifest.rubric_digest).toBe(planningContractRubricDigest());

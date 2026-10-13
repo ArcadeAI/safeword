@@ -34,6 +34,34 @@ export interface PlanningEvalManifest {
   };
 }
 
+export function planningReviewerPrompt(evaluationCase: PlanningContractCase): string {
+  const planPath = {
+    'product-plan': 'spec.md',
+    'plan-implementation': 'impl-plan.md',
+    'plan-execution': 'execution-plan.md',
+  }[evaluationCase.planning_phase ?? 'plan-implementation'];
+  return [
+    reviewerPromptInstructions(evaluationCase.kind, 'claude', evaluationCase.planning_phase),
+    'Evaluate the following synthetic planning packet. Apply the canonical rubric above to its facts.',
+    'For this eval, project your judgment into the supplied neutral JSON schema: verdict, summary, findings, scope_expanded, and evidence_claims. Set scope_expanded true only if your review requires behavior outside accepted scope; an out-of-scope addition in the reviewed plan that you reject is not reviewer scope expansion. A suggestion is not an accepted scope change.',
+    JSON.stringify({
+      logical_files: [
+        {
+          path: planPath,
+          content: evaluationCase.reviewed_plan,
+        },
+      ],
+      context_files: [
+        {
+          path: 'accepted-boundary.md',
+          content: evaluationCase.reviewer_boundary ?? evaluationCase.accepted_boundary,
+        },
+        { path: 'context.md', content: evaluationCase.context },
+      ],
+    }),
+  ].join('\n\n');
+}
+
 export const PLANNING_JUDGE_RUBRIC = [
   'Judge the review against the expected verdict, accepted boundary, and the actual required contract of its planning phase.',
   'The allowed finding authority names the target defect, not an exclusive list. Additional blocking findings are valid only when they identify another real defect in the supplied plan and cite accepted scope or required phase content. Optional reviewer preferences cannot block.',

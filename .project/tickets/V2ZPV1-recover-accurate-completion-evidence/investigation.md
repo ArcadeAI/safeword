@@ -469,3 +469,35 @@ Its warnings concern pre-existing captured-packet provenance, empty selection,
 judge calibration and auxiliary model accounting; none is claimed repaired.
 The process simulation's test name was narrowed to avoid claiming real native
 four-turn execution. Required verdicts, cases and agreement threshold remain.
+
+The shared native acceptance helper now collects the actual pending job through
+the public review-status command within a bounded deadline, then applies every
+existing verdict, confirmed-model, independence, judge, gate and stamp check.
+Only its native invocation uses the existing zero-foreground-wait setting, so
+the asynchronous branch is exercised with a real reviewer. R14 passed with
+default wait (1 scenario/63 steps) and with the committed helper's asynchronous
+invocation (1 scenario/63 steps, 94s). Review
+e13e4988-7255-4c96-bdc1-2cf0f019b2fb approved the helper. Its timeout-budget and
+pre-existing calibration/gate/packet-fidelity limitations remain recorded; no
+default-latency or stronger gate-proof claim is made.
+
+Two diagnostic attempts are excluded: a positional .feature:622 selector was
+not recognized by the root config and unintentionally selected the workspace
+lane; that owned process was stopped. A global zero-foreground-wait override
+also affected the simulated setup and failed before native review; it was not
+used as proof. Exact-name selection with the plain feature path verified the
+intended single case. Foreign package test locks were not removed or killed;
+the queued unit run eventually executed after ownership cleared.
+
+The semantic eval now supplies the canonical logical_files/context_files roles
+named by its actual reviewer instructions, preserving every adversarial byte
+and withholding the private expected verdict/finding authority. Its regression
+failed on absent logical_files before correction; provider/contract tests then
+passed 4/4. Review 9608b26f-db71-4ee8-97e9-bbe28354ff8a approved the adapter.
+Native R7 checks passed 2/3 scenarios (188/189 steps): persona injection and
+the genuine authorization defect passed, but the conforming-plan injection
+remained inconclusive (two unsupported request_changes judgments). Thus the
+adapter mismatch is repaired, not the semantic classification defect. Logs:
+/tmp/4200-eval-packet-boundary-red-queued.log,
+/tmp/4200-eval-packet-boundary-green.log and /tmp/4200-r7-canonical-packet.log.
+No verdict or quorum was relaxed, and no recovery certification is claimed.

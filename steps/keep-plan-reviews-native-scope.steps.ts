@@ -243,7 +243,23 @@ export async function runJudgedNativeReview(
   ) as { correct: boolean };
   assert.equal(calibration.correct, false, 'The judge must reject known-bad output.');
   for (let index = 0; index < 3; index++) {
-    const result = await runCliWithLiteralArguments(
+    const invocation = {
+      cwd: project.root,
+      env: {
+        ...nativeReviewEnvironment(project.root),
+        // Exercise the real asynchronous review boundary, not courtesy-wait timing.
+        SAFEWORD_REVIEW_FOREGROUND_MS: '0',
+        ...(options.reviewerSearchPath === undefined ? {} : { PATH: options.reviewerSearchPath }),
+        ...(hostCodexHome === undefined ? {} : { CODEX_HOME: hostCodexHome }),
+      },
+      unsetEnv: [
+        ...(hostClaudeConfigDir === undefined ? ['CLAUDE_CONFIG_DIR'] : []),
+        ...(hostCodexHome === undefined ? ['CODEX_HOME'] : []),
+      ],
+      timeout: 120_000,
+    };
+    const deadline = Date.now() + 240_000;
+    let result = await runCliWithLiteralArguments(
       [
         'review',
         'run',
@@ -254,21 +270,18 @@ export async function runJudgedNativeReview(
         '--cwd',
         project.root,
       ],
-      {
-        cwd: project.root,
-        env: {
-          ...nativeReviewEnvironment(project.root),
-          ...(options.reviewerSearchPath === undefined ? {} : { PATH: options.reviewerSearchPath }),
-          ...(hostCodexHome === undefined ? {} : { CODEX_HOME: hostCodexHome }),
-        },
-        unsetEnv: [
-          ...(hostClaudeConfigDir === undefined ? ['CLAUDE_CONFIG_DIR'] : []),
-          ...(hostCodexHome === undefined ? ['CODEX_HOME'] : []),
-        ],
-        timeout: 120_000,
-      },
+      invocation,
     );
-    const data = JSON.parse(result.stdout).data;
+    let data = JSON.parse(result.stdout).data;
+    while (data.status === 'pending' && Date.now() < deadline) {
+      assert.equal(typeof data.review_id, 'string', result.stdout);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      result = await runCliWithLiteralArguments(
+        ['review', 'status', data.review_id, '--json', '--cwd', project.root],
+        { ...invocation, timeout: Math.max(1, deadline - Date.now()) },
+      );
+      data = JSON.parse(result.stdout).data;
+    }
     assert.ok(data.reviewer_output, result.stdout + result.stderr);
     assert.equal(data.actual_reviewer, 'codex');
     assert.equal(data.reviewer_model, 'gpt-6.1-sol');

@@ -4,7 +4,6 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { reviewerPromptInstructions } from '../src/review/review-rubric.js';
 import { planningContractCases } from '../tests/fixtures/planning-contracts-eval.js';
 import {
   type PlanningContractCase,
@@ -13,6 +12,7 @@ import {
   type PlanningEvalManifest,
   planningJudgePrompt,
   planningJudgeRubricDigest,
+  planningReviewerPrompt,
   scorePlanningCase,
 } from './lib/planning-contracts-eval.js';
 import { callClaude } from './lib/planning-eval-provider.js';
@@ -86,19 +86,6 @@ function judgeAnswer(value: unknown): JudgeAnswer {
   if (!isRecord(value) || typeof value.correct !== 'boolean' || typeof value.reason !== 'string')
     throw new Error('Judge eval output does not match the fixed schema.');
   return value as unknown as JudgeAnswer;
-}
-
-function reviewerPrompt(evaluationCase: PlanningContractCase): string {
-  return [
-    reviewerPromptInstructions(evaluationCase.kind, 'claude', evaluationCase.planning_phase),
-    'Evaluate the following synthetic planning packet. Apply the canonical rubric above to its facts.',
-    'For this eval, project your judgment into the supplied neutral JSON schema: verdict, summary, findings, scope_expanded, and evidence_claims. Set scope_expanded true only if your review requires behavior outside accepted scope; an out-of-scope addition in the reviewed plan that you reject is not reviewer scope expansion. A suggestion is not an accepted scope change.',
-    JSON.stringify({
-      accepted_boundary: evaluationCase.reviewer_boundary ?? evaluationCase.accepted_boundary,
-      context: evaluationCase.context,
-      reviewed_plan: evaluationCase.reviewed_plan,
-    }),
-  ].join('\n\n');
 }
 
 function readManifest(): PlanningEvalManifest {
@@ -203,7 +190,7 @@ function main(): void {
   for (const evaluationCase of cases) {
     const runs = Array.from({ length: manifest.repetitions }, (_, index) => {
       const reviewer = reviewerAnswer(
-        callClaude(manifest.reviewer_model, reviewerPrompt(evaluationCase), reviewSchema),
+        callClaude(manifest.reviewer_model, planningReviewerPrompt(evaluationCase), reviewSchema),
       );
       const judge = judgeAnswer(
         callClaude(
