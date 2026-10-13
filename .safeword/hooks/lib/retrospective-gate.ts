@@ -55,7 +55,7 @@ export function retrospectiveGateDenial(
       cwd: command.cwd,
       env: trustedEnvironment(projectRoot),
       encoding: 'utf8',
-      timeout: 30_000,
+      timeout: command.timeout,
       maxBuffer: 1024 * 1024,
     },
   );
