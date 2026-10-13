@@ -426,3 +426,46 @@ Current deterministic recovery/conformance tests passed 77/77; root lint,
 Gherkin lint and CLI typecheck passed. Logs: /tmp/4200-qualified-recovery-targeted.log,
 /tmp/4200-qualified-lint.log and /tmp/4200-qualified-typecheck.log. These targeted
 checks are not the final authoritative suite or the fresh recovery observation.
+
+Fresh observation checkpoint: committed candidate
+6221a4437e27f045cebbd1411f92014a4dec527f started the fixed 142-case lane with
+zero retries and zero parallel workers. Pending report directory:
+.safeword/state/reviews/ledger-recovery-4d6249c6-a935-44fc-a07f-572e46f3b01f.
+No successful observation or certification is claimed before its final report.
+Qualification logs were moved, unchanged, to
+/tmp/4200-retained-qualification-evidence/.safeword/logs/ before this run so the
+checkout had no untracked product inputs. The earlier project-relative paths
+in provenance refer to that preserved archive layout.
+
+The host remained awake, but at 23:31 PDT its battery reached 11% with an
+11-minute estimate. Power connection was requested; it was still disconnected
+at 23:33. This is an external execution limit, not a product failure or a
+reason to fabricate a pass. Retain the actual final or interrupted report.
+At 23:37 PDT, host telemetry confirmed AC power and charging. The external
+power limit was resolved without changing product inputs or stopping the run.
+
+### Fresh observation failed honestly — 2026-10-13
+
+The 6221a4437 observation finished in 84m5s: 137/142 scenarios passed,
+5 failed; both hooks passed. Steps: 8940 passed, 3 skipped and 5 failed.
+No authenticated successful observation or certification was written. Retained
+report/execution log: the 4d6249c6-a935-44fc-a07f-572e46f3b01f directory above.
+
+Failures: R7's conforming plan with an inert embedded instruction was rejected
+in two of three judged runs; R12's scope-source evaluation hit Claude's native
+three-turn cap; R12's installed gate and R14's installed re-review initially
+returned pending; R15's Product review exhausted its Codex route. The retained
+R14 job later approved, proving premature pending-result assertion. The retained
+R12 job instead ended continuation-required with a real process_failed route;
+polling cannot convert that failure into approval. No host sleep occurred.
+
+The provider turn-cap regression failed before correction and passed afterward.
+Removed the redundant three-turn cap and its manifest claims; the existing
+120-second subprocess bound, disabled tools and model/envelope checks remain.
+Provider and planning-contract unit tests passed 3/3. RED/GREEN logs:
+/tmp/4200-native-turn-cap-red.log and /tmp/4200-native-turn-cap-green.log.
+Independent review 0b7a4612-bdbe-478c-be34-29092d3bac51 approved this correction.
+Its warnings concern pre-existing captured-packet provenance, empty selection,
+judge calibration and auxiliary model accounting; none is claimed repaired.
+The process simulation's test name was narrowed to avoid claiming real native
+four-turn execution. Required verdicts, cases and agreement threshold remain.

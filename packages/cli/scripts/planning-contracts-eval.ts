@@ -112,7 +112,6 @@ function readManifest(): PlanningEvalManifest {
     JSON.stringify(manifest.settings) !==
       JSON.stringify({
         effort: 'low',
-        max_turns: 3,
         tools_disabled: true,
         session_persistence: false,
       }),

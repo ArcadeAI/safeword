@@ -29,7 +29,6 @@ export interface PlanningEvalManifest {
   readonly judge_rubric_digest: string;
   readonly settings: {
     readonly effort: 'low';
-    readonly max_turns: 3;
     readonly tools_disabled: true;
     readonly session_persistence: false;
   };

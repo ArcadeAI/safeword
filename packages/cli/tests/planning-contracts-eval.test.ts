@@ -30,7 +30,6 @@ describe('planning contracts eval contract', () => {
     expect([manifest.repetitions, manifest.agreement_threshold]).toEqual([3, 2]);
     expect(manifest.settings).toEqual({
       effort: 'low',
-      max_turns: 3,
       tools_disabled: true,
       session_persistence: false,
     });

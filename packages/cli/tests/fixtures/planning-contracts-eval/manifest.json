@@ -8,7 +8,6 @@
   "judge_rubric_digest": "214fd7131e8f64d1d53f4bf604f26bec8abd437697e45476ab397bd607e97943",
   "settings": {
     "effort": "low",
-    "max_turns": 3,
     "tools_disabled": true,
     "session_persistence": false
   },
