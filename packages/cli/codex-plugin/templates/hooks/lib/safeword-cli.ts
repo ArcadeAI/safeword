@@ -301,7 +301,7 @@ export function safewordClis(
   projectDirectory: string,
   environment: NodeJS.ProcessEnv = process.env,
 ): SafewordCli[] {
-  const bunScripts = [pluginCli(environment), sourceCli(projectDirectory)].filter(
+  const bunScripts = [sourceCli(projectDirectory), pluginCli(environment)].filter(
     (path): path is string => path !== undefined,
   );
   const installed = installedCli(projectDirectory);

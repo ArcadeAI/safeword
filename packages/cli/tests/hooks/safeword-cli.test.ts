@@ -156,6 +156,19 @@ describe('trusted Safeword CLI lookup', () => {
 });
 
 describe('working Safeword CLI lookup', () => {
+  it('runs this repo source ahead of the plugin bundle while developing Safeword', () => {
+    const root = project();
+    const source = write(root, 'packages/cli/src/cli.ts');
+    write(root, 'packages/cli/package.json', '{"name":"safeword"}');
+    const plugin = write(pluginRoot(), 'runtime/cli.js');
+
+    expect(safewordClis(root, { SAFEWORD_PLUGIN_CLI: plugin }).map(cli => cli.args[0])).toEqual([
+      source,
+      plugin,
+      'safeword@1.2.3',
+    ]);
+  });
+
   it('prefers the plugin bundle', () => {
     const root = project();
     const plugin = write(pluginRoot(), 'runtime/cli.js');
