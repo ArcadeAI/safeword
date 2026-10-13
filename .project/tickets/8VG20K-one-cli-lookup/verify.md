@@ -2,6 +2,8 @@
 
 **Verified on:** 2026-10-13 · **Head:** `42b5c8af3`
 
+**PR Scope:** `fix/one-cli-lookup` against `main` contains only 8VG20K work — the shared lookup module, the hooks moved onto it, the fail-closed test-plan fix in the same function, their tests, the regenerated plugin/installed copies, and the ARCHITECTURE.md decision. No unrelated changes.
+
 ## Done-when evidence
 
 | Done when | Evidence |
