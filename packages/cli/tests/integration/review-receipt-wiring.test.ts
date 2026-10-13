@@ -518,9 +518,10 @@ describe('review-receipt trust and aggregate budget', () => {
     mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
     writeFileSync(nodePath.join(projectRoot, '.safeword', 'version'), '0.83.1\n');
     mkdirSync(trustedBin, { recursive: true });
+    // The fallback is `bun x --bun safeword@<version>` through a Bun outside the project.
     writeFileSync(
-      nodePath.join(trustedBin, 'bunx'),
-      `#!/bin/sh\nif [ -n "$SAFEWORD_REVIEW_PROGRESS" ]; then exit 9; fi\npwd > ${JSON.stringify(marker)}\nprintf '%s' '${JSON.stringify({ data: approvedEnvelope })}'\n`,
+      nodePath.join(trustedBin, 'bun'),
+      `#!/bin/sh\nif [ -n "$SAFEWORD_REVIEW_PROGRESS" ]; then exit 9; fi\n[ "$1 $2 $3" = "x --bun safeword@0.83.1" ] || exit 7\npwd > ${JSON.stringify(marker)}\nprintf '%s' '${JSON.stringify({ data: approvedEnvelope })}'\n`,
       { mode: 0o755 },
     );
     process.env.PATH = `${trustedBin}${nodePath.delimiter}${previousPath ?? ''}`;

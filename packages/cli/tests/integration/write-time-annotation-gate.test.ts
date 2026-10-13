@@ -1083,20 +1083,35 @@ server.listen(0, '127.0.0.1', () => writeFileSync('port', String(server.address(
     ): HookResult {
       const home = createTemporaryDirectory();
       gateDirectories.push(home);
-      return runEditHook(
-        setup.cwd,
-        setup.testDefinitionsPath,
-        '- [ ] GREEN',
-        '- [x] GREEN def5678',
-        {
+      const run = spawnSync('bun', [PRE_TOOL_QUALITY], {
+        input: JSON.stringify({
+          session_id: 'test-session',
+          hook_event_name: 'PreToolUse',
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: setup.testDefinitionsPath,
+            old_string: '- [ ] GREEN',
+            new_string: '- [x] GREEN def5678',
+          },
+        }),
+        cwd: setup.cwd,
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_ROOT: '',
+          SAFEWORD_PLUGIN_CLI: '',
           HOME: home,
           BUN_CONFIG_REGISTRY: published.registry,
           BUN_INSTALL_CACHE_DIR: published.cache,
           // bun x keeps installed packages under TMPDIR; isolate each test's package.
           TMPDIR: home,
           ...environment,
+          CLAUDE_PROJECT_DIR: setup.cwd,
         },
-      );
+        encoding: 'utf8',
+        // A real package fetch: leave headroom past the guard's own 30s download budget.
+        timeout: 40_000,
+      });
+      return { status: run.status, stdout: run.stdout, stderr: run.stderr };
     }
 
     it('approves GREEN through the pinned published package outside a plugin', () => {
