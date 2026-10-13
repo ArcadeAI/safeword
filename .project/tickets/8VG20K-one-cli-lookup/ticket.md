@@ -2,8 +2,8 @@
 id: 8VG20K
 slug: one-cli-lookup
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/5807
 scope:
   - One shared module (templates/hooks/lib/safeword-cli.ts) owns how hooks run the Safeword CLI, with two entry points — a trusted lookup for trust checks and a working lookup for plain actions.
@@ -34,3 +34,4 @@ last_modified: 2026-10-13T06:02:39.412Z
 - 2026-10-13T06:10Z Scope agreed with user ("unify"): one shared lookup; bundled copy on plugin hosts, pinned bunx elsewhere; Cursor plugin and dropping the bundles are out of scope.
 - 2026-10-13T06:04:23.639Z Phase: intake → implement
 - 2026-10-13T07:54:24.720Z Phase: implement → verify
+- 2026-10-13T20:03:03.034Z Phase: verify → done
