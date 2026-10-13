@@ -95,9 +95,13 @@ describe('installed retrospective closing gate', () => {
     try {
       expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeDefined();
     } finally {
-      process.env.PATH = previousPath;
-      process.env.HOME = previousHome;
-      process.env.TMPDIR = previousTmpdir;
+      if (previousPath === undefined) delete process.env.PATH;
+      else process.env.PATH = previousPath;
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      // Assigning undefined would store the string "undefined" (TMPDIR is unset in CI).
+      if (previousTmpdir === undefined) delete process.env.TMPDIR;
+      else process.env.TMPDIR = previousTmpdir;
       if (previousRegistry === undefined) delete process.env.BUN_CONFIG_REGISTRY;
       else process.env.BUN_CONFIG_REGISTRY = previousRegistry;
     }
