@@ -407,7 +407,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-cli.ts",
-      "sha256": "100d70715f8bfe771834c253c1041f5e53f3a6868c9bc966391dd755abb6ed05"
+      "sha256": "a93196090ed693ce6bdd2bd9ab80dd27170f8bcf233d415f2f4f36e98532b706"
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
@@ -543,7 +543,7 @@
     },
     {
       "path": "runtime/hooks/run-review.ts",
-      "sha256": "751ad5814406fc480ba428dc505980cb3f8450bd98320ef89f0a426305aa0cc7"
+      "sha256": "65b2788be9a94f14f48c2050954839e9023f52ae8d076627b1cbcc41b14519b2"
     },
     {
       "path": "runtime/hooks/session-architecture-heal.ts",
@@ -1355,7 +1355,7 @@
     },
     {
       "path": "templates/hooks/lib/safeword-cli.ts",
-      "sha256": "100d70715f8bfe771834c253c1041f5e53f3a6868c9bc966391dd755abb6ed05"
+      "sha256": "a93196090ed693ce6bdd2bd9ab80dd27170f8bcf233d415f2f4f36e98532b706"
     },
     {
       "path": "templates/hooks/lib/safeword-context.ts",
@@ -1491,7 +1491,7 @@
     },
     {
       "path": "templates/hooks/run-review.ts",
-      "sha256": "751ad5814406fc480ba428dc505980cb3f8450bd98320ef89f0a426305aa0cc7"
+      "sha256": "65b2788be9a94f14f48c2050954839e9023f52ae8d076627b1cbcc41b14519b2"
     },
     {
       "path": "templates/hooks/session-architecture-heal.ts",

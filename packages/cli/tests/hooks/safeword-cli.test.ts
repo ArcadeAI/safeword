@@ -81,7 +81,7 @@ describe('trusted Safeword CLI lookup', () => {
     const root = project();
     write(root, 'packages/cli/package.json', '{"name":"safeword"}');
     write(root, 'packages/cli/src/cli.ts');
-    write(root, 'node_modules/safeword/dist/cli.js');
+    write(root, 'node_modules/.bin/safeword');
 
     expect(trustedSafewordClis(root, {}).map(cli => cli.command)).toEqual(['bunx']);
   });
@@ -107,11 +107,11 @@ describe('working Safeword CLI lookup', () => {
     const root = project();
     const source = write(root, 'packages/cli/src/cli.ts');
     write(root, 'packages/cli/package.json', '{"name":"safeword"}');
-    const installed = write(root, 'node_modules/safeword/dist/cli.js');
+    const installed = write(root, 'node_modules/.bin/safeword');
 
     expect(safewordClis(root, {})).toEqual([
       { command: 'bun', args: [source], cwd: root },
-      { command: 'bun', args: [installed], cwd: root },
+      { command: installed, args: [], cwd: root },
       { command: 'bunx', args: ['safeword@1.2.3'], cwd: root },
     ]);
   });

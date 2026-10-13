@@ -25,7 +25,8 @@ export interface SafewordCli {
   cwd: string;
 }
 
-const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u;
+const SEMVER =
+  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 
 /** The Safeword version this project installed, from `.safeword/version`. */
 export function pinnedSafewordVersion(projectDirectory: string): string | undefined {
@@ -127,14 +128,14 @@ export function safewordClis(
   projectDirectory: string,
   environment: NodeJS.ProcessEnv = process.env,
 ): SafewordCli[] {
-  const installed = nodePath.join(projectDirectory, 'node_modules', 'safeword', 'dist', 'cli.js');
-  const paths = [
-    pluginCli(environment),
-    sourceCli(projectDirectory),
-    existsSync(installed) ? installed : undefined,
-  ].filter((path): path is string => path !== undefined);
+  const bunScripts = [pluginCli(environment), sourceCli(projectDirectory)].filter(
+    (path): path is string => path !== undefined,
+  );
+  // The package manager's own entry for the project's installed safeword.
+  const installed = nodePath.join(projectDirectory, 'node_modules', '.bin', 'safeword');
   return [
-    ...paths.map(path => ({ command: 'bun', args: [path], cwd: projectDirectory })),
+    ...bunScripts.map(path => ({ command: 'bun', args: [path], cwd: projectDirectory })),
+    ...(existsSync(installed) ? [{ command: installed, args: [], cwd: projectDirectory }] : []),
     ...pinnedBunx(projectDirectory, projectDirectory),
   ];
 }
