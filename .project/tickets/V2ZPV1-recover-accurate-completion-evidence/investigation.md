@@ -609,3 +609,84 @@ with 14 skipped. Log: /tmp/4200-qualified-current-full-unit.log. All three
 package type checks and root lint (ESLint, Gherkin, CLI types) passed. This
 is unit/build validation, not a claim that broad acceptance or deferred cases
 passed. The fresh 142-case observer and typed certification remain pending.
+
+### Recovery Draft CI portability failures — 2026-10-13
+
+Draft #5857 is published at 4bd0cab8377bbb0ff5b9f9e2a12f66eb0fce53d4, stacked
+on #5139. Source units/build/lint/types/generated checks passed locally.
+CI run 38427143498 failed both Node 22.23.2 and 24.18.1 test jobs on the same
+two actual fixture failures: native-closing.test.ts:50 invokes scripts/dev
+without mise on the runner; certified.test.ts:104 commits through fixtureGit
+without a fixture-owned author identity. Browser job annotations confirm both;
+no global Git config or shell profile was changed. The prepared two-file fix
+uses the installed pinned Bun for the fixture install and per-command test-only
+Git identity. Review 2211c094-5a6b-4cb8-b618-78a9c3a85d3e approves code shape;
+GREEN is queued with empty global/system Git config behind the one live Vitest
+process. No assertion, install-readiness control or host entrypoint was removed.
+The install already used --ignore-scripts before this change; review wording
+that calls that flag new is incorrect. CI setup and scripts/dev for development
+select pinned Bun, so no new version-check or skip framework is added.
+
+The superseded 142-case observer f7b3c86a-d716-4f9b-8d82-8d402658bfb5 was
+gracefully interrupted via its exact owned Cucumber PID after the CI failure.
+Its retained execution log contains two failure markers; case identities are
+not recoverable from the incomplete JSON report. The CLI returned observation
+rejected with Unexpected EOF. No signed observation, certification or current
+acceptance credit was issued. Do not describe it as a clean cancelled run or
+erase its raw evidence. A complete fresh run is required on the fixed commit.
+
+Independent current core review c45089a0-b44f-4b98-b32a-dc869eb685e2 and closing
+review 841d9cda-325e-4234-84d1-7a55350298a9 approve with warnings. Limits stay
+explicit: transitive helpers are bound by product identity but are not all in
+resolved-glob context; the host/dependency environment is trusted; canonical
+path and cleanup/duplicate-spawn issues can yield false denials. Exact ledger
+bytes are already pinned, so no duplicate new ledger guard is added. Existing
+observer tests cover wrong ticket/baseline; actual public CLI controls now also
+confirm loader overrides and untracked inputs are refused. The temporary input
+was removed immediately. No cache or verification-authority override occurred.
+
+The clean existing acceptance-review worktree was reused at detached 4bd0cab,
+preserving its prior df85aff33 revision. Default Execution Planning acceptance
+passes 60 scenarios and 3,845 steps. This is not live semantics: the default
+profile excludes @live regardless of the environment flag. The explicit live
+profile now runs the shared real CLI conformance matrix in that isolated copy,
+with retry zero and parallel zero. Those results remain pending.
+
+### Fixture GREEN and retained failure diagnostics — 2026-10-13
+
+The fixture correction passes 3/3 targeted tests with GIT_CONFIG_GLOBAL=/dev/null
+and GIT_CONFIG_NOSYSTEM=1, then all four affected consumer files pass 5/5.
+Actual assertions and real hook entrypoints remain intact. Logs:
+/tmp/4200-ci-fixture-portability-green.log and
+/tmp/4200-ci-fixture-all-consumers-green.log. Root lint/type checks pass.
+
+The explicit 7CAMAD live run retained 62/63 actual CLI matrix passes, with
+all-decisions-unchanged false. The shared failed proof caused all 47 linked
+live scenarios to fail (2,867 steps passed, 95 skipped, 47 failed). Reports:
+/tmp/4200-current-7camad-live-cli-acceptance.json and .log, and actual results
+4200-execution-plan-safeword-7camad-ghxTi9.json in the isolated copy. These
+failed artifacts are also retained under ignored final-readiness state.
+A same-case direct public-CLI diagnostic passes (plus its identity guard) in
+54.94 seconds; that does not classify the original failure or replace the
+failed aggregate. No compositional live acceptance is claimed.
+
+The adapter discarded stdout whenever stderr held a build notice, then deleted
+the temporary Vitest JSON report. The first failed case's exact cause is now
+unrecoverable from retained evidence. The surgical correction preserves both
+streams and the error message, and retains an existing failed report using
+0600/wx before removing the temporary directory. An explicit invalid-reviewer
+control made zero model calls: first it demonstrated absent report detail;
+after correction the actual assertions are retained. This deliberate failure
+grants no qualification or acceptance credit. Diagnostic-only artifacts were
+archived unchanged with their exact owned paths under ignored state, so they
+cannot be mixed into admission. Final correction review
+fc7ca191-ef96-44f3-bb62-fdec2b2513e1 approves with no error findings.
+
+Residual warnings stay bounded: exceptional retention I/O can obscure the
+original failure but never turn it into success; retained synthetic-fixture
+reports are not staged and are archived before source observation; the existing
+non-numeric execFile error-code typing is unchanged; global Git signing is not
+configured here and CI does not require fixture signatures. No unrelated
+resilience framework, test skip, model switch or weakened verdict was added.
+Fresh new-head CI, a complete CLI run and fixed 142-case observation remain
+required before certification or readiness can be claimed.

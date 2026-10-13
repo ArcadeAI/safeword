@@ -28,7 +28,19 @@ export const RECOVERY_MANIFEST = `${audit}/recovery-manifest.json`;
 export const RECOVERY_SUMMARY = `${audit}/evidence-summary.json`;
 
 export function fixtureGit(root: string, args: readonly string[]): string {
-  const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
+  const result = spawnSync(
+    'git',
+    [
+      '-c',
+      'user.name=Recovery fixture',
+      '-c',
+      'user.email=recovery-fixture@example.test',
+      '-C',
+      root,
+      ...args,
+    ],
+    { encoding: 'utf8' },
+  );
   if (result.status !== 0) throw new Error(result.stderr);
   return result.stdout.trim();
 }

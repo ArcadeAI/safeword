@@ -10,7 +10,7 @@
 
 import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 import { promisify } from 'node:util';
@@ -312,9 +312,26 @@ async function runProof(
     return { exitCode: 0, output: `${result.stdout}${result.stderr}` };
   } catch (error: unknown) {
     const failure = error as { code?: number; message?: string; stderr?: string; stdout?: string };
+    let retainedReport: string | undefined;
+    if (existsSync(reportPath)) {
+      mkdirSync(retainedDirectory, { recursive: true });
+      retainedReport = nodePath.join(
+        retainedDirectory,
+        `4200-proof-failure-${nodePath.basename(temporaryDirectory)}.vitest.json`,
+      );
+      writeFileSync(retainedReport, readFileSync(reportPath), { mode: 0o600, flag: 'wx' });
+    }
     return {
       exitCode: failure.code ?? 1,
-      output: failure.stderr || failure.stdout || failure.message || 'acceptance proof failed',
+      output:
+        [
+          failure.stdout,
+          failure.stderr,
+          failure.message,
+          retainedReport && `Retained failed proof report: ${retainedReport}`,
+        ]
+          .filter(Boolean)
+          .join('\n') || 'acceptance proof failed',
     };
   } finally {
     rmSync(temporaryDirectory, { force: true, recursive: true });

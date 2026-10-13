@@ -37,16 +37,12 @@ it('routes honest recovery through Cursor closing, Codex Stop and Claude Stop wh
     ]);
   });
   fixtures.push(fixture);
-  const installation = spawnSync(
-    nodePath.join(fixture.root, 'scripts/dev'),
-    ['bun', 'install', '--frozen-lockfile', '--ignore-scripts'],
-    {
-      cwd: fixture.root,
-      env: { ...process.env, MISE_TRUSTED_CONFIG_PATHS: fixture.root },
-      encoding: 'utf8',
-      timeout: 120_000,
-    },
-  );
+  const installation = spawnSync('bun', ['install', '--frozen-lockfile', '--ignore-scripts'], {
+    cwd: fixture.root,
+    env: process.env,
+    encoding: 'utf8',
+    timeout: 120_000,
+  });
   expect(installation.status, installation.stdout + installation.stderr).toBe(0);
   expect(getDependencyReadiness(fixture.root).status).toBe('ready');
   const ticket = nodePath.join(
