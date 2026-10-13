@@ -156,6 +156,14 @@ function resolvePlanCommands(cwd: string, kind: 'test' | 'bdd'): TestPlanResolut
         reason: 'Test plan could not be resolved: unavailable runner has no diagnostic.',
       };
     }
+    // The resolver exits nonzero to flag unavailable runners; any other failed run
+    // (an error exit, or a signal) must not pass as a valid plan.
+    const failedRun = result.signal !== null || result.status !== 0;
+    if (failedRun && envelope.data.plan.every(entry => entry.available)) {
+      const detail =
+        result.signal === null ? `exited ${result.status}` : `killed by ${result.signal}`;
+      return { ok: false, reason: `Test plan could not be resolved: ${detail}.` };
+    }
     return {
       ok: true,
       commands: envelope.data.plan.map(entry => ({
