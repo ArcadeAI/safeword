@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "0d2f863ba38bf2a9721c7ba3bfabb3ce695537765381dbbe2768d36384270737"
+      "sha256": "5a653986133c9c7b81eb3395577158838e31e7cb54c64a35dcb2e6f3e37834b1"
     },
     {
       "path": "runtime/dispatch.js",
@@ -407,7 +407,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-cli.ts",
-      "sha256": "ac1356c9a79311a6eb8fb3a5413b7e3b811caea60793ce90ef628704029d6a85"
+      "sha256": "93beff5b7d9017b49a96dcce663445d1bb68d583c80ca458f2a3795e2241dbea"
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
@@ -1355,7 +1355,7 @@
     },
     {
       "path": "templates/hooks/lib/safeword-cli.ts",
-      "sha256": "ac1356c9a79311a6eb8fb3a5413b7e3b811caea60793ce90ef628704029d6a85"
+      "sha256": "93beff5b7d9017b49a96dcce663445d1bb68d583c80ca458f2a3795e2241dbea"
     },
     {
       "path": "templates/hooks/lib/safeword-context.ts",

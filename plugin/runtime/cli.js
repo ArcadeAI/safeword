@@ -68332,30 +68332,9 @@ var init_dependency_readiness = __esm(() => {
 });
 
 // templates/hooks/lib/safeword-cli.ts
-var TRUSTED_ENVIRONMENT, TRUSTED_PATH_SETTINGS;
+var TRUSTED_PATH_SETTINGS, TRUSTED_ENVIRONMENT;
 var init_safeword_cli = __esm(() => {
-  TRUSTED_ENVIRONMENT = new Set([
-    "PATH",
-    "HOME",
-    "USERPROFILE",
-    "APPDATA",
-    "LOCALAPPDATA",
-    "SystemRoot",
-    "XDG_STATE_HOME",
-    "XDG_CONFIG_HOME",
-    "XDG_CACHE_HOME",
-    "CODEX_HOME",
-    "NODE_ENV",
-    "SAFEWORD_REVIEW_KEY_ROOT",
-    "BUN_CONFIG_REGISTRY",
-    "NPM_CONFIG_REGISTRY",
-    "BUN_INSTALL_CACHE_DIR",
-    "TMPDIR",
-    "HTTPS_PROXY",
-    "HTTP_PROXY",
-    "NO_PROXY"
-  ].map((name) => name.toUpperCase()));
-  TRUSTED_PATH_SETTINGS = new Set([
+  TRUSTED_PATH_SETTINGS = [
     "HOME",
     "USERPROFILE",
     "APPDATA",
@@ -68367,7 +68346,20 @@ var init_safeword_cli = __esm(() => {
     "SAFEWORD_REVIEW_KEY_ROOT",
     "BUN_INSTALL_CACHE_DIR",
     "TMPDIR"
-  ].map((name) => name.toUpperCase()));
+  ].map((name) => name.toUpperCase());
+  TRUSTED_ENVIRONMENT = new Set([
+    ...TRUSTED_PATH_SETTINGS,
+    ...[
+      "PATH",
+      "SystemRoot",
+      "NODE_ENV",
+      "BUN_CONFIG_REGISTRY",
+      "NPM_CONFIG_REGISTRY",
+      "HTTPS_PROXY",
+      "HTTP_PROXY",
+      "NO_PROXY"
+    ].map((name) => name.toUpperCase())
+  ]);
 });
 
 // templates/hooks/lib/retrospective-gate.ts

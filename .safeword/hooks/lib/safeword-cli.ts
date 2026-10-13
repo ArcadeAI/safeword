@@ -184,47 +184,36 @@ export function trustedSafewordClis(
   return candidates;
 }
 
-const TRUSTED_ENVIRONMENT = new Set(
-  [
+/** Settings that name a directory the trusted CLI or Bun reads from or writes to. */
+const TRUSTED_PATH_SETTINGS = [
+  'HOME',
+  'USERPROFILE',
+  'APPDATA',
+  'LOCALAPPDATA',
+  'XDG_STATE_HOME',
+  'XDG_CONFIG_HOME',
+  'XDG_CACHE_HOME',
+  'CODEX_HOME',
+  'SAFEWORD_REVIEW_KEY_ROOT',
+  'BUN_INSTALL_CACHE_DIR',
+  'TMPDIR',
+].map(name => name.toUpperCase());
+
+/** Everything a trusted CLI may inherit: the directories above plus these. */
+const TRUSTED_ENVIRONMENT = new Set([
+  ...TRUSTED_PATH_SETTINGS,
+  ...[
     'PATH',
-    'HOME',
-    'USERPROFILE',
-    'APPDATA',
-    'LOCALAPPDATA',
     'SystemRoot',
-    'XDG_STATE_HOME',
-    'XDG_CONFIG_HOME',
-    'XDG_CACHE_HOME',
-    'CODEX_HOME',
     'NODE_ENV',
-    'SAFEWORD_REVIEW_KEY_ROOT',
-    // `bun x safeword@<version>` needs the host's registry, cache, and proxy settings.
+    // `bun x safeword@<version>` needs the host's registry and proxy settings.
     'BUN_CONFIG_REGISTRY',
     'NPM_CONFIG_REGISTRY',
-    'BUN_INSTALL_CACHE_DIR',
-    'TMPDIR',
     'HTTPS_PROXY',
     'HTTP_PROXY',
     'NO_PROXY',
   ].map(name => name.toUpperCase()),
-);
-
-/** Settings that name a directory the trusted CLI or Bun reads from or writes to. */
-const TRUSTED_PATH_SETTINGS = new Set(
-  [
-    'HOME',
-    'USERPROFILE',
-    'APPDATA',
-    'LOCALAPPDATA',
-    'XDG_STATE_HOME',
-    'XDG_CONFIG_HOME',
-    'XDG_CACHE_HOME',
-    'CODEX_HOME',
-    'SAFEWORD_REVIEW_KEY_ROOT',
-    'BUN_INSTALL_CACHE_DIR',
-    'TMPDIR',
-  ].map(name => name.toUpperCase()),
-);
+]);
 
 /**
  * The environment a trust check passes to its CLI: host paths, state, and
@@ -241,7 +230,7 @@ export function trustedEnvironment(
     Object.entries(environment).filter(([name, value]) => {
       const key = name.toUpperCase();
       if (!TRUSTED_ENVIRONMENT.has(key)) return false;
-      return !TRUSTED_PATH_SETTINGS.has(key) || !isInside(projectDirectory, value ?? '');
+      return !TRUSTED_PATH_SETTINGS.includes(key) || !isInside(projectDirectory, value ?? '');
     }),
   );
 }
