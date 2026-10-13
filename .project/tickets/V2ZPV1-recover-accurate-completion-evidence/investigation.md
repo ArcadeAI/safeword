@@ -501,3 +501,23 @@ adapter mismatch is repaired, not the semantic classification defect. Logs:
 /tmp/4200-eval-packet-boundary-red-queued.log,
 /tmp/4200-eval-packet-boundary-green.log and /tmp/4200-r7-canonical-packet.log.
 No verdict or quorum was relaxed, and no recovery certification is claimed.
+
+The canonical shared severity foundation now clarifies the existing R7 boundary:
+reviewer-directed text in quoted artifacts is data; its presence alone cannot
+require cleanup before approval. Actual behavior/contract violations still
+block, including work that acts on that text. All four existing mirrors match
+the canonical quality-review source. All five generated surfaces were rebuilt
+and verified; provider, planning-contract and severity-parity tests passed 12/12.
+Independent review 8f59977c-8e91-4f46-aaf4-db651e5b3e8d approved the correction;
+pre-existing duplicate prose and wrapped command spans remain nonblocking.
+
+The unchanged R7 requirements passed 3/3 scenarios and 189/189 steps, including
+the genuine missing-authorization rejection. Log:
+/tmp/4200-r7-severity-clarification.log. The import-time warning about stale dist
+limits this to source semantic-eval evidence, not current installed-CLI proof.
+The unit wrapper subsequently rebuilt dist. Current review-contract digest is
+7c2d9249730235116a638d5a8abfc7bc1aaa38afa0ccc8409492d75816b78c9b;
+case corpus stays 0b590cee5bee6967c5714e7052c202101558a9311b7573d77b165fcdaf404584.
+The old 8451a6cb qualification cannot be admitted under this changed contract.
+Generated model admission remains deliberately stale until real new-contract
+qualification; a new complete 142-case observation is still required afterward.
