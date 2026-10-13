@@ -227,7 +227,12 @@ const EXECUTION_PLAN_RECORD_SCHEMA = {
               name: { type: 'string' },
               purpose: { type: 'string' },
               boundary: { type: 'string' },
-              prerequisites: { type: 'array', items: { type: 'string' } },
+              prerequisites: {
+                type: 'array',
+                items: { type: 'string' },
+                description:
+                  'Names of earlier slices only. When the plan declares no prerequisites or says none, return an empty array [], not ["none"].',
+              },
               proof: { type: 'string' },
               completion_signal: { type: 'string' },
               relies_on_unmerged_successor: { type: 'boolean' },

@@ -690,3 +690,128 @@ configured here and CI does not require fixture signatures. No unrelated
 resilience framework, test skip, model switch or weakened verdict was added.
 Fresh new-head CI, a complete CLI run and fixed 142-case observation remain
 required before certification or readiness can be claimed.
+
+### Current release gate requires fresh capability evidence — 2026-10-13
+
+CI run 38437497203 at 431e9e157 passes the unit suite and physical install
+proof on Node 22 and Node 24, then fails packaged-capability.release.test.ts:39.
+Both job annotations show the same digest mismatch. Node 24 also ran its
+non-live acceptance lane for 5m32s; that is not current live qualification. The
+current rubric digest is b0efeb73bada1ef940c80f698661341f23bccebbcc7b47895c16530715dde66a;
+the packaged catalogue and old sealed evidence still use
+a4662a8bb68e00b1da37f622ba88f2f0d8f9f3a502edea3777776ebb1d51cdc1.
+The earlier six-line severity clarification changed the canonical reviewer
+rubrics. Corpus and settings digests are unchanged. This rules out another
+fixture install/identity regression and a corpus/settings drift for this
+reported failure. Do not re-label old evidence or weaken the release assertion.
+
+The existing evaluator is refreshing six fixtures three times per model:
+18 actual Opus reviews followed by 18 actual Sol reviews, with Sol scheduled
+after the active public-CLI matrix to avoid same-account contention. Previous
+sealed files are retained unchanged in ignored state under
+4200-capability-refresh, with a SHA index. Only qualifying current sealed
+results may regenerate the catalogue; release and generated-surface checks
+remain required afterward. No model admission or acceptance credit is granted
+by starting these runs, and no Astra model is used.
+
+### Fresh public CLI acceptance and capability failure retained — 2026-10-13
+
+At detached 431e9e157, the explicit live-profile Execution Plan acceptance
+passes all 47 scenarios and 3,009 steps in 34m15.588s. The real public CLI
+shared matrix reports 63/63 passing case records. Raw report, log and matrix
+are retained under final-readiness. This supersedes the earlier 62/63 failure
+for current scope without deleting it; it is not the separate 142-case recovery
+observation or full epic acceptance.
+
+Current Opus capability refresh scored 16/18, below the unchanged 90% floor.
+Execution-approve runs 2 and 3 are invalid/review_failed with no verdict,
+not semantic rejection findings. The original sealed failed run is retained
+under 4200-capability-refresh/current-claude-first-16-of-18.json. One diagnostic
+call returned ReviewRuntimeError invalid_output; its log is retained separately
+and grants no qualification. A raw-response diagnostic is investigating parsing
+or Execution Plan validation, while Sol records its current 18 runs. No
+failed admission, catalogue re-label, or weakened score is permitted.
+
+The raw native diagnostic used the same exported arguments, isolated reviewer
+environment, prompt instructions and fixture packet. It returned confirmed
+claude-opus-5 and passed both parsing and exact Execution Plan validation.
+This rules out a consistently invalid fixture/schema pair in the present
+environment; it does not recover or prove the exact cause of the first two
+failed calls. Preserve that uncertainty. One complete unchanged Opus refresh
+will be attempted next; do not compose 16 passing records with this diagnostic
+or repeatedly rerun until favorable. If it fails again, inspect fresh failure
+details before spending further model calls or changing requirements.
+
+Remaining epic boundary check: the 418 unbound sibling cases are not merely
+a binding retrofit. ZSHVEB R1 requires six named writing topics; the current
+canonical guide instead has Core Principles, Decision Tree Patterns, Document
+Structure, Anti-Patterns and De-prescription. The canonical spec template still
+declares product-plan-contract:v1 and the hook contract resolver recognizes
+v1. ZSHVEB R2 requires the v2 transition and its history-bound continuation.
+This establishes at least one remaining implementation gap without claiming
+the other siblings are absent. Existing proofs can be reused only after mapping
+the actual case obligations and actor boundaries; undefined steps themselves
+prove neither implementation absence nor completion. These cases are not
+newly deferred by the successful scoped CLI acceptance or this recovery.
+
+### Current catalogue is fresh but independent routes are unqualified
+
+Both final current model runs scored 17/18. Opus execution-approve run 2 and
+Sol implementation-reject run 3 returned invalid/review_failed, at different
+fixtures. The accepted per-fixture passing-count comparison therefore emits
+weaker in both directions. This does not establish general model-strength
+ordering; it is the current operational classifier for these exact runs.
+The truthful catalogue was generated unchanged from sealed evidence, and all
+five surfaces regenerated/verified. Release tests pass 82/82 across 14 files.
+No passing independent pair was fabricated.
+
+The exact production capability function returns reviewer_capability_weaker
+for both ordered pairs. The current coordinator route-order regression is
+9 passed/1 failed: the positive independent route now falls back to Claude
+with reduced independence instead of Codex with cross-agent independence.
+Do not rewrite that positive assertion or launch the costly 142-case observer
+while its required native independent route is known ineligible. The earlier
+47/47 CLI acceptance is scoped to 431e9e157 before this catalogue change.
+
+The first raw Opus diagnostic and a second captured raw response both pass
+exact parsing, delivery-definition matching and normalized-digest validation.
+A separate runtime diagnostic produced invalid_output. Original invalid-call
+responses are absent from the evaluator records; exact causes cannot be
+invented. One final raw diagnostic is bounded diagnosis, not qualification.
+No new assertion, floor, comparative policy, model or approval authority has
+been changed. Current generated changes remain uncommitted while route
+eligibility is blocked; do not present the release-only GREEN as full CI.
+
+### Reproduced prerequisite encoding defect and narrow correction
+
+The third captured native Opus response approves the fixture, confirms the
+expected model and exactly copies both delivery definition and plan digest,
+but encodes an empty dependency list as ["none"]. It parses, then fails the
+existing earlier-slice graph validator. Changing only that captured field to
+[] makes validation approve; this is a diagnostic mutation, never model
+evidence. The author contract explicitly allows textual none, while the
+output schema previously gave no encoding guidance. Thus a currently reproduced
+invalid-output cause is established, without claiming recovery of the original
+failed call responses.
+
+The surgical correction adds only a schema description: prerequisite entries
+name earlier slices; no prerequisites is []. No validator, rejection control,
+comparative scoring rule, floor, authenticated approval, or fixture changed.
+The actual failing raw native response is current RED evidence, not a new
+historical ledger annotation. A same-fixture native GREEN diagnostic follows;
+changed schema identity requires fresh complete qualification before admission.
+
+The fixed native diagnostic confirms Opus, emits [], and passes exact
+validation. Existing output and request-bound schema checks plus the new
+refusal control pass 45/45. Independent source review
+56e9f6f2-312e-40d5-8f9a-dcdfacca9e56 approves with no errors. Its warning
+requests an assertion pinning guidance text; the actual behavior remains
+covered by live qualification rather than adding a test that mirrors one
+description string. Preserve that limitation: guard unit tests alone do not
+prove the model follows guidance. The schema/corpus freshness warning is
+actionable and requires fresh complete evidence. Other placeholder spellings
+remain correctly refused; no normalization or new synonym handling is added.
+
+Fresh complete capability recording is now running for both exact models under
+the fixed schema. Do not reuse prior corpus results or claim either route
+is restored until the actual per-fixture comparison qualifies it.
