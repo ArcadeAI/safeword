@@ -39,13 +39,15 @@ if (!resolvedFile.startsWith(`${nodePath.resolve(learningsDirectory)}${nodePath.
 if (!resolvedFile.endsWith('.md')) process.exit(0);
 
 // Best-effort: never block an edit.
+// Index regeneration needs the CLI; the stamp scan below does not.
 const cli = safewordCli(projectDir);
-if (cli === undefined) process.exit(0);
-spawnSync(cli.command, [...cli.args, 'sync-learnings', '--quiet'], {
-  cwd: projectDir,
-  stdio: 'inherit',
-  timeout: 30_000,
-});
+if (cli !== undefined) {
+  spawnSync(cli.command, [...cli.args, 'sync-learnings', '--quiet'], {
+    cwd: projectDir,
+    stdio: 'inherit',
+    timeout: 30_000,
+  });
+}
 
 // Scan the just-written file for fabricated verification stamps and emit a
 // PostToolUse `additionalContext` warning. See lib/learning-verification-stamps.ts
