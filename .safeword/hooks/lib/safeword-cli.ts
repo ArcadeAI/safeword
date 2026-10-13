@@ -199,16 +199,64 @@ const TRUSTED_ENVIRONMENT = new Set(
   ].map(name => name.toUpperCase()),
 );
 
+/** Settings that name a directory the trusted CLI or Bun reads from or writes to. */
+const TRUSTED_PATH_SETTINGS = new Set(
+  [
+    'HOME',
+    'USERPROFILE',
+    'APPDATA',
+    'LOCALAPPDATA',
+    'XDG_STATE_HOME',
+    'XDG_CONFIG_HOME',
+    'XDG_CACHE_HOME',
+    'CODEX_HOME',
+    'SAFEWORD_REVIEW_KEY_ROOT',
+    'BUN_INSTALL_CACHE_DIR',
+    'TMPDIR',
+  ].map(name => name.toUpperCase()),
+);
+
+/** Whether `path` lies in the project, judged by its nearest existing ancestor's real path. */
+function resolvesInside(projectDirectory: string, path: string): boolean {
+  let existing = nodePath.resolve(path);
+  const rest: string[] = [];
+  while (!existsSync(existing)) {
+    const parent = nodePath.dirname(existing);
+    if (parent === existing) return true;
+    rest.unshift(nodePath.basename(existing));
+    existing = parent;
+  }
+  try {
+    const project = realpathSync(projectDirectory);
+    const relative = nodePath.relative(project, nodePath.join(realpathSync(existing), ...rest));
+    return (
+      relative === '' ||
+      (relative !== '..' &&
+        !relative.startsWith(`..${nodePath.sep}`) &&
+        !nodePath.isAbsolute(relative))
+    );
+  } catch {
+    return true;
+  }
+}
+
 /**
  * The environment a trust check passes to its CLI: host paths, state, and
  * registry settings only. Runtime option variables (BUN_OPTIONS, NODE_OPTIONS)
- * can preload arbitrary scripts, so nothing outside this list is inherited.
+ * can preload arbitrary scripts, so nothing outside this list is inherited, and
+ * a directory setting that resolves inside the project (where project code could
+ * plant a cached package or state) is dropped.
  */
 export function trustedEnvironment(
+  projectDirectory: string,
   environment: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
   return Object.fromEntries(
-    Object.entries(environment).filter(([name]) => TRUSTED_ENVIRONMENT.has(name.toUpperCase())),
+    Object.entries(environment).filter(([name, value]) => {
+      const key = name.toUpperCase();
+      if (!TRUSTED_ENVIRONMENT.has(key)) return false;
+      return !TRUSTED_PATH_SETTINGS.has(key) || !resolvesInside(projectDirectory, value ?? '');
+    }),
   );
 }
 

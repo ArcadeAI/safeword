@@ -251,7 +251,7 @@ function receiptGateVerdict(
     // A first `bunx` run may download the pinned package.
     {
       cwd: cli.cwd,
-      env: trustedEnvironment(),
+      env: trustedEnvironment(projectDirectory),
       encoding: 'utf8',
       timeout: cli.downloads === true ? 30_000 : 5000,
     },

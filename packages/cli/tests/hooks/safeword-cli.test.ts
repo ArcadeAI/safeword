@@ -236,9 +236,25 @@ describe('every hook uses the shared lookup', () => {
 });
 
 describe('trusted CLI environment', () => {
+  it('drops path settings that resolve inside the project, symlinks and not-yet-created ones included', () => {
+    const root = project();
+    const outside = scratchDirectory();
+    const link = nodePath.join(outside, 'link-to-project');
+    symlinkSync(root, link);
+
+    expect(
+      trustedEnvironment(root, {
+        HOME: outside,
+        TMPDIR: nodePath.join(root, 'tmp'),
+        BUN_INSTALL_CACHE_DIR: nodePath.join(link, 'cache'),
+        XDG_STATE_HOME: nodePath.join(outside, 'not-created-yet'),
+      }),
+    ).toEqual({ HOME: outside, XDG_STATE_HOME: nodePath.join(outside, 'not-created-yet') });
+  });
+
   it('keeps host paths and registry settings but drops runtime preload options', () => {
     expect(
-      trustedEnvironment({
+      trustedEnvironment(scratchDirectory(), {
         PATH: '/usr/bin',
         HOME: '/home/user',
         BUN_CONFIG_REGISTRY: 'https://registry.example',

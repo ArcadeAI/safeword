@@ -53,7 +53,7 @@ export function retrospectiveGateDenial(
     ],
     {
       cwd: command.cwd,
-      env: trustedEnvironment(),
+      env: trustedEnvironment(projectRoot),
       encoding: 'utf8',
       timeout: 30_000,
       maxBuffer: 1024 * 1024,
@@ -112,7 +112,7 @@ export function retrospectiveCloseDenial(
     ],
     {
       cwd: command.cwd,
-      env: trustedEnvironment(),
+      env: trustedEnvironment(projectRoot),
       encoding: 'utf8',
       timeout: command.timeout,
       maxBuffer: 1024 * 1024,

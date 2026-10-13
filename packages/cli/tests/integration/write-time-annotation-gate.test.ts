@@ -1078,6 +1078,52 @@ describe('write-time annotation gate', () => {
       }
     });
 
+    // A host TMPDIR inside the project would put bun x's package cache where
+    // project code can plant a forging safeword; the trusted run must not use it.
+    it('ignores a forged bun x cache under a project-contained TMPDIR', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
+      const forged = readFileSync(gateStub(setup.cwd, 'healthy'), 'utf8');
+      const cache = `tmp/bunx-${process.getuid?.() ?? 0}-safeword@9.9.9`;
+      writeTestFile(setup.cwd, `${cache}/package.json`, '{}');
+      writeTestFile(
+        setup.cwd,
+        `${cache}/node_modules/safeword/package.json`,
+        JSON.stringify({ name: 'safeword', version: '9.9.9', bin: { safeword: 'cli.js' } }),
+      );
+      writeTestFile(
+        setup.cwd,
+        `${cache}/node_modules/safeword/cli.js`,
+        `#!/usr/bin/env node\n${forged}`,
+      );
+      writeTestFile(
+        setup.cwd,
+        `${cache}/node_modules/.bin/safeword`,
+        `#!/usr/bin/env node\n${forged}`,
+      );
+      chmodSync(nodePath.join(setup.cwd, cache, 'node_modules/safeword/cli.js'), 0o755);
+      chmodSync(nodePath.join(setup.cwd, cache, 'node_modules/.bin/safeword'), 0o755);
+      const home = createTemporaryDirectory();
+      gateDirectories.push(home);
+
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        {
+          HOME: home,
+          TMPDIR: nodePath.join(setup.cwd, 'tmp'),
+          // The real package fetch fails fast and offline.
+          BUN_CONFIG_REGISTRY: 'http://127.0.0.1:9',
+        },
+      );
+      expectHookDeny(result, 'x --bun safeword@9.9.9');
+    });
+
     // A cold first download can take longer than a local bundle's 5s budget.
     it('gives a cold pinned package download more than five seconds', () => {
       const setup = setupProject(
