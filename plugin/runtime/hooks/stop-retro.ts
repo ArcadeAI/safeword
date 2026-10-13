@@ -18,6 +18,8 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
+
+import { safewordCli } from './lib/safeword-cli.ts';
 import process from 'node:process';
 
 import { retroChildArgs, RETRO_EXTRACT_CMD_ENV } from './lib/retro-extract.ts';
@@ -31,20 +33,18 @@ interface HookInput {
 
 /**
  * The command that runs the extraction CLI. A `SAFEWORD_RETRO_EXTRACT_CMD`
- * override short-circuits resolution (test/advanced seam). Otherwise prefer the
- * dogfood local CLI, else the bundled plugin CLI.
+ * override short-circuits resolution (test/advanced seam); otherwise the shared
+ * Safeword CLI lookup. Undefined when the project has no CLI to run.
  */
 function resolveExtractCommand(
   projectDirectory: string,
   decision: { transcriptPath: string; windowStart: number; sessionId: string },
-): [string, string[]] {
+): [string, string[]] | undefined {
   const override = process.env[RETRO_EXTRACT_CMD_ENV];
   const retroArgs = retroChildArgs(decision);
   if (override && override.length > 0) return [override, retroArgs];
-  const localCli = nodePath.join(projectDirectory, 'packages/cli/src/cli.ts');
-  return existsSync(localCli)
-    ? ['bun', [localCli, ...retroArgs]]
-    : ['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli, ...retroArgs]];
+  const cli = safewordCli(projectDirectory);
+  return cli === undefined ? undefined : [cli.command, [...cli.args, ...retroArgs]];
 }
 
 async function main(): Promise<void> {
@@ -65,7 +65,9 @@ async function main(): Promise<void> {
 
   // Run extraction + filing out of band, synchronously, with NO conversation
   // output. Failures are swallowed here (the CLI also fail-opens internally).
-  const [command, args] = resolveExtractCommand(projectDirectory, decision);
+  const extract = resolveExtractCommand(projectDirectory, decision);
+  if (extract === undefined) return;
+  const [command, args] = extract;
   spawnSync(command, args, { cwd: projectDirectory, stdio: 'ignore', timeout: 300_000 });
 }
 

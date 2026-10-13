@@ -6,14 +6,14 @@
  * EXECUTES the resolved test and acceptance commands (timeout-safe, no zombies).
  *
  * Shipped hooks cannot import safeword code, so we reach the resolver via the
- * CLI (the `safewordCliCommand()` installed→source→bunx pattern, mirroring lint.ts).
+ * CLI, found through the shared Safeword CLI lookup (lib/safeword-cli.ts).
  * Installed projects should keep Safeword locally resolvable; the bunx fallback
  * needs either a warm package cache or network and fails closed when neither is available.
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import nodePath from 'node:path';
+
+import { safewordCli } from './safeword-cli.js';
 
 type TestCommand = {
   /** Label for output/diagnostics (the runner or script name). */
@@ -92,17 +92,13 @@ const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
 /**
  * Resolve the safeword CLI invocation. `SAFEWORD_CLI` (a path to cli.js/cli.ts run
- * via bun) overrides for tests/dev; otherwise the installed package, then the
- * dogfood source, then `bunx`.
+ * via bun) overrides for tests/dev; otherwise the shared Safeword CLI lookup.
  */
-function safewordCliCommand(cwd: string): [string, ...string[]] {
+function safewordCliCommand(cwd: string): [string, ...string[]] | undefined {
   const override = process.env.SAFEWORD_CLI;
   if (override) return ['bun', override];
-  const installed = nodePath.join(cwd, 'node_modules', 'safeword', 'dist', 'cli.js');
-  if (existsSync(installed)) return ['bun', installed];
-  const source = nodePath.join(cwd, 'packages', 'cli', 'src', 'cli.ts');
-  if (existsSync(source)) return ['bun', source];
-  return ['bunx', 'safeword'];
+  const cli = safewordCli(cwd);
+  return cli === undefined ? undefined : [cli.command, ...cli.args];
 }
 
 /**
@@ -112,6 +108,12 @@ function safewordCliCommand(cwd: string): [string, ...string[]] {
  */
 function resolvePlanCommands(cwd: string, kind: 'test' | 'bdd'): TestPlanResolution {
   const cli = safewordCliCommand(cwd);
+  if (cli === undefined) {
+    return {
+      ok: false,
+      reason: 'Test plan could not be resolved: no Safeword CLI for this project.',
+    };
+  }
   const result = spawnSync(
     cli[0],
     [...cli.slice(1), 'project', 'test-plan', '--kind', kind, '--json', cwd],

@@ -15,6 +15,7 @@ import nodePath from 'node:path';
 import { $ } from 'bun';
 
 import { resolveHostToolchain, runHostToolchain } from './host-toolchain.js';
+import { safewordCli } from './safeword-cli.js';
 import {
   hostFormatsSqlWithPrettier,
   projectOwnsAlternativeFormatter,
@@ -187,14 +188,9 @@ function hasConfig(path: string): boolean {
   return existsSync(path);
 }
 
-function safewordCliCommand(): string[] {
-  const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
-  if (pluginCli !== undefined) return ['bun', pluginCli];
-  const installedCli = `${projectDir}/node_modules/safeword/dist/cli.js`;
-  if (existsSync(installedCli)) return ['bun', installedCli];
-  const sourceCli = `${projectDir}/packages/cli/src/cli.ts`;
-  if (existsSync(sourceCli)) return ['bun', sourceCli];
-  return ['bunx', 'safeword'];
+function safewordCliCommand(): string[] | undefined {
+  const cli = safewordCli(projectDir);
+  return cli === undefined ? undefined : [cli.command, ...cli.args];
 }
 
 function normalizeExistingDirectory(directory: string): string {
@@ -503,9 +499,10 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   }
 
   // Gherkin feature files - syntax/style lint, no auto-fix available
-  if (FEATURE_EXTENSIONS.has(extension)) {
+  const cli = safewordCliCommand();
+  if (FEATURE_EXTENSIONS.has(extension) && cli !== undefined) {
     const errors = await captureRemainingErrors(
-      [...safewordCliCommand(), 'lint-gherkin', normalizedFile],
+      [...cli, 'lint-gherkin', normalizedFile],
       warnings,
       { stderrIsLintOutput: true },
     );

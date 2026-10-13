@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { safewordCli } from './lib/safeword-cli.ts';
 import { hasVerificationStamp } from './lib/learning-verification-stamps.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
@@ -37,17 +38,10 @@ if (!resolvedFile.startsWith(`${nodePath.resolve(learningsDirectory)}${nodePath.
 }
 if (!resolvedFile.endsWith('.md')) process.exit(0);
 
-// Prefer local source in dev/dogfood, fall back to published CLI.
 // Best-effort: never block an edit.
-const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
-const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
-const [command, args] =
-  pluginCli === undefined
-    ? existsSync(localCli)
-      ? ['bun', [localCli, 'sync-learnings', '--quiet']]
-      : ['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli, 'sync-learnings', '--quiet']]
-    : ['bun', [pluginCli, 'sync-learnings', '--quiet']];
-spawnSync(command as string, args as string[], {
+const cli = safewordCli(projectDir);
+if (cli === undefined) process.exit(0);
+spawnSync(cli.command, [...cli.args, 'sync-learnings', '--quiet'], {
   cwd: projectDir,
   stdio: 'inherit',
   timeout: 30_000,

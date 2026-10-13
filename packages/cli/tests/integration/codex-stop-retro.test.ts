@@ -91,6 +91,8 @@ function installFakeLocalCli(directory: string, options: { exitCode?: number } =
   const exitCode = options.exitCode ?? 0;
   const cliPath = nodePath.join(directory, 'packages/cli/src/cli.ts');
   mkdirSync(nodePath.dirname(cliPath), { recursive: true });
+  // A real source checkout: the shared CLI lookup trusts only the safeword package.
+  writeFileSync(nodePath.join(directory, 'packages/cli/package.json'), '{"name":"safeword"}\n');
   writeFileSync(
     cliPath,
     `#!/usr/bin/env bun
@@ -159,7 +161,14 @@ function runHook(directory: string, input: unknown, env: Record<string, string |
   return spawnSync('bun', [HOOK], {
     input: typeof input === 'string' ? input : JSON.stringify(input),
     cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory, ...env },
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: directory,
+      // The done gate asks the CLI for a test plan; use this repo's CLI rather than
+      // downloading a published one mid-test.
+      SAFEWORD_CLI: nodePath.join(SAFEWORD_ROOT, 'packages/cli/src/cli.ts'),
+      ...env,
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
