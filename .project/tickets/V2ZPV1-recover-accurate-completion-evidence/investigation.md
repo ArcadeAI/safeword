@@ -392,3 +392,37 @@ not passing behavior or that every implementation is absent. Report:
 /tmp/4200-sibling-binding-inventory.json. These are additional closeout gaps;
 the3–4hour estimate covers current-stack verification, not completing these
 siblings. No new deferrals or exclusions were taken.
+
+### Current model qualification recovered — 2026-10-12
+
+Host telemetry shows repeated clamshell/maintenance sleep overlapping the
+earlier Claude aggregate and clean Sol retry. Awake retries used per-command
+`caffeinate -i`; no system setting or repository runtime policy changed. Sleep
+explains the inflated elapsed times, but does not explain every backend error:
+one awake Sol attempt still failed with `codex turn failed`, then passed once
+on identical inputs. Claude's awake retry had three native 120-second timeouts;
+all three subsequently passed using the existing configurable 210-second
+deadline. Default-deadline reliability is not established.
+
+Both identities now have 63 unique actual passing native case records. This
+is compositional model qualification under the existing 7CAMAD same-input
+retry precedent, not a clean single-run acceptance pass or recovery certificate.
+Sol reuse review 56e9f588-c073-4b62-968e-74f2c5a1f79d and Claude reuse review
+a7e163a5-6f26-488f-afed-392d1845a07a approved the derivations.
+All failed attempts, omitted timeout records and per-case source mappings are
+retained under .safeword/logs/4200-current-qualification/. Missing records were
+described from logs, never fabricated in result arrays. Diagnostic-copy and
+uncommitted-scorer results are excluded from admission. Source revision/clean
+state comes from the orchestrator's Git observations, not native-log signatures.
+
+Generated admission was rebuilt from these two actual complete passing matrices,
+preserving Claude and Sol. All five generated surfaces were regenerated and
+verified. A fresh complete 142-case observation and typed certification remain
+required. The 33 deferred cases remain unverified; sibling gaps and the original
+six failures/585 unfinished scenarios remain visible. No merge or promotion
+was authorized or performed.
+
+Current deterministic recovery/conformance tests passed 77/77; root lint,
+Gherkin lint and CLI typecheck passed. Logs: /tmp/4200-qualified-recovery-targeted.log,
+/tmp/4200-qualified-lint.log and /tmp/4200-qualified-typecheck.log. These targeted
+checks are not the final authoritative suite or the fresh recovery observation.
