@@ -235,18 +235,22 @@ export function trustedEnvironment(
   );
 }
 
+/** A package.json's name and version, or an empty record when it is missing or malformed. */
+function readManifest(path: string): { name?: unknown; version?: unknown } {
+  try {
+    const manifest: unknown = JSON.parse(readFileSync(path, 'utf8'));
+    return typeof manifest === 'object' && manifest !== null ? manifest : {};
+  } catch {
+    return {};
+  }
+}
+
 /** This repo's own CLI source, only when the checkout really is the safeword package. */
 function sourceCli(projectDirectory: string): string | undefined {
   const source = nodePath.join(projectDirectory, 'packages', 'cli', 'src', 'cli.ts');
   if (!existsSync(source)) return undefined;
-  try {
-    const manifest = JSON.parse(
-      readFileSync(nodePath.join(projectDirectory, 'packages', 'cli', 'package.json'), 'utf8'),
-    ) as { name?: unknown };
-    return manifest.name === 'safeword' ? source : undefined;
-  } catch {
-    return undefined;
-  }
+  const manifest = readManifest(nodePath.join(projectDirectory, 'packages', 'cli', 'package.json'));
+  return manifest.name === 'safeword' ? source : undefined;
 }
 
 /**
@@ -258,17 +262,10 @@ function installedCli(projectDirectory: string): string | undefined {
   const bin = nodePath.join(projectDirectory, 'node_modules', '.bin', 'safeword');
   const pinned = pinnedSafewordVersion(projectDirectory);
   if (pinned === undefined || !existsSync(bin)) return undefined;
-  try {
-    const manifest = JSON.parse(
-      readFileSync(
-        nodePath.join(projectDirectory, 'node_modules', 'safeword', 'package.json'),
-        'utf8',
-      ),
-    ) as { version?: unknown };
-    return manifest.version === pinned ? bin : undefined;
-  } catch {
-    return undefined;
-  }
+  const manifest = readManifest(
+    nodePath.join(projectDirectory, 'node_modules', 'safeword', 'package.json'),
+  );
+  return manifest.version === pinned ? bin : undefined;
 }
 
 /** CLIs a plain action may run, in preference order. */
