@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "5a653986133c9c7b81eb3395577158838e31e7cb54c64a35dcb2e6f3e37834b1"
+      "sha256": "500571c8228f1a17c9d8b21286e55039bd11ca724ef1f246507e6483a462b8dd"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "6e2fe254a7ed579e05fc7f03548d6a685f356712f688251688cb0fa8fd8f3c29"
+      "sha256": "b5e82499526e012c7e4cadbcdfd65a53acc263072b9ec0596ccdff4e2af90a00"
     },
     {
       "path": "runtime/event-groups.json",
@@ -343,7 +343,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "b27cf9028d662dbfc6ed251bbdd985db96cbe277f2b5491c057f677691d9db55"
+      "sha256": "e023a6344081a026561e64599dfdaa3b5c65c855e9438d4c8847a078811415aa"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -507,7 +507,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "fbe500170cc4a4b88c85797130e4e7c77cd79c9f4f59bb3557c9db1caa96597f"
+      "sha256": "291f8f28991b71502550d647ea8636fc5bd84f915459b48582789fbb4a633a16"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1291,7 +1291,7 @@
     },
     {
       "path": "templates/hooks/lib/read-receipt.ts",
-      "sha256": "b27cf9028d662dbfc6ed251bbdd985db96cbe277f2b5491c057f677691d9db55"
+      "sha256": "e023a6344081a026561e64599dfdaa3b5c65c855e9438d4c8847a078811415aa"
     },
     {
       "path": "templates/hooks/lib/readiness-pointer.ts",
@@ -1455,7 +1455,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "e14f529c8674cda8aa79bf84b0fee5aba0d4713ee76e57ac78f0a7c421712561"
+      "sha256": "42a80c2aa01bbd3c3b33ae71e4bbd4efcc90054682269c82343518662ee3b47e"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",

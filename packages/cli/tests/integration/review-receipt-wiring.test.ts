@@ -510,6 +510,22 @@ describe('review-receipt trust and aggregate budget', () => {
     expect(existsSync(marker)).toBe(false);
   });
 
+  it('passes only host settings to the trusted CLI, not runtime option variables', () => {
+    process.env.CLAUDE_PLUGIN_ROOT = pluginRoot;
+    mkdirSync(nodePath.join(pluginRoot, 'runtime'), { recursive: true });
+    // Approves only when the non-host variable did not reach it.
+    writeFileSync(
+      nodePath.join(pluginRoot, 'runtime', 'cli.js'),
+      `if (process.env.NODE_OPTIONS_FORGE === undefined) process.stdout.write(${JSON.stringify(JSON.stringify({ data: approvedEnvelope }))});`,
+    );
+    process.env.NODE_OPTIONS_FORGE = '--require ./forge.js';
+    try {
+      expect(readReviewReceipt(REVIEW_ID, projectRoot)?.status).toBe('approved');
+    } finally {
+      delete process.env.NODE_OPTIONS_FORGE;
+    }
+  });
+
   it('runs the package fallback outside the reviewed project', () => {
     delete process.env.CLAUDE_PLUGIN_ROOT;
     process.env.CODEX_HOME = pluginRoot;

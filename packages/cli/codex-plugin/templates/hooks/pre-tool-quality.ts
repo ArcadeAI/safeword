@@ -248,7 +248,7 @@ function receiptGateVerdict(
       '--ledger',
       ledger,
     ],
-    // A first `bunx` run may download the pinned package.
+    // A first `bun x` run may download the pinned package.
     {
       cwd: cli.cwd,
       env: trustedEnvironment(projectDirectory),
