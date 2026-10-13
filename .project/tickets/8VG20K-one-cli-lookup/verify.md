@@ -1,6 +1,6 @@
 # Verify: Run the same Safeword CLI from every hook on every host (8VG20K)
 
-**Verified on:** 2026-10-13 · **Head:** `bb19d7597`
+**Verified on:** 2026-10-13 · **Head:** `a2dd63ad4` (full /verify lanes ran on `bb19d7597`; the two later commits are covered by targeted suites and CI below)
 
 ## Verify Checklist
 
@@ -30,6 +30,7 @@
 - Intake: independent review `6e8dbcb3` (Codex, cross-agent) approved.
 - TDD test-quality review: fixed stale test names, an unsafe env restore, and a proof gap (the test runner's real lookup had no test without the suite-wide `SAFEWORD_CLI` override) in `8c62c3be2`.
 - Quality review: earlier passes requested changes on trust-boundary and fail-closed defects, each fixed with a test that fails against the previous code; final review `d332d63e` (Codex, cross-agent) approved; its timeout warning fixed in `bb19d7597`.
+- Final diff read: found that review receipt verification still passed the full environment to the trusted CLI; fixed in `c79dead6e` with a regression test that fails against the previous reader (review and hook suites: 2,603 passed across 132 files). Lint now resolves the CLI only for feature files (`a2dd63ad4`; lint-hook suites 83/83). CI on `a2dd63ad4`: 13 checks passed, 0 failed.
 - Audit passed — diff scope on the final code: 0 errors, no dependency violations (428 modules), no learning, principle-trace, or domain-doc findings.
 
 ## Known limits
