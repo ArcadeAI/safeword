@@ -499,8 +499,8 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   }
 
   // Gherkin feature files - syntax/style lint, no auto-fix available
-  const cli = safewordCliCommand();
-  if (FEATURE_EXTENSIONS.has(extension) && cli !== undefined) {
+  const cli = FEATURE_EXTENSIONS.has(extension) ? safewordCliCommand() : undefined;
+  if (cli !== undefined) {
     const errors = await captureRemainingErrors(
       [...cli, 'lint-gherkin', normalizedFile],
       warnings,

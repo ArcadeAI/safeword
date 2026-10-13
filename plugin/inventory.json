@@ -279,7 +279,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
-      "sha256": "66d857259813954f5e803f37a7ecad7ac33ec295a45b3d508393ada551c6b0ad"
+      "sha256": "721e682ea605ca70c6d07216264d09ba1f7146c58b39c40b81452611739df64c"
     },
     {
       "path": "runtime/hooks/lib/markdown-structure.ts",
@@ -1231,7 +1231,7 @@
     },
     {
       "path": "templates/hooks/lib/lint.ts",
-      "sha256": "66d857259813954f5e803f37a7ecad7ac33ec295a45b3d508393ada551c6b0ad"
+      "sha256": "721e682ea605ca70c6d07216264d09ba1f7146c58b39c40b81452611739df64c"
     },
     {
       "path": "templates/hooks/lib/markdown-structure.ts",
