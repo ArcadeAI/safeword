@@ -815,3 +815,42 @@ remain correctly refused; no normalization or new synonym handling is added.
 Fresh complete capability recording is now running for both exact models under
 the fixed schema. Do not reuse prior corpus results or claim either route
 is restored until the actual per-fixture comparison qualifies it.
+
+### Capability positive fixture has an actual missing help proof
+
+Fresh Sol under the fixed schema scores 17/18. Its failed execution-approve
+run 2 is a real request_changes verdict: status-9 and slice completion require
+help text for all three states, but the plan names no CLI help invocation or
+help-output assertion in the integration fixture. This is an actual in-scope
+proof gap, not a transport failure or optional expansion. Earlier Opus reviews
+also named it as a warning. Preserve Sol's complete verdict and do not tune
+required findings, labels, floors or comparisons to count it as approval.
+
+The surgical positive-fixture correction will name the existing CLI status
+help invocation and require Pending, Approved and Rejected in its output
+after the final edit. The required accepted documentation outcome stays the
+same. The negative fixture still omits the rejection/retry obligations and
+keeps its rejection label. All epic-related fixture edits are already human
+authorized. The currently running Opus matrix must finish before changing
+the loaded corpus; then current capability proof must use the corrected
+complete fixture and new corpus digest.
+
+The final help-proof fixture review
+af010270-a00a-4aa8-af19-f2d3c3cae809 approves with no blocking errors.
+It includes the existing status --help surface in synthetic accepted context,
+places every assertion in the initial RED fixture, updates help before GREEN
+and repeats proof after the final edit. Labels, scoring and thresholds remain
+unchanged. Corpus/score guards pass 12/12. Existing guard tests already require
+each positive/negative packet pair to differ, covering a failed literal replace;
+no duplicate new runtime guard is added. The broad rejection substring and
+toy corpus scope remain disclosed limits. Future checklist-category growth
+and stronger rollout proof are not silently claimed as solved by this edit.
+
+Under the earlier fixed schema, Opus passed 18/18; Sol scored 17/18 with the
+actual missing help-proof rejection. Both are historical for the corrected
+corpus and remain retained. Fresh complete runs must establish current
+ordered-pair eligibility; no presemantic classification is applied to the
+real Sol rejection. This fixture correction does not change the separate
+63-case Execution Plan corpus or erase the need to qualify its changed
+552b5b9b schema corpus. No further wording changes are planned absent an
+actual blocking defect.

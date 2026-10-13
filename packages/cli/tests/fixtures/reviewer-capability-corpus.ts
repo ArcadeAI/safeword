@@ -143,7 +143,7 @@ function executionPlan(includeRejection: boolean): string {
     ? 'the missing Rejected/receipt-bound assertions fail'
     : 'the missing Pending/Approved assertions fail';
   const rejectionStep = includeRejection
-    ? 'The same integration fixture must assert that a terminal rejection displays its actual error findings, that a repaired plan starts a new review, and that a concurrently completed non-current job cannot drive the displayed status. Simulate a crash before retry binding and assert the prior terminal state remains visible and retryable. For an interrupted review and a finished nonblocking review without a valid receipt, assert Pending, the actual error, no invented rejection findings, and a working retry that binds a new current job without changing plan bytes. Simulate a failed status read and assert unavailable rather than Approved.'
+    ? 'The same integration fixture must assert that a terminal rejection displays its actual error findings, that a repaired plan starts a new review, and that a concurrently completed non-current job cannot drive the displayed status. Simulate a crash before retry binding and assert the prior terminal state remains visible and retryable. For an interrupted review and a finished nonblocking review without a valid receipt, assert Pending, the actual error, no invented rejection findings, and a working retry that binds a new current job without changing plan bytes. Simulate a failed status read and assert unavailable rather than Approved. In the same integration fixture, invoke the CLI status command with --help and assert its output names Pending, Approved, and Rejected; keep this assertion in the proof rerun after the final help-text edit.'
     : 'The integration fixture covers Pending and Approved states.';
   const authorityStep = includeRejection
     ? 'Through the CLI and coordinator, test a receipt for another job, a receipt for a different plan digest under the current job, and an unauthenticated approval verdict without a receipt; each must remain non-Approved. For a finished nonblocking job without a valid receipt, assert Pending with its actual receipt error and retry action. Assert unchanged CLI process exit codes for successful and failed reads against the pre-change baseline, and assert status reads leave coordinator records byte-identical.'
@@ -161,7 +161,7 @@ One pull request: the status mapper and its public CLI proof are one cohesive ch
 
 Purpose: show the accepted current status without creating approval authority. Boundary: CLI presentation over the existing coordinator and receipt. Inputs: accepted scenarios and Implementation Plan. Slice prerequisites: none. Completion signal: ${completionSignal}. Relies on unmerged successor: false.
 
-First RED: add the failing tests/integration/review-status.test.ts fixture, run bun run test tests/integration/review-status.test.ts from packages/cli, and observe ${redSignal} before editing production code. Then implement the mapper and CLI wiring. ${rejectionStep} ${authorityStep} Run the same command again; exit 0 and the stated assertions are required. Finally update CLI help text and rerun the integration proof.
+First RED: add the failing tests/integration/review-status.test.ts fixture with all integration assertions described below, run bun run test tests/integration/review-status.test.ts from packages/cli, and observe ${redSignal} before editing production code. Then implement the mapper and CLI wiring and update CLI help text. ${rejectionStep} ${authorityStep} Run the same command again; exit 0 and the stated assertions are required. After the final edit, rerun the integration proof and require all stated assertions to pass.
 
 ## Proof specifications
 
@@ -196,7 +196,7 @@ const commonContext = [
   {
     path: '.project/surfaces.md',
     content:
-      'Affected surface: the existing CLI review-status command. No other user surface is in this ticket.',
+      'Affected surface: the existing CLI status command. Its existing help entrypoint is status --help. No other user surface is in this ticket.',
   },
   {
     path: '.project/non-goals.md',
