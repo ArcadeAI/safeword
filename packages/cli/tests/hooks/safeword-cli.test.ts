@@ -172,12 +172,23 @@ describe('working Safeword CLI lookup', () => {
     const source = write(root, 'packages/cli/src/cli.ts');
     write(root, 'packages/cli/package.json', '{"name":"safeword"}');
     const installed = write(root, 'node_modules/.bin/safeword');
+    write(root, 'node_modules/safeword/package.json', '{"name":"safeword","version":"1.2.3"}');
 
     expect(safewordClis(root, {})).toEqual([
       { command: 'bun', args: [source], cwd: root },
       { command: installed, args: [], cwd: root },
       { command: 'bunx', args: ['safeword@1.2.3'], cwd: root, downloads: true },
     ]);
+  });
+
+  it('uses the installed package only when it matches the pinned version', () => {
+    const root = project();
+    const installed = write(root, 'node_modules/.bin/safeword');
+    write(root, 'node_modules/safeword/package.json', '{"name":"safeword","version":"9.0.0"}');
+    expect(safewordClis(root, {}).map(cli => cli.command)).toEqual(['bunx']);
+
+    write(root, 'node_modules/safeword/package.json', '{"name":"safeword","version":"1.2.3"}');
+    expect(safewordClis(root, {}).map(cli => cli.command)).toEqual([installed, 'bunx']);
   });
 
   it('ignores a lookalike source checkout that is not the safeword package', () => {
