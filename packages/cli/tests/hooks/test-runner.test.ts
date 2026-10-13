@@ -184,6 +184,29 @@ process.exit(kind === 'test' ? 2 : 0);\n`,
     }
   });
 
+  // 8VG20K: only an unavailable runner explains a nonzero exit; any other failed
+  // resolver run must not read as a valid empty plan that skips every test.
+  it('fails closed when the resolver exits nonzero with an otherwise valid empty plan', () => {
+    const project = makeProject({});
+    const fakeCli = nodePath.join(project, 'failing-plan.ts');
+    writeFileSync(
+      fakeCli,
+      `process.stdout.write(JSON.stringify({schema_version:1,data:{plan:[]}}));\nprocess.exit(1);\n`,
+    );
+    const originalCli = process.env.SAFEWORD_CLI;
+    process.env.SAFEWORD_CLI = fakeCli;
+
+    try {
+      const result = runTests(project);
+
+      expect(result.passed).toBe(false);
+      expect(result.skipped).toBe(false);
+      expect(result.output).toContain('Test plan could not be resolved');
+    } finally {
+      process.env.SAFEWORD_CLI = originalCli;
+    }
+  });
+
   it('preserves an unavailable-runner diagnostic after verbose later suites are truncated', () => {
     const project = makeProject({});
     const fakeCli = nodePath.join(project, 'verbose-plan.ts');
