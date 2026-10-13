@@ -226,6 +226,28 @@ function sourceCli(projectDirectory: string): string | undefined {
   }
 }
 
+/**
+ * The package manager's entry for the project's own safeword, only when that
+ * package is the version `.safeword/version` pins: a dependency update that runs
+ * ahead of the installed hooks must not change which CLI they run.
+ */
+function installedCli(projectDirectory: string): string | undefined {
+  const bin = nodePath.join(projectDirectory, 'node_modules', '.bin', 'safeword');
+  const pinned = pinnedSafewordVersion(projectDirectory);
+  if (pinned === undefined || !existsSync(bin)) return undefined;
+  try {
+    const manifest = JSON.parse(
+      readFileSync(
+        nodePath.join(projectDirectory, 'node_modules', 'safeword', 'package.json'),
+        'utf8',
+      ),
+    ) as { version?: unknown };
+    return manifest.version === pinned ? bin : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** CLIs a plain action may run, in preference order. */
 export function safewordClis(
   projectDirectory: string,
@@ -234,11 +256,10 @@ export function safewordClis(
   const bunScripts = [pluginCli(environment), sourceCli(projectDirectory)].filter(
     (path): path is string => path !== undefined,
   );
-  // The package manager's own entry for the project's installed safeword.
-  const installed = nodePath.join(projectDirectory, 'node_modules', '.bin', 'safeword');
+  const installed = installedCli(projectDirectory);
   return [
     ...bunScripts.map(path => ({ command: 'bun', args: [path], cwd: projectDirectory })),
-    ...(existsSync(installed) ? [{ command: installed, args: [], cwd: projectDirectory }] : []),
+    ...(installed === undefined ? [] : [{ command: installed, args: [], cwd: projectDirectory }]),
     ...pinnedBunx(projectDirectory, projectDirectory),
   ];
 }
