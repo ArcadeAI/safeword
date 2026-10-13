@@ -13,9 +13,12 @@ export interface RetrospectiveGateClaim {
 /** The first trusted CLI; the shared lookup keeps runtime and script outside the project. */
 function trustedCommand(
   projectRoot: string,
-): { argv: readonly [string, ...string[]]; cwd: string } | undefined {
+): { argv: readonly [string, ...string[]]; cwd: string; timeout: number } | undefined {
   const cli = trustedSafewordClis(projectRoot)[0];
-  return cli === undefined ? undefined : { argv: [cli.command, ...cli.args], cwd: cli.cwd };
+  if (cli === undefined) return undefined;
+  // A first `bun x` run may download the pinned package.
+  const timeout = cli.downloads === true ? 30_000 : 10_000;
+  return { argv: [cli.command, ...cli.args], cwd: cli.cwd, timeout };
 }
 
 const RUNTIME_ENVIRONMENT = new Set(
@@ -142,7 +145,7 @@ export function retrospectiveCloseDenial(
       cwd: command.cwd,
       env: runtimeEnvironment(),
       encoding: 'utf8',
-      timeout: 10_000,
+      timeout: command.timeout,
       maxBuffer: 1024 * 1024,
     },
   );
