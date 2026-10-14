@@ -23,7 +23,7 @@ Independent code review e9d48f3b-c391-4a8e-9fed-6fc3ed0de745 confirmed the bypas
 
 ## Separate recovery work
 
-Branch codex/4200-ledger-recovery (Draft #5857) contains the current recovery effort. At remote 66f11753b, CI passed 14 checks with 11 workflow skips; actual Sol and Claude each passed 63 qualification cases plus the guard; actual public CLI acceptance passed 47 scenarios / 3,009 steps. Those runs must not be relabeled as isolated proof for this lower candidate.
+Branch codex/4200-ledger-recovery (Draft #5857) is pushed at d593765c059a5d9ed975fbd1b9d4f1b55222fdca, including d5ca8cace and the incomplete fixture repair. At historical remote 66f11753b, CI passed 14 checks with 11 workflow skips; actual Sol and Claude each passed 63 qualification cases plus the guard; actual public CLI acceptance passed 47 scenarios / 3,009 steps. Those runs must not be relabeled as isolated proof for this lower candidate or the newer recovery commit.
 
 The larger recovery observation failed 5 of 142 (137 passed). Later judge/file identity and fixture repairs are work in progress. d5ca8cace is the judge grounding commit; additional fixture corrections are being preserved on that same branch for handoff. Final local full suite after fixture repair was 36 failed, 11,433 passed, 14 skipped. One native negative-case qualification retry failed on DNS and is incomplete. No successful 142-case observation or recovery certificate exists. Do not rerun unchanged paid 63-case qualification merely because independent eval fixtures change. No Astra qualification is required by this handoff.
 
@@ -36,3 +36,5 @@ Use scripts/dev with repository-pinned Bun/Node. Never overlap Vitest processes.
 GitHub connector last required reauthentication; signed-in browser worked read-only. Local Codex standalone 0.162.1 was verified current through native update; daily maintenance automation exists. Do not create alternate pinned reviewer installations.
 
 The original /Users/alex/.codex/worktrees/4951/safeword has historical ticket edits and untracked review notes; the approval checkout has preserved legacy diagnostic edits. They are separate historical working copies, not candidate changes. Leave them intact; this branch carries the current landing investigation and reproducible regression.
+
+Their preexisting tracked edits and untracked project/review notes are additionally preserved in evidence/historical-workspaces.tar.gz (186 entries, about 2.4 MB compressed). Its MANIFEST.json records each workspace and base commit; tracked edits are patches and untracked files retain their original relative paths. This is a historical recovery archive, not current candidate authority: do not apply it wholesale. Original working copies remain untouched. Runtime credentials, signing keys and ignored caches are not part of that archive.
