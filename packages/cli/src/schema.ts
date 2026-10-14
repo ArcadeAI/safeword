@@ -51,6 +51,8 @@ import { MCP_SERVERS } from './utils/install.js';
 import { assignOrPrune } from './utils/json-merge.js';
 import { VERSION } from './version.js';
 
+export const PLANNING_DATA_GUIDE_PATH = '.safeword/guides/data-architecture-guide.md';
+
 export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
   // Static string, or a factory resolved with ctx at plan time so the block can
@@ -1048,7 +1050,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/guides/context-files-guide.md': {
       template: 'guides/context-files-guide.md',
     },
-    '.safeword/guides/data-architecture-guide.md': {
+    [PLANNING_DATA_GUIDE_PATH]: {
       template: 'guides/data-architecture-guide.md',
     },
     '.safeword/guides/interface-contract-guide.md': {

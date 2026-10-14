@@ -1,3 +1,5 @@
+import type { ReviewDispositionContext } from './planning-accepted-boundary.js';
+import type { PlanningRoleContext } from './planning-role-context.js';
 export type ReviewAgent = 'claude' | 'codex' | 'opencode';
 export type ReviewAuthor = ReviewAgent | 'cursor' | 'unknown';
 export type ReviewKind =
@@ -186,6 +188,10 @@ export interface ReviewPacket {
     readonly content: string;
   }[];
   /** Exact author/reviewer planning obligations carried through semantic review. */
+  readonly planning_phase?: 'product-plan' | 'plan-implementation' | 'plan-execution';
+  readonly planning_context?: PlanningRoleContext;
+  readonly review_disposition_context?: ReviewDispositionContext;
+  readonly upstream_plan_contract?: PlanContractPair;
   readonly plan_contract?: PlanContractPair;
   /** Trusted normalized definition the plan-execution reviewer must retain exactly. */
   readonly execution_plan_delivery_definition?: ExecutionPlanDeliveryDefinition;

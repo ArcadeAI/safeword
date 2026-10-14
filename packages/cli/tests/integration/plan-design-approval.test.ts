@@ -34,6 +34,8 @@ import {
 import { appendDesignDecision } from '../../src/review/approval-ledger.js';
 import { hashArtifact, reviewScope } from '../../templates/hooks/lib/review-ledger.js';
 import { assertTestCliFresh, runCli, testCliPath } from '../helpers.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
+import { PLANNING_ROLE_PRODUCT, writeImplementationRoleInputs } from '../planning-role-fixtures.js';
 
 const TICKET_ID = 'PLAN42';
 const TICKET_FOLDER = `${TICKET_ID}-review-the-approach`;
@@ -87,7 +89,7 @@ function replanExecutionPlan(discovery: string): string {
   ].join('\n');
 }
 
-function executionPlanRecord(plan: string): Record<string, unknown> {
+function executionPlanRecord(plan: string, humanGate = false): Record<string, unknown> {
   const parsed = parseDeliveryPlanContract(plan);
   if (!parsed.ok) throw new Error(parsed.message);
   return {
@@ -109,7 +111,7 @@ function executionPlanRecord(plan: string): Record<string, unknown> {
     accepted_scenarios_covered: true,
     accepted_approach_preserved: true,
     normalized_plan_digest: normalizedExecutionPlanDigest(plan),
-    delivery_definition: createExecutionPlanDeliveryDefinition(parsed, false),
+    delivery_definition: createExecutionPlanDeliveryDefinition(parsed, humanGate),
   };
 }
 
@@ -189,7 +191,28 @@ function projectFiles(directory: string, root = directory): string[] {
   });
 }
 
-function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approved'): Fixture {
+function convertToCurrentPlanning(project: Fixture): void {
+  let ticket = readFileSync(project.ticketPath, 'utf8').replace(
+    /^type: (?:feature|task)$/mu,
+    'type: feature',
+  );
+  if (!ticket.includes('product_plan_contract: v1'))
+    ticket = ticket.replace('type: feature', 'type: feature\nproduct_plan_contract: v1');
+  writeFileSync(project.ticketPath, ticket);
+  writeFileSync(nodePath.join(project.ticketDirectory, 'spec.md'), PLANNING_ROLE_PRODUCT);
+  writePlanningInventories(project.root);
+  writeImplementationRoleInputs(
+    project.root,
+    `.project/tickets/${TICKET_FOLDER}/impl-plan.md`,
+    'review-the-approach.feature',
+  );
+}
+
+function fixture(
+  designApprovalGate: boolean,
+  reviewState: ReviewState = 'approved',
+  native: boolean | 'unsupported-task' = false,
+): Fixture {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-plan-approval-'));
   fixtures.push(root);
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', TICKET_FOLDER);
@@ -231,6 +254,15 @@ function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approv
     EXECUTION_PLAN_TEMPLATE,
   );
   writeFileSync(ledgerPath, '');
+  if (native === true) convertToCurrentPlanning({ root, ticketDirectory, ticketPath, ledgerPath });
+  else if (native === 'unsupported-task')
+    writeFileSync(
+      ticketPath,
+      readFileSync(ticketPath, 'utf8').replace(
+        'type: feature',
+        'type: task\nproduct_plan_contract: v1',
+      ),
+    );
   if (reviewState === 'missing') return { root, ticketDirectory, ticketPath, ledgerPath };
 
   const bin = installBlockingReviewer();
@@ -663,12 +695,63 @@ describe('a declined design returns to Implementation Planning', () => {
 
 describe('implementation-time discoveries return to the affected planning phase', () => {
   it.each([
-    ['the order of independent build tasks changed', 'plan-execution', 'plan-execution'],
-    ['Accepted authorization approach changed', 'plan-implementation', 'plan-implementation'],
+    [
+      'the order of independent build tasks changed',
+      'plan-execution',
+      'plan-execution',
+      false,
+      false,
+    ],
+    [
+      'Accepted authorization approach changed',
+      'plan-implementation',
+      'plan-implementation',
+      false,
+      false,
+    ],
+    [
+      'Accepted authorization approach changed',
+      'plan-implementation',
+      'plan-implementation',
+      false,
+      true,
+    ],
+    [
+      'Accepted authorization approach changed',
+      'plan-implementation',
+      'plan-implementation',
+      true,
+      true,
+    ],
+    [
+      'Accepted authorization approach changed',
+      'plan-implementation',
+      'plan-implementation',
+      true,
+      false,
+    ],
+    [
+      'Accepted authorization approach changed',
+      'plan-implementation',
+      'plan-implementation',
+      false,
+      'unsupported-task',
+    ],
   ] as const)(
-    'routes %s repair from implementation through the installed CLI',
-    async (discovery, planningDestination, expectedPhase) => {
-      const project = fixture(false);
+    'routes %s repair to %s (%s, human gate=%s, native=%s) through the installed CLI',
+    async (discovery, planningDestination, expectedPhase, humanGate, native) => {
+      const project = fixture(humanGate, 'approved', native);
+      if (humanGate) {
+        const approved = runApprovalInPty(project, 'y');
+        expect(approved.status, approved.stdout).toBe(0);
+        writeFileSync(
+          project.ticketPath,
+          readFileSync(project.ticketPath, 'utf8').replace(
+            'phase: plan-execution',
+            'phase: plan-implementation',
+          ),
+        );
+      }
       writeFileSync(
         project.ticketPath,
         readFileSync(project.ticketPath, 'utf8').replace(
@@ -711,6 +794,21 @@ describe('implementation-time discoveries return to the affected planning phase'
       expect(reviewed.exitCode, reviewed.stdout).toBe(2);
       expect(reviewed.stdout).toContain(`"planning_destination":"${planningDestination}"`);
 
+      const implementationPath = nodePath.join(project.ticketDirectory, 'impl-plan.md');
+      const reviewedImplementation = readFileSync(implementationPath, 'utf8');
+      writeFileSync(
+        implementationPath,
+        `${reviewedImplementation}\nAn edited approach awaiting review.\n`,
+      );
+      const staleDiscovery = await runCli(
+        ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
+        { cwd: project.root, env: reviewEnvironment(project) },
+      );
+      expect(staleDiscovery.exitCode, staleDiscovery.stdout).toBe(2);
+      expect(staleDiscovery.stdout).not.toContain('EXECUTION_DISCOVERY_APPLIED');
+      expect(phase(project.ticketPath)).toBe('implement');
+      writeFileSync(implementationPath, reviewedImplementation);
+
       const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
         cwd: project.root,
         env: reviewEnvironment(project),
@@ -729,17 +827,52 @@ describe('implementation-time discoveries return to the affected planning phase'
         expect(unrepaired.exitCode, unrepaired.stdout).toBe(2);
         expect(phase(project.ticketPath)).toBe('plan-implementation');
 
-        const revisedImplementationPlan = `${PLAN}\nAccepted authorization uses the revised boundary.\n`;
+        const retainedTicket = readFileSync(project.ticketPath, 'utf8');
+        expect(retainedTicket).toContain('### Execution discovery requiring fresh planning review');
+        expect(retainedTicket).toContain('Repair the affected plan.');
+        addReviewedTicket(project, 'OTHER9', 'An unrelated approval cannot clear the repair.');
+        const afterUnrelated = await runCli(
+          ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
+          { cwd: project.root, env: reviewEnvironment(project) },
+        );
+        expect(afterUnrelated.exitCode, afterUnrelated.stdout).toBe(2);
+        expect(phase(project.ticketPath)).toBe('plan-implementation');
+        expect(readFileSync(project.ticketPath, 'utf8')).toBe(retainedTicket);
+        if (native !== true) {
+          expect(afterUnrelated.stdout).toContain('Convert its retained plan');
+          convertToCurrentPlanning(project);
+        }
+        const revisedImplementationPlan = readFileSync(
+          nodePath.join(project.ticketDirectory, 'impl-plan.md'),
+          'utf8',
+        ).replace(
+          '## Architecture applicability',
+          'Accepted authorization uses the revised boundary.\n\n## Architecture applicability',
+        );
         writeFileSync(
           nodePath.join(project.ticketDirectory, 'impl-plan.md'),
           revisedImplementationPlan,
         );
+        const beforeFreshReview = await runCli(
+          ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
+          { cwd: project.root, env: reviewEnvironment(project) },
+        );
+        expect(beforeFreshReview.exitCode, beforeFreshReview.stdout).toBe(2);
+        expect(phase(project.ticketPath)).toBe('plan-implementation');
         appendCurrentReview(project, revisedImplementationPlan);
         const implementationApproved = await runCli(
           ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
           { cwd: project.root, env: reviewEnvironment(project) },
         );
-        expect(implementationApproved.exitCode, implementationApproved.stdout).toBe(0);
+        if (humanGate) {
+          expect(implementationApproved.exitCode, implementationApproved.stdout).toBe(2);
+          expect(phase(project.ticketPath)).toBe('plan-implementation');
+          const freshHumanDecision = runApprovalInPty(project, 'y');
+          expect(freshHumanDecision.status, freshHumanDecision.stdout).toBe(0);
+          expect(decisionPayloads(project.ledgerPath)).toHaveLength(2);
+        } else {
+          expect(implementationApproved.exitCode, implementationApproved.stdout).toBe(0);
+        }
       }
 
       expect(phase(project.ticketPath)).toBe('plan-execution');
@@ -756,7 +889,7 @@ describe('implementation-time discoveries return to the affected planning phase'
           SAFEWORD_NO_UPDATE_CHECK: '1',
           SAFEWORD_REVIEW_FOREGROUND_MS: '5000',
           SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: JSON.stringify(
-            executionPlanRecord(repairedPlan),
+            executionPlanRecord(repairedPlan, humanGate),
           ),
           ...reviewEnvironment(project),
         },
@@ -785,9 +918,9 @@ describe('implementation-time discoveries return to the affected planning phase'
       expect(control.status).toBe(0);
       expect(existsSync(proofMarker)).toBe(true);
       unlinkSync(proofMarker);
-      const implementationReviews = readFileSync(project.ledgerPath, 'utf8').match(
-        /phase@plan-implementation/gu,
-      );
+      const implementationReviews = readFileSync(project.ledgerPath, 'utf8')
+        .matchAll(new RegExp(`review:${TICKET_FOLDER}:phase@plan-implementation`, 'gu'))
+        .toArray();
       expect(implementationReviews).toHaveLength(
         planningDestination === 'plan-implementation' ? 2 : 1,
       );
