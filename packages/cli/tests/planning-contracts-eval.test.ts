@@ -12,6 +12,11 @@ import {
   planningReviewerPrompt,
   scorePlanningCase,
 } from '../scripts/lib/planning-contracts-eval.js';
+import {
+  createExecutionPlanDeliveryDefinition,
+  normalizedExecutionPlanDigest,
+  parseDeliveryPlanContract,
+} from '../src/execution-plan/delivery-checklist.js';
 import { planningContractCases } from './fixtures/planning-contracts-eval.js';
 
 const manifest = JSON.parse(
@@ -22,6 +27,44 @@ const manifest = JSON.parse(
 ) as PlanningEvalManifest;
 
 describe('planning contracts eval contract', () => {
+  it.each(['r15-guidance-candidate', 'r15-required-proof-decision'])(
+    '%s supplies a complete planned delivery contract to both actors',
+    id => {
+      const evaluationCase = planningContractCases.find(item => item.id === id);
+      if (evaluationCase === undefined) throw new Error(`Missing fixture ${id}`);
+      expect(evaluationCase.expected_verdict).toBe('approve');
+      const contract = parseDeliveryPlanContract(evaluationCase.reviewed_plan);
+      expect(
+        contract.ok,
+        'An approval control must not omit the required proof table/checklist',
+      ).toBe(true);
+      if (!contract.ok) throw new Error(contract.message);
+      const packet = JSON.parse(planningReviewerPrompt(evaluationCase).split('\n\n').at(-1) ?? '');
+      expect(packet.execution_plan_delivery_definition).toEqual(
+        createExecutionPlanDeliveryDefinition(contract, false),
+      );
+      expect(packet.execution_plan_normalized_digest).toBe(
+        normalizedExecutionPlanDigest(evaluationCase.reviewed_plan),
+      );
+    },
+  );
+
+  it('isolates the missing CLI proof from unrelated delivery-contract omissions', () => {
+    const negative = planningContractCases.find(
+      item => item.id === 'r15-missing-required-proof-decision',
+    );
+    const positive = planningContractCases.find(item => item.id === 'r15-required-proof-decision');
+    if (!negative || !positive) throw new Error('Missing paired CLI proof fixtures');
+    expect(negative.expected_verdict).toBe('request_changes');
+    expect(negative.accepted_boundary).toBe(positive.accepted_boundary);
+    expect(parseDeliveryPlanContract(negative.reviewed_plan).ok).toBe(true);
+    expect(positive.reviewed_plan).toContain('bin/account-change.js');
+    expect(negative.reviewed_plan).not.toContain('bin/account-change.js');
+    expect(negative.reviewed_plan).toContain(
+      'no CLI denial invocation or exit-code check is planned',
+    );
+  });
+
   it('grounds judge evidence in the actual files supplied to the reviewer', () => {
     const evaluationCase = planningContractCases.find(item => item.id === 'r10-shape-product-plan');
     if (evaluationCase === undefined) throw new Error('Missing product contract fixture');

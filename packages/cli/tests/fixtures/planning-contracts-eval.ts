@@ -1,6 +1,7 @@
 import type { PlanningContractCase } from '../../scripts/lib/planning-contracts-eval.js';
 import { createArtifactTrustCases } from './planning-artifact-trust-eval.js';
 import { planningContractShapeCases } from './planning-contract-shape-eval.js';
+import { manualAuthorizationPlan } from './planning-guidance-plan.js';
 import { createPersonaCoverageCases } from './planning-persona-coverage-eval.js';
 import { createScopeContextCases } from './planning-scope-context-eval.js';
 
@@ -154,7 +155,7 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     accepted_boundary: accepted,
     context:
       'Reviewer preference: replace the consent-token API with a new event bus for resilience.',
-    reviewed_plan: 'Use the consent-token API and block changes without a valid token.',
+    reviewed_plan: completeImplementationPlan,
     expected_verdict: 'approve',
     allowed_finding_authority:
       'The event bus is optional reviewer preference, not an accepted requirement.',
@@ -247,10 +248,8 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     kind: 'plan-execution',
     planning_phase: 'plan-execution',
     accepted_boundary: accepted,
-    context:
-      'Architecture guide suggests automatic migration. Excluding it does not change the accepted manual-authorization outcome.',
-    reviewed_plan:
-      'Sequence RED, implementation, and proof for manual consent-token authorization only.',
+    context: `Architecture guide suggests automatic migration. Excluding it does not change the accepted manual-authorization outcome. Accepted Implementation Plan: ${completeImplementationPlan}`,
+    reviewed_plan: manualAuthorizationPlan(),
     expected_verdict: 'approve',
     allowed_finding_authority:
       'Guidance offers a candidate, not scope authority; unrelated migration is dropped.',
@@ -262,9 +261,8 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     kind: 'plan-execution',
     planning_phase: 'plan-execution',
     accepted_boundary: `${accepted} Accepted surface: the existing account-change CLI calls the manual endpoint. CLI denial must return a nonzero exit code and leave the account unchanged.`,
-    context:
-      'Testing guidance recommends exercising CLI denial rather than substituting a direct endpoint call. This decision is required by the accepted CLI surface and belongs to the Execution Plan. The accepted Implementation Plan already owns the endpoint and consent check; no new API or capability is proposed.',
-    reviewed_plan: `${completeExecutionPlan} Execution-owned proof decision: invoke the actual CLI against the real endpoint with an expired token, capture its nonzero exit code and refusal text, and compare the account before and after to prove no write. RED binds that denied CLI scenario before implementing the CLI mapping; GREEN preserves the existing endpoint authorization check and maps its refusal to the CLI result; final acceptance runs the same CLI path. A direct endpoint test supports the guard but cannot replace the CLI proof.`,
+    context: `Testing guidance recommends exercising CLI denial rather than substituting a direct endpoint call. This decision is required by the accepted CLI surface and belongs to the Execution Plan. The accepted Implementation Plan already owns the endpoint and consent check; no new API or capability is proposed. Accepted Implementation Plan: ${completeImplementationPlan}`,
+    reviewed_plan: `${manualAuthorizationPlan(true)} Execution-owned proof decision: invoke the actual CLI against the real endpoint with an expired token, capture its nonzero exit code and refusal text, and compare the account before and after to prove no write.`,
     expected_verdict: 'approve',
     allowed_finding_authority:
       'The required CLI proof decision is explicitly resolved in its owning Execution Plan without changing accepted scope.',
@@ -391,9 +389,8 @@ export const planningContractCases: readonly PlanningContractCase[] = [
     kind: 'plan-execution',
     planning_phase: 'plan-execution',
     accepted_boundary: `${accepted} Accepted surface: the existing account-change CLI calls the manual endpoint. CLI denial must return a nonzero exit code and leave the account unchanged.`,
-    context:
-      'Testing guidance recommends exercising CLI denial rather than substituting a direct endpoint call. This decision is required by the accepted CLI surface and belongs to the Execution Plan. The accepted Implementation Plan already owns the endpoint and consent check; no new API or capability is proposed.',
-    reviewed_plan: `${completeExecutionPlan} Execution proof decision: direct endpoint tests replace CLI refusal proof; no CLI denial invocation or exit-code check is planned.`,
+    context: `Testing guidance recommends exercising CLI denial rather than substituting a direct endpoint call. This decision is required by the accepted CLI surface and belongs to the Execution Plan. The accepted Implementation Plan already owns the endpoint and consent check; no new API or capability is proposed. Accepted Implementation Plan: ${completeImplementationPlan}`,
+    reviewed_plan: `${manualAuthorizationPlan()} Execution proof decision: direct endpoint tests replace CLI refusal proof; no CLI denial invocation or exit-code check is planned.`,
     expected_verdict: 'request_changes',
     allowed_finding_authority:
       'Name the missing CLI denial and exit-code proof as a required Execution Plan decision. Direct endpoint proof cannot establish the accepted CLI result.',

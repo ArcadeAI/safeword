@@ -1,5 +1,10 @@
 import { createHash } from 'node:crypto';
 
+import {
+  createExecutionPlanDeliveryDefinition,
+  normalizedExecutionPlanDigest,
+  parseDeliveryPlanContract,
+} from '../../src/execution-plan/delivery-checklist.js';
 import type { ReviewAgent, ReviewKind, ReviewPacket } from '../../src/review/contract.js';
 import { reviewerPromptInstructions } from '../../src/review/review-rubric.js';
 
@@ -40,7 +45,15 @@ function planningReviewFiles(evaluationCase: PlanningContractCase) {
     'plan-implementation': 'impl-plan.md',
     'plan-execution': 'execution-plan.md',
   }[evaluationCase.planning_phase ?? 'plan-implementation'];
+  const contract =
+    evaluationCase.kind === 'plan-execution'
+      ? parseDeliveryPlanContract(evaluationCase.reviewed_plan)
+      : undefined;
   return {
+    ...(contract?.ok && {
+      execution_plan_delivery_definition: createExecutionPlanDeliveryDefinition(contract, false),
+      execution_plan_normalized_digest: normalizedExecutionPlanDigest(evaluationCase.reviewed_plan),
+    }),
     logical_files: [
       {
         path: planPath,
