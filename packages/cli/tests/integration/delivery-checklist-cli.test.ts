@@ -170,6 +170,9 @@ function fixture(options: { plan?: string; designApprovalGate?: boolean } = {}):
     data: {
       command: 'review status',
       status: 'approved',
+      author_agent: 'codex',
+      actual_reviewer: 'claude',
+      independence: 'cross-agent',
       review_kind: 'plan-execution',
       review_targets: [nodePath.relative(root, planPath)],
       reviewer_output: {

@@ -722,6 +722,13 @@ describe('implementation-time discoveries return to the affected planning phase'
       expect(result.stdout).toContain(`"planning_destination":"${planningDestination}"`);
 
       if (planningDestination === 'plan-implementation') {
+        const unrepaired = await runCli(
+          ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
+          { cwd: project.root, env: reviewEnvironment(project) },
+        );
+        expect(unrepaired.exitCode, unrepaired.stdout).toBe(2);
+        expect(phase(project.ticketPath)).toBe('plan-implementation');
+
         const revisedImplementationPlan = `${PLAN}\nAccepted authorization uses the revised boundary.\n`;
         writeFileSync(
           nodePath.join(project.ticketDirectory, 'impl-plan.md'),
@@ -1197,6 +1204,24 @@ describe('an interrupted approval resumes according to durable authority', () =>
     expect(resumed.stdout).not.toContain('Approve this reviewed Implementation Plan?');
     expect(phase(project.ticketPath)).toBe('plan-execution');
     expect(approvalEvents(project.ledgerPath)).toHaveLength(1);
+  });
+});
+
+describe('native approval without project-local workflow templates', () => {
+  it('creates the Execution Plan from the packaged template after authenticated approval', async () => {
+    const project = fixture(false);
+    rmSync(nodePath.join(project.root, '.safeword/templates'), { recursive: true });
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(readFileSync(nodePath.join(project.ticketDirectory, 'execution-plan.md'), 'utf8')).toBe(
+      EXECUTION_PLAN_TEMPLATE,
+    );
   });
 });
 

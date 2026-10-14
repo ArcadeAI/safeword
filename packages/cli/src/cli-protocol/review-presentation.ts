@@ -1,6 +1,6 @@
 import type { CliResult } from './result.js';
 
-type ReviewCoverage = 'standard' | 'independent' | 'incomplete';
+type ReviewCoverage = 'standard' | 'independent' | 'reduced' | 'incomplete';
 type ReviewVerdict = 'approve' | 'request_changes';
 
 const REVIEW_AGENTS = new Set(['claude', 'codex', 'opencode']);
@@ -25,12 +25,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function reviewCoverage(data: Record<string, unknown>): ReviewCoverage {
   const author = data.author_agent;
   const reviewer = data.actual_reviewer;
-  if (typeof author !== 'string' || !REVIEW_AUTHORS.has(author) || typeof reviewer !== 'string') {
+  if (
+    typeof author !== 'string' ||
+    !REVIEW_AUTHORS.has(author) ||
+    typeof reviewer !== 'string' ||
+    !REVIEW_AGENTS.has(reviewer)
+  ) {
     return 'incomplete';
   }
-  if (data.independence === 'degraded' && REVIEW_AGENTS.has(reviewer) && reviewer === author)
-    return 'standard';
-  if (data.independence === 'cross-agent' && REVIEW_AGENTS.has(reviewer) && reviewer !== author) {
+  if (data.independence === 'reduced') return 'reduced';
+  if (data.independence === 'degraded' && reviewer === author) return 'standard';
+  if (data.independence === 'cross-agent' && reviewer !== author) {
     return 'independent';
   }
   return 'incomplete';
@@ -185,13 +190,18 @@ function suggestionForFailure(failure: unknown, label: string): string | undefin
   return undefined;
 }
 
-function planArchitectureReceiptLines(
-  data: Record<string, unknown>,
-  messages: readonly string[],
-): string[] | undefined {
-  if (data.review_kind !== 'plan-implementation') return undefined;
-  const architectureBlocker = messages.find(message =>
-    /shared-contract choice.+durable architecture (?:record|link)/iu.test(message),
+function planArchitectureReceiptLines(data: Record<string, unknown>): string[] | undefined {
+  if (data.review_kind !== 'plan-implementation' || data.status !== 'changes_requested')
+    return undefined;
+  const output = data.reviewer_output;
+  if (!isRecord(output) || output.verdict !== 'request_changes' || !Array.isArray(output.findings))
+    return undefined;
+  const architectureBlocker = output.findings.find(
+    finding =>
+      isRecord(finding) &&
+      finding.severity === 'error' &&
+      typeof finding.message === 'string' &&
+      /shared-contract choice.+durable architecture (?:record|link)/iu.test(finding.message),
   );
   if (architectureBlocker === undefined) return undefined;
   const targets = Array.isArray(data.review_targets)
@@ -219,7 +229,7 @@ export function reviewResultLines(
     .filter(finding => !REPLACED_REVIEW_FINDINGS.has(finding.code))
     .map(finding => finding.message);
   messages.push(...result.errors.map(error => error.message));
-  const planReceipt = planArchitectureReceiptLines(result.data, messages) ?? [];
+  const planReceipt = planArchitectureReceiptLines(result.data) ?? [];
   const lines = [...planReceipt, reviewCoverageLine(result.data, result.state), ...messages];
   if (options.verbose === true) {
     const suggestion = reviewUpgradeSuggestion(result.data, result.state);

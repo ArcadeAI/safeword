@@ -16,8 +16,10 @@ import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { appendDesignDecision, currentDesignDecision } from '../review/approval-ledger.js';
 import { reviewJobStatus } from '../review/job.js';
 import { phaseReviewAdmission } from '../review/phase-admission.js';
+import { SAFEWORD_SCHEMA } from '../schema.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
+import { getTemplatesDirectory } from '../utils/fs.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
 
 type ApprovalStatus = 'approved' | 'declined' | 'not-required' | 'pending';
@@ -292,12 +294,14 @@ function scaffoldExecutionPlan(context: ApprovalContext): string | undefined {
   const planPath = nodePath.join(context.ticketDirectory, 'execution-plan.md');
   if (existsSync(planPath)) return undefined;
 
-  const templatePath = nodePath.join(
-    context.cwd,
-    '.safeword',
-    'templates',
-    'execution-plan-template.md',
-  );
+  const installedPath = '.safeword/templates/execution-plan-template.md';
+  const projectTemplatePath = nodePath.join(context.cwd, installedPath);
+  const packagedTemplate = SAFEWORD_SCHEMA.ownedFiles[installedPath]?.template;
+  if (packagedTemplate === undefined) throw new Error('Execution Plan template is not registered.');
+  // Native distributions keep workflow templates in their package.
+  const templatePath = existsSync(projectTemplatePath)
+    ? projectTemplatePath
+    : nodePath.join(getTemplatesDirectory(), packagedTemplate);
   if (!existsSync(templatePath)) {
     throw new Error(
       'The installed Execution Plan template is missing. Repair the Safeword installation before approving the plan.',

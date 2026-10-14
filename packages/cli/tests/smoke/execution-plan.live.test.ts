@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
 import process from 'node:process';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import {
   createExecutionPlanDeliveryDefinition,
@@ -16,8 +17,13 @@ import {
   type ExecutionPlanConformanceResult,
 } from '../../src/review/execution-plan-conformance.js';
 import { reviewTimeoutMilliseconds, runHeadlessReviewer } from '../../src/review/runtime.js';
-import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
+import {
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  runCliWithLiteralArguments,
+} from '../helpers.js';
 
+const PUBLIC_CLI = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CLI === '1';
 const CAN_RUN = process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE === '1';
 const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds({});
 const LIVE_TEST_TIMEOUT_MS = REVIEW_TIMEOUT_MS + 60_000;
@@ -48,6 +54,121 @@ function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent
     execution_plan_delivery_definition: definition,
     execution_plan_normalized_digest: normalizedExecutionPlanDigest(testCase.execution_plan),
   };
+}
+
+function liveReviewerEnvironment(
+  assigned: ReviewAgent,
+  author: string,
+): Record<string, string | undefined> {
+  return {
+    SAFEWORD_AGENT_RUNTIME: author,
+    ...(assigned === 'claude' && {
+      CLAUDE_CONFIG_DIR: process.env.SAFEWORD_LIVE_CLAUDE_CONFIG_DIR || undefined,
+    }),
+    ...(assigned === 'codex' && { CODEX_HOME: process.env.SAFEWORD_LIVE_CODEX_HOME || undefined }),
+  };
+}
+
+async function reviewThroughCli(
+  testCase: ExecutionPlanConformanceCase,
+  root: string,
+  assigned: ReviewAgent,
+): Promise<ReviewerOutput> {
+  const relative = '.project/tickets/CASE01-conformance';
+  const ticket = nodePath.join(root, relative);
+  mkdirSync(ticket, { recursive: true });
+  mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+  const author = assigned === 'claude' ? 'codex' : 'claude';
+  writeFileSync(
+    nodePath.join(root, '.safeword/config.json'),
+    JSON.stringify({
+      crossAgentReviewRoutes: { [author]: [{ reviewer: assigned, ...(model && { model }) }] },
+    }),
+  );
+  writeFileSync(nodePath.join(ticket, 'execution-plan.md'), testCase.execution_plan);
+  writeFileSync(
+    nodePath.join(ticket, 'impl-plan.md'),
+    `**Status:** planned\n\n${testCase.implementation_plan}`,
+  );
+  writeFileSync(nodePath.join(ticket, 'scenario.feature'), testCase.scenario);
+  writeFileSync(
+    nodePath.join(ticket, 'ticket.md'),
+    '---\nid: CASE01\nslug: conformance\ntype: feature\nphase: plan-execution\nscope:\n  - Deliver the accepted obligations in the Implementation Plan.\nout_of_scope:\n  - Change the accepted approach.\ndone_when:\n  - Every accepted obligation has startable reviewed work.\n---\n',
+  );
+  const options = {
+    cwd: root,
+    timeout: LIVE_TEST_TIMEOUT_MS,
+    env: liveReviewerEnvironment(assigned, author),
+  };
+  let invoked = await runCliWithLiteralArguments(
+    [
+      'review',
+      'run',
+      'plan-execution',
+      `${relative}/execution-plan.md`,
+      '--context',
+      `${relative}/impl-plan.md`,
+      '--context',
+      `${relative}/scenario.feature`,
+      '--context',
+      `${relative}/ticket.md`,
+      '--cwd',
+      root,
+      '--json',
+      '--no-input',
+    ],
+    options,
+  );
+  let envelope = JSON.parse(invoked.stdout);
+  if (envelope.findings?.some((finding: { code: string }) => finding.code === 'REVIEW_PENDING')) {
+    await vi.waitFor(
+      async () => {
+        invoked = await runCliWithLiteralArguments(
+          ['review', 'status', envelope.data.review_id, '--cwd', root, '--json'],
+          options,
+        );
+        envelope = JSON.parse(invoked.stdout);
+        expect(
+          Boolean(
+            envelope.findings?.some(
+              (finding: { code: string }) => finding.code === 'REVIEW_PENDING',
+            ),
+          ),
+        ).toBe(false);
+      },
+      { timeout: REVIEW_TIMEOUT_MS, interval: 1000 },
+    );
+  }
+  expect(envelope.data?.actual_reviewer, invoked.stdout).toBe(assigned);
+  expect(envelope.data?.independence, invoked.stdout).toBe('cross-agent');
+  const output = envelope.data?.reviewer_output as ReviewerOutput | undefined;
+  if (!output) throw new Error(`Public CLI did not return a reviewer output: ${invoked.stdout}`);
+  expect(invoked.exitCode, invoked.stdout).toBe(testCase.expectation.verdict === 'approve' ? 0 : 2);
+  await assertCliDiscovery(testCase, root, ticket, output, options);
+  return output;
+}
+
+async function assertCliDiscovery(
+  testCase: ExecutionPlanConformanceCase,
+  root: string,
+  ticket: string,
+  output: ReviewerOutput,
+  options: Parameters<typeof runCliWithLiteralArguments>[1],
+): Promise<void> {
+  if (!testCase.id.includes('discovery')) return;
+  if (output.verdict === 'request_changes') {
+    const applied = await runCliWithLiteralArguments(
+      ['ticket', 'approve-plan', 'CASE01', '--cwd', root, '--json', '--no-input'],
+      options,
+    );
+    const disposition = JSON.parse(applied.stdout);
+    expect(disposition.data?.planning_destination, applied.stdout).toBe(
+      testCase.expectation.planning_destination,
+    );
+  }
+  expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toContain(
+    `phase: ${testCase.expectation.planning_destination}`,
+  );
 }
 
 function recordOf(output: ReviewerOutput): NonNullable<ReviewerOutput['execution_plan_record']> {
@@ -121,12 +242,19 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
       const packet = packetFor(testCase, reviewer);
       let passed = false;
       try {
-        const output = (await runHeadlessReviewer(reviewer, packet, directory, process.cwd(), {
-          ...(model !== undefined && { model }),
-          runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
-        })) as ReviewerOutput;
+        const output = PUBLIC_CLI
+          ? await reviewThroughCli(testCase, directory, reviewer)
+          : ((await runHeadlessReviewer(reviewer, packet, directory, process.cwd(), {
+              ...(model !== undefined && { model }),
+              runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
+            })) as ReviewerOutput);
         try {
-          assertCase(testCase, output, reviewer, packet.dispatch_id);
+          assertCase(
+            testCase,
+            output,
+            reviewer,
+            PUBLIC_CLI ? output.dispatch_id : packet.dispatch_id,
+          );
         } catch (error) {
           process.stderr.write(
             `Execution Plan reviewer output:\n${JSON.stringify(output, undefined, 2)}\n`,

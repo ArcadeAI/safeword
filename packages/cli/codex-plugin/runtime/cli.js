@@ -2429,12 +2429,14 @@ function isRecord(value) {
 function reviewCoverage(data) {
   const author = data.author_agent;
   const reviewer = data.actual_reviewer;
-  if (typeof author !== "string" || !REVIEW_AUTHORS.has(author) || typeof reviewer !== "string") {
+  if (typeof author !== "string" || !REVIEW_AUTHORS.has(author) || typeof reviewer !== "string" || !REVIEW_AGENTS.has(reviewer)) {
     return "incomplete";
   }
-  if (data.independence === "degraded" && REVIEW_AGENTS.has(reviewer) && reviewer === author)
+  if (data.independence === "reduced")
+    return "reduced";
+  if (data.independence === "degraded" && reviewer === author)
     return "standard";
-  if (data.independence === "cross-agent" && REVIEW_AGENTS.has(reviewer) && reviewer !== author) {
+  if (data.independence === "cross-agent" && reviewer !== author) {
     return "independent";
   }
   return "incomplete";
@@ -2548,10 +2550,13 @@ function suggestionForFailure(failure, label) {
   }
   return;
 }
-function planArchitectureReceiptLines(data, messages) {
-  if (data.review_kind !== "plan-implementation")
+function planArchitectureReceiptLines(data) {
+  if (data.review_kind !== "plan-implementation" || data.status !== "changes_requested")
     return;
-  const architectureBlocker = messages.find((message) => /shared-contract choice.+durable architecture (?:record|link)/iu.test(message));
+  const output = data.reviewer_output;
+  if (!isRecord(output) || output.verdict !== "request_changes" || !Array.isArray(output.findings))
+    return;
+  const architectureBlocker = output.findings.find((finding) => isRecord(finding) && finding.severity === "error" && typeof finding.message === "string" && /shared-contract choice.+durable architecture (?:record|link)/iu.test(finding.message));
   if (architectureBlocker === undefined)
     return;
   const targets = Array.isArray(data.review_targets) ? data.review_targets.filter((target) => typeof target === "string") : [];
@@ -2571,7 +2576,7 @@ function reviewResultLines(result, options) {
     return;
   const messages = result.findings.filter((finding) => !REPLACED_REVIEW_FINDINGS.has(finding.code)).map((finding) => finding.message);
   messages.push(...result.errors.map((error2) => error2.message));
-  const planReceipt = planArchitectureReceiptLines(result.data, messages) ?? [];
+  const planReceipt = planArchitectureReceiptLines(result.data) ?? [];
   const lines = [...planReceipt, reviewCoverageLine(result.data, result.state), ...messages];
   if (options.verbose === true) {
     const suggestion = reviewUpgradeSuggestion(result.data, result.state);
@@ -3627,7 +3632,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "c437336466eedacbac427d85841e6137757a4d81864fefc9317569412c0ebc78",
         ".claude/skills/retro/SKILL.md": "da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb",
-        ".claude/skills/review-spec/SKILL.md": "bca4e90c57cd4868219ebe9366fbca8c126837f1289671a3e7b495bca894b052",
+        ".claude/skills/review-spec/SKILL.md": "bccfacb85f2ffb865572a3e56a6b0807a7de98f8de89ee143dd049ede1ae82fb",
         ".claude/skills/self-review/SKILL.md": "7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "fb05b617ffb02bb6d06897d12fb5f121fc553536701f27b8696160041cb5269c",
@@ -72145,7 +72150,12 @@ function scaffoldExecutionPlan(context) {
   const planPath = nodePath129.join(context.ticketDirectory, "execution-plan.md");
   if (existsSync60(planPath))
     return;
-  const templatePath = nodePath129.join(context.cwd, ".safeword", "templates", "execution-plan-template.md");
+  const installedPath = ".safeword/templates/execution-plan-template.md";
+  const projectTemplatePath = nodePath129.join(context.cwd, installedPath);
+  const packagedTemplate = SAFEWORD_SCHEMA.ownedFiles[installedPath]?.template;
+  if (packagedTemplate === undefined)
+    throw new Error("Execution Plan template is not registered.");
+  const templatePath = existsSync60(projectTemplatePath) ? projectTemplatePath : nodePath129.join(getTemplatesDirectory(), packagedTemplate);
   if (!existsSync60(templatePath)) {
     throw new Error("The installed Execution Plan template is missing. Repair the Safeword installation before approving the plan.");
   }
@@ -72321,7 +72331,9 @@ var init_plan_approval = __esm(() => {
   init_approval_ledger();
   init_job();
   init_phase_admission();
+  init_schema();
   init_configured_paths();
+  init_fs();
   init_product_plan_contract();
 });
 
@@ -72415,24 +72427,8 @@ function executionPlanAdmission(input) {
   return { kind: "not_admitted" };
 }
 function admittedExecutionPlanReview(input) {
-  const scope = `${nodePath130.basename(input.ticketDirectory)}:phase@plan-execution`;
-  const candidates = parseReviewStamps(input.ledger).filter((stamp) => stamp.scope === scope && stamp.skipReason === undefined).toReversed();
-  for (const stamp of candidates) {
-    if (stamp.reviewId === undefined)
-      continue;
-    const status = reviewJobStatus(input.cwd, stamp.reviewId);
-    if (status.state !== "healthy" || !isRecord12(status.data))
-      continue;
-    const data = status.data;
-    if (data.status !== "approved" || data.review_kind !== "plan-execution" || !coversPlan(data, input.cwd, input.planPath) || !isRecord12(data.reviewer_output)) {
-      continue;
-    }
-    const validated = validateExecutionPlanOutput(data.reviewer_output, input.definition, input.digest);
-    if (validated.kind === "approved") {
-      return { reviewId: stamp.reviewId, record: validated.output.execution_plan_record };
-    }
-  }
-  return;
+  const admission = executionPlanAdmission(input);
+  return admission.kind === "admitted" ? { reviewId: admission.reviewId, record: admission.record } : undefined;
 }
 var init_delivery_admission = __esm(() => {
   init_review_ledger();

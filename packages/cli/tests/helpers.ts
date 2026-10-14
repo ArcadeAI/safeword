@@ -439,7 +439,7 @@ function projectFixtureArguments(args: string[]): string[] {
 
 interface RunCliOptions {
   cwd?: string;
-  env?: Record<string, string>;
+  env?: Record<string, string | undefined>;
   timeout?: number;
 }
 
