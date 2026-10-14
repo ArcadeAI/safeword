@@ -1094,3 +1094,47 @@ runtime hashes still equal their frozen qualification start values. The current
 generated bundle diff contains only the intended oracle helper/term alternative
 and admission corpus identity, with the corresponding generated inventory hash.
 Fresh public CLI acceptance and new-head CI are next; neither is claimed here.
+
+### Current public proof and failed observation — 2026-10-13
+
+Head 66f11753b passes public CLI acceptance: all 47 scenarios, 3,009 steps and
+both hooks, with 63 unique actual passing Sol matrix records. Duration:
+36m0.26s. CI run 38502380248 is terminal green with 14 successful checks and
+11 workflow skips; deployment did not run. These results do not establish
+the separate bounded recovery observation or whole-epic completion.
+
+The single observation then fails after 88m4.423s. Its actual inner report
+has 142 scenarios: 137 passed and five failed; 8,943 steps passed and five
+failed; both hooks passed. All evidence remains in
+ledger-recovery-4393d215-1fb6-42f3-b4a4-4d792f0d2b0f. No signed observation
+or certification was issued. Failed evaluation reports are copied unchanged
+under 4200-66f1-observer-failure; no passing record is derived from them.
+
+## Root Cause: current evaluation framing and incomplete positive fixtures
+
+The Product contract shape case has correct approvals, but two judges call
+the reviewers' impl-plan.md evidence fabricated. The reviewer actually
+received that exact filename in logical_files; the judge received only bare
+reviewed_plan text. The two actors had different evidence about file identity.
+A failing handoff regression reproduces the missing judge files, followed by
+four passing unit tests after both prompts reuse one file-packet constructor.
+Required verdicts, judge rubric and agreement thresholds remain unchanged.
+
+The other four scenario failures represent three repeated fixture cases:
+r11-optional-architecture, r15-required-proof-decision and
+r15-guidance-candidate. Their reviewers correctly identify missing required
+plan content, including an absent Execution Plan proof table and checklist.
+The positive fixture's approval expectation conflicts with its actual content.
+Fix fixture completeness rather than suppress those legitimate findings or
+restrict the judge to a whitelist of errors. Optional architecture and dropped
+out-of-scope guidance must remain nonblocking; the CLI proof negative must
+still reject endpoint-only proof.
+
+Provider failure is ruled out for these five: reports are complete and contain
+three actual structured reviewer and judge responses. A broad reviewer defect
+does not explain the shape failure, because its filename matches the actual
+packet, or the incomplete positives, whose cited omissions are present in the
+retained source. Probabilistic judgment remains a limit, not a reason to retry
+the full lane unchanged. Targeted native validation must precede another full
+observation. No additional deferrals, source authority or completed history
+are granted by these repairs.

@@ -7,6 +7,7 @@ import {
   planningContractCorpusDigest,
   planningContractRubricDigest,
   type PlanningEvalManifest,
+  planningJudgePrompt,
   planningJudgeRubricDigest,
   planningReviewerPrompt,
   scorePlanningCase,
@@ -21,6 +22,26 @@ const manifest = JSON.parse(
 ) as PlanningEvalManifest;
 
 describe('planning contracts eval contract', () => {
+  it('grounds judge evidence in the actual files supplied to the reviewer', () => {
+    const evaluationCase = planningContractCases.find(item => item.id === 'r10-shape-product-plan');
+    if (evaluationCase === undefined) throw new Error('Missing product contract fixture');
+    const reviewed = JSON.parse(planningReviewerPrompt(evaluationCase).split('\n\n').at(-1) ?? '');
+    const judged = JSON.parse(
+      planningJudgePrompt(evaluationCase, {
+        verdict: 'approve',
+        evidence_claims: ['impl-plan.md declares all eight phase contract elements.'],
+      })
+        .split('\n\n')
+        .at(-1) ?? '',
+    );
+    expect(judged.logical_files).toEqual(reviewed.logical_files);
+    expect(judged.context_files).toEqual(reviewed.context_files);
+    expect(judged.logical_files).toContainEqual({
+      path: 'impl-plan.md',
+      content: evaluationCase.reviewed_plan,
+    });
+  });
+
   it('places adversarial plan text inside the canonical untrusted file boundary', () => {
     const evaluationCase = planningContractCases.find(item => item.id === 'r7-plan-instruction');
     expect(evaluationCase).toBeDefined();
