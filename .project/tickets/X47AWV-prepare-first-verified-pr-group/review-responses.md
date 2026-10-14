@@ -10,3 +10,9 @@ These notes answer Claude review 769a8f82-aee0-4780-a07e-4dc5ac7b85d8. That revi
 - Receipt authentication versus currency: both existing checks remain in phaseReviewAdmission. Neither replaces the other.
 
 No warning has been silently reclassified as a passing accepted case. OpenCode/cloud’s 33 accepted cases remain deferred, and no new accepted-case deferral is added.
+
+## Current-head review 57e05828-49cb-4454-acfb-b7ebba338743
+
+The reviewer approved with no blocking findings. Its Windows separator warning is corrected by normalizing the registered-guide comparison through the existing toReviewPath helper; the existing win32 normalization unit coverage and native packet replay cover that composition, without claiming a Windows native-host run. The v1-marked task scenario now explicitly advances normally before any discovery, then proves refusal after recorded design repair.
+
+The packaged-guide selection warning remains bounded: a project guide created during an in-flight package capture is not noticed by that prepared packet’s sourceChanged callback. Status-time fingerprint recomputation selects the new project guide and makes the receipt stale, so admission does not gain authority from the old package snapshot. No new input-selection policy is added here. Equivalent target-matching helpers remain unchanged; extracting them would be unrelated cleanup.

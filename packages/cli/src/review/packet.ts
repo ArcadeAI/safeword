@@ -118,7 +118,10 @@ function planningSource(
   allowPackagedGuide: boolean,
 ): { readonly root: string; readonly source: string } {
   const project = { root: cwd, source };
-  if (!allowPackagedGuide || nodePath.relative(cwd, source) !== PLANNING_DATA_GUIDE_PATH)
+  if (
+    !allowPackagedGuide ||
+    toReviewPath(nodePath.relative(cwd, source)) !== PLANNING_DATA_GUIDE_PATH
+  )
     return project;
   try {
     lstatSync(source);

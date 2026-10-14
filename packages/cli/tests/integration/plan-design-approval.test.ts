@@ -694,6 +694,17 @@ describe('a declined design returns to Implementation Planning', () => {
 });
 
 describe('implementation-time discoveries return to the affected planning phase', () => {
+  it('preserves ordinary approval for a v1-marked task before any discovery', async () => {
+    const project = fixture(false, 'approved', 'unsupported-task');
+    const ordinary = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+    expect(ordinary.exitCode, ordinary.stdout).toBe(0);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(ordinary.stdout).not.toContain('Convert its retained plan');
+  });
+
   it.each([
     [
       'the order of independent build tasks changed',
