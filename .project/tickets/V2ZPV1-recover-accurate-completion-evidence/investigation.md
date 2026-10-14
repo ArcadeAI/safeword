@@ -1037,3 +1037,60 @@ current admission at the changed corpus. Keep the correction local and Draft
 until qualification, generated carriers, current CLI acceptance and observation
 are genuinely complete. Do not reinterpret the failed 47-case aggregate as a
 pass or rewrite its original model result records.
+
+### Current completion-oracle qualification — 2026-10-13
+
+The normal commit formatter changed the reviewed source bytes. Review
+6f49cbc8 is therefore historical; post-commit review
+302fe8b7-5e0a-42f2-a537-3b0e3c4cf0c6 independently approves the actual
+15669ce93 source with no errors. Preserve its substring-oracle limitations.
+
+Sol passes one complete current 63-case matrix plus its identity guard,
+64/64 tests in 1561.20 seconds. The initial current Claude run fails four
+cases with native 120-second timeouts: accepted-data-ownership,
+current-proof-supports-completion, complete-measurement-execution and
+parallel-safe-after-probe. Its 59/63 passing case records, raw log and all
+four failures remain retained separately; it grants no admission.
+
+This was an avoidable orchestration regression: the resumed command omitted
+the already-used SAFEWORD_REVIEW_TIMEOUT_MS=210000 setting. Previous raw
+qualification includes a 170-second measurement case and a 130-second
+parallel case. The runtime already supports the explicit 210-second attempt
+within its unchanged 270-second foreground bound; no production timeout or
+semantic assertion was changed.
+
+A fresh complete Claude run with that setting passes all 63 current cases
+and the identity guard, 64/64 tests in 4048.92 seconds. Accepted data ownership
+takes 178877ms, measurement 140934ms and parallelism 167474ms, confirming the
+two-minute budget was insufficient on those unchanged inputs. Both passing
+reports are unique complete matrices for corpus 6f825af3, retained with their
+raw logs under 4200-completion-oracle-refresh. No filtered retry, old-corpus
+record or synthetic passing record supplied generation. Attribution remains
+operator-observed command/source metadata; the harness does not itself sign
+corpus or CLI-version provenance.
+
+Admission is regenerated only from those two actual current passing reports.
+All five generated surfaces regenerate and verify. This proves native model
+qualification, not current public CLI acceptance, the 142-case observation,
+typed independent certification or installed-host completion. Those remain
+pending. The earlier public 47-case failure, original six failures and 585
+unfinished scenarios remain visible; 418 undefined sibling cases are additional
+epic work. Exactly 33 cases remain deferred and unverified. No merge, promotion,
+release or trusted deployment is authorized by these results.
+
+Independent admission review a4c09dad-effb-4449-8c73-024f4d487998 approves the
+current generated record. It confirms all 63 ordered case identities and both
+actual 64/64 logs, while explicitly retaining the operator-attribution limit:
+CI's generator check is not proof that paid qualification happened. Only the
+two explicitly qualified model identities are admitted; runtime-default models
+are not silently credited. This review establishes no public acceptance or
+deferred-case proof.
+
+Final release checks pass 82/82 across 14 files. Root lint, Gherkin lint and CLI
+types pass. Final workspace verification passes: relay 198/199 with one existing
+skip; collector 153/153; CLI 11,465 passed and 14 existing skips across 729 files
+in 736.77 seconds. Earlier failures remain retained. Source, live harness and
+runtime hashes still equal their frozen qualification start values. The current
+generated bundle diff contains only the intended oracle helper/term alternative
+and admission corpus identity, with the corresponding generated inventory hash.
+Fresh public CLI acceptance and new-head CI are next; neither is claimed here.

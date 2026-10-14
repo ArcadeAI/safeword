@@ -34992,7 +34992,7 @@ var init_execution_plan_admission_generated = __esm(() => {
   EXECUTION_PLAN_ADMISSION_EVIDENCE = {
     schema_version: 1,
     contract_sha256: "7c2d9249730235116a638d5a8abfc7bc1aaa38afa0ccc8409492d75816b78c9b",
-    corpus_sha256: "552b5b9b3661d7d57100b7865dc066e6183e69e3f1f5d64081c95fefee1d9399",
+    corpus_sha256: "6f825af3c7bfed5fd78d519729c18cf308f5c9ac3c492af2f1abff792331ca38",
     identities: [
       {
         reviewer: "codex",
@@ -38020,7 +38020,8 @@ function permissionDenialTasks(testFile, command, productionFile) {
   ];
 }
 function missingFieldCase(id, field, term) {
-  return denied(id, `A planned pull request omits its ${term}; review names ${term} as required.`, executionPlan({
+  const label = typeof term === "string" ? term : term[0];
+  return denied(id, `A planned pull request omits its ${label}; review names ${label} as required.`, executionPlan({
     decision: "one pull request",
     rationale: COMPLETE_DELIVERY_RATIONALE,
     slices: [{ ...COMPLETE_DELIVERY_SLICE, [field]: undefined }]
@@ -38891,7 +38892,10 @@ After Risk probe, CLI consumer, and Documentation consumer are integrated into t
       rationale: COMPLETE_DELIVERY_RATIONALE,
       slices: [{ ...COMPLETE_DELIVERY_SLICE, proof: undefined }]
     }), "one_pull_request", ["Complete delivery"]),
-    missingFieldCase("missing-completion-signal", "completion", "completion signal"),
+    missingFieldCase("missing-completion-signal", "completion", [
+      "completion signal",
+      "completion condition"
+    ]),
     denied("two-independent-purposes", "One slice with two independently valuable purposes is denied.", executionPlan({
       decision: "one pull request",
       rationale: "The author put both outcomes together because they touch review code.",

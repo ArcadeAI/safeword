@@ -2,7 +2,7 @@
 export const EXECUTION_PLAN_ADMISSION_EVIDENCE = {
   schema_version: 1,
   contract_sha256: '7c2d9249730235116a638d5a8abfc7bc1aaa38afa0ccc8409492d75816b78c9b',
-  corpus_sha256: '552b5b9b3661d7d57100b7865dc066e6183e69e3f1f5d64081c95fefee1d9399',
+  corpus_sha256: '6f825af3c7bfed5fd78d519729c18cf308f5c9ac3c492af2f1abff792331ca38',
   identities: [
     {
       reviewer: 'codex',
