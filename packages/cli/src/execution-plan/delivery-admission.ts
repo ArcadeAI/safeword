@@ -210,31 +210,8 @@ export function executionPlanAdmission(input: {
 export function admittedExecutionPlanReview(
   input: Parameters<typeof executionPlanAdmission>[0],
 ): { readonly reviewId: string; readonly record: ExecutionPlanRecord } | undefined {
-  const scope = `${nodePath.basename(input.ticketDirectory)}:phase@plan-execution`;
-  const candidates = parseReviewStamps(input.ledger)
-    .filter(stamp => stamp.scope === scope && stamp.skipReason === undefined)
-    .toReversed();
-  for (const stamp of candidates) {
-    if (stamp.reviewId === undefined) continue;
-    const status = reviewJobStatus(input.cwd, stamp.reviewId);
-    if (status.state !== 'healthy' || !isRecord(status.data)) continue;
-    const data = status.data;
-    if (
-      data.status !== 'approved' ||
-      data.review_kind !== 'plan-execution' ||
-      !coversPlan(data, input.cwd, input.planPath) ||
-      !isRecord(data.reviewer_output)
-    ) {
-      continue;
-    }
-    const validated = validateExecutionPlanOutput(
-      data.reviewer_output as unknown as UnverifiedReviewerOutput,
-      input.definition,
-      input.digest,
-    );
-    if (validated.kind === 'approved') {
-      return { reviewId: stamp.reviewId, record: validated.output.execution_plan_record };
-    }
-  }
-  return undefined;
+  const admission = executionPlanAdmission(input);
+  return admission.kind === 'admitted'
+    ? { reviewId: admission.reviewId, record: admission.record }
+    : undefined;
 }

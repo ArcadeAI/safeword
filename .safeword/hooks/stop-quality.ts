@@ -15,6 +15,7 @@ import {
 } from './lib/active-ticket.ts';
 import { formatDependencyRecovery, getDependencyReadiness } from './lib/dependency-readiness.ts';
 import { checkFeatureScenarios, checkVerifyArtifact } from './lib/done-gate.ts';
+import { recoveryClosingView } from './lib/ledger-recovery-gate.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
 import { createLedgerShaResolver } from './lib/ledger-git.ts';
@@ -820,7 +821,11 @@ if (currentPhase === 'done') {
 
   const featureScenarioVerdict =
     isFeature && ticketInfo.folder
-      ? checkFeatureScenarios(projectDir, `${ticketsDir}/${ticketInfo.folder}`)
+      ? checkFeatureScenarios(
+          projectDir,
+          `${ticketsDir}/${ticketInfo.folder}`,
+          process.env.SAFEWORD_AGENT_RUNTIME ?? 'claude',
+        )
       : { ok: !isFeature };
 
   // Read the ledger once: the whole-ticket quality-review + refactor pass
@@ -903,7 +908,17 @@ if (currentPhase === 'done') {
   // refactor row present and valid when the whole-ticket pass applies (≥2 annotated
   // loops). Pure-legacy and single-loop tickets are exempt inside validateLedger.
   if (ledgerContent !== undefined) {
-    const validation = validateLedger(ledgerContent, createLedgerShaResolver(projectDir));
+    const recovered = ticketInfo.folder
+      ? recoveryClosingView(
+          projectDir,
+          `${ticketsDir}/${ticketInfo.folder}`,
+          process.env.SAFEWORD_AGENT_RUNTIME ?? 'claude',
+        )
+      : undefined;
+    const validation = validateLedger(
+      recovered?.historicalView ?? ledgerContent,
+      createLedgerShaResolver(projectDir),
+    );
     if (!validation.ok) {
       recordFailure(projectDir, input.session_id, 'done-gate-ledger-invalid');
       hardBlockDone(

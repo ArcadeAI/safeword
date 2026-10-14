@@ -59,6 +59,7 @@ export const PLANNING_CONTRACT_TEMPLATE_PATHS = {
 } as const;
 
 export const PLANNING_DATA_GUIDE_PATH = '.safeword/guides/data-architecture-guide.md';
+export const LEDGER_RECOVERY_CONTRACT_PATH = '.safeword/guides/ledger-recovery-contract.md';
 
 export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
@@ -874,6 +875,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/lib/parse-annotation.ts': { template: 'hooks/lib/parse-annotation.ts' },
     '.safeword/hooks/lib/retrospective-gate.ts': { template: 'hooks/lib/retrospective-gate.ts' },
+    '.safeword/hooks/lib/ledger-recovery-gate.ts': {
+      template: 'hooks/lib/ledger-recovery-gate.ts',
+    },
     '.safeword/hooks/lib/retrospective-annotation.ts': {
       template: 'hooks/lib/retrospective-annotation.ts',
     },
@@ -1051,6 +1055,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/agents/safeword-reviewer.md': { template: 'agents/safeword-reviewer.md' },
 
     // Guides
+    [LEDGER_RECOVERY_CONTRACT_PATH]: {
+      template: 'guides/ledger-recovery-contract.md',
+    },
     '.safeword/guides/architecture-guide.md': {
       template: 'guides/architecture-guide.md',
     },

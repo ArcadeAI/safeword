@@ -537,6 +537,44 @@ Global `--json`, `--no-input`, `--cwd`, `--quiet`, `--offline`, and
 hidden compatibility aliases indefinitely. New documentation and automation use
 the canonical commands above.
 
+### Bounded completion recovery (maintainers)
+
+The `5F5ZZA` recovery profile preserves historical TDD checkboxes while accepting
+independently certified current proof. It applies only to the fixed accepted
+feature, ledger and scope. Its 33 deferred cases remain visible and unverified.
+
+Commit the product and test inputs before observing:
+
+```bash
+scripts/dev bun run safeword review observe ledger-recovery --ticket 5F5ZZA --json --no-input
+```
+
+Observation builds a detached copy, runs all 142 active cases and retains the
+complete report. A failed run grants no credit. A passing run writes the fixed
+manifest and evidence summary under
+`.project/tickets/V2ZPV1-recover-accurate-completion-evidence/`.
+
+Use `review run ledger-recovery` to review that manifest, summary and installed
+`.safeword/guides/ledger-recovery-contract.md`. Supply bounded `--context` slices
+covering every observed execution input and the actual cases using each slice.
+For `bun.lock`, review both retained exact parts. Fresh signed cross-agent
+certifications must collectively cover all active cases and required inputs.
+Then check admission:
+
+```bash
+scripts/dev bun run safeword review gate ledger-recovery --ticket 5F5ZZA --json --no-input
+```
+
+The gate reports missing historical work separately. Its historical validation
+view corrects only the approved mistaken REFACTOR annotation. Product, execution
+input or accepted-scope changes invalidate credit; only the profile's named
+audit changes may follow observation. Normal dependency, test, verification and
+whole-ticket review requirements still apply.
+
+Claude, Codex and Cursor closing hooks consult the trusted installed runtime.
+Running candidate source does not install that authority. OpenCode and cloud
+recovery are excluded. Recovery never authorizes PR promotion, merging or release.
+
 ### Publishing (maintainers)
 
 Normal releases are CI-driven: merge the version bump, create the annotated

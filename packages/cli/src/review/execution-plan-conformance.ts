@@ -1041,11 +1041,12 @@ const INAPPLICABLE_OPTIONAL_WORK_PLAN = executionPlan({
 function missingFieldCase(
   id: string,
   field: keyof Omit<SliceInput, 'name'>,
-  term: string,
+  term: string | readonly [string, ...string[]],
 ): ExecutionPlanConformanceCase {
+  const label = typeof term === 'string' ? term : term[0];
   return denied(
     id,
-    `A planned pull request omits its ${term}; review names ${term} as required.`,
+    `A planned pull request omits its ${label}; review names ${label} as required.`,
     executionPlan({
       decision: 'one pull request',
       rationale: COMPLETE_DELIVERY_RATIONALE,
@@ -1350,7 +1351,10 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
     'one_pull_request',
     ['Complete delivery'],
   ),
-  missingFieldCase('missing-completion-signal', 'completion', 'completion signal'),
+  missingFieldCase('missing-completion-signal', 'completion', [
+    'completion signal',
+    'completion condition',
+  ]),
   denied(
     'two-independent-purposes',
     'One slice with two independently valuable purposes is denied.',
@@ -1370,7 +1374,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
   ),
   decisionChangingDiscovery(
     'unresolved-authorization-decision',
-    'A formally complete slice leaving authorization ownership undecided is denied.',
+    'A vague component boundary leaving the accepted authorization architecture undecided is denied.',
     executionPlan({
       decision: 'one pull request',
       rationale: 'The slice is mechanically complete.',
@@ -1378,11 +1382,11 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
         {
           ...CONTRACT_SLICE,
           boundary:
-            'The implementer will decide whether each transport or one service owns authorization.',
+            'Use the appropriate component boundary for authorization; the implementer will decide whether each transport or one service owns authorization.',
         },
       ],
     }),
-    ['authorization'],
+    ['authorization', ['architecture', 'component', 'transport', 'service']],
   ),
   approved(
     'ordered-schema-before-reader',
@@ -1611,7 +1615,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
       'pending-human-authority-is-not-complete',
       'Completed contributor work remains incomplete while required human authority is pending.',
       PENDING_HUMAN_CLAIMED_COMPLETE_PLAN,
-      ['human', 'pending', ['complete', 'completion', 'claimed']],
+      [['human', 'security owner'], 'pending', ['complete', 'completion', 'claimed']],
     ),
     implementation_plan: `${IMPLEMENTATION_PLAN}
 ## Existing human authority for this fixture
@@ -1866,7 +1870,7 @@ const conformanceCases: readonly ExecutionPlanConformanceCase[] = [
     'later-step-is-not-startable',
     'A concrete first RED cannot hide an unresolved behavior decision in the fourth step.',
     LATER_UNSTARTABLE_PLAN,
-    ['behavior', 'decision'],
+    ['behavior', 'decision', ['step 4', 'task 4', 'fourth', '4. TODO']],
   ),
   denied(
     'blocked-first-prerequisite',

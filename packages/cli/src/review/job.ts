@@ -38,6 +38,14 @@ import {
 } from './contract.js';
 import { hostContinuationCompletion } from './coordinator.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
+import {
+  type LedgerRecoveryCertification,
+  validRecoveryCertification,
+} from './ledger-recovery-certification.js';
+import {
+  LEDGER_RECOVERY_PROFILE,
+  ledgerRecoveryProfileIdentity,
+} from './ledger-recovery-profile.js';
 import { prepareReviewPacket, toReviewPath } from './packet.js';
 import { PlanningContextError } from './planning-context-error.js';
 import {
@@ -178,6 +186,49 @@ export function validRetrospectiveCloseTag(cwd: string, content: string, tag: st
   } catch {
     return false;
   }
+}
+
+/** Recovery observations have their own protocol; no CKWE2D authority is borrowed. */
+export function ledgerRecoveryObservationTag(cwd: string, content: string): string {
+  if (!hasRecoveryObservationIdentity(content))
+    throw new Error('Recovery observation identity does not match the installed profile.');
+  return createHmac('sha256', readOrCreateIntegrityKey())
+    .update(realpathSync.native(cwd))
+    .update('\0ledger-recovery-observation\0')
+    .update(content)
+    .digest('hex');
+}
+
+export function validLedgerRecoveryObservationTag(
+  cwd: string,
+  content: string,
+  tag: string,
+): boolean {
+  if (!/^[a-f\d]{64}$/u.test(tag) || !reviewIntegrityKeyExists()) return false;
+  try {
+    return timingSafeEqual(
+      Buffer.from(tag, 'hex'),
+      Buffer.from(ledgerRecoveryObservationTag(cwd, content), 'hex'),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hasRecoveryObservationIdentity(content: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return false;
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return false;
+  const identity = parsed as Record<string, unknown>;
+  return (
+    identity.kind === 'ledger-recovery-observation:v1' &&
+    identity.ticket === LEDGER_RECOVERY_PROFILE.ticket &&
+    identity.profile === ledgerRecoveryProfileIdentity()
+  );
 }
 
 interface LedgerFingerprintContext {
@@ -1788,6 +1839,52 @@ function hasCurrentFingerprint(cwd: string, record: ReviewJobRecord): boolean {
   } catch {
     return false;
   }
+}
+
+/** Authenticated provenance only; completion separately requires observation and coverage. */
+export function approvedLedgerRecoveryReview(
+  cwd: string,
+  id: string,
+):
+  | {
+      readonly targets: readonly string[];
+      readonly context: readonly string[];
+      readonly certification: LedgerRecoveryCertification;
+    }
+  | undefined {
+  try {
+    const record = readJob(cwd, id);
+    const data = record.result?.data as Record<string, unknown> | undefined;
+    const output = data?.reviewer_output as Record<string, unknown> | undefined;
+    if (data === undefined || output === undefined) return undefined;
+    const certification = output.recovery_certification;
+    if (!validRecoveryCertification(certification, true)) return undefined;
+    const targets = effectiveReviewTargets(cwd, record);
+    if (targets === undefined) return undefined;
+    const approved = [
+      record.kind === 'ledger-recovery',
+      record.state === 'completed',
+      hasCurrentFingerprint(cwd, record),
+      hasIndependentApproval(data),
+      ['claude', 'codex', 'cursor'].includes(data.author_agent as string),
+      ['claude', 'codex'].includes(data.actual_reviewer as string),
+      output.verdict === 'approve',
+    ].every(Boolean);
+    return approved ? { targets, context: record.context ?? [], certification } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Authenticated review identity for the CKWE2D migration gate. */
+export function approvedLedgerRecoveryReviews(cwd: string) {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory).flatMap(name => {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name)) return [];
+    const receipt = approvedLedgerRecoveryReview(cwd, name.slice(0, -5));
+    return receipt === undefined ? [] : [receipt];
+  });
 }
 
 /** Authenticated review identity for the CKWE2D migration gate. */

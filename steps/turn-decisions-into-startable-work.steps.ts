@@ -3,18 +3,22 @@
  *
  * The implementation already has real installed-CLI, hook, and semantic-review
  * integration tests. This adapter binds each saved feature scenario to the
- * narrow existing proof that owns it instead of duplicating those fixtures in
- * Cucumber. Scenario outlines share one proof run across their example rows.
+ * existing proof that owns it instead of duplicating those fixtures in
+ * Cucumber. Reviewer-semantic scenarios share one opt-in live conformance run;
+ * corpus-shape checks cannot establish their semantic verdicts.
  */
 
 import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 import { promisify } from 'node:util';
 
 import { Before, defineStep } from '@cucumber/cucumber';
+
+import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../packages/cli/src/review/execution-plan-conformance.js';
+import { reviewTimeoutMilliseconds } from '../packages/cli/src/review/runtime.js';
 
 import type { SafewordWorld } from './world.js';
 
@@ -25,7 +29,8 @@ const FEATURE_PATH = nodePath.join(
   PROJECT_ROOT,
   'features/turn-decisions-into-startable-work.feature',
 );
-const TIMEOUT_MS = 180_000;
+const TIMEOUT_MS =
+  EXECUTION_PLAN_CONFORMANCE_CASES.length * (reviewTimeoutMilliseconds() + 60_000) + 180_000;
 
 interface Proof {
   readonly expectedTests: number;
@@ -35,18 +40,20 @@ interface Proof {
 
 const proofs: Record<string, Proof> = {
   'Implementation Plan review state controls Execution Planning': {
-    expectedTests: 13,
-    selector: 'Implementation Plan review admission controls Execution Planning',
+    expectedTests: 15,
+    selector:
+      'Implementation Plan review admission controls Execution Planning|advances non-interactively and records not-required when the gate is disabled',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'Review routes preserve their actual provenance': {
-    expectedTests: 13,
-    selector: 'Implementation Plan review admission controls Execution Planning',
+    expectedTests: 15,
+    selector:
+      'Implementation Plan review admission controls Execution Planning|advances non-interactively and records not-required when the gate is disabled',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'An unearned fallback receipt cannot authorize planning': {
     expectedTests: 1,
-    selector: 'rejects assurance text that disagrees with the authenticated review',
+    selector: 'rejects an approving receipt with no achieved independence',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'A self-authored independence claim cannot authorize planning': {
@@ -116,9 +123,9 @@ const proofs: Record<string, Proof> = {
     testFile: 'tests/integration/coding-authorization.test.ts',
   },
   'Execution Plan verdict and recorded assurance control coding authorization': {
-    expectedTests: 6,
+    expectedTests: 8,
     selector:
-      'authorizes coding from current project-local reviewed plans|rejects a semantic receipt|reports a semantic receipt|authorizes a permitted fallback|rejects a receipt with no validated|ignores an author-written',
+      'authorizes coding from current project-local reviewed plans|rejects a semantic receipt|reports a semantic receipt|authorizes a permitted fallback|rejects a receipt with no validated|ignores an author-written|limits an approved result to coding authorization|preserves authenticated cross-agent assurance in coding authorization',
     testFile: 'tests/integration/coding-authorization.test.ts',
   },
   'Every accepted obligation must map to startable work': {
@@ -169,8 +176,8 @@ const proofs: Record<string, Proof> = {
   },
   'Partial structural evidence cannot authorize completion': {
     expectedTests: 1,
-    selector: 'rejects a contributor obligation whose required proof is not a real-boundary proof',
-    testFile: 'tests/execution-plan/delivery-checklist.test.ts',
+    selector: 'keeps structural proof incomplete through the installed CLI',
+    testFile: 'tests/integration/coding-authorization.test.ts',
   },
   'The Execution Plan maps delivery obligations into owned review units': {
     expectedTests: 1,
@@ -233,27 +240,39 @@ const proofs: Record<string, Proof> = {
 };
 
 const proofCache = new Map<string, Promise<{ exitCode: number; output: string }>>();
-let buildPromise: Promise<void> | undefined;
-
-function buildCli(): Promise<void> {
-  buildPromise ??= execFileAsync('bun', ['run', 'build'], {
-    cwd: CLI_PACKAGE,
-    env: { ...process.env, NODE_OPTIONS: undefined },
-  }).then(() => undefined);
-  return buildPromise;
-}
-
-async function runProof(scenarioName: string): Promise<{ exitCode: number; output: string }> {
-  const proof = proofs[scenarioName];
+async function runProof(
+  scenarioName: string,
+  liveSemantic = false,
+): Promise<{ exitCode: number; output: string }> {
+  let proof = proofs[scenarioName];
   assert.ok(proof, `missing acceptance proof for ${scenarioName}`);
-  await buildCli();
+  const semantic = liveSemantic;
+  if (semantic) {
+    assert.equal(
+      process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE,
+      '1',
+      'Semantic acceptance requires SAFEWORD_RUN_EXECUTION_PLAN_LIVE=1; corpus shape is supporting evidence only.',
+    );
+    proof = {
+      expectedTests: EXECUTION_PLAN_CONFORMANCE_CASES.length + 1,
+      selector: 'live Execution Plan semantic conformance',
+      testFile: 'tests/smoke/execution-plan.live.test.ts',
+    };
+  }
   const temporaryDirectory = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'safeword-7camad-'));
   const reportPath = nodePath.join(temporaryDirectory, 'report.json');
+  const retainedDirectory = nodePath.join(PROJECT_ROOT, '.safeword/logs');
+  if (semantic) mkdirSync(retainedDirectory, { recursive: true });
+  const semanticResultsPath = nodePath.join(
+    retainedDirectory,
+    `4200-execution-plan-${nodePath.basename(temporaryDirectory)}.json`,
+  );
   try {
     const result = await execFileAsync(
-      nodePath.join(CLI_PACKAGE, 'node_modules/.bin/vitest'),
+      process.execPath,
       [
-        'run',
+        'scripts/run-vitest-with-build-lock.mjs',
+        ...(semantic ? ['--config', 'vitest.live.config.ts'] : []),
         proof.testFile,
         '-t',
         proof.selector,
@@ -262,11 +281,29 @@ async function runProof(scenarioName: string): Promise<{ exitCode: number; outpu
       ],
       {
         cwd: CLI_PACKAGE,
-        env: { ...process.env, NODE_OPTIONS: undefined, TMPDIR: temporaryDirectory },
+        env: {
+          ...process.env,
+          NODE_OPTIONS: undefined,
+          ...(semantic && {
+            SAFEWORD_EXECUTION_PLAN_LIVE_CLI: '1',
+            SAFEWORD_RUN_EXECUTION_PLAN_CLI_LIVE: '0',
+            SAFEWORD_EXECUTION_PLAN_CLI_LIVE_CASES: undefined,
+            SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER:
+              process.env.SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER ?? 'codex',
+            SAFEWORD_EXECUTION_PLAN_LIVE_MODEL:
+              process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL ?? 'gpt-6.1-sol',
+            SAFEWORD_EXECUTION_PLAN_RESULTS_PATH: semanticResultsPath,
+          }),
+        },
         maxBuffer: 10 * 1024 * 1024,
       },
     );
-    const report = JSON.parse(readFileSync(reportPath, 'utf8')) as { numPassedTests?: number };
+    const report = JSON.parse(readFileSync(reportPath, 'utf8')) as {
+      numPassedTests?: number;
+      numPendingTests?: number;
+    };
+    if (semantic)
+      assert.equal(report.numPendingTests, 0, 'Live semantic proof must not be skipped.');
     assert.equal(
       report.numPassedTests,
       proof.expectedTests,
@@ -275,9 +312,26 @@ async function runProof(scenarioName: string): Promise<{ exitCode: number; outpu
     return { exitCode: 0, output: `${result.stdout}${result.stderr}` };
   } catch (error: unknown) {
     const failure = error as { code?: number; message?: string; stderr?: string; stdout?: string };
+    let retainedReport: string | undefined;
+    if (existsSync(reportPath)) {
+      mkdirSync(retainedDirectory, { recursive: true });
+      retainedReport = nodePath.join(
+        retainedDirectory,
+        `4200-proof-failure-${nodePath.basename(temporaryDirectory)}.vitest.json`,
+      );
+      writeFileSync(retainedReport, readFileSync(reportPath), { mode: 0o600, flag: 'wx' });
+    }
     return {
       exitCode: failure.code ?? 1,
-      output: failure.stderr || failure.stdout || failure.message || 'acceptance proof failed',
+      output:
+        [
+          failure.stdout,
+          failure.stderr,
+          failure.message,
+          retainedReport && `Retained failed proof report: ${retainedReport}`,
+        ]
+          .filter(Boolean)
+          .join('\n') || 'acceptance proof failed',
     };
   } finally {
     rmSync(temporaryDirectory, { force: true, recursive: true });
@@ -295,10 +349,25 @@ Before(
     tags: '@plan-implementability.TBU2.7CAMAD.R1 or @plan-implementability.TBU2.7CAMAD.R2 or @plan-implementability.TBU2.7CAMAD.R3 or @plan-implementability.TBU2.7CAMAD.R4 or @plan-implementability.TBU2.7CAMAD.R5 or @plan-implementability.TBU2.7CAMAD.R6 or @plan-implementability.TBU2.7CAMAD.R7 or @plan-implementability.TBU2.7CAMAD.R8 or @plan-implementability.TBU2.7CAMAD.R9 or @plan-implementability.TBU2.7CAMAD.R10 or @plan-implementability.TBU2.7CAMAD.R11 or @plan-implementability.TBU2.7CAMAD.R12 or @plan-implementability.TBU2.7CAMAD.R13 or @plan-implementability.TBU2.7CAMAD.R14 or @plan-implementability.TBU2.7CAMAD.R15 or @plan-implementability.TBU2.7CAMAD.R16 or @plan-implementability.TBU2.7CAMAD.R17',
     timeout: TIMEOUT_MS,
   },
-  async function (this: SafewordWorld, scenario: { pickle: { name: string } }) {
+  async function (
+    this: SafewordWorld,
+    scenario: { pickle: { name: string; tags: { name: string }[] } },
+  ) {
     const scenarioName = scenario.pickle.name;
-    proofCache.set(scenarioName, proofCache.get(scenarioName) ?? runProof(scenarioName));
-    const result = await proofCache.get(scenarioName)!;
+    const proof = proofs[scenarioName];
+    assert.ok(proof, `missing acceptance proof for ${scenarioName}`);
+    const corpusProof = proof.testFile === 'tests/review/execution-plan-conformance.test.ts';
+    const live = corpusProof || scenario.pickle.tags.some(tag => tag.name === '@live');
+    if (live) {
+      const key = 'live-execution-plan-conformance';
+      proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName, true));
+      const result = await proofCache.get(key)!;
+      this.result = { stderr: result.output, stdout: '', exitCode: result.exitCode };
+      if (result.exitCode !== 0) return;
+    }
+    const key = `${proof.testFile}:${proof.selector}`;
+    proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName));
+    const result = await proofCache.get(key)!;
     this.result = { stderr: result.output, stdout: '', exitCode: result.exitCode };
   },
 );
@@ -350,7 +419,8 @@ function expandedStepTexts(source: string): Set<string> {
 const existingSharedSteps = new Set(['the workflow enters Execution Planning']);
 for (const stepText of expandedStepTexts(feature)) {
   if (existingSharedSteps.has(stepText)) continue;
-  defineStep(stepText, function (this: SafewordWorld) {
+  const literalStep = new RegExp(`^${stepText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'u');
+  defineStep(literalStep, function (this: SafewordWorld) {
     assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   });
 }

@@ -1,5 +1,10 @@
 import { createHash } from 'node:crypto';
 
+import {
+  createExecutionPlanDeliveryDefinition,
+  normalizedExecutionPlanDigest,
+  parseDeliveryPlanContract,
+} from '../../src/execution-plan/delivery-checklist.js';
 import type { ReviewAgent, ReviewKind, ReviewPacket } from '../../src/review/contract.js';
 import { reviewerPromptInstructions } from '../../src/review/review-rubric.js';
 
@@ -29,10 +34,49 @@ export interface PlanningEvalManifest {
   readonly judge_rubric_digest: string;
   readonly settings: {
     readonly effort: 'low';
-    readonly max_turns: 3;
     readonly tools_disabled: true;
     readonly session_persistence: false;
   };
+}
+
+function planningReviewFiles(evaluationCase: PlanningContractCase) {
+  const planPath = {
+    'product-plan': 'spec.md',
+    'plan-implementation': 'impl-plan.md',
+    'plan-execution': 'execution-plan.md',
+  }[evaluationCase.planning_phase ?? 'plan-implementation'];
+  const contract =
+    evaluationCase.kind === 'plan-execution'
+      ? parseDeliveryPlanContract(evaluationCase.reviewed_plan)
+      : undefined;
+  return {
+    ...(contract?.ok && {
+      execution_plan_delivery_definition: createExecutionPlanDeliveryDefinition(contract, false),
+      execution_plan_normalized_digest: normalizedExecutionPlanDigest(evaluationCase.reviewed_plan),
+    }),
+    logical_files: [
+      {
+        path: planPath,
+        content: evaluationCase.reviewed_plan,
+      },
+    ],
+    context_files: [
+      {
+        path: 'accepted-boundary.md',
+        content: evaluationCase.reviewer_boundary ?? evaluationCase.accepted_boundary,
+      },
+      { path: 'context.md', content: evaluationCase.context },
+    ],
+  };
+}
+
+export function planningReviewerPrompt(evaluationCase: PlanningContractCase): string {
+  return [
+    reviewerPromptInstructions(evaluationCase.kind, 'claude', evaluationCase.planning_phase),
+    'Evaluate the following synthetic planning packet. Apply the canonical rubric above to its facts.',
+    'For this eval, project your judgment into the supplied neutral JSON schema: verdict, summary, findings, scope_expanded, and evidence_claims. Set scope_expanded true only if your review requires behavior outside accepted scope; an out-of-scope addition in the reviewed plan that you reject is not reviewer scope expansion. A suggestion is not an accepted scope change.',
+    JSON.stringify(planningReviewFiles(evaluationCase)),
+  ].join('\n\n');
 }
 
 export const PLANNING_JUDGE_RUBRIC = [
@@ -54,6 +98,7 @@ export function planningJudgePrompt(
     PLANNING_JUDGE_RUBRIC,
     JSON.stringify({
       case_id: evaluationCase.id,
+      ...planningReviewFiles(evaluationCase),
       phase_review_contract: reviewerPromptInstructions(
         evaluationCase.kind,
         reviewer,

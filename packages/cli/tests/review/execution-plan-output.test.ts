@@ -369,6 +369,14 @@ describe('Execution Plan output validation', () => {
       ),
     ],
     [
+      'textual none is not a slice prerequisite',
+      approval(
+        mutateRecord(record => {
+          recordEntry(record, 'slices', 0).prerequisites = ['none'];
+        }),
+      ),
+    ],
+    [
       'forward prerequisite',
       approval(
         mutateRecord(record => {

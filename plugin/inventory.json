@@ -50,6 +50,10 @@
       "sha256": "35b82657cbea2fa0195391f2033ad9ec0635567a32f1330badfc13077ebc961a"
     },
     {
+      "path": "resources/guides/ledger-recovery-contract.md",
+      "sha256": "58c39dfec88c65dcaa584eb0537048614245d2cf1911e4aa0106dd99e2cc6462"
+    },
+    {
       "path": "resources/guides/llm-evals-guide.md",
       "sha256": "deab002e6cb9ddb9adea1040f16b56fdcf8b8ec3a9520acb5d91e7523162719c"
     },
@@ -63,7 +67,7 @@
     },
     {
       "path": "resources/guides/planning-guide.md",
-      "sha256": "cc22996fc32f45f565be3cee69f12be9b233743a3ecb54b4a4cd5071821670ed"
+      "sha256": "c2123444dbad01dba709c5c8c5c28032e21318eee8dc147e27e907798c569b19"
     },
     {
       "path": "resources/guides/release-recovery-guide.md",
@@ -95,7 +99,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "1a0cc0336cfe85947c86589dcc149e0bcb1387b6ace23f7f6b9f79b2a36ac34d"
+      "sha256": "07eeabc1929e6b7821a34a379a53607d76ea758aafe243cf1aacdde1784506d5"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,11 +159,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "a01067b512378ec8458acbcd32f4b6badb14659620d6d465f87f61752a694360"
+      "sha256": "3562e24a958b165ec0c464248cb89fd7a0d14e2b8f82bf65c56d7301c6cc4ffb"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "623a7b68750038b287d515aff23c31d4acf0f1416929656bfb05f0fe5c26c2fd"
+      "sha256": "655ca9e061bfec096148b4a0d186f24071f37d2847d1edc064aacbd68475f887"
     },
     {
       "path": "runtime/event-groups.json",
@@ -239,7 +243,7 @@
     },
     {
       "path": "runtime/hooks/lib/done-gate.ts",
-      "sha256": "7ae0babe0c1435a4f64eb36f600b614ed4776520b30a0cd352a7e09f1362702e"
+      "sha256": "891ce48f125b1d87305ec8ee5719db8aea2ed84bf8953657fb734d453926c3e4"
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
@@ -284,6 +288,10 @@
     {
       "path": "runtime/hooks/lib/ledger-git.ts",
       "sha256": "c09cedbf74875a3f4aaf08bda560313716edbb14ab2e1b1889f1f9bf1d9bd976"
+    },
+    {
+      "path": "runtime/hooks/lib/ledger-recovery-gate.ts",
+      "sha256": "89ea6bb6ee95257e18a65f19a4bf4d551cbd451bb2af0803b17f66639bec11ce"
     },
     {
       "path": "runtime/hooks/lib/ledger-validation.ts",
@@ -403,7 +411,7 @@
     },
     {
       "path": "runtime/hooks/lib/retrospective-gate.ts",
-      "sha256": "c408a3a94a240be25802df86704edd3789518837d3367ffd052edb5e56074ad6"
+      "sha256": "858433a39539bd32ea43c6e9033f37d29260b0b9ba81f221553a96a0b20cd36c"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
@@ -615,7 +623,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "0b816db83b44260b8e5c3989f991fe2c1d1257350809757d26ca9b1f0a299671"
+      "sha256": "7d5622097cfe9ac513763c0dc0a86bf8dce4d81e842d5063e11a6ec60dcc11d8"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -655,7 +663,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "02d3dd686280264aed7b11d0485a928d363ebcfec1e311fc118f0a44ea9ff4db"
+      "sha256": "f71e97f85099df955d1f9c98f4355cab30d18730965cf3e715db997818250faf"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -711,7 +719,7 @@
     },
     {
       "path": "skills/finish-review/REVIEWER.md",
-      "sha256": "9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7"
+      "sha256": "5f218ef4e8a2b4310e83ed1ee87be3498f99db5e1f490fa321da1275c723595b"
     },
     {
       "path": "skills/finish-review/SKILL.md",
@@ -727,7 +735,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "7109fb8eb3a4558d94bd24cce500bed41d7107dda0f9e78a76702de6a75afbdb"
+      "sha256": "981d50ec5ac7e516e789114a4143eb572be764d8d2cd05539a2235d0370b6c80"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -743,7 +751,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "b6a776f0ab4a7e83f4c362a76816bcee1dde67670457429a375f8c669b844aad"
+      "sha256": "4b1786a5ac1c005f35f4ef9358ea6f37c383d7411b05a70715128254ae1e3549"
     },
     {
       "path": "skills/self-review/SKILL.md",
@@ -1046,6 +1054,10 @@
       "sha256": "f7cebad40f6b1f4f61cec68535a4424bfecb795366384b37138570b716aa5965"
     },
     {
+      "path": "templates/guides/ledger-recovery-contract.md",
+      "sha256": "58c39dfec88c65dcaa584eb0537048614245d2cf1911e4aa0106dd99e2cc6462"
+    },
+    {
       "path": "templates/guides/llm-evals-guide.md",
       "sha256": "09e16b6d0cd92bb843573ad6955ff16b0a0c8f7affcc4e26cbbd934ad39704f1"
     },
@@ -1059,7 +1071,7 @@
     },
     {
       "path": "templates/guides/planning-guide.md",
-      "sha256": "dbc991902b81107c1fca888475dc0ba770175e946a094e74e33bb1b1d0942152"
+      "sha256": "45eb5ac575724ee340537aee9d9cc7c2481f4829664bee031d9631f572eab7a8"
     },
     {
       "path": "templates/guides/release-recovery-guide.md",
@@ -1107,11 +1119,11 @@
     },
     {
       "path": "templates/hooks/codex/pre-tool-quality.ts",
-      "sha256": "a493c91ee667ed38dc04522fc48e859834c84ba520acbb413bfd9ca50ec0187e"
+      "sha256": "80dc34e44086fd3f3f23921950b56c330e797ce027a6325bc9b56b14fca4a6e9"
     },
     {
       "path": "templates/hooks/codex/stop.ts",
-      "sha256": "864acac6b4b7b8881b8cd6fe2c386f6e765fedf5ed84996201f89e0a93868087"
+      "sha256": "63f65dbe8f5bc73d673714267398c1a4da3029e70081a0ce6b43fdf96dc90a3d"
     },
     {
       "path": "templates/hooks/cursor/after-file-edit.ts",
@@ -1135,7 +1147,7 @@
     },
     {
       "path": "templates/hooks/cursor/pre-tool-quality.ts",
-      "sha256": "705d01fe0aa6ae4989b0eecae905f6f7ebdb761894b2b2793f1b513d2a77df83"
+      "sha256": "b1e5c08f91421a3802b16c826b10bc60aa07ce85a7176731050c6a8692c52e53"
     },
     {
       "path": "templates/hooks/cursor/stop.ts",
@@ -1211,7 +1223,7 @@
     },
     {
       "path": "templates/hooks/lib/done-gate.ts",
-      "sha256": "7ae0babe0c1435a4f64eb36f600b614ed4776520b30a0cd352a7e09f1362702e"
+      "sha256": "891ce48f125b1d87305ec8ee5719db8aea2ed84bf8953657fb734d453926c3e4"
     },
     {
       "path": "templates/hooks/lib/drain-retro-spool.ts",
@@ -1256,6 +1268,10 @@
     {
       "path": "templates/hooks/lib/ledger-git.ts",
       "sha256": "c09cedbf74875a3f4aaf08bda560313716edbb14ab2e1b1889f1f9bf1d9bd976"
+    },
+    {
+      "path": "templates/hooks/lib/ledger-recovery-gate.ts",
+      "sha256": "89ea6bb6ee95257e18a65f19a4bf4d551cbd451bb2af0803b17f66639bec11ce"
     },
     {
       "path": "templates/hooks/lib/ledger-validation.ts",
@@ -1371,7 +1387,7 @@
     },
     {
       "path": "templates/hooks/lib/retrospective-gate.ts",
-      "sha256": "c408a3a94a240be25802df86704edd3789518837d3367ffd052edb5e56074ad6"
+      "sha256": "858433a39539bd32ea43c6e9033f37d29260b0b9ba81f221553a96a0b20cd36c"
     },
     {
       "path": "templates/hooks/lib/review-ledger.ts",
@@ -1583,7 +1599,7 @@
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "5acf47f094547cea75cf9ab58b9ab6e49b4c5fef4d4c96c8ebce1e747da49d39"
+      "sha256": "03272b1ed5ce34ce353c7a5b9fac6cbb62060da8c64efb253e603dff99e5a13d"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",
@@ -1619,7 +1635,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "571e9754fe2359626a3ec1ec4a081efcf1e0a66d46eba853a2305f514b86a35f"
+      "sha256": "5dae1e973d253518209009015044ba4774d4a591dfa7eb1476754cea9e106753"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",
@@ -1655,7 +1671,7 @@
     },
     {
       "path": "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "8dcf90cf71ecd2f77c14bf4a0bb87d28adb99883efe91c3b35246e0a37e387ef"
+      "sha256": "fe4b8fa787d19b8c1ad96b4d5a12844d6c0d4df035a7c2b81c69af9859d5be1d"
     },
     {
       "path": "templates/skills/bdd/SCENARIOS.md",
@@ -1711,7 +1727,7 @@
     },
     {
       "path": "templates/skills/finish-review/REVIEWER.md",
-      "sha256": "9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7"
+      "sha256": "5f218ef4e8a2b4310e83ed1ee87be3498f99db5e1f490fa321da1275c723595b"
     },
     {
       "path": "templates/skills/finish-review/SKILL.md",
@@ -1727,7 +1743,7 @@
     },
     {
       "path": "templates/skills/quality-review/SKILL.md",
-      "sha256": "ef63c3ca21b2c383c46d143fec48d229b4e17675015a77e858638dbefbdcfbac"
+      "sha256": "636fc59293ed055c0e7bba2432e524c68d66a47090daa81d3050ee9198d92a6a"
     },
     {
       "path": "templates/skills/refactor/SKILL.md",
@@ -1743,7 +1759,7 @@
     },
     {
       "path": "templates/skills/review-spec/SKILL.md",
-      "sha256": "2d39641656e0d91d8c6788fba4fdf1981b77ef53852715c58b5df75fcc56762d"
+      "sha256": "f70f7afb1e5ea1707c8f268d76d29c686f41ead8ead6deaaf5f1e9adf030941c"
     },
     {
       "path": "templates/skills/self-review/SKILL.md",

@@ -1,3 +1,4 @@
+import type { LedgerRecoveryCertification } from './ledger-recovery-certification.js';
 import type { ReviewDispositionContext } from './planning-accepted-boundary.js';
 import type { PlanningRoleContext } from './planning-role-context.js';
 export type ReviewAgent = 'claude' | 'codex' | 'opencode';
@@ -11,7 +12,8 @@ export type ReviewKind =
   | 'delivery-compatibility'
   | 'executable-red'
   | 'retrospective-eligibility'
-  | 'retrospective-proof';
+  | 'retrospective-proof'
+  | 'ledger-recovery';
 export type ReviewPolicy = 'prefer' | 'require' | 'off';
 export type RedEvidenceClass =
   'pure-contract' | 'simulated-host' | 'local-live-host' | 'external-live-host';
@@ -165,6 +167,7 @@ export interface ExecutionPlanRecord {
 }
 
 export interface ReviewerOutput {
+  readonly recovery_certification?: LedgerRecoveryCertification;
   readonly schema_version: 1;
   readonly dispatch_id: string;
   readonly reviewer_agent: SupportedReviewAuthor;
@@ -177,6 +180,7 @@ export interface ReviewerOutput {
 }
 
 export interface UnverifiedReviewerOutput {
+  readonly recovery_certification?: unknown;
   readonly schema_version: 1;
   readonly dispatch_id?: unknown;
   readonly reviewer_agent?: unknown;
@@ -237,6 +241,7 @@ const REVIEW_KINDS = new Set<ReviewKind>([
   'executable-red',
   'retrospective-eligibility',
   'retrospective-proof',
+  'ledger-recovery',
 ]);
 
 export function isReviewKind(value: unknown): value is ReviewKind {

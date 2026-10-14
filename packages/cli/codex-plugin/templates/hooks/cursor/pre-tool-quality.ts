@@ -81,7 +81,12 @@ if (nodePath.basename(filePath) === 'ticket.md') {
         ticketType = parseTicketType(readFileSync(onDiskTicket, 'utf8'));
     }
 
-    const verdict = evaluateDoneEvidence({ projectDir: process.cwd(), ticketDir, ticketType });
+    const verdict = evaluateDoneEvidence({
+      projectDir: process.cwd(),
+      ticketDir,
+      ticketType,
+      host: 'cursor',
+    });
     if (!verdict.ok) {
       emitDecisionAndExit(toCursorDecision(verdict.reason));
     }

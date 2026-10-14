@@ -7,6 +7,7 @@
  * behind dynamic imports.
  */
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -19,6 +20,7 @@ import type {
   ReviewFailure,
   ReviewKind,
 } from '../review/contract.js';
+import { LEDGER_RECOVERY_PROFILE } from '../review/ledger-recovery-profile.js';
 import type {
   PlanningContextError,
   PlanningContractCopyError,
@@ -44,7 +46,7 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
         {
           code: 'REVIEW_KIND_INVALID',
           message:
-            'Review kind must be quality-review, scenario-gate, plan-implementation, plan-execution, delivery-compatibility, executable-red, retrospective-eligibility, or retrospective-proof.',
+            'Review kind must be quality-review, scenario-gate, plan-implementation, plan-execution, delivery-compatibility, executable-red, retrospective-eligibility, retrospective-proof, or ledger-recovery.',
           retryable: false,
         },
       ],
@@ -137,6 +139,70 @@ export async function executableRedGateHandler(invocation: CommandInvocation): P
     );
   const { executableRedGate } = await import('../review/job.js');
   return executableRedGate(invocation.cwd, scenario, ledger);
+}
+
+export async function ledgerRecoveryGateHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { ticket } = invocation.options;
+  if (typeof ticket !== 'string' || ticket.trim() === '')
+    return invalidOperand('review gate ledger-recovery', 'Ticket is required.');
+  const matchingScope = ticket === LEDGER_RECOVERY_PROFILE.ticket;
+  const ledger = nodePath.join(invocation.cwd, LEDGER_RECOVERY_PROFILE.ledger);
+  const feature = nodePath.join(invocation.cwd, LEDGER_RECOVERY_PROFILE.feature);
+  const scopeChanged =
+    matchingScope &&
+    existsSync(feature) &&
+    createHash('sha256').update(readFileSync(feature)).digest('hex') !==
+      LEDGER_RECOVERY_PROFILE.featureSha256;
+  const historyChanged =
+    matchingScope &&
+    existsSync(ledger) &&
+    createHash('sha256').update(readFileSync(ledger)).digest('hex') !==
+      LEDGER_RECOVERY_PROFILE.ledgerSha256;
+  let code = 'LEDGER_RECOVERY_SCOPE_MISMATCH';
+  let message = 'Completion recovery is limited to the approved 5F5ZZA scope.';
+  if (matchingScope) {
+    code = 'LEDGER_RECOVERY_EVIDENCE_MISSING';
+    message = 'Authenticated current completion evidence is required.';
+  }
+  if (scopeChanged) {
+    code = 'LEDGER_RECOVERY_SCOPE_CHANGED';
+    message = 'Completion recovery requires the exact accepted feature bytes and inherited scope.';
+  }
+  if (historyChanged) {
+    code = 'LEDGER_RECOVERY_HISTORY_CHANGED';
+    message = 'Completion recovery requires the exact reviewed historical ledger.';
+  }
+  return recoveryGateResult(invocation.cwd, code, message);
+}
+
+async function recoveryGateResult(cwd: string, code: string, message: string): Promise<CliResult> {
+  if (code === 'LEDGER_RECOVERY_EVIDENCE_MISSING') {
+    const { ledgerRecoveryCompletion, RECOVERY_MANIFEST_PATH } =
+      await import('../review/ledger-recovery-completion.js');
+    if (existsSync(nodePath.join(cwd, RECOVERY_MANIFEST_PATH)))
+      return ledgerRecoveryCompletion(cwd);
+  }
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code,
+        severity: 'warning',
+        message,
+      },
+    ],
+    data: { command: 'review gate ledger-recovery', status: 'blocked' },
+  });
+}
+
+export async function ledgerRecoveryObserveHandler(
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const { ticket } = invocation.options;
+  if (typeof ticket !== 'string' || ticket.trim() === '')
+    return invalidOperand('review observe ledger-recovery', 'Ticket is required.');
+  const { observeLedgerRecovery } = await import('../review/ledger-recovery-observer.js');
+  return observeLedgerRecovery(invocation.cwd, ticket);
 }
 
 export async function retrospectiveGateHandler(invocation: CommandInvocation): Promise<CliResult> {

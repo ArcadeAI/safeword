@@ -175,6 +175,27 @@ describe('Execution Plan semantic conformance admission', () => {
     );
   });
 
+  it('recognizes the observed missing completion condition while rejecting unrelated findings', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'missing-completion-signal',
+    );
+    const terms = testCase?.expectation.finding_terms;
+    expect(terms).toBeDefined();
+    expect(testCase?.expectation.verdict).toBe('request_changes');
+    expect(
+      matchesExecutionPlanFindingTerms(
+        'The final completion condition does not require every applicable proof to pass after the last production edit.',
+        terms ?? [],
+      ),
+    ).toBe(true);
+    expect(matchesExecutionPlanFindingTerms('The slice is missing its purpose.', terms ?? [])).toBe(
+      false,
+    );
+    expect(
+      matchesExecutionPlanFindingTerms('The final proof command is missing.', terms ?? []),
+    ).toBe(false);
+  });
+
   it('keeps two independent purposes as a named denial case', () => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
       candidate => candidate.id === 'two-independent-purposes',
@@ -193,8 +214,10 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'request_changes',
-      finding_terms: ['authorization'],
+      finding_terms: ['authorization', ['architecture', 'component', 'transport', 'service']],
     });
+    expect(testCase?.execution_plan).toContain('the appropriate component boundary');
+    expect(testCase?.implementation_plan).toContain('One shared authorization service');
   });
 
   it.each([
@@ -266,7 +289,7 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'request_changes',
-      finding_terms: ['behavior', 'decision'],
+      finding_terms: ['behavior', 'decision', ['step 4', 'task 4', 'fourth', '4. TODO']],
     });
     expect(testCase?.execution_plan).toContain(
       '1. RED: run `bun run test tests/auth.test.ts -t denied-request`',
@@ -413,7 +436,7 @@ describe('Execution Plan semantic conformance admission', () => {
     [
       'pending-human-authority-is-not-complete',
       'request_changes',
-      ['human', 'pending', ['complete', 'completion', 'claimed']],
+      [['human', 'security owner'], 'pending', ['complete', 'completion', 'claimed']],
       [
         'Contributor work: complete.',
         'Human authority: pending security approval.',
@@ -430,6 +453,26 @@ describe('Execution Plan semantic conformance admission', () => {
       for (const text of requiredPlanText) expect(testCase?.execution_plan).toContain(text);
     },
   );
+
+  it('recognizes the observed pending security-owner denial without requiring the word human', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'pending-human-authority-is-not-complete',
+    );
+    const terms = testCase?.expectation.finding_terms;
+    expect(terms).toBeDefined();
+    const explanation =
+      'Claimed delivery state: complete contradicts the explicitly pending security approval. Delivery remains incomplete until the existing security owner approves.';
+    expect(matchesExecutionPlanFindingTerms(explanation, terms ?? [])).toBe(true);
+    expect(
+      matchesExecutionPlanFindingTerms(
+        'Completion is pending because implementation is unfinished.',
+        terms ?? [],
+      ),
+    ).toBe(false);
+    expect(matchesExecutionPlanFindingTerms('The security owner is pending.', terms ?? [])).toBe(
+      false,
+    );
+  });
 
   it('keeps every authoritative scenario example as its own case', () => {
     expect(EXECUTION_PLAN_CONFORMANCE_CASES.map(testCase => testCase.id)).toEqual(

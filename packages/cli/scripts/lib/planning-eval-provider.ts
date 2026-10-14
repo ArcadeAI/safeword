@@ -28,8 +28,6 @@ export function callClaude(
         model,
         '--effort',
         'low',
-        '--max-turns',
-        '3',
         '--tools',
         '',
         '--setting-sources',

@@ -21,6 +21,7 @@ import { createResult } from '../../src/cli-protocol/result.js';
 import { DELIVERY_CHECKLIST_CATEGORIES } from '../../src/execution-plan/delivery-checklist.js';
 import type { RedExecutionRequest } from '../../src/review/contract.js';
 import {
+  approvedLedgerRecoveryReview,
   approvedRetrospectiveReview,
   cancelReviewJob,
   completeReviewJob,
@@ -31,6 +32,9 @@ import {
   startReviewJob,
   submitReviewContinuation,
 } from '../../src/review/job.js';
+import cases from '../../src/review/ledger-recovery-cases.json' with { type: 'json' };
+import { RECOVERY_CONFIRMATIONS } from '../../src/review/ledger-recovery-certification.js';
+import { ledgerRecoveryProfileIdentity } from '../../src/review/ledger-recovery-profile.js';
 import { readReviewReceipt } from '../../templates/hooks/lib/read-receipt.js';
 import { receiptGateVerdict } from '../../templates/hooks/lib/review-receipt.js';
 import { runCli } from '../helpers.js';
@@ -38,51 +42,12 @@ import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
+  SIGNED_REVIEW_COMPLETION_WORKER as COMPLETE_WORKER,
 } from '../review-fixtures.js';
 
 const PACKAGE_ROOT = nodePath.resolve(import.meta.dirname, '../..');
 const PRE_TOOL_QUALITY = nodePath.join(PACKAGE_ROOT, 'templates/hooks/pre-tool-quality.ts');
 const SOURCE_CLI = nodePath.join(PACKAGE_ROOT, 'src/cli.ts');
-
-const COMPLETE_WORKER = String.raw`
-import { createHmac, randomBytes } from 'node:crypto';
-import { mkdirSync, openSync, closeSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-const id = process.env.SAFEWORD_REVIEW_JOB_ID;
-const path = join(process.cwd(), '.safeword', 'state', 'reviews', id + '.json');
-const record = JSON.parse(readFileSync(path, 'utf8'));
-record.state = 'completed';
-record.updated_at = new Date().toISOString();
-record.result = {
-  schemaVersion: 1, ok: true, state: 'healthy', changed: false,
-  findings: [{ code: 'REVIEWER_SUMMARY', message: 'Independent review complete.', severity: 'info' }],
-  effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
-  errors: [], recovery: [], nextActions: [],
-  data: {
-    command: 'review run', status: 'approved', author_agent: 'claude',
-    actual_reviewer: 'codex', independence: 'cross-agent',
-    reviewer_output: {
-      schema_version: 1, dispatch_id: 'fixture-dispatch', reviewer_agent: 'codex',
-      verdict: 'approve', summary: 'Independent review complete.', findings: []
-    }
-  }
-};
-const canonicalProject = realpathSync.native(process.cwd());
-const keyPath = join(process.env.SAFEWORD_REVIEW_KEY_ROOT, 'safeword', 'review-integrity.key');
-mkdirSync(dirname(keyPath), { recursive: true, mode: 0o700 });
-let key;
-try { key = Buffer.from(readFileSync(keyPath, 'utf8').trim(), 'hex'); }
-catch {
-  key = randomBytes(32);
-  try { const descriptor = openSync(keyPath, 'wx', 0o600); writeFileSync(descriptor, key.toString('hex') + '\n'); closeSync(descriptor); }
-  catch { key = Buffer.from(readFileSync(keyPath, 'utf8').trim(), 'hex'); }
-}
-delete record.integrity;
-record.integrity = createHmac('sha256', key)
-  .update(canonicalProject).update('\0').update(JSON.stringify(record)).digest('hex');
-writeFileSync(path + '.worker.tmp', JSON.stringify(record) + '\n', { mode: 0o600 });
-renameSync(path + '.worker.tmp', path);
-`;
 
 const REQUEST_CHANGES_WORKER = COMPLETE_WORKER.replace(
   "const record = JSON.parse(readFileSync(path, 'utf8'));",
@@ -262,6 +227,38 @@ afterEach(() => {
 });
 
 describe('durable review jobs', () => {
+  it('keeps simulated completion behind the parent job lock', () => {
+    const cwd = project();
+    const id = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+    const directory = nodePath.join(cwd, '.safeword/state/reviews');
+    mkdirSync(directory, { recursive: true });
+    const path = nodePath.join(directory, `${id}.json`);
+    writeFileSync(path, JSON.stringify({ id, state: 'running' }));
+    const lock = `${path}.lock`;
+    writeFileSync(lock, String(process.pid), { flag: 'wx', mode: 0o600 });
+    const entrypoint = worker(cwd, COMPLETE_WORKER);
+    const run = () =>
+      spawnSync(process.execPath, [entrypoint], {
+        cwd,
+        env: { ...process.env, SAFEWORD_REVIEW_JOB_ID: id },
+        encoding: 'utf8',
+        timeout: 2000,
+      });
+    try {
+      const blocked = run();
+      expect(blocked.error).toMatchObject({ code: 'ETIMEDOUT' });
+      expect(JSON.parse(readFileSync(path, 'utf8')).state).toBe('running');
+    } finally {
+      unlinkSync(lock);
+    }
+    const completed = run();
+    expect(completed.status, completed.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({
+      state: 'completed',
+      result: { state: 'healthy', data: { status: 'approved' } },
+    });
+  });
+
   it('retains a packet-bound host continuation in the authenticated job result', async () => {
     const cwd = project();
     writePlanningInventories(cwd);
@@ -763,6 +760,79 @@ describe('durable review jobs', () => {
       review_kind: 'quality-review',
       review_targets: ['input.md'],
     });
+  });
+
+  it('reads only authenticated independent current recovery certification', async () => {
+    const cwd = project();
+    writeFileSync(nodePath.join(cwd, 'support.md'), 'Actual proof context.\n');
+    const certification = {
+      profile: ledgerRecoveryProfileIdentity(),
+      cases: cases
+        .filter(item => !item.deferred)
+        .slice(0, 1)
+        .map(item => item.digest),
+      confirmations: Object.fromEntries(RECOVERY_CONFIRMATIONS.map(name => [name, true])),
+    };
+    const completingWorker = COMPLETE_WORKER.replace(
+      'const canonicalProject',
+      () =>
+        `record.result.data.reviewer_output.recovery_certification = ${JSON.stringify(certification)};\nconst canonicalProject`,
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, completingWorker));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const result = await startReviewJob({
+      cwd,
+      kind: 'ledger-recovery',
+      targets: ['input.md'],
+      context: ['support.md'],
+    });
+    const id = (result.data as { review_id: string }).review_id;
+    const expected = { targets: ['input.md'], context: ['support.md'], certification };
+    expect(
+      approvedLedgerRecoveryReview(cwd, id),
+      'Only current cross-agent recovery receipts grant certification',
+    ).toEqual(expected);
+    const path = nodePath.join(cwd, '.safeword/state/reviews', `${id}.json`);
+    const original = JSON.parse(readFileSync(path, 'utf8'));
+    const changes = [
+      (record: typeof original) => {
+        record.kind = 'quality-review';
+      },
+      (record: typeof original) => {
+        record.result.data.author_agent = 'codex';
+      },
+      (record: typeof original) => {
+        record.result.data.independence = 'same-agent';
+      },
+      (record: typeof original) => {
+        record.result.data.author_agent = 'opencode';
+      },
+      (record: typeof original) => {
+        record.result.data.reviewer_output.verdict = 'request_changes';
+      },
+      (record: typeof original) => {
+        record.result.data.reviewer_output.recovery_certification.profile = '0'.repeat(64);
+      },
+      (record: typeof original) => {
+        record.result.data.reviewer_output.recovery_certification.confirmations.source_fidelity = false;
+      },
+    ];
+    for (const change of changes) {
+      const record = structuredClone(original);
+      change(record);
+      record.integrity = signRecord(cwd, record);
+      writeFileSync(path, JSON.stringify(record));
+      expect(approvedLedgerRecoveryReview(cwd, id)).toBeUndefined();
+    }
+    writeFileSync(path, JSON.stringify(original));
+    expect(approvedLedgerRecoveryReview(cwd, id)).toEqual(expected);
+    writeFileSync(nodePath.join(cwd, 'support.md'), 'Changed proof context.\n');
+    expect(approvedLedgerRecoveryReview(cwd, id)).toBeUndefined();
+    writeFileSync(nodePath.join(cwd, 'support.md'), 'Actual proof context.\n');
+    const unsigned = structuredClone(original);
+    Reflect.deleteProperty(unsigned, 'integrity');
+    writeFileSync(path, JSON.stringify(unsigned));
+    expect(approvedLedgerRecoveryReview(cwd, id)).toBeUndefined();
   });
 
   it('does not credit an excluded generated target as independently reviewed', async () => {
@@ -2045,7 +2115,8 @@ describe('durable review jobs', () => {
     });
     const id = (completed.data as { review_id: string }).review_id;
 
-    expect(reviewJobStatus(cwd, id)).toMatchObject({
+    const collected = reviewJobStatus(cwd, id);
+    expect(collected, JSON.stringify(collected)).toMatchObject({
       state: 'healthy',
       data: { status: 'approved' },
     });

@@ -4,7 +4,7 @@ import nodePath from 'node:path';
 import process from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import {
   createExecutionPlanDeliveryDefinition,
@@ -27,8 +27,10 @@ import {
   createTemporaryDirectory,
   removeTemporaryDirectory,
   runCli,
+  runCliWithLiteralArguments,
 } from '../helpers.js';
 
+const PUBLIC_CLI = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CLI === '1';
 const CAN_RUN = process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE === '1';
 const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds();
 const LIVE_TEST_TIMEOUT_MS = REVIEW_TIMEOUT_MS + 60_000;
@@ -101,6 +103,142 @@ function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent
   };
 }
 
+function liveReviewerEnvironment(
+  assigned: ReviewAgent,
+  author: string,
+): Record<string, string | undefined> {
+  const claudeProfile =
+    process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CLAUDE_CONFIG_DIR ??
+    process.env.SAFEWORD_LIVE_CLAUDE_CONFIG_DIR;
+  const codexProfile =
+    process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CODEX_HOME ?? process.env.SAFEWORD_LIVE_CODEX_HOME;
+  return {
+    SAFEWORD_AGENT_RUNTIME: author,
+    SAFEWORD_AUTHOR_MODEL: undefined,
+    ...(assigned === 'claude' && {
+      CLAUDE_CONFIG_DIR: claudeProfile === 'default' ? undefined : claudeProfile || undefined,
+    }),
+    ...(assigned === 'codex' && { CODEX_HOME: codexProfile || undefined }),
+  };
+}
+
+async function reviewThroughCli(
+  testCase: ExecutionPlanConformanceCase,
+  root: string,
+  assigned: ReviewAgent,
+): Promise<ReviewerOutput> {
+  const relative = '.project/tickets/CASE01-conformance';
+  const ticket = nodePath.join(root, relative);
+  mkdirSync(ticket, { recursive: true });
+  mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+  const author = assigned === 'claude' ? 'codex' : 'claude';
+  writeFileSync(
+    nodePath.join(root, '.safeword/config.json'),
+    JSON.stringify({
+      crossAgentReviewRoutes: { [author]: [{ reviewer: assigned, ...(model && { model }) }] },
+    }),
+  );
+  writeFileSync(nodePath.join(ticket, 'execution-plan.md'), testCase.execution_plan);
+  writeFileSync(
+    nodePath.join(ticket, 'impl-plan.md'),
+    `**Status:** planned\n\n${testCase.implementation_plan}`,
+  );
+  writeFileSync(nodePath.join(ticket, 'scenario.feature'), testCase.accepted_scenario);
+  writeFileSync(
+    nodePath.join(ticket, 'ticket.md'),
+    '---\nid: CASE01\nslug: conformance\ntype: feature\nphase: plan-execution\nscope:\n  - Deliver the accepted obligations in the Implementation Plan.\nout_of_scope:\n  - Change the accepted approach.\ndone_when:\n  - Every accepted obligation has startable reviewed work.\n---\n',
+  );
+  const options = {
+    cwd: root,
+    timeout: LIVE_TEST_TIMEOUT_MS,
+    env: liveReviewerEnvironment(assigned, author),
+  };
+  let invoked = await runCliWithLiteralArguments(
+    [
+      'review',
+      'run',
+      'plan-execution',
+      `${relative}/execution-plan.md`,
+      '--context',
+      `${relative}/impl-plan.md`,
+      '--context',
+      `${relative}/scenario.feature`,
+      '--context',
+      `${relative}/ticket.md`,
+      '--cwd',
+      root,
+      '--json',
+      '--no-input',
+    ],
+    options,
+  );
+  let envelope = JSON.parse(invoked.stdout);
+  if (envelope.findings?.some((finding: { code: string }) => finding.code === 'REVIEW_PENDING')) {
+    await vi.waitFor(
+      async () => {
+        invoked = await runCliWithLiteralArguments(
+          ['review', 'status', envelope.data.review_id, '--cwd', root, '--json'],
+          options,
+        );
+        envelope = JSON.parse(invoked.stdout);
+        expect(
+          Boolean(
+            envelope.findings?.some(
+              (finding: { code: string }) => finding.code === 'REVIEW_PENDING',
+            ),
+          ),
+        ).toBe(false);
+      },
+      { timeout: REVIEW_TIMEOUT_MS, interval: 1000 },
+    );
+  }
+  expect(envelope.data?.actual_reviewer, invoked.stdout).toBe(assigned);
+  assertConfirmedModel(envelope.data, assigned, invoked.stdout);
+  // The synthetic author has no attested model; preserve the CLI's reduced assurance.
+  expect(envelope.data?.independence, invoked.stdout).toBe('reduced');
+  const output = envelope.data?.reviewer_output as ReviewerOutput | undefined;
+  if (!output) throw new Error(`Public CLI did not return a reviewer output: ${invoked.stdout}`);
+  expect(invoked.exitCode, invoked.stdout).toBe(testCase.expectation.verdict === 'approve' ? 0 : 2);
+  await assertCliDiscovery(testCase, root, ticket, output, options);
+  return output;
+}
+
+function assertConfirmedModel(
+  data: { confirmed_reviewer_model?: unknown },
+  assigned: ReviewAgent,
+  evidence: string,
+): void {
+  if (model !== undefined) {
+    expect(data.confirmed_reviewer_model, evidence).toEqual({
+      provider: assigned === 'codex' ? 'openai' : 'anthropic',
+      model,
+    });
+  }
+}
+
+async function assertCliDiscovery(
+  testCase: ExecutionPlanConformanceCase,
+  root: string,
+  ticket: string,
+  output: ReviewerOutput,
+  options: Parameters<typeof runCliWithLiteralArguments>[1],
+): Promise<void> {
+  if (!testCase.id.includes('discovery')) return;
+  if (output.verdict === 'request_changes') {
+    const applied = await runCliWithLiteralArguments(
+      ['ticket', 'approve-plan', 'CASE01', '--cwd', root, '--json', '--no-input'],
+      options,
+    );
+    const disposition = JSON.parse(applied.stdout);
+    expect(disposition.data?.planning_destination, applied.stdout).toBe(
+      testCase.expectation.planning_destination,
+    );
+  }
+  expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toContain(
+    `phase: ${testCase.expectation.planning_destination}`,
+  );
+}
+
 function recordOf(output: ReviewerOutput): NonNullable<ReviewerOutput['execution_plan_record']> {
   const record = output.execution_plan_record;
   if (record === undefined || record === null) throw new Error('Approval omitted its typed record');
@@ -121,6 +259,7 @@ function assertApproval(testCase: ExecutionPlanConformanceCase, output: Reviewer
         owner =>
           owner.obligation === obligation ||
           owner.obligation === `Deliver ${obligation}.` ||
+          owner.obligation.startsWith(`Deliver and prove ${obligation}: `) ||
           owner.obligation.startsWith(`${obligation}, `) ||
           owner.obligation.startsWith(`${obligation}: `),
       ),
@@ -185,9 +324,16 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
       const packet = packetFor(testCase, reviewer);
       let passed = false;
       try {
-        const output = await liveReviewer(reviewer, directory, packet);
+        const output = PUBLIC_CLI
+          ? await reviewThroughCli(testCase, directory, reviewer)
+          : await liveReviewer(reviewer, directory, packet);
         try {
-          assertCase(testCase, output, reviewer, packet.dispatch_id);
+          assertCase(
+            testCase,
+            output,
+            reviewer,
+            PUBLIC_CLI ? output.dispatch_id : packet.dispatch_id,
+          );
         } catch (error) {
           process.stderr.write(
             `Execution Plan reviewer output:\n${JSON.stringify(output, undefined, 2)}\n`,
@@ -258,7 +404,10 @@ describe.skipIf(!CLI_LIVE)('installed CLI semantic conformance', () => {
           env,
           timeout: 30_000,
           // Empty selects cwd in Claude; remove the override for its default profile.
-          unsetEnv: liveProfile === 'default' ? ['CLAUDE_CONFIG_DIR'] : [],
+          unsetEnv: [
+            'SAFEWORD_AUTHOR_MODEL',
+            ...(liveProfile === 'default' ? ['CLAUDE_CONFIG_DIR'] : []),
+          ],
         });
       try {
         mkdirSync(nodePath.join(directory, '.safeword'));
@@ -308,7 +457,8 @@ describe.skipIf(!CLI_LIVE)('installed CLI semantic conformance', () => {
         expect(result.timedOut).toBe(false);
         expect(response.errors, JSON.stringify(response)).toEqual([]);
         expect(response.data?.actual_reviewer).toBe(reviewer);
-        expect(response.data?.independence).toBe('cross-agent');
+        expect(response.data?.independence).toBe('reduced');
+        assertConfirmedModel(response.data, reviewer, JSON.stringify(response));
         expect(response.data?.status).toBe(
           testCase.expectation.verdict === 'approve' ? 'approved' : 'changes_requested',
         );
@@ -323,7 +473,10 @@ describe.skipIf(!CLI_LIVE)('installed CLI semantic conformance', () => {
               cwd: directory,
               env,
               timeout: 30_000,
-              unsetEnv: liveProfile === 'default' ? ['CLAUDE_CONFIG_DIR'] : [],
+              unsetEnv: [
+                'SAFEWORD_AUTHOR_MODEL',
+                ...(liveProfile === 'default' ? ['CLAUDE_CONFIG_DIR'] : []),
+              ],
             },
           );
           const transition = JSON.parse(applied.stdout);

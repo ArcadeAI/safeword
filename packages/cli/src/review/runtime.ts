@@ -36,6 +36,10 @@ import { reviewerEnvironment, reviewerProbeEnvironment } from './environment.js'
 import { EVIDENCE_RECORD_FIELDS, isEvidenceRecord } from './evidence-record.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 } from './execution-plan-rubric.generated.js';
+import {
+  RECOVERY_CERTIFICATION_SCHEMA,
+  validRecoveryCertification,
+} from './ledger-recovery-certification.js';
 import { PLAN_REVIEW_RUBRIC_SHA256 } from './plan-rubric.generated.js';
 import { PRODUCT_PLAN_REVIEW_RUBRIC_SHA256 } from './product-plan-rubric.generated.js';
 import { reviewerPromptInstructions } from './review-rubric.js';
@@ -223,7 +227,12 @@ const EXECUTION_PLAN_RECORD_SCHEMA = {
               name: { type: 'string' },
               purpose: { type: 'string' },
               boundary: { type: 'string' },
-              prerequisites: { type: 'array', items: { type: 'string' } },
+              prerequisites: {
+                type: 'array',
+                items: { type: 'string' },
+                description:
+                  'Names of earlier slices only. When the plan declares no prerequisites or says none, return an empty array [], not ["none"].',
+              },
               proof: { type: 'string' },
               completion_signal: { type: 'string' },
               relies_on_unmerged_successor: { type: 'boolean' },
@@ -302,6 +311,15 @@ const EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
   ],
 } as const;
 
+const LEDGER_RECOVERY_OUTPUT_SCHEMA_SHAPE = {
+  ...REVIEW_OUTPUT_SCHEMA_SHAPE,
+  properties: {
+    ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+    recovery_certification: RECOVERY_CERTIFICATION_SCHEMA,
+  },
+  required: [...REVIEW_OUTPUT_SCHEMA_SHAPE.required, 'recovery_certification'],
+} as const;
+
 /** Select the provider contract while preserving the non-planning schema. */
 export function reviewOutputSchema(
   kind: ReviewKind,
@@ -312,8 +330,12 @@ export function reviewOutputSchema(
     planningPhase === 'product-plan' || kind === 'scenario-gate' || kind === 'plan-implementation'
       ? PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE
       : REVIEW_OUTPUT_SCHEMA_SHAPE;
-  const schema =
-    kind === 'plan-execution' ? EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE : planningSchema;
+  let schema:
+    | typeof planningSchema
+    | typeof LEDGER_RECOVERY_OUTPUT_SCHEMA_SHAPE
+    | typeof EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = planningSchema;
+  if (kind === 'ledger-recovery') schema = LEDGER_RECOVERY_OUTPUT_SCHEMA_SHAPE;
+  else if (kind === 'plan-execution') schema = EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE;
   return JSON.stringify(
     dispatchId === undefined
       ? schema
@@ -670,7 +692,7 @@ function reviewerOutputKeys(kind: ReviewKind): Set<string> {
   if (kind === 'plan-execution') {
     keys.add('planning_destination');
     keys.add('execution_plan_record');
-  }
+  } else if (kind === 'ledger-recovery') keys.add('recovery_certification');
   return keys;
 }
 
@@ -681,6 +703,8 @@ function hasValidEvidenceRecords(value: unknown): boolean {
 }
 
 function hasKindSpecificOutput(value: Record<string, unknown>, kind: ReviewKind): boolean {
+  if (kind === 'ledger-recovery')
+    return validRecoveryCertification(value.recovery_certification, value.verdict === 'approve');
   return (
     kind !== 'plan-execution' ||
     ((value.planning_destination === 'plan-execution' ||

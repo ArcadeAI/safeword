@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { createHash, createHmac } from 'node:crypto';
 import {
   chmodSync,
@@ -20,6 +21,7 @@ import {
 import { appendDesignDecision } from '../../src/review/approval-ledger.js';
 import {
   assertTestCliFresh,
+  initGitRepo,
   removeTemporaryDirectory,
   runCli,
   TIMEOUT_ACCEPTANCE_LANE,
@@ -75,9 +77,14 @@ function executionPlan(): string {
 function mutateExecutionReview(
   root: string,
   mutate: (data: Record<string, unknown>) => Record<string, unknown>,
+  latest = false,
 ): void {
   const ledger = readFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), 'utf8');
-  const reviewId = /phase@plan-execution[^\n]*review-id:(\S+)/u.exec(ledger)?.[1];
+  let reviewId: string | undefined;
+  for (const stamp of ledger.matchAll(/phase@plan-execution[^\n]*review-id:(\S+)/gu)) {
+    reviewId = stamp[1];
+    if (!latest) break;
+  }
   if (reviewId === undefined) throw new Error('plan-execution review id missing');
   const path = nodePath.join(root, '.safeword', 'state', 'reviews', `${reviewId}.json`);
   const record = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
@@ -233,7 +240,11 @@ async function refreshReviews(
       root,
       'plan-implementation',
       implementationTarget,
-      [featureTarget, `.project/tickets/${ticketFolder}/spec.md`],
+      [
+        featureTarget,
+        `.project/tickets/${ticketFolder}/spec.md`,
+        `.project/tickets/${ticketFolder}/ticket.md`,
+      ],
       { bin },
     );
     stamps.push(
@@ -245,7 +256,12 @@ async function refreshReviews(
     root,
     'plan-execution',
     executionTarget,
-    [implementationTarget, featureTarget],
+    [
+      implementationTarget,
+      featureTarget,
+      `.project/tickets/${ticketFolder}/spec.md`,
+      `.project/tickets/${ticketFolder}/ticket.md`,
+    ],
     {
       bin,
       executionPlanRecord: executionReviewRecord(plan, config.designApprovalGate === true),
@@ -261,6 +277,7 @@ async function refreshReviews(
 async function featureFixture(
   includeExecutionPlan = false,
   designApprovalGate = false,
+  executionContent = executionPlan(),
 ): Promise<string> {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-coding-authorization-'));
   fixtureRoots.push(root);
@@ -293,7 +310,7 @@ async function featureFixture(
   writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Product Plan\n');
   writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
   writeFileSync(nodePath.join(root, featureTarget), 'Feature: Accepted behavior\n');
-  if (includeExecutionPlan) writeFileSync(nodePath.join(root, executionTarget), executionPlan());
+  if (includeExecutionPlan) writeFileSync(nodePath.join(root, executionTarget), executionContent);
   writeFileSync(
     nodePath.join(root, '.claude', 'plans', 'execution.md'),
     '# Host-local execution notes\n',
@@ -319,7 +336,11 @@ async function featureFixture(
     root,
     'plan-implementation',
     implementationTarget,
-    [featureTarget, `.project/tickets/${ticketFolder}/spec.md`],
+    [
+      featureTarget,
+      `.project/tickets/${ticketFolder}/spec.md`,
+      `.project/tickets/${ticketFolder}/ticket.md`,
+    ],
     { bin },
   );
   const reviewStamps = [
@@ -327,12 +348,17 @@ async function featureFixture(
     `2026-09-18T00:00:03.000Z fixture review:${ticketFolder}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${implementationReviewId}`,
   ];
   if (includeExecutionPlan) {
-    const plan = executionPlan();
+    const plan = executionContent;
     const executionReviewId = await admitReview(
       root,
       'plan-execution',
       executionTarget,
-      [implementationTarget, featureTarget],
+      [
+        implementationTarget,
+        featureTarget,
+        `.project/tickets/${ticketFolder}/spec.md`,
+        `.project/tickets/${ticketFolder}/ticket.md`,
+      ],
       { bin, executionPlanRecord: executionReviewRecord(plan, designApprovalGate) },
     );
     reviewStamps.push(
@@ -520,9 +546,26 @@ describe('coding authorization', () => {
     }
   });
 
+  it('preserves authenticated cross-agent assurance in coding authorization', async () => {
+    const root = await featureFixture(true);
+    // Simulate a trusted worker receipt; this is not live model-capability evidence.
+    mutateExecutionReview(root, data => ({ ...data, independence: 'cross-agent' }));
+    rewriteExecutionReviewStamp(root, line =>
+      line.replace('independence:reduced', 'independence:cross-agent'),
+    );
+    const result = await codingAuthorization(root);
+    expect(result.exitCode).toBe(0);
+    expect(result.data).toMatchObject({
+      coding_authorization: 'authorized',
+      achieved_independence: 'cross-agent',
+      grants_authority: false,
+    });
+  });
+
   it(
     'identifies every stable authorization input but ignores checklist progress',
     async () => {
+      const baselinePlan = `${executionPlan()}\n## Dependency order\n1. Create denial fixture.\n2. Create expiry fixture.\n3. Exercise the endpoint.\n`;
       const mutations: {
         name: string;
         authorization: 'authorized' | 'denied';
@@ -621,6 +664,21 @@ describe('coding authorization', () => {
           },
         },
         {
+          name: 'execution sequencing',
+          authorization: 'denied',
+          refreshFrom: 'execution',
+          apply(root) {
+            const path = nodePath.join(root, '.project/tickets/ABC123-feature/execution-plan.md');
+            writeFileSync(
+              path,
+              readFileSync(path, 'utf8').replace(
+                '1. Create denial fixture.\n2. Create expiry fixture.',
+                '1. Create expiry fixture.\n2. Create denial fixture.',
+              ),
+            );
+          },
+        },
+        {
           name: 'validated review provenance',
           authorization: 'authorized',
           apply(root) {
@@ -645,7 +703,14 @@ describe('coding authorization', () => {
       ];
 
       for (const mutation of mutations) {
-        const root = await featureFixture(true);
+        const root = await featureFixture(true, false, baselinePlan);
+        const ledger = readFileSync(nodePath.join(root, '.project/skill-invocations.log'), 'utf8');
+        const implementationId = /phase@plan-implementation[^\n]*review-id:(\S+)/u.exec(
+          ledger,
+        )?.[1];
+        const executionId = /phase@plan-execution[^\n]*review-id:(\S+)/u.exec(ledger)?.[1];
+        expect(implementationId).toEqual(expect.any(String));
+        expect(executionId).toEqual(expect.any(String));
         const before = await codingAuthorization(root);
         expect(before.data.coding_authorization).toBe('authorized');
         const beforeIdentity = authorizationIdentity(before);
@@ -655,6 +720,32 @@ describe('coding authorization', () => {
         if (mutation.refreshFrom === undefined) {
           expect(authorizationIdentity(after), mutation.name).not.toBe(beforeIdentity);
         } else {
+          const options = {
+            cwd: root,
+            env: {
+              NODE_ENV: 'test',
+              SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+            },
+          };
+          const implementation = await runCli(
+            ['review', 'status', implementationId ?? '', '--json', '--cwd', root],
+            options,
+          );
+          const execution = await runCli(
+            ['review', 'status', executionId ?? '', '--json', '--cwd', root],
+            options,
+          );
+          expect(execution.exitCode, mutation.name).toBe(2);
+          expect(execution.stdout, mutation.name).toContain('reviewed source changed');
+          if (mutation.refreshFrom === 'execution') {
+            expect(implementation.exitCode, mutation.name).toBe(0);
+          } else {
+            expect(implementation.exitCode, mutation.name).toBe(2);
+            expect(implementation.stdout, mutation.name).toContain('reviewed source changed');
+            await refreshReviews(root, 'execution');
+            const incomplete = await codingAuthorization(root);
+            expect(incomplete.data.coding_authorization, mutation.name).toBe('denied');
+          }
           await refreshReviews(root, mutation.refreshFrom);
           const repaired = await codingAuthorization(root);
           expect(repaired.data.coding_authorization, mutation.name).toBe('authorized');
@@ -882,6 +973,118 @@ describe('coding authorization', () => {
       'missing_execution_plan_verdict',
     ]);
   });
+
+  it('keeps structural proof incomplete through the installed CLI', async () => {
+    const root = await featureFixture(true);
+    const planPath = nodePath.join(root, '.project/tickets/ABC123-feature/execution-plan.md');
+    const supporting = `| supporting-proof | command | unit | structural checklist shape | partial_or_structural | current_required | ${JSON.stringify({ type: 'command', cwd: '.', argv: [process.execPath, '--version'] })} |`;
+    writeFileSync(
+      planPath,
+      readFileSync(planPath, 'utf8').replace(
+        '\n\n## Delivery checklist',
+        () => `\n${supporting}\n\n## Delivery checklist`,
+      ),
+    );
+    await refreshReviews(root, 'execution');
+    initGitRepo(root);
+    writeFileSync(nodePath.join(root, '.gitignore'), '.review-keys/\n.safeword/state/\n');
+    execFileSync('git', ['add', '.'], { cwd: root });
+    execFileSync('git', ['-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'fixture'], {
+      cwd: root,
+    });
+    const options = {
+      cwd: root,
+      env: { NODE_ENV: 'test', SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys') },
+    };
+    const recorded = await runCli(
+      [
+        'ticket',
+        'record-delivery-proof',
+        'ABC123',
+        'item-4',
+        'supporting-proof',
+        '--json',
+        '--cwd',
+        root,
+      ],
+      options,
+    );
+    expect(recorded.exitCode, recorded.stdout).toBe(0);
+    expect(JSON.parse(recorded.stdout)).toMatchObject({
+      data: { evidence_class: 'partial_or_structural' },
+    });
+    const observed = await runCli(
+      ['ticket', 'delivery-checklist', 'ABC123', '--json', '--cwd', root],
+      options,
+    );
+    expect(observed.exitCode, observed.stdout).toBe(2);
+    expect(JSON.parse(observed.stdout).findings).toEqual([
+      expect.objectContaining({ message: expect.stringContaining('public authorization') }),
+    ]);
+    const result = JSON.parse(observed.stdout) as {
+      data: {
+        readiness_state: string;
+        contributor_evidence: {
+          item_id: string;
+          status: string;
+          evidence_class: string;
+          limitations: string[];
+        }[];
+      };
+    };
+    expect(result.data.readiness_state).toBe('contributor_work_incomplete');
+    expect(result.data.contributor_evidence.find(item => item.item_id === 'item-4')).toMatchObject({
+      status: 'open',
+      evidence_class: 'partial_or_structural',
+      limitations: ['partial_or_structural'],
+    });
+  });
+
+  it.each(['superseded approval', 'unearned assurance'] as const)(
+    'denies delivery proof and checklist under %s',
+    async reason => {
+      const root = await featureFixture(true);
+      if (reason === 'superseded approval') {
+        await refreshReviews(root, 'execution');
+        mutateExecutionReview(
+          root,
+          data => ({
+            ...data,
+            status: 'changes_requested',
+            reviewer_output: {
+              ...(data.reviewer_output as Record<string, unknown>),
+              verdict: 'request_changes',
+              // eslint-disable-next-line unicorn/no-null -- The rejection protocol requires null.
+              execution_plan_record: null,
+              findings: [{ severity: 'error', message: 'Execution plan is not startable.' }],
+            },
+          }),
+          true,
+        );
+      } else {
+        rewriteExecutionReviewStamp(root, line =>
+          line.replace('independence:reduced', 'independence:degraded'),
+        );
+      }
+      const authorization = await codingAuthorization(root);
+      expect(authorization.exitCode).toBe(2);
+      for (const args of [
+        ['ticket', 'delivery-checklist', 'ABC123'],
+        ['ticket', 'record-delivery-proof', 'ABC123', 'item-1', 'proof'],
+      ]) {
+        const invoked = await runCli([...args, '--json', '--cwd', root], {
+          cwd: root,
+          env: {
+            NODE_ENV: 'test',
+            SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+          },
+        });
+        expect(invoked.exitCode, invoked.stdout).toBe(2);
+        const result = JSON.parse(invoked.stdout) as { findings: { code: string }[] };
+        expect(result.findings.map(finding => finding.code)).toContain('review_required');
+      }
+    },
+  );
 
   it('reports a semantic receipt that rejected the Execution Plan', async () => {
     const root = await featureFixture(true);

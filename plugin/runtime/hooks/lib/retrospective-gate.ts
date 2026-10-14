@@ -10,7 +10,7 @@ export interface RetrospectiveGateClaim {
   readonly proofId: string;
 }
 
-function trustedCommand(projectRoot: string): readonly [string, ...string[]] | undefined {
+export function trustedCommand(projectRoot: string): readonly [string, ...string[]] | undefined {
   const explicit = process.env.SAFEWORD_PLUGIN_CLI?.trim();
   const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT?.trim();
   const candidate = explicit || (pluginRoot ? nodePath.join(pluginRoot, 'runtime', 'cli.js') : '');
@@ -52,7 +52,7 @@ const RUNTIME_ENVIRONMENT = new Set(
   ].map(name => name.toUpperCase()),
 );
 
-function runtimeEnvironment(): NodeJS.ProcessEnv {
+export function runtimeEnvironment(): NodeJS.ProcessEnv {
   return Object.fromEntries(
     Object.entries(process.env).filter(([name]) => RUNTIME_ENVIRONMENT.has(name.toUpperCase())),
   );
