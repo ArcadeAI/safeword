@@ -49,6 +49,15 @@ function run(cwd: string, toolName: string, toolInput: ToolInput, sessionId = 's
     encoding: 'utf8',
     timeout: 20_000,
   });
+  expect(
+    result.status,
+    JSON.stringify({
+      error: result.error?.message,
+      signal: result.signal,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    }),
+  ).toBe(0);
   const out = (result.stdout ?? '').trim();
   const context = out ? JSON.parse(out).hookSpecificOutput?.additionalContext : undefined;
   return { status: result.status, out, context };
