@@ -1,5 +1,32 @@
 # Prepare the first verified merge group for #4200
 
+## 2026-10-15 headless clarification decision
+
+- [x] Frame: distinguish prompt-free CLI completion from permission to advance.
+- [x] Options: shared parent clarification or child-only exception.
+- [x] Domains/questions: CLI interaction (must automation wait?), authorization
+  (does pending grant permission?), inherited contracts (which clauses conflict?).
+- [x] Research: [CLI Guidelines](https://clig.dev/#interactivity) require TTY-only
+  prompts and no interaction with no-input; [OWASP Authorization](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html#deny-by-default)
+  requires explicit permission. Retrieved 2026-10-15; general guidance, no API version assumption.
+  Repository evidence: G1C9PP R19's configuration outline and plan-approval.ts
+  already hold Implementation Planning when required approval is pending.
+- [x] Debate: a child-only exception saves initial lines but leaves inherited
+  requirements contradictory. The shared definition fixes admission and reentry
+  with prose alone. Choose it; no code, new policy, dependencies or test matrix.
+
+The user authorized this clarification on 2026-10-15. TBU1.R16 defines
+nonblocking invocation once; the non-goal, TBU2.R1/R17, TBU5.R4 and replan demo
+follow that gate. Gate-disabled advancement, current human-decision reuse,
+exact-plan-digest authority and historical RED remain unchanged.
+
+**Premortem:** readers may confuse prompt-free completion with permission again;
+the definition explicitly holds Implementation Planning and forbids advancement
+or resumed implementation while required approval is pending.
+
+**Next:** independently review the corrected parent and replanning scenarios,
+verify the existing approval paths, and push the prose-only correction.
+
 This delivery task belongs to epic 82T411, GitHub #4200. It prepares PRs #4906, #4989, #4990 and #4991 for an explicit human landing decision. No Ready promotion, merge, release, new deferrals or epic-completion claim is authorized.
 
 ## Plan and completion criteria

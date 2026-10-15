@@ -1,5 +1,12 @@
 # Resume #4200: establish the smallest safe first landing group
 
+Latest clarification (2026-10-15): the user authorized aligning the parent's
+headless wording with the existing CLI gate. Pending returns promptly but holds
+Implementation Planning; no authorization mechanism changed. Parent and
+replanning reviews approve. Read test-quality-results.md and review-responses.md
+for current verification, retained warnings and the intermittent local replay
+failure; PR #5881's exact-head readiness block owns the final CI disposition.
+
 ## Start here
 
 Branch: `codex/4200-first-merge-group`. This is a work-in-progress integration and investigation branch, not a merge-ready PR. No promotion, merge, release or deployment is authorized. Task X47AWV belongs to epic 82T411 / GitHub #4200; see investigation.md and landing-proposal.md in this directory. The task scaffold remains intake because Safeword rejected canonical ticket edits; do not fake phase or activation evidence.

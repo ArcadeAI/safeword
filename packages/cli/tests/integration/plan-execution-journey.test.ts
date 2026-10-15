@@ -361,7 +361,7 @@ describe('Execution Plan cold-start journey', () => {
       writeFileSync(nodePath.join(root, 'src', 'auth.ts'), 'export const policy = "pending";\n');
       writeFileSync(
         nodePath.join(root, 'tests', 'denied-request.cjs'),
-        'process.stderr.write("denied request is not implemented\\n"); process.exit(1);\n',
+        'const fs = require("node:fs"); if (!fs.readFileSync("src/auth.ts", "utf8").includes("denied")) { process.stderr.write("denied request is not implemented\\n"); process.exit(1); }\n',
       );
       writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), '');
       writeFileSync(
@@ -606,6 +606,42 @@ describe('Execution Plan cold-start journey', () => {
         () => checkedRed,
       );
       writeFileSync(ledgerPath, observedLedger);
+      const redReview = await runCli(
+        [
+          '--json',
+          '--no-input',
+          'review',
+          'run',
+          'executable-red',
+          'tests/denied-request.cjs',
+          '--scenario',
+          'Scenario: denied request',
+          '--ledger',
+          '.project/tickets/START1-feature/test-definitions.md',
+          '--proof-cwd',
+          '.',
+          '--evidence-class',
+          'pure-contract',
+          '--expected-failure',
+          'denied request is not implemented',
+          '--execution-timeout',
+          '5000',
+          '--execute',
+          JSON.stringify([process.execPath, ...RED_COMMAND.slice(1)]),
+          '--cwd',
+          root,
+        ],
+        {
+          cwd: root,
+          env: {
+            PATH: `${reviewerBin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'codex',
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+            SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
+          },
+        },
+      );
+      expect(redReview.exitCode, `${redReview.stdout}\n${redReview.stderr}`).toBe(0);
       const productionEditAfterRed = runPreTool(
         root,
         {
@@ -620,6 +656,59 @@ describe('Execution Plan cold-start journey', () => {
         receiptPluginRoot,
       );
       expectHookAllow(productionEditAfterRed);
+      writeFileSync(nodePath.join(root, 'src', 'auth.ts'), 'export const policy = "denied";\n');
+      expect(
+        spawnSync(
+          'git',
+          [
+            '-c',
+            'commit.gpgsign=false',
+            '-c',
+            'user.name=Safeword Test',
+            '-c',
+            'user.email=test@safeword.local',
+            'commit',
+            '-am',
+            'Implement denial',
+          ],
+          { cwd: root },
+        ).status,
+      ).toBe(0);
+      const greenRevision = spawnSync('git', ['rev-parse', '--short', 'HEAD'], {
+        cwd: root,
+        encoding: 'utf8',
+      }).stdout.trim();
+      expect(greenRevision).not.toBe(fixtureRevision);
+      const checkedSteps = {
+        GREEN: `- [x] GREEN ${greenRevision}`,
+        REFACTOR: '- [x] REFACTOR skip: no structural change needed; same named proof passes',
+      };
+      for (const [step, checked] of Object.entries(checkedSteps)) {
+        const proof = spawnSync(RED_COMMAND[0], RED_COMMAND.slice(1), {
+          cwd: root,
+          encoding: 'utf8',
+        });
+        expect(proof.status, proof.stderr).toBe(0);
+        const unchecked = `- [ ] ${step}`;
+        const edit = runPreTool(
+          root,
+          {
+            tool_name: 'Edit',
+            tool_input: { file_path: ledgerPath, old_string: unchecked, new_string: checked },
+          },
+          reviewKeyRoot,
+          receiptPluginRoot,
+        );
+        expect(edit.stdout).not.toMatch(/"permissionDecision"\s*:\s*"deny"/u);
+        expectHookAllow(edit);
+        writeFileSync(
+          ledgerPath,
+          readFileSync(ledgerPath, 'utf8').replace(unchecked, () => checked),
+        );
+      }
+      expect(readFileSync(ledgerPath, 'utf8')).toContain(
+        [checkedRed, ...Object.values(checkedSteps)].join('\n'),
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

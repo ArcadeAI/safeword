@@ -10,7 +10,7 @@
 
 import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 import { promisify } from 'node:util';
@@ -337,10 +337,14 @@ async function runProof(
     };
     return {
       exitCode: typeof failure.code === 'number' ? failure.code : 1,
-      output:
-        `${failure.stdout ?? ''}${failure.stderr ?? ''}` ||
-        failure.message ||
-        'acceptance proof failed',
+      output: [
+        failure.message ?? 'acceptance proof failed',
+        failure.stdout,
+        failure.stderr,
+        ...(existsSync(reportPath) ? [readFileSync(reportPath, 'utf8')] : []),
+      ]
+        .filter(Boolean)
+        .join('\n'),
     };
   } finally {
     rmSync(temporaryDirectory, { force: true, recursive: true });

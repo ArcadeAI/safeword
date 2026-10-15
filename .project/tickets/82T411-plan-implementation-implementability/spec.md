@@ -137,7 +137,7 @@
   decision quality. Do not add Implementation Plan, Execution Plan, or
   independent planning-review artifacts to tasks or patches; require a failing
   test for non-behavioral edits; or use file count as the sole work-type rule.
-  Do not require an interactive human to unblock a cloud or headless session,
+  Do not prompt for interactive human input or wait indefinitely in a cloud or headless invocation,
   or describe a permitted exhausted-route fallback as independent review.
   Do not use Product Plan approval to claim technical feasibility, completed
   implementation, proof, human release approval, or merge authority.
@@ -185,7 +185,7 @@
 
 #### plan-implementability.TBU1.R15 — On any planning-contract upgrade, a feature not yet in implementation enters the current planning flow; an existing legacy implementation plan becomes the draft Implementation Plan, and material decisions in an existing `design.md` are reconciled into that draft before review while the original remains historical evidence rather than a second plan of record; the draft must satisfy the current decision contract before an Execution Plan is created, while a ticket already in implementation or later under a previously accepted plan continues under that accepted contract version until its first return to planning for any reason; that return converts any legacy plan and `design.md` under this rule, establishes a current-contract Implementation Plan review and any enabled human approval, then permits Execution Planning
 
-#### plan-implementability.TBU1.R16 — The existing optional human design-approval gate applies after the Implementation Plan passes semantic review and before Execution Planning begins; approval belongs to the exact reviewed Implementation Plan, current contract, and accepted upstream context, so a material change while planning requires renewed approval, but an unchanged approval basis (plan, contract, and upstream context) never requires a second approval after the Execution Plan; a ticket already implementing under R15 keeps its accepted approval until it returns to planning; cloud or headless sessions preserve today's nonblocking behavior by recording pending approval and surfacing the reviewed approach in reviewable output
+#### plan-implementability.TBU1.R16 — The existing optional human design-approval gate applies after the Implementation Plan passes semantic review and before Execution Planning begins; approval belongs to the exact reviewed Implementation Plan, current contract, and accepted upstream context, so a material change while planning requires renewed approval, but an unchanged approval basis (plan, contract, and upstream context) never requires a second approval after the Execution Plan; a ticket already implementing under R15 keeps its accepted approval until it returns to planning; cloud or headless invocations return promptly without prompting, recording pending approval and surfacing the reviewed approach in reviewable output when required approval is absent; pending approval keeps the ticket in Implementation Planning and permits neither Execution Planning nor resumed implementation; this invocation behavior is what nonblocking means here
 
 #### plan-implementability.TBU1.R17 — The Implementation Plan review receipt records an explicit pass or fail for focused 30–60 minute decision reviewability and, on failure, names the execution detail, missing summary, or disproportionate depth that obscures a decision
 
@@ -221,7 +221,7 @@
 > concrete Execution Plan, so each step can begin in order without reopening or
 > silently inventing the design.
 
-#### plan-implementability.TBU2.R1 — Execution planning begins only from the current Implementation Plan after it passes the required semantic review under its canonical decision-quality contract, the review receipt records the achieved independence level, and the optional human gate in TBU1.R16 is satisfied when enabled or recorded pending on a nonblocking headless surface
+#### plan-implementability.TBU2.R1 — Execution planning begins only from the current Implementation Plan after it passes the required semantic review under its canonical decision-quality contract, the review receipt records the achieved independence level, and the optional human gate in TBU1.R16 is satisfied when enabled; headless pending behavior follows TBU1.R16
 
 #### plan-implementability.TBU2.R2 — An agent given only the accepted context and plans can start every execution step without inventing a behavior-shaping contract
 
@@ -253,7 +253,7 @@
 
 #### plan-implementability.TBU2.R16 — Execution Planning supplies rather than replaces feature TDD by ordering the concrete test and build work that implementation executes through RED, GREEN, and REFACTOR
 
-#### plan-implementability.TBU2.R17 — When implementation discovers or makes a decision that changes the accepted approach, Safeword preserves still-valid completed work and evidence, returns to Implementation Planning, revises and re-reviews the exact Implementation Plan, renews enabled human approval under TBU1.R16 or records it pending on a nonblocking headless surface, refreshes and re-reviews the dependent Execution Plan, and then resumes implementation from the first invalidated obligation; when the change affects only execution sequencing or mechanics, Safeword returns only to Execution Planning, revises and re-reviews that plan, and resumes without invalidating the accepted design, except that a ticket still under an earlier accepted contract version, including a legacy plan, first converts under TBU1.R15 before Execution Planning
+#### plan-implementability.TBU2.R17 — When implementation discovers or makes a decision that changes the accepted approach, Safeword preserves still-valid completed work and evidence, returns to Implementation Planning, revises and re-reviews the exact Implementation Plan, satisfies the enabled human gate under TBU1.R16 (remaining in Implementation Planning while approval is pending), refreshes and re-reviews the dependent Execution Plan, and then resumes implementation from the first invalidated obligation; when the change affects only execution sequencing or mechanics, Safeword returns only to Execution Planning, revises and re-reviews that plan, and resumes without invalidating the accepted design, except that a ticket still under an earlier accepted contract version, including a legacy plan, first converts under TBU1.R15 before Execution Planning
 
 ### plan-implementability.TBU3 — Keep small work small without hiding decisions
 
@@ -352,7 +352,7 @@
 
 #### plan-implementability.TBU5.R3 — A dispute over whether a finding is optional strengthening applies the baseline nonblocking rule in TBU4.R15; the dispute itself cannot make the finding blocking, and only user acceptance can change the scope boundary
 
-#### plan-implementability.TBU5.R4 — A headless or cloud flow never invents human authority or waits indefinitely for an unavailable person; it records the unresolved disposition, preserves the current nonblocking human-approval behavior, and never reports an unresolved correctness finding as approved
+#### plan-implementability.TBU5.R4 — A headless or cloud flow never invents human authority or waits indefinitely for an unavailable person; it records the unresolved disposition, preserves the nonblocking invocation behavior and approval gate in TBU1.R16, and never reports an unresolved correctness finding as approved
 
 #### plan-implementability.TBU5.R5 — Each disputed finding reaches a typed terminal result—upheld, reclassified, rejected, pending user-owned scope decision, or unresolved after available independent routes—without an arbitrary correctness-pass cap, silent redispatch, or silent scope expansion; this job does not claim to bound every future author-correct-re-review cycle
 
@@ -430,8 +430,9 @@
 - **Implementation replan:** During implementation, the user or agent reaches a
   new decision that changes the accepted approach or planned execution. If it
   changes the approach, Safeword returns to Implementation Planning, updates
-  and re-reviews that plan, renews enabled human approval or records it
-  pending on a nonblocking headless surface, then refreshes and re-reviews the
+  and re-reviews that plan, satisfies the enabled human gate under TBU1.R16
+  (remaining in Implementation Planning while approval is pending), then
+  refreshes and re-reviews the
   dependent Execution Plan. If it changes only execution sequencing or mechanics,
   Safeword returns directly to Execution Planning. In both cases, valid
   completed work and evidence are preserved, and implementation resumes from
