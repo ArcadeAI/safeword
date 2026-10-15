@@ -6,8 +6,11 @@ warranted test/doc improvements are committed. The verifier exited nonzero:
 initial local failures remain unexplained, and unchanged baseline dependency
 advisories remain unresolved. Later full/targeted tests and acceptance pass.
 Final Claude review 5f8d7ea9-1362-4049-9424-99775f1338d8 approves with answered
-warnings. PR #5881's current-head readiness block owns pushed-head CI and the
-remaining dependency-risk disposition. Do not call formal verify green, promote,
+warnings. Main already documents the exact high-advisory exceptions in its CI
+policy; that unchanged repository audit command passes locally. Root Python
+findings are unchanged dev tooling. The earlier new-risk-approval blocker was
+too broad; retain the raw findings without inventing another gate. PR #5881's
+current-head readiness block owns pushed-head CI. Do not call raw verify green, promote,
 merge, or mark the intake scaffold complete. Full logs are in evidence/formal-delivery/.
 
 Latest clarification (2026-10-15): the user authorized aligning the parent's

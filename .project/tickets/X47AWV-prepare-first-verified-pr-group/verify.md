@@ -76,14 +76,27 @@ certificate.
 Root/website manifests and JavaScript/Python locks and requirements are unchanged
 from the merge base. The CLI manifest changes only generator scripts. No new
 dependency or affected call path is introduced here. Broad upgrades or a package
-fork are outside this surgical landing repair; no advisory was suppressed.
+fork are outside this surgical landing repair; no new ignore was added and the
+unfiltered results remain preserved.
 Current high-severity records were fetched this session:
 [HTTP cache](https://github.com/advisories/GHSA-ch52-4w7c-c8xp),
 [braces](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), and the
 [urllib3 proxy record](https://github.com/advisories/GHSA-8988-9cw3-xx77).
-The HTTP-cache record lists no patched version. Do not equate future green CI
-with a clean formal verifier. Checks and merge-confidence readiness remain
-blocked pending dependency-risk disposition; this report does not waive it.
+The HTTP-cache record lists no patched version. Do not equate green CI with a
+clean unfiltered verifier.
+
+Correction after inspecting the passing CI dependency job: main already has an
+explicit disposition in .github/workflows/ci.yml. It blocks high/critical
+advisories, with named exceptions for these exact braces and HTTP-cache records
+until patches ship. The comments explain the trusted project-glob input and
+website-build-only exposure. Running that exact existing command locally exits
+0. Its policy and the affected dependency files are unchanged from origin/main.
+The root Python project is safeword-dev, has no runtime dependencies, and holds
+only development-tool dependencies; its urllib3 findings remain a tooling
+follow-up warning, not an introduced CLI release path. The initial assessment
+that these existing findings required a new human risk decision was too broad.
+Use the existing repository gate for PR readiness while retaining the nonzero
+raw verifier and all advisories; no gate, threshold or exception was changed.
 
 ## Quality review
 
@@ -93,7 +106,7 @@ blocked pending dependency-risk disposition; this report does not waive it.
 **Elegant:** ✅ Two local deduplications; no added authorization mechanism.
 **No-bloat:** ✅ No new production abstraction, dependency, timeout or retry policy.
 **Wiring (code only):** ✅ Existing installed-CLI approval/recovery tests protect the changed matcher; no new entry point.
-**Verdict:** APPROVE bounded changes, with retained warnings and blocked formal verification.
+**Verdict:** APPROVE bounded changes, with retained warnings and the nonzero raw verifier disclosed.
 
 First review: 6e52a574-f401-4dd1-a187-a2b160891b16. Its host-coverage warning
 led to d76e05472: four identical executions became one honestly named Claude
@@ -130,6 +143,6 @@ documents, and TypeScript's
 Readonly is compile-time protection, not runtime freezing. Review and command
 logs, controlled probe and fingerprints are retained under evidence/formal-delivery/.
 
-**Next:** Push the existing Draft PR, collect exact-head CI, then present the
-baseline dependency findings for a concrete human scope/risk decision. Do not
-promote or merge; do not mark the intake task or epic complete.
+**Next:** Collect exact-head CI under the existing repository policy, then present
+the bounded candidate and retained evidence limits for a concrete human landing
+decision. Do not promote or merge; do not mark the intake task or epic complete.

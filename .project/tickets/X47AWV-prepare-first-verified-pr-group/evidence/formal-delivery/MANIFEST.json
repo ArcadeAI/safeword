@@ -185,6 +185,14 @@
       "sha256": "e7e55f4d1496d10e90f46581e6544f22867379e05b84fb9f2c026e3b19dae17b",
       "payload_sha256": "5eecd47a358cae4ada1a98387394cbce0e67e9393fd238a1b8a0f3222c509828",
       "bytes": 9104
+    },
+    {
+      "file": "formal-repository-audit-policy.log.gz",
+      "sha256": "3c2c945983182dc08397df71ed16e7e9dae3032036662e4916aa72a99cdf2746",
+      "payload_sha256": "c3b2a25099614cad289f037087aaa4d6cff46bd1b03247aa5559f2d8bf3f56e7",
+      "bytes": 49
     }
-  ]
+  ],
+  "repository_audit_exit": 0,
+  "repository_audit_policy": "Unchanged .github/workflows/ci.yml at origin/main d5885e58771cd87f8108196ce67986f7725a1974; high threshold plus the existing two named exceptions."
 }
