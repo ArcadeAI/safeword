@@ -1,5 +1,15 @@
 # Resume #4200: establish the smallest safe first landing group
 
+Formal delivery pass (2026-10-15): read verify.md and delivery-checks.md first.
+Verify, diff audit, two protected refactors and independent quality review ran;
+warranted test/doc improvements are committed. The verifier exited nonzero:
+initial local failures remain unexplained, and unchanged baseline dependency
+advisories remain unresolved. Later full/targeted tests and acceptance pass.
+Final Claude review 5f8d7ea9-1362-4049-9424-99775f1338d8 approves with answered
+warnings. PR #5881's current-head readiness block owns pushed-head CI and the
+remaining dependency-risk disposition. Do not call formal verify green, promote,
+merge, or mark the intake scaffold complete. Full logs are in evidence/formal-delivery/.
+
 Latest clarification (2026-10-15): the user authorized aligning the parent's
 headless wording with the existing CLI gate. Pending returns promptly but holds
 Implementation Planning; no authorization mechanism changed. Parent and
