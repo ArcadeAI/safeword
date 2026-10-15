@@ -102,7 +102,7 @@ Feature: Complete contributions with a default delivery checklist
     Scenario Outline: The feature checklist contract cannot impose feature artifacts on smaller work
       Given a contribution is classified as <small_work_type> under the TBU3 small-work contract
       When the feature Delivery Checklist contract is evaluated through the installed CLI
-      Then no feature Implementation Plan or Execution Plan is created
+      Then the CLI reports that the feature prerequisite does not apply, grants no authority, requests no feature plan, and creates no feature Implementation Plan or Execution Plan
 
       Examples:
         | small_work_type |

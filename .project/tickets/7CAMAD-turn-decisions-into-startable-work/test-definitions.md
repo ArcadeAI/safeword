@@ -94,6 +94,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Decision specificity controls semantic approval
 
+Evidence correction (2026-10-15): the three historical RED skip rows below are duplicate references to passing semantic characterization. They do not establish a pre-implementation failing run; retained unchanged for history.
+
 - [x] RED skip: live Claude review evidence recorded at 2026-09-19T13:41:10.000Z
 - [x] RED skip: live — corrected durable reference to the same 2026-09-19T13:41:10.000Z evidence
 - [x] RED skip: live — work log 2026-09-19T13:41:10.000Z
@@ -119,6 +121,10 @@ test-definitions.md is the R/G/R ledger.
 ## Rule: plan-implementability.TBU2.7CAMAD.R9 — Coding requires a reviewed current Execution Plan
 
 ### Scenario: Execution Plan currency controls coding authorization
+
+2026-10-15 history correction: RED 7cead12f6 follows GREEN 153b78709. The retained
+rows establish characterization references, not a demonstrated test-first
+cycle; see X47AWV evidence/test-quality/lineage.json.
 
 - [x] RED 7cead12f6
 - [x] GREEN 153b78709
@@ -196,9 +202,27 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Implementation-time replanning preserves valid progress and refreshes the affected plans
 
+Current acceptance adapter correction (2026-10-15): select the eight routing rows explicitly, excluding the ordinary-task compatibility test. Both human settings cover changed approaches and native unchanged approaches. The retained `unrepaired.exitCode === 2` assertion is unchanged; the original four-PR failure remains in X47AWV evidence/reentry-red.log. The BDD adapter itself was observed RED at seven selected tests versus two expected before this correction.
+
 - [x] RED 9ca6f63c6
 - [x] GREEN 8f2059b23
 - [x] REFACTOR skip: the phase-routing fix reuses existing discovery and plan-approval primitives; no new abstraction is warranted
+
+### Scenario: Repeating approval cannot clear a recorded design repair
+
+- [x] RED skip: rebinds an existing regression whose original failure is retained in X47AWV evidence/reentry-red.log; no new pre-implementation failure is claimed
+- [ ] GREEN
+- [ ] REFACTOR
+
+Proof: the existing repeated-approval assertion is preserved; X47AWV evidence/reentry-red.log records its original failure. Current verification is retained with the landing-group audit rather than manufacturing a new historical TDD cycle.
+
+### Scenario: Fresh review can recover an unchanged approach without inventing human authority
+
+- [x] RED skip: characterization of the existing exact-plan-digest policy; this additional recovery test passed without a production change
+- [ ] GREEN
+- [ ] REFACTOR
+
+Proof: two new real CLI rows characterize recovery under the existing exact-plan-digest human authority policy. No production behavior change or pre-implementation failure is claimed.
 
 ### Scenario: Replanning reopens proof invalidated by the changed decision
 
@@ -221,6 +245,8 @@ test-definitions.md is the R/G/R ledger.
 - [x] REFACTOR skip: the canonical rubric, generated mirror, and semantic corpus already provide the minimal shared structure
 
 ### Scenario: Delivery evidence uses the canonical checklist taxonomy
+
+Evidence correction (2026-10-15): the three historical RED skips below refer to characterization of existing A639WN behavior, not an observed new failure. Automated proof is in packages/cli/tests/integration/delivery-checklist-cli.test.ts; that suite mocks the review-job dependency and establishes handler behavior, not installed review wiring.
 
 - [x] RED skip: existing A639WN CLI behavior already records all four canonical evidence classes; this scenario adds explicit characterization
 - [x] RED skip: manual — existing sibling-contract behavior verified by code inspection and the focused current, earlier, partial, and missing evidence tests

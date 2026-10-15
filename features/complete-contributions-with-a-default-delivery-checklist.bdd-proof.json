@@ -40,8 +40,8 @@
       "keeps contributor-controlled work open when it is labeled pending human"
     ],
     "Applicable contributor work cannot be dismissed as not applicable": [
-      "packages/cli/tests/review/execution-plan-conformance.test.ts",
-      "keeps every authoritative scenario example as its own case"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "keeps an accepted proof obligation open when the plan calls it not applicable"
     ],
     "In-flight checklist state reflects partial execution progress": [
       "packages/cli/tests/integration/delivery-checklist-cli.test.ts",

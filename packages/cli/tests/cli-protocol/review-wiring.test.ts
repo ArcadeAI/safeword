@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   chmodSync,
   existsSync,
@@ -17,7 +18,9 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
+import type { ReviewPacket } from '../../src/review/contract.js';
 import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
+import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
 import { createTrustedReviewerDirectory } from '../review-fixtures.js';
 
@@ -787,6 +790,23 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).toContain('# Execution Plan');
     expect(prompt).toContain('# Implementation Plan');
     expect(prompt).toContain('Feature: behavior');
+    const dispatched = JSON.parse(
+      prompt.slice(prompt.lastIndexOf('\n{"schema_version":1') + 1),
+    ) as ReviewPacket;
+    const canonicalDigest = createHash('sha256').update(EXECUTION_PLAN_REVIEW_RUBRIC).digest('hex');
+    for (const identity of [dispatched.plan_contract?.author, dispatched.plan_contract?.reviewer]) {
+      expect(identity?.sha256).toBe(canonicalDigest);
+      expect(identity?.obligations).toEqual(
+        expect.arrayContaining([
+          'Slicing decision',
+          'Complete slices',
+          'Dependency safety',
+          'Conceptual reviewability',
+          'Obligation and decision preservation',
+        ]),
+      );
+    }
+    expect(prompt).toContain(EXECUTION_PLAN_REVIEW_RUBRIC);
 
     writeFileSync(
       executionPlanPath,

@@ -3,7 +3,8 @@ Feature: Turn accepted decisions into startable work
 
   # @live marks opt-in reviewer-semantic evidence from the real reviewer process.
   # Related semantic cases share one live conformance matrix; corpus-shape tests are supporting
-  # evidence only. CLI scenarios retain their installed-boundary proofs. Failures are not retried.
+  # evidence only. CLI scenarios retain their installed-boundary proofs. Verdict failures are not
+  # retried away; infrastructure retries remain separate observations with the first failure retained.
 
   @plan-implementability.TBU2.7CAMAD.R1
   Rule: plan-implementability.TBU2.7CAMAD.R1 — Execution Planning requires a reviewed current approach
@@ -20,8 +21,9 @@ Feature: Turn accepted decisions into startable work
         | missing a semantic review receipt | the transition is blocked until the current plan has a valid review receipt |
         | changed after its recorded semantic review | the transition is blocked until the changed plan is reviewed again |
         | current with a valid semantic review receipt but no achieved independence level recorded | the transition is blocked until the achieved independence level is recorded |
-        | current with a valid approving semantic review receipt and achieved independence level recorded | the workflow enters Execution Planning |
+        | current with a valid approving semantic review receipt and achieved independence level recorded, with human approval disabled or satisfied for the exact bytes | the workflow enters Execution Planning |
         | current with a semantic review receipt recording rejection | the transition is blocked and the receipt's rejection is reported |
+        | current with an approving review but required human approval absent on a non-interactive surface | the CLI completes without prompting, records human approval pending, and keeps the ticket in Implementation Planning |
 
     @surface.safeword-cli
     Scenario Outline: Review routes preserve their actual provenance
@@ -415,6 +417,31 @@ Feature: Turn accepted decisions into startable work
   @plan-implementability.TBU2.7CAMAD.R17
   Rule: plan-implementability.TBU2.7CAMAD.R17 — A design-changing implementation decision returns through revised and re-reviewed Implementation and Execution Plans, while a sequencing-only decision returns through a revised and re-reviewed Execution Plan; both paths preserve still-valid work and evidence and resume from the first invalidated obligation
 
+    @rejection @surface.safeword-cli
+    Scenario Outline: Repeating approval cannot clear a recorded design repair
+      Given Execution review recorded a required design repair and human design approval is <human_gate>
+      And the unchanged approach still has its earlier semantic review and any required human approval
+      When the installed Safeword CLI repeats plan approval without fresh semantic review
+      Then the CLI refuses advancement and the ticket remains in Implementation Planning with its recorded repair
+
+      Examples:
+        | human_gate |
+        | disabled |
+        | enabled |
+
+    @surface.safeword-cli
+    Scenario Outline: Fresh review can recover an unchanged approach without inventing human authority
+      Given a native feature has a recorded design repair and human design approval is <human_gate>
+      And when that gate is enabled an authorized human has already approved the exact unchanged approach bytes
+      And fresh semantic review has approved the unchanged approach against the recorded discovery
+      When the installed Safeword CLI requests plan approval
+      Then the ticket enters Execution Planning without another human decision and any existing approval remains bound to the unchanged approach
+
+      Examples:
+        | human_gate |
+        | disabled |
+        | enabled |
+
     @demo @surface.safeword-cli
     Scenario Outline: Implementation-time replanning preserves valid progress and refreshes the affected plans
       Given implementation has completed proof that remains valid under <new_decision>
@@ -425,7 +452,7 @@ Feature: Turn accepted decisions into startable work
 
       Examples:
         | new_decision | resume_result |
-        | a change to the accepted authorization approach | the revised Implementation Plan and dependent Execution Plan each receive a fresh exact-content review before work resumes from the first invalidated authorization obligation |
+        | a change to the accepted authorization approach | the revised Implementation Plan and dependent Execution Plan each receive a fresh exact-content review, and any enabled human design approval for the changed approach is renewed before work resumes from the first invalidated authorization obligation |
         | a change only to the order of two independent build tasks | only the revised Execution Plan receives a fresh exact-content review before work resumes from the first reordered task |
 
     @rejection @surface.safeword-cli

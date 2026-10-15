@@ -4,6 +4,15 @@ Feature source: `features/approve-coherent-implementation-plans.feature`
 
 test-definitions.md is the R/G/R ledger.
 
+2026-10-15 history correction: the checked rows remain unchanged, but the
+RED/GREEN references for R1 decision boundary, R2 contract agreement, R3 focused
+reviewability and missing load-bearing decision, R4 divergent private copy, R6
+data guidance and coherent ownership, and R11 simultaneous blockers do not form
+an ancestral RED-before-GREEN sequence. Treat those references as existing
+behavior characterization or later strengthening, not established test-first
+proof. X47AWV evidence/test-quality/lineage.json records each exact pair. Current
+passing regression evidence does not retroactively prove TDD chronology.
+
 Proof boundary: every untagged semantic scenario must derive its verdict from
 the exact packaged Implementation Plan contract bytes through the deterministic
 contract-conformance reviewer boundary. A per-scenario scripted verdict cannot
@@ -326,13 +335,13 @@ record invalidation, provenance changes, and context-digest recomputation.
 - [x] GREEN 426ccbf7e
 - [x] REFACTOR skip: GREEN is the planned extraction into one shared approval-ledger boundary; further durability behavior remains scenario-driven below
 
-### Scenario: A stale fencing generation cannot commit authority
+### Supporting unit regression: A stale fencing generation cannot commit authority
 
 - [x] RED 9fab905a2
 - [x] GREEN cd60ba10e
 - [x] REFACTOR skip: the guarded test-only mutation sits immediately before the existing ownership recheck, making deletion of that load-bearing guard observable without changing the production protocol
 
-### Scenario: The latest serialized decision controls phase and retry identity
+### Supporting unit regression: The latest serialized decision controls phase and retry identity
 
 - [x] RED 5e4197aea
 - [x] GREEN 0189cb294
@@ -356,7 +365,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 - [x] GREEN b03466f66
 - [x] REFACTOR skip: timeout validation is isolated at lock acquisition and the pending path already shares the command's fail-closed result
 
-### Scenario: Embedded decision markers remain authority-inert
+### Supporting unit regression: Embedded decision markers remain authority-inert
 
 - [x] RED 8c8a663b9
 - [x] GREEN 6bcacef21

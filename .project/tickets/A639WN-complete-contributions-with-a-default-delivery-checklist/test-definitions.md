@@ -4,7 +4,7 @@ Feature source: `features/complete-contributions-with-a-default-delivery-checkli
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: plan-implementability.TBU2.A639WN.R1 — The Safeword CLI exposes a deny-only execution prerequisite that requires accepted scenarios, an accepted implementation approach, and one visible default Delivery Checklist
+## Rule: plan-implementability.TBU2.A639WN.R1 — The Safeword CLI exposes a deny-only execution prerequisite that requires, and reports in planning order, accepted scenarios, an accepted implementation approach, and one visible default Delivery Checklist
 
 ### Scenario: The installed CLI exposes a satisfied execution prerequisite
 
@@ -53,6 +53,8 @@ test-definitions.md is the R/G/R ledger.
 - [x] REFACTOR skip: one direct owner-disposition guard is the smallest clear rule
 
 ### Scenario: Applicable contributor work cannot be dismissed as not applicable
+
+Evidence correction (2026-10-15): the historical RED skip rows below describe passing live verification, not an observed pre-implementation failure. No live RED is claimed. The deterministic public CLI counterpart is `keeps an accepted proof obligation open when the plan calls it not applicable` in packages/cli/tests/cli-protocol/review-wiring.test.ts. The lower-level `rejects not applicable without a reason` case in packages/cli/tests/execution-plan/delivery-checklist.test.ts independently refuses a blank reason.
 
 - [x] RED skip: live Claude Opus matrix rejected the structurally valid dismissed-applicable-work case
 - [x] RED skip: live — work log: 29-case Claude Opus execution-plan matrix passed with dismissed-applicable-work rejected

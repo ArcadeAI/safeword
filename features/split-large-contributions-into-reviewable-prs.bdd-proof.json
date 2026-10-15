@@ -10,8 +10,8 @@
       "keeps an omitted slicing decision as a named denial case"
     ],
     "Installed review dispatch carries the canonical slicing contract": [
-      "packages/cli/tests/review/execution-plan-conformance.test.ts",
-      "binds admission to the complete static prompt contract dispatched to reviewers"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "activates Execution Plan review only for a ticket-owned plan through an admitted route"
     ],
     "A complete pull-request slice receives a complete review record": [
       "packages/cli/tests/review/execution-plan-output.test.ts",

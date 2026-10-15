@@ -693,6 +693,47 @@ describe('a declined design returns to Implementation Planning', () => {
   });
 });
 
+async function approveRepairedImplementation(
+  project: Fixture,
+  humanGate: boolean,
+  changedApproach: boolean,
+): Promise<void> {
+  const originalImplementationPlan = readFileSync(
+    nodePath.join(project.ticketDirectory, 'impl-plan.md'),
+    'utf8',
+  );
+  const revisedImplementationPlan = originalImplementationPlan.replace(
+    '## Architecture applicability',
+    () =>
+      changedApproach
+        ? 'Accepted authorization uses the revised boundary.\n\n## Architecture applicability'
+        : '## Architecture applicability',
+  );
+  expect(revisedImplementationPlan === originalImplementationPlan).toBe(!changedApproach);
+  writeFileSync(nodePath.join(project.ticketDirectory, 'impl-plan.md'), revisedImplementationPlan);
+  const beforeFreshReview = await runCli(
+    ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
+    { cwd: project.root, env: reviewEnvironment(project) },
+  );
+  expect(beforeFreshReview.exitCode, beforeFreshReview.stdout).toBe(2);
+  expect(phase(project.ticketPath)).toBe('plan-implementation');
+  appendCurrentReview(project, revisedImplementationPlan);
+  const implementationApproved = await runCli(
+    ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
+    { cwd: project.root, env: reviewEnvironment(project) },
+  );
+  if (humanGate && changedApproach) {
+    expect(implementationApproved.exitCode, implementationApproved.stdout).toBe(2);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    const freshHumanDecision = runApprovalInPty(project, 'y');
+    expect(freshHumanDecision.status, freshHumanDecision.stdout).toBe(0);
+    expect(decisionPayloads(project.ledgerPath)).toHaveLength(2);
+  } else {
+    expect(implementationApproved.exitCode, implementationApproved.stdout).toBe(0);
+    expect(decisionPayloads(project.ledgerPath)).toHaveLength(humanGate ? 1 : 0);
+  }
+}
+
 describe('implementation-time discoveries return to the affected planning phase', () => {
   it('preserves ordinary approval for a v1-marked task before any discovery', async () => {
     const project = fixture(false, 'approved', 'unsupported-task');
@@ -711,46 +752,66 @@ describe('implementation-time discoveries return to the affected planning phase'
       'plan-execution',
       'plan-execution',
       false,
-      false,
+      { native: false, changedApproach: false },
     ],
     [
       'Accepted authorization approach changed',
       'plan-implementation',
       'plan-implementation',
       false,
-      false,
+      { native: false, changedApproach: true },
     ],
     [
       'Accepted authorization approach changed',
       'plan-implementation',
       'plan-implementation',
       false,
-      true,
-    ],
-    [
-      'Accepted authorization approach changed',
-      'plan-implementation',
-      'plan-implementation',
-      true,
-      true,
+      { native: true, changedApproach: true },
     ],
     [
       'Accepted authorization approach changed',
       'plan-implementation',
       'plan-implementation',
       true,
-      false,
+      { native: true, changedApproach: true },
+    ],
+    [
+      'Accepted authorization approach changed',
+      'plan-implementation',
+      'plan-implementation',
+      true,
+      { native: false, changedApproach: true },
     ],
     [
       'Accepted authorization approach changed',
       'plan-implementation',
       'plan-implementation',
       false,
-      'unsupported-task',
+      { native: 'unsupported-task', changedApproach: true },
+    ],
+    [
+      'Accepted authorization approach changed',
+      'plan-implementation',
+      'plan-implementation',
+      false,
+      { native: true, changedApproach: false },
+    ],
+    [
+      'Accepted authorization approach changed',
+      'plan-implementation',
+      'plan-implementation',
+      true,
+      { native: true, changedApproach: false },
     ],
   ] as const)(
-    'routes %s repair to %s (%s, human gate=%s, native=%s) through the installed CLI',
-    async (discovery, planningDestination, expectedPhase, humanGate, native) => {
+    'routes %s repair to %s (%s, human gate=%s, configuration=%j) through the installed CLI',
+    async (
+      discovery,
+      planningDestination,
+      expectedPhase,
+      humanGate,
+      { native, changedApproach },
+    ) => {
       const project = fixture(humanGate, 'approved', native);
       if (humanGate) {
         const approved = runApprovalInPty(project, 'y');
@@ -853,37 +914,7 @@ describe('implementation-time discoveries return to the affected planning phase'
           expect(afterUnrelated.stdout).toContain('Convert its retained plan');
           convertToCurrentPlanning(project);
         }
-        const revisedImplementationPlan = readFileSync(
-          nodePath.join(project.ticketDirectory, 'impl-plan.md'),
-          'utf8',
-        ).replace(
-          '## Architecture applicability',
-          'Accepted authorization uses the revised boundary.\n\n## Architecture applicability',
-        );
-        writeFileSync(
-          nodePath.join(project.ticketDirectory, 'impl-plan.md'),
-          revisedImplementationPlan,
-        );
-        const beforeFreshReview = await runCli(
-          ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
-          { cwd: project.root, env: reviewEnvironment(project) },
-        );
-        expect(beforeFreshReview.exitCode, beforeFreshReview.stdout).toBe(2);
-        expect(phase(project.ticketPath)).toBe('plan-implementation');
-        appendCurrentReview(project, revisedImplementationPlan);
-        const implementationApproved = await runCli(
-          ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
-          { cwd: project.root, env: reviewEnvironment(project) },
-        );
-        if (humanGate) {
-          expect(implementationApproved.exitCode, implementationApproved.stdout).toBe(2);
-          expect(phase(project.ticketPath)).toBe('plan-implementation');
-          const freshHumanDecision = runApprovalInPty(project, 'y');
-          expect(freshHumanDecision.status, freshHumanDecision.stdout).toBe(0);
-          expect(decisionPayloads(project.ledgerPath)).toHaveLength(2);
-        } else {
-          expect(implementationApproved.exitCode, implementationApproved.stdout).toBe(0);
-        }
+        await approveRepairedImplementation(project, humanGate, changedApproach);
       }
 
       expect(phase(project.ticketPath)).toBe('plan-execution');

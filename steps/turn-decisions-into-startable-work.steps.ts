@@ -39,9 +39,20 @@ interface Proof {
 }
 
 const proofs: Record<string, Proof> = {
+  'Repeating approval cannot clear a recorded design repair': {
+    expectedTests: 8,
+    selector: 'routes .* repair to .* through the installed CLI',
+    testFile: 'tests/integration/plan-design-approval.test.ts',
+  },
+  'Fresh review can recover an unchanged approach without inventing human authority': {
+    expectedTests: 8,
+    selector: 'routes .* repair to .* through the installed CLI',
+    testFile: 'tests/integration/plan-design-approval.test.ts',
+  },
   'Implementation Plan review state controls Execution Planning': {
-    expectedTests: 13,
-    selector: 'Implementation Plan review admission controls Execution Planning',
+    expectedTests: 14,
+    selector:
+      'Implementation Plan review admission controls Execution Planning|settles headless work as pending without prompting or changing phase',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'Review routes preserve their actual provenance': {
@@ -220,8 +231,8 @@ const proofs: Record<string, Proof> = {
     testFile: 'tests/integration/coding-authorization.test.ts',
   },
   'Implementation-time replanning preserves valid progress and refreshes the affected plans': {
-    expectedTests: 2,
-    selector: 'implementation-time discoveries return to the affected planning phase',
+    expectedTests: 8,
+    selector: 'routes .* repair to .* through the installed CLI',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'Replanning reopens proof invalidated by the changed decision': {
@@ -321,7 +332,10 @@ async function runProof(
     const failure = error as { code?: number; message?: string; stderr?: string; stdout?: string };
     return {
       exitCode: failure.code ?? 1,
-      output: failure.stderr || failure.stdout || failure.message || 'acceptance proof failed',
+      output:
+        `${failure.stdout ?? ''}${failure.stderr ?? ''}` ||
+        failure.message ||
+        'acceptance proof failed',
     };
   } finally {
     rmSync(temporaryDirectory, { force: true, recursive: true });

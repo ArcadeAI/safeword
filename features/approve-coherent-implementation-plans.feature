@@ -419,6 +419,18 @@ Feature: Approve coherent Implementation Plans
       When the installed Safeword CLI records the decision through real internal collaborators
       Then the ticket remains in Implementation Planning with the declined approach named for repair
 
+    @proof.vitest @rejection @surface.safeword-cli
+    Scenario: Malformed approval configuration fails closed
+      Given a reviewed Implementation Plan and unreadable human design approval configuration
+      When the installed Safeword CLI requests approval of the plan
+      Then the ticket remains in Implementation Planning, no design authority is recorded, and the CLI names the configuration that needs repair
+
+    @proof.vitest
+    Scenario: Implementation Planning exits through the canonical approval boundary
+      Given the published Implementation Planning workflow has a reviewed current plan
+      When Safeword supplies its phase-exit guidance
+      Then the guidance requires the digest-bound ticket approve-plan command before Execution Planning and forbids substituting conversational approval
+
     @surface.safeword-cli
     Scenario: An accepted design enters Execution Planning
       Given human design approval is enabled and the approver accepts the exact reviewed approach

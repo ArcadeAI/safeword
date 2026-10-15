@@ -1,6 +1,14 @@
 {
   "feature": "features/approve-coherent-implementation-plans.feature",
   "scenarios": {
+    "Malformed approval configuration fails closed": [
+      "packages/cli/tests/integration/plan-design-approval.test.ts",
+      "fails closed when the approval configuration is malformed"
+    ],
+    "Implementation Planning exits through the canonical approval boundary": [
+      "packages/cli/tests/skills/implementation-plan-repair-loop.test.ts",
+      "routes phase exit through the digest-bound approval command into Execution Planning"
+    ],
     "Safeword CLI accepts only the project-local Implementation Plan": [
       [
         "packages/cli/tests/cli-protocol/review-wiring.test.ts",
