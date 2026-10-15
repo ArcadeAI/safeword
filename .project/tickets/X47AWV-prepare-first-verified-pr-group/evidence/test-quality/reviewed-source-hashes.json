@@ -1,0 +1,8 @@
+{
+  "steps/turn-decisions-into-startable-work.steps.ts": "6b6f5f64bce174103f17b25bbeee021925a3ec2f07b1054c0682e5fb0dafdda6",
+  "packages/cli/tests/integration/plan-design-approval.test.ts": "5b136c998073cc99e6accfe4a646f5ece054021887bcf7b975fe72fb44cc622c",
+  "packages/cli/tests/cli-protocol/review-wiring.test.ts": "0277977e1187400adbb6178a735f86a07f18095eac74cdb33bdfb22056510746",
+  "features/approve-coherent-implementation-plans.bdd-proof.json": "fac75f12eaca27c3053b8a1272d12af2dc4bbfd9fab92f566f61131f6ec1a791",
+  "features/split-large-contributions-into-reviewable-prs.bdd-proof.json": "5d286c425f0d8d32d6a0c66f0eebff6b868e1b09b02ca03febf037391598d1d6",
+  "features/complete-contributions-with-a-default-delivery-checklist.bdd-proof.json": "eb47dd5df6885c4277d784dedf53022ed9805e51d6e367ae4f5acec7bdde41eb"
+}

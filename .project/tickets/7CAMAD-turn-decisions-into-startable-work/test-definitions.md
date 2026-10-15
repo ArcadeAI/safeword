@@ -211,18 +211,22 @@ Current acceptance adapter correction (2026-10-15): select the eight routing row
 ### Scenario: Repeating approval cannot clear a recorded design repair
 
 - [x] RED skip: rebinds an existing regression whose original failure is retained in X47AWV evidence/reentry-red.log; no new pre-implementation failure is claimed
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN c9594b5b4
+- [x] REFACTOR skip: reuses the existing real CLI matrix without another authorization mechanism
 
 Proof: the existing repeated-approval assertion is preserved; X47AWV evidence/reentry-red.log records its original failure. Current verification is retained with the landing-group audit rather than manufacturing a new historical TDD cycle.
+
+Counterfactual discrimination: an isolated-copy mutation dropping the retained discovery makes all seven design-repair rows fail at the repeated-approval assertion. The sequencing-only row passes. This is present-day test discrimination, not historical test-first proof.
 
 ### Scenario: Fresh review can recover an unchanged approach without inventing human authority
 
 - [x] RED skip: characterization of the existing exact-plan-digest policy; this additional recovery test passed without a production change
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN c9594b5b43356531a9513c708d26fdb7e296a783
+- [x] REFACTOR skip: two table rows share the existing recovery helper; no production refactor is needed
 
 Proof: two new real CLI rows characterize recovery under the existing exact-plan-digest human authority policy. No production behavior change or pre-implementation failure is claimed.
+
+Counterfactual discrimination: refusing prior human approval after fresh review breaks only the enabled-gate unchanged-approach row (exit 2 instead of 0). The other seven rows pass. The disabled-gate unchanged row proves fresh semantic admission, while the enabled row additionally proves human-decision reuse.
 
 ### Scenario: Replanning reopens proof invalidated by the changed decision
 

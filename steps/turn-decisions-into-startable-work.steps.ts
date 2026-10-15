@@ -329,9 +329,14 @@ async function runProof(
     );
     return { exitCode: 0, output: `${result.stdout}${result.stderr}` };
   } catch (error: unknown) {
-    const failure = error as { code?: number; message?: string; stderr?: string; stdout?: string };
+    const failure = error as {
+      code?: number | string;
+      message?: string;
+      stderr?: string;
+      stdout?: string;
+    };
     return {
-      exitCode: failure.code ?? 1,
+      exitCode: typeof failure.code === 'number' ? failure.code : 1,
       output:
         `${failure.stdout ?? ''}${failure.stderr ?? ''}` ||
         failure.message ||

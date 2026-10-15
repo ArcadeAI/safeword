@@ -39,10 +39,28 @@ The original /Users/alex/.codex/worktrees/4951/safeword has historical ticket ed
 
 Their preexisting tracked edits and untracked project/review notes are additionally preserved in evidence/historical-workspaces.tar.gz (186 entries, about 2.4 MB compressed). Its MANIFEST.json records each workspace and base commit; tracked edits are patches and untracked files retain their original relative paths. This is a historical recovery archive, not current candidate authority: do not apply it wholesale. Original working copies remain untouched. Runtime credentials, signing keys and ignored caches are not part of that archive.
 
-## Resumed work, latest checkpoint
+## Earlier backport checkpoint (superseded below)
 
 The bounded backport was chosen; see dependency-comparison.md and review-responses.md. Its 16-file production closure includes the parser bundling prerequisite from e9850c228. A native data-guide warning reproduced and is corrected through bounded packet capture, with source-root containment and freshness preserved. The original RED stays in the CLI matrix. Both human gate settings, legacy/native reentry, unsupported marker type, stale discovery, unrelated reviews after recorded repair and fresh-review recovery are covered. Targeted 177 tests pass; the later overlapping native-plugin/guide run passes 10 tests.
 
 The first local full suite finished 25 failed / 11,043 passed / 18 skipped, before the guide and parser-bundling correction. Its complete compressed log is in evidence/resumed-verification/. No blanket environmental dismissal is justified; the parser omission was real and fixed, while an instrumented standalone probe reproduces cold-script timeout behavior for at least one worker fixture. Root lint/typecheck pass. Final independent review 92bb4b83-132e-4c95-a3da-feb7673a86e8 is pending; current candidate CI must still run. No paid qualification was repeated, no recovery history was borrowed, and the recovery branch and historical workspaces remain untouched.
 
 The candidate is being committed for an atomic Draft integration and exact-head CI. Read landing-proposal.md for the current boundary and remaining warnings. Do not merge or promote until the user explicitly approves the concrete candidate.
+
+## BDD and TDD quality follow-up, 2026-10-15
+
+The user requested the missing test-quality assessment and its improvements.
+Read test-quality-assessment.md for the four implemented behavior contracts,
+the ledger chronology caveats, and the difference between corpus, handler,
+installed-CLI and live-model proof. Test/scenario changes begin at c9594b5b4;
+production bytes remain unchanged from d7006bc52. Original RED and failed logs
+remain intact. Both human settings now explicitly cover unchanged-byte recovery
+after fresh review as well as refusal before it. No new approval policy exists.
+
+Evidence is under evidence/test-quality/. Independent executable-RED reviews
+attest controlled mutations of isolated built-CLI copies; these are proof of
+test discrimination, not invented historical TDD. Current source/test review,
+verification, final commit and CI disposition are recorded in
+test-quality-results.md and the current-head readiness block in Draft PR #5881:
+https://github.com/ArcadeAI/safeword/pull/5881. That block supersedes the earlier
+pending-CI notes above. No promotion, merge, release or deployment is authorized.
