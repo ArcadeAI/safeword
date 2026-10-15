@@ -38,17 +38,16 @@ interface Proof {
   readonly testFile: string;
 }
 
+const repairRecoveryProof: Proof = {
+  expectedTests: 8,
+  selector: 'routes .* repair to .* through the installed CLI',
+  testFile: 'tests/integration/plan-design-approval.test.ts',
+};
+
 const proofs: Record<string, Proof> = {
-  'Repeating approval cannot clear a recorded design repair': {
-    expectedTests: 8,
-    selector: 'routes .* repair to .* through the installed CLI',
-    testFile: 'tests/integration/plan-design-approval.test.ts',
-  },
-  'Fresh review can recover an unchanged approach without inventing human authority': {
-    expectedTests: 8,
-    selector: 'routes .* repair to .* through the installed CLI',
-    testFile: 'tests/integration/plan-design-approval.test.ts',
-  },
+  'Repeating approval cannot clear a recorded design repair': repairRecoveryProof,
+  'Fresh review can recover an unchanged approach without inventing human authority':
+    repairRecoveryProof,
   'Implementation Plan review state controls Execution Planning': {
     expectedTests: 14,
     selector:
@@ -230,11 +229,8 @@ const proofs: Record<string, Proof> = {
       'keeps coding blocked until a changed source approach and its execution plan are re-reviewed',
     testFile: 'tests/integration/coding-authorization.test.ts',
   },
-  'Implementation-time replanning preserves valid progress and refreshes the affected plans': {
-    expectedTests: 8,
-    selector: 'routes .* repair to .* through the installed CLI',
-    testFile: 'tests/integration/plan-design-approval.test.ts',
-  },
+  'Implementation-time replanning preserves valid progress and refreshes the affected plans':
+    repairRecoveryProof,
   'Replanning reopens proof invalidated by the changed decision': {
     expectedTests: 1,
     selector:
