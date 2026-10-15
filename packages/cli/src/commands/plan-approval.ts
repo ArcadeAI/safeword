@@ -137,17 +137,6 @@ function currentReview(
   };
 }
 
-function reviewsPlan(data: Record<string, unknown>, context: ApprovalContext): boolean {
-  return (
-    Array.isArray(data.review_targets) &&
-    data.review_targets.some(
-      target =>
-        typeof target === 'string' &&
-        nodePath.resolve(context.cwd, target) === nodePath.resolve(context.planPath),
-    )
-  );
-}
-
 type ExecutionDiscovery =
   | {
       readonly destination: 'plan-execution' | 'plan-implementation';
@@ -286,7 +275,7 @@ function latestReviewRejection(context: ApprovalContext): string | undefined {
   if (
     data.status !== 'changes_requested' ||
     data.review_kind !== 'plan-implementation' ||
-    !reviewsPlan(data, context)
+    !reviewTargetsPath(data, context.cwd, context.planPath)
   ) {
     return undefined;
   }

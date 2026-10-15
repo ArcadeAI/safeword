@@ -80728,9 +80728,6 @@ function currentReview(context) {
     reason: latestReviewRejection(context) ?? "The current Implementation Plan has no current authenticated Implementation Plan review receipt."
   };
 }
-function reviewsPlan(data, context) {
-  return Array.isArray(data.review_targets) && data.review_targets.some((target) => typeof target === "string" && nodePath131.resolve(context.cwd, target) === nodePath131.resolve(context.planPath));
-}
 function reviewTargetsPath(data, cwd, expectedPath) {
   if (!Array.isArray(data.review_targets))
     return false;
@@ -80829,7 +80826,7 @@ function latestReviewRejection(context) {
     return;
   }
   const data = review.data;
-  if (data.status !== "changes_requested" || data.review_kind !== "plan-implementation" || !reviewsPlan(data, context)) {
+  if (data.status !== "changes_requested" || data.review_kind !== "plan-implementation" || !reviewTargetsPath(data, context.cwd, context.planPath)) {
     return;
   }
   const messages3 = review.findings.filter((finding2) => finding2.code === "REVIEWER_FINDING").map((finding2) => finding2.message).filter(Boolean);
