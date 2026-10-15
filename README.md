@@ -211,8 +211,10 @@ flowchart TD
     g1 --> scenarios["Define-behavior scenarios"]
     scenarios --> g2{{"Phase gate:<br/>.feature scenarios + test-definitions.md ledger"}}
     g2 --> plan["Plan: author impl-plan.md"]
-    plan --> g4{{"Plan gate:<br/>impl-plan.md valid"}}
-    g4 --> build
+    plan --> g4{{"Implementation gate:<br/>current review + enabled human approval"}}
+    g4 --> execution["Plan execution:<br/>execution-plan.md — proof and build order"]
+    execution --> executionGate{{"Execution gate:<br/>current reviewed execution-plan.md"}}
+    executionGate --> build
 
     task --> build["3 · Build<br/>RED → GREEN → REFACTOR"]
     patch --> verify
@@ -226,7 +228,7 @@ flowchart TD
 
 - **Clarify** — the agent proposes a direction and converges with you before building. For features, this writes the product framing first: Jobs To Be Done → Product Inspiration (who does this exceptionally well, what customers value, and what principle transfers) → Rules → engineering scope.
 - **Classify** — sizes the work as a **patch** (fix directly), **task** (TDD), or **feature** (BDD).
-- **Build** — patches go straight to the fix; tasks and features run the RED → GREEN → REFACTOR loop, with features defining behavior scenarios and an implementation plan first. After a successful GREEN, the agent continues through refactor and the next incomplete scenario without a routine handoff.
+- **Build** — patches go straight to the fix; tasks and features run the RED → GREEN → REFACTOR loop. Features first define scenarios, review approach decisions in an Implementation Plan, then review proof and build order in an Execution Plan. After a successful GREEN, the agent continues through refactor and the next incomplete scenario without a routine handoff.
 - **Verify** — after the final scenario, the agent continues through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure, stopping only at a real authority, safety, dependency, or scope boundary.
 - **Review** — every ticket phase exit needs an independent review stamp by default (`reviewGate`); an end-of-session review prompt is opt-in (`stopQualityReview: true`).
 - **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket. Draft pull requests remain available for CI or review evidence, but Claude Code, Codex, and Cursor block first-class GitHub CLI Ready commands until the ticket is verified done; Ready promotion still requires your explicit authorization.
@@ -317,7 +319,8 @@ inside each agent's plugin; Cursor installs them under `.safeword/guides/` and
 | **design-doc-template.md**                                  | Design doc structure (architecture, components)                           | design-doc-guide.md          |
 | **architecture-template.md**                                | Living architecture decision structure                                    | planning-guide.md            |
 | **adr-template.md**                                         | Standalone record for a structural or hard-to-reverse decision            | bdd skill (plan)             |
-| **impl-plan-template.md**                                   | Feature implementation plan, authored before TDD starts                   | bdd skill, planning-guide.md |
+| **impl-plan-template.md**                                   | Feature approach decisions, reviewed before Execution Planning            | bdd skill, planning-guide.md |
+| **execution-plan-template.md**                              | Concrete proof and build order, reviewed before TDD                       | bdd skill, planning-guide.md |
 | **ticket-template.md**                                      | Context anchor for complex/multi-step work                                | ticket-system skill          |
 | **work-log-template.md**                                    | Scratch pad and working memory during execution                           | planning-guide.md            |
 | **tripwire-template.md**                                    | Upstream-workaround tripwire (header + pinned-version test)               | testing-guide.md             |
@@ -358,9 +361,10 @@ inside each agent's plugin; Cursor installs them under `.safeword/guides/` and
 │   │   ├── spec.md             # Feature spec, auto-created at intake (features only)
 │   │   ├── dimensions.md       # Behavioral dimensions (features only)
 │   │   ├── test-definitions.md # R/G/R progress ledger; scenarios live in features/<slug>.feature
-│   │   ├── impl-plan.md        # Implementation plan (features only)
+│   │   ├── impl-plan.md        # Implementation decisions (features only)
+│   │   ├── execution-plan.md   # Proof and build order (features only)
 │   │   ├── verify.md           # Completion evidence written by /verify
-│   │   └── design.md           # Design doc for complex features (optional)
+│   │   └── design.md           # Historical design retained on existing tickets
 │   └── completed/              # Archive for done tickets
 ├── learnings/                  # Extracted knowledge (gotchas, discoveries)
 └── tmp/                        # Scratch space (research, logs, etc.)

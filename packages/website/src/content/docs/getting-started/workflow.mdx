@@ -31,9 +31,11 @@ flowchart TD
     g1 --> scenarios["Define-behavior scenarios"]
     scenarios --> g2{{"Phase gate:<br/>.feature scenarios + test-definitions.md ledger"}}
     g2 --> sgate["Scenario gate:<br/>adversarial scenario review"]
-    sgate --> plan["Plan implementation:<br/>impl-plan.md — proof plan, build order, ADRs"]
-    plan --> g2b{{"Plan gate:<br/>valid impl-plan.md before TDD"}}
-    g2b --> build
+    sgate --> plan["Plan implementation:<br/>impl-plan.md — approach decisions and evidence"]
+    plan --> g2b{{"Implementation gate:<br/>current review + enabled human approval"}}
+    g2b --> execution["Plan execution:<br/>execution-plan.md — proof and build order"]
+    execution --> executionGate{{"Execution gate:<br/>current reviewed execution-plan.md"}}
+    executionGate --> build
 
     task --> build["3 · Build<br/>RED → GREEN → REFACTOR"]
     patch --> verify
@@ -64,7 +66,7 @@ The agent sizes the work — it doesn't announce a label, it just picks the righ
 
 - **patch** goes straight to the fix.
 - **task** runs the TDD loop: a failing test (RED), the minimum code to pass (GREEN), then cleanup (REFACTOR).
-- **feature** writes define-behavior scenarios first (saved to `features/<slug>.feature`, with `test-definitions.md` as the RED/GREEN/REFACTOR progress ledger), validates them at the scenario gate, then captures Implementation Inspiration from current, comparable, version-matched primary sources before selecting the plan (`impl-plan.md` — evidence, proof plan, build order, and architecture decisions). It then implements each scenario through the same TDD loop.
+- **feature** writes define-behavior scenarios first (saved to `features/<slug>.feature`, with `test-definitions.md` as the RED/GREEN/REFACTOR progress ledger) and validates them at the scenario gate. Implementation Planning captures current, comparable, version-matched primary evidence and settles approach decisions in `impl-plan.md`. After semantic review and any enabled human approval, Execution Planning turns those decisions into concrete proof and build order in `execution-plan.md`. Its semantic review checks that every step can start without inventing a decision. Implementation then follows the same TDD loop.
 
 ## 4 · Verify
 

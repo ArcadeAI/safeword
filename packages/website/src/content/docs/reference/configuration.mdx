@@ -130,7 +130,7 @@ To disable a specific hook, remove the safeword hook entry from that agent's con
 
 Independent-review requirements on top of the always-on gates.
 
-Work moves through phases — `intake`, `define-behavior`, `scenario-gate`, `plan-implementation`, `implement`, `verify`, `done` — and a phase change is an edit to `phase:` in the ticket's `ticket.md`. The phase-exit review gate reads that edit before it lands and blocks it until the phase you are leaving carries an independent review stamp (written after a fresh-context review run via `safeword review run`), or an explicitly logged skip reason.
+Work moves through phases — `intake`, `define-behavior`, `scenario-gate`, `plan-implementation`, `plan-execution`, `implement`, `verify`, `done` — and a phase change is an edit to `phase:` in the ticket's `ticket.md`. The phase-exit review gate reads that edit before it lands and blocks it until the phase you are leaving carries an independent review stamp (written after a fresh-context review run via `safeword review run`), or an explicitly logged skip reason.
 
 **This gate is on at every exit by default**, including on a fresh install with no `reviewGate` key. Choose which exits it guards:
 
@@ -143,7 +143,7 @@ Work moves through phases — `intake`, `define-behavior`, `scenario-gate`, `pla
 
 A list is the usual way to tune this: it buys independent review where judgment carries the phase and skips exits that machine evidence already guards — `implement → verify` has tests, `verify → done` has the done gate. An unusable value (a bare string, a number, malformed JSON) keeps the default rather than reading as off, so a typo cannot quietly remove a gate; an empty list is a considered choice and does disable it.
 
-Each blocked exit names the phase, prints the exact `safeword review run` command for it, and says how to narrow the gate. `scenario-gate` and `plan-implementation` are reviewed by specialists whose rubrics are generated from the same skills that author those artifacts; every other exit is reviewed by the general `quality-review`. One review takes roughly half a minute on the default route.
+Each blocked exit names the phase, prints the exact `safeword review run` command for it, and says how to narrow the gate. `scenario-gate`, `plan-implementation`, and `plan-execution` use specialist rubrics generated from the same contracts that guide their authors; other exits use the general `quality-review`.
 
 Terminal handoff correction is independent of review. It is on by default for Claude Code, Codex, and Cursor: when a substantive final reply does not satisfy the shared `terminal-handoff/v1` decision or action form, the native Stop boundary requests one terminal-paragraph rewrite. Set `terminalHandoffCorrection: false` to disable only that presentation correction. Missing or malformed values keep the safe default; evidence, completion, and safety gates are unaffected.
 
@@ -287,7 +287,7 @@ a required disposable-repository release smoke before enabling this feature.
 
 ### Design approval gate
 
-`designApprovalGate` (default: off) keeps the plan-implementation phase autonomous: the independently reviewed implementation plan advances to TDD without a human checkpoint. Technical builders who want to approve the design before any code can opt in:
+With `designApprovalGate` off (the default), a current, independently reviewed Implementation Plan can advance to Execution Planning without a human checkpoint. Technical builders can require a human decision on the reviewed approach before Execution Planning:
 
 ```json
 {
@@ -295,7 +295,7 @@ a required disposable-repository release smoke before enabling this feature.
 }
 ```
 
-When enabled, the agent presents the reviewed plan (riskiest assumption, build order, decisions) and waits for approval before entering the implement phase. In headless/cloud sessions the pending approval is recorded in the ticket work log and the plan surfaces in the session's reviewable output instead of stalling the run.
+When a new decision is required, `safeword ticket approve-plan <ticket-id>` presents the reviewed approach in an interactive terminal and records approval or decline. A current human decision is reused for unchanged plan bytes after semantic review is current. A headless invocation without required approval returns promptly with a pending ledger receipt and keeps the ticket in Implementation Planning. The agent surfaces the reviewed approach and pending action in its session output; pending status does not permit advancement.
 
 ### Other settings
 
