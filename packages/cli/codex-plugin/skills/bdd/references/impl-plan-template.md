@@ -14,20 +14,50 @@ leave one blank. Fill each section, then delete the guidance comments.
 
 ## Approach
 
-<!-- Open by naming the riskiest assumption this design rests on and the
+<!-- Open with architecture at a glance: the components and request/data path. -->
+
+<!-- After the architecture glance, name the riskiest assumption this design rests on and the
 cheapest scenario that proves it — concrete and scenario-bound, not vacuous;
 if no single slice is load-bearing, say so. Then record how each
 scenario/behavior will be satisfied: which component or layer owns it, the
 primary proof (`unit`, `integration`, `E2E`, or `eval`) chosen by
-`testing/SKILL.md`'s highest practical scope rule, the reason that proof is
-enough, any supporting proof needed for pure-logic edge cases, AI output
-quality, or entry-point wiring, and the build order so each task builds on
-what's already green — among dependency-free work, sequence the load-bearing
-slice (the one proving that riskiest assumption) first, so a wrong design fails
-on slice 1 while it's still cheap. Record the plan-implementation
-phase's proof plan + sequencing output here. -->
+the installed testing guide's cheapest sufficient real-boundary rule, the reason that proof is
+enough, the real system boundary it exercises, its confidence limitation, any
+supporting proof needed for pure-logic edge cases or AI output
+quality. Name the load-bearing proof to try first so a
+wrong design is exposed cheaply; leave dependency-ordered tasks and test steps
+to the Execution Plan. Name a real wiring proof for each new entry point.
+For each affected surface in the accepted scenarios, name its proof or a
+specific `skip: <reason>`. Record the plan-implementation
+phase's proof strategy here. Link separately owned detailed
+evidence when useful. Do not copy test paths, commands, current hashes,
+individual results, or the verification ledger into this decision path. -->
+
+### Persona consequences
+
+<!-- For each accepted persona, name the design consequence and confidence
+limit for trust, operation, approval, and recovery where applicable. Use
+`skip: <reason>` only for a genuinely inapplicable consequence. -->
+
+### Current and target truth
+
+<!-- Keep proposed decisions, implemented facts, available proof, known defects,
+and pending human authority separate. An absent behavior is target work, not an
+implemented fact; a passing test is proof, not human approval. -->
 
 ## Decisions
+
+<!-- This impl-plan.md is the feature's single design plan of record. Keep every
+required decision and its consequence here. Linked supporting detail may carry
+the full depth, but never a second, separately authoritative feature design
+plan. For applicable choices, use the interface-contract, release-recovery,
+and measurement-design guides. Decide the contract, authorization and failure
+behavior, compatibility, rollout and rollback policy, and measurement origin
+and validity before Execution Planning. For a significant durable-state,
+authorization, concurrency, deletion, migration, or compatibility decision,
+also state its legal states and transitions, change authority, atomicity and
+crash boundary, retry or idempotency behavior, preserved evidence, and cutover
+policy where applicable. Give a reason when a concern does not apply. -->
 
 ### Implementation Inspiration
 
@@ -67,8 +97,18 @@ readers must be able to tell intentional design from accident.
 | Decision | Choice | Alternatives considered | Rejected because |
 | -------- | ------ | ----------------------- | ---------------- |
 
-Complex decisions may add a short paragraph under the table. If the feature
-has no architectural choices, write `skip: <reason>` instead.
+Complex decisions may add a short paragraph under the table. If the feature has
+no load-bearing choices, replace the evidence entry with
+`Decision evidence applicability: skip: <reason>` inside this section. A local,
+reversible choice may still be named elsewhere without invalidating that skip;
+semantic review decides whether the applicability claim is honest.
+
+The table pair above is the compact default. A decision that reads better as
+prose or bullets may instead delete `### Implementation Inspiration` and record
+these seven labeled fields here: `Decision`, `Choice`, `Alternative considered`,
+`Rejected because`, `Evidence reference`, `Retrieval date`, and
+`Applicable version`. Every label still needs one non-empty value; changing the
+presentation never removes an evidence obligation.
 
 When the Choice adds a dependency the project does not already have, the
 project's own health is part of the decision, not a footnote. Safeword already
@@ -98,6 +138,25 @@ A dependency row then reads (shape, not real figures — look yours up):
 
 -->
 
+### Data applicability
+
+<!-- If the feature changes a store, schema, relationship, source of truth,
+ownership, access, lifecycle, migration, backfill, or cross-system flow, record
+`Data applicability: <impact>` and the decisions at decision depth (choice,
+reason, and consequence): purpose; store and model; schema and
+relationships; source of truth; ownership and access; identity and integrity;
+cross-system flow; lifecycle and retention; migration and backfill; compliance;
+and rollback. For each subject, explain its choice and consequence or state
+why that subject does not apply. Move exact migration
+commands to Execution Planning. If none apply, write
+`Data applicability: skip: <reason>`. -->
+
+### Measurement applicability
+
+<!-- Name the accepted quantitative promise, measurement origin and method,
+validity safeguards, and failure behavior. If Product made no quantitative
+promise, write `Measurement applicability: skip: <reason>`. -->
+
 ## Design alignment
 
 <!-- First name only the applicable project principles from the configured
@@ -110,9 +169,18 @@ proof in this exact table shape (the audit checker reads it):
 
 When Conflict is `explicit-conflict`, Known deviations must name the same
 principle. Then name the existing architecture decisions (ADRs / architecture.md at
-the configured paths.architecture location) this implementation honors. Do not
-copy either catalogue. If neither applies, write
-`skip: no applicable principles or ADRs`. -->
+the configured paths.architecture location) this implementation honors. Add an
+`Architecture applicability:` statement with either a concrete component or
+shared-contract consequence, or `skip: <reason>` when neither applies. Do not
+copy either catalogue. A bare `skip:` is never sufficient. If neither principles
+nor architecture records apply, the section may say
+`skip: no applicable principles or ADRs` in addition to the architecture
+applicability statement. Keep reversible feature-local choices only in this
+plan. Keep each significant structural or hard-to-reverse decision here too,
+and link it to its resolvable configured durable architecture record. A missing
+or unresolved required link blocks approval. Judge significance from shared
+API, migration compatibility, structural, and reversibility effects—not file
+count or the author's label. -->
 
 ## Known deviations
 
@@ -124,8 +192,9 @@ documented, not forbidden. If none: `skip: no deviations planned`. -->
 
 <!-- Which configured documentation sources (`docs.sources` in
 .safeword/config.json — README, docs sites, guides) do this feature's
-customer-visible changes touch? Enumerate each affected surface and fold the
-updates into the build order as tasks. Internal-only change with no
+customer-visible changes touch? Enumerate each affected surface and the
+required documentation outcome. The Execution Plan owns update tasks and
+their order. Internal-only change with no
 customer-visible behavior: `skip: <reason>`. -->
 
 ## Assessment triggers

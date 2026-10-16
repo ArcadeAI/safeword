@@ -3,12 +3,14 @@ import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
   constants,
+  existsSync,
   fstatSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
   openSync,
   readdirSync,
+  readFileSync,
   readSync,
   realpathSync,
   rmSync,
@@ -17,8 +19,35 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import type { RedExecutionAttestation, ReviewKind, ReviewPacket } from './contract.js';
+import {
+  createExecutionPlanDeliveryDefinition,
+  hasCanonicalDeliveryContractIdentity,
+  normalizedExecutionPlanDigest,
+  parseDeliveryPlanContract,
+} from '../execution-plan/delivery-checklist.js';
+import { PLANNING_DATA_GUIDE_PATH, SAFEWORD_SCHEMA } from '../schema.js';
+import { resolveConfiguredPath, resolveTicketsDirectory } from '../utils/configured-paths.js';
+import { getTemplatesDirectory } from '../utils/fs.js';
+import { parseTicketMetadata } from '../utils/ticket-metadata.js';
+import type {
+  ExecutionPlanDeliveryDefinition,
+  PlanContractPair,
+  RedExecutionAttestation,
+  ReviewKind,
+  ReviewPacket,
+} from './contract.js';
+import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
+import { extractExecutionPlanReviewRubric } from './execution-plan-rubric.js';
+import { ReviewPacketError } from './packet-error.js';
+import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
+import { extractPlanReviewRubric } from './plan-rubric.js';
+import { reviewDispositionContext } from './planning-accepted-boundary.js';
+import { PlanningContextError, type PlanningContextRole } from './planning-context-error.js';
+import { type PlanningRoleContext, resolvePlanningRoleContext } from './planning-role-context.js';
+import { planningTicketOwner } from './planning-ticket-owner.js';
 import { recordFinalizedScope } from './scope.js';
+export { ReviewPacketError } from './packet-error.js';
+export { PlanningContextError } from './planning-context-error.js';
 
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
@@ -42,19 +71,237 @@ export interface PreparedReviewPacket {
   readonly cleanup: () => void;
 }
 
-export class ReviewPacketError extends Error {
-  readonly name = 'ReviewPacketError';
+const PLANNING_KNOWLEDGE_ROLES = ['principles', 'personas', 'surfaces'] as const;
+type PlanningKnowledgeRole = (typeof PLANNING_KNOWLEDGE_ROLES)[number];
+type RequiredPlanningContextRole = PlanningContextRole;
 
-  constructor(
-    message: string,
-    readonly code = 'REVIEW_PACKET_INVALID',
-  ) {
-    super(message);
+function planningOverrides(
+  cwd: string,
+  role: PlanningKnowledgeRole,
+): Record<string, unknown> | undefined {
+  const configPath = nodePath.join(cwd, '.safeword/config.json');
+  if (!existsSync(configPath)) return undefined;
+  let config: unknown;
+  try {
+    config = JSON.parse(readFileSync(configPath, 'utf8'));
+  } catch {
+    throw new PlanningContextError(role, '.safeword/config.json');
   }
+  if (!planningConfigRecord(config)) throw new PlanningContextError(role, '.safeword/config.json');
+  const overrides = config.paths;
+  if (overrides === undefined) return undefined;
+  if (!planningConfigRecord(overrides))
+    throw new PlanningContextError(role, '.safeword/config.json:paths');
+  return overrides;
+}
+function planningConfigRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+function requireValidPlanningOverride(cwd: string, role: PlanningKnowledgeRole): void {
+  const overrides = planningOverrides(cwd, role);
+  if (overrides !== undefined && Object.hasOwn(overrides, role)) {
+    const value = overrides[role];
+    if (typeof value !== 'string' || value.trim() === '')
+      throw new PlanningContextError(role, `.safeword/config.json:paths.${role}`);
+  }
+}
+
+function requiredPlanningKnowledgeSource(cwd: string, role: PlanningKnowledgeRole): string {
+  requireValidPlanningOverride(cwd, role);
+  return requiredPlanningSource(cwd, role, resolveConfiguredPath(cwd, role));
+}
+
+/** Only the registered data guide may come from the trusted native package. */
+function planningSource(
+  cwd: string,
+  source: string,
+  allowPackagedGuide: boolean,
+): { readonly root: string; readonly source: string } {
+  const project = { root: cwd, source };
+  if (
+    !allowPackagedGuide ||
+    toReviewPath(nodePath.relative(cwd, source)) !== PLANNING_DATA_GUIDE_PATH
+  )
+    return project;
+  try {
+    lstatSync(source);
+    return project;
+  } catch (error) {
+    if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error;
+  }
+  const template = SAFEWORD_SCHEMA.ownedFiles[PLANNING_DATA_GUIDE_PATH]?.template;
+  if (template === undefined) throw new Error('The planning data guide is not registered.');
+  const root = realpathSync(getTemplatesDirectory());
+  return { root, source: nodePath.join(root, template) };
+}
+
+function requiredPlanningSource(
+  cwd: string,
+  role: RequiredPlanningContextRole,
+  source: string,
+): string {
+  const relative = nodePath.relative(cwd, source);
+  try {
+    const resolved = planningSource(cwd, source, role === 'data');
+    if (escapes(resolved.root, resolved.source) || !lstatSync(resolved.source).isFile()) {
+      throw new PlanningContextError(role, relative);
+    }
+    if (readFileSync(resolved.source, 'utf8').trim() === '') {
+      throw new PlanningContextError(role, relative);
+    }
+  } catch {
+    throw new PlanningContextError(role, relative);
+  }
+  return relative;
+}
+
+function planningTicketMetadata(
+  cwd: string,
+  source: string,
+  role: 'ticket' | 'parent',
+): Record<string, unknown> {
+  const relative = requiredPlanningSource(cwd, role, source);
+  try {
+    return parseTicketMetadata(readFileSync(source, 'utf8')).metadata;
+  } catch {
+    throw new PlanningContextError(role, relative);
+  }
+}
+
+function declaredPlanningParent(
+  ticket: Record<string, unknown>,
+  ticketPath: string,
+): string | undefined {
+  if (!Object.hasOwn(ticket, 'parent')) return undefined;
+  const parent = ticket.parent;
+  if (
+    typeof parent !== 'string' ||
+    parent.trim() === '' ||
+    parent !== parent.trim() ||
+    /[\\/]/u.test(parent) ||
+    parent === '.' ||
+    parent === '..' ||
+    parent === ticket.id
+  ) {
+    throw new PlanningContextError('parent', `${ticketPath}:parent`);
+  }
+  return parent;
+}
+
+function requiredProductParentContext(cwd: string, targets: readonly string[]): string[] {
+  const target = targets[0];
+  if (target === undefined) return [];
+  const ticketSource = nodePath.join(nodePath.dirname(nodePath.resolve(cwd, target)), 'ticket.md');
+  const ticket = planningTicketMetadata(cwd, ticketSource, 'ticket');
+  const parent = declaredPlanningParent(ticket, nodePath.relative(cwd, ticketSource));
+  if (parent === undefined) return [nodePath.relative(cwd, ticketSource)];
+  const tickets = resolveTicketsDirectory(cwd);
+  const candidates = readdirSync(tickets, { withFileTypes: true }).filter(
+    entry => entry.isDirectory() && (entry.name === parent || entry.name.startsWith(`${parent}-`)),
+  );
+  const directory = candidates[0];
+  if (candidates.length !== 1 || directory === undefined) {
+    throw new PlanningContextError(
+      'parent',
+      nodePath.relative(cwd, nodePath.join(tickets, parent, 'spec.md')),
+    );
+  }
+  const parentTicket = nodePath.join(tickets, directory.name, 'ticket.md');
+  const parentMetadata = planningTicketMetadata(cwd, parentTicket, 'parent');
+  if (parentMetadata.id !== parent || parentMetadata.type !== 'epic') {
+    throw new PlanningContextError('parent', nodePath.relative(cwd, parentTicket));
+  }
+  const parentSpec = requiredPlanningSource(
+    cwd,
+    'parent',
+    nodePath.join(tickets, directory.name, 'spec.md'),
+  );
+  return [nodePath.relative(cwd, ticketSource), nodePath.relative(cwd, parentTicket), parentSpec];
+}
+
+function requiredDownstreamProductContext(
+  cwd: string,
+  targets: readonly string[],
+  planName: 'impl-plan.md' | 'execution-plan.md',
+): string[] | undefined {
+  const target = targets[0];
+  if (targets.length !== 1 || target === undefined || nodePath.basename(target) !== planName)
+    return [];
+  const ticketDirectory = nodePath.dirname(nodePath.resolve(cwd, target));
+  if (nodePath.dirname(ticketDirectory) !== resolveTicketsDirectory(cwd)) return [];
+  if (!ownedPlanningTicket(cwd, target)) return undefined;
+  const inherited = requiredProductParentContext(cwd, targets);
+  const product = requiredPlanningSource(cwd, 'project', nodePath.join(ticketDirectory, 'spec.md'));
+  const upstream =
+    planName === 'execution-plan.md'
+      ? [
+          requiredPlanningSource(
+            cwd,
+            'accepted-upstream-plan',
+            nodePath.join(ticketDirectory, 'impl-plan.md'),
+          ),
+        ]
+      : [];
+  return [...inherited, product, ...upstream];
+}
+
+function requiredPlanningBoundaryContext(
+  cwd: string,
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[],
+  productPlan: boolean,
+): string[] | undefined {
+  if (productPlan) return requiredProductParentContext(cwd, targets);
+  if (kind === 'scenario-gate') {
+    const spec = context[0];
+    if (
+      spec === undefined ||
+      nodePath.basename(spec) !== 'spec.md' ||
+      !ownedPlanningTicket(cwd, spec)
+    )
+      return undefined;
+    const inherited = requiredProductParentContext(cwd, [spec]);
+    requiredPlanningSource(cwd, 'project', nodePath.resolve(cwd, spec));
+    return inherited;
+  }
+  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return undefined;
+  const planName = kind === 'plan-implementation' ? 'impl-plan.md' : 'execution-plan.md';
+  return requiredDownstreamProductContext(cwd, targets, planName);
+}
+
+function resolvedPlanningContext(
+  cwd: string,
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[],
+  productPlan = false,
+): readonly string[] {
+  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return context;
+  const inherited = requiredPlanningBoundaryContext(cwd, kind, targets, context, productPlan);
+  if (inherited === undefined || inherited.length === 0) return context;
+  const included = new Set([...targets, ...context].map(path => nodePath.resolve(cwd, path)));
+  const resolved = [...context];
+  const required = [
+    ...inherited,
+    ...PLANNING_KNOWLEDGE_ROLES.map(role => requiredPlanningKnowledgeSource(cwd, role)),
+  ];
+  for (const path of required) {
+    const absolute = nodePath.resolve(cwd, path);
+    if (!included.has(absolute)) {
+      resolved.push(path);
+      included.add(absolute);
+    }
+  }
+  if (targets.length + resolved.length > MAX_FILE_COUNT) {
+    throw new ReviewPacketError(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
+  }
+  return resolved;
 }
 
 interface CapturedFile {
   readonly source: string;
+  readonly sourceRoot: string;
   readonly snapshot: string;
   readonly sha256: string;
   readonly device: number;
@@ -316,6 +563,99 @@ function requirePlanWorkArtifact(
   }
 }
 
+function requireExecutionPlanWorkArtifact(
+  kind: ReviewKind,
+  logicalFiles: readonly { readonly path: string; readonly content: string }[],
+  contextFiles: readonly { readonly path: string; readonly content: string }[],
+): void {
+  if (kind !== 'plan-execution') return;
+  const plan = logicalFiles[0];
+  if (
+    logicalFiles.length !== 1 ||
+    plan === undefined ||
+    nodePath.basename(plan.path) !== 'execution-plan.md' ||
+    plan.content.trim() === ''
+  ) {
+    throw new ReviewPacketError(
+      'Plan-execution review requires one non-blank execution-plan.md work file; pass supporting evidence with --context',
+    );
+  }
+  const implementationPlan = contextFiles.find(
+    file => nodePath.basename(file.path) === 'impl-plan.md' && file.content.trim() !== '',
+  );
+  const scenarios = contextFiles.find(
+    file => nodePath.extname(file.path) === '.feature' && file.content.trim() !== '',
+  );
+  if (implementationPlan === undefined || scenarios === undefined) {
+    throw new ReviewPacketError(
+      'Plan-execution review requires a non-blank impl-plan.md and approved .feature scenarios as context',
+    );
+  }
+}
+
+function designApprovalGate(root: string): boolean {
+  const configPath = nodePath.join(root, '.safeword', 'config.json');
+  if (!existsSync(configPath)) return false;
+  try {
+    const value: unknown = JSON.parse(readFileSync(configPath, 'utf8'));
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      throw new Error('configuration root is not an object');
+    }
+    return (value as { readonly designApprovalGate?: unknown }).designApprovalGate === true;
+  } catch {
+    throw new ReviewPacketError(
+      'Plan-execution review cannot read designApprovalGate from .safeword/config.json.',
+    );
+  }
+}
+
+function retainedDeliveryDefinition(
+  kind: ReviewKind,
+  logicalFiles: readonly { readonly content: string }[],
+  root: string,
+): ExecutionPlanDeliveryDefinition | undefined {
+  if (kind !== 'plan-execution') return undefined;
+  if (!hasCanonicalDeliveryContractIdentity()) {
+    throw new ReviewPacketError(
+      'Plan-execution review refused: installed package differs from the canonical delivery-contract identity.',
+    );
+  }
+  const plan = logicalFiles[0];
+  if (plan === undefined) return undefined;
+  const parsed = parseDeliveryPlanContract(plan.content);
+  if (!parsed.ok) throw new ReviewPacketError(`Plan-execution review refused: ${parsed.message}`);
+  return createExecutionPlanDeliveryDefinition(parsed, designApprovalGate(root));
+}
+
+function designApprovalConfigChanged(
+  kind: ReviewKind,
+  root: string,
+  retained: ExecutionPlanDeliveryDefinition | undefined,
+): boolean {
+  if (kind !== 'plan-execution' || retained === undefined) return false;
+  try {
+    return designApprovalGate(root) !== retained.design_approval_gate;
+  } catch {
+    return true;
+  }
+}
+
+function packetDeliveryDefinition(definition: ExecutionPlanDeliveryDefinition | undefined): {
+  readonly execution_plan_delivery_definition?: ExecutionPlanDeliveryDefinition;
+} {
+  return definition === undefined ? {} : { execution_plan_delivery_definition: definition };
+}
+
+function packetNormalizedPlanDigest(
+  kind: ReviewKind,
+  logicalFiles: readonly { readonly content: string }[],
+): { readonly execution_plan_normalized_digest?: string } {
+  const plan = logicalFiles[0];
+  return kind === 'plan-execution' && plan !== undefined
+    ? { execution_plan_normalized_digest: normalizedExecutionPlanDigest(plan.content) }
+    : {};
+}
+
 function requireExecutableRedAttestation(
   kind: ReviewKind,
   attestation: RedExecutionAttestation | undefined,
@@ -332,6 +672,7 @@ function requireExecutableRedAttestation(
 
 interface ReviewPacketExecution {
   readonly attestation?: RedExecutionAttestation;
+  readonly planContract?: PlanContractPair;
   /** Fingerprint preparation only: no review is dispatched from this packet. */
   readonly allowMissingExecutableRedAttestation?: boolean;
 }
@@ -348,6 +689,118 @@ function checkedExecutionAttestation(
 
 function digest(content: string | Buffer): string {
   return createHash('sha256').update(content).digest('hex');
+}
+
+function planObligations(contract: string): string[] {
+  return Array.from(contract.matchAll(/^- \*\*([^*]+):\*\*/gmu), match => match[1]?.trim() ?? '');
+}
+
+/** Build the byte identities shared by plan authors and reviewers. */
+export function assemblePlanContract(
+  authorRubric?: string,
+  reviewerRubric?: string,
+): PlanContractPair {
+  if (authorRubric === undefined || authorRubric.trim() === '') {
+    throw new ReviewPacketError('The authoring contract copy is missing or blank.');
+  }
+  if (reviewerRubric === undefined || reviewerRubric.trim() === '') {
+    throw new ReviewPacketError('The generated reviewer contract copy is missing or blank.');
+  }
+  return {
+    author: { sha256: digest(authorRubric), obligations: planObligations(authorRubric) },
+    reviewer: { sha256: digest(reviewerRubric), obligations: planObligations(reviewerRubric) },
+  };
+}
+
+function packageRoot(): string {
+  const runtimeDirectory = nodePath.basename(import.meta.dirname);
+  return runtimeDirectory === 'dist' || runtimeDirectory === 'runtime'
+    ? nodePath.dirname(import.meta.dirname)
+    : nodePath.resolve(import.meta.dirname, '../..');
+}
+
+function packagedPlanAuthorRubric(): string {
+  const root = packageRoot();
+  const contractPath = [
+    nodePath.join(root, 'templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
+    nodePath.join(root, 'skills/bdd/PLAN_IMPLEMENTATION.md'),
+    nodePath.join(root, 'skills/bdd/references/PLAN_IMPLEMENTATION.md'),
+  ].find(candidate => existsSync(candidate));
+  try {
+    if (contractPath === undefined) throw new Error('contract file is absent');
+    return extractPlanReviewRubric(readFileSync(contractPath, 'utf8'));
+  } catch {
+    throw new ReviewPacketError(
+      'The packaged decision-quality contract is unavailable, so Safeword cannot author or approve an Implementation Plan. Run `bun run generate:plan-rubric`, rebuild the Safeword package, and retry.',
+    );
+  }
+}
+
+function packagedExecutionPlanAuthorRubric(): string {
+  const root = packageRoot();
+  const contractPath = [
+    nodePath.join(root, 'templates/skills/bdd/PLAN_EXECUTION.md'),
+    nodePath.join(root, 'skills/bdd/PLAN_EXECUTION.md'),
+    nodePath.join(root, 'skills/bdd/references/PLAN_EXECUTION.md'),
+  ].find(candidate => existsSync(candidate));
+  try {
+    if (contractPath === undefined) throw new Error('contract file is absent');
+    return extractExecutionPlanReviewRubric(readFileSync(contractPath, 'utf8'));
+  } catch {
+    throw new ReviewPacketError(
+      'The packaged Execution Planning authoring contract copy is unavailable, so Safeword cannot author or approve an Execution Plan. Run `bun run generate:execution-plan-rubric`, rebuild the Safeword package, and retry.',
+    );
+  }
+}
+
+export function packagedPlanContract(
+  kind: 'plan-implementation' | 'plan-execution',
+): PlanContractPair {
+  const authorRubric =
+    kind === 'plan-execution' ? packagedExecutionPlanAuthorRubric() : packagedPlanAuthorRubric();
+  const reviewerRubric =
+    kind === 'plan-execution' ? EXECUTION_PLAN_REVIEW_RUBRIC : PLAN_REVIEW_RUBRIC;
+  return assemblePlanContract(authorRubric, reviewerRubric);
+}
+
+function ownedPlanningTicket(root: string, target: string): boolean {
+  const ticketDirectory = nodePath.dirname(nodePath.resolve(root, target));
+  if (nodePath.dirname(ticketDirectory) !== resolveTicketsDirectory(root)) return false;
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+  const metadata = planningTicketMetadata(root, ticketPath, 'ticket');
+  return planningTicketOwner(
+    metadata,
+    nodePath.basename(ticketDirectory),
+    nodePath.relative(root, ticketPath),
+  );
+}
+
+function upstreamPlanContract(
+  planningTarget: boolean,
+  kind: ReviewKind,
+): Pick<ReviewPacket, 'upstream_plan_contract'> {
+  if (!planningTarget || kind !== 'plan-execution') return {};
+  return { upstream_plan_contract: packagedPlanContract('plan-implementation') };
+}
+
+function packetPlanContract(
+  kind: ReviewKind,
+  configured: PlanContractPair | undefined,
+  cwd: string,
+  targets: readonly string[],
+): Pick<ReviewPacket, 'planning_phase' | 'plan_contract' | 'upstream_plan_contract'> {
+  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
+  const target = targets.length === 1 ? targets[0] : undefined;
+  const expected = kind === 'plan-implementation' ? 'impl-plan.md' : 'execution-plan.md';
+  const planningTarget =
+    target !== undefined &&
+    nodePath.basename(target) === expected &&
+    ownedPlanningTicket(cwd, target);
+  return {
+    ...(planningTarget && { planning_phase: kind }),
+    plan_contract: configured ?? packagedPlanContract(kind),
+    ...upstreamPlanContract(planningTarget, kind),
+  };
 }
 
 function fileDigest(path: string): string | undefined {
@@ -379,13 +832,13 @@ function readBounded(descriptor: number, maxBytes: number): Buffer | undefined {
   return undefined;
 }
 
-function sourceFileChanged(root: string, file: CapturedFile): boolean {
+function sourceFileChanged(file: CapturedFile): boolean {
   let descriptor: number | undefined;
   try {
     descriptor = openSync(file.source, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
     const current = fstatSync(descriptor);
     if (!current.isFile() || current.dev !== file.device || current.ino !== file.inode) return true;
-    if (escapes(root, realpathSync(file.source))) return true;
+    if (escapes(file.sourceRoot, realpathSync(file.source))) return true;
     const bytes = readBounded(descriptor, MAX_FILE_BYTES);
     return bytes === undefined || digest(bytes) !== file.sha256;
   } catch {
@@ -395,8 +848,8 @@ function sourceFileChanged(root: string, file: CapturedFile): boolean {
   }
 }
 
-function requireStableSources(root: string, files: readonly CapturedFile[]): void {
-  if (files.some(file => sourceFileChanged(root, file))) {
+function requireStableSources(files: readonly CapturedFile[]): void {
+  if (files.some(file => sourceFileChanged(file))) {
     throw new ReviewPacketError(
       'Review target changed after packet capture',
       'REVIEW_TARGET_CHANGED',
@@ -506,6 +959,56 @@ function snapshotEntries(root: string, directory = root): string[] {
   });
 }
 
+function planningRoleSources(
+  cwd: string,
+  context: PlanningRoleContext | undefined,
+  included: ReadonlySet<string>,
+): string[] {
+  const sources = context?.dependencies.map(source =>
+    requiredPlanningSource(cwd, source.role, nodePath.resolve(cwd, source.path)),
+  );
+  return [...new Set(sources).difference(included)];
+}
+
+function requirePacketFileCount(count: number): void {
+  if (count > MAX_FILE_COUNT)
+    throw new ReviewPacketError(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
+}
+
+function packetPlanningContext(context: PlanningRoleContext | undefined): Partial<ReviewPacket> {
+  return context === undefined ? {} : { planning_context: context };
+}
+
+function packetRoleFile(
+  context: PlanningRoleContext | undefined,
+  files: readonly { readonly path: string; readonly content: string }[],
+  role: 'ticket' | 'project',
+): { readonly path: string; readonly content: string } | undefined {
+  const path = context?.dependencies.find(source => source.role === role)?.path;
+  if (path === undefined) return undefined;
+  const file = files.find(candidate => candidate.path === path);
+  if (file === undefined) throw new PlanningContextError(role, path);
+  return file;
+}
+
+function packetDispositionContext(
+  kind: ReviewKind,
+  context: PlanningRoleContext | undefined,
+  files: readonly { readonly path: string; readonly content: string }[],
+): Partial<ReviewPacket> {
+  const ticket = packetRoleFile(context, files, 'ticket');
+  if (ticket === undefined) return {};
+  if (parseTicketMetadata(ticket.content).metadata.review_dispositions === undefined) return {};
+  const project = packetRoleFile(context, files, 'project');
+  if (project === undefined) throw new PlanningContextError('project', 'spec.md');
+  try {
+    const disposition = reviewDispositionContext(ticket.content, project.content, kind);
+    return disposition === undefined ? {} : { review_disposition_context: disposition };
+  } catch {
+    throw new PlanningContextError('ticket', ticket.path);
+  }
+}
+
 // Keep validation, generated classification, and packet capture in one atomic preflight.
 // eslint-disable-next-line complexity -- A partial packet must never escape this boundary.
 function prepareReviewPacketUnsafe(
@@ -526,25 +1029,35 @@ function prepareReviewPacketUnsafe(
   const expectedSnapshotEntries = new Set<string>();
   let logicalFiles: { path: string; content: string }[];
   let contextFiles: { path: string; content: string }[];
+  let planningContext: PlanningRoleContext | undefined;
+  let planningContract: ReturnType<typeof packetPlanContract>;
+  let dispositionContext: Partial<ReviewPacket>;
+  let deliveryDefinition: ExecutionPlanDeliveryDefinition | undefined;
   try {
     let packetBytes = 0;
     const captureFiles = (
       files: readonly string[],
       allowGenerated: boolean,
       offset: number,
+      allowPackagedGuide = false,
     ): { path: string; content: string }[] =>
       files.flatMap((target, index) => {
         try {
-          const source = nodePath.resolve(canonicalRoot, target);
-          const relative = nodePath.relative(canonicalRoot, source);
-          if (escapes(canonicalRoot, source)) {
+          const projectSource = nodePath.resolve(canonicalRoot, target);
+          const relative = nodePath.relative(canonicalRoot, projectSource);
+          if (escapes(canonicalRoot, projectSource)) {
             throw new ReviewPacketError(
               `Review target escapes the project: ${target}`,
               'REVIEW_TARGET_OUTSIDE_PROJECT',
             );
           }
+          const { root: sourceRoot, source } = planningSource(
+            canonicalRoot,
+            projectSource,
+            allowPackagedGuide,
+          );
           const stats = lstatSync(source);
-          if (escapes(canonicalRoot, realpathSync(source))) {
+          if (escapes(sourceRoot, realpathSync(source))) {
             throw new ReviewPacketError(
               `Review target escapes the project: ${target}`,
               'REVIEW_TARGET_OUTSIDE_PROJECT',
@@ -576,7 +1089,7 @@ function prepareReviewPacketUnsafe(
           // A hard link inside the project is intentionally treated as a regular
           // in-project file; containment is path-based, and its bytes are copied.
           const { bytes, content, device, inode } = readContainedText(
-            canonicalRoot,
+            sourceRoot,
             source,
             target,
             MAX_PACKET_BYTES - packetBytes,
@@ -601,7 +1114,7 @@ function prepareReviewPacketUnsafe(
             parent = nodePath.dirname(parent);
           }
           expectedSnapshotEntries.add(`file:${relative}`);
-          tracked.push({ source, snapshot, sha256: digest(bytes), device, inode });
+          tracked.push({ source, sourceRoot, snapshot, sha256: digest(bytes), device, inode });
           const file = { path: toReviewPath(relative), content };
           captured.push({ index: offset + index, context: !allowGenerated, file });
           return [file];
@@ -625,6 +1138,7 @@ function prepareReviewPacketUnsafe(
       rejectDuplicate(target);
       uniqueTargets.push(target);
     }
+    context = resolvedPlanningContext(canonicalRoot, kind, uniqueTargets, context);
     for (const target of context) rejectDuplicate(target);
     if (uniqueTargets.length + context.length > MAX_FILE_COUNT) {
       throw new ReviewPacketError(
@@ -634,7 +1148,7 @@ function prepareReviewPacketUnsafe(
     }
     logicalFiles = captureFiles(uniqueTargets, true, 0);
     contextFiles = captureFiles(context, false, uniqueTargets.length);
-    requireStableSources(canonicalRoot, tracked);
+    requireStableSources(tracked);
     const overflowIndex = serializedOverflowIndex(kind, captured, executionAttestation);
     if (overflowIndex !== undefined) {
       targetErrors.push({
@@ -656,7 +1170,7 @@ function prepareReviewPacketUnsafe(
       throw earlierFailure?.error ?? error;
     }
     collectOversizedOutcomes(canonicalRoot, oversized, marked, targetErrors, excludedTargets);
-    requireStableSources(canonicalRoot, tracked);
+    requireStableSources(tracked);
     throwFirstTargetError(targetErrors);
     if (logicalFiles.length === 0) {
       throw new ReviewPacketError(
@@ -668,6 +1182,35 @@ function prepareReviewPacketUnsafe(
     }
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
+    requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
+    deliveryDefinition = retainedDeliveryDefinition(kind, logicalFiles, canonicalRoot);
+    planningContract = packetPlanContract(
+      kind,
+      execution.planContract,
+      canonicalRoot,
+      uniqueTargets,
+    );
+    planningContext =
+      planningContract.planning_phase === undefined
+        ? undefined
+        : resolvePlanningRoleContext(
+            canonicalRoot,
+            kind,
+            planningContract.planning_phase,
+            logicalFiles,
+            contextFiles,
+          );
+    const additional = planningRoleSources(canonicalRoot, planningContext, seen);
+    requirePacketFileCount(uniqueTargets.length + context.length + additional.length);
+    contextFiles.push(
+      ...captureFiles(additional, false, uniqueTargets.length + context.length, true),
+    );
+    requireStableSources(tracked);
+    throwFirstTargetError(targetErrors);
+    dispositionContext = packetDispositionContext(kind, planningContext, [
+      ...logicalFiles,
+      ...contextFiles,
+    ]);
   } catch (error) {
     rmSync(workspace, { recursive: true, force: true });
     throw error;
@@ -678,6 +1221,11 @@ function prepareReviewPacketUnsafe(
     kind,
     logical_files: logicalFiles,
     ...(contextFiles.length > 0 && { context_files: contextFiles }),
+    ...planningContract,
+    ...packetPlanningContext(planningContext),
+    ...dispositionContext,
+    ...packetDeliveryDefinition(deliveryDefinition),
+    ...packetNormalizedPlanDigest(kind, logicalFiles),
     ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),
   };
   if (Buffer.byteLength(JSON.stringify(packet), 'utf8') > MAX_PACKET_BYTES) {
@@ -692,7 +1240,9 @@ function prepareReviewPacketUnsafe(
     excludedTargets,
     sourceRoot: canonicalRoot,
     workspace,
-    sourceChanged: () => tracked.some(file => sourceFileChanged(canonicalRoot, file)),
+    sourceChanged: () =>
+      tracked.some(file => sourceFileChanged(file)) ||
+      designApprovalConfigChanged(kind, canonicalRoot, deliveryDefinition),
     snapshotChanged: () => {
       if (tracked.some(file => fileDigest(file.snapshot) !== file.sha256)) return true;
       try {
