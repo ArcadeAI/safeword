@@ -6,11 +6,21 @@ import { fileURLToPath } from 'node:url';
 import type { ReviewAgent } from '../../src/review/contract.js';
 
 export const RED_SEMANTIC_CASES = [
-  { id: 'actor-assertion', verdict: 'approve', steps: ['passed', 'passed', 'failed'] },
+  {
+    id: 'actor-assertion',
+    verdict: 'approve',
+    steps: ['passed', 'passed', 'failed'],
+    error: 'status: pending',
+  },
   { id: 'undefined-step', verdict: 'request_changes', steps: ['passed', 'undefined', 'skipped'] },
   { id: 'pending-step', verdict: 'request_changes', steps: ['passed', 'pending', 'skipped'] },
   { id: 'setup-failure', verdict: 'request_changes', steps: ['skipped', 'skipped', 'skipped'] },
-  { id: 'unrelated-assertion', verdict: 'request_changes', steps: ['passed', 'passed', 'failed'] },
+  {
+    id: 'unrelated-assertion',
+    verdict: 'request_changes',
+    steps: ['passed', 'passed', 'failed'],
+    error: 'unrelated actual',
+  },
 ] as const;
 
 export type RedSemanticCase = (typeof RED_SEMANTIC_CASES)[number];

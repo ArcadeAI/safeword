@@ -8,11 +8,19 @@ import {
   createRedSemanticFixture,
   matchesRedSemanticExpectation,
   RED_SEMANTIC_CASES,
+  type RedSemanticCase,
 } from '../fixtures/executable-red-semantic.js';
 
 interface ReportStep {
   keyword: string;
   result: { status: string; error_message?: string };
+}
+
+function assertOutcomeError(testCase: RedSemanticCase, steps: ReportStep[] | undefined): void {
+  if (!('error' in testCase)) return;
+  // Both fixtures share a message; their assertion values must still distinguish them.
+  const outcome = steps?.find(step => step.keyword.trim() === 'Then');
+  expect(outcome?.result.error_message).toContain(testCase.error);
 }
 
 describe('executable RED semantic fixtures', () => {
@@ -37,6 +45,7 @@ describe('executable RED semantic fixtures', () => {
       );
       expect(steps?.map(step => step.keyword.trim())).toEqual(['Given', 'When', 'Then']);
       expect(steps?.map(step => step.result.status)).toEqual(testCase.steps);
+      assertOutcomeError(testCase, steps);
       expect(`${executed.stdout}${executed.stderr}`).toContain(fixture.expectedFailure);
       expect(existsSync(nodePath.join(fixture.directory, 'actor-invoked'))).toBe(
         testCase.id === 'actor-assertion' || testCase.id === 'unrelated-assertion',
@@ -75,7 +84,7 @@ describe('executable RED semantic fixtures', () => {
       expected: 'request_changes',
       verdict: 'approve',
       status: 'approved',
-      gate: 'blocked',
+      gate: 'approved',
       reviewer: 'claude',
       independence: 'cross-agent',
     },

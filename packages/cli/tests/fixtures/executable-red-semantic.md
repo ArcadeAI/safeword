@@ -2,7 +2,8 @@
 
 The default CI suite runs `tests/review/executable-red-semantic-fixtures.test.ts`.
 It executes five real Cucumber fixtures and verifies their step statuses and
-whether the actor ran. It also calibrates the deterministic verdict scorer
+whether the actor ran. The Then error details distinguish actor output from an
+unrelated assertion. It also calibrates the deterministic verdict scorer
 against always-approve, always-reject, missing-verdict, wrong-reviewer,
 non-independent, wrong-status and wrong-gate observations. It makes no model calls.
 
