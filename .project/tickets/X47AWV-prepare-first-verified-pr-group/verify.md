@@ -3,9 +3,54 @@
 2026-10-15. Material head: d76e05472bc73af72b27d3be2ad3801a6baa4fa9.
 This records local results before the evidence-only commit and push. Exact pushed
 head and terminal CI disposition belong to Draft PR #5881's readiness block.
-No ticket activation, completion, Ready promotion, merge or release is claimed.
+That historical run claimed no ticket activation, completion, Ready promotion,
+merge or release.
+
+## Current closure reconciliation (2026-10-16)
+
+The user authorized Ready promotion; merge, release and deployment remain
+unauthorized. The delivery branch now occupies this chat's b528 worktree.
+Editing its actual ticket bound X47AWV through the normal hook. An independent
+Claude Opus intake review (93c23e19-b782-4dfc-b305-2d18de5f7340) approved the
+reconciled scope; its verified receipt permitted this task to advance to verify.
+No historical feature phases, activation or test-first history were invented.
+The subsequent record review (11ca2f36-806b-4b36-9478-f2ffc82f3a06) approved with
+warnings answered by explicit supersession, the task-only phase contract and
+the reproducible evidence below. It did not cover verify.md and was therefore
+correctly refused as a verify-phase exit stamp. Covering reviews
+c77a7f8c-86c3-47e4-a757-8557210b0dc1 and
+0ccf85ce-9262-433d-84b8-110d49628be6 subsequently approved. The latter's verified
+cross-agent Claude Opus receipt was recorded for verify. The final signed
+coordinator receipt and normal phase-exit stamp remain the closure authority.
+
+[CI run 38809738126](https://github.com/ArcadeAI/safeword/actions/runs/38809738126)
+reports success at 53e0585adca6fe2ef1a22eb2c33424b2108d670e, including Node 22/24
+and the existing dependency-audit policy. Reproduce with
+`gh run view 38809738126 --json conclusion,headSha,url`.
+`git diff --name-only d76e05472bc73af72b27d3be2ad3801a6baa4fa9 53e0585adca6fe2ef1a22eb2c33424b2108d670e`
+lists only files beneath this ticket's directory: HANDOFF.md,
+delivery-checks.md, verify.md and evidence/formal-delivery/. Production and test
+bytes are unchanged, as they are in this reconciliation. Final commit checks
+must pass before Ready; the raw verifier failure and deferred cases below remain.
 
 ## Verify Checklist
+
+Closure checks in this worktree (2026-10-16): the first `bun run test:done`
+failed with seven 60-second test deadlines across lint-config (1),
+pre-tool-architecture-stage (3), resolve-verify-ticket (2) and retro-filing (1):
+2,070 passed / 7 failed in 360.66 seconds. The cause remains unexplained.
+The four files then passed 186 tests in 41.67 seconds, and the complete unchanged
+close subset passed all 2,077 tests in 48.33 seconds. No timeout, retry policy,
+test or production source was changed. These are later successes, not an erasure
+of the failed run or of the earlier formal verifier failure.
+
+Collector initially could not start because tsup was absent. The existing frozen
+lockfile install restored the worktree dependencies (no tracked dependency
+change). Collector then passed 153 tests; relay passed 198 with one skipped.
+Go returned success with no test files. These complete the resolved task-close
+test lanes. Passing command logs are retained as closure-*.log.gz beside the
+formal-delivery evidence; the first failed run's result above is a transcript
+summary, not a claim that its complete raw output was archived.
 
 **Test Suite:** ❌ Initial full CLI pass: 15 failures; second full pass: 11,080 passed / 14 skipped. Subsequent targeted checks pass; see attribution below.
 **Gherkin:** ✅ Acceptance lane passes — two runs of 596 scenarios / 11,118 steps, each followed by 50 provenance passes; final changed-flow replay: 14 scenarios / 668 steps.
@@ -15,7 +60,7 @@ No ticket activation, completion, Ready promotion, merge or release is claimed.
 **Scenarios:** ⏭️ Skipped — delivery task has no scenario ledger; four implemented child contracts and unfinished epic work retain their own status.
 **Refactor:** ✅ Completed — 0e459e074 reuses the target matcher; 58014900a shares the repair proof descriptor. Each was tested and committed separately.
 **PR Scope:** ✅ Diff matches ticket scope — bounded approval repair, its proof, accurate workflow docs and authorized test-quality improvements.
-**Dep Drift:** ✅ Clean — no added runtime dependencies or dependency-file changes; this is not a clean security-audit claim.
+**Dep Drift:** ✅ No added runtime dependencies or lockfile changes; CLI manifest changes are generator scripts, with a separate bundler configuration prerequisite. This is not a clean security-audit claim.
 **Parent Epic:** 82T411 / #4200 (siblings: 0/11 marked done; five children retain 418 undefined scenarios).
 **Reconcile:** ✅ No pattern deviation — existing receipt identity, phase transition, digest-bound human authority and generators remain the owners.
 **Experience:** ⚠️ Documented reader walk only; broader epic demo and human usability remain uncertified. See delivery-checks.md.
@@ -143,6 +188,7 @@ documents, and TypeScript's
 Readonly is compile-time protection, not runtime freezing. Review and command
 logs, controlled probe and fingerprints are retained under evidence/formal-delivery/.
 
-**Next:** Collect exact-head CI under the existing repository policy, then present
-the bounded candidate and retained evidence limits for a concrete human landing
-decision. Do not promote or merge; do not mark the intake task or epic complete.
+**Next:** Complete normal X47AWV closure and collect final-commit CI under the
+existing repository policy, then perform the user-authorized Ready promotion.
+Present the bounded candidate and retained evidence limits for a human merge
+decision. Do not merge, release, deploy or mark the epic complete.

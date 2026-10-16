@@ -1,5 +1,21 @@
 # Resume #4200: establish the smallest safe first landing group
 
+2026-10-16 closure reconciliation: the user authorized Ready promotion. The clean
+delivery branch now resides in this chat's b528 worktree at the same candidate
+commit, with no session-state or receipt copying. X47AWV is bound through its
+actual ticket edit and has advanced to verify after independent intake review
+93c23e19-b782-4dfc-b305-2d18de5f7340. Normal closure and final commit checks are
+still required. All earlier statements below forbidding Ready promotion or
+requiring an untouched intake scaffold are superseded by this reconciliation;
+they describe the prior blocked context. No historical activation is claimed.
+This is a task, so the feature-only intermediate-phase sequence does not apply
+(phase-provenance.ts, evaluateEdit). Closure relies on verify.md, current checks
+and independent phase-exit review, rather than reconstructed feature history.
+No merge, release or deployment is authorized. Raw verification failures and
+deferred OpenCode/cloud qualification remain disclosed.
+
+## Historical record (authorization and intake notes superseded above)
+
 Formal delivery pass (2026-10-15): read verify.md and delivery-checks.md first.
 Verify, diff audit, two protected refactors and independent quality review ran;
 warranted test/doc improvements are committed. The verifier exited nonzero:
@@ -20,7 +36,7 @@ replanning reviews approve. Read test-quality-results.md and review-responses.md
 for current verification, retained warnings and the intermittent local replay
 failure; PR #5881's exact-head readiness block owns the final CI disposition.
 
-## Start here
+## Historical starting point (superseded)
 
 Branch: `codex/4200-first-merge-group`. This is a work-in-progress integration and investigation branch, not a merge-ready PR. No promotion, merge, release or deployment is authorized. Task X47AWV belongs to epic 82T411 / GitHub #4200; see investigation.md and landing-proposal.md in this directory. The task scaffold remains intake because Safeword rejected canonical ticket edits; do not fake phase or activation evidence.
 
@@ -34,7 +50,7 @@ A separate native-template lookup failure was reproduced and narrowly repaired u
 
 Independent code review e9d48f3b-c391-4a8e-9fed-6fc3ed0de745 confirmed the bypass. Independent proposal review dd57529f-37ec-4802-bead-591bf4ab0f1d challenged premature expansion and the claim that a faithful backport creates another policy. Corrected proposal review 5b763d66-5fbd-4223-987f-d873fe14ea13 approved the revised bounded comparison with no errors. These are proposal/bounded-code reviews, not whole-PR readiness approvals.
 
-## Next authorized work
+## Historical work instructions (superseded)
 
 1. Compare a faithful, complete backport of existing repair with expanding the landing group. Relevant commits: 93781e058 (retained design-changing discovery) and c91547387 (native scaffolding plus legacy reentry refusal), with d74a2dc15 lookup guard. Current-context identity machinery is also involved; do not copy the notice/refusal alone or invent a new timestamp/ledger-order mechanism.
 2. Establish exact dependency closure and canonical changed files before choosing. Both repair commits first appear among inspected existing branches at codex/4200-semantic-scope-pr5 (#5139); this does not mean the whole higher group is necessary, verified or ready.
