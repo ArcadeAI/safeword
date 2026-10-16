@@ -4,6 +4,24 @@ Test methodology, TDD workflow, and test type selection.
 
 ---
 
+## Planning and review
+
+During Implementation Planning, use this guide to choose the real boundary,
+primary proof type, and confidence limit for each consequential accepted
+behavior. Record that proof strategy in the Implementation Plan; a guide citation
+or a list of test names does not establish that the behavior is provable.
+Implementation Plan review checks that the chosen proof could fail when the
+behavior is broken, including entry-point wiring and relevant failure paths.
+
+During Execution Planning, turn the strategy into startable test work: setup,
+action, assertion, process boundary, commands, and order. Execution Plan review
+checks that every accepted proof obligation has a concrete completion signal,
+without reopening design decisions. During TDD, use the rest of this guide to
+write and assess the tests. Keep representative behavior in scenarios and dense
+input or parser variations in lower-level tests rather than duplicating them.
+
+---
+
 ## Related Guides
 
 | Need                              | Guide                                                                  |
@@ -18,11 +36,11 @@ Test methodology, TDD workflow, and test type selection.
 
 **Behavior-biased testing:** At every test level, assert on what the system _does_ (outputs, side effects, user-visible outcomes) — never on _how_ it does it (internal state, mock call counts, private methods). Tests coupled to implementation break on every refactor. Behavioral tests survive.
 
-**Maximize confidence per cost:** When multiple test types can verify a
-behavior, prefer the highest-scope proof that is stable and cheap enough for
-the lane. Higher scope gives more real-world confidence. Lower scope wins when
-it proves the same behavior faster, diagnoses failures better, or covers dense
-edge cases.
+**Maximize confidence per cost:** Choose the cheapest stable proof that
+exercises the real behavior boundary. Move higher only for a risk the lower
+scope cannot prove, such as browser behavior, deployed wiring, or a full user
+journey. Add a separate wiring proof for each new entry point; one proof need
+not carry every risk.
 
 Test what you build — run the tests yourself before completion rather than asking the user to verify.
 
@@ -42,12 +60,13 @@ Tests are the specification. When a test fails, the implementation is wrong—no
 | Deleting tests you can't get passing         | Removes coverage for edge cases   |
 | Weakening assertions (`toBe` → `toBeTruthy`) | Reduces test precision            |
 
-Skipping, focusing, deferring, or commenting out tests is lint-denied in the
-vitest lane (`vitest/no-disabled-tests`, `no-focused-tests`,
-`no-commented-out-tests`, plus the deferred-marker selector). The sanctioned
-escape hatch is an inline eslint-disable with a reason — that comment is the
-auditable approval artifact. Environment-conditional `skipIf`/`runIf` stay
-legal.
+When the project configures the vitest lint lane, enforce
+`vitest/no-disabled-tests`, `vitest/no-focused-tests`, `vitest/no-commented-out-tests`, and
+its deferred-marker selector. In an ESLint project, an approved exception may
+be recorded with an inline disable, reason, and approval reference; the
+comment records approval already obtained and cannot grant it. Other projects
+must use an equivalent auditable approval record. Environment-conditional
+`skipIf`/`runIf` remain legitimate when the environment condition is real.
 
 ### What To Do Instead
 
@@ -61,7 +80,7 @@ legal.
 
 ## Test Value Model
 
-**Rule:** Test value = customer-behavior confidence / run + maintenance cost.
+**Rule:** Test value = confidence in customer behavior per run ÷ (run cost + maintenance cost).
 
 Use higher-scope tests for risks only the real system can expose. Use
 lower-scope tests when they give the same behavioral proof faster, make failures
@@ -94,7 +113,7 @@ tells you what to fix before writing it.
    - Clear answer → Continue
    - No clear answer → Skip it or turn it into a clearer acceptance criterion
 
-3. **Is this the cheapest scope that proves the behavior?**
+3. **Is this the cheapest practical scope that still exercises the real behavior boundary?**
    - YES → Continue
    - NO → Move up or down the hierarchy until confidence and cost match
 
@@ -108,14 +127,14 @@ tells you what to fix before writing it.
 
 ### Good Test Signals
 
-| Signal                    | What It Means                                           |
-| ------------------------- | ------------------------------------------------------- |
-| Behavior-linked           | Protects an output, side effect, workflow, or contract  |
-| Plausible regression      | Would fail for a bug users or maintainers could hit     |
-| Cheapest sufficient scope | Uses no more system than needed to prove the behavior   |
-| Diagnosable failure       | Failure narrows where to inspect next                   |
-| Stable and isolated       | Does not depend on order, shared state, timing, or luck |
-| Maintained evidence       | Fixtures, snapshots, and assertions stay intentional    |
+| Signal                  | What It Means                                           |
+| ----------------------- | ------------------------------------------------------- |
+| Behavior-linked         | Protects an output, side effect, workflow, or contract  |
+| Plausible regression    | Would fail for a bug users or maintainers could hit     |
+| Cheapest boundary proof | Uses the real boundary without needless extra system    |
+| Diagnosable failure     | Failure narrows where to inspect next                   |
+| Stable and isolated     | Does not depend on order, shared state, timing, or luck |
+| Maintained evidence     | Fixtures, snapshots, and assertions stay intentional    |
 
 ### Busywork Smells By Type
 
@@ -159,9 +178,10 @@ If a test fails this gate, convert it into one of:
 
 ## Test Type Hierarchy
 
-**Rule:** Prefer the highest-scope type that is stable and cheap enough for the
-lane. Higher scope increases confidence in real behavior; lower scope is better
-for fast diagnosis, pure algorithms, and combinatorial input coverage.
+**Rule:** Start at the cheapest stable type that exercises the required real
+boundary. Move higher when the risk exists only across a broader boundary;
+keep lower-scope tests for fast diagnosis, pure algorithms, and combinatorial
+input coverage.
 
 ```text
 E2E (seconds-minutes)    ← Full browser, user flows         ↑ broader confidence
@@ -177,7 +197,7 @@ Unit (milliseconds)      ← Pure functions, no I/O           ↓ cheaper diagno
 
 ## When to Use Each Test Type
 
-The first matching row picks the type (rows run general → specific):
+The first matching row picks the type (rows run specific → general):
 
 | If the test…                                                      | Type           | Examples                                                                                                                                   |
 | ----------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -217,13 +237,15 @@ Which test type catches which bug?
 | AI prompt quality degradation        | ❌    | ❌           | ❌   | LLM Eval (only) |
 | AI reasoning accuracy                | ❌    | ❌           | ❌   | LLM Eval (only) |
 
-**Key principle:** If multiple test types can catch the bug, prefer the highest scope that's practical. Use lower scope for pure logic with many edge cases.
+**Key principle:** Choose the cheapest scope that proves the named boundary.
+Add a broader proof when a user journey or entry-point wiring would otherwise
+remain untested. Use lower scope for pure logic with many edge cases.
 
 ---
 
 ## TDD Quick Reference (Tasks)
 
-For tasks (1-2 files), follow this cycle:
+For bounded tasks without a new behavior-shaping decision, follow this cycle:
 
 1. **RED** - Write one failing test for the expected behavior
 2. **GREEN** - Write minimum code to pass the test
@@ -233,13 +255,10 @@ Commit after each GREEN phase.
 
 ### Escalation Check
 
-If during implementation you discover:
-
-- 3+ files need changes, OR
-- Multiple user flows affected, OR
-- New state management needed
-
-**Stop and escalate:** "This is bigger than expected. Switching to `/bdd` for proper behavior definition."
+If the work spreads across more files than expected, re-check whether the
+classification still holds; file count alone does not promote a task. If you
+discover multiple user flows, new state, or an unresolved behavior-shaping
+decision, stop and switch to `/bdd` for behavior definition before continuing.
 
 For full TDD workflow with verification gates, red flags, walking skeleton, and phase orchestration, start feature work or run `/bdd`.
 
@@ -267,10 +286,10 @@ it('calls setState with correct value', () => {
 describe('Agent + State Integration', () => {
   it('updates character state after agent processes action', async () => {
     const agent = new GameAgent();
-    const store = useGameStore.getState();
 
     await agent.processAction('attack guard');
 
+    const store = useGameStore.getState();
     expect(store.character.stress).toBeGreaterThan(0);
     expect(store.messages).toHaveLength(2);
   });
@@ -428,8 +447,8 @@ it('should increase stress when resisting', () => {
 
 ### Async Testing
 
-Arbitrary sleeps are lint-denied (`no-restricted-syntax` sleep selectors in the
-vitest lane; `playwright/no-wait-for-timeout` in the e2e lane). Poll an
+Where configured, lint can deny arbitrary sleeps (`no-restricted-syntax` in a
+vitest lane; `playwright/no-wait-for-timeout` in an E2E lane). Poll an
 observable condition instead:
 
 ```typescript
@@ -559,8 +578,8 @@ contract
 current provider pricing before deciding cadence.
 
 **Prompt caching can reduce repeated input-token costs on supported providers.**
-OpenAI currently documents up to 90% input-token savings for qualifying cached
-prompts. Treat caching as provider-specific, not guaranteed.
+Treat caching as provider-specific, not guaranteed; verify current pricing and
+eligibility before using it in a cost estimate.
 
 **Cost reduction strategies:**
 
