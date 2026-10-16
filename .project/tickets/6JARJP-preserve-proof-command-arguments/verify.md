@@ -3,6 +3,23 @@
 This is bounded Draft-delivery evidence, not completion of #4200 or a full
 repository verification certification. No merge or Ready promotion is authorized.
 
+## Verify Checklist
+
+**Test Suite:** ⚠️ Local environment limitation: broader run deferred to Draft CI to avoid overlapping another worktree's Vitest; targeted GREEN was 150 passed, 2 skipped before test-only lint cleanup.
+**Gherkin:** ⏭️ Skipped — broader acceptance remains pending; Gherkin lint passed.
+**Build:** ✅ Success — all three packages.
+**Lint:** ✅ Clean — repository lint passed after the test expression style correction.
+**Typecheck:** ✅ Clean — CLI tsc passed.
+**Scenarios:** ⏭️ Skipped — task uses inline regression tests, no new BDD scenarios.
+**Refactor:** ✅ No change warranted — preserve existing owners for this bounded repair.
+**PR Scope:** ✅ Diff matches ticket scope — three production files, three test files, required generated carriers, and scoped evidence only.
+**Dep Drift:** ✅ Clean — no dependency or manifest changes.
+**Parent Epic:** N/A — follow-up references #4200 without claiming parent completion.
+**Reconcile:** ✅ No pattern deviation — existing validation/parser/runtime owners retained.
+**Experience:** ⏭️ N/A — internal parsing and review diagnostics; no persona walkthrough claimed.
+**Surface Evidence:** ⚠️ Parser and subprocess boundary proven; full public CLI and installed-host walkthroughs unproven.
+**Evidence limits:** ⚠️ Full local suite, broader acceptance, exact final test text, full CLI journey, and CI remain unproven at Draft creation.
+
 ## Automated and manual results
 
 - TDD RED: 3 files failed; 48 failed, 102 passed, 2 existing platform skips.
