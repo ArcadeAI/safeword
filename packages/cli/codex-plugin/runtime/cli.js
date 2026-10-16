@@ -89970,7 +89970,7 @@ var CANONICAL_COMMANDS = [
   command("project pr-ready", "Promote the PR verified in the selected worktree", "mutate", {
     syntax: "pr-ready [pull]",
     networkPolicy: "declared",
-    fixture: { argv: ["project", "pr-ready"], environment: MACHINE_ENVIRONMENT }
+    fixture: { argv: ["project", "pr-ready", "--offline"], environment: MACHINE_ENVIRONMENT }
   }),
   command("project audit-scope", "Print the packaged audit scope shell contract", "observe", {
     syntax: "audit-scope"

@@ -6,7 +6,7 @@ subtype: bug-investigated
 phase: verify
 status: in_progress
 created: 2026-10-16T17:34:12.812Z
-last_modified: 2026-10-16T17:34:12.812Z
+last_modified: 2026-10-16T19:58:47Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/5511
 scope:
   - Reproduce the Codex session-root versus command-workdir mismatch.
@@ -41,6 +41,7 @@ done_when:
 - 2026-10-16 Main catch-up: fetched and fast-forwarded from d5885e587 to ca452a9cc (#5881, one first-parent merge with 1,112 reachable commits). Saved and restored the uncommitted work. Canonical hook code merged cleanly; conflicts affected only generated bundles/catalogue/fixture metadata, which were regenerated from current main plus this patch. All 5 generated surfaces pass their check.
 - 2026-10-16 Impact: current main adds execution-planning and coding-authorization gates to the shared hook, but leaves the readiness evaluator, namespace resolver, Codex CLI adapter/translation, readiness skill, and delivery-gate test file unchanged. The diagnostic remains at the existing Bash readiness denial before the new edit-planning gates. Root dependency manifests and lockfile did not change. Followed the newly documented scripts/dev toolchain launcher for post-sync commands.
 - 2026-10-16 Post-sync proof: 141/141 tests pass across six readiness/installation/translation/skill/coding-authorization suites; root lint, all three typechecks, all five generated surfaces, and 276 parity pairs plus 11 contracts pass. Fresh Claude/Opus cross-agent review approved the merged change (eae857ed-55a3-433f-b02b-1d015aa332de). Locked dependency refresh checked 1,088 installs across 1,296 packages with no dependency changes; renewed the invalidated bootstrap fingerprint through the supported flow.
+- 2026-10-16 Follow-on: the user's instruction to tackle the issue authorized the execution-time command in task 0VN2X5. Its verification records the combined current evidence. The raw hook's missing-workdir limitation is still open upstream; the new checked command validates and promotes from the actual selected worktree without copying readiness evidence.
 
 ## Root Cause
 

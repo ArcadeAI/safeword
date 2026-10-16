@@ -27,7 +27,7 @@ Refreshed independent Claude/Opus approval:
 `eae857ed-55a3-433f-b02b-1d015aa332de`, author `codex`, reviewer `claude`,
 independence `cross-agent`. The upstream host limitation remains unchanged.
 
-## Verify Checklist
+## Historical diagnostic checklist — before main catch-up (d5885e587)
 
 **Test Suite:** ⚠️ Focused readiness checks: 114/114 pass. Full root run: relay 198 pass (1 skipped), collector 153 pass, CLI 10,524 pass (14 skipped), 1 review-routing deadline failure. That test passes unchanged in isolation (1.33 seconds).
 **Gherkin:** ⚠️ Acceptance lane: 1,618 passed, 3 skipped, 4 failed. Three failures reproduce unchanged on clean origin/main; hook responsiveness passes in isolation on both trees.
@@ -85,8 +85,13 @@ case where evidence from the session checkout incorrectly allows an unseen
 unfinished worktree. This patch explains blocked mismatches; it does not solve
 that upstream information loss or provide a readiness bypass.
 
-Ticket remains in verification; no commit, push, PR, or issue closure performed.
+At this diagnostic-only checkpoint, the ticket remained in verification and no
+commit, push, PR, or issue closure had been performed. The later execution-time
+fix is tracked in sibling task 0VN2X5, whose verify.md records the current combined
+evidence. The local implementation now includes `project pr-ready`; the upstream
+raw-hook metadata limitation remains explicit.
 
-The clean baseline worktree at `/Users/alex/.codex/worktrees/5511-baseline/safeword`
-was retained because the app refused archive with "This worktree is protected by
-a pinned task or workspace." Its temporary dependency symlinks were removed.
+The managed clean baseline worktree created for this investigation was retained
+because the app refused archive with "This worktree is protected by a pinned
+task or workspace." Its temporary dependency symlinks were removed; the calling
+chat's worktree attachments retain its exact recovery identity.

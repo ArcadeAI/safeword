@@ -20,6 +20,20 @@ afterEach(() => {
 });
 
 describe('project pr-ready validation (#5511)', () => {
+  it('selects the delivery worktree with --cwd from the launch checkout', () => {
+    const project = fixture();
+    const result = project.run(project.launch, {}, ['--cwd', project.delivery]);
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      changed: true,
+      data: { project_directory: realpathSync(project.delivery) },
+    });
+    expect(project.calls().map(call => call.cwd)).toEqual([
+      realpathSync(project.delivery),
+      realpathSync(project.delivery),
+    ]);
+  });
+
   it.each(['subdirectory', 'symlink'])('uses the delivery root from a %s', spelling => {
     const project = fixture();
     const nested = nodePath.join(project.delivery, 'nested');
@@ -42,8 +56,10 @@ describe('project pr-ready validation (#5511)', () => {
       '---\nid: READY\ntype: task\nphase: implement\nstatus: in_progress\n---\n',
     );
     const result = project.run();
+    expect(result.status).toBe(2);
     expect(JSON.parse(result.stdout)).toMatchObject({
-      ok: false,
+      state: 'action_required',
+      changed: false,
       findings: [{ code: 'PR_READY_NOT_FINISHED' }],
       data: { project_directory: realpathSync(project.delivery) },
     });
@@ -65,8 +81,10 @@ describe('project pr-ready validation (#5511)', () => {
         }),
       );
     const result = project.run();
+    expect(result.status).toBe(2);
     expect(JSON.parse(result.stdout)).toMatchObject({
-      ok: false,
+      state: 'action_required',
+      changed: false,
       findings: [{ code: 'PR_READY_NOT_FINISHED' }],
     });
     expect(project.calls()).toEqual([]);
@@ -113,8 +131,10 @@ describe('project pr-ready validation (#5511)', () => {
     expect(project.calls().map(call => call.args[1])).toEqual(['view']);
     rmSync(nodePath.join(project.delivery, '.project/readiness-ticket.json'));
     const refused = project.run(undefined, { GH_TEST_MODE: 'already-ready' });
+    expect(refused.status).toBe(2);
     expect(JSON.parse(refused.stdout)).toMatchObject({
-      ok: false,
+      state: 'action_required',
+      changed: false,
       findings: [{ code: 'PR_READY_NOT_FINISHED' }],
     });
     expect(project.calls().map(call => call.args[1])).toEqual(['view']);
@@ -179,8 +199,10 @@ describe('project pr-ready validation (#5511)', () => {
   ])('rejects a %s repository override', variable => {
     const project = fixture();
     const result = project.run(undefined, { [variable]: project.launch });
+    expect(result.status).toBe(2);
     expect(JSON.parse(result.stdout)).toMatchObject({
-      ok: false,
+      state: 'action_required',
+      changed: false,
       findings: [{ code: 'PR_READY_CONTEXT_OVERRIDE' }],
     });
     expect(project.calls()).toEqual([]);
@@ -189,7 +211,12 @@ describe('project pr-ready validation (#5511)', () => {
   it('makes no GitHub call in offline mode', () => {
     const project = fixture();
     const result = project.run(undefined, {}, ['--offline']);
-    expect(JSON.parse(result.stdout).ok).toBe(false);
+    expect(result.status).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      changed: false,
+      findings: [{ code: 'CLI_ONLINE_REQUIRED' }],
+    });
     expect(project.calls()).toEqual([]);
   });
 
@@ -198,7 +225,12 @@ describe('project pr-ready validation (#5511)', () => {
     selector => {
       const project = fixture();
       const result = project.run(undefined, {}, [selector]);
-      expect(JSON.parse(result.stdout).ok).toBe(false);
+      expect(result.status).toBe(1);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        changed: false,
+        errors: [{ code: 'CLI_ARGUMENT_INVALID' }],
+      });
       expect(project.calls()).toEqual([]);
     },
   );
@@ -207,8 +239,10 @@ describe('project pr-ready validation (#5511)', () => {
     const project = fixture();
     rmSync(nodePath.join(project.delivery, '.safeword/SAFEWORD.md'));
     const result = project.run();
+    expect(result.status).toBe(2);
     expect(JSON.parse(result.stdout)).toMatchObject({
-      ok: false,
+      state: 'action_required',
+      changed: false,
       findings: [{ code: 'PR_READY_NOT_ENROLLED' }],
     });
     expect(project.calls()).toEqual([]);
