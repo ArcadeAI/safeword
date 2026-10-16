@@ -32,9 +32,9 @@ describe('executable RED rubric generation', () => {
     'imports',
     'fixtures',
     'configuration',
-    'undefined or pending Cucumber steps',
     'infrastructure',
     'unrelated actor-boundary assertion',
+    'undefined or pending Cucumber steps',
   ])('rejects %s as the wrong executable RED failure reason', failureReason => {
     expect(EXECUTABLE_RED_REVIEW_RUBRIC).toContain(failureReason);
   });
