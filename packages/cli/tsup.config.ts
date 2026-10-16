@@ -222,7 +222,7 @@ export default defineConfig({
   // Exclude devDependencies that have native bindings from bundling
   // Recovery commands must still start when they are upgrading an older
   // dependency tree that predates our TOML parser dependency.
-  noExternal: ['smol-toml'],
+  noExternal: ['smol-toml', 'prettier/plugins/markdown'],
   skipNodeModulesBundle: true,
   define: {
     __SAFEWORD_BUILD_COMMIT__: JSON.stringify(buildCommit),

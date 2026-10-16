@@ -41,4 +41,19 @@ describe('shared scenario-quality contract', () => {
     expect(bdd).not.toContain('review run scenario-gate');
     expect(bdd).toContain('`review-spec` in Review mode');
   });
+
+  it('places lower-level variations before drafting and compresses them at review', () => {
+    const scenarios = read('packages/cli/templates/skills/bdd/SCENARIOS.md');
+    const reviewSpec = read('packages/cli/templates/skills/review-spec/SKILL.md');
+
+    expect(scenarios).toContain('Partition and place proof');
+    expect(scenarios).toContain('Do not generate one scenario per input partition or boundary');
+    expect(scenarios).toContain('Trim duplicate lower-level cases before presenting the set');
+    expect(reviewSpec).toContain('## Shared scenario-quality rubric');
+    expect(reviewSpec).toContain('**Compress the set**');
+    expect(reviewSpec).toContain('Report all material gaps found in that sweep together');
+    expect(reviewSpec).toContain('A missing matrix row is not a missing acceptance scenario');
+    expect(reviewSpec).toContain('Do not add one rejection scenario per happy-path input');
+    expect(reviewSpec).toContain('which zero / one / max / empty / null value changes');
+  });
 });

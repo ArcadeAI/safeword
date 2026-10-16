@@ -9,6 +9,7 @@ import { hasInspirationActivationCandidate } from './inspiration.js';
 
 export type InspirationProvenance = 'activated' | 'absent' | 'unavailable';
 export type SpecArtifactProvenance = 'present' | 'absent' | 'unavailable';
+export type ExecutionPlanContractProvenance = 'activated' | 'absent' | 'unavailable';
 
 interface HistoricalFileTrail {
   commits: Set<string>;
@@ -98,6 +99,43 @@ function historicalInspirationContractWasActivated(
   return false;
 }
 
+function hasExecutionPlanActivationCandidate(ticketContent: string): boolean {
+  const frontmatterMatch = ticketContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  const meta = parseFrontmatter(frontmatterMatch?.[1] ?? '');
+  if (meta.phase === 'plan-execution') return true;
+  return (
+    Array.isArray(meta.phase_anchors) &&
+    meta.phase_anchors.some(entry => entry.split(':', 1)[0]?.trim() === 'plan-execution')
+  );
+}
+
+function historicalExecutionPlanContractWasActivated(
+  ticketDirectory: string,
+  repositoryPrefix: string,
+): boolean | undefined {
+  const executionPlanHistory = git(ticketDirectory, [
+    'log',
+    '--all',
+    '--follow',
+    '--format=%H',
+    '--',
+    'execution-plan.md',
+  ]);
+  if (executionPlanHistory.error !== undefined || executionPlanHistory.status !== 0) {
+    return undefined;
+  }
+  if ((executionPlanHistory.stdout ?? '').trim() !== '') return true;
+
+  const ticketTrail = historicalFileTrail(ticketDirectory, repositoryPrefix, 'ticket.md');
+  if (ticketTrail === undefined) return undefined;
+  for (const commit of ticketTrail.commits) {
+    const ticketContent = readHistoricalVersion(ticketDirectory, commit, ticketTrail.paths);
+    if (ticketContent === undefined) return undefined;
+    if (hasExecutionPlanActivationCandidate(ticketContent)) return true;
+  }
+  return false;
+}
+
 /** A current phase anchor or Git history proves that this feature owns spec.md. */
 export function specArtifactProvenance(ticketDirectory: string): SpecArtifactProvenance {
   const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
@@ -160,6 +198,26 @@ export function inspirationContractProvenance(ticketDirectory: string): Inspirat
   if (prefix.error !== undefined || prefix.status !== 0) return 'unavailable';
 
   const activated = historicalInspirationContractWasActivated(
+    ticketDirectory,
+    (prefix.stdout ?? '').trim(),
+  );
+  if (activated === undefined) return 'unavailable';
+  if (activated) return 'activated';
+  return absentOrIncompleteHistory(ticketDirectory);
+}
+
+/** Once execution planning begins, current state or reachable Git history keeps its gate active. */
+export function executionPlanContractProvenance(
+  ticketDirectory: string,
+): ExecutionPlanContractProvenance {
+  const executionPlanPath = nodePath.join(ticketDirectory, 'execution-plan.md');
+  if (existsSync(executionPlanPath)) return 'activated';
+
+  const repository = repositoryState(ticketDirectory);
+  if (repository !== 'repository') return repository;
+  const prefix = git(ticketDirectory, ['rev-parse', '--show-prefix']);
+  if (prefix.error !== undefined || prefix.status !== 0) return 'unavailable';
+  const activated = historicalExecutionPlanContractWasActivated(
     ticketDirectory,
     (prefix.stdout ?? '').trim(),
   );

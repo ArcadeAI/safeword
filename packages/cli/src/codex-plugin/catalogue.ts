@@ -27,6 +27,7 @@ interface CanonicalSkillAsset {
 
 const PACKAGED_SKILL_REFERENCES = [
   { skill: 'bdd', filename: 'adr-template.md' },
+  { skill: 'bdd', filename: 'execution-plan-template.md' },
   { skill: 'bdd', filename: 'impl-plan-template.md' },
 ] as const;
 

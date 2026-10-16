@@ -10,7 +10,7 @@ describe('runFixtureUpgradeWithoutInstall boundary', () => {
   it('runs only upgrade with package and skill installation disabled', async () => {
     const calls: {
       args: string[];
-      options?: { cwd?: string; env?: Record<string, string> };
+      options?: { cwd?: string; env?: Record<string, string | undefined> };
     }[] = [];
     const runner = ((args, options) => {
       calls.push({ args, options });

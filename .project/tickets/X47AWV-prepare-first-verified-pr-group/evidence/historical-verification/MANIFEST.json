@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "reason": "Preserve inherited failed or incomplete attempts without falsely closing child tickets. No guard, workflow, production code, tests or child phase/status/ledger changes.",
+  "proposal_review": "b05403de-2eee-4b9c-b874-910c95f3fa4a",
+  "boundary_analysis": "../../ready-closure-disposition.md",
+  "source_failure_run": "https://github.com/ArcadeAI/safeword/actions/runs/38914065503",
+  "failure_log_sha256": "e2fb27e5762f8185bb240e51ca0ec3af3bdc46b918350f0f4ad5feeed636d32a",
+  "sibling_ownership": "Original branches are unchanged. D1BKYA report retains its association with Draft acceptance-repair PR #4989. This candidate owns only the historical integration archive; future integrations must reconcile current reports under the same closure guard.",
+  "reports": [
+    {
+      "ticket": "7CAMAD",
+      "original_path": ".project/tickets/7CAMAD-turn-decisions-into-startable-work/verify.md",
+      "source_commit": "34be76d32007ea3c32932efa488c640bf52c78da",
+      "base_file_absent": true,
+      "base_sha": "d5885e58771cd87f8108196ce67986f7725a1974",
+      "archive_path": ".project/tickets/X47AWV-prepare-first-verified-pr-group/evidence/historical-verification/7CAMAD-verification-attempt.txt",
+      "sha256": "8e2adc4e0b6351ada6f0841a269bd1c7136ae1a0744a95a74441ce8306fd88ff",
+      "bytes": 2254,
+      "state_preserved": {
+        "phase": "verify",
+        "status": "in_progress"
+      },
+      "reason": "Incomplete historical verification attempt, not current child-completion evidence; fresh canonical verification remains required before child closure.",
+      "readable_snapshot": "https://github.com/ArcadeAI/safeword/blob/34be76d32007ea3c32932efa488c640bf52c78da/.project/tickets/7CAMAD-turn-decisions-into-startable-work/verify.md"
+    },
+    {
+      "ticket": "D1BKYA",
+      "original_path": ".project/tickets/D1BKYA-let-approved-planning-reviews-advance-honestly/verify.md",
+      "source_commit": "34be76d32007ea3c32932efa488c640bf52c78da",
+      "base_file_absent": true,
+      "base_sha": "d5885e58771cd87f8108196ce67986f7725a1974",
+      "archive_path": ".project/tickets/X47AWV-prepare-first-verified-pr-group/evidence/historical-verification/D1BKYA-verification-attempt.txt",
+      "sha256": "02f1cc08cd3d3d193d5c0c0ad6cecb6b7b67c901834bb5ba008a4eb1eb69c1e6",
+      "bytes": 12549,
+      "state_preserved": {
+        "phase": "implement",
+        "status": "in_progress"
+      },
+      "reason": "Incomplete historical verification attempt, not current child-completion evidence; fresh canonical verification remains required before child closure.",
+      "readable_snapshot": "https://github.com/ArcadeAI/safeword/blob/34be76d32007ea3c32932efa488c640bf52c78da/.project/tickets/D1BKYA-let-approved-planning-reviews-advance-honestly/verify.md"
+    },
+    {
+      "ticket": "G1C9PP",
+      "original_path": ".project/tickets/G1C9PP-approve-coherent-implementation-plans/verify.md",
+      "source_commit": "34be76d32007ea3c32932efa488c640bf52c78da",
+      "base_file_absent": true,
+      "base_sha": "d5885e58771cd87f8108196ce67986f7725a1974",
+      "archive_path": ".project/tickets/X47AWV-prepare-first-verified-pr-group/evidence/historical-verification/G1C9PP-verification-attempt.txt",
+      "sha256": "79f6c20a6453a4e938989b006b2db83d4719f57289f5c7011a2b0354cbdcacce",
+      "bytes": 5810,
+      "state_preserved": {
+        "phase": "implement",
+        "status": "in_progress"
+      },
+      "reason": "Incomplete historical verification attempt, not current child-completion evidence; fresh canonical verification remains required before child closure.",
+      "readable_snapshot": "https://github.com/ArcadeAI/safeword/blob/34be76d32007ea3c32932efa488c640bf52c78da/.project/tickets/G1C9PP-approve-coherent-implementation-plans/verify.md"
+    }
+  ],
+  "failure_log_archive_path": ".project/tickets/X47AWV-prepare-first-verified-pr-group/evidence/historical-verification/ready-only-closure-failure.log.gz",
+  "failure_log_hash_scope": "SHA-256 of the decompressed original GitHub log",
+  "report_hash_reproduction": [
+    "git show <source_commit>:<original_path> | shasum -a 256",
+    "shasum -a 256 <archive_path>"
+  ]
+}
