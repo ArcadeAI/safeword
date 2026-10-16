@@ -1,0 +1,6 @@
+→ generate-cursor-wrappers.ts
+→ generate-claude-historical-catalogue.ts
+→ generate-claude-plugin.ts
+→ generate-codex-plugin.ts
+→ lifecycle origin-main fixtures (update, then verify)
+Regenerated all 5 surfaces and verified them. Stage the result.

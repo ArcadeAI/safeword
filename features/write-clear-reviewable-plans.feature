@@ -1,0 +1,651 @@
+Feature: Make Safeword plans clear and reviewable
+  Plan authors and reviewers use one portable writing standard and one shared way to settle decisions.
+
+  @plan-implementability.TBU4.ZSHVEB.R1
+  Rule: plan-implementability.TBU4.ZSHVEB.R1 — One shared technical-writing guide is complete and reviewable
+
+    @surface.safeword-cli
+    Scenario: Installation preserves the approved writing guide
+      Given a project has no installed writing guide and the package contains the canonical guide
+      When Safeword installs and reconciles a project through its CLI
+      Then the installed guide is byte-identical to the canonical guide
+
+    Scenario: A complete writing guide passes its content contract
+      Given all six required topics have active Weak, Strong, and Source examples and at least one Source has an inline HTTPS citation
+      When Safeword checks the writing-guide contract
+      Then the guide passes
+
+    @surface.safeword-cli
+    Scenario: Reconciliation repairs a divergent writing guide
+      Given a project's installed writing guide differs from the canonical guide
+      When Safeword installs and reconciles that project through its CLI
+      Then the installed guide is byte-identical to the canonical guide
+
+    @rejection
+    Scenario Outline: An incomplete or extra topic fails the writing-guide contract
+      Given the canonical guide has <defect>
+      When Safeword checks the writing-guide contract
+      Then the guide is rejected with the affected topic named
+
+      Examples:
+        | defect |
+        | a required topic without active Weak, Strong, and Source examples |
+        | a seventh writing topic with its own examples |
+
+    @rejection
+    Scenario: An unsupported citation fails guide review
+      Given a writing topic cites a source that does not support its load-bearing claim
+      When the guide receives source-aware semantic review
+      Then the guide is rejected with the unsupported claim named
+
+    @rejection
+    Scenario: Alternate labels cannot hide a seventh writing rule
+      Given a seventh writing topic uses Poor, Better, and Reference examples instead of Weak, Strong, and Source markers
+      When the guide receives source-aware semantic review
+      Then the guide is rejected with the equivalent extra topic named
+
+    @rejection
+    Scenario: Source prose cannot replace a qualifying citation
+      Given all six writing topics have active Weak, Strong, and Source markers but no Source contains an inline HTTPS citation
+      When Safeword checks the writing-guide contract
+      Then the guide is rejected with the missing citation named
+
+  @plan-implementability.TBU4.ZSHVEB.R2
+  Rule: plan-implementability.TBU4.ZSHVEB.R2 — The Product Plan contract covers portable product decisions
+
+    @surface.safeword-cli
+    Scenario: A fresh parent Product Plan uses the complete v2 contract
+      Given Safeword is authoring a fresh parent Product Plan whose ticket and spec pair is absent from the default branch
+      When the plan is created and reviewed through the CLI contract
+      Then its ticket and spec have matching v2 markers and every required product field is authored in that plan
+
+    @rejection
+    Scenario: Matching v2 markers cannot hide a missing product field
+      Given a Product Plan instance has matching v2 markers but lacks Launch communication
+      When Safeword validates that instance under the v2 Product Plan contract
+      Then review fails with the missing field named while its Product Plan class and v2 identity remain unchanged
+
+    @rejection
+    Scenario: Contradictory completion criteria cannot pass Product Plan review
+      Given a v2 Product Plan's Definition of done contradicts its ticket's done_when projection
+      When Safeword reviews the plan under the v2 Product Plan contract
+      Then review fails with the contradicting Definition of done and done_when entries named
+
+    @surface.safeword-cli
+    Scenario: A fresh child keeps parent-owned fields by reference
+      Given Safeword is authoring a fresh child contribution under an accepted v2 parent
+      When the child is created and reviewed through the CLI contract
+      Then child-owned fields are authored in the child and parent-owned fields resolve through its accepted parent reference and digest without restating parent content
+
+    @rejection
+    Scenario: A child cannot restate a parent-owned field as its own
+      Given a v2 child repeats its accepted parent's Launch communication content outside the authoritative parent reference
+      When Safeword reviews the child under the v2 Product Plan contract
+      Then review fails with the duplicated parent-owned field named
+
+    @rejection
+    Scenario: A well-formed stale parent digest cannot validate a v2 child
+      Given a v2 child's recorded parent_contract_digest is 64 lowercase hexadecimal characters but differs from its accepted parent's job-scoped digest
+      When Safeword resolves the child for review
+      Then review fails with the stale parent digest named and reconciling the child to its accepted parent as recovery
+
+    @rejection
+    Scenario Outline: Partial or ambiguous ticket pairs have named recoveries
+      Given a tracked ticket directory has <pair_state>
+      When Safeword classifies it before Product Plan version resolution
+      Then it returns <result> and names <recovery>
+
+      Examples:
+        | pair_state | result | recovery |
+        | a ticket whose sibling spec was deleted | incomplete-pair | restoring the tracked spec or removing the orphan |
+        | structure matching multiple ticket classes | ambiguous | restoring a recognized non-Product shape or owner-authorized v2 migration |
+
+    Scenario: A recognized non-Product ticket stays outside Product Planning
+      Given a lone tracked non-Product ticket has rename-aware history proving it never had a spec
+      When Safeword classifies it before Product Plan version resolution
+      Then it returns not-a-product-plan and leaves that ticket on its own contract
+
+    @rejection
+    Scenario Outline: Product Plan sources reject project-specific requirements
+      Given the canonical full Product Plan template contains <project_specific_content>
+      When Safeword checks that template for portability
+      Then that template is rejected with the project-specific content named
+
+      Examples:
+        | project_specific_content |
+        | an Arcade identifier |
+        | a company-specific approval ceremony without a prohibited name |
+
+    @rejection
+    Scenario: Product Plan fields cannot be supplied by another canonical file
+      Given a canonical Product Plan source omits a required field that another canonical source contains
+      When Safeword checks the v2 Product Plan contract
+      Then the contract fails with the deficient source and field named
+
+    Scenario: Complete v1 plans remain valid without rewriting them
+      Given a complete accepted v1 child has matching markers and references a valid v1 parent
+      When Safeword validates it under the version-selected contract
+      Then it remains v1 with its accepted content and parent digest unchanged
+
+    @rejection
+    Scenario: Only a proven transition-era pair permits a matching v1 marker repair
+      Given a spec-v1 Product Plan lacks its ticket marker and full history proves first coexistence in the pinned transition window
+      When Safeword resolves its contract version before review
+      Then it blocks with v1-ticket-marker-repair-required and names restoring only the matching v1 ticket marker
+
+    @rejection
+    Scenario: The same marker gap outside the transition window requires v2 migration
+      Given a spec-v1 Product Plan lacks its ticket marker and full history proves first coexistence outside the pinned transition window
+      When Safeword resolves its contract version before review
+      Then it returns invalid-product-plan-contract and blocks until the owner authorizes v2 migration and current-contract review
+
+    @rejection
+    Scenario Outline: Other invalid Product Plan identities require v2 migration
+      Given a Product Plan has <marker_state>
+      When Safeword resolves its contract version before review
+      Then it returns invalid-product-plan-contract and blocks until the owner authorizes v2 migration and current-contract review
+
+      Examples:
+        | marker_state |
+        | a ticket-only v1 marker |
+        | conflicting ticket and spec versions |
+        | an unknown marker version |
+
+    @rejection
+    Scenario: A child cannot inherit from a schema-incomplete parent
+      Given an implementing child has complete v2 markers and a receipt but its referenced v2 parent lacks Launch communication
+      When Safeword resolves the child for review
+      Then it returns invalid-parent-contract without continuation and names completing the parent before child reconciliation
+
+    @rejection
+    Scenario: A child cannot inherit from another child
+      Given an implementing child has complete v2 markers and a receipt but its referenced parent is a complete child contribution
+      When Safeword resolves the child for review
+      Then it returns invalid-parent-contract without continuation and names a valid Product Plan parent before child reconciliation
+
+    @rejection
+    Scenario Outline: A v1 child cannot newly enter planning under a v2 parent
+      Given a <child_state> v1 child references a valid v2 parent without an active continuation receipt
+      When Safeword resolves the child for review
+      Then it returns child-version-migration-required and names owner-authorized v2 child migration and current-contract review
+
+      Examples:
+        | child_state |
+        | fresh |
+        | returned |
+
+    @rejection
+    Scenario: A new child cannot proceed under an unversioned parent
+      Given a new child references a legacy-unversioned parent
+      When Safeword resolves the child for review
+      Then it returns legacy-parent-blocked and names migrating the parent to v2 before child reconciliation
+
+    @rejection
+    Scenario: A missing frontmatter parent blocks child review
+      Given a child's ticket frontmatter names a parent with no tracked ticket directory
+      When Safeword resolves the child for review
+      Then it returns parent-not-found and names correcting the reference or restoring the tracked parent
+
+    @rejection
+    Scenario: A receipt cannot continue work after its parent disappears
+      Given an implementing child has a previously valid continuation receipt but its frontmatter parent no longer resolves
+      When Safeword resolves the child for continued work
+      Then it blocks with parent-not-found and names correcting the reference or restoring the tracked parent
+
+    @rejection
+    Scenario: A spec cannot override the frontmatter parent
+      Given a child's spec Parent entry disagrees with its ticket frontmatter under a schema-valid Product Plan parent
+      When Safeword resolves the child for review
+      Then it returns child-parent-reference-invalid and names reconciling the spec reference to frontmatter
+
+    @rejection
+    Scenario: A dangling parent job cannot be hidden by invalid child markers
+      Given an implementing child has an otherwise valid continuation receipt and a continuation-eligible marker defect but its Parent job no longer resolves under a schema-valid parent
+      When Safeword resolves the child for continued work
+      Then it returns only child-parent-reference-invalid without continuation and names correcting the child reference or restoring the accepted parent job
+
+    @rejection
+    Scenario: An invalid parent takes precedence over a dangling child reference
+      Given a child has a dangling Parent job under a legacy-unversioned Product Plan parent
+      When Safeword resolves the child for review
+      Then it returns legacy-parent-blocked without continuation and names migrating the parent to v2 before child reconciliation
+
+    Scenario: A v2 child names absent v1 concepts
+      Given a complete v1 parent lacks a persona outcome inventory and launch communication
+      When Safeword reviews a v2 child against that parent
+      Then the child maps available parent fields and marks only those two absent concepts as unavailable in v1
+
+    @rejection
+    Scenario: A child cannot hide a field its parent supplies
+      Given a v1 parent has a persona outcome inventory and its v2 child claims that inventory is unavailable in v1
+      When Safeword reviews the child against its parent
+      Then the child fails review with the omitted parent field named
+
+    Scenario: A parent migration preserves bound child meaning
+      Given an implementing v1 child has an accepted continuation receipt and its parent gains only v2 fields without changing a bound concept
+      When Safeword resolves the child after the authorized parent migration
+      Then the child continues under its receipt without claiming v2 approval
+
+    Scenario: An unreferenced sibling Rule does not interrupt a child
+      Given an implementing child has an accepted continuation receipt whose Parent job names a job-level id and its parent changes only a sibling Rule the child never references
+      When Safeword resolves the child for continued work
+      Then the child continues under its receipt without returning to planning
+
+    @surface.safeword-cli
+    Scenario: A valid implementing child gets a latent receipt before parent migration
+      Given an isolated real Git repository has an implementing v1 child and parent valid under v1 with qualifying evidence at its default-branch cutoff
+      When the Safeword CLI first encounters the v2 planning contract before any parent migration
+      Then ordinary v1 admission succeeds and a latent receipt binds the pre-migration parent digest and normalized projection
+      And tracked ticket, spec, and plan bytes remain unchanged
+
+    @rejection
+    Scenario: Changing bound parent meaning ends child continuation
+      Given an implementing child has an accepted continuation receipt whose Parent job names a Rule-level id and its parent changes that Rule's governed content
+      When Safeword resolves the child against the changed parent
+      Then continuation is refused with the child's base contract result and a return to planning
+
+    @rejection
+    @surface.safeword-cli
+    Scenario: Missing history cannot manufacture a continuation receipt
+      Given an isolated real Git checkout has an implementing legacy feature that needs a receipt but lacks its complete default-branch history
+      When the Safeword CLI first encounters the v2 planning contract
+      Then it mints no partial receipt, returns planning-history-unavailable, preserves existing evidence, and names a full-history checkout as recovery
+
+    @rejection
+    @surface.safeword-cli
+    Scenario: Branch-only phase history cannot mint a continuation receipt
+      Given in an isolated real Git repository an implementing legacy Product Plan's matching blob and phase commit exist only on the caller's branch after the consumer default-branch cutoff, without an accepted review receipt
+      When Safeword first encounters the v2 planning contract through its CLI
+      Then it mints no receipt and returns legacy-unversioned with owner-authorized v2 migration and current review as recovery
+
+    @surface.safeword-cli
+    Scenario: A branch-only accepted review can mint a continuation receipt
+      Given an isolated real Git repository has an implementing legacy Product Plan with an accepted content-addressed review receipt on the caller's branch matching its current plan bytes
+      When the Safeword CLI first encounters the v2 planning contract
+      Then it mints a receipt bound to that review id, artifact digest, and consumer default-branch cutoff and allows in-flight continuation
+
+    @surface.safeword-cli
+    Scenario: Cutoff-reachable legacy phase history preserves in-flight work
+      Given an isolated real Git repository has an implementing legacy Product Plan whose current plan bytes match its latest cutoff-reachable implementation commit, with no later return to planning and no accepted review receipt
+      When the Safeword CLI first encounters the v2 planning contract
+      Then it mints a receipt bound to legacy-phase-evidence, the matching commit and blob, and the consumer default-branch cutoff and allows in-flight continuation
+
+    @rejection
+    @surface.safeword-cli
+    Scenario: A return to planning invalidates earlier legacy phase history
+      Given a legacy Product Plan's matching implementation commit precedes a cutoff-reachable return to planning and its later implementation re-entry exists only after that cutoff without an accepted review receipt
+      When the Safeword CLI first encounters the v2 planning contract
+      Then it mints no receipt and returns legacy-unversioned with owner-authorized v2 migration and current review as recovery
+
+    @rejection
+    Scenario: Changed Product Plan bytes cannot mint a continuation receipt
+      Given an implementing legacy Product Plan differs from its matching historical blob and accepted review digest
+      When Safeword first encounters the v2 planning contract
+      Then it mints no receipt and returns legacy-unversioned with owner-authorized v2 migration and current review as recovery
+
+    @rejection
+    Scenario: Planning cannot mint a receipt before activation is declared
+      Given a later incomplete checkout lacks the planning-contract activation manifest declaration
+      When Safeword evaluates a new Product Planning gate
+      Then it returns planning-contract-activation-unavailable without minting a receipt and names checking out the declaration commit or a descendant
+
+    @rejection
+    Scenario Outline: Invalid activation history blocks release
+      Given a release candidate has <activation_defect>
+      When Safeword checks planning-contract activation history
+      Then release is blocked with the invalid activation identity named
+
+      Examples:
+        | activation_defect |
+        | a declaration SHA different from the computed activation commit |
+        | an activation commit whose first parent already contains the new planning gates |
+
+    @rejection
+    Scenario: Release cannot omit the activation declaration
+      Given a release candidate contains the activation commit but not its declaration commit
+      When Safeword checks planning-contract activation history
+      Then release is blocked with the missing declaration commit named
+
+    @rejection
+    Scenario: A stale transition-history pin blocks release
+      Given a pinned Product Plan transition commit does not add its expected artifact relative to its first parent
+      When Safeword checks the pinned transition history for release
+      Then release is blocked until the pin is corrected and independently re-reviewed
+
+    @rejection
+    Scenario: Returning to planning ends legacy continuation
+      Given an implementing feature continued under its accepted legacy plan
+      When a changed product decision returns it to Product Planning
+      Then its continuation receipt is cleared and the base contract result requires current Product Planning and review
+
+  @plan-implementability.TBU4.ZSHVEB.R3
+  Rule: plan-implementability.TBU4.ZSHVEB.R3 — The Implementation Plan contract covers design decisions, not execution mechanics
+
+    @surface.safeword-cli
+    Scenario: The current design contract retains its decision and proof obligations
+      Given accepted scenarios require architecture, interface, data, release, and proof choices
+      When the Implementation Plan is authored and reviewed under the current contract
+      Then it covers the thirteen required fields and keeps every retained design, proof, alignment, persona, documentation, and reassessment obligation
+
+    @rejection
+    Scenario Outline: Implementation Plan sources reject project-specific requirements
+      Given the canonical Implementation Plan template contains <project_specific_content>
+      When Safeword checks that template for portability
+      Then that template is rejected with the project-specific content named
+
+      Examples:
+        | project_specific_content |
+        | an Arcade identifier |
+        | a company-specific approval ceremony without a prohibited name |
+
+    @rejection
+    Scenario Outline: Implementation Plan fields must appear in each required region
+      Given one required field is absent from <deficient_region> but present in the other two required regions
+      When Safeword checks the canonical Implementation Plan contract
+      Then the contract fails with <deficient_region> named
+
+      Examples:
+        | deficient_region |
+        | the canonical Implementation Plan template |
+        | the author-facing contract outside the rubric markers |
+        | the evaluated exported rubric |
+
+    @rejection
+    Scenario: Execution sequencing cannot satisfy Implementation Planning
+      Given an otherwise complete Implementation Plan adds an active Build order field
+      When the plan receives decision-focused review
+      Then it is returned for moving that field to Execution Planning
+
+    Scenario: A CLI command contract remains in the Implementation Plan
+      Given an otherwise complete Implementation Plan has an API-contract heading named Commands exposed by the CLI
+      When the plan receives decision-focused review
+      Then it passes the execution-field contract with that heading retained
+
+    Scenario: Accepted legacy implementation keeps its exact design authority
+      Given a feature is implementing an accepted legacy Implementation Plan with bound unchanged content
+      When Safeword encounters the expanded design contract
+      Then it continues under recorded legacy authority without a false current-contract approval
+
+    @rejection
+    Scenario: A legacy plan cannot enter implementation under continuation
+      Given a feature is still planning with a legacy Implementation Plan and otherwise qualifying evidence
+      When Safeword encounters the expanded design contract
+      Then continuation is refused and the plan needs current-contract review before Execution Planning
+
+    @rejection
+    Scenario: Changed legacy plan bytes cannot continue by phase alone
+      Given a feature is implementing but its legacy Implementation Plan bytes differ from the bound evidence
+      When Safeword encounters the expanded design contract
+      Then it returns implementation-plan-continuation-unavailable and names returning to Implementation Planning for current-contract review
+
+    @rejection
+    Scenario: Returning to design requires current review
+      Given a feature continued under an accepted legacy Implementation Plan
+      When a new design choice returns it to Implementation Planning
+      Then the preserved plan becomes a draft that needs current-contract review
+
+    Scenario: An existing synthetic plan passes the adoption-instance contract
+      Given an existing synthetic Implementation Plan has all thirteen decision fields and no execution fields
+      When Safeword checks it in adoption-instance mode
+      Then the plan satisfies the same required and forbidden field contract as a fresh plan
+
+    @rejection
+    Scenario: Adoption-instance mode rejects a missing design field
+      Given an existing synthetic Implementation Plan lacks a required decision field
+      When Safeword checks it in adoption-instance mode
+      Then it returns implementation-plan-contract-invalid with the missing field named
+
+    @rejection
+    Scenario: Adoption-instance mode rejects execution sequencing
+      Given an existing synthetic Implementation Plan has all required fields but adds Build order
+      When Safeword checks it in adoption-instance mode
+      Then it returns implementation-plan-contract-invalid with the execution field named
+
+  @plan-implementability.TBU4.ZSHVEB.R4
+  Rule: plan-implementability.TBU4.ZSHVEB.R4 — Every canonical template Markdown workflow source has the right writing-guide dependency
+
+    @rejection
+    Scenario Outline: An unclassified or ambiguous Markdown path stops dispatch
+      Given a discovered Markdown path <classification_defect>
+      When Safeword classifies it before model dispatch
+      Then it returns writing-target-classification-invalid and names correcting the schema or manifest declaration
+
+      Examples:
+        | classification_defect |
+        | matches no declared path class |
+        | matches two declared path classes |
+
+    Scenario: Project plans and tickets remain data rather than workflow instructions
+      Given a registered semantic-review request targets a tracked Markdown spec and reads tracked ticket and plan files
+      When Safeword prepares that request
+      Then those project-instance files carry no instruction role or load directive of their own
+      And the request binds the exact installed writing guide for its Markdown target
+
+    Scenario: Installed supporting guides remain usable instructions
+      Given the schema declares installed architecture, data, interface, testing, and writing guides
+      When Safeword classifies those guides and their canonical sources
+      Then each installed guide maps to one canonical source as managed guidance rather than project-instance data
+
+    @rejection
+    Scenario: An instruction role on project-instance data fails before dispatch
+      Given a tracked ticket is project-instance data but a request assigns it an authoring instruction role
+      When Safeword prepares the model request
+      Then it returns writing-context-polarity-invalid and names rebuilding through the registered role
+
+    @surface.safeword-cli
+    Scenario Outline: Model work binds the guide only for Markdown targets
+      Given a registered <work_kind> request has <target_kind> targets
+      When the registered Safeword CLI dispatch path prepares that model request from declared targets
+      Then the request <guide_result> the exact installed writing guide
+
+      Examples:
+        | work_kind | target_kind | guide_result |
+        | authoring | Markdown | includes |
+        | semantic review | mixed Markdown and non-Markdown | includes |
+        | hybrid | Markdown | includes |
+        | authoring | non-Markdown | omits |
+        | pure execution | Markdown | omits |
+        | structural parsing | Markdown | omits |
+
+    @rejection
+    Scenario: A caller cannot suppress a declared Markdown target
+      Given a registered authoring request declares a Markdown target
+      When its caller supplies an empty target set instead
+      Then Safeword refuses model dispatch with writing-target-set-invalid and names correcting the registered request mapping
+
+    @rejection
+    Scenario: A missing installed guide stops Markdown authoring
+      Given a registered authoring request declares a Markdown target but the installed writing guide is absent
+      When Safeword prepares the model request
+      Then it refuses dispatch with writing-guide-reconciliation-required and names reconciling from the shipped package
+
+    @rejection
+    Scenario: A stale installed guide stops dispatch
+      Given a Markdown authoring request was prepared with a guide that changed before dispatch
+      When Safeword tries to send that request
+      Then it refuses dispatch with prepared-writing-context-stale and names preparation again after reconciliation
+
+    Scenario: Markdown authoring resumes after guide reconciliation
+      Given a project's divergent writing guide was reconciled to the canonical guide
+      When Safeword prepares a registered Markdown authoring request again
+      Then the request dispatches with the exact installed writing guide bound
+
+    @surface.safeword-cli
+    Scenario: Implementation review binds the current rubric and writing guide
+      Given the generated Implementation Plan rubric matches its canonical source and the installed writing guide is current
+      When the Safeword CLI prepares Implementation Plan review through its registered dispatch entry point
+      Then its request binds the exact rubric bytes and digest alongside the exact installed writing guide
+
+    @rejection
+    Scenario Outline: A missing or outdated generated rubric blocks Implementation review
+      Given the generated Implementation Plan rubric is <rubric_state>
+      When Safeword prepares Implementation Plan review
+      Then it refuses dispatch with plan-review-rubric-reconciliation-required and names regenerating the rubric from its canonical source and rebuilding the package
+
+      Examples:
+        | rubric_state |
+        | absent |
+        | present with a digest unequal to the canonical source |
+
+    @rejection
+    Scenario: A prepared review cannot use a changed rubric
+      Given an Implementation Plan review request was prepared with a rubric that changed before dispatch
+      When Safeword tries to send that request
+      Then it refuses dispatch with prepared-plan-review-rubric-stale and names preparing the packet again against the current generated rubric
+
+    @rejection
+    @surface.safeword-cli
+    Scenario: An unregistered model transport cannot bypass the writing boundary
+      Given a model-capable transport has no registered role or audited construction path
+      When the Safeword CLI checks its dispatch inventory before release
+      Then it returns model-transport-unregistered and names registration through the audited boundary as recovery
+
+    Scenario: Workflow sources carry the directive according to role
+      Given canonical Markdown sources include authoring, semantic-review, hybrid, execution, parser, and non-workflow roles
+      When Safeword checks their active instructions
+      Then every authoring, semantic-review, and hybrid source carries the operative writing-guide directive while execution, parser, and non-workflow sources do not
+
+    @rejection
+    Scenario: A plan contract cannot copy a writing lesson from the guide
+      Given a canonical plan artifact repeats a guide topic with its own Weak and Strong writing examples
+      When Safeword checks canonical plans and contracts for duplicated writing guidance
+      Then the artifact fails with the copied writing lesson named
+
+    Scenario: Domain examples do not count as copied writing guidance
+      Given a plan contract uses Weak and Strong labels for a domain example and a separate Source label for decision evidence
+      When Safeword checks it for duplicated writing guidance
+      Then the duplication check accepts that plan contract
+
+    Scenario: Failure recovery inventory has one action per distinct result
+      Given Product Plan, Implementation Plan, and writing-context failure fixtures name their typed results and reasons
+      When Safeword generates the recovery inventory
+      Then every named fixture result-and-reason pair appears in the inventory with exactly one owner-facing recovery and owning rule
+
+    @rejection
+    Scenario: A missing fixture result fails recovery-inventory generation
+      Given a Product Plan failure fixture names a typed result and reason absent from the recovery inventory
+      When Safeword checks the inventory against its failure fixtures
+      Then inventory generation fails with the missing result-and-reason pair named
+
+    @rejection
+    Scenario: A declared result without a failure fixture fails recovery-inventory generation
+      Given a Product Plan contract declares a typed failure result that no failure fixture names
+      When Safeword checks the contract against its recovery fixtures
+      Then inventory generation fails with the unproven result named
+
+  @plan-implementability.TBU4.ZSHVEB.R5
+  Rule: plan-implementability.TBU4.ZSHVEB.R5 — The shared guide stays portable
+
+    @surface.safeword-cli
+    Scenario: A general writing guide works without a project-specific service
+      Given the guide states portable writing advice with suitable primary sources
+      When Safeword installs and reviews it without external tracker configuration
+      Then installation and review pass without reading a project-owned document or making an outbound citation request
+
+    @rejection
+    Scenario: Project-specific writing guidance is rejected
+      Given the guide requires a company-specific approval ceremony without a prohibited token or identifier
+      When Safeword semantically reviews its portability
+      Then the guide is rejected with the offending content named
+
+    @rejection
+    Scenario: Project-specific links inside guide examples are statically rejected
+      Given the guide contains an arcade.dev link inside a fenced code example
+      When Safeword runs the shared static portability check over the guide
+      Then the guide is rejected with the prohibited domain named
+
+  @plan-implementability.TBU4.ZSHVEB.R6
+  Rule: plan-implementability.TBU4.ZSHVEB.R6 — Product and Implementation Planning share one decision conversation
+
+    @surface.safeword-cli
+    Scenario: Both stages resolve one authoritative conversation source
+      Given Product and Implementation Planning declare their own checkpoint topics
+      When Safeword checks their conversation dependencies
+      Then both stages resolve the same current interaction contract without a stage-specific copy
+
+    @rejection
+    Scenario: A stage-specific conversation fork fails contract proof
+      Given Implementation Planning carries interaction rules that differ from the shared contract
+      When Safeword checks the two planning stages
+      Then the planning contract is rejected with the divergent stage named
+
+    @surface.safeword-cli
+    Scenario Outline: Both planning stages use the same decision-conversation contract
+      Given the shared contract governs <stage> with its own checkpoint topics and plan artifact
+      When Safeword begins a decision checkpoint in <stage>
+      Then it presents researched facts, assumptions, unknowns, a recommendation, alternatives, tradeoffs, and the proposed plan record before one closing question
+
+      Examples:
+        | stage |
+        | Product Planning |
+        | Implementation Planning |
+
+    @rejection
+    Scenario: An item-by-item questionnaire cannot replace a complete decision set
+      Given a planning transcript asks approval for related choices one field at a time before presenting their alternatives
+      When Safeword reviews the transcript against the shared decision-conversation contract
+      Then the transcript is rejected without an approval or completed plan record
+
+    @rejection
+    Scenario: Approval waits for the complete decision set
+      Given a proposed checkpoint omits its viable alternatives, tradeoffs, and plan record
+      When Safeword checks the checkpoint before requesting confirmation
+      Then no approval is recorded in the owning plan and the checkpoint is re-presented with the missing alternatives, tradeoffs, and proposed record
+
+    Scenario: User-only knowledge rejoins the current checkpoint
+      Given a complete proposed decision set exposes one fact only the user can supply
+      When the user supplies that fact after Safeword asks for it
+      Then Safeword re-presents one reconciled decision set before requesting confirmation
+
+    Scenario Outline: Each decision is recorded in its owning plan
+      Given a proposed <decision_kind> decision has the user-recorded disposition <disposition>
+      When Safeword records the checkpoint outcome
+      Then <owning_plan> records the choice, reason, and consequence as <recorded_state>
+
+      Examples:
+        | disposition | decision_kind | owning_plan | recorded_state |
+        | accepted | product | the Product Plan section it shapes | accepted |
+        | rejected | product | the Product Plan section it shapes | rejected |
+        | unresolved | product | Unresolved product decisions | pending with an owner |
+        | accepted | design | Recorded Decisions in the Implementation Plan | accepted |
+        | rejected | design | Approaches considered in the Implementation Plan | rejected |
+        | unresolved | design | Approval state in the Implementation Plan | pending with an owner |
+
+    @rejection
+    Scenario: Chat-only agreement cannot complete a checkpoint
+      Given a user confirms a design choice in chat but the Implementation Plan has no durable record
+      When Safeword tries to approve the Implementation Plan
+      Then approval is refused until the choice and consequence are recorded in that plan
+
+    Scenario: Autonomous confirmation still records the decision
+      Given a planning checkpoint may be confirmed without a user reply under accepted authority
+      When Safeword confirms its complete decision set
+      Then the owning plan records the accepted choice and rejected alternatives with reasons
+
+    Scenario: Resume repeats the current decision set without restarting discovery
+      Given planning stops after presenting a checkpoint but before its confirmation
+      When Safeword resumes that planning stage
+      Then it re-presents the current decision set and preserves earlier recorded choices
+
+    Scenario Outline: A changed decision returns to the earliest affected plan
+      Given implementation discovers <change_kind> after accepted planning
+      When Safeword reconciles the decision before continuing work
+      Then <return_path> while still-valid completed work and proof remain available
+
+      Examples:
+        | change_kind | return_path |
+        | a changed product outcome | the Product Plan and affected scenarios are reconfirmed before both downstream plans are refreshed |
+        | a changed design contract | the Implementation Plan is re-reviewed before the Execution Plan is refreshed |
+        | a changed task order | only the Execution Plan is refreshed and re-reviewed |
+
+    @rejection
+    Scenario: A changed Product decision cannot leave downstream approval current
+      Given a Product outcome changes after the Implementation and Execution Plans were approved
+      When Safeword attempts to continue implementation without refreshing those plans
+      Then continuation is refused until affected scenarios and both dependent plans are current
+
+    @rejection
+    Scenario: Planning cannot demand a fifth substantive checkpoint
+      Given a planning transcript has four completed checkpoints and proposes a fifth approval for remaining related decisions
+      When Safeword reviews the transcript against the shared decision-conversation contract
+      Then the fifth approval is rejected and the remaining decisions stay within the existing checkpoints
