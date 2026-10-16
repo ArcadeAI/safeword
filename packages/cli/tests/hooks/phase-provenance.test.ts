@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { evaluateTicketWrite } from '../../templates/hooks/lib/phase-provenance.js';
 
 const CANONICAL_PHASE_ORDER =
-  'intake → define-behavior → scenario-gate → plan-implementation → implement → verify → done';
+  'intake → define-behavior → scenario-gate → plan-implementation → plan-execution → implement → verify → done';
 
 function ticket(options: { type?: string; phase?: string; skips?: string[] }): string {
   const lines = ['---', 'id: ZZTEST', 'slug: fixture'];
@@ -68,6 +68,7 @@ describe('evaluateTicketWrite — phase_skips hatch at birth', () => {
     'define-behavior: scenarios exist as tests',
     'scenario-gate: reviewed on the PR thread',
     'plan-implementation: retro-ticketed, plan captured in PR description',
+    'plan-execution: retro-ticketed, execution work captured in PR description',
   ];
 
   it('allows a birth past intake when every bypassed phase is justified', () => {
@@ -131,7 +132,13 @@ describe('evaluateTicketWrite — CRLF line endings', () => {
         ticket({
           type: 'feature',
           phase: 'implement',
-          skips: ['intake: a', 'define-behavior: b', 'scenario-gate: c', 'plan-implementation: d'],
+          skips: [
+            'intake: a',
+            'define-behavior: b',
+            'scenario-gate: c',
+            'plan-implementation: d',
+            'plan-execution: e',
+          ],
         }),
       ),
     );
@@ -175,6 +182,7 @@ describe('evaluateTicketWrite — type flips are births', () => {
           'define-behavior: scenarios exist as tests',
           'scenario-gate: reviewed on the PR thread',
           'plan-implementation: plan captured in PR description',
+          'plan-execution: execution work captured in PR description',
         ],
       }),
     );
@@ -266,6 +274,16 @@ describe('evaluateTicketWrite — feature phase transitions', () => {
     expect(verdict.ok).toBe(true);
   });
 
+  it('denies the retired direct plan-implementation -> implement transition', () => {
+    const verdict = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'plan-implementation' }),
+      ticket({ type: 'feature', phase: 'implement' }),
+    );
+
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) expect(verdict.reason).toContain('plan-execution');
+  });
+
   it('denies scenario-gate -> implement as a skip, naming plan-implementation', () => {
     const verdict = evaluateTicketWrite(
       ticket({ type: 'feature', phase: 'scenario-gate' }),
@@ -275,7 +293,7 @@ describe('evaluateTicketWrite — feature phase transitions', () => {
     if (!verdict.ok) expect(verdict.reason).toContain('plan-implementation');
   });
 
-  it('accepts scenario-gate -> implement with a justified plan-implementation skip', () => {
+  it('requires an explicit plan-execution skip alongside a plan-implementation skip', () => {
     const verdict = evaluateTicketWrite(
       ticket({ type: 'feature', phase: 'scenario-gate' }),
       ticket({
@@ -284,7 +302,8 @@ describe('evaluateTicketWrite — feature phase transitions', () => {
         skips: ['plan-implementation: plan captured in PR description'],
       }),
     );
-    expect(verdict.ok).toBe(true);
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) expect(verdict.reason).toContain('plan-execution');
   });
 
   it('allows a forward jump when every skipped phase is justified', () => {
@@ -297,6 +316,7 @@ describe('evaluateTicketWrite — feature phase transitions', () => {
           'define-behavior: scenarios exist as tests',
           'scenario-gate: reviewed on the PR thread',
           'plan-implementation: plan captured in PR description',
+          'plan-execution: execution work captured in PR description',
         ],
       }),
     );

@@ -176,21 +176,24 @@ Blog posts, tweets, marketing, and "I remember reading…" don't count for any t
 
 Read the matching guide when its trigger fires:
 
-| Trigger                                                          | Guide                                                 |
-| ---------------------------------------------------------------- | ----------------------------------------------------- |
-| Starting a feature/task OR writing specs/test-definitions        | `./.safeword/guides/planning-guide.md`                |
-| Choosing test type, doing TDD, or a test is failing              | `./.safeword/guides/testing-guide.md`                 |
-| Deciding when a test or check runs (smoke, live, release lanes)  | `./.safeword/guides/verification-lanes-guide.md`      |
-| Building or evaluating an AI/LLM feature                         | `./.safeword/guides/llm-evals-guide.md`               |
-| Changing a skill's prompt and proving it's better                | `./.safeword/guides/skill-eval-optimization-guide.md` |
-| Creating or updating a design doc                                | `./.safeword/guides/design-doc-guide.md`              |
-| Making an architectural decision or writing an ADR               | `./.safeword/guides/architecture-guide.md`            |
-| Understanding the generated `architecture.generated.md` doc      | `./.safeword/guides/architecture-guide.md`            |
-| Data-heavy project needing formal data architecture              | `./.safeword/guides/data-architecture-guide.md`       |
-| Writing learnings or agent config (CLAUDE.md, .cursor/rules)     | `./.safeword/guides/llm-writing-guide.md`             |
-| Updating CLAUDE.md, SAFEWORD.md, or any context file             | `./.safeword/guides/context-files-guide.md`           |
-| Hit the same bug repeatedly or discovered an undocumented gotcha | `./.safeword/guides/learning-extraction.md`           |
-| Process hanging, port in use, or zombie process suspected        | `./.safeword/guides/zombie-process-cleanup.md`        |
+| Trigger                                                             | Guide                                                 |
+| ------------------------------------------------------------------- | ----------------------------------------------------- |
+| Starting a feature/task OR writing specs/test-definitions           | `./.safeword/guides/planning-guide.md`                |
+| Choosing proof scope during planning, doing TDD, or a test failing  | `./.safeword/guides/testing-guide.md`                 |
+| Deciding when a check runs (smoke, live, or release)                | `./.safeword/guides/verification-lanes-guide.md`      |
+| Building or evaluating an AI/LLM feature                            | `./.safeword/guides/llm-evals-guide.md`               |
+| Changing a skill prompt and proving it improved                     | `./.safeword/guides/skill-eval-optimization-guide.md` |
+| Creating or updating a design doc                                   | `./.safeword/guides/design-doc-guide.md`              |
+| Making a significant structural/shared-contract decision or ADR     | `./.safeword/guides/architecture-guide.md`            |
+| Understanding the generated `architecture.generated.md` doc         | `./.safeword/guides/architecture-guide.md`            |
+| Changing data contracts, ownership, lifecycle, or cross-system flow | `./.safeword/guides/data-architecture-guide.md`       |
+| Changing an interface or access rule                                | `./.safeword/guides/interface-contract-guide.md`      |
+| Planning live transition, material failure, or reversal             | `./.safeword/guides/release-recovery-guide.md`        |
+| Designing measurement for a Product promise or decision signal      | `./.safeword/guides/measurement-design-guide.md`      |
+| Writing learnings or agent config (CLAUDE.md, .cursor/rules)        | `./.safeword/guides/llm-writing-guide.md`             |
+| Updating CLAUDE.md, SAFEWORD.md, or any context file                | `./.safeword/guides/context-files-guide.md`           |
+| Hit the same bug repeatedly or discovered an undocumented gotcha    | `./.safeword/guides/learning-extraction.md`           |
+| Process hanging, port in use, or zombie process suspected           | `./.safeword/guides/zombie-process-cleanup.md`        |
 
 ---
 
@@ -210,11 +213,11 @@ Read the matching guide when its trigger fires:
 
 ## Enforcement
 
-Safeword runs hooks each turn to track your phase and TDD step. A feature ticket moves one step at a time through `intake → define-behavior → scenario-gate → plan-implementation → implement → verify → done` (deviations need a recorded `phase_skips` reason). The main hard blocks:
+Safeword runs hooks each turn to track your phase and TDD step. A feature ticket moves one step at a time through `intake → define-behavior → scenario-gate → plan-implementation → plan-execution → implement → verify → done` (deviations need a recorded `phase_skips` reason). The main hard blocks:
 
 - **Scenario prerequisites** — `test-definitions.md` needs `scope` / `out_of_scope` / `done_when` in ticket frontmatter and a phase past intake; features also need `dimensions.md`, a `spec.md` with valid jobs and Rules, and a `/self-review` stamp on its current content. Leaving intake also waits on unfinished `blocked_on` tickets.
 - **Phase review** — leaving a phase needs an independent review stamp, unless `reviewGate` in `.safeword/config.json` excludes that exit.
-- **Plan gate** — no application code during plan-implementation; a new-flow feature can't enter `implement` without a valid `impl-plan.md` (status `planned`) or finish until it's reconciled to `implemented`; feature code needs `test-definitions.md` first.
+- **Planning gates** — a new-flow feature can't enter `plan-execution` without a current reviewed Implementation Plan, or enter `implement` without a current reviewed Execution Plan. It can't reach `verify`/`done` until the Implementation Plan is reconciled to `implemented`.
 - **Ledger** — each RED/GREEN/REFACTOR checkbox needs a commit SHA or `skip: <reason>`; a REFACTOR commit can't touch tests.
 - **LOC gate** — commit every ~400 lines of project code (blast-radius control).
 - **Done gate** — dependencies installed, tests re-run green, a valid `verify.md` (with PR scope); for features, every scenario checked off, no `@wip` left in the feature file, and `/verify` + `/audit` run this session.

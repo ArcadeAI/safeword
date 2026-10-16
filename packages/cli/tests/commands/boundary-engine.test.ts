@@ -9,9 +9,9 @@ import { describe, expect, it } from 'vitest';
 
 import { reconcileChange, type TicketChange } from '../../src/boundary/engine.js';
 import { WORKSPACE_ROOTS } from '../../src/utils/workspace-roots.js';
-import { boundaryTicketContent, shapeValidImplPlan } from './boundary-helpers';
+import { boundaryTicketContent } from './boundary-helpers';
 
-const IMPL_PLAN = '.project/tickets/ENG001-fixture/impl-plan.md';
+const EXECUTION_PLAN = '.project/tickets/ENG001-fixture/execution-plan.md';
 const FEATURE_ROOTS = ['features'];
 
 function ticketContent(phase: string, anchors?: string[]): string {
@@ -48,7 +48,7 @@ const throwingResolver = () => {
 describe('boundary engine — reader/resolver failure degrades to indeterminate', () => {
   it('anchor verification becomes indeterminate when the artifact reader throws', () => {
     const [reconciliation] = reconcileChange(
-      [advanceChange([`implement: ${IMPL_PLAN}`])],
+      [advanceChange([`implement: ${EXECUTION_PLAN}`])],
       undefined,
       throwingReader,
     );
@@ -76,7 +76,7 @@ describe('boundary engine — reader/resolver failure degrades to indeterminate'
         workspaceRoots: WORKSPACE_ROOTS,
       },
       artifacts: [{ artifact: 'test-definitions.md', proposed: ledger }],
-      ticketCurrent: ticketContent('implement', [`implement: ${IMPL_PLAN}`]),
+      ticketCurrent: ticketContent('implement', [`implement: ${EXECUTION_PLAN}`]),
       hasLedger: true,
     };
 
@@ -90,9 +90,9 @@ describe('boundary engine — reader/resolver failure degrades to indeterminate'
 describe('boundary engine — anchor verification is tree-only', () => {
   it('a path anchor whose artifact the reader supplies passes', () => {
     const [reconciliation] = reconcileChange(
-      [advanceChange([`implement: ${IMPL_PLAN}`])],
+      [advanceChange([`implement: ${EXECUTION_PLAN}`])],
       undefined,
-      relpath => (relpath === IMPL_PLAN ? shapeValidImplPlan() : undefined),
+      relpath => (relpath === EXECUTION_PLAN ? '# Execution Plan\n' : undefined),
     );
 
     const anchor = reconciliation?.checks.find(c => c.check === 'phase-anchor');
@@ -100,7 +100,7 @@ describe('boundary engine — anchor verification is tree-only', () => {
   });
 
   it('a path anchor with no reader passes on format alone (write-time mode)', () => {
-    const [reconciliation] = reconcileChange([advanceChange([`implement: ${IMPL_PLAN}`])]);
+    const [reconciliation] = reconcileChange([advanceChange([`implement: ${EXECUTION_PLAN}`])]);
 
     const anchor = reconciliation?.checks.find(c => c.check === 'phase-anchor');
     expect(anchor?.verdict).toBe('pass');

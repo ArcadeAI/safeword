@@ -1,0 +1,85 @@
+
+Failed scenarios:
+  1) Repeating approval cannot clear a recorded design repair # features/turn-decisions-into-startable-work.feature:428
+       Given Execution review recorded a required design repair and human design approval is disabled # steps/turn-decisions-into-startable-work.steps.ts:423
+           AssertionError [ERR_ASSERTION]: $ tsup
+           
+           
+           1 !== 0
+           
+               + expected - actual
+           
+               -1
+               +0
+           
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/4200-first-merge-group/safeword/steps/turn-decisions-into-startable-work.steps.ts:424:12)
+  2) Repeating approval cannot clear a recorded design repair # features/turn-decisions-into-startable-work.feature:429
+       Given Execution review recorded a required design repair and human design approval is enabled # steps/turn-decisions-into-startable-work.steps.ts:423
+           AssertionError [ERR_ASSERTION]: $ tsup
+           
+           
+           1 !== 0
+           
+               + expected - actual
+           
+               -1
+               +0
+           
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/4200-first-merge-group/safeword/steps/turn-decisions-into-startable-work.steps.ts:424:12)
+  3) Fresh review can recover an unchanged approach without inventing human authority # features/turn-decisions-into-startable-work.feature:440
+       Given a native feature has a recorded design repair and human design approval is disabled # steps/turn-decisions-into-startable-work.steps.ts:423
+           AssertionError [ERR_ASSERTION]: $ tsup
+           
+           
+           1 !== 0
+           
+               + expected - actual
+           
+               -1
+               +0
+           
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/4200-first-merge-group/safeword/steps/turn-decisions-into-startable-work.steps.ts:424:12)
+  4) Fresh review can recover an unchanged approach without inventing human authority # features/turn-decisions-into-startable-work.feature:441
+       Given a native feature has a recorded design repair and human design approval is enabled # steps/turn-decisions-into-startable-work.steps.ts:423
+           AssertionError [ERR_ASSERTION]: $ tsup
+           
+           
+           1 !== 0
+           
+               + expected - actual
+           
+               -1
+               +0
+           
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/4200-first-merge-group/safeword/steps/turn-decisions-into-startable-work.steps.ts:424:12)
+  5) Implementation-time replanning preserves valid progress and refreshes the affected plans # features/turn-decisions-into-startable-work.feature:453
+       Given implementation has completed proof that remains valid under a change to the accepted authorization approach # steps/turn-decisions-into-startable-work.steps.ts:423
+           AssertionError [ERR_ASSERTION]: $ tsup
+           
+           
+           1 !== 0
+           
+               + expected - actual
+           
+               -1
+               +0
+           
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/4200-first-merge-group/safeword/steps/turn-decisions-into-startable-work.steps.ts:424:12)
+  6) Implementation-time replanning preserves valid progress and refreshes the affected plans # features/turn-decisions-into-startable-work.feature:454
+       Given implementation has completed proof that remains valid under a change only to the order of two independent build tasks # steps/turn-decisions-into-startable-work.steps.ts:423
+           AssertionError [ERR_ASSERTION]: $ tsup
+           
+           
+           1 !== 0
+           
+               + expected - actual
+           
+               -1
+               +0
+           
+               at SafewordWorld.<anonymous> (/Users/alex/.codex/worktrees/4200-first-merge-group/safeword/steps/turn-decisions-into-startable-work.steps.ts:424:12)
+
+2 hooks (2 passed)
+6 scenarios (6 failed)
+290 steps (264 passed, 20 skipped, 6 failed)
+2m 52.121s (2m 52.21s executing your code)

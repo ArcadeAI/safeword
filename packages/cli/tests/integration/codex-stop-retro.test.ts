@@ -36,6 +36,7 @@ import {
   readJsonlFile,
   removeTemporaryDirectory,
   retroDraft,
+  sourceHookEnvironment,
   TIMEOUT_QUICK,
   writeSelfReportConfig as writeConfig,
   writeTestFile,
@@ -161,7 +162,7 @@ function runHook(directory: string, input: unknown, env: Record<string, string |
   return spawnSync('bun', [HOOK], {
     input: typeof input === 'string' ? input : JSON.stringify(input),
     cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory, ...env },
+    env: sourceHookEnvironment(directory, env),
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
@@ -175,7 +176,7 @@ function runPostToolHook(
   return spawnSync('bun', [POST_TOOL_HOOK], {
     input: JSON.stringify(input),
     cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory, ...env },
+    env: sourceHookEnvironment(directory, env),
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
