@@ -116,6 +116,15 @@ describe('executable RED semantic fixtures', () => {
       independence: 'degraded',
     },
     {
+      name: 'wrong verdict',
+      expected: 'request_changes',
+      verdict: 'approve',
+      status: 'changes_requested',
+      gate: 'blocked',
+      reviewer: 'claude',
+      independence: 'cross-agent',
+    },
+    {
       name: 'wrong status',
       expected: 'request_changes',
       verdict: 'request_changes',

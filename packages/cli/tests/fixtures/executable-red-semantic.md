@@ -4,7 +4,7 @@ The default CI suite runs `tests/review/executable-red-semantic-fixtures.test.ts
 It executes five real Cucumber fixtures and verifies their step statuses and
 whether the actor ran. It also calibrates the deterministic verdict scorer
 against always-approve, always-reject, missing-verdict, wrong-reviewer,
-non-independent and wrong-gate observations. It makes no model calls.
+non-independent, wrong-status and wrong-gate observations. It makes no model calls.
 
 Run the opt-in model lane from the repository root:
 
@@ -37,8 +37,8 @@ prompt changes and a manual regression check, not part of default CI. Review
 maintainers own failures: inspect fixture statuses, attestation, actual reviewer,
 verdict and gate before changing the prompt or scorer. Never weaken a scorer to
 hide a wrong verdict. Results retain the actual outputs; fixture directories are
-removed and pending reviews are cancelled during cleanup. No credentials or
-review-integrity keys are written to the results.
+removed and pending reviews are cancelled during cleanup. The evidence records public review/gate JSON responses; the harness does not
+copy credential stores or review-integrity key files.
 
 This small synthetic set is regression evidence, not provider qualification,
 installed-host/cloud parity, or reconstruction of missing historical RED.
