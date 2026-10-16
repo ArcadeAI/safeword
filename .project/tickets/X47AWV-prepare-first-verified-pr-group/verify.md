@@ -8,6 +8,39 @@ merge or release.
 
 ## Current closure reconciliation (2026-10-16)
 
+Latest local result: independent archive review 3b1921ac-23f9-4832-988f-5f5cb93124a6
+and corrected-record review 54b1ba93-23c5-4f43-b525-0e54985debe3 approved with no
+errors. The verified Claude Opus cross-agent phase stamp permitted normal local
+closure. The unchanged guard then passed the complete candidate file list.
+Actual GitHub file-list validation and final-head CI remain pending before Ready.
+The reopening history below is retained, not the latest task status.
+
+Current disposition: Ready succeeded at 34be76d32 after CI 38910762211 passed,
+then Ready-triggered CI 38914065503 failed the Ready-only child-closure check
+before ordinary lint. The PR is back in Draft and X47AWV is reopened. The prior
+normal receipt and passing code checks remain historical proof, not a current
+Ready claim. Independent proposal review b05403de-2eee-4b9c-b874-910c95f3fa4a
+approved separating inherited incomplete attempts from completion evidence.
+Its conditions and tooling boundaries are recorded in ready-closure-disposition.md.
+
+The three reports are preserved byte-for-byte as readable text under
+evidence/historical-verification/, with original paths, source commit, SHA-256,
+base-file absence and child state in MANIFEST.json. Child ticket work logs link
+their archived failures and require new canonical verification before closure;
+their phases, statuses and behavior ledgers are unchanged. This preserves failed
+history without claiming any child complete. The Ready failure log is archived
+there too. No production code, test, workflow or authorization policy changed.
+Fresh independent review, actual changed-file guard validation and normal
+X47AWV closure are required before another Ready attempt.
+
+Archive validation: all three text copies exactly match their original Git blobs
+and recorded SHA-256; child phases/statuses and all behavior ledgers are unchanged.
+The unchanged Ready-closure guard's 13 regression tests pass. Running that guard
+against the complete staged candidate file list now names only the deliberately
+reopened X47AWV; the three inherited child violations are gone. The remaining
+X47AWV refusal is expected until normal review and closure. Re-run the full-list
+check after closing; retain its output rather than substituting a filtered list.
+
 The user authorized Ready promotion; merge, release and deployment remain
 unauthorized. The delivery branch now occupies this chat's b528 worktree.
 Editing its actual ticket bound X47AWV through the normal hook. An independent

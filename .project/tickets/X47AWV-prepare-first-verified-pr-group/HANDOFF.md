@@ -1,5 +1,17 @@
 # Resume #4200: establish the smallest safe first landing group
 
+2026-10-16 Ready-only finding: the normal Ready command succeeded at 34be76d32
+after Draft CI 38910762211 passed. The Ready-triggered run 38914065503 then
+failed its child-closure check before lint. PR #5881 is back in Draft and X47AWV
+is reopened. Read ready-closure-disposition.md: three inherited incomplete child
+verification attempts are preserved under evidence/historical-verification/
+with original paths, exact hashes and readable source snapshots. Child records
+link the archive; their phases, statuses and behavior ledgers are unchanged.
+No guard or authorization rule changed. Validate the actual full PR file list,
+obtain fresh independent verification review, and close through the normal hook
+before final-head checks and another authorized Ready attempt. This current note
+supersedes the earlier closure summary; no raw failure or deferred case is erased.
+
 2026-10-16 closure reconciliation: the user authorized Ready promotion. The clean
 delivery branch now resides in this chat's b528 worktree at the same candidate
 commit, with no session-state or receipt copying. X47AWV is bound through its

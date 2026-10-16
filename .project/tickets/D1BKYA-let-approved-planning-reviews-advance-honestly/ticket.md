@@ -20,6 +20,8 @@ last_modified: 2026-09-26T02:55:10.402Z
 
 ## Work Log
 
+- 2026-10-16 Integration record: The inherited incomplete verification attempt is preserved byte-for-byte in [X47AWV's historical evidence](../X47AWV-prepare-first-verified-pr-group/evidence/historical-verification/D1BKYA-verification-attempt.txt), with its source commit and hash in MANIFEST.json. It is not a completion claim for this child. This ticket's phase, status and behavior ledger are unchanged; fresh canonical verification remains required before closure. Original sibling branches retain their records.
+
 - 2026-09-26T02:55:10.402Z Started: Created ticket D1BKYA
 
 ## Approved scope

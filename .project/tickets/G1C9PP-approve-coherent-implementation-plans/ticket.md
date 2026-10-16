@@ -75,6 +75,8 @@ the neighboring trusted acceptance fixtures.
 
 ## Work Log
 
+- 2026-10-16 Integration record: The inherited incomplete verification attempt is preserved byte-for-byte in [X47AWV's historical evidence](../X47AWV-prepare-first-verified-pr-group/evidence/historical-verification/G1C9PP-verification-attempt.txt), with its source commit and hash in MANIFEST.json. It is not a completion claim for this child. This ticket's phase, status and behavior ledger are unchanged; fresh canonical verification remains required before closure. Original sibling branches retain their records.
+
 - 2026-09-10T23:49:31.000Z Scenario gate approved: Claude Opus independently approved the exact 48-scenario packet with cross-agent provenance (review `c1d15391-60ce-4053-ae7a-75886f688577`). All 20 Rules, all 17 modeled dimensions, inherited scope boundaries, and the child-owned Killer Demo payoff were checked; feature and ledger reconcile 48/48 with no blocking findings. Stamped the exact phase bytes and advanced to Implementation Planning.
 
 - 2026-09-10T23:31:00.000Z Scenario review polish: Independent review `048e6841-6d50-4dec-88ea-98125a6e4b6b` approved the 47/47 packet. The refreshed 48/48 packet closes a resolved-path escape in the configured ADR-directory edit gate and moves absent decision-bearing content into a standalone R3 scenario so the presentation outline varies one mechanism. Proof-currency audit confirms the current R4, R5, R6 migration-command, R7 routing, R8 significance, and R10 verification-ledger rows all predate their recorded RED/GREEN/REFACTOR commits; their ledgers remain current.
