@@ -18,8 +18,14 @@
       "does not reuse an executable RED approval without bound execution evidence"
     ],
     "An interrupted proof is recorded but cannot earn approval": [
-      "packages/cli/tests/review/red-execution.test.ts",
-      "force-terminates proof processes at the configured timeout"
+      [
+        "packages/cli/tests/review/red-execution.test.ts",
+        "force-terminates proof processes at the configured timeout"
+      ],
+      [
+        "packages/cli/tests/review/job.test.ts",
+        "blocks GREEN when an approved review carries timed-out execution evidence"
+      ]
     ],
     "The intended actor-boundary assertion failure is accepted": [
       "packages/cli/tests/review/red-rubric-generation.test.ts",
