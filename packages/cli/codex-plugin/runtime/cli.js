@@ -3627,7 +3627,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/finish-review/REVIEWER.md": "7575d91eb96a1c4930c8e68da1f4bb982d052c5e89f75fb38ed6422a8df96562",
         ".claude/skills/finish-review/SKILL.md": "fdb8800d140467f1747f7b0ee067137386026003126ff17c00758940766dd07a",
         ".claude/skills/lint/SKILL.md": "f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14",
-        ".claude/skills/pr-readiness/SKILL.md": "4cc987da39efb1b9b682aff67988c975e8ff56a2c3eed0cfe3a1f3e8caf0d80b",
+        ".claude/skills/pr-readiness/SKILL.md": "42fc32b8bef9a50d85c5d9ac81dcb3edab91f9d92c3e6bfe842fbabba2eed749",
         ".claude/skills/quality-review/SKILL.md": "61f9053cdd8007f2ebfd17684fb18cf8dfd068fbcdfbc85ad7ff7ec565a81461",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "c437336466eedacbac427d85841e6137757a4d81864fefc9317569412c0ebc78",
@@ -3652,7 +3652,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "3dcfa8dd79ce04839dd14ee89a7bb701476d568bea46cd9b917e15a85c85c50a",
+        ".safeword/hooks/pre-tool-quality.ts": "f6cc5a5ed5590e8cf53c4080cfdcfb335100169fa4d0779ab97b50350254e05b",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -82879,432 +82879,67 @@ var init_record_skill_invocation2 = __esm(() => {
   SKILL_NAME_PATTERN2 = /^[a-z][a-z0-9-]*$/u;
 });
 
-// src/project-runtime-helpers.ts
-function projectRuntimeHelperDefinition(helper) {
-  if (helper === undefined || !Object.prototype.hasOwnProperty.call(PROJECT_RUNTIME_HELPERS, helper))
-    return;
-  return PROJECT_RUNTIME_HELPERS[helper];
-}
-var PROJECT_RUNTIME_HELPERS, PROJECT_RUNTIME_SCRIPT_PATHS;
-var init_project_runtime_helpers = __esm(() => {
-  PROJECT_RUNTIME_HELPERS = {
-    "audit-principle-trace": ["templates/hooks/audit-principle-trace.ts", "bun"],
-    "cleanup-zombies": ["templates/scripts/cleanup-zombies.sh", "bash"],
-    "closeout-cleanup": ["templates/scripts/closeout-cleanup.ts", "bun"],
-    "resolve-verify-ticket": ["templates/hooks/resolve-verify-ticket.ts", "bun"],
-    "write-review-stamp": ["templates/hooks/write-review-stamp.ts", "bun"]
-  };
-  PROJECT_RUNTIME_SCRIPT_PATHS = Object.values(PROJECT_RUNTIME_HELPERS).map(([relativePath]) => relativePath).filter((relativePath) => relativePath.startsWith("templates/scripts/"));
-});
+// templates/hooks/lib/skill-nudge.ts
+var init_skill_nudge = () => {};
 
-// src/project-state.ts
-var init_project_state2 = __esm(() => {
-  init_project_state();
-});
-
-// src/commands/project-runtime.ts
-var exports_project_runtime = {};
-__export(exports_project_runtime, {
-  runProjectRuntime: () => runProjectRuntime
-});
-import { spawnSync as spawnSync23 } from "child_process";
-import { existsSync as existsSync67 } from "fs";
+// templates/hooks/lib/active-ticket.ts
+import { existsSync as existsSync67, readFileSync as readFileSync91, readdirSync as readdirSync37 } from "fs";
 import nodePath142 from "path";
-function completedResult(helper, status, stdout, stderr) {
-  const exitCode = status ?? 1;
-  if (exitCode !== 0)
-    return createResult({
-      state: "failed",
-      exitCode,
-      errors: [
-        {
-          code: "PROJECT_RUNTIME_FAILED",
-          message: (stderr || stdout || `${helper} failed`).trim(),
-          retryable: false
-        }
-      ]
-    });
-  return createResult({
-    state: "healthy",
-    presentation: { kind: "raw", body: stdout },
-    data: { command: "project runtime", helper }
-  });
-}
-function packageRoot2() {
-  const runtimeDirectory = nodePath142.basename(import.meta.dirname);
-  return runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath142.dirname(import.meta.dirname) : nodePath142.resolve(import.meta.dirname, "../..");
-}
-function packagedCliPath() {
-  const runtimeDirectory = nodePath142.basename(import.meta.dirname);
-  return nodePath142.join(packageRoot2(), runtimeDirectory === "runtime" ? "runtime" : "dist", "cli.js");
-}
-function projectRuntimeEnvironment(projectDirectory) {
-  const environment = {
-    ...process.env,
-    CLAUDE_PROJECT_DIR: projectDirectory
-  };
-  const reentrantCli = packagedCliPath();
-  if (existsSync67(reentrantCli))
-    environment.SAFEWORD_PLUGIN_CLI = reentrantCli;
-  return environment;
-}
-function runProjectRuntime(cwd, helper, args, runner = spawnSync23) {
-  const definition = projectRuntimeHelperDefinition(helper);
-  if (helper === undefined || definition === undefined)
-    return Promise.resolve(createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "PROJECT_RUNTIME_HELPER_INVALID",
-          message: `Unknown packaged project helper: ${helper ?? "(missing)"}.`,
-          retryable: false
-        }
-      ]
-    }));
-  const projectDirectory = hasSafewordProjectMarker2(cwd) ? cwd : process.env.CLAUDE_PROJECT_DIR ?? cwd;
-  const [relativePath, runtime] = definition;
-  const script = nodePath142.join(packageRoot2(), relativePath);
-  if (!existsSync67(script))
-    return Promise.resolve(createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "PROJECT_RUNTIME_MISSING",
-          message: `Packaged helper is missing: ${script}`,
-          retryable: false
-        }
-      ]
-    }));
-  if (!hasSafewordProjectMarker2(projectDirectory))
-    return Promise.resolve(createResult({
-      state: "action_required",
-      findings: [
-        {
-          code: "PROJECT_NOT_ENROLLED",
-          message: "This repository is not enrolled with Safeword.",
-          severity: "warning"
-        }
-      ],
-      nextActions: [{ command: "safeword install", mutates: true, requiresHuman: true }]
-    }));
-  if (helper === "write-review-stamp")
-    ensureTransientStateIgnore(projectDirectory, "skill-invocations.log");
-  const result3 = runner(runtime, [script, ...args], {
-    cwd: projectDirectory,
-    encoding: "utf8",
-    env: projectRuntimeEnvironment(projectDirectory)
-  });
-  return Promise.resolve(completedResult(helper, result3.status, result3.stdout, result3.stderr));
-}
-var init_project_runtime = __esm(() => {
-  init_namespace_root2();
-  init_result();
-  init_project_runtime_helpers();
-  init_project_state2();
-});
-
-// src/commands/public-retros.ts
-var exports_public_retros = {};
-__export(exports_public_retros, {
-  configurePublicRetros: () => configurePublicRetros
-});
-function configurePublicRetros(cwd, state) {
-  const enabled = state === "on";
-  const changed2 = setPublicRetroCollection(cwd, enabled);
-  return createResult({
-    state: changed2 ? "changed" : "healthy",
-    effects: changed2 ? { configuration: [{ kind: "update", target: ".safeword/config.json" }] } : undefined,
-    data: { command: "project public-retros", enabled }
-  });
-}
-var init_public_retros = __esm(() => {
-  init_result();
-  init_public_config();
-});
-
-// templates/hooks/lib/drain-retro-spool.ts
-var exports_drain_retro_spool = {};
-__export(exports_drain_retro_spool, {
-  drainRetroSpool: () => drainRetroSpool
-});
-import { existsSync as existsSync68, lstatSync as lstatSync29, realpathSync as realpathSync22 } from "fs";
-import nodePath143 from "path";
-function drainRetroSpool(inputPath, mode = "drain") {
-  const spoolPath2 = nodePath143.resolve(inputPath);
-  const draftsDirectory = nodePath143.dirname(spoolPath2);
-  const safewordDirectory = nodePath143.dirname(draftsDirectory);
-  if (nodePath143.basename(draftsDirectory) !== "retro-drafts" || nodePath143.basename(safewordDirectory) !== ".safeword" || !spoolPath2.endsWith(".jsonl")) {
-    return {
-      state: "refused",
-      message: "Refusing to drain a path outside .safeword/retro-drafts/*.jsonl"
-    };
-  }
-  const projectDirectory = nodePath143.dirname(safewordDirectory);
-  const sessionId = nodePath143.basename(spoolPath2, ".jsonl");
-  const ackPath2 = ackFilePath(projectDirectory, sessionId);
-  const protectedPaths = [safewordDirectory, draftsDirectory, spoolPath2, ackPath2];
-  if (protectedPaths.some((path8) => existsSync68(path8) && lstatSync29(path8).isSymbolicLink())) {
-    return {
-      state: "refused",
-      message: "Refusing a symlinked retro spool or acknowledgement path"
-    };
-  }
-  if (existsSync68(spoolPath2) && (!existsSync68(draftsDirectory) || nodePath143.dirname(realpathSync22(spoolPath2)) !== realpathSync22(draftsDirectory))) {
-    return {
-      state: "refused",
-      message: "Refusing a retro spool outside its canonical drafts directory"
-    };
-  }
-  if (mode === "validated-jsonl") {
-    const drafts = readSpooledDrafts(projectDirectory, sessionId);
-    if (drafts.some((draft) => !verifyDraftBody(draft))) {
-      return {
-        state: "egress_refused",
-        message: "Refusing tracker egress: one or more retro drafts failed body validation"
-      };
+import process20 from "process";
+function getTicketInfo(projectDirectory, ticketId) {
+  const ticketsDirectory = nodePath142.join(resolveNamespaceRoot2(projectDirectory), "tickets");
+  if (!existsSync67(ticketsDirectory))
+    return EMPTY_DETAILS;
+  try {
+    const folders = readdirSync37(ticketsDirectory);
+    const matches = findTicketFolderMatches(folders, ticketId);
+    if (matches.length === 0)
+      return EMPTY_DETAILS;
+    if (matches.length > 1) {
+      process20.stderr.write(`Ambiguous ticket ID "${ticketId}": ${matches.join(", ")}
+`);
+      return EMPTY_DETAILS;
     }
-    return { state: "validated", drafts };
-  }
-  drainAcknowledgedDrafts(projectDirectory, sessionId);
-  return { state: "drained" };
-}
-var init_drain_retro_spool = __esm(() => {
-  init_retro_draft_spool();
-  if (false) {}
-});
-
-// src/commands/retro-drain.ts
-var exports_retro_drain = {};
-__export(exports_retro_drain, {
-  runRetroDrain: () => runRetroDrain
-});
-import { statSync as statSync12 } from "fs";
-import nodePath144 from "path";
-function spoolSize(path8) {
-  try {
-    return statSync12(path8).size;
+    const [match] = matches;
+    if (match === undefined)
+      return EMPTY_DETAILS;
+    const content = readFileSync91(nodePath142.join(ticketsDirectory, match, "ticket.md"), "utf8");
+    const slug = content.match(/^slug:\s*(\S+)/m)?.[1] ?? (match.startsWith(`${ticketId}-`) ? match.slice(ticketId.length + 1) : undefined);
+    return {
+      phase: content.match(/^phase:\s*(\S+)/m)?.[1],
+      status: content.match(/^status:\s*(\S+)/m)?.[1],
+      type: content.match(/^type:\s*(\S+)/m)?.[1],
+      folder: match,
+      slug
+    };
   } catch {
-    return;
+    return EMPTY_DETAILS;
   }
 }
-async function runRetroDrain(cwd, spoolPath2, options) {
-  if (spoolPath2 === undefined || spoolPath2.length === 0) {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "RETRO_DRAIN_SPOOL_REQUIRED",
-          message: "project retro-drain requires a retro draft spool path.",
-          retryable: false
-        }
-      ]
-    });
-  }
-  const resolvedSpoolPath = nodePath144.resolve(cwd, spoolPath2);
-  const { drainRetroSpool: drainRetroSpool2 } = await Promise.resolve().then(() => (init_drain_retro_spool(), exports_drain_retro_spool));
-  const before = spoolSize(resolvedSpoolPath);
-  const result3 = drainRetroSpool2(resolvedSpoolPath, options.validatedJsonl === true ? "validated-jsonl" : "drain");
-  if (result3.state === "refused" || result3.state === "egress_refused") {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: result3.state === "refused" ? "RETRO_DRAIN_REFUSED" : "RETRO_DRAIN_EGRESS_REFUSED",
-          message: result3.message,
-          retryable: false
-        }
-      ]
-    });
-  }
-  if (result3.state === "validated") {
-    return createResult({
-      state: "healthy",
-      presentation: {
-        kind: "raw",
-        body: result3.drafts.map((draft) => JSON.stringify(draft)).join(`
-`)
-      },
-      data: { command: "project retro-drain", drafts: result3.drafts }
-    });
-  }
-  const drained = spoolSize(resolvedSpoolPath) !== before;
-  return createResult({
-    state: drained ? "changed" : "healthy",
-    changed: drained,
-    ...drained && {
-      effects: {
-        files: [{ kind: "update", target: nodePath144.relative(cwd, resolvedSpoolPath) }]
-      }
-    },
-    data: { command: "project retro-drain", drained }
-  });
+function findTicketFolderMatches(folders, ticketId) {
+  const upperId = ticketId.toUpperCase();
+  const legacyPrefix = `${ticketId}-`;
+  return folders.filter((f) => f.toUpperCase() === upperId || f.startsWith(legacyPrefix));
 }
-var init_retro_drain = __esm(() => {
-  init_result();
-});
-
-// src/commands/lint-gherkin.ts
-var exports_lint_gherkin = {};
-__export(exports_lint_gherkin, {
-  observeGherkinLint: () => observeGherkinLint
-});
-import { existsSync as existsSync69, readFileSync as readFileSync91, statSync as statSync13 } from "fs";
-import nodePath145 from "path";
-function observeGherkinLint(cwd, files2) {
-  const featureFiles = files2.length === 0 ? discoverFeatureFiles(cwd) : resolveInputFiles(cwd, files2);
-  const issues = featureFiles.flatMap((file) => lintFile(cwd, file));
-  if (issues.length === 0) {
-    return createResult({
-      state: "healthy",
-      data: { command: "project lint-gherkin", files: featureFiles.length, arguments: files2 }
-    });
-  }
-  return createResult({
-    state: "failed",
-    errors: issues.map((issue2) => ({
-      code: issue2.code,
-      message: issue2.message,
-      retryable: false
-    })),
-    data: { command: "project lint-gherkin", files: featureFiles.length, arguments: files2 }
-  });
-}
-function resolveInputFiles(cwd, files2) {
-  return files2.map((file) => nodePath145.resolve(cwd, file));
-}
-function discoverFeatureFiles(cwd) {
-  return collectExecutableFeatureFiles(cwd);
-}
-function lintFile(cwd, filePath) {
-  if (!existsSync69(filePath)) {
-    return [
-      {
-        code: "GHERKIN_FILE_NOT_FOUND",
-        message: `${formatPath(cwd, filePath)}: file not found [file-exists]`
-      }
-    ];
-  }
-  let content;
-  try {
-    if (!statSync13(filePath).isFile())
-      throw new Error("not a regular file");
-    content = readFileSync91(filePath, "utf8");
-  } catch {
-    return [
-      {
-        code: "GHERKIN_FILE_UNREADABLE",
-        message: `${formatPath(cwd, filePath)}: not a readable regular file [file-readable]`
-      }
-    ];
-  }
-  return findGherkinLintIssues(content, {
-    filePath,
-    ruleProofPolicy: OFFLOAD_RULE_PROOF_POLICY
-  }).map((issue2) => ({
-    code: `GHERKIN_${issue2.rule.toUpperCase().replaceAll("-", "_")}`,
-    message: formatIssue(cwd, filePath, issue2)
-  }));
-}
-function formatIssue(cwd, filePath, issue2) {
-  const location = issue2.line === undefined ? formatPath(cwd, filePath) : `${formatPath(cwd, filePath)}:${issue2.line}`;
-  return `${location}: ${issue2.message} [${issue2.rule}]`;
-}
-function formatPath(cwd, filePath) {
-  return nodePath145.relative(cwd, filePath) || nodePath145.basename(filePath);
-}
-var OFFLOAD_RULE_PROOF_POLICY;
-var init_lint_gherkin = __esm(() => {
-  init_result();
-  init_feature_source();
-  init_gherkin_feature();
-  OFFLOAD_RULE_PROOF_POLICY = {
-    issuePrefix: "offload",
-    lineageTagPrefix: "@offload-tests.",
-    proofTag: "@proof.cucumber",
-    ruleLabel: "offload Rule",
-    workInProgressTag: "@wip"
+var EMPTY_DETAILS, DONE_GATED_TICKET_TYPES;
+var init_active_ticket = __esm(() => {
+  init_hierarchy();
+  init_feature_provenance();
+  init_inspiration();
+  init_jtbd();
+  init_namespace_root2();
+  init_parse_annotation();
+  init_skill_nudge();
+  init_feature_provenance();
+  EMPTY_DETAILS = {
+    phase: undefined,
+    status: undefined,
+    type: undefined,
+    folder: undefined,
+    slug: undefined
   };
+  DONE_GATED_TICKET_TYPES = new Set(["task", "feature", "epic"]);
 });
-
-// templates/hooks/lib/ledger-git.ts
-import { execFileSync as execFileSync10 } from "child_process";
-function git7(cwd, args, input) {
-  return execFileSync10("git", args, {
-    cwd,
-    input,
-    encoding: "utf8",
-    stdio: input === undefined ? ["ignore", "pipe", "pipe"] : ["pipe", "pipe", "pipe"]
-  }).trim();
-}
-function resolveCommitSha(cwd, sha) {
-  try {
-    return git7(cwd, ["rev-parse", "--verify", `${sha}^{commit}`]);
-  } catch {
-    return;
-  }
-}
-function isAncestorOfHead(cwd, sha) {
-  try {
-    execFileSync10("git", ["merge-base", "--is-ancestor", sha, "HEAD"], {
-      cwd,
-      stdio: "pipe"
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-function patchIdForCommit(cwd, sha) {
-  try {
-    const patch = git7(cwd, ["show", "--format=format:", "--patch", "--no-ext-diff", sha]);
-    const output = git7(cwd, ["patch-id", "--stable"], patch);
-    return output.split(/\s+/)[0] || undefined;
-  } catch {
-    return;
-  }
-}
-function allReachableCommits(cwd) {
-  try {
-    const output = git7(cwd, ["rev-list", "--no-merges", "HEAD"]);
-    return output === "" ? [] : output.split(`
-`).filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-function buildReachablePatchMap(cwd) {
-  const patchIdToCommits = new Map;
-  for (const commit of allReachableCommits(cwd)) {
-    const patchId = patchIdForCommit(cwd, commit);
-    if (!patchId)
-      continue;
-    const commits = patchIdToCommits.get(patchId) ?? [];
-    commits.push(commit);
-    patchIdToCommits.set(patchId, commits);
-  }
-  return patchIdToCommits;
-}
-function createLedgerShaResolver(cwd) {
-  let reachablePatchMap;
-  function patchMap() {
-    reachablePatchMap ??= buildReachablePatchMap(cwd);
-    return reachablePatchMap;
-  }
-  return (sha) => {
-    const fullSha = resolveCommitSha(cwd, sha);
-    if (!fullSha)
-      return false;
-    if (isAncestorOfHead(cwd, fullSha))
-      return fullSha;
-    const stalePatchId = patchIdForCommit(cwd, fullSha);
-    if (!stalePatchId)
-      return false;
-    const candidates = patchMap().get(stalePatchId) ?? [];
-    const [candidate] = candidates;
-    return candidates.length === 1 && candidate ? candidate : false;
-  };
-}
-var init_ledger_git = () => {};
 
 // templates/hooks/lib/dependency-readiness.ts
 var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, BUNX_BOOLEAN_OPTIONS, SAFEWORD_GLOBAL_BOOLEAN_OPTIONS, SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES, SAFEWORD_RECOVERY_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NON_RECONCILING_INSTALL_FLAGS, NON_RECONCILING_INSTALL_OPTIONS, REPORT_ONLY_INSTALL_FLAGS;
@@ -83442,6 +83077,787 @@ var init_done_gate = __esm(() => {
   init_test_runner();
   PR_SCOPE_LINE_PATTERN = /^\*\*PR Scope:\*\*\s*(?<status>.+)$/im;
 });
+
+// templates/hooks/lib/quality-state.ts
+import { readFileSync as readFileSync92, writeFileSync as writeFileSync36 } from "fs";
+import nodePath143 from "path";
+function getStateFilePath(projectDirectory, sessionId) {
+  return nodePath143.join(resolveNamespaceRoot2(projectDirectory), `quality-state-${stateStorageKey(sessionId)}.json`);
+}
+function isRunIdentity(value) {
+  return typeof value === "object" && value !== null && "runtime" in value && "sessionKey" in value;
+}
+function stateStorageKey(sessionId) {
+  if (isRunIdentity(sessionId)) {
+    return getRunStorageKey(sessionId) ?? "undefined";
+  }
+  if (sessionId === undefined || sessionId.trim().length === 0)
+    return "undefined";
+  const runtime = process.env.SAFEWORD_AGENT_RUNTIME;
+  if (runtime === "codex" || runtime === "cursor") {
+    const identityInput = runtime === "cursor" ? { conversation_id: sessionId } : { session_id: sessionId };
+    const identity2 = resolveRunIdentity(identityInput, { runtime });
+    const scopedKey = getRunStorageKey(identity2);
+    if (scopedKey !== null)
+      return scopedKey;
+  }
+  return sessionId;
+}
+function legacyStateFilePath(projectDirectory, sessionId) {
+  return nodePath143.join(resolveNamespaceRoot2(projectDirectory), `quality-state-${sessionId}.json`);
+}
+function readableStateFilePaths(projectDirectory, sessionId) {
+  const primary = getStateFilePath(projectDirectory, sessionId);
+  if (isRunIdentity(sessionId)) {
+    if (sessionId.runtime === "claude" && sessionId.sessionKey) {
+      return [primary, legacyStateFilePath(projectDirectory, sessionId.sessionKey)];
+    }
+    return [primary];
+  }
+  return [primary];
+}
+function readSessionState(projectDirectory, sessionId) {
+  if (!sessionId || typeof sessionId === "string" && sessionId.trim().length === 0)
+    return null;
+  for (const filePath of readableStateFilePaths(projectDirectory, sessionId)) {
+    try {
+      return JSON.parse(readFileSync92(filePath, "utf8"));
+    } catch {}
+  }
+  return null;
+}
+var init_quality_state = __esm(() => {
+  init_active_ticket();
+  init_namespace_root2();
+  init_run_identity();
+  init_self_report();
+});
+
+// templates/hooks/lib/pr-readiness-guard.ts
+import { execFileSync as execFileSync10 } from "child_process";
+import { existsSync as existsSync68, readFileSync as readFileSync93 } from "fs";
+import nodePath144 from "path";
+function readReceipt(projectDirectory) {
+  try {
+    const parsed2 = JSON.parse(readFileSync93(nodePath144.join(resolveNamespaceRoot2(projectDirectory), "readiness-ticket.json"), "utf8"));
+    return parsed2.schema_version === 1 && typeof parsed2.ticket_id === "string" && parsed2.ticket_id.length > 0 && typeof parsed2.head_sha === "string" && parsed2.head_sha.length > 0 ? parsed2 : undefined;
+  } catch {
+    return;
+  }
+}
+function currentHead(projectDirectory, environment = process.env) {
+  try {
+    return execFileSync10("git", ["rev-parse", "HEAD"], {
+      cwd: projectDirectory,
+      env: environment,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+  } catch {
+    return;
+  }
+}
+function unfinished(reason) {
+  return { ok: false, reason: `This change is not finished. ${reason}` };
+}
+function phaseRecovery(phase) {
+  const recoveries = {
+    intake: { label: "planning", action: "finish clarifying the requested outcome" },
+    "define-behavior": {
+      label: "behavior definition",
+      action: "finish defining the expected behavior"
+    },
+    "scenario-gate": {
+      label: "acceptance-scenario review",
+      action: "finish reviewing the acceptance scenarios"
+    },
+    "plan-implementation": {
+      label: "implementation planning",
+      action: "finish planning the implementation"
+    },
+    implement: { label: "implementation", action: "complete the current scenario" },
+    verify: { label: "verification", action: "finish verifying the change" }
+  };
+  return recoveries[phase] ?? {
+    label: "delivery",
+    action: "finish the current delivery step"
+  };
+}
+function evaluateTicket(projectDirectory, ticketId, receipt, environment) {
+  const ticket = getTicketInfo(projectDirectory, ticketId);
+  if (!ticket.folder) {
+    return unfinished(`Repair ticket ${ticketId} so Safeword can read it, then retry.`);
+  }
+  if (!ticket.phase || !ticket.status) {
+    return unfinished(`repair the ticket state for ${ticketId}, then retry making the pull request Ready.`);
+  }
+  if (ticket.status !== "done") {
+    if (ticket.phase === "done") {
+      return unfinished(`Ticket ${ticketId} is at ticket closure; close the verified ticket before making the pull request Ready.`);
+    }
+    const { label: phaseLabel, action: nextAction2 } = phaseRecovery(ticket.phase);
+    return unfinished(`Ticket ${ticketId} is at ${phaseLabel}; ${nextAction2} before making the pull request Ready.`);
+  }
+  const verifyPath = nodePath144.join(resolveNamespaceRoot2(projectDirectory), "tickets", ticket.folder, "verify.md");
+  if (!existsSync68(verifyPath)) {
+    return unfinished(`Ticket ${ticketId} has no verification evidence; run verification before making the pull request Ready.`);
+  }
+  let verifyContent;
+  try {
+    verifyContent = readFileSync93(verifyPath, "utf8");
+  } catch {
+    return unfinished(`Ticket ${ticketId} verification evidence cannot be read; restore verify.md, then run verification again.`);
+  }
+  if (!checkVerifyArtifact(verifyContent).ok) {
+    return unfinished(`Ticket ${ticketId} has invalid verification evidence; run verification again before making the pull request Ready.`);
+  }
+  const head = currentHead(projectDirectory, environment);
+  if (!receipt || receipt.ticket_id !== ticketId || !head || receipt.head_sha !== head) {
+    return unfinished(`Ticket ${ticketId} is verified, but ticket closure is not recorded at the current commit; close the verified ticket or run verification again.`);
+  }
+  return { ok: true };
+}
+function evaluatePrReadiness(projectDirectory, sessionId, environment = process.env) {
+  const state = readSessionState(projectDirectory, sessionId);
+  const receipt = readReceipt(projectDirectory);
+  const receiptTicketId = receipt && getTicketInfo(projectDirectory, receipt.ticket_id).folder ? receipt.ticket_id : undefined;
+  const ticketId = state?.activeTicket ?? state?.recentCompletedTicket ?? receiptTicketId;
+  if (!ticketId) {
+    return {
+      ok: false,
+      reason: "This change is not finished. Open or resume the delivery ticket, then complete its next action before making the pull request Ready."
+    };
+  }
+  return evaluateTicket(projectDirectory, ticketId, receipt, environment);
+}
+var PR_CREATE_VALUE_OPTIONS;
+var init_pr_readiness_guard = __esm(() => {
+  init_active_ticket();
+  init_done_gate();
+  init_jsonl_spool();
+  init_namespace_root2();
+  init_project_state();
+  init_quality_state();
+  init_shell_segments();
+  PR_CREATE_VALUE_OPTIONS = new Set([
+    "--assignee",
+    "--base",
+    "--body",
+    "--body-file",
+    "--head",
+    "--label",
+    "--milestone",
+    "--project",
+    "--reviewer",
+    "--template",
+    "--title",
+    "-a",
+    "-B",
+    "-b",
+    "-F",
+    "-H",
+    "-l",
+    "-m",
+    "-p",
+    "-r",
+    "-T",
+    "-t"
+  ]);
+});
+
+// src/commands/project-pr-ready.ts
+var exports_project_pr_ready = {};
+__export(exports_project_pr_ready, {
+  runProjectPrReady: () => runProjectPrReady
+});
+import { spawnSync as spawnSync23 } from "child_process";
+import { realpathSync as realpathSync22 } from "fs";
+function isPullRecord(value) {
+  return typeof value.number === "number" && Number.isSafeInteger(value.number) && value.number > 0 && typeof value.headRefOid === "string" && typeof value.isDraft === "boolean" && typeof value.state === "string";
+}
+function inspectedPull(stdout, pull) {
+  try {
+    const value = JSON.parse(stdout);
+    if (value === null || typeof value !== "object")
+      return;
+    const record2 = value;
+    if (!isPullRecord(record2))
+      return;
+    if (pull !== undefined && String(record2.number) !== pull)
+      return;
+    return record2;
+  } catch {
+    return;
+  }
+}
+function processFailure(result3, fallback) {
+  return (result3.stderr ?? "").trim() || result3.error?.message || fallback;
+}
+function selectedProject(cwd, run2) {
+  const result3 = run2("git", ["rev-parse", "--show-toplevel"], cwd);
+  if (result3.status !== 0)
+    return {
+      ok: false,
+      result: blocked("PR_READY_NOT_WORKTREE", "Run from a Git worktree, or select it with --cwd.")
+    };
+  try {
+    const project = realpathSync22(result3.stdout.trim());
+    if (!hasSafewordProjectMarker2(project))
+      return {
+        ok: false,
+        result: blocked("PR_READY_NOT_ENROLLED", "The selected worktree is not enrolled with Safeword.", project)
+      };
+    return { ok: true, directory: project };
+  } catch {
+    return {
+      ok: false,
+      result: blocked("PR_READY_NOT_WORKTREE", "The selected Git worktree cannot be read.")
+    };
+  }
+}
+function localStillCurrent(project, head, environment, run2) {
+  const current = run2("git", ["rev-parse", "HEAD"], project);
+  return current.status === 0 && current.stdout.trim() === head && evaluatePrReadiness(project, undefined, environment).ok;
+}
+function blocked(code, message, project) {
+  return createResult({
+    state: "action_required",
+    findings: [{ code, message, severity: "warning" }],
+    data: { command: COMMAND, project_directory: project }
+  });
+}
+function runProjectPrReady(cwd, pull) {
+  if (pull !== undefined && !/^[1-9]\d*$/u.test(pull))
+    return invalidOperand(COMMAND, "Use a positive pull request number, or omit it for the current branch.");
+  const override = CONTEXT_OVERRIDES.find((name) => Boolean(Reflect.get(process.env, name)));
+  if (override !== undefined)
+    return blocked("PR_READY_CONTEXT_OVERRIDE", `Unset ${override} and select the worktree with --cwd.`);
+  const environment = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_") && name !== "CLAUDE_PROJECT_DIR"));
+  const run2 = (command, args, directory) => spawnSync23(command, args, {
+    cwd: directory,
+    env: environment,
+    encoding: "utf8",
+    timeout: 30000,
+    maxBuffer: 1024 * 1024
+  });
+  const selection = selectedProject(cwd, run2);
+  if (!selection.ok)
+    return selection.result;
+  const project = selection.directory;
+  const readiness2 = evaluatePrReadiness(project, undefined, environment);
+  if (!readiness2.ok)
+    return blocked("PR_READY_NOT_FINISHED", readiness2.reason ?? "Complete verification and ticket closure first.", project);
+  const headResult = run2("git", ["rev-parse", "HEAD"], project);
+  if (headResult.status !== 0)
+    return blocked("PR_READY_HEAD_UNREADABLE", "The selected worktree HEAD cannot be read.", project);
+  return promoteVerified(project, headResult.stdout.trim(), pull, environment, run2);
+}
+function promoteVerified(project, head, pull, environment, run2) {
+  const viewArguments = [
+    "pr",
+    "view",
+    ...pull === undefined ? [] : [pull],
+    "--json",
+    "number,headRefOid,isDraft,state"
+  ];
+  const inspected = run2("gh", viewArguments, project);
+  const readEffects = [
+    { kind: "github-pull-request", target: pull ?? "current-branch", operation: "inspect" }
+  ];
+  const failed = (code, detail, mutatedPull) => createResult({
+    state: "failed",
+    effects: {
+      network: mutatedPull === undefined ? readEffects : [
+        ...readEffects,
+        {
+          kind: "github-pull-request",
+          target: String(mutatedPull),
+          operation: "mark-ready"
+        }
+      ]
+    },
+    errors: [{ code, message: detail, retryable: false }],
+    data: { command: COMMAND, project_directory: project }
+  });
+  if (inspected.status !== 0)
+    return failed("PR_READY_INSPECTION_FAILED", processFailure(inspected, "GitHub PR inspection failed."));
+  const record2 = inspectedPull(inspected.stdout, pull);
+  if (record2 === undefined)
+    return failed("PR_READY_INVALID_RESPONSE", "GitHub returned incomplete or inconsistent PR metadata; no promotion was attempted.");
+  if (record2.state !== "OPEN")
+    return failed("PR_READY_NOT_OPEN", "The selected pull request is not open; no promotion was attempted.");
+  if (record2.headRefOid !== head)
+    return failed("PR_READY_HEAD_MISMATCH", "The PR head differs from the verified worktree HEAD. Check out and verify the PR head before retrying.");
+  if (!localStillCurrent(project, head, environment, run2))
+    return failed("PR_READY_EVIDENCE_CHANGED", "Local HEAD or readiness evidence changed during inspection; verify the current commit and retry.");
+  const data = {
+    command: COMMAND,
+    project_directory: project,
+    pull_number: record2.number,
+    head_sha: head
+  };
+  if (!record2.isDraft)
+    return createResult({ state: "healthy", effects: { network: readEffects }, data });
+  const promoted = run2("gh", ["pr", "ready", String(record2.number)], project);
+  if (promoted.status !== 0)
+    return failed("PR_READY_PROMOTION_FAILED", processFailure(promoted, "GitHub Ready promotion failed."), record2.number);
+  return createResult({
+    state: "changed",
+    changed: true,
+    findings: [
+      { code: "PR_READY", message: "The verified pull request is Ready.", severity: "info" }
+    ],
+    effects: {
+      network: [
+        ...readEffects,
+        { kind: "github-pull-request", target: String(record2.number), operation: "mark-ready" }
+      ]
+    },
+    data
+  });
+}
+var COMMAND = "project pr-ready", CONTEXT_OVERRIDES;
+var init_project_pr_ready = __esm(() => {
+  init_namespace_root2();
+  init_pr_readiness_guard();
+  init_result();
+  CONTEXT_OVERRIDES = [
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_COMMON_DIR",
+    "GIT_INDEX_FILE",
+    "GIT_CEILING_DIRECTORIES",
+    "GH_REPO",
+    "GH_HOST"
+  ];
+});
+
+// src/project-runtime-helpers.ts
+function projectRuntimeHelperDefinition(helper) {
+  if (helper === undefined || !Object.prototype.hasOwnProperty.call(PROJECT_RUNTIME_HELPERS, helper))
+    return;
+  return PROJECT_RUNTIME_HELPERS[helper];
+}
+var PROJECT_RUNTIME_HELPERS, PROJECT_RUNTIME_SCRIPT_PATHS;
+var init_project_runtime_helpers = __esm(() => {
+  PROJECT_RUNTIME_HELPERS = {
+    "audit-principle-trace": ["templates/hooks/audit-principle-trace.ts", "bun"],
+    "cleanup-zombies": ["templates/scripts/cleanup-zombies.sh", "bash"],
+    "closeout-cleanup": ["templates/scripts/closeout-cleanup.ts", "bun"],
+    "resolve-verify-ticket": ["templates/hooks/resolve-verify-ticket.ts", "bun"],
+    "write-review-stamp": ["templates/hooks/write-review-stamp.ts", "bun"]
+  };
+  PROJECT_RUNTIME_SCRIPT_PATHS = Object.values(PROJECT_RUNTIME_HELPERS).map(([relativePath]) => relativePath).filter((relativePath) => relativePath.startsWith("templates/scripts/"));
+});
+
+// src/project-state.ts
+var init_project_state2 = __esm(() => {
+  init_project_state();
+});
+
+// src/commands/project-runtime.ts
+var exports_project_runtime = {};
+__export(exports_project_runtime, {
+  runProjectRuntime: () => runProjectRuntime
+});
+import { spawnSync as spawnSync24 } from "child_process";
+import { existsSync as existsSync69 } from "fs";
+import nodePath145 from "path";
+function completedResult(helper, status, stdout, stderr) {
+  const exitCode = status ?? 1;
+  if (exitCode !== 0)
+    return createResult({
+      state: "failed",
+      exitCode,
+      errors: [
+        {
+          code: "PROJECT_RUNTIME_FAILED",
+          message: (stderr || stdout || `${helper} failed`).trim(),
+          retryable: false
+        }
+      ]
+    });
+  return createResult({
+    state: "healthy",
+    presentation: { kind: "raw", body: stdout },
+    data: { command: "project runtime", helper }
+  });
+}
+function packageRoot2() {
+  const runtimeDirectory = nodePath145.basename(import.meta.dirname);
+  return runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath145.dirname(import.meta.dirname) : nodePath145.resolve(import.meta.dirname, "../..");
+}
+function packagedCliPath() {
+  const runtimeDirectory = nodePath145.basename(import.meta.dirname);
+  return nodePath145.join(packageRoot2(), runtimeDirectory === "runtime" ? "runtime" : "dist", "cli.js");
+}
+function projectRuntimeEnvironment(projectDirectory) {
+  const environment = {
+    ...process.env,
+    CLAUDE_PROJECT_DIR: projectDirectory
+  };
+  const reentrantCli = packagedCliPath();
+  if (existsSync69(reentrantCli))
+    environment.SAFEWORD_PLUGIN_CLI = reentrantCli;
+  return environment;
+}
+function runProjectRuntime(cwd, helper, args, runner = spawnSync24) {
+  const definition = projectRuntimeHelperDefinition(helper);
+  if (helper === undefined || definition === undefined)
+    return Promise.resolve(createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "PROJECT_RUNTIME_HELPER_INVALID",
+          message: `Unknown packaged project helper: ${helper ?? "(missing)"}.`,
+          retryable: false
+        }
+      ]
+    }));
+  const projectDirectory = hasSafewordProjectMarker2(cwd) ? cwd : process.env.CLAUDE_PROJECT_DIR ?? cwd;
+  const [relativePath, runtime] = definition;
+  const script = nodePath145.join(packageRoot2(), relativePath);
+  if (!existsSync69(script))
+    return Promise.resolve(createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "PROJECT_RUNTIME_MISSING",
+          message: `Packaged helper is missing: ${script}`,
+          retryable: false
+        }
+      ]
+    }));
+  if (!hasSafewordProjectMarker2(projectDirectory))
+    return Promise.resolve(createResult({
+      state: "action_required",
+      findings: [
+        {
+          code: "PROJECT_NOT_ENROLLED",
+          message: "This repository is not enrolled with Safeword.",
+          severity: "warning"
+        }
+      ],
+      nextActions: [{ command: "safeword install", mutates: true, requiresHuman: true }]
+    }));
+  if (helper === "write-review-stamp")
+    ensureTransientStateIgnore(projectDirectory, "skill-invocations.log");
+  const result3 = runner(runtime, [script, ...args], {
+    cwd: projectDirectory,
+    encoding: "utf8",
+    env: projectRuntimeEnvironment(projectDirectory)
+  });
+  return Promise.resolve(completedResult(helper, result3.status, result3.stdout, result3.stderr));
+}
+var init_project_runtime = __esm(() => {
+  init_namespace_root2();
+  init_result();
+  init_project_runtime_helpers();
+  init_project_state2();
+});
+
+// src/commands/public-retros.ts
+var exports_public_retros = {};
+__export(exports_public_retros, {
+  configurePublicRetros: () => configurePublicRetros
+});
+function configurePublicRetros(cwd, state) {
+  const enabled = state === "on";
+  const changed2 = setPublicRetroCollection(cwd, enabled);
+  return createResult({
+    state: changed2 ? "changed" : "healthy",
+    effects: changed2 ? { configuration: [{ kind: "update", target: ".safeword/config.json" }] } : undefined,
+    data: { command: "project public-retros", enabled }
+  });
+}
+var init_public_retros = __esm(() => {
+  init_result();
+  init_public_config();
+});
+
+// templates/hooks/lib/drain-retro-spool.ts
+var exports_drain_retro_spool = {};
+__export(exports_drain_retro_spool, {
+  drainRetroSpool: () => drainRetroSpool
+});
+import { existsSync as existsSync70, lstatSync as lstatSync29, realpathSync as realpathSync23 } from "fs";
+import nodePath146 from "path";
+function drainRetroSpool(inputPath, mode = "drain") {
+  const spoolPath2 = nodePath146.resolve(inputPath);
+  const draftsDirectory = nodePath146.dirname(spoolPath2);
+  const safewordDirectory = nodePath146.dirname(draftsDirectory);
+  if (nodePath146.basename(draftsDirectory) !== "retro-drafts" || nodePath146.basename(safewordDirectory) !== ".safeword" || !spoolPath2.endsWith(".jsonl")) {
+    return {
+      state: "refused",
+      message: "Refusing to drain a path outside .safeword/retro-drafts/*.jsonl"
+    };
+  }
+  const projectDirectory = nodePath146.dirname(safewordDirectory);
+  const sessionId = nodePath146.basename(spoolPath2, ".jsonl");
+  const ackPath2 = ackFilePath(projectDirectory, sessionId);
+  const protectedPaths = [safewordDirectory, draftsDirectory, spoolPath2, ackPath2];
+  if (protectedPaths.some((path8) => existsSync70(path8) && lstatSync29(path8).isSymbolicLink())) {
+    return {
+      state: "refused",
+      message: "Refusing a symlinked retro spool or acknowledgement path"
+    };
+  }
+  if (existsSync70(spoolPath2) && (!existsSync70(draftsDirectory) || nodePath146.dirname(realpathSync23(spoolPath2)) !== realpathSync23(draftsDirectory))) {
+    return {
+      state: "refused",
+      message: "Refusing a retro spool outside its canonical drafts directory"
+    };
+  }
+  if (mode === "validated-jsonl") {
+    const drafts = readSpooledDrafts(projectDirectory, sessionId);
+    if (drafts.some((draft) => !verifyDraftBody(draft))) {
+      return {
+        state: "egress_refused",
+        message: "Refusing tracker egress: one or more retro drafts failed body validation"
+      };
+    }
+    return { state: "validated", drafts };
+  }
+  drainAcknowledgedDrafts(projectDirectory, sessionId);
+  return { state: "drained" };
+}
+var init_drain_retro_spool = __esm(() => {
+  init_retro_draft_spool();
+  if (false) {}
+});
+
+// src/commands/retro-drain.ts
+var exports_retro_drain = {};
+__export(exports_retro_drain, {
+  runRetroDrain: () => runRetroDrain
+});
+import { statSync as statSync12 } from "fs";
+import nodePath147 from "path";
+function spoolSize(path8) {
+  try {
+    return statSync12(path8).size;
+  } catch {
+    return;
+  }
+}
+async function runRetroDrain(cwd, spoolPath2, options) {
+  if (spoolPath2 === undefined || spoolPath2.length === 0) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "RETRO_DRAIN_SPOOL_REQUIRED",
+          message: "project retro-drain requires a retro draft spool path.",
+          retryable: false
+        }
+      ]
+    });
+  }
+  const resolvedSpoolPath = nodePath147.resolve(cwd, spoolPath2);
+  const { drainRetroSpool: drainRetroSpool2 } = await Promise.resolve().then(() => (init_drain_retro_spool(), exports_drain_retro_spool));
+  const before = spoolSize(resolvedSpoolPath);
+  const result3 = drainRetroSpool2(resolvedSpoolPath, options.validatedJsonl === true ? "validated-jsonl" : "drain");
+  if (result3.state === "refused" || result3.state === "egress_refused") {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: result3.state === "refused" ? "RETRO_DRAIN_REFUSED" : "RETRO_DRAIN_EGRESS_REFUSED",
+          message: result3.message,
+          retryable: false
+        }
+      ]
+    });
+  }
+  if (result3.state === "validated") {
+    return createResult({
+      state: "healthy",
+      presentation: {
+        kind: "raw",
+        body: result3.drafts.map((draft) => JSON.stringify(draft)).join(`
+`)
+      },
+      data: { command: "project retro-drain", drafts: result3.drafts }
+    });
+  }
+  const drained = spoolSize(resolvedSpoolPath) !== before;
+  return createResult({
+    state: drained ? "changed" : "healthy",
+    changed: drained,
+    ...drained && {
+      effects: {
+        files: [{ kind: "update", target: nodePath147.relative(cwd, resolvedSpoolPath) }]
+      }
+    },
+    data: { command: "project retro-drain", drained }
+  });
+}
+var init_retro_drain = __esm(() => {
+  init_result();
+});
+
+// src/commands/lint-gherkin.ts
+var exports_lint_gherkin = {};
+__export(exports_lint_gherkin, {
+  observeGherkinLint: () => observeGherkinLint
+});
+import { existsSync as existsSync71, readFileSync as readFileSync94, statSync as statSync13 } from "fs";
+import nodePath148 from "path";
+function observeGherkinLint(cwd, files2) {
+  const featureFiles = files2.length === 0 ? discoverFeatureFiles(cwd) : resolveInputFiles(cwd, files2);
+  const issues = featureFiles.flatMap((file) => lintFile(cwd, file));
+  if (issues.length === 0) {
+    return createResult({
+      state: "healthy",
+      data: { command: "project lint-gherkin", files: featureFiles.length, arguments: files2 }
+    });
+  }
+  return createResult({
+    state: "failed",
+    errors: issues.map((issue2) => ({
+      code: issue2.code,
+      message: issue2.message,
+      retryable: false
+    })),
+    data: { command: "project lint-gherkin", files: featureFiles.length, arguments: files2 }
+  });
+}
+function resolveInputFiles(cwd, files2) {
+  return files2.map((file) => nodePath148.resolve(cwd, file));
+}
+function discoverFeatureFiles(cwd) {
+  return collectExecutableFeatureFiles(cwd);
+}
+function lintFile(cwd, filePath) {
+  if (!existsSync71(filePath)) {
+    return [
+      {
+        code: "GHERKIN_FILE_NOT_FOUND",
+        message: `${formatPath(cwd, filePath)}: file not found [file-exists]`
+      }
+    ];
+  }
+  let content;
+  try {
+    if (!statSync13(filePath).isFile())
+      throw new Error("not a regular file");
+    content = readFileSync94(filePath, "utf8");
+  } catch {
+    return [
+      {
+        code: "GHERKIN_FILE_UNREADABLE",
+        message: `${formatPath(cwd, filePath)}: not a readable regular file [file-readable]`
+      }
+    ];
+  }
+  return findGherkinLintIssues(content, {
+    filePath,
+    ruleProofPolicy: OFFLOAD_RULE_PROOF_POLICY
+  }).map((issue2) => ({
+    code: `GHERKIN_${issue2.rule.toUpperCase().replaceAll("-", "_")}`,
+    message: formatIssue(cwd, filePath, issue2)
+  }));
+}
+function formatIssue(cwd, filePath, issue2) {
+  const location = issue2.line === undefined ? formatPath(cwd, filePath) : `${formatPath(cwd, filePath)}:${issue2.line}`;
+  return `${location}: ${issue2.message} [${issue2.rule}]`;
+}
+function formatPath(cwd, filePath) {
+  return nodePath148.relative(cwd, filePath) || nodePath148.basename(filePath);
+}
+var OFFLOAD_RULE_PROOF_POLICY;
+var init_lint_gherkin = __esm(() => {
+  init_result();
+  init_feature_source();
+  init_gherkin_feature();
+  OFFLOAD_RULE_PROOF_POLICY = {
+    issuePrefix: "offload",
+    lineageTagPrefix: "@offload-tests.",
+    proofTag: "@proof.cucumber",
+    ruleLabel: "offload Rule",
+    workInProgressTag: "@wip"
+  };
+});
+
+// templates/hooks/lib/ledger-git.ts
+import { execFileSync as execFileSync11 } from "child_process";
+function git7(cwd, args, input) {
+  return execFileSync11("git", args, {
+    cwd,
+    input,
+    encoding: "utf8",
+    stdio: input === undefined ? ["ignore", "pipe", "pipe"] : ["pipe", "pipe", "pipe"]
+  }).trim();
+}
+function resolveCommitSha(cwd, sha) {
+  try {
+    return git7(cwd, ["rev-parse", "--verify", `${sha}^{commit}`]);
+  } catch {
+    return;
+  }
+}
+function isAncestorOfHead(cwd, sha) {
+  try {
+    execFileSync11("git", ["merge-base", "--is-ancestor", sha, "HEAD"], {
+      cwd,
+      stdio: "pipe"
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+function patchIdForCommit(cwd, sha) {
+  try {
+    const patch = git7(cwd, ["show", "--format=format:", "--patch", "--no-ext-diff", sha]);
+    const output = git7(cwd, ["patch-id", "--stable"], patch);
+    return output.split(/\s+/)[0] || undefined;
+  } catch {
+    return;
+  }
+}
+function allReachableCommits(cwd) {
+  try {
+    const output = git7(cwd, ["rev-list", "--no-merges", "HEAD"]);
+    return output === "" ? [] : output.split(`
+`).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+function buildReachablePatchMap(cwd) {
+  const patchIdToCommits = new Map;
+  for (const commit of allReachableCommits(cwd)) {
+    const patchId = patchIdForCommit(cwd, commit);
+    if (!patchId)
+      continue;
+    const commits = patchIdToCommits.get(patchId) ?? [];
+    commits.push(commit);
+    patchIdToCommits.set(patchId, commits);
+  }
+  return patchIdToCommits;
+}
+function createLedgerShaResolver(cwd) {
+  let reachablePatchMap;
+  function patchMap() {
+    reachablePatchMap ??= buildReachablePatchMap(cwd);
+    return reachablePatchMap;
+  }
+  return (sha) => {
+    const fullSha = resolveCommitSha(cwd, sha);
+    if (!fullSha)
+      return false;
+    if (isAncestorOfHead(cwd, fullSha))
+      return fullSha;
+    const stalePatchId = patchIdForCommit(cwd, fullSha);
+    if (!stalePatchId)
+      return false;
+    const candidates = patchMap().get(stalePatchId) ?? [];
+    const [candidate] = candidates;
+    return candidates.length === 1 && candidate ? candidate : false;
+  };
+}
+var init_ledger_git = () => {};
 
 // templates/hooks/lib/ledger-validation.ts
 function parseLedger2(content) {
@@ -83743,13 +84159,13 @@ var exports_boundary = {};
 __export(exports_boundary, {
   boundary: () => boundary
 });
-import { execFileSync as execFileSync11 } from "child_process";
-import { appendFileSync as appendFileSync6, existsSync as existsSync71, mkdirSync as mkdirSync29 } from "fs";
-import nodePath148 from "path";
-import process22 from "process";
+import { execFileSync as execFileSync12 } from "child_process";
+import { appendFileSync as appendFileSync6, existsSync as existsSync73, mkdirSync as mkdirSync29 } from "fs";
+import nodePath151 from "path";
+import process23 from "process";
 function tryGit(cwd, args) {
   try {
-    return execFileSync11("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    return execFileSync12("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   } catch {
     return;
   }
@@ -83824,10 +84240,10 @@ function collectChanges(cwd, range, at, ticketsDirectories, configuredFeatures) 
     byTicket.set(ticketPath, change);
   }
   for (const change of byTicket.values()) {
-    const folder = nodePath148.join(cwd, change.anchorScope.ticketPath);
+    const folder = nodePath151.join(cwd, change.anchorScope.ticketPath);
     const staged = change.artifacts.find((a) => a.artifact === "ticket.md")?.proposed;
-    change.ticketCurrent = staged ?? readFileSafe(nodePath148.join(folder, "ticket.md"));
-    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync71(nodePath148.join(folder, "test-definitions.md"));
+    change.ticketCurrent = staged ?? readFileSafe(nodePath151.join(folder, "ticket.md"));
+    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync73(nodePath151.join(folder, "test-definitions.md"));
     if (at === "push" && change.artifacts.some((a) => a.artifact === "ticket.md")) {
       const path8 = `${change.anchorScope.ticketPath}/ticket.md`;
       change.legalitySteps = legalityStepsFor(cwd, path8, range.priorRef);
@@ -83845,8 +84261,8 @@ function legalityStepsFor(cwd, path8, priorReference) {
   }));
 }
 function appendAudit(cwd, entry2) {
-  const auditPath = nodePath148.join(cwd, AUDIT_RELATIVE_PATH);
-  mkdirSync29(nodePath148.dirname(auditPath), { recursive: true });
+  const auditPath = nodePath151.join(cwd, AUDIT_RELATIVE_PATH);
+  mkdirSync29(nodePath151.dirname(auditPath), { recursive: true });
   appendFileSync6(auditPath, `${JSON.stringify(entry2)}
 `);
 }
@@ -83889,8 +84305,8 @@ function reconcileBoundary(cwd, at) {
 function boundary(options) {
   try {
     const at = options.at === "push" ? "push" : "commit";
-    const cwd = process22.cwd();
-    if (existsSync71(nodePath148.join(cwd, ".safeword"))) {
+    const cwd = process23.cwd();
+    if (existsSync73(nodePath151.join(cwd, ".safeword"))) {
       reconcileBoundary(cwd, at);
     }
   } catch (error2) {
@@ -83905,7 +84321,7 @@ var init_boundary = __esm(() => {
   init_configured_paths();
   init_feature_source();
   init_fs();
-  AUDIT_RELATIVE_PATH = nodePath148.join(".safeword", "boundary-audit.jsonl");
+  AUDIT_RELATIVE_PATH = nodePath151.join(".safeword", "boundary-audit.jsonl");
 });
 
 // src/commands/codex-hook.ts
@@ -83917,26 +84333,26 @@ __export(exports_codex_hook, {
   commandInvokesWriteReviewStamp: () => commandInvokesWriteReviewStamp,
   codexHook: () => codexHook
 });
-import { spawnSync as spawnSync24 } from "child_process";
+import { spawnSync as spawnSync25 } from "child_process";
 import {
   cpSync as cpSync5,
-  existsSync as existsSync72,
+  existsSync as existsSync74,
   mkdirSync as mkdirSync30,
   mkdtempSync as mkdtempSync10,
-  readdirSync as readdirSync37,
-  readFileSync as readFileSync92,
+  readdirSync as readdirSync38,
+  readFileSync as readFileSync95,
   renameSync as renameSync18,
   rmSync as rmSync18,
-  writeFileSync as writeFileSync36
+  writeFileSync as writeFileSync37
 } from "fs";
 import { tmpdir as tmpdir8 } from "os";
-import nodePath149 from "path";
-import process23 from "process";
+import nodePath152 from "path";
+import process24 from "process";
 async function readStdin() {
   stdinCache.body ??= (async () => {
     let body = "";
-    process23.stdin.setEncoding("utf8");
-    for await (const chunk of process23.stdin)
+    process24.stdin.setEncoding("utf8");
+    for await (const chunk of process24.stdin)
       body += String(chunk);
     return body;
   })();
@@ -84052,9 +84468,9 @@ function writeCodexIdentityCache(input) {
   if (!sessionId || !skillName2)
     return;
   try {
-    const cachePath = nodePath149.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
-    mkdirSync30(nodePath149.dirname(cachePath), { recursive: true });
-    writeFileSync36(cachePath, JSON.stringify({ id: sessionId, skillName: skillName2, recordedAt: new Date().toISOString() }), "utf8");
+    const cachePath = nodePath152.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
+    mkdirSync30(nodePath152.dirname(cachePath), { recursive: true });
+    writeFileSync37(cachePath, JSON.stringify({ id: sessionId, skillName: skillName2, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
 function rememberCodexRunIdentity(input) {
@@ -84116,9 +84532,9 @@ function missingIntakeFields(ticketContent) {
   return REQUIRED_INTAKE_FIELDS.filter((field) => !frontmatterHasField(body, field));
 }
 function testDefinitionsTicketFolder(projectDirectory, targetPath) {
-  const ticketsDirectory = nodePath149.join(resolveNamespaceRoot(projectDirectory), "tickets");
-  const absoluteTarget = nodePath149.resolve(projectDirectory, targetPath);
-  const normalized = nodePath149.relative(ticketsDirectory, absoluteTarget).replaceAll("\\", "/");
+  const ticketsDirectory = nodePath152.join(resolveNamespaceRoot(projectDirectory), "tickets");
+  const absoluteTarget = nodePath152.resolve(projectDirectory, targetPath);
+  const normalized = nodePath152.relative(ticketsDirectory, absoluteTarget).replaceAll("\\", "/");
   const match = /^([^/]+)\/test-definitions\.md$/u.exec(normalized);
   return match?.[1];
 }
@@ -84136,19 +84552,19 @@ ${EXPLAIN_HINT}`
 }
 function deny2(reason) {
   const output = buildDenyOutput(reason);
-  if (process23.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
-    process23.stderr.write(`${output.hookSpecificOutput.permissionDecisionReason}
+  if (process24.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
+    process24.stderr.write(`${output.hookSpecificOutput.permissionDecisionReason}
 `);
-    process23.exit(2);
+    process24.exit(2);
   }
-  process23.stdout.write(`${JSON.stringify(output)}
+  process24.stdout.write(`${JSON.stringify(output)}
 `);
 }
 function readPackagedSafewordInstructions() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
   if (!instructionsPath)
     return;
-  if (!readFileSync92(instructionsPath, "utf8").trim())
+  if (!readFileSync95(instructionsPath, "utf8").trim())
     return;
   return [
     "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
@@ -84162,28 +84578,28 @@ function readPackagedSafewordInstructions() {
 `);
 }
 function findPackagedTemplate(relativePath) {
-  return TEMPLATE_DIRECTORIES.map((directory) => nodePath149.join(directory, relativePath)).find((candidate) => existsSync72(candidate));
+  return TEMPLATE_DIRECTORIES.map((directory) => nodePath152.join(directory, relativePath)).find((candidate) => existsSync74(candidate));
 }
 function resolvePackagedHook(relativePath) {
-  return findPackagedTemplate(nodePath149.join("hooks", relativePath));
+  return findPackagedTemplate(nodePath152.join("hooks", relativePath));
 }
 function hookRuntime(hookPath) {
-  const isBun = process23.versions.bun !== undefined;
-  const runtime = process23.env.SAFEWORD_AGENT_RUNTIME === "opencode" || isBun ? process23.execPath : "bun";
-  const args = runtime === process23.execPath && !isBun ? [hookPath] : ["--no-env-file", hookPath];
+  const isBun = process24.versions.bun !== undefined;
+  const runtime = process24.env.SAFEWORD_AGENT_RUNTIME === "opencode" || isBun ? process24.execPath : "bun";
+  const args = runtime === process24.execPath && !isBun ? [hookPath] : ["--no-env-file", hookPath];
   return { runtime, args };
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
   const { runtime, args } = hookRuntime(hookPath);
-  const result3 = spawnSync24(runtime, args, {
-    cwd: nodePath149.dirname(hookPath),
+  const result3 = spawnSync25(runtime, args, {
+    cwd: nodePath152.dirname(hookPath),
     input: rawInput,
     encoding: "utf8",
     env: {
-      ...process23.env,
+      ...process24.env,
       CLAUDE_PROJECT_DIR: projectDirectory,
-      SAFEWORD_AGENT_RUNTIME: process23.env.SAFEWORD_AGENT_RUNTIME ?? "codex",
-      SAFEWORD_PLUGIN_CLI: process23.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? process23.env.SAFEWORD_PLUGIN_CLI ?? process23.argv[1] : process23.argv[1],
+      SAFEWORD_AGENT_RUNTIME: process24.env.SAFEWORD_AGENT_RUNTIME ?? "codex",
+      SAFEWORD_PLUGIN_CLI: process24.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? process24.env.SAFEWORD_PLUGIN_CLI ?? process24.argv[1] : process24.argv[1],
       SAFEWORD_PACKAGED_CONTEXT_PATH: packagedContextPath
     },
     stdio: ["pipe", "pipe", "pipe"]
@@ -84200,7 +84616,7 @@ function normalizeNamespaceRootLabel(label) {
   return normalizedLabel === "." || normalizedLabel.startsWith("..") || [".project", ".safeword-project"].includes(normalizedLabel) ? undefined : normalizedLabel;
 }
 function packagedNamespaceRootLabel(projectDirectory) {
-  return normalizeNamespaceRootLabel(nodePath149.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
+  return normalizeNamespaceRootLabel(nodePath152.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
 }
 function runPackagedHook(relativePath, rawInput, projectDirectory) {
   const hookPath = resolvePackagedHook(relativePath);
@@ -84215,10 +84631,10 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   let temporaryHookDirectory;
   try {
     if (relativePath === "session-codex-start.ts") {
-      temporaryHookDirectory = mkdtempSync10(nodePath149.join(tmpdir8(), "safeword-codex-hook-"));
-      cpSync5(nodePath149.dirname(hookPath), temporaryHookDirectory, { recursive: true });
-      writeFileSync36(nodePath149.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
-      executableHookPath = nodePath149.join(temporaryHookDirectory, nodePath149.basename(hookPath));
+      temporaryHookDirectory = mkdtempSync10(nodePath152.join(tmpdir8(), "safeword-codex-hook-"));
+      cpSync5(nodePath152.dirname(hookPath), temporaryHookDirectory, { recursive: true });
+      writeFileSync37(nodePath152.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
+      executableHookPath = nodePath152.join(temporaryHookDirectory, nodePath152.basename(hookPath));
     }
     const packagedContextPath = relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : "";
     return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
@@ -84228,7 +84644,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   }
 }
 function embeddedOpenCodePreToolHooks() {
-  if (process23.env.SAFEWORD_AGENT_RUNTIME !== "opencode")
+  if (process24.env.SAFEWORD_AGENT_RUNTIME !== "opencode")
     return;
   if (typeof __SAFEWORD_OPENCODE_CODEX_PRE_TOOL_SOURCE__ !== "string" || typeof __SAFEWORD_OPENCODE_PRE_TOOL_SOURCE__ !== "string") {
     return;
@@ -84244,13 +84660,13 @@ function snapshotEmbeddedOpenCodePreToolHook(relativePath) {
   const embedded = embeddedOpenCodePreToolHooks();
   if (!embedded)
     return;
-  const directory = mkdtempSync10(nodePath149.join(tmpdir8(), `safeword-opencode-hook-snapshot-${process23.pid}-`));
-  const hooksDirectory = nodePath149.join(directory, "hooks");
-  const codexDirectory = nodePath149.join(hooksDirectory, "codex");
+  const directory = mkdtempSync10(nodePath152.join(tmpdir8(), `safeword-opencode-hook-snapshot-${process24.pid}-`));
+  const hooksDirectory = nodePath152.join(directory, "hooks");
+  const codexDirectory = nodePath152.join(hooksDirectory, "codex");
   mkdirSync30(codexDirectory, { recursive: true });
-  writeFileSync36(nodePath149.join(hooksDirectory, "pre-tool-quality.ts"), embedded.preTool, "utf8");
-  const hookPath = nodePath149.join(codexDirectory, "pre-tool-quality.ts");
-  writeFileSync36(hookPath, embedded.codexPreTool, "utf8");
+  writeFileSync37(nodePath152.join(hooksDirectory, "pre-tool-quality.ts"), embedded.preTool, "utf8");
+  const hookPath = nodePath152.join(codexDirectory, "pre-tool-quality.ts");
+  writeFileSync37(hookPath, embedded.codexPreTool, "utf8");
   return { directory, hookPath };
 }
 function requiredSourceRewrite(source, expected, replacement, path8) {
@@ -84261,11 +84677,11 @@ function requiredSourceRewrite(source, expected, replacement, path8) {
   return source.slice(0, index) + replacement + source.slice(index + expected.length);
 }
 function rewriteOpenCodeHookRuntime(relativePath, source, rewritten, path8) {
-  if (relativePath === nodePath149.join("codex", "pre-tool-quality.ts") && source.includes("Bun.stdin")) {
+  if (relativePath === nodePath152.join("codex", "pre-tool-quality.ts") && source.includes("Bun.stdin")) {
     return requiredSourceRewrite(rewritten, "return JSON.parse(await Bun.stdin.text()) as CodexHookInput;", `const raw = (await import('node:fs')).readFileSync(0, 'utf8');
     return JSON.parse(raw) as CodexHookInput;`, path8);
   }
-  if (relativePath === nodePath149.join("codex", "pre-tool-quality-helpers.ts") && source.includes("spawnSync('bun'")) {
+  if (relativePath === nodePath152.join("codex", "pre-tool-quality-helpers.ts") && source.includes("spawnSync('bun'")) {
     const nodeSpawn = requiredSourceRewrite(rewritten, "return spawnSync('bun', [claudeHookPath], {", "return spawnSync(process.execPath, [claudeHookPath], {", path8);
     return requiredSourceRewrite(nodeSpawn, "SAFEWORD_AGENT_RUNTIME: 'codex',", "SAFEWORD_AGENT_RUNTIME: 'opencode',", path8);
   }
@@ -84276,21 +84692,21 @@ function rewriteOpenCodeHookRuntime(relativePath, source, rewritten, path8) {
   return rewritten;
 }
 function rewriteSnapshotImportsForNode(directory, root = directory) {
-  const entries = readdirSync37(directory, { withFileTypes: true });
+  const entries = readdirSync38(directory, { withFileTypes: true });
   for (const entry2 of entries) {
-    const path8 = nodePath149.join(directory, entry2.name);
+    const path8 = nodePath152.join(directory, entry2.name);
     if (entry2.isDirectory()) {
       rewriteSnapshotImportsForNode(path8, root);
       continue;
     }
     if (!entry2.isFile() || !entry2.name.endsWith(".ts"))
       continue;
-    const relativePath = nodePath149.relative(root, path8);
-    const source = readFileSync92(path8, "utf8");
+    const relativePath = nodePath152.relative(root, path8);
+    const source = readFileSync95(path8, "utf8");
     const importRewritten = source.replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, "$1$2.ts$3");
     const rewritten = rewriteOpenCodeHookRuntime(relativePath, source, importRewritten, path8);
     if (rewritten !== source)
-      writeFileSync36(path8, rewritten, "utf8");
+      writeFileSync37(path8, rewritten, "utf8");
   }
 }
 function snapshotPackagedHook(relativePath) {
@@ -84300,17 +84716,17 @@ function snapshotPackagedHook(relativePath) {
       error: new Error(`Safeword packaged hook is missing: ${relativePath}`)
     };
   }
-  const directory = mkdtempSync10(nodePath149.join(tmpdir8(), `safeword-codex-hook-snapshot-${process23.pid}-`));
-  const stagingHooksDirectory = nodePath149.join(directory, "hooks-copying");
-  const snapshotHooksDirectory = nodePath149.join(directory, "hooks");
+  const directory = mkdtempSync10(nodePath152.join(tmpdir8(), `safeword-codex-hook-snapshot-${process24.pid}-`));
+  const stagingHooksDirectory = nodePath152.join(directory, "hooks-copying");
+  const snapshotHooksDirectory = nodePath152.join(directory, "hooks");
   try {
     cpSync5(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
-    if (process23.env.SAFEWORD_AGENT_RUNTIME === "opencode") {
+    if (process24.env.SAFEWORD_AGENT_RUNTIME === "opencode") {
       rewriteSnapshotImportsForNode(stagingHooksDirectory);
     }
     renameSync18(stagingHooksDirectory, snapshotHooksDirectory);
-    const hookPath = nodePath149.join(snapshotHooksDirectory, relativePath);
-    return existsSync72(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
+    const hookPath = nodePath152.join(snapshotHooksDirectory, relativePath);
+    return existsSync74(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   } catch (error2) {
     return {
       directory,
@@ -84323,43 +84739,43 @@ function hookFailureDetail(result3) {
 }
 function denyForPackagedHookFailure(result3) {
   const detail = hookFailureDetail(result3);
-  if (process23.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE && result3.status === INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE) {
-    process23.stderr.write(`${detail}
+  if (process24.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE && result3.status === INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE) {
+    process24.stderr.write(`${detail}
 `);
-    process23.exit(INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE);
+    process24.exit(INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE);
   }
-  process23.stderr.write(`Safeword packaged PreToolUse hook failed: ${detail}
+  process24.stderr.write(`Safeword packaged PreToolUse hook failed: ${detail}
 `);
-  process23.exit(2);
+  process24.exit(2);
 }
 function emitPackagedPreToolResult(result3) {
   if (result3.error || result3.status !== 0)
     denyForPackagedHookFailure(result3);
   if (result3.stdout.trim() === "")
     return false;
-  if (process23.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
+  if (process24.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
     try {
       const output = JSON.parse(result3.stdout);
       const reason = output.hookSpecificOutput?.permissionDecisionReason;
       if (output.hookSpecificOutput?.permissionDecision === "deny" && reason) {
-        process23.stderr.write(`${reason}
+        process24.stderr.write(`${reason}
 `);
-        process23.exit(2);
+        process24.exit(2);
       }
     } catch {}
-    process23.stderr.write(`Safeword packaged PreToolUse hook returned unsupported output in exit-code mode.
+    process24.stderr.write(`Safeword packaged PreToolUse hook returned unsupported output in exit-code mode.
 `);
-    process23.exit(2);
+    process24.exit(2);
   }
-  process23.stdout.write(result3.stdout);
+  process24.stdout.write(result3.stdout);
   return true;
 }
 function readProjectTextFile(projectDirectory, relativePath) {
-  const filePath = nodePath149.join(projectDirectory, relativePath);
-  return existsSync72(filePath) ? readFileSync92(filePath, "utf8") : undefined;
+  const filePath = nodePath152.join(projectDirectory, relativePath);
+  return existsSync74(filePath) ? readFileSync95(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
-  process23.stdout.write(`${JSON.stringify(output)}
+  process24.stdout.write(`${JSON.stringify(output)}
 `);
 }
 function currentTimestampContext(now = new Date) {
@@ -84392,19 +84808,19 @@ function packagedAdditionalContext(result3, hookEventName) {
   }
 }
 function emitStopNoop() {
-  process23.stdout.write(`{}
+  process24.stdout.write(`{}
 `);
 }
 function emitStopContinuation(output) {
-  process23.stdout.write(`${JSON.stringify(output)}
+  process24.stdout.write(`${JSON.stringify(output)}
 `);
 }
 function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
   if (!ticketFolder)
     return false;
-  const ticketPath = nodePath149.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
-  const ticketContent = existsSync72(ticketPath) ? readFileSync92(ticketPath, "utf8") : "";
+  const ticketPath = nodePath152.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
+  const ticketContent = existsSync74(ticketPath) ? readFileSync95(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
     return false;
@@ -84447,7 +84863,7 @@ async function runSessionStart(projectDirectory) {
   const rawInput = await readStdin();
   const packagedResult = runPackagedHook("session-codex-start.ts", rawInput, projectDirectory);
   if (packagedResult.stdout.trim() !== "") {
-    process23.stdout.write(packagedResult.stdout);
+    process24.stdout.write(packagedResult.stdout);
     return;
   }
   const input = parseCodexHookInput(rawInput);
@@ -84467,7 +84883,7 @@ function postToolLintInputs(input, rawInput, projectDirectory) {
   if (input?.tool_name !== "apply_patch")
     return [rawInput];
   return extractTargetPaths(input).map((filePath) => JSON.stringify({
-    tool_input: { file_path: nodePath149.resolve(projectDirectory, filePath) }
+    tool_input: { file_path: nodePath152.resolve(projectDirectory, filePath) }
   }));
 }
 function collectPostToolLintContexts(lintInputs, projectDirectory) {
@@ -84544,7 +84960,7 @@ async function runStop(projectDirectory) {
   const packagedResult = runPackagedHook("codex/stop.ts", rawInput, projectDirectory);
   const packaged = classifyPackagedStopOutput(packagedResult.stdout);
   if (packaged === "block") {
-    process23.stdout.write(packagedResult.stdout);
+    process24.stdout.write(packagedResult.stdout);
     return;
   }
   const reason = readProjectTextFile(projectDirectory, STOP_CONTINUATION_PATH)?.trim();
@@ -84553,31 +84969,31 @@ async function runStop(projectDirectory) {
     return;
   }
   if (packaged === "noop") {
-    process23.stdout.write(packagedResult.stdout);
+    process24.stdout.write(packagedResult.stdout);
     return;
   }
   emitStopNoop();
 }
 function requireNativeProject(input, event) {
-  if (input?.cwd?.trim() || process23.env.CLAUDE_PROJECT_DIR?.trim() || hasSafewordProjectMarker(process23.cwd()))
+  if (input?.cwd?.trim() || process24.env.CLAUDE_PROJECT_DIR?.trim() || hasSafewordProjectMarker(process24.cwd()))
     return;
-  process23.stderr.write(`Safeword: Native hook input is missing its project directory.
+  process24.stderr.write(`Safeword: Native hook input is missing its project directory.
 `);
-  process23.exit(event === "pre-tool-use" ? 2 : 0);
+  process24.exit(event === "pre-tool-use" ? 2 : 0);
 }
 async function codexHook(event, options = {}) {
   const normalized = normalizeEvent(event);
   if (normalized === undefined) {
-    process23.stderr.write(`Safeword ignored unknown Codex hook event: ${event}
+    process24.stderr.write(`Safeword ignored unknown Codex hook event: ${event}
 `);
     return;
   }
   const input = options.pluginHook === true ? parseCodexHookInput(await readStdin()) : undefined;
-  const projectDirectory = resolveCodexProjectDirectory(input?.cwd ?? process23.cwd());
+  const projectDirectory = resolveCodexProjectDirectory(input?.cwd ?? process24.cwd());
   if (options.pluginHook === true) {
     requireNativeProject(input, normalized);
     try {
-      recordCodexHookProof(normalized, process23.env, new Date, {
+      recordCodexHookProof(normalized, process24.env, new Date, {
         projectDirectory,
         sessionId: input?.session_id
       });
@@ -84598,9 +85014,9 @@ var init_codex_hook = __esm(() => {
   REQUIRED_INTAKE_FIELDS = ["scope", "out_of_scope", "done_when"];
   MODULE_DIRECTORY = import.meta.dirname;
   TEMPLATE_DIRECTORIES = [
-    nodePath149.resolve(MODULE_DIRECTORY, "../resources"),
-    nodePath149.resolve(MODULE_DIRECTORY, "../templates"),
-    nodePath149.resolve(MODULE_DIRECTORY, "../../templates")
+    nodePath152.resolve(MODULE_DIRECTORY, "../resources"),
+    nodePath152.resolve(MODULE_DIRECTORY, "../templates"),
+    nodePath152.resolve(MODULE_DIRECTORY, "../../templates")
   ];
   SKILL_NAME_PATTERN3 = /^[a-z][a-z0-9-]*$/u;
   SHELL_WHITESPACE = [" ", `
@@ -84635,10 +85051,10 @@ var init_feature_directories = __esm(() => {
 });
 
 // src/cli.ts
-import process25 from "process";
+import process26 from "process";
 
 // src/cli-protocol/program.ts
-import process24 from "process";
+import process25 from "process";
 
 // ../../node_modules/.bun/commander@15.0.0/node_modules/commander/lib/error.js
 class CommanderError extends Error {
@@ -86718,8 +87134,8 @@ init_agent_selection();
 
 // src/cli-protocol/public-handlers.ts
 init_agent_selection();
-import { existsSync as existsSync70 } from "fs";
-import nodePath146 from "path";
+import { existsSync as existsSync72 } from "fs";
+import nodePath149 from "path";
 
 // src/cli-protocol/architecture-handlers.ts
 init_architecture_document();
@@ -88988,14 +89404,14 @@ async function uninstallHandler(invocation) {
   return finding2 === undefined ? result3 : { ...result3, findings: [...result3.findings, finding2] };
 }
 async function syncConfigHandler(invocation) {
-  const safewordDirectory = nodePath146.join(invocation.cwd, ".safeword");
-  if (!existsSync70(safewordDirectory))
+  const safewordDirectory = nodePath149.join(invocation.cwd, ".safeword");
+  if (!existsSync72(safewordDirectory))
     return notConfigured("project sync-config");
   const { buildArchitecture: buildArchitecture2, inspectConfig: inspectConfig2, syncConfigCore: syncConfigCore2 } = await Promise.resolve().then(() => (init_sync_config(), exports_sync_config));
   const architecture2 = buildArchitecture2(invocation.cwd);
   const before = inspectConfig2(invocation.cwd, architecture2);
-  const mainConfigExists = existsSync70(nodePath146.join(invocation.cwd, ".dependency-cruiser.cjs"));
-  const generatedConfigExists = existsSync70(nodePath146.join(invocation.cwd, ".safeword/depcruise-config.cjs"));
+  const mainConfigExists = existsSync72(nodePath149.join(invocation.cwd, ".dependency-cruiser.cjs"));
+  const generatedConfigExists = existsSync72(nodePath149.join(invocation.cwd, ".safeword/depcruise-config.cjs"));
   if (invocation.options.check === true) {
     return configCheckResult(completeConfigInspection(before, mainConfigExists));
   }
@@ -89027,7 +89443,7 @@ async function syncLearningsHandler(invocation) {
       files: result3.wrote ? [
         {
           kind: "write",
-          target: nodePath146.relative(invocation.cwd, result3.indexPath)
+          target: nodePath149.relative(invocation.cwd, result3.indexPath)
         }
       ] : []
     },
@@ -89047,7 +89463,7 @@ async function syncTicketsHandler(invocation) {
     effects: {
       files: result3.wrote ? [result3.indexPath, result3.completedIndexPath].map((target) => ({
         kind: "write",
-        target: nodePath146.relative(invocation.cwd, target)
+        target: nodePath149.relative(invocation.cwd, target)
       })) : []
     },
     findings: result3.skipped.map((skip) => ({
@@ -89153,6 +89569,15 @@ async function recordSkillInvocationHandler(invocation) {
   const sessionId = invocation.operands[1];
   return runRecordSkillInvocation2(invocation.cwd, typeof skill === "string" ? skill : undefined, typeof sessionId === "string" && sessionId.length > 0 ? sessionId : undefined);
 }
+async function projectPrReadyHandler(invocation) {
+  if (invocation.offline)
+    return onlineRequired("project pr-ready");
+  const pull = invocation.operands[0];
+  if (pull !== undefined && typeof pull !== "string")
+    return invalidOperand("project pr-ready", "Pull request number must be text.");
+  const { runProjectPrReady: runProjectPrReady2 } = await Promise.resolve().then(() => (init_project_pr_ready(), exports_project_pr_ready));
+  return runProjectPrReady2(invocation.cwd, pull);
+}
 async function projectRuntimeHandler(invocation) {
   const helper = invocation.operands[0];
   if (helper !== undefined && typeof helper !== "string")
@@ -89228,6 +89653,7 @@ var HANDLERS = {
   "project test-plan": testPlanHandler,
   "project namespace-root": namespaceRootHandler,
   "project audit-scope": auditScopeHandler,
+  "project pr-ready": projectPrReadyHandler,
   "project record-skill-invocation": recordSkillInvocationHandler,
   "project runtime": projectRuntimeHandler,
   "project review-knowledge": reviewKnowledgeHandler,
@@ -89540,6 +89966,11 @@ var CANONICAL_COMMANDS = [
   command("project test-execution remote disable", "Remove the managed remote-test workflow", "mutate", { syntax: "disable" }),
   command("project lint-gherkin", "Validate executable feature files", "observe", {
     syntax: "lint-gherkin [files...]"
+  }),
+  command("project pr-ready", "Promote the PR verified in the selected worktree", "mutate", {
+    syntax: "pr-ready [pull]",
+    networkPolicy: "declared",
+    fixture: { argv: ["project", "pr-ready"], environment: MACHINE_ENVIRONMENT }
   }),
   command("project audit-scope", "Print the packaged audit scope shell contract", "observe", {
     syntax: "audit-scope"
@@ -90353,8 +90784,8 @@ function createCapabilitiesResult() {
 }
 
 // src/cli-protocol/execute.ts
-import nodePath147 from "path";
-import process20 from "process";
+import nodePath150 from "path";
+import process21 from "process";
 init_policy();
 init_result();
 var GLOBAL_OPTION_KEYS = new Set(["json", "input", "cwd", "quiet", "offline", "verbose"]);
@@ -90379,7 +90810,7 @@ function readGlobalOptions(command2) {
   return {
     json: options.json === true,
     noInput: options.input === false,
-    cwd: nodePath147.resolve(process20.cwd(), options.cwd ?? "."),
+    cwd: nodePath150.resolve(process21.cwd(), options.cwd ?? "."),
     quiet: options.quiet === true,
     offline: options.offline === true,
     verbose: options.verbose === true
@@ -90412,7 +90843,7 @@ function reportResult(result3, options, commandName, delivery) {
     }
   }
   if (options.json) {
-    process20.stdout.write(`${renderJsonResult(reportableResult)}
+    process21.stdout.write(`${renderJsonResult(reportableResult)}
 `);
   } else {
     const rendered = renderHumanStreams(reportableResult, {
@@ -90420,13 +90851,13 @@ function reportResult(result3, options, commandName, delivery) {
       verbose: options.verbose
     });
     if (rendered.stdout !== "")
-      process20.stdout.write(`${rendered.stdout}
+      process21.stdout.write(`${rendered.stdout}
 `);
     if (rendered.stderr !== "")
-      process20.stderr.write(`${rendered.stderr}
+      process21.stderr.write(`${rendered.stderr}
 `);
   }
-  process20.exitCode = delivery?.actionRequiredAsSuccess === true && reportableResult.state === "action_required" ? 0 : exitStatusFor(reportableResult);
+  process21.exitCode = delivery?.actionRequiredAsSuccess === true && reportableResult.state === "action_required" ? 0 : exitStatusFor(reportableResult);
 }
 
 // src/cli-protocol/machine-output.ts
@@ -90442,7 +90873,7 @@ function machineOutputRequested(arguments_) {
 
 // src/cli-protocol/register.ts
 import { writeSync as writeSync5 } from "fs";
-import process21 from "process";
+import process22 from "process";
 init_plan();
 init_policy();
 init_result();
@@ -90562,7 +90993,7 @@ function withCompatibilityDeprecation(result3, definition, commandOptions = {}, 
   return withDeprecation(result3, alias2.name, alias2.compatibility.replacement ?? alias2.aliasFor, alias2.compatibility, commandOptions);
 }
 function commandProgress(definition, options) {
-  const managedProgressRequested = consumeManagedProgressSignal(process21.env);
+  const managedProgressRequested = consumeManagedProgressSignal(process22.env);
   const managedReview = managedProgressRequested && definition.name === "review run";
   if (!shouldReportProgress({ ...options, managedReview }))
     return;
@@ -90684,7 +91115,7 @@ function registerInternalCommands(program2) {
   const featureDirectoriesDefinition = findCommandDefinition("feature-directories");
   program2.command(featureDirectoriesDefinition.registration.syntax, { hidden: true }).description(featureDirectoriesDefinition.description).action(async () => {
     const { featureDirectories: featureDirectories2 } = await Promise.resolve().then(() => (init_feature_directories(), exports_feature_directories));
-    featureDirectories2(process24.cwd());
+    featureDirectories2(process25.cwd());
   });
 }
 function createCliProgram(invocation = {}) {
@@ -90745,14 +91176,14 @@ async function runCli(argv) {
   configureCliOutput(program2, {
     writeErr: (output) => {
       if (!machineOutput)
-        process24.stderr.write(output);
+        process25.stderr.write(output);
     }
   });
   try {
     await program2.parseAsync(normalized.argv);
   } catch (parseError) {
     if (isCommanderError(parseError) && parseError.exitCode === 0) {
-      process24.exitCode = 0;
+      process25.exitCode = 0;
     } else if (machineOutput && isCommanderError(parseError)) {
       const result3 = createResult({
         state: "failed",
@@ -90764,17 +91195,17 @@ async function runCli(argv) {
           }
         ]
       });
-      process24.stdout.write(`${renderJsonResult(result3)}
+      process25.stdout.write(`${renderJsonResult(result3)}
 `);
-      process24.exitCode = 1;
+      process25.exitCode = 1;
     } else if (isCommanderError(parseError)) {
-      process24.exitCode = parseError.exitCode;
+      process25.exitCode = parseError.exitCode;
     } else {
       error(parseError instanceof Error ? parseError.message : String(parseError));
-      process24.exitCode = 1;
+      process25.exitCode = 1;
     }
   }
 }
 
 // src/cli.ts
-await runCli(process25.argv);
+await runCli(process26.argv);

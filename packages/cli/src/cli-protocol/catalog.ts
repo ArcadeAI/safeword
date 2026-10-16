@@ -367,6 +367,11 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
     syntax: 'lint-gherkin [files...]',
   }),
+  command('project pr-ready', 'Promote the PR verified in the selected worktree', 'mutate', {
+    syntax: 'pr-ready [pull]',
+    networkPolicy: 'declared',
+    fixture: { argv: ['project', 'pr-ready'], environment: MACHINE_ENVIRONMENT },
+  }),
   command('project audit-scope', 'Print the packaged audit scope shell contract', 'observe', {
     syntax: 'audit-scope',
   }),
