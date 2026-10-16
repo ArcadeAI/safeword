@@ -1096,11 +1096,7 @@ if (isCanonicalTicketEdit) {
           'Restore the ticket frontmatter id, then retry the move to implement.',
         );
       }
-      const authorization = evaluateCodingAuthorization(
-        projectDirectory,
-        ticketId,
-        safewordCliCommand(),
-      );
+      const authorization = evaluateCodingAuthorization(projectDirectory, ticketId);
       if (!authorization.ok) deny(authorization.reason, authorization.remediation);
     }
   }
@@ -1405,11 +1401,7 @@ if (state.activeTicket) {
     !isBehaviorDefinitionEdit &&
     (executionReviewRecorded || executionPlanContractProvenance(ticketDirectory) !== 'absent')
   ) {
-    const authorization = evaluateCodingAuthorization(
-      projectDirectory,
-      state.activeTicket,
-      safewordCliCommand(),
-    );
+    const authorization = evaluateCodingAuthorization(projectDirectory, state.activeTicket);
     if (!authorization.ok) {
       recordFailure(projectDirectory, input.session_id, 'coding-authorization-denied');
       deny(authorization.reason, authorization.remediation);

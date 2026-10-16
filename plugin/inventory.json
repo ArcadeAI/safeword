@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "e36077407a058f024005480d4f3a87f890311697a8d834f44495b5e813feb1f9"
+      "sha256": "e784efb65d14fbec5d213792f3d98925a0834640ebec969e165e8b4901d1636e"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "562710e88db6602b4d3b6a09bf284b98810d2915f506f2f251c0125fd1d997a0"
+      "sha256": "712227dab3b54dfaf46d04a4f5ec3abd351aaa56ecc42bbb9b900f278f0e6687"
     },
     {
       "path": "runtime/event-groups.json",
@@ -319,7 +319,7 @@
     },
     {
       "path": "runtime/hooks/lib/plan-gate.ts",
-      "sha256": "c06de496fddc10e6b784170f5e26f16cea3b74c771ca1410538fabc17a0c2462"
+      "sha256": "4e95b7bc280839543d72b8021de19fe2723cdd8a12751f073bd9d8b652fb5620"
     },
     {
       "path": "runtime/hooks/lib/pr-readiness-guard.ts",
@@ -523,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "e2e51a41cde348291c1f1b98b6d4a056e799023c520fea12dee7df6f3683f177"
+      "sha256": "c97e10df77db9b4b863295cb15d78a0eadd16252e3174633bb6b929937c8bba2"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1291,7 +1291,7 @@
     },
     {
       "path": "templates/hooks/lib/plan-gate.ts",
-      "sha256": "e2a9a12014671e16ad2544dbc44125ba82bb2fd6aa189b8e3fbbbd63473fddaa"
+      "sha256": "c17455de54b4a900042645a4b8b2eb76a2a85949b49be99c45144200e5c660fe"
     },
     {
       "path": "templates/hooks/lib/pr-readiness-guard.ts",
@@ -1495,7 +1495,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "9f7df9e9845c56a9159c0b4a9066349c60ddcd55bb462af222227fef23b0ace1"
+      "sha256": "d867a18bfca6e1a15bf691195d083084e59d383bfcbfd81dbcd98a060db956cd"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
