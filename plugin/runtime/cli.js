@@ -32061,7 +32061,7 @@ function splitRow2(line) {
   const body = line.trim().slice(1, -1);
   for (const character of body) {
     if (escaped) {
-      cell += character;
+      cell += character === "|" ? character : `\\${character}`;
       escaped = false;
     } else if (character === "\\") {
       escaped = true;
@@ -32123,7 +32123,7 @@ function parseCommandInvocation(value) {
     return;
   if (typeof value.cwd !== "string" || !isProjectContainedPath(value.cwd))
     return;
-  if (!Array.isArray(value.argv) || value.argv.length === 0 || value.argv.some((argument) => typeof argument !== "string" || argument === "")) {
+  if (!Array.isArray(value.argv) || value.argv.length === 0 || typeof value.argv[0] !== "string" || value.argv[0].trim() === "" || value.argv.some((argument) => typeof argument !== "string")) {
     return;
   }
   return { type: "command", cwd: value.cwd, argv: value.argv };
@@ -52642,6 +52642,9 @@ function uniqueNonblankStrings(value, allowEmpty) {
     return false;
   return new Set(value).size === value.length;
 }
+function commandArguments(value) {
+  return Array.isArray(value) && value.length > 0 && isNonblank(value[0]) && value.every((argument) => typeof argument === "string");
+}
 function deniedOutput(output, messages3 = []) {
   return {
     kind: "denied",
@@ -52714,15 +52717,40 @@ function isProjectContainedPath2(value) {
     return false;
   return !value.split(/[\\/]/u).includes("..");
 }
-function isValidProofInvocation(value, method) {
-  if (!isRecord7(value) || value.type !== method)
-    return false;
-  if (method === "command") {
-    return hasExactKeys3(value, ["type", "cwd", "argv"]) && typeof value.cwd === "string" && isProjectContainedPath2(value.cwd) && uniqueNonblankStrings(value.argv, false);
+function commandInvocationFailure(value, path7) {
+  if (!hasExactKeys3(value, ["type", "cwd", "argv"])) {
+    return `${path7} must contain exactly type, cwd, and argv`;
   }
-  return hasExactKeys3(value, ["type", "kind", "targets"]) && isNonblank(value.kind) && uniqueNonblankStrings(value.targets, false) && value.targets.every((target) => isProjectContainedPath2(target));
+  if (typeof value.cwd !== "string" || !isProjectContainedPath2(value.cwd)) {
+    return `${path7}.cwd must be a project-contained path`;
+  }
+  if (!commandArguments(value.argv)) {
+    return `${path7}.argv must be a non-empty array of strings with a nonblank executable`;
+  }
+  return;
 }
-function isValidProofSpecification(value) {
+function receiptInvocationFailure(value, path7) {
+  if (!hasExactKeys3(value, ["type", "kind", "targets"])) {
+    return `${path7} must contain exactly type, kind, and targets`;
+  }
+  if (!isNonblank(value.kind))
+    return `${path7}.kind must be a nonblank string`;
+  if (!uniqueNonblankStrings(value.targets, false)) {
+    return `${path7}.targets must be a non-empty array of unique nonblank strings`;
+  }
+  if (value.targets.some((target) => !isProjectContainedPath2(target))) {
+    return `${path7}.targets must contain only project-contained paths`;
+  }
+  return;
+}
+function proofInvocationFailure(value, method, path7) {
+  if (!isRecord7(value))
+    return `${path7} must be an object`;
+  if (value.type !== method)
+    return `${path7}.type must match the proof method`;
+  return method === "command" ? commandInvocationFailure(value, path7) : receiptInvocationFailure(value, path7);
+}
+function proofSpecificationFailure(value, path7) {
   if (!isRecord7(value) || !hasExactKeys3(value, [
     "proof_id",
     "method",
@@ -52732,13 +52760,29 @@ function isValidProofSpecification(value) {
     "currency",
     "invocation"
   ])) {
-    return false;
+    return `${path7} has an invalid object shape`;
   }
   const methodIsValid = value.method === "command" || value.method === "review_receipt";
   const scopeIsValid = ["unit", "integration", "E2E", "eval"].includes(String(value.scope));
   const qualificationIsValid = ["real_boundary", "partial_or_structural"].includes(String(value.qualifies_as));
   const currencyIsValid = ["current_required", "compatible_earlier_allowed"].includes(String(value.currency));
-  return isNonblank(value.proof_id) && isNonblank(value.boundary_exercised) && methodIsValid && scopeIsValid && qualificationIsValid && currencyIsValid && isValidProofInvocation(value.invocation, value.method);
+  if (!isNonblank(value.proof_id))
+    return `${path7}.proof_id must be a nonblank string`;
+  if (!isNonblank(value.boundary_exercised)) {
+    return `${path7}.boundary_exercised must be a nonblank string`;
+  }
+  if (!methodIsValid)
+    return `${path7}.method is unsupported`;
+  if (!scopeIsValid)
+    return `${path7}.scope is unsupported`;
+  if (!qualificationIsValid)
+    return `${path7}.qualifies_as is unsupported`;
+  if (!currencyIsValid)
+    return `${path7}.currency is unsupported`;
+  return proofInvocationFailure(value.invocation, value.method, `${path7}.invocation`);
+}
+function isValidProofSpecification(value) {
+  return proofSpecificationFailure(value, "proof specification") === undefined;
 }
 function hasValidChecklistItemBase(value) {
   return isNonblank(value.id) && DELIVERY_CHECKLIST_CATEGORIES.includes(value.category) && isNonblank(value.obligation);
@@ -52802,6 +52846,23 @@ function hasValidDeliveryDefinition(definition) {
   }
   return hasUniqueDefinitionIds(definition) && hasEveryDefinitionCategory(definition) && contributorProofsAreReal(definition);
 }
+function deliveryDefinitionFailure(value) {
+  if (!isRecord7(value))
+    return "execution_plan_record.delivery_definition must be an object";
+  const definition = value;
+  if (!hasValidDeliveryDefinitionHeader(definition)) {
+    return "execution_plan_record.delivery_definition has an invalid header";
+  }
+  for (const [index, proof] of definition.proof_specifications.entries()) {
+    const failure = proofSpecificationFailure(proof, `execution_plan_record.delivery_definition.proof_specifications[${index}]`);
+    if (failure !== undefined)
+      return failure;
+  }
+  if (!hasValidDeliveryDefinition(definition)) {
+    return "execution_plan_record.delivery_definition failed structural validation";
+  }
+  return;
+}
 function hasValidSliceGraph(record) {
   const slices = record.slices;
   const countMatchesDecision = record.slicing_decision === "one_pull_request" ? slices.length === 1 : slices.length >= 2;
@@ -52857,13 +52918,27 @@ function isValidExecutionPlanRecord(value) {
   const record = value;
   return hasValidSliceGraph(record) && hasValidObligationOwners(record) && hasValidDecisionStatuses(record) && hasValidDeliveryDefinition(record.delivery_definition);
 }
+function executionPlanRecordFailure(value) {
+  if (!isRecord7(value))
+    return "execution_plan_record must be an object";
+  if (!hasValidRecordHeader(value))
+    return "execution_plan_record has an invalid header";
+  const deliveryFailure = deliveryDefinitionFailure(value.delivery_definition);
+  if (deliveryFailure !== undefined)
+    return deliveryFailure;
+  if (!isValidExecutionPlanRecord(value)) {
+    return "execution_plan_record failed structural validation";
+  }
+  return;
+}
 function hasValidPlanningDestination(output) {
   const destination = output.planning_destination;
   return (destination === "plan-execution" || destination === "plan-implementation") && (output.verdict !== "approve" || destination === "plan-execution");
 }
 function validateExecutionPlanOutput(output, expectedDefinition, expectedNormalizedPlanDigest) {
-  if (!hasValidPlanningDestination(output))
-    return { kind: "invalid_output" };
+  if (!hasValidPlanningDestination(output)) {
+    return { kind: "invalid_output", reason: "planning_destination is invalid" };
+  }
   if (output.verdict === "request_changes")
     return deniedOutput(output);
   const candidate = output.execution_plan_record;
@@ -52872,15 +52947,23 @@ function validateExecutionPlanOutput(output, expectedDefinition, expectedNormali
     if (tripwires.length > 0)
       return deniedOutput(output, tripwires);
   }
-  if (!isValidExecutionPlanRecord(candidate))
-    return { kind: "invalid_output" };
-  if (expectedDefinition !== undefined && !isDeepStrictEqual(candidate.delivery_definition, expectedDefinition)) {
-    return { kind: "invalid_output" };
+  const recordFailure = executionPlanRecordFailure(candidate);
+  if (recordFailure !== undefined)
+    return { kind: "invalid_output", reason: recordFailure };
+  const validatedCandidate = candidate;
+  if (expectedDefinition !== undefined && !isDeepStrictEqual(validatedCandidate.delivery_definition, expectedDefinition)) {
+    return {
+      kind: "invalid_output",
+      reason: "execution_plan_record.delivery_definition differs from the trusted definition"
+    };
   }
-  if (expectedNormalizedPlanDigest !== undefined && candidate.normalized_plan_digest !== expectedNormalizedPlanDigest) {
-    return { kind: "invalid_output" };
+  if (expectedNormalizedPlanDigest !== undefined && validatedCandidate.normalized_plan_digest !== expectedNormalizedPlanDigest) {
+    return {
+      kind: "invalid_output",
+      reason: "execution_plan_record.normalized_plan_digest differs from the trusted digest"
+    };
   }
-  return { kind: "approved", output: { ...output, execution_plan_record: candidate } };
+  return { kind: "approved", output: { ...output, execution_plan_record: validatedCandidate } };
 }
 var NULL_EXECUTION_PLAN_RECORD;
 var init_execution_plan_output = __esm(() => {
@@ -53645,10 +53728,15 @@ async function runCandidate(executable, attempt, timeoutMs) {
                 return;
               }
               const validation = validateExecutionPlanOutput(parsed2, packet.execution_plan_delivery_definition, packet.execution_plan_normalized_digest);
-              if (validation.kind === "invalid_output")
-                throw new Error("invalid reviewer output");
+              if (validation.kind === "invalid_output") {
+                throw new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output: ${validation.reason}`);
+              }
               resolve(validation.output);
-            } catch {
+            } catch (error2) {
+              if (error2 instanceof ReviewRuntimeError) {
+                reject(error2);
+                return;
+              }
               reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
             }
           });

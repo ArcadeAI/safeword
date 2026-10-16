@@ -232,6 +232,63 @@ describe('Execution Plan output schema', () => {
 });
 
 describe('Execution Plan output validation', () => {
+  it.each([
+    ['repeated flags', ['cargo', 'test', '--test', 'local_route', '--test', 'request_audit']],
+    ['empty operands', ['node', '-e', '', ' ', '']],
+  ])('accepts %s without changing the trusted definition', (_name, argv) => {
+    const record = validRecord();
+    const proof = record.delivery_definition.proof_specifications[0];
+    if (proof?.invocation.type !== 'command') throw new Error('Missing command proof');
+    Object.assign(proof.invocation, { argv });
+    const output = approval(record);
+    expect(
+      validateExecutionPlanOutput(
+        output,
+        structuredClone(record.delivery_definition),
+        record.normalized_plan_digest,
+      ),
+    ).toEqual({ kind: 'approved', output });
+  });
+
+  it.each([
+    ['empty argv', { argv: [] }, 'invocation.argv'],
+    ['blank executable', { argv: [' ', 'test'] }, 'invocation.argv'],
+    ['empty executable', { argv: ['', 'test'] }, 'invocation.argv'],
+    ['non-string operand', { argv: ['node', 1] }, 'invocation.argv'],
+    ['non-array argv', { argv: 'node' }, 'invocation.argv'],
+    ['outside cwd', { cwd: '../outside' }, 'invocation.cwd'],
+    ['absolute cwd', { cwd: '/outside' }, 'invocation.cwd'],
+    ['mismatched type', { type: 'review_receipt' }, 'invocation.type'],
+    ['extra invocation key', { extra: true }, 'invocation'],
+  ])('rejects %s with a field-specific reason', (_name, changes, field) => {
+    const record = validRecord();
+    const proof = record.delivery_definition.proof_specifications[0];
+    if (!proof) throw new Error('Missing proof fixture');
+    Object.assign(proof.invocation, changes);
+    expect(validateExecutionPlanOutput(approval(record))).toEqual({
+      kind: 'invalid_output',
+      reason: expect.stringContaining(field),
+    });
+  });
+
+  it('keeps receipt targets unique and names the rejected field', () => {
+    const record = validRecord();
+    const proof = record.delivery_definition.proof_specifications[0];
+    if (!proof) throw new Error('Missing proof fixture');
+    Object.assign(proof, {
+      method: 'review_receipt',
+      invocation: {
+        type: 'review_receipt',
+        kind: 'scenario-gate',
+        targets: ['a.feature', 'a.feature'],
+      },
+    });
+    expect(validateExecutionPlanOutput(approval(record))).toEqual({
+      kind: 'invalid_output',
+      reason: expect.stringContaining('invocation.targets'),
+    });
+  });
+
   it('accepts a complete positive record without changing it', () => {
     const output = approval();
     expect(validateExecutionPlanOutput(output)).toEqual({ kind: 'approved', output });
@@ -255,7 +312,10 @@ describe('Execution Plan output validation', () => {
       }),
     );
 
-    expect(validateExecutionPlanOutput(output, expected)).toEqual({ kind: 'invalid_output' });
+    expect(validateExecutionPlanOutput(output, expected)).toEqual({
+      kind: 'invalid_output',
+      reason: expect.any(String),
+    });
   });
 
   it('refuses a reviewer digest that differs from the trusted normalized plan identity', () => {
@@ -264,6 +324,7 @@ describe('Execution Plan output validation', () => {
 
     expect(validateExecutionPlanOutput(output, expected, 'b'.repeat(64))).toEqual({
       kind: 'invalid_output',
+      reason: expect.any(String),
     });
   });
 
@@ -295,19 +356,19 @@ describe('Execution Plan output validation', () => {
 
     expect(
       validateExecutionPlanOutput(withoutDestination as unknown as UnverifiedReviewerOutput),
-    ).toEqual({ kind: 'invalid_output' });
+    ).toEqual({ kind: 'invalid_output', reason: expect.any(String) });
     expect(
       validateExecutionPlanOutput({
         ...approval(),
         planning_destination: 'somewhere-else',
       }),
-    ).toEqual({ kind: 'invalid_output' });
+    ).toEqual({ kind: 'invalid_output', reason: expect.any(String) });
     expect(
       validateExecutionPlanOutput({
         ...approval(),
         planning_destination: 'plan-implementation',
       }),
-    ).toEqual({ kind: 'invalid_output' });
+    ).toEqual({ kind: 'invalid_output', reason: expect.any(String) });
   });
 
   it.each([
@@ -494,6 +555,7 @@ describe('Execution Plan output validation', () => {
   ])('classifies %s as retryable invalid output', (_name, output) => {
     expect(validateExecutionPlanOutput(output)).toEqual({
       kind: 'invalid_output',
+      reason: expect.any(String),
     });
   });
 

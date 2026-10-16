@@ -177,6 +177,37 @@ describe('Delivery Checklist contract', () => {
 });
 
 describe('Proof specifications contract', () => {
+  it.each([
+    ['repeated flags', ['cargo', 'test', '--test', 'one', '--test', 'two']],
+    ['empty operands', ['node', '-e', '', ' ', '']],
+    ['JSON backslashes', ['node', '-e', String.raw`console.log(/\d/.test("C:\\tmp"))`]],
+    ['escaped pipe and backslash', ['node', '-e', String.raw`console.log(/a|b/, "\\|")`]],
+  ])('preserves %s in proof command JSON', (_name, argv) => {
+    const invocation = { type: 'command', cwd: 'packages/cli', argv };
+    const json = JSON.stringify(invocation).replaceAll('|', String.raw`\|`);
+    const result = parseProofSpecifications(
+      proofSpecifications([
+        `| proof | command | unit | parser | real_boundary | current_required | ${json} |`,
+      ]),
+    );
+    expect(result).toMatchObject({ ok: true, specifications: [{ invocation }] });
+  });
+
+  it.each([
+    ['empty argv', []],
+    ['empty executable', ['']],
+    ['blank executable', [' ', 'test']],
+    ['non-string operand', ['node', 1]],
+  ])('rejects malformed argv: %s', (_name, argv) => {
+    const invocation = { type: 'command', cwd: '.', argv };
+    const result = parseProofSpecifications(
+      proofSpecifications([
+        `| proof | command | unit | parser | real_boundary | current_required | ${JSON.stringify(invocation)} |`,
+      ]),
+    );
+    expect(result.ok).toBe(false);
+  });
+
   it('parses retained command and review-receipt invocations without inventing defaults', () => {
     const content = proofSpecifications([
       '| unit-tests | command | unit | checklist parser | partial_or_structural | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |',

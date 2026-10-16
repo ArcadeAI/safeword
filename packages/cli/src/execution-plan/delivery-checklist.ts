@@ -202,7 +202,8 @@ function splitRow(line: string): string[] | undefined {
   const body = line.trim().slice(1, -1);
   for (const character of body) {
     if (escaped) {
-      cell += character;
+      // Only Markdown pipe escapes belong to the table; preserve JSON escapes.
+      cell += character === '|' ? character : `\\${character}`;
       escaped = false;
     } else if (character === '\\') {
       escaped = true;
@@ -274,7 +275,9 @@ function parseCommandInvocation(
   if (
     !Array.isArray(value.argv) ||
     value.argv.length === 0 ||
-    value.argv.some(argument => typeof argument !== 'string' || argument === '')
+    typeof value.argv[0] !== 'string' ||
+    value.argv[0].trim() === '' ||
+    value.argv.some(argument => typeof argument !== 'string')
   ) {
     return undefined;
   }
