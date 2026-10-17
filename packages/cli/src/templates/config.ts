@@ -309,6 +309,9 @@ ${prettier.configEntry}
 `;
 }
 
+/** Completion runs acceptance plus fast lanes; Codex may also await a ten-minute retro. */
+export const COMPLETION_HOOK_TIMEOUT_SECONDS = 40 * 60;
+
 // Cursor hooks configuration (.cursor/hooks.json format)
 // See: https://cursor.com/docs/agent/hooks
 // Note: Cursor runs hooks from the workspace root, so use ./ prefix
@@ -340,13 +343,13 @@ export const CURSOR_HOOKS = {
   // cannot block, so closing a ticket is gated here — a Write that flips ticket.md to
   // `status: done` is denied unless the evidence holds (tests green, verify.md in
   // scope, scenarios complete). That makes done the only edit that runs the test
-  // suite, so the timeout is raised to cover a full run (the suite self-caps at 60s).
+  // suite, so its host budget must cover the longer acceptance lane too.
   preToolUse: [
     {
       command: 'bun ./.safeword/hooks/cursor/pre-tool-quality.ts',
       matcher: 'Write',
       failClosed: true,
-      timeout: 90,
+      timeout: COMPLETION_HOOK_TIMEOUT_SECONDS,
     },
   ],
   // Blocking commit gate (a REFACTOR commit may not touch test files). Cursor's
@@ -386,8 +389,8 @@ export const CURSOR_HOOKS = {
 const HOOKS_DIR = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
 
 /** Create a hook entry that runs a script with no matcher (SessionStart, UserPromptSubmit, Stop) */
-function hook(command: string) {
-  return { hooks: [{ type: 'command', command }] };
+function hook(command: string, timeout?: number) {
+  return { hooks: [{ type: 'command', command, ...(timeout !== undefined && { timeout }) }] };
 }
 
 function asyncRewakeHook(command: string) {
@@ -450,7 +453,7 @@ export const SETTINGS_HOOKS = {
     hook(`bun ${HOOKS_DIR}/prompt-retro-nudge.ts`),
   ],
   Stop: [
-    hook(`bun ${HOOKS_DIR}/stop-quality.ts`),
+    hook(`bun ${HOOKS_DIR}/stop-quality.ts`, COMPLETION_HOOK_TIMEOUT_SECONDS),
     hook(`bun ${HOOKS_DIR}/stop-reentry.ts`),
     hook(`bun ${HOOKS_DIR}/stop-self-report.ts`),
     // Retro filing gate (#628/GH628F): when earlier async extraction left unfiled

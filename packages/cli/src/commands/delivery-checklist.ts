@@ -505,6 +505,11 @@ export function observeDeliveryChecklist(cwd: string, ticketId: string): CliResu
     data: {
       command,
       readiness_state: projected.state,
+      checklist_items: loaded.context.items.map(item => ({
+        id: item.id,
+        category: item.category,
+        obligation: item.obligation,
+      })),
       open_contributor_items: projected.openContributorItems.map(item => item.id),
       pending_human_items: projected.pendingHumanItems.map(item => item.id),
       contributor_evidence: projected.contributorEvidence,
