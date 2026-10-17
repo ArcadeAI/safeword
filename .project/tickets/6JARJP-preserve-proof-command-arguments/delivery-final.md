@@ -9,6 +9,11 @@ the reviewer subprocess. The final diagnostic improvement also names a
 non-object delivery_definition instead of hiding it behind an invalid header.
 Malformed input, trusted-definition equality and digest binding remain guarded.
 
+The shared table decoder also preserves non-pipe backslashes in ordinary cells
+(such as obligations and reasons). Existing admitted definitions with those
+escapes may parse to different bytes and require a fresh plan-execution review.
+This compatibility effect is covered by a literal ordinary-cell regression.
+
 The follow-up improves evidence rather than treating metadata as behavior:
 independent pre-call snapshots, literal expected stdout bytes/digests, real CLI
 checklist commands, false-completion controls, human-authority refusal, and
@@ -24,9 +29,11 @@ production qualification and name earlier-proof review modes explicitly.
 
 ## Reviews and decisions
 
-Final independent Claude Opus reviews approved without blocking findings:
+Independent Claude Opus reviews approved without blocking findings:
 
-- Code and test boundary: 48b3c93d-e876-48e2-ac77-93b545ec61f9.
+- Earlier code/test boundary: 48b3c93d-e876-48e2-ac77-93b545ec61f9, superseded
+  for current code/profile by 8011cb83-eb20-4792-8236-78e2ff36c3de.
+- Current final fixture bank: 11cfb445-9261-44e1-9552-d0a4ba29b4d1.
 - Slicing scenarios: 391fb5fe-c26e-4087-9964-079512b5811a.
 - Delivery checklist scenarios: b971fe7e-b31f-443b-b0bf-1216ad003950.
 
@@ -51,7 +58,7 @@ Non-blocking limits are deliberately bounded:
   manual walkthrough used genuine independent scenario, approach and Execution
   Plan reviews with the current CLI and no forged approval.
 - Receipt-kind/duplicate-target parser disagreements and overlapping path
-  helpers already exist on main 31befd189. They fail closed in output validation
+  helpers were observed on earlier main 31befd189. They fail closed in output validation
   and remain outside this argv/diagnostic repair.
 - Opt-in reviewer timeout budgets can conservatively fail slow jobs. Natural
   language localization checks do not certify arbitrary prose; full outputs and
@@ -64,7 +71,8 @@ Non-blocking limits are deliberately bounded:
 
 ## Verification boundaries
 
-Audit found no dependency violations across 90 modules and 146 dependencies.
+Initial Audit found no dependency violations across 90 modules and 146 dependencies;
+the refreshed current-main audit passed across 92 modules and 148 dependencies.
 Diff scope intentionally did not run whole-repository unused-code, clone or
 package-upgrade discovery. Architecture, principles, learnings and configured
 local documentation introduced no scoped contradiction. No dependencies changed.
@@ -78,7 +86,8 @@ Cucumber steps; its undefined output is retained, not counted as behavior proof.
 
 The manual contributor walk ran the current CLI through genuine review admission,
 native command proof and readiness. Worst step: preparing genuinely admitted
-planning artifacts. New workflow steps from this repair: zero. Repeated flags,
+planning artifacts. New-artifact walkthrough added zero workflow steps; existing
+admitted backslash-containing definitions may need re-review as described above. Repeated flags,
 empty/whitespace operands, literal backslashes and pipe produced 75 exact stdout
 bytes with SHA-256 f5efb78f6e25534d98ea164b4385cef3766b5be594203740c6df1833773fc46a.
 Three retained passing proof records matched the independent expected bytes.
@@ -104,7 +113,7 @@ The verbatim Verify invocation exited 1. Its first nonzero lane was the earlier
 six timeout failures; a later complete CLI pass was green. Its broad dependency
 lane also reported eight JavaScript advisories and six Python finding entries
 (three urllib3 advisories repeated under GHSA/PYSEC identifiers). No dependency
-manifest or lockfile differs from main 31befd189 in this repair.
+manifest or lockfile differs from current main cfe93e30 in this repair.
 
 The configured CI gate in .github/workflows/ci.yml blocks high/critical Bun
 findings and explicitly ignores GHSA-vfj7-8cjw-p6xm and GHSA-ch52-4w7c-c8xp.
@@ -118,9 +127,10 @@ Root pyproject.toml declares no runtime dependencies and contains only a dev
 group; urllib3 arrives through its audit tooling. The root uv.lock is outside
 the CLI package's published files list (codex-plugin, dist, schemas, templates).
 The [urllib3 advisory](https://github.com/advisories/GHSA-8988-9cw3-xx77) is real
-and has a 2.8.0 fix. This PR does not repair or waive it: it remains a documented
-repository development-tooling finding outside this CLI repair and its configured
-CI boundary. No repository-wide vulnerability-clean claim is made. The raw
+and has a 2.8.0 fix. Main cfe93e30 supplied that fix during reconciliation;
+frozen synchronization and a fresh Python audit now pass. The original Python
+finding remains historical evidence. No repository-wide vulnerability-clean claim
+is made: the existing JavaScript findings remain disclosed. The raw
 broad scan, failed aggregate status, configured gate and unchanged dependency
 scope are retained together so green CI cannot hide the broader findings.
 
@@ -190,3 +200,22 @@ sync and a fresh uv audit now pass with no known vulnerabilities. The previous
 Python audit result remains historical evidence. No dependency diff is introduced
 relative to current main. The newer checked project pr-ready workflow will be
 used for promotion after final exact-head evidence and ticket closure.
+
+## Frozen terminal live evidence
+
+Source cb18cb71f passed all 28 semantic cases and its reviewer-identity test
+(29 total, 609.95 seconds) using Claude Opus through the actual packaged CLI.
+All 28 full outputs identify CLI dispatch. The rubric digest and expected
+verdicts/destinations remain unchanged. Inspection confirms the intended reasons:
+the repaired few-file positive is accepted, the unsupported predecessor is denied,
+inadequate proof stays in Execution Planning, and missing/changed design ownership
+returns to Implementation Planning. Other valid findings on some negative plans
+are retained; this does not establish exactly one defect per negative fixture.
+No production route qualification or arbitrary-model reliability is claimed.
+
+The final-v3 inputs, source fingerprints, complete outputs and terminal results
+are archived alongside earlier attempts. Fresh code/profile review 8011cb83 and
+bank review 11cfb445 still verify as approved and independent. Current GitHub
+observation found no reviews or unresolved review threads. The complete material
+diff was re-read, including production rejection paths, native byte assertions,
+fixture admission limits, semantic dispatch guards and generated carriers.
