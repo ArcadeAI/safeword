@@ -125,7 +125,8 @@ describe('Delivery Checklist contract', () => {
     expect(parseDeliveryChecklist(content)).toEqual({
       ok: false,
       code: 'invalid_owner_disposition',
-      message: 'Delivery Checklist item item-4 is contributor-owned and cannot be pending_human.',
+      message:
+        'Delivery Checklist item item-4 is contributor-owned and cannot be pending_human; complete its required proof instead.',
     });
   });
 
@@ -140,7 +141,8 @@ describe('Delivery Checklist contract', () => {
       name: 'not applicable without a reason',
       row: '| item-4 | testing | Complete testing | contributor | | not_applicable | missing | | |',
       code: 'invalid_delivery_checklist',
-      message: 'Delivery Checklist item item-4 has invalid fields for not_applicable.',
+      message:
+        'Delivery Checklist item item-4 requires a concrete reason; add why this work is not applicable.',
     },
     {
       name: 'not applicable with a proof claim',
@@ -199,13 +201,13 @@ describe('Proof specifications contract', () => {
     ['blank executable', [' ', 'test']],
     ['non-string operand', ['node', 1]],
   ])('rejects malformed argv: %s', (_name, argv) => {
-    const invocation = { type: 'command', cwd: '.', argv };
+    const invocation = { type: 'command', cwd: 'packages/cli', argv };
     const result = parseProofSpecifications(
       proofSpecifications([
         `| proof | command | unit | parser | real_boundary | current_required | ${JSON.stringify(invocation)} |`,
       ]),
     );
-    expect(result.ok).toBe(false);
+    expect(result).toMatchObject({ ok: false, code: 'invalid_proof_specifications' });
   });
 
   it('parses retained command and review-receipt invocations without inventing defaults', () => {

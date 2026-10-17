@@ -49,3 +49,13 @@ Historical #4200 failures, unfinished cases, and deferred acceptance remain
 unchanged. This patch does not certify the full initiative or either old PR.
 
 **Next:** verify, collect independent review, and push a Draft PR only.
+
+## Authorized test-quality follow-up
+
+The user subsequently requested the assessment's suggested improvements and
+explicitly invoked figure-it-out. The decision, acceptance boundaries, actual
+mutation checks, R/G/R results, independent review responses and retained live
+failures are recorded in test-improvement-decision.md and test-improvements.md.
+The additional production changes are checklist response labels and precise
+repair diagnostics exposed by those CLI tests. Production review policy,
+conformance corpus, admission evidence and dependencies remain unchanged.

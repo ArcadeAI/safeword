@@ -18,10 +18,17 @@ import {
 } from '../../src/review/execution-plan-conformance.js';
 import { reviewTimeoutMilliseconds, runHeadlessReviewer } from '../../src/review/runtime.js';
 import {
+  EXECUTION_PLAN_SLICING_CASES,
+  type SlicingAcceptanceCase,
+} from '../fixtures/execution-plan-slicing-cases.js';
+import {
   createTemporaryDirectory,
   removeTemporaryDirectory,
   runCliWithLiteralArguments,
 } from '../helpers.js';
+
+const ACCEPTANCE_CASES = process.env.SAFEWORD_EXECUTION_PLAN_ACCEPTANCE === '1';
+const cases = ACCEPTANCE_CASES ? EXECUTION_PLAN_SLICING_CASES : EXECUTION_PLAN_CONFORMANCE_CASES;
 
 const PUBLIC_CLI = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CLI === '1';
 const CAN_RUN = process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE === '1';
@@ -144,6 +151,9 @@ async function reviewThroughCli(
   const output = envelope.data?.reviewer_output as ReviewerOutput | undefined;
   if (!output) throw new Error(`Public CLI did not return a reviewer output: ${invoked.stdout}`);
   expect(invoked.exitCode, invoked.stdout).toBe(testCase.expectation.verdict === 'approve' ? 0 : 2);
+  expect(readFileSync(nodePath.join(ticket, 'execution-plan.md'), 'utf8')).toBe(
+    testCase.execution_plan,
+  );
   await assertCliDiscovery(testCase, root, ticket, output, options);
   return output;
 }
@@ -177,6 +187,39 @@ function recordOf(output: ReviewerOutput): NonNullable<ReviewerOutput['execution
   return record;
 }
 
+function assertSlicingRationale(id: string, rationale: string): void {
+  expect(rationale.trim()).not.toBe('');
+  const patterns: Record<string, readonly RegExp[]> = {
+    'one-coherent-change': [
+      /coher|cohes|insepar|coupl|atomic|single boundary|same (?:boundary|contract|outcome)/iu,
+      /review|judg|contract|command|result/iu,
+    ],
+    'several-ordered-changes': [
+      /contract|schema/iu,
+      /activat|rout/iu,
+      /independent|separat|depend|order|before/iu,
+    ],
+  };
+  const expectedPatterns = patterns[id] ?? [];
+  for (const pattern of expectedPatterns) expect(rationale).toMatch(pattern);
+}
+
+function assertObligationOwners(
+  testCase: ExecutionPlanConformanceCase,
+  record: ReturnType<typeof recordOf>,
+): void {
+  const expectedObligations = testCase.expectation.obligations ?? [];
+  for (const obligation of expectedObligations) {
+    const prefix = `- ${obligation}: `;
+    const ownerLine = testCase.execution_plan.split('\n').find(line => line.startsWith(prefix));
+    if (ownerLine === undefined) throw new Error(`Missing expected owner: ${obligation}`);
+    expect(record.obligation_owners).toContainEqual({
+      obligation,
+      slices: [ownerLine.slice(prefix.length)],
+    });
+  }
+}
+
 function assertApproval(testCase: ExecutionPlanConformanceCase, output: ReviewerOutput): void {
   expect(output.verdict).toBe('approve');
   const record = recordOf(output);
@@ -184,17 +227,39 @@ function assertApproval(testCase: ExecutionPlanConformanceCase, output: Reviewer
   expect(record.accepted_scenarios_covered).toBe(true);
   expect(record.accepted_approach_preserved).toBe(true);
   expect(record.slices.map(slice => slice.name)).toEqual(testCase.expectation.slice_names);
-  const expectedObligations = testCase.expectation.obligations ?? [];
-  for (const obligation of expectedObligations) {
-    expect(record.obligation_owners.map(owner => owner.obligation)).toContain(obligation);
+  assertSlicingRationale(testCase.id, record.rationale);
+  for (const slice of record.slices) {
+    expect(slice.relies_on_unmerged_successor).toBe(false);
+    const fields = [slice.purpose, slice.boundary, slice.proof, slice.completion_signal];
+    for (const field of fields) expect(field.trim()).not.toBe('');
   }
+  if (testCase.id === 'ordered-schema-before-reader') {
+    expect(
+      record.slices.map(slice => ({ name: slice.name, prerequisites: slice.prerequisites })),
+    ).toEqual([
+      { name: 'Schema', prerequisites: [] },
+      { name: 'Reader', prerequisites: ['Schema'] },
+    ]);
+  }
+  const proofOwners: Record<string, readonly [string, string][]> = {
+    'many-mechanical-edits': [['Contract mirrors', 'data-compatibility']],
+    'few-files-two-outcomes': [
+      ['Inert schema', 'data-compatibility'],
+      ['Public activation', 'behavior-boundary'],
+    ],
+  };
+  const expectedProofOwners = proofOwners[testCase.id] ?? [];
+  for (const [name, proof] of expectedProofOwners) {
+    expect(record.slices.find(slice => slice.name === name)?.proof).toContain(proof);
+  }
+  assertObligationOwners(testCase, record);
   const expectedDecisions = testCase.expectation.decisions ?? [];
   for (const decision of expectedDecisions) {
     expect(record.decision_statuses).toContainEqual({ decision, status: 'unchanged' });
   }
 }
 
-function assertDenial(testCase: ExecutionPlanConformanceCase, output: ReviewerOutput): void {
+function assertDenial(testCase: SlicingAcceptanceCase, output: ReviewerOutput): void {
   expect(output.verdict).toBe('request_changes');
   expect(output.execution_plan_record).toBeNull();
   const explanation =
@@ -202,6 +267,19 @@ function assertDenial(testCase: ExecutionPlanConformanceCase, output: ReviewerOu
   const expectedTerms = testCase.expectation.finding_terms ?? [];
   for (const term of expectedTerms) {
     expect(explanation).toContain(term.toLowerCase());
+  }
+  if (testCase.expectation.finding_subject !== undefined) {
+    const subject = testCase.expectation.finding_subject.toLowerCase();
+    expect(
+      output.findings.some(finding => {
+        const message = finding.message.toLowerCase();
+        return (
+          message.includes(subject) &&
+          expectedTerms.every(term => message.includes(term.toLowerCase()))
+        );
+      }),
+      `One finding must name the affected slice and its missing field: ${subject}`,
+    ).toBe(true);
   }
 }
 
@@ -218,6 +296,13 @@ function assertCase(
   else assertDenial(testCase, output);
 }
 
+function useLiveReviewerProfile(assigned: ReviewAgent): void {
+  if (PUBLIC_CLI) return;
+  const author = assigned === 'claude' ? 'codex' : 'claude';
+  const environment = Object.entries(liveReviewerEnvironment(assigned, author));
+  for (const [key, value] of environment) vi.stubEnv(key, value);
+}
+
 afterAll(() => {
   if (CAN_RUN && resultsPath !== undefined) {
     writeFileSync(resultsPath, `${JSON.stringify(results, undefined, 2)}\n`, { mode: 0o600 });
@@ -231,7 +316,7 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
     expect(resultsPath).not.toBe('');
   });
 
-  it.each(EXECUTION_PLAN_CONFORMANCE_CASES)(
+  it.each(cases)(
     '$id',
     async testCase => {
       expect.hasAssertions();
@@ -241,6 +326,7 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
       const directory = createTemporaryDirectory();
       const packet = packetFor(testCase, reviewer);
       let passed = false;
+      useLiveReviewerProfile(reviewer);
       try {
         const output = PUBLIC_CLI
           ? await reviewThroughCli(testCase, directory, reviewer)
@@ -264,11 +350,12 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
         passed = true;
       } finally {
         results.push({
-          case_id: testCase.id,
+          case_id: ACCEPTANCE_CASES ? `acceptance:${testCase.id}` : testCase.id,
           reviewer,
           ...(model !== undefined && { model }),
           passed,
         });
+        vi.unstubAllEnvs();
         removeTemporaryDirectory(directory);
       }
     },

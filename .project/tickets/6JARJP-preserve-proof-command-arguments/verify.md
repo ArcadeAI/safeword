@@ -84,3 +84,35 @@ Passing CI does not prove the affected acceptance claims. No production tests,
 scenario contracts, ticket phases, Ready state, or merge authority changed.
 
 **Next:** retain Draft and address the test-quality findings in their proper scope.
+
+## Implemented test-quality follow-up — 2026-10-16
+
+The user subsequently authorized the suggested improvements. See
+[test-improvements.md](test-improvements.md) for changed boundaries, actual
+mutation tests, all failed attempts, calibrated live inputs, independent review
+responses and their limitations. The earlier sections remain historical.
+
+- The final three-file regression check passed **28 tests**, including the real
+  native proof command, the proof-hook omission control and eight fixture
+  integrity/admission checks. Earlier scoped deterministic checks passed
+  **301 tests with two existing platform skips**.
+- The local full CLI suite returned **11,123 passed, six failed, 14 skipped**
+  across 674 files. All five failed files passed unchanged in isolation
+  (**10 tests**). Both aggregate and isolated results are retained; the full
+  suite is not reported green.
+- The last live correction run returned **two passed, one failed, 25 filtered**:
+  the mirror case and identity assertion passed, while the authorization case
+  denied the correct boundary but returned the wrong repair destination.
+  Exactly 25 cases are byte-identical to their passing inputs in the previous
+  run. No complete passing matrix, repeat-until-green result or production
+  reviewer qualification is claimed.
+- Fresh independent Claude code and both scenario reviews approved the current
+  bounded sources with nonblocking warnings. Every warning is answered in the
+  follow-up report. These reviews do not turn the failed live check green.
+- Generated carriers were regenerated and all five surfaces checked current.
+  Repository lint/default BDD terminal evidence and current-head CI are recorded
+  in the follow-up report and Draft PR when available.
+
+The PR remains Draft. A full manual end-user walkthrough is unproven; tests are
+not substituted for it. No merge, promotion, canonical ticket completion or
+whole-initiative completion is claimed.

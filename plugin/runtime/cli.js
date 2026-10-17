@@ -32205,7 +32205,7 @@ function parseItem(cells) {
 }
 function ownerDispositionDefect(item) {
   if (item.owner === "contributor" && item.disposition === "pending_human") {
-    return invalid("invalid_owner_disposition", `Delivery Checklist item ${item.id} is contributor-owned and cannot be pending_human.`);
+    return invalid("invalid_owner_disposition", `Delivery Checklist item ${item.id} is contributor-owned and cannot be pending_human; complete its required proof instead.`);
   }
   if (item.owner === "human" && ["open", "complete"].includes(item.disposition)) {
     return invalid("invalid_owner_disposition", `Delivery Checklist item ${item.id} is human-owned and cannot be ${item.disposition}.`);
@@ -32262,6 +32262,12 @@ function dispositionDefect(item) {
   const ownership = ownerDispositionDefect(item);
   if (ownership !== undefined)
     return ownership;
+  if (item.evidence === "" && item.disposition === "not_applicable") {
+    return invalid("invalid_delivery_checklist", `Delivery Checklist item ${item.id} requires a concrete reason; add why this work is not applicable.`);
+  }
+  if (item.evidence === "" && item.disposition === "pending_human") {
+    return invalid("invalid_delivery_checklist", `Delivery Checklist item ${item.id} requires a named human dependency; add the required approval or owner.`);
+  }
   if (dispositionFieldsAreValid(item))
     return;
   return invalid("invalid_delivery_checklist", `Delivery Checklist item ${item.id} has invalid fields for ${item.disposition}.`);
@@ -81815,6 +81821,11 @@ function observeDeliveryChecklist(cwd, ticketId) {
     data: {
       command,
       readiness_state: projected.state,
+      checklist_items: loaded.context.items.map((item) => ({
+        id: item.id,
+        category: item.category,
+        obligation: item.obligation
+      })),
       open_contributor_items: projected.openContributorItems.map((item) => item.id),
       pending_human_items: projected.pendingHumanItems.map((item) => item.id),
       contributor_evidence: projected.contributorEvidence,

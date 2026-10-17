@@ -1,5 +1,5 @@
 /**
- * Acceptance proof adapter for 7CAMAD.
+ * Acceptance proof adapter for execution planning and PR slicing.
  *
  * The implementation already has real installed-CLI, hook, and semantic-review
  * integration tests. This adapter binds each saved feature scenario to the
@@ -20,6 +20,8 @@ import { Before, defineStep } from '@cucumber/cucumber';
 import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../packages/cli/src/review/execution-plan-conformance.js';
 import { reviewTimeoutMilliseconds } from '../packages/cli/src/review/runtime.js';
 
+import { EXECUTION_PLAN_SLICING_CASES } from '../packages/cli/tests/fixtures/execution-plan-slicing-cases.js';
+
 import type { SafewordWorld } from './world.js';
 
 const execFileAsync = promisify(execFile);
@@ -29,6 +31,10 @@ const FEATURE_PATH = nodePath.join(
   PROJECT_ROOT,
   'features/turn-decisions-into-startable-work.feature',
 );
+const SLICING_FEATURE_PATH = nodePath.join(
+  PROJECT_ROOT,
+  'features/split-large-contributions-into-reviewable-prs.feature',
+);
 const TIMEOUT_MS =
   EXECUTION_PLAN_CONFORMANCE_CASES.length * (reviewTimeoutMilliseconds({}) + 60_000) + 180_000;
 
@@ -36,6 +42,7 @@ interface Proof {
   readonly expectedTests: number;
   readonly selector: string;
   readonly testFile: string;
+  readonly supporting?: Proof;
 }
 
 const repairRecoveryProof: Proof = {
@@ -44,7 +51,115 @@ const repairRecoveryProof: Proof = {
   testFile: 'tests/integration/plan-design-approval.test.ts',
 };
 
+const LIVE_PROOF_FILE = 'tests/smoke/execution-plan.live.test.ts';
+
+function semanticProof(...caseIds: string[]): Proof {
+  for (const id of caseIds) {
+    assert.ok(
+      EXECUTION_PLAN_SLICING_CASES.some(testCase => testCase.id === id),
+      `Unknown semantic case: ${id}`,
+    );
+  }
+  return {
+    expectedTests: caseIds.length + 1,
+    selector: `requires one explicit reviewer identity and evidence destination|(?:^| )(?:${caseIds.join('|')})$`,
+    testFile: LIVE_PROOF_FILE,
+  };
+}
+
+const checklistSemanticScenario =
+  'Applicable contributor work cannot be dismissed as not applicable';
+const checklistSemanticSteps = [
+  'an applicable test obligation is required by the accepted proof boundary',
+  'Safeword reviews a checklist that marks the obligation as not applicable through the installed CLI',
+  'the not-applicable disposition is rejected, the test obligation remains open, and the response names the accepted proof boundary',
+  'a contribution contains several independently provable changes and its checklist has no pull-request slicing decision',
+  'Safeword reviews the Execution Plan through the installed CLI',
+  'the plan is denied, the item remains open, and the missing pull-request slicing decision is named with one concrete action to record it',
+  'a contribution contains several dependency-ordered independently provable changes',
+  'a contribution contains one coherent independently provable change',
+  'Safeword completes its work-decomposition checklist item through the installed CLI',
+  'the checklist references the coherent pull-request slices defined by the Execution Plan',
+  'the checklist records one pull request and why another split would add no review value',
+];
+
 const proofs: Record<string, Proof> = {
+  [checklistSemanticScenario]: semanticProof('dismissed-applicable-work'),
+  'A large contribution cannot leave PR slicing unresolved': {
+    ...semanticProof('omitted-slicing-decision'),
+    supporting: {
+      expectedTests: 1,
+      selector: 'guides the author to record an unresolved pull-request slicing decision',
+      testFile: 'tests/cli-protocol/review-wiring.test.ts',
+    },
+  },
+  'The checklist records the appropriate PR-slicing outcome': {
+    ...semanticProof('one-coherent-change', 'several-ordered-changes'),
+    supporting: {
+      expectedTests: 2,
+      selector: 'returns the reviewed .* slicing outcome when its checklist item is completed',
+      testFile: 'tests/integration/delivery-execution-prerequisite.test.ts',
+    },
+  },
+  'Contribution shape produces an explicit slicing decision': semanticProof(
+    'one-coherent-change',
+    'several-ordered-changes',
+  ),
+  'An omitted slicing decision cannot pass Execution Plan review': semanticProof(
+    'omitted-slicing-decision',
+  ),
+  'Installed review dispatch carries the canonical slicing contract': {
+    expectedTests: 1,
+    selector:
+      'activates Execution Plan review only for a ticket-owned plan through an admitted route',
+    testFile: 'tests/cli-protocol/review-wiring.test.ts',
+  },
+  'A complete pull-request slice receives a complete review record':
+    semanticProof('complete-slice-record'),
+  'An incomplete pull-request slice is rejected': semanticProof(
+    'missing-purpose',
+    'missing-boundary',
+    'missing-prerequisites',
+    'missing-proof',
+    'missing-completion-signal',
+  ),
+  'A pull-request slice with two independent purposes is rejected': semanticProof(
+    'two-independent-purposes',
+  ),
+  'A formally complete slice cannot leave a design decision to its implementer': semanticProof(
+    'unresolved-authorization-decision',
+  ),
+  'Ordered slices preserve a supported repository after every merge': semanticProof(
+    'ordered-schema-before-reader',
+  ),
+  'A slice that becomes safe only after a later merge is rejected': semanticProof(
+    'unsafe-intermediate-merge',
+  ),
+  'Conceptual scope determines reviewable slicing': semanticProof(
+    'many-mechanical-edits',
+    'few-files-two-outcomes',
+  ),
+  'Size counts alone cannot justify a slicing decision': semanticProof(
+    'line-count-only-rationale',
+    'file-count-only-rationale',
+  ),
+  'Accepted obligations remain assigned across pull-request slices': semanticProof(
+    'all-obligations-assigned',
+  ),
+  'Accepted decisions remain unchanged across pull-request slices':
+    semanticProof('all-decisions-unchanged'),
+  'A slicing plan cannot discard an accepted obligation': semanticProof(
+    'missing-behavior-obligation',
+    'missing-migration-obligation',
+    'missing-rollout-obligation',
+    'missing-rollback-obligation',
+    'missing-documentation-obligation',
+    'missing-affected-surface-obligation',
+  ),
+  'A pull-request slice cannot rewrite an accepted approach decision': semanticProof(
+    'reopened-authorization-decision',
+  ),
+
   'Repeating approval cannot clear a recorded design repair': repairRecoveryProof,
   'Fresh review can recover an unchanged approach without inventing human authority':
     repairRecoveryProof,
@@ -244,6 +359,7 @@ const proofs: Record<string, Proof> = {
   },
 };
 
+const completedProofs = new WeakSet<SafewordWorld>();
 const proofCache = new Map<string, Promise<{ exitCode: number; output: string }>>();
 let buildPromise: Promise<void> | undefined;
 
@@ -258,21 +374,24 @@ function buildCli(): Promise<void> {
 async function runProof(
   scenarioName: string,
   liveSemantic = false,
+  selectedProof = proofs[scenarioName],
 ): Promise<{ exitCode: number; output: string }> {
-  let proof = proofs[scenarioName];
+  let proof = selectedProof;
   assert.ok(proof, `missing acceptance proof for ${scenarioName}`);
-  const semantic = liveSemantic;
+  const acceptance = proof.testFile === LIVE_PROOF_FILE;
+  const semantic = liveSemantic || acceptance;
   if (semantic) {
     assert.equal(
       process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE,
       '1',
       'Semantic acceptance requires SAFEWORD_RUN_EXECUTION_PLAN_LIVE=1; corpus shape is supporting evidence only.',
     );
-    proof = {
-      expectedTests: EXECUTION_PLAN_CONFORMANCE_CASES.length + 1,
-      selector: 'live Execution Plan semantic conformance',
-      testFile: 'tests/smoke/execution-plan.live.test.ts',
-    };
+    if (proof.testFile !== LIVE_PROOF_FILE)
+      proof = {
+        expectedTests: EXECUTION_PLAN_CONFORMANCE_CASES.length + 1,
+        selector: 'live Execution Plan semantic conformance',
+        testFile: 'tests/smoke/execution-plan.live.test.ts',
+      };
   }
   await buildCli();
   const temporaryDirectory = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'safeword-7camad-'));
@@ -301,6 +420,7 @@ async function runProof(
           ...process.env,
           NODE_OPTIONS: undefined,
           ...(semantic && {
+            SAFEWORD_EXECUTION_PLAN_ACCEPTANCE: acceptance ? '1' : undefined,
             SAFEWORD_EXECUTION_PLAN_LIVE_CLI: '1',
             SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER:
               process.env.SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER ?? 'claude',
@@ -315,14 +435,31 @@ async function runProof(
     const report = JSON.parse(readFileSync(reportPath, 'utf8')) as {
       numPassedTests?: number;
       numPendingTests?: number;
+      testResults: { assertionResults: { fullName: string; status: string }[] }[];
     };
-    if (semantic)
-      assert.equal(report.numPendingTests, 0, 'Live semantic proof must not be skipped.');
+    if (semantic) {
+      const selected = report.testResults
+        .flatMap(file => file.assertionResults)
+        .filter(test => new RegExp(proof.selector, 'u').test(test.fullName));
+      assert.equal(
+        selected.length,
+        proof.expectedTests,
+        'Every selected semantic case must be reported.',
+      );
+      assert.ok(
+        selected.every(test => test.status === 'passed'),
+        'Selected live semantic cases must pass, not skip.',
+      );
+    }
     assert.equal(
       report.numPassedTests,
       proof.expectedTests,
       `${scenarioName} selected ${String(report.numPassedTests)} passing tests; expected ${proof.expectedTests}`,
     );
+    if (proof.supporting !== undefined) {
+      const support = await runProof(scenarioName, false, proof.supporting);
+      if (support.exitCode !== 0) return support;
+    }
     return { exitCode: 0, output: `${result.stdout}${result.stderr}` };
   } catch (error: unknown) {
     const failure = error as {
@@ -347,15 +484,25 @@ async function runProof(
   }
 }
 
-const feature = readFileSync(FEATURE_PATH, 'utf8');
-const scenarioNames = [...feature.matchAll(/^\s*Scenario(?: Outline)?: (.+)$/gmu)].map(
-  match => match[1] as string,
+const featureSources = [FEATURE_PATH, SLICING_FEATURE_PATH].map(path => readFileSync(path, 'utf8'));
+const scenarioNames = featureSources.flatMap(feature =>
+  [...feature.matchAll(/^\s*Scenario(?: Outline)?: (.+)$/gmu)].map(match => match[1] as string),
 );
-assert.deepEqual(Object.keys(proofs).toSorted(), [...new Set(scenarioNames)].toSorted());
+assert.deepEqual(
+  Object.keys(proofs).toSorted(),
+  [
+    ...new Set([
+      ...scenarioNames,
+      checklistSemanticScenario,
+      'A large contribution cannot leave PR slicing unresolved',
+      'The checklist records the appropriate PR-slicing outcome',
+    ]),
+  ].toSorted(),
+);
 
 Before(
   {
-    tags: '@plan-implementability.TBU2.7CAMAD.R1 or @plan-implementability.TBU2.7CAMAD.R2 or @plan-implementability.TBU2.7CAMAD.R3 or @plan-implementability.TBU2.7CAMAD.R4 or @plan-implementability.TBU2.7CAMAD.R5 or @plan-implementability.TBU2.7CAMAD.R6 or @plan-implementability.TBU2.7CAMAD.R7 or @plan-implementability.TBU2.7CAMAD.R8 or @plan-implementability.TBU2.7CAMAD.R9 or @plan-implementability.TBU2.7CAMAD.R10 or @plan-implementability.TBU2.7CAMAD.R11 or @plan-implementability.TBU2.7CAMAD.R12 or @plan-implementability.TBU2.7CAMAD.R13 or @plan-implementability.TBU2.7CAMAD.R14 or @plan-implementability.TBU2.7CAMAD.R15 or @plan-implementability.TBU2.7CAMAD.R16 or @plan-implementability.TBU2.7CAMAD.R17',
+    tags: '@plan-implementability.TBU2.7CAMAD.R1 or @plan-implementability.TBU2.7CAMAD.R2 or @plan-implementability.TBU2.7CAMAD.R3 or @plan-implementability.TBU2.7CAMAD.R4 or @plan-implementability.TBU2.7CAMAD.R5 or @plan-implementability.TBU2.7CAMAD.R6 or @plan-implementability.TBU2.7CAMAD.R7 or @plan-implementability.TBU2.7CAMAD.R8 or @plan-implementability.TBU2.7CAMAD.R9 or @plan-implementability.TBU2.7CAMAD.R10 or @plan-implementability.TBU2.7CAMAD.R11 or @plan-implementability.TBU2.7CAMAD.R12 or @plan-implementability.TBU2.7CAMAD.R13 or @plan-implementability.TBU2.7CAMAD.R14 or @plan-implementability.TBU2.7CAMAD.R15 or @plan-implementability.TBU2.7CAMAD.R16 or @plan-implementability.TBU2.7CAMAD.R17 or @plan-implementability.TBU2.6XW8H7.R1 or @execution-plan-semantic',
     timeout: TIMEOUT_MS,
   },
   async function (
@@ -365,6 +512,15 @@ Before(
     const scenarioName = scenario.pickle.name;
     const proof = proofs[scenarioName];
     assert.ok(proof, `missing acceptance proof for ${scenarioName}`);
+    if (proof.testFile === LIVE_PROOF_FILE) {
+      // Supporting checks are part of the proof identity, even with the same live selector.
+      const key = JSON.stringify(proof);
+      proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName, true));
+      const result = await proofCache.get(key)!;
+      this.result = { stderr: result.output, stdout: '', exitCode: result.exitCode };
+      completedProofs.add(this);
+      return;
+    }
     const corpusProof = proof.testFile === 'tests/review/execution-plan-conformance.test.ts';
     const live = corpusProof || scenario.pickle.tags.some(tag => tag.name === '@live');
     if (live) {
@@ -372,12 +528,15 @@ Before(
       proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName, true));
       const result = await proofCache.get(key)!;
       this.result = { stderr: result.output, stdout: '', exitCode: result.exitCode };
+      completedProofs.add(this);
       if (result.exitCode !== 0) return;
     }
-    const key = `${proof.testFile}:${proof.selector}`;
+    // Supporting checks are part of the proof identity, even with the same live selector.
+    const key = JSON.stringify(proof);
     proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName));
     const result = await proofCache.get(key)!;
     this.result = { stderr: result.output, stdout: '', exitCode: result.exitCode };
+    completedProofs.add(this);
   },
 );
 
@@ -426,10 +585,14 @@ function expandedStepTexts(source: string): Set<string> {
 }
 
 const existingSharedSteps = new Set(['the workflow enters Execution Planning']);
-for (const stepText of expandedStepTexts(feature)) {
+for (const stepText of new Set([
+  ...featureSources.flatMap(feature => [...expandedStepTexts(feature)]),
+  ...checklistSemanticSteps,
+])) {
   if (existingSharedSteps.has(stepText)) continue;
   const literalStep = new RegExp(`^${stepText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'u');
   defineStep(literalStep, function (this: SafewordWorld) {
+    assert.ok(completedProofs.has(this), 'acceptance proof was not run');
     assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   });
 }
