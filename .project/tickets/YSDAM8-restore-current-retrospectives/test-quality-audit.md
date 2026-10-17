@@ -27,6 +27,15 @@ projects keep model-selection tests independent. Live default extraction adds
 separate model-access/schema evidence. Six-case synthetic screening is bounded
 model evidence, not production quality or statistical equivalence.
 
+Final negative-argv review found a distinct gap: checking only -c-bound values
+missed a bare reasoning argument on other models. That production mutation
+passed both old negative builder cases. Whole-argv assertions now fail both;
+restoration passes all 143 command/extractor cases. The configured runner also
+uses the stronger assertion. Logs: retro-negative-weak-mutation.log,
+retro-negative-strong-mutation.log and retro-negative-final-green.log. This is
+a second targeted argv mutation, not an exhaustive mutation score. Runtime
+source remains byte-identical to CI-verified b352.
+
 ## BDD corrections
 
 - Updated the obsolete gpt-5.5 default to Luna low. The override scenario now
@@ -64,14 +73,16 @@ improvement. No test was disabled, weakened or deleted to ship this update.
 
 ## Verification limits
 
-CI 39040198584 passed all package, acceptance, release and static checks on
-pre-compatibility head ae5111146. It does not verify the later Luna-only change.
+CI 39042244535 passed full packages, release gates and static checks on
+compatibility-corrected head b352845a8 on Node 22 and 24. Cucumber passed on
+Node 24 only (596 scenarios and 11,118 steps). Older CI 39040198584 on ae5111146
+is historical. Closure-commit CI still must pass before Ready.
 The first local full CLI pass had 11,149 passes, 12 skips and one OpenCode
 fixture cleanup ENOTEMPTY failure. The verification resolver started a second
 full pass, which also reported an OpenCode failure; that run was stopped when
 the compatibility finding required a source change. The full local plan did
-not complete and is not a green verification claim. Final exact-head hosted
-CI remains required. Log: .project/tmp/retro-final-verify.log.
+not complete and is not a green verification claim. A subsequent isolated OpenCode test also failed cleanup; the cause is not
+claimed to be suite load. Final closure-head CI remains required before Ready. Log: .project/tmp/retro-final-verify.log.
 
 ## Judgment
 

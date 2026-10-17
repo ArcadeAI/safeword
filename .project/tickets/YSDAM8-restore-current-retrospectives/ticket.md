@@ -2,10 +2,10 @@
 id: YSDAM8
 slug: restore-current-retrospectives
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-10-17T13:06:10.819Z
-last_modified: 2026-10-17T13:45:00Z
+last_modified: 2026-10-17T15:28:25Z
 subtype: bug-investigated
 scope:
   - Use GPT-6 Luna with low reasoning for economical Codex retrospectives.
@@ -29,11 +29,18 @@ done_when:
 ## Work Log
 
 - 2026-10-17T13:06:10.819Z Started: Created ticket YSDAM8
-- 2026-10-17 Implemented: default changed after two RED assertions; all 141
-  focused and 2,174 smoke tests pass. Real strict-schema extraction passes on
-  Codex 0.163.0 and pinned 0.160.0 for empty and planted-finding transcripts.
-  Generated freshness, parity, root ESLint and all package typechecks pass.
-  Independent Claude/Opus review approved; final evidence is in verify.md.
+- 2026-10-17 Historical initial implementation (superseded): 141 focused and
+  2,174 smoke tests passed before the final override-compatibility correction.
+- 2026-10-17 Compatibility correction: only Luna pins low reasoning; other
+  configured models retain their prior behavior. All 143 targeted and 2,194
+  smoke tests pass; fresh real extraction passes on Codex 0.163.0 and 0.160.0.
+  Independent Claude/Opus review a7f18cf9-5fa8-49af-90ba-8832176193c0 approved
+  the corrected source. CI 39042244535 passed code head b352845a8 on both Node
+  versions; Cucumber passed on Node 24. Closure-commit CI is required before Ready.
+- 2026-10-17 Final negative-argument check: the old builder assertions accepted
+  a bare reasoning argument on other models; stronger whole-argv assertions
+  reject that mutation. Restored runtime source passes all 143 focused cases
+  and remains byte-identical to the CI-verified implementation.
 
 ## Root Cause
 
