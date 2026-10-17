@@ -1408,6 +1408,37 @@ describe('dependency readiness hook support', () => {
     expect(result.stdout.trim()).toBe('');
   });
 
+  it('pre-tool hook clears its own stale block once the printed recovery runs (#5647)', () => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# bumped lockfile');
+    const gatedCommand = JSON.stringify({
+      tool_name: 'Bash',
+      tool_input: { command: 'bun run test' },
+    });
+
+    const blocked = runHook(PRE_TOOL_HOOK, gatedCommand);
+    const reason = (
+      JSON.parse(blocked.stdout) as { hookSpecificOutput: { permissionDecisionReason: string } }
+    ).hookSpecificOutput.permissionDecisionReason;
+    const recovery = reason.split('\n').at(-1)?.trim() ?? '';
+    expect(recovery).toMatch(
+      /^bun ci && touch node_modules\/\.safeword-deps-reinstalled-[0-9a-f]{12}$/,
+    );
+
+    // Stub only the install; the rest of the printed command runs verbatim.
+    const run = spawnSync('sh', ['-c', recovery.replace('bun ci', 'true')], {
+      cwd: projectDirectory,
+    });
+    expect(run.status).toBe(0);
+
+    const retried = runHook(PRE_TOOL_HOOK, gatedCommand);
+    expect(retried.status).toBe(0);
+    expect(retried.stdout.trim()).toBe('');
+  });
+
   it('pre-tool hook still blocks the touch recovery when node_modules is missing', () => {
     writeBunProject();
     markSafewordProject();

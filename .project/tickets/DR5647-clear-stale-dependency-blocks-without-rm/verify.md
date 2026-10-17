@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 247/247 tests pass (dependency-readiness, done-gate, lifecycle origin-main contract at 84f07532); full suite 10528/10528 (14 skipped) at 0366c2dc7; hosted CI re-runs on the ticket-closure head
+**Test Suite:** ✓ 11241/11241 tests pass (14 skipped; full package suite at a34a3a8d); hosted CI re-runs on the final head
 **Gherkin:** ✅ Acceptance lane passes (47/47 locally)
 **Build:** ✅ Success
 **Lint:** ✅ Clean (CI `lint` green at 9eca35f1)
@@ -21,11 +21,12 @@
 
 | Affected surface | Proof | Result |
 | --- | --- | --- |
-| Claude pre-tool dependency gate | Real `pre-tool-dependency-readiness.ts` run on a throwaway bun project: stale → printed recovery (install stubbed with `true`) → retry (earlier sentinel name; acceptance now proven by unit tests) | Denied with version note and recovery; then allowed, sentinel consumed, marker re-stamped |
+| Claude pre-tool dependency gate | `dependency-readiness.test.ts` › pre-tool hook clears its own stale block once the printed recovery runs (#5647), spawning the real hook; plus a manual run on a throwaway bun project with the final code | Pass; fails against main (receives the `rm -f` command). Manual: denied with version note and `touch node_modules/.safeword-deps-reinstalled-<fp12>`; then allowed, no sentinels left, marker equals the input fingerprint |
 | Codex/Cursor done gate | `done-gate.test.ts` › clears a stale-dependency block once its printed recovery runs (#5647) | Pass; fails against main (receives the `rm -f` command) |
 
 ## Reviews
 
+- Final `/tdd-review` (2026-10-17): fixed a coarse-clock-fragile mtime assertion; added the automated real pre-tool hook proof above.
 - Mutation checks: fingerprint-named acceptance, marker stamp, sentinel cleanup on stamp, discarding non-matching sentinels, and artifact-mtime restore are each caught by a failing test when removed.
 - Cross-agent quality-review (Codex, independence: cross-agent), five rounds: four sentinel defects fixed (see ticket work log); the fifth (unobserved manual install between input switches) reproduced on main's marker and answered as pre-existing, filed as a follow-up. Implement-exit stamp recorded as a skip with that reason.
 - Audit passed — diff scope: no dependency-cruiser violations, no learnings or domain-doc findings.
