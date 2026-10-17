@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { DELIVERY_CHECKLIST_CATEGORIES } from '../../src/execution-plan/delivery-checklist.js';
+import {
+  createExecutionPlanDeliveryDefinition,
+  DELIVERY_CHECKLIST_CATEGORIES,
+  parseDeliveryPlanContract,
+} from '../../src/execution-plan/delivery-checklist.js';
 import type { ExecutionPlanRecord, UnverifiedReviewerOutput } from '../../src/review/contract.js';
 import { validateExecutionPlanOutput } from '../../src/review/execution-plan-output.js';
 import {
@@ -232,6 +236,123 @@ describe('Execution Plan output schema', () => {
 });
 
 describe('Execution Plan output validation', () => {
+  it.each([
+    ['repeated flags', ['cargo', 'test', '--test', 'one', '--test', 'two']],
+    ['empty operands', ['node', '-e', '', ' ', '']],
+    ['JSON escapes', ['node', '-e', String.raw`console.log(/\d|b/, "C:\\tmp")`]],
+  ])('preserves %s from Markdown through the trusted review boundary', (_name, argv) => {
+    const invocation = { type: 'command', cwd: 'packages/cli', argv };
+    const encodedInvocation = JSON.stringify(invocation).replaceAll('|', String.raw`\|`);
+    const markdown = [
+      '## Proof specifications',
+      '',
+      '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
+      '| --- | --- | --- | --- | --- | --- | --- |',
+      `| command | command | integration | proof command | real_boundary | current_required | ${encodedInvocation} |`,
+      '',
+      '## Delivery checklist',
+      '',
+      '<!-- safeword:delivery-checklist:v1 -->',
+      '',
+      '| ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |',
+      '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+      ...DELIVERY_CHECKLIST_CATEGORIES.map(
+        (category, index) =>
+          `| item-${index} | ${category} | Deliver ${category} | contributor | command | open | missing | | |`,
+      ),
+      '',
+    ].join('\n');
+    const parsed = parseDeliveryPlanContract(markdown);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error(parsed.message);
+    const definition = createExecutionPlanDeliveryDefinition(parsed, false);
+    const expectedDefinition = structuredClone(definition);
+    const record = { ...validRecord(), delivery_definition: definition };
+    const output = approval(record);
+    const expectedOutput = structuredClone(output);
+
+    expect(definition.proof_specifications[0]?.invocation).toEqual(invocation);
+    expect(
+      validateExecutionPlanOutput(output, expectedDefinition, record.normalized_plan_digest),
+    ).toEqual({ kind: 'approved', output: expectedOutput });
+    expect(output).toEqual(expectedOutput);
+    expect(definition).toEqual(expectedDefinition);
+  });
+
+  it.each([
+    ['repeated flags', ['cargo', 'test', '--test', 'local_route', '--test', 'request_audit']],
+    ['empty operands', ['node', '-e', '', ' ', '']],
+  ])('accepts %s without changing the trusted definition', (_name, argv) => {
+    const record = validRecord();
+    const proof = record.delivery_definition.proof_specifications[0];
+    if (proof?.invocation.type !== 'command') throw new Error('Missing command proof');
+    Object.assign(proof.invocation, { argv });
+    const output = approval(record);
+    const expectedOutput = structuredClone(output);
+    expect(
+      validateExecutionPlanOutput(
+        output,
+        structuredClone(record.delivery_definition),
+        record.normalized_plan_digest,
+      ),
+    ).toEqual({ kind: 'approved', output: expectedOutput });
+    expect(output).toEqual(expectedOutput);
+  });
+
+  it.each([
+    ['empty argv', { argv: [] }, 'invocation.argv'],
+    ['blank executable', { argv: [' ', 'test'] }, 'invocation.argv'],
+    ['empty executable', { argv: ['', 'test'] }, 'invocation.argv'],
+    ['non-string operand', { argv: ['node', 1] }, 'invocation.argv'],
+    ['non-array argv', { argv: 'node' }, 'invocation.argv'],
+    ['outside cwd', { cwd: '../outside' }, 'invocation.cwd'],
+    ['absolute cwd', { cwd: '/outside' }, 'invocation.cwd'],
+    ['mismatched type', { type: 'review_receipt' }, 'invocation.type'],
+    ['extra invocation key', { extra: true }, 'must contain exactly type, cwd, and argv'],
+  ])('rejects %s with a field-specific reason', (_name, changes, field) => {
+    const record = validRecord();
+    const proof = record.delivery_definition.proof_specifications[0];
+    if (!proof) throw new Error('Missing proof fixture');
+    Object.assign(proof.invocation, changes);
+    expect(validateExecutionPlanOutput(approval(record))).toEqual({
+      kind: 'invalid_output',
+      reason: expect.stringContaining(field),
+    });
+  });
+
+  it('keeps receipt targets unique and names the rejected field', () => {
+    const record = validRecord();
+    const proof = record.delivery_definition.proof_specifications[0];
+    if (!proof) throw new Error('Missing proof fixture');
+    Object.assign(proof, {
+      method: 'review_receipt',
+      invocation: {
+        type: 'review_receipt',
+        kind: 'scenario-gate',
+        targets: ['a.feature', 'a.feature'],
+      },
+    });
+    expect(validateExecutionPlanOutput(approval(record))).toEqual({
+      kind: 'invalid_output',
+      reason: expect.stringContaining('invocation.targets'),
+    });
+  });
+
+  it.each([
+    // eslint-disable-next-line unicorn/no-null -- JSON null is a distinct malformed boundary input.
+    ['null', null],
+    ['array', []],
+    ['string', 'invalid'],
+    ['missing', undefined],
+  ])('names a non-object delivery definition: %s', (_name, value) => {
+    const record = validRecord();
+    Object.assign(record, { delivery_definition: value });
+    expect(validateExecutionPlanOutput(approval(record))).toEqual({
+      kind: 'invalid_output',
+      reason: 'execution_plan_record.delivery_definition must be an object',
+    });
+  });
+
   it('accepts a complete positive record without changing it', () => {
     const output = approval();
     expect(validateExecutionPlanOutput(output)).toEqual({ kind: 'approved', output });
@@ -255,7 +376,10 @@ describe('Execution Plan output validation', () => {
       }),
     );
 
-    expect(validateExecutionPlanOutput(output, expected)).toEqual({ kind: 'invalid_output' });
+    expect(validateExecutionPlanOutput(output, expected)).toEqual({
+      kind: 'invalid_output',
+      reason: expect.any(String),
+    });
   });
 
   it('refuses a reviewer digest that differs from the trusted normalized plan identity', () => {
@@ -264,6 +388,7 @@ describe('Execution Plan output validation', () => {
 
     expect(validateExecutionPlanOutput(output, expected, 'b'.repeat(64))).toEqual({
       kind: 'invalid_output',
+      reason: expect.any(String),
     });
   });
 
@@ -295,19 +420,19 @@ describe('Execution Plan output validation', () => {
 
     expect(
       validateExecutionPlanOutput(withoutDestination as unknown as UnverifiedReviewerOutput),
-    ).toEqual({ kind: 'invalid_output' });
+    ).toEqual({ kind: 'invalid_output', reason: expect.any(String) });
     expect(
       validateExecutionPlanOutput({
         ...approval(),
         planning_destination: 'somewhere-else',
       }),
-    ).toEqual({ kind: 'invalid_output' });
+    ).toEqual({ kind: 'invalid_output', reason: expect.any(String) });
     expect(
       validateExecutionPlanOutput({
         ...approval(),
         planning_destination: 'plan-implementation',
       }),
-    ).toEqual({ kind: 'invalid_output' });
+    ).toEqual({ kind: 'invalid_output', reason: expect.any(String) });
   });
 
   it.each([
@@ -494,6 +619,7 @@ describe('Execution Plan output validation', () => {
   ])('classifies %s as retryable invalid output', (_name, output) => {
     expect(validateExecutionPlanOutput(output)).toEqual({
       kind: 'invalid_output',
+      reason: expect.any(String),
     });
   });
 

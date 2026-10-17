@@ -1,0 +1,26 @@
+{
+  "source_head": "72129cbf10a29fcfd7a9d1287ec30ad7c72626cc",
+  "sha256": {
+    "features/complete-contributions-with-a-default-delivery-checklist.bdd-proof.json": "b45fe724effe8f9dee63ca055b8b107372553a8e3d8110a72700f0f82da0e284",
+    "features/complete-contributions-with-a-default-delivery-checklist.feature": "d36cbcf418d5316046b892d69da96edd36b6d68644010cda1a9b03f50fdfc379",
+    "features/split-large-contributions-into-reviewable-prs.bdd-proof.json": "b38d92ecf026d29685bc7f859e80fb4b83f936cc05f869dfce8a0a7ce84f9d65",
+    "features/split-large-contributions-into-reviewable-prs.feature": "3801e3fe8b7585bff0fec75726c1466354b77c8ee13db231c8b97e667ae1d851",
+    "packages/cli/src/commands/delivery-checklist.ts": "84b936ac66b8ad0c42c10ec9a02f3603c3094dfbbb81aef3fe92074da8becadc",
+    "packages/cli/src/execution-plan/delivery-checklist.ts": "e75a0ed9127e8be4949275ed63cdedeec5408bd4ee9abf69fc6291b3b65f6304",
+    "packages/cli/src/review/execution-plan-output.ts": "b710d8b10a6364f7d46a0ae9621adf5f59ade5b7053b61136e5869072e0fdfc1",
+    "packages/cli/src/review/runtime.ts": "18716e8b766ece8b5044b9306b5f63154dd3bdf6d1ba325afa376a7eef40d1ed",
+    "packages/cli/tests/bdd-proof-adapter.test.ts": "6c8315ca1fc196044486d217b25e4f7253b02934ddee8399d0d4e12282c3c38d",
+    "packages/cli/tests/bdd-proof-tags.test.ts": "01ec0efcebb5365a8fc63af26d0b33e58ca6e61edaca3f7b6a1aabe6712626e3",
+    "packages/cli/tests/execution-plan/delivery-checklist.test.ts": "a55fe3073184a76912a1d4be215cd132464614b7bc963b2e4be982589b82126a",
+    "packages/cli/tests/fixtures/delivery-cli.ts": "a4386b38b739b1b1f7589e1304db665b10f0121748d815cf86b5d6fdd3e03b02",
+    "packages/cli/tests/fixtures/execution-plan-slicing-cases.ts": "e9fea4034ec9ecc43cb782d9f999b8200cfcd47deb60a23dea66cb61d9297ec7",
+    "packages/cli/tests/integration/delivery-checklist-boundary.test.ts": "6bd79c75bb2df6809d5ac7c6abbe729f542a6bcc990f004ecd98ae4e361ec88b",
+    "packages/cli/tests/integration/delivery-checklist-unreadable.test.ts": "c32dd478f4064f33182227d8b755172da16df5555f4e7f79f5198052755f34d7",
+    "packages/cli/tests/integration/delivery-execution-prerequisite.test.ts": "127eb83dcdcab5a348d26c552668f09f5bbc70cb93dd851c5fc30f9ac56dab5f",
+    "packages/cli/tests/review/execution-plan-output.test.ts": "53fb1e32c1b7fd31856104d3cbebb634ebe3dc10f7c2e382349d1831d0fd8657",
+    "packages/cli/tests/review/execution-plan-slicing-cases.test.ts": "ce2eb0609e2d51c948f8fe1ccafc87cd9f596fa3236214b390320a08c3d9ff8e",
+    "packages/cli/tests/review/runtime.test.ts": "563c93cc4e003ee83a8276ca15b4049eb63844fcadba767bcd6c2ed8dafbecee",
+    "packages/cli/tests/smoke/execution-plan.live.test.ts": "6f56f53d59fd45e7a6b66a626961f2ae709f0d0b8fe281dd716f73e74b5c2ab8",
+    "steps/turn-decisions-into-startable-work.steps.ts": "1c2a1b49c6d10058424aa88382cae28984f03a0fb2307de86173138fa45591e3"
+  }
+}
