@@ -1,5 +1,29 @@
 # Verification: explain readiness checkout mismatches (#5511)
 
+## Combined delivery verification — 2026-10-17 UTC
+
+The diagnostic and the later execution-time remedy pass complete hosted CI at
+`088d065952cb3ea0678a09a1a221e41cc28eb452`, including full package tests,
+physical installation, and release gates on both Node versions, plus acceptance
+on Node 24:
+[run 38990046582](https://github.com/ArcadeAI/safeword/actions/runs/38990046582).
+The authoritative combined evidence is sibling task 0VN2X5's verify.md and
+[PR #5911](https://github.com/ArcadeAI/safeword/pull/5911). Independent source and
+changed-target reviews approved without blocking errors. All 30 observed
+delivery-run CLI failures and the three later architecture-staging timeouts
+pass unchanged in targeted recovery. Historical root-wide acceptance failures
+below are a separate scope; package CI does not prove they were fixed.
+
+This diagnostic task is complete as part of that combined fix. The execution-time
+command supports authorized promotion from the intended worktree; raw Codex
+hooks still have the pinned host's missing-workdir limitation. The earlier
+instructions to keep the issue open below belong to the diagnostic-only
+checkpoint. PR #5911 closes #5511 through the supported checked command. Raw
+`gh pr ready` on Codex 0.160.0 retains the inverse false-allow risk when a shell
+workdir is omitted; upstream issue #32360 tracks that host metadata gap. A
+documentation-only ticket-closure head still needs its own green
+CI and current-head readiness evidence before Ready or merge.
+
 ## Main catch-up and impact
 
 Fast-forwarded this branch from `d5885e587` to current main `ca452a9cc`

@@ -2,10 +2,10 @@
 id: 0VN2X5
 slug: promote-verified-worktree
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-10-16T18:27:20.321Z
-last_modified: 2026-10-16T19:58:47Z
+last_modified: 2026-10-17T01:44:00Z
 subtype: bug-investigated
 external_issue: https://github.com/ArcadeAI/safeword/issues/5511
 scope:
@@ -121,7 +121,10 @@ existing readiness, inspect PR number/head/draft status, revalidate local HEAD
 and receipt, then call gh pr ready with an argv array and explicit root cwd.
 Update canonical workflow guidance and regenerate normal delivery surfaces.
 
-## Implementation evidence
+## Historical implementation evidence and delivery follow-up
+
+Each entry records its checkpoint. The final delivery entry and verify.md
+supersede earlier next actions and dependency counts.
 
 - The standalone real-Git/fake-GitHub reproduction failed before implementation
   with `CLI_ARGUMENT_INVALID` for the missing command, then passed after build.
@@ -203,3 +206,15 @@ Update canonical workflow guidance and regenerate normal delivery surfaces.
   counted as executed CLI evidence. No production source or generated artifact
   changed. The audit report preserves its original findings and records their
   resolution; ticket remains in verify under the existing broad-run limits.
+- Delivery follow-up authorized: ran verify, diff audit, refactor, and quality
+  review; applied all three bounded refactors and actionable recovery guidance.
+  Source CI is fully green at 088d065952cb3ea0678a09a1a221e41cc28eb452 in
+  run 38990046582, including 11,131 CLI cases on each Node version, physical
+  installation, release gates, and Node 24 acceptance. Final command/skill/catalog
+  checks pass 65/65; all 30 observed earlier failures pass unchanged in recovery.
+  A later hook/schema run's three explicit deadline failures also pass unchanged
+  in 2.78 seconds; the underlying delay cause remains unestablished. Updated the
+  vulnerable Python dev lock and preserved the existing JavaScript audit policy.
+  Independent Claude/Opus source and changed-target reviews approve without
+  blocking errors. PR #5911 remains Draft for normal ticket closure and a fresh
+  exact-head CI result; current readiness and merge truth belong to the PR body.

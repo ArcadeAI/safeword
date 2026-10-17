@@ -42,8 +42,11 @@ old message. Changed-target review `52ee81ea-f073-4fa4-ba7d-5293f952d8ee`
 approved independently through Claude/Opus with no errors.
 
 The remote-head race warning is already disclosed; GitHub exposes no atomic
-expected-head condition. Do not add a second inspection that only moves that
-race. Informational notes need no change: unrelated session files cannot supply
+expected-head condition. A post-promotion inspection could detect some pushes
+made during promotion, but could neither prevent nor undo that promotion or
+make it atomic. Defer that extra network/failure boundary: the accepted contract
+checks immediately before promotion and discloses the remaining remote race.
+Informational notes need no change: unrelated session files cannot supply
 a matching receipt; generated Codex skill parity is covered by the actual
 parity check and workflow test; the small dev-only lock security bump is explicit.
 
@@ -93,7 +96,9 @@ Fetched this delivery session:
 The hosted JavaScript policy in `.github/workflows/ci.yml` already excludes the
 two named unpatched high advisories and blocks other high/critical findings.
 Its exact command passes; unfiltered `bun audit` still reports eight advisories.
-The current Python audit identified three urllib3 2.7.0 advisories. Updated only
+The delivery Python audit identified three urllib3 2.7.0 advisory identifiers;
+the historical verification's six findings came from an earlier scanner run.
+No alias or count equivalence is asserted across those snapshots. Updated only
 the transitive development lock entry to 2.8.0, synchronized with `uv sync
 --frozen --dev`, and reran `pip-audit`: no known vulnerabilities found. No
 dependency-audit policy changed and no new suppression was added.
@@ -113,12 +118,33 @@ The delivery verification run passed relay (198 tests, one skip) and collector
 three hours, with 30 observed failed cases in 12 files and no final failure
 traces; a duplicate CLI invocation was also interrupted. Neither is a passing
 full-suite result. Only three setup-timeout breadcrumbs establish a specific
-failure mechanism; other failures remain unclassified pending reruns or CI.
+failure mechanism; the other failure mechanisms remain unclassified. All 30
+observed failures now pass unchanged in targeted recovery, and complete hosted
+CI is green at source head `088d065952cb3ea0678a09a1a221e41cc28eb452`.
 Acceptance passed all 596 scenarios and 11,118 steps, then all 50 proof-tag
 tests. Stopped the unchanged duplicate acceptance pass; it is not counted as
 green. All build and typecheck lanes passed. Python audit is clean after the
 lock update; Go reports zero affected-code vulnerabilities. The aggregate exits
 130 because interrupted invocations and raw JavaScript advisories remain
-nonzero. Exact-head hosted CI must provide complete results before Ready or
-merge. Logs: `.project/tmp/5511-delivery-verify.log` and
+nonzero. The later complete CI result does not change that aggregate exit code.
+Logs: `.project/tmp/5511-delivery-verify.log` and
 `.project/tmp/5511-delivery-local-limit.txt`.
+
+Final local command/skill/catalog verification passes 65/65 cases, including
+all 46 command cases and the recovery-message assertion. A subsequent local
+hook/schema run passed 2,074 cases and hit three explicit 60-second test
+deadlines in architecture staging; those three passed unchanged in isolation
+in 2.78 seconds. The source file, architecture hook, and architecture tests have
+no changes from main. A deterministic shared regression is not reproduced by
+the recovery or either Node job of the complete CI run; a local-only intermittent defect and
+process/scheduling delay remain possible. No underlying delay cause is claimed,
+and no timeout or assertion was changed.
+
+[CI run 38990046582](https://github.com/ArcadeAI/safeword/actions/runs/38990046582)
+passes all ten applicable jobs. Each Node job passes 11,131 CLI cases in 672
+files (10 intentional skips), relay and collector suites, physical-install
+proof, and 81 release checks. Node 24 additionally passes all 596 acceptance
+scenarios, 11,118 steps, and 50 proof-tag tests; that lane is deliberately skipped
+on Node 22. PR-only deployment jobs are skipped after their input checks pass.
+The normal ticket-closure commit is documentation only and must earn its own
+current-head CI before Ready and the explicitly authorized admin merge.

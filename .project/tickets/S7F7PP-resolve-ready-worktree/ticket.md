@@ -3,10 +3,10 @@ id: S7F7PP
 slug: resolve-ready-worktree
 type: task
 subtype: bug-investigated
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-10-16T17:34:12.812Z
-last_modified: 2026-10-16T19:58:47Z
+last_modified: 2026-10-17T01:44:00Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/5511
 scope:
   - Reproduce the Codex session-root versus command-workdir mismatch.
@@ -81,3 +81,13 @@ Never infer readiness for an unseen worktree from another checkout's evidence.
   the evaluated checkout differs from the reported hook cwd.
 - Correct hook cwd still selects and allows the verified delivery worktree;
   unfinished tickets and stale receipts remain blocked.
+
+## Combined delivery closure
+
+The diagnostic ships with execution-time remedy 0VN2X5 in PR #5911. Complete
+source CI passes at 088d065952cb3ea0678a09a1a221e41cc28eb452 (run 38990046582),
+and independent source reviews approve without blocking errors. The sibling
+task's verify.md preserves current evidence and local run qualifications.
+Raw Codex hook metadata loss remains an explicit host limitation; the checked
+promotion command validates the intended worktree directly. The documentation
+closure head must pass CI before Ready and the user-authorized admin merge.
