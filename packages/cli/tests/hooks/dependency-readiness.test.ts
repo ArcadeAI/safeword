@@ -751,10 +751,12 @@ describe('dependency readiness hook support', () => {
     writeFileSync(sentinel, '');
     const past = new Date(Date.now() - 60_000);
     utimesSync(artifact, past, past);
+    // Read back what the filesystem stored: coarse clocks round the set value.
+    const artifactMtimeBefore = statSync(artifact).mtimeMs;
 
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
     expect(existsSync(sentinel)).toBe(false);
-    expect(statSync(artifact).mtimeMs).toBe(past.getTime());
+    expect(statSync(artifact).mtimeMs).toBe(artifactMtimeBefore);
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
   });
 
