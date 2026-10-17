@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "5ab6096386544da596749e2ef427cdf34d3cda64198c40f215253854c25e0f4a"
+      "sha256": "1d5ce6a24a99a26526101dfa4a643f578259f18ce851b70fd9331e598cdedddd"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "436af5968987ac5bea801213c8ad212e4b84e57c660988a7420e384bfddb102a"
+      "sha256": "25a3841f9238e5a24ba2464a6b9585ac7ee8525e41330b2fa3a72f43c6cd155c"
     },
     {
       "path": "runtime/event-groups.json",
@@ -671,7 +671,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "33bdf8746a08bb5b69b2625fa49a82bb2d5c9cb4901dab84780f0d6d8b803e5d"
+      "sha256": "68c17ed674d86309f634a23562402dcc6dfad683ae9bc4b3d827821843f76c88"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -755,7 +755,7 @@
     },
     {
       "path": "skills/tdd-review/SKILL.md",
-      "sha256": "fb05b617ffb02bb6d06897d12fb5f121fc553536701f27b8696160041cb5269c"
+      "sha256": "ae59212a4d368359c3144bde65bb18caaa02fb15590ca72398f15ad507679c70"
     },
     {
       "path": "skills/testing/SKILL.md",
@@ -1671,7 +1671,7 @@
     },
     {
       "path": "templates/skills/bdd/TDD.md",
-      "sha256": "6c9142c4a7cc63fb6054d2b5335f942a77a1322f3a7e269b6e8654f4d7435702"
+      "sha256": "be9a433ef452e6a2cd55a963ea997a8cd219574d8cc043705905de9f1b58c476"
     },
     {
       "path": "templates/skills/bdd/VERIFY.md",
@@ -1755,7 +1755,7 @@
     },
     {
       "path": "templates/skills/tdd-review/SKILL.md",
-      "sha256": "fb05b617ffb02bb6d06897d12fb5f121fc553536701f27b8696160041cb5269c"
+      "sha256": "ae59212a4d368359c3144bde65bb18caaa02fb15590ca72398f15ad507679c70"
     },
     {
       "path": "templates/skills/testing/SKILL.md",

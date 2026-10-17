@@ -19,6 +19,7 @@ import type {
   UnverifiedReviewerOutput,
 } from '../../src/review/contract.js';
 import { prepareReviewPacket } from '../../src/review/packet.js';
+import { EXECUTABLE_RED_REVIEW_RUBRIC } from '../../src/review/red-rubric.generated.js';
 import {
   inspectReviewRoute,
   parseProcessStat,
@@ -647,6 +648,47 @@ printf '%s' '${JSON.stringify({ structured_output: malformedApproval })}'
         failure: 'invalid_output',
         message: expect.stringContaining('execution_plan_record must be an object'),
       });
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'sends the executable RED refusal rubric to the reviewer process',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const promptPath = nodePath.join(project, 'reviewer-prompt.txt');
+      const executable = nodePath.join(bin, 'claude');
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+if [ "\${1:-}" = "--help" ]; then
+  echo '${REVIEWER_CAPABILITIES.claude}'
+  exit 0
+fi
+/bin/cat > '${promptPath}'
+printf '%s' '${JSON.stringify({ structured_output: output })}'
+`,
+        { mode: 0o755 },
+      );
+      vi.stubEnv('PATH', bin);
+      const packet: ReviewPacket = {
+        schema_version: 1,
+        dispatch_id: 'dispatch-1',
+        kind: 'executable-red',
+        logical_files: [],
+      };
+
+      const result = await runHeadlessReviewer('claude', packet, project, untrustedRoot);
+
+      expect(result).toMatchObject({ dispatch_id: packet.dispatch_id, verdict: 'approve' });
+      const prompt = readFileSync(promptPath, 'utf8');
+      const packetStart = prompt.lastIndexOf('\n');
+      expect(JSON.parse(prompt.slice(packetStart + 1))).toEqual(packet);
+      const instructions = prompt.slice(0, packetStart);
+      expect(instructions).toContain(EXECUTABLE_RED_REVIEW_RUBRIC);
+      expect(instructions).toContain('undefined or pending Cucumber steps');
     },
   );
 
