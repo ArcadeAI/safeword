@@ -552,7 +552,21 @@ if (tool === 'Bash') {
   ) {
     const readiness = evaluatePrReadiness(projectDirectory, input.session_id);
     if (!readiness.ok) {
-      deny(readiness.reason ?? 'This change is not finished.', undefined, true);
+      const checkoutContext =
+        process.env.SAFEWORD_AGENT_RUNTIME === 'codex'
+          ? [
+              '',
+              '',
+              `Readiness checkout: ${projectDirectory}`,
+              `Hook cwd: ${input.cwd ?? '(not supplied)'}`,
+              "Codex supplies the session directory to this hook; a shell tool's separate workdir may be absent. If this checkout differs from the intended PR worktree, start or resume a Codex session rooted in the intended PR worktree, then retry. Keep tickets and readiness evidence in their own checkout.",
+            ].join('\n')
+          : '';
+      deny(
+        `${readiness.reason ?? 'This change is not finished.'}${checkoutContext}`,
+        undefined,
+        true,
+      );
     }
   }
   const ledgerWrite = detectLedgerWrite(command);

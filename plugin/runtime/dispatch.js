@@ -1803,7 +1803,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/lint/SKILL.md':
         'f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14',
       '.claude/skills/pr-readiness/SKILL.md':
-        '4cc987da39efb1b9b682aff67988c975e8ff56a2c3eed0cfe3a1f3e8caf0d80b',
+        '42fc32b8bef9a50d85c5d9ac81dcb3edab91f9d92c3e6bfe842fbabba2eed749',
       '.claude/skills/quality-review/SKILL.md':
         '61f9053cdd8007f2ebfd17684fb18cf8dfd068fbcdfbc85ad7ff7ec565a81461',
       '.claude/skills/refactor/SKILL.md':
@@ -1851,7 +1851,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        'd867a18bfca6e1a15bf691195d083084e59d383bfcbfd81dbcd98a060db956cd',
+        'dbcd329dc9040afccc802a6b66c1346aafd2db41f4a15ee6e45d08a34d3dd013',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
