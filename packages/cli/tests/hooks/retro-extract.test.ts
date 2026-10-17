@@ -205,7 +205,7 @@ describe('buildCodexExtractArgv', () => {
   // inline digest prompt.
   it('builds the gated codex exec argv used by the Stop hook child', () => {
     const argv = buildCodexExtractArgv({
-      model: 'gpt-5.5',
+      model: 'gpt-6-luna',
       outputPath: '/tmp/out.json',
       schemaPath: '/tmp/schema.json',
       prompt: 'INLINE DIGEST',
@@ -221,8 +221,20 @@ describe('buildCodexExtractArgv', () => {
     expect(argv[argv.indexOf('--output-schema') + 1]).toBe('/tmp/schema.json');
     expect(argv[argv.indexOf('-o') + 1]).toBe('/tmp/out.json');
     expect(argv[argv.indexOf('--sandbox') + 1]).toBe('read-only');
-    expect(argv[argv.indexOf('-m') + 1]).toBe('gpt-5.5');
+    expect(argv[argv.indexOf('-m') + 1]).toBe('gpt-6-luna');
     expect(argv.at(-1)).toBe('INLINE DIGEST');
+  });
+
+  it.each(['gpt-4.1', 'custom-model'])('preserves reasoning behavior for override %s', model => {
+    const argv = buildCodexExtractArgv({
+      model,
+      outputPath: '/tmp/out.json',
+      schemaPath: '/tmp/schema.json',
+      prompt: 'INLINE DIGEST',
+    });
+    const config = argv.flatMap((argument, index) => (argument === '-c' ? [argv[index + 1]] : []));
+    expect(argv[argv.indexOf('-m') + 1]).toBe(model);
+    expect(config.filter(value => value?.startsWith('model_reasoning_effort='))).toEqual([]);
   });
 });
 

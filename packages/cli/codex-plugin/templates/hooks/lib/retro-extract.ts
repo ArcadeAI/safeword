@@ -204,8 +204,8 @@ export function buildCodexExtractArgv(options: CodexExtractArgvOptions): string[
     'hooks',
     '-c',
     'mcp_servers={}',
-    '-c',
-    'model_reasoning_effort="low"',
+    // Other configured models retain their previous reasoning behavior.
+    ...(options.model === DEFAULT_CODEX_RETRO_MODEL ? ['-c', 'model_reasoning_effort="low"'] : []),
     '--output-schema',
     options.schemaPath,
     '-o',

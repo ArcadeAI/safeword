@@ -2742,7 +2742,7 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     const config = codex.argv.flatMap((argument, index) =>
       argument === '-c' ? [codex.argv[index + 1]] : [],
     );
-    expect(config).toContain('model_reasoning_effort="low"');
+    expect(config.filter(value => value?.startsWith('model_reasoning_effort='))).toEqual([]);
     expect(cursor.model).toBe('haiku');
   });
 });

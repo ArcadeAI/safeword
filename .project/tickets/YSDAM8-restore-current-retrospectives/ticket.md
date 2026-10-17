@@ -9,14 +9,14 @@ last_modified: 2026-10-17T13:45:00Z
 subtype: bug-investigated
 scope:
   - Use GPT-6 Luna with low reasoning for economical Codex retrospectives.
-  - Preserve Sonnet and Cursor aliases and explicit model names; Codex always uses low reasoning.
+  - Preserve Sonnet and Cursor aliases and explicit model overrides; only Luna pins low reasoning.
   - Regenerate bundles and verify selection through the real extractor.
 out_of_scope:
   - Changing PR review models or unrelated provider routing.
   - Changing authentication, prompts, sandbox policy, or model discovery.
 done_when:
   - Unconfigured Codex extraction selects gpt-6-luna at low reasoning with ChatGPT authentication.
-  - Explicit model names remain honored; low reasoning applies to every Codex extraction.
+  - Explicit model names remain honored; other models retain their existing reasoning behavior.
   - Targeted tests and generated surface checks pass.
 ---
 
@@ -50,8 +50,11 @@ must separately validate the retrospective findings schema.
 
 Current direction (2026-10-17): the user rejected Astra's cost, first selected
 Sol low, and then explicitly approved Luna low after the requested comparison.
-Set gpt-6-luna and pass model_reasoning_effort="low" to the Codex child. Both
-candidates passed all six predeclared screening cases, including correct empty
+Set gpt-6-luna and pass model_reasoning_effort="low" to the Codex child.
+The release compatibility review narrowed the flag to Luna; other configured
+models retain their previous reasoning behavior. Three compatibility assertions
+failed before this correction; all 143 focused tests pass afterward.
+Both candidates passed all six predeclared screening cases, including correct empty
 results, explicit and indirect bugs, and a signal buried in a longer digest.
 Luna's published uncached input/output API rates are 20 times lower than Sol's;
 this is not an actual ChatGPT subscription billing measurement. See

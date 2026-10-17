@@ -78,11 +78,11 @@ Feature: Codex retro parity — invisible local extraction and Lane-2 filing
       And Codex requests low reasoning
 
     @codex-retro-parity.SM1.AC1 @surface.safeword-cli
-    Scenario: A configured retro model overrides both agent defaults
-      Given `.safeword/config.json` configures `retro.model`
+    Scenario: A configured retro model preserves its existing reasoning behavior
+      Given `.safeword/config.json` configures a `retro.model` other than `gpt-6-luna`
       When each agent prepares its retro extraction command
       Then each agent resolves the configured `retro.model` instead of its default
-      And Codex requests low reasoning
+      And Codex adds no reasoning-effort override
 
   Rule: Codex uses the shared egress, spool, and filing path
 
