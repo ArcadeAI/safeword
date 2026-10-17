@@ -21,6 +21,7 @@ import {
   EXECUTION_PLAN_SLICING_CASES,
   type SlicingAcceptanceCase,
 } from '../fixtures/execution-plan-slicing-cases.js';
+import { liveReviewerEnvironment } from '../fixtures/live-reviewer-profile.js';
 import {
   createTemporaryDirectory,
   removeTemporaryDirectory,
@@ -69,21 +70,6 @@ function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent
     execution_plan_delivery_definition: definition,
     execution_plan_normalized_digest: normalizedExecutionPlanDigest(testCase.execution_plan),
   };
-}
-
-function liveReviewerEnvironment(
-  assigned: ReviewAgent,
-  author: string,
-): Record<string, string | undefined> {
-  const environment: Record<string, string> = { SAFEWORD_AGENT_RUNTIME: author };
-  const profile =
-    assigned === 'claude'
-      ? process.env.SAFEWORD_LIVE_CLAUDE_CONFIG_DIR
-      : process.env.SAFEWORD_LIVE_CODEX_HOME;
-  if (profile) {
-    environment[assigned === 'claude' ? 'CLAUDE_CONFIG_DIR' : 'CODEX_HOME'] = profile;
-  }
-  return environment;
 }
 
 async function reviewThroughCli(

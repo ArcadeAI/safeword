@@ -7,6 +7,40 @@ import {
 import { EXECUTION_PLAN_SLICING_CASES } from '../fixtures/execution-plan-slicing-cases.js';
 
 describe('single-defect slicing acceptance fixtures', () => {
+  it('makes plan integrity discriminate owners, decisions, dependencies and completion proofs', () => {
+    const approvals = EXECUTION_PLAN_SLICING_CASES.filter(
+      testCase =>
+        testCase.expectation.verdict === 'approve' &&
+        testCase.execution_plan.includes('RED (plan-integrity'),
+    );
+    expect(approvals.length).toBeGreaterThan(0);
+    for (const testCase of approvals) {
+      expect(testCase.execution_plan).toContain('expected_decisions');
+      expect(testCase.execution_plan).toContain('expected_dependency_edges');
+      expect(testCase.execution_plan).toContain('expected_obligation_owners');
+      expect(testCase.execution_plan).toContain('expected_required_proofs');
+      expect(testCase.execution_plan).toContain('expected_completion_signals');
+      expect(testCase.execution_plan).toContain('negative record mutations');
+      expect(testCase.execution_plan).not.toContain('authorize an edited plan');
+    }
+  });
+
+  it.each(['few-files-two-outcomes', 'ordered-schema-before-reader', 'several-ordered-changes'])(
+    'proves %s predecessor delivery without a future activation dependency',
+    id => {
+      const testCase = EXECUTION_PLAN_SLICING_CASES.find(candidate => candidate.id === id);
+      if (testCase === undefined) throw new Error('Missing two-outcome positive');
+      const inert = testCase.execution_plan.split(/^### /mu, 2)[1];
+      if (inert === undefined) throw new Error('Missing predecessor slice');
+      expect(inert).toContain('fixture.expected_cli_response');
+      expect(inert).toContain('before any new consumer exists');
+      expect(inert).not.toContain('activation disabled');
+      expect(inert).toContain('installed-package consumer');
+      expect(testCase.execution_plan).not.toContain('Only two files change');
+      expect(testCase.expectation.verdict).toBe('approve');
+    },
+  );
+
   it.each([
     ['missing-purpose', 'Purpose'],
     ['missing-boundary', 'Boundary'],

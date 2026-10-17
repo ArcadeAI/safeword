@@ -73,10 +73,10 @@ const procedures = [
   [
     'plan-integrity',
     'test:execution-plan-conformance',
-    'edited-plan',
-    'a terminal user asks the installed CLI to authorize an edited plan',
+    'accepted-plan-integrity',
+    'a package consumer reads the returned and retained typed judgment using an independent fixture containing expected_decisions from the accepted Implementation Plan, expected_dependency_edges for the declared slices, expected_obligation_owners for every accepted obligation, expected_required_proofs and expected_completion_signals',
     'src/review/command.ts',
-    'the installed CLI exits 2 for the edited plan and grants no coding authority',
+    'the returned and retained execution_plan_record.decision_statuses equals fixture.expected_decisions, the slices name/prerequisites graph equals fixture.expected_dependency_edges, obligation_owners equals fixture.expected_obligation_owners, delivery_definition checklist required_proof_ids and declared proof_specifications match fixture.expected_required_proofs, and slice completion_signal values equal fixture.expected_completion_signals; write these literal expectations from the accepted approach and declared slices before running the CLI, never from returned metadata; every accepted decision appears once unchanged, every accepted obligation has its exact owner, and every referenced proof is declared; negative record mutations that drop a decision, remove an owner, remove any nonempty prerequisite edge, or omit a required proof reference must each make the test runner exit 1',
   ],
   [
     'failure-signals',
@@ -115,17 +115,24 @@ const procedures = [
 // These are acceptance fixtures, not admission evidence. Give every proof step
 // an actor, fixture, edit, command and falsifiable result before leaving one field explicitly unresolved.
 function withConcreteTasks(plan: string): string {
+  const multipleSlices = (plan.match(/^### /gmu)?.length ?? 0) > 1;
   return plan.replaceAll(
     /(### [^\n]+\n[\s\S]*?#### Tasks and tests\n\n)[\s\S]*?(?=\n### |\n## Obligation ownership)/gu,
     (_section, heading: string) => {
       const proofLine = heading.split('\n').find(line => line.startsWith('- Proof:')) ?? '';
       const tasks = procedures
         .filter(([id]) => proofLine.includes(id))
-        .flatMap(([id, script, fixture, actor, edit, result], index) => [
-          `RED (${id}${index === 0 ? ', highest-risk first' : ''}): add tests/${id}.test.ts and tests/fixtures/${fixture}.json defining ${actor}; assert ${result}. Run \`bun run ${script} -- --fixture ${fixture}\` before editing ${edit}; expect test runner exit 1 because that accepted assertion fails.`,
-          `GREEN (${id}): implement the accepted ${id} obligation in ${edit}; rerun \`bun run ${script} -- --fixture ${fixture}\` with the same actor and fixture; expect test runner exit 0 after asserting ${result}.`,
-          `REFACTOR (${id}): ${id === 'documentation-contract' ? 'remove duplicated command explanations' : 'remove duplicate validation'} in ${edit} while preserving the accepted design; rerun \`bun run ${script} -- --fixture ${fixture}\` with the same actor and fixture; expect test runner exit 0 and the same assertions.`,
-        ]);
+        .flatMap(([id, script, fixture, actor, edit, result], index) => {
+          const assertion =
+            id === 'data-compatibility' && multipleSlices
+              ? `${result}; after merging only this predecessor slice and before any new consumer exists, the installed CLI read response must equal fixture.expected_cli_response, an independent golden captured from the supported predecessor before any edit, without requiring a new activation switch`
+              : result;
+          return [
+            `RED (${id}${index === 0 ? ', highest-risk first' : ''}): add tests/${id}.test.ts and tests/fixtures/${fixture}.json defining ${actor}; assert ${assertion}. Run \`bun run ${script} -- --fixture ${fixture}\` before editing ${edit}; expect test runner exit 1 because that accepted assertion fails.`,
+            `GREEN (${id}): implement the accepted ${id} obligation in ${edit}; rerun \`bun run ${script} -- --fixture ${fixture}\` with the same actor and fixture; expect test runner exit 0 after asserting ${assertion}.`,
+            `REFACTOR (${id}): ${id === 'documentation-contract' ? 'remove duplicated command explanations' : 'remove duplicate validation'} in ${edit} while preserving the accepted design; rerun \`bun run ${script} -- --fixture ${fixture}\` with the same actor and fixture; expect test runner exit 0 and the same assertions.`,
+          ];
+        });
       if (tasks.length === 0) throw new Error(`No concrete procedure for ${proofLine}`);
       const numberedTasks = tasks.map((task, index) => `${index + 1}. ${task}`).join('\n');
       return `${heading}${numberedTasks}\n`;
@@ -244,6 +251,20 @@ function acceptance(testCase: ExecutionPlanConformanceCase): SlicingAcceptanceCa
       ),
       expectation: { ...testCase.expectation, finding_subject: 'Complete delivery' },
     };
+  }
+  if (testCase.id === 'few-files-two-outcomes') {
+    let plan = withConcreteTasks(testCase.execution_plan);
+    plan = replaceRequired(
+      plan,
+      /^Rationale:.*$/mu,
+      'Rationale: The canonical schema and public activation touch few source files, but each delivers an independently useful outcome with distinct proof. Review and ship the inert contract first, then activate the public command after its named prerequisite.',
+    );
+    plan = replaceRequired(
+      plan,
+      '- Proof: data-compatibility: a golden test proves the schema bytes.',
+      '- Proof: data-compatibility: an installed-package consumer validates legacy and new schema bytes and proves the public response unchanged before activation.',
+    );
+    return { ...testCase, execution_plan: plan };
   }
   if (testCase.id === 'line-count-only-rationale') {
     return {

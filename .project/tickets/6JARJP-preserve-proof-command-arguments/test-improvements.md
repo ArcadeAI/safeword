@@ -1,5 +1,9 @@
 # Test-quality improvements
 
+Historical checkpoint: the later user request authorized Verify, Audit, Refactor,
+Quality Review, green CI and admin merge. See [final assessment](delivery-final.md)
+and [verification](verify.md) for the current delivery disposition.
+
 This follows the user's explicit instruction to implement the quality
 assessment's suggested repairs. The historical assessment remains unchanged.
 This work strengthens the scoped proof-command tests and the A639WN/6XW8H7

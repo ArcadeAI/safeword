@@ -1,5 +1,9 @@
 # BDD and TDD quality assessment
 
+Historical checkpoint: the later user request authorized Verify, Audit, Refactor,
+Quality Review, green CI and admin merge. See [final assessment](delivery-final.md)
+and [verification](verify.md) for the current delivery disposition.
+
 Assessed 2026-10-16 against production/test head
 `630e0b48e0e212893dfd5c8d48614de81bb4bf51`, after the user requested a
 substantive test-quality review. This is an assessment, not a repair or a new

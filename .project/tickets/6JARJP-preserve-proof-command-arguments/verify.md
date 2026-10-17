@@ -1,118 +1,98 @@
 # Verification evidence
 
-This is bounded Draft-delivery evidence, not completion of #4200 or a full
-repository verification certification. No merge or Ready promotion is authorized.
+This record separates observed checks from the final PR head. The production
+code checkpoint is 72129cbf1; the subsequent change repairs only test-profile
+restoration and adds six native-child regressions. Final exact-head CI and merge
+state belong in PR #5897's Readiness evidence. No whole-#4200 completion is claimed.
+The latest user instruction authorizes green CI and admin merge.
 
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Local environment limitation: broader run deferred to Draft CI to avoid overlapping another worktree's Vitest; targeted GREEN was 150 passed, 2 skipped before test-only lint cleanup.
-**Gherkin:** ⏭️ Skipped — broader acceptance remains pending; Gherkin lint passed.
-**Build:** ✅ Success — all three packages.
-**Lint:** ✅ Clean — repository lint passed after the test expression style correction.
-**Typecheck:** ✅ Clean — CLI tsc passed.
-**Scenarios:** ⏭️ Skipped — task uses inline regression tests, no new BDD scenarios.
-**Refactor:** ✅ No change warranted — preserve existing owners for this bounded repair.
-**PR Scope:** ✅ Diff matches ticket scope — three production files, three test files, required generated carriers, and scoped evidence only.
-**Dep Drift:** ✅ Clean — no dependency or manifest changes.
-**Parent Epic:** N/A — follow-up references #4200 without claiming parent completion.
-**Reconcile:** ✅ No pattern deviation — existing validation/parser/runtime owners retained.
-**Experience:** ⏭️ N/A — internal parsing and review diagnostics; no persona walkthrough claimed.
-**Surface Evidence:** ⚠️ Parser and subprocess boundary proven; full public CLI and installed-host walkthroughs unproven.
-**Evidence limits:** ⚠️ Full local suite, broader acceptance, exact final test text, full CLI journey, and CI remain unproven at Draft creation.
+**Test Suite:** ✓ 11158/11158 tests pass in the latest complete local CLI run (675 files, 14 skips). CI at 72129cbf1 passed 11162 tests / 10 skips on each Node version. After the profile correction, all 86 targeted tests passed, including six new native-child cases.
+**Gherkin:** ✅ Acceptance lane passes twice: 596 scenarios / 11118 steps each, followed by 50 proof-manifest tests each. The 78-scenario live dry-run establishes bindings only.
+**Build:** ✅ Success — all resolved project build lanes completed.
+**Lint:** ✅ Clean — repository ESLint, Gherkin lint and CLI types passed; profile helper/test lint passed after the last test-only correction. Normal commit hooks remain required.
+**Typecheck:** ✅ Clean — resolved typed lanes completed; CLI tsc passed again after profile restoration.
+**Scenarios:** ⏭️ Skipped — lean task has no own scenario-completion ledger. Related feature scenario quality and actual proof boundaries are recorded in delivery-final.md; child tickets and the parent initiative are not marked complete here.
+**Refactor:** ✅ Completed — 61001cd97 extracts repeated proof-cache retrieval; later test helpers retain strict acceptance assertions and explicit profile/compatibility modes.
+**PR Scope:** ✅ Diff matches ticket scope — remaining proof-command/diagnostic fixes, test fidelity, scoped checklist labels/recovery details, generated carriers and evidence. Neither old branch was merged.
+**Dep Drift:** ✅ Clean — no dependency or lockfile changes. The configured blocking dependency audit passes; broader unfiltered scans report existing advisories, detailed below.
+**Parent Epic:** N/A — follow-up references #4200 without claiming its completion.
+**Reconcile:** ✅ No pattern deviation — existing parser, validator, runtime, CLI, proof-manifest and live-reviewer owners retained.
+**Experience:** ⚠️ Existing admission/setup friction — walked a contributor through genuine reviewed-plan admission, native proof and checklist projection; worst step was preparing accepted artifacts; new workflow steps from this repair = 0.
+**Surface Evidence:** ✅ Public CLI/native-process boundary recorded; generated host carriers verified. Separate installed-host journeys and Windows execution remain outside this bounded repair.
+**Evidence limits:** ⚠️ Initial local aggregate had six timeout-related failures; latest full run and source-checkpoint CI passed. The broad dependency scan remains red outside the configured delivery gate. Live model results are provider/model-specific; terminal matrix evidence is pending below.
 
-## Automated and manual results
+## Observed checks
 
-- TDD RED: 3 files failed; 48 failed, 102 passed, 2 existing platform skips.
-  The failures include new behavior and additive reason assertions on existing
-  rejection cases. See evidence/red.log.gz.
-- TDD GREEN: the same 3 files passed; 150 passed, 2 skipped. Command:
-  `scripts/dev bun run --cwd packages/cli test tests/review/execution-plan-output.test.ts tests/execution-plan/delivery-checklist.test.ts tests/review/runtime.test.ts`.
-  See evidence/green.log.gz. After that run, test-only lint cleanup replaced a
-  computed expected-field string with the equivalent literal field in each
-  case. The final test text awaits CI; production behavior did not change.
-- `scripts/dev bun run lint`: passed ESLint, Gherkin lint, CLI typecheck.
-- `scripts/dev bun run build`: all three packages passed. See evidence/build.log.gz.
-- Prettier check on all six changed source/test files: passed.
-- `scripts/dev bun scripts/parity-check.ts`: 276 pairs and 11 contracts in sync.
-- Generated surfaces: regenerated in prescribed order and independently checked;
-  all five current, no lifecycle result changes. Only the two plugin runtime
-  bundles and Claude inventory/identity digests changed.
-- `scripts/dev bun run deps:validate`: zero errors, five existing orphan warnings.
-- Manual source-boundary probe: real Markdown JSON -> parsed delivery contract
-  -> trusted definition/digest validator -> real Node subprocess preserved
-  repeated flags, empty/whitespace operands, JSON backslash and pipe. See
-  evidence/manual-demo.log. This is not a full public CLI journey.
-- Independent review: Claude Opus, cross-agent, approved bounded source with
-  warnings; signed receipt freshness rechecked. Review id:
-  `0c54b154-5c59-4cfe-bbbe-bf49fe532d11`. Raw earlier stale and request_changes
-  results are retained; review-scope.md and review-responses.md answer findings.
-- Fresh self-review: inspected all source/test changes and corresponding
-  generated carriers; no unrelated code changes or old branch merges.
+- Original TDD: 48 failed / 102 passed / 2 existing skips, then 150 passed / 2 skips.
+  Added diagnostic assertions are included; 48 failures do not mean 48 bugs.
+- Final nested-definition RED reproduced four field-diagnostic failures. The
+  wider fixture RED also included an unimplemented case and setup mistakes;
+  these are not counted as production regressions. The corrected three-file
+  recheck passed 109 tests / 2 existing skips.
+- The verbatim Verify block completed with exit 1, preserving its first failure.
+  First full CLI pass: 11152 passed / 6 failed / 14 skipped across 675 files.
+  All six failures were timeout/termination related in four files unchanged by
+  this PR. The plan's scheduled second full run passed all 675 files with
+  11158 passed / 14 skipped. Failed aggregate evidence is not relabeled green.
+- Relay: 198 passed / 1 skip. Collector: 153 passed. The Go experiment command
+  completed with `[no test files]` (compilation only). Resolved build/type lanes
+  and both BDD lanes completed. Raw full output is retained.
+- Fast smoke: 103 files / 2174 tests passed.
+- The no-CLI acceptance probe failed before test registration with the required
+  CLI-mode error and wrote no result artifact. It is an expected refusal, not
+  a passing semantic matrix or a product test failure.
+- A profile cleanup regression then caused 28 authentication setup failures and
+  zero semantic outputs. Six native-child regressions reproduced it (2 failed /
+  4 passed), then passed after the helper fix. The full focused group passed
+  86/86; lint and tsc passed. No login or credential files were changed.
+- Source CI [38997769169](https://github.com/ArcadeAI/safeword/actions/runs/38997769169)
+  passed both Node versions, the Node 24 default BDD lane, release-gate tests,
+  physical install proof, contract, OpenCode, lint, parity and dependency checks.
+- Audit passed: no dependency violations across 90 modules / 146 dependencies;
+  scoped architecture, principles, learnings and configured docs checks found
+  no contradiction. Whole-repository unused-code, clone and upgrade discovery
+  were intentionally outside this diff audit.
+- All five generated surfaces were regenerated and verified. No lifecycle result
+  hashes changed. No templates or dependency manifests changed.
 
-## Incomplete and deferred evidence
+## Live semantic matrix
 
-The full local suite was queued while another worktree's Vitest process ran.
-The wait was cancelled before this suite started; no full-suite result exists
-for this branch. Broader current-head checks are delegated to requested Draft
-PR CI and remain pending at creation. No new broad acceptance aggregate, live
-reviewer qualification, or full public CLI journey is claimed.
+Pending: the corrected CLI-only Claude Opus matrix is running. Do not infer a
+passing semantic outcome from CI, registration, metadata, a dry-run, or the
+setup-failed attempt. Its inputs, rubric digest and full outputs are retained.
 
-The first targeted lint attempt found a test expected-field expression style
-error; it was corrected before repository lint passed. The first fresh review
-raised existing currency/write-path defects, which are retained and explicitly
-deferred outside the requested repair. Non-pipe backslashes in other table
-cells now remain literal and can invalidate old retained approval definitions;
-those plans must be reviewed again rather than silently carrying approval.
+## Dependency policy and compatibility
 
-Historical #4200 failed, unfinished, and deferred evidence is unchanged. The
-task scaffold remains in_progress; canonical ticket edits were refused by the
-host hook, as described in task-spec.md. Verify invocation logging succeeded.
+The broad Verify dependency lane reported eight JavaScript advisories and six
+Python finding entries (three urllib3 issues duplicated across identifiers).
+The repository's configured CI audit blocks high/critical Bun findings with two
+existing documented exceptions. That exact command passed locally and in CI;
+no ignore, threshold, dependency or lockfile changed. Root Python dependencies
+are development-only and their lockfile is outside the published CLI files.
+These remain visible findings, not a repository-wide clean vulnerability claim.
+See delivery-final.md for the policy, primary advisory links and scope evidence.
 
-**Next:** push the requested Draft PR, inspect current-head CI, and retain Draft.
+Non-pipe backslashes now remain literal in ordinary table cells as well as JSON.
+Retained definitions whose parsed bytes change require a fresh plan-execution
+review; approval is never silently carried across that change.
 
-## Subsequent test-quality assessment — 2026-10-16
+## Independent review and manual boundary
 
-CI run 38948606357 passed on head 630e0b48e, including the exact final test text,
-both Node full-suite jobs, and Node 24's 596-scenario default acceptance lane.
-The earlier pending-CI statements above describe the evidence available at Draft
-creation and remain retained as history.
+Current code/profile review 8011cb83-eb20-4792-8236-78e2ff36c3de approved with no
+errors (Claude Opus, cross-agent). Scenario reviews 391fb5fe and b971fe7e approved
+the unchanged feature texts; the later profile transport correction is separately
+reviewed and tested. Remaining non-blocking findings are answered in delivery-final.md.
 
-The new test-quality-assessment.md records substantive BDD/TDD judgment and four
-independent reviews. The dedicated TDD review approved with warnings; two of
-three BDD scenario reviews requested changes for existing proof mismatches.
-Passing CI does not prove the affected acceptance claims. No production tests,
-scenario contracts, ticket phases, Ready state, or merge authority changed.
+The real CLI walkthrough used genuinely reviewed scenario, approach and Execution
+Plans. Native operands produced exactly 75 stdout bytes with independent SHA-256
+f5efb78f6e25534d98ea164b4385cef3766b5be594203740c6df1833773fc46a.
+A mismatching child was refused; after restoration, all applicable contributor
+items were proven and merge authorization remained pending. The walkthrough
+claims neither failed-receipt retention nor cryptographic signing of delivery
+proof records. Coordinator review receipts were genuinely verified and stamped.
 
-**Next:** retain Draft and address the test-quality findings in their proper scope.
-
-## Implemented test-quality follow-up — 2026-10-16
-
-The user subsequently authorized the suggested improvements. See
-[test-improvements.md](test-improvements.md) for changed boundaries, actual
-mutation tests, all failed attempts, calibrated live inputs, independent review
-responses and their limitations. The earlier sections remain historical.
-
-- The final three-file regression check passed **28 tests**, including the real
-  native proof command, the proof-hook omission control and eight fixture
-  integrity/admission checks. Earlier scoped deterministic checks passed
-  **301 tests with two existing platform skips**.
-- The local full CLI suite returned **11,123 passed, six failed, 14 skipped**
-  across 674 files. All five failed files passed unchanged in isolation
-  (**10 tests**). Both aggregate and isolated results are retained; the full
-  suite is not reported green.
-- The last live correction run returned **two passed, one failed, 25 filtered**:
-  the mirror case and identity assertion passed, while the authorization case
-  denied the correct boundary but returned the wrong repair destination.
-  Exactly 25 cases are byte-identical to their passing inputs in the previous
-  run. No complete passing matrix, repeat-until-green result or production
-  reviewer qualification is claimed.
-- Fresh independent Claude code and both scenario reviews approved the current
-  bounded sources with nonblocking warnings. Every warning is answered in the
-  follow-up report. These reviews do not turn the failed live check green.
-- Generated carriers were regenerated and all five surfaces checked current.
-  Repository lint/default BDD terminal evidence and current-head CI are recorded
-  in the follow-up report and Draft PR when available.
-
-The PR remains Draft. A full manual end-user walkthrough is unproven; tests are
-not substituted for it. No merge, promotion, canonical ticket completion or
-whole-initiative completion is claimed.
+Historical verification, rejected/stale reviews, failed aggregates, source diff
+snapshots and raw outputs remain under evidence/final-delivery (and the earlier
+evidence directories). Duplicate plain patches are compressed, not discarded.
