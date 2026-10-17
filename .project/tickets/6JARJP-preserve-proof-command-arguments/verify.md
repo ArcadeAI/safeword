@@ -1,9 +1,15 @@
 # Verification evidence
 
-The user subsequently authorized the completion-timeout prerequisite. Its
-current evidence and pending closure/CI state are in timeout-results.md. The
-frozen-source checklist below records the original proof-command slice; its
-passing history does not substitute for the new prerequisite's verification.
+The authorized completion-timeout repair passed the actual source Codex Stop
+adapter in 906.745 seconds, exit 0, `{}` output, without timeout. The adapter
+automatically completed this ticket; no completion status was written by hand.
+Final focused verification passed 198 tests across 8 files, types, formatting,
+configured lint, generated surfaces and parity. Audit passed with zero errors
+and five existing orphan warnings. Independent review approved the final code.
+Final committed-head CI is still required before the authorized admin merge.
+Current evidence, failed historical aggregates and limits are in
+timeout-results.md. The frozen-source checklist below records the original
+proof-command slice; its history is not final committed-head CI evidence.
 
 This record separates observed checks from the final PR head. The frozen source
 checkpoint is cb18cb71f, reconciled with main cfe93e30. The four production repair
@@ -12,7 +18,11 @@ test profile and integrity/negative fixtures. Final exact-head CI and merge stat
 belong in PR #5897's Readiness evidence. No whole-#4200 completion is claimed.
 The latest user instruction authorizes green CI and admin merge.
 
-## Verify Checklist
+## Historical frozen-source checklist (cb18cb71f)
+
+These rows describe the original repair checkpoint only. Current timeout-repair
+results and the failed full local aggregate are reported above and in
+timeout-results.md. Final committed-head CI is reported in the PR body.
 
 **Test Suite:** ✅ Frozen source cb18cb71f passed 677 CLI files / 11224 tests / 10 skips on each Node version in CI run 39003088682. Earlier local aggregate: 11158 passed / 14 skips. Profile correction group: 86 passed, including six native-child cases.
 **Gherkin:** ✅ Acceptance lane passes twice: 596 scenarios / 11118 steps each, followed by 50 proof-manifest tests each. The 78-scenario live dry-run establishes bindings only.
@@ -27,7 +37,7 @@ The latest user instruction authorizes green CI and admin merge.
 **Reconcile:** ✅ No pattern deviation — existing parser, validator, runtime, CLI, proof-manifest and live-reviewer owners retained.
 **Experience:** ⚠️ Existing admission/setup friction — genuine reviewed-plan/native-proof walkthrough added zero steps for new artifacts; worst step was preparing accepted artifacts. Existing admitted definitions whose ordinary-cell backslashes now parse differently require a fresh plan-execution review.
 **Surface Evidence:** ✅ Public CLI/native-process boundary recorded; generated host carriers verified. Separate installed-host journeys and Windows execution remain outside this bounded repair.
-**Evidence limits:** ⚠️ Initial local aggregate had six timeout failures; later local aggregate and frozen-source CI passed. Two normal local closure attempts then exceeded the fixed five-minute acceptance budget and refused completion. Ticket closure and promotion remain blocked. Broad JavaScript audit findings and provider/model-specific live limits remain disclosed.
+**Evidence limits:** ⚠️ Earlier failed local aggregates and five-/eight-minute closure attempts remain recorded. The final corrected completion gate passed and automatically closed this ticket; fresh final-commit CI still governs promotion and merge. Broad JavaScript audit findings, installed-host/Windows gaps and provider/model-specific live limits remain disclosed. See timeout-results.md for current budget and process-tree limits.
 
 ## Observed checks
 
@@ -97,15 +107,16 @@ passed at exact source cb18cb71fda966476492240284e180f34de44648:
 physical install, lint, contract, parity, OpenCode and configured dependency gate
 all passed. Full logs and summaries are retained as ci-cb18 artifacts.
 
-The current normal Codex completion gate was also invoked with the actual
+The earlier normal Codex completion gate was also invoked with the actual
 session identity. It refused closure twice when its acceptance command was
 terminated at the existing five-minute cap. No scenario assertion failure was
 reported before termination. These are failed local gate attempts, retained as
 done-stop-direct and done-stop-retry logs; they are not relabeled passing Verify.
-The ticket remains in_progress/done. No completion status, review stamp or
-readiness receipt was forged; PR #5897 remains Draft. The timeout investigation
-is in closure-timeout.md. Final evidence-commit CI belongs in the PR body and
-does not erase this local closure blocker.
+At that checkpoint the ticket remained in_progress/done and PR #5897 Draft.
+No completion status, review stamp or readiness receipt was forged. The
+investigation is in closure-timeout.md. The corrected final adapter retry is
+recorded at the top and in timeout-results.md; it supersedes the closure blocker
+without erasing these failed attempts. Final exact-head CI belongs in the PR body.
 
 ## Dependency policy and compatibility
 

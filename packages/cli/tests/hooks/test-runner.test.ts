@@ -45,7 +45,7 @@ afterEach(() => {
 
 describe('runTests (resolves its suite via safeword project test-plan)', () => {
   it('allows the required BDD acceptance lane to use the Stop hook budget', () => {
-    expect(timeoutMsForTestCommand('bdd')).toBe(8 * 60_000);
+    expect(timeoutMsForTestCommand('bdd')).toBe(20 * 60_000);
     expect(timeoutMsForTestCommand('test')).toBe(60_000);
   });
 

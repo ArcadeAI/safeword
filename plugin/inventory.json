@@ -15,7 +15,7 @@
     },
     {
       "path": "hooks/hooks.json",
-      "sha256": "566e99f2ec53278b400dae1e54085940594048f0423787cc6863f3f543422756"
+      "sha256": "8022c493baec10b9f4c1a9b92780841fc340583892fffe9c71b48bfd30c67218"
     },
     {
       "path": "package.json",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "548516ee1f2b153bbef0910178c7e6317dce79258e7a42a173341c351ffefe15"
+      "sha256": "112d93b5f54027d8bd892306afdcfdbe2a3ddd82f3fe741b6231cde3f7e36440"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "01d53ae8b5cdbd75c1cf9cb42b9a74dbc6d6dcc79263ccf2e1df4777a3e87d5f"
+      "sha256": "34a55739f6f7e3cf8f21a0e7d772780bca7258f2cda038133576b5a0dbb4f0fd"
     },
     {
       "path": "runtime/event-groups.json",
@@ -447,7 +447,7 @@
     },
     {
       "path": "runtime/hooks/lib/test-runner.ts",
-      "sha256": "598a2121d4f04c45c89e1dee4fd15fbf208c256e822aecf1ab5989de48a70e25"
+      "sha256": "790bf270b386f520be424d12ee88019aa9aaa425e01bf791067a984e0e627ac4"
     },
     {
       "path": "runtime/hooks/lib/ticket-close.ts",
@@ -1415,7 +1415,7 @@
     },
     {
       "path": "templates/hooks/lib/test-runner.ts",
-      "sha256": "598a2121d4f04c45c89e1dee4fd15fbf208c256e822aecf1ab5989de48a70e25"
+      "sha256": "790bf270b386f520be424d12ee88019aa9aaa425e01bf791067a984e0e627ac4"
     },
     {
       "path": "templates/hooks/lib/ticket-close.ts",

@@ -52,5 +52,5 @@ it('reports a synchronous timeout without relying on the absent killed property'
   expect(result.skipped).toBe(false);
   expect(result.toolchainMissing).not.toBe(true);
   expect(result.output).toContain('npm run test:bdd');
-  expect(result.output).toContain('timed out after 480s');
+  expect(result.output).toContain('timed out after 1200s');
 });

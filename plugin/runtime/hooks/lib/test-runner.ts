@@ -3,7 +3,7 @@
  *
  * The per-language test command is resolved by the single source of truth —
  * `safeword project test-plan --kind test --json` — not duplicated here. This hook only
- * EXECUTES the resolved test and acceptance commands (timeout-safe, no zombies).
+ * executes the resolved test and acceptance commands with per-command timeouts.
  *
  * Shipped hooks cannot import safeword code, so we reach the resolver via the
  * CLI (the `safewordCliCommand()` installed→source→bunx pattern, mirroring lint.ts).
@@ -72,11 +72,11 @@ const TEST_TIMEOUT_MS = 60_000;
 
 /**
  * The explicit acceptance lane can be materially slower than its unit-test
- * counterpart. Keep it bounded below Codex Stop's 600-second timeout without
- * rejecting a passing BDD suite solely for taking longer than five minutes.
- * Eight minutes leaves two minutes for the fast lanes and Stop bookkeeping.
+ * counterpart: the dogfood suite passed in about twelve minutes on a busy host.
+ * Native completion callbacks allow forty minutes for this lane, fast tests,
+ * plan resolution and (on Codex) bounded retrospective work.
  */
-const BDD_TEST_TIMEOUT_MS = 8 * 60_000;
+const BDD_TEST_TIMEOUT_MS = 20 * 60_000;
 
 /** Resolve the bounded execution budget for a planned test command. */
 export function timeoutMsForTestCommand(kind: TestCommand['kind']): number {
@@ -268,7 +268,7 @@ function runSingleTestCommand(testCommand: TestCommand): {
  * Run the project's test suite and return the result.
  *
  * - Resolves unit/native and acceptance commands from `safeword project test-plan`.
- * - Uses execSync for synchronous, timeout-safe execution (no zombie processes).
+ * - Uses execSync for synchronous execution with a configured timeout.
  * - Returns skipped=true if no runnable command was found (caller should not block).
  */
 export function runTests(cwd: string = projectDir): TestResult {

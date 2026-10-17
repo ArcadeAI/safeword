@@ -3695,7 +3695,7 @@ var init_historical_catalogue_generated = __esm(() => {
           "da9392c2520f6de0f4f5a649a58b578b7115f3a06ae6fb161bc71da58913ec80"
         ],
         Stop: [
-          "b8663c68fcb3cfa99a5eb61f521ac6ecca05aa4ff8d50f2502b2585845cff640",
+          "b1a641275edfca16f26bdfd99f9f83f832373ca1da813d96518f7d713b061ae0",
           "8d16ca09ac8148e614366f91b2f3dec1cef6925f96a17eacd24706269356978b",
           "6988371a3718b3e8106f6758c4e71b180facb47eb4c6a9726a2e5318737feb60",
           "167b3fe8cf355f66018c6c0f774b6d2e73ebecc81d4659701f9bfe45e1001722",
@@ -4953,6 +4953,15 @@ var init_historical_catalogue_generated = __esm(() => {
           }
         ],
         matcher: "Bash"
+      },
+      b1a641275edfca16f26bdfd99f9f83f832373ca1da813d96518f7d713b061ae0: {
+        hooks: [
+          {
+            command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/stop-quality.ts',
+            timeout: 2400,
+            type: "command"
+          }
+        ]
       },
       b8663c68fcb3cfa99a5eb61f521ac6ecca05aa4ff8d50f2502b2585845cff640: {
         hooks: [
@@ -15106,8 +15115,8 @@ ${prettier.configEntry}
 ];
 `;
 }
-function hook(command) {
-  return { hooks: [{ type: "command", command }] };
+function hook(command, timeout) {
+  return { hooks: [{ type: "command", command, ...timeout !== undefined && { timeout } }] };
 }
 function asyncRewakeHook(command) {
   return { hooks: [{ type: "command", command, asyncRewake: true }] };
@@ -15162,8 +15171,9 @@ const safewordStrictRules = {
     "no-var": "error",
     "prefer-const": "error",
   },
-};`, CURSOR_HOOKS, HOOKS_DIR = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', EDIT_TOOLS = "Edit|Write|MultiEdit|NotebookEdit", SETTINGS_HOOKS;
+};`, COMPLETION_HOOK_TIMEOUT_SECONDS, CURSOR_HOOKS, HOOKS_DIR = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', EDIT_TOOLS = "Edit|Write|MultiEdit|NotebookEdit", SETTINGS_HOOKS;
 var init_config = __esm(() => {
+  COMPLETION_HOOK_TIMEOUT_SECONDS = 40 * 60;
   CURSOR_HOOKS = {
     sessionStart: [
       { command: "bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor" },
@@ -15174,7 +15184,7 @@ var init_config = __esm(() => {
         command: "bun ./.safeword/hooks/cursor/pre-tool-quality.ts",
         matcher: "Write",
         failClosed: true,
-        timeout: 90
+        timeout: COMPLETION_HOOK_TIMEOUT_SECONDS
       }
     ],
     beforeShellExecution: [
@@ -15211,7 +15221,7 @@ var init_config = __esm(() => {
       hook(`bun ${HOOKS_DIR}/prompt-retro-nudge.ts`)
     ],
     Stop: [
-      hook(`bun ${HOOKS_DIR}/stop-quality.ts`),
+      hook(`bun ${HOOKS_DIR}/stop-quality.ts`, COMPLETION_HOOK_TIMEOUT_SECONDS),
       hook(`bun ${HOOKS_DIR}/stop-reentry.ts`),
       hook(`bun ${HOOKS_DIR}/stop-self-report.ts`),
       hook(`bun ${HOOKS_DIR}/stop-retro-filing.ts`),
@@ -70656,7 +70666,7 @@ async function readBoundIdentity() {
 function dispatch(identity, envelope, directory) {
   const inputText = Object.values(envelope.tool_input).filter(value => typeof value === 'string').join('\n');
   const timeoutMilliseconds = /ticket\.md/u.test(inputText) && /status:\s*['"]?done\b/u.test(inputText)
-    ? 90_000
+    ? ${COMPLETION_HOOK_TIMEOUT_SECONDS * 1000}
     : /\bVERIFIED\b/iu.test(inputText) ? 30_000 : 2_000;
   return new Promise((resolve, reject) => {
     const child = spawn(identity.runtime_path, [identity.dispatcher_path], {
@@ -70760,6 +70770,9 @@ function generateOpenCodeProfilePlugin(options = {}) {
   return profilePluginSource(markerTimeoutMilliseconds);
 }
 var DEFAULT_MARKER_TIMEOUT_MILLISECONDS = 50;
+var init_plugin = __esm(() => {
+  init_config();
+});
 
 // src/opencode/profile.ts
 var exports_profile2 = {};
@@ -71394,6 +71407,8 @@ var init_profile2 = __esm(() => {
   init_catalogue2();
   init_evidence();
   init_identity();
+  init_plugin();
+  init_plugin();
   PROFILE_LOCK_SLEEP = new Int32Array(new SharedArrayBuffer(4));
   UNAVAILABLE_PROTECTION = {
     installed: false,
@@ -83148,7 +83163,7 @@ var init_retrospective_gate2 = __esm(() => {
 // templates/hooks/lib/test-runner.ts
 var BDD_TEST_TIMEOUT_MS, projectDir;
 var init_test_runner = __esm(() => {
-  BDD_TEST_TIMEOUT_MS = 8 * 60000;
+  BDD_TEST_TIMEOUT_MS = 20 * 60000;
   projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 });
 

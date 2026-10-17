@@ -1,5 +1,10 @@
 # Completion timeout prerequisite
 
+**Historical first attempt.** Deduplication and diagnostic repairs remain, but
+the eight-minute allowance below was insufficient on the loaded host. The
+corrected shipping policy is recorded in timeout-final-budget.md; the configured
+600-second host budget was not an immutable platform ceiling.
+
 User authorized this bounded prerequisite on 2026-10-17, then retrying the
 previously authorized admin merge of PR #5897. Original proof-command behavior,
 test filters, scenario corpus, review policy and conservative resolver rules stay
