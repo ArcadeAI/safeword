@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "112d93b5f54027d8bd892306afdcfdbe2a3ddd82f3fe741b6231cde3f7e36440"
+      "sha256": "4960c5871695073c91a904075f1d37fbbc851f5a2b9cbbbe029b4ecd8517bb1c"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "34a55739f6f7e3cf8f21a0e7d772780bca7258f2cda038133576b5a0dbb4f0fd"
+      "sha256": "4b5b3b8def2c21ad95f366e51599171f4d4a909b37783305f9604fa6f9aecc6e"
     },
     {
       "path": "runtime/event-groups.json",
@@ -615,7 +615,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "2072e7d40c34a2eb5b8e15a8066abcd5b60c596af41d4953c7dd686f4dc81e82"
+      "sha256": "ab15412601150bd55a75e03473d04db3e6fc7d2478ddf1c35473d37f139dc84b"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -1583,7 +1583,7 @@
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "467cb0915a6ee0d6a79f9c10c2123a6184df14fab0f7937eddd966227bd22137"
+      "sha256": "8720cf42580341120d2087be5bb8854bd444c169241ad5e51bc118fd53848671"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",

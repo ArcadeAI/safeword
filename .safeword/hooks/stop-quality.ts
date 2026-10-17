@@ -74,6 +74,10 @@ interface ContentItem {
   type: string;
   text?: string;
   name?: string; // tool_use: tool name
+  id?: string; // tool_use: call id
+  input?: { run_in_background?: unknown }; // tool_use: arguments
+  tool_use_id?: string; // tool_result: the call it answers
+  is_error?: boolean; // tool_result: the call failed
 }
 
 interface TranscriptMessage {
@@ -458,9 +462,11 @@ checkArchitectureReviewGate(ticketInfo);
 // the prior bounded fallback. The done phase always falls through to its gate.
 const editsToReview = detectEditsToReview(lines);
 const currentTurnToolEvidence = detectToolUseInCurrentUserTurn(lines, () => true);
+// A turn whose last tool call launches background work is waiting, not handing off;
+// the results arrive in a new turn that is checked on its own stop (#5765, #1431).
 const terminalHandoffEvidence = editsToReview
   ? 'current-turn-edit'
-  : currentTurnToolEvidence === true
+  : currentTurnToolEvidence === true && !endsWaitingOnBackgroundWork(lines)
     ? 'current-turn-tool'
     : 'none';
 
@@ -571,12 +577,14 @@ function detectEditToolsUsedInCurrentUserTurn(
   );
 }
 
-/** Attribute matching tool use only to the user turn that currently ends the transcript. */
-function detectToolUseInCurrentUserTurn(
+/**
+ * Yield the current user turn's messages newest-first. The return value says how
+ * the walk ended: at the turn's start, at the record cap, or at the start of an
+ * unbounded (byte-truncated) tail with no turn boundary.
+ */
+function* currentUserTurnMessages(
   transcriptLines: string[],
-  matches: (name: string | undefined) => boolean,
-): boolean | typeof CURRENT_TURN_BOUNDARY_EXHAUSTED | undefined {
-  let foundTool = false;
+): Generator<TranscriptMessage, 'turn-start' | 'exhausted' | 'no-boundary'> {
   const firstRecord = Math.max(0, transcriptLines.length - MAX_CURRENT_TURN_SCAN_RECORDS);
   for (let i = transcriptLines.length - 1; i >= firstRecord; i--) {
     // An unparseable line is skipped, not a boundary: preserve the legacy
@@ -584,15 +592,62 @@ function detectToolUseInCurrentUserTurn(
     const message = parseTranscriptLine(transcriptLines[i]);
     if (message === undefined) continue;
     const precedingMessage = i > 0 ? parseTranscriptLine(transcriptLines[i - 1]) : undefined;
-    if (startsNewTurn(message, precedingMessage)) return foundTool;
-    if (isAssistantMessage(message)) {
-      foundTool ||= normalizeContentItems(message.message?.content).some(
+    if (startsNewTurn(message, precedingMessage)) return 'turn-start';
+    yield message;
+  }
+  return firstRecord > 0 ? 'exhausted' : 'no-boundary';
+}
+
+/** Attribute matching tool use only to the user turn that currently ends the transcript. */
+function detectToolUseInCurrentUserTurn(
+  transcriptLines: string[],
+  matches: (name: string | undefined) => boolean,
+): boolean | typeof CURRENT_TURN_BOUNDARY_EXHAUSTED | undefined {
+  let foundTool = false;
+  const walk = currentUserTurnMessages(transcriptLines);
+  for (let step = walk.next(); ; step = walk.next()) {
+    if (step.done) {
+      if (step.value === 'turn-start') return foundTool;
+      return step.value === 'exhausted' ? CURRENT_TURN_BOUNDARY_EXHAUSTED : undefined;
+    }
+    if (isAssistantMessage(step.value)) {
+      foundTool ||= normalizeContentItems(step.value.message?.content).some(
         item => item.type === 'tool_use' && matches(item.name),
       );
     }
   }
-  if (firstRecord > 0) return CURRENT_TURN_BOUNDARY_EXHAUSTED;
-  return undefined;
+}
+
+/**
+ * Whether the current user turn's final tool call launched background work that
+ * actually started — an errored launch started nothing, so the turn is not waiting.
+ */
+function endsWaitingOnBackgroundWork(transcriptLines: string[]): boolean {
+  // Results follow their call, so scanning backward meets a failed result first.
+  const failedToolUseIds = new Set<string>();
+  for (const message of currentUserTurnMessages(transcriptLines)) {
+    const content = normalizeContentItems(message.message?.content);
+    if (!isAssistantMessage(message)) {
+      for (const item of content) {
+        if (item.type === 'tool_result' && item.is_error === true && item.tool_use_id) {
+          failedToolUseIds.add(item.tool_use_id);
+        }
+      }
+      continue;
+    }
+    const toolUse = content.findLast(item => item.type === 'tool_use');
+    if (toolUse) return isBackgroundLaunch(toolUse) && !failedToolUseIds.has(toolUse.id ?? '');
+  }
+  return false;
+}
+
+/** Claude Code's background launches: Bash/Agent with run_in_background, and Monitor. */
+function isBackgroundLaunch(toolUse: ContentItem): boolean {
+  if (toolUse.name === 'Monitor') return true;
+  return (
+    (toolUse.name === 'Bash' || toolUse.name === 'Agent') &&
+    toolUse.input?.run_in_background === true
+  );
 }
 
 function normalizeContentItems(content: ContentItem[] | string | undefined): ContentItem[] {
