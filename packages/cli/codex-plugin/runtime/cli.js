@@ -21031,6 +21031,7 @@ function buildCodexExtractArgv(options) {
     "hooks",
     "-c",
     "mcp_servers={}",
+    ...options.model === DEFAULT_CODEX_RETRO_MODEL ? ["-c", 'model_reasoning_effort="low"'] : [],
     "--output-schema",
     options.schemaPath,
     "-o",
@@ -21251,7 +21252,7 @@ function buildDigest(rawTranscript, cap = DIGEST_CAP) {
 `);
   return digest.length > cap ? digest.slice(0, cap) : digest;
 }
-var DIGEST_CAP = 180000, DEFAULT_CLAUDE_RETRO_MODEL = "sonnet", DEFAULT_CODEX_RETRO_MODEL = "gpt-5.5", DEFAULT_CURSOR_RETRO_MODEL = "auto", DEFAULT_RETRO_MODEL, OVERLAP_CHARS = 2048, READ_ONLY_TOOLS = "Read", RETRO_CHILD_ENV = "SAFEWORD_RETRO_CHILD", RETRO_EXTRACT_CMD_ENV = "SAFEWORD_RETRO_EXTRACT_CMD", EXTRACT_SYSTEM_PROMPT, CODEX_RETRO_OUTPUT_SCHEMA, FINDING_KEYS, SHORT_RESULT = 600, TOOL_USE_INPUT_CAP = 300, FRICTION;
+var DIGEST_CAP = 180000, DEFAULT_CLAUDE_RETRO_MODEL = "sonnet", DEFAULT_CODEX_RETRO_MODEL = "gpt-6-luna", DEFAULT_CURSOR_RETRO_MODEL = "auto", DEFAULT_RETRO_MODEL, OVERLAP_CHARS = 2048, READ_ONLY_TOOLS = "Read", RETRO_CHILD_ENV = "SAFEWORD_RETRO_CHILD", RETRO_EXTRACT_CMD_ENV = "SAFEWORD_RETRO_EXTRACT_CMD", EXTRACT_SYSTEM_PROMPT, CODEX_RETRO_OUTPUT_SCHEMA, FINDING_KEYS, SHORT_RESULT = 600, TOOL_USE_INPUT_CAP = 300, FRICTION;
 var init_retro_extract = __esm(() => {
   init_jsonl_spool();
   DEFAULT_RETRO_MODEL = DEFAULT_CLAUDE_RETRO_MODEL;
