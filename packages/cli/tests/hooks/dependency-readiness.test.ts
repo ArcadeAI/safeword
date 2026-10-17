@@ -677,7 +677,9 @@ describe('dependency readiness hook support', () => {
     expect(stale.status).toBe('stale');
 
     const recovery = formatDependencyRecovery(stale);
-    expect(recovery).toContain('bun ci && touch node_modules/.safeword-deps-reinstalled');
+    expect(recovery).toContain(
+      `bun ci && touch node_modules/.safeword-deps-reinstalled-${stale.fingerprint?.slice(0, 12)}`,
+    );
     expect(recovery).not.toContain('If it reports no changes');
   });
 
@@ -719,67 +721,97 @@ describe('dependency readiness hook support', () => {
     expect(recovery).not.toContain('pins');
   });
 
-  it('ignores a reinstall sentinel older than the changed inputs', () => {
+  function reinstallSentinel(fingerprint: string | undefined): string {
+    return path.join(
+      projectDirectory,
+      'node_modules',
+      `.safeword-deps-reinstalled-${fingerprint?.slice(0, 12)}`,
+    );
+  }
+
+  it('ignores a reinstall sentinel recorded for different inputs', () => {
+    writeBunProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    const before = getDependencyReadiness(projectDirectory);
+    writeInstallMarker(projectDirectory, before);
+    writeFileSync(reinstallSentinel(before.fingerprint), '');
+
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+  });
+
+  it('leaves a rejected sentinel in place so the mtime fallback cannot be refreshed by its removal', () => {
     writeBunProject();
     const artifact = path.join(projectDirectory, 'node_modules');
     mkdirSync(artifact);
-    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
-    const sentinel = path.join(artifact, '.safeword-deps-reinstalled');
+    // No fingerprint marker yet: readiness falls back to artifact-vs-input mtime.
+    const sentinel = reinstallSentinel('0'.repeat(64));
     writeFileSync(sentinel, '');
     const past = new Date(Date.now() - 60_000);
-    utimesSync(sentinel, past, past);
     utimesSync(artifact, past, past);
 
-    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
-
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+    expect(existsSync(sentinel)).toBe(true);
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
   });
 
-  it('ignores a reinstall sentinel that predates a later interrupted install', () => {
+  it('accepts a matching sentinel even when a failed bootstrap shares its timestamp', () => {
     writeBunProject();
-    const artifact = path.join(projectDirectory, 'node_modules');
-    mkdirSync(artifact);
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
     writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
     writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
-    const inputsChanged = new Date(Date.now() - 60_000);
-    for (const input of ['package.json', 'bun.lock', 'packages/cli/package.json']) {
-      utimesSync(path.join(projectDirectory, input), inputsChanged, inputsChanged);
-    }
-    const sentinel = path.join(artifact, '.safeword-deps-reinstalled');
-    writeFileSync(sentinel, '');
-    const sentinelTouched = new Date(Date.now() - 30_000);
-    utimesSync(sentinel, sentinelTouched, sentinelTouched);
-    const plan = detectDependencyPlan(projectDirectory);
-    if (plan === undefined) throw new Error('expected a dependency plan for the bun fixture');
+    const stale = getDependencyReadiness(projectDirectory);
+    // A coarse filesystem clock can date the sentinel at or before the failed
+    // attempt it recovers from; a later-dated failure record is the extreme case.
     writeDependencyReadinessState(projectDirectory, {
-      status: 'installing',
+      status: 'failed',
       reason: 'install_artifact_stale',
-      fingerprint: dependencyInputFingerprint(projectDirectory, plan),
+      fingerprint: stale.fingerprint,
       installCommand: 'bun ci',
-      updatedAt: new Date(Date.now() - 1000).toISOString(),
+      updatedAt: new Date(Date.now() + 60_000).toISOString(),
     });
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    writeFileSync(reinstallSentinel(stale.fingerprint), '');
+
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+  });
+
+  it('does not let a leftover sentinel vouch for inputs after an A → B → A change', () => {
+    writeBunProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    const inputsA = getDependencyReadiness(projectDirectory);
+    writeInstallMarker(projectDirectory, inputsA);
+    // The recovery is rerun after readiness already cleared, leaving a sentinel for A.
+    writeFileSync(reinstallSentinel(inputsA.fingerprint), '');
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+
+    // Inputs move to B and B's recovery succeeds: node_modules now holds B.
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile B');
+    const inputsB = getDependencyReadiness(projectDirectory);
+    writeFileSync(reinstallSentinel(inputsB.fingerprint), '');
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+
+    // Back to A: nothing proves node_modules was reinstalled for A.
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile');
 
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
   });
 
-  it('converts a fresh reinstall sentinel into the content marker, so content stays authoritative', () => {
+  it('converts a matching reinstall sentinel into the content marker, so content stays authoritative', () => {
     writeBunProject();
     const artifact = path.join(projectDirectory, 'node_modules');
     mkdirSync(artifact);
     writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
     writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
-    // Backdate every input: coarse filesystem clocks can give a same-tick
-    // sentinel the inputs' exact mtime, which the strict newer-than check rejects.
-    const past = new Date(Date.now() - 60_000);
-    for (const input of ['package.json', 'bun.lock', 'packages/cli/package.json']) {
-      utimesSync(path.join(projectDirectory, input), past, past);
-    }
-    writeFileSync(path.join(artifact, '.safeword-deps-reinstalled'), '');
+    const sentinel = reinstallSentinel(getDependencyReadiness(projectDirectory).fingerprint);
+    writeFileSync(sentinel, '');
 
     const ready = getDependencyReadiness(projectDirectory);
 
     expect(ready.status).toBe('ready');
-    expect(existsSync(path.join(artifact, '.safeword-deps-reinstalled'))).toBe(false);
+    expect(existsSync(sentinel)).toBe(false);
     expect(readFileSync(path.join(artifact, '.safeword-deps-fingerprint'), 'utf8')).toBe(
       ready.fingerprint,
     );
@@ -805,17 +837,19 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
 
     const stale = getDependencyReadiness(projectDirectory);
-    // Keep the inputs strictly older than the sentinel the recovery touches,
-    // even on filesystems with coarse mtime granularity.
-    const inputsChanged = new Date(Date.now() - 30_000);
+    // Future-dated inputs (clock skew, extracted archives) and same-tick
+    // timestamps must not keep a successful recovery blocked.
+    const future = new Date(Date.now() + 3_600_000);
     for (const input of ['package.json', 'bun.lock', 'packages/cli/package.json']) {
-      utimesSync(path.join(projectDirectory, input), inputsChanged, inputsChanged);
+      utimesSync(path.join(projectDirectory, input), future, future);
     }
     const recovery = formatDependencyRecovery({ ...stale, installCommand: 'true' })
       .split('\n')
       .at(-1)
       ?.trim();
-    expect(recovery).toBe('true && touch node_modules/.safeword-deps-reinstalled');
+    expect(recovery).toBe(
+      `true && touch node_modules/.safeword-deps-reinstalled-${stale.fingerprint?.slice(0, 12)}`,
+    );
     expect(spawnSync('sh', ['-c', recovery ?? 'false'], { cwd: projectDirectory }).status).toBe(0);
     expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });

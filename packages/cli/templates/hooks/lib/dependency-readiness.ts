@@ -66,7 +66,9 @@ export type DependencyBootstrapResult =
 
 const INSTALL_ARTIFACT = 'node_modules';
 const INSTALL_MARKER_FILENAME = '.safeword-deps-fingerprint';
-const REINSTALL_SENTINEL_FILENAME = '.safeword-deps-reinstalled';
+const REINSTALL_SENTINEL_PREFIX = '.safeword-deps-reinstalled-';
+/** Fingerprint characters in a sentinel name: enough to tie it to one input state. */
+const REINSTALL_SENTINEL_FINGERPRINT_LENGTH = 12;
 const DEPENDENCY_STATE_FILENAME = 'dependency-readiness.json';
 const DEPENDENCY_BOOTSTRAP_LOCK_DIRECTORY = '.dependency-bootstrap.lock';
 const BUN_LOCKFILES = ['bun.lock', 'bun.lockb'];
@@ -380,10 +382,7 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
 
   // A matching marker is proof that a later install completed successfully.
   // Let that proof supersede durable failure state left by an earlier attempt.
-  if (
-    marker === fingerprint ||
-    consumeReinstallSentinel(projectDirectory, plan, fingerprint, previousState)
-  ) {
+  if (marker === fingerprint || consumeReinstallSentinel(projectDirectory, plan, fingerprint)) {
     return {
       status: 'ready',
       reason: 'install_artifact_current',
@@ -736,41 +735,65 @@ function stampInstallMarker(
   } catch {
     // The marker shares node_modules' lifecycle and is best-effort. A failure
     // to stamp it simply falls back to the mtime check on the next read.
+    return;
+  }
+  clearReinstallSentinels(projectDirectory, plan);
+}
+
+/**
+ * A new marker supersedes every reinstall sentinel: each one vouched for an
+ * install that the tree may no longer hold. Left behind, a sentinel for inputs
+ * A would mark A ready again after an A → B → A change while node_modules holds
+ * B. Runs only after the marker is written, so the removal's mtime bump cannot
+ * reach the marker-less mtime fallback.
+ */
+function clearReinstallSentinels(projectDirectory: string, plan: DependencyPlan): void {
+  const artifactPath = nodePath.join(projectDirectory, plan.installArtifact);
+  try {
+    for (const entry of readdirSync(artifactPath)) {
+      if (entry.startsWith(REINSTALL_SENTINEL_PREFIX)) {
+        rmSync(nodePath.join(artifactPath, entry), { force: true });
+      }
+    }
+  } catch {
+    // Best-effort, like the marker itself.
   }
 }
 
 /**
- * The stale recovery ends in `touch <artifact>/.safeword-deps-reinstalled`, which
- * runs only after its install succeeds. A sentinel newer than every input and
- * any recorded install attempt therefore proves a later install. Converting it
+ * The stale recovery ends in `touch <artifact>/.safeword-deps-reinstalled-<fp>`,
+ * where `<fp>` comes from the inputs the message was rendered for, and the touch
+ * runs only after its install succeeds. A sentinel naming the current inputs
+ * therefore proves an install completed against exactly this content, with no
+ * timestamp comparison that coarse or skewed clocks could defeat. Converting it
  * straight into the fingerprint marker keeps content authoritative afterwards.
- * It replaces `rm -f <marker> && touch <artifact>`, which host command policies
- * reject (#5188, #5647).
+ * A rejected sentinel is left alone: deleting it would bump the artifact's
+ * mtime and could satisfy the marker-less mtime fallback. Stamping the marker
+ * clears every sentinel (see {@link clearReinstallSentinels}). Durable
+ * `installing`/`failed` state cannot predate a matching sentinel: a bootstrap
+ * reads readiness (consuming any sentinel) before recording its attempt, so a
+ * sentinel present afterwards came from a later successful recovery. It replaces
+ * `rm -f <marker> && touch <artifact>`, which host command policies reject
+ * (#5188, #5647).
  */
 function consumeReinstallSentinel(
   projectDirectory: string,
   plan: DependencyPlan,
   fingerprint: string,
-  previousState: DependencyReadinessState | undefined,
 ): boolean {
   const sentinelPath = nodePath.join(
     projectDirectory,
     plan.installArtifact,
-    REINSTALL_SENTINEL_FILENAME,
+    reinstallSentinelFilename(fingerprint),
   );
-  const sentinelMtime = getMtimeMs(sentinelPath);
-  if (sentinelMtime === undefined) return false;
-  rmSync(sentinelPath, { force: true });
+  if (!existsSync(sentinelPath)) return false;
 
-  const lastAttempt =
-    previousState?.status === 'installing' || previousState?.status === 'failed'
-      ? Date.parse(previousState.updatedAt)
-      : 0;
-  if (sentinelMtime <= latestInputMtime(projectDirectory, plan) || sentinelMtime <= lastAttempt) {
-    return false;
-  }
   stampInstallMarker(projectDirectory, plan, fingerprint);
   return true;
+}
+
+function reinstallSentinelFilename(fingerprint: string): string {
+  return `${REINSTALL_SENTINEL_PREFIX}${fingerprint.slice(0, REINSTALL_SENTINEL_FINGERPRINT_LENGTH)}`;
 }
 
 function getDependencyReadinessIgnoringInstallState(projectDirectory: string): DependencyReadiness {
@@ -840,17 +863,17 @@ export function toDependencyReadinessState(
 }
 
 function dependencyRecoveryCommand(readiness: DependencyReadiness): string {
-  const { installCommand, plan, status } = readiness;
+  const { installCommand, plan, status, fingerprint } = readiness;
   if (installCommand === undefined) return 'install dependencies';
 
   // A version-bump pull changes the input fingerprint without changing resolved
   // dependencies, so the install reports "no changes" and does not refresh the
   // marker — which would otherwise leave this stale check looping. No package
   // manager offers a cheap "lockfile already satisfied" probe (pnpm#4861), so
-  // touch a reinstall sentinel after the install succeeds. This also works on
-  // hosts with no PostToolUse stamping (Codex) or an older hook loaded.
-  if (status !== 'stale' || plan === undefined) return installCommand;
-  return `${installCommand} && touch ${plan.installArtifact}/${REINSTALL_SENTINEL_FILENAME}`;
+  // touch a sentinel naming these inputs after the install succeeds. This also
+  // works on hosts with no PostToolUse stamping (Codex) or an older hook loaded.
+  if (status !== 'stale' || plan === undefined || fingerprint === undefined) return installCommand;
+  return `${installCommand} && touch ${plan.installArtifact}/${reinstallSentinelFilename(fingerprint)}`;
 }
 
 export function formatDependencyRecovery(readiness: DependencyReadiness): string {
@@ -1344,15 +1367,13 @@ function isInstallArtifactStale(
   const artifactMtime = getMtimeMs(artifactPath);
   if (artifactMtime === undefined) return true;
 
-  return artifactMtime + 1000 < latestInputMtime(projectDirectory, plan);
-}
-
-function latestInputMtime(projectDirectory: string, plan: DependencyPlan): number {
-  return Math.max(
+  const latestInputMtime = Math.max(
     ...plan.inputPaths.map(
       inputPath => getMtimeMs(nodePath.join(projectDirectory, inputPath)) ?? 0,
     ),
   );
+
+  return artifactMtime + 1000 < latestInputMtime;
 }
 
 function readJsonFile<T>(filePath: string): T | undefined {

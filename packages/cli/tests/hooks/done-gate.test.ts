@@ -9,7 +9,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -128,16 +128,14 @@ describe('evaluateDoneEvidence', () => {
     const artifact = nodePath.join(projectDirectory, 'node_modules');
     mkdirSync(artifact);
     writeFileSync(nodePath.join(artifact, '.safeword-deps-fingerprint'), 'previous-inputs');
-    const past = new Date(Date.now() - 60_000);
-    for (const input of ['package.json', 'bun.lock']) {
-      utimesSync(nodePath.join(projectDirectory, input), past, past);
-    }
     const params = { projectDir: projectDirectory, ticketDir: ticketDirectory, ticketType: 'task' };
 
     const blocked = evaluateDoneEvidence(params);
     expect(blocked.ok).toBe(false);
     const recovery = blocked.reason?.split('\n').at(-1)?.trim() ?? '';
-    expect(recovery).toBe('bun ci && touch node_modules/.safeword-deps-reinstalled');
+    expect(recovery).toMatch(
+      /^bun ci && touch node_modules\/\.safeword-deps-reinstalled-[0-9a-f]{12}$/,
+    );
 
     // Stub the install itself; the rest of the printed command runs verbatim.
     const run = spawnSync('sh', ['-c', recovery.replace('bun ci', 'true')], {
