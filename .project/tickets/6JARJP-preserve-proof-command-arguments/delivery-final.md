@@ -146,3 +146,47 @@ over process.env before execFile; review/environment.ts explicitly permits each
 provider's profile key. The corrected live run supplies the actual end-to-end
 proof. The earlier scenario reviews apply to unchanged feature text; this fix
 changes profile transport, not the scenario inputs, oracles or promised outcomes.
+
+## Integrity and negative-fixture isolation
+
+The corrected-profile matrix passed 27 of 28 semantic cases. The remaining
+approval control, few-files-two-outcomes, was correctly rejected: its old
+plan-integrity procedure only refused an edited plan and did not prove declared
+metadata coverage or safe predecessor delivery. That failed envelope is retained
+in the log (the output sidecar contains the other 27 returned results).
+
+The shared procedure now independently compares returned/retained decisions,
+prerequisite graph, owners, required proof references and completion signals,
+with record-mutation controls. It adds no edited-plan authorization behavior.
+All approving multi-slice shapes have an independent predecessor response
+comparison before any new consumer exists, with no unavailable switch dependency.
+The few-file proof label and rationale now match that procedure. RED guards
+failed for the missing metadata and unavailable predecessor; their GREEN runs
+and all source snapshots are retained.
+
+Two residual negatives were also cleaned up: missing ownership no longer claims
+there are two recorded decisions after one is removed; reopened ownership now
+uses per-transport responsibility consistently in its Execution Plan while the
+unchanged accepted approach requires a shared service. Their expectations stay
+Implementation Planning. The last four-file run passed 73 tests; post-main core
+reconciliation passed 269 tests with two existing platform skips.
+
+Review 11cfb445-9261-44e1-9552-d0a4ba29b4d1 approved the final bank without errors.
+Its predecessor warning is answered by retaining the same support requirement
+in positive and negative plans: a planned assertion is not a passing proof.
+The unsafe plan's explicit required unsupported state cannot satisfy that test
+before its missing consumer ships, which is its intended dependency defect.
+Selecting weaker procedures by the expected verdict would leak the oracle into
+input construction. Missing-proof retains a global table but assigns no slice
+proof or verification procedure; the denial must identify that slice.
+
+## Latest main reconciliation
+
+Main cfe93e30 (#5911) advanced during verification. It was merged; only generated
+identity/inventory conflicts required resolution, followed by regeneration and
+verification of all five surfaces. The four production repair modules remain
+byte-identical to CI-green 72129cbf1. Main also supplied urllib3 2.8.0; frozen uv
+sync and a fresh uv audit now pass with no known vulnerabilities. The previous
+Python audit result remains historical evidence. No dependency diff is introduced
+relative to current main. The newer checked project pr-ready workflow will be
+used for promotion after final exact-head evidence and ticket closure.

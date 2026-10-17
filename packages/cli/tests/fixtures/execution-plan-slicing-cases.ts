@@ -237,7 +237,16 @@ function acceptance(testCase: ExecutionPlanConformanceCase): SlicingAcceptanceCa
         one,
         '- One shared authorization service owns permission checks for every transport.: unchanged',
         '- Each transport owns its own independent authorization checks: changed from the accepted shared-service decision.',
-      ),
+      )
+        .replaceAll(
+          'accepted shared authorization service',
+          'independent per-transport authorization checks',
+        )
+        .replaceAll('shared authorization', 'independent per-transport authorization')
+        .replaceAll(
+          'separate per-transport checks fail the shared-service assertion',
+          'a shared owner fails the per-transport ownership assertion',
+        ),
       expectation: { ...testCase.expectation, finding_subject: 'decision' },
     };
   }
@@ -356,7 +365,11 @@ export const EXECUTION_PLAN_SLICING_CASES: readonly SlicingAcceptanceCase[] = [
       '',
     )
       .replaceAll('accepted shared authorization service', 'authorization boundary')
-      .replaceAll('; separate per-transport checks fail the shared-service assertion', ''),
+      .replaceAll('; separate per-transport checks fail the shared-service assertion', '')
+      .replaceAll(
+        'Preserve both recorded implementation decisions.',
+        'Preserve every recorded implementation decision.',
+      ),
     expectation: {
       verdict: 'request_changes',
       planning_destination: 'plan-implementation',

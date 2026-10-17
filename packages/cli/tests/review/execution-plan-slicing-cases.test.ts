@@ -25,21 +25,23 @@ describe('single-defect slicing acceptance fixtures', () => {
     }
   });
 
-  it.each(['few-files-two-outcomes', 'ordered-schema-before-reader', 'several-ordered-changes'])(
-    'proves %s predecessor delivery without a future activation dependency',
-    id => {
-      const testCase = EXECUTION_PLAN_SLICING_CASES.find(candidate => candidate.id === id);
-      if (testCase === undefined) throw new Error('Missing two-outcome positive');
-      const inert = testCase.execution_plan.split(/^### /mu, 2)[1];
-      if (inert === undefined) throw new Error('Missing predecessor slice');
-      expect(inert).toContain('fixture.expected_cli_response');
-      expect(inert).toContain('before any new consumer exists');
-      expect(inert).not.toContain('activation disabled');
-      expect(inert).toContain('installed-package consumer');
-      expect(testCase.execution_plan).not.toContain('Only two files change');
-      expect(testCase.expectation.verdict).toBe('approve');
-    },
-  );
+  it.each([
+    'few-files-two-outcomes',
+    'ordered-schema-before-reader',
+    'several-ordered-changes',
+    'all-obligations-assigned',
+  ])('proves %s predecessor delivery without a future activation dependency', id => {
+    const testCase = EXECUTION_PLAN_SLICING_CASES.find(candidate => candidate.id === id);
+    if (testCase === undefined) throw new Error('Missing two-outcome positive');
+    const inert = testCase.execution_plan.split(/^### /mu, 2)[1];
+    if (inert === undefined) throw new Error('Missing predecessor slice');
+    expect(inert).toContain('fixture.expected_cli_response');
+    expect(inert).toContain('before any new consumer exists');
+    expect(inert).not.toContain('activation disabled');
+    expect(inert).toContain('installed-package consumer');
+    expect(testCase.execution_plan).not.toContain('Only two files change');
+    expect(testCase.expectation.verdict).toBe('approve');
+  });
 
   it.each([
     ['missing-purpose', 'Purpose'],
@@ -159,6 +161,31 @@ describe('single-defect slicing acceptance fixtures', () => {
     );
   });
 
+  it('keeps a reopened owner internally consistent while contradicting the accepted approach', () => {
+    const baseline = EXECUTION_PLAN_SLICING_CASES.find(
+      candidate => candidate.id === 'one-coherent-change',
+    );
+    const reopened = EXECUTION_PLAN_SLICING_CASES.find(
+      candidate => candidate.id === 'reopened-authorization-decision',
+    );
+    if (baseline === undefined || reopened === undefined)
+      throw new Error('Missing reopened-decision pair');
+    expect(reopened.implementation_plan).toBe(baseline.implementation_plan);
+    expect(reopened.scenario).toBe(baseline.scenario);
+    expect(reopened.implementation_plan).toContain(
+      'One shared authorization service owns permission checks',
+    );
+    expect(reopened.execution_plan).toContain('independent per-transport authorization checks');
+    expect(reopened.execution_plan).not.toContain('shared authorization');
+    expect(reopened.execution_plan).not.toContain(
+      'separate per-transport checks fail the shared-service assertion',
+    );
+    expect(reopened.expectation).toMatchObject({
+      verdict: 'request_changes',
+      planning_destination: 'plan-implementation',
+    });
+  });
+
   it('routes genuinely missing authorization ownership to Implementation Planning', () => {
     const baseline = EXECUTION_PLAN_SLICING_CASES.find(
       candidate => candidate.id === 'one-coherent-change',
@@ -176,6 +203,10 @@ describe('single-defect slicing acceptance fixtures', () => {
     expect(missing.execution_plan).not.toContain(`- ${acceptedDecision}: unchanged`);
     expect(missing.execution_plan).not.toContain('accepted shared authorization service');
     expect(missing.execution_plan).not.toContain('shared-service assertion');
+    expect(missing.execution_plan).toContain('Preserve every recorded implementation decision.');
+    expect(missing.execution_plan).not.toContain(
+      'Preserve both recorded implementation decisions.',
+    );
     expect(missing.scenario).not.toContain('shared authorization service');
     expect(missing.execution_plan).toContain('authorization ownership remains undecided');
     for (const input of [missing.implementation_plan, missing.execution_plan, missing.scenario])
