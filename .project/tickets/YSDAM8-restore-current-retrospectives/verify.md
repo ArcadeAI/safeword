@@ -6,6 +6,10 @@ completion claim.
 
 ## Change and scope
 
+**PR Scope:** ✅ Inspected all 17 changed files against main: only the Codex
+default, existing test expectations, required generated/dogfood output, and
+this task's evidence are included. No PR has been opened for this branch.
+
 Codex defaults to `gpt-6-astra`, resolved from official current OpenAI guidance
 on 2026-10-17. Claude stays on the latest `sonnet` alias; Cursor stays on `auto`.
 Explicit `retro.model` overrides, prompts, containment, auth, and PR review
