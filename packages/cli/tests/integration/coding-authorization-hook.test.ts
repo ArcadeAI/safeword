@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -25,7 +33,13 @@ describe('coding authorization edit hook', () => {
     writeFileSync(nodePath.join(pluginRoot, 'response.json'), JSON.stringify(response));
   }
 
-  function runEdit(filePath = sourcePath) {
+  function runEdit(filePath = sourcePath, pluginDirectory = pluginRoot) {
+    const environment: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: pluginDirectory,
+      CLAUDE_PROJECT_DIR: projectRoot,
+    };
+    delete environment.SAFEWORD_PLUGIN_CLI;
     return spawnSync('bun', [HOOK_PATH], {
       cwd: projectRoot,
       input: JSON.stringify({
@@ -40,11 +54,7 @@ describe('coding authorization edit hook', () => {
       }),
       encoding: 'utf8',
       timeout: TIMEOUT_QUICK,
-      env: {
-        ...process.env,
-        CLAUDE_PLUGIN_ROOT: pluginRoot,
-        CLAUDE_PROJECT_DIR: projectRoot,
-      },
+      env: environment,
     });
   }
 
@@ -217,6 +227,36 @@ describe('coding authorization edit hook', () => {
     expect(result.stdout).not.toContain('The accepted Implementation Plan changed after review.');
     const calls = readFileSync(nodePath.join(pluginRoot, 'calls.log'), 'utf8').trim().split('\n');
     expect(calls).toHaveLength(1);
+  });
+
+  it('refuses a plugin CLI inside the project instead of trusting its authorization', () => {
+    writeCliResponse({
+      schema_version: 1,
+      ok: true,
+      state: 'healthy',
+      changed: false,
+      findings: [],
+      effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
+      errors: [],
+      recovery: [],
+      next_actions: [],
+      data: {
+        command: 'ticket coding-authorization',
+        coding_authorization: 'authorized',
+        achieved_independence: 'cross-agent',
+        grants_authority: false,
+        authorization_input_identity: 'current-plans',
+      },
+    });
+    const projectPlugin = nodePath.join(projectRoot, 'vendor', 'safeword-plugin');
+    cpSync(pluginRoot, projectPlugin, { recursive: true });
+
+    const result = runEdit(sourcePath, projectPlugin);
+
+    expect(result.error, result.stderr).toBeUndefined();
+    expectHookDeny(result, 'Safeword refused a project-writable coding-authorization command.');
+    expect(result.stdout).not.toContain(RED_ACTION);
+    expect(existsSync(nodePath.join(projectPlugin, 'calls.log'))).toBe(false);
   });
 
   it('allows the named RED test file to be authored before production code', () => {
