@@ -3,7 +3,7 @@
  *
  * The per-language test command is resolved by the single source of truth —
  * `safeword project test-plan --kind test --json` — not duplicated here. This hook only
- * EXECUTES the resolved test and acceptance commands (timeout-safe, no zombies).
+ * executes the resolved test and acceptance commands with per-command timeouts.
  *
  * Shipped hooks cannot import safeword code, so we reach the resolver via the
  * CLI (the `safewordCliCommand()` installed→source→bunx pattern, mirroring lint.ts).
@@ -72,10 +72,11 @@ const TEST_TIMEOUT_MS = 60_000;
 
 /**
  * The explicit acceptance lane can be materially slower than its unit-test
- * counterpart. Keep it bounded below Codex Stop's 600-second timeout without
- * rejecting a passing BDD suite solely for taking longer than a minute.
+ * counterpart: the dogfood suite passed in about twelve minutes on a busy host.
+ * Native completion callbacks allow forty minutes for this lane, fast tests,
+ * plan resolution and (on Codex) bounded retrospective work.
  */
-const BDD_TEST_TIMEOUT_MS = 5 * 60_000;
+const BDD_TEST_TIMEOUT_MS = 20 * 60_000;
 
 /** Resolve the bounded execution budget for a planned test command. */
 export function timeoutMsForTestCommand(kind: TestCommand['kind']): number {
@@ -239,7 +240,7 @@ function runSingleTestCommand(testCommand: TestCommand): {
       killed?: boolean;
     };
 
-    if (err.killed) {
+    if (err.code === 'ETIMEDOUT' || err.killed) {
       return {
         passed: false,
         output: `$ ${testCommand.command}\n${testCommand.script} timed out after ${
@@ -267,7 +268,7 @@ function runSingleTestCommand(testCommand: TestCommand): {
  * Run the project's test suite and return the result.
  *
  * - Resolves unit/native and acceptance commands from `safeword project test-plan`.
- * - Uses execSync for synchronous, timeout-safe execution (no zombie processes).
+ * - Uses execSync for synchronous execution with a configured timeout.
  * - Returns skipped=true if no runnable command was found (caller should not block).
  */
 export function runTests(cwd: string = projectDir): TestResult {
@@ -284,6 +285,7 @@ export function runTests(cwd: string = projectDir): TestResult {
   if (commands.length === 0) return { passed: true, output: '', skipped: true };
 
   const outputs: string[] = [];
+  const failureOutputs: string[] = [];
   const unavailableDiagnostics: string[] = [];
   let passed = true;
   let toolchainMissing = false;
@@ -291,12 +293,14 @@ export function runTests(cwd: string = projectDir): TestResult {
   for (const testCommand of commands) {
     const result = runSingleTestCommand(testCommand);
     outputs.push(result.output);
+    if (!result.passed) failureOutputs.push(result.output);
     if (!testCommand.available) unavailableDiagnostics.push(result.output);
     passed &&= result.passed;
     toolchainMissing ||= result.toolchainMissing === true;
   }
 
-  const truncatedOutput = truncateOutput(outputs.join('\n\n'));
+  // A later successful suite's progress output must not erase the failure.
+  const truncatedOutput = truncateOutput([...outputs, ...failureOutputs].join('\n\n'));
   const omittedDiagnostics = unavailableDiagnostics.filter(
     diagnostic => !truncatedOutput.includes(diagnostic),
   );
