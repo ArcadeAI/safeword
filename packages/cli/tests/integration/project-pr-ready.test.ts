@@ -177,12 +177,16 @@ describe('project pr-ready validation (#5511)', () => {
     expect(project.calls().map(call => call.args[1])).toEqual(['view']);
   });
 
-  it('checks evidence before skipping mutation for an already-Ready PR', () => {
+  it('skips mutation for an already-Ready PR with valid evidence', () => {
     const project = fixture();
     const result = project.run(undefined, { GH_TEST_MODE: 'already-ready' });
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({ ok: true, changed: false });
     expect(project.calls().map(call => call.args[1])).toEqual(['view']);
+  });
+
+  it('refuses an already-Ready PR without readiness evidence', () => {
+    const project = fixture();
     rmSync(nodePath.join(project.delivery, '.project/readiness-ticket.json'));
     const refused = project.run(undefined, { GH_TEST_MODE: 'already-ready' });
     expect(refused.status).toBe(2);
@@ -191,7 +195,7 @@ describe('project pr-ready validation (#5511)', () => {
       changed: false,
       findings: [{ code: 'PR_READY_NOT_FINISHED' }],
     });
-    expect(project.calls().map(call => call.args[1])).toEqual(['view']);
+    expect(project.calls()).toEqual([]);
   });
 
   it('reports a failed Ready operation without claiming success', () => {
@@ -212,7 +216,7 @@ describe('project pr-ready validation (#5511)', () => {
     expect(project.calls().map(call => call.args[1])).toEqual(['view', 'ready']);
   });
 
-  it('uses an explicit PR number and refuses inconsistent lookup results', () => {
+  it('uses an explicit PR number for inspection and promotion', () => {
     const project = fixture();
     expect(project.run(undefined, {}, ['37']).status).toBe(0);
     expect(project.calls()[0]?.args).toEqual([
@@ -222,12 +226,17 @@ describe('project pr-ready validation (#5511)', () => {
       '--json',
       'number,headRefOid,isDraft,state',
     ]);
+    expect(project.calls()[1]?.args).toEqual(['pr', 'ready', '37']);
+  });
+
+  it('refuses an explicit PR number with inconsistent lookup results', () => {
+    const project = fixture();
     const wrong = project.run(undefined, {}, ['42']);
     expect(JSON.parse(wrong.stdout)).toMatchObject({
       ok: false,
       errors: [{ code: 'PR_READY_INVALID_RESPONSE' }],
     });
-    expect(project.calls().filter(call => call.args[1] === 'ready')).toHaveLength(1);
+    expect(project.calls().filter(call => call.args[1] === 'ready')).toHaveLength(0);
   });
 
   it('ignores unrelated session state when selecting readiness evidence', () => {
