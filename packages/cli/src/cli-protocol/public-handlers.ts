@@ -437,6 +437,15 @@ async function recordSkillInvocationHandler(invocation: CommandInvocation): Prom
   );
 }
 
+async function projectPrReadyHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('project pr-ready');
+  const pull = invocation.operands[0];
+  if (pull !== undefined && typeof pull !== 'string')
+    return invalidOperand('project pr-ready', 'Pull request number must be text.');
+  const { runProjectPrReady } = await import('../commands/project-pr-ready.js');
+  return runProjectPrReady(invocation.cwd, pull);
+}
+
 async function projectRuntimeHandler(invocation: CommandInvocation): Promise<CliResult> {
   const helper = invocation.operands[0];
   if (helper !== undefined && typeof helper !== 'string')
@@ -526,6 +535,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project test-plan': testPlanHandler,
   'project namespace-root': namespaceRootHandler,
   'project audit-scope': auditScopeHandler,
+  'project pr-ready': projectPrReadyHandler,
   'project record-skill-invocation': recordSkillInvocationHandler,
   'project runtime': projectRuntimeHandler,
   'project review-knowledge': reviewKnowledgeHandler,

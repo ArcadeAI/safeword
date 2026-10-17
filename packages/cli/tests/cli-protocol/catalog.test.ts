@@ -124,6 +124,7 @@ describe('CLI command catalog', () => {
       'project test-execution remote setup',
       'project test-execution remote disable',
       'project lint-gherkin',
+      'project pr-ready',
       'project audit-scope',
       'project record-skill-invocation',
       'project runtime',
