@@ -43,7 +43,10 @@ describe('Cucumber config targeted path handling', () => {
       readFileSync(nodePath.join(REPO_ROOT, 'packages/cli/package.json'), 'utf8'),
     ) as { scripts?: Record<string, string> };
 
-    expect(packageJson.scripts?.['test:bdd']).toMatch(/^bun run --cwd packages\/cli build && /u);
+    expect(packageJson.scripts?.['pretest:bdd']).toBe(
+      'bun run --cwd packages/cli build && bun run --cwd packages/retro-relay build',
+    );
+    expect(packageJson.scripts?.['test:bdd']).toBe('bun run --cwd packages/cli test:bdd');
     expect(cliPackageJson.scripts?.['test:bdd']).toBe(
       'bun run test:bdd:acceptance && bun run test:bdd:proof',
     );

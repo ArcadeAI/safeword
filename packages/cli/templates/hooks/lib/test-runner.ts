@@ -73,9 +73,10 @@ const TEST_TIMEOUT_MS = 60_000;
 /**
  * The explicit acceptance lane can be materially slower than its unit-test
  * counterpart. Keep it bounded below Codex Stop's 600-second timeout without
- * rejecting a passing BDD suite solely for taking longer than a minute.
+ * rejecting a passing BDD suite solely for taking longer than five minutes.
+ * Eight minutes leaves two minutes for the fast lanes and Stop bookkeeping.
  */
-const BDD_TEST_TIMEOUT_MS = 5 * 60_000;
+const BDD_TEST_TIMEOUT_MS = 8 * 60_000;
 
 /** Resolve the bounded execution budget for a planned test command. */
 export function timeoutMsForTestCommand(kind: TestCommand['kind']): number {
@@ -239,7 +240,7 @@ function runSingleTestCommand(testCommand: TestCommand): {
       killed?: boolean;
     };
 
-    if (err.killed) {
+    if (err.code === 'ETIMEDOUT' || err.killed) {
       return {
         passed: false,
         output: `$ ${testCommand.command}\n${testCommand.script} timed out after ${
@@ -284,6 +285,7 @@ export function runTests(cwd: string = projectDir): TestResult {
   if (commands.length === 0) return { passed: true, output: '', skipped: true };
 
   const outputs: string[] = [];
+  const failureOutputs: string[] = [];
   const unavailableDiagnostics: string[] = [];
   let passed = true;
   let toolchainMissing = false;
@@ -291,12 +293,14 @@ export function runTests(cwd: string = projectDir): TestResult {
   for (const testCommand of commands) {
     const result = runSingleTestCommand(testCommand);
     outputs.push(result.output);
+    if (!result.passed) failureOutputs.push(result.output);
     if (!testCommand.available) unavailableDiagnostics.push(result.output);
     passed &&= result.passed;
     toolchainMissing ||= result.toolchainMissing === true;
   }
 
-  const truncatedOutput = truncateOutput(outputs.join('\n\n'));
+  // A later successful suite's progress output must not erase the failure.
+  const truncatedOutput = truncateOutput([...outputs, ...failureOutputs].join('\n\n'));
   const omittedDiagnostics = unavailableDiagnostics.filter(
     diagnostic => !truncatedOutput.includes(diagnostic),
   );

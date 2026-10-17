@@ -83148,7 +83148,7 @@ var init_retrospective_gate2 = __esm(() => {
 // templates/hooks/lib/test-runner.ts
 var BDD_TEST_TIMEOUT_MS, projectDir;
 var init_test_runner = __esm(() => {
-  BDD_TEST_TIMEOUT_MS = 5 * 60000;
+  BDD_TEST_TIMEOUT_MS = 8 * 60000;
   projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 });
 

@@ -1,5 +1,10 @@
 # Verification evidence
 
+The user subsequently authorized the completion-timeout prerequisite. Its
+current evidence and pending closure/CI state are in timeout-results.md. The
+frozen-source checklist below records the original proof-command slice; its
+passing history does not substitute for the new prerequisite's verification.
+
 This record separates observed checks from the final PR head. The frozen source
 checkpoint is cb18cb71f, reconciled with main cfe93e30. The four production repair
 modules remain byte-identical to CI-green 72129cbf1. Later commits improve the
@@ -16,7 +21,7 @@ The latest user instruction authorizes green CI and admin merge.
 **Typecheck:** ✅ Clean — resolved typed lanes completed; CLI tsc passed again after profile restoration.
 **Scenarios:** ⏭️ Skipped — lean task has no own scenario-completion ledger. Related feature scenario quality and actual proof boundaries are recorded in delivery-final.md; child tickets and the parent initiative are not marked complete here.
 **Refactor:** ✅ Completed — 61001cd97 extracts repeated proof-cache retrieval; later test helpers retain strict acceptance assertions and explicit profile/compatibility modes.
-**PR Scope:** ✅ Diff matches ticket scope — remaining proof-command/diagnostic fixes, test fidelity, scoped checklist labels/recovery details, generated carriers and evidence. Neither old branch was merged.
+**PR Scope:** ✅ Diff matches ticket scope — remaining proof-command/diagnostic fixes, test fidelity, scoped checklist labels/recovery details, generated carriers and evidence. The user additionally authorized the bounded completion-timeout prerequisite recorded in timeout-fix.md. Neither old branch was merged.
 **Dep Drift:** ✅ Clean — no dependency or lockfile diff from current main. The configured blocking dependency audit passes; fresh Python audit is clean after main's urllib3 update. Broader JavaScript findings remain detailed below.
 **Parent Epic:** N/A — follow-up references #4200 without claiming its completion.
 **Reconcile:** ✅ No pattern deviation — existing parser, validator, runtime, CLI, proof-manifest and live-reviewer owners retained.

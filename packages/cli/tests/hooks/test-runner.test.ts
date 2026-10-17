@@ -45,7 +45,7 @@ afterEach(() => {
 
 describe('runTests (resolves its suite via safeword project test-plan)', () => {
   it('allows the required BDD acceptance lane to use the Stop hook budget', () => {
-    expect(timeoutMsForTestCommand('bdd')).toBe(5 * 60_000);
+    expect(timeoutMsForTestCommand('bdd')).toBe(8 * 60_000);
     expect(timeoutMsForTestCommand('test')).toBe(60_000);
   });
 
@@ -231,6 +231,19 @@ process.stdout.write(JSON.stringify({schema_version:1,data:{plan}}));\n`,
     } finally {
       process.env.SAFEWORD_CLI = originalCli;
     }
+  });
+
+  it('preserves a failed suite diagnostic when later passing suites are verbose', () => {
+    const project = makeProject({
+      'test:done': 'node -e "console.error(\'FIRST_SUITE_FAILURE\'); process.exit(1)"',
+      'test:bdd': 'node -e "process.stdout.write(\'.\'.repeat(5000))"',
+    });
+
+    const result = runTests(project);
+
+    expect(result.passed).toBe(false);
+    expect(result.output).toContain('FIRST_SUITE_FAILURE');
+    expect(result.output.length).toBeLessThanOrEqual(3100);
   });
 
   it('suppresses update chatter for the machine-readable plan subprocess', () => {
