@@ -22,14 +22,45 @@ guidance, and test-quality evidence. Generated bundles are derived output.
 
 | Order | Smell and smallest change | Status and proof |
 | --- | --- | --- |
-| 1 | Failed-operation parameter implies confirmed mutation: rename `mutatedPull` to `attemptedPull`. | Pending; preserve failure result and attempted network effect. |
-| 2 | Duplicated network-effect construction: use one local builder while retaining selector targets and effect order. | Pending after entry 1; preserve inspection-only, failed promotion, already-Ready, and successful promotion results. |
-| 3 | Two tests accumulate two independent CLI invocations: split already-Ready and explicit-number success/refusal cases into fresh fixtures. | Pending; preserve every assertion and add zero-Ready-call checks to standalone refusals. |
+| 1 | Failed-operation parameter implies confirmed mutation: rename `mutatedPull` to `attemptedPull`. | Done in d40af6e83; all 155 command, shared evaluator, and hook delivery cases pass; generated surfaces current. |
+| 2 | Duplicated network-effect construction: use one local builder while retaining selector targets and effect order. | Done in 684d30f89; 44/44 command cases pass, including inspection-only, failed promotion, already-Ready, and successful promotion results; generated surfaces current. |
+| 3 | Two tests accumulate two independent CLI invocations: split already-Ready and explicit-number success/refusal cases into fresh fixtures. | Done in 05890d02d; 46/46 cases pass with fresh fixtures and zero-Ready-call assertions for standalone refusals. |
 
 No runner class, generic dependency-injection layer, shared fake-GitHub framework,
 or broad environment refactor is warranted. Splitting the linear safety checks
 only to shorten a function would hide their order and the remote-head race
 comment. These suggestions are deliberately rejected, not omitted discoveries.
+
+## Quality-review dispositions
+
+Independent Claude/Opus review `760ee197-8c4b-422c-a953-58c8efaa2879`
+approved the canonical source, public wiring, integration tests, workflow/docs,
+learning, and Python lock update with no errors. Applied its actionable warning:
+failed Ready results now tell the caller that state is unconfirmed and name the
+inspected PR to check before retrying. The strengthened assertion failed on the
+old message. Changed-target review `52ee81ea-f073-4fa4-ba7d-5293f952d8ee`
+approved independently through Claude/Opus with no errors.
+
+The remote-head race warning is already disclosed; GitHub exposes no atomic
+expected-head condition. Do not add a second inspection that only moves that
+race. Informational notes need no change: unrelated session files cannot supply
+a matching receipt; generated Codex skill parity is covered by the actual
+parity check and workflow test; the small dev-only lock security bump is explicit.
+
+The follow-up review's empty-override suggestion is deferred: an empty value
+does not redirect repository selection under the current GitHub contract, so
+changing it would only anticipate a future host behavior. Removing Git transport
+variables is intentional for this GitHub API command; no runner reuse is added.
+Additional explicit-number/already-Ready and timeout combinations are optional
+coverage; existing cases discriminate the shared paths, and the failed-Ready
+case now asserts the actionable recovery message. No timeout is increased.
+
+Final diff audit has no dependency violations across 482 modules and 835 edges;
+learning and domain documentation checks pass. The lock change makes the generic
+audit include Python discovery: no import-linter contract is configured and the
+host's `deadcode` executable is the Go tool, so those optional Python analyses
+are unavailable. No Python source changed. These are coverage limits, not clean
+Python architecture/dead-code claims; the frozen dependency audit is green.
 
 ## Quality-review plan
 
@@ -83,5 +114,11 @@ three hours, with 30 observed failed cases in 12 files and no final failure
 traces; a duplicate CLI invocation was also interrupted. Neither is a passing
 full-suite result. Only three setup-timeout breadcrumbs establish a specific
 failure mechanism; other failures remain unclassified pending reruns or CI.
-Acceptance and remaining verification lanes continue with a stable build.
-Exact-head hosted CI must provide complete results before Ready or merge.
+Acceptance passed all 596 scenarios and 11,118 steps, then all 50 proof-tag
+tests. Stopped the unchanged duplicate acceptance pass; it is not counted as
+green. All build and typecheck lanes passed. Python audit is clean after the
+lock update; Go reports zero affected-code vulnerabilities. The aggregate exits
+130 because interrupted invocations and raw JavaScript advisories remain
+nonzero. Exact-head hosted CI must provide complete results before Ready or
+merge. Logs: `.project/tmp/5511-delivery-verify.log` and
+`.project/tmp/5511-delivery-local-limit.txt`.

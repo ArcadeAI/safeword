@@ -240,7 +240,7 @@ function promoteVerified(
   if (promoted.status !== 0)
     return failed(
       'PR_READY_PROMOTION_FAILED',
-      processFailure(promoted, 'GitHub Ready promotion failed.'),
+      `${processFailure(promoted, 'GitHub Ready promotion failed.')} Ready status is unconfirmed. Inspect PR ${record.number} before retrying.`,
       record.number,
     );
   return createResult({

@@ -103,3 +103,40 @@ Implementation is complete locally. No push, PR creation, live Ready mutation,
 issue closure, or release was performed. Raw `gh pr ready` remains dependent on
 Codex supplying the correct hook cwd; use the checked command for the supported
 cross-worktree route after explicit Ready authorization.
+
+## Delivery verification and review follow-up
+
+The user authorized verification, audit, refactor, quality review, CI, Ready
+promotion after passing gates, and admin merge. This section supersedes the
+historical next-action statements above; it does not erase earlier run limits.
+
+- Fresh verification passed relay (198, one skip), collector (153), acceptance
+  (596 scenarios and 11,118 steps), and 50 proof-tag tests. All build and
+  typecheck lanes passed. The full CLI run was interrupted after more than
+  three hours with 30 observed failures in 12 files and no final diagnostic
+  traces. Its duplicate invocation and unchanged duplicate acceptance pass were
+  also interrupted. None of those interrupted invocations is counted green.
+- Readiness recovery verification passes 155/155 cases across the command,
+  shared evaluator, and delivery hook tests, clearing the eight observed
+  delivery-file failures. Other observed broad-run failures still need complete
+  hosted CI evidence; they are not assumed to be environmental.
+- Three isolated refactors were tested and committed: accurate attempt naming,
+  one local network-effect builder, and independent success/refusal fixtures.
+  Final command verification passes 46/46 cases.
+- Diff-scoped TypeScript architecture, learning, and domain documentation checks
+  pass. Optional Python architecture/dead-code analysis is unavailable: no
+  import-linter contract and a same-named Go `deadcode` executable. No Python
+  source changed; dependency checks cover the lock update. See delivery-review.md.
+- Updated only urllib3's transitive Python development lock from 2.7.0 to 2.8.0;
+  frozen synchronization and Python audits now report no known vulnerabilities.
+  Go reports zero affected-code vulnerabilities. Raw JavaScript audit retains
+  eight advisories; the repository's existing high/critical CI policy passes
+  with its two pre-existing unpatched-advisory exceptions. No new suppression
+  or audit-policy change was introduced.
+- End-user walkthrough runs the generated Codex plugin runtime under Bun with
+  real linked worktrees and a fake GitHub executable. It successfully promotes
+  from the actual worktree despite launch-root environment hints. This exercises
+  the shipped execution boundary without mutating a live PR.
+- Independent quality review and exact-head hosted CI are pending; the PR must
+  remain Draft until all seven readiness gates pass. Detailed dispositions and
+  log paths are in delivery-review.md.

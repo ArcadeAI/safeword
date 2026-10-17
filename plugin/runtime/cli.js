@@ -83402,7 +83402,7 @@ function promoteVerified(project, head, pull, environment, run2) {
     return createResult({ state: "healthy", effects: { network: networkEffects(pull) }, data });
   const promoted = run2("gh", ["pr", "ready", String(record2.number)], project);
   if (promoted.status !== 0)
-    return failed("PR_READY_PROMOTION_FAILED", processFailure(promoted, "GitHub Ready promotion failed."), record2.number);
+    return failed("PR_READY_PROMOTION_FAILED", `${processFailure(promoted, "GitHub Ready promotion failed.")} Ready status is unconfirmed. Inspect PR ${record2.number} before retrying.`, record2.number);
   return createResult({
     state: "changed",
     changed: true,

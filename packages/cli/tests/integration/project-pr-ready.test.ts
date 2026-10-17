@@ -209,6 +209,7 @@ describe('project pr-ready validation (#5511)', () => {
       changed: false,
       errors: [{ code: 'PR_READY_PROMOTION_FAILED' }],
     });
+    expect(output.errors[0].message).toContain('Inspect PR 37 before retrying');
     expect(output.effects.network).toEqual([
       { kind: 'github-pull-request', target: 'current-branch', operation: 'inspect' },
       { kind: 'github-pull-request', target: '37', operation: 'mark-ready' },
