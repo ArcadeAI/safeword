@@ -3,7 +3,12 @@ import { realpathSync } from 'node:fs';
 
 import { hasSafewordProjectMarker } from '../../templates/hooks/lib/namespace-root.js';
 import { evaluatePrReadiness } from '../../templates/hooks/lib/pr-readiness-guard.js';
-import { type CliResult, createResult, invalidOperand } from '../cli-protocol/result.js';
+import {
+  type CliResult,
+  createResult,
+  type Effect,
+  invalidOperand,
+} from '../cli-protocol/result.js';
 
 const COMMAND = 'project pr-ready';
 const CONTEXT_OVERRIDES = [
@@ -157,6 +162,19 @@ export function runProjectPrReady(cwd: string, pull?: string): CliResult {
   return promoteVerified(project, headResult.stdout.trim(), pull, environment, run);
 }
 
+function networkEffects(pull: string | undefined, attemptedPull?: number): Effect[] {
+  const effects = [
+    { kind: 'github-pull-request', target: pull ?? 'current-branch', operation: 'inspect' },
+  ];
+  if (attemptedPull !== undefined)
+    effects.push({
+      kind: 'github-pull-request',
+      target: String(attemptedPull),
+      operation: 'mark-ready',
+    });
+  return effects;
+}
+
 function promoteVerified(
   project: string,
   head: string,
@@ -172,24 +190,11 @@ function promoteVerified(
     'number,headRefOid,isDraft,state',
   ];
   const inspected = run('gh', viewArguments, project);
-  const readEffects = [
-    { kind: 'github-pull-request', target: pull ?? 'current-branch', operation: 'inspect' },
-  ];
   const failed = (code: string, detail: string, attemptedPull?: number): CliResult =>
     createResult({
       state: 'failed',
       effects: {
-        network:
-          attemptedPull === undefined
-            ? readEffects
-            : [
-                ...readEffects,
-                {
-                  kind: 'github-pull-request',
-                  target: String(attemptedPull),
-                  operation: 'mark-ready',
-                },
-              ],
+        network: networkEffects(pull, attemptedPull),
       },
       errors: [{ code, message: detail, retryable: false }],
       data: { command: COMMAND, project_directory: project },
@@ -228,7 +233,7 @@ function promoteVerified(
     head_sha: head,
   };
   if (!record.isDraft)
-    return createResult({ state: 'healthy', effects: { network: readEffects }, data });
+    return createResult({ state: 'healthy', effects: { network: networkEffects(pull) }, data });
   // Freeze the inspected number instead of resolving the current branch again.
   // GitHub's Ready API has no atomic expected-head condition.
   const promoted = run('gh', ['pr', 'ready', String(record.number)], project);
@@ -245,10 +250,7 @@ function promoteVerified(
       { code: 'PR_READY', message: 'The verified pull request is Ready.', severity: 'info' },
     ],
     effects: {
-      network: [
-        ...readEffects,
-        { kind: 'github-pull-request', target: String(record.number), operation: 'mark-ready' },
-      ],
+      network: networkEffects(pull, record.number),
     },
     data,
   });

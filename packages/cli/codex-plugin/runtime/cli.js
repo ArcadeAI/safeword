@@ -83352,6 +83352,18 @@ function runProjectPrReady(cwd, pull) {
     return blocked("PR_READY_HEAD_UNREADABLE", "The selected worktree HEAD cannot be read.", project);
   return promoteVerified(project, headResult.stdout.trim(), pull, environment, run2);
 }
+function networkEffects(pull, attemptedPull) {
+  const effects = [
+    { kind: "github-pull-request", target: pull ?? "current-branch", operation: "inspect" }
+  ];
+  if (attemptedPull !== undefined)
+    effects.push({
+      kind: "github-pull-request",
+      target: String(attemptedPull),
+      operation: "mark-ready"
+    });
+  return effects;
+}
 function promoteVerified(project, head, pull, environment, run2) {
   const viewArguments = [
     "pr",
@@ -83361,20 +83373,10 @@ function promoteVerified(project, head, pull, environment, run2) {
     "number,headRefOid,isDraft,state"
   ];
   const inspected = run2("gh", viewArguments, project);
-  const readEffects = [
-    { kind: "github-pull-request", target: pull ?? "current-branch", operation: "inspect" }
-  ];
   const failed = (code, detail, attemptedPull) => createResult({
     state: "failed",
     effects: {
-      network: attemptedPull === undefined ? readEffects : [
-        ...readEffects,
-        {
-          kind: "github-pull-request",
-          target: String(attemptedPull),
-          operation: "mark-ready"
-        }
-      ]
+      network: networkEffects(pull, attemptedPull)
     },
     errors: [{ code, message: detail, retryable: false }],
     data: { command: COMMAND, project_directory: project }
@@ -83397,7 +83399,7 @@ function promoteVerified(project, head, pull, environment, run2) {
     head_sha: head
   };
   if (!record2.isDraft)
-    return createResult({ state: "healthy", effects: { network: readEffects }, data });
+    return createResult({ state: "healthy", effects: { network: networkEffects(pull) }, data });
   const promoted = run2("gh", ["pr", "ready", String(record2.number)], project);
   if (promoted.status !== 0)
     return failed("PR_READY_PROMOTION_FAILED", processFailure(promoted, "GitHub Ready promotion failed."), record2.number);
@@ -83408,10 +83410,7 @@ function promoteVerified(project, head, pull, environment, run2) {
       { code: "PR_READY", message: "The verified pull request is Ready.", severity: "info" }
     ],
     effects: {
-      network: [
-        ...readEffects,
-        { kind: "github-pull-request", target: String(record2.number), operation: "mark-ready" }
-      ]
+      network: networkEffects(pull, record2.number)
     },
     data
   });
