@@ -83364,14 +83364,14 @@ function promoteVerified(project, head, pull, environment, run2) {
   const readEffects = [
     { kind: "github-pull-request", target: pull ?? "current-branch", operation: "inspect" }
   ];
-  const failed = (code, detail, mutatedPull) => createResult({
+  const failed = (code, detail, attemptedPull) => createResult({
     state: "failed",
     effects: {
-      network: mutatedPull === undefined ? readEffects : [
+      network: attemptedPull === undefined ? readEffects : [
         ...readEffects,
         {
           kind: "github-pull-request",
-          target: String(mutatedPull),
+          target: String(attemptedPull),
           operation: "mark-ready"
         }
       ]

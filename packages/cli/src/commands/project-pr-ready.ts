@@ -175,18 +175,18 @@ function promoteVerified(
   const readEffects = [
     { kind: 'github-pull-request', target: pull ?? 'current-branch', operation: 'inspect' },
   ];
-  const failed = (code: string, detail: string, mutatedPull?: number): CliResult =>
+  const failed = (code: string, detail: string, attemptedPull?: number): CliResult =>
     createResult({
       state: 'failed',
       effects: {
         network:
-          mutatedPull === undefined
+          attemptedPull === undefined
             ? readEffects
             : [
                 ...readEffects,
                 {
                   kind: 'github-pull-request',
-                  target: String(mutatedPull),
+                  target: String(attemptedPull),
                   operation: 'mark-ready',
                 },
               ],
