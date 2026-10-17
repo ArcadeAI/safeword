@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
   utimesSync,
   writeFileSync,
@@ -741,7 +742,7 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
   });
 
-  it('leaves a rejected sentinel in place so the mtime fallback cannot be refreshed by its removal', () => {
+  it('discards a non-matching sentinel without refreshing the mtime fallback', () => {
     writeBunProject();
     const artifact = path.join(projectDirectory, 'node_modules');
     mkdirSync(artifact);
@@ -752,7 +753,25 @@ describe('dependency readiness hook support', () => {
     utimesSync(artifact, past, past);
 
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
-    expect(existsSync(sentinel)).toBe(true);
+    expect(existsSync(sentinel)).toBe(false);
+    expect(statSync(artifact).mtimeMs).toBe(past.getTime());
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+  });
+
+  it('does not let a sentinel outlive a later input change and failed install', () => {
+    writeBunProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile A');
+    // Recovery for A succeeds, but nothing checks readiness before inputs move on.
+    writeFileSync(reinstallSentinel(getDependencyReadiness(projectDirectory).fingerprint), '');
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile B');
+
+    // A bootstrap for B checks readiness first, then its install fails partway.
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile A');
+
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
   });
 

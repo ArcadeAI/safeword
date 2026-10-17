@@ -8,8 +8,10 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  utimesSync,
   writeFileSync,
   type Dirent,
+  type Stats,
 } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -374,6 +376,8 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
     };
   }
 
+  // Settle sentinels before reading the marker: an accepted one becomes it.
+  const sentinelAccepted = settleReinstallSentinels(projectDirectory, plan, fingerprint);
   const marker = readInstallMarker(projectDirectory, plan);
   const failedStateSuperseded =
     previousState?.status === 'failed' &&
@@ -382,7 +386,7 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
 
   // A matching marker is proof that a later install completed successfully.
   // Let that proof supersede durable failure state left by an earlier attempt.
-  if (marker === fingerprint || consumeReinstallSentinel(projectDirectory, plan, fingerprint)) {
+  if (sentinelAccepted || marker === fingerprint) {
     return {
       status: 'ready',
       reason: 'install_artifact_current',
@@ -749,15 +753,7 @@ function stampInstallMarker(
  */
 function clearReinstallSentinels(projectDirectory: string, plan: DependencyPlan): void {
   const artifactPath = nodePath.join(projectDirectory, plan.installArtifact);
-  try {
-    for (const entry of readdirSync(artifactPath)) {
-      if (entry.startsWith(REINSTALL_SENTINEL_PREFIX)) {
-        rmSync(nodePath.join(artifactPath, entry), { force: true });
-      }
-    }
-  } catch {
-    // Best-effort, like the marker itself.
-  }
+  removeReinstallSentinels(artifactPath, listReinstallSentinels(artifactPath));
 }
 
 /**
@@ -765,31 +761,58 @@ function clearReinstallSentinels(projectDirectory: string, plan: DependencyPlan)
  * where `<fp>` comes from the inputs the message was rendered for, and the touch
  * runs only after its install succeeds. A sentinel naming the current inputs
  * therefore proves an install completed against exactly this content, with no
- * timestamp comparison that coarse or skewed clocks could defeat. Converting it
- * straight into the fingerprint marker keeps content authoritative afterwards.
- * A rejected sentinel is left alone: deleting it would bump the artifact's
- * mtime and could satisfy the marker-less mtime fallback. Stamping the marker
- * clears every sentinel (see {@link clearReinstallSentinels}). Durable
- * `installing`/`failed` state cannot predate a matching sentinel: a bootstrap
- * reads readiness (consuming any sentinel) before recording its attempt, so a
- * sentinel present afterwards came from a later successful recovery. It replaces
+ * timestamp comparison that coarse or skewed clocks could defeat. It replaces
  * `rm -f <marker> && touch <artifact>`, which host command policies reject
  * (#5188, #5647).
+ *
+ * Every readiness check settles all sentinels at once, so none outlives the
+ * tree state it vouched for (a later checkout, a failed bootstrap, an A → B → A
+ * change): a matching sentinel becomes the content marker, which clears the
+ * rest; otherwise all are discarded. Discarding restores the artifact's mtime so
+ * the removal cannot satisfy the marker-less mtime fallback. A bootstrap checks
+ * readiness before it installs, so no sentinel survives into its attempt.
  */
-function consumeReinstallSentinel(
+function settleReinstallSentinels(
   projectDirectory: string,
   plan: DependencyPlan,
   fingerprint: string,
 ): boolean {
-  const sentinelPath = nodePath.join(
-    projectDirectory,
-    plan.installArtifact,
-    reinstallSentinelFilename(fingerprint),
-  );
-  if (!existsSync(sentinelPath)) return false;
+  const artifactPath = nodePath.join(projectDirectory, plan.installArtifact);
+  const sentinels = listReinstallSentinels(artifactPath);
+  if (sentinels.length === 0) return false;
 
-  stampInstallMarker(projectDirectory, plan, fingerprint);
-  return true;
+  if (sentinels.includes(reinstallSentinelFilename(fingerprint))) {
+    stampInstallMarker(projectDirectory, plan, fingerprint);
+    return true;
+  }
+
+  let artifactStat: Stats | undefined;
+  try {
+    artifactStat = statSync(artifactPath);
+  } catch {
+    return false;
+  }
+  removeReinstallSentinels(artifactPath, sentinels);
+  try {
+    utimesSync(artifactPath, artifactStat.atime, artifactStat.mtime);
+  } catch {
+    // Best-effort: a failed restore can only make the mtime fallback newer.
+  }
+  return false;
+}
+
+function listReinstallSentinels(artifactPath: string): string[] {
+  try {
+    return readdirSync(artifactPath).filter(entry => entry.startsWith(REINSTALL_SENTINEL_PREFIX));
+  } catch {
+    return [];
+  }
+}
+
+function removeReinstallSentinels(artifactPath: string, sentinels: string[]): void {
+  for (const sentinel of sentinels) {
+    rmSync(nodePath.join(artifactPath, sentinel), { force: true });
+  }
 }
 
 function reinstallSentinelFilename(fingerprint: string): string {
