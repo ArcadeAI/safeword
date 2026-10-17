@@ -363,6 +363,15 @@ const completedProofs = new WeakSet<SafewordWorld>();
 const proofCache = new Map<string, Promise<{ exitCode: number; output: string }>>();
 let buildPromise: Promise<void> | undefined;
 
+function cachedProof(
+  key: string,
+  scenarioName: string,
+  liveSemantic = false,
+): Promise<{ exitCode: number; output: string }> {
+  proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName, liveSemantic));
+  return proofCache.get(key)!;
+}
+
 function buildCli(): Promise<void> {
   buildPromise ??= execFileAsync('bun', ['run', 'build'], {
     cwd: CLI_PACKAGE,
@@ -515,8 +524,7 @@ Before(
     if (proof.testFile === LIVE_PROOF_FILE) {
       // Supporting checks are part of the proof identity, even with the same live selector.
       const key = JSON.stringify(proof);
-      proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName, true));
-      const result = await proofCache.get(key)!;
+      const result = await cachedProof(key, scenarioName, true);
       this.result = { stderr: result.output, stdout: '', exitCode: result.exitCode };
       completedProofs.add(this);
       return;
@@ -525,16 +533,14 @@ Before(
     const live = corpusProof || scenario.pickle.tags.some(tag => tag.name === '@live');
     if (live) {
       const key = 'live-execution-plan-conformance';
-      proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName, true));
-      const result = await proofCache.get(key)!;
+      const result = await cachedProof(key, scenarioName, true);
       this.result = { stderr: result.output, stdout: '', exitCode: result.exitCode };
       completedProofs.add(this);
       if (result.exitCode !== 0) return;
     }
     // Supporting checks are part of the proof identity, even with the same live selector.
     const key = JSON.stringify(proof);
-    proofCache.set(key, proofCache.get(key) ?? runProof(scenarioName));
-    const result = await proofCache.get(key)!;
+    const result = await cachedProof(key, scenarioName);
     this.result = { stderr: result.output, stdout: '', exitCode: result.exitCode };
     completedProofs.add(this);
   },
