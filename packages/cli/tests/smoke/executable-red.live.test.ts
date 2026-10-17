@@ -21,6 +21,9 @@ const reviewer = process.env.SAFEWORD_EXECUTABLE_RED_LIVE_REVIEWER;
 const model = process.env.SAFEWORD_EXECUTABLE_RED_LIVE_MODEL?.trim() || undefined;
 const resultsPath = process.env.SAFEWORD_EXECUTABLE_RED_RESULTS_PATH;
 const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds({});
+// The coordinator reserves one minute from the run bound for routing and cleanup.
+const REVIEW_RUN_BOUND_MS = REVIEW_TIMEOUT_MS + 60_000;
+const CLI_CALL_TIMEOUT_MS = 30_000;
 const results: unknown[] = [];
 const reviewIds = new Set<string>();
 
@@ -54,11 +57,11 @@ function configureReviewer(directory: string, assigned: 'claude' | 'codex') {
   );
   return {
     cwd: directory,
-    timeout: 15_000,
+    timeout: CLI_CALL_TIMEOUT_MS,
     env: {
       SAFEWORD_AGENT_RUNTIME: author,
       SAFEWORD_REVIEW_FOREGROUND_MS: '0',
-      SAFEWORD_REVIEW_RUN_BOUND_MS: String(REVIEW_TIMEOUT_MS),
+      SAFEWORD_REVIEW_RUN_BOUND_MS: String(REVIEW_RUN_BOUND_MS),
       SAFEWORD_REVIEW_TIMEOUT_MS: String(REVIEW_TIMEOUT_MS),
       ...(assigned === 'claude' && {
         CLAUDE_CONFIG_DIR: process.env.SAFEWORD_LIVE_CLAUDE_CONFIG_DIR || undefined,
@@ -82,6 +85,8 @@ function assertSemanticResult(
   expect(data.reviewer_output?.reviewer_agent).toBe(assigned);
   expect(data.execution_attestation).toMatchObject({
     argv: fixture.argv,
+    cwd: '.',
+    evidence_class: 'local-live-host',
     expected_failure: { literal: fixture.expectedFailure, matched: true },
     termination: { exit_code: 1, timed_out: false },
   });
@@ -137,7 +142,7 @@ describe.skipIf(!CAN_RUN)('live executable RED semantic conformance', () => {
       const fixture = createRedSemanticFixture(testCase);
       let options: Parameters<typeof runCliWithLiteralArguments>[1] = {
         cwd: fixture.directory,
-        timeout: 15_000,
+        timeout: CLI_CALL_TIMEOUT_MS,
       };
       let envelope: ReviewEnvelope = {};
       let gate: ReviewEnvelope = {};
@@ -197,7 +202,7 @@ describe.skipIf(!CAN_RUN)('live executable RED semantic conformance', () => {
             envelope = JSON.parse(collected.stdout) as ReviewEnvelope;
             expect(envelope.data?.status, collected.stdout).not.toBe('pending');
           },
-          { timeout: REVIEW_TIMEOUT_MS + 15_000, interval: 1000 },
+          { timeout: REVIEW_RUN_BOUND_MS + 15_000, interval: 1000 },
         );
         const gated = await runCliWithLiteralArguments(
           [
@@ -242,6 +247,6 @@ describe.skipIf(!CAN_RUN)('live executable RED semantic conformance', () => {
         }
       }
     },
-    REVIEW_TIMEOUT_MS + 90_000,
+    REVIEW_RUN_BOUND_MS + 5 * CLI_CALL_TIMEOUT_MS,
   );
 });

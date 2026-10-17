@@ -19,7 +19,7 @@ export const RED_SEMANTIC_CASES = [
     id: 'unrelated-assertion',
     verdict: 'request_changes',
     steps: ['passed', 'passed', 'failed'],
-    error: 'unrelated actual',
+    error: 'memo: draft',
   },
 ] as const;
 
@@ -64,7 +64,7 @@ export function createRedSemanticFixture(testCase: RedSemanticCase) {
   }[testCase.id];
   const assertion =
     testCase.id === 'unrelated-assertion'
-      ? `assert.equal('unrelated actual', 'unrelated expected', '${ACTOR_FAILURE}');`
+      ? `assert.equal('memo: draft', 'memo: published', '${ACTOR_FAILURE}');`
       : `assert.equal(this.output, 'status: ready', '${ACTOR_FAILURE}');`;
   writeFileSync(
     nodePath.join(directory, 'helper.mjs'),
