@@ -216,6 +216,7 @@ describe('buildCodexExtractArgv', () => {
     expect(argv[argv.indexOf('--disable') + 1]).toBe('hooks');
     expect(argv).toContain('-c');
     expect(argv[argv.indexOf('-c') + 1]).toBe('mcp_servers={}');
+    expect(argv).toContain('model_reasoning_effort="low"');
     expect(argv[argv.indexOf('--output-schema') + 1]).toBe('/tmp/schema.json');
     expect(argv[argv.indexOf('-o') + 1]).toBe('/tmp/out.json');
     expect(argv[argv.indexOf('--sandbox') + 1]).toBe('read-only');
@@ -275,17 +276,17 @@ describe('resolveRetroModel (SM1.AC2 — config-overridable per-agent defaults)'
 
   it('defaults per extraction host when no retro.model is present', () => {
     expect(DEFAULT_CLAUDE_RETRO_MODEL).toBe('sonnet');
-    expect(DEFAULT_CODEX_RETRO_MODEL).toBe('gpt-6-astra');
+    expect(DEFAULT_CODEX_RETRO_MODEL).toBe('gpt-6-luna');
     expect(DEFAULT_CURSOR_RETRO_MODEL).toBe('auto');
 
     expect(resolveRetroModel(projectDirectory)).toBe('sonnet');
     expect(resolveRetroModel(projectDirectory, 'claude')).toBe('sonnet');
-    expect(resolveRetroModel(projectDirectory, 'codex')).toBe('gpt-6-astra');
+    expect(resolveRetroModel(projectDirectory, 'codex')).toBe('gpt-6-luna');
     expect(resolveRetroModel(projectDirectory, 'cursor')).toBe('auto');
 
     writeRetroConfig({ selfReport: { surface: true } }); // config present, no retro.model
     expect(resolveRetroModel(projectDirectory)).toBe('sonnet');
-    expect(resolveRetroModel(projectDirectory, 'codex')).toBe('gpt-6-astra');
+    expect(resolveRetroModel(projectDirectory, 'codex')).toBe('gpt-6-luna');
     expect(resolveRetroModel(projectDirectory, 'cursor')).toBe('auto');
   });
 

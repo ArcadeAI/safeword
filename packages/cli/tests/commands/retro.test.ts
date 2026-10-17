@@ -2616,10 +2616,11 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     expect(result.model).toBe('sonnet');
   });
 
-  it('builds the Codex extractor with gpt-6-astra when no retro.model is configured', async () => {
+  it('builds the Codex extractor with gpt-6-luna at low reasoning when no retro.model is configured', async () => {
     const result = await modelFromRunner(projectDirectory, 'codex');
     expect(result.argv[0]).toBe('exec');
-    expect(result.model).toBe('gpt-6-astra');
+    expect(result.model).toBe('gpt-6-luna');
+    expect(result.argv).toContain('model_reasoning_effort="low"');
   });
 
   it('builds the Cursor extractor with auto when no retro.model is configured', async () => {

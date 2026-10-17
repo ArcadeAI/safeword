@@ -5,18 +5,18 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-10-17T13:06:10.819Z
-last_modified: 2026-10-17T13:06:10.819Z
+last_modified: 2026-10-17T13:45:00Z
 subtype: bug-investigated
 scope:
-  - Replace the Codex retrospective default with the current supported flagship.
-  - Preserve Sonnet and Cursor aliases and explicit model overrides.
+  - Use GPT-6 Luna with low reasoning for economical Codex retrospectives.
+  - Preserve Sonnet and Cursor aliases and explicit model names; Codex always uses low reasoning.
   - Regenerate bundles and verify selection through the real extractor.
 out_of_scope:
   - Changing PR review models or unrelated provider routing.
   - Changing authentication, prompts, sandbox policy, or model discovery.
 done_when:
-  - Unconfigured Codex extraction selects gpt-6-astra and succeeds with ChatGPT authentication.
-  - Explicit overrides and other provider defaults retain their behavior.
+  - Unconfigured Codex extraction selects gpt-6-luna at low reasoning with ChatGPT authentication.
+  - Explicit model names remain honored; low reasoning applies to every Codex extraction.
   - Targeted tests and generated surface checks pass.
 ---
 
@@ -48,6 +48,18 @@ must separately validate the retrospective findings schema.
 
 ## Decision
 
+Current direction (2026-10-17): the user rejected Astra's cost, first selected
+Sol low, and then explicitly approved Luna low after the requested comparison.
+Set gpt-6-luna and pass model_reasoning_effort="low" to the Codex child. Both
+candidates passed all six predeclared screening cases, including correct empty
+results, explicit and indirect bugs, and a signal buried in a longer digest.
+Luna's published uncached input/output API rates are 20 times lower than Sol's;
+this is not an actual ChatGPT subscription billing measurement. See
+model-comparison.md for methods, evidence and limits. Earlier Astra results
+below are historical, not this final configuration's evidence.
+
+### Historical initial choice
+
 Use gpt-6-astra, returned by the official latest-model resolver and verified
 against this login. Claude's sonnet alias already selects the latest Sonnet;
 Cursor auto delegates to its host. Keep both and explicit retro.model overrides.
@@ -62,8 +74,8 @@ CLI invocation; the live structured-output probe confirms compatibility.
 
 ## Test Definitions
 
-- Existing real config-to-extractor tests must request gpt-6-astra without an
-  override; preserve override, Sonnet, and Cursor assertions.
+- Existing real config-to-extractor tests must request gpt-6-luna and low
+  reasoning without an override; preserve model-name, Sonnet, and Cursor assertions.
 - Run real Codex extraction on a synthetic transcript with the existing strict
   output schema, read-only sandbox, and hooks disabled; require success.
 - Regenerate all five surfaces and check parity, types, and lint.
