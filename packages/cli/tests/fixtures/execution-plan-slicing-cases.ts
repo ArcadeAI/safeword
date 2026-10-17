@@ -8,6 +8,20 @@ export interface SlicingAcceptanceCase extends ExecutionPlanConformanceCase {
   readonly expectation: ExecutionPlanConformanceExpectation & { readonly finding_subject?: string };
 }
 
+function replaceRequired(
+  source: string,
+  search: string | RegExp,
+  replacement: string | ((match: string) => string),
+): string {
+  let found = false;
+  const rewritten = source.replace(search, match => {
+    found = true;
+    return typeof replacement === 'string' ? replacement : replacement(match);
+  });
+  if (!found) throw new Error(`Missing fixture anchor: ${search}`);
+  return rewritten;
+}
+
 function original(id: string): ExecutionPlanConformanceCase {
   const found = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === id);
   if (found === undefined) throw new Error(`Unknown conformance case: ${id}`);
@@ -62,7 +76,7 @@ const procedures = [
     'edited-plan',
     'a terminal user asks the installed CLI to authorize an edited plan',
     'src/review/command.ts',
-    'exit 2 rejects the edited plan with no coding authority',
+    'the installed CLI exits 2 for the edited plan and grants no coding authority',
   ],
   [
     'failure-signals',
@@ -70,7 +84,7 @@ const procedures = [
     'reviewer-failure',
     'a terminal user reads the installed CLI failure response',
     'src/review/command.ts',
-    'exit 2 names the failed reviewer and supplies one recovery action',
+    'the installed CLI exits 2, names the failed reviewer and supplies one recovery action',
   ],
   [
     'security-boundary',
@@ -107,11 +121,12 @@ function withConcreteTasks(plan: string): string {
       const proofLine = heading.split('\n').find(line => line.startsWith('- Proof:')) ?? '';
       const tasks = procedures
         .filter(([id]) => proofLine.includes(id))
-        .flatMap(([id, script, fixture, actor, edit, result]) => [
-          `RED (${id}): add tests/${id}.test.ts and tests/fixtures/${fixture}.json defining ${actor}; assert ${result}. Run \`bun run ${script} -- --fixture ${fixture}\` before editing ${edit}; expect exit 1 because that accepted assertion fails.`,
-          `GREEN (${id}): implement the accepted ${id} obligation in ${edit}; rerun \`bun run ${script} -- --fixture ${fixture}\` with the same actor and fixture; expect exit 0 and ${result}.`,
-          `REFACTOR (${id}): remove duplicate validation in ${edit} while preserving the accepted design; rerun \`bun run ${script} -- --fixture ${fixture}\` with the same actor and fixture; expect exit 0 and the same assertions.`,
+        .flatMap(([id, script, fixture, actor, edit, result], index) => [
+          `RED (${id}${index === 0 ? ', highest-risk first' : ''}): add tests/${id}.test.ts and tests/fixtures/${fixture}.json defining ${actor}; assert ${result}. Run \`bun run ${script} -- --fixture ${fixture}\` before editing ${edit}; expect test runner exit 1 because that accepted assertion fails.`,
+          `GREEN (${id}): implement the accepted ${id} obligation in ${edit}; rerun \`bun run ${script} -- --fixture ${fixture}\` with the same actor and fixture; expect test runner exit 0 after asserting ${result}.`,
+          `REFACTOR (${id}): ${id === 'documentation-contract' ? 'remove duplicated command explanations' : 'remove duplicate validation'} in ${edit} while preserving the accepted design; rerun \`bun run ${script} -- --fixture ${fixture}\` with the same actor and fixture; expect test runner exit 0 and the same assertions.`,
         ]);
+      if (tasks.length === 0) throw new Error(`No concrete procedure for ${proofLine}`);
       const numberedTasks = tasks.map((task, index) => `${index + 1}. ${task}`).join('\n');
       return `${heading}${numberedTasks}\n`;
     },
@@ -144,10 +159,11 @@ function missingObligationPlan(testCase: ExecutionPlanConformanceCase): string |
 function acceptance(testCase: ExecutionPlanConformanceCase): SlicingAcceptanceCase {
   const field = missingFields.get(testCase.id);
   if (testCase.id === 'missing-proof') {
-    const withoutProof = complete.replace(/^- Proof:.*\n/mu, '');
-    const plan = withoutProof.replace(
+    const withoutProof = replaceRequired(complete, /^- Proof:.*\n/mu, '');
+    const plan = replaceRequired(
+      withoutProof,
       /#### Tasks and tests\n[\s\S]*?(?=\n## Obligation ownership)/u,
-      '#### Tasks and tests\n\n1. Implement the accepted typed judgment in src/review/command.ts and src/review/contract.ts.\n2. Preserve the accepted shared authorization service and all delivery obligations. No verification procedure is assigned to this slice.\n',
+      '#### Tasks and tests\n\n1. In src/review/contract.ts, define the accepted typed judgment fields schema_version, dispatch_id, reviewer_agent, verdict, summary, findings, planning_destination and execution_plan_record. Output: the exported judgment contract contains exactly these accepted public fields.\n2. In src/review/command.ts, serialize that judgment on the packaged CLI review response and retain the identical judgment for the existing read command; keep the accepted shared authorization service and unchanged legacy storage bytes. Output: both response and retained judgment use the accepted contract without altering authorization or compatibility.\n3. No verification procedure is assigned to this slice.\n',
     );
     return {
       ...testCase,
@@ -160,20 +176,22 @@ function acceptance(testCase: ExecutionPlanConformanceCase): SlicingAcceptanceCa
     if (line === undefined) throw new Error(`Missing baseline field: ${field}`);
     return {
       ...testCase,
-      execution_plan: complete.replace(line, () => `- ${field}: Not specified.`),
+      execution_plan: replaceRequired(complete, line, `- ${field}: Not specified.`),
       expectation: { ...testCase.expectation, finding_subject: 'Typed review result' },
     };
   }
   if (testCase.id === 'unresolved-authorization-decision') {
     return {
       ...testCase,
-      execution_plan: one.replace(
+      execution_plan: replaceRequired(
+        one,
         /^(- Boundary:.*)$/mu,
-        '$1 The implementer must choose authorization ownership between the accepted shared service and independent per-transport checks before implementing this slice.',
+        line =>
+          `${line} The implementer must choose authorization ownership between the accepted shared service and independent per-transport checks before implementing this slice.`,
       ),
       expectation: {
         ...testCase.expectation,
-        planning_destination: 'plan-implementation',
+        planning_destination: 'plan-execution',
         finding_subject: 'Complete delivery',
         finding_terms: ['authorization', 'boundary'],
       },
@@ -194,34 +212,39 @@ function acceptance(testCase: ExecutionPlanConformanceCase): SlicingAcceptanceCa
       'The default test:schema-compatibility command collects both legacy-result and mirror-inventory fixtures.',
       '',
     ].join('\n');
-    const plan = withConcreteTasks(testCase.execution_plan)
-      .replace(
-        /^Rationale:.*$/mu,
-        'Rationale: Twelve generated mirrors and their installation deliver one canonical contract with one cohesive proof set.',
-      )
-      .replace('#### Tasks and tests', () => `${metadata}#### Tasks and tests`)
-      .replace(
-        /^1\. RED.*$/mu,
-        '1. RED (data-compatibility and mirrors): add tests/data-compatibility.test.ts, tests/contract-mirrors.test.ts and both tests/fixtures/legacy-result.json and tests/fixtures/mirror-inventory.json. The latter lists exactly the twelve paths above. An installed-package consumer validates old/new judgments and reads every mirror. Before editing src/review/contract.ts, run `bun run test:schema-compatibility -- --fixture legacy-result` and `bun run test:schema-compatibility -- --fixture mirror-inventory`; expect exit 1 for an unsupported judgment or a stale/missing mirror. Assert legacy stored bytes are unchanged, new fields validate, inventory length is exactly 12, every path exists, and every mirror equals the canonical bytes. Zero mirrors must fail.',
-      )
-      .replace(
-        /^2\. GREEN.*$/mu,
-        '2. GREEN (data-compatibility and mirrors): implement the accepted schema in src/review/contract.ts, then run `bun run generate:review-contract-mirrors` using scripts/generate-review-contract-mirrors.ts before any installed-package consumer runs. Rerun both exact step-1 commands with their same fixtures and actor; expect exit 0, unchanged legacy bytes, supported new fields and exactly twelve existing byte-identical mirrors.',
-      )
-      .replace(
-        /^3\. REFACTOR.*$/mu,
-        '3. REFACTOR (data-compatibility and mirrors): remove duplicate schema/generator logic in src/review/contract.ts and scripts/generate-review-contract-mirrors.ts, regenerate the inventory, then rerun both exact step-1 commands with the same fixtures and installed-package consumer; expect exit 0 with all assertions unchanged.',
-      )
-      .replace(
-        /^- Completion signal:.*$/mu,
-        '- Completion signal: all seven named proof commands, including both schema-compatibility fixtures, exit 0 at the current revision and all twelve mirrors match the canonical source.',
-      );
+    let plan = replaceRequired(
+      withConcreteTasks(testCase.execution_plan),
+      /^Rationale:.*$/mu,
+      'Rationale: Twelve generated mirrors and their installation deliver one canonical contract with one cohesive proof set.',
+    );
+    plan = replaceRequired(plan, '#### Tasks and tests', `${metadata}#### Tasks and tests`);
+    plan = replaceRequired(
+      plan,
+      /^1\. RED.*$/mu,
+      '1. RED (data-compatibility and mirrors): add tests/data-compatibility.test.ts, tests/contract-mirrors.test.ts and both tests/fixtures/legacy-result.json and tests/fixtures/mirror-inventory.json. The latter lists exactly the twelve paths above. An installed-package consumer validates old/new judgments and reads every mirror. Before editing src/review/contract.ts, run `bun run test:schema-compatibility -- --fixture legacy-result` and `bun run test:schema-compatibility -- --fixture mirror-inventory`; expect exit 1 for an unsupported judgment or a stale/missing mirror. Assert legacy stored bytes are unchanged, new fields validate, inventory length is exactly 12, every path exists, and every mirror equals the canonical bytes. Zero mirrors must fail.',
+    );
+    plan = replaceRequired(
+      plan,
+      /^2\. GREEN.*$/mu,
+      '2. GREEN (data-compatibility and mirrors): implement the accepted schema in src/review/contract.ts, then run `bun run generate:review-contract-mirrors` using scripts/generate-review-contract-mirrors.ts before any installed-package consumer runs. Rerun both exact step-1 commands with their same fixtures and actor; expect exit 0, unchanged legacy bytes, supported new fields and exactly twelve existing byte-identical mirrors.',
+    );
+    plan = replaceRequired(
+      plan,
+      /^3\. REFACTOR.*$/mu,
+      '3. REFACTOR (data-compatibility and mirrors): remove duplicate schema/generator logic in src/review/contract.ts and scripts/generate-review-contract-mirrors.ts, regenerate the inventory, then rerun both exact step-1 commands with the same fixtures and installed-package consumer; expect exit 0 with all assertions unchanged.',
+    );
+    plan = replaceRequired(
+      plan,
+      /^- Completion signal:.*$/mu,
+      '- Completion signal: all seven named proof commands, including both schema-compatibility fixtures, exit 0 at the current revision and all twelve mirrors match the canonical source.',
+    );
     return { ...testCase, execution_plan: plan };
   }
   if (testCase.id === 'reopened-authorization-decision') {
     return {
       ...testCase,
-      execution_plan: one.replace(
+      execution_plan: replaceRequired(
+        one,
         '- One shared authorization service owns permission checks for every transport.: unchanged',
         '- Each transport owns its own independent authorization checks: changed from the accepted shared-service decision.',
       ),
@@ -231,7 +254,8 @@ function acceptance(testCase: ExecutionPlanConformanceCase): SlicingAcceptanceCa
   if (testCase.id === 'two-independent-purposes') {
     return {
       ...testCase,
-      execution_plan: one.replace(
+      execution_plan: replaceRequired(
+        one,
         /^- Purpose:.*$/mu,
         '- Purpose: Package an independently useful inert canonical contract and separately activate the public review command; each outcome can ship and be proven without the other.',
       ),
@@ -241,7 +265,8 @@ function acceptance(testCase: ExecutionPlanConformanceCase): SlicingAcceptanceCa
   if (testCase.id === 'line-count-only-rationale') {
     return {
       ...testCase,
-      execution_plan: one.replace(
+      execution_plan: replaceRequired(
+        one,
         /^Rationale:.*$/mu,
         'Rationale: This is reviewable only because it is below 400 changed lines.',
       ),
@@ -289,10 +314,43 @@ export const EXECUTION_PLAN_SLICING_CASES: readonly SlicingAcceptanceCase[] = [
     }),
   ),
   {
+    ...original('unresolved-authorization-decision'),
+    id: 'missing-authorization-ownership',
+    scenario: replaceRequired(
+      acceptedScenarios,
+      'shared authorization service and review boundary',
+      'authorization and review boundaries',
+    ),
+    implementation_plan: replaceRequired(
+      original('one-coherent-change').implementation_plan,
+      '- One shared authorization service owns permission checks for every transport.\n',
+      '',
+    ),
+    execution_plan: replaceRequired(
+      replaceRequired(
+        one,
+        /^(- Boundary:.*)$/mu,
+        line =>
+          `${line} The authorization ownership remains undecided between a shared service and per-transport checks before this slice can be implemented.`,
+      ),
+      '- One shared authorization service owns permission checks for every transport.: unchanged\n',
+      '',
+    )
+      .replaceAll('accepted shared authorization service', 'authorization boundary')
+      .replaceAll('; separate per-transport checks fail the shared-service assertion', ''),
+    expectation: {
+      verdict: 'request_changes',
+      planning_destination: 'plan-implementation',
+      finding_subject: 'Complete delivery',
+      finding_terms: ['authorization', 'ownership'],
+    },
+  },
+  {
     ...original('line-count-only-rationale'),
     id: 'file-count-only-rationale',
     scenario: acceptedScenarios,
-    execution_plan: one.replace(
+    execution_plan: replaceRequired(
+      one,
       /^Rationale:.*$/mu,
       'Rationale: This is reviewable only because it changes fewer than three files.',
     ),

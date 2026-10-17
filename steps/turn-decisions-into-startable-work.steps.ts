@@ -127,7 +127,7 @@ const proofs: Record<string, Proof> = {
     'two-independent-purposes',
   ),
   'A formally complete slice cannot leave a design decision to its implementer': semanticProof(
-    'unresolved-authorization-decision',
+    'missing-authorization-ownership',
   ),
   'Ordered slices preserve a supported repository after every merge': semanticProof(
     'ordered-schema-before-reader',

@@ -30,8 +30,23 @@ describe('single-defect slicing acceptance fixtures', () => {
     expect(rejected.expectation.finding_subject).toBe('Typed review result');
   });
   it('omits the proof obligation rather than only its Markdown label', () => {
+    const baseline = EXECUTION_PLAN_SLICING_CASES.find(
+      candidate => candidate.id === 'complete-slice-record',
+    );
     const omitted = EXECUTION_PLAN_SLICING_CASES.find(
       candidate => candidate.id === 'missing-proof',
+    );
+    if (baseline === undefined || omitted === undefined) throw new Error('Missing proof pair');
+    expect(baseline.execution_plan.match(/^### /gmu)).toHaveLength(1);
+    const tasks = '#### Tasks and tests';
+    const ownership = '## Obligation ownership';
+    expect(omitted.execution_plan.slice(0, omitted.execution_plan.indexOf(tasks))).toBe(
+      baseline.execution_plan
+        .slice(0, baseline.execution_plan.indexOf(tasks))
+        .replace(/^- Proof:.*\n/mu, ''),
+    );
+    expect(omitted.execution_plan.slice(omitted.execution_plan.indexOf(ownership))).toBe(
+      baseline.execution_plan.slice(baseline.execution_plan.indexOf(ownership)),
     );
     expect(omitted?.execution_plan).not.toMatch(/^- Proof:/mu);
     expect(omitted?.execution_plan).not.toContain('RED (');
@@ -39,6 +54,26 @@ describe('single-defect slicing acceptance fixtures', () => {
       'No verification procedure is assigned to this slice.',
     );
     expect(omitted?.expectation.finding_subject).toBe('Typed review result');
+    expect(omitted.execution_plan).toContain('Output: the exported judgment contract');
+    expect(omitted.execution_plan).toContain('Output: both response and retained judgment');
+  });
+
+  it('keeps the positive mirror inventory concrete, nonempty and ordered before consumers', () => {
+    const mirrors = EXECUTION_PLAN_SLICING_CASES.find(
+      candidate => candidate.id === 'many-mechanical-edits',
+    );
+    if (mirrors === undefined) throw new Error('Missing mirror case');
+    const paths = mirrors.execution_plan.match(/^- generated\/host-\d+\/review-contract.ts$/gmu);
+    expect(paths).toHaveLength(12);
+    expect(new Set(paths).size).toBe(12);
+    expect(mirrors.execution_plan).toContain('Zero mirrors must fail.');
+    expect(mirrors.execution_plan).toContain('before any installed-package consumer runs');
+    expect(mirrors.execution_plan.indexOf('1. RED')).toBeLessThan(
+      mirrors.execution_plan.indexOf('2. GREEN'),
+    );
+    expect(mirrors.execution_plan.indexOf('2. GREEN')).toBeLessThan(
+      mirrors.execution_plan.indexOf('3. REFACTOR'),
+    );
   });
 
   it('keeps expected verdicts and defect descriptions out of reviewer scenario context', () => {
@@ -55,7 +90,7 @@ describe('single-defect slicing acceptance fixtures', () => {
     }
   });
 
-  it('isolates the implementer-deferred authorization boundary without a routing hint', () => {
+  it('keeps repair of an already settled authorization decision in Execution Planning', () => {
     const baseline = EXECUTION_PLAN_SLICING_CASES.find(
       candidate => candidate.id === 'one-coherent-change',
     );
@@ -79,9 +114,38 @@ describe('single-defect slicing acceptance fixtures', () => {
     );
     expect(deferredBoundary).toContain('implementer must choose authorization ownership');
     expect(deferred.expectation).toMatchObject({
-      planning_destination: 'plan-implementation',
+      planning_destination: 'plan-execution',
       finding_subject: 'Complete delivery',
       finding_terms: ['authorization', 'boundary'],
+    });
+  });
+
+  it('routes genuinely missing authorization ownership to Implementation Planning', () => {
+    const baseline = EXECUTION_PLAN_SLICING_CASES.find(
+      candidate => candidate.id === 'one-coherent-change',
+    );
+    const missing = EXECUTION_PLAN_SLICING_CASES.find(
+      candidate => candidate.id === 'missing-authorization-ownership',
+    );
+    if (baseline === undefined || missing === undefined)
+      throw new Error('Missing unresolved-design pair');
+    const acceptedDecision =
+      'One shared authorization service owns permission checks for every transport.';
+    expect(missing.implementation_plan).toBe(
+      baseline.implementation_plan.replace(`- ${acceptedDecision}\n`, ''),
+    );
+    expect(missing.execution_plan).not.toContain(`- ${acceptedDecision}: unchanged`);
+    expect(missing.execution_plan).not.toContain('accepted shared authorization service');
+    expect(missing.execution_plan).not.toContain('shared-service assertion');
+    expect(missing.scenario).not.toContain('shared authorization service');
+    expect(missing.execution_plan).toContain('authorization ownership remains undecided');
+    for (const input of [missing.implementation_plan, missing.execution_plan, missing.scenario])
+      expect(input).not.toContain('plan-implementation');
+    expect(missing.expectation).toMatchObject({
+      verdict: 'request_changes',
+      planning_destination: 'plan-implementation',
+      finding_subject: 'Complete delivery',
+      finding_terms: ['authorization', 'ownership'],
     });
   });
 

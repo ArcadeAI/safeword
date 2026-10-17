@@ -38,6 +38,7 @@ const reviewer = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER as ReviewAgen
 const model = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL?.trim() || undefined;
 const resultsPath = process.env.SAFEWORD_EXECUTION_PLAN_RESULTS_PATH;
 const results: ExecutionPlanConformanceResult[] = [];
+const outputs: { case_id: string; output: ReviewerOutput }[] = [];
 
 function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent): ReviewPacket {
   const identity =
@@ -193,6 +194,8 @@ function assertSlicingRationale(id: string, rationale: string): void {
     'one-coherent-change': [
       /coher|cohes|insepar|coupl|atomic|single boundary|same (?:boundary|contract|outcome)/iu,
       /review|judg|contract|command|result/iu,
+      /split|separat|independen|insepar|indivis/iu,
+      /no |not |none |without|cannot|can't|insepar|indivis|artificial|would/iu,
     ],
     'several-ordered-changes': [
       /contract|schema/iu,
@@ -270,12 +273,17 @@ function assertDenial(testCase: SlicingAcceptanceCase, output: ReviewerOutput): 
   }
   if (testCase.expectation.finding_subject !== undefined) {
     const subject = testCase.expectation.finding_subject.toLowerCase();
+    const purposePatterns =
+      testCase.id === 'two-independent-purposes'
+        ? [/contract|schema/iu, /activat|public.*(?:command|rout)/iu, /separat|split|independen/iu]
+        : [];
     expect(
       output.findings.some(finding => {
         const message = finding.message.toLowerCase();
         return (
           message.includes(subject) &&
-          expectedTerms.every(term => message.includes(term.toLowerCase()))
+          expectedTerms.every(term => message.includes(term.toLowerCase())) &&
+          purposePatterns.every(pattern => pattern.test(message))
         );
       }),
       `One finding must name the affected slice and its missing field: ${subject}`,
@@ -304,9 +312,14 @@ function useLiveReviewerProfile(assigned: ReviewAgent): void {
 }
 
 afterAll(() => {
-  if (CAN_RUN && resultsPath !== undefined) {
-    writeFileSync(resultsPath, `${JSON.stringify(results, undefined, 2)}\n`, { mode: 0o600 });
+  if (!CAN_RUN || resultsPath === undefined) {
+    return;
   }
+
+  writeFileSync(resultsPath, `${JSON.stringify(results, undefined, 2)}\n`, { mode: 0o600 });
+  writeFileSync(`${resultsPath}.outputs.json`, `${JSON.stringify(outputs, undefined, 2)}\n`, {
+    mode: 0o600,
+  });
 });
 
 describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
@@ -334,6 +347,7 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
               ...(model !== undefined && { model }),
               runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
             })) as ReviewerOutput);
+        outputs.push({ case_id: testCase.id, output });
         try {
           assertCase(
             testCase,

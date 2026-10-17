@@ -1,6 +1,7 @@
 # Semantic outcomes run the real CLI/reviewer conformance cases in the live lane.
 # The default Vitest manifest covers only deterministic contract-dispatch wiring.
 # Corpus metadata is supporting evidence, never a semantic verdict.
+# Live results describe the recorded reviewer/model run; default CI does not certify them.
 Feature: Split large contributions into independently reviewable PRs
   Safeword turns an accepted approach into coherent PR slices without losing obligations or reopening design.
 
@@ -68,7 +69,7 @@ Feature: Split large contributions into independently reviewable PRs
     @rejection @surface.safeword-cli
     @live @execution-plan-semantic
     Scenario: A formally complete slice cannot leave a design decision to its implementer
-      Given a planned pull request names its purpose, boundary, prerequisites, proof, and completion signal but leaves the shared authorization boundary undecided
+      Given a planned pull request names its purpose, boundary, prerequisites, proof, and completion signal but its accepted implementation approach has not settled authorization ownership
       When the Execution Plan is reviewed through the packaged Safeword CLI contract workflow
       Then the CLI-dispatched semantic review is denied with the unresolved authorization decision named for Implementation Planning
 
