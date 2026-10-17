@@ -12,6 +12,7 @@ scope:
   - Add project pr-ready to check its actual Git worktree and promote the matching PR.
   - Reuse existing ticket and exact-HEAD readiness receipts; add no persistent state.
   - Make the Codex readiness workflow use the checked command from the delivery worktree.
+  - Complete delivery review and update the vulnerable Python development lock dependency.
 out_of_scope:
   - Rewriting arbitrary shell code or recovering metadata omitted by Codex.
   - Copying or manufacturing ticket, verification, or readiness evidence.
@@ -103,6 +104,17 @@ Never mutate a live GitHub PR during development.
 
 ## Implementation plan
 
+Test-quality follow-up authorized by the user: keep real CLI/Git integration
+scope and fake only the GitHub process boundary. Add a HEAD-change case whose
+receipt is refreshed during inspection (specific refusal, no Ready); a valid
+delivery with disruptive inherited Git configuration (successful promotion,
+no Git/launch override keys reaching GitHub); and a table of one invalid
+metadata field per otherwise valid response (invalid-response refusal, no
+Ready). Strengthen operational failures with exit status and exact attempted
+network effects. Check each addition against current code and a corresponding
+disposable-runtime mutation before proceeding; preserve the original audit as
+historical evidence and record the repair results separately.
+
 Register one typed mutating project command with declared network effects and
 offline rejection. Resolve Git root from invocation.cwd, check enrollment and
 existing readiness, inspect PR number/head/draft status, revalidate local HEAD
@@ -168,3 +180,26 @@ Update canonical workflow guidance and regenerate normal delivery surfaces.
   in verify.md. Implementation is complete locally; the ticket stays in verify
   because the full plan was not uniformly green and unchanged audit findings
   remain. No push, PR, issue closure, or live Ready mutation was performed.
+- Follow-up test-quality audit requested by the user: recorded three P2 safety
+  coverage gaps and one P3 reporting gap in test-quality-audit.md. Baseline and
+  restored baseline passed 32/32; nine of eleven bounded guard mutations were
+  detected. HEAD-equality and environment-filter mutations survived, with
+  separate real-Git/fake-GitHub counterexamples confirming the missing cases.
+  Current production code handles those counterexamples correctly. Additional
+  optional suite mutations were stopped while queued behind another checkout;
+  no unrun evidence is counted. Source and tests remain unchanged; ticket stays
+  in verify, with the audit findings open.
+- User authorized the suggested improvements. All four audit findings are now
+  addressed: twelve new integration cases isolate refreshed-HEAD evidence,
+  sanitized Git/launch environments, and invalid metadata fields; six existing
+  operational-failure cases now require exit 1 and exact network effects.
+  Characterization checks followed each addition. Ten deliberate runtime
+  mutation runs covering nine distinct changes all fail the intended checks.
+  Final restored-runtime verification passes 44/44 command cases and 174/174
+  across five focused files, with zero pending cases. CLI typecheck, targeted
+  ESLint, formatting, and diff checks pass. Tests use the normal package-snapshot
+  helper; mutation runs held the normal global lock and never overlapped Vitest
+  processes. The initial standalone request timed out while queued and is not
+  counted as executed CLI evidence. No production source or generated artifact
+  changed. The audit report preserves its original findings and records their
+  resolution; ticket remains in verify under the existing broad-run limits.

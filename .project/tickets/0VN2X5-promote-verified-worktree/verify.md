@@ -38,6 +38,16 @@ vulnerabilities. These findings were not changed or suppressed for this patch.
 
 ## Surface evidence
 
+Follow-up test-quality improvements: all four audit findings are addressed.
+The command suite now passes 44/44 cases, with 174/174 passing across five
+focused readiness/catalog files and no pending tests. Ten targeted mutation
+runs covering nine distinct changes all fail the intended assertions. Added
+cases isolate HEAD equality, sanitized child environments, and malformed fields;
+operational failures assert exit status and exact attempted network effects.
+CLI typecheck, targeted ESLint, formatting, and diff checks pass. Full details
+and logs are in `test-quality-audit.md`; the original matrix and broad-run
+qualifications above remain historical evidence, not a new full-plan pass.
+
 | Affected surface | Proof | Result |
 | --- | --- | --- |
 | Execution-time CLI | Real built CLI, linked Git worktrees, fake gh; final smoke/contract command includes project-pr-ready.test.ts | Pass; 32 command cases. GitHub is simulated. |

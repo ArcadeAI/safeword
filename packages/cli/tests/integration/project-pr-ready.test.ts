@@ -8,10 +8,10 @@ import {
   createTemporaryDirectory,
   initGitRepo,
   removeTemporaryDirectory,
+  testCliPath as CLI,
   writeTestFile,
 } from '../helpers.js';
 
-const CLI = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
 const directories: string[] = [];
 const TICKET = '.project/tickets/READY-delivery/ticket.md';
 
@@ -99,9 +99,45 @@ describe('project pr-ready validation (#5511)', () => {
   ])('refuses promotion after %s', (mode, code) => {
     const project = fixture();
     const result = project.run(undefined, { GH_TEST_MODE: mode });
-    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, errors: [{ code }] });
+    const output = JSON.parse(result.stdout);
+    expect(result.status, result.stderr).toBe(1);
+    expect(output).toMatchObject({
+      ok: false,
+      state: 'failed',
+      changed: false,
+      errors: [{ code }],
+    });
+    expect(output.effects.network).toEqual([
+      { kind: 'github-pull-request', target: 'current-branch', operation: 'inspect' },
+    ]);
     expect(project.calls().map(call => call.args[1])).toEqual(['view']);
   });
+
+  /* eslint-disable unicorn/no-null -- Invalid external JSON must retain explicit null fields. */
+  it.each<[string, Record<string, unknown>]>([
+    ['zero PR number', { number: 0 }],
+    ['negative PR number', { number: -1 }],
+    ['fractional PR number', { number: 37.5 }],
+    ['unsafe PR number', { number: Number.MAX_SAFE_INTEGER + 1 }],
+    ['string PR number', { number: '37' }],
+    ['null PR number', { number: null }],
+    ['string draft flag', { isDraft: 'true' }],
+    ['null draft flag', { isDraft: null }],
+    ['null head', { headRefOid: null }],
+    ['null state', { state: null }],
+  ])('refuses metadata containing %s', (_description, metadata) => {
+    const project = fixture();
+    const result = project.run(undefined, { GH_TEST_METADATA: JSON.stringify(metadata) });
+
+    expect(result.status, result.stderr).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: false,
+      errors: [{ code: 'PR_READY_INVALID_RESPONSE' }],
+    });
+    expect(project.calls().map(call => call.args[1])).toEqual(['view']);
+  });
+  /* eslint-enable unicorn/no-null */
 
   it.each(['CLOSED', 'MERGED'])('refuses a %s pull request', state => {
     const project = fixture();
@@ -111,6 +147,24 @@ describe('project pr-ready validation (#5511)', () => {
       errors: [{ code: 'PR_READY_NOT_OPEN' }],
     });
     expect(project.calls().map(call => call.args[1])).toEqual(['view']);
+  });
+
+  it('refuses a changed HEAD even when readiness is refreshed during inspection', () => {
+    const project = fixture();
+    const inspectedHead = head(project.delivery);
+    const result = project.run(undefined, { GH_TEST_MODE: 'refresh-readiness-during-view' });
+
+    expect(result.status, result.stderr).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: false,
+      errors: [{ code: 'PR_READY_EVIDENCE_CHANGED' }],
+    });
+    expect(project.calls().map(call => call.args[1])).toEqual(['view']);
+    expect(head(project.delivery)).not.toBe(inspectedHead);
+    const receiptPath = nodePath.join(project.delivery, '.project/readiness-ticket.json');
+    const refreshedReceipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
+    expect(refreshedReceipt).toMatchObject({ head_sha: head(project.delivery) });
   });
 
   it('refuses a PR head different from the verified local commit', () => {
@@ -143,11 +197,18 @@ describe('project pr-ready validation (#5511)', () => {
   it('reports a failed Ready operation without claiming success', () => {
     const project = fixture();
     const result = project.run(undefined, { GH_TEST_MODE: 'ready-fail' });
-    expect(JSON.parse(result.stdout)).toMatchObject({
+    const output = JSON.parse(result.stdout);
+    expect(result.status, result.stderr).toBe(1);
+    expect(output).toMatchObject({
       ok: false,
+      state: 'failed',
       changed: false,
       errors: [{ code: 'PR_READY_PROMOTION_FAILED' }],
     });
+    expect(output.effects.network).toEqual([
+      { kind: 'github-pull-request', target: 'current-branch', operation: 'inspect' },
+      { kind: 'github-pull-request', target: '37', operation: 'mark-ready' },
+    ]);
     expect(project.calls().map(call => call.args[1])).toEqual(['view', 'ready']);
   });
 
@@ -169,23 +230,37 @@ describe('project pr-ready validation (#5511)', () => {
     expect(project.calls().filter(call => call.args[1] === 'ready')).toHaveLength(1);
   });
 
-  it('ignores unrelated session state and inherited Git config injection', () => {
+  it('ignores unrelated session state when selecting readiness evidence', () => {
     const project = fixture();
     writeTestFile(
       project.delivery,
       '.project/quality-state-undefined.json',
       JSON.stringify({ activeTicket: 'OTHER' }),
     );
-    const result = project.run(undefined, {
-      GIT_CONFIG_COUNT: '1',
-      GIT_CONFIG_KEY_0: 'core.worktree',
-      GIT_CONFIG_VALUE_0: project.launch,
-    });
+    const result = project.run();
     expect(result.status, result.stderr).toBe(0);
     expect(project.calls().map(call => call.cwd)).toEqual([
       realpathSync(project.delivery),
       realpathSync(project.delivery),
     ]);
+  });
+
+  it('promotes with inherited Git configuration stripped from child processes', () => {
+    const project = fixture();
+    const result = project.run(undefined, {
+      GH_TEST_MODE: 'inspect-environment',
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'invalid',
+      GIT_CONFIG_VALUE_0: 'true',
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      changed: true,
+      data: { project_directory: realpathSync(project.delivery) },
+    });
+    expect(project.calls().map(call => call.args[1])).toEqual(['view', 'ready']);
+    expect(project.calls().map(call => call.inheritedContext)).toEqual([[], []]);
   });
 
   it.each([
@@ -297,15 +372,24 @@ function fixture() {
       "const fs = require('node:fs');",
       "const cp = require('node:child_process');",
       'const args = process.argv.slice(2);',
-      String.raw`fs.appendFileSync(process.env.GH_TEST_LOG, JSON.stringify({ cwd: process.cwd(), args }) + '\n');`,
+      'const call = { cwd: process.cwd(), args };',
+      "if (process.env.GH_TEST_MODE === 'inspect-environment') call.inheritedContext = Object.keys(process.env).filter(name => name.startsWith('GIT_') || name === 'CLAUDE_PROJECT_DIR').sort();",
+      String.raw`fs.appendFileSync(process.env.GH_TEST_LOG, JSON.stringify(call) + '\n');`,
       "if (args[1] === 'view') {",
       "  if (process.env.GH_TEST_MODE === 'view-fail') { console.error('lookup failed'); process.exit(7); }",
       "  if (process.env.GH_TEST_MODE === 'malformed') { console.log('invalid JSON'); process.exit(0); }",
       "  const sha = cp.execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();",
-      "  if (process.env.GH_TEST_MODE === 'commit-during-view') cp.execFileSync('git', ['commit', '--allow-empty', '-qm', 'new head']);",
+      "  if (['commit-during-view', 'refresh-readiness-during-view'].includes(process.env.GH_TEST_MODE)) cp.execFileSync('git', ['commit', '--allow-empty', '-qm', 'new head']);",
+      "  if (process.env.GH_TEST_MODE === 'refresh-readiness-during-view') {",
+      "    const path = '.project/readiness-ticket.json';",
+      "    const receipt = JSON.parse(fs.readFileSync(path, 'utf8'));",
+      "    receipt.head_sha = cp.execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();",
+      '    fs.writeFileSync(path, JSON.stringify(receipt));',
+      '  }',
       String.raw`  if (process.env.GH_TEST_MODE === 'reopen-ticket') fs.writeFileSync('.project/tickets/READY-delivery/ticket.md', '---\nid: READY\ntype: task\nphase: implement\nstatus: in_progress\n---\n');`,
       "  if (process.env.GH_TEST_MODE === 'missing-fields') { console.log('{}'); process.exit(0); }",
-      "  console.log(JSON.stringify({ number: 37, headRefOid: process.env.GH_TEST_HEAD || sha, isDraft: process.env.GH_TEST_MODE !== 'already-ready', state: process.env.GH_TEST_STATE || 'OPEN' }));",
+      "  const record = { number: 37, headRefOid: process.env.GH_TEST_HEAD || sha, isDraft: process.env.GH_TEST_MODE !== 'already-ready', state: process.env.GH_TEST_STATE || 'OPEN' };",
+      "  console.log(JSON.stringify({ ...record, ...JSON.parse(process.env.GH_TEST_METADATA || '{}') }));",
       "} else if (args[1] === 'ready') {",
       "  if (process.env.GH_TEST_MODE === 'ready-fail') { console.error('promotion failed'); process.exit(9); }",
       "  console.log('Ready');",
@@ -325,7 +409,7 @@ function fixture() {
         ...extra,
       },
     });
-  const calls = (): { cwd: string; args: string[] }[] => {
+  const calls = (): { cwd: string; args: string[]; inheritedContext?: string[] }[] => {
     try {
       return readFileSync(log, 'utf8')
         .trim()
