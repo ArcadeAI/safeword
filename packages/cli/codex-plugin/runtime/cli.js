@@ -52928,6 +52928,9 @@ function isValidExecutionPlanRecord(value) {
 function executionPlanRecordFailure(value) {
   if (!isRecord7(value))
     return "execution_plan_record must be an object";
+  if (!isRecord7(value.delivery_definition)) {
+    return deliveryDefinitionFailure(value.delivery_definition);
+  }
   if (!hasValidRecordHeader(value))
     return "execution_plan_record has an invalid header";
   const deliveryFailure = deliveryDefinitionFailure(value.delivery_definition);

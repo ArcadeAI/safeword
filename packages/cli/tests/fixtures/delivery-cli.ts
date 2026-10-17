@@ -128,7 +128,9 @@ dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\
 record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
 verdict=$(printenv SAFEWORD_REVIEW_FAKE_VERDICT || true)
 finding=$(printenv SAFEWORD_REVIEW_FAKE_FINDING || true)
-if [ "$verdict" = "request_changes" ]; then
+if [ "$verdict" = "request_changes" ] && printf '%s' "$payload" | /usr/bin/grep -q '"kind":"delivery-compatibility"'; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"earlier proof is incompatible","findings":[{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$finding"
+elif [ "$verdict" = "request_changes" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan needs repair","findings":[{"severity":"error","message":"%s"}],"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id" "$finding"
 elif [ -n "$record" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[],"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$record"

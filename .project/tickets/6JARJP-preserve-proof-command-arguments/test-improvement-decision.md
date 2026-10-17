@@ -129,3 +129,40 @@ case cannot accidentally satisfy the rejection assertion.
 
 **Next:** verify the final deterministic and live proofs, collect fresh
 independent judgments, and push the existing Draft PR without promotion.
+
+## Final reconciliation after independent review
+
+The earlier authorization variant was ambiguous: it contradicted a settled
+shared-service decision, and actual reviewers returned either planning phase.
+The acceptance bank now replaces it with `settled-authorization-proof-repair`,
+which replaces the security proof command in both its declaration and tasks
+with a marker-printing command and expects Execution Planning. `missing-authorization-ownership`
+separately removes the upstream decision and expects Implementation Planning.
+The legacy production case remains unchanged. The declaration and tasks now agree, isolating inadequate boundary proof
+from an instruction mismatch. The denial must name the security proof boundary.
+
+The human-handoff Then now says no completion is granted. An invalid
+contributor/pending-human row is refused before readiness can be projected, so
+claiming an observed open checklist would be false. Both the checklist read
+and proof-record attempt are refused, no readiness or receipt is granted, and
+the recovery names the contributor's obligation. This preserves the accepted
+ban on dismissing unfinished contributor work without inventing a projection.
+
+The strict rationale, owner and prerequisite assertions were introduced on this
+branch, as comparison to main `31befd189` confirms. They now run only for the
+acceptance bank; main's production qualification oracle remains intact. Result
+IDs receive the `acceptance:` prefix when written by the runner, including
+cases constructed outside the mapped baseline. Scenario separation is checked
+across the complete exported bank by the fixture tests.
+
+Literal finding subjects deliberately fail conservatively if the reviewer
+uses another label. This can cause an opt-in false negative; it cannot admit a
+false positive. General synonym matching is deferred because it would weaken
+the single-finding localization requirement without evidence of a current gap.
+
+Retained plans containing non-pipe Markdown escapes may parse to a different
+trusted definition after upgrade. They require a new plan-execution review;
+no approval is silently carried across changed parsed bytes. An ordinary-cell
+backslash regression supplements the command JSON tests. Generated plugin
+carriers were regenerated and the five-surface check passed; final automated
+results are recorded in verify.md rather than inferred from this decision.

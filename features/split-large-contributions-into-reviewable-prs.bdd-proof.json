@@ -1,7 +1,7 @@
 {
   "feature": "features/split-large-contributions-into-reviewable-prs.feature",
   "scenarios": {
-    "Installed review dispatch carries the canonical slicing contract": [
+    "Installed review dispatch carries the generated slicing rubric": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
       "activates Execution Plan review only for a ticket-owned plan through an admitted route"
     ]

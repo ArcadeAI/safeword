@@ -108,7 +108,7 @@ const proofs: Record<string, Proof> = {
   'An omitted slicing decision cannot pass Execution Plan review': semanticProof(
     'omitted-slicing-decision',
   ),
-  'Installed review dispatch carries the canonical slicing contract': {
+  'Installed review dispatch carries the generated slicing rubric': {
     expectedTests: 1,
     selector:
       'activates Execution Plan review only for a ticket-owned plan through an admitted route',
@@ -128,6 +128,9 @@ const proofs: Record<string, Proof> = {
   ),
   'A formally complete slice cannot leave a design decision to its implementer': semanticProof(
     'missing-authorization-ownership',
+  ),
+  'An inadequate proof for a settled boundary stays in Execution Planning': semanticProof(
+    'settled-authorization-proof-repair',
   ),
   'Ordered slices preserve a supported repository after every merge': semanticProof(
     'ordered-schema-before-reader',

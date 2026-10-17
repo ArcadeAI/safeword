@@ -180,23 +180,6 @@ function acceptance(testCase: ExecutionPlanConformanceCase): SlicingAcceptanceCa
       expectation: { ...testCase.expectation, finding_subject: 'Typed review result' },
     };
   }
-  if (testCase.id === 'unresolved-authorization-decision') {
-    return {
-      ...testCase,
-      execution_plan: replaceRequired(
-        one,
-        /^(- Boundary:.*)$/mu,
-        line =>
-          `${line} The implementer must choose authorization ownership between the accepted shared service and independent per-transport checks before implementing this slice.`,
-      ),
-      expectation: {
-        ...testCase.expectation,
-        planning_destination: 'plan-execution',
-        finding_subject: 'Complete delivery',
-        finding_terms: ['authorization', 'boundary'],
-      },
-    };
-  }
   if (testCase.id === 'many-mechanical-edits') {
     const mirrors = Array.from(
       { length: 12 },
@@ -289,7 +272,6 @@ const slicingCaseIds = new Set([
   'missing-proof',
   'missing-completion-signal',
   'two-independent-purposes',
-  'unresolved-authorization-decision',
   'ordered-schema-before-reader',
   'unsafe-intermediate-merge',
   'many-mechanical-edits',
@@ -307,6 +289,22 @@ const slicingCaseIds = new Set([
 ]);
 
 export const EXECUTION_PLAN_SLICING_CASES: readonly SlicingAcceptanceCase[] = [
+  {
+    ...original('one-coherent-change'),
+    id: 'settled-authorization-proof-repair',
+    scenario: acceptedScenarios,
+    execution_plan: replaceRequired(
+      one,
+      '{"type":"command","cwd":".","argv":["bun","run","test:authorization-boundary"]}',
+      '{"type":"command","cwd":".","argv":["node","-e","process.stdout.write(\'ok\')"]}',
+    ).replaceAll('bun run test:authorization-boundary', 'node -e "process.stdout.write(\'ok\')"'),
+    expectation: {
+      verdict: 'request_changes',
+      planning_destination: 'plan-execution',
+      finding_subject: 'security-boundary',
+      finding_terms: ['proof', 'boundary'],
+    },
+  },
   ...EXECUTION_PLAN_CONFORMANCE_CASES.filter(testCase => slicingCaseIds.has(testCase.id)).map(
     testCase => ({
       ...acceptance(testCase),

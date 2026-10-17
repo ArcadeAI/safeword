@@ -113,6 +113,11 @@
         "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
         "records %s evidence through the installed CLI",
         "missing"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "incompatible earlier"
       ]
     ],
     "Earlier or partial evidence cannot silently become current complete proof": [

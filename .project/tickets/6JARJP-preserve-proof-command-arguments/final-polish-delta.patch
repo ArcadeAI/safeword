@@ -1,0 +1,466 @@
+diff --git a/features/complete-contributions-with-a-default-delivery-checklist.bdd-proof.json b/features/complete-contributions-with-a-default-delivery-checklist.bdd-proof.json
+index c3fe42926..3363af4f1 100644
+--- a/features/complete-contributions-with-a-default-delivery-checklist.bdd-proof.json
++++ b/features/complete-contributions-with-a-default-delivery-checklist.bdd-proof.json
+@@ -113,6 +113,11 @@
+         "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+         "records %s evidence through the installed CLI",
+         "missing"
++      ],
++      [
++        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
++        "records %s evidence through the installed CLI",
++        "incompatible earlier"
+       ]
+     ],
+     "Earlier or partial evidence cannot silently become current complete proof": [
+diff --git a/features/complete-contributions-with-a-default-delivery-checklist.feature b/features/complete-contributions-with-a-default-delivery-checklist.feature
+index 9bef27d33..c1635c2e4 100644
+--- a/features/complete-contributions-with-a-default-delivery-checklist.feature
++++ b/features/complete-contributions-with-a-default-delivery-checklist.feature
+@@ -88,7 +88,7 @@ Feature: Complete contributions with a default delivery checklist
+     Scenario: Contributor-controlled work cannot be dismissed as a human handoff
+       Given an applicable test obligation can be completed by the contributor
+       When Safeword evaluates a checklist that labels it a human-owned dependency instead of completing it through the installed CLI
+-      Then the human-owned disposition is rejected, the test obligation remains open, and the response tells the contributor to complete it
++      Then the human-owned disposition is rejected, no completion is granted, and the response tells the contributor to complete it
+ 
+     @rejection @live
+     @execution-plan-semantic
+@@ -198,6 +198,7 @@ Feature: Complete contributions with a default delivery checklist
+         | compatible proof retained from an earlier revision | records the reusable evidence and its earlier-revision limitation |
+         | structural or partial proof that does not exercise the required boundary | records the narrower proof class and keeps the boundary obligation open |
+         | no proof | records the obligation unproven |
++        | incompatible proof retained from an earlier revision | reports a conservative partial class with the earlier-revision limitation and keeps the obligation unproven |
+ 
+     @rejection
+     @proof.vitest
+diff --git a/features/split-large-contributions-into-reviewable-prs.feature b/features/split-large-contributions-into-reviewable-prs.feature
+index d165dc80c..c382fe589 100644
+--- a/features/split-large-contributions-into-reviewable-prs.feature
++++ b/features/split-large-contributions-into-reviewable-prs.feature
+@@ -73,6 +73,13 @@ Feature: Split large contributions into independently reviewable PRs
+       When the Execution Plan is reviewed through the packaged Safeword CLI contract workflow
+       Then the CLI-dispatched semantic review is denied with the unresolved authorization decision named for Implementation Planning
+ 
++    @rejection @surface.safeword-cli
++    @live @execution-plan-semantic
++    Scenario: An inadequate proof for a settled boundary stays in Execution Planning
++      Given the accepted approach assigns authorization to a shared service but its declared boundary proof only prints a marker
++      When the Execution Plan is reviewed through the packaged Safeword CLI contract workflow
++      Then the CLI-dispatched semantic review names the inadequate boundary proof and returns it to Execution Planning
++
+   @plan-implementability.TBU2.6XW8H7.R3
+   Rule: plan-implementability.TBU2.6XW8H7.R3 — Pull-request dependencies are ordered explicitly and every merge leaves the repository in a safe supported state
+ 
+diff --git a/packages/cli/src/review/execution-plan-output.ts b/packages/cli/src/review/execution-plan-output.ts
+index 6ed7ba2c9..0ac37736f 100644
+--- a/packages/cli/src/review/execution-plan-output.ts
++++ b/packages/cli/src/review/execution-plan-output.ts
+@@ -449,6 +449,9 @@ function isValidExecutionPlanRecord(value: unknown): value is ExecutionPlanRecor
+ 
+ function executionPlanRecordFailure(value: unknown): string | undefined {
+   if (!isRecord(value)) return 'execution_plan_record must be an object';
++  if (!isRecord(value.delivery_definition)) {
++    return deliveryDefinitionFailure(value.delivery_definition);
++  }
+   if (!hasValidRecordHeader(value)) return 'execution_plan_record has an invalid header';
+   const deliveryFailure = deliveryDefinitionFailure(value.delivery_definition);
+   if (deliveryFailure !== undefined) return deliveryFailure;
+diff --git a/packages/cli/tests/execution-plan/delivery-checklist.test.ts b/packages/cli/tests/execution-plan/delivery-checklist.test.ts
+index 62781d7ee..7d9d24113 100644
+--- a/packages/cli/tests/execution-plan/delivery-checklist.test.ts
++++ b/packages/cli/tests/execution-plan/delivery-checklist.test.ts
+@@ -52,6 +52,14 @@ function completeDeliveryPlan(
+ }
+ 
+ describe('Delivery Checklist contract', () => {
++  it('retains literal non-pipe backslashes in an ordinary checklist cell', () => {
++    const obligation = String.raw`Keep \_name\_ and C:\tmp literal`;
++    const content = completeChecklist().replace('Complete testing', () => obligation);
++    const parsed = parseDeliveryChecklist(content);
++    expect(parsed.ok).toBe(true);
++    if (!parsed.ok) throw new Error(parsed.message);
++    expect(parsed.items.find(item => item.category === 'testing')?.obligation).toBe(obligation);
++  });
+   it('returns every item from a complete checklist in plan order', () => {
+     const result = parseDeliveryChecklist(completeChecklist());
+ 
+diff --git a/packages/cli/tests/fixtures/delivery-cli.ts b/packages/cli/tests/fixtures/delivery-cli.ts
+index 17fd0a5a7..52ef761da 100644
+--- a/packages/cli/tests/fixtures/delivery-cli.ts
++++ b/packages/cli/tests/fixtures/delivery-cli.ts
+@@ -128,7 +128,9 @@ dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\
+ record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
+ verdict=$(printenv SAFEWORD_REVIEW_FAKE_VERDICT || true)
+ finding=$(printenv SAFEWORD_REVIEW_FAKE_FINDING || true)
+-if [ "$verdict" = "request_changes" ]; then
++if [ "$verdict" = "request_changes" ] && printf '%s' "$payload" | /usr/bin/grep -q 'delivery-compatibility'; then
++  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"earlier proof is incompatible","findings":[{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$finding"
++elif [ "$verdict" = "request_changes" ]; then
+   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan needs repair","findings":[{"severity":"error","message":"%s"}],"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id" "$finding"
+ elif [ -n "$record" ]; then
+   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[],"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$record"
+diff --git a/packages/cli/tests/fixtures/execution-plan-slicing-cases.ts b/packages/cli/tests/fixtures/execution-plan-slicing-cases.ts
+index e5b4793c0..99b2e6635 100644
+--- a/packages/cli/tests/fixtures/execution-plan-slicing-cases.ts
++++ b/packages/cli/tests/fixtures/execution-plan-slicing-cases.ts
+@@ -180,23 +180,6 @@ function acceptance(testCase: ExecutionPlanConformanceCase): SlicingAcceptanceCa
+       expectation: { ...testCase.expectation, finding_subject: 'Typed review result' },
+     };
+   }
+-  if (testCase.id === 'unresolved-authorization-decision') {
+-    return {
+-      ...testCase,
+-      execution_plan: replaceRequired(
+-        one,
+-        /^(- Boundary:.*)$/mu,
+-        line =>
+-          `${line} The implementer must choose authorization ownership between the accepted shared service and independent per-transport checks before implementing this slice.`,
+-      ),
+-      expectation: {
+-        ...testCase.expectation,
+-        planning_destination: 'plan-execution',
+-        finding_subject: 'Complete delivery',
+-        finding_terms: ['authorization', 'boundary'],
+-      },
+-    };
+-  }
+   if (testCase.id === 'many-mechanical-edits') {
+     const mirrors = Array.from(
+       { length: 12 },
+@@ -289,7 +272,6 @@ const slicingCaseIds = new Set([
+   'missing-proof',
+   'missing-completion-signal',
+   'two-independent-purposes',
+-  'unresolved-authorization-decision',
+   'ordered-schema-before-reader',
+   'unsafe-intermediate-merge',
+   'many-mechanical-edits',
+@@ -307,6 +289,22 @@ const slicingCaseIds = new Set([
+ ]);
+ 
+ export const EXECUTION_PLAN_SLICING_CASES: readonly SlicingAcceptanceCase[] = [
++  {
++    ...original('one-coherent-change'),
++    id: 'settled-authorization-proof-repair',
++    scenario: acceptedScenarios,
++    execution_plan: replaceRequired(
++      one,
++      '{"type":"command","cwd":".","argv":["bun","run","test:authorization-boundary"]}',
++      '{"type":"command","cwd":".","argv":["node","-e","process.stdout.write(\'ok\')"]}',
++    ).replaceAll('bun run test:authorization-boundary', 'node -e "process.stdout.write(\'ok\')"'),
++    expectation: {
++      verdict: 'request_changes',
++      planning_destination: 'plan-execution',
++      finding_subject: 'security-boundary',
++      finding_terms: ['proof', 'boundary'],
++    },
++  },
+   ...EXECUTION_PLAN_CONFORMANCE_CASES.filter(testCase => slicingCaseIds.has(testCase.id)).map(
+     testCase => ({
+       ...acceptance(testCase),
+diff --git a/packages/cli/tests/integration/delivery-checklist-boundary.test.ts b/packages/cli/tests/integration/delivery-checklist-boundary.test.ts
+index 0b511c317..500f197df 100644
+--- a/packages/cli/tests/integration/delivery-checklist-boundary.test.ts
++++ b/packages/cli/tests/integration/delivery-checklist-boundary.test.ts
+@@ -60,7 +60,7 @@ async function fixture(plan = executionPlan(), designApprovalGate = false) {
+   git(root, 'add', '.');
+   git(root, 'commit', '--quiet', '-m', 'accepted fixture');
+   const reviewer = installReviewer();
+-  async function invoke(...argv: string[]) {
++  async function invokeWithEnvironment(environment: Record<string, string>, ...argv: string[]) {
+     const result = await runCli([...argv, '--json', '--no-input', '--cwd', root], {
+       cwd: root,
+       env: {
+@@ -69,16 +69,19 @@ async function fixture(plan = executionPlan(), designApprovalGate = false) {
+         SAFEWORD_NO_UPDATE_CHECK: '1',
+         SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+         PATH: `${reviewer}:/usr/bin:/bin`,
++        ...environment,
+       },
+     });
+     const output = JSON.parse(result.stdout);
+     expect(output.errors, result.stdout).toEqual([]);
+     return { exitCode: result.exitCode, output };
+   }
+-  return { root, planPath, invoke };
++  const invoke = (...argv: string[]) => invokeWithEnvironment({}, ...argv);
++  return { root, planPath, invoke, invokeWithEnvironment };
+ }
+ 
+ type CliFixture = Awaited<ReturnType<typeof fixture>>;
++type CompatibilityReview = 'approved' | 'denied' | 'not_requested';
+ type EvidenceKind =
+   | 'current'
+   | 'missing'
+@@ -112,7 +115,7 @@ async function recordRemainingProofs(created: CliFixture, humanPending: boolean)
+ async function makeEarlierProof(
+   created: CliFixture,
+   receipt: string,
+-  compatible: boolean,
++  compatibility: CompatibilityReview,
+ ): Promise<void> {
+   git(created.root, 'add', '.project');
+   git(created.root, 'commit', '--quiet', '-m', 'record proof');
+@@ -126,7 +129,32 @@ async function makeEarlierProof(
+       (item: { item_id: string }) => item.item_id === 'item-4',
+     ),
+   ).toMatchObject({ satisfied: false, limitations: expect.arrayContaining(['earlier_revision']) });
+-  if (!compatible) return;
++  if (compatibility === 'not_requested') return;
++  if (compatibility === 'denied') {
++    const rejected = await created.invokeWithEnvironment(
++      {
++        SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
++        SAFEWORD_REVIEW_FAKE_FINDING:
++          'The earlier proof no longer establishes this boundary after the source delta.',
++      },
++      'ticket',
++      'record-delivery-proof',
++      'ABC123',
++      'item-4',
++      'proof',
++      '--receipt',
++      receipt,
++      '--compatible-reason',
++      'Request review of this earlier proof against the current source delta.',
++      '--confirm-egress',
++    );
++    expect(rejected.exitCode, JSON.stringify(rejected.output)).toBe(2);
++    expect(rejected.output.findings).toContainEqual(
++      expect.objectContaining({ code: 'compatibility_review_denied' }),
++    );
++    expect(rejected.output.data).not.toHaveProperty('receipt_id');
++    return;
++  }
+   const reused = await created.invoke(
+     'ticket',
+     'record-delivery-proof',
+@@ -143,9 +171,14 @@ async function makeEarlierProof(
+   expect(reused.output.data.evidence_class).toBe('reusable_earlier_revision');
+ }
+ 
++const compatibilityByKind: Partial<Record<EvidenceKind, CompatibilityReview>> = {
++  'compatible earlier': 'approved',
++  'incompatible earlier': 'denied',
++};
++
+ async function evidenceFixture(kind: EvidenceKind): Promise<CliFixture> {
+   let plan = executionPlan();
+-  if (kind === 'compatible earlier')
++  if (compatibilityByKind[kind] !== undefined)
+     plan = plan.replace('current_required', 'compatible_earlier_allowed');
+   else if (kind.startsWith('partial')) {
+     const invocation = JSON.stringify({
+@@ -186,7 +219,7 @@ async function evidenceFixture(kind: EvidenceKind): Promise<CliFixture> {
+       await makeEarlierProof(
+         created,
+         recorded.output.data.receipt_id,
+-        kind === 'compatible earlier',
++        compatibilityByKind[kind] ?? 'not_requested',
+       );
+     }
+   }
+@@ -401,7 +434,7 @@ describe('Delivery Checklist installed command boundary', () => {
+       '| item-4 | testing | Deliver testing. | contributor | proof | pending_human | missing |  | security-team |',
+     );
+     writeFileSync(planPath, invalidPlan);
+-    const result = await invoke('ticket', 'record-delivery-proof', 'ABC123', 'item-4', 'proof');
++    const result = await invoke('ticket', 'delivery-checklist', 'ABC123');
+     expect(result.exitCode).toBe(2);
+     expect(result.output.findings).toMatchObject([
+       {
+@@ -410,11 +443,12 @@ describe('Delivery Checklist installed command boundary', () => {
+       },
+     ]);
+     expect(result.output.recovery).toHaveLength(1);
++    expect(result.output.data).not.toHaveProperty('readiness_state');
+     expect(result.output.data).not.toHaveProperty('receipt_id');
+     expect(readFileSync(planPath, 'utf8')).toBe(invalidPlan);
+-    const readiness = await invoke('ticket', 'delivery-checklist', 'ABC123');
+-    expect(readiness.exitCode).toBe(2);
+-    expect(readiness.output.data).not.toHaveProperty('readiness_state');
++    const recording = await invoke('ticket', 'record-delivery-proof', 'ABC123', 'item-4', 'proof');
++    expect(recording.exitCode).toBe(2);
++    expect(recording.output.data).not.toHaveProperty('receipt_id');
+   });
+ 
+   it('names monitoring and documentation after recording testing through the installed CLI', async () => {
+diff --git a/packages/cli/tests/integration/delivery-execution-prerequisite.test.ts b/packages/cli/tests/integration/delivery-execution-prerequisite.test.ts
+index d4c3f8f17..e5824c57c 100644
+--- a/packages/cli/tests/integration/delivery-execution-prerequisite.test.ts
++++ b/packages/cli/tests/integration/delivery-execution-prerequisite.test.ts
+@@ -124,6 +124,25 @@ describe('delivery execution prerequisite', () => {
+         receipt: 'not_checked',
+       },
+     },
++    {
++      label: 'admitted artifact whose testing category was removed',
++      arrange: (executionPath: string) => {
++        writeFileSync(
++          executionPath,
++          readFileSync(executionPath, 'utf8')
++            .split('\n')
++            .filter(line => !line.startsWith('| item-4 | testing |'))
++            .join('\n'),
++        );
++      },
++      expectedExitCode: 2,
++      expectedFacts: {
++        presence: 'present',
++        readability: 'readable',
++        status: 'planned',
++        receipt: 'missing',
++      },
++    },
+   ])('reports structural facts for a $label without a semantic verdict', async testCase => {
+     const root = featureFixture();
+     await admitThroughInstalledCli(root);
+diff --git a/packages/cli/tests/review/execution-plan-output.test.ts b/packages/cli/tests/review/execution-plan-output.test.ts
+index a0652f844..6c5438170 100644
+--- a/packages/cli/tests/review/execution-plan-output.test.ts
++++ b/packages/cli/tests/review/execution-plan-output.test.ts
+@@ -338,6 +338,21 @@ describe('Execution Plan output validation', () => {
+     });
+   });
+ 
++  it.each([
++    // eslint-disable-next-line unicorn/no-null -- JSON null is a distinct malformed boundary input.
++    ['null', null],
++    ['array', []],
++    ['string', 'invalid'],
++    ['missing', undefined],
++  ])('names a non-object delivery definition: %s', (_name, value) => {
++    const record = validRecord();
++    Object.assign(record, { delivery_definition: value });
++    expect(validateExecutionPlanOutput(approval(record))).toEqual({
++      kind: 'invalid_output',
++      reason: 'execution_plan_record.delivery_definition must be an object',
++    });
++  });
++
+   it('accepts a complete positive record without changing it', () => {
+     const output = approval();
+     expect(validateExecutionPlanOutput(output)).toEqual({ kind: 'approved', output });
+diff --git a/packages/cli/tests/review/execution-plan-slicing-cases.test.ts b/packages/cli/tests/review/execution-plan-slicing-cases.test.ts
+index 4576bbe4a..4945e9fb9 100644
+--- a/packages/cli/tests/review/execution-plan-slicing-cases.test.ts
++++ b/packages/cli/tests/review/execution-plan-slicing-cases.test.ts
+@@ -94,30 +94,35 @@ describe('single-defect slicing acceptance fixtures', () => {
+     const baseline = EXECUTION_PLAN_SLICING_CASES.find(
+       candidate => candidate.id === 'one-coherent-change',
+     );
+-    const deferred = EXECUTION_PLAN_SLICING_CASES.find(
+-      candidate => candidate.id === 'unresolved-authorization-decision',
++    const repair = EXECUTION_PLAN_SLICING_CASES.find(
++      candidate => candidate.id === 'settled-authorization-proof-repair',
+     );
+-    if (baseline === undefined || deferred === undefined)
++    if (baseline === undefined || repair === undefined)
+       throw new Error('Missing authorization pair');
+-    const baselineBoundary = baseline.execution_plan
+-      .split('\n')
+-      .find(line => line.startsWith('- Boundary:'));
+-    const deferredBoundary = deferred.execution_plan
+-      .split('\n')
+-      .find(line => line.startsWith('- Boundary:'));
+-    if (baselineBoundary === undefined || deferredBoundary === undefined)
+-      throw new Error('Missing boundary');
+-    expect(deferred.implementation_plan).toBe(baseline.implementation_plan);
+-    expect(deferred.scenario).toBe(baseline.scenario);
+-    expect(deferred.execution_plan.replace(deferredBoundary, () => baselineBoundary)).toBe(
+-      baseline.execution_plan,
+-    );
+-    expect(deferredBoundary).toContain('implementer must choose authorization ownership');
+-    expect(deferred.expectation).toMatchObject({
++    expect(repair.implementation_plan).toBe(baseline.implementation_plan);
++    expect(repair.scenario).toBe(baseline.scenario);
++    expect(repair.execution_plan).toBe(
++      baseline.execution_plan
++        .replace(
++          '{"type":"command","cwd":".","argv":["bun","run","test:authorization-boundary"]}',
++          '{"type":"command","cwd":".","argv":["node","-e","process.stdout.write(\'ok\')"]}',
++        )
++        .replaceAll(
++          'bun run test:authorization-boundary',
++          'node -e "process.stdout.write(\'ok\')"',
++        ),
++    );
++    expect(repair.expectation).toMatchObject({
+       planning_destination: 'plan-execution',
+-      finding_subject: 'Complete delivery',
+-      finding_terms: ['authorization', 'boundary'],
++      finding_subject: 'security-boundary',
++      finding_terms: ['proof', 'boundary'],
+     });
++    expect(EXECUTION_PLAN_CONFORMANCE_CASES.map(candidate => candidate.id)).toContain(
++      'unresolved-authorization-decision',
++    );
++    expect(EXECUTION_PLAN_SLICING_CASES.map(candidate => candidate.id)).not.toContain(
++      'unresolved-authorization-decision',
++    );
+   });
+ 
+   it('routes genuinely missing authorization ownership to Implementation Planning', () => {
+diff --git a/packages/cli/tests/smoke/execution-plan.live.test.ts b/packages/cli/tests/smoke/execution-plan.live.test.ts
+index 0c6038c9c..4debd5040 100644
+--- a/packages/cli/tests/smoke/execution-plan.live.test.ts
++++ b/packages/cli/tests/smoke/execution-plan.live.test.ts
+@@ -223,13 +223,10 @@ function assertObligationOwners(
+   }
+ }
+ 
+-function assertApproval(testCase: ExecutionPlanConformanceCase, output: ReviewerOutput): void {
+-  expect(output.verdict).toBe('approve');
+-  const record = recordOf(output);
+-  expect(record.slicing_decision).toBe(testCase.expectation.slicing_decision);
+-  expect(record.accepted_scenarios_covered).toBe(true);
+-  expect(record.accepted_approach_preserved).toBe(true);
+-  expect(record.slices.map(slice => slice.name)).toEqual(testCase.expectation.slice_names);
++function assertAcceptanceRecord(
++  testCase: ExecutionPlanConformanceCase,
++  record: ReturnType<typeof recordOf>,
++): void {
+   assertSlicingRationale(testCase.id, record.rationale);
+   for (const slice of record.slices) {
+     expect(slice.relies_on_unmerged_successor).toBe(false);
+@@ -256,6 +253,24 @@ function assertApproval(testCase: ExecutionPlanConformanceCase, output: Reviewer
+     expect(record.slices.find(slice => slice.name === name)?.proof).toContain(proof);
+   }
+   assertObligationOwners(testCase, record);
++}
++
++function assertApproval(testCase: ExecutionPlanConformanceCase, output: ReviewerOutput): void {
++  expect(output.verdict).toBe('approve');
++  const record = recordOf(output);
++  expect(record.slicing_decision).toBe(testCase.expectation.slicing_decision);
++  expect(record.accepted_scenarios_covered).toBe(true);
++  expect(record.accepted_approach_preserved).toBe(true);
++  expect(record.slices.map(slice => slice.name)).toEqual(testCase.expectation.slice_names);
++  if (ACCEPTANCE_CASES) {
++    assertAcceptanceRecord(testCase, record);
++  } else {
++    // Keep production route qualification independent of the stricter acceptance oracle.
++    const obligations = testCase.expectation.obligations ?? [];
++    for (const obligation of obligations) {
++      expect(record.obligation_owners.map(owner => owner.obligation)).toContain(obligation);
++    }
++  }
+   const expectedDecisions = testCase.expectation.decisions ?? [];
+   for (const decision of expectedDecisions) {
+     expect(record.decision_statuses).toContainEqual({ decision, status: 'unchanged' });
+diff --git a/steps/turn-decisions-into-startable-work.steps.ts b/steps/turn-decisions-into-startable-work.steps.ts
+index b4ffcf80b..3895b6a65 100644
+--- a/steps/turn-decisions-into-startable-work.steps.ts
++++ b/steps/turn-decisions-into-startable-work.steps.ts
+@@ -129,6 +129,9 @@ const proofs: Record<string, Proof> = {
+   'A formally complete slice cannot leave a design decision to its implementer': semanticProof(
+     'missing-authorization-ownership',
+   ),
++  'An inadequate proof for a settled boundary stays in Execution Planning': semanticProof(
++    'settled-authorization-proof-repair',
++  ),
+   'Ordered slices preserve a supported repository after every merge': semanticProof(
+     'ordered-schema-before-reader',
+   ),

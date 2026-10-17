@@ -52,6 +52,14 @@ function completeDeliveryPlan(
 }
 
 describe('Delivery Checklist contract', () => {
+  it('retains literal non-pipe backslashes in an ordinary checklist cell', () => {
+    const obligation = String.raw`Keep \_name\_ and C:\tmp literal`;
+    const content = completeChecklist().replace('Complete testing', () => obligation);
+    const parsed = parseDeliveryChecklist(content);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error(parsed.message);
+    expect(parsed.items.find(item => item.category === 'testing')?.obligation).toBe(obligation);
+  });
   it('returns every item from a complete checklist in plan order', () => {
     const result = parseDeliveryChecklist(completeChecklist());
 

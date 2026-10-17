@@ -94,30 +94,35 @@ describe('single-defect slicing acceptance fixtures', () => {
     const baseline = EXECUTION_PLAN_SLICING_CASES.find(
       candidate => candidate.id === 'one-coherent-change',
     );
-    const deferred = EXECUTION_PLAN_SLICING_CASES.find(
-      candidate => candidate.id === 'unresolved-authorization-decision',
+    const repair = EXECUTION_PLAN_SLICING_CASES.find(
+      candidate => candidate.id === 'settled-authorization-proof-repair',
     );
-    if (baseline === undefined || deferred === undefined)
+    if (baseline === undefined || repair === undefined)
       throw new Error('Missing authorization pair');
-    const baselineBoundary = baseline.execution_plan
-      .split('\n')
-      .find(line => line.startsWith('- Boundary:'));
-    const deferredBoundary = deferred.execution_plan
-      .split('\n')
-      .find(line => line.startsWith('- Boundary:'));
-    if (baselineBoundary === undefined || deferredBoundary === undefined)
-      throw new Error('Missing boundary');
-    expect(deferred.implementation_plan).toBe(baseline.implementation_plan);
-    expect(deferred.scenario).toBe(baseline.scenario);
-    expect(deferred.execution_plan.replace(deferredBoundary, () => baselineBoundary)).toBe(
-      baseline.execution_plan,
+    expect(repair.implementation_plan).toBe(baseline.implementation_plan);
+    expect(repair.scenario).toBe(baseline.scenario);
+    expect(repair.execution_plan).toBe(
+      baseline.execution_plan
+        .replace(
+          '{"type":"command","cwd":".","argv":["bun","run","test:authorization-boundary"]}',
+          '{"type":"command","cwd":".","argv":["node","-e","process.stdout.write(\'ok\')"]}',
+        )
+        .replaceAll(
+          'bun run test:authorization-boundary',
+          'node -e "process.stdout.write(\'ok\')"',
+        ),
     );
-    expect(deferredBoundary).toContain('implementer must choose authorization ownership');
-    expect(deferred.expectation).toMatchObject({
+    expect(repair.expectation).toMatchObject({
       planning_destination: 'plan-execution',
-      finding_subject: 'Complete delivery',
-      finding_terms: ['authorization', 'boundary'],
+      finding_subject: 'security-boundary',
+      finding_terms: ['proof', 'boundary'],
     });
+    expect(EXECUTION_PLAN_CONFORMANCE_CASES.map(candidate => candidate.id)).toContain(
+      'unresolved-authorization-decision',
+    );
+    expect(EXECUTION_PLAN_SLICING_CASES.map(candidate => candidate.id)).not.toContain(
+      'unresolved-authorization-decision',
+    );
   });
 
   it('routes genuinely missing authorization ownership to Implementation Planning', () => {

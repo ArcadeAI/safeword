@@ -29,10 +29,10 @@ Feature: Split large contributions into independently reviewable PRs
 
     @surface.safeword-cli
     @proof.vitest
-    Scenario: Installed review dispatch carries the canonical slicing contract
+    Scenario: Installed review dispatch carries the generated slicing rubric
       Given packaged Safeword CLI configuration and a deterministic recorder replacing only the external reviewer process
       When the CLI dispatches Execution Plan review
-      Then the recorder receives the exact canonical contract whose content digest matches the packaged contract and whose R1 through R5 clauses require the slicing decision, slice completeness, dependency safety, conceptual reviewability, and obligation preservation
+      Then the recorder receives the generated reviewer rubric with its matching content digest and declares the five slicing obligation labels
 
   @plan-implementability.TBU2.6XW8H7.R2
   Rule: plan-implementability.TBU2.6XW8H7.R2 — Each planned pull request has one coherent purpose, boundary, prerequisite set, proof obligation, and completion signal and can be implemented without inventing a design decision
@@ -73,6 +73,13 @@ Feature: Split large contributions into independently reviewable PRs
       When the Execution Plan is reviewed through the packaged Safeword CLI contract workflow
       Then the CLI-dispatched semantic review is denied with the unresolved authorization decision named for Implementation Planning
 
+    @rejection @surface.safeword-cli
+    @live @execution-plan-semantic
+    Scenario: An inadequate proof for a settled boundary stays in Execution Planning
+      Given the accepted approach assigns authorization to a shared service but its declared boundary proof only prints a marker
+      When the Execution Plan is reviewed through the packaged Safeword CLI contract workflow
+      Then the CLI-dispatched semantic review denies the slice because its proof obligation does not exercise the declared authorization boundary and returns it to Execution Planning
+
   @plan-implementability.TBU2.6XW8H7.R3
   Rule: plan-implementability.TBU2.6XW8H7.R3 — Pull-request dependencies are ordered explicitly and every merge leaves the repository in a safe supported state
 
@@ -81,7 +88,7 @@ Feature: Split large contributions into independently reviewable PRs
     Scenario: Ordered slices preserve a supported repository after every merge
       Given a schema-addition slice precedes a dependent reader-activation slice and each intermediate state supports the accepted behavior
       When the Execution Plan is reviewed through the packaged Safeword CLI contract workflow
-      Then the semantic review records the schema addition before reader activation and no slice as relying on an unmerged successor
+      Then the CLI-dispatched semantic review records the schema addition before reader activation and no slice as relying on an unmerged successor
 
     @rejection @surface.safeword-cli
     @live @execution-plan-semantic
@@ -125,14 +132,14 @@ Feature: Split large contributions into independently reviewable PRs
     Scenario: Accepted obligations remain assigned across pull-request slices
       Given an accepted approach has behavior, migration, rollout, rollback, documentation, and affected-surface obligations and its Execution Plan proposes pull-request slices
       When the Execution Plan is reviewed through the packaged Safeword CLI contract workflow
-      Then the semantic review records the owning slice for every obligation
+      Then the CLI-dispatched semantic review records the owning slice for every obligation
 
     @surface.safeword-cli
     @live @execution-plan-semantic
     Scenario: Accepted decisions remain unchanged across pull-request slices
       Given an accepted approach has recorded design decisions and its Execution Plan proposes pull-request slices
       When the Execution Plan is reviewed through the packaged Safeword CLI contract workflow
-      Then the semantic review reports every accepted decision unchanged by the slicing plan
+      Then the CLI-dispatched semantic review reports every accepted decision unchanged by the slicing plan
 
     @rejection @surface.safeword-cli
     @live @execution-plan-semantic

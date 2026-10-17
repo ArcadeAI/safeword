@@ -40,15 +40,17 @@ This includes the additive diagnostic assertions on existing rejection cases.
 The same three files passed after the repair: 150 passed, 2 skipped.
 Raw logs are retained in `evidence/red.log.gz` and `evidence/green.log.gz`.
 
-The host hook rejected both shell and apply_patch updates to canonical ticket.md
-because it requires Edit/Write fields unavailable on this tool surface. The
-scaffold is retained unchanged; this separate task spec records scope and proof.
-No gate was bypassed and no ticket completion is claimed.
+Initial multi-hunk ticket edits were rejected by the host guard. A later single
+exact hunk reconstructed safely, exposed the real missing intake-review gate,
+and succeeded after a genuine independent review was verified and stamped.
+The canonical task is now in verify. No guard was bypassed.
 
 Historical #4200 failures, unfinished cases, and deferred acceptance remain
 unchanged. This patch does not certify the full initiative or either old PR.
 
-**Next:** verify, collect independent review, and push a Draft PR only.
+**Current authorization:** the later user request explicitly adds Verify, Audit,
+Refactor, Quality Review, green CI and admin merge of PR #5897. The earlier
+Draft-only restriction is superseded. Final results belong in verify.md.
 
 ## Authorized test-quality follow-up
 

@@ -449,6 +449,9 @@ function isValidExecutionPlanRecord(value: unknown): value is ExecutionPlanRecor
 
 function executionPlanRecordFailure(value: unknown): string | undefined {
   if (!isRecord(value)) return 'execution_plan_record must be an object';
+  if (!isRecord(value.delivery_definition)) {
+    return deliveryDefinitionFailure(value.delivery_definition);
+  }
   if (!hasValidRecordHeader(value)) return 'execution_plan_record has an invalid header';
   const deliveryFailure = deliveryDefinitionFailure(value.delivery_definition);
   if (deliveryFailure !== undefined) return deliveryFailure;

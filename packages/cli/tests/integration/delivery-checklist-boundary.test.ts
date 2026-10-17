@@ -60,7 +60,7 @@ async function fixture(plan = executionPlan(), designApprovalGate = false) {
   git(root, 'add', '.');
   git(root, 'commit', '--quiet', '-m', 'accepted fixture');
   const reviewer = installReviewer();
-  async function invoke(...argv: string[]) {
+  async function invokeWithEnvironment(environment: Record<string, string>, ...argv: string[]) {
     const result = await runCli([...argv, '--json', '--no-input', '--cwd', root], {
       cwd: root,
       env: {
@@ -69,16 +69,19 @@ async function fixture(plan = executionPlan(), designApprovalGate = false) {
         SAFEWORD_NO_UPDATE_CHECK: '1',
         SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
         PATH: `${reviewer}:/usr/bin:/bin`,
+        ...environment,
       },
     });
     const output = JSON.parse(result.stdout);
     expect(output.errors, result.stdout).toEqual([]);
     return { exitCode: result.exitCode, output };
   }
-  return { root, planPath, invoke };
+  const invoke = (...argv: string[]) => invokeWithEnvironment({}, ...argv);
+  return { root, planPath, invoke, invokeWithEnvironment };
 }
 
 type CliFixture = Awaited<ReturnType<typeof fixture>>;
+type CompatibilityReview = 'approved' | 'denied' | 'not_requested';
 type EvidenceKind =
   | 'current'
   | 'missing'
@@ -112,7 +115,7 @@ async function recordRemainingProofs(created: CliFixture, humanPending: boolean)
 async function makeEarlierProof(
   created: CliFixture,
   receipt: string,
-  compatible: boolean,
+  compatibility: CompatibilityReview,
 ): Promise<void> {
   git(created.root, 'add', '.project');
   git(created.root, 'commit', '--quiet', '-m', 'record proof');
@@ -126,7 +129,37 @@ async function makeEarlierProof(
       (item: { item_id: string }) => item.item_id === 'item-4',
     ),
   ).toMatchObject({ satisfied: false, limitations: expect.arrayContaining(['earlier_revision']) });
-  if (!compatible) return;
+  if (compatibility === 'not_requested') return;
+  if (compatibility === 'denied') {
+    // The earlier passing run already marked this item complete; a denied reuse
+    // must not let those old plan bytes satisfy the current boundary.
+    expect(readFileSync(created.planPath, 'utf8')).toMatch(
+      /^\| item-4 \| testing \|.*\| complete \|/mu,
+    );
+    const rejected = await created.invokeWithEnvironment(
+      {
+        SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+        SAFEWORD_REVIEW_FAKE_FINDING:
+          'The earlier proof no longer establishes this boundary after the source delta.',
+      },
+      'ticket',
+      'record-delivery-proof',
+      'ABC123',
+      'item-4',
+      'proof',
+      '--receipt',
+      receipt,
+      '--compatible-reason',
+      'Request review of this earlier proof against the current source delta.',
+      '--confirm-egress',
+    );
+    expect(rejected.exitCode, JSON.stringify(rejected.output)).toBe(2);
+    expect(rejected.output.findings).toContainEqual(
+      expect.objectContaining({ code: 'compatibility_review_denied' }),
+    );
+    expect(rejected.output.data).not.toHaveProperty('receipt_id');
+    return;
+  }
   const reused = await created.invoke(
     'ticket',
     'record-delivery-proof',
@@ -143,9 +176,14 @@ async function makeEarlierProof(
   expect(reused.output.data.evidence_class).toBe('reusable_earlier_revision');
 }
 
+const compatibilityByKind: Partial<Record<EvidenceKind, CompatibilityReview>> = {
+  'compatible earlier': 'approved',
+  'incompatible earlier': 'denied',
+};
+
 async function evidenceFixture(kind: EvidenceKind): Promise<CliFixture> {
   let plan = executionPlan();
-  if (kind === 'compatible earlier')
+  if (compatibilityByKind[kind] !== undefined)
     plan = plan.replace('current_required', 'compatible_earlier_allowed');
   else if (kind.startsWith('partial')) {
     const invocation = JSON.stringify({
@@ -174,19 +212,19 @@ async function evidenceFixture(kind: EvidenceKind): Promise<CliFixture> {
     expect(recorded.output.data.receipt_id).toEqual(expect.any(String));
     if (kind.startsWith('partial')) {
       // A hand-written complete claim must not upgrade the retained structural receipt.
-      writeFileSync(
-        created.planPath,
-        readFileSync(created.planPath, 'utf8').replace(
-          '| open | partial_or_structural |',
-          '| complete | current_revision_real_boundary |',
-        ),
+      const original = readFileSync(created.planPath, 'utf8');
+      const upgraded = original.replace(
+        '| open | partial_or_structural |',
+        '| complete | current_revision_real_boundary |',
       );
+      expect(upgraded).not.toBe(original);
+      writeFileSync(created.planPath, upgraded);
     }
     if (kind.includes('earlier')) {
       await makeEarlierProof(
         created,
         recorded.output.data.receipt_id,
-        kind === 'compatible earlier',
+        compatibilityByKind[kind] ?? 'not_requested',
       );
     }
   }
@@ -395,13 +433,15 @@ describe('Delivery Checklist installed command boundary', () => {
   });
 
   it('rejects a contributor human handoff through the installed CLI', async () => {
-    const { planPath, invoke } = await fixture();
+    const { root, planPath, invoke } = await fixture();
+    const ledgerPath = nodePath.join(root, '.project/skill-invocations.log');
+    const ledger = readFileSync(ledgerPath, 'utf8');
     const invalidPlan = readFileSync(planPath, 'utf8').replace(
       '| item-4 | testing | Deliver testing. | contributor | proof | open | missing |  |  |',
       '| item-4 | testing | Deliver testing. | contributor | proof | pending_human | missing |  | security-team |',
     );
     writeFileSync(planPath, invalidPlan);
-    const result = await invoke('ticket', 'record-delivery-proof', 'ABC123', 'item-4', 'proof');
+    const result = await invoke('ticket', 'delivery-checklist', 'ABC123');
     expect(result.exitCode).toBe(2);
     expect(result.output.findings).toMatchObject([
       {
@@ -410,11 +450,16 @@ describe('Delivery Checklist installed command boundary', () => {
       },
     ]);
     expect(result.output.recovery).toHaveLength(1);
+    expect(result.output.data).not.toHaveProperty('readiness_state');
     expect(result.output.data).not.toHaveProperty('receipt_id');
     expect(readFileSync(planPath, 'utf8')).toBe(invalidPlan);
-    const readiness = await invoke('ticket', 'delivery-checklist', 'ABC123');
-    expect(readiness.exitCode).toBe(2);
-    expect(readiness.output.data).not.toHaveProperty('readiness_state');
+    const recording = await invoke('ticket', 'record-delivery-proof', 'ABC123', 'item-4', 'proof');
+    expect(recording.exitCode).toBe(2);
+    expect(recording.output.data).not.toHaveProperty('receipt_id');
+    expect(recording.output.findings).toEqual(result.output.findings);
+    expect(recording.output.recovery).toEqual(result.output.recovery);
+    expect(readFileSync(planPath, 'utf8')).toBe(invalidPlan);
+    expect(readFileSync(ledgerPath, 'utf8')).toBe(ledger);
   });
 
   it('names monitoring and documentation after recording testing through the installed CLI', async () => {

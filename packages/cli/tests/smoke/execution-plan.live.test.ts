@@ -32,13 +32,20 @@ const cases = ACCEPTANCE_CASES ? EXECUTION_PLAN_SLICING_CASES : EXECUTION_PLAN_C
 
 const PUBLIC_CLI = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CLI === '1';
 const CAN_RUN = process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE === '1';
+if (CAN_RUN && ACCEPTANCE_CASES && !PUBLIC_CLI) {
+  throw new Error('Semantic acceptance requires SAFEWORD_EXECUTION_PLAN_LIVE_CLI=1');
+}
 const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds({});
 const LIVE_TEST_TIMEOUT_MS = REVIEW_TIMEOUT_MS + 60_000;
 const reviewer = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER as ReviewAgent | undefined;
 const model = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL?.trim() || undefined;
 const resultsPath = process.env.SAFEWORD_EXECUTION_PLAN_RESULTS_PATH;
 const results: ExecutionPlanConformanceResult[] = [];
-const outputs: { case_id: string; output: ReviewerOutput }[] = [];
+const outputs: {
+  case_id: string;
+  dispatch_mode: 'cli' | 'headless';
+  output: ReviewerOutput;
+}[] = [];
 
 function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent): ReviewPacket {
   const identity =
@@ -68,13 +75,15 @@ function liveReviewerEnvironment(
   assigned: ReviewAgent,
   author: string,
 ): Record<string, string | undefined> {
-  return {
-    SAFEWORD_AGENT_RUNTIME: author,
-    ...(assigned === 'claude' && {
-      CLAUDE_CONFIG_DIR: process.env.SAFEWORD_LIVE_CLAUDE_CONFIG_DIR || undefined,
-    }),
-    ...(assigned === 'codex' && { CODEX_HOME: process.env.SAFEWORD_LIVE_CODEX_HOME || undefined }),
-  };
+  const environment: Record<string, string> = { SAFEWORD_AGENT_RUNTIME: author };
+  const profile =
+    assigned === 'claude'
+      ? process.env.SAFEWORD_LIVE_CLAUDE_CONFIG_DIR
+      : process.env.SAFEWORD_LIVE_CODEX_HOME;
+  if (profile) {
+    environment[assigned === 'claude' ? 'CLAUDE_CONFIG_DIR' : 'CODEX_HOME'] = profile;
+  }
+  return environment;
 }
 
 async function reviewThroughCli(
@@ -223,13 +232,10 @@ function assertObligationOwners(
   }
 }
 
-function assertApproval(testCase: ExecutionPlanConformanceCase, output: ReviewerOutput): void {
-  expect(output.verdict).toBe('approve');
-  const record = recordOf(output);
-  expect(record.slicing_decision).toBe(testCase.expectation.slicing_decision);
-  expect(record.accepted_scenarios_covered).toBe(true);
-  expect(record.accepted_approach_preserved).toBe(true);
-  expect(record.slices.map(slice => slice.name)).toEqual(testCase.expectation.slice_names);
+function assertAcceptanceRecord(
+  testCase: ExecutionPlanConformanceCase,
+  record: ReturnType<typeof recordOf>,
+): void {
   assertSlicingRationale(testCase.id, record.rationale);
   for (const slice of record.slices) {
     expect(slice.relies_on_unmerged_successor).toBe(false);
@@ -256,6 +262,24 @@ function assertApproval(testCase: ExecutionPlanConformanceCase, output: Reviewer
     expect(record.slices.find(slice => slice.name === name)?.proof).toContain(proof);
   }
   assertObligationOwners(testCase, record);
+}
+
+function assertApproval(testCase: ExecutionPlanConformanceCase, output: ReviewerOutput): void {
+  expect(output.verdict).toBe('approve');
+  const record = recordOf(output);
+  expect(record.slicing_decision).toBe(testCase.expectation.slicing_decision);
+  expect(record.accepted_scenarios_covered).toBe(true);
+  expect(record.accepted_approach_preserved).toBe(true);
+  expect(record.slices.map(slice => slice.name)).toEqual(testCase.expectation.slice_names);
+  if (ACCEPTANCE_CASES) {
+    assertAcceptanceRecord(testCase, record);
+  } else {
+    // Keep production route qualification independent of the stricter acceptance oracle.
+    const obligations = testCase.expectation.obligations ?? [];
+    for (const obligation of obligations) {
+      expect(record.obligation_owners.map(owner => owner.obligation)).toContain(obligation);
+    }
+  }
   const expectedDecisions = testCase.expectation.decisions ?? [];
   for (const decision of expectedDecisions) {
     expect(record.decision_statuses).toContainEqual({ decision, status: 'unchanged' });
@@ -295,10 +319,11 @@ function assertCase(
   testCase: ExecutionPlanConformanceCase,
   output: ReviewerOutput,
   assigned: ReviewAgent,
-  dispatchId: string,
+  dispatchId: string | undefined,
 ): void {
   expect(output.reviewer_agent).toBe(assigned);
-  expect(output.dispatch_id).toBe(dispatchId);
+  // The public CLI owns dispatch binding; direct runtime probes own their packet.
+  if (dispatchId !== undefined) expect(output.dispatch_id).toBe(dispatchId);
   expect(output.planning_destination).toBe(testCase.expectation.planning_destination);
   if (testCase.expectation.verdict === 'approve') assertApproval(testCase, output);
   else assertDenial(testCase, output);
@@ -337,24 +362,28 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
         throw new Error('SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER must be claude or codex');
       }
       const directory = createTemporaryDirectory();
-      const packet = packetFor(testCase, reviewer);
       let passed = false;
       useLiveReviewerProfile(reviewer);
       try {
-        const output = PUBLIC_CLI
-          ? await reviewThroughCli(testCase, directory, reviewer)
-          : ((await runHeadlessReviewer(reviewer, packet, directory, process.cwd(), {
-              ...(model !== undefined && { model }),
-              runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
-            })) as ReviewerOutput);
-        outputs.push({ case_id: testCase.id, output });
+        let output: ReviewerOutput;
+        let expectedDispatchId: string | undefined;
+        if (PUBLIC_CLI) {
+          output = await reviewThroughCli(testCase, directory, reviewer);
+        } else {
+          const packet = packetFor(testCase, reviewer);
+          expectedDispatchId = packet.dispatch_id;
+          output = (await runHeadlessReviewer(reviewer, packet, directory, process.cwd(), {
+            ...(model !== undefined && { model }),
+            runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
+          })) as ReviewerOutput;
+        }
+        outputs.push({
+          case_id: testCase.id,
+          dispatch_mode: PUBLIC_CLI ? 'cli' : 'headless',
+          output,
+        });
         try {
-          assertCase(
-            testCase,
-            output,
-            reviewer,
-            PUBLIC_CLI ? output.dispatch_id : packet.dispatch_id,
-          );
+          assertCase(testCase, output, reviewer, expectedDispatchId);
         } catch (error) {
           process.stderr.write(
             `Execution Plan reviewer output:\n${JSON.stringify(output, undefined, 2)}\n`,

@@ -88,7 +88,7 @@ Feature: Complete contributions with a default delivery checklist
     Scenario: Contributor-controlled work cannot be dismissed as a human handoff
       Given an applicable test obligation can be completed by the contributor
       When Safeword evaluates a checklist that labels it a human-owned dependency instead of completing it through the installed CLI
-      Then the human-owned disposition is rejected, the test obligation remains open, and the response tells the contributor to complete it
+      Then the human-owned disposition is rejected, no completion is granted, and the response tells the contributor to complete it
 
     @rejection @live
     @execution-plan-semantic
@@ -198,6 +198,7 @@ Feature: Complete contributions with a default delivery checklist
         | compatible proof retained from an earlier revision | records the reusable evidence and its earlier-revision limitation |
         | structural or partial proof that does not exercise the required boundary | records the narrower proof class and keeps the boundary obligation open |
         | no proof | records the obligation unproven |
+        | incompatible proof retained from an earlier revision | reports a conservative partial class with the earlier-revision limitation and keeps the obligation unproven |
 
     @rejection
     @proof.vitest

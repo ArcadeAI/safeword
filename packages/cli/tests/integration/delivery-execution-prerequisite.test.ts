@@ -124,6 +124,25 @@ describe('delivery execution prerequisite', () => {
         receipt: 'not_checked',
       },
     },
+    {
+      label: 'admitted artifact whose testing category was removed',
+      arrange: (executionPath: string) => {
+        writeFileSync(
+          executionPath,
+          readFileSync(executionPath, 'utf8')
+            .split('\n')
+            .filter(line => !line.startsWith('| item-4 | testing |'))
+            .join('\n'),
+        );
+      },
+      expectedExitCode: 2,
+      expectedFacts: {
+        presence: 'present',
+        readability: 'readable',
+        status: 'planned',
+        receipt: 'missing',
+      },
+    },
   ])('reports structural facts for a $label without a semantic verdict', async testCase => {
     const root = featureFixture();
     await admitThroughInstalledCli(root);

@@ -338,6 +338,21 @@ describe('Execution Plan output validation', () => {
     });
   });
 
+  it.each([
+    // eslint-disable-next-line unicorn/no-null -- JSON null is a distinct malformed boundary input.
+    ['null', null],
+    ['array', []],
+    ['string', 'invalid'],
+    ['missing', undefined],
+  ])('names a non-object delivery definition: %s', (_name, value) => {
+    const record = validRecord();
+    Object.assign(record, { delivery_definition: value });
+    expect(validateExecutionPlanOutput(approval(record))).toEqual({
+      kind: 'invalid_output',
+      reason: 'execution_plan_record.delivery_definition must be an object',
+    });
+  });
+
   it('accepts a complete positive record without changing it', () => {
     const output = approval();
     expect(validateExecutionPlanOutput(output)).toEqual({ kind: 'approved', output });
