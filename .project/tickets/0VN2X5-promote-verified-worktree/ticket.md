@@ -2,10 +2,10 @@
 id: 0VN2X5
 slug: promote-verified-worktree
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-10-16T18:27:20.321Z
-last_modified: 2026-10-17T01:47:52Z
+last_modified: 2026-10-17T02:52:00Z
 subtype: bug-investigated
 external_issue: https://github.com/ArcadeAI/safeword/issues/5511
 scope:
@@ -91,7 +91,8 @@ Never mutate a live GitHub PR during development.
   mode refuse promotion; offline mode makes no GitHub call.
 - A commit during PR inspection invalidates the pending promotion. PR selection
   stays tied to the inspected number; already-Ready PRs need no mutation.
-- A failed gh Ready returns failure rather than reporting success.
+- A failed gh Ready reports unconfirmed state, names the inspected PR to check
+  before retrying, and returns failure rather than reporting success.
 - Guidance tests require the canonical and generated Codex skill to reference
   project pr-ready as the promotion route. No live PR state is changed in tests.
 - The command passes undefined sessionId to evaluatePrReadiness: inspected
@@ -226,3 +227,13 @@ supersede earlier next actions and dependency counts.
   six generated metadata conflicts were resolved by regenerating all five
   surfaces from both canonical changes. The generator's lifecycle verification
   passed. The combined base still needs targeted regression tests and fresh CI.
+- Main integration is now verified at b4b7e2ead in CI run 38992939896: both Node
+  versions pass 11,152 CLI cases in 673 files (10 intentional skips), physical
+  installation, and release gates; Node 24 acceptance passes 596 scenarios and
+  50 proof cases. Local readiness/review regression passes 339 cases, with two
+  Linux-only skips on macOS. Typechecks, generated-surface/lifecycle checks,
+  parity, and the scoped architecture audit pass. The current Bun walkthrough
+  passes. Current verification artifacts preserve the old run limits and the
+  network failure of the watcher without misreporting the successful CI result.
+  Re-closing this task still requires the independent phase review and a fresh
+  documentation-head CI result before Ready and admin merge.

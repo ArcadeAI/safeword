@@ -4,6 +4,30 @@ User authorized verification, audit, refactoring, quality review, CI delivery,
 Ready promotion after the gates pass, and administrative merge on 2026-10-16.
 Cleanup of branches or worktrees is not included in this delivery request.
 
+## Main integration follow-up
+
+Main advanced to 31befd189 (#5898) while delivery was running. The first
+documentation closure head became conflicting and did not receive normal CI.
+The primary task was reopened through the reviewed phase gate. Canonical source
+merged cleanly; six generated metadata conflicts were regenerated, preserving
+both the issue fix and main's RED-guidance changes. All 13 issue-specific
+canonical targets are byte-identical to the earlier green source snapshot.
+
+The combined head b4b7e2ead passes CI run 38992939896: 11,152 CLI cases per Node
+version in 673 files (10 intentional skips), physical-install and release gates,
+plus Node 24 acceptance (596 scenarios, 11,118 steps, 50 proof-tag cases).
+Local integration passes 339 cases across eight files with two Linux-only skips
+on macOS. Generated/lifecycle, parity, typechecks, and architecture checks pass;
+the architecture graph now contains 485 modules and 841 edges. The Bun plugin
+walkthrough passes on the combined head. The earlier Python analysis limits
+and security-audit policy qualifications still apply.
+
+Fresh API metadata and terminal logs prove CI success; the watcher itself
+failed because its network route disappeared. Re-closing the primary task is
+documentation only and still requires independent review and current-head CI.
+Ready-only closure validation checks the ticket frontmatter and is compatible
+with this sequence; run it locally before promotion and again through Ready CI.
+
 ## Work sequence
 
 1. Run the authoritative verification block and diff-scoped audit; resolve

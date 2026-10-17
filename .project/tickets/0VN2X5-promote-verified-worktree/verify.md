@@ -1,5 +1,35 @@
 # Verification — promote from the selected worktree
 
+## Main integration verification — 2026-10-17 UTC
+
+The earlier closure head conflicted after main advanced to `31befd189` (#5898).
+The primary task was reopened for verification, main was merged, and all six
+generated metadata conflicts were regenerated from the combined canonical tree.
+All 13 issue-specific canonical targets remain byte-identical to green source
+`088d06595`; no readiness behavior rework was required.
+
+**Full CI:** ✅ [Run 38992939896](https://github.com/ArcadeAI/safeword/actions/runs/38992939896)
+passes at `b4b7e2ead991717736f07dc99d5339754f48f6bb`. Both Node jobs pass
+11,152 CLI cases across 673 files (10 intentional skips), physical installation,
+and 81 release checks. Node 24 also passes 596 scenarios, 11,118 steps, and
+50 proof-tag tests. All ten applicable jobs pass; PR deployment jobs are skipped.
+
+**Local integration:** ✅ 339 readiness/review regression cases pass across eight
+files, with two Linux-only process-group cases skipped on macOS. Typechecks,
+lifecycle regeneration/verification, all five generated surfaces, and 276 parity
+pairs/11 contracts pass. The scoped TypeScript architecture check reports no
+violations across 485 modules and 841 edges; the previously disclosed optional
+Python analysis limits remain. The current Bun plugin walkthrough passes using
+real linked worktrees and simulated GitHub.
+
+The CI watch process lost its network route and exited nonzero; a fresh API read
+and downloaded terminal logs independently confirm the successful run above.
+This does not alter any historical interrupted/failed local result below.
+The re-closure commit changes ticket documentation only and must earn its own
+green current-head CI before Ready. The PR body remains the durable readiness
+record. Scenario coverage is the same eight task-definition groups; the final
+operational-failure case explicitly checks the inspected-PR recovery guidance.
+
 ## Delivery source verification — 2026-10-17 UTC
 
 **Full CI:** ✅ [Run 38990046582](https://github.com/ArcadeAI/safeword/actions/runs/38990046582)
