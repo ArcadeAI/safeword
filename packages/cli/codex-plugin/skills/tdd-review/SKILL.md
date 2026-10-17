@@ -42,8 +42,9 @@ support files. Approval requires all of the following:
 - the observed failure is the intended missing behavior at that boundary.
 
 Request changes when the failure is caused by syntax, imports, fixtures, configuration,
-infrastructure, an unrelated actor-boundary assertion, a passing command, timeout, or signal. Do
-not infer execution from cached suite status or the author's account. Explain the mismatch and name
+undefined or pending Cucumber steps, infrastructure, an unrelated actor-boundary assertion,
+a passing command, timeout, or signal. Do not infer execution from cached suite status or the
+author's account. Explain the mismatch and name
 the exact proof or environment correction to make before retrying.
 
 <!-- SAFEWORD:EXECUTABLE_RED_RUBRIC_END -->

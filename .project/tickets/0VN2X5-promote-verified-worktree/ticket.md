@@ -218,3 +218,11 @@ supersede earlier next actions and dependency counts.
   Independent Claude/Opus source and changed-target reviews approve without
   blocking errors. PR #5911 remains Draft for normal ticket closure and a fresh
   exact-head CI result; current readiness and merge truth belong to the PR body.
+- Main advanced to 31befd189 (#5898) during CI. GitHub reported a merge conflict,
+  so the closure head c45740245 received no normal CI run. Reopened verification
+  using the independent done-phase review before integrating the new base.
+  Main changes RED guidance, its generated rubric, and review fixtures/tests;
+  readiness commands and guards are unchanged. Canonical files merged cleanly;
+  six generated metadata conflicts were resolved by regenerating all five
+  surfaces from both canonical changes. The generator's lifecycle verification
+  passed. The combined base still needs targeted regression tests and fresh CI.
