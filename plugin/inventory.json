@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b5da276b149b5a8dc7fd0b83519b91c6b25725d6ac7fe20bad3dec2673f42fbd"
+      "sha256": "9b42d90e69d86397c71ae46c0b8295f376e792ee05df91cadd9ebd2c95e726ca"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "bac23a7b2ca7cd0e09824037d929a2980ecf73be87160f98485667f534727891"
+      "sha256": "b55f7ae5c9aa95d6727cf55f6a25b55ecaabc111cb3ccbb4e1e8ba43debc7d15"
     },
     {
       "path": "runtime/event-groups.json",
@@ -323,7 +323,7 @@
     },
     {
       "path": "runtime/hooks/lib/pr-readiness-guard.ts",
-      "sha256": "b9a015faa80698a1ca09f9c8733a005ad469c137a442e23908e2e5879111b27f"
+      "sha256": "13fa3b0c5e5520b2d79a13bca8e045dd56073d70c84b9c8223c1a08ce48ab725"
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
@@ -519,7 +519,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "6b823146898a9747b43d472448153ac4a4f0e983954c1deee351d02180adc285"
+      "sha256": "7b9320f7ad09fff49afdebfc7e446fc0c10f6838734523ff1ec00d674cb4e76d"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -723,7 +723,7 @@
     },
     {
       "path": "skills/pr-readiness/SKILL.md",
-      "sha256": "8e4f9d9a73eca7b0d52fd4d3a0a733bf485abca2f8c9c6da2545adf0c4186894"
+      "sha256": "f248a9a3eac56599de853d07972b18d7c26515621a5454ae600399801f3440ec"
     },
     {
       "path": "skills/quality-review/SKILL.md",
@@ -1291,7 +1291,7 @@
     },
     {
       "path": "templates/hooks/lib/pr-readiness-guard.ts",
-      "sha256": "b9a015faa80698a1ca09f9c8733a005ad469c137a442e23908e2e5879111b27f"
+      "sha256": "13fa3b0c5e5520b2d79a13bca8e045dd56073d70c84b9c8223c1a08ce48ab725"
     },
     {
       "path": "templates/hooks/lib/principle-trace.ts",
@@ -1487,7 +1487,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "6402d285b6918ebaa72ffd84b59ffaac7ffd1cc7f80391e05ca20557c793cd30"
+      "sha256": "65118260ce847bda040a2626e1562a7480f78a3f02f792daca23d37694e73284"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1723,7 +1723,7 @@
     },
     {
       "path": "templates/skills/pr-readiness/SKILL.md",
-      "sha256": "4cc987da39efb1b9b682aff67988c975e8ff56a2c3eed0cfe3a1f3e8caf0d80b"
+      "sha256": "42fc32b8bef9a50d85c5d9ac81dcb3edab91f9d92c3e6bfe842fbabba2eed749"
     },
     {
       "path": "templates/skills/quality-review/SKILL.md",
