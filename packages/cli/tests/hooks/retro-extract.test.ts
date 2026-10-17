@@ -215,8 +215,9 @@ describe('buildCodexExtractArgv', () => {
     expect(argv).toContain('--disable');
     expect(argv[argv.indexOf('--disable') + 1]).toBe('hooks');
     expect(argv).toContain('-c');
-    expect(argv[argv.indexOf('-c') + 1]).toBe('mcp_servers={}');
-    expect(argv).toContain('model_reasoning_effort="low"');
+    const config = argv.flatMap((argument, index) => (argument === '-c' ? [argv[index + 1]] : []));
+    expect(config).toContain('model_reasoning_effort="low"');
+    expect(config).toContain('mcp_servers={}');
     expect(argv[argv.indexOf('--output-schema') + 1]).toBe('/tmp/schema.json');
     expect(argv[argv.indexOf('-o') + 1]).toBe('/tmp/out.json');
     expect(argv[argv.indexOf('--sandbox') + 1]).toBe('read-only');

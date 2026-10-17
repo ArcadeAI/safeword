@@ -7,7 +7,7 @@ approved Luna after the comparison in model-comparison.md.
 
 **PR Scope:** ✅ Inspected the branch diff: only the Codex default, its low
 reasoning flag, existing test expectations, required generated/dogfood output,
-and this task's evidence are included. No PR has been opened for this branch.
+and this task's evidence are included. Draft PR #5924 is open for exact-head CI evidence.
 
 ## Behavior
 
@@ -79,3 +79,14 @@ remains in verification. Live checks prove access/schema behavior on this login,
 not universal account availability. The six-case synthetic screening is not a
 production-quality benchmark, statistical equivalence test, or reliable speed
 comparison. Public API price comparisons do not measure subscription billing.
+
+## Test-quality follow-up
+
+See test-quality-audit.md for the bounded BDD/TDD assessment. Removing the
+required -c flag originally escaped two assertions; strengthened checks now
+fail three assertions for that same mutation, and restoration passes all 141
+cases. Independent Claude/Opus test review
+6836f181-9591-44c1-bc65-22d1be86944e approved the stronger tests. The broader
+manual BDD contract received changes_requested; blocking prose contradictions
+and the vacuous spool assertion are corrected for a fresh review. This feature
+is not executed by Cucumber and does not prove one complete Stop-to-filing path.
