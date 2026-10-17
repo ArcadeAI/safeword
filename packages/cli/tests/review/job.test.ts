@@ -1279,6 +1279,56 @@ describe('durable review jobs', () => {
     });
   });
 
+  it('blocks GREEN when an approved review carries timed-out execution evidence', async () => {
+    const cwd = project();
+    const approvedWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
+    );
+    // Keep a nonzero exit and matching failure so timeout is the only disqualifier.
+    vi.stubEnv(
+      'SAFEWORD_CLI_ENTRYPOINT',
+      worker(cwd, approvedWorker.replace('timed_out: false', 'timed_out: true')),
+    );
+    const execution: RedExecutionRequest = {
+      scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
+      argv: [process.execPath, '-e', 'process.exit(1)'],
+      cwd: '.',
+      evidenceClass: 'pure-contract',
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    const timedOut = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+
+    expect(timedOut.data).toMatchObject({
+      status: 'approved',
+      reviewer_output: { verdict: 'approve' },
+      execution_attestation: {
+        expected_failure: { matched: true },
+        termination: { exit_code: 1, timed_out: true },
+      },
+    });
+    expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
+      state: 'action_required',
+      data: { command: 'review gate executable-red', status: 'blocked' },
+    });
+
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, approvedWorker));
+    await startReviewJob({ cwd, kind: 'executable-red', targets: ['input.md'], execution });
+
+    expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
+      state: 'healthy',
+      data: { command: 'review gate executable-red', status: 'approved' },
+    });
+  });
+
   it('blocks GREEN when an approved review carries passing execution evidence', async () => {
     const cwd = project();
     const passingWorker = COMPLETE_WORKER.replace('reviewer_output: {', () =>
