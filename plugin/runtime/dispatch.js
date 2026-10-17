@@ -1915,7 +1915,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
         'da9392c2520f6de0f4f5a649a58b578b7115f3a06ae6fb161bc71da58913ec80',
       ],
       Stop: [
-        'b8663c68fcb3cfa99a5eb61f521ac6ecca05aa4ff8d50f2502b2585845cff640',
+        'b1a641275edfca16f26bdfd99f9f83f832373ca1da813d96518f7d713b061ae0',
         '8d16ca09ac8148e614366f91b2f3dec1cef6925f96a17eacd24706269356978b',
         '6988371a3718b3e8106f6758c4e71b180facb47eb4c6a9726a2e5318737feb60',
         '167b3fe8cf355f66018c6c0f774b6d2e73ebecc81d4659701f9bfe45e1001722',
@@ -3709,6 +3709,15 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
         },
       ],
       matcher: 'Bash',
+    },
+    b1a641275edfca16f26bdfd99f9f83f832373ca1da813d96518f7d713b061ae0: {
+      hooks: [
+        {
+          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/stop-quality.ts',
+          timeout: 2400,
+          type: 'command',
+        },
+      ],
     },
     b8663c68fcb3cfa99a5eb61f521ac6ecca05aa4ff8d50f2502b2585845cff640: {
       hooks: [

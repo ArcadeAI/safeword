@@ -1,3 +1,5 @@
+import { COMPLETION_HOOK_TIMEOUT_SECONDS } from '../templates/config.js';
+
 export interface OpenCodeProfilePluginOptions {
   readonly markerTimeoutMilliseconds?: number;
 }
@@ -162,7 +164,7 @@ async function readBoundIdentity() {
 function dispatch(identity, envelope, directory) {
   const inputText = Object.values(envelope.tool_input).filter(value => typeof value === 'string').join('\n');
   const timeoutMilliseconds = /ticket\.md/u.test(inputText) && /status:\s*['"]?done\b/u.test(inputText)
-    ? 90_000
+    ? ${COMPLETION_HOOK_TIMEOUT_SECONDS * 1000}
     : /\bVERIFIED\b/iu.test(inputText) ? 30_000 : 2_000;
   return new Promise((resolve, reject) => {
     const child = spawn(identity.runtime_path, [identity.dispatcher_path], {

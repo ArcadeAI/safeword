@@ -202,7 +202,8 @@ function splitRow(line: string): string[] | undefined {
   const body = line.trim().slice(1, -1);
   for (const character of body) {
     if (escaped) {
-      cell += character;
+      // Only Markdown pipe escapes belong to the table; preserve JSON escapes.
+      cell += character === '|' ? character : `\\${character}`;
       escaped = false;
     } else if (character === '\\') {
       escaped = true;
@@ -274,7 +275,9 @@ function parseCommandInvocation(
   if (
     !Array.isArray(value.argv) ||
     value.argv.length === 0 ||
-    value.argv.some(argument => typeof argument !== 'string' || argument === '')
+    typeof value.argv[0] !== 'string' ||
+    value.argv[0].trim() === '' ||
+    value.argv.some(argument => typeof argument !== 'string')
   ) {
     return undefined;
   }
@@ -380,7 +383,7 @@ function ownerDispositionDefect(item: DeliveryChecklistItem): DeliveryChecklistR
   if (item.owner === 'contributor' && item.disposition === 'pending_human') {
     return invalid(
       'invalid_owner_disposition',
-      `Delivery Checklist item ${item.id} is contributor-owned and cannot be pending_human.`,
+      `Delivery Checklist item ${item.id} is contributor-owned and cannot be pending_human; complete its required proof instead.`,
     );
   }
   if (item.owner === 'human' && ['open', 'complete'].includes(item.disposition)) {
@@ -466,6 +469,18 @@ function dispositionFieldsAreValid(item: DeliveryChecklistItem): boolean {
 function dispositionDefect(item: DeliveryChecklistItem): DeliveryChecklistResult | undefined {
   const ownership = ownerDispositionDefect(item);
   if (ownership !== undefined) return ownership;
+  if (item.evidence === '' && item.disposition === 'not_applicable') {
+    return invalid(
+      'invalid_delivery_checklist',
+      `Delivery Checklist item ${item.id} requires a concrete reason; add why this work is not applicable.`,
+    );
+  }
+  if (item.evidence === '' && item.disposition === 'pending_human') {
+    return invalid(
+      'invalid_delivery_checklist',
+      `Delivery Checklist item ${item.id} requires a named human dependency; add the required approval or owner.`,
+    );
+  }
   if (dispositionFieldsAreValid(item)) return undefined;
   return invalid(
     'invalid_delivery_checklist',
