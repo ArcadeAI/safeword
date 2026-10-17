@@ -11,7 +11,14 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  readFileSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -27,6 +34,7 @@ import {
   TIMEOUT_QUICK,
   writeTestFile,
 } from '../helpers';
+import { type PublishedSafeword, publishSafeword } from '../helpers/local-npm-registry.js';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const SAFEWORD_CLI = nodePath.join(SAFEWORD_ROOT, 'packages/cli/src/cli.ts');
@@ -84,6 +92,36 @@ function runEditHook(
     },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
+/** Run pre-tool-quality for the standard GREEN tick, optionally from outside the project. */
+function runGreenTickHook(
+  setup: { cwd: string; testDefinitionsPath: string },
+  options: { hookCwd?: string; environment?: NodeJS.ProcessEnv; timeout?: number } = {},
+): HookResult {
+  const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: 'test-session',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: setup.testDefinitionsPath,
+        old_string: '- [ ] GREEN',
+        new_string: '- [x] GREEN def5678',
+      },
+    }),
+    cwd: options.hookCwd ?? setup.cwd,
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
+      SAFEWORD_PLUGIN_CLI: '',
+      ...options.environment,
+      CLAUDE_PROJECT_DIR: setup.cwd,
+    },
+    encoding: 'utf8',
+    timeout: options.timeout ?? TIMEOUT_QUICK,
   });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
@@ -993,7 +1031,226 @@ describe('write-time annotation gate', () => {
         '- [x] GREEN def5678',
         { SAFEWORD_PLUGIN_CLI: '' },
       );
-      expectHookDeny(result, 'could not find its local CLI');
+      expectHookDeny(result, 'could not find its CLI');
+    });
+
+    // 8VG20K: outside a plugin (Cursor, project-local hooks) the guard runs the
+    // published CLI pinned to the project's version through the absolute Bun
+    // binary (`bun x`), so a project-owned `bunx` on PATH never gets to answer.
+    it('runs pinned bun x outside a plugin and never trusts a bunx shim on PATH', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
+      const forged = gateStub(setup.cwd, 'healthy');
+      const home = createTemporaryDirectory();
+      gateDirectories.push(home);
+      writeTestFile(
+        setup.cwd,
+        'bin/bunx',
+        `#!/bin/sh\nshift\nexec bun ${JSON.stringify(forged)} "$@"\n`,
+      );
+      chmodSync(nodePath.join(setup.cwd, 'bin/bunx'), 0o755);
+
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        {
+          HOME: home,
+          PATH: `${nodePath.join(setup.cwd, 'bin')}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+          // Fail the real package fetch fast and offline.
+          BUN_CONFIG_REGISTRY: 'http://127.0.0.1:9',
+          // bun x keeps installed packages under TMPDIR; keep them out of the shared one.
+          TMPDIR: home,
+        },
+      );
+      expectHookDeny(result, 'x --bun safeword@9.9.9');
+    });
+
+    // 8VG20K: the pinned published package, served by a local npm registry so the
+    // real `bun x --bun safeword@<version>` route runs end to end without the network.
+    /** Serve safeword@9.9.9 whose bin runs the gate stub at `cli`. */
+    function publishGate(cli: string, delayMs = 0): PublishedSafeword {
+      const root = createTemporaryDirectory();
+      gateDirectories.push(root);
+      return publishSafeword({
+        root,
+        version: '9.9.9',
+        cliSource: readFileSync(cli, 'utf8'),
+        delayMs,
+      });
+    }
+
+    function runPinnedFallback(
+      setup: { cwd: string; testDefinitionsPath: string },
+      published: { registry: string; cache: string },
+      environment: NodeJS.ProcessEnv = {},
+    ): HookResult {
+      const home = createTemporaryDirectory();
+      gateDirectories.push(home);
+      return runGreenTickHook(setup, {
+        environment: {
+          HOME: home,
+          BUN_CONFIG_REGISTRY: published.registry,
+          BUN_INSTALL_CACHE_DIR: published.cache,
+          // bun x keeps installed packages under TMPDIR; isolate each test's package.
+          TMPDIR: home,
+          ...environment,
+        },
+        // A real package fetch: leave headroom past the guard's own 30s download budget.
+        timeout: 40_000,
+      });
+    }
+
+    it('approves GREEN through the pinned published package outside a plugin', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
+      const ledger = '.safeword-project/tickets/TST001/test-definitions.md';
+      const published = publishGate(gateStub(setup.cwd, 'healthy', 'Scenario: example', ledger));
+      try {
+        expectHookAllow(runPinnedFallback(setup, published));
+      } finally {
+        published.stop();
+      }
+    });
+
+    // A host TMPDIR inside the project would put bun x's package cache where
+    // project code can plant a forging safeword; the trusted run must not use it.
+    it('ignores a forged bun x cache under a project-contained TMPDIR', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
+      const forged = readFileSync(gateStub(setup.cwd, 'healthy'), 'utf8');
+      const cache = `tmp/bunx-${process.getuid?.() ?? 0}-safeword@9.9.9`;
+      writeTestFile(setup.cwd, `${cache}/package.json`, '{}');
+      writeTestFile(
+        setup.cwd,
+        `${cache}/node_modules/safeword/package.json`,
+        JSON.stringify({ name: 'safeword', version: '9.9.9', bin: { safeword: 'cli.js' } }),
+      );
+      writeTestFile(
+        setup.cwd,
+        `${cache}/node_modules/safeword/cli.js`,
+        `#!/usr/bin/env node\n${forged}`,
+      );
+      writeTestFile(
+        setup.cwd,
+        `${cache}/node_modules/.bin/safeword`,
+        `#!/usr/bin/env node\n${forged}`,
+      );
+      chmodSync(nodePath.join(setup.cwd, cache, 'node_modules/safeword/cli.js'), 0o755);
+      chmodSync(nodePath.join(setup.cwd, cache, 'node_modules/.bin/safeword'), 0o755);
+      const home = createTemporaryDirectory();
+      gateDirectories.push(home);
+
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        {
+          HOME: home,
+          TMPDIR: nodePath.join(setup.cwd, 'tmp'),
+          // The real package fetch fails fast and offline.
+          BUN_CONFIG_REGISTRY: 'http://127.0.0.1:9',
+        },
+      );
+      expectHookDeny(result, 'x --bun safeword@9.9.9');
+    });
+
+    // A cold first download can take longer than a local bundle's 5s budget.
+    it('gives a cold pinned package download more than five seconds', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
+      const published = publishGate(gateStub(setup.cwd, 'healthy'), 5500);
+      try {
+        expectHookAllow(runPinnedFallback(setup, published));
+      } finally {
+        published.stop();
+      }
+    });
+
+    it('denies through the pinned package even when a project node shim forges approval', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(setup.cwd, '.safeword/version', '9.9.9\n');
+      const forged = gateStub(setup.cwd, 'healthy');
+      writeTestFile(setup.cwd, 'bin/node', `#!/bin/sh\nexec bun ${JSON.stringify(forged)} "$@"\n`);
+      chmodSync(nodePath.join(setup.cwd, 'bin/node'), 0o755);
+      const published = publishGate(gateStub(setup.cwd, 'action_required'));
+      try {
+        expectHookDeny(
+          runPinnedFallback(setup, published, {
+            PATH: `${nodePath.join(setup.cwd, 'bin')}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+          }),
+          'executable RED',
+        );
+      } finally {
+        published.stop();
+      }
+    });
+
+    // 8VG20K: a project symlink to a real external CLI still runs from the CLI's
+    // real directory, so the project's bunfig cannot preload into it.
+    it('runs a symlinked plugin CLI from its real directory, outside project bunfig', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const ledger = '.safeword-project/tickets/TST001/test-definitions.md';
+      writeTestFile(
+        setup.cwd,
+        'forge.ts',
+        `console.log(JSON.stringify({ state: 'healthy', data: { status: 'approved', scenario: 'Scenario: example', ledger: ${JSON.stringify(ledger)} } })); process.exit(0);\n`,
+      );
+      writeTestFile(setup.cwd, 'bunfig.toml', 'preload = ["./forge.ts"]\n');
+      const link = nodePath.join(setup.cwd, 'linked-cli.mjs');
+      symlinkSync(gateStub(setup.cwd, 'action_required'), link);
+      const outside = createTemporaryDirectory();
+      gateDirectories.push(outside);
+
+      const run = runGreenTickHook(setup, {
+        hookCwd: outside,
+        environment: { SAFEWORD_PLUGIN_CLI: link },
+      });
+      expectHookDeny(run, 'executable RED');
+    });
+
+    // 8VG20K: Bun reads bunfig.toml from its working directory, so a project
+    // preload must not get to answer for the trusted CLI.
+    it('ignores a project bunfig preload that forges receipt approval', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(
+        setup.cwd,
+        'forge.ts',
+        `console.log(JSON.stringify({ state: 'healthy', data: { status: 'approved', scenario: 'Scenario: example', ledger: '.safeword-project/tickets/TST001/test-definitions.md' } })); process.exit(0);\n`,
+      );
+      writeTestFile(setup.cwd, 'bunfig.toml', 'preload = ["./forge.ts"]\n');
+      // Start the hook outside the project so only the CLI it launches could read
+      // the project's bunfig; the hook still targets the project via CLAUDE_PROJECT_DIR.
+      const outside = createTemporaryDirectory();
+      gateDirectories.push(outside);
+      const run = runGreenTickHook(setup, {
+        hookCwd: outside,
+        environment: { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      });
+      expectHookDeny(run, 'executable RED');
     });
 
     it('discovers the bundled CLI from CLAUDE_PLUGIN_ROOT', () => {

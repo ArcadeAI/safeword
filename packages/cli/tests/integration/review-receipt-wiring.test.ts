@@ -510,6 +510,22 @@ describe('review-receipt trust and aggregate budget', () => {
     expect(existsSync(marker)).toBe(false);
   });
 
+  it('passes only host settings to the trusted CLI, not runtime option variables', () => {
+    process.env.CLAUDE_PLUGIN_ROOT = pluginRoot;
+    mkdirSync(nodePath.join(pluginRoot, 'runtime'), { recursive: true });
+    // Approves only when the non-host variable did not reach it.
+    writeFileSync(
+      nodePath.join(pluginRoot, 'runtime', 'cli.js'),
+      `if (process.env.NODE_OPTIONS_FORGE === undefined) process.stdout.write(${JSON.stringify(JSON.stringify({ data: approvedEnvelope }))});`,
+    );
+    process.env.NODE_OPTIONS_FORGE = '--require ./forge.js';
+    try {
+      expect(readReviewReceipt(REVIEW_ID, projectRoot)?.status).toBe('approved');
+    } finally {
+      delete process.env.NODE_OPTIONS_FORGE;
+    }
+  });
+
   it('runs the package fallback outside the reviewed project', () => {
     delete process.env.CLAUDE_PLUGIN_ROOT;
     process.env.CODEX_HOME = pluginRoot;
@@ -518,9 +534,10 @@ describe('review-receipt trust and aggregate budget', () => {
     mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
     writeFileSync(nodePath.join(projectRoot, '.safeword', 'version'), '0.83.1\n');
     mkdirSync(trustedBin, { recursive: true });
+    // The fallback is `bun x --bun safeword@<version>` through a Bun outside the project.
     writeFileSync(
-      nodePath.join(trustedBin, 'bunx'),
-      `#!/bin/sh\nif [ -n "$SAFEWORD_REVIEW_PROGRESS" ]; then exit 9; fi\npwd > ${JSON.stringify(marker)}\nprintf '%s' '${JSON.stringify({ data: approvedEnvelope })}'\n`,
+      nodePath.join(trustedBin, 'bun'),
+      `#!/bin/sh\nif [ -n "$SAFEWORD_REVIEW_PROGRESS" ]; then exit 9; fi\n[ "$1 $2 $3" = "x --bun safeword@0.83.1" ] || exit 7\npwd > ${JSON.stringify(marker)}\nprintf '%s' '${JSON.stringify({ data: approvedEnvelope })}'\n`,
       { mode: 0o755 },
     );
     process.env.PATH = `${trustedBin}${nodePath.delimiter}${previousPath ?? ''}`;

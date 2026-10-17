@@ -1839,11 +1839,11 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
       '.safeword/hooks/post-tool-sync-learnings.ts':
-        'bc272acc87b1d52db960b2c96ac36ea553e21fdf161122312b74cd61157acb82',
+        'de5f52c221b2f029841beded78d65af80217949072a99c2790d503f492528290',
       '.safeword/hooks/post-tool-work-log.ts':
         'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
       '.safeword/hooks/pre-tool-architecture-stage.ts':
-        'b730b5c63eb5b860203a2b453aaddbf8271050cab8b3479c23bc8fcc47d79205',
+        'e57bfeb13ccb403159fc8b115122937eaf3d9ca808f2ec6c8c39632fb3a4d679',
       '.safeword/hooks/pre-tool-config-guard.ts':
         '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
       '.safeword/hooks/pre-tool-dependency-readiness.ts':
@@ -1851,7 +1851,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        'f6cc5a5ed5590e8cf53c4080cfdcfb335100169fa4d0779ab97b50350254e05b',
+        'dbcd329dc9040afccc802a6b66c1346aafd2db41f4a15ee6e45d08a34d3dd013',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
@@ -1861,7 +1861,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/prompt-timestamp.ts':
         'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
       '.safeword/hooks/session-architecture-heal.ts':
-        '76f1b55c3173d3ebc2a819a41e06a814a57d78b94faf30108afed439dc7ce747',
+        '142c5a5358d57c9a587019f6e37fe84ed604638d1963e1c28eea12db2a8439f3',
       '.safeword/hooks/session-author-model.ts':
         '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
       '.safeword/hooks/session-auto-upgrade.ts':
@@ -1891,7 +1891,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/stop-retro-filing.ts':
         'ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d',
       '.safeword/hooks/stop-retro.ts':
-        '5b0767121376bac1ad9f2b57765f0e705b1c34bff72724133014d31e39c0b916',
+        'ecdb55e277a4188e5daf1c9a9de3f5e28bed724a14064e374eb4db10a9d0921e',
       '.safeword/hooks/stop-self-report.ts':
         'baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0',
     },

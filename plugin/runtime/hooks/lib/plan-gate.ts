@@ -13,6 +13,12 @@ import { type ImplPlanResult, parseImplPlan, unresolvedDecisionNames } from './i
 import { evaluateImplementationInspiration } from './inspiration.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { checkPrincipleTrace } from './principle-trace.js';
+import {
+  projectWritablePluginCli,
+  type SafewordCli,
+  trustedEnvironment,
+  trustedSafewordClis,
+} from './safeword-cli.js';
 
 export type PlanGateVerdict = { ok: true } | { ok: false; reason: string; remediation: string };
 
@@ -22,17 +28,8 @@ const OK: PlanGateVerdict = { ok: true };
 export function evaluateCodingAuthorization(
   projectDirectory: string,
   ticketId: string,
-  commandParts: readonly [string, ...string[]] | 'project-writable' | undefined,
 ): PlanGateVerdict {
-  if (commandParts === undefined) {
-    return {
-      ok: false,
-      reason: 'Safeword could not check whether coding is authorized.',
-      remediation:
-        'Reinstall the Safeword plugin or set SAFEWORD_PLUGIN_CLI to the bundled runtime path.',
-    };
-  }
-  if (commandParts === 'project-writable') {
+  if (projectWritablePluginCli(projectDirectory) !== undefined) {
     return {
       ok: false,
       reason: 'Safeword refused a project-writable coding-authorization command.',
@@ -40,11 +37,36 @@ export function evaluateCodingAuthorization(
         'Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.',
     };
   }
-  const [executable, ...prefix] = commandParts;
+  const candidates = trustedSafewordClis(projectDirectory);
+  if (candidates.length === 0) {
+    return {
+      ok: false,
+      reason: 'Safeword could not check whether coding is authorized.',
+      remediation:
+        'Reinstall the Safeword plugin, or reinstall Safeword in this project so .safeword/version names its version.',
+    };
+  }
+  for (const cli of candidates) {
+    const verdict = codingAuthorizationVerdict(cli, projectDirectory, ticketId);
+    if (verdict !== undefined) return verdict;
+  }
+  return {
+    ok: false,
+    reason: 'Safeword could not validate the coding-authorization result.',
+    remediation: `Run safeword ticket coding-authorization ${ticketId} and repair the reported local CLI problem.`,
+  };
+}
+
+/** One trusted CLI's coding-authorization verdict, or undefined when it gave no valid result. */
+function codingAuthorizationVerdict(
+  cli: SafewordCli,
+  projectDirectory: string,
+  ticketId: string,
+): PlanGateVerdict | undefined {
   const checked = spawnSync(
-    executable,
+    cli.command,
     [
-      ...prefix,
+      ...cli.args,
       '--json',
       '--no-input',
       '--cwd',
@@ -53,7 +75,13 @@ export function evaluateCodingAuthorization(
       'coding-authorization',
       ticketId,
     ],
-    { cwd: projectDirectory, encoding: 'utf8', timeout: 5000 },
+    // A first `bun x` run may download the pinned package.
+    {
+      cwd: cli.cwd,
+      env: trustedEnvironment(projectDirectory),
+      encoding: 'utf8',
+      timeout: cli.downloads === true ? 30_000 : 5000,
+    },
   );
   try {
     const parsed = JSON.parse(checked.stdout) as {
@@ -102,13 +130,9 @@ export function evaluateCodingAuthorization(
       };
     }
   } catch {
-    // Fall through to the fail-closed invalid-result verdict below.
+    // No valid envelope from this CLI; the caller tries the next one.
   }
-  return {
-    ok: false,
-    reason: 'Safeword could not validate the coding-authorization result.',
-    remediation: `Run safeword ticket coding-authorization ${ticketId} and repair the reported local CLI problem.`,
-  };
+  return undefined;
 }
 
 /** Return the exact executable action carried by the first unmet RED row. */

@@ -30,6 +30,9 @@ export const baseConfig = defineConfig({
       // run-it-twice determinism check fail on the developer's own machine.
       CODEX_HOME: codexHomeSandbox(),
       PATH: `${path.dirname(process.execPath)}:${process.env.PATH}`,
+      // Hooks spawned by tests resolve their test plan through this repo's CLI,
+      // never by downloading a published safeword from npm mid-test (8VG20K).
+      SAFEWORD_CLI: path.join(import.meta.dirname, 'src', 'cli.ts'),
       GIT_CONFIG_COUNT: '1',
       GIT_CONFIG_KEY_0: 'commit.gpgsign',
       GIT_CONFIG_VALUE_0: 'false',
