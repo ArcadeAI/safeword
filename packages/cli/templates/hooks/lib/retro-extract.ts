@@ -27,8 +27,8 @@ export const DIGEST_CAP = 180_000;
  */
 export const DEFAULT_CLAUDE_RETRO_MODEL = 'sonnet';
 
-/** Default Codex extraction model. Stock Codex can only call OpenAI models. */
-export const DEFAULT_CODEX_RETRO_MODEL = 'gpt-5.5';
+/** Current OpenAI flagship; checked with Codex ChatGPT authentication on 2026-10-17. */
+export const DEFAULT_CODEX_RETRO_MODEL = 'gpt-6-astra';
 
 /** Default Cursor extraction model. `auto` delegates to the user's Cursor configuration. */
 export const DEFAULT_CURSOR_RETRO_MODEL = 'auto';

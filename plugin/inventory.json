@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "2503810d93058018810f7ef67c2daef03f61d34c285feecd7abd01e1a2df72b2"
+      "sha256": "e6eb4349eda9fc903a62759a53e22de2b8d744af1915c07db0b6745ca87e1644"
     },
     {
       "path": "runtime/dispatch.js",
@@ -383,7 +383,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-extract.ts",
-      "sha256": "bf01bf1a83acdf10507de5eb498c0241da13626b48767889d0bc854d4ba18f18"
+      "sha256": "673f818d50df1352f6b4c73b76a96866b5f91fc361e57284aeec8c13882b70fa"
     },
     {
       "path": "runtime/hooks/lib/retro-filing-gate.ts",
@@ -1351,7 +1351,7 @@
     },
     {
       "path": "templates/hooks/lib/retro-extract.ts",
-      "sha256": "bf01bf1a83acdf10507de5eb498c0241da13626b48767889d0bc854d4ba18f18"
+      "sha256": "673f818d50df1352f6b4c73b76a96866b5f91fc361e57284aeec8c13882b70fa"
     },
     {
       "path": "templates/hooks/lib/retro-filing-gate.ts",

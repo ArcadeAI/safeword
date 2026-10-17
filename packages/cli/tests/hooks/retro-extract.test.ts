@@ -275,17 +275,17 @@ describe('resolveRetroModel (SM1.AC2 — config-overridable per-agent defaults)'
 
   it('defaults per extraction host when no retro.model is present', () => {
     expect(DEFAULT_CLAUDE_RETRO_MODEL).toBe('sonnet');
-    expect(DEFAULT_CODEX_RETRO_MODEL).toBe('gpt-5.5');
+    expect(DEFAULT_CODEX_RETRO_MODEL).toBe('gpt-6-astra');
     expect(DEFAULT_CURSOR_RETRO_MODEL).toBe('auto');
 
     expect(resolveRetroModel(projectDirectory)).toBe('sonnet');
     expect(resolveRetroModel(projectDirectory, 'claude')).toBe('sonnet');
-    expect(resolveRetroModel(projectDirectory, 'codex')).toBe('gpt-5.5');
+    expect(resolveRetroModel(projectDirectory, 'codex')).toBe('gpt-6-astra');
     expect(resolveRetroModel(projectDirectory, 'cursor')).toBe('auto');
 
     writeRetroConfig({ selfReport: { surface: true } }); // config present, no retro.model
     expect(resolveRetroModel(projectDirectory)).toBe('sonnet');
-    expect(resolveRetroModel(projectDirectory, 'codex')).toBe('gpt-5.5');
+    expect(resolveRetroModel(projectDirectory, 'codex')).toBe('gpt-6-astra');
     expect(resolveRetroModel(projectDirectory, 'cursor')).toBe('auto');
   });
 
