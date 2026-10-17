@@ -2,10 +2,10 @@
 id: 0VN2X5
 slug: promote-verified-worktree
 type: task
-phase: done
-status: done
+phase: verify
+status: in_progress
 created: 2026-10-16T18:27:20.321Z
-last_modified: 2026-10-17T01:44:00Z
+last_modified: 2026-10-17T01:47:52Z
 subtype: bug-investigated
 external_issue: https://github.com/ArcadeAI/safeword/issues/5511
 scope:
