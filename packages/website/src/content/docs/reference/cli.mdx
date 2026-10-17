@@ -34,6 +34,7 @@ canonical commands below.
 | `project test-execution remote setup`   | mutate      | Install the managed remote-test workflow                                                                                                         |
 | `project test-execution remote disable` | mutate      | Remove the managed remote-test workflow                                                                                                          |
 | `project lint-gherkin`                  | observe     | Validate executable feature files                                                                                                                |
+| `project pr-ready`                      | mutate      | Promote the PR verified in the selected worktree                                                                                                 |
 | `project audit-scope`                   | observe     | Print the packaged audit scope shell contract                                                                                                    |
 | `project record-skill-invocation`       | mutate      | Record current-run workflow proof                                                                                                                |
 | `project runtime`                       | destructive | Run an allowlisted packaged helper with the helper arguments after --                                                                            |
@@ -254,6 +255,7 @@ safeword project test [--lane done|full] [--execution local|remote-preferred]
 safeword project test-execution status
 safeword project public-retros off|on
 safeword project lint-gherkin [files...]
+safeword project pr-ready [pull] --cwd <delivery-worktree>
 
 safeword tracker connect <provider>
 safeword tracker sync [--plan | --apply-results <file>] [--reset-tracker-map]
@@ -271,6 +273,17 @@ safeword retro reconcile
 safeword retro-relay-retry [request-id]
 safeword retro-relay-discard <request-id> [--confirm]
 ```
+
+`project pr-ready` checks the selected worktree's completed ticket and exact-HEAD
+readiness receipt, confirms that the open PR has that head, and promotes the
+inspected PR from the same checkout. Omit the positive PR number to select the
+current branch. Use it only with explicit authorization to make the PR Ready.
+This supports Codex chats rooted in a different checkout; raw Codex hooks can
+omit the shell tool's working directory. Missing or stale evidence requires
+normal verification and ticket closure in the delivery worktree. Repository
+overrides such as `GH_REPO` or `GIT_DIR` must be unset; use `--cwd` to select the
+worktree. The command rechecks local evidence before promotion, but GitHub's
+Ready API has no atomic expected-head precondition.
 
 `review run` kinds are `quality-review`, `scenario-gate`, `plan-implementation`,
 `plan-execution`, `delivery-compatibility`, `retrospective-eligibility`,
