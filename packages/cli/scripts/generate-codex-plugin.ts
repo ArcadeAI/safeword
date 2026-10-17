@@ -8,6 +8,7 @@ import {
   writeCodexPluginCatalogue,
 } from '../src/codex-plugin/catalogue.js';
 import { codexPluginHookCommand, type CodexPluginHookEntry } from '../src/codex-plugin/hooks.js';
+import { COMPLETION_HOOK_TIMEOUT_SECONDS } from '../src/templates/config.js';
 import { VERSION } from '../src/version.js';
 import { generateDeliveryCompatibilityRubric } from './generate-delivery-compatibility-rubric.js';
 import { generateExecutionPlanRubric } from './generate-execution-plan-rubric.js';
@@ -63,6 +64,7 @@ function writeHookManifest(generatedRoot: string): void {
         const event = hook.command?.match(/ hook codex ([a-z-]+) --plugin-hook$/u)?.[1];
         if (event === undefined) throw new Error('Codex hook is missing its bundled event binding');
         hook.command = codexPluginHookCommand(event);
+        if (event === 'stop') hook.timeout = COMPLETION_HOOK_TIMEOUT_SECONDS;
       }
     }
   }

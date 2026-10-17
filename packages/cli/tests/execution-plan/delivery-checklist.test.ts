@@ -52,6 +52,14 @@ function completeDeliveryPlan(
 }
 
 describe('Delivery Checklist contract', () => {
+  it('retains literal non-pipe backslashes in an ordinary checklist cell', () => {
+    const obligation = String.raw`Keep \_name\_ and C:\tmp literal`;
+    const content = completeChecklist().replace('Complete testing', () => obligation);
+    const parsed = parseDeliveryChecklist(content);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error(parsed.message);
+    expect(parsed.items.find(item => item.category === 'testing')?.obligation).toBe(obligation);
+  });
   it('returns every item from a complete checklist in plan order', () => {
     const result = parseDeliveryChecklist(completeChecklist());
 
@@ -125,7 +133,8 @@ describe('Delivery Checklist contract', () => {
     expect(parseDeliveryChecklist(content)).toEqual({
       ok: false,
       code: 'invalid_owner_disposition',
-      message: 'Delivery Checklist item item-4 is contributor-owned and cannot be pending_human.',
+      message:
+        'Delivery Checklist item item-4 is contributor-owned and cannot be pending_human; complete its required proof instead.',
     });
   });
 
@@ -140,7 +149,8 @@ describe('Delivery Checklist contract', () => {
       name: 'not applicable without a reason',
       row: '| item-4 | testing | Complete testing | contributor | | not_applicable | missing | | |',
       code: 'invalid_delivery_checklist',
-      message: 'Delivery Checklist item item-4 has invalid fields for not_applicable.',
+      message:
+        'Delivery Checklist item item-4 requires a concrete reason; add why this work is not applicable.',
     },
     {
       name: 'not applicable with a proof claim',
@@ -177,6 +187,37 @@ describe('Delivery Checklist contract', () => {
 });
 
 describe('Proof specifications contract', () => {
+  it.each([
+    ['repeated flags', ['cargo', 'test', '--test', 'one', '--test', 'two']],
+    ['empty operands', ['node', '-e', '', ' ', '']],
+    ['JSON backslashes', ['node', '-e', String.raw`console.log(/\d/.test("C:\\tmp"))`]],
+    ['escaped pipe and backslash', ['node', '-e', String.raw`console.log(/a|b/, "\\|")`]],
+  ])('preserves %s in proof command JSON', (_name, argv) => {
+    const invocation = { type: 'command', cwd: 'packages/cli', argv };
+    const json = JSON.stringify(invocation).replaceAll('|', String.raw`\|`);
+    const result = parseProofSpecifications(
+      proofSpecifications([
+        `| proof | command | unit | parser | real_boundary | current_required | ${json} |`,
+      ]),
+    );
+    expect(result).toMatchObject({ ok: true, specifications: [{ invocation }] });
+  });
+
+  it.each([
+    ['empty argv', []],
+    ['empty executable', ['']],
+    ['blank executable', [' ', 'test']],
+    ['non-string operand', ['node', 1]],
+  ])('rejects malformed argv: %s', (_name, argv) => {
+    const invocation = { type: 'command', cwd: 'packages/cli', argv };
+    const result = parseProofSpecifications(
+      proofSpecifications([
+        `| proof | command | unit | parser | real_boundary | current_required | ${JSON.stringify(invocation)} |`,
+      ]),
+    );
+    expect(result).toMatchObject({ ok: false, code: 'invalid_proof_specifications' });
+  });
+
   it('parses retained command and review-receipt invocations without inventing defaults', () => {
     const content = proofSpecifications([
       '| unit-tests | command | unit | checklist parser | partial_or_structural | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |',
