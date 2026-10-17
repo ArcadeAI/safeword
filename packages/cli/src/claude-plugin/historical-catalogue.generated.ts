@@ -24,7 +24,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '6c9142c4a7cc63fb6054d2b5335f942a77a1322f3a7e269b6e8654f4d7435702',
+        'be9a433ef452e6a2cd55a963ea997a8cd219574d8cc043705905de9f1b58c476',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -66,7 +66,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/spike/SKILL.md':
         '905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37',
       '.claude/skills/tdd-review/SKILL.md':
-        'fb05b617ffb02bb6d06897d12fb5f121fc553536701f27b8696160041cb5269c',
+        'ae59212a4d368359c3144bde65bb18caaa02fb15590ca72398f15ad507679c70',
       '.claude/skills/testing/SKILL.md':
         'fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686',
       '.claude/skills/ticket-system/SKILL.md':
