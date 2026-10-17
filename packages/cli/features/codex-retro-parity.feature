@@ -86,6 +86,9 @@ Feature: Codex retro parity — invisible local extraction and Lane-2 filing
 
   Rule: Codex uses the shared egress, spool, and filing path
 
+    # Filing dispatch is owned by GH628F's retro-filer-gate contract and proved
+    # by codex-stop-retro.test.ts; do not duplicate its lineage in CDX602.
+
     @codex-retro-parity.SM1.AC2 @surface.openai-codex @surface.safeword-cli
     Scenario: Codex child findings are filed through the existing retro pipeline
       Given child Codex extraction returns one valid safeword finding containing "sk_live_TESTONLY1" and "/acme-corp/prod/secrets.ts"
@@ -119,13 +122,6 @@ Feature: Codex retro parity — invisible local extraction and Lane-2 filing
       Then the session spool contains at least one draft
       And the spool file contains neither "sk_live_TESTONLY1" nor "/acme-corp/prod/secrets.ts"
       And the retained draft contains a redaction marker
-
-    @retro-filer-gate.SM1.AC1 @surface.openai-codex
-    Scenario: Enabled filing dispatches recovery for retained drafts
-      Given retro drafts remain spooled for a Codex session
-      And `selfReport.file` is true
-      When the Codex Stop hook runs
-      Then it emits a block continuation naming the retro filer skill and draft spool
 
     @codex-retro-parity.SM1.AC2 @surface.openai-codex @surface.safeword-cli
     Scenario: Empty Codex child findings stay silent and create no filing work

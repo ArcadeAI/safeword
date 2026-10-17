@@ -232,9 +232,8 @@ describe('buildCodexExtractArgv', () => {
       schemaPath: '/tmp/schema.json',
       prompt: 'INLINE DIGEST',
     });
-    const config = argv.flatMap((argument, index) => (argument === '-c' ? [argv[index + 1]] : []));
     expect(argv[argv.indexOf('-m') + 1]).toBe(model);
-    expect(config.filter(value => value?.startsWith('model_reasoning_effort='))).toEqual([]);
+    expect(argv.filter(value => value.startsWith('model_reasoning_effort='))).toEqual([]);
   });
 });
 

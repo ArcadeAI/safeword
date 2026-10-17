@@ -2739,10 +2739,7 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     const cursor = await modelFromRunner(projectDirectory, 'cursor');
     expect(claude.model).toBe('haiku');
     expect(codex.model).toBe('haiku');
-    const config = codex.argv.flatMap((argument, index) =>
-      argument === '-c' ? [codex.argv[index + 1]] : [],
-    );
-    expect(config.filter(value => value?.startsWith('model_reasoning_effort='))).toEqual([]);
+    expect(codex.argv.filter(value => value.startsWith('model_reasoning_effort='))).toEqual([]);
     expect(cursor.model).toBe('haiku');
   });
 });
