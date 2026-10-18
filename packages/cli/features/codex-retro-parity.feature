@@ -1,32 +1,62 @@
 # BDD source for CDX602 (Codex retro parity — invisible local extraction and
-# Lane-2 filing). Proven by the vitest suite: hook-level tests spawn the real
-# Codex Stop adapter while mocking only the child `codex exec` process boundary,
-# and schema/config tests prove generated hook wiring. `@manual` excludes it from
-# the cucumber lane while keeping it readable by codify / review-spec / safeword check.
+# Lane-2 filing). Vitest proves separate boundaries: adapter tests replace the
+# safeword retro child, retry integration tests use the dogfood source-CLI path
+# with a fake Codex executable, and filing tests supply extracted candidates. These are not one
+# complete Stop-to-filing test.
+# `@manual` excludes these scenarios from Cucumber; do not count them as executed
+# acceptance coverage. Later filing-gate behavior is documented separately and
+# can emit a Stop continuation when unfiled drafts need recovery.
+# Legacy TB/SM criterion IDs are retained to match the closed CDX602 spec;
+# current persona names are TBU/SWM. The GH628F filing gate supersedes the
+# historical unconditional Stop-silence invariant, without changing extraction.
 @codex-retro-parity @manual
 Feature: Codex retro parity — invisible local extraction and Lane-2 filing
 
-  Local Codex uses the same invisible retro shape as Claude: Stop runs extraction
-  out-of-band in a child Codex session, emits nothing to the conversation, routes
+  Local Codex uses the same invisible extraction shape as Claude: Stop runs extraction
+  in a child Codex session, keeps extraction output out of the conversation, routes
   findings through the shared egress/spool/direct-file path, and uses
   UserPromptSubmit additionalContext for any fallback filing nudge.
+  When selfReport.file is enabled, retained drafts can separately trigger the
+  filing gate's Stop continuation.
 
   Rule: Stop extraction is synchronous and invisible
 
     @codex-retro-parity.TB1.AC1 @surface.openai-codex @surface.safeword-cli
     Scenario: The Codex Stop hook runs child extraction with an inline digest
-      Given a local Codex Stop payload whose transcript_path is readable
+      Given a local Codex Stop payload with eight tool calls and a readable transcript_path
+      And `selfReport.file` is false
       When the Codex Stop hook runs
-      Then it spawns child `codex exec` with the transcript digest inline
+      Then it spawns `safeword retro run --auto-extract` with the transcript path
       And the child environment includes `SAFEWORD_RETRO_CHILD=1`
-      And the child stdin is closed
-      And the child writes schema-valid JSON to the output file
       And the Stop hook waits for the child before returning
       And the Stop hook writes no conversation-visible output
 
+    @codex-retro-parity.TB1.AC1 @surface.safeword-cli
+    Scenario: The extractor invokes Codex with a bounded digest and closed stdin
+      Given a readable Codex transcript for extraction
+      When the Codex extractor runs
+      Then it invokes `codex exec` with the transcript digest inline
+      And the child receives the output schema and output-file paths
+      And the child stdin is closed
+      And schema-valid child output is parsed as findings
+
+  Rule: Stop fails open without advancing retro state
+
     @codex-retro-parity.TB1.AC2 @surface.openai-codex
-    Scenario Outline: The Codex Stop hook fails open without a continuation
+    Scenario: A session below the extraction threshold creates no extraction work
+      Given a local Codex Stop payload with one tool call and a readable transcript_path
+      And `selfReport.file` is false
+      And the session has no existing retro state or pending advisory
+      When the Codex Stop hook runs
+      Then no extraction child runs
+      And Stop exits zero without a continuation or other conversation-visible output
+      And no retro offset state, draft spool entry, or filed retro record is created
+
+    @codex-retro-parity.TB1.AC2 @surface.openai-codex
+    Scenario Outline: Invalid hook input creates no extraction work
       Given the Codex Stop hook encounters <failure>
+      And `selfReport.file` is false
+      And the session has no existing retro state or pending advisory
       When the Codex Stop hook runs
       Then it exits zero
       And it writes no `{decision:"block"}` continuation
@@ -34,14 +64,63 @@ Feature: Codex retro parity — invisible local extraction and Lane-2 filing
       And no retro delta state, draft spool entry, or filed retro record is created for that session
 
       Examples:
-        | failure                         |
-        | stdin that is not valid JSON    |
-        | no transcript_path              |
-        | an unreadable transcript_path   |
-        | a child process non-zero exit   |
-        | a child process timeout         |
-        | an empty child output file      |
-        | a schema-invalid child output   |
+        | failure                       |
+        | stdin that is not valid JSON   |
+        | no transcript_path             |
+        | an unreadable transcript_path  |
+
+    # Real Stop -> symlinked real source CLI (dogfood path) -> fake Codex proof:
+    # tests/integration/codex-retro-extraction-retry.test.ts.
+    @codex-retro-parity.TB1.AC2 @surface.openai-codex @surface.safeword-cli
+    Scenario Outline: Failed extraction preserves the unprocessed transcript
+      Given a dogfood source-CLI project with eight tool calls and a readable nonempty digest
+      And the session has no existing retro state or pending advisory
+      And `selfReport.file` is false
+      And the external Codex executable returns <failure>
+      When the real Stop hook waits for the real extraction CLI to finish
+      Then extraction fails with diagnostic reason <reason>
+      And the extraction CLI exits nonzero
+      And Stop exits zero without a continuation or other conversation-visible output
+      And no retro offset state, draft spool entry, or filed retro record is created
+
+      Examples:
+        | failure                  | reason          |
+        | a nonzero exit           | spawn_nonzero   |
+        | no output file           | missing_output  |
+        | an empty output file     | invalid_output  |
+        | malformed JSON           | invalid_output  |
+        | schema-invalid findings  | invalid_output  |
+        | an invalid finding item  | invalid_output  |
+
+    @codex-retro-parity.TB1.AC2 @surface.openai-codex @surface.safeword-cli
+    Scenario: A valid empty retry consumes the previously failed transcript once
+      Given extraction through the dogfood source CLI failed for a session with eight tool calls
+      And the failed transcript has no committed retro offset
+      And `selfReport.file` is false
+      And the session has no pending advisory
+      When the same transcript is retried with schema-valid empty findings
+      Then the offset equals the transcript length with eight tool uses and one fire
+      And no draft or filed retro record is created
+      And Stop exits zero without a continuation or other conversation-visible output
+
+    @codex-retro-parity.TB1.AC2 @surface.openai-codex @surface.safeword-cli
+    Scenario: An unchanged successfully extracted transcript triggers no further extraction
+      Given a valid empty retry through the dogfood source CLI committed the session's retro offset
+      And `selfReport.file` is false
+      And the session has no pending advisory
+      When Stop runs again without transcript growth
+      Then the offset and fire count remain unchanged
+      And no further extraction runs
+
+    # Desired invariant only: no real cross-process timeout proof exists yet.
+    @codex-retro-parity.TB1.AC2 @surface.openai-codex
+    Scenario: A timed-out extraction does not advance retro state
+      Given a substantial Codex session with a readable nonempty digest
+      And the session has no existing retro state or pending advisory
+      And `selfReport.file` is false
+      When the extraction child exceeds its execution budget
+      Then Stop exits zero without a continuation or other conversation-visible output
+      And no retro offset state, draft spool entry, or filed retro record is created
 
     @codex-retro-parity.TB1.AC2 @surface.openai-codex
     Scenario: A retro child Stop does not spawn another extraction
@@ -57,46 +136,63 @@ Feature: Codex retro parity — invisible local extraction and Lane-2 filing
     @codex-retro-parity.SM1.AC1 @surface.safeword-cli
     Scenario: Codex and Claude resolve their agent-specific defaults
       Given no retro model override exists in `.safeword/config.json`
-      When each agent resolves its retro extraction model
+      When each agent prepares its retro extraction command
       Then Claude resolves `sonnet`
-      And Codex resolves `gpt-5.5`
+      And Codex resolves `gpt-6-luna`
+      And Codex requests low reasoning
 
     @codex-retro-parity.SM1.AC1 @surface.safeword-cli
-    Scenario: A configured retro model overrides both agent defaults
-      Given `.safeword/config.json` configures `retro.model`
-      When each agent resolves its retro extraction model
+    Scenario: A configured retro model preserves its existing reasoning behavior
+      Given `.safeword/config.json` configures a `retro.model` other than `gpt-6-luna`
+      When each agent prepares its retro extraction command
       Then each agent resolves the configured `retro.model` instead of its default
+      And Codex adds no reasoning-effort override
 
   Rule: Codex uses the shared egress, spool, and filing path
 
-    @codex-retro-parity.SM1.AC2 @surface.openai-codex @surface.safeword-cli
-    Scenario: Codex child findings are spooled and filed through the existing retro pipeline
-      Given child Codex extraction returns a valid safeword finding containing raw transcript text and the secret-like token "SW-LEAK-CANARY-602"
-      And the local REST transport can authenticate
-      When the Codex Stop hook completes the retro path
-      Then the draft spool contains only post-egress sanitized fields
-      And the filed issue body contains neither the raw transcript text nor "SW-LEAK-CANARY-602"
-      And no conversation-visible output contains the raw finding text
+    # Filing dispatch is owned by GH628F's retro-filer-gate contract and proved
+    # by codex-stop-retro.test.ts; do not duplicate its lineage in CDX602.
 
     @codex-retro-parity.SM1.AC2 @surface.openai-codex @surface.safeword-cli
-    Scenario Outline: Unfiled Codex drafts remain spooled for the Lane-2 nudge
+    Scenario: Codex child findings are filed through the existing retro pipeline
+      Given child Codex extraction returns one valid safeword finding containing "sk_live_TESTONLY1" and "/acme-corp/prod/secrets.ts"
+      And `selfReport.file` is true
+      And the local REST transport can authenticate
+      When the shared retro pipeline attempts filing for the Codex session
+      Then exactly one issue is filed
+      And the filed issue body contains neither "sk_live_TESTONLY1" nor "/acme-corp/prod/secrets.ts"
+      And the filed issue body contains a redaction marker
+      And the successfully filed draft is removed from the session spool
+
+    @codex-retro-parity.SM1.AC2 @surface.openai-codex @surface.safeword-cli
+    Scenario: Disabled filing retains Codex drafts for the Lane-2 nudge
       Given child Codex extraction returns a valid safeword finding
-      And the local REST transport <failure>
+      And `selfReport.file` is false
+      And the session has no pending advisory
       When the Codex Stop hook completes the retro path
       Then the post-egress draft remains in the session spool
+      And no issue is filed
       And the Stop hook writes no conversation-visible output
 
-      Examples:
-        | failure                         |
-        | cannot authenticate             |
-        | returns a retryable server error|
-        | times out before filing         |
+    @codex-retro-parity.SM1.AC2 @surface.openai-codex @surface.safeword-cli
+    Scenario: Failed filing retains a nonempty sanitized draft
+      Given child Codex extraction returns a valid safeword finding containing "sk_live_TESTONLY1" and "/acme-corp/prod/secrets.ts"
+      And `selfReport.file` is true
+      And the local REST transport cannot authenticate
+      When the shared retro pipeline attempts filing
+      Then the session spool contains exactly one draft
+      And no issue is filed
+      And the spool file contains neither "sk_live_TESTONLY1" nor "/acme-corp/prod/secrets.ts"
+      And the retained draft contains a redaction marker
 
     @codex-retro-parity.SM1.AC2 @surface.openai-codex @surface.safeword-cli
     Scenario: Empty Codex child findings stay silent and create no filing work
       Given child Codex extraction returns schema-valid output with no findings
+      And `selfReport.file` is false
+      And the session has no pending advisory
       When the Codex Stop hook completes the retro path
       Then it exits zero
+      And Stop writes no continuation or other conversation-visible output
       And no draft spool entry or filed retro record is created
       And no Lane-2 nudge is queued
 
@@ -112,6 +208,23 @@ Feature: Codex retro parity — invisible local extraction and Lane-2 filing
     Scenario: The Codex prompt nudge fires once per unfiled batch
       Given retro drafts remain spooled for a Codex session
       When a new user prompt starts
-      Then the hook emits the existing factual `additionalContext` nudge once per unfiled batch
-      And a second user prompt over the same unfiled batch emits no duplicate nudge
-      And a later user prompt over a distinct newly-spooled batch emits one new nudge
+      Then the hook emits exactly one existing factual `additionalContext` nudge
+
+    @codex-retro-parity.SM1.AC3 @surface.openai-codex
+    Scenario: The same batch does not repeat its prompt nudge
+      Given a Codex session has already been nudged for its unfiled batch
+      When another user prompt starts with that same batch
+      Then the hook emits no duplicate nudge
+
+    @codex-retro-parity.SM1.AC3 @surface.openai-codex
+    Scenario: A new batch receives a new prompt nudge
+      Given a Codex session has already been nudged for an earlier batch
+      And a distinct unfiled batch is now spooled
+      When a new user prompt starts
+      Then the hook emits one new factual `additionalContext` nudge
+
+    @codex-retro-parity.SM1.AC3 @surface.openai-codex
+    Scenario: No drafts produce no filing nudge
+      Given no retro drafts remain spooled for a Codex session
+      When a new user prompt starts
+      Then the hook emits no filing nudge
