@@ -2,8 +2,11 @@
 
 Prepare a version-only release PR stacked on the Luna source PR #5924.
 Do not publish until both exact reviewed heads are merged. Retain branches and
-worktrees; no cleanup is authorized. Normal merge authority does not authorize
-bypassing the repository's required approving review.
+worktrees; no cleanup is authorized. On 2026-10-18 the user explicitly authorized
+admin merges of PRs 5924 and 5925 and the pending one-time version-only bun.lock
+coverage exception. Current-head checks must still pass before either merge.
+This request proceeds to the durable lockfile-review fix after those merges;
+tagging, publication and upgrading the user profile remain separate work.
 
 ## Version choice and scope
 
@@ -38,8 +41,10 @@ universal model/account compatibility.
    One Vitest process at a time. The generator's lifecycle proof could not
    acquire the source checkout's test lock on its first attempt; it did not
    start a second Vitest. A queued retry completed all five surfaces.
-4. Obtain independent review, publish a Draft release PR and collect current-head
-   CI, then promote only with complete readiness evidence. Rebase onto the final
+4. Obtain independent review and complete local verification, then follow the
+   user's requested push, Ready, green CI, admin-merge sequence. CI remains a
+   hard merge blocker, explicitly recorded in the PR body while pending.
+   Refresh onto the final
    source head before this evidence is gathered. Any later rebase/head change
    invalidates it and requires refreshed review and exact-head CI. After source
    merge, retarget to main and recheck the base; do not reuse evidence if the
@@ -102,7 +107,7 @@ resolve the specific review-coverage limitation without a standing policy waiver
 
 ## Current-source reconciliation
 
-The source is now 807c87b23 and includes main 25b548622. A normal merge preserves
+The source is now 22307b60d and includes main 1da75093f. A normal merge preserves
 the already-pushed release history while bringing in the complete source; the
 effective release diff remains 24 paths of version carriers and release evidence.
 Canonical regeneration resolved the one generated identity conflict. Frozen
@@ -110,8 +115,12 @@ install, 81 release contracts, version alignment and parity pass. The normalized
 343,758-byte lockfile proof remains exactly version-only. Old source and CI
 references above describe preparation history, not current-head approval.
 
-Fresh review may cover the other logical branch files, but bun.lock remains
+Fresh review bf02b32c approves the other logical branch files; bun.lock remains
 explicitly unreviewed under the 262,144-byte cap. A bounded proof in context is
-not a substitute for target coverage. Keep the release Draft and its task in
-implementation; no exception, publication, tag or installed-cache change is
-authorized by these preparation checks.
+not a substitute for target coverage. The user authorized a one-time exception
+for the exact version-only lockfile change and admin merges on 2026-10-18;
+the implement ledger records that deliberate skip and the task moved to verify.
+Complete final local verification and review before Ready promotion, following
+the user's requested Ready-before-green sequence. Current-head CI remains a
+hard merge blocker. No publication, tag or installed-cache change is part of
+the requested admin merges.
