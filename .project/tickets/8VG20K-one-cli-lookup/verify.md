@@ -37,3 +37,16 @@
 
 - A first `bun x` needs network or a warm cache; trust checks fail closed when it cannot run (30s download budget).
 - Closeout (`templates/scripts/closeout-cleanup.ts`) keeps its own lookup with an unpinned `bunx safeword`; out of scope, flagged as a follow-up.
+
+## Re-verification — 2026-10-18
+
+**Verify lanes ran on:** `76ee6279f` (the head before two generated-files-only merges of `origin/main`)
+**Test Suite:** ✓ 11264/11264 tests pass (682 files; 14 skipped by design)
+**Gherkin:** ✅ Acceptance lane passes — 596 scenarios (596 passed)
+**Build:** ✅ Success
+**Typecheck:** ✅ Clean
+**Dep audit lane:** ⚠️ `bun audit` reports 8 advisories (2 high, 3 moderate, 3 low) in transitive website/tooling dependencies, already present on `main`; this branch changes no dependency files. Python `uv audit` and Go `govulncheck` clean.
+**Audit:** Audit passed — diff-scoped at `d9cc74403`: depcruise clean (523 modules, 890 dependencies), config in sync, learnings, principle trace and domain docs clean.
+**Test-quality review:** added the missing trust-boundary test (`76ee6279f`): coding authorization refuses a plugin CLI inside the project; mutation-checked.
+**Refactor:** ✅ Completed — `bbd67b743` moves the shared trusted-CLI loop of the executable-RED receipt gate and the coding-authorization gate into `askTrustedSafeword` (safeword-cli.ts); generated surfaces current with no lifecycle result change, typecheck clean, 192/192 targeted tests.
+**CI:** green on `d9cc74403` except one recurring retro-collector startup flake outside this diff (tracked separately).
