@@ -55,14 +55,17 @@ source remains byte-identical to CI-verified b352.
 ## Remaining proof gaps
 
 The feature is manual and excluded from Cucumber. It must not be counted as
-executed acceptance coverage. Independent scenario reviews, most recently
-76e5e2c0-0570-4d56-8f53-ec4c554a72a0 before the final override correction,
-returned changes_requested for the inherited mixed-failure outline. That
-verdict remains an unresolved broader BDD assessment, not an approval.
+executed acceptance coverage. Historical scenario review
+76e5e2c0-0570-4d56-8f53-ec4c554a72a0 requested changes to the mixed-failure
+outline. Follow-up 530XE8 partitions those failures; scenario review
+f2ec9460-120d-489b-a12e-c79e68d5b976 approves the partitioned manual contract,
+with additional clarity improvements covered by quality review
+8edb5a3c-7545-4bca-b4d5-4cff600c6d0c. These are prose reviews, not a claim
+that Cucumber executes the manual feature or that every desired path has proof.
 
-The outline mixes hook input errors, hook-child failures and nested extractor
-output failures. Tests checking extractor ok:false do not prove that the real
-CLI exits nonzero and Stop preserves its transcript offset. Timeout rows lack
+The earlier outline mixed hook input errors, hook-child failures and nested
+extractor output failures. The follow-up separates them and adds real
+Stop/CLI retry tests; its verification record owns the execution results. Timeout rows lack
 named proof. There is no single automated Stop-to-model-to-egress-to-filing
 journey. Advisory-silence preconditions, rule lineage and digest-bound assertions
 also need sharper prose/proof. These paths were not changed by the model fix.
@@ -76,13 +79,13 @@ improvement. No test was disabled, weakened or deleted to ship this update.
 CI 39042244535 passed full packages, release gates and static checks on
 compatibility-corrected head b352845a8 on Node 22 and 24. Cucumber passed on
 Node 24 only (596 scenarios and 11,118 steps). Older CI 39040198584 on ae5111146
-is historical. Closure-commit CI still must pass before Ready.
+is historical. Exact closure-head 4cf CI 39049110781 now passes before delivery.
 The first local full CLI pass had 11,149 passes, 12 skips and one OpenCode
 fixture cleanup ENOTEMPTY failure. The verification resolver started a second
 full pass, which also reported an OpenCode failure; that run was stopped when
 the compatibility finding required a source change. The full local plan did
 not complete and is not a green verification claim. A subsequent isolated OpenCode test also failed cleanup; the cause is not
-claimed to be suite load. Final closure-head CI remains required before Ready. Log: .project/tmp/retro-final-verify.log.
+claimed to be suite load. Exact closure-head hosted CI now passes; this does not change the historical local failure. Log: .project/tmp/retro-final-verify.log.
 
 ## Judgment
 
@@ -90,3 +93,11 @@ The focused TDD tests now detect two demonstrated regression classes: malformed
 reasoning argv and interference with other models. BDD prose is more accurate,
 but its manual status and missing cross-process failure proof remain meaningful
 quality debt. A large passing count cannot erase those limits.
+
+## Follow-up assurance work
+
+The user requested applying the remaining review suggestions in task 530XE8.
+Its real Stop/CLI retry tests and partitioned manual scenarios address the
+missing extractor failure boundary. Final execution and independent review
+evidence for that follow-up belongs to its own verification record; this
+assessment does not retroactively count those new tests as executed here.

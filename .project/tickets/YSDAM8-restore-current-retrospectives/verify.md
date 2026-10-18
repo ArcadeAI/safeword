@@ -1,20 +1,20 @@
 # Luna retrospective verification
 
-Authoritative hosted CI 39042244535 passed on b352845a85b3f26829ff390322a2b7e14bedfd1d
-for full packages, release gates, build and static checks on Node 22.23.2
-and 24.18.1. Cucumber ran on Node 24.18.1 only; Node 22 intentionally skipped
-that duplicated acceptance lane. Parity, CLI contract, OpenCode conformance and
-dependency audit also passed.
-Only evidence updates and a misplaced manual-scenario reference correction
-follow this code head. Final closure-commit CI is required again before Ready.
+Exact closure-head CI [39049110781](https://github.com/ArcadeAI/safeword/actions/runs/39049110781)
+passed on 4cf8306a160110ba5770be480abcae3367860340, including the final stronger
+assertions. Both Node 22.23.2 and 24.18.1 passed full packages, release gates,
+build and static checks. Cucumber runs on Node 24 only; Node 22 intentionally
+skips that duplicate lane. Source PR #5924 is Ready. This is verification of the
+Luna implementation, not a claim that later follow-up 530XE8 tests have run.
+The requested additional assurance work is recorded in that task separately.
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 143/143 tests pass after final test-only strengthening; 2,194/2,194 smoke tests and full hosted CI pass on unchanged b352 runtime source. Closure-head CI must cover the stronger assertions.
+**Test Suite:** ✓ 143/143 focused tests pass; 2,194/2,194 smoke tests pass. Exact 4cf hosted CI passes 11,154 CLI tests with 10 skips on each Node version, plus relay and collector suites.
 
 **Gherkin:** ✅ Acceptance lane passes: 596 scenarios, 11,118 steps on Node 24 (retro-b352-cucumber-summary.txt). The legacy manual retro feature is excluded and is not counted here.
 **Build:** ✅ Success — current-source builds and hosted package builds pass.
-**Lint:** ✅ Clean — changed-test ESLint, formatting and current-text Gherkin lint pass. Hosted lint passed on b352; closure-head hosted lint remains required before Ready.
+**Lint:** ✅ Clean — changed-test ESLint, formatting and current-text Gherkin lint pass. Exact 4cf closure-head hosted lint also passes.
 **Typecheck:** ✅ Clean — CLI tsc and hosted typecheck pass.
 **Scenarios:** ⏭️ Skipped — this task uses inline test definitions; the legacy manual feature has separately documented proof debt.
 **Refactor:** ✅ No change warranted — the existing model resolver and argv builder need only a small model-specific conditional.
@@ -24,7 +24,7 @@ follow this code head. Final closure-commit CI is required again before Ready.
 **Reconcile:** ✅ No pattern deviation — existing resolver, builder, regeneration and process-boundary test patterns are retained.
 **Experience:** ✅ No new friction — walked a maintainer through real default extraction; worst step is waiting for the child model; new user steps = 0.
 **Surface Evidence:** ✅ The changed Codex extraction surface has real command proof on installed and pinned CLIs; bundle proofs and activation limits are recorded below.
-**Evidence limits:** ⚠️ Local OpenCode fixture cleanup fails with ENOTEMPTY, including isolation; the local full verification plan did not complete. Hosted checks pass. Manual BDD lacks complete cross-process proof; live access is scoped to this login; no fresh Desktop activation is claimed.
+**Evidence limits:** ⚠️ Earlier local verification reported OpenCode fixture-cleanup ENOTEMPTY, including isolation, and did not complete. Hosted 4cf checks pass; current follow-up local results are recorded under 530XE8. Manual BDD lacks complete cross-process proof; live access is scoped to this login; no fresh Desktop activation is claimed.
 
 ## Behavior and discriminating proof
 
@@ -64,7 +64,7 @@ all five surfaces regenerated and passed freshness, parity and inventory checks.
 Applied its stale-work-log warning; b352 hosted CI now passes. Final evidence
 review 69dce3bf-c3c3-4769-8062-75f6a30b895d approved the corrected records; its
 negative-argv warning is now applied and mutation-tested. Runtime source is
-unchanged; the closure commit still requires full hosted CI. The optional
+unchanged; full closure-head CI now passes. The optional
 explicit-Luna test suggestion is answered above. Historical explicit gpt-5.5
 fixtures remain deliberate model-name forwarding examples, not defaults.
 
@@ -78,9 +78,10 @@ nonvacuous filing/redaction assertions and atomic nudge examples. The added
 filing-dispatch scenario was removed from CDX602 because it duplicated GH628F
 and created an orphan reference; the feature now references the existing filing
 contract and positive/negative integration tests. The desired failure invariant
-is retained. The broader manual BDD contract remains changes_requested for
-inherited Stop/CLI failure-propagation and timeout proof gaps; this is not
-represented as an approved end-to-end BDD gate.
+is retained. Follow-up 530XE8 addresses the Stop/CLI failure boundary and records its new
+execution results. Partitioned manual scenarios now have an independent
+approval; timeout and a complete finding-bearing journey remain unproved.
+No executed end-to-end BDD gate is claimed.
 
 ## Delivery surface evidence
 
@@ -108,6 +109,6 @@ or dead-code audit is claimed.
 
 No release or installed-cache upgrade has occurred. Public API unit rates do
 not measure ChatGPT subscription charges, screening is not statistical
-model equivalence, and access is not guaranteed for every account. After normal
-reviewed ticket closure, push the closure commit and wait for its full CI before
-Ready. Publishing and supported installed-plugin upgrade are separate steps.
+model equivalence, and access is not guaranteed for every account. The closure
+commit and Ready-triggered full CI now pass. Publishing and supported
+installed-plugin upgrade remain separate, uncompleted steps.
