@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
   utimesSync,
   writeFileSync,
@@ -678,9 +679,163 @@ describe('dependency readiness hook support', () => {
 
     const recovery = formatDependencyRecovery(stale);
     expect(recovery).toContain(
-      'bun ci && rm -f node_modules/.safeword-deps-fingerprint && touch node_modules',
+      `bun ci && touch node_modules/.safeword-deps-reinstalled-${stale.fingerprint?.slice(0, 12)}`,
     );
     expect(recovery).not.toContain('If it reports no changes');
+  });
+
+  it('stale recovery never asks for rm, which host command policies reject (#5188, #5647)', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+
+    const recovery = formatDependencyRecovery(getDependencyReadiness(projectDirectory));
+
+    expect(recovery).not.toMatch(/\brm\b/);
+  });
+
+  it('names the pinned package manager version so a mismatched binary is easy to spot (#5647)', () => {
+    writeBunProject();
+
+    const recovery = formatDependencyRecovery(getDependencyReadiness(projectDirectory));
+
+    expect(recovery).toContain('bun@1.3.2');
+  });
+
+  it('shows the pin without its Corepack integrity hash', () => {
+    writeJson('package.json', { name: 'pnpm-project', packageManager: 'pnpm@9.0.0+sha512.abc' });
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', 'lockfileVersion: 9.0\n');
+
+    const recovery = formatDependencyRecovery(getDependencyReadiness(projectDirectory));
+
+    expect(recovery).toContain('This project pins pnpm@9.0.0;');
+  });
+
+  it('omits the version note when package.json pins no manager version', () => {
+    writeJson('package.json', { name: 'unpinned', workspaces: ['packages/*'] });
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile');
+
+    const recovery = formatDependencyRecovery(getDependencyReadiness(projectDirectory));
+
+    expect(recovery).not.toContain('pins');
+  });
+
+  function reinstallSentinel(fingerprint: string | undefined): string {
+    return path.join(
+      projectDirectory,
+      'node_modules',
+      `.safeword-deps-reinstalled-${fingerprint?.slice(0, 12)}`,
+    );
+  }
+
+  it('ignores a reinstall sentinel recorded for different inputs', () => {
+    writeBunProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    const before = getDependencyReadiness(projectDirectory);
+    writeInstallMarker(projectDirectory, before);
+    writeFileSync(reinstallSentinel(before.fingerprint), '');
+
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+  });
+
+  it('discards a non-matching sentinel without refreshing the mtime fallback', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    // No fingerprint marker yet: readiness falls back to artifact-vs-input mtime.
+    const sentinel = reinstallSentinel('0'.repeat(64));
+    writeFileSync(sentinel, '');
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(artifact, past, past);
+    // Read back what the filesystem stored: coarse clocks round the set value.
+    const artifactMtimeBefore = statSync(artifact).mtimeMs;
+
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+    expect(existsSync(sentinel)).toBe(false);
+    expect(statSync(artifact).mtimeMs).toBe(artifactMtimeBefore);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+  });
+
+  it('does not let a sentinel outlive a later input change and failed install', () => {
+    writeBunProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile A');
+    // Recovery for A succeeds, but nothing checks readiness before inputs move on.
+    writeFileSync(reinstallSentinel(getDependencyReadiness(projectDirectory).fingerprint), '');
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile B');
+
+    // A bootstrap for B checks readiness first, then its install fails partway.
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile A');
+
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+  });
+
+  it('accepts a matching sentinel even when a failed bootstrap shares its timestamp', () => {
+    writeBunProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    const stale = getDependencyReadiness(projectDirectory);
+    // A coarse filesystem clock can date the sentinel at or before the failed
+    // attempt it recovers from; a later-dated failure record is the extreme case.
+    writeDependencyReadinessState(projectDirectory, {
+      status: 'failed',
+      reason: 'install_artifact_stale',
+      fingerprint: stale.fingerprint,
+      installCommand: 'bun ci',
+      updatedAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    writeFileSync(reinstallSentinel(stale.fingerprint), '');
+
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+  });
+
+  it('does not let a leftover sentinel vouch for inputs after an A → B → A change', () => {
+    writeBunProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    const inputsA = getDependencyReadiness(projectDirectory);
+    writeInstallMarker(projectDirectory, inputsA);
+    // The recovery is rerun after readiness already cleared, leaving a sentinel for A.
+    writeFileSync(reinstallSentinel(inputsA.fingerprint), '');
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+
+    // Inputs move to B and B's recovery succeeds: node_modules now holds B.
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile B');
+    const inputsB = getDependencyReadiness(projectDirectory);
+    writeFileSync(reinstallSentinel(inputsB.fingerprint), '');
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+
+    // Back to A: nothing proves node_modules was reinstalled for A.
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile');
+
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+  });
+
+  it('converts a matching reinstall sentinel into the content marker, so content stays authoritative', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    const sentinel = reinstallSentinel(getDependencyReadiness(projectDirectory).fingerprint);
+    writeFileSync(sentinel, '');
+
+    const ready = getDependencyReadiness(projectDirectory);
+
+    expect(ready.status).toBe('ready');
+    expect(existsSync(sentinel)).toBe(false);
+    expect(readFileSync(path.join(artifact, '.safeword-deps-fingerprint'), 'utf8')).toBe(
+      ready.fingerprint,
+    );
   });
 
   it('rendered stale recovery clears the block without a loaded PostToolUse hook', () => {
@@ -703,12 +858,18 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
 
     const stale = getDependencyReadiness(projectDirectory);
+    // Future-dated inputs (clock skew, extracted archives) and same-tick
+    // timestamps must not keep a successful recovery blocked.
+    const future = new Date(Date.now() + 3_600_000);
+    for (const input of ['package.json', 'bun.lock', 'packages/cli/package.json']) {
+      utimesSync(path.join(projectDirectory, input), future, future);
+    }
     const recovery = formatDependencyRecovery({ ...stale, installCommand: 'true' })
       .split('\n')
       .at(-1)
       ?.trim();
     expect(recovery).toBe(
-      'true && rm -f node_modules/.safeword-deps-fingerprint && touch node_modules',
+      `true && touch node_modules/.safeword-deps-reinstalled-${stale.fingerprint?.slice(0, 12)}`,
     );
     expect(spawnSync('sh', ['-c', recovery ?? 'false'], { cwd: projectDirectory }).status).toBe(0);
     expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
@@ -1245,6 +1406,37 @@ describe('dependency readiness hook support', () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).toBe('');
+  });
+
+  it('pre-tool hook clears its own stale block once the printed recovery runs (#5647)', () => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+    writeTestFile(projectDirectory, 'bun.lock', '# bumped lockfile');
+    const gatedCommand = JSON.stringify({
+      tool_name: 'Bash',
+      tool_input: { command: 'bun run test' },
+    });
+
+    const blocked = runHook(PRE_TOOL_HOOK, gatedCommand);
+    const reason = (
+      JSON.parse(blocked.stdout) as { hookSpecificOutput: { permissionDecisionReason: string } }
+    ).hookSpecificOutput.permissionDecisionReason;
+    const recovery = reason.split('\n').at(-1)?.trim() ?? '';
+    expect(recovery).toMatch(
+      /^bun ci && touch node_modules\/\.safeword-deps-reinstalled-[0-9a-f]{12}$/,
+    );
+
+    // Stub only the install; the rest of the printed command runs verbatim.
+    const run = spawnSync('sh', ['-c', recovery.replace('bun ci', 'true')], {
+      cwd: projectDirectory,
+    });
+    expect(run.status).toBe(0);
+
+    const retried = runHook(PRE_TOOL_HOOK, gatedCommand);
+    expect(retried.status).toBe(0);
+    expect(retried.stdout.trim()).toBe('');
   });
 
   it('pre-tool hook still blocks the touch recovery when node_modules is missing', () => {
