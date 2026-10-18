@@ -20,6 +20,30 @@ import {
 const ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const HOOK = nodePath.join(ROOT, 'packages/cli/templates/hooks/codex/stop.ts');
 
+function installFakeCodex(directory: string, initialMode: string) {
+  const bin = nodePath.join(directory, 'bin');
+  mkdirSync(bin);
+  const modePath = nodePath.join(directory, 'mode.txt');
+  writeFileSync(modePath, initialMode);
+  const callsPath = nodePath.join(directory, 'codex-calls.jsonl');
+  writeFileSync(
+    nodePath.join(bin, 'codex'),
+    String.raw`#!/usr/bin/env bun
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
+const argv = process.argv.slice(2);
+const mode = readFileSync(${JSON.stringify(modePath)}, 'utf8');
+appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ mode, argv, stdin: readFileSync(0, 'utf8') }) + '\n');
+if (mode === 'nonzero') process.exit(7);
+if (mode === 'missing') process.exit(0);
+const findings = mode === 'invalid-schema' ? 'invalid' : mode === 'invalid-item' ? [{}] : [];
+const output = mode === 'empty' ? '' : mode === 'malformed' ? '{ broken' : JSON.stringify({ findings });
+writeFileSync(argv[argv.indexOf('-o') + 1], output);
+`,
+    { mode: 0o755 },
+  );
+  return { bin, modePath, callsPath };
+}
+
 describe('Codex Stop retries through the real extraction CLI', () => {
   let directory: string;
   let session: string;
@@ -50,26 +74,7 @@ describe('Codex Stop retries through the real extraction CLI', () => {
       mkdirSync(nodePath.dirname(cli), { recursive: true });
       symlinkSync(nodePath.join(ROOT, 'packages/cli/src/cli.ts'), cli);
 
-      const bin = nodePath.join(directory, 'bin');
-      mkdirSync(bin);
-      const modePath = nodePath.join(directory, 'mode.txt');
-      writeFileSync(modePath, mode);
-      const callsPath = nodePath.join(directory, 'codex-calls.jsonl');
-      writeFileSync(
-        nodePath.join(bin, 'codex'),
-        String.raw`#!/usr/bin/env bun
-import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
-const argv = process.argv.slice(2);
-const mode = readFileSync(${JSON.stringify(modePath)}, 'utf8');
-appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ mode, argv, stdin: readFileSync(0, 'utf8') }) + '\n');
-if (mode === 'nonzero') process.exit(7);
-if (mode === 'missing') process.exit(0);
-const findings = mode === 'invalid-schema' ? 'invalid' : mode === 'invalid-item' ? [{}] : [];
-const output = mode === 'empty' ? '' : mode === 'malformed' ? '{ broken' : JSON.stringify({ findings });
-writeFileSync(argv[argv.indexOf('-o') + 1], output);
-`,
-        { mode: 0o755 },
-      );
+      const { bin, modePath, callsPath } = installFakeCodex(directory, mode);
       const transcript = [
         JSON.stringify({
           type: 'response_item',
