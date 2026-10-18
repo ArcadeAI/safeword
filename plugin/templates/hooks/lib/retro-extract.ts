@@ -27,8 +27,8 @@ export const DIGEST_CAP = 180_000;
  */
 export const DEFAULT_CLAUDE_RETRO_MODEL = 'sonnet';
 
-/** Default Codex extraction model. Stock Codex can only call OpenAI models. */
-export const DEFAULT_CODEX_RETRO_MODEL = 'gpt-5.5';
+/** Luna keeps retrospective extraction economical; the child uses low reasoning. */
+export const DEFAULT_CODEX_RETRO_MODEL = 'gpt-6-luna';
 
 /** Default Cursor extraction model. `auto` delegates to the user's Cursor configuration. */
 export const DEFAULT_CURSOR_RETRO_MODEL = 'auto';
@@ -204,6 +204,8 @@ export function buildCodexExtractArgv(options: CodexExtractArgvOptions): string[
     'hooks',
     '-c',
     'mcp_servers={}',
+    // Other configured models retain their previous reasoning behavior.
+    ...(options.model === DEFAULT_CODEX_RETRO_MODEL ? ['-c', 'model_reasoning_effort="low"'] : []),
     '--output-schema',
     options.schemaPath,
     '-o',
