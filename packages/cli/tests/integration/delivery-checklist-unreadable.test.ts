@@ -14,7 +14,10 @@ describe('unreadable Delivery Checklist plan', () => {
     const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
     const planPath = nodePath.join(ticketDirectory, 'execution-plan.md');
     mkdirSync(planPath, { recursive: true });
-    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\ntype: feature\n---\n');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      '---\ntype: feature\nphase: implement\n---\n',
+    );
 
     const invoked = await runCli(
       ['ticket', 'record-delivery-proof', 'ABC123', 'item-4', 'proof', '--json', '--cwd', root],
