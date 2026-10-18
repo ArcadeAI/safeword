@@ -2,8 +2,8 @@
 id: 530XE8
 slug: prove-retro-failure-retries
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-10-18T00:15:40.801Z
 last_modified: 2026-10-18T01:15:00.000Z
 scope:
@@ -41,6 +41,28 @@ done_when:
   mutation; restored production source is byte-identical. Extracted the fake
   Codex installer in a separate scoped refactor; 149 cases pass afterward.
   Final independent quality review and verification stamp remain pending.
+- 2026-10-18 Final code review 9a48145c-0f33-469c-9f2a-69b2727239bd approved
+  with no errors; remaining suggestions are answered in review-notes.md. Fresh
+  real default extraction passes empty and planted examples without filing.
+  Merged current main and regenerated its six conflicting generated artifacts;
+  combined-tree checks pass 149 focused and 2,201 smoke tests, lint/types and
+  parity. Final verification artifact review and authenticated stamp are next.
+- 2026-10-18 Completed local assurance: final verification-artifact review
+  55e705e6-5fae-4809-8e6a-6bd08f7b50be approved with no errors; its authentic
+  verify-phase stamp succeeded before phase/status closure. Remaining notes are
+  bounded: the new six cases were added after the first 673-file CLI collection
+  and first executed in the second 674-file collection; there is no claimed
+  pass-then-fail order dependence. Post-sync focused/smoke wrappers rebuild the
+  CLI and declarations; root lint runs CLI tsc. Website/Astro/Python results
+  remain the earlier baseline, while final hosted CI gates merging. The four
+  retained choices include test assertions and required mirrors as well as
+  production policy/resolution; only the local fixture helper was extracted.
+  An additional offset-guard mutation remains optional and unexecuted.
+  Fresh real Stop -> source CLI -> installed Codex also passes with no fake
+  executable: empty findings commit offset 1079/toolUses 8/fires 1 exactly once,
+  unchanged Stop performs no further extraction, and no draft is created.
+  Result: .project/tmp/current-main-real-stop-result.json. No filing, release,
+  plugin-cache upgrade, merge-policy exception or admin merge occurred.
 
 ## Test Definitions
 

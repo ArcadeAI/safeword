@@ -145,3 +145,36 @@ A fresh unmodified current-source buildAutoExtractor probe with no model
 override also passed: empty input yields zero findings, planted Safeword bug
 yields one checked finding. No filing was invoked. Logs are
 .project/tmp/current-final-live-extractor.json and its empty .err sibling.
+
+## Main reconciliation
+
+Main 25b548622 introduced separate proof-command fixes. The source PR had six
+conflicts, all generated lifecycle/identity/inventory artifacts. They were
+resolved through the canonical generator, which regenerated and verified all
+five surfaces without a lifecycle result-hash guard failure. The combined tree
+passes 149 focused and 2,201 smoke tests, full lint/types and 276 parity
+pairs/11 contracts.
+The feature diff remains 24 paths against current main. Upstream's changes are
+not presented as this task's implementation. Final verification review covers
+the updated evidence and reconciled feature diff.
+
+## Combined-tree review disposition
+
+Claude/Opus review d7f0a48b-88bf-4350-813e-14cc29dd692a approves the combined
+24-path diff with no errors. Applied its evidence-summary warning: the local
+Test Suite row is warning/pending full final-head hosted CI, rather than a
+blanket green check. Focused and smoke results remain green and the original
+aggregate failures remain visible. Final hosted evidence belongs on PR5924.
+
+The authentication observation was checked directly. sourceHookEnvironment
+spreads process.env first, then explicit overrides; the test supplies undefined
+values. A pinned Node child-process probe confirms GITHUB_TOKEN, GH_TOKEN and
+SAFEWORD_RETRO_CHILD are absent in the child, rather than strings or inherited
+values (.project/tmp/current-auth-env-proof.json). No credential value was read
+or printed. Thus no helper change is needed.
+
+A further optional offset-predicate mutation is deferred. Offset absence is
+asserted directly after every failed extraction; the executed semantic
+mutation already proves a discriminating failure/retry contract. Mutation
+claims remain expressly bounded, with no exhaustive score. No correctness
+error or unresolved required refactor remains.

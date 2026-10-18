@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✅ Corrected focused coverage passes 149/149; smoke passes 2,194/2,194. The prescribed full run passed the existing 11,152 CLI tests with 12 skips, relay 198 with one skip and collector 153. Its second CLI pass exposed six overstrict new fixture assertions requiring an absent spool file; these were corrected to require an empty raw queue and all 149 focused tests passed twice afterward. The original aggregate run exited 1; it is not relabeled green. After the final diagnostic improvements, all 149 focused cases pass. A later root rerun stopped on three relay timeouts (195 pass/one skip) before reaching CLI; the unchanged failing relay file then passes all 11 cases in isolation. The timeout did not reproduce; its cause is unconfirmed and no timeout budget was increased.
-**Gherkin:** ✅ Both prescribed acceptance executions pass 596 scenarios/11,118 steps each, plus 50 proof checks each; these are repeated executions, not distinct scenarios. Changed-text Gherkin lint passes. The legacy manual feature remains excluded from Cucumber.
+**Test Suite:** ⚠️ Local focused/smoke proof passes; full final-head hosted CI remains pending. Corrected focused coverage passes 149/149; post-sync smoke passes 2,201/2,201. Before the main sync, the prescribed full run passed the existing 11,152 CLI tests with 12 skips, relay 198 with one skip and collector 153. Its second CLI pass exposed six overstrict new fixture assertions requiring an absent spool file; these were corrected to require an empty raw queue and all 149 focused tests passed twice afterward. The original aggregate run exited 1; it is not relabeled green. After the final diagnostic improvements, all 149 focused cases pass. A later root rerun stopped on three relay timeouts (195 pass/one skip) before reaching CLI; the unchanged failing relay file then passes all 11 cases in isolation. The timeout did not reproduce; its cause is unconfirmed and no timeout budget was increased.
+**Gherkin:** ⚠️ Final-head hosted acceptance is pending. Both pre-sync prescribed acceptance executions pass 596 scenarios/11,118 steps each, plus 50 proof checks each; these are repeated executions, not distinct scenarios. Changed-text Gherkin lint passes. The legacy manual feature remains excluded from Cucumber.
 **Build:** ✅ All prescribed package builds, including the website, pass.
 **Lint:** ✅ Full root ESLint and Gherkin lint pass; corrected test also passes targeted ESLint and formatting.
 **Typecheck:** ✅ Prescribed TypeScript, Astro and Python mypy checks pass.
@@ -44,9 +44,13 @@ and extraction with no errors. Its dogfood-path wording and per-invocation
 diagnostic suggestions were applied and independently approved by review
 96c22a4c-0833-4a57-a1f5-d1a9cc158f35 with no errors. Its real-child argv and
 authentication-isolation suggestions were also applied; all 149 focused tests
-pass again. Independent final code/evidence review
+pass again. Independent pre-sync code/evidence review
 9a48145c-0f33-469c-9f2a-69b2727239bd approves these last improvements with no
-errors. Remaining argv/legacy-path suggestions are answered in review-notes.md. Earlier review
+errors. Remaining argv/legacy-path suggestions are answered in review-notes.md.
+Post-sync combined-tree review d7f0a48b-88bf-4350-813e-14cc29dd692a approves
+all 24 feature paths with no errors. Its summary and authentication warnings
+were applied or answered; local final-head full-suite and acceptance rows
+remain pending hosted CI. No merge is permitted before that result is green. Earlier review
 f212b5db-10ca-4ebf-8936-87f84eb0ee47 prompted the invalid-array-item case and
 native response_item fixtures. Only the two oversized generated CLI bundles
 were coordinator-excluded; canonical generation and parity cover them.
@@ -66,6 +70,18 @@ guard did not fail these tests because the public typed handler independently
 maps extraction failure to a failed CLI result; that experiment did not change
 the observable contract and is not counted as a killed mutation.
 
+## Main sync
+
+Merged origin/main 25b54862202bf2e3b16a2dccd187475f3dba9780 into this branch.
+Six conflicts were generated fixture/identity/inventory files; canonical
+regeneration resolved all five surfaces and verified them, without a lifecycle
+result-hash guard failure. No generated file was edited manually. The combined
+tree passes 149 focused tests, 2,201 smoke tests, full root lint/typecheck and
+276 parity pairs/11 contracts. These fresh results supersede pre-sync focused
+and smoke counts; the older full-suite history remains explicitly historical.
+Hosted CI must still validate the final pushed head; its authoritative result
+is recorded on PR5924. This artifact records the local verification history.
+
 ## Fresh live execution
 
 Unmodified current-source buildAutoExtractor, without a model override, passed
@@ -75,7 +91,9 @@ it does not claim full Stop-to-filing or Desktop plugin activation.
 
 ## Execution records
 
-Logs: .project/tmp/current-verify.log, current-full-lint.log,
+Post-sync logs: .project/tmp/current-main-{focused,smoke,lint,parity}.log,
+current-main-generated-fix.log and current-main-audit-*.log.
+Historical logs: .project/tmp/current-verify.log, current-full-lint.log,
 current-focused-green.log, current-retry-semantic-mutation.log,
 current-focused-restored.log, current-refactor-green.log,
 current-quality-improvements-green.log (relay timeout),
