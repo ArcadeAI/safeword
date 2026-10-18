@@ -3695,7 +3695,7 @@ var init_historical_catalogue_generated = __esm(() => {
           "da9392c2520f6de0f4f5a649a58b578b7115f3a06ae6fb161bc71da58913ec80"
         ],
         Stop: [
-          "b8663c68fcb3cfa99a5eb61f521ac6ecca05aa4ff8d50f2502b2585845cff640",
+          "b1a641275edfca16f26bdfd99f9f83f832373ca1da813d96518f7d713b061ae0",
           "8d16ca09ac8148e614366f91b2f3dec1cef6925f96a17eacd24706269356978b",
           "6988371a3718b3e8106f6758c4e71b180facb47eb4c6a9726a2e5318737feb60",
           "167b3fe8cf355f66018c6c0f774b6d2e73ebecc81d4659701f9bfe45e1001722",
@@ -4953,6 +4953,15 @@ var init_historical_catalogue_generated = __esm(() => {
           }
         ],
         matcher: "Bash"
+      },
+      b1a641275edfca16f26bdfd99f9f83f832373ca1da813d96518f7d713b061ae0: {
+        hooks: [
+          {
+            command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/stop-quality.ts',
+            timeout: 2400,
+            type: "command"
+          }
+        ]
       },
       b8663c68fcb3cfa99a5eb61f521ac6ecca05aa4ff8d50f2502b2585845cff640: {
         hooks: [
@@ -15106,8 +15115,8 @@ ${prettier.configEntry}
 ];
 `;
 }
-function hook(command) {
-  return { hooks: [{ type: "command", command }] };
+function hook(command, timeout) {
+  return { hooks: [{ type: "command", command, ...timeout !== undefined && { timeout } }] };
 }
 function asyncRewakeHook(command) {
   return { hooks: [{ type: "command", command, asyncRewake: true }] };
@@ -15162,8 +15171,9 @@ const safewordStrictRules = {
     "no-var": "error",
     "prefer-const": "error",
   },
-};`, CURSOR_HOOKS, HOOKS_DIR = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', EDIT_TOOLS = "Edit|Write|MultiEdit|NotebookEdit", SETTINGS_HOOKS;
+};`, COMPLETION_HOOK_TIMEOUT_SECONDS, CURSOR_HOOKS, HOOKS_DIR = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', EDIT_TOOLS = "Edit|Write|MultiEdit|NotebookEdit", SETTINGS_HOOKS;
 var init_config = __esm(() => {
+  COMPLETION_HOOK_TIMEOUT_SECONDS = 40 * 60;
   CURSOR_HOOKS = {
     sessionStart: [
       { command: "bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor" },
@@ -15174,7 +15184,7 @@ var init_config = __esm(() => {
         command: "bun ./.safeword/hooks/cursor/pre-tool-quality.ts",
         matcher: "Write",
         failClosed: true,
-        timeout: 90
+        timeout: COMPLETION_HOOK_TIMEOUT_SECONDS
       }
     ],
     beforeShellExecution: [
@@ -15211,7 +15221,7 @@ var init_config = __esm(() => {
       hook(`bun ${HOOKS_DIR}/prompt-retro-nudge.ts`)
     ],
     Stop: [
-      hook(`bun ${HOOKS_DIR}/stop-quality.ts`),
+      hook(`bun ${HOOKS_DIR}/stop-quality.ts`, COMPLETION_HOOK_TIMEOUT_SECONDS),
       hook(`bun ${HOOKS_DIR}/stop-reentry.ts`),
       hook(`bun ${HOOKS_DIR}/stop-self-report.ts`),
       hook(`bun ${HOOKS_DIR}/stop-retro-filing.ts`),
@@ -32062,7 +32072,7 @@ function splitRow2(line) {
   const body = line.trim().slice(1, -1);
   for (const character of body) {
     if (escaped) {
-      cell += character;
+      cell += character === "|" ? character : `\\${character}`;
       escaped = false;
     } else if (character === "\\") {
       escaped = true;
@@ -32124,7 +32134,7 @@ function parseCommandInvocation(value) {
     return;
   if (typeof value.cwd !== "string" || !isProjectContainedPath(value.cwd))
     return;
-  if (!Array.isArray(value.argv) || value.argv.length === 0 || value.argv.some((argument) => typeof argument !== "string" || argument === "")) {
+  if (!Array.isArray(value.argv) || value.argv.length === 0 || typeof value.argv[0] !== "string" || value.argv[0].trim() === "" || value.argv.some((argument) => typeof argument !== "string")) {
     return;
   }
   return { type: "command", cwd: value.cwd, argv: value.argv };
@@ -32206,7 +32216,7 @@ function parseItem(cells) {
 }
 function ownerDispositionDefect(item) {
   if (item.owner === "contributor" && item.disposition === "pending_human") {
-    return invalid("invalid_owner_disposition", `Delivery Checklist item ${item.id} is contributor-owned and cannot be pending_human.`);
+    return invalid("invalid_owner_disposition", `Delivery Checklist item ${item.id} is contributor-owned and cannot be pending_human; complete its required proof instead.`);
   }
   if (item.owner === "human" && ["open", "complete"].includes(item.disposition)) {
     return invalid("invalid_owner_disposition", `Delivery Checklist item ${item.id} is human-owned and cannot be ${item.disposition}.`);
@@ -32263,6 +32273,12 @@ function dispositionDefect(item) {
   const ownership = ownerDispositionDefect(item);
   if (ownership !== undefined)
     return ownership;
+  if (item.evidence === "" && item.disposition === "not_applicable") {
+    return invalid("invalid_delivery_checklist", `Delivery Checklist item ${item.id} requires a concrete reason; add why this work is not applicable.`);
+  }
+  if (item.evidence === "" && item.disposition === "pending_human") {
+    return invalid("invalid_delivery_checklist", `Delivery Checklist item ${item.id} requires a named human dependency; add the required approval or owner.`);
+  }
   if (dispositionFieldsAreValid(item))
     return;
   return invalid("invalid_delivery_checklist", `Delivery Checklist item ${item.id} has invalid fields for ${item.disposition}.`);
@@ -52644,6 +52660,9 @@ function uniqueNonblankStrings(value, allowEmpty) {
     return false;
   return new Set(value).size === value.length;
 }
+function commandArguments(value) {
+  return Array.isArray(value) && value.length > 0 && isNonblank(value[0]) && value.every((argument) => typeof argument === "string");
+}
 function deniedOutput(output, messages3 = []) {
   return {
     kind: "denied",
@@ -52716,15 +52735,40 @@ function isProjectContainedPath2(value) {
     return false;
   return !value.split(/[\\/]/u).includes("..");
 }
-function isValidProofInvocation(value, method) {
-  if (!isRecord7(value) || value.type !== method)
-    return false;
-  if (method === "command") {
-    return hasExactKeys3(value, ["type", "cwd", "argv"]) && typeof value.cwd === "string" && isProjectContainedPath2(value.cwd) && uniqueNonblankStrings(value.argv, false);
+function commandInvocationFailure(value, path7) {
+  if (!hasExactKeys3(value, ["type", "cwd", "argv"])) {
+    return `${path7} must contain exactly type, cwd, and argv`;
   }
-  return hasExactKeys3(value, ["type", "kind", "targets"]) && isNonblank(value.kind) && uniqueNonblankStrings(value.targets, false) && value.targets.every((target) => isProjectContainedPath2(target));
+  if (typeof value.cwd !== "string" || !isProjectContainedPath2(value.cwd)) {
+    return `${path7}.cwd must be a project-contained path`;
+  }
+  if (!commandArguments(value.argv)) {
+    return `${path7}.argv must be a non-empty array of strings with a nonblank executable`;
+  }
+  return;
 }
-function isValidProofSpecification(value) {
+function receiptInvocationFailure(value, path7) {
+  if (!hasExactKeys3(value, ["type", "kind", "targets"])) {
+    return `${path7} must contain exactly type, kind, and targets`;
+  }
+  if (!isNonblank(value.kind))
+    return `${path7}.kind must be a nonblank string`;
+  if (!uniqueNonblankStrings(value.targets, false)) {
+    return `${path7}.targets must be a non-empty array of unique nonblank strings`;
+  }
+  if (value.targets.some((target) => !isProjectContainedPath2(target))) {
+    return `${path7}.targets must contain only project-contained paths`;
+  }
+  return;
+}
+function proofInvocationFailure(value, method, path7) {
+  if (!isRecord7(value))
+    return `${path7} must be an object`;
+  if (value.type !== method)
+    return `${path7}.type must match the proof method`;
+  return method === "command" ? commandInvocationFailure(value, path7) : receiptInvocationFailure(value, path7);
+}
+function proofSpecificationFailure(value, path7) {
   if (!isRecord7(value) || !hasExactKeys3(value, [
     "proof_id",
     "method",
@@ -52734,13 +52778,29 @@ function isValidProofSpecification(value) {
     "currency",
     "invocation"
   ])) {
-    return false;
+    return `${path7} has an invalid object shape`;
   }
   const methodIsValid = value.method === "command" || value.method === "review_receipt";
   const scopeIsValid = ["unit", "integration", "E2E", "eval"].includes(String(value.scope));
   const qualificationIsValid = ["real_boundary", "partial_or_structural"].includes(String(value.qualifies_as));
   const currencyIsValid = ["current_required", "compatible_earlier_allowed"].includes(String(value.currency));
-  return isNonblank(value.proof_id) && isNonblank(value.boundary_exercised) && methodIsValid && scopeIsValid && qualificationIsValid && currencyIsValid && isValidProofInvocation(value.invocation, value.method);
+  if (!isNonblank(value.proof_id))
+    return `${path7}.proof_id must be a nonblank string`;
+  if (!isNonblank(value.boundary_exercised)) {
+    return `${path7}.boundary_exercised must be a nonblank string`;
+  }
+  if (!methodIsValid)
+    return `${path7}.method is unsupported`;
+  if (!scopeIsValid)
+    return `${path7}.scope is unsupported`;
+  if (!qualificationIsValid)
+    return `${path7}.qualifies_as is unsupported`;
+  if (!currencyIsValid)
+    return `${path7}.currency is unsupported`;
+  return proofInvocationFailure(value.invocation, value.method, `${path7}.invocation`);
+}
+function isValidProofSpecification(value) {
+  return proofSpecificationFailure(value, "proof specification") === undefined;
 }
 function hasValidChecklistItemBase(value) {
   return isNonblank(value.id) && DELIVERY_CHECKLIST_CATEGORIES.includes(value.category) && isNonblank(value.obligation);
@@ -52804,6 +52864,23 @@ function hasValidDeliveryDefinition(definition) {
   }
   return hasUniqueDefinitionIds(definition) && hasEveryDefinitionCategory(definition) && contributorProofsAreReal(definition);
 }
+function deliveryDefinitionFailure(value) {
+  if (!isRecord7(value))
+    return "execution_plan_record.delivery_definition must be an object";
+  const definition = value;
+  if (!hasValidDeliveryDefinitionHeader(definition)) {
+    return "execution_plan_record.delivery_definition has an invalid header";
+  }
+  for (const [index, proof] of definition.proof_specifications.entries()) {
+    const failure = proofSpecificationFailure(proof, `execution_plan_record.delivery_definition.proof_specifications[${index}]`);
+    if (failure !== undefined)
+      return failure;
+  }
+  if (!hasValidDeliveryDefinition(definition)) {
+    return "execution_plan_record.delivery_definition failed structural validation";
+  }
+  return;
+}
 function hasValidSliceGraph(record) {
   const slices = record.slices;
   const countMatchesDecision = record.slicing_decision === "one_pull_request" ? slices.length === 1 : slices.length >= 2;
@@ -52859,13 +52936,30 @@ function isValidExecutionPlanRecord(value) {
   const record = value;
   return hasValidSliceGraph(record) && hasValidObligationOwners(record) && hasValidDecisionStatuses(record) && hasValidDeliveryDefinition(record.delivery_definition);
 }
+function executionPlanRecordFailure(value) {
+  if (!isRecord7(value))
+    return "execution_plan_record must be an object";
+  if (!isRecord7(value.delivery_definition)) {
+    return deliveryDefinitionFailure(value.delivery_definition);
+  }
+  if (!hasValidRecordHeader(value))
+    return "execution_plan_record has an invalid header";
+  const deliveryFailure = deliveryDefinitionFailure(value.delivery_definition);
+  if (deliveryFailure !== undefined)
+    return deliveryFailure;
+  if (!isValidExecutionPlanRecord(value)) {
+    return "execution_plan_record failed structural validation";
+  }
+  return;
+}
 function hasValidPlanningDestination(output) {
   const destination = output.planning_destination;
   return (destination === "plan-execution" || destination === "plan-implementation") && (output.verdict !== "approve" || destination === "plan-execution");
 }
 function validateExecutionPlanOutput(output, expectedDefinition, expectedNormalizedPlanDigest) {
-  if (!hasValidPlanningDestination(output))
-    return { kind: "invalid_output" };
+  if (!hasValidPlanningDestination(output)) {
+    return { kind: "invalid_output", reason: "planning_destination is invalid" };
+  }
   if (output.verdict === "request_changes")
     return deniedOutput(output);
   const candidate = output.execution_plan_record;
@@ -52874,15 +52968,23 @@ function validateExecutionPlanOutput(output, expectedDefinition, expectedNormali
     if (tripwires.length > 0)
       return deniedOutput(output, tripwires);
   }
-  if (!isValidExecutionPlanRecord(candidate))
-    return { kind: "invalid_output" };
-  if (expectedDefinition !== undefined && !isDeepStrictEqual(candidate.delivery_definition, expectedDefinition)) {
-    return { kind: "invalid_output" };
+  const recordFailure = executionPlanRecordFailure(candidate);
+  if (recordFailure !== undefined)
+    return { kind: "invalid_output", reason: recordFailure };
+  const validatedCandidate = candidate;
+  if (expectedDefinition !== undefined && !isDeepStrictEqual(validatedCandidate.delivery_definition, expectedDefinition)) {
+    return {
+      kind: "invalid_output",
+      reason: "execution_plan_record.delivery_definition differs from the trusted definition"
+    };
   }
-  if (expectedNormalizedPlanDigest !== undefined && candidate.normalized_plan_digest !== expectedNormalizedPlanDigest) {
-    return { kind: "invalid_output" };
+  if (expectedNormalizedPlanDigest !== undefined && validatedCandidate.normalized_plan_digest !== expectedNormalizedPlanDigest) {
+    return {
+      kind: "invalid_output",
+      reason: "execution_plan_record.normalized_plan_digest differs from the trusted digest"
+    };
   }
-  return { kind: "approved", output: { ...output, execution_plan_record: candidate } };
+  return { kind: "approved", output: { ...output, execution_plan_record: validatedCandidate } };
 }
 var NULL_EXECUTION_PLAN_RECORD;
 var init_execution_plan_output = __esm(() => {
@@ -53647,10 +53749,15 @@ async function runCandidate(executable, attempt, timeoutMs) {
                 return;
               }
               const validation = validateExecutionPlanOutput(parsed2, packet.execution_plan_delivery_definition, packet.execution_plan_normalized_digest);
-              if (validation.kind === "invalid_output")
-                throw new Error("invalid reviewer output");
+              if (validation.kind === "invalid_output") {
+                throw new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output: ${validation.reason}`);
+              }
               resolve(validation.output);
-            } catch {
+            } catch (error2) {
+              if (error2 instanceof ReviewRuntimeError) {
+                reject(error2);
+                return;
+              }
               reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
             }
           });
@@ -70560,7 +70667,7 @@ async function readBoundIdentity() {
 function dispatch(identity, envelope, directory) {
   const inputText = Object.values(envelope.tool_input).filter(value => typeof value === 'string').join('\n');
   const timeoutMilliseconds = /ticket\.md/u.test(inputText) && /status:\s*['"]?done\b/u.test(inputText)
-    ? 90_000
+    ? ${COMPLETION_HOOK_TIMEOUT_SECONDS * 1000}
     : /\bVERIFIED\b/iu.test(inputText) ? 30_000 : 2_000;
   return new Promise((resolve, reject) => {
     const child = spawn(identity.runtime_path, [identity.dispatcher_path], {
@@ -70664,6 +70771,9 @@ function generateOpenCodeProfilePlugin(options = {}) {
   return profilePluginSource(markerTimeoutMilliseconds);
 }
 var DEFAULT_MARKER_TIMEOUT_MILLISECONDS = 50;
+var init_plugin = __esm(() => {
+  init_config();
+});
 
 // src/opencode/profile.ts
 var exports_profile2 = {};
@@ -71298,6 +71408,8 @@ var init_profile2 = __esm(() => {
   init_catalogue2();
   init_evidence();
   init_identity();
+  init_plugin();
+  init_plugin();
   PROFILE_LOCK_SLEEP = new Int32Array(new SharedArrayBuffer(4));
   UNAVAILABLE_PROTECTION = {
     installed: false,
@@ -81729,6 +81841,11 @@ function observeDeliveryChecklist(cwd, ticketId) {
     data: {
       command,
       readiness_state: projected.state,
+      checklist_items: loaded.context.items.map((item) => ({
+        id: item.id,
+        category: item.category,
+        obligation: item.obligation
+      })),
       open_contributor_items: projected.openContributorItems.map((item) => item.id),
       pending_human_items: projected.pendingHumanItems.map((item) => item.id),
       contributor_evidence: projected.contributorEvidence,
@@ -83047,7 +83164,7 @@ var init_retrospective_gate2 = __esm(() => {
 // templates/hooks/lib/test-runner.ts
 var BDD_TEST_TIMEOUT_MS, projectDir;
 var init_test_runner = __esm(() => {
-  BDD_TEST_TIMEOUT_MS = 5 * 60000;
+  BDD_TEST_TIMEOUT_MS = 20 * 60000;
   projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 });
 

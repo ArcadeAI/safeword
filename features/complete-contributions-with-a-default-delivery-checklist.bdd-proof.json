@@ -14,38 +14,37 @@
       "reports every missing prerequisite once in deterministic planning order"
     ],
     "A complete checklist exposes every default obligation category": [
-      "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
-      "returns every item from a complete checklist in plan order"
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "presents every default category through the installed CLI"
     ],
     "A silently omitted default category prevents checklist completion": [
-      "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
-      "names a missing %s default category"
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "names missing %s with one repair through the installed CLI"
     ],
-    "An applicable item records an honest disposition": [
+    "Each checklist item records an honest disposition": [
       [
-        "packages/cli/tests/integration/delivery-checklist-update.test.ts",
-        "records one receipt while preserving every other plan byte"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "current"
       ],
       [
-        "packages/cli/tests/review/execution-plan-output.test.ts",
-        "admits a reviewed contributor not-applicable item without a proof claim"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "retains an honest %s disposition while updating proof through the installed CLI",
+        "not applicable"
       ],
       [
-        "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
-        "snapshots stable planning identity while excluding mutable progress"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "retains an honest %s disposition while updating proof through the installed CLI",
+        "human-owned"
       ]
     ],
     "Contributor-controlled work cannot be dismissed as a human handoff": [
-      "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
-      "keeps contributor-controlled work open when it is labeled pending human"
-    ],
-    "Applicable contributor work cannot be dismissed as not applicable": [
-      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "keeps an accepted proof obligation open when the plan calls it not applicable"
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "rejects a contributor human handoff through the installed CLI"
     ],
     "In-flight checklist state reflects partial execution progress": [
-      "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
-      "records retained proof and immediately reports the next open obligation"
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "names monitoring and documentation after recording testing through the installed CLI"
     ],
     "An unreadable Execution Plan blocks checklist updates": [
       "packages/cli/tests/integration/delivery-checklist-unreadable.test.ts",
@@ -59,65 +58,80 @@
       "packages/cli/tests/integration/delivery-execution-prerequisite.test.ts",
       "keeps %s work outside the feature contract"
     ],
-    "The checklist records the appropriate PR-slicing outcome": [
-      "packages/cli/tests/integration/delivery-execution-prerequisite.test.ts",
-      "returns the reviewed %s slicing outcome when its checklist item is completed"
-    ],
-    "A large contribution cannot leave PR slicing unresolved": [
-      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "guides the author to record an unresolved pull-request slicing decision"
-    ],
     "Readiness reports the next owning boundary without inventing authority": [
       [
-        "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
-        "does not trust a hand-written complete checklist row"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "missing"
       ],
       [
-        "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
-        "rejects a contributor obligation whose required proof is not a real-boundary proof"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "partial"
       ],
       [
-        "packages/cli/tests/execution-plan/delivery-proof.test.ts",
-        "keeps proof current across a plan-only commit and stales it on any source change"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "incompatible earlier"
       ],
       [
-        "packages/cli/tests/review/delivery-proof-ledger.test.ts",
-        "retains one idempotent compatibility acceptance with exact bindings"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "compatible earlier"
       ],
       [
-        "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
-        "keeps another human dependency pending after design approval"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "current"
       ],
       [
-        "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
-        "distinguishes contributor completion, pending human work, and satisfied design approval"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "reports satisfied human approval without merge authority through the installed CLI"
       ]
     ],
     "Contributor evidence cannot record human approval": [
-      "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
-      "keeps human approval pending when a contributor records evidence for it"
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "keeps human approval pending when a contributor records proof through the installed CLI"
     ],
     "Evidence class controls the claim Safeword may make": [
       [
-        "packages/cli/tests/execution-plan/delivery-proof.test.ts",
-        "executes only the retained argv directly with closed non-TTY stdin"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "current"
       ],
       [
-        "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
-        "records an approved compatibility review before reusing earlier proof"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "compatible earlier"
       ],
       [
-        "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
-        "requires an executable real-boundary proof for contributor testing"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "partial"
       ],
       [
-        "packages/cli/tests/execution-plan/delivery-checklist.test.ts",
-        "retains missing as the evidence class for an open obligation"
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "missing"
+      ],
+      [
+        "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+        "records %s evidence through the installed CLI",
+        "incompatible earlier"
       ]
     ],
     "Earlier or partial evidence cannot silently become current complete proof": [
-      "packages/cli/tests/integration/delivery-checklist-cli.test.ts",
-      "keeps supporting proof narrow and reports both partial and earlier-revision gaps"
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "records %s evidence through the installed CLI",
+      "partial earlier"
+    ],
+    "A disposition cannot omit its required explanation": [
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "rejects %s without its required detail through the installed CLI"
+    ],
+    "An unreviewed applicability change cannot hide admitted work": [
+      "packages/cli/tests/integration/delivery-checklist-boundary.test.ts",
+      "rejects an applicability change after admission through the installed CLI"
     ]
   }
 }
