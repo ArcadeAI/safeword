@@ -8,7 +8,7 @@ not a repository-wide dead-code, dependency-upgrade or architecture redesign.
 
 The prescribed diff-scope code, learning, principle-trace and domain-document
 checks ran. Config sync reports Healthy/Changed:no; dependency-cruiser reports
-no violations in eight modules/five dependencies. No changed agent
+no violations in nine modules/five dependencies. No changed agent
 configuration or learning files require separate repair. README and the
 configured website docs do not pin the superseded model. New code imports no
 runtime dependencies and introduces no architectural drift. Whole-workspace
@@ -43,7 +43,7 @@ No legacy spec or acceptance rule was silently rewritten.
 ## Refactor ledger
 
 A separate read-only scout inspected semantic duplication, model policy,
-resolution and mirrors. The primary agent checked all four entries:
+resolution and mirrors. The primary agent checked all five entries:
 
 1. Retain local argv assertions: they protect independent builder and configured
    runner boundaries; a shared parser would hide the independence for tiny reuse.
@@ -54,8 +54,14 @@ resolution and mirrors. The primary agent checked all four entries:
 4. Retain generated mirrors: they are required delivery surfaces, checked by
    generators and parity, rather than hand-maintained duplication.
 
-Disposition: no behavior-preserving production refactor is warranted. No
-unrelated code was restructured to manufacture a refactor commit.
+5. Extract the new test’s fake executable installation into file-local
+   `installFakeCodex(directory, initialMode)`. The executable bytes, permissions,
+   paths, modes and cleanup are preserved, while the real CLI symlink, transcript
+   and behavioral assertions remain visible. All 149 focused tests pass after
+   extraction. The test introduction and refactor are separate scoped commits.
+
+Disposition: all five entries resolved. No production refactor is warranted;
+the one useful test-fixture extraction is complete.
 
 ## Remaining limits
 
@@ -75,8 +81,7 @@ schema warning is applied as a sixth case: findings is an array containing an
 invalid item. Its native-event suggestion is applied to the eight tool calls.
 The global offset location follows production's protocol; fresh directory-based
 session IDs and afterEach cleanup isolate these fixtures. It is not a promise
-of cleanup after a process crash. Completion evidence remains pending until
-verify.md records the new tests' real results. Those test refinements require a
+of cleanup after a process crash. Execution results are recorded in verify.md. Those test refinements require a
 fresh final implementation review; the older receipt is not that approval.
 
 ## Execution finding: empty spool representation
@@ -87,4 +92,56 @@ both extraction failure and valid empty retry: the filing cleanup atomically
 rewrites an empty queue. The contract requires no draft entries, not no file.
 The corrected assertion accepts an absent file or requires exactly empty raw
 contents; malformed lines and hidden drafts still fail. No production behavior
-was changed. Final execution and re-review must cover this correction.
+was changed. The 149 focused tests passed twice after this correction. A semantic mutation
+that misclassified failed empty extraction as success failed all six new cases;
+the original source was restored byte for byte before another green run. Final
+quality review covers the correction and fixture extraction.
+
+## Final quality-review improvements
+
+Independent Claude/Opus review 78f51fa7-791e-45a6-ba6d-216cb96659cc approved
+with no errors. Applied its useful suggestions: the manual contract explicitly
+names the dogfood source-CLI path (not installed-package delivery), and each
+Stop invocation now checks only its own diagnostics. Failure must contain no
+successful extraction diagnostic; recovery must contain no failed extraction
+diagnostic; no-growth must contain no extraction diagnostic at all. Exact
+child status, offset, queue and invocation assertions are retained.
+
+Remaining observations are answered: existing post-extraction cleanup may run
+with empty findings even after extraction failure; this task proves observable
+failure/retry outcomes and does not claim that pipeline was skipped. Changing
+that existing production flow exceeds this assurance task. Global offset crash
+cleanup remains explicitly unproved. Bun is required by this repository's
+pinned launcher and by the real Stop path; an unsupported PATH without Bun is
+an environment setup failure, not a reason to replace the real child boundary.
+Ticket last_modified is refreshed during verification. Review
+96c22a4c-0833-4a57-a1f5-d1a9cc158f35 approved the diagnostic and wording
+improvements with no errors. Its two useful follow-ups were applied: recorded
+real-process argv must include the adjacent `-m gpt-6-luna` pair and adjacent
+`-c model_reasoning_effort="low"` pair; standard GitHub token variables are
+cleared and gh uses an empty fixture-owned config directory. These isolate
+authentication state, without claiming a network sandbox. All 149 focused tests
+pass after those changes.
+
+Its timeout suggestion is declined: all six cases pass within the existing
+per-process cap, and the unrelated relay file passes its existing budget in
+isolation. Raising budgets without a reproduced failure would hide evidence.
+Each Stop error is asserted explicitly, so an ETIMEDOUT failure is reported.
+The remaining source-CLI, empty-pipeline and crash-cleanup observations remain
+disclosed limits. Final verification review includes these last improvements.
+
+## Final code verdict
+
+Independent Claude/Opus review 9a48145c-0f33-469c-9f2a-69b2727239bd approves
+the final proof and evidence with no errors. The first recorded child pins the
+real default model/reasoning pair; repeating those assertions on the retry and
+adding unrelated sandbox flags is deferred. The unchanged builder has separate
+argv/security-contract coverage, and this task's six cases protect extraction
+failure, offset preservation and retry. This is bounded coverage, not an
+exhaustive argv mutation claim. The legacy exit-code path remains outside this
+public typed-handler proof, as the mutation record already states.
+
+A fresh unmodified current-source buildAutoExtractor probe with no model
+override also passed: empty input yields zero findings, planted Safeword bug
+yields one checked finding. No filing was invoked. Logs are
+.project/tmp/current-final-live-extractor.json and its empty .err sibling.

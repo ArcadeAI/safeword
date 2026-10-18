@@ -53,6 +53,7 @@ describe('Codex Stop retries through the real extraction CLI', () => {
     session = `retro-retry-${nodePath.basename(directory)}`;
     writeTestFile(directory, '.safeword/SAFEWORD.md', '# enrolled\n');
     writeSelfReportConfig(directory, { surface: true, file: false });
+    mkdirSync(nodePath.join(directory, 'gh-config'));
   });
 
   afterEach(() => {
@@ -113,6 +114,11 @@ describe('Codex Stop retries through the real extraction CLI', () => {
           }),
           env: sourceHookEnvironment(directory, {
             PATH: `${bin}${nodePath.delimiter}${process.env.PATH}`,
+            GH_CONFIG_DIR: nodePath.join(directory, 'gh-config'),
+            GITHUB_TOKEN: undefined,
+            GH_TOKEN: undefined,
+            GITHUB_ENTERPRISE_TOKEN: undefined,
+            GH_ENTERPRISE_TOKEN: undefined,
             SAFEWORD_RETRO_CHILD: undefined,
             SAFEWORD_RETRO_DEBUG_LOG: debugPath,
           }),
@@ -125,8 +131,19 @@ describe('Codex Stop retries through the real extraction CLI', () => {
       expect(failed.status).toBe(0);
       expect(JSON.parse(failed.stdout)).toEqual({});
       expect(failed.stderr).toBe('');
-      expect(readJsonlFile(callsPath)).toEqual([expect.objectContaining({ mode, stdin: '' })]);
-      expect(readJsonlFile(debugPath)).toEqual(
+      const failedCalls = readJsonlFile(callsPath);
+      expect(failedCalls).toEqual([expect.objectContaining({ mode, stdin: '' })]);
+      const argv = failedCalls[0]?.argv as string[];
+      expect(argv).toEqual(expect.any(Array));
+      const modelIndex = argv.indexOf('-m');
+      expect(argv.slice(modelIndex, modelIndex + 2)).toEqual(['-m', 'gpt-6-luna']);
+      const reasoningIndex = argv.indexOf('model_reasoning_effort="low"');
+      expect(argv.slice(reasoningIndex - 1, reasoningIndex + 1)).toEqual([
+        '-c',
+        'model_reasoning_effort="low"',
+      ]);
+      const failedEvents = readJsonlFile(debugPath);
+      expect(failedEvents).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             event: 'retro_cli_extraction',
@@ -134,6 +151,11 @@ describe('Codex Stop retries through the real extraction CLI', () => {
             failureReason: reason,
           }),
           expect.objectContaining({ event: 'codex_stop_child_exit', status: 1, ok: false }),
+        ]),
+      );
+      expect(failedEvents).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ event: 'retro_cli_extraction', ok: true }),
         ]),
       );
       expect(existsSync(statePath)).toBe(false);
@@ -148,10 +170,17 @@ describe('Codex Stop retries through the real extraction CLI', () => {
       expect(retry.stderr).toBe('');
       const offset = { offset: transcript.length, toolUses: 8, fires: 1 };
       expect(JSON.parse(readFileSync(statePath, 'utf8'))).toEqual(offset);
-      expect(readJsonlFile(debugPath)).toEqual(
+      const eventsAfterRetry = readJsonlFile(debugPath);
+      const retryEvents = eventsAfterRetry.slice(failedEvents.length);
+      expect(retryEvents).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ event: 'retro_cli_extraction', ok: true, findingsCount: 0 }),
           expect.objectContaining({ event: 'codex_stop_child_exit', status: 0, ok: true }),
+        ]),
+      );
+      expect(retryEvents).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ event: 'retro_cli_extraction', ok: false }),
         ]),
       );
       expect(spoolContents()).toBe('');
@@ -163,6 +192,10 @@ describe('Codex Stop retries through the real extraction CLI', () => {
       expect(JSON.parse(unchanged.stdout)).toEqual({});
       expect(unchanged.stderr).toBe('');
       expect(JSON.parse(readFileSync(statePath, 'utf8'))).toEqual(offset);
+      const unchangedEvents = readJsonlFile(debugPath).slice(eventsAfterRetry.length);
+      expect(unchangedEvents).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ event: 'retro_cli_extraction' })]),
+      );
       expect(readJsonlFile(callsPath)).toEqual([
         expect.objectContaining({ mode, stdin: '' }),
         expect.objectContaining({ mode: 'success', stdin: '' }),

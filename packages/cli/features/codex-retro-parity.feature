@@ -1,7 +1,7 @@
 # BDD source for CDX602 (Codex retro parity — invisible local extraction and
 # Lane-2 filing). Vitest proves separate boundaries: adapter tests replace the
-# safeword retro child, retry integration tests run the real CLI with a fake Codex
-# executable, and filing tests supply extracted candidates. These are not one
+# safeword retro child, retry integration tests use the dogfood source-CLI path
+# with a fake Codex executable, and filing tests supply extracted candidates. These are not one
 # complete Stop-to-filing test.
 # `@manual` excludes these scenarios from Cucumber; do not count them as executed
 # acceptance coverage. Later filing-gate behavior is documented separately and
@@ -69,11 +69,11 @@ Feature: Codex retro parity — invisible local extraction and Lane-2 filing
         | no transcript_path             |
         | an unreadable transcript_path  |
 
-    # Real Stop -> real CLI -> fake Codex proof:
+    # Real Stop -> symlinked real source CLI (dogfood path) -> fake Codex proof:
     # tests/integration/codex-retro-extraction-retry.test.ts.
     @codex-retro-parity.TB1.AC2 @surface.openai-codex @surface.safeword-cli
     Scenario Outline: Failed extraction preserves the unprocessed transcript
-      Given a Codex session with eight tool calls and a readable nonempty digest
+      Given a dogfood source-CLI project with eight tool calls and a readable nonempty digest
       And the session has no existing retro state or pending advisory
       And `selfReport.file` is false
       And the external Codex executable returns <failure>
@@ -94,7 +94,7 @@ Feature: Codex retro parity — invisible local extraction and Lane-2 filing
 
     @codex-retro-parity.TB1.AC2 @surface.openai-codex @surface.safeword-cli
     Scenario: A valid empty retry consumes the previously failed transcript once
-      Given extraction previously failed for a session with eight tool calls
+      Given extraction through the dogfood source CLI failed for a session with eight tool calls
       And the failed transcript has no committed retro offset
       And `selfReport.file` is false
       And the session has no pending advisory
@@ -105,7 +105,7 @@ Feature: Codex retro parity — invisible local extraction and Lane-2 filing
 
     @codex-retro-parity.TB1.AC2 @surface.openai-codex @surface.safeword-cli
     Scenario: An unchanged successfully extracted transcript triggers no further extraction
-      Given a valid empty retry has committed the session's retro offset
+      Given a valid empty retry through the dogfood source CLI committed the session's retro offset
       And `selfReport.file` is false
       And the session has no pending advisory
       When Stop runs again without transcript growth

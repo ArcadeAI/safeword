@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-10-18T00:15:40.801Z
-last_modified: 2026-10-18T00:15:40.801Z
+last_modified: 2026-10-18T01:15:00.000Z
 scope:
   - Prove real Codex Stop and CLI extraction failures preserve retryable transcript state.
   - Separate hook-input failures from nested extractor failures in the manual BDD contract.
@@ -34,6 +34,13 @@ done_when:
   stamp succeeded before advancing to verification. Full root lint/typecheck,
   generated surfaces and parity pass. The first full test pass is green;
   completion awaits the second prescribed pass and focused mutation proof.
+- 2026-10-18 Verification completed: corrected empty-spool fixture representation;
+  149 focused cases, 2,194 smoke cases, builds, types and acceptance pass. The
+  aggregate run's original failure and eight baseline audit advisories remain
+  disclosed in verify.md. All six cases reject the semantic success/failure
+  mutation; restored production source is byte-identical. Extracted the fake
+  Codex installer in a separate scoped refactor; 149 cases pass afterward.
+  Final independent quality review and verification stamp remain pending.
 
 ## Test Definitions
 
