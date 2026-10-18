@@ -1,6 +1,6 @@
 # Release preparation evidence
 
-**PR Scope:** ✅ Compared against source b352845a8: version-only sources,
+**PR Scope:** ✅ Compared against current source 807c87b23: version-only sources,
 generated native-plugin carriers, required dogfood version metadata and this
 release ticket. No dependency resolution or model behavior changes in this PR.
 
@@ -56,3 +56,43 @@ Receipt lookup also needs a published distribution: .safeword/version is 1.2.0
 but that package is not published yet. The actual installed, unmodified 1.1.0
 runtime can report the signed review successfully; use that distribution route
 for release bootstrapping, never an unauthenticated project-supplied substitute.
+
+## Refresh on the reviewed source
+
+Merged source 807c87b23 (including main 25b548622) without rewriting the published
+release branch. The only conflict was generated plugin identity; canonical
+regeneration resolved it and verified all five surfaces. All version sources
+and native identities remain 1.2.0. Current proof: frozen install checked 1,088
+installs with no changes,81/81 release contracts pass, version-sync and explicit
+Claude-plugin release checks pass, and 276 parity pairs/11 contracts pass.
+The normalized full lockfile equals source 807c87b23 byte for byte after only
+the workspace version is reset to 1.1.0; actual size 343,758 bytes. No resolution,
+review policy or generated-file attribute changed.
+
+Logs are .project/tmp/release-current-source-{generate,install,contracts,parity}.log
+and release-current-lock-proof.json. Old bb711 hosted CI and isolated-cache
+activation results remain historical; new release-head CI and fresh review are
+required. No current Desktop activation or supported profile upgrade is claimed.
+The task stays implement/in_progress because bun.lock exceeds the 262,144-byte
+logical-target cap and context does not count as coverage. No exception was
+received. Do not promote, merge or publish based on these local checks.
+
+## Refreshed bounded review and cache proof
+
+Independent Claude/Opus review74d87e9f-87c2-4ef5-8773-8e0ce38e76f3 approves
+43 logical branch files with no errors; two generated CLI bundles are excluded
+normally. bun.lock remains the sole non-generated coverage gap, not a reviewed
+file. The new ticket timestamp is corrected. Parent source closure remains
+gated on final-head CI on PR5924. Ordinary offset cleanup and the deferred
+mutation are already disclosed limits; no new production state-root setting
+was added for the fixture.
+
+Fresh deterministic activation checks pass5/5. The isolated authenticated
+packaged-cache smoke passes1/1 with explicit Luna and a thin launcher that adds
+only low reasoning to the real pinned Codex binary. No command or output is
+faked; the generated cache runtime and hook commands are unchanged. All five
+hook events are proved after package sources are removed; Desktop activation
+correctly remains pending. The separate opt-in migration case remains unrequested
+and is skipped by its existing guard. Logs: release-current-activation.log and
+release-current-live.log. User profile, supported cache selection and installed
+version remain unchanged. New release-head hosted CI is still required.

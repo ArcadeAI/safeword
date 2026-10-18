@@ -99,3 +99,19 @@ Do not mark bun.lock linguist-generated to get a phase stamp. Independent review
 resolution changes. The proposed line was reverted. Preserve the bounded diff
 and normalized-byte proof, collect hosted CI and the live cache checks, and
 resolve the specific review-coverage limitation without a standing policy waiver.
+
+## Current-source reconciliation
+
+The source is now 807c87b23 and includes main 25b548622. A normal merge preserves
+the already-pushed release history while bringing in the complete source; the
+effective release diff remains 24 paths of version carriers and release evidence.
+Canonical regeneration resolved the one generated identity conflict. Frozen
+install, 81 release contracts, version alignment and parity pass. The normalized
+343,758-byte lockfile proof remains exactly version-only. Old source and CI
+references above describe preparation history, not current-head approval.
+
+Fresh review may cover the other logical branch files, but bun.lock remains
+explicitly unreviewed under the 262,144-byte cap. A bounded proof in context is
+not a substitute for target coverage. Keep the release Draft and its task in
+implementation; no exception, publication, tag or installed-cache change is
+authorized by these preparation checks.
