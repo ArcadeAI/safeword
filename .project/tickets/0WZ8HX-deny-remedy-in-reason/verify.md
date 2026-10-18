@@ -18,3 +18,10 @@
 Audit passed — diff-scoped: depcruise clean (397 modules), config in sync, no agent-config/learning/domain-doc changes; fixed one documentation drift (ARCHITECTURE.md described remedies in `additionalContext`). Test quality: 2 files reviewed, meaningful assertions, fresh state per test, no sleeps, no-remedy edge case covered. tdd-review added an exit-code-mode (OpenCode) test, proven non-vacuous against the pre-fix hook.
 
 Independent reviews: intake `06b5e0d6-111d-47cb-bb5c-caed5c92dc9e`, implement `0144c7bd-1d4b-4f39-81e4-8cec9e166ec6` (Codex, cross-agent, approved, no findings).
+
+## Re-verification — 2026-10-18
+
+**Verify lanes:** ⏭️ local full run stopped — it ran for hours under machine load and the branch then took a new merge of `origin/main`; CI is the suite evidence: every check green on `cc6252903` (both Node test runs, lint, CLI contract, OpenCode conformance, dependency audit, dogfood parity). Locally after each merge: typecheck clean, generated surfaces current, this PR's four test files 125/125.
+**Audit:** Audit passed — diff-scoped at `49d034648`: depcruise clean (490 modules, 852 dependencies), config in sync, learnings, principle trace and domain docs clean.
+**Test-quality review:** clean — the stale-plan test fails against `main`'s hook because the remedy is not in the deny reason.
+**Refactor:** ✅ No change warranted — the change is a narrow rename (`additionalContext` → `remedy`) and one join in `deny()`.
