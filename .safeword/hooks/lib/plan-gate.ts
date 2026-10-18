@@ -4,7 +4,6 @@
 // Pure-ish helper (reads only the ticket folder) so the pre-tool hook can call
 // it standalone from .safeword/hooks/, mirroring the #404 readiness gate.
 
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -13,12 +12,7 @@ import { type ImplPlanResult, parseImplPlan, unresolvedDecisionNames } from './i
 import { evaluateImplementationInspiration } from './inspiration.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { checkPrincipleTrace } from './principle-trace.js';
-import {
-  projectWritablePluginCli,
-  type SafewordCli,
-  trustedEnvironment,
-  trustedSafewordClis,
-} from './safeword-cli.js';
+import { askTrustedSafeword } from './safeword-cli.js';
 
 export type PlanGateVerdict = { ok: true } | { ok: false; reason: string; remediation: string };
 
@@ -29,62 +23,44 @@ export function evaluateCodingAuthorization(
   projectDirectory: string,
   ticketId: string,
 ): PlanGateVerdict {
-  if (projectWritablePluginCli(projectDirectory) !== undefined) {
-    return {
-      ok: false,
-      reason: 'Safeword refused a project-writable coding-authorization command.',
-      remediation:
-        'Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.',
-    };
+  const answer = askTrustedSafeword(
+    projectDirectory,
+    ['ticket', 'coding-authorization', ticketId],
+    run => codingAuthorizationVerdict(run, ticketId),
+  );
+  switch (answer.kind) {
+    case 'refused':
+      return {
+        ok: false,
+        reason: 'Safeword refused a project-writable coding-authorization command.',
+        remediation:
+          'Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.',
+      };
+    case 'missing':
+      return {
+        ok: false,
+        reason: 'Safeword could not check whether coding is authorized.',
+        remediation:
+          'Reinstall the Safeword plugin, or reinstall Safeword in this project so .safeword/version names its version.',
+      };
+    case 'answered':
+      return answer.value;
+    case 'unanswered':
+      return {
+        ok: false,
+        reason: 'Safeword could not validate the coding-authorization result.',
+        remediation: `Run safeword ticket coding-authorization ${ticketId} and repair the reported local CLI problem.`,
+      };
   }
-  const candidates = trustedSafewordClis(projectDirectory);
-  if (candidates.length === 0) {
-    return {
-      ok: false,
-      reason: 'Safeword could not check whether coding is authorized.',
-      remediation:
-        'Reinstall the Safeword plugin, or reinstall Safeword in this project so .safeword/version names its version.',
-    };
-  }
-  for (const cli of candidates) {
-    const verdict = codingAuthorizationVerdict(cli, projectDirectory, ticketId);
-    if (verdict !== undefined) return verdict;
-  }
-  return {
-    ok: false,
-    reason: 'Safeword could not validate the coding-authorization result.',
-    remediation: `Run safeword ticket coding-authorization ${ticketId} and repair the reported local CLI problem.`,
-  };
 }
 
-/** One trusted CLI's coding-authorization verdict, or undefined when it gave no valid result. */
+/** One trusted CLI run's coding-authorization verdict, or undefined when it gave no valid result. */
 function codingAuthorizationVerdict(
-  cli: SafewordCli,
-  projectDirectory: string,
+  run: { status: number | null; stdout: string },
   ticketId: string,
 ): PlanGateVerdict | undefined {
-  const checked = spawnSync(
-    cli.command,
-    [
-      ...cli.args,
-      '--json',
-      '--no-input',
-      '--cwd',
-      projectDirectory,
-      'ticket',
-      'coding-authorization',
-      ticketId,
-    ],
-    // A first `bun x` run may download the pinned package.
-    {
-      cwd: cli.cwd,
-      env: trustedEnvironment(projectDirectory),
-      encoding: 'utf8',
-      timeout: cli.downloads === true ? 30_000 : 5000,
-    },
-  );
   try {
-    const parsed = JSON.parse(checked.stdout) as {
+    const parsed = JSON.parse(run.stdout) as {
       state?: unknown;
       findings?: Array<{ message?: unknown }>;
       next_actions?: Array<{ command?: unknown }>;
@@ -96,7 +72,7 @@ function codingAuthorizationVerdict(
       };
     };
     if (
-      checked.status === 0 &&
+      run.status === 0 &&
       parsed.state === 'healthy' &&
       parsed.data?.command === 'ticket coding-authorization' &&
       parsed.data.coding_authorization === 'authorized' &&

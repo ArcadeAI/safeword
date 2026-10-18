@@ -3,7 +3,7 @@
 // Two-purpose: LOC gate (blast radius control) + artifact prerequisite check
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
-import { execSync, spawnSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -16,12 +16,7 @@ import {
 } from './lib/active-ticket.ts';
 import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-ledger-writes.ts';
 import { retrospectiveGateDenial } from './lib/retrospective-gate.ts';
-import {
-  projectWritablePluginCli,
-  type SafewordCli,
-  trustedEnvironment,
-  trustedSafewordClis,
-} from './lib/safeword-cli.ts';
+import { askTrustedSafeword } from './lib/safeword-cli.ts';
 import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
@@ -293,44 +288,20 @@ function crossAgentReviewPolicy() {
   );
 }
 
-/** The receipt check's verdict from one trusted CLI, or undefined when it gave no valid result. */
+/** The receipt check's verdict from one trusted CLI run, or undefined when it gave no valid result. */
 function receiptGateVerdict(
-  cli: SafewordCli,
+  run: { status: number | null; stdout: string },
   scenario: string,
   ledger: string,
 ): { denial: string | undefined } | undefined {
-  const checked = spawnSync(
-    cli.command,
-    [
-      ...cli.args,
-      '--json',
-      '--no-input',
-      '--cwd',
-      projectDirectory,
-      'review',
-      'gate',
-      'executable-red',
-      '--scenario',
-      scenario,
-      '--ledger',
-      ledger,
-    ],
-    // A first `bun x` run may download the pinned package.
-    {
-      cwd: cli.cwd,
-      env: trustedEnvironment(projectDirectory),
-      encoding: 'utf8',
-      timeout: cli.downloads === true ? 30_000 : 5000,
-    },
-  );
   try {
-    const parsed = JSON.parse(checked.stdout) as {
+    const parsed = JSON.parse(run.stdout) as {
       state?: unknown;
       findings?: Array<{ message?: unknown }>;
       data?: { status?: unknown; scenario?: unknown; ledger?: unknown };
     };
     if (
-      checked.status === 0 &&
+      run.status === 0 &&
       parsed.state === 'healthy' &&
       parsed.data?.status === 'approved' &&
       parsed.data.scenario === scenario &&
@@ -350,19 +321,21 @@ function receiptGateVerdict(
 }
 
 function executableRedGateDenial(scenario: string, ledger: string): string | undefined {
-  if (projectWritablePluginCli(projectDirectory) !== undefined) {
-    return 'Safeword refused the configured CLI because its resolved path is inside the project and can be changed by project code. Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.';
+  const answer = askTrustedSafeword(
+    projectDirectory,
+    ['review', 'gate', 'executable-red', '--scenario', scenario, '--ledger', ledger],
+    run => receiptGateVerdict(run, scenario, ledger),
+  );
+  switch (answer.kind) {
+    case 'refused':
+      return 'Safeword refused the configured CLI because its resolved path is inside the project and can be changed by project code. Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.';
+    case 'missing':
+      return 'Safeword could not find its CLI: no plugin runtime and no installed version in .safeword/version. Reinstall Safeword in this project.';
+    case 'answered':
+      return answer.value.denial;
+    case 'unanswered':
+      return `The executable RED receipt check could not produce a valid result from ${answer.tried}.`;
   }
-  const candidates = trustedSafewordClis(projectDirectory);
-  if (candidates.length === 0) {
-    return 'Safeword could not find its CLI: no plugin runtime and no installed version in .safeword/version. Reinstall Safeword in this project.';
-  }
-  for (const cli of candidates) {
-    const verdict = receiptGateVerdict(cli, scenario, ledger);
-    if (verdict !== undefined) return verdict.denial;
-  }
-  const tried = candidates.map(cli => [cli.command, ...cli.args].join(' ')).join(', ');
-  return `The executable RED receipt check could not produce a valid result from ${tried}.`;
 }
 
 function separateEvidenceMode(

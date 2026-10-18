@@ -15,6 +15,7 @@
  * Each returns candidates in preference order; callers use the first that runs.
  */
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -233,6 +234,45 @@ export function trustedEnvironment(
       return !TRUSTED_PATH_SETTINGS.includes(key) || !isInside(projectDirectory, value ?? '');
     }),
   );
+}
+
+/** What the trusted CLIs said to one gate question. */
+export type TrustedAnswer<T> =
+  | { kind: 'refused' }
+  | { kind: 'missing' }
+  | { kind: 'answered'; value: T }
+  | { kind: 'unanswered'; tried: string };
+
+/**
+ * Ask the trusted CLIs one JSON question, in preference order, until one gives a valid
+ * answer. `interpret` returns undefined for a run that gave no valid result.
+ * Refuses outright when the configured plugin CLI is inside the project.
+ */
+export function askTrustedSafeword<T>(
+  projectDirectory: string,
+  question: readonly string[],
+  interpret: (run: { status: number | null; stdout: string }) => T | undefined,
+): TrustedAnswer<T> {
+  if (projectWritablePluginCli(projectDirectory) !== undefined) return { kind: 'refused' };
+  const candidates = trustedSafewordClis(projectDirectory);
+  if (candidates.length === 0) return { kind: 'missing' };
+  for (const cli of candidates) {
+    const run = spawnSync(
+      cli.command,
+      [...cli.args, '--json', '--no-input', '--cwd', projectDirectory, ...question],
+      {
+        cwd: cli.cwd,
+        env: trustedEnvironment(projectDirectory),
+        encoding: 'utf8',
+        // A first `bun x` run may download the pinned package.
+        timeout: cli.downloads === true ? 30_000 : 5000,
+      },
+    );
+    const value = interpret({ status: run.status, stdout: run.stdout ?? '' });
+    if (value !== undefined) return { kind: 'answered', value };
+  }
+  const tried = candidates.map(cli => [cli.command, ...cli.args].join(' ')).join(', ');
+  return { kind: 'unanswered', tried };
 }
 
 /** A package.json's name and version, or an empty record when it is missing or malformed. */
