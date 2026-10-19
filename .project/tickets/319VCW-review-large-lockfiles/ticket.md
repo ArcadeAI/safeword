@@ -3,7 +3,7 @@ id: 319VCW
 slug: review-large-lockfiles
 type: task
 subtype: bug-investigated
-phase: verify
+phase: implement
 status: in_progress
 created: 2026-10-18T23:15:34.676Z
 last_modified: 2026-10-18T23:15:34.676Z
@@ -32,6 +32,14 @@ done_when:
 
 ## Work Log
 
+- 2026-10-19 Test-quality follow-up: added public-CLI acceptance through the real
+  worker/signing and actual receipt reader/gate; added successful-baseline-truncation
+  and exact serialized/source/baseline bounds; replaced the inspection-count test
+  with deterministic courtesy-clock, process-budget and cancellation checks.
+  Six deliberate mutations fail. Corrected completion-worker simulation claims.
+  Earlier focused runs passed 175/175; a later managed-lifecycle failure also
+  reproduces on unchanged main with the same exit-2 symptom. No deadlines or
+  assertions were weakened. Final independent review and current-head CI remain.
 - 2026-10-19 Verification-record review
   df3f17c4-1882-446b-9742-7b6417df4cfd approved the disclosed evidence and limits.
   Its remaining warnings are answered explicitly: final-head CI remains a hard
@@ -127,8 +135,13 @@ conservative superset rather than hiding committed changes.
 
 ## Test Definitions
 
-Use actual temporary Git repositories and real packet/job/receipt APIs; fake
-the external reviewer only in deterministic receipt tests. One explicit Git
+Use actual temporary Git repositories and real packet/job/receipt APIs. Original
+receipt tests simulate the completion worker, including approval signing; a new
+active public-CLI Cucumber regression runs the actual worker and simulates only
+the external reviewer executable. Inspect its original lockfile representation,
+signed status coverage and stale-on-edit result. Test exact serialized 256 KiB
+and source/baseline 8 MiB boundaries, successful truncated baseline output, and
+deterministic courtesy-clock/process budgets with observable cancellation. One explicit Git
 transport fault injector delegates real Git, then removes a later patch hunk;
 the production reconstruction guard must reject that otherwise applicable patch.
 Prove version-only

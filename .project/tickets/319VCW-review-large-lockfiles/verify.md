@@ -13,14 +13,14 @@ The ticket remains in verification while the Draft PR awaits delivery approval.
 **Build:** ✅ Success — root build for relay, collector and CLI.
 **Lint:** ✅ Clean — root ESLint, Gherkin lint and commit-time format/Markdown checks.
 **Typecheck:** ✅ Clean — root typecheck covers relay, collector and CLI.
-**Scenarios:** ⏭️ No new Gherkin feature for this investigated bug fix; task Test Definitions map to 37 packet cases and four signed-job/compatibility regressions. Existing acceptance coverage remains a regression gate.
+**Scenarios:** ✅ Added an active public-CLI Cucumber regression for original lockfile coverage, usable signed status and stale-on-edit; one scenario / 22 reported steps passes. An earlier focused follow-up run passed 175/175, including 40 packet cases and deterministic inspection-budget/state checks. Full new-head acceptance remains a CI gate.
 **Refactor:** ✅ Completed — protected shared Git-prefix parser extraction in 8d22b8094; 81 targeted tests passed. Two architecture tables became labeled paragraphs with all twelve prior field values preserved.
 **PR Scope:** ✅ Diff matches ticket scope — bounded existing bun.lock projection, integrity, tests, architecture rationale and generated native runtimes; no dependency, model, release or profile-selection changes.
 **Dep Drift:** ✅ Clean — no manifest or lockfile changes and no new third-party imports. Raw audit findings and the repository's existing policy are disclosed below.
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation beyond the explicitly documented narrow whole-file-capture exception in ARCHITECTURE.md; existing receipt and packet owners remain authoritative.
 **Experience:** ✅ No new friction — walked the developer's release-lock review through the real source CLI; worst step was waiting for independent review, new command steps versus before = 0. No UX research or profile deployment is claimed.
-**Surface Evidence:** ✅ 2/2 affected boundaries have recorded proof: live source CLI review/status, and deterministic real receipt/gate integration with a simulated reviewer.
+**Surface Evidence:** ✅ 2/2 affected boundaries have recorded proof: live source CLI review/status, and deterministic receipt/gate integration with a simulated completion worker. The new public-CLI regression additionally exercises real worker dispatch and signing with only the vendor executable simulated.
 **Evidence limits:** ⚠️ Local broad verification is not green; the redundant second CLI run in the generated multi-project plan was stopped. The baseline reproduction proves six specific failures predate the change, not every install timeout. Windows mode/PATH cases are skipped where unsupported; no live installed-profile upgrade or whole-baseline semantic review is claimed.
 
 Audit passed the installed diff-scoped code-quality, learning, principle-trace
@@ -33,7 +33,7 @@ and dependency-freshness discovery were deliberately outside this diff audit.
 
 | Criterion | Recorded proof |
 | --- | --- |
-| Original-file coverage without a lockfile exception | The signed job regression goes through the real source CLI, receipt reader and implementation gate; bun.lock is covered and exclusions are empty. |
+| Original-file coverage without a lockfile exception | The active Cucumber regression runs the public CLI, real worker/signing, actual receipt reader and implementation gate; bun.lock is covered and exclusions are empty. The separate job integration uses a simulated completion worker. |
 | Committed, staged and unstaged changes visible | Real Git parameterized packet cases; a newer local main cannot hide committed dependency changes while a remote default exists. |
 | Complete bounded patch | Independent authored source oracle, exact displayed-patch replay, a patch larger than 16 KiB and deliberate loss of a later hunk. Partial successful apply is rejected in production. |
 | Fresh signed identity | Source, snapshot, executable mode and baseline drift cases; identical patch bytes with a new baseline stale approval; patch-text-as-small-file substitution is rejected. Legacy full-text hash bytes remain unchanged. |
@@ -55,7 +55,7 @@ the immutable release manifest, whose version is 1.2.0.
 
 This proves the new source delivery boundary. The installed 1.1.0 profile was
 not upgraded and is not claimed to support the new representation. Deterministic
-gate tests use a source-CLI fixture and explicitly simulate the external reviewer.
+gate tests use a source-CLI fixture and simulate the completion worker, including its signing. The new active Cucumber regression runs the actual worker and only simulates the external reviewer executable.
 
 ## Review, compatibility and remaining limits
 
@@ -81,3 +81,22 @@ complete change with twenty context lines, not the unseen entire baseline;
 reviewers must request more context when needed. New, deleted, renamed or
 unchanged oversized locks remain unsupported. Large metadata operations have
 fixed timeouts and fail closed on slow hosts; no unmeasured cache was added.
+
+
+## Test-quality follow-up
+
+Added active public-CLI acceptance with a real worker, production signing,
+actual receipt reader and implementation gate; only the external vendor
+executable is simulated. The original COMPLETE_WORKER integration remains
+accurately described as simulated completion/signing. There are now 40 packet
+cases, including exact 8 MiB source/baseline and 256 KiB serialized boundaries
+and successful baseline truncation. Two deterministic process-budget/state
+cases replace the exact-call-count courtesy test. Six deliberate guard/CLI
+mutations each fail the targeted regression; production bytes are restored.
+
+Earlier focused runs passed 175/175; a later repetition passed 174 with one
+unchanged managed-lifecycle case failing at its 3000 ms foreground deadline
+(exit 2 rather than 0). It also fails in isolation on the unchanged main
+merge-base tree with the same exit-code symptom. No deadline was raised and no
+assertion was weakened. Test-quality-audit.md preserves the evidence and limits;
+new-head CI is still required before claiming delivery green.

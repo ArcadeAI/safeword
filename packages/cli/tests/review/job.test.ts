@@ -1555,33 +1555,6 @@ describe('durable review jobs', () => {
     },
   );
 
-  it.runIf(process.platform !== 'win32')(
-    'bounds synchronous worker inspection during the courtesy wait',
-    async () => {
-      const cwd = project();
-      const bin = nodePath.join(cwd, 'bin');
-      const inspectionLog = nodePath.join(cwd, 'ps.log');
-      mkdirSync(bin);
-      writeFileSync(
-        nodePath.join(bin, 'ps'),
-        `#!/bin/sh\nprintf 'inspected\\n' >> ${JSON.stringify(inspectionLog)}\nexec /bin/ps "$@"\n`,
-        { mode: 0o755 },
-      );
-      vi.stubEnv('SAFEWORD_REVIEW_PS_PATH', nodePath.join(bin, 'ps'));
-      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
-      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '450');
-
-      const pending = await startReviewJob({
-        cwd,
-        kind: 'quality-review',
-        targets: ['input.md'],
-      });
-
-      expect(readFileSync(inspectionLog, 'utf8').trim().split('\n')).toHaveLength(2);
-      cancelReviewJob(cwd, (pending.data as { review_id: string }).review_id);
-    },
-  );
-
   it('launches a managed worker in JSON mode', async () => {
     const cwd = project();
     const argumentsPath = nodePath.join(cwd, 'worker-arguments.json');

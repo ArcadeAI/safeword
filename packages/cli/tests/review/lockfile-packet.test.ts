@@ -298,28 +298,31 @@ describe('bounded logical review of large lockfile changes', () => {
     );
   });
 
-  it('reviews a bounded edit with source and baseline just below 8 MiB', () => {
-    const f = fixture();
-    const lock = { ...JSON.parse(f.before), padding: '' };
-    const empty = `${JSON.stringify(lock, undefined, 2)}\n`;
-    lock.padding = 'x'.repeat(8 * 1024 * 1024 - Buffer.byteLength(empty) - 1);
-    const baseline = `${JSON.stringify(lock, undefined, 2)}\n`;
-    f.write(baseline);
-    f.git('add', 'bun.lock');
-    f.commit('near-limit baseline');
-    f.git('update-ref', 'refs/remotes/origin/main', 'HEAD');
-    f.write(baseline.replace('1.1.0', '1.2.0'));
-    const p = prepareReviewPacket(f.root, 'quality-review', ['bun.lock']);
-    try {
-      expect(p.packet.logical_files[0]).toMatchObject({
-        representation: { source_bytes: 8 * 1024 * 1024 - 1 },
-      });
-      expect(p.packet.logical_files[0]?.content).toContain('+      "version": "1.2.0"');
-      expect(p.sourceChanged()).toBe(false);
-    } finally {
-      p.cleanup();
-    }
-  });
+  it.each([8 * 1024 * 1024 - 1, 8 * 1024 * 1024])(
+    'reviews a bounded edit with %i source and baseline bytes',
+    size => {
+      const f = fixture();
+      const lock = { ...JSON.parse(f.before), padding: '' };
+      const empty = `${JSON.stringify(lock, undefined, 2)}\n`;
+      lock.padding = 'x'.repeat(size - Buffer.byteLength(empty));
+      const baseline = `${JSON.stringify(lock, undefined, 2)}\n`;
+      f.write(baseline);
+      f.git('add', 'bun.lock');
+      f.commit('near-limit baseline');
+      f.git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+      f.write(baseline.replace('1.1.0', '1.2.0'));
+      const p = prepareReviewPacket(f.root, 'quality-review', ['bun.lock']);
+      try {
+        expect(p.packet.logical_files[0]).toMatchObject({
+          representation: { source_bytes: size },
+        });
+        expect(p.packet.logical_files[0]?.content).toContain('+      "version": "1.2.0"');
+        expect(p.sourceChanged()).toBe(false);
+      } finally {
+        p.cleanup();
+      }
+    },
+  );
 
   it('rejects a source above the separate 8 MiB capture bound', () => {
     const f = fixture();
@@ -332,6 +335,36 @@ describe('bounded logical review of large lockfile changes', () => {
     f.write(f.before.replaceAll('1.0.0', '2.0.0'));
     expect(() => prepareReviewPacket(f.root, 'quality-review', ['bun.lock'])).toThrow(
       expect.objectContaining({ code: 'REVIEW_TARGET_TOO_LARGE' }),
+    );
+  });
+
+  it('accepts exactly 256 KiB of escaped representation and rejects one byte more', () => {
+    const f = fixture();
+    // Backslashes cost more in the serialized record than in the displayed patch.
+    const version = `1.2.0${'\\\\'.repeat(20_000)}`;
+    f.write(f.before.replace('1.1.0', () => version));
+    const initial = prepareReviewPacket(f.root, 'quality-review', ['bun.lock']);
+    let remaining: number;
+    try {
+      remaining = 256 * 1024 - Buffer.byteLength(JSON.stringify(initial.packet.logical_files[0]));
+      expect(remaining).toBeGreaterThan(0);
+    } finally {
+      initial.cleanup();
+    }
+    const source = f.before.replace('1.1.0', () => `${version}${'x'.repeat(remaining)}`);
+    f.write(source);
+    const exact = prepareReviewPacket(f.root, 'quality-review', ['bun.lock']);
+    try {
+      const record = exact.packet.logical_files[0];
+      expect(Buffer.byteLength(JSON.stringify(record))).toBe(256 * 1024);
+      expect(Buffer.byteLength(record?.content ?? '')).toBeLessThan(256 * 1024);
+      expect(record?.representation?.kind).toBe('git-diff');
+    } finally {
+      exact.cleanup();
+    }
+    f.write(source.replace('1.2.0', '1.2.0x'));
+    expect(() => prepareReviewPacket(f.root, 'quality-review', ['bun.lock'])).toThrow(
+      /Lockfile representation exceeds the 262144-byte/u,
     );
   });
 
@@ -479,6 +512,40 @@ describe('bounded logical review of large lockfile changes', () => {
       expect.objectContaining({ code: 'REVIEW_TARGET_INVALID_TEXT' }),
     );
   });
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects a successful Git capture that returns only the first 16 KiB of the baseline',
+    () => {
+      const f = fixture();
+      f.write(f.before.replace('1.1.0', '1.2.0'));
+      const located = spawnSync('which', ['git'], { encoding: 'utf8' });
+      expect(located.status).toBe(0);
+      const realGit = realpathSync(located.stdout.trim());
+      const host = temporaryDirectory();
+      const marker = nodePath.join(host, 'truncated');
+      // This fault targets file-backed cat-file capture; a pipe migration must update the injector.
+      writeFileSync(
+        nodePath.join(host, 'git'),
+        `#!/usr/bin/env node
+const {spawnSync} = require('node:child_process');
+const {ftruncateSync,writeFileSync} = require('node:fs');
+const args = process.argv.slice(2);
+const result = spawnSync(${JSON.stringify(realGit)}, args, {stdio:'inherit'});
+if (args[0] === 'cat-file' && args[1] === 'blob' && result.status === 0) {
+  ftruncateSync(1, 16384);
+  writeFileSync(${JSON.stringify(marker)}, 'successful truncated baseline');
+}
+process.exit(result.status ?? 1);
+`,
+        { mode: 0o755 },
+      );
+      vi.stubEnv('PATH', `${host}${nodePath.delimiter}${process.env.PATH ?? ''}`);
+      expect(() => prepareReviewPacket(f.root, 'quality-review', ['bun.lock'])).toThrow(
+        /Git returned an incomplete lockfile baseline/u,
+      );
+      expect(readFileSync(marker, 'utf8')).toBe('successful truncated baseline');
+    },
+  );
 
   it.skipIf(process.platform === 'win32')(
     'rejects a valid first hunk when later dependency hunks are lost',
