@@ -787,7 +787,7 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
 
-    it('2: deny without additionalContext omits the field', () => {
+    it('2: a deny with no remedy emits no additionalContext', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 450,
@@ -1365,9 +1365,14 @@ describe('Quality Gates', () => {
         'Cannot create test definitions',
       );
       // The block explains that an atomic apply_patch is rejected on pre-edit
-      // state and must be split into ordered patches (#385).
-      expect(output.hookSpecificOutput.additionalContext).toContain('apply_patch');
-      expect(output.hookSpecificOutput.additionalContext).toContain('ordered patches');
+      // state and must be split into ordered patches (#385). The remedy rides in
+      // the reason — the one field every host delivers (#5760) — ahead of the
+      // /explain hint, never in additionalContext, which Cursor and OpenCode drop.
+      const reason: string = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('apply_patch');
+      expect(reason).toContain('ordered patches');
+      expect(reason.indexOf('ordered patches')).toBeLessThan(reason.indexOf('/explain'));
+      expect(output.hookSpecificOutput.additionalContext).toBeUndefined();
     });
 
     it('9.2: denies test-definitions.md when ticket has no scope fields', () => {
@@ -1556,7 +1561,8 @@ describe('Quality Gates', () => {
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('intake phase');
       // A same-patch phase change isn't visible to this pre-edit gate; the note
       // tells the agent to order the patches rather than batch them (#385).
-      expect(output.hookSpecificOutput.additionalContext).toContain('apply_patch');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('apply_patch');
+      expect(output.hookSpecificOutput.additionalContext).toBeUndefined();
     });
 
     it('9.7: denies test-definitions.md for features without dimensions.md', () => {
