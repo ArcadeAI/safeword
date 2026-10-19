@@ -40,6 +40,7 @@ const TODAY = new Date().toISOString().slice(0, 10);
 interface CursorDecision {
   permission?: string;
   user_message?: string;
+  agent_message?: string;
 }
 
 /**
@@ -174,6 +175,9 @@ describe('Cursor preToolUse edit-gate parity (F2TKR3)', () => {
 
     expect(decision.permission).toBe('deny');
     expect(decision.user_message).toContain('test-definitions.md');
+    // The remedy reaches the agent through the real Cursor hook process (#5760):
+    // agent_message is what Cursor feeds back to the agent on a deny.
+    expect(decision.agent_message).toContain('Tasks are exempt from this gate');
   });
 
   it('allows meta/project writes so scenario work is never deadlocked', () => {

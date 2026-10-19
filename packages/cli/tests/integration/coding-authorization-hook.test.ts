@@ -171,9 +171,9 @@ describe('coding authorization edit hook', () => {
     const reason = output.hookSpecificOutput.permissionDecisionReason;
     expect(reason.startsWith('The accepted Implementation Plan changed after review.')).toBe(true);
     expect(reason).not.toContain(RED_ACTION);
-    expect(output.hookSpecificOutput.additionalContext?.startsWith('safeword review run')).toBe(
-      true,
-    );
+    // The remedy rides in the reason, never additionalContext, which Cursor and OpenCode drop.
+    expect(reason).toContain('\n\nsafeword review run');
+    expect(output.hookSpecificOutput.additionalContext).toBeUndefined();
     const callsPath = nodePath.join(pluginRoot, 'calls.log');
     expect(
       existsSync(callsPath),
