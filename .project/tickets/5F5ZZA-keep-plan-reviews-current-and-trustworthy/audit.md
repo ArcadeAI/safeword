@@ -91,3 +91,22 @@ advisories remain blockers. This diff-audit pass does not override those results
 
 **Next:** Push the evidence to Draft #5957 with relay, dependency-security and
 qualification blockers retained.
+
+## Test-structure refactor follow-up
+
+The singleton-table style advisory above is resolved by 2fa0ae1a8; ece4f4165
+also names and extracts the verified bundle-comparison helper. The follow-up
+audit is scoped against efaf6ab42: two changed test files and their work record,
+zero dependency violations (2 modules / 0 dependencies), healthy config drift,
+and no principle/domain trace failures. Manual review found no assertion loss,
+internal mocks, shared mutable fixture, cleanup asymmetry or weakened oracle.
+No affected agent config, learning, product documentation claim or architecture
+inventory changed. Configured README/website sources need no product edits.
+Whole-repository Knip, clone totals and dependency freshness remain excluded.
+
+Then independent Claude/opus review fe34bd12-c6d2-406b-b095-e777a00c53ba approved
+the two current test files with zero errors/warnings and three informational
+findings, all answered in `5041-refactor.md`. The final five-file run passed
+103/103 tests; typecheck, lint, generated-surface and parity checks passed.
+This clean slice audit does not override earlier local relay/audit failures,
+qualification contradictions, or parent acceptance deferrals. Keep Draft.

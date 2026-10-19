@@ -67,3 +67,34 @@ local root relay failures or the eight local Bun audit advisories in `verify.md`
 Parent acceptance, live qualification contradictions and deferrals remain open;
 no unchanged paid qualification is authorized by this refactor. PR #5957 stays
 Draft; no merge or promotion.
+
+## Post-refactor audit and quality review
+
+Audit ran before quality review, scoped against starting head efaf6ab42: zero
+dependency violations (2 test modules / 0 dependencies), healthy config drift,
+no changed agent configs or learnings, and no principle/domain trace failures.
+Manual test review found no dropped assertion, new mock, mutable shared fixture,
+cleanup asymmetry or weakened oracle. Configured README and website docs have
+no affected product claim; the architecture inventory is unchanged. This is a
+stacked test-only audit, not another whole-branch/repository audit.
+
+Independent quality review `fe34bd12-c6d2-406b-b095-e777a00c53ba` returned
+**APPROVE**, actual reviewer Claude, model `opus`, `cross-agent` independence,
+zero errors/warnings and three informational findings. Responses:
+
+- Helper assertions are valid inside the calling test; keep the helper
+  file-local (already true, with no exports).
+- The supported-direction replacement writes identical text, as before. The
+  changed Purpose is the discriminating generation probe; separate invalid-mode
+  rows reject other directions. No new invalidation-mutation claim is made.
+- Static strings/objects deliberately fail closed on template/computed forms;
+  duplicate-property last-wins behavior remains unchanged.
+
+Currency: checked the official Vitest test API and Microsoft TypeScript compiler
+API documentation linked in `5041-refactor-review.md`, fetched this session on
+2026-10-19 (host-provided date). No dependency/API upgrade or new compatibility
+claim. Correct/elegant/no-bloat: approved for this bounded structure change.
+Wiring: no new production entry point; existing generation, native dispatch and
+delivered-bundle tests retain their real collaborators and independent oracle.
+These tests do not prove NTB/TBU experience or native UI execution; prior skips
+remain. **Next:** retain the successful final checks and push the Draft PR.
