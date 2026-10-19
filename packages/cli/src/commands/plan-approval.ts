@@ -13,6 +13,10 @@ import { createInterface } from 'node:readline/promises';
 
 import { evaluateExecutionPlanningEntry } from '../../templates/hooks/lib/plan-gate.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import {
+  assertActivePlanningAuthorCopy,
+  PlanningContractCopyError,
+} from '../planning/author-copy.js';
 import { appendDesignDecision, currentDesignDecision } from '../review/approval-ledger.js';
 import { reviewJobStatus } from '../review/job.js';
 import { phaseReviewAdmission } from '../review/phase-admission.js';
@@ -21,6 +25,7 @@ import { SAFEWORD_SCHEMA } from '../schema.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import { getTemplatesDirectory } from '../utils/fs.js';
+import { planningContractCopyFailure } from '../utils/planning-contract-copy-failure.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 
@@ -534,6 +539,7 @@ function currentApprovalResult(
 }
 
 async function approve(context: ApprovalContext, noInput: boolean): Promise<CliResult> {
+  assertActivePlanningAuthorCopy(context.cwd, 'plan-implementation');
   const executionDiscovery = currentExecutionDiscovery(context);
   if (executionDiscovery !== undefined) {
     return applyExecutionDiscovery(context, executionDiscovery);
@@ -587,6 +593,8 @@ export async function approvePlanResult(
   try {
     return await approve(readContext(cwd, ticketId), options.noInput);
   } catch (error) {
+    if (error instanceof PlanningContractCopyError)
+      return planningContractCopyFailure(error, 'ticket approve-plan');
     return createResult({
       state: 'failed',
       errors: [

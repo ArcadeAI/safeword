@@ -91,6 +91,9 @@ process.stdin.on('end', () => {
       env: {
         ...environment,
         SAFEWORD_AGENT_RUNTIME: args[0] === 'review' ? 'codex' : undefined,
+        SAFEWORD_PLUGIN_CLI: args[0] === 'review' ? environment.SAFEWORD_PLUGIN_CLI : undefined,
+        CLAUDE_PLUGIN_ROOT: args[0] === 'review' ? environment.CLAUDE_PLUGIN_ROOT : undefined,
+        CLAUDE_PROJECT_DIR: args[0] === 'review' ? project : undefined,
       },
     });
   const installed = run(['install', '--agents=cursor', '--no-modify', '--offline']);
@@ -169,10 +172,48 @@ process.stdin.on('end', () => {
         },
       }),
     });
-  return { project, ticketPath, run, advance, root, distribution, environment };
+  return { project, ticketPath, run, advance, root, distribution, environment, reviewId: id };
 }
 
 describe('Cursor installed planning copy admission', () => {
+  it.each(['project', 'package'] as const)(
+    'keeps the review current while cosmetic %s copy drift blocks the installed phase gate',
+    { timeout: 90_000 },
+    owner => {
+      const installed = fixture();
+      const baseline = installed.run(['review', 'status', installed.reviewId]);
+      expect(baseline.status, baseline.stdout).toBe(0);
+      expect(JSON.parse(baseline.stdout).data.status).toBe('approved');
+      const asset =
+        owner === 'project'
+          ? nodePath.join(installed.project, '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md')
+          : nodePath.join(installed.distribution, 'templates/skills/bdd/PLAN_IMPLEMENTATION.md');
+      const original = readFileSync(asset);
+      writeFileSync(asset, `<!-- cosmetic author-copy drift -->\n${original.toString('utf8')}`);
+      const blocked = installed.advance();
+      expect(JSON.parse(blocked.stdout)).toMatchObject({
+        hookSpecificOutput: { permissionDecision: 'deny' },
+      });
+      expect(blocked.stdout).toContain('canonical_contract_copy_mismatch');
+      expect(blocked.stdout).not.toMatch(/stale|superseded|re-review/iu);
+      const status = installed.run(['review', 'status', installed.reviewId]);
+      expect(
+        JSON.parse(status.stdout).data.status,
+        'Cosmetic copy drift must not stale the semantic review',
+      ).toBe('approved');
+      const coding = installed.run(['ticket', 'coding-authorization', 'CPY123']);
+      expect(coding.status).not.toBe(0);
+      expect(coding.stdout).toContain('canonical_contract_copy_mismatch');
+      const approval = installed.run(['ticket', 'approve-plan', 'CPY123']);
+      expect(approval.status).not.toBe(0);
+      expect(approval.stdout).toContain('canonical_contract_copy_mismatch');
+      writeFileSync(asset, original);
+      const restored = installed.run(['ticket', 'approve-plan', 'CPY123']);
+      expect(restored.status, restored.stdout).toBe(0);
+      expect(readFileSync(installed.ticketPath, 'utf8')).toContain('phase: plan-execution');
+    },
+  );
+
   it.each([
     { state: 'canonical', permission: 'allow' },
     { state: 'comment drift', permission: 'deny' },
@@ -251,7 +292,7 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
     },
   );
 
-  it.each(['public approval', 'installed hook'] as const)(
+  it.each(['public approval', 'installed shared hook'] as const)(
     'refuses project-copy drift at %s after an authenticated review',
     { timeout: 90_000 },
     boundary => {

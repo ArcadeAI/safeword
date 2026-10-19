@@ -18,6 +18,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { planningAuthorCopies } from '../scripts/lib/planning-author-copies.js';
 import {
   assertBundledHookCommand,
   codexPluginHookCommands,
@@ -530,8 +531,22 @@ describe('Codex plugin release contract', () => {
         assertBundledHookCommand(command);
       }).not.toThrow();
     }
-    expect(readFileSync(nodePath.join(root, 'codex-plugin/runtime/cli.js'), 'utf8')).toBe(
-      readFileSync(nodePath.resolve(root, '../../plugin/runtime/cli.js'), 'utf8'),
+    const copiesDeclaration =
+      /(function packagedPlanningAuthor\(phase\) \{\n) {2}const copies = ([^\n]+);/gu;
+    const commonRuntime = (pluginRoot: string, layout: 'codex' | 'claude') => {
+      const source = readFileSync(nodePath.join(pluginRoot, 'runtime/cli.js'), 'utf8');
+      const declarations = source.matchAll(copiesDeclaration).toArray();
+      expect(declarations).toHaveLength(1);
+      const initializer = declarations[0]?.[2];
+      if (initializer === undefined) throw new Error('Host author identity literal is missing');
+      const identities: unknown = JSON.parse(
+        initializer.replaceAll(/\b(relativePath|sha256):/gu, '"$1":'),
+      );
+      expect(identities).toEqual(planningAuthorCopies(pluginRoot, layout));
+      return source.replaceAll(copiesDeclaration, '$1  const copies = HOST_AUTHOR_COPIES;');
+    };
+    expect(commonRuntime(nodePath.join(root, 'codex-plugin'), 'codex')).toBe(
+      commonRuntime(nodePath.resolve(root, '../../plugin'), 'claude'),
     );
   });
 
