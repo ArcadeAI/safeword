@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: b0d812365fe70b1317ced7d3eb216a3c67f6d1a467053eac66370478efc3537d
+fingerprint: eff5d1e48255e97fd29df86a785e239189e44dda27a869021a161295f7f45667
 ---
 
 # Architecture
@@ -15,6 +15,7 @@ fingerprint: b0d812365fe70b1317ced7d3eb216a3c67f6d1a467053eac66370478efc3537d
 
 Evaluates architectural boundary evidence and dependency-policy compliance.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### claude-plugin
 
@@ -24,6 +25,7 @@ Evaluates architectural boundary evidence and dependency-policy compliance.
 
 Owns native Claude plugin delivery, exact execution proof, historical ownership classification, and non-blocking transactional legacy contraction.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### cli
 
@@ -33,6 +35,7 @@ Owns native Claude plugin delivery, exact execution proof, historical ownership 
 
 Composes the executable and registers public, compatibility, and hidden hook commands.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### cli-protocol
 
@@ -42,6 +45,7 @@ Composes the executable and registers public, compatibility, and hidden hook com
 
 Defines the typed command catalogue, effect policy, plans, results, rendering, and execution adapters.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### codex-plugin
 
@@ -51,6 +55,7 @@ Defines the typed command catalogue, effect policy, plans, results, rendering, a
 
 Owns Codex profile-plugin installation, proof, legacy authority, migration, finalization, and recovery.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### commands
 
@@ -60,6 +65,7 @@ Owns Codex profile-plugin installation, proof, legacy authority, migration, fina
 
 Implements domain handlers for removal, project workflows, tickets, Codex, and retrospectives; the install/status/doctor lifecycle lives in `src/lifecycle`.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### cursor-wrappers
 
@@ -69,6 +75,7 @@ Implements domain handlers for removal, project workflows, tickets, Codex, and r
 
 Generates thin Cursor command and rule wrappers from canonical workflow templates.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### execution-plan
 
@@ -78,6 +85,7 @@ Generates thin Cursor command and rule wrappers from canonical workflow template
 
 Defines Execution Plan delivery obligations, checklist state, and coding prerequisites.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### health
 
@@ -89,6 +97,7 @@ Defines Execution Plan delivery obligations, checklist state, and coding prerequ
 
 Config-health verification core (ticket 3293WH).
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### index
 
@@ -98,6 +107,7 @@ Config-health verification core (ticket 3293WH).
 
 Exposes the stable library API for version, detection, reconciliation, and ESLint consumers.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### learning-sync
 
@@ -109,6 +119,7 @@ Exposes the stable library API for version, detection, reconciliation, and ESLin
 
 Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the `*.md` files in that folder so agents can navigate learnings via a Karpathy-style LLM Wiki index (plain markdown + grep)…
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### lifecycle
 
@@ -118,6 +129,7 @@ Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the `*.md
 
 Orchestrates the unified install, plan, status, doctor, and uninstall lifecycle across the project and its selected agent integrations.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### opencode
 
@@ -127,6 +139,7 @@ Orchestrates the unified install, plan, status, doctor, and uninstall lifecycle 
 
 Owns OpenCode profile discovery, bounded evidence records, and collision-safe reconciliation.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### owned-paths
 
@@ -138,6 +151,7 @@ Owns OpenCode profile discovery, bounded evidence records, and collision-safe re
 
 Derive the set of top-level path prefixes that safeword may write to, sourced from SAFEWORD_SCHEMA at build time.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### packs
 
@@ -147,6 +161,7 @@ Derive the set of top-level path prefixes that safeword may write to, sourced fr
 
 Detects supported languages and supplies their files, packages, and setup behavior.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### parity
 
@@ -156,6 +171,15 @@ Detects supported languages and supplies their files, packages, and setup behavi
 
 Checks canonical templates, dogfood mirrors, generated catalogues, and one-way content contracts for drift.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
+### planning
+
+<!-- reconciled: eff5d1e48255e97fd29df86a785e239189e44dda27a869021a161295f7f45667 -->
+
+`src/planning`
+
+No description yet — awaiting prose.
 
 ### plugin-bundle
 
@@ -166,6 +190,7 @@ Checks canonical templates, dogfood mirrors, generated catalogues, and one-way c
 Normalizes generated plugin JavaScript so machine-specific Bun install paths do not change bundle
 bytes or integrity hashes.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### plugin-runtime-authority
 
@@ -177,6 +202,7 @@ bytes or integrity hashes.
 
 Enforces packaged-runtime authority for native plugin workflow assets.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### pr-review
 
@@ -186,6 +212,7 @@ Enforces packaged-runtime authority for native plugin workflow assets.
 
 Reviews pull-request evidence, applies conservative routing, and separates model inspection from merge-neutral GitHub publication.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### presets
 
@@ -195,6 +222,7 @@ Reviews pull-request evidence, applies conservative routing, and separates model
 
 Publishes conditional JavaScript and TypeScript ESLint presets through the package export.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### project-runtime-helpers
 
@@ -206,6 +234,7 @@ Publishes conditional JavaScript and TypeScript ESLint presets through the packa
 
 Dependency-free inventory of helpers the packaged project runtime may execute.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### project-state
 
@@ -217,6 +246,7 @@ Dependency-free inventory of helpers the packaged project runtime may execute.
 
 Exposes lazy transient-state ignore management to the packaged CLI runtime.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### reconcile
 
@@ -228,6 +258,7 @@ Exposes lazy transient-state ignore management to the packaged CLI runtime.
 
 Reconciliation Engine
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### retro
 
@@ -237,6 +268,7 @@ Reconciliation Engine
 
 Sanitizes, deduplicates, triages, reconciles, and files retrospective findings.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### review
 
@@ -246,6 +278,7 @@ Sanitizes, deduplicates, triages, reconciles, and files retrospective findings.
 
 Coordinates independent adversarial reviews, including planning contract judgments, runtime discovery, neutral packet construction, policy enforcement, fallback handling, and provenance.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### schema
 
@@ -257,6 +290,7 @@ Coordinates independent adversarial reviews, including planning contract judgmen
 
 SAFEWORD Schema - Single Source of Truth
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### self-report-capture
 
@@ -268,6 +302,7 @@ SAFEWORD Schema - Single Source of Truth
 
 CLI-side self-observation producer (ticket 5XXQQZ, issues #345 / #720).
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### skills
 
@@ -277,6 +312,7 @@ CLI-side self-observation producer (ticket 5XXQQZ, issues #345 / #720).
 
 Installs optional third-party language coding skills without owning Safeword workflow skills.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### templates
 
@@ -286,6 +322,7 @@ Installs optional third-party language coding skills without owning Safeword wor
 
 Builds dynamic configuration and legacy-cleanup content consumed by reconciliation.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### test-execution
 
@@ -297,6 +334,7 @@ Builds dynamic configuration and legacy-cleanup content consumed by reconciliati
 
 Resolves Safeword's local versus remote-preferred test-execution choice, including private worktree configuration and its fail-closed validation.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### test-plan
 
@@ -306,6 +344,7 @@ Resolves Safeword's local versus remote-preferred test-execution choice, includi
 
 Resolves and renders the canonical test, build, typecheck, BDD, and dependency plan for a project.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### ticket-create
 
@@ -317,6 +356,7 @@ Resolves and renders the canonical test, build, typecheck, BDD, and dependency p
 
 Route `ticket new` between the local-id path and issue-first creation (KKNFZA TB1). provider:none → the local minter (today's behavior, no tracker client built).
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### ticket-sync
 
@@ -328,6 +368,7 @@ Route `ticket new` between the local-id path and issue-first creation (KKNFZA TB
 
 Ticket sync — generates capability-discovery indexes over the ticket corpus: `<namespace-root>/tickets/INDEX.md` (active tickets, grouped by epic) and `INDEX-completed.md` (the `completed/` archive).
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### tracker-connect
 
@@ -339,6 +380,7 @@ Ticket sync — generates capability-discovery indexes over the ticket corpus: `
 
 The connect orchestration (2TK5AD) — the single flow `setup` and `connect` both run.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### tracker-sync
 
@@ -350,6 +392,7 @@ The connect orchestration (2TK5AD) — the single flow `setup` and `connect` bot
 
 The sync-tracker orchestrator — the single call site that projects the ticket corpus one-way into the configured tracker (JS5K5G).
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### upstream-monitor
 
@@ -359,6 +402,7 @@ The sync-tracker orchestrator — the single call site that projects the ticket 
 
 Tracks upstream Claude Code, Codex CLI, and Cursor release signals for compatibility review.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### utils
 
@@ -368,6 +412,7 @@ Tracks upstream Claude Code, Codex CLI, and Cursor release signals for compatibi
 
 Provides shared architecture, manifest, filesystem, Git, path, detection, Gherkin, and ticket primitives.
 
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### version
 
@@ -377,3 +422,4 @@ Provides shared architecture, manifest, filesystem, Git, path, detection, Gherki
 
 Reads the Safeword release version from package metadata.
 
+> ⚠ stale: structure changed since this section was reconciled.

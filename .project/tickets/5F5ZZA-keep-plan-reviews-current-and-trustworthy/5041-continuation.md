@@ -14,11 +14,11 @@ host retrieval/private-injection proof (R7 remains deferred).
 
 ## Proof plan
 
-| Existing ledger scenario | Primary proof | Actor boundary / intended RED |
+| Existing ledger scenario | Proof / supporting evidence | Actor boundary / intended RED |
 | --- | --- | --- |
 | Editing the canonical shared clause changes both generated phase contracts | integration/planning-contract-generation.test.ts: reconciles a canonical shared-clause edit into both installed phase contracts | Generate through existing phase entrypoints, install/upgrade real Cursor project via CLI; installed phase assets omit changed canonical clause. Per-phase generators prepare the shared family before extracting reviewers. |
 | Installed contract identity controls authoring and approval | integration/installed-planning-copy-admission.test.ts: refuses project-copy drift | Real installed public approve-plan in ordinary terminal and installed Cursor hook, after authenticated fixture review/stamp; drift incorrectly advances. |
-| Local dispatch enforces canonical contract identity | integration/native-planning-copy-dispatch.test.ts | Generated Claude/Codex runtime must refuse complete asset drift before launching simulated reviewer. |
+| Local dispatch enforces canonical contract identity | integration/native-planning-copy-dispatch.test.ts (supporting dispatch-refusal proof only) | Generated Claude/Codex runtime refuses complete asset drift before launching simulated reviewer. This does not exercise a stored receipt through an installed local hook's phase transition; that scenario's ledger remains unchecked. |
 | Invalid Execution invalidation declarations preserve installed contracts | integration/planning-contract-generation.test.ts: blocks reconciliation for a ... Execution invalidation direction | Real upgrade refuses unsupported/missing/duplicate direction without changing installed contracts; the scenario is explicitly routed through its Vitest proof manifest. |
 
 Support for each proof is contained in its declared test file; review-fixtures.ts

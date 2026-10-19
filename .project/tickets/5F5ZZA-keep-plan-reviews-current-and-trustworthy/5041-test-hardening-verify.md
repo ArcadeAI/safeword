@@ -58,14 +58,14 @@ The Execution prompt and corpus remain exactly
 `4cc38db52651b7073d8677ff89b94d896ba0b2321125d8eaef31c6152543e533` and
 `833df049ac3d3cbe119fac7f8ecf43c614e1cf6c4d64b97c4f0781e4ee8f6309`.
 No new-head full-suite pass is claimed; the original failed full run remains
-visible. Claude authentication is still required for independent review.
+visible. The subsequent independent-review retry is recorded below.
 
 The current built CLI was also exercised read-only on the real project with
 host/plugin environment variables cleared: `ticket planning-contract-check
 5F5ZZA` reported `current` for Product, Implementation and Execution phases,
 all exit 0. This is copy-check usability, not phase approval or native UI proof.
 
-## Independent review is blocked
+## Earlier independent-review authentication failures
 
 The three current coordinator attempts returned Codex with
 `independence: degraded`, not independent Claude coverage:
@@ -100,6 +100,43 @@ cases, and native host retrieval/private-injection deferral remain unchanged.
 No unchanged paid qualification was rerun. No #5051 work is included.
 
 Raw/compressed observations are in `evidence/5041-test-hardening/`. The Draft
-remains blocked by current independent-review authentication, the preserved full
-suite failure pending resolution or stronger current evidence, and the earlier
-qualification/admission objection. No promotion or merge is authorized.
+remains blocked by checks and the earlier qualification/admission objection.
+No promotion or merge is authorized.
+
+## Successful independent-review retry
+
+At reviewed head `04e9d72eecee1845e9baa578ed1b194e79f1485c`, the same bounded
+coordinator request returned review `0ff245cd-b099-4213-a5fc-581703b62734`:
+`status: approved`, `actual_reviewer: claude`, `reviewer_model: opus`, and
+`independence: cross-agent`. Claude found no errors and four warnings. This is
+fresh independent coverage of the declared test-hardening targets and context,
+not a new whole-epic approval or semantic qualification.
+
+- Proof wording: relabeled native dispatch as supporting dispatch-refusal proof.
+  It does not prove the stored-receipt/local-hook phase-transition scenario;
+  that ledger stays unchecked.
+- Pending-update setup: the tests assert regenerated templates differ from
+  installed snapshots. An installer transformation could make that precondition
+  weaker than intended. Direct changed-clause assertions would strengthen it;
+  deferred as non-blocking test hardening, with no additional claim of proof.
+- Runtime identity: both native host fixtures use the authoring runtime `codex`.
+  Claude asset layout is exercised, but Claude-runtime-specific dispatch paths
+  are not. Retained as an explicit coverage limitation; no native Claude UI or
+  host-runtime parity claim is added.
+- Bundle formatting: the independent identity oracle expects a particular
+  single-line bundle literal. Formatting changes fail loudly; this remains
+  maintenance fragility, not silent false acceptance.
+
+The coordinator also confirmed fixture isolation: malformed packet selection
+fails noisily and restricted PATH cannot discover a real reviewer. The earlier
+degraded attempts and authentication diagnosis remain preserved as history.
+No production or test code changed after this review; follow-up changes are this
+evidence, the narrower proof description, and generated architecture freshness.
+
+CI at the reviewed head completed successfully on Node 22.23.2 and 24.18.1.
+Its lint job failed at architecture-document freshness (job `118209472277` in
+run `39296261738`), not source lint. The architecture generator added the missing
+planning module and marked unreconciled module prose stale; those emitted markers
+are preserved. Freshness is rechecked locally. New evidence-commit CI remains
+pending; the earlier failed local full run and qualification objections remain
+visible. Independent review is no longer blocked by authentication.
