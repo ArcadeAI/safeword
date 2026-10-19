@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -7,6 +7,7 @@ import {
   readdirSync,
   readFileSync,
   realpathSync,
+  rmSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
@@ -30,8 +31,10 @@ import {
   reviewJobStatus,
   startReviewJob,
 } from '../../src/review/job.js';
+import { prepareReviewPacket } from '../../src/review/packet.js';
 import { readReviewReceipt } from '../../templates/hooks/lib/read-receipt.js';
 import { receiptGateVerdict } from '../../templates/hooks/lib/review-receipt.js';
+import { largeLockfileFixture } from '../helpers/large-lockfile.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -384,6 +387,121 @@ describe('durable review jobs', () => {
       review_kind: 'quality-review',
       review_targets: ['input.md'],
     });
+  });
+
+  it('lets an authenticated bounded lockfile review witness original-file implementation coverage', async () => {
+    const cwd = project();
+    try {
+      const f = largeLockfileFixture(cwd);
+      f.write(f.before.replace('1.1.0', '1.2.0'));
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+      const result = await startReviewJob({ cwd, kind: 'quality-review', targets: ['bun.lock'] });
+      expect(result.data).toMatchObject({ status: 'approved', review_targets: ['bun.lock'] });
+      const id = (result.data as { review_id: string }).review_id;
+      const pluginRoot = createTrustedReviewerDirectory('receipt-lockfile-real-cli-');
+      mkdirSync(nodePath.join(pluginRoot, 'runtime'));
+      writeFileSync(
+        nodePath.join(pluginRoot, 'runtime/cli.js'),
+        `await import(${JSON.stringify(SOURCE_CLI)});`,
+      );
+      vi.stubEnv('CLAUDE_PLUGIN_ROOT', pluginRoot);
+      const receipt = readReviewReceipt(id, cwd);
+      expect(receipt?.excludedTargets ?? []).toEqual([]);
+      expect(
+        receiptGateVerdict(
+          {
+            independence: 'cross-agent',
+            phase: 'implement',
+            ticketFolder: 'TST',
+            projectDirectory: cwd,
+            ticketDirectory: nodePath.join(cwd, '.project/tickets/TST'),
+            implementationFiles: ['bun.lock'],
+          },
+          receipt,
+        ),
+      ).toEqual({ ok: true });
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('stales a signed lockfile approval when only baseline identity changes', async () => {
+    const cwd = project();
+    try {
+      const f = largeLockfileFixture(cwd);
+      f.write(f.before.replace('1.1.0', '1.2.0'));
+      const first = prepareReviewPacket(cwd, 'quality-review', ['bun.lock']);
+      const firstPatch = first.packet.logical_files[0]?.content;
+      first.cleanup();
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+      const result = await startReviewJob({ cwd, kind: 'quality-review', targets: ['bun.lock'] });
+      expect(result.data).toMatchObject({ status: 'approved' });
+      const id = (result.data as { review_id: string }).review_id;
+      f.commit('same-tree baseline advance', true);
+      f.git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+      const current = prepareReviewPacket(cwd, 'quality-review', ['bun.lock']);
+      try {
+        expect(current.packet.logical_files[0]?.content).toBe(firstPatch);
+        expect(current.packet.logical_files[0]).toMatchObject({
+          representation: { base_commit: f.git('rev-parse', 'HEAD') },
+        });
+      } finally {
+        current.cleanup();
+      }
+      expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'stale' });
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('does not reuse a lockfile projection approval for an ordinary file containing its patch', async () => {
+    const cwd = project();
+    try {
+      const f = largeLockfileFixture(cwd);
+      f.write(f.before.replace('1.1.0', '1.2.0'));
+      const packet = prepareReviewPacket(cwd, 'quality-review', ['bun.lock']);
+      const patch = packet.packet.logical_files[0]?.content ?? '';
+      packet.cleanup();
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+      const result = await startReviewJob({ cwd, kind: 'quality-review', targets: ['bun.lock'] });
+      expect(result.data).toMatchObject({ status: 'approved' });
+      const id = (result.data as { review_id: string }).review_id;
+      f.write(patch);
+      expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'stale' });
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves legacy full-text fingerprints when no lockfile projection is present', async () => {
+    const cwd = project();
+    try {
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+      const result = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+      expect(result.data).toMatchObject({ status: 'approved' });
+      const id = (result.data as { review_id: string }).review_id;
+      const record = JSON.parse(
+        readFileSync(nodePath.join(cwd, '.safeword/state/reviews', `${id}.json`), 'utf8'),
+      );
+      const legacy = [
+        'kind',
+        'quality-review',
+        'targets',
+        '1',
+        'input.md',
+        'review me\n',
+        'context',
+        '0',
+        '',
+      ].join('\0');
+      expect(record.source_fingerprint).toBe(createHash('sha256').update(legacy).digest('hex'));
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
   });
 
   it('uses integrity-checked review provenance instead of reviewer-supplied values', async () => {

@@ -174,19 +174,33 @@ export interface PlanContractPair {
   readonly reviewer: PlanContractIdentity;
 }
 
+export interface GitDiffRepresentation {
+  readonly kind: 'git-diff';
+  readonly base_ref: string;
+  readonly base_commit: string;
+  readonly base_path: string;
+  readonly base_blob: string;
+  readonly base_sha256: string;
+  readonly base_mode: '100644' | '100755';
+  readonly source_sha256: string;
+  readonly source_bytes: number;
+  readonly source_mode: '100644' | '100755';
+}
+
+export interface ReviewPacketFile {
+  readonly path: string;
+  readonly content: string;
+  /** Present only for a coordinator-validated logical lockfile patch. */
+  readonly representation?: GitDiffRepresentation;
+}
+
 export interface ReviewPacket {
   readonly schema_version: 1;
   readonly dispatch_id: string;
   readonly kind: ReviewKind;
-  readonly logical_files: readonly {
-    readonly path: string;
-    readonly content: string;
-  }[];
+  readonly logical_files: readonly ReviewPacketFile[];
   /** Bounded evidence available to the reviewer, but not part of the work product. */
-  readonly context_files?: readonly {
-    readonly path: string;
-    readonly content: string;
-  }[];
+  readonly context_files?: readonly ReviewPacketFile[];
   /** Exact author/reviewer planning obligations carried through semantic review. */
   readonly planning_phase?: 'product-plan' | 'plan-implementation' | 'plan-execution';
   readonly planning_context?: PlanningRoleContext;

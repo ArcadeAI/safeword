@@ -1056,6 +1056,33 @@ safeword accepts this trade — **consistency and enforcement over independent b
 | Reassess when  | A host offers a supported credential broker or external-review primitive; Claude/Codex materially change noninteractive or sandbox contracts; Cursor joins the pairing; or review packets regularly exceed bounded snapshot limits.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | Implementation | Tickets `QZAFT2` and `ZRV8D5`; `packages/cli/src/review/`, typed `review run` CLI wiring, optional agent provenance on review stamps, canonical class-1 and internal `finish-review` skill templates, the `safeword-reviewer` host agent, parity tests, and desktop/cloud simulation plus live smoke coverage.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
+**Bounded large-lockfile review (2026-10-18).** Oversized existing `bun.lock`
+quality-review targets keep their original logical path and carry a complete Git
+patch with explicit baseline and full-source identity. The serialized view must
+fit the existing 256 KiB file and 1 MiB packet budgets; source and baseline each
+have a separate 8 MiB capture bound. Generated exclusions retain priority.
+Full source, baseline and patch receive the usual credential and UTF-8 checks.
+The first available remote default reference, then local main/master, supplies
+the merge-base; an unusable selected reference fails closed. Checkout refs and
+the host Git executable remain trusted inputs.
+
+Private, isolated Git operations produce the patch and must reconstruct the
+exact captured bytes and executable mode from the displayed patch before review.
+Temporary full-byte files are removed after capture. Signed job identity binds
+representation metadata under a separate fingerprint domain; later source,
+snapshot or resolved-baseline drift invalidates approval. Legacy full-text
+fingerprints remain unchanged. The reviewer sees the representation explicitly
+and requests more context when needed. Packet capture owns projection and
+freshness; the job layer owns signed identity, without a new persistence store.
+
+This deliberately departs from whole-file capture at one narrow input boundary:
+the whole-file cap otherwise makes routine release changes unreviewable.
+Increasing global limits would spend review input on unchanged dependency graphs;
+generated annotations would hide meaningful resolution changes. Complete bounded
+patches preserve review coverage at the cost of a Git baseline and reconstruction
+step. New, deleted, renamed or unchanged oversized locks remain unsupported.
+Ticket `319VCW` records the regression and adversarial boundary proofs.
+
 **OpenCode extension (2026-09-01, superseded in part 2026-09-02).** The coordinator's
 default remains the three-runtime route plan: Claude-authored work prefers Codex, Codex-authored
 work prefers Claude, and either may use OpenCode as the next independent route

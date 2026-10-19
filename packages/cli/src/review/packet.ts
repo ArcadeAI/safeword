@@ -35,9 +35,12 @@ import type {
   RedExecutionAttestation,
   ReviewKind,
   ReviewPacket,
+  ReviewPacketFile,
 } from './contract.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
 import { extractExecutionPlanReviewRubric } from './execution-plan-rubric.js';
+import { parseGitProjectPrefix } from './git-prefix.js';
+import { MAX_LOCKFILE_SOURCE_BYTES, prepareLockfileDiff } from './lockfile-diff.js';
 import { ReviewPacketError } from './packet-error.js';
 import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { extractPlanReviewRubric } from './plan-rubric.js';
@@ -46,20 +49,13 @@ import { PlanningContextError, type PlanningContextRole } from './planning-conte
 import { type PlanningRoleContext, resolvePlanningRoleContext } from './planning-role-context.js';
 import { planningTicketOwner } from './planning-ticket-owner.js';
 import { recordFinalizedScope } from './scope.js';
+import { decodeReviewText } from './text.js';
 export { ReviewPacketError } from './packet-error.js';
 export { PlanningContextError } from './planning-context-error.js';
 
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
 const MAX_PACKET_BYTES = 1024 * 1024;
-const HIGH_CONFIDENCE_SECRET_PATTERNS = [
-  /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u,
-  /\bAKIA[0-9A-Z]{16}\b/u,
-  /\bgh[pousr]_[A-Za-z0-9]{36,}\b/u,
-  /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/u,
-  /\bsk-(?:proj-|ant-)[\w-]{16,}\b/u,
-  /\bAIza[\w-]{35}\b/u,
-] as const;
 
 export interface PreparedReviewPacket {
   readonly packet: ReviewPacket;
@@ -306,9 +302,13 @@ interface CapturedFile {
   readonly sha256: string;
   readonly device: number;
   readonly inode: number;
+  readonly sourceSha256?: string;
+  readonly sourceByteLimit?: number;
+  readonly executable?: boolean;
+  readonly baselineChanged?: () => boolean;
 }
 
-interface OversizedFile {
+interface FileCandidate {
   readonly index: number;
   readonly source: string;
   readonly relative: string;
@@ -320,7 +320,7 @@ interface OversizedFile {
 interface CapturedPacketFile {
   readonly index: number;
   readonly context: boolean;
-  readonly file: { readonly path: string; readonly content: string };
+  readonly file: ReviewPacketFile;
 }
 
 function serializedOverflowIndex(
@@ -376,13 +376,8 @@ function readRepoPrefix(root: string, env: NodeJS.ProcessEnv): string {
   const output = new TextDecoder('utf-8', { fatal: true }).decode(
     gitOutput(['-C', root, 'rev-parse', '--show-prefix'], env),
   );
-  const prefix = output.slice(0, -1);
-  if (
-    !output.endsWith('\n') ||
-    prefix.startsWith('/') ||
-    (prefix !== '' && !prefix.endsWith('/')) ||
-    prefix.split('/').includes('..')
-  ) {
+  const prefix = parseGitProjectPrefix(output);
+  if (prefix === undefined) {
     throw new ReviewPacketError(
       'Git attributes could not be resolved for an oversized review target',
       'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
@@ -393,7 +388,7 @@ function readRepoPrefix(root: string, env: NodeJS.ProcessEnv): string {
 
 // The Git process and its exact binary response are one fail-closed trust boundary.
 // eslint-disable-next-line complexity -- Each process and tuple check rejects unsafe classification.
-function generatedTargets(root: string, files: readonly OversizedFile[]): Set<string> {
+function generatedTargets(root: string, files: readonly FileCandidate[]): Set<string> {
   if (files.length === 0) return new Set();
   try {
     const env = gitEnvironment();
@@ -476,7 +471,7 @@ function generatedTargets(root: string, files: readonly OversizedFile[]): Set<st
   }
 }
 
-function oversizedState(root: string, file: OversizedFile): 'same' | 'outside' | 'changed' {
+function oversizedState(root: string, file: FileCandidate): 'same' | 'outside' | 'changed' {
   try {
     const observed = lstatSync(file.source);
     if (escapes(root, realpathSync(file.source))) return 'outside';
@@ -495,7 +490,7 @@ function oversizedState(root: string, file: OversizedFile): 'same' | 'outside' |
 
 function collectOversizedOutcomes(
   root: string,
-  files: readonly OversizedFile[],
+  files: readonly FileCandidate[],
   marked: ReadonlySet<string>,
   errors: { index: number; error: unknown }[],
   excluded: string[],
@@ -832,6 +827,13 @@ function readBounded(descriptor: number, maxBytes: number): Buffer | undefined {
   return undefined;
 }
 
+function capturedSourceChanged(file: CapturedFile, descriptor: number, mode: number): boolean {
+  if (file.executable !== undefined && Boolean(mode & 0o111) !== file.executable) return true;
+  const bytes = readBounded(descriptor, file.sourceByteLimit ?? MAX_FILE_BYTES);
+  if (bytes === undefined || digest(bytes) !== (file.sourceSha256 ?? file.sha256)) return true;
+  return file.baselineChanged?.() ?? false;
+}
+
 function sourceFileChanged(file: CapturedFile): boolean {
   let descriptor: number | undefined;
   try {
@@ -839,8 +841,7 @@ function sourceFileChanged(file: CapturedFile): boolean {
     const current = fstatSync(descriptor);
     if (!current.isFile() || current.dev !== file.device || current.ino !== file.inode) return true;
     if (escapes(file.sourceRoot, realpathSync(file.source))) return true;
-    const bytes = readBounded(descriptor, MAX_FILE_BYTES);
-    return bytes === undefined || digest(bytes) !== file.sha256;
+    return capturedSourceChanged(file, descriptor, current.mode);
   } catch {
     return true;
   } finally {
@@ -869,11 +870,13 @@ function readContainedText(
   source: string,
   target: string,
   packetBytesRemaining: number,
+  maxFileBytes = MAX_FILE_BYTES,
 ): {
   readonly bytes: Buffer;
   readonly content: string;
   readonly device: number;
   readonly inode: number;
+  readonly mode: number;
 } {
   const descriptor = openSync(source, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
   try {
@@ -884,7 +887,7 @@ function readContainedText(
         'REVIEW_TARGET_NOT_REGULAR',
       );
     }
-    if (opened.size > MAX_FILE_BYTES) {
+    if (opened.size > maxFileBytes) {
       throw new ReviewPacketError(
         `Review target changed while it was being captured: ${target}`,
         'REVIEW_TARGET_CHANGED',
@@ -910,31 +913,109 @@ function readContainedText(
         'REVIEW_TARGET_CHANGED',
       );
     }
-    const bytes = readBounded(descriptor, MAX_FILE_BYTES);
+    const bytes = readBounded(descriptor, maxFileBytes);
     if (bytes?.byteLength !== opened.size) {
       throw new ReviewPacketError(
         `Review target changed while it was being captured: ${target}`,
         'REVIEW_TARGET_CHANGED',
       );
     }
-    let content: string;
-    try {
-      content = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-    } catch {
-      throw new ReviewPacketError(
-        `Review target is not valid UTF-8 text: ${target}`,
-        'REVIEW_TARGET_INVALID_TEXT',
-      );
-    }
-    if (HIGH_CONFIDENCE_SECRET_PATTERNS.some(pattern => pattern.test(content))) {
-      throw new Error(
-        `Review packet rejected a high-confidence credential in ${target}; redact it before dispatch`,
-      );
-    }
-    return { bytes, content, device: opened.dev, inode: opened.ino };
+    const content = decodeReviewText(bytes, target);
+    return { bytes, content, device: opened.dev, inode: opened.ino, mode: opened.mode };
   } finally {
     closeSync(descriptor);
   }
+}
+
+type CapturePolicy = 'full' | 'lockfile' | 'deferred';
+type CapturedText = Omit<CapturedFile, 'source' | 'sourceRoot' | 'snapshot' | 'sha256'> & {
+  readonly bytes: Buffer;
+  readonly file: ReviewPacketFile;
+};
+
+function capturePolicy(
+  root: string,
+  kind: ReviewKind,
+  file: FileCandidate,
+  allowGenerated: boolean,
+): CapturePolicy {
+  if (file.size <= MAX_FILE_BYTES) return 'full';
+  if (!allowGenerated) {
+    throw new ReviewPacketError(
+      `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${file.relative}`,
+      'REVIEW_TARGET_TOO_LARGE',
+    );
+  }
+  const eligible = kind === 'quality-review' && nodePath.basename(file.relative) === 'bun.lock';
+  if (!eligible || generatedTargets(root, [file]).has(file.relative)) return 'deferred';
+  if (file.size > MAX_LOCKFILE_SOURCE_BYTES) {
+    throw new ReviewPacketError(
+      `Lockfile source exceeds the ${MAX_LOCKFILE_SOURCE_BYTES}-byte capture limit: ${file.relative}`,
+      'REVIEW_TARGET_TOO_LARGE',
+    );
+  }
+  return 'lockfile';
+}
+
+function projectedText(root: string, sourceRoot: string, candidate: FileCandidate): CapturedText {
+  const original = readContainedText(
+    sourceRoot,
+    candidate.source,
+    candidate.relative,
+    MAX_LOCKFILE_SOURCE_BYTES,
+    MAX_LOCKFILE_SOURCE_BYTES,
+  );
+  if (
+    original.device !== candidate.device ||
+    original.inode !== candidate.inode ||
+    original.bytes.length !== candidate.size
+  ) {
+    throw new ReviewPacketError(
+      'Lockfile changed while it was being captured',
+      'REVIEW_TARGET_CHANGED',
+    );
+  }
+  const executable = Boolean(original.mode & 0o111);
+  const projection = prepareLockfileDiff({
+    root,
+    relative: candidate.relative,
+    bytes: original.bytes,
+    executable,
+    environment: gitEnvironment(),
+    maxFileBytes: MAX_FILE_BYTES,
+  });
+  return {
+    bytes: Buffer.from(projection.file.content),
+    file: projection.file,
+    device: original.device,
+    inode: original.inode,
+    sourceSha256: projection.file.representation.source_sha256,
+    sourceByteLimit: MAX_LOCKFILE_SOURCE_BYTES,
+    executable,
+    baselineChanged: projection.baselineChanged,
+  };
+}
+
+function captureText(
+  root: string,
+  sourceRoot: string,
+  candidate: FileCandidate,
+  policy: Exclude<CapturePolicy, 'deferred'>,
+  remainingBytes: number,
+): CapturedText {
+  if (policy === 'lockfile') return projectedText(root, sourceRoot, candidate);
+  const original = readContainedText(
+    sourceRoot,
+    candidate.source,
+    candidate.relative,
+    remainingBytes,
+  );
+  return {
+    bytes: original.bytes,
+    file: { path: candidate.relative, content: original.content },
+    device: original.device,
+    inode: original.inode,
+  };
 }
 
 function escapes(root: string, candidate: string): boolean {
@@ -1022,7 +1103,7 @@ function prepareReviewPacketUnsafe(
   const canonicalRoot = realpathSync(cwd);
   const workspace = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-'));
   const tracked: CapturedFile[] = [];
-  const oversized: OversizedFile[] = [];
+  const oversized: FileCandidate[] = [];
   const captured: CapturedPacketFile[] = [];
   const targetErrors: { index: number; error: unknown }[] = [];
   const excludedTargets: string[] = [];
@@ -1069,29 +1150,25 @@ function prepareReviewPacketUnsafe(
               'REVIEW_TARGET_NOT_REGULAR',
             );
           }
-          if (stats.size > MAX_FILE_BYTES) {
-            if (!allowGenerated) {
-              throw new ReviewPacketError(
-                `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`,
-                'REVIEW_TARGET_TOO_LARGE',
-              );
-            }
-            oversized.push({
-              index: offset + index,
-              source,
-              relative: toReviewPath(relative),
-              device: stats.dev,
-              inode: stats.ino,
-              size: stats.size,
-            });
+          const candidate: FileCandidate = {
+            index: offset + index,
+            source,
+            relative: toReviewPath(relative),
+            device: stats.dev,
+            inode: stats.ino,
+            size: stats.size,
+          };
+          const policy = capturePolicy(canonicalRoot, kind, candidate, allowGenerated);
+          if (policy === 'deferred') {
+            oversized.push(candidate);
             return [];
           }
-          // A hard link inside the project is intentionally treated as a regular
-          // in-project file; containment is path-based, and its bytes are copied.
-          const { bytes, content, device, inode } = readContainedText(
+          // Hard links remain regular contained files; capture copies exact bytes.
+          const { file, bytes, ...identity } = captureText(
+            canonicalRoot,
             sourceRoot,
-            source,
-            target,
+            candidate,
+            policy,
             MAX_PACKET_BYTES - packetBytes,
           );
           const fileBytes = bytes.byteLength;
@@ -1114,8 +1191,7 @@ function prepareReviewPacketUnsafe(
             parent = nodePath.dirname(parent);
           }
           expectedSnapshotEntries.add(`file:${relative}`);
-          tracked.push({ source, sourceRoot, snapshot, sha256: digest(bytes), device, inode });
-          const file = { path: toReviewPath(relative), content };
+          tracked.push({ source, sourceRoot, snapshot, sha256: digest(bytes), ...identity });
           captured.push({ index: offset + index, context: !allowGenerated, file });
           return [file];
         } catch (error) {
