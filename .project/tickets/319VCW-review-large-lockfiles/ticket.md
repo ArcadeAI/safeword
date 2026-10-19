@@ -3,7 +3,7 @@ id: 319VCW
 slug: review-large-lockfiles
 type: task
 subtype: bug-investigated
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-10-18T23:15:34.676Z
 last_modified: 2026-10-18T23:15:34.676Z
