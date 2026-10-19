@@ -1,5 +1,9 @@
 # Test-hardening verification
 
+Later requested test edits, formal closing checks, audit correction and current
+results are in `verify.md` and `audit.md`. This record retains its earlier inputs
+and observations.
+
 This is the bounded follow-up to `c2d503233`, not a replacement for
 `5041-verify.md` or its historical evidence. The hardening changes no production
 source, shipped template, reviewer prompt, qualification corpus or admission
