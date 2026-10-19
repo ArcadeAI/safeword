@@ -19,12 +19,21 @@ host retrieval/private-injection proof (R7 remains deferred).
 | Editing the canonical shared clause changes both generated phase contracts | integration/planning-contract-generation.test.ts: reconciles a canonical shared-clause edit into both installed phase contracts | Generate through existing phase entrypoints, install/upgrade real Cursor project via CLI; installed phase assets omit changed canonical clause. Per-phase generators prepare the shared family before extracting reviewers. |
 | Installed contract identity controls authoring and approval | integration/installed-planning-copy-admission.test.ts: refuses project-copy drift | Real installed public approve-plan in ordinary terminal and installed Cursor hook, after authenticated fixture review/stamp; drift incorrectly advances. |
 | Local dispatch enforces canonical contract identity | integration/native-planning-copy-dispatch.test.ts | Generated Claude/Codex runtime must refuse complete asset drift before launching simulated reviewer. |
-| Invalidation follows the canonical Execution Planning dependency direction | integration/planning-contract-generation.test.ts: blocks reconciliation for a ... Execution invalidation direction | Real upgrade refuses unsupported/missing/duplicate direction without changing installed contracts. |
+| Invalid Execution invalidation declarations preserve installed contracts | integration/planning-contract-generation.test.ts: blocks reconciliation for a ... Execution invalidation direction | Real upgrade refuses unsupported/missing/duplicate direction without changing installed contracts; the scenario is explicitly routed through its Vitest proof manifest. |
 
 Support for each proof is contained in its declared test file; review-fixtures.ts
 supplies isolated simulated reviewers for installed tests. Existing feature source
 and unchanged ledger supply scenario authority. New checks are supplementary
 current proof, not retroactive historical evidence or semantic qualification.
+
+The declaration-validation proof does not establish semantic invalidation of
+existing receipts. The separate `Invalidation follows the canonical Execution
+Planning dependency direction` scenario retains that runtime obligation and its
+historical unchecked ledger. Its obsolete alternative direction is removed:
+the canonical Execution owner supports only `both_plan_reviews`; unsupported
+directions belong to the new reconciliation-refusal scenario. Existing review
+currency tests remain supporting evidence, without converting this validation
+proof into a receipt-invalidation claim.
 
 ## Initial evidence
 

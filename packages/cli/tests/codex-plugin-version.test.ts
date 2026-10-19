@@ -18,7 +18,6 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { planningAuthorCopies } from '../scripts/lib/planning-author-copies.js';
 import {
   assertBundledHookCommand,
   codexPluginHookCommands,
@@ -542,7 +541,26 @@ describe('Codex plugin release contract', () => {
       const identities: unknown = JSON.parse(
         initializer.replaceAll(/\b(relativePath|sha256):/gu, '"$1":'),
       );
-      expect(identities).toEqual(planningAuthorCopies(pluginRoot, layout));
+      // Independent delivery oracle: do not reuse the generator's phase/path map.
+      const expected = Object.fromEntries(
+        Object.entries({
+          'product-plan': 'DISCOVERY.md',
+          'plan-implementation': 'PLAN_IMPLEMENTATION.md',
+          'plan-execution': 'PLAN_EXECUTION.md',
+        }).map(([phase, file]) => {
+          const relativePath = `skills/bdd/${layout === 'codex' ? 'references/' : ''}${file}`;
+          return [
+            phase,
+            {
+              relativePath,
+              sha256: createHash('sha256')
+                .update(readFileSync(nodePath.join(pluginRoot, relativePath)))
+                .digest('hex'),
+            },
+          ];
+        }),
+      );
+      expect(identities).toEqual(expected);
       return source.replaceAll(copiesDeclaration, '$1  const copies = HOST_AUTHOR_COPIES;');
     };
     expect(commonRuntime(nodePath.join(root, 'codex-plugin'), 'codex')).toBe(

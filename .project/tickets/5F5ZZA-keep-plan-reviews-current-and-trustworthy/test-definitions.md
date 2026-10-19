@@ -208,6 +208,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Invalid Execution invalidation declarations preserve installed contracts
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An approving receipt is valid only for its own ticket and review kind
 
 - [ ] RED

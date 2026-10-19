@@ -1,0 +1,95 @@
+{
+  "scope": "Test hardening following assessment at c2d503233; preserve failed runs and degraded independence",
+  "records": [
+    {
+      "file": "claude-auth-diagnosis.json",
+      "sha256": "4e462d562003d3a98c069b56adeff8618e6bdb9a1bf4d7b225547f90d008a1c7",
+      "bytes": 589
+    },
+    {
+      "file": "hardening-characterization.log.gz",
+      "sha256": "66113a2005a74772b790ff5052266dd34873ec367e64b1e6c4233b66ea1ff96e",
+      "bytes": 6269
+    },
+    {
+      "file": "hardening-focused.log.gz",
+      "sha256": "5caa34adcda0a9a4f7ecd96d135e4a44e956a1310028786a262149cd7420f174",
+      "bytes": 5156
+    },
+    {
+      "file": "hardening-full-suite.log.gz",
+      "sha256": "7a497bca6bc6720b37db174a1f47bd3f733fb6d7602da464b2ed6817279d0e21",
+      "bytes": 6045
+    },
+    {
+      "file": "hardening-generated.log.gz",
+      "sha256": "22f8eada9eb743a975e6b43d2e9d42373b0ec9e90f67760288f373df04e3834f",
+      "bytes": 54
+    },
+    {
+      "file": "hardening-lint.log.gz",
+      "sha256": "fa0217799730025e558a26ab9a5220bf5753393296f5e95822caea522dcea2a5",
+      "bytes": 136
+    },
+    {
+      "file": "hardening-native-green.log.gz",
+      "sha256": "f2e4e722f07a157600fc5e18036f4dfab8f963cabb6563544c9dac3f67033b1f",
+      "bytes": 5130
+    },
+    {
+      "file": "hardening-native-isolated.log.gz",
+      "sha256": "fdeb6cb9fd109b1813ab5e767257049707ba50e745cd8ae516364daf87b0b5d8",
+      "bytes": 6244
+    },
+    {
+      "file": "hardening-native-retry.log.gz",
+      "sha256": "c9754a43c35bce3ddc2fc18009f20feb95a8d0fc0f66cd5b22001c0d6469a6cf",
+      "bytes": 5749
+    },
+    {
+      "file": "hardening-parity.log.gz",
+      "sha256": "da7587f96a8c4ac438cc9045d24834fa404498dc9a7ee181ee8aeff349e635da",
+      "bytes": 112
+    },
+    {
+      "file": "hardening-review-diagnostic-final.err.gz",
+      "sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837",
+      "bytes": 20
+    },
+    {
+      "file": "hardening-review-diagnostic-final.json.gz",
+      "sha256": "8a68b6f0a649f7ee95656a230bb077049c226bd1bf91f949635074d462a2cd1b",
+      "bytes": 934
+    },
+    {
+      "file": "hardening-review-diagnostic.err.gz",
+      "sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837",
+      "bytes": 20
+    },
+    {
+      "file": "hardening-review-diagnostic.json.gz",
+      "sha256": "6b0abe878cb33a6e7eecf9e825591ee13ce1b5ad482e3ddb3453d6c00da08e3a",
+      "bytes": 970
+    },
+    {
+      "file": "hardening-review.err.gz",
+      "sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837",
+      "bytes": 20
+    },
+    {
+      "file": "hardening-review.json.gz",
+      "sha256": "7d8045e95f35f78ac2e1e44bddbea4c4542dc5af97b57594c9e8b0c431e1f532",
+      "bytes": 976
+    },
+    {
+      "file": "hardening-routing-isolated.log.gz",
+      "sha256": "54ec1894cfa8a58a9e4936d22f56e74a28e5dcf5c2ee80fe758e9fe675edc7f2",
+      "bytes": 4752
+    },
+    {
+      "file": "hardening-typecheck.log.gz",
+      "sha256": "f5f23f5961cfb5759886b95689587022df174742bcbc205627e7bfc9ad0c2c5c",
+      "bytes": 102
+    }
+  ]
+}

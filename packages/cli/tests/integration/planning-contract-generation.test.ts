@@ -212,6 +212,20 @@ describe('Planning contract shared-clause generation', () => {
       );
       generatePhaseContracts(distribution);
       reconcileProject(distribution, project, 'install');
+      const installed = ['DISCOVERY.md', 'PLAN_IMPLEMENTATION.md', 'PLAN_EXECUTION.md'].map(
+        name => {
+          const path = nodePath.join(project, '.safeword/skills/bdd', name);
+          return { name, path, bytes: readFileSync(path) };
+        },
+      );
+      writeCanonicalClause(distribution, 'Only the user can approve the newly generated scope.');
+      generatePhaseContracts(distribution);
+      for (const snapshot of installed) {
+        expect(
+          readFileSync(nodePath.join(distribution, 'templates/skills/bdd', snapshot.name)),
+          `${snapshot.name} must have a pending valid update before refusal`,
+        ).not.toEqual(snapshot.bytes);
+      }
       const contractPath = nodePath.join(distribution, 'templates/skills/bdd', file);
       const contract = readFileSync(contractPath, 'utf8');
       const marker = '<!-- SAFEWORD:PLANNING_SHARED_CLAUSE:scopeAuthority -->';
@@ -242,6 +256,11 @@ describe('Planning contract shared-clause generation', () => {
           metadata: { clause_id: 'scopeAuthority', contract_path: `skills/bdd/${file}` },
         }),
       );
+      for (const snapshot of installed) {
+        expect(readFileSync(snapshot.path), `${snapshot.name} must remain unchanged`).toEqual(
+          snapshot.bytes,
+        );
+      }
     },
   );
 
