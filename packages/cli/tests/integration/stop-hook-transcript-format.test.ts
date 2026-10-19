@@ -203,6 +203,103 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
     expect(parsed.reason).toContain('terminal-handoff/v1 correction.');
   });
 
+  // A turn whose last tool call launches background work is waiting, not handing
+  // off: its results return in a new turn, which is still checked (#5765).
+  // Each tool call is followed by its tool_result, as in a real Claude Code transcript.
+  function writeToolTurn(
+    toolUses: { name: string; input?: Record<string, unknown>; failed?: boolean }[],
+  ): string {
+    writeFileSync(nodePath.join(state.projectDirectory, '.safeword', 'config.json'), '{}\n');
+    const transcriptPath = nodePath.join(state.projectDirectory, 'tool-turn.jsonl');
+    writeFileSync(
+      transcriptPath,
+      [
+        JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: [{ type: 'text', text: 'Run the suite.' }] },
+        }),
+        ...toolUses.flatMap(({ failed = false, ...tool }, index) => [
+          JSON.stringify({
+            type: 'assistant',
+            message: {
+              role: 'assistant',
+              content: [{ type: 'tool_use', id: `toolu_${index}`, ...tool }],
+            },
+          }),
+          JSON.stringify({
+            type: 'user',
+            message: {
+              role: 'user',
+              content: [
+                {
+                  type: 'tool_result',
+                  tool_use_id: `toolu_${index}`,
+                  is_error: failed,
+                  content: failed ? 'launch failed' : 'ok',
+                },
+              ],
+            },
+          }),
+        ]),
+      ].join('\n'),
+    );
+    return transcriptPath;
+  }
+
+  const WAITING_REPLY = "The suite is running in the background; I'll report when it finishes.";
+
+  it.each([
+    ['a background Bash command', { name: 'Bash', input: { run_in_background: true } }],
+    ['a background Agent', { name: 'Agent', input: { run_in_background: true } }],
+    ['a Monitor', { name: 'Monitor', input: { command: 'tail -f log' } }],
+  ])('lets a turn that ends by launching %s reply with a plain status', (_label, launch) => {
+    const transcriptPath = writeToolTurn([{ name: 'Read' }, launch]);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath, undefined, WAITING_REPLY);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('still corrects a turn that runs a foreground tool after launching background work', () => {
+    const transcriptPath = writeToolTurn([
+      { name: 'Bash', input: { run_in_background: true } },
+      { name: 'Bash', input: { command: 'git status' } },
+    ]);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath, undefined, WAITING_REPLY);
+
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('terminal-handoff/v1 correction.');
+  });
+
+  it('still corrects a turn whose background launch failed', () => {
+    const transcriptPath = writeToolTurn([
+      { name: 'Read' },
+      { name: 'Bash', input: { run_in_background: true }, failed: true },
+    ]);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath, undefined, WAITING_REPLY);
+
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('terminal-handoff/v1 correction.');
+  });
+
+  it('still corrects a turn that edits files before launching background work', () => {
+    const transcriptPath = writeToolTurn([
+      { name: 'Edit', input: { file_path: 'src/app.ts' } },
+      { name: 'Bash', input: { run_in_background: true } },
+    ]);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath, undefined, WAITING_REPLY);
+
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('terminal-handoff/v1 correction.');
+  });
+
   it('fails open when the host omits the final assistant message', () => {
     writeGateConfig(state.projectDirectory, {
       stopQualityReview: true,
