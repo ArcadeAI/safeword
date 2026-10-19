@@ -298,6 +298,29 @@ describe('bounded logical review of large lockfile changes', () => {
     );
   });
 
+  it('reviews a bounded edit with source and baseline just below 8 MiB', () => {
+    const f = fixture();
+    const lock = { ...JSON.parse(f.before), padding: '' };
+    const empty = `${JSON.stringify(lock, undefined, 2)}\n`;
+    lock.padding = 'x'.repeat(8 * 1024 * 1024 - Buffer.byteLength(empty) - 1);
+    const baseline = `${JSON.stringify(lock, undefined, 2)}\n`;
+    f.write(baseline);
+    f.git('add', 'bun.lock');
+    f.commit('near-limit baseline');
+    f.git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+    f.write(baseline.replace('1.1.0', '1.2.0'));
+    const p = prepareReviewPacket(f.root, 'quality-review', ['bun.lock']);
+    try {
+      expect(p.packet.logical_files[0]).toMatchObject({
+        representation: { source_bytes: 8 * 1024 * 1024 - 1 },
+      });
+      expect(p.packet.logical_files[0]?.content).toContain('+      "version": "1.2.0"');
+      expect(p.sourceChanged()).toBe(false);
+    } finally {
+      p.cleanup();
+    }
+  });
+
   it('rejects a source above the separate 8 MiB capture bound', () => {
     const f = fixture();
     f.write('x'.repeat(8 * 1024 * 1024 + 1));
