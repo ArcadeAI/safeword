@@ -1,5 +1,14 @@
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -16,6 +25,18 @@ import {
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const roots: string[] = [];
+
+function generatedSourceSnapshot() {
+  return ['review', 'planning'].flatMap(directory => {
+    const root = nodePath.join(packageRoot, 'src', directory);
+    return readdirSync(root)
+      .filter(file => file.endsWith('.generated.ts'))
+      .map(file => {
+        const path = nodePath.join(root, file);
+        return { path, bytes: readFileSync(path), mtime: statSync(path).mtimeMs };
+      });
+  });
+}
 
 afterEach(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
@@ -125,6 +146,7 @@ describe('Complete native planning author-copy dispatch', () => {
       }[phase];
       const contexts =
         phase === 'plan-execution' ? ['impl-plan.md', 'behavior.feature'] : ['ticket.md'];
+      const generatedSourcesBefore = generatedSourceSnapshot();
       const generation = spawnSync(
         'bun',
         [
@@ -142,6 +164,10 @@ describe('Complete native planning author-copy dispatch', () => {
         },
       );
       expect(generation.status, `${generation.stdout}\n${generation.stderr}`).toBe(0);
+      expect(
+        generatedSourceSnapshot(),
+        'native generation must not rewrite source contracts',
+      ).toEqual(generatedSourcesBefore);
       // Copy only the native distribution; source templates cannot satisfy its lookup.
       const distribution = nodePath.join(root, 'installed-package');
       mkdirSync(distribution);
@@ -178,7 +204,8 @@ describe('Complete native planning author-copy dispatch', () => {
             encoding: 'utf8',
             timeout: 20_000,
             env: {
-              ...process.env,
+              HOME: nodePath.join(root, 'home'),
+              CODEX_HOME: nodePath.join(root, 'codex-home'),
               PATH: `${reviewer.bin}:/usr/bin:/bin`,
               SAFEWORD_AGENT_RUNTIME: author,
               SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -232,6 +259,7 @@ describe('Complete native planning author-copy dispatch', () => {
       rmSync(asset);
       const missing = run();
       expect(missing.status, `${missing.stdout}\n${missing.stderr}`).not.toBe(0);
+      expect(JSON.parse(missing.stdout).data.status).toBe('blocked');
       expect(JSON.parse(missing.stdout).findings).toContainEqual(
         expect.objectContaining({
           code: 'missing_generated_contract_copy',

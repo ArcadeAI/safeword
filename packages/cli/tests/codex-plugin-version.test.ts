@@ -386,6 +386,7 @@ describe('Codex plugin release contract', () => {
       'scenario-rubric.generated.ts',
       'plan-rubric.generated.ts',
       'execution-plan-rubric.generated.ts',
+      'product-plan-rubric.generated.ts',
       'delivery-compatibility-rubric.generated.ts',
       'quality-rubric.generated.ts',
       'red-rubric.generated.ts',
@@ -395,6 +396,7 @@ describe('Codex plugin release contract', () => {
         treeDigest(tree, tree === nodePath.join(repoRoot, '.claude') ? ['worktrees'] : []),
       );
     const before = protectedTreeDigests();
+    protectedGeneratedFiles.push(nodePath.join(root, 'src/planning/contracts.generated.ts'));
     const beforeGeneratedMtimes = protectedGeneratedFiles.map(file => statSync(file).mtimeMs);
     try {
       const generation = spawnSync(
