@@ -3,7 +3,9 @@
 This is evidence for the bounded continuation, not completion of epic #4200 or
 of the parent ticket. Starting main: `2dcc27e57`. No old branch was merged.
 Main subsequently advanced to `2cb4f9d5a` with unrelated lockfile-review work;
-this slice retains its recorded starting baseline.
+the branch was then rebased onto `2cb4f9d5a` to resolve Draft PR #5957 conflicts.
+Only imports needed manual source resolution; both behavior paths were retained
+and derived bundles regenerated. Prior results below retain their original baseline.
 
 ## Delivered scope
 
@@ -74,12 +76,26 @@ pass. Historical descriptor reuse does not erase the failed observation.
 - Manual ordinary-terminal walkthrough with host variables cleared: fresh Cursor
   install, canonical copy accepted, comment drift refused, exact restoration
   accepted. This is the copy-check CLI boundary, not native UI registration.
-- Final post-reuse `scripts/dev bun run test`: all 685 CLI files passed;
+- Pre-rebase final post-reuse `scripts/dev bun run test`: all 685 CLI files passed;
   11291 passed / 14 skipped (11305 total), exit 0. Retro relay: 198 passed /
   one skipped; collector: 153 passed. This run had no concurrent build.
 - Final post-reuse repository lint, all three typechecks, and CLI-contract checks
   passed. Current-head pre-push schema checks are reported in the Draft PR
   after the commit; they are not inferred here.
+
+## Post-rebase verification
+
+On main `2cb4f9d5a`, `scripts/dev bun run test` passed all 688 CLI files:
+11345 passed / 14 skipped (11359 total), exit 0. Retro relay passed 198 with
+one skipped; collector passed 153. Lint, all three typechecks and CLI-contract
+checks passed. The ordinary-terminal Cursor install/canonical/drift/restore
+walkthrough passed again with all host variables cleared. The Execution prompt
+digest remains exactly `4cc38db52651b7073d8677ff89b94d896ba0b2321125d8eaef31c6152543e533`.
+
+Byte comparisons preserve main's lockfile modules, contract types and signed-job
+baseline-staleness test, plus its planning-context identities and delivery
+normalization. Both plugin bundles and all five surfaces were regenerated from
+combined source. No paid qualification was rerun for this rebase.
 
 ## Preserved attempts
 
@@ -105,6 +121,9 @@ historical R/G/R checkbox or ticket phase/status is rewritten.
 - Copy/currency executable RED: `c13f03f2-0038-44e4-aeff-6277b3831b67`, approved.
 - Bounded currency/use-gate and test-maintenance source repair:
   `8e529261-f74b-4835-93e1-1edcb168da87`, approved, no blocking errors.
+- Post-rebase combined packet/job/prompt review:
+  `5295d5ee-2b3d-4e17-ae3d-71b78d4d97d6`, approved, no blocking errors.
+  [5041-rebase-review.md](5041-rebase-review.md) records warning responses.
 - Historical admission reuse analysis: `b15034b3-6a37-47ce-8550-cb1fc56419cc`,
   approved as mechanically compatible; contrary live evidence remains visible.
 

@@ -63,6 +63,11 @@
       "bytes": 598
     },
     {
+      "file": "final-commit.log.gz",
+      "sha256": "70de71b8ffe358dbd1041f0a5546c5d47ebe6a9b70f094d98025c194ca509f37",
+      "bytes": 1767
+    },
+    {
       "file": "final-generated.log.gz",
       "sha256": "5284b490db610dd9d81606621aaf54d87cfce19143aad72e801945c5399439ca",
       "bytes": 172
@@ -218,9 +223,19 @@
       "bytes": 1523
     },
     {
+      "file": "preserved-rebased-main.json",
+      "sha256": "b8ec7e4ecb59bfa1dd86fe7a84d48b92c1837fcc6ae160c1dc3a070f8226dddf",
+      "bytes": 1496
+    },
+    {
       "file": "product-red.log.gz",
       "sha256": "c90ca29ca5422700db9f88a49c87baf3e67e98a6cf726980664d786bfbc6101a",
       "bytes": 5128
+    },
+    {
+      "file": "push.log.gz",
+      "sha256": "be37afb37920e44a09aebdc6c5aa81b5b5e900d82e2cf0138e15c8bcd0d60310",
+      "bytes": 420
     },
     {
       "file": "qualification-derived-case-mapping.json",
@@ -231,6 +246,81 @@
       "file": "qualification-observed-failures.json",
       "sha256": "c9f4902f32183819f5ebe8848f9662b4f5b71c9f1194a3dd6405f79060843c31",
       "bytes": 11384
+    },
+    {
+      "file": "rebase-completed.log.gz",
+      "sha256": "f81e5c6ccf23f12b383e9e113885172abc1de3dfd479095d4077a60fae4616bd",
+      "bytes": 899
+    },
+    {
+      "file": "rebase-continue.log.gz",
+      "sha256": "b6fe82264fe623b1297cf2159fffff907c8521bc40eacf20edd97a797007c39a",
+      "bytes": 652
+    },
+    {
+      "file": "rebase-generation1.log.gz",
+      "sha256": "5284b490db610dd9d81606621aaf54d87cfce19143aad72e801945c5399439ca",
+      "bytes": 172
+    },
+    {
+      "file": "rebase-generation2.log.gz",
+      "sha256": "5284b490db610dd9d81606621aaf54d87cfce19143aad72e801945c5399439ca",
+      "bytes": 172
+    },
+    {
+      "file": "rebase-range-diff.log.gz",
+      "sha256": "9ceb6aeacc968c847f7e648c53c5d5841e778f0b09678f015b6be3a2e028267e",
+      "bytes": 1094722
+    },
+    {
+      "file": "rebase-review.err.gz",
+      "sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837",
+      "bytes": 20
+    },
+    {
+      "file": "rebase-review.json.gz",
+      "sha256": "32bc9d619b379630a6ff62f564eea0cae8ab3483e35b573cda309d5ade3f726f",
+      "bytes": 1723
+    },
+    {
+      "file": "rebase.log.gz",
+      "sha256": "d612f35e16b4aeade434e7323ed74bcb39209d3f020a56f5a820658202438474",
+      "bytes": 426
+    },
+    {
+      "file": "rebased-cli-contract.log.gz",
+      "sha256": "04f5a088de2e16ab17fb71beb315052882b154406ddf05f83c078bce315332a5",
+      "bytes": 173
+    },
+    {
+      "file": "rebased-execution-prompt.txt.gz",
+      "sha256": "b1bf891f830ea9aef796145c1797ac65f9f1471a3376dfa6f1653ecdb6326ce9",
+      "bytes": 72
+    },
+    {
+      "file": "rebased-full-suite.log.gz",
+      "sha256": "1657929d80fbaa4fb2f525c036aaf3377a637426a027e0377d83af895e23fe09",
+      "bytes": 5614
+    },
+    {
+      "file": "rebased-generated-check.log.gz",
+      "sha256": "22f8eada9eb743a975e6b43d2e9d42373b0ec9e90f67760288f373df04e3834f",
+      "bytes": 54
+    },
+    {
+      "file": "rebased-lint.log.gz",
+      "sha256": "fa0217799730025e558a26ab9a5220bf5753393296f5e95822caea522dcea2a5",
+      "bytes": 136
+    },
+    {
+      "file": "rebased-parity-check.log.gz",
+      "sha256": "da7587f96a8c4ac438cc9045d24834fa404498dc9a7ee181ee8aeff349e635da",
+      "bytes": 112
+    },
+    {
+      "file": "rebased-typecheck.log.gz",
+      "sha256": "f5f23f5961cfb5759886b95689587022df174742bcbc205627e7bfc9ad0c2c5c",
+      "bytes": 102
     },
     {
       "file": "red-commit.log.gz",
@@ -264,6 +354,11 @@
     },
     {
       "file": "terminal-walkthrough-current.json.gz",
+      "sha256": "d6c34974f5a53d47553ef23b35e0e2e2f9a15ac9a39a7751ffbf925154305b40",
+      "bytes": 3297
+    },
+    {
+      "file": "terminal-walkthrough-rebased.json.gz",
       "sha256": "d6c34974f5a53d47553ef23b35e0e2e2f9a15ac9a39a7751ffbf925154305b40",
       "bytes": 3297
     },
