@@ -27,7 +27,13 @@ import {
 } from '../execution-plan/review-identity.js';
 import { computeSkipMask, parseHeading } from '../utils/markdown-sections.js';
 import { retryCommand } from './command.js';
-import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
+import {
+  isReviewKind,
+  type RedExecutionRequest,
+  type ReviewKind,
+  type ReviewPacket,
+  type ReviewPacketFile,
+} from './contract.js';
 import { prepareReviewPacket, toReviewPath } from './packet.js';
 import {
   createPlanningReviewIdentity,
@@ -209,6 +215,20 @@ function planningIdentityFingerprint(identity: PlanningReviewIdentity | undefine
   return identity === undefined ? '' : `planning-review-identity-v1\0${JSON.stringify(identity)}\0`;
 }
 
+function representationDomain(packet: ReviewPacket): string {
+  return packet.logical_files.some(file => file.representation !== undefined)
+    ? 'represented-review-packet-v1\0'
+    : '';
+}
+
+function fileFingerprint(file: ReviewPacketFile, content: string, domain: string): string {
+  // Normal packets retain their historical identity. Represented packets use
+  // a distinct domain and unambiguous framing for every file, including context.
+  return domain === ''
+    ? `${file.path}\0${content}`
+    : JSON.stringify({ path: file.path, content, representation: file.representation });
+}
+
 function reviewIdentity(
   cwd: string,
   kind: ReviewKind,
@@ -231,6 +251,8 @@ function reviewIdentity(
     const planningIdentity = createPlanningReviewIdentity(prepared.packet);
     const projectedContext = planningFingerprintContext(prepared.packet, planningIdentity);
     const hash = createHash('sha256');
+    const domain = representationDomain(prepared.packet);
+    hash.update(domain);
     hash.update(`kind\0${kind}\0`);
     hash.update(planningIdentityFingerprint(planningIdentity));
     if (execution !== undefined) hash.update(`execution\0${JSON.stringify(execution)}\0`);
@@ -251,16 +273,13 @@ function reviewIdentity(
     ] as const) {
       hash.update(`${section}\0${files.length}\0`);
       for (const file of files) {
-        hash.update(file.path);
-        hash.update('\0');
-        hash.update(
-          reviewFingerprintContent(section, file.path, file.content, {
-            projectedContext,
-            executionPlanTargetPath: executionPlanTarget?.path,
-            executionPlanFingerprint,
-            executableRedScenario: executableRedScenarioForFile(cwd, file.path, execution),
-          }),
-        );
+        const content = reviewFingerprintContent(section, file.path, file.content, {
+          projectedContext,
+          executionPlanTargetPath: executionPlanTarget?.path,
+          executionPlanFingerprint,
+          executableRedScenario: executableRedScenarioForFile(cwd, file.path, execution),
+        });
+        hash.update(fileFingerprint(file, content, domain));
         hash.update('\0');
       }
     }

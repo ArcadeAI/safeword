@@ -16,6 +16,9 @@ import { promisify } from 'node:util';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { readReviewReceipt } from '../../templates/hooks/lib/read-receipt.js';
+import { receiptGateVerdict } from '../../templates/hooks/lib/review-receipt.js';
+import { largeLockfileFixture } from '../../tests/helpers/large-lockfile.js';
 import type { SafewordWorld } from './world.js';
 
 // Review scenarios use real subprocess timeouts. Scope their longer budget to
@@ -302,6 +305,125 @@ After(function (this: SafewordWorld) {
 });
 
 // ---------------------------------------------------------------- Given
+
+Given('an independent reviewer is available', function (this: SafewordWorld) {
+  installReviewer(state(this), 'codex', 'answers');
+});
+
+Given('a tracked oversized bun.lock with a bounded version change', function (this: SafewordWorld) {
+  const current = state(this);
+  const fixture = largeLockfileFixture(current.project);
+  fixture.write(fixture.before.replace('1.1.0', '1.2.0'));
+  current.targets = ['bun.lock'];
+  current.environment.SAFEWORD_REVIEW_KEY_ROOT = nodePath.join(current.project, 'review-keys');
+});
+
+Then(
+  'the reviewer receives the original lockfile target with its complete bounded patch',
+  function (this: SafewordWorld) {
+    assertApprovedCodexVerdict(this);
+    const current = state(this);
+    const prompt = readFileSync(current.packetLog, 'utf8');
+    const packet = JSON.parse(prompt.trimEnd().split('\n').at(-1) ?? '');
+    assert.equal(packet.logical_files.length, 1);
+    const file = packet.logical_files[0];
+    assert.equal(file.path, 'bun.lock');
+    assert.equal(file.representation.kind, 'git-diff');
+    const source = readFileSync(nodePath.join(current.project, 'bun.lock'));
+    assert.equal(file.representation.source_bytes, source.length);
+    assert.match(file.content, /- {6}"version": "1\.1\.0"/u);
+    assert.match(file.content, /\+ {6}"version": "1\.2\.0"/u);
+    assert.deepEqual(payload(this).data.excluded_targets, []);
+  },
+);
+
+Then(
+  'the lockfile approval witnesses original-file implementation coverage',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  function (this: SafewordWorld) {
+    const current = state(this);
+    const bin = current.binaries[0];
+    assert.ok(bin);
+    // A distribution-owned route outside the reviewed project, executing the real built CLI.
+    const pluginRoot = nodePath.dirname(bin);
+    const runtime = nodePath.join(pluginRoot, 'runtime');
+    mkdirSync(runtime);
+    writeFileSync(nodePath.join(runtime, 'cli.js'), `await import(${JSON.stringify(CLI_PATH)});`);
+    const overrides = {
+      CLAUDE_PLUGIN_ROOT: pluginRoot,
+      NODE_ENV: 'test',
+      SAFEWORD_REVIEW_KEY_ROOT: current.environment.SAFEWORD_REVIEW_KEY_ROOT,
+    };
+    const previous = Object.fromEntries(Object.keys(overrides).map(key => [key, process.env[key]]));
+    try {
+      Object.assign(process.env, overrides);
+      const receipt = readReviewReceipt(String(payload(this).data.review_id), current.project);
+      assert.ok(receipt);
+      assert.equal(receipt.status, 'approved');
+      assert.deepEqual(receipt.targets, ['bun.lock']);
+      assert.deepEqual(receipt.excludedTargets, []);
+      assert.deepEqual(
+        receiptGateVerdict(
+          {
+            independence: 'cross-agent',
+            phase: 'implement',
+            ticketFolder: 'TST',
+            projectDirectory: current.project,
+            ticketDirectory: nodePath.join(current.project, '.project/tickets/TST'),
+            implementationFiles: ['bun.lock'],
+          },
+          receipt,
+        ),
+        { ok: true },
+      );
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) Reflect.deleteProperty(process.env, key);
+        else process.env[key] = value;
+      }
+    }
+  },
+);
+
+When('the reviewed lockfile source changes', function (this: SafewordWorld) {
+  const path = nodePath.join(state(this).project, 'bun.lock');
+  writeFileSync(path, readFileSync(path, 'utf8').replace('1.2.0', '1.3.0'));
+});
+
+Then(
+  'the public review status reports the lockfile approval as stale',
+  { timeout: REVIEW_STEP_TIMEOUT_MS },
+  async function (this: SafewordWorld) {
+    const current = state(this);
+    let stdout: string;
+    try {
+      const result = await execFileAsync(
+        process.execPath,
+        [
+          CLI_PATH,
+          'review',
+          'status',
+          String(payload(this).data.review_id),
+          '--json',
+          '--cwd',
+          current.project,
+        ],
+        {
+          cwd: current.project,
+          env: { ...process.env, ...current.environment },
+          timeout: REVIEW_PROCESS_TIMEOUT_MS,
+        },
+      );
+      stdout = result.stdout;
+    } catch (error) {
+      const failure = error as { code?: number; stdout?: string };
+      assert.equal(failure.code, 2, 'stale review requires action');
+      assert.ok(failure.stdout);
+      stdout = failure.stdout;
+    }
+    assert.equal(JSON.parse(stdout).data.status, 'stale');
+  },
+);
 
 Given('a reviewer that answers well inside its deadline', function (this: SafewordWorld) {
   const current = state(this);
