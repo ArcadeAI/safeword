@@ -15,7 +15,7 @@ warning (536 modules / 1003 dependencies). No ledger entries were truncated.
 
 1. [x] Replace the singleton invalidation table with an ordinary named test.
    Keep its purpose mutation, field checks, install check, and fixed direction.
-2. [ ] Lift the bundle identity normalization helper into a named file-local
+2. [x] Lift the bundle identity normalization helper into a named file-local
    function. Keep its independent phase/path/hash oracle and fail-closed AST
    checks before masking exactly the initializer; compare all remaining bytes.
 
@@ -49,6 +49,15 @@ generation test file passed, 23/23 tests. Diff inspection confirms all assertion
 the purpose mutation, fixture cleanup and invalid-mode matrices are unchanged;
 only the singleton wrapper/title and local fixed value changed. No guard or
 default dropped. No refactor attempt failed.
+
+Item 2: the full Codex plugin version file passed, 19/19 tests. The helper body
+was moved verbatim apart from indentation and its explicit return type. It has
+no captured test-local state; path/hash verification still precedes masking and
+the caller compares all remaining runtime bytes. Cleanup and environment setup
+are unchanged. Targeted ESLint and `git diff --check` passed. Neither refactor
+needed characterization additions: the existing tests execute these real
+generation/bundle boundaries. No failed refactor attempts or unresolved ledger
+items remain.
 
 ## Evidence boundaries
 
