@@ -299,6 +299,8 @@ After(function (this: SafewordWorld) {
   const current = (this as ReviewWorld).review;
   if (current === undefined) return;
   rmSync(current.project, { recursive: true, force: true });
+  const keyRoot = current.environment.SAFEWORD_REVIEW_KEY_ROOT;
+  if (keyRoot !== undefined) rmSync(keyRoot, { recursive: true, force: true });
   for (const bin of current.binaries) {
     rmSync(nodePath.dirname(bin), { recursive: true, force: true });
   }
@@ -315,7 +317,10 @@ Given('a tracked oversized bun.lock with a bounded version change', function (th
   const fixture = largeLockfileFixture(current.project);
   fixture.write(fixture.before.replace('1.1.0', '1.2.0'));
   current.targets = ['bun.lock'];
-  current.environment.SAFEWORD_REVIEW_KEY_ROOT = nodePath.join(current.project, 'review-keys');
+  // Outside the project: trusted CLIs ignore a key root project code could write.
+  current.environment.SAFEWORD_REVIEW_KEY_ROOT = mkdtempSync(
+    nodePath.join(tmpdir(), 'safeword-review-keys-'),
+  );
 });
 
 Then(
