@@ -23,14 +23,15 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-function approvingReviewer(): { bin: string; calls: string } {
+function approvingReviewer(agent: 'claude' | 'codex'): { bin: string; calls: string } {
   const bin = createTrustedReviewerDirectory('safeword-native-copy-reviewer-');
   const calls = nodePath.join(bin, 'calls.log');
   writeFileSync(
-    nodePath.join(bin, 'claude'),
+    nodePath.join(bin, agent),
     String.raw`#!${process.execPath}
-const capabilities = ${JSON.stringify(REVIEWER_CAPABILITIES.claude)};
-if (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }
+const agent = ${JSON.stringify(agent)};
+const capabilities = ${JSON.stringify(REVIEWER_CAPABILITIES[agent])};
+if (process.argv.includes('--version')) { console.log(agent + ' 1.0.0'); process.exit(0); }
 if (process.argv.includes('--help')) { console.log(capabilities); process.exit(0); }
 let input = '';
 process.stdin.setEncoding('utf8');
@@ -39,8 +40,8 @@ process.stdin.on('end', () => {
   // Execution delivery metadata also has schema_version; select the root JSON line.
   const packet = JSON.parse(input.slice(input.lastIndexOf('\n{"schema_version":1') + 1));
   require('node:fs').appendFileSync(${JSON.stringify(calls)}, 'review' + String.fromCharCode(10));
-  process.stdout.write(JSON.stringify({ structured_output: {
-    schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude',
+  const result = {
+    schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: agent,
     verdict: 'approve', summary: 'Native copy fixture approval.', findings: [],
     ...(packet.kind === 'plan-execution' ? {
       planning_destination: 'plan-execution',
@@ -57,7 +58,10 @@ process.stdin.on('end', () => {
         delivery_definition: packet.execution_plan_delivery_definition
       }
     } : {})
-  }}));
+  };
+  process.stdout.write(JSON.stringify(agent === 'claude' ? { structured_output: result } : {
+    type: 'item.completed', item: { type: 'agent_message', text: JSON.stringify(result) }
+  }));
 });
 `,
     { mode: 0o755 },
@@ -66,6 +70,12 @@ process.stdin.on('end', () => {
 }
 
 type NativePlanningPhase = 'product-plan' | 'plan-implementation' | 'plan-execution';
+
+function nativeAssetAuthor(host: 'claude' | 'codex', phase: NativePlanningPhase) {
+  // Execution admission currently permits only Claude reviewers. Preserve that
+  // policy: this one layout check uses a Codex author, not Claude-host parity.
+  return host === 'claude' && phase === 'plan-execution' ? 'codex' : host;
+}
 
 function writePhaseTicket(ticket: string, phase: NativePlanningPhase): void {
   mkdirSync(ticket, { recursive: true });
@@ -140,7 +150,9 @@ describe('Complete native planning author-copy dispatch', () => {
           recursive: true,
         });
       }
-      const reviewer = approvingReviewer();
+      const author = nativeAssetAuthor(host, phase);
+      const reviewerAgent = author === 'claude' ? 'codex' : 'claude';
+      const reviewer = approvingReviewer(reviewerAgent);
       const bun = realBunExecutable();
       expect(bun, 'the isolated reviewer PATH needs an absolute Bun launcher').not.toBe('');
       const run = () =>
@@ -168,7 +180,7 @@ describe('Complete native planning author-copy dispatch', () => {
             env: {
               ...process.env,
               PATH: `${reviewer.bin}:/usr/bin:/bin`,
-              SAFEWORD_AGENT_RUNTIME: 'codex',
+              SAFEWORD_AGENT_RUNTIME: author,
               SAFEWORD_NO_UPDATE_CHECK: '1',
               SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, 'review-keys'),
               NODE_ENV: 'test',
@@ -178,7 +190,13 @@ describe('Complete native planning author-copy dispatch', () => {
       const canonical = run();
       expect(canonical.status, `${canonical.stdout}\n${canonical.stderr}`).toBe(0);
       expect(JSON.parse(canonical.stdout)).toMatchObject({
-        data: { status: 'approved', review_kind: kind, actual_reviewer: 'claude' },
+        data: {
+          status: 'approved',
+          review_kind: kind,
+          author_agent: author,
+          actual_reviewer: reviewerAgent,
+          independence: 'cross-agent',
+        },
       });
       expect(readFileSync(reviewer.calls, 'utf8')).toBe('review\n');
       const template = {

@@ -16,6 +16,7 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -530,17 +531,50 @@ describe('Codex plugin release contract', () => {
         assertBundledHookCommand(command);
       }).not.toThrow();
     }
-    const copiesDeclaration =
-      /(function packagedPlanningAuthor\(phase\) \{\n) {2}const copies = ([^\n]+);/gu;
     const commonRuntime = (pluginRoot: string, layout: 'codex' | 'claude') => {
       const source = readFileSync(nodePath.join(pluginRoot, 'runtime/cli.js'), 'utf8');
-      const declarations = source.matchAll(copiesDeclaration).toArray();
-      expect(declarations).toHaveLength(1);
-      const initializer = declarations[0]?.[2];
-      if (initializer === undefined) throw new Error('Host author identity literal is missing');
-      const identities: unknown = JSON.parse(
-        initializer.replaceAll(/\b(relativePath|sha256):/gu, '"$1":'),
+      const parsed = ts.createSourceFile(
+        'cli.js',
+        source,
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.JS,
       );
+      const declarations: ts.VariableDeclaration[] = [];
+      const visit = (node: ts.Node): void => {
+        if (ts.isFunctionDeclaration(node) && node.name?.text === 'packagedPlanningAuthor') {
+          const findCopies = (child: ts.Node): void => {
+            if (
+              ts.isVariableDeclaration(child) &&
+              ts.isIdentifier(child.name) &&
+              child.name.text === 'copies'
+            )
+              declarations.push(child);
+            ts.forEachChild(child, findCopies);
+          };
+          ts.forEachChild(node, findCopies);
+        } else ts.forEachChild(node, visit);
+      };
+      visit(parsed);
+      expect(declarations).toHaveLength(1);
+      const initializer = declarations[0]?.initializer;
+      if (initializer === undefined) throw new Error('Host author identity literal is missing');
+      const readLiteral = (node: ts.Node): unknown => {
+        if (ts.isStringLiteral(node)) return node.text;
+        if (!ts.isObjectLiteralExpression(node))
+          throw new Error('Host author identity must be a static object');
+        return Object.fromEntries(
+          node.properties.map(property => {
+            if (
+              !ts.isPropertyAssignment(property) ||
+              !(ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))
+            )
+              throw new Error('Host author identity must use named static properties');
+            return [property.name.text, readLiteral(property.initializer)];
+          }),
+        );
+      };
+      const identities = readLiteral(initializer);
       // Independent delivery oracle: do not reuse the generator's phase/path map.
       const expected = Object.fromEntries(
         Object.entries({
@@ -561,7 +595,7 @@ describe('Codex plugin release contract', () => {
         }),
       );
       expect(identities).toEqual(expected);
-      return source.replaceAll(copiesDeclaration, '$1  const copies = HOST_AUTHOR_COPIES;');
+      return `${source.slice(0, initializer.getStart(parsed))}HOST_AUTHOR_COPIES${source.slice(initializer.end)}`;
     };
     expect(commonRuntime(nodePath.join(root, 'codex-plugin'), 'codex')).toBe(
       commonRuntime(nodePath.resolve(root, '../../plugin'), 'claude'),

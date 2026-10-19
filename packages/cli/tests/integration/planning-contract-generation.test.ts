@@ -218,13 +218,15 @@ describe('Planning contract shared-clause generation', () => {
           return { name, path, bytes: readFileSync(path) };
         },
       );
-      writeCanonicalClause(distribution, 'Only the user can approve the newly generated scope.');
+      const changedClause = 'Only the user can approve the newly generated scope.';
+      writeCanonicalClause(distribution, changedClause);
       generatePhaseContracts(distribution);
       for (const snapshot of installed) {
         expect(
-          readFileSync(nodePath.join(distribution, 'templates/skills/bdd', snapshot.name)),
+          readFileSync(nodePath.join(distribution, 'templates/skills/bdd', snapshot.name), 'utf8'),
           `${snapshot.name} must have a pending valid update before refusal`,
-        ).not.toEqual(snapshot.bytes);
+        ).toContain(changedClause);
+        expect(snapshot.bytes.toString('utf8')).not.toContain(changedClause);
       }
       const contractPath = nodePath.join(distribution, 'templates/skills/bdd', file);
       const contract = readFileSync(contractPath, 'utf8');
@@ -483,17 +485,16 @@ describe('Planning contract shared-clause generation', () => {
       const path = nodePath.join(project, '.safeword/skills/bdd', name);
       return { name, path, bytes: readFileSync(path, 'utf8') };
     });
-    writeCanonicalClause(
-      distribution,
-      'Accepted scope remains user-owned after this canonical edit.',
-    );
+    const changedClause = 'Accepted scope remains user-owned after this canonical edit.';
+    writeCanonicalClause(distribution, changedClause);
     generatePhaseContracts(distribution);
     for (const snapshot of installed) {
       const canonical = readFileSync(
         nodePath.join(distribution, 'templates/skills/bdd', snapshot.name),
         'utf8',
       );
-      expect(canonical).not.toBe(snapshot.bytes);
+      expect(canonical).toContain(changedClause);
+      expect(snapshot.bytes).not.toContain(changedClause);
     }
     const contractPath = nodePath.join(distribution, 'templates/skills/bdd/PLAN_EXECUTION.md');
     const contract = readFileSync(contractPath, 'utf8');
