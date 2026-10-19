@@ -47,3 +47,36 @@ Refactor ledger: duplicate prefix validation was the only justified change;
 extract the pure parser while keeping command execution and typed failures local.
 No generalized process wrapper was added because blob capture, patch output and
 metadata calls have different failure and transport contracts.
+
+Final local evidence is mixed and must not be called an all-green local suite.
+The first broad CLI run completed with 11,250 passed, 24 failed and 40 skipped
+across 683 files (666 passed, 17 failed). Install/setup hooks also timed out or
+skipped after setup failure. The generated verification plan then began a
+redundant second CLI run; that continuation was stopped (exit 143), preserving
+the first run's failure log. Remaining closing lanes are collected separately.
+
+A current focused run passed 217/218 cases across the four packet/job/parser
+files and review surface parity. All 37 large-lockfile cases passed, including
+the seven hostile/path cases and near-limit case added after the first GREEN.
+The sole failure was the pre-existing job test expecting exactly two inspection
+calls within a 450 ms courtesy wait. Isolated routing tests produced five
+failures and three passes. Running those eight cases plus the inspection case
+on the clean release checkout (873d5d480b78af727c1838f28a286132cc9485e1,
+tree 99db67fbcc0167c1199b765df7e66b433f123bf2, identical to the main merge-base)
+reproduced all five routing failures and the inspection failure: six failed,
+three passed. No timing expectation was relaxed. This proves those specific
+failures predate the change; it does not independently diagnose every other
+broad-run failure.
+
+A separate host probe measured first launch of a new shell stub at 870 ms,
+then 6 ms on its next launch and 6 ms through an explicit shell. That is evidence
+of cold executable latency on this host; its OS-level cause was not established.
+The six reproduced failures depend on short fake-executable deadlines. Hosted
+CI on the earlier code head passed the full package, acceptance and release
+lanes on its declared platform; final-head CI is tracked in PR #5947.
+
+The inspection test's two symptoms differ: the change recorded one inspection
+instead of two; the baseline created no ps.log at all (ENOENT). The reproduction
+therefore establishes a pre-existing failure of the same test, not a shared root
+cause. The other eighteen broad-run failures remain undiagnosed locally. The
+cold-launch probe is evidence of host latency, not a diagnosis of those failures.

@@ -63,3 +63,13 @@ converted to labeled paragraphs without changing their twelve field values.
 A whitespace-normalized equality check passed for all fields; Prettier leaves
 the full document at 255,598 bytes. A fresh coordinator review now includes the
 original ARCHITECTURE.md target, rather than relying on the earlier excerpt.
+
+Original-path review 860afb41-e51a-4e90-bb78-77a4951e83d7 approved the complete
+architecture document and all implementation paths; authenticated implement
+stamping succeeded. This supersedes the earlier architecture excerpt limitation
+for implementation coverage. The same path-control-byte, baseline freshness and
+polling-cost notes are answered above. Its document-header note is pre-existing
+metadata drift; the new decision is explicitly dated, and a historical document
+version bump is outside this bug fix. No claim about current runtime version
+comes from that header. Ordinary fetches stale proof only when the resolved
+baseline identity changes; movement of a remote tip alone is insufficient.

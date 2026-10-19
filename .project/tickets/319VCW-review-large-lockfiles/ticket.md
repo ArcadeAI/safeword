@@ -3,7 +3,7 @@ id: 319VCW
 slug: review-large-lockfiles
 type: task
 subtype: bug-investigated
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-10-18T23:15:34.676Z
 last_modified: 2026-10-18T23:15:34.676Z
@@ -32,6 +32,31 @@ done_when:
 
 ## Work Log
 
+- 2026-10-19 Verification-record review
+  df3f17c4-1882-446b-9742-7b6417df4cfd approved the disclosed evidence and limits.
+  Its remaining warnings are answered explicitly: final-head CI remains a hard
+  delivery gate; baseline comparison establishes the same six failing test
+  names, with different inspection symptoms and no asserted shared root cause.
+  Baseline identity uses resolveBaseline()'s merge-base result in
+  src/review/lockfile-diff.ts, not the remote tip; this is a code observation,
+  not a separately executed remote-tip-only test. Historical CI run 39180050621's
+  Node 24 acceptance log supplies the 596/11,118 counts; its metadata-only context
+  did not include those log lines. The PR remains Draft pending current-head
+  checks and explicit authority to promote or merge this new follow-up PR.
+- 2026-10-19 Implemented complete bounded projection with production replay and
+  source/baseline fingerprint identity. Packet RED produced 16 failures; signed
+  job RED exposed two further stale-approval defects. Focused GREEN passed 156
+  cases; the protected prefix refactor passed 81. Added hostile-configuration,
+  path-escaping and near-8-MiB regression cases following independent review.
+  Live review fd21fe4a-3049-4463-847b-664b34b1e227 approved the actual released
+  343,758-byte lock under its original path with no exclusion; an edit staled it.
+  Final original-path code/architecture review
+  860afb41-e51a-4e90-bb78-77a4951e83d7 approved, and the authenticated implement
+  stamp succeeded through the unmodified cached 1.1.0 distribution. Entered
+  verification. Draft PR #5947 collects final-head CI. The first CI head passed;
+  local broad verification reported failures, with five routing cases and a
+  worker-inspection deadline case independently reproduced on the unchanged
+  merge-base tree. See review-notes.md and test-quality-audit.md for limits.
 - 2026-10-18T23:15:34.676Z Started: Created ticket 319VCW
 - 2026-10-18 Intake approved by independent review
   ac193ff8-d56d-4817-a3ca-575bac1c73d6; authenticated intake stamp succeeded
