@@ -12,6 +12,46 @@
       "bytes": 6269
     },
     {
+      "file": "hardening-final-main-digests.json.gz",
+      "sha256": "28afc11da8bd72f9bb668ef9a53f65f51b82093cbb09fa7adeb205b59f587d56",
+      "bytes": 144
+    },
+    {
+      "file": "hardening-final-main-focused.log.gz",
+      "sha256": "5d35c6e489e3d8553aebd6f4872240ae7f05eee7d05fb587821246c65dbd5a36",
+      "bytes": 4835
+    },
+    {
+      "file": "hardening-final-main-generated.log.gz",
+      "sha256": "22f8eada9eb743a975e6b43d2e9d42373b0ec9e90f67760288f373df04e3834f",
+      "bytes": 54
+    },
+    {
+      "file": "hardening-final-main-lint.log.gz",
+      "sha256": "fa0217799730025e558a26ab9a5220bf5753393296f5e95822caea522dcea2a5",
+      "bytes": 136
+    },
+    {
+      "file": "hardening-final-main-manual.json.gz",
+      "sha256": "4b4846337c88d7d2d753f44da31921e317bdfdde85a98130804de607089a9334",
+      "bytes": 360
+    },
+    {
+      "file": "hardening-final-main-parity.log.gz",
+      "sha256": "da7587f96a8c4ac438cc9045d24834fa404498dc9a7ee181ee8aeff349e635da",
+      "bytes": 112
+    },
+    {
+      "file": "hardening-final-main-preservation.json.gz",
+      "sha256": "08837dd808b6a229f1530aa404d4ab9dbf9868c8701879d273e94cf6bc06de43",
+      "bytes": 265
+    },
+    {
+      "file": "hardening-final-main-typecheck.log.gz",
+      "sha256": "f5f23f5961cfb5759886b95689587022df174742bcbc205627e7bfc9ad0c2c5c",
+      "bytes": 102
+    },
+    {
       "file": "hardening-focused.log.gz",
       "sha256": "5caa34adcda0a9a4f7ecd96d135e4a44e956a1310028786a262149cd7420f174",
       "bytes": 5156
@@ -32,6 +72,11 @@
       "bytes": 136
     },
     {
+      "file": "hardening-merge-tree.log.gz",
+      "sha256": "fadbdf899f2c411034cc2dc355d9f9d3a10e2e24045d2da0a28a6a075fbbf63a",
+      "bytes": 1223
+    },
+    {
       "file": "hardening-native-green.log.gz",
       "sha256": "f2e4e722f07a157600fc5e18036f4dfab8f963cabb6563544c9dac3f67033b1f",
       "bytes": 5130
@@ -50,6 +95,36 @@
       "file": "hardening-parity.log.gz",
       "sha256": "da7587f96a8c4ac438cc9045d24834fa404498dc9a7ee181ee8aeff349e635da",
       "bytes": 112
+    },
+    {
+      "file": "hardening-push.log.gz",
+      "sha256": "0c033c379383f22aef256a570f9add35fefd8916494308dc401d5fcfe2d79aea",
+      "bytes": 335
+    },
+    {
+      "file": "hardening-rebase-completed.log.gz",
+      "sha256": "8c98014a5a0330d8bdc6c9b7c52bf78610d28943c6756be23d66c71be90058c5",
+      "bytes": 917
+    },
+    {
+      "file": "hardening-rebase-continue.log.gz",
+      "sha256": "bce0603e797c4d95283a648744aa7860f57cef697c162b61320d617a5b2bf048",
+      "bytes": 783
+    },
+    {
+      "file": "hardening-rebase-generation1.log.gz",
+      "sha256": "5284b490db610dd9d81606621aaf54d87cfce19143aad72e801945c5399439ca",
+      "bytes": 172
+    },
+    {
+      "file": "hardening-rebase-generation2.log.gz",
+      "sha256": "5284b490db610dd9d81606621aaf54d87cfce19143aad72e801945c5399439ca",
+      "bytes": 172
+    },
+    {
+      "file": "hardening-rebase.log.gz",
+      "sha256": "676d1ea7f1c814f49c2b3e28bb4a4bd4dfb53f4e035ee800939bbfa1f29877a4",
+      "bytes": 536
     },
     {
       "file": "hardening-review-diagnostic-final.err.gz",
@@ -91,5 +166,6 @@
       "sha256": "f5f23f5961cfb5759886b95689587022df174742bcbc205627e7bfc9ad0c2c5c",
       "bytes": 102
     }
-  ]
+  ],
+  "final_main": "172aac2c85d8197344b68ff9ece769a283f6f7f6"
 }

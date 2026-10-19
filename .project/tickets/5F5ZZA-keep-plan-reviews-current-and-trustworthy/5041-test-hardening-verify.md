@@ -1,9 +1,9 @@
 # Test-hardening verification
 
 This is the bounded follow-up to `c2d503233`, not a replacement for
-`5041-verify.md` or its historical evidence. Production source, shipped templates,
-reviewer prompts, qualification corpus and admission descriptor remain unchanged.
-The changes are the three authorized test-quality repairs, an independent bundle
+`5041-verify.md` or its historical evidence. The hardening changes no production
+source, shipped template, reviewer prompt, qualification corpus or admission
+descriptor. The changes are the three authorized test-quality repairs, an independent bundle
 identity oracle, scenario/proof mapping, and their evidence.
 
 ## Deterministic results
@@ -14,9 +14,11 @@ identity oracle, scenario/proof mapping, and their evidence.
 - Shared generation/refusal preservation, BDD proof manifests, feature
   maintainability and bundle identity: 95/95 passed across four files.
 - Repository lint and all three package typechecks passed.
-- All five generated surfaces remain current. All 276 mirror pairs and 11
-  contracts are in sync. No shipped source/template change required regeneration.
-- Full root suite: retro relay 198 passed / one skipped; collector 153 passed.
+- Before the final main refresh, all five generated surfaces were current and
+  all 276 mirror pairs / 11 contracts were in sync. The hardening itself required
+  no template regeneration; the inbound main change required the regeneration
+  recorded below.
+- Full root suite before the final main refresh: retro relay 198 passed / one skipped; collector 153 passed.
   CLI: 687 files passed / one failed; 11349 passed / one failed / 14 skipped
   (11364 tests), exit 1, 872.46 seconds. All newly hardened tests passed.
 - The sole failure was the unchanged `starts OpenCode when the shared deadline
@@ -31,6 +33,37 @@ The new scenario is routed explicitly through `@proof.vitest` and its manifest.
 Passing the manifest alone is static provenance; the named eight-row real CLI
 upgrade/refusal test also ran and passed. No whole-feature Cucumber acceptance
 or previously unchecked semantic receipt-invalidation scenario is claimed.
+
+## Final main refresh
+
+After the hardening commit `45d9bd138` was pushed, GitHub reported conflicts with
+main `172aac2c8`. The branch was rebased onto that main, retaining its hook fix
+that places recovery guidance in the denial reason. Source changes merged
+automatically; conflicts were confined to generated catalogues, native carriers
+and lifecycle fixtures, regenerated in the safe order. The hardening test and
+feature files remain byte-identical to `45d9bd138` after the rebase.
+
+The full failed run and isolated pass above retain their original pre-refresh
+baseline. They are not represented as a new-head full-suite result. Post-refresh
+verification targets the hardened tests, real installed copy guards, all four
+changed-main denial test files, and the public review-routing matrix. Current-head
+CI and fresh independent review remain separate requirements.
+
+The final main verification set passed 372/372 tests across 11 files, including
+all 139 public review-routing cases, the hardened tests, installed copy admission
+and all four denial-test files changed by main. Final repository lint and all
+three typechecks passed. Both native bundles and all five generated surfaces
+were regenerated and verified; all 276 mirror pairs / 11 contracts are in sync.
+The Execution prompt and corpus remain exactly
+`4cc38db52651b7073d8677ff89b94d896ba0b2321125d8eaef31c6152543e533` and
+`833df049ac3d3cbe119fac7f8ecf43c614e1cf6c4d64b97c4f0781e4ee8f6309`.
+No new-head full-suite pass is claimed; the original failed full run remains
+visible. Claude authentication is still required for independent review.
+
+The current built CLI was also exercised read-only on the real project with
+host/plugin environment variables cleared: `ticket planning-contract-check
+5F5ZZA` reported `current` for Product, Implementation and Execution phases,
+all exit 0. This is copy-check usability, not phase approval or native UI proof.
 
 ## Independent review is blocked
 
