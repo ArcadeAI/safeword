@@ -202,6 +202,59 @@ describe('bounded logical review of large lockfile changes', () => {
     }
   });
 
+  it.each(['space here', 'café', 'quote"here', 'tab\there', 'back\bspace', 'form\ffeed'])(
+    'reconstructs the displayed patch under directory %j',
+    directory => {
+      const f = fixture();
+      mkdirSync(nodePath.join(f.root, directory));
+      const target = `${directory}/bun.lock`;
+      f.git('mv', 'bun.lock', target);
+      f.commit('quoted path baseline');
+      f.git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+      const source = f.before.replace('1.1.0', '1.2.0');
+      writeFileSync(nodePath.join(f.root, target), source);
+      const p = prepareReviewPacket(f.root, 'quality-review', [target]);
+      try {
+        expect(p.packet.logical_files[0]).toMatchObject({
+          path: target,
+          representation: { base_path: target, source_sha256: digest(source) },
+        });
+        expect(p.sourceChanged()).toBe(false);
+      } finally {
+        p.cleanup();
+      }
+    },
+  );
+
+  it('ignores repository diff drivers, filters and external attributes during projection', () => {
+    const f = fixture('bun.lock diff=hostile filter=hostile\n');
+    const marker = nodePath.join(f.root, 'driver-ran');
+    const driver = nodePath.join(f.root, 'driver.cjs');
+    writeFileSync(
+      driver,
+      `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'executed'); process.stdout.write('hidden');`,
+    );
+    const command = `node "${driver}"`;
+    f.git('config', 'diff.external', command);
+    f.git('config', 'diff.hostile.textconv', command);
+    f.git('config', 'filter.hostile.clean', command);
+    f.git('config', 'filter.hostile.smudge', command);
+    const attributes = nodePath.join(f.root, 'external-attributes');
+    writeFileSync(attributes, 'bun.lock -diff\n');
+    f.git('config', 'core.attributesFile', attributes);
+    f.write(f.before.replace('1.1.0', '1.2.0'));
+    const p = prepareReviewPacket(f.root, 'quality-review', ['bun.lock']);
+    try {
+      const patch = p.packet.logical_files[0]?.content ?? '';
+      expect(patch).toContain('+      "version": "1.2.0"');
+      expect(patch).toContain('-      "version": "1.1.0"');
+      expect(p.sourceChanged()).toBe(false);
+      expect(() => readFileSync(marker)).toThrow(/ENOENT/u);
+    } finally {
+      p.cleanup();
+    }
+  });
+
   it('preserves authenticated generated-file exclusion ahead of projection', () => {
     const f = fixture('bun.lock linguist-generated=true\n');
     f.write(f.before.replace('1.1.0', '1.2.0'));
