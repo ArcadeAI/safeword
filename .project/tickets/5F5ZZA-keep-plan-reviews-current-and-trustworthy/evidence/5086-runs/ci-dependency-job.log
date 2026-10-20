@@ -1,0 +1,198 @@
+﻿2026-10-20T18:51:24.2243614Z Current runner version: '2.337.0'
+2026-10-20T18:51:24.2279166Z ##[group]Runner Image Provisioner
+2026-10-20T18:51:24.2280887Z Hosted Compute Agent
+2026-10-20T18:51:24.2281987Z Version: 20261015.610
+2026-10-20T18:51:24.2283043Z Commit: 267fdb4e8bbec4ab5ea31367f3a00d5c480c7656
+2026-10-20T18:51:24.2284358Z Build Date: 2026-10-14T17:06:54Z
+2026-10-20T18:51:24.2285561Z Worker ID: {cf4e798f-b63d-4e23-8858-b725f15058d7}
+2026-10-20T18:51:24.2286837Z Region: eastus
+2026-10-20T18:51:24.2287715Z Cloud: Azure
+2026-10-20T18:51:24.2288630Z ##[endgroup]
+2026-10-20T18:51:24.2291486Z ##[group]Operating System
+2026-10-20T18:51:24.2292554Z Ubuntu
+2026-10-20T18:51:24.2293584Z 24.04.5
+2026-10-20T18:51:24.2294453Z LTS
+2026-10-20T18:51:24.2295235Z ##[endgroup]
+2026-10-20T18:51:24.2296362Z ##[group]Runner Image
+2026-10-20T18:51:24.2297350Z Image: ubuntu-24.04
+2026-10-20T18:51:24.2298299Z Version: 20261018.339.1
+2026-10-20T18:51:24.2300826Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261018.339/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-20T18:51:24.2303634Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261018.339
+2026-10-20T18:51:24.2305279Z ##[endgroup]
+2026-10-20T18:51:24.2307377Z ##[group]GITHUB_TOKEN Permissions
+2026-10-20T18:51:24.2310680Z Contents: read
+2026-10-20T18:51:24.2311759Z Metadata: read
+2026-10-20T18:51:24.2312715Z Packages: read
+2026-10-20T18:51:24.2313753Z ##[endgroup]
+2026-10-20T18:51:24.2316904Z Secret source: Actions
+2026-10-20T18:51:24.2318667Z Cache mode: write
+2026-10-20T18:51:24.2319787Z Prepare workflow directory
+2026-10-20T18:51:24.2811025Z Prepare all required actions
+2026-10-20T18:51:24.2883843Z Getting action download info
+2026-10-20T18:51:24.5077850Z Download action repository 'actions/checkout@v7' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-10-20T18:51:24.6211142Z Download action repository 'oven-sh/setup-bun@v2' (SHA:0c5077e51419868618aeaa5fe8019c62421857d6)
+2026-10-20T18:51:24.8463356Z Complete job name: Dependency audit
+2026-10-20T18:51:24.9236225Z ##[group]Run actions/checkout@v7
+2026-10-20T18:51:24.9237115Z with:
+2026-10-20T18:51:24.9237565Z   repository: ArcadeAI/safeword
+2026-10-20T18:51:24.9242063Z   token: ***
+2026-10-20T18:51:24.9242508Z   ssh-strict: true
+2026-10-20T18:51:24.9242936Z   ssh-user: git
+2026-10-20T18:51:24.9243385Z   persist-credentials: true
+2026-10-20T18:51:24.9243873Z   clean: true
+2026-10-20T18:51:24.9244318Z   sparse-checkout-cone-mode: true
+2026-10-20T18:51:24.9244848Z   fetch-depth: 1
+2026-10-20T18:51:24.9245290Z   fetch-tags: false
+2026-10-20T18:51:24.9245732Z   show-progress: true
+2026-10-20T18:51:24.9246176Z   lfs: false
+2026-10-20T18:51:24.9246584Z   submodules: false
+2026-10-20T18:51:24.9247036Z   set-safe-directory: true
+2026-10-20T18:51:24.9247551Z   allow-unsafe-pr-checkout: false
+2026-10-20T18:51:24.9248756Z ##[endgroup]
+2026-10-20T18:51:25.0298070Z Syncing repository: ArcadeAI/safeword
+2026-10-20T18:51:25.0299922Z ##[group]Getting Git version info
+2026-10-20T18:51:25.0301183Z Working directory is '/home/runner/work/safeword/safeword'
+2026-10-20T18:51:25.0302454Z [command]/usr/bin/git version
+2026-10-20T18:51:25.0386456Z git version 2.55.0
+2026-10-20T18:51:25.0409291Z ##[endgroup]
+2026-10-20T18:51:25.0421575Z Temporarily overriding HOME='/home/runner/work/_temp/32da7cee-1411-461c-a17c-771c540e3f8a' before making global git config changes
+2026-10-20T18:51:25.0423257Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-20T18:51:25.0426574Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/safeword/safeword
+2026-10-20T18:51:25.0481238Z Deleting the contents of '/home/runner/work/safeword/safeword'
+2026-10-20T18:51:25.0485128Z ##[group]Determining repository object format
+2026-10-20T18:51:25.0486745Z ##[endgroup]
+2026-10-20T18:51:25.0487694Z ##[group]Initializing the repository
+2026-10-20T18:51:25.0491629Z [command]/usr/bin/git init /home/runner/work/safeword/safeword
+2026-10-20T18:51:25.0639225Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-20T18:51:25.0641822Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-20T18:51:25.0643455Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-20T18:51:25.0644721Z hint: call:
+2026-10-20T18:51:25.0645471Z hint:
+2026-10-20T18:51:25.0646331Z hint: 	git config --global init.defaultBranch <name>
+2026-10-20T18:51:25.0647383Z hint:
+2026-10-20T18:51:25.0648366Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-20T18:51:25.0649983Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-20T18:51:25.0651646Z hint:
+2026-10-20T18:51:25.0652191Z hint: 	git branch -m <name>
+2026-10-20T18:51:25.0652818Z hint:
+2026-10-20T18:51:25.0653936Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-20T18:51:25.0655287Z Initialized empty Git repository in /home/runner/work/safeword/safeword/.git/
+2026-10-20T18:51:25.0667121Z [command]/usr/bin/git remote add origin https://github.com/ArcadeAI/safeword
+2026-10-20T18:51:25.0739731Z ##[endgroup]
+2026-10-20T18:51:25.0742178Z ##[group]Disabling automatic garbage collection
+2026-10-20T18:51:25.0744346Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-20T18:51:25.0782384Z ##[endgroup]
+2026-10-20T18:51:25.0784352Z ##[group]Setting up auth
+2026-10-20T18:51:25.0785527Z Removing SSH command configuration
+2026-10-20T18:51:25.0789602Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-20T18:51:25.0826024Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-20T18:51:25.1193463Z Removing HTTP extra header
+2026-10-20T18:51:25.1199531Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-20T18:51:25.1237246Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-20T18:51:25.1477898Z Removing includeIf entries pointing to credentials config files
+2026-10-20T18:51:25.1484580Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-20T18:51:25.1524650Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-20T18:51:25.1773919Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-2e6d4872-acb1-4de3-af3f-b1bd6ebd7ef3.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-20T18:51:25.1817635Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/safeword/safeword/.git.path /home/runner/work/_temp/git-credentials-2e6d4872-acb1-4de3-af3f-b1bd6ebd7ef3.config
+2026-10-20T18:51:25.1867029Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/safeword/safeword/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-2e6d4872-acb1-4de3-af3f-b1bd6ebd7ef3.config
+2026-10-20T18:51:25.1916241Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-2e6d4872-acb1-4de3-af3f-b1bd6ebd7ef3.config
+2026-10-20T18:51:25.1955384Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-2e6d4872-acb1-4de3-af3f-b1bd6ebd7ef3.config
+2026-10-20T18:51:25.1997954Z ##[endgroup]
+2026-10-20T18:51:25.1998888Z ##[group]Fetching the repository
+2026-10-20T18:51:25.2005236Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +8d2a253a79ce7646df735d50e733a9aa1290af71:refs/remotes/pull/5995/merge
+2026-10-20T18:51:26.9797498Z From https://github.com/ArcadeAI/safeword
+2026-10-20T18:51:26.9812261Z  * [new ref]         8d2a253a79ce7646df735d50e733a9aa1290af71 -> pull/5995/merge
+2026-10-20T18:51:26.9816675Z ##[endgroup]
+2026-10-20T18:51:26.9818929Z ##[group]Determining the checkout info
+2026-10-20T18:51:26.9821109Z ##[endgroup]
+2026-10-20T18:51:26.9822292Z [command]/usr/bin/git sparse-checkout disable
+2026-10-20T18:51:26.9883197Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-20T18:51:26.9922052Z ##[group]Checking out the ref
+2026-10-20T18:51:26.9926941Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/5995/merge
+2026-10-20T18:51:27.4642575Z Note: switching to 'refs/remotes/pull/5995/merge'.
+2026-10-20T18:51:27.4643575Z 
+2026-10-20T18:51:27.4644263Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-20T18:51:27.4645766Z changes and commit them, and you can discard any commits you make in this
+2026-10-20T18:51:27.4647315Z state without impacting any branches by switching back to a branch.
+2026-10-20T18:51:27.4648202Z 
+2026-10-20T18:51:27.4648875Z If you want to create a new branch to retain commits you create, you may
+2026-10-20T18:51:27.4650719Z do so (now or later) by using -c with the switch command. Example:
+2026-10-20T18:51:27.4652174Z 
+2026-10-20T18:51:27.4652818Z   git switch -c <new-branch-name>
+2026-10-20T18:51:27.4653864Z 
+2026-10-20T18:51:27.4654458Z Or undo this operation with:
+2026-10-20T18:51:27.4655377Z 
+2026-10-20T18:51:27.4655891Z   git switch -
+2026-10-20T18:51:27.4656600Z 
+2026-10-20T18:51:27.4657880Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-20T18:51:27.4659564Z 
+2026-10-20T18:51:27.4661725Z HEAD is now at 8d2a253 Merge 8420448f42ac00a4f345de2344b91b6ef510461c into 150eb7c619b2d5852174da99ba675ae326354153
+2026-10-20T18:51:27.4679129Z ##[endgroup]
+2026-10-20T18:51:27.4729570Z [command]/usr/bin/git log -1 --format=%H
+2026-10-20T18:51:27.4759006Z 8d2a253a79ce7646df735d50e733a9aa1290af71
+2026-10-20T18:51:27.5164113Z ##[group]Run oven-sh/setup-bun@v2
+2026-10-20T18:51:27.5165438Z with:
+2026-10-20T18:51:27.5166473Z   bun-version-file: package.json
+2026-10-20T18:51:27.5167758Z   no-cache: false
+2026-10-20T18:51:27.5179232Z   token: ***
+2026-10-20T18:51:27.5180342Z ##[endgroup]
+2026-10-20T18:51:27.7082386Z Obtained version 1.3.14 from package.json
+2026-10-20T18:51:27.7874203Z Cache hit for: bun-fR4r1tsFeXfPQkusQwkKD2kGnsE=
+2026-10-20T18:51:28.1042421Z Received 33843766 of 33843766 (100.0%), 125.1 MBs/sec
+2026-10-20T18:51:28.1043903Z Cache Size: ~32 MB (33843766 B)
+2026-10-20T18:51:28.1076873Z [command]/usr/bin/tar -xf /home/runner/work/_temp/1d222c6d-92ea-4003-a9aa-1657c89ae6b2/cache.tzst -P -C /home/runner/work/safeword/safeword --use-compress-program unzstd
+2026-10-20T18:51:28.2728275Z Cache restored successfully
+2026-10-20T18:51:28.2751233Z [command]/home/runner/.bun/bin/bun --revision
+2026-10-20T18:51:28.2819681Z 1.3.14+0d9b296af
+2026-10-20T18:51:28.2826270Z Using a cached version of Bun: 1.3.14+0d9b296af
+2026-10-20T18:51:28.3014911Z ##[group]Run bun audit --audit-level high --ignore GHSA-vfj7-8cjw-p6xm --ignore GHSA-ch52-4w7c-c8xp
+2026-10-20T18:51:28.3015852Z [36;1mbun audit --audit-level high --ignore GHSA-vfj7-8cjw-p6xm --ignore GHSA-ch52-4w7c-c8xp[0m
+2026-10-20T18:51:28.3194735Z shell: /usr/bin/bash -e {0}
+2026-10-20T18:51:28.3195250Z ##[endgroup]
+2026-10-20T18:51:28.3327225Z [0m[1mbun audit [0m[2mv1.3.14 (0d9b296a)[0m
+2026-10-20T18:51:28.4536560Z markdown-it  <14.3.2
+2026-10-20T18:51:28.4538517Z   markdownlint-cli2 › markdown-it
+2026-10-20T18:51:28.4542344Z   high: markdown-it: Quadratic complexity in smartquotes with unmatched closing quotes - https://github.com/advisories/GHSA-r7fv-28h4-cvq7
+2026-10-20T18:51:28.4545289Z 
+2026-10-20T18:51:28.4545952Z 1 vulnerabilities (1 high)
+2026-10-20T18:51:28.4546407Z 
+2026-10-20T18:51:28.4546783Z To update all dependencies to the latest compatible versions:
+2026-10-20T18:51:28.4547551Z   bun update
+2026-10-20T18:51:28.4547818Z 
+2026-10-20T18:51:28.4548374Z To update all dependencies to the latest versions (including breaking changes):
+2026-10-20T18:51:28.4549246Z   bun update --latest
+2026-10-20T18:51:28.4549960Z 
+2026-10-20T18:51:28.4577838Z ##[error]Process completed with exit code 1.
+2026-10-20T18:51:28.4750885Z Post job cleanup.
+2026-10-20T18:51:28.5655584Z [command]/usr/bin/git version
+2026-10-20T18:51:28.5698567Z git version 2.55.0
+2026-10-20T18:51:28.5735598Z Temporarily overriding HOME='/home/runner/work/_temp/620f3213-ab45-4e92-b332-0ca0f709995b' before making global git config changes
+2026-10-20T18:51:28.5736869Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-20T18:51:28.5742410Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/safeword/safeword
+2026-10-20T18:51:28.5777203Z Removing SSH command configuration
+2026-10-20T18:51:28.5783984Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-20T18:51:28.5824000Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-20T18:51:28.6077309Z Removing HTTP extra header
+2026-10-20T18:51:28.6083216Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-20T18:51:28.6121091Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-20T18:51:28.6383287Z Removing includeIf entries pointing to credentials config files
+2026-10-20T18:51:28.6391078Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-20T18:51:28.6428296Z includeif.gitdir:/home/runner/work/safeword/safeword/.git.path
+2026-10-20T18:51:28.6429436Z includeif.gitdir:/home/runner/work/safeword/safeword/.git/worktrees/*.path
+2026-10-20T18:51:28.6430436Z includeif.gitdir:/github/workspace/.git.path
+2026-10-20T18:51:28.6431043Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-10-20T18:51:28.6447482Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/safeword/safeword/.git.path
+2026-10-20T18:51:28.6468893Z /home/runner/work/_temp/git-credentials-2e6d4872-acb1-4de3-af3f-b1bd6ebd7ef3.config
+2026-10-20T18:51:28.6488024Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/safeword/safeword/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-2e6d4872\-acb1\-4de3\-af3f\-b1bd6ebd7ef3\.config
+2026-10-20T18:51:28.6529376Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/safeword/safeword/.git/worktrees/*.path
+2026-10-20T18:51:28.6565597Z /home/runner/work/_temp/git-credentials-2e6d4872-acb1-4de3-af3f-b1bd6ebd7ef3.config
+2026-10-20T18:51:28.6575759Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/safeword/safeword/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-2e6d4872\-acb1\-4de3\-af3f\-b1bd6ebd7ef3\.config
+2026-10-20T18:51:28.6616568Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-10-20T18:51:28.6642150Z /github/runner_temp/git-credentials-2e6d4872-acb1-4de3-af3f-b1bd6ebd7ef3.config
+2026-10-20T18:51:28.6649812Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-2e6d4872\-acb1\-4de3\-af3f\-b1bd6ebd7ef3\.config
+2026-10-20T18:51:28.6685958Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-10-20T18:51:28.6710674Z /github/runner_temp/git-credentials-2e6d4872-acb1-4de3-af3f-b1bd6ebd7ef3.config
+2026-10-20T18:51:28.6721295Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-2e6d4872\-acb1\-4de3\-af3f\-b1bd6ebd7ef3\.config
+2026-10-20T18:51:28.6758311Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-20T18:51:28.7005858Z Removing credentials config '/home/runner/work/_temp/git-credentials-2e6d4872-acb1-4de3-af3f-b1bd6ebd7ef3.config'
+2026-10-20T18:51:28.7183722Z Cleaning up orphan processes

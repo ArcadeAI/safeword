@@ -13,3 +13,5 @@ GREEN plan: reconcile own-slice production changes against main, retaining insta
 Historical failures and deferrals remain: broad acceptance 6 failed/585 unfinished; 33 accepted cases unverified; #5086 R7 host retrieval/private-injection human-deferred; wrong-kind receipt recovery R9 needs regression; historical Claude approval and check counts are not current-head evidence. No merge or Ready authority.
 
 Completion: targeted regression tests, generated surfaces and parity, appropriate final checks, independent Claude review, surgical self-review, truthful Draft PR pushed. Preserve all limits.
+
+Delivery record: [Draft PR #5995](https://github.com/ArcadeAI/safeword/pull/5995). The frozen-source local suites pass; the inherited dependency-audit failure remains a CI blocker. See `verify-5086.md` for terminal results, bounded Claude reviews, failed attempts and deferrals. Parent phase/status is unchanged. No merge or Ready promotion.

@@ -1,5 +1,5 @@
 {
-  "scope": "Raw historical attempts, bounded reviews and declared-checkpoint results. JSON responses use .json.txt to preserve exact bytes through formatters. Interrupted/failed runs are never green; final serial results are recorded separately.",
+  "scope": "Raw historical attempts, bounded reviews and final frozen-product-tree verification. JSON responses use .json.txt to preserve exact bytes. Failed/interrupted/deferred evidence is not green. Source checkpoint and metadata-only identity are declared in finish-product-tree.json.txt.",
   "files": [
     {
       "file": "5086-admission-review.md.txt",
@@ -45,6 +45,21 @@
       "file": "audit.log",
       "bytes": 11160,
       "sha256": "97b3324069ca50f9921c69f9b5271fdf0913233f9ef845746fc938d3d8c72b2a"
+    },
+    {
+      "file": "ci-dependency-baseline.json.txt",
+      "bytes": 606,
+      "sha256": "588c0d86a7d837e0bf5295b5bdbf3ad74256f963ef1cabbd467909dec4666d2d"
+    },
+    {
+      "file": "ci-dependency-job.log",
+      "bytes": 16625,
+      "sha256": "140aa6707a83e4dba8169698d5cde8757dc5c1b463ff439bc618fecca22f691b"
+    },
+    {
+      "file": "ci-preclosure.json.txt",
+      "bytes": 2553,
+      "sha256": "ddb835b31b795385e00cfb9a08e034483a800b799e67fe15f356cd779972d111"
     },
     {
       "file": "cli-walkthrough-replay.json.txt",
@@ -127,9 +142,24 @@
       "sha256": "099ae8b385a79907e615f0b1f8ed06f142122f86c8021a7f1162dd6a0e7bcb58"
     },
     {
+      "file": "finish-bdd.log",
+      "bytes": 2590,
+      "sha256": "57bc1db7780c6db0f435e5fb3fe509922f6b36f2e495cbc033d2ff78cecce091"
+    },
+    {
       "file": "finish-capability.log",
       "bytes": 53,
       "sha256": "54b069c2a0cfb7bedf155bb5f4e84302d123ba64d09d9c037eb1e29a21a04fd6"
+    },
+    {
+      "file": "finish-cli-contract.log",
+      "bytes": 340,
+      "sha256": "61d14f844e04a16932d144ea07c4ee2cd82d5c8de164032962d9c7da6b5804ac"
+    },
+    {
+      "file": "finish-full.log",
+      "bytes": 28866,
+      "sha256": "c9d589f75f0d65a6542445e8a61ee73bab0272a807bd20cf6fc05f5d2ba6ea84"
     },
     {
       "file": "finish-generated-check.log",
@@ -137,9 +167,29 @@
       "sha256": "b14948a65d3e1915acfab0f60e2cc2b2b827aa96bfcf7e1d505dbd53eaf51a00"
     },
     {
+      "file": "finish-lint.log",
+      "bytes": 161,
+      "sha256": "57d5f8367b5a58bba4b4cbada9293f039cf55e9aea854237c06c4f0f8274df90"
+    },
+    {
       "file": "finish-parity.log",
       "bytes": 110,
       "sha256": "65107e673c739342f5b1fea27450dfeac02286ae9bbb9b47e5ca601f16ac0f4d"
+    },
+    {
+      "file": "finish-product-tree.json.txt",
+      "bytes": 514,
+      "sha256": "5a1122abdd7edc245cf23b4333a233a2465765876eb5053fd41d15296638fdb7"
+    },
+    {
+      "file": "finish-release.log",
+      "bytes": 22398,
+      "sha256": "58ce4fbbe87841d4d6526c54171371f967a546be66c9e19c6981d703bf32533e"
+    },
+    {
+      "file": "finish-results.json.txt",
+      "bytes": 1705,
+      "sha256": "55bcfa270dfe72403fb58adef95b65d34c6b4aa02b79e90ab046d3e7edd63306"
     },
     {
       "file": "finish-shared-lock-timeout-results.json.txt",
@@ -150,6 +200,31 @@
       "file": "finish-shared-lock-timeout.log",
       "bytes": 3227,
       "sha256": "cd85673a177bf8c62da86b1e8c5c837dfbb6736204e1605cf3619ab156ceed64"
+    },
+    {
+      "file": "finish-smoke.log",
+      "bytes": 23333,
+      "sha256": "b4183114469123c6c74abae471c661ea9dbb8a0cfaee12ec6ec40afbaf7b4db1"
+    },
+    {
+      "file": "finish-typecheck.log",
+      "bytes": 184,
+      "sha256": "336611721df5e258f1f63cfc3b7eb5afb028d2ac5940177b9818058a2081d7b2"
+    },
+    {
+      "file": "finish-walkthrough-closed-job.json.txt",
+      "bytes": 427,
+      "sha256": "ef07edefaaf05c78f83b383e5caf3c6fc0a4a5d90673cfccdf04bc8336ebd16c"
+    },
+    {
+      "file": "finish-walkthrough-routes.json.txt",
+      "bytes": 813,
+      "sha256": "b480e5bf2b1a843876ad14c767455284b244dd141ddb3c65eb21bb91e5ef9815"
+    },
+    {
+      "file": "finish-walkthrough.json.txt",
+      "bytes": 1332,
+      "sha256": "2f2442be3154f6b1f21456a114933a62ebd09ac0b32f2633af278669dfb80071"
     },
     {
       "file": "full.log",
@@ -260,6 +335,11 @@
       "file": "serialized-cli-contract.log",
       "bytes": 256,
       "sha256": "090473d27da7d52f7c7ca34b5b8c17e33157e490adc2ab775ab309b999258a78"
+    },
+    {
+      "file": "source-diff-check.log",
+      "bytes": 811,
+      "sha256": "10b23c13b5bc6e952555b73d2a42507e98eb95f0112fd64c4c08d8eb3f8b5eb3"
     },
     {
       "file": "source-review-status.json.txt",
