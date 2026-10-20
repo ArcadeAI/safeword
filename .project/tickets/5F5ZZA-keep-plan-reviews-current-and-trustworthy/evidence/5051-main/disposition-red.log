@@ -1,0 +1,494 @@
+$ bun run --cwd packages/retro-relay test && bun run --cwd packages/retro-collector test && bun run --cwd packages/cli test tests/integration/planning-review-disposition.test.ts
+$ bun run build && vitest run
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/19aa/safeword/packages/retro-relay/tsup.config.ts
+CLI Target: node22
+CLI Cleaning output folder
+ESM Build start
+ESM dist/main.js               848.00 B
+ESM dist/index.js              3.30 KB
+ESM dist/chunk-XO4XPAFC.js     90.77 KB
+ESM dist/main.js.map           1.56 KB
+ESM dist/index.js.map          6.01 KB
+ESM dist/chunk-XO4XPAFC.js.map 170.09 KB
+ESM ⚡️ Build success in 12ms
+DTS Build start
+DTS ⚡️ Build success in 691ms
+DTS dist/main.d.ts  13.00 B
+DTS dist/index.d.ts 9.50 KB
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/19aa/safeword/packages/retro-relay
+
+
+ Test Files  9 passed (9)
+      Tests  198 passed | 1 skipped (199)
+   Start at  20:59:12
+   Duration  6.00s (tests 88%, transform 7%, import 4%)
+
+$ bun run build && vitest run
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts, src/worker-main.ts, src/worker.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/19aa/safeword/packages/retro-collector/tsup.config.ts
+CLI Target: node24
+CLI Cleaning output folder
+ESM Build start
+ESM dist/worker-main.js        1.25 KB
+ESM dist/chunk-2S4U6WKG.js     29.46 KB
+ESM dist/worker.js             217.00 B
+ESM dist/main.js               1.64 KB
+ESM dist/chunk-JFIHCTGV.js     2.88 KB
+ESM dist/index.js              140.00 B
+ESM dist/worker-main.js.map    2.29 KB
+ESM dist/chunk-2S4U6WKG.js.map 53.50 KB
+ESM dist/worker.js.map         71.00 B
+ESM dist/main.js.map           2.79 KB
+ESM dist/index.js.map          71.00 B
+ESM dist/chunk-JFIHCTGV.js.map 6.04 KB
+ESM ⚡️ Build success in 8ms
+DTS Build start
+DTS ⚡️ Build success in 703ms
+DTS dist/main.d.ts        13.00 B
+DTS dist/worker.d.ts      935.00 B
+DTS dist/index.d.ts       2.64 KB
+DTS dist/worker-main.d.ts 13.00 B
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/19aa/safeword/packages/retro-collector
+
+
+ Test Files  4 passed (4)
+      Tests  153 passed (153)
+   Start at  20:59:19
+   Duration  1.39s (tests 89%, transform 8%, import 3%)
+
+$ node scripts/run-vitest-with-build-lock.mjs tests/integration/planning-review-disposition.test.ts
+$ tsup
+CLI Building entry: src/cli.ts, src/index.ts, src/opencode/dispatcher.ts, src/presets/typescript/index.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/19aa/safeword/packages/cli/tsup.config.ts
+CLI Target: node18
+CLI Cleaning output folder
+ESM Build start
+ESM dist/lint-gherkin-SDLGYY44.js                2.66 KB
+ESM dist/drain-retro-spool-R54YM7FX.js           2.73 KB
+ESM dist/codex-hook-SVQHMWUX.js                  778.00 B
+ESM dist/retro-drain-AZ2QRCTE.js                 2.13 KB
+ESM dist/boundary-OJ4YEFO4.js                    20.68 KB
+ESM dist/execution-prerequisite-KFU7PI2X.js      1.42 KB
+ESM dist/public-retros-PV4SJLTP.js               675.00 B
+ESM dist/feature-directories-FX4FVELE.js         495.00 B
+ESM dist/chunk-DZNEITKA.js                       3.87 KB
+ESM dist/review-knowledge-FMREPQGV.js            664.00 B
+ESM dist/record-skill-invocation-44S3US2H.js     6.92 KB
+ESM dist/delivery-checklist-R4VWFWKN.js          40.94 KB
+ESM dist/chunk-V5LUKXHB.js                       14.15 KB
+ESM dist/audit-scope-3PS7TH7G.js                 1.17 KB
+ESM dist/coding-authorization-KPE534XX.js        3.28 KB
+ESM dist/learning-sync-LMP7L7UI.js               3.66 KB
+ESM dist/chunk-3PIFBQCX.js                       1.31 KB
+ESM dist/chunk-W6GZF374.js                       2.01 KB
+ESM dist/project-pr-ready-7UYVI5Y5.js            15.05 KB
+ESM dist/test-execution-K5GXRFKU.js              50.79 KB
+ESM dist/codify-TBOOWDLZ.js                      10.04 KB
+ESM dist/project-runtime-E7SPEDJW.js             4.32 KB
+ESM dist/test-plan-4OCXACFW.js                   4.60 KB
+ESM dist/chunk-74TS7WDB.js                       21.48 KB
+ESM dist/chunk-EJGFJCDO.js                       4.31 KB
+ESM dist/namespace-root-W4T4ET77.js              1.37 KB
+ESM dist/chunk-FCFKPPOO.js                       897.00 B
+ESM dist/chunk-65PY3JOS.js                       3.98 KB
+ESM dist/chunk-OABGRXA5.js                       17.01 KB
+ESM dist/plan-approval-Z34NZLYE.js               30.28 KB
+ESM dist/chunk-WSKUVG2N.js                       883.00 B
+ESM dist/chunk-PAN3FWH3.js                       2.07 KB
+ESM dist/planning-contract-check-FORLFZ3U.js     1.87 KB
+ESM dist/chunk-GXIITVMR.js                       5.36 KB
+ESM dist/conformance-XMEJBK7X.js                 19.89 KB
+ESM dist/review-disposition-OOGH7PJE.js          9.77 KB
+ESM dist/status-JGDOSWCS.js                      1.91 KB
+ESM dist/chunk-YPTYSUWA.js                       11.80 KB
+ESM dist/chunk-RPGW2JSI.js                       554.00 B
+ESM dist/commands-6RRVBFUJ.js                    97.30 KB
+ESM dist/remove-NHSEZE76.js                      636.00 B
+ESM dist/chunk-DDGYXNJE.js                       44.42 KB
+ESM dist/doctor-YXU5EFVO.js                      3.25 KB
+ESM dist/chunk-EEEJGECA.js                       11.82 KB
+ESM dist/sync-config-UP4QIZQY.js                 353.00 B
+ESM dist/chunk-XTQTKYM7.js                       9.61 KB
+ESM dist/cleanup-B7ALTIVG.js                     543.00 B
+ESM dist/chunk-D6BLGHST.js                       31.00 KB
+ESM dist/corpus-256T7MW3.js                      304.00 B
+ESM dist/cleanup-command-WDEIRUPS.js             4.25 KB
+ESM dist/tracker-sync-KCWFMZGH.js                290.00 B
+ESM dist/chunk-4GGINLUJ.js                       64.12 KB
+ESM dist/chunk-UCB3QWRT.js                       2.03 KB
+ESM dist/sync-tracker-XQUAQC7S.js                10.34 KB
+ESM dist/chunk-DCKUS3RA.js                       7.76 KB
+ESM dist/profile-OQAJ6ZYI.js                     581.00 B
+ESM dist/ticket-new-AS6ASSXC.js                  21.39 KB
+ESM dist/ticket-reconcile-parent-QJ6GYVP5.js     3.62 KB
+ESM dist/chunk-2H676IFH.js                       10.61 KB
+ESM dist/status-47YNVBZG.js                      534.00 B
+ESM dist/chunk-CDNKNSSZ.js                       65.64 KB
+ESM dist/chunk-VZD3KGXE.js                       36.28 KB
+ESM dist/tracker-map-FGKYFOYE.js                 313.00 B
+ESM dist/profile-7YEOYRMA.js                     721.00 B
+ESM dist/prompt-Q6DQEVC4.js                      154.00 B
+ESM dist/review-pr-readiness-MEVHVKU4.js         3.81 KB
+ESM dist/chunk-UDLS7BHG.js                       2.52 KB
+ESM dist/chunk-XQV3MM3G.js                       662.00 B
+ESM dist/clients-LFQJ5JMI.js                     319.00 B
+ESM dist/run-D3TGLC7A.js                         7.84 KB
+ESM dist/chunk-6GQX7IJP.js                       4.76 KB
+ESM dist/chunk-ULY7JQH4.js                       651.00 B
+ESM dist/chunk-FS2LEZBO.js                       1.65 KB
+ESM dist/chunk-PSG27ZUF.js                       1.17 KB
+ESM dist/chunk-6MK7T6BV.js                       1.01 KB
+ESM dist/ticket-sync-ITYZIPS5.js                 535.00 B
+ESM dist/config-KCF6UZ54.js                      174.00 B
+ESM dist/retrospective-gate-ZE3PMLEG.js          1.39 KB
+ESM dist/job-W4SVOQQ2.js                         1.62 KB
+ESM dist/chunk-WURZ5YIL.js                       11.15 KB
+ESM dist/retrospective-close-J4BFHTWN.js         12.96 KB
+ESM dist/chunk-VNKL47R5.js                       32.73 KB
+ESM dist/chunk-D6GTH5CV.js                       13.63 KB
+ESM dist/chunk-UFTSWOAH.js                       2.18 KB
+ESM dist/chunk-U7H6HR4G.js                       5.81 KB
+ESM dist/chunk-IOFEDXVS.js                       2.79 KB
+ESM dist/chunk-M2OV3LPR.js                       1.41 KB
+ESM dist/policy-T57TU3GV.js                      572.00 B
+ESM dist/chunk-BQWH3TCN.js                       19.61 KB
+ESM dist/chunk-FLNIE65O.js                       5.65 KB
+ESM dist/chunk-CQ652GKM.js                       59.59 KB
+ESM dist/red-execution-XQGLPML5.js               217.00 B
+ESM dist/chunk-IG4K54AY.js                       46.70 KB
+ESM dist/coordinator-QE5RAHBQ.js                 112.28 KB
+ESM dist/chunk-QIA5F7ZT.js                       11.78 KB
+ESM dist/chunk-Q34DX5YB.js                       18.36 KB
+ESM dist/chunk-Q7T6SA2G.js                       5.60 KB
+ESM dist/review-pr-publication-6R3YM2IE.js       16.10 KB
+ESM dist/chunk-MWYMNOH3.js                       7.14 KB
+ESM dist/chunk-WAMQTZAH.js                       436.00 B
+ESM dist/chunk-ORYCHVPO.js                       4.18 KB
+ESM dist/chunk-BS3YY6HP.js                       3.59 KB
+ESM dist/chunk-F2KNW3CK.js                       1.54 KB
+ESM dist/chunk-GGA7JM4F.js                       1.12 KB
+ESM dist/gh-cli-OI7JA5K2.js                      220.00 B
+ESM dist/chunk-DESG3RJ4.js                       1.14 KB
+ESM dist/github-rest-5BEFETCO.js                 7.39 KB
+ESM dist/review-pr-G7LJCXKB.js                   25.50 KB
+ESM dist/chunk-5JTXPZVT.js                       1.26 KB
+ESM dist/chunk-VJRCL2CW.js                       513.00 B
+ESM dist/chunk-ASXQTTU4.js                       1.63 KB
+ESM dist/chunk-Z3KR75EH.js                       3.54 KB
+ESM dist/chunk-KULHJBJ6.js                       832.00 B
+ESM dist/packet-AFQO5V4M.js                      1.31 KB
+ESM dist/chunk-2XLSIXSJ.js                       2.94 KB
+ESM dist/chunk-6XAGX2CM.js                       3.17 KB
+ESM dist/route-config-DAU2SXXS.js                306.00 B
+ESM dist/contract-FGFXSM7R.js                    156.00 B
+ESM dist/retro-BMWDK5FE.js                       161.94 KB
+ESM dist/preferences-RF7Z6HBJ.js                 563.00 B
+ESM dist/cursor-QEBEFR7Q.js                      756.00 B
+ESM dist/chunk-SMFBMEDM.js                       428.00 B
+ESM dist/chunk-24ZULBPG.js                       7.13 KB
+ESM dist/architecture-document-DH5Z4M6J.js       573.00 B
+ESM dist/chunk-IIWMBCDR.js                       2.05 KB
+ESM dist/chunk-JSUW7NZU.js                       8.99 KB
+ESM dist/architecture-AFJZDRH6.js                24.66 KB
+ESM dist/legacy-global-guidance-V2AD2ZN6.js      470.00 B
+ESM dist/schema-NXJ6YQVI.js                      594.00 B
+ESM dist/finalization-GZATRAQV.js                886.00 B
+ESM dist/chunk-F4ZMRRE3.js                       10.31 KB
+ESM dist/chunk-PHYZKEER.js                       6.00 KB
+ESM dist/operations-MYPENICV.js                  1.42 KB
+ESM dist/codex-bootstrap-SULQNVC7.js             10.70 KB
+ESM dist/chunk-SONGD2YI.js                       48.54 KB
+ESM dist/chunk-NMO6V2BX.js                       8.00 KB
+ESM dist/retro-extract-GCMOHBHN.js               1.24 KB
+ESM dist/chunk-A3QLTTGK.js                       1.93 KB
+ESM dist/chunk-L6XMSCXJ.js                       4.27 KB
+ESM dist/retro-draft-spool-JRR7NLQE.js           747.00 B
+ESM dist/chunk-RVDXZZBQ.js                       6.68 KB
+ESM dist/chunk-4L4NYOC3.js                       1.45 KB
+ESM dist/chunk-MDELAZHW.js                       18.16 KB
+ESM dist/chunk-NSULDCHR.js                       648.00 B
+ESM dist/chunk-56BJOCCK.js                       639.00 B
+ESM dist/chunk-FV2S4LAR.js                       4.17 KB
+ESM dist/chunk-MEZPGCK3.js                       1.10 KB
+ESM dist/chunk-POEGHEM5.js                       2.37 KB
+ESM dist/chunk-DNSDTWSV.js                       5.41 KB
+ESM dist/chunk-5MJ6TVSQ.js                       650.00 B
+ESM dist/chunk-EIBH2KJR.js                       19.04 KB
+ESM dist/index.js                                272.00 B
+ESM dist/chunk-GFQ4IV3Q.js                       7.20 KB
+ESM dist/cli.js                                  157.70 KB
+ESM dist/chunk-C74XRQRW.js                       1.67 KB
+ESM dist/chunk-ZCL4PSQL.js                       31.71 KB
+ESM dist/opencode/dispatcher.js                  689.00 B
+ESM dist/chunk-76EQQIBO.js                       27.61 KB
+ESM dist/chunk-FKU44SVJ.js                       12.85 KB
+ESM dist/chunk-T764BIUH.js                       2.13 KB
+ESM dist/chunk-L4IG7UQ3.js                       110.73 KB
+ESM dist/chunk-THLEVFEX.js                       708.00 B
+ESM dist/chunk-YBSHXP7K.js                       111.17 KB
+ESM dist/chunk-AY4YDTAF.js                       58.34 KB
+ESM dist/chunk-6X5YBEJ5.js                       18.43 KB
+ESM dist/chunk-TWSWBBIY.js                       16.88 KB
+ESM dist/presets/typescript/index.js             1012.00 B
+ESM dist/chunk-YCMLJEVC.js                       13.00 KB
+ESM dist/chunk-AQPCAFHA.js                       54.83 KB
+ESM dist/chunk-QOLHGAD5.js                       2.24 KB
+ESM dist/chunk-4VORK37W.js                       444.00 B
+ESM dist/chunk-QOIQQY4E.js                       7.28 KB
+ESM dist/chunk-QSLVO4XF.js                       825.00 B
+ESM dist/chunk-SK6TC4BO.js                       1.80 KB
+ESM dist/architecture-monorepo-NZAX2AUT.js       403.00 B
+ESM dist/output-HZGY54TO.js                      276.00 B
+ESM dist/chunk-TQOCRYWI.js                       7.33 KB
+ESM dist/self-report-FSVBKIP2.js                 999.00 B
+ESM dist/chunk-XSCHFMVU.js                       7.15 KB
+ESM dist/chunk-LGVAEQJJ.js                       475.00 B
+ESM dist/configured-paths-DHSEWNTD.js            1.31 KB
+ESM dist/chunk-VTC3ZUUA.js                       32.47 KB
+ESM dist/chunk-RYDEPCC3.js                       11.34 KB
+ESM dist/chunk-NEEAUFF6.js                       541.33 KB
+ESM dist/public-retros-PV4SJLTP.js.map           968.00 B
+ESM dist/boundary-OJ4YEFO4.js.map                48.48 KB
+ESM dist/codex-hook-SVQHMWUX.js.map              71.00 B
+ESM dist/retro-drain-AZ2QRCTE.js.map             4.49 KB
+ESM dist/review-knowledge-FMREPQGV.js.map        1.58 KB
+ESM dist/feature-directories-FX4FVELE.js.map     545.00 B
+ESM dist/delivery-checklist-R4VWFWKN.js.map      75.78 KB
+ESM dist/execution-prerequisite-KFU7PI2X.js.map  71.00 B
+ESM dist/audit-scope-3PS7TH7G.js.map             1.97 KB
+ESM dist/coding-authorization-KPE534XX.js.map    3.75 KB
+ESM dist/drain-retro-spool-R54YM7FX.js.map       5.15 KB
+ESM dist/record-skill-invocation-44S3US2H.js.map 23.35 KB
+ESM dist/lint-gherkin-SDLGYY44.js.map            4.69 KB
+ESM dist/chunk-DZNEITKA.js.map                   8.46 KB
+ESM dist/learning-sync-LMP7L7UI.js.map           7.73 KB
+ESM dist/chunk-V5LUKXHB.js.map                   27.06 KB
+ESM dist/chunk-3PIFBQCX.js.map                   2.31 KB
+ESM dist/project-pr-ready-7UYVI5Y5.js.map        59.82 KB
+ESM dist/chunk-W6GZF374.js.map                   82.74 KB
+ESM dist/chunk-74TS7WDB.js.map                   48.39 KB
+ESM dist/test-execution-K5GXRFKU.js.map          97.76 KB
+ESM dist/project-runtime-E7SPEDJW.js.map         7.94 KB
+ESM dist/test-plan-4OCXACFW.js.map               9.61 KB
+ESM dist/chunk-FCFKPPOO.js.map                   1.73 KB
+ESM dist/chunk-WSKUVG2N.js.map                   13.08 KB
+ESM dist/codify-TBOOWDLZ.js.map                  22.84 KB
+ESM dist/namespace-root-W4T4ET77.js.map          2.45 KB
+ESM dist/chunk-65PY3JOS.js.map                   8.06 KB
+ESM dist/chunk-OABGRXA5.js.map                   34.78 KB
+ESM dist/chunk-PAN3FWH3.js.map                   10.31 KB
+ESM dist/plan-approval-Z34NZLYE.js.map           58.90 KB
+ESM dist/chunk-GXIITVMR.js.map                   12.15 KB
+ESM dist/review-disposition-OOGH7PJE.js.map      16.67 KB
+ESM dist/chunk-EJGFJCDO.js.map                   11.21 KB
+ESM dist/planning-contract-check-FORLFZ3U.js.map 1.81 KB
+ESM dist/remove-NHSEZE76.js.map                  71.00 B
+ESM dist/chunk-RPGW2JSI.js.map                   987.00 B
+ESM dist/conformance-XMEJBK7X.js.map             36.44 KB
+ESM dist/doctor-YXU5EFVO.js.map                  3.41 KB
+ESM dist/chunk-YPTYSUWA.js.map                   21.92 KB
+ESM dist/status-JGDOSWCS.js.map                  71.00 B
+ESM dist/chunk-D6BLGHST.js.map                   58.73 KB
+ESM dist/corpus-256T7MW3.js.map                  71.00 B
+ESM dist/chunk-DDGYXNJE.js.map                   101.88 KB
+ESM dist/sync-config-UP4QIZQY.js.map             71.00 B
+ESM dist/cleanup-B7ALTIVG.js.map                 71.00 B
+ESM dist/chunk-XTQTKYM7.js.map                   19.27 KB
+ESM dist/tracker-sync-KCWFMZGH.js.map            71.00 B
+ESM dist/cleanup-command-WDEIRUPS.js.map         6.47 KB
+ESM dist/chunk-EEEJGECA.js.map                   22.83 KB
+ESM dist/chunk-UCB3QWRT.js.map                   4.79 KB
+ESM dist/chunk-4GGINLUJ.js.map                   154.91 KB
+ESM dist/chunk-DCKUS3RA.js.map                   19.49 KB
+ESM dist/sync-tracker-XQUAQC7S.js.map            29.36 KB
+ESM dist/ticket-new-AS6ASSXC.js.map              56.14 KB
+ESM dist/status-47YNVBZG.js.map                  71.00 B
+ESM dist/profile-OQAJ6ZYI.js.map                 71.00 B
+ESM dist/chunk-2H676IFH.js.map                   20.21 KB
+ESM dist/profile-7YEOYRMA.js.map                 71.00 B
+ESM dist/chunk-CDNKNSSZ.js.map                   121.03 KB
+ESM dist/chunk-VZD3KGXE.js.map                   65.90 KB
+ESM dist/tracker-map-FGKYFOYE.js.map             71.00 B
+ESM dist/commands-6RRVBFUJ.js.map                193.39 KB
+ESM dist/prompt-Q6DQEVC4.js.map                  71.00 B
+ESM dist/ticket-reconcile-parent-QJ6GYVP5.js.map 6.28 KB
+ESM dist/chunk-XQV3MM3G.js.map                   1.32 KB
+ESM dist/run-D3TGLC7A.js.map                     18.93 KB
+ESM dist/review-pr-readiness-MEVHVKU4.js.map     9.43 KB
+ESM dist/chunk-6GQX7IJP.js.map                   12.06 KB
+ESM dist/clients-LFQJ5JMI.js.map                 71.00 B
+ESM dist/chunk-UDLS7BHG.js.map                   6.23 KB
+ESM dist/config-KCF6UZ54.js.map                  71.00 B
+ESM dist/chunk-ULY7JQH4.js.map                   1.91 KB
+ESM dist/chunk-FS2LEZBO.js.map                   5.90 KB
+ESM dist/chunk-6MK7T6BV.js.map                   2.24 KB
+ESM dist/retrospective-gate-ZE3PMLEG.js.map      71.00 B
+ESM dist/chunk-VNKL47R5.js.map                   63.81 KB
+ESM dist/chunk-PSG27ZUF.js.map                   2.12 KB
+ESM dist/retrospective-close-J4BFHTWN.js.map     21.99 KB
+ESM dist/job-W4SVOQQ2.js.map                     71.00 B
+ESM dist/chunk-WURZ5YIL.js.map                   27.18 KB
+ESM dist/ticket-sync-ITYZIPS5.js.map             71.00 B
+ESM dist/chunk-U7H6HR4G.js.map                   14.97 KB
+ESM dist/chunk-D6GTH5CV.js.map                   34.88 KB
+ESM dist/chunk-M2OV3LPR.js.map                   8.65 KB
+ESM dist/chunk-FLNIE65O.js.map                   11.33 KB
+ESM dist/chunk-IOFEDXVS.js.map                   19.67 KB
+ESM dist/chunk-UFTSWOAH.js.map                   18.92 KB
+ESM dist/chunk-BQWH3TCN.js.map                   38.53 KB
+ESM dist/red-execution-XQGLPML5.js.map           71.00 B
+ESM dist/chunk-CQ652GKM.js.map                   122.12 KB
+ESM dist/policy-T57TU3GV.js.map                  71.00 B
+ESM dist/chunk-Q7T6SA2G.js.map                   10.41 KB
+ESM dist/chunk-QIA5F7ZT.js.map                   29.77 KB
+ESM dist/chunk-Q34DX5YB.js.map                   36.47 KB
+ESM dist/coordinator-QE5RAHBQ.js.map             186.03 KB
+ESM dist/chunk-IG4K54AY.js.map                   91.35 KB
+ESM dist/chunk-MWYMNOH3.js.map                   25.22 KB
+ESM dist/chunk-ORYCHVPO.js.map                   8.03 KB
+ESM dist/chunk-BS3YY6HP.js.map                   7.09 KB
+ESM dist/review-pr-publication-6R3YM2IE.js.map   31.05 KB
+ESM dist/chunk-WAMQTZAH.js.map                   828.00 B
+ESM dist/chunk-DESG3RJ4.js.map                   2.14 KB
+ESM dist/gh-cli-OI7JA5K2.js.map                  71.00 B
+ESM dist/github-rest-5BEFETCO.js.map             21.03 KB
+ESM dist/chunk-GGA7JM4F.js.map                   3.20 KB
+ESM dist/chunk-VJRCL2CW.js.map                   1000.00 B
+ESM dist/chunk-5JTXPZVT.js.map                   1.99 KB
+ESM dist/packet-AFQO5V4M.js.map                  71.00 B
+ESM dist/review-pr-G7LJCXKB.js.map               51.95 KB
+ESM dist/chunk-KULHJBJ6.js.map                   2.27 KB
+ESM dist/chunk-ASXQTTU4.js.map                   3.81 KB
+ESM dist/chunk-Z3KR75EH.js.map                   7.16 KB
+ESM dist/route-config-DAU2SXXS.js.map            71.00 B
+ESM dist/chunk-6XAGX2CM.js.map                   9.72 KB
+ESM dist/chunk-2XLSIXSJ.js.map                   5.21 KB
+ESM dist/chunk-SMFBMEDM.js.map                   8.12 KB
+ESM dist/contract-FGFXSM7R.js.map                71.00 B
+ESM dist/preferences-RF7Z6HBJ.js.map             71.00 B
+ESM dist/cursor-QEBEFR7Q.js.map                  71.00 B
+ESM dist/architecture-document-DH5Z4M6J.js.map   71.00 B
+ESM dist/chunk-24ZULBPG.js.map                   23.26 KB
+ESM dist/retro-BMWDK5FE.js.map                   343.60 KB
+ESM dist/schema-NXJ6YQVI.js.map                  71.00 B
+ESM dist/chunk-F2KNW3CK.js.map                   18.65 KB
+ESM dist/chunk-JSUW7NZU.js.map                   19.89 KB
+ESM dist/chunk-IIWMBCDR.js.map                   4.12 KB
+ESM dist/legacy-global-guidance-V2AD2ZN6.js.map  71.00 B
+ESM dist/chunk-PHYZKEER.js.map                   11.53 KB
+ESM dist/codex-bootstrap-SULQNVC7.js.map         18.26 KB
+ESM dist/finalization-GZATRAQV.js.map            71.00 B
+ESM dist/chunk-F4ZMRRE3.js.map                   28.54 KB
+ESM dist/architecture-AFJZDRH6.js.map            51.01 KB
+ESM dist/chunk-SONGD2YI.js.map                   86.23 KB
+ESM dist/operations-MYPENICV.js.map              71.00 B
+ESM dist/chunk-L6XMSCXJ.js.map                   8.58 KB
+ESM dist/retro-extract-GCMOHBHN.js.map           71.00 B
+ESM dist/chunk-NMO6V2BX.js.map                   15.59 KB
+ESM dist/chunk-A3QLTTGK.js.map                   3.98 KB
+ESM dist/chunk-MDELAZHW.js.map                   34.02 KB
+ESM dist/chunk-4L4NYOC3.js.map                   3.10 KB
+ESM dist/chunk-RVDXZZBQ.js.map                   19.22 KB
+ESM dist/retro-draft-spool-JRR7NLQE.js.map       71.00 B
+ESM dist/chunk-NSULDCHR.js.map                   1.53 KB
+ESM dist/chunk-POEGHEM5.js.map                   4.89 KB
+ESM dist/chunk-5MJ6TVSQ.js.map                   1.02 KB
+ESM dist/chunk-56BJOCCK.js.map                   1.34 KB
+ESM dist/chunk-EIBH2KJR.js.map                   49.85 KB
+ESM dist/chunk-MEZPGCK3.js.map                   2.28 KB
+ESM dist/chunk-DNSDTWSV.js.map                   9.77 KB
+ESM dist/chunk-GFQ4IV3Q.js.map                   13.90 KB
+ESM dist/chunk-FV2S4LAR.js.map                   8.09 KB
+ESM dist/index.js.map                            71.00 B
+ESM dist/chunk-C74XRQRW.js.map                   3.99 KB
+ESM dist/chunk-76EQQIBO.js.map                   50.56 KB
+ESM dist/chunk-T764BIUH.js.map                   4.04 KB
+ESM dist/chunk-ZCL4PSQL.js.map                   63.73 KB
+ESM dist/opencode/dispatcher.js.map              443.00 B
+ESM dist/chunk-THLEVFEX.js.map                   1.23 KB
+ESM dist/cli.js.map                              287.08 KB
+ESM dist/chunk-FKU44SVJ.js.map                   33.11 KB
+ESM dist/chunk-YBSHXP7K.js.map                   143.65 KB
+ESM dist/chunk-L4IG7UQ3.js.map                   216.05 KB
+ESM dist/chunk-TWSWBBIY.js.map                   27.03 KB
+ESM dist/chunk-YCMLJEVC.js.map                   19.44 KB
+ESM dist/chunk-AY4YDTAF.js.map                   141.93 KB
+ESM dist/chunk-6X5YBEJ5.js.map                   36.80 KB
+ESM dist/presets/typescript/index.js.map         71.00 B
+ESM dist/chunk-QOLHGAD5.js.map                   4.29 KB
+ESM dist/output-HZGY54TO.js.map                  71.00 B
+ESM dist/chunk-AQPCAFHA.js.map                   104.96 KB
+ESM dist/chunk-QSLVO4XF.js.map                   2.25 KB
+ESM dist/chunk-QOIQQY4E.js.map                   19.01 KB
+ESM dist/architecture-monorepo-NZAX2AUT.js.map   71.00 B
+ESM dist/self-report-FSVBKIP2.js.map             71.00 B
+ESM dist/chunk-4VORK37W.js.map                   1.23 KB
+ESM dist/chunk-XSCHFMVU.js.map                   18.20 KB
+ESM dist/chunk-SK6TC4BO.js.map                   6.18 KB
+ESM dist/chunk-LGVAEQJJ.js.map                   495.00 B
+ESM dist/chunk-TQOCRYWI.js.map                   19.81 KB
+ESM dist/configured-paths-DHSEWNTD.js.map        71.00 B
+ESM dist/chunk-RYDEPCC3.js.map                   31.72 KB
+ESM dist/chunk-VTC3ZUUA.js.map                   92.46 KB
+ESM dist/chunk-NEEAUFF6.js.map                   928.53 KB
+ESM ⚡️ Build success in 158ms
+DTS Build start
+DTS ⚡️ Build success in 2649ms
+DTS dist/cli.d.ts                      20.00 B
+DTS dist/index.d.ts                    3.03 KB
+DTS dist/presets/typescript/index.d.ts 17.74 KB
+DTS dist/opencode/dispatcher.d.ts      13.00 B
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/19aa/safeword/packages/cli
+
+ ❯ tests/integration/planning-review-disposition.test.ts (6 tests | 1 failed) 9848ms
+   ❯ user-owned planning review disposition (6)
+     × retains prior declines when a fresh review receives another disposition 1502ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/planning-review-disposition.test.ts > user-owned planning review disposition > retains prior declines when a fresh review receives another disposition
+AssertionError: y
+Finding (warning): Consider adding an optional approval audit export.
+Accepted boundary: e0bc34f9dad0fa1e90a0172a4055b0f2814e3f59267e14c3df6e3fe6e0c1777d
+Decline reason: Outside the accepted scope.
+Record this decline in the ticket? [y/N] y
+{"schema_version":1,"ok":true,"state":"action_required","changed":false,"findings":[{"code":"REVIEW_DISPOSITION_WRITE_UNAVAILABLE","message":"The ticket or lock could not be updated atomically. Check the ticket before retrying.","severity":"warning"}],"effects":{"files":[],"packages":[],"configuration":[],"network":[],"destructive":[]},"errors":[],"recovery":[],"next_actions":[],"data":{"command":"ticket record-review-disposition","status":"pending"}}
+
+: expected 2 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 2
+
+ ❯ tests/integration/planning-review-disposition.test.ts:196:65
+    194|     const reviewId = JSON.parse(fresh.stdout).data.review_id as string;
+    195|     const second = project.terminal('y', reviewId);
+    196|     expect(second.status, `${second.stdout}\n${second.stderr}`).toBe(0…
+       |                                                                 ^
+    197|     const frontmatter = readFileSync(project.ticketPath, 'utf8').split…
+    198|     expect(parseFrontmatter(frontmatter).review_dispositions).toHaveLe…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  20:59:24
+   Duration  9.94s (tests 100%)
+
+error: script "test" exited with code 1
+error: script "test" exited with code 1

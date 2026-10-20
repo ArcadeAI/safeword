@@ -185,6 +185,27 @@ describe('user-owned planning review disposition', () => {
     expect(parsed.phase_skips).toHaveLength(2);
   });
 
+  it('retains prior declines when a fresh review receives another disposition', async () => {
+    const project = await reviewedProject();
+    const first = project.terminal('y', project.reviewId);
+    expect(first.status, `${first.stdout}\n${first.stderr}`).toBe(0);
+    const fresh = await project.run(['review', 'run', 'quality-review', target]);
+    expect(fresh.exitCode, fresh.stdout).toBe(0);
+    const reviewId = JSON.parse(fresh.stdout).data.review_id as string;
+    const second = project.terminal('y', reviewId);
+    expect(second.status, `${second.stdout}\n${second.stderr}`).toBe(0);
+    const frontmatter = readFileSync(project.ticketPath, 'utf8').split('---', 2)[1] ?? '';
+    expect(parseFrontmatter(frontmatter).review_dispositions).toHaveLength(2);
+  });
+
+  it('refuses an unauthenticated review without changing the ticket', async () => {
+    const project = await reviewedProject();
+    const before = readFileSync(project.ticketPath, 'utf8');
+    const result = project.terminal('y', '00000000-0000-4000-8000-000000000000');
+    expect(result.stdout, result.stderr).toContain('REVIEW_NOT_CURRENT');
+    expect(readFileSync(project.ticketPath, 'utf8')).toBe(before);
+  });
+
   it('leaves an authenticated optional finding pending in noninteractive mode', async () => {
     const project = await reviewedProject();
     const before = readFileSync(project.ticketPath, 'utf8');
