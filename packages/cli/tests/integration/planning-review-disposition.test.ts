@@ -77,6 +77,7 @@ async function reviewedProject(
   severity: 'info' | 'warning' | 'error' = 'warning',
   kind: Kind = 'quality-review',
   findingMessage = suggestion,
+  terminalFormat: 'json' | 'text' = 'json',
 ) {
   const root = createTemporaryDirectory();
   roots.push(root);
@@ -237,7 +238,7 @@ sys.exit(child.wait())`,
         'Outside the accepted scope.',
         '--cwd',
         root,
-        '--json',
+        ...(terminalFormat === 'json' ? ['--json'] : []),
       ],
       {
         cwd: root,
@@ -255,6 +256,18 @@ sys.exit(child.wait())`,
 }
 
 describe('user-owned planning review disposition', () => {
+  it('safely renders the pending human result after declined confirmation', async () => {
+    const message = 'Visible\u{1B}[31m\u{7}\u{202E}\u{2066}\u{2028}\u{2029}review advice';
+    const project = await reviewedProject('warning', 'quality-review', message, 'text');
+    const before = readFileSync(project.ticketPath, 'utf8');
+    const result = project.terminal('n', project.reviewId);
+    expect(result.stdout).toContain('requires interactive confirmation: Visible');
+    expect(result.stdout).not.toMatch(/[\p{Cf}\p{Zl}\p{Zp}]/u);
+    expect(result.stdout).not.toContain('\u{1B}');
+    expect(result.stdout).not.toContain('\u{7}');
+    expect(readFileSync(project.ticketPath, 'utf8')).toBe(before);
+  });
+
   it.each([
     ['terminal controls', 'Visible\u{1B}[31m\u{7}\u{202E}\u{2066}\u{2028}\u{2029}\nreview advice'],
     ['oversized prose', `Advice ${'x'.repeat(2500)}`],
