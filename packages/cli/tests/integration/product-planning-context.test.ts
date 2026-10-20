@@ -149,6 +149,26 @@ process.stdin.on('end', () => {
 }
 
 describe('required context through installed Product Plan review', () => {
+  it('admits a populated nested persona outcome inventory through installed dispatch', () => {
+    const project = fixture();
+    const path = nodePath.join(project.project, '.project/tickets', folder, 'spec.md');
+    const inventory =
+      '- **Persona outcome inventory:**\n  - **Builder:** Current approval succeeds; missing context refuses with a repair action.';
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace(
+        /- \*\*Persona outcome inventory:\*\*[^\n]*/u,
+        () => inventory,
+      ),
+    );
+    const result = project.review();
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(JSON.parse(result.stdout).data.status).toBe('approved');
+    const packet = JSON.parse(readFileSync(project.capture, 'utf8'));
+    expect(packet.logical_files).toEqual([
+      expect.objectContaining({ content: expect.stringContaining(inventory) }),
+    ]);
+  });
   it('supplies all current project inventories without caller context', () => {
     const project = fixture();
     const result = project.review();
