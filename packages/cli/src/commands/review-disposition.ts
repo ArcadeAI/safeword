@@ -15,6 +15,7 @@ import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 
 const command = 'ticket record-review-disposition';
 type PlanningReviewKind = 'quality-review' | 'plan-implementation' | 'plan-execution';
+type Finding = { readonly severity: 'info' | 'warning'; readonly message: string };
 
 export interface RecordReviewDispositionRequest {
   readonly cwd: string;
@@ -36,7 +37,7 @@ function isPlanningKind(value: unknown): value is PlanningReviewKind {
 function pending(
   request: RecordReviewDispositionRequest,
   kind: PlanningReviewKind,
-  finding: { readonly severity: 'info' | 'warning'; readonly message: string },
+  finding: Finding,
 ): CliResult {
   return createResult({
     state: 'action_required',
@@ -77,7 +78,7 @@ function addDisposition(
   content: string,
   request: RecordReviewDispositionRequest,
   kind: PlanningReviewKind,
-  finding: { readonly severity: 'info' | 'warning'; readonly message: string },
+  finding: Finding,
   boundaryDigest: string,
 ): string {
   const match = /^(---\r?\n)([\s\S]*?)(\r?\n---(?:\r?\n|$))/u.exec(content);
@@ -107,11 +108,7 @@ function addDisposition(
   return `${match[1]}${document.toString({ lineWidth: 0 }).trimEnd()}${match[3]}${content.slice(match[0].length)}`;
 }
 
-async function confirm(
-  finding: { readonly severity: 'info' | 'warning'; readonly message: string },
-  boundaryDigest: string,
-  reason: string,
-): Promise<boolean> {
+async function confirm(finding: Finding, boundaryDigest: string, reason: string): Promise<boolean> {
   process.stderr.write(
     `Finding (${finding.severity}): ${finding.message}\nAccepted boundary: ${boundaryDigest}\nDecline reason: ${reason}\n`,
   );
@@ -123,8 +120,6 @@ async function confirm(
     prompt.close();
   }
 }
-
-type Finding = { readonly severity: 'info' | 'warning'; readonly message: string };
 
 // The independent provenance and finding checks are one trust boundary.
 // eslint-disable-next-line complexity -- Every independent condition authenticates the selected finding.
