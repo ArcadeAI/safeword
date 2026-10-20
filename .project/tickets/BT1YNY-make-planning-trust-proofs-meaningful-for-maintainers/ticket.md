@@ -98,3 +98,11 @@ the binding with one coherent positive/missing/conflicting matrix in Examples
 order, keeping every existing negative assertion and dense rejection case.
 This is test/provenance hardening of existing behavior, not a new runtime RED
 claim; preserve the actual failed run.
+
+The corrected matrix now starts with supported, missing and conflicting cases
+in the feature's Examples order, followed by every retained dense rejection
+variant. The supported case upgrades pending shared clauses in all three
+installed copies; every rejected case preserves the existing exact error,
+metadata and byte-preservation assertions. One whole-matrix registration avoids
+the fan-in regression without changing the guard's 75/14 limits. Test support
+changed; production source and generated surfaces remain unchanged.

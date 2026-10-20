@@ -2,20 +2,8 @@
   "feature": "features/keep-plan-reviews-current-and-trustworthy.feature",
   "scenarios": {
     "Canonical invalidation declarations admit only the supported direction": [
-      [
-        "packages/cli/tests/integration/planning-contract-generation.test.ts",
-        "emits typed phase contracts including the owner-decided both_plan_reviews Execution invalidation direction"
-      ],
-      [
-        "packages/cli/tests/integration/planning-contract-generation.test.ts",
-        "blocks reconciliation for a $case Execution invalidation direction",
-        "missing"
-      ],
-      [
-        "packages/cli/tests/integration/planning-contract-generation.test.ts",
-        "blocks reconciliation for a $case Execution invalidation direction",
-        "unsupported own-review-only"
-      ]
+      "packages/cli/tests/integration/planning-contract-generation.test.ts",
+      "reconciles a $case canonical Execution invalidation declaration"
     ]
   }
 }
