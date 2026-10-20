@@ -53425,23 +53425,29 @@ function productParentContextIdentity(packet) {
   identities.set(parent.path, identity({ version: 1, sections: normalizeNodes([...selected, ...definitions]) }));
   return identities;
 }
+function nestedInventoryValue(node, parent) {
+  if (parent?.type !== "listItem" || parent.children?.[0] !== node)
+    return "";
+  return normalizeNodes(parent.children.slice(1)).filter((child) => child.type === "list").map((child) => headingText(child)).join("").trim();
+}
 function validatePlanningProductFrame(content) {
   const frame = requiredSection(parseMarkdown(content), 2, "Product Bet");
   const counts = new Map;
-  const visit3 = (node) => {
+  const visit3 = (node, parent) => {
     if (node.type === "paragraph") {
       const text = normalizeChildren(node).map((child) => headingText(child)).join("");
       const colon = text.indexOf(":");
       const label = text.slice(0, colon);
       if (productFrameFields.includes(label)) {
-        if (text.slice(colon + 1).trim() === "")
+        const nestedInventory = label === "Persona outcome inventory" ? nestedInventoryValue(node, parent) : "";
+        if (text.slice(colon + 1).trim() === "" && nestedInventory === "")
           throw new Error(`Blank Product Bet ${label}.`);
         counts.set(label, (counts.get(label) ?? 0) + 1);
       }
     }
     const children = node.children ?? [];
     for (const child of children)
-      visit3(child);
+      visit3(child, node);
   };
   for (const node of frame)
     visit3(node);
