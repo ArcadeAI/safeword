@@ -3610,7 +3610,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/DISCOVERY.md": "981a3fb25926b8c298b1d5da3dac26d63f6c567406b4017abaa0d07f4e67dc87",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_EXECUTION.md": "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "32067faf4e8f95926142aea815b5ce7b04e66a1cd0df9f64ae3436df4ad940ba",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "20f3b84735cc759680da9d94cbae6802cc95c9e6a16400ef9068b8b99b6900f8",
         ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
         ".claude/skills/bdd/SKILL.md": "898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
@@ -36824,7 +36824,7 @@ var init_contracts_generated = __esm(() => {
     },
     "plan-implementation": {
       relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      sha256: "32067faf4e8f95926142aea815b5ce7b04e66a1cd0df9f64ae3436df4ad940ba"
+      sha256: "20f3b84735cc759680da9d94cbae6802cc95c9e6a16400ef9068b8b99b6900f8"
     },
     "plan-execution": {
       relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
@@ -36858,7 +36858,7 @@ function readPlanningAuthor(root, phase, identity) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "d7fdb4ccf2f9f702c0b6a96dbb21a0797217d39e3c70f49bf3c309a6fd3f9850" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "a6f83175226b001893a05a675afff390086f303ff4380276cb8ce7a2fe18ea1e" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "29f67c4eb29d630cb7738df4cd72204b9cce3b1a9cd67ac78ec967e14bd0940c" } };
+  const copies = { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "d7fdb4ccf2f9f702c0b6a96dbb21a0797217d39e3c70f49bf3c309a6fd3f9850" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "a3b251b4b5a959d63381f61b5bf6401c45dd4e63706bf157bf2a2418e9097533" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "29f67c4eb29d630cb7738df4cd72204b9cce3b1a9cd67ac78ec967e14bd0940c" } };
   return readPlanningAuthor(packageRoot(), phase, copies[phase]);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {
@@ -82822,13 +82822,14 @@ async function approve(context, noInput) {
   if (executionDiscovery !== undefined) {
     return applyExecutionDiscovery(context, executionDiscovery);
   }
+  const approvalRequired = designApprovalEnabled(context.cwd);
   const review = currentReview(context);
   if (!review.ok) {
     return result2(context, "pending", [], review.reason);
   }
   const ledgerTarget = nodePath133.relative(context.cwd, context.ledgerPath);
   const ticketTarget = nodePath133.relative(context.cwd, context.ticketPath);
-  if (!designApprovalEnabled(context.cwd)) {
+  if (!approvalRequired) {
     appendReceipt(context, "not-required");
     const advanced = advanceToExecutionPlanning(context);
     return result2(context, "not-required", [ledgerTarget, ...advanced], undefined, {

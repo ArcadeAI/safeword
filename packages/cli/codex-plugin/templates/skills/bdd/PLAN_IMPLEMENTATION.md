@@ -377,7 +377,7 @@ receipt controls eligibility for approval and phase advancement.
    a continuation remains blocked. Never substitute another surface-private reviewer
    or hand-written independent evidence. Under `prefer`, a current approving
    receipt with actual reviewer and `independence: reduced` may satisfy this
-   phase when `architectureReviewGate` is disabled. State before any finding
+   planning phase. State before any finding
    that the actual reviewer was not independent; never call it cross-agent
    coverage. Under `require`, or for a stale, rejected, blocked, or unreceipted
    result, do not stamp or advance.

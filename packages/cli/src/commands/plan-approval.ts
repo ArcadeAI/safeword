@@ -546,6 +546,7 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
   if (executionDiscovery !== undefined) {
     return applyExecutionDiscovery(context, executionDiscovery);
   }
+  const approvalRequired = designApprovalEnabled(context.cwd);
   const review = currentReview(context);
   if (!review.ok) {
     return result(context, 'pending', [], review.reason);
@@ -553,7 +554,7 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
 
   const ledgerTarget = nodePath.relative(context.cwd, context.ledgerPath);
   const ticketTarget = nodePath.relative(context.cwd, context.ticketPath);
-  if (!designApprovalEnabled(context.cwd)) {
+  if (!approvalRequired) {
     appendReceipt(context, 'not-required');
     const advanced = advanceToExecutionPlanning(context);
     return result(context, 'not-required', [ledgerTarget, ...advanced], undefined, {
