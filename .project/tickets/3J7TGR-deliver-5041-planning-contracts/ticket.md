@@ -2,8 +2,8 @@
 id: 3J7TGR
 slug: deliver-5041-planning-contracts
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/5041
 external_prs:
   - https://github.com/ArcadeAI/safeword/pull/5957
@@ -76,3 +76,30 @@ after adopting main's shared trusted resolver. The initial outer-Cursor probe
 hit a separate adapter bootstrap boundary; it is retained as a limitation in
 integration-review.md. All 12 regenerated lifecycle result digests match main
 f48275b5e, including its Cursor install result change.
+
+## Local delivery closure
+
+2026-10-20: the user-approved bounded delivery is locally complete. Final
+targeted verification passed **332/332 tests** across 11 files; repository
+lint/Gherkin lint/CLI typecheck, CLI build, all five generated surfaces, 277
+mirror pairs/11 contracts, and three real-project copy checks passed. Diff audit
+has zero errors and one retained historical-evidence orphan warning.
+
+Independent verification/source review **86233b69-aaa3-4351-a6f7-21d0814b9f6a**
+was approved by Claude/opus with cross-agent independence and stamped for the
+verification exit. Earlier intake and implementation review records and all
+warning responses are retained. See [verification](verify.md) and
+[review responses](review-responses.md).
+
+The implementation-phase stamp was explicitly skipped through the documented
+helper because its current-work scope includes the whole broader branch,
+including generated and archived parent evidence. The actual bounded source
+review 2a40111c-1035-4eff-a7f0-376f8d4da248 is retained, not presented as whole-
+branch review. Intake and verification phase reviews were stamped normally.
+
+Current-head CI and admin merge remain external PR actions. They are required
+before merge and are not claimed complete by this local closure. 5F5ZZA remains
+scenario-gate/in_progress; its full acceptance and qualification deferrals
+remain open. Separate follow-up **3DD2P0** owns the discovered outer Cursor
+bootstrap gap. Failed profile enablement during local source sync remains an
+explicit host-proof limitation; no profile upgrade or native UI pass is claimed.

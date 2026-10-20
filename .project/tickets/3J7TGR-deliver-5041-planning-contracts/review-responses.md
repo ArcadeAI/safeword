@@ -27,3 +27,23 @@ about dates is resolved by distinguishing the 2026-10-19 UTC admin-merge request
 from the 2026-10-20 UTC delivery-partition approval. The ticket names concrete
 Product/hook tests and direct historical evidence links. Its intake phase was
 reviewed and stamped before advancing; no prior phase was falsely backdated.
+
+Final verification/source review `86233b69-aaa3-4351-a6f7-21d0814b9f6a`:
+Claude/opus, cross-agent, approved with no blocking errors. Verification phase
+was stamped normally through the witnessed coordinator receipt. Responses:
+
+- Untyped/non-current responses can fall through to another trusted exact-version
+  candidate; known typed copy failures remain final refusals. Keep main's shared
+  fallback policy and retain its availability/host-timeout limitation rather
+  than introducing another resolver or inventing a copy mismatch.
+- The outer Cursor bootstrap gap now has separate local task **3DD2P0**. No
+  native hostile-PATH protection is claimed by the shared-checker test.
+- Legacy hosts without any candidates remain advisory; that is the accepted
+  host boundary, not an implied completed enforcement proof.
+- Ticket-id echoing would tighten diagnostic binding but is optional inside
+  the accepted trusted-runtime boundary. Do not expand this closed CLI contract
+  during a delivery integration.
+
+Final local checks: 332/332 tests, repository ESLint/Gherkin lint/CLI typecheck,
+all five generated surfaces, parity and three real CLI copy checks passed.
+The successful repository lint log is retained with the targeted evidence.
