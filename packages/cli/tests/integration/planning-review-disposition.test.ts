@@ -27,7 +27,7 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-async function reviewedProject() {
+async function reviewedProject(severity: 'warning' | 'error' = 'warning') {
   const root = createTemporaryDirectory();
   roots.push(root);
   await createConfiguredProject(root);
@@ -87,11 +87,11 @@ process.stdin.on('end', () => {
   const packet = JSON.parse(input.trim().split('\n').pop());
   console.log(JSON.stringify({ structured_output: {
     schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude',
-    verdict: 'approve',
+    verdict: ${JSON.stringify(severity === 'error' ? 'request_changes' : 'approve')},
     summary: packet.review_disposition_context?.records[0]
       ? 'The user decline for ' + packet.review_disposition_context.records[0].message + ' is ' + packet.review_disposition_context.records[0].boundary_status + ' in ticket context.'
       : 'The accepted boundary remains intact.',
-    findings: [{ severity: 'warning', message: ${JSON.stringify(suggestion)} }],
+    findings: [{ severity: ${JSON.stringify(severity)}, message: ${JSON.stringify(suggestion)} }],
   } }));
 });
 `,
@@ -103,19 +103,21 @@ process.stdin.on('end', () => {
       env: { PATH: `${reviewer}:/usr/bin:/bin`, SAFEWORD_AGENT_RUNTIME: 'codex' },
     });
   const reviewed = await run(['review', 'run', 'quality-review', target]);
-  expect(reviewed.exitCode, `${reviewed.stdout}\n${reviewed.stderr}`).toBe(0);
+  expect(reviewed.exitCode, `${reviewed.stdout}\n${reviewed.stderr}`).toBe(
+    severity === 'error' ? 2 : 0,
+  );
   const data = JSON.parse(reviewed.stdout).data as { status: string; review_id: string };
-  expect(data.status).toBe('approved');
-  const terminal = (answer: string, reviewId: string) =>
+  expect(data.status).toBe(severity === 'error' ? 'changes_requested' : 'approved');
+  const terminal = (answer: string, reviewId: string, findingNumber = '1', edit = '') =>
     spawnSync(
       'python3',
       [
         '-c',
         String.raw`import os, pty, select, subprocess, sys
 master, slave = pty.openpty()
-child = subprocess.Popen(sys.argv[2:], stdin=slave, stdout=slave, stderr=slave)
+child = subprocess.Popen(sys.argv[4:], stdin=slave, stdout=slave, stderr=slave)
 os.close(slave)
-os.write(master, (sys.argv[1] + '\n').encode())
+answered = False
 output = bytearray()
 while True:
     ready, _, _ = select.select([master], [], [], 0.1)
@@ -127,19 +129,27 @@ while True:
         if not part:
             break
         output.extend(part)
+        if not answered and b'Record this decline in the ticket?' in output:
+            if sys.argv[3]:
+                with open(sys.argv[2], 'a') as ticket:
+                    ticket.write(sys.argv[3])
+            os.write(master, (sys.argv[1] + '\n').encode())
+            answered = True
     if child.poll() is not None and not ready:
         break
 os.close(master)
 sys.stdout.buffer.write(output)
 sys.exit(child.wait())`,
         answer,
+        ticketPath,
+        edit,
         process.execPath,
         cli,
         'ticket',
         'record-review-disposition',
         ticketId,
         reviewId,
-        '1',
+        findingNumber,
         '--reason',
         'Outside the accepted scope.',
         '--cwd',
@@ -212,6 +222,52 @@ describe('user-owned planning review disposition', () => {
     const result = project.terminal('y', '00000000-0000-4000-8000-000000000000');
     expect(result.stdout, result.stderr).toContain('REVIEW_NOT_CURRENT');
     expect(readFileSync(project.ticketPath, 'utf8')).toBe(before);
+  });
+
+  it.each(['0', '2', '1.5'])('refuses invalid finding number %s', async number => {
+    const project = await reviewedProject();
+    const before = readFileSync(project.ticketPath, 'utf8');
+    const result = project.terminal('y', project.reviewId, number);
+    expect(result.stdout, result.stderr).toContain('INVALID_REVIEW_FINDING');
+    expect(readFileSync(project.ticketPath, 'utf8')).toBe(before);
+  });
+  it('refuses a blocking error without writing a decline', async () => {
+    const project = await reviewedProject('error');
+    const before = readFileSync(project.ticketPath, 'utf8');
+    const result = project.terminal('y', project.reviewId);
+    expect(result.stdout, result.stderr).toContain('REVIEW_NOT_CURRENT');
+    expect(readFileSync(project.ticketPath, 'utf8')).toBe(before);
+  });
+  it('refuses another ticket’s authenticated current finding', async () => {
+    const project = await reviewedProject();
+    const other = nodePath.join(nodePath.dirname(project.ticketPath), '../DIS456-other');
+    mkdirSync(other);
+    writeFileSync(
+      nodePath.join(other, 'ticket.md'),
+      readFileSync(project.ticketPath, 'utf8').replace('DIS123', 'DIS456'),
+    );
+    const sourceSpec = nodePath.join(nodePath.dirname(project.ticketPath), 'spec.md');
+    writeFileSync(nodePath.join(other, 'spec.md'), readFileSync(sourceSpec));
+    const result = await project.run([
+      'review',
+      'run',
+      'quality-review',
+      '.project/tickets/DIS456-other/spec.md',
+    ]);
+    expect(result.exitCode, result.stdout).toBe(0);
+    const reviewId = JSON.parse(result.stdout).data.review_id as string;
+    const before = readFileSync(project.ticketPath, 'utf8');
+    const refused = project.terminal('y', reviewId);
+    expect(refused.stdout, refused.stderr).toContain('INVALID_REVIEW_FINDING');
+    expect(readFileSync(project.ticketPath, 'utf8')).toBe(before);
+  });
+  it('preserves an edit made after the confirmation prompt', async () => {
+    const project = await reviewedProject();
+    const before = readFileSync(project.ticketPath, 'utf8');
+    const edit = '\nConcurrent author note.\n';
+    const result = project.terminal('y', project.reviewId, '1', edit);
+    expect(result.stdout, result.stderr).toContain('REVIEW_DISPOSITION_STALE');
+    expect(readFileSync(project.ticketPath, 'utf8')).toBe(before + edit);
   });
 
   it('leaves an authenticated optional finding pending in noninteractive mode', async () => {

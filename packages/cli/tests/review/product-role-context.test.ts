@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -52,6 +52,17 @@ afterEach(() => {
 });
 
 describe('Product review role context', () => {
+  it('rejects a nonregular Product target before resolving its context', () => {
+    const root = project();
+    const source = nodePath.join(root, 'source.md');
+    writeFileSync(source, product);
+    rmSync(nodePath.join(root, target));
+    symlinkSync(source, nodePath.join(root, target));
+    rmSync(nodePath.join(root, '.project/principles.md'));
+    expect(() => prepareReviewPacket(root, 'quality-review', [target])).toThrow(
+      expect.objectContaining({ code: 'REVIEW_TARGET_NOT_REGULAR' }),
+    );
+  });
   it('derives a complete role set and durable identity for an owned Product target', () => {
     const root = project();
     const prepared = prepareReviewPacket(root, 'quality-review', [target]);
