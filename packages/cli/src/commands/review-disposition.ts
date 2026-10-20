@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -9,7 +9,10 @@ import { parseDocument } from 'yaml';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { reviewJobStatus, withFileLock } from '../review/job.js';
 import { toReviewPath } from '../review/packet.js';
-import { acceptedBoundaryDigest } from '../review/planning-accepted-boundary.js';
+import {
+  acceptedBoundaryDigest,
+  reviewDispositionFindingFingerprint,
+} from '../review/planning-accepted-boundary.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 
@@ -60,10 +63,6 @@ function pending(
   });
 }
 
-function digest(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
-}
-
 function currentBoundaryDigest(cwd: string, ticketPath: string, content: string): string {
   const { metadata } = parseTicketMetadata(content);
   const parent =
@@ -97,7 +96,7 @@ function addDisposition(
       version: 1,
       review_id: request.reviewId,
       review_kind: kind,
-      finding_fingerprint: digest(JSON.stringify(finding)),
+      finding_fingerprint: reviewDispositionFindingFingerprint(finding.severity, finding.message),
       finding_severity: finding.severity,
       finding_message: finding.message,
       accepted_boundary_digest: boundaryDigest,

@@ -88,6 +88,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+/** Keep persisted finding fingerprints identical when recording and consuming declines. */
+export function reviewDispositionFindingFingerprint(
+  severity: 'info' | 'warning',
+  message: string,
+): string {
+  return createHash('sha256').update(JSON.stringify({ severity, message })).digest('hex');
+}
+
 /** Preserve old declines as history and label their authority against current boundaries. */
 export function reviewDispositionContext(
   ticketContent: string,
@@ -115,11 +123,10 @@ export function reviewDispositionContext(
         typeof value.reason !== 'string'
       )
         throw new Error('The ticket review dispositions are invalid.');
-      const fingerprint = createHash('sha256')
-        .update(
-          JSON.stringify({ severity: value.finding_severity, message: value.finding_message }),
-        )
-        .digest('hex');
+      const fingerprint = reviewDispositionFindingFingerprint(
+        value.finding_severity,
+        value.finding_message,
+      );
       if (value.finding_fingerprint !== fingerprint)
         throw new Error('The ticket review dispositions are invalid.');
       return {

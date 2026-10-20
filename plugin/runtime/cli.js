@@ -35800,6 +35800,9 @@ function acceptedBoundaryDigest(ticketContent, productSpec) {
 function isRecord6(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
+function reviewDispositionFindingFingerprint(severity, message) {
+  return createHash23("sha256").update(JSON.stringify({ severity, message })).digest("hex");
+}
 function reviewDispositionContext(ticketContent, productSpec, reviewKind) {
   const { metadata: metadata2 } = parseTicketMetadata(ticketContent);
   const dispositions = metadata2.review_dispositions;
@@ -35811,7 +35814,7 @@ function reviewDispositionContext(ticketContent, productSpec, reviewKind) {
   const records = dispositions.map((value) => {
     if (!isRecord6(value) || value.version !== 1 || typeof value.review_kind !== "string" || typeof value.review_id !== "string" || value.disposition !== "declined" || typeof value.finding_fingerprint !== "string" || value.finding_severity !== "info" && value.finding_severity !== "warning" || typeof value.finding_message !== "string" || typeof value.accepted_boundary_digest !== "string" || typeof value.reason !== "string")
       throw new Error("The ticket review dispositions are invalid.");
-    const fingerprint = createHash23("sha256").update(JSON.stringify({ severity: value.finding_severity, message: value.finding_message })).digest("hex");
+    const fingerprint = reviewDispositionFindingFingerprint(value.finding_severity, value.finding_message);
     if (value.finding_fingerprint !== fingerprint)
       throw new Error("The ticket review dispositions are invalid.");
     return {
@@ -82059,7 +82062,7 @@ var exports_review_disposition = {};
 __export(exports_review_disposition, {
   recordReviewDisposition: () => recordReviewDisposition
 });
-import { createHash as createHash48, randomUUID as randomUUID18 } from "crypto";
+import { randomUUID as randomUUID18 } from "crypto";
 import { existsSync as existsSync62, readFileSync as readFileSync88, renameSync as renameSync18, statSync as statSync13, unlinkSync as unlinkSync9, writeFileSync as writeFileSync34 } from "fs";
 import nodePath134 from "path";
 import process20 from "process";
@@ -82091,9 +82094,6 @@ function pending(request, kind, finding2) {
     }
   });
 }
-function digest7(value) {
-  return createHash48("sha256").update(value).digest("hex");
-}
 function currentBoundaryDigest(cwd, ticketPath, content) {
   const { metadata: metadata2 } = parseTicketMetadata(content);
   const parent = typeof metadata2.parent === "string" ? resolveTicketDirectory(cwd, metadata2.parent) : undefined;
@@ -82122,7 +82122,7 @@ function addDisposition(content, request, kind, finding2, boundaryDigest) {
       version: 1,
       review_id: request.reviewId,
       review_kind: kind,
-      finding_fingerprint: digest7(JSON.stringify(finding2)),
+      finding_fingerprint: reviewDispositionFindingFingerprint(finding2.severity, finding2.message),
       finding_severity: finding2.severity,
       finding_message: finding2.message,
       accepted_boundary_digest: boundaryDigest,
@@ -82449,11 +82449,11 @@ var init_delivery_admission = __esm(() => {
 
 // src/execution-plan/delivery-compatibility.ts
 import { spawnSync as spawnSync21 } from "child_process";
-import { createHash as createHash49 } from "crypto";
+import { createHash as createHash48 } from "crypto";
 import { mkdirSync as mkdirSync27, writeFileSync as writeFileSync35 } from "fs";
 import nodePath136 from "path";
 function sha25611(value) {
-  return createHash49("sha256").update(value).digest("hex");
+  return createHash48("sha256").update(value).digest("hex");
 }
 function relativePathspec(projectRoot, path8) {
   const relative = nodePath136.relative(projectRoot, nodePath136.resolve(path8));
@@ -82704,7 +82704,7 @@ __export(exports_delivery_checklist, {
   observeDeliveryChecklist: () => observeDeliveryChecklist,
   hasAdmittedDeliveryChecklist: () => hasAdmittedDeliveryChecklist
 });
-import { createHash as createHash50 } from "crypto";
+import { createHash as createHash49 } from "crypto";
 import { existsSync as existsSync63, readFileSync as readFileSync89 } from "fs";
 import nodePath138 from "path";
 function findingResult(command2, code, message, recovery) {
@@ -82716,7 +82716,7 @@ function findingResult(command2, code, message, recovery) {
   });
 }
 function sha25612(value) {
-  return createHash50("sha256").update(value).digest("hex");
+  return createHash49("sha256").update(value).digest("hex");
 }
 function designApprovalEnabled2(cwd) {
   const path8 = nodePath138.join(cwd, ".safeword", "config.json");
@@ -82794,7 +82794,7 @@ function loadDeliveryContext(cwd, ticketId, command2) {
     };
   }
   const definition = createExecutionPlanDeliveryDefinition(parsed2, designApprovalGate2);
-  const digest8 = normalizedExecutionPlanDigest(plan);
+  const digest7 = normalizedExecutionPlanDigest(plan);
   const ledgerPath = nodePath138.join(resolveNamespaceRoot(cwd), "skill-invocations.log");
   let ledger;
   try {
@@ -82821,7 +82821,7 @@ function loadDeliveryContext(cwd, ticketId, command2) {
     planPath,
     ledger,
     definition,
-    digest: digest8
+    digest: digest7
   });
   if (admittedReview === undefined) {
     return {
@@ -82942,12 +82942,12 @@ function designApprovalSatisfied(context, item) {
   const prefix = `design-approval:${context.ticketId}:`;
   if (!item.evidence.startsWith(prefix))
     return false;
-  const digest8 = item.evidence.slice(prefix.length);
+  const digest7 = item.evidence.slice(prefix.length);
   const implementationPlan = nodePath138.join(context.ticketDirectory, "impl-plan.md");
   if (!existsSync63(implementationPlan))
     return false;
   const currentDigest = sha25612(readFileSync89(implementationPlan, "utf8"));
-  return digest8 === currentDigest && currentDesignDecision(context.ledgerPath, context.ticketId, digest8) === "approved";
+  return digest7 === currentDigest && currentDesignDecision(context.ledgerPath, context.ticketId, digest7) === "approved";
 }
 function readiness(context) {
   const contributorItems = context.items.filter((item) => item.owner === "contributor");
@@ -83470,7 +83470,7 @@ var init_delivery_checklist2 = __esm(() => {
 });
 
 // src/execution-plan/execution-prerequisite.ts
-import { createHash as createHash51 } from "crypto";
+import { createHash as createHash50 } from "crypto";
 import { existsSync as existsSync64, readFileSync as readFileSync90 } from "fs";
 import nodePath139 from "path";
 function successful(status, achievedIndependence2, inputIdentity, executionPlanArtifact) {
@@ -83533,7 +83533,7 @@ function designDecisionAccepted(input) {
     return true;
   if (!existsSync64(input.implementationPath))
     return false;
-  const planDigest2 = createHash51("sha256").update(readFileSync90(input.implementationPath, "utf8")).digest("hex");
+  const planDigest2 = createHash50("sha256").update(readFileSync90(input.implementationPath, "utf8")).digest("hex");
   return currentDesignDecision(input.ledgerPath, input.ticketId, planDigest2) === "approved";
 }
 function contractedFeature(ticketDirectory, phase) {
@@ -83720,11 +83720,11 @@ function checklistPrerequisite(context, inspection) {
     receipt: inspection.kind === "unreadable" ? "not_checked" : "missing"
   };
 }
-function digest8(content) {
-  return createHash51("sha256").update(content).digest("hex");
+function digest7(content) {
+  return createHash50("sha256").update(content).digest("hex");
 }
 function fileDigest2(path8) {
-  return path8 !== undefined && existsSync64(path8) ? digest8(readFileSync90(path8, "utf8")) : "missing";
+  return path8 !== undefined && existsSync64(path8) ? digest7(readFileSync90(path8, "utf8")) : "missing";
 }
 function stableTicketScope(ticket) {
   const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(ticket)?.[1];
@@ -83741,7 +83741,7 @@ function designDecisionState(context) {
     return "not_required";
   if (!existsSync64(context.implementationPath))
     return "missing_plan";
-  const planDigest2 = digest8(readFileSync90(context.implementationPath, "utf8"));
+  const planDigest2 = digest7(readFileSync90(context.implementationPath, "utf8"));
   return currentDesignDecision(context.ledgerPath, context.ticketId, planDigest2) ?? "pending";
 }
 function applicableIdentityInput(context, executionPlan2, reviews) {
@@ -83767,7 +83767,7 @@ function authorizationInputIdentity(input) {
     implementation: input.implementationReview,
     execution: input.executionReview
   });
-  return digest8(JSON.stringify({
+  return digest7(JSON.stringify({
     version: 1,
     ticket_id: input.ticketId,
     config: fileDigest2(configPath3),
