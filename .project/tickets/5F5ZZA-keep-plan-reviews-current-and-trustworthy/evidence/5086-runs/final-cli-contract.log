@@ -1,0 +1,41 @@
+✓ build
+✓ generated CLI reference
+✓ canonical CLI terminology
+✓ generated Claude plugin
+✓ generated Codex plugin
+✓ Claude plugin release contract
+
+CLI contract failed: runtime, aliases, help, capabilities, fixtures, and documentation
+RUN  v5.0.3 /Users/alex/.codex/worktrees/e24e/safeword/packages/cli
+
+ ❯ tests/cli-protocol/machine-contract.test.ts (3 tests | 1 failed) 12520ms
+   ❯ public command machine contract (3)
+     × executes every catalog fixture as deterministic JSON without prompting 11985ms
+
+ Test Files  1 failed | 7 passed (8)
+      Tests  1 failed | 72 passed (73)
+   Start at  11:02:26
+   Duration  17.95s (tests 96%, transform 2%, import 2%)
+
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cli-protocol/machine-contract.test.ts > public command machine contract > executes every catalog fixture as deterministic JSON without prompting
+AssertionError: claude status: expected '{"schema_version":1,"ok":true,"state"…' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ {"schema_version":1,"ok":true,"state":"action_required","changed":false,"findings":[],"effects":{"files":[],"packages":[],"configuration":[],"network":[],"destructive":[]},"errors":[],"recovery":[],"next_actions":[{"command":"safeword install --agents=claude","mutates":true,"requires_human":true}],"data":{"command":"claude status","classification":"missing"}}
++
+
+ ❯ tests/cli-protocol/machine-contract.test.ts:91:45
+     89|
+     90|     for (const { definition, first, second } of executions) {
+     91|       expect(first.stdout, definition.name).toBe(second.stdout);
+       |                                             ^
+     92|       const envelope = JSON.parse(first.stdout) as {
+     93|         findings: { code: string }[];
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯

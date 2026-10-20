@@ -1,0 +1,15 @@
+[
+  {
+    "stage": "full",
+    "exit": 75,
+    "seconds": 75.72,
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "test"
+    ],
+    "cwd": "/Users/alex/.codex/worktrees/e24e/safeword",
+    "log": "/tmp/5086-finish-full.log"
+  }
+]
