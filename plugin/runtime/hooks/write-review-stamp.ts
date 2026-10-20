@@ -37,7 +37,11 @@ import {
 import { readSessionState } from './lib/quality-state.ts';
 import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledger.ts';
 import { readReviewReceipt } from './lib/read-receipt.ts';
-import { receiptGateVerdict, type StampClaim } from './lib/review-receipt.ts';
+import {
+  claimsCoordinatorVerdict,
+  receiptGateVerdict,
+  type StampClaim,
+} from './lib/review-receipt.ts';
 import { reviewClaimContext } from './lib/verify-stamp-claims.ts';
 import { resolveNamespaceRoot, resolveWorkingProjectDirectory } from './lib/namespace-root.ts';
 import { resolveRunIdentity, type RunIdentity } from './lib/run-identity.ts';
@@ -62,9 +66,9 @@ const HELP = `Usage:
 Options:
   --ticket <folder>         Select the ticket folder to stamp
   --model <id>              Record the verified reviewer model
-  --author-agent <agent>    Record claude, codex, or opencode as author
-  --reviewer-agent <agent>  Record claude, codex, or opencode as reviewer
-  --independence <level>    Record cross-agent, degraded, or none
+  --author-agent <agent>    Record claude, codex, cursor, or opencode as author
+  --reviewer-agent <agent>  Record claude, codex, cursor, or opencode as reviewer
+  --independence <level>    Record cross-agent, reduced, degraded, or none
   --review-id <id>          Verify and record a coordinator review receipt
   --skip <reason>           Record a deliberate skip instead of a review
   -h, --help                Show this help message
@@ -121,9 +125,9 @@ interface ParsedArguments {
   positional: string[];
   explicitTicket: string | undefined;
   reviewerModel: string | undefined;
-  authorAgent: 'claude' | 'codex' | 'opencode' | undefined;
-  reviewerAgent: 'claude' | 'codex' | 'opencode' | undefined;
-  independence: 'cross-agent' | 'degraded' | 'none' | undefined;
+  authorAgent: 'claude' | 'codex' | 'cursor' | 'opencode' | undefined;
+  reviewerAgent: 'claude' | 'codex' | 'cursor' | 'opencode' | undefined;
+  independence: 'cross-agent' | 'reduced' | 'degraded' | 'none' | undefined;
   reviewId: string | undefined;
   skipReason: string | undefined;
 }
@@ -153,9 +157,9 @@ function parseArguments(argv: string[]): ParsedArguments {
   const positional: string[] = [];
   let explicitTicket: string | undefined;
   let reviewerModel: string | undefined;
-  let authorAgent: 'claude' | 'codex' | 'opencode' | undefined;
-  let reviewerAgent: 'claude' | 'codex' | 'opencode' | undefined;
-  let independence: 'cross-agent' | 'degraded' | 'none' | undefined;
+  let authorAgent: 'claude' | 'codex' | 'cursor' | 'opencode' | undefined;
+  let reviewerAgent: 'claude' | 'codex' | 'cursor' | 'opencode' | undefined;
+  let independence: 'cross-agent' | 'reduced' | 'degraded' | 'none' | undefined;
   let reviewId: string | undefined;
   let skipReason: string | undefined;
   const seen = new Set<string>();
@@ -193,17 +197,17 @@ function parseArguments(argv: string[]): ParsedArguments {
       if (/\s/.test(value)) fail('--model id must not contain whitespace');
       reviewerModel = value;
     } else if (flag === '--independence') {
-      if (!['cross-agent', 'degraded', 'none'].includes(value)) {
-        fail('--independence must be cross-agent, degraded, or none');
+      if (!['cross-agent', 'reduced', 'degraded', 'none'].includes(value)) {
+        fail('--independence must be cross-agent, reduced, degraded, or none');
       }
-      independence = value as 'cross-agent' | 'degraded' | 'none';
+      independence = value as 'cross-agent' | 'reduced' | 'degraded' | 'none';
     } else if (flag === '--review-id') {
       if (!REVIEW_ID.test(value))
         fail('--review-id must be the review_id the coordinator returned');
       reviewId = value;
     } else {
-      if (value !== 'claude' && value !== 'codex' && value !== 'opencode') {
-        fail(`${flag} must be claude, codex, or opencode`);
+      if (value !== 'claude' && value !== 'codex' && value !== 'cursor' && value !== 'opencode') {
+        fail(`${flag} must be claude, codex, cursor, or opencode`);
       }
       if (flag === '--author-agent') authorAgent = value;
       else reviewerAgent = value;
@@ -248,7 +252,18 @@ const runIdentity =
   environmentIdentity.runtime === 'claude' && environmentIdentity.sessionKey !== null
     ? environmentIdentity
     : (readBridgedRunIdentity() ?? environmentIdentity);
-const sessionId = runIdentity.sessionKey ?? fail('missing run identity for review stamp');
+// OpenCode's profile hook receives the session id, but its shell tool does not
+// pass that id to this command. A verified coordinator receipt supplies a
+// narrower identity for this one stamp; receiptGateVerdict below must still
+// authenticate it before anything is written.
+const sessionId =
+  runIdentity.sessionKey ??
+  (runIdentity.runtime === 'opencode' &&
+  reviewId !== undefined &&
+  skipReason === undefined &&
+  claimsCoordinatorVerdict(independence)
+    ? `opencode-review-${reviewId}`
+    : fail('missing run identity for review stamp'));
 
 function formatTicketList(folders: string[]): string {
   const shown = folders.slice(0, 12).join(', ');
