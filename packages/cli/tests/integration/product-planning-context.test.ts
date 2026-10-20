@@ -169,6 +169,37 @@ describe('required context through installed Product Plan review', () => {
       expect.objectContaining({ content: expect.stringContaining(inventory) }),
     ]);
   });
+  it.each([
+    ['missing', ''],
+    ['blank', '- **Persona outcome inventory:**'],
+    ['comment-only nested list', '- **Persona outcome inventory:**\n  - <!-- not an outcome -->'],
+    ['unrelated sibling', '- **Persona outcome inventory:**\n- Builder succeeds.'],
+    [
+      'duplicate',
+      '- **Persona outcome inventory:**\n  - Builder succeeds.\n- **Persona outcome inventory:** Builder recovers.',
+    ],
+  ])('refuses a %s persona inventory before installed reviewer execution', (_label, inventory) => {
+    const project = fixture();
+    const path = nodePath.join(project.project, '.project/tickets', folder, 'spec.md');
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace(
+        /- \*\*Persona outcome inventory:\*\*[^\n]*/u,
+        () => inventory,
+      ),
+    );
+    const result = project.review();
+    expect(result.status, `${result.stdout}\n${result.stderr}`).not.toBe(0);
+    expect(JSON.parse(result.stdout).findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'missing_planning_context',
+          metadata: { context_role: 'project', context_path: `.project/tickets/${folder}/spec.md` },
+        }),
+      ]),
+    );
+    expect(existsSync(project.capture)).toBe(false);
+  });
   it('supplies all current project inventories without caller context', () => {
     const project = fixture();
     const result = project.review();

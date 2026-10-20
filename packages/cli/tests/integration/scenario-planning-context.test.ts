@@ -67,14 +67,19 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-async function review(missing?: 'ticket' | 'principles', explicit = false, multiple = false) {
+async function review(
+  missing?: 'ticket' | 'principles',
+  explicit = false,
+  multiple = false,
+  productContent = product,
+) {
   const project = createTemporaryDirectory();
   projects.push(project);
   await createConfiguredProject(project);
   writePlanningInventories(project);
   mkdirSync(nodePath.join(project, folder), { recursive: true });
   if (missing !== 'ticket') writeFileSync(nodePath.join(project, ticketPath), metadata);
-  writeFileSync(nodePath.join(project, specPath), product);
+  writeFileSync(nodePath.join(project, specPath), productContent);
   mkdirSync(nodePath.join(project, 'features'), { recursive: true });
   writeFileSync(
     nodePath.join(project, target),
@@ -137,6 +142,40 @@ function capturedPacket(capture: string) {
 }
 
 describe('owned scenario review resolves required context', () => {
+  it('admits a populated nested persona inventory through scenario dispatch', async () => {
+    const inventory =
+      '- **Persona outcome inventory:**\n  - **Builder:** Current approval succeeds; missing context refuses.';
+    const content = product.replace(/- \*\*Persona outcome inventory:\*\*[^\n]*/u, () => inventory);
+    const { result, capture } = await review(undefined, false, false, content);
+    expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(JSON.parse(result.stdout).data.status).toBe('approved');
+    expect(capturedPacket(capture).context_files).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: specPath, content })]),
+    );
+  });
+  it.each([
+    ['missing', ''],
+    ['blank', '- **Persona outcome inventory:**'],
+  ])(
+    'refuses a %s persona inventory before scenario reviewer execution',
+    async (_label, inventory) => {
+      const content = product.replace(
+        /- \*\*Persona outcome inventory:\*\*[^\n]*/u,
+        () => inventory,
+      );
+      const { result, capture } = await review(undefined, false, false, content);
+      expect(result.exitCode, `${result.stdout}\n${result.stderr}`).not.toBe(0);
+      expect(JSON.parse(result.stdout).findings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'missing_planning_context',
+            metadata: { context_role: 'project', context_path: specPath },
+          }),
+        ]),
+      );
+      expect(existsSync(capture)).toBe(false);
+    },
+  );
   it('persists a readable current record for two reviewed feature targets', async () => {
     const { result, capture, project } = await review(undefined, false, true);
     expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
