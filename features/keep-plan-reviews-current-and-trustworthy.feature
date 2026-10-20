@@ -2,6 +2,7 @@ Feature: Keep plan reviews current and trustworthy
   Safeword binds each planning approval to its canonical contract, exact plan, complete context, and honest reviewer route.
   # skip: Persona-specific wording for every fail-closed message introduced by R2-R6 and R9-R16 is owned and acceptance-tested by K3EBHB R7 and R10.
   # Every judged R7 and R10-R16 semantic-quality scenario uses fixed judge-model and rubric bytes, deterministic sampling settings, and three runs with at least two agreeing correct verdicts; below that threshold is inconclusive and cannot pass. They must not be implemented as structural text checks or mocked verdict echoes.
+  # skip: Release-time generated-copy integrity and its regeneration path are owned by delivery task 3J7TGR / #5041, merged as #5957; dimensions.md names the release guards and executable proof. This residual #5051 slice does not claim new release qualification.
 
   @plan-implementability.TBU4.5F5ZZA.R1
   Rule: plan-implementability.TBU4.5F5ZZA.R1 — Shared clauses are authored once and generated into both contracts
@@ -109,8 +110,10 @@ Feature: Keep plan reviews current and trustworthy
       Examples:
         | context_change | review_state |
         | a bound context artifact changes only in whitespace or comments | the review remains current |
-        | the canonical phase contract changes only in whitespace or comments | the review remains current |
+        | the canonical phase contract changes only in whitespace or comments | the review becomes stale |
         | an unrelated persona or surface entry is added | the review remains current |
+        | a referenced persona entry changes semantically | the review becomes stale |
+        | an affected surface entry changes semantically | the review becomes stale |
         | the reviewed plan changes only in whitespace or comments outside normalized Execution Plan checklist progress cells | that plan's review becomes stale because its exact bytes changed |
         | the canonical phase contract changes semantically | the review becomes stale |
         | a bound context artifact changes semantically | the review becomes stale |
@@ -143,8 +146,8 @@ Feature: Keep plan reviews current and trustworthy
         | deletes one clause but retains the canonical version label | the phase remains blocked with canonical contract reconciliation named |
 
     @surface.claude-code @rejection
-    Scenario: Cosmetic canonical changes preserve review currency but require copy reconciliation
-      Given a plan review is current and its canonical phase contract changed only in whitespace or comments after installed copies were generated
+    Scenario: Cosmetic installed-copy changes preserve review currency but require copy reconciliation
+      Given a plan review is current and only its installed authoring copy changed in whitespace or comments while the canonical phase contract remains unchanged
       When actual lifecycle dispatch from installed local project hooks evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary
       Then the review receipt remains current and the phase remains blocked with canonical contract reconciliation named
 
@@ -368,6 +371,8 @@ Feature: Keep plan reviews current and trustworthy
         | change_description | invalidated_reviews |
         | accepted behavior | both plan reviews are invalidated |
         | accepted scope | both plan reviews are invalidated |
+        | canonical Implementation Planning contract bytes, including whitespace or comments, while human design approval is enabled and current | both plan reviews and the human design approval are invalidated |
+        | canonical Execution Planning contract bytes, including whitespace or comments, while human design approval is enabled and current | only the Execution Plan review is invalidated and human design approval remains current |
         | only the accepted Implementation Plan's formatting bytes | only the Implementation Plan review is invalidated and the Execution Plan review remains current |
         | only the Execution Plan bytes, including formatting-only bytes outside normalized checklist progress cells | only the Execution Plan review is invalidated |
         | only whitespace inside a reviewed Execution Plan checklist row's normalized progress cells | neither plan review is invalidated |

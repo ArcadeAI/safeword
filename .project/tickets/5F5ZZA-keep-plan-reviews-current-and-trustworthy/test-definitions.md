@@ -74,7 +74,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Cosmetic canonical changes preserve review currency but require copy reconciliation
+### Scenario: Cosmetic installed-copy changes preserve review currency but require copy reconciliation
 
 - [ ] RED
 - [ ] GREEN
