@@ -269,6 +269,11 @@ describe('user-owned planning review disposition', () => {
         review_kind: kind,
         finding_severity: severity,
         finding_message: suggestion,
+        // Persisted compatibility: these bytes predate the fingerprint helper extraction.
+        finding_fingerprint:
+          severity === 'info'
+            ? '4f1b748873a9fb477f449a3c83ad111e146f34781778d96a613f850994b927d3'
+            : 'ef0132d4d205eb389bbb4e97594bbd8795d506e9c31066c957c179892637dcb6',
       }),
     ]);
   });

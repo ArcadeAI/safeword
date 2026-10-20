@@ -106,3 +106,24 @@ close that feature.
 
 The final public-target proof also pairs each unowned/private plan rejection
 with equivalent aliases, ensuring normalization cannot bypass ownership admission.
+
+## User-requested refactor pass
+
+The user requested refactor after f5110a7b7. The bounded follow-up preserves
+public behavior, persisted bytes and all approval/canonical-copy semantics.
+Read-only lint/audit and independent command/admission scouts found this ledger:
+
+- [ ] Reuse the command's existing optional Finding type for repeated shapes.
+- [ ] Share the exact persisted finding fingerprint between writing and reading.
+- [ ] Rename private copy-only error names to reflect required-context errors.
+- Deferred: identical selected-parent fixture text in Product/scenario tests.
+  Its extraction is valid but lower priority than the production trust-boundary
+  contract; retain local ownership examples during this surgical pass.
+- Deferred: duplicated standalone Product dispatch fixtures. A separate fixture
+  extraction can reduce setup; this pass caps changes to the three production
+  cleanups and does not claim that all test duplication is removed.
+
+Each production entry gets an isolated edit, focused regression run and commit.
+No canonical identity, target admission, persisted schema or fallback change
+is intended. Prior formal verification and failures remain bound to their
+recorded revision; regenerated carriers and fresh audit follow the refactor.
