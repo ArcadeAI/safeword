@@ -95,10 +95,12 @@ function designApprovalEnabled(cwd: string): boolean {
   }
 }
 
+type AchievedReviewIndependence = 'cross-agent' | 'reduced' | 'degraded';
+
 function currentReview(
   context: ApprovalContext,
 ):
-  | { readonly ok: true; readonly independence: 'cross-agent' | 'degraded' }
+  | { readonly ok: true; readonly independence: AchievedReviewIndependence }
   | { readonly ok: false; readonly reason: string } {
   const ticket = readFileSync(context.ticketPath, 'utf8');
   if (
@@ -394,7 +396,7 @@ function result(
   finding?: string,
   options: {
     readonly severity?: 'info' | 'warning';
-    readonly achievedIndependence?: 'cross-agent' | 'degraded';
+    readonly achievedIndependence?: AchievedReviewIndependence;
   } = {},
 ): CliResult {
   let state: CliResult['state'] = changedFiles.length > 0 ? 'changed' : 'healthy';
@@ -461,7 +463,7 @@ function settleInteractiveDecision(
   context: ApprovalContext,
   accepted: boolean,
   ledgerTarget: string,
-  achievedIndependence: 'cross-agent' | 'degraded',
+  achievedIndependence: AchievedReviewIndependence,
   returnedToPlanning = false,
 ): CliResult {
   const submittedStatus = accepted ? 'approved' : 'declined';
@@ -514,7 +516,7 @@ function settleInteractiveDecision(
 
 function currentApprovalResult(
   context: ApprovalContext,
-  achievedIndependence: 'cross-agent' | 'degraded',
+  achievedIndependence: AchievedReviewIndependence,
 ): CliResult | undefined {
   if (currentDesignDecision(context.ledgerPath, context.ticketId, context.digest) !== 'approved') {
     return undefined;
