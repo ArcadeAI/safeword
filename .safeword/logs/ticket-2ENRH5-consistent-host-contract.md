@@ -663,3 +663,48 @@ at the fixture folder-access prompt; do not activate it while approval is pendin
 Other native TUI probe sessions were closed. No Vitest currently running.
 Return to implement starts with current native guard proof scaffolding and its
 fresh executable RED review, not new production code from old resource receipts.
+
+Human authorized the exact five hooks in codex-guard-KbebbV. Accepted only its
+disposable project folder and used the native TUI Hooks trust-all action. Native
+hooks/list then returned all five expected hooks enabled and trusted, with their
+previously recorded hashes unchanged and no warnings/errors. No trust bypass.
+
+Native Codex 0.160.0 compatibility-container baseline, actual model/tool turns:
+- Allowed thread 01a15a9b-2416-76d1-871d-c8f177992987: one shell command completed
+  with exit 0; allowed-sentinel.txt contains exact safeword-allowed-KbebbV.
+- Denied thread 01a15a9b-8755-79b3-b841-6fff5aeb77eb: native router stderr reports
+  Command blocked by PreToolUse hook for the exact synthetic ticket shell write,
+  with the shared shell-ticket policy reason; ticket.md remains absent.
+Evidence: /tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/
+allowed-events.jsonl, denied-events.jsonl, denied-stderr.log. These passing
+existing guard controls are baseline evidence, not a fabricated RED, admitted
+conformance receipt, continuation proof, or complete outline/scenario.
+
+Required automatic profile-install retry ran once; safeword@latest requested
+1.1.0 but found installed plugin 1.2.0 and exited 1, leaving project hooks
+unchanged. Subsequent coding authorization reports missing_accepted_scenarios
+(identity 500eee5eac3c99ec91a80d537e436351c43a8560b2fbe93fe91674daa51a3b09).
+Adding the live baseline test was blocked before mutation. Independent scenario
+refresh dispatched; collect its terminal result before any further dispatch.
+
+Scenario refresh f68148fc-1d02-414c-aa7a-b05b0819be27 requested re-dispatch with
+the complete existing context. Follow-up f04f662d-400c-4488-84cd-ebb9f88cff43
+APPROVED independently (Claude/opus), stamped, and restored coding authorization
+ab8db893aacd067ace70616cfb14d52ccb83ac182c32bb9bfd8587a981d6349b.
+Added opt-in paired native controls at the execution plan's path,
+packages/cli/tests/smoke/host-contract.live.test.ts. Checks package byte identity,
+native exact version and enabled/trusted hooks before nonce allow/deny actions.
+Preserves actual host output even on timeout/nonzero exit; strips Vitest's
+source-CLI override so package helpers retain their own runtime origin.
+Lint/typecheck pass. Independent quality review
+6d1cd216-a6de-4e9e-a907-818da8ac715f APPROVED this bounded baseline, with explicit
+limits: no admitted receipt, continuation or full required-group completion.
+The authored live run is queued behind another checkout's package test lock;
+no second Vitest process was started. No scenario ledger boxes checked.
+
+The shared lock released normally. Authored native live baseline completed:
+1 file / 2 tests passed in 21.97s, using the actual trusted compatibility package.
+Artifacts: /tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/guard-run-kQSZb5/.
+Both required write case IDs passed; their future required-group registration,
+continuation and admission are not implemented. This checkpoint changes only
+live test infrastructure and proof notes, not production behavior or scenarios.
