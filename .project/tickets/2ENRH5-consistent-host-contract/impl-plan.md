@@ -89,55 +89,68 @@ the claim unmet and prompts an engineering repair; it does not change Product.
 | Host | Chosen delivery and boundary | Limit |
 | --- | --- | --- |
 | Claude Code 2.1.170 | Retain native plugin; register canonical packaged skills/resources and dispatch host hooks into shared owners | Preserve minimum-version, scope, trust and current stop/reentry limits |
-| Codex 0.160.0 | Retain native plugin identity/runtime; add portable root manifest with OpenAI hook extension and a generated compatibility overlay over the same assets | Exact baseline must prove root loading and selected extension precedence; installation/restart/trust remain distinct requirements |
+| Codex 0.160.0 | Retain one native compatibility container and identity/runtime; derive skills/resources from the shared renderer and keep native hook bindings in its host manifest | Exact target suppresses hooks for portable-format packages; root-format loading/precedence remains a separate resource capability proof |
 | Cursor IDE 3.8.23 and 3.24.18 project hooks | Retain and independently prove the existing project-hook delivery/resources in both exact IDEs | Separate legacy delivery cases; neither supplies native evidence |
-| Cursor IDE 3.24.18 | Load that same portable core for skills/resources and a thin native Cursor extension for hooks and worker projections; retain the generated project rules/command wrappers as their sole registrations; retain project-hook compatibility until verified cutover | Actual IDE dispatch of the complete delivery set must be proved; CLI observations cannot establish IDE behavior |
+| Cursor IDE 3.24.18 | Load the shared portable content projection and necessary native hook/worker projections only where no competing project workflow registration remains; otherwise use the independently proved project-hook delivery | Static legacy references remain intact; actual IDE discovery, loaded content and guard behavior must be proved |
 | OpenCode V1 1.18.23 | Retain current profile plugin, commands, workers and skills, now derived from common contracts | Keep independent V1 CLI and TUI evidence; do not adopt a V1 API requiring a later release |
 | OpenCode V2 2.0.32 | Separate V2 entry using native skill and command transforms plus pre-action hook; package resources with the plugin | CLI/TUI evidence separate; no new Desktop or stop-blocking claim |
 | Agent Plugins 1.0 | Generate a portable core from the same canonical assets; native enforcement remains a separate extension | Portable skill loading never establishes enforcement |
 
-The portable core is the single skills/resources owner for both Codex and Cursor.
-Its root manifest follows Agent Plugins 1.0 and carries OpenAI-specific settings
-under extensions.com.openai. A generated Codex compatibility overlay addresses
-the same assets for existing native readers; it is not another authored manifest.
-The selected OpenAI extension overrides, rather than merges with, that overlay.
-Cursor ignores the OpenAI extension and loads a thin native Cursor package for
-hooks and worker projections; that package registers no skills, rules or commands.
-Cursor component ownership is explicit: the portable core owns native skills and
-resources; the extension owns native hook transport and worker projections;
-existing generated project wrappers alone own Cursor rules and command entrypoints
-in both modes. Do not register another rule/command set in the extension. Shared
-resource resolution makes those wrappers point to the active core origin after
-verified native cutover and to the retained project origin in legacy mode. They
-remain generated aliases, never a second authored policy or skill implementation.
-Wrapper bytes remain identical across enrolled/unenrolled clones and Cloud.
-Resolve at invocation time, never rewrite a wrapper during cutover: a schema-owned
-project helper loads the existing single CLI resolver, then asks that CLI's shared
-resource resolver for one canonical workflow/rule ID. The CLI checks the canonical
-checkout, current profile/session handshake, observed IDE, enrollment epoch and
-complete active delivery-set identity. A verified native session returns a
-contained absolute core resource path; an unenrolled, cloud-like, stale, missing
-cache or failed native resolution returns the retained contained project resource
-path. The wrapper reads exactly that returned resource and does not also include
-its old static project @reference. This is guidance loading, not hard enforcement.
-If both origins are unavailable, report unavailable; never return an empty/mixed
-resource graph. A mid-session native resolution failure also invalidates native
-eligibility and retains/restores legacy authority before selecting its resources.
-The helper is a generated mechanical bootstrap, with no policy predicates or
-second CLI search strategy. Trust checks still use the trusted CLI resolver;
-project-writable helper output cannot create enrollment or protection evidence.
-Two-clone/cloud-like proofs assert byte-identical tracked wrappers, different
-appropriate runtime origins, and preserved legacy behavior when the cache is
-absent. Catalogue proof observes the same single owner rather than only hook
-traces.
+The shared content renderer is the single authoring owner for Codex and Cursor
+skills/resources. Cursor receives its portable core; Codex 0.160.0 receives one
+native compatibility container over that same canonical content graph. Necessary
+manifest, invocation and runtime-address projections are host mechanics, not
+independent skill authorship. Do not add a second Codex package just to retain a
+portable root manifest: its pinned loader explicitly suppresses hooks for that
+format. The isolated root-format capability pilot remains separate and ineligible
+for hook guarantees. Its inline OpenAI extension overrides the compatibility
+overlay for metadata, but that precedence does not establish hook discovery.
+See [version-matched discovery evidence](./codex-hook-discovery.md) and the
+[superseding packaging decision](../../architecture-decisions/20261020-codex-native-container.md).
+Cursor's portable core owns native skill registrations and packaged resources.
+The thin native extension owns hooks/workers and only necessary non-overlapping
+rule facets derived from canonical metadata/content. It never registers a second
+public command for a workflow the core already supplies. Native-only rule text
+is generated from the same owner, with contained package references or inlined
+canonical text where required by the host; it has no separately authored policy.
+
+Legacy and Cloud project wrappers retain their existing static @references.
+Static markdown does not run a resolver, and no agent is asked to fetch replacement
+guidance as a prerequisite for loading it. A missing CLI resolver or native cache
+cannot stop the host from loading those existing project references. Do not
+rewrite tracked wrappers during local enrollment. Their necessary generated
+project resources remain derived from the canonical content owner and checked
+for drift; this is not an independent authoring path.
+
+Native eligibility requires the actual catalogue to have no competing project
+workflow registration. An existing checkout with retained legacy rule/command
+registrations stays on the proved project-hook mechanism, even if a native cache
+exists. This is automatic selection of an equally satisfying verified alternative,
+not a packaging question for the user or a weakened guarantee. Contract migration
+still consolidates that legacy lane's content and policy authoring. Native
+registration is supported for clean eligible projects; this local cutover never
+retires shared tracked wrappers to force eligibility. Project-wide retirement
+remains the separately authorized migration already outside this local cutover.
+
+For a native-eligible project, the workspace bootstrap loads the packages directly;
+the host loads their contents without a rule executing shell code. If runtime or
+registration fails, invalidate native claims and retain independently available
+legacy guards. Do not claim restored guidance until the actual IDE has loaded
+any safely reconciled legacy wrappers; a missing fallback reports unavailable
+with repair/reload recovery. Never manufacture an active claim from a returned
+path. Two-clone and cloud-like proofs observe actual loaded canonical content,
+including with the CLI resolver unavailable and native cache absent, while
+asserting unchanged tracked legacy wrapper bytes. A separate clean-project native
+proof observes direct package content and rejects duplicate public registrations.
+See [the superseding loading decision](../../architecture-decisions/20261020-cursor-static-guidance.md).
 
 The hook authority gate controls hooks only; it is not claimed to suppress native
 rule/command loading. The real IDE catalogue proof must enumerate rule/command
 registrations as well as skills and exercise each workflow alias's resource
 origin. An unexpected duplicate public workflow or second active content source
 rejects native cutover; preserving legacy files is not permission for duplicates.
-This choice retains the necessary shared compatibility wrappers without a second
-native extension copy. No undocumented Cursor suppression mechanism is assumed.
+This choice retains necessary shared compatibility delivery where it is selected.
+No undocumented Cursor suppression or dynamic markdown mechanism is assumed.
 There is no second complete Cursor content bundle or user packaging choice.
 Proof binds the whole delivery set, including core and extension identities.
 Necessary native package-local runtime copies derive from one implementation.
@@ -249,13 +262,13 @@ not proof of arbitrary semantic equivalence.
 | An impossible required guarantee produces actionable recovery | Admission: unsatisfiable guarantee yields affected outcome, usable remainder and concrete recovery | Cannot prove subjective clarity; independent review assesses plain wording |
 | Recoverable integration failure is repaired without asking for design choices | Lifecycle plus Host: repair selected owned delivery and reverify | Successful copy alone cannot restore active status |
 | A host limitation cannot lower a requirement silently | Admission: advisory functionality leaves enforced requirement unmet | Does not upgrade advice into denial |
-| A host loads bundled content without an unnecessary generated copy | Host plus installed-tree inspection: register direct bundled resource | Package distribution copies allowed; no second framework authority |
+| A host loads bundled content without an unnecessary generated copy | Codex native compatibility container: load a changed packaged skill in a scratch project without project framework content | Distribution/runtime template closure is allowed; a required project skill copy or second project skill registration must fail this proof |
 | Necessary format translation preserves canonical content | Host: invoke actual required wrapper and resolve guide/helper | Output snapshots support, not replace loading |
 | Native delivery exposes the contracted catalogue | Host: all exact native rows load workflow, guide and helper marker | Registration success is not denial/continuation proof |
-| Portable package loading proves only its portable components | Host: Codex loads actual core plus OpenAI extension; Cursor loads the same core plus its thin native extension | Force root-format discovery; separate hook conformance needed for enforcement |
+| Portable package loading proves only its portable components | Host: Codex separately loads the root-format pilot and native compatibility delivery; Cursor loads its core plus thin native extension | Force root-format discovery for the resource capability; require actual compatibility-container guard proof on Codex |
 | Duplicate native and compatibility registration is rejected | Lifecycle plus Host: inspect and reject competing active owner | Merely duplicate files do not imply competing registration |
 | OpenCode V1 retains its separately proved behavior | Host: original exact V1 CLI/TUI catalogue and denial boundaries | V2 results never satisfy V1 |
-| Upgrading a mixed-host project preserves authored work | Lifecycle plus Host: historical project A cutover preserves authored bytes while project B retains legacy authority; exercise separate/mixed-root workspaces, shared OpenCode profile, two clones of the same Git repository with only one enrolled, and a cache-free cloud-like profile | Native checkout has one active owner; unenrolled clone and existing cloud project-hook boundary retain legacy protection. Cloud-like regression preserves that boundary, not new cloud certification |
+| Upgrading a mixed-host project preserves authored work | Lifecycle plus Host: exercise actual eligible native migration and legacy replacement, separate/mixed-root workspaces, shared OpenCode profile, two clones and a cache-free cloud-like profile; assert actual guidance loading as well as authored bytes | Cursor checkouts with competing tracked wrappers retain verified legacy delivery; enrollment never deletes shared wrappers to force native cutover. Cloud-like checks preserve the existing boundary, not new cloud certification |
 | Unproven legacy ownership cannot authorize deletion | Lifecycle: modified/unverifiable assets survive with conflict action | Trusted operator can resolve conflict; no inferred deletion consent |
 | A current asset cannot be retired by a legacy cleanup collision | Repo and Lifecycle: intersect cleanup/current inventory before mutation | Exact current ownership data required |
 | Repeating completed installation creates no additional authority | Lifecycle plus Host: verified install rerun yields no mutation and one active owner | Unknown activation triggers verification, not invented idempotent success |
@@ -265,7 +278,7 @@ not proof of arbitrary semantic equivalence.
 
 New entrypoint wiring is explicit: native Cursor package discovery and every hook
 route; OpenCode V2 setup, skill/command registration and pre-action dispatch;
-portable core plus the selected extension activation on Codex/Cursor; and repository contract
+the selected Codex compatibility-container activation and Cursor core/extension activation; and repository contract
 checks. Each goes through real host/config loading or the actual check process
 to the shared collaborator. Existing lifecycle CLI wiring is retained and extended
 for migrations/status; no direct adapter-only test stands in for those routes.
@@ -292,15 +305,23 @@ and OpenCode V1 profile delivery and existing per-host evidence/migration machin
 are present. The current source inventory contains 24 skills and 18 guides,
 Claude's six configured event families and Cursor's six families, plus nested
 handlers, Codex bindings, OpenCode dispatch, references and worker entrypoints.
+Checkpoint 0d1061ae6 adds the shared catalogue renderer and opt-in isolated
+portable writer. Default shipped Codex generation still uses its existing
+compatibility projection. Full catalogue/policy consolidation is not implemented.
 
 **Available proof:** the 58 behavior definitions passed independent scenario review
 and source/ledger checks. That is specification evidence, not implementation or
 installed-host proof for this design. Existing host observations retain their
 documented version and delivery limits.
+The portable pilot proves Codex root metadata precedence and fixture resource
+loading; the Cursor pilot additionally proves rendered helper origin. Both
+required proof groups remain incomplete. Native format comparison proves that
+Codex 0.160.0 discovers five untrusted hooks in compatibility format and zero
+in portable format; this is discovery evidence, not hook execution.
 
 **Target work:** common inventory/owner enforcement, full shared-policy adoption,
-native Cursor and OpenCode V2 delivery, truthful per-behavior projection, the
-shared portable core, and all proof obligations above remain unimplemented here.
+native Cursor and OpenCode V2 delivery, truthful per-behavior projection,
+production portable delivery, and full proof obligations remain unimplemented.
 
 **Known defects/limits:** host renderers and schema currently carry overlapping
 lists/rewrites; the Codex adapter contains additional intake predicates; the
@@ -324,6 +345,12 @@ there is no pending product choice or request to reapprove unchanged scope.
 | [Compound Engineering converter](https://github.com/EveryInc/compound-engineering-plugin/blob/2e41b4490a37f53db0beb6d4904618da9af2f559/src/converters/claude-to-codex.ts) | 2026-10-20 | 2e41b4490a37f53db0beb6d4904618da9af2f559 | Safeword native Codex 0.160.0 and lifecycle ownership | Native skills remain sole content owner; conversion fills genuine gaps | One active delivery owner | MIT; its newer V1 baseline is not compatibility proof for 1.18.23 |
 | [OpenSpec types](https://github.com/Fission-AI/OpenSpec/blob/c794978f4f8845ce59693373c9dd882ee776588c/src/core/command-generation/types.ts) | 2026-10-20 | c794978f4f8845ce59693373c9dd882ee776588c | Safeword delivery projections on all five lanes | Tool-neutral content separated from path/frontmatter formatting | Small content contract | MIT; conversion does not establish runtime policy equivalence |
 
+The [Codex 0.160.0 native loader](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/core-plugins/src/loader.rs#L952-L963)
+was checked 2026-10-20 against the exact pinned target and a two-profile native
+comparison. It suppresses portable-format hooks while retaining compatibility
+hooks. Borrow its format distinction, not its implementation; no external code
+is copied or redistributed. **Decision informed:** Native and portable packaging.
+
 **Decision impact:** retained: two small contracts, direct bundle loading and narrow
 host adapters; add independent source/owner coverage and runtime proof so shared
 interfaces actually eliminate parallel maintenance.
@@ -334,7 +361,7 @@ interfaces actually eliminate parallel maintenance.
 | Decision | Choice | Alternatives considered | Rejected because |
 | --- | --- | --- | --- |
 | Shared authority and host adaptation | Extend current schema/registry and shared policy owners with separate delivery/enforcement bindings; adopt [OpenSpec's content boundary](https://github.com/Fission-AI/OpenSpec/blob/c794978f4f8845ce59693373c9dd882ee776588c/src/core/command-generation/types.ts) and [Superpowers' narrow native registration](https://github.com/obra/superpowers/blob/bb92a77741419a4ab5f06e711a283343f1ada0c3/.opencode/plugins/superpowers.js) | Universal runtime; generator-only common manifest | Universal runtime erases host semantics and adds infrastructure; generation alone preserves duplicated policy |
-| Native and portable packaging | One shared portable core for Codex/Cursor; inline OpenAI hook extension plus generated compatibility overlay; thin Cursor native extension without skills | Complete and portable content bundles in parallel; project copies everywhere | Parallel bundles add registration and mode-selection cost; [OpenAI extension precedence](https://developers.openai.com/plugins/build/plugins) supports one core, while [Cursor's native format](https://cursor.com/docs/reference/plugins) supplies its nonportable components |
+| Native and portable packaging | One shared content renderer; native compatibility container on Codex 0.160.0; portable Cursor core plus necessary non-overlapping native facets only on eligible checkouts; retain static legacy references otherwise | Root-format Codex enforcement; Codex hook companion; agent-executed dynamic Cursor wrappers; duplicate public registration | [Pinned Codex loader](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/core-plugins/src/loader.rs#L952-L963) suppresses root hooks; [Cursor rules](https://cursor.com/docs/rules) are static host-loaded guidance. Native 3.24.18 also exposed both user-invocable controls, so a CLI visibility setting is not IDE proof. Necessary generated static projections preserve one authored graph without weakening loading |
 | OpenCode V2 transport | Promise SDK 2.0.32 isolated to V2, native transforms, typed tool denial; preserve V1 adapter | Reuse V1 entrypoint unchanged; introduce an Effect-based common Safeword runtime | [Versioned SDK docs](https://github.com/anomalyco/opencode/blob/v2.0.32/services/www/src/docs/content/build/plugins/index.mdx) show different APIs; the common runtime would spread host-specific dependency cost |
 | Evidence and guarantee selection | Keep activation in native stores; add Cursor activation and distinct sealed conformance/owner records using existing receipt integrity infrastructure; rank applicable guarantees | Treat activation as release proof; duplicate activation in a central DB; trust project JSON | Activation lacks target/method/failure history; duplicate facts drift; unsigned project assertions cannot establish host execution |
 | Customer version applicability | Separate exact engineering receipts from explicit publisher-owned binding-family policies, reusing current support predicates and requiring fresh activation; keep new native Cursor/V2 lanes exact initially | Pin every customer to reference binaries; run full customer conformance after every host update; infer all future versions from semver | Pins and repeated customer suites violate routine upgrade compatibility. [AIP-180](https://google.aip.dev/180) distinguishes protocol and semantic compatibility; [SemVer](https://semver.org/) provides no stability promise for Codex 0.x. Neither is a vendor guarantee. Apply the per-binding policy and upgraded-host controls below |
@@ -354,6 +381,18 @@ minimumVersion/plugin migration guidance, Cursor version-1 hook contracts and
 No blanket cross-version vendor guarantee is assumed; compatibility is a scoped
 Safeword support policy with reference proof and current activation. No external
 implementation is copied. **Decision informed:** Customer version applicability.
+
+The packaging decision was revised after native discovery disproved root-format
+hooks on Codex 0.160.0; see codex-hook-discovery.md. No Product Rule, host target
+or required guard outcome changed.
+
+The Codex portable-package scenario remains a capability fixture with its
+declared inline OpenAI enforcement extension installed but suppressed by this
+host. It demonstrates the scenario's explicit limit: portable loading proves
+only portable components. Actual enforcement is proved separately through the
+selected compatibility container; the shipped Codex package is not described
+as root-format delivery. Cursor's native skill visibility control is documented
+in the linked loading decision; CLI-only metadata cannot suppress IDE aliases.
 
 All decision evidence was retrieved 2026-10-20. Applicable versions are the exact
 six target versions in Approach and Agent Plugins 1.0. Host reference pages for
@@ -389,6 +428,12 @@ profile-wide plugin install: reconcile only the selected project's owned
 workspaceOpen hook in its existing Cursor hook configuration. That bootstrap
 returns the cached core and native-extension paths through Cursor's documented
 pluginPaths result only after the project's cutover enrollment authorizes them.
+Before enrollment or path publication, the actual project catalogue must have
+no competing legacy workflow wrappers. If they remain, select the independently
+proved project-hook mechanism and leave their static content loading unchanged.
+Native installation must not generate competing project wrappers in a clean
+eligible project. A profile-local request cannot retire tracked wrappers shared
+with teammates or Cloud; cache presence cannot override this eligibility check.
 The [current hooks contract](https://cursor.com/docs/hooks) documents workspaceOpen
 and pluginPaths; availability and dispatch on exact 3.24.18 remain an unverified
 assumption that the first native-boundary proof must settle.
@@ -430,12 +475,14 @@ guards are inert only with it, so native loading failure retains legacy behavior
 An absent, unreadable, stale or foreign enrollment never disables legacy guards.
 Do not infer native readiness from cache presence or a previous session's receipt.
 
-A teammate pulling the shared hook file into a second clone has no enrollment
+A teammate pulling the shared hook file into a second legacy clone has no enrollment
 for that realpath: the bootstrap returns no paths and legacy hooks keep working.
 Cursor Cloud remains on its existing project hooks and generated resources; no
 native desktop enrollment, cache or new cloud guarantee is required. Explicitly
 prove the bootstrap's empty-result and legacy dispatch in an isolated cloud-like
 profile with no cache/enrollment, alongside two clones of the same Git repository.
+Observe actual static rule/command content loading in the IDE, including when
+the CLI resolver is unavailable; checking only a returned path is insufficient.
 This is regression of the unchanged project-hook boundary, not new Cloud runtime
 certification or Desktop-to-Cloud evidence transfer.
 
@@ -655,7 +702,7 @@ exclusions cannot match by proximity or by sharing a major version.
 | Binding | Customer applicability | Limit |
 | --- | --- | --- |
 | Claude native | Existing minimum-version predicate (2.1.170) plus the declared native registration/hook protocol, required event capabilities and current activation | A newer version is not rejected merely because its number differs from the reference run; a changed required hook or continuation boundary invalidates that guarantee |
-| Codex native | Existing native loader, registration and trust support, plus the declared hook protocol and required root-format/extension capability readback | Do not infer compatibility from 0.x semver; root-format and compatibility-overlay delivery identities remain separate, and changed required mechanics fail applicability |
+| Codex native | Existing compatibility-container loader, registration and trust support, plus the declared hook protocol; root-format readback stays a separate resource-only binding | Do not infer compatibility from 0.x semver or metadata precedence; a format change needs actual hook proof, and changed required mechanics fail applicability |
 | Cursor project hooks | Existing project-hook support with manifest protocol version 1, required blockable events and the declared completion bound | Native plugin proof cannot fill this class; exact 3.8.23 and 3.24.18 legacy controls are required before shipping |
 | OpenCode V1 | Existing stable 1.x support predicate plus the unchanged V1 plugin API/event binding and CLI/TUI-specific capabilities | Preserve V1 delivery; never admit a V2 protocol or transfer V1 CLI evidence to TUI |
 | Cursor native | Initially exact 3.24.18 IDE with the proved workspaceOpen/pluginPaths, hook and continuation binding | A later native version needs an explicit reviewed compatibility-policy update or exact proof; retain a satisfying proved legacy mechanism when native is ineligible |
@@ -791,7 +838,7 @@ the new scoped evidence record families above have distinct authoritative writer
 | --- | --- |
 | Purpose | Represent content ownership, behavior guarantees, host disposition and applicable proof so a single edit has accountable delivery |
 | Store and model | Extend existing schema/registry and per-host activation/migration stores; add profile-local Cursor/V2 enrollment keyed by profile/machine and checkout realpath, Cursor activation, and sealed project conformance/owner records; package declarations are immutable derived release projections |
-| Schema and relationships | Content/behavior IDs unique; each behavior has one owner and one explicit disposition per supported version/runtime lane; resources resolve within the canonical graph; core owns Codex/Cursor skills while native extensions register none |
+| Schema and relationships | Content/behavior IDs unique; each behavior has one owner and one explicit disposition per supported version/runtime lane; resources resolve within the canonical graph; the canonical renderer owns content, selected Codex container and Cursor core are their sole skill registrations, and Cursor native extension registers none |
 | Source of truth | Templates/metadata and shared predicates own behavior; schema owns managed paths; selected lifecycle controller alone owns profile-local enrollment; native hook owns activation/session handshake; trusted conformance/capture controllers own sealed run/owner records; release conformance controller alone produces package conformance declarations and compatibility policies; native activation records bind observed host version through their existing writer/integrity boundary; the shared evaluator derives compatibility renewal on read without a renewal store/key/writer; reports are derived |
 | Ownership and access | Repository maintainers edit canonical declarations; selected lifecycle operations mutate only their declared owned scope; existing trusted host/conformance writers create proof; project-supplied assertions cannot mint host evidence |
 | Identity and integrity | Proof binds actual host version/runtime, all package identities/content in the delivery set, canonical project/profile scope, relevant trust/config identity, guarantee and test method; verify existing host receipt integrity; missing/unknown/duplicate or stale identity cannot inherit a claim |
@@ -944,8 +991,9 @@ weakened to fit a host. The V2 SDK dependency is local to that native adapter.
 
 The new durable record is a deliberate limited departure from ARCHITECTURE.md's
 preference for decisions inline. That file is already within 1 KiB of the review
-coordinator's per-file context bound. Its existing section indexes one subordinate
-durable record, explicitly included in review; no historical decision is moved
+coordinator's per-file context bound. Its existing section indexes the shared
+record, which links the two superseding Codex/Cursor records; all three are
+explicit bounded review context. No historical decision is moved
 and no duplicate full record is maintained. The record holds shared constraints,
 while this plan remains the feature design authority. Reassess a configured
 decision directory if further durable records cannot fit the main file.
@@ -958,7 +1006,10 @@ uninstall behavior, trust/restart actions and truthful active-protection status.
 Contributor documentation must explain the single canonical content/policy path,
 required binding/disposition changes and contract checks. Update framework guides
 only where these new contributor/installation contracts require it; preserve
-unrelated workflow semantics. Execution Planning owns the update order.
+unrelated workflow semantics. Update .project/surfaces.md to distinguish Codex's
+resource-only portable capability fixture from shipped compatibility delivery,
+and explain Cursor's automatic legacy selection where project registrations
+prevent exclusive native activation. Execution Planning owns the update order.
 
 ## Assessment triggers
 

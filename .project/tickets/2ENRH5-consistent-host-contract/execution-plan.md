@@ -5,18 +5,26 @@
 
 ## Approval context and current state
 
-Implementation review 7fb89e1f-a940-4ddc-8d8b-fa9f7656c0a4 approved the
+Implementation review 5a9a9659-b391-47a5-a0bb-483da00669d6 approved the
 current impl-plan.md with cross-agent independence (Codex author, Claude reviewer).
 Its current plan-implementation review stamp is written. The user's upgraded
 native Cursor target is 3.24.18; 3.8.23 remains a legacy compatibility target.
-The ticket already reached implement under earlier approval. Re-running canonical
-approve-plan correctly refused that phase; do not reset it or manufacture another
-approval. designApprovalGate remains disabled and the earlier approval_status was
-not-required. Current execution review and coding-authorization must be refreshed
+The ticket returned to planning after native discovery disproved the earlier
+Codex root-hook and Cursor dynamic-wrapper assumptions. Canonical approve-plan
+accepted the revised current plan and moved to plan-execution; approval_status
+is not-required because designApprovalGate remains disabled. Current execution
+review and coding-authorization must be refreshed
 before production edits. Merge, publication, destructive cleanup and host trust
 remain separate authorities.
 
-All implementation and proof below are target work, currently missing. The
+Checkpoint 0d1061ae6 implements the shared renderer and isolated portable writer;
+native Codex resource/precedence and Cursor resource/helper cases pass partially.
+They do not complete either required group or establish enforcement. The revised
+resume point is the first unproved native guard obligation in PR 1, followed by
+the remaining dependency order below. Existing passing cases stay regression
+evidence; do not fabricate a RED. Every changed primary proof needs its current
+independent RED before corresponding new production integration.
+All remaining implementation and full-group proof below are target work. The
 58 scenario definitions / 91 expanded cases remain unchecked. Existing source
 behavior and historical observations are baseline evidence only. The root-pinned
 Codex binary reports 0.160.0; installed global Codex 0.163.0, Claude 2.1.289 and
@@ -59,7 +67,9 @@ discharges an obligation. No slice is automatically merged or published.
 - **Completion signal:** exact Cursor 3.24.18 loads the core/extension and shared
   policy through the IDE; denied sentinel remains absent, allowed sentinel is
   written, resources/helpers resolve and bounded continuation is observed.
-  Exact Codex 0.160.0 loads the same core with the required extension precedence.
+  Exact Codex 0.160.0 separately proves root-format resources/metadata precedence
+  and real guard/resource/continuation behavior in its selected native
+  compatibility container, deriving content from the same canonical renderer.
   Default existing delivery remains supported and no unproved native mechanism
   is eligible.
 - **Relies on an unmerged successor:** no. The native mechanism remains an
@@ -109,9 +119,13 @@ discharges an obligation. No slice is automatically merged or published.
    the accepted binding declarations; add the canonical render primitives and
    generators for the portable core and packages/cli/cursor-plugin projection.
    Generate package assets, never hand-edit them. Keep native Cursor skills
-   exclusively in the shared core; the extension owns only native hooks and worker projections. Retained generated
-   project rules/command wrappers remain their sole registrations in both modes;
-   shared origin resolution points them to core resources after native cutover.
+   exclusively in the shared core; the extension owns hooks/workers and only
+   necessary non-overlapping rule facets derived from canonical content.
+   It emits no duplicate public command for a core workflow. Retain existing
+   project wrappers and static references unchanged in legacy/Cloud fixtures;
+   their presence makes native registration ineligible. The native fixture is
+   an eligible clean project with no competing project registrations. Test-owned
+   bootstrap scaffolding may establish discovery but cannot implement a guard.
    Enumerate the actual IDE rules, commands, skills and wrapper resource origins;
    any duplicate public workflow/content owner rejects cutover.
    Resolve helpers from package origin using the existing installed-CLI resolver,
@@ -122,6 +136,22 @@ discharges an obligation. No slice is automatically merged or published.
    mechanism ineligible. Capture observed host/package/workspace identity in the
    declared activation family and sealed originating conformance receipt.
    Keep the shared project compatibility hooks and reachable assets intact.
+   For the guard RED, first prove the existing allowed-action control in its
+   separate legacy setup, then exercise the clean native fixture with test-only
+   observers and bootstrap, without legacy guard dispatch supplying the result.
+   Add thin steps for the exact Cursor denied/allowed outline rows and required
+   IDs cursor-3.24.18-native-denied-write / cursor-3.24.18-native-allowed-write.
+   Fixture cursor-native-write uses a synthetic .project/tickets/sentinel-write/
+   directory and absent ticket.md sentinel: request one Shell write to that
+   ticket artifact, letting current shared shell-ticket policy govern it; the
+   allowed contrast writes exact random content to allowed-sentinel.txt.
+   The native actor must attempt the actual tool once, not merely refuse in text.
+   Missing native dispatch with the denied sentinel created is exit 2,
+   NATIVE_GUARD_DISPATCH_MISSING; no actual attempt, login or discovery failure is
+   unavailable (3). GREEN requires the native hook's shared policy reason and
+   absent denied file, plus the allowed file's exact content and genuine native
+   dispatch traces. Observers never decide permission. Obtain a fresh executable
+   RED review for this primary proof before the guard integration.
 6. Repeat the native RED/GREEN pair with the same real allowed and denied action;
    then invoke a changed canonical skill and referenced guide/helper marker.
    Attempt actual turn completion and observe the bounded subsequent host turn.
@@ -133,6 +163,14 @@ discharges an obligation. No slice is automatically merged or published.
    The earlier RED names root-format rejection or compatibility-overlay fallback
    after the pinned host launches. GREEN requires root-origin resource
    markers and extension precedence, not merely a successful native command.
+   Keep that root-format case a resource-only capability fixture. Add required
+   codex-0.160.0-denied-write / codex-0.160.0-allowed-write cases using the actual
+   native compatibility container and the same synthetic shell-ticket-write
+   policy/allowed contrast. Native hooks/list must first show the expected
+   package-bound hooks enabled and trusted; otherwise unavailable (3), never
+   product RED or a trust bypass. Retain a passing pre-existing guard baseline
+   as regression evidence. Required missing behavior is exposed by the relevant
+   current boundary proof; do not make an already passing native case fail.
    Before closing this native-codex group, add required case
    `codex-0.160.0-bounded-continuation` in host-contract.live.test.ts, fixture
    `codex-unfinished-ticket-stop` (isolated installed/trusted target, synthetic
@@ -377,7 +415,7 @@ discharges an obligation. No slice is automatically merged or published.
 - **Prerequisites:** PR 1 — Prove native Cursor delivery without changing default authority;
   PR 2 — Prove native OpenCode V2 while preserving V1;
   PR 3 — Remove parallel authoring across the complete shipped inventory.
-- **Proof:** admission, sealed-writer, native-codex, cursor-legacy, lifecycle, propagation,
+- **Proof:** admission, sealed-writer, native-codex, native-cursor, cursor-legacy, lifecycle, propagation,
   all-hosts, acceptance, documentation and delivery-review; all required on final
   shipped bytes, not retained only from a pilot or PR 3.
 - **Completion signal:** all 58 definitions / 91 examples and final required
@@ -491,6 +529,13 @@ discharges an obligation. No slice is automatically merged or published.
    regression of the existing project-hook boundary. Crash before/after enrollment,
    registration and handshake; race a sibling edit. Recover to one active owner.
    Missing native readiness must preserve legacy authority.
+   Native fixtures have no competing project workflow wrappers. In the two-clone
+   legacy fixture, both clones retain tracked static references, even if one
+   profile requests native enrollment: native stays ineligible and actual IDE
+   guidance/guards remain legacy. Separately prove enrollment and recovery on
+   the clean native-eligible project. Do not turn one legacy clone native by
+   rewriting shared tracked files. Assert actual loaded rule/command markers
+   with the resolver unavailable as well as hook dispatch and byte preservation.
    In the Cursor 3.24.18 continuation-cap fixture, use synthetic unfinished work
    that keeps the shared completion requirement unmet. Drive actual IDE turn
    completions through its version-specific observed auto-submission cap, retain the real
@@ -504,9 +549,9 @@ discharges an obligation. No slice is automatically merged or published.
    Codex shipping is owned here: before changing its generated production bundle,
    add a RED that installs the actual packages/cli/codex-plugin carrier through
    the real packaged lifecycle in a fresh Codex 0.160.0 profile. It must fail if
-   only the isolated pilot contains the root manifest, if the shipped package
-   still registers a separate content owner, or if overlay fallback is mistaken
-   for portable loading. Put this case in
+   only the pilot consumes the shared renderer, if the shipped package registers
+   a separate content owner, or if a root-only package is selected for required
+   hook guarantees. Put this case in
    packages/cli/tests/smoke/host-contract.live.test.ts, selector
    codex-shipped-carrier, fixture codex-shipped-candidate (isolated fresh profile,
    actual generated marketplace/package carrier and synthetic project).
@@ -514,26 +559,30 @@ discharges an obligation. No slice is automatically merged or published.
    scripts/dev bun packages/cli/scripts/run-host-contract-proof.ts --proof native-codex --require-targets.
    At PR 4 the runner requires this shipped-carrier case, checks its completed
    case ID and refuses a pilot-origin receipt. RED must exit 2 with
-   SHIPPED_CORE_MISSING when only the pilot has the manifest,
+   SHIPPED_SHARED_CONTENT_MISSING when only the pilot consumes the shared graph,
    DUPLICATE_CONTENT_OWNER when shipped content still has competing owners, or
-   PORTABLE_ROOT_NOT_LOADED when only the overlay is observed. Host setup errors
+   NATIVE_HOOK_DELIVERY_MISSING when root-only delivery suppresses required hooks. Host setup errors
    are unavailable, never these REDs. GREEN exits 0 only after the actual host
-   reports root-origin catalogue/resources, correct extension precedence, current
+   reports shipped package-origin catalogue/resources, native compatibility
+   hook discovery, current
    activation/trust and genuine allowed/denied action outcomes tied to the shipped
    payload digest. The same case runs inside final all-hosts.
    Then GREEN: change generate:codex-plugin and the shared
-   core generator to emit the Agent Plugins 1.0 root manifest, inline OpenAI
-   extension and compatibility overlay over the same skill/resource assets in
-   that shipped carrier. Wire it into check-generated-surfaces in dependency
+   content renderer to derive the one Codex native compatibility carrier from
+   canonical skill/resource assets. Do not emit a root manifest into its selected
+   0.160.0 enforcement package; the pinned loader suppresses hooks for that format.
+   Keep root-format capability generation separately explicit and resource-only.
+   Wire the selected carrier into check-generated-surfaces in dependency
    order. Preserve native plugin identity/version synchronization and required
    bundled runtime/template closure; no hand-edited generated assets.
    Reinstall that generated, actually distributable package via the real Codex
    marketplace/profile flow in the isolated test profile; perform required
    trust and restart, observe current per-event activation and prove native
    resource/guard behavior. Completion means Codex and Cursor reference the
-   same generated portable-core payload digest and neither has a second skills
-   owner. From this step onward native-codex, all-hosts, propagation and acceptance
-   load the final shipped package carrier, never the PR 1 pilot. Receipts bind
+   same canonical content-graph identity, each with its own generated payload
+   digest, and neither has a second skills owner. From this step onward native-codex, all-hosts, propagation and acceptance
+   load the final shipped carrier for enforcement and selected-delivery claims;
+   the separately labeled portable capability case cannot satisfy those claims. Receipts bind
    its current packaged identity; stale pilot passes cannot satisfy final work.
    Preserve V1 configuration/resources during V2 activation. Test controlled downgrade
    through the current controller, workspace restart and older package, plus
@@ -593,6 +642,11 @@ discharges an obligation. No slice is automatically merged or published.
     restart, controlled rollback and actual status without asking users to choose
     packaging. Mark the Registry architecture decision partially superseded only
     when the proved Cursor path is implemented; keep proposed facts labelled.
+    Before the documentation proof, update .project/surfaces.md: distinguish
+    Codex's resource-only portable capability fixture from selected shipped
+    compatibility delivery, and describe automatic Cursor legacy selection when
+    existing project registrations prevent exclusive native activation. Then run
+    the documentation review against these final inventory and guidance bytes.
 11. REFACTOR: remove redundant status/host lists and duplicate warning logic.
     Rerun affected proof groups after changes. Run repository-current, owner-current,
     propagation, native-codex,
@@ -764,7 +818,7 @@ asserts its complete expected population before returning success.
 | native-cursor | command | E2E | Exact 3.24.18 IDE loads core/extension and genuinely dispatches shared guards, resources and continuation | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","native-cursor","--require-targets"]} |
 | cursor-legacy | command | E2E | Exact 3.8.23 and 3.24.18 IDEs retain project-hook guarantees and upgraded unenrolled status using CLI-owned conformance identity, with no native cache | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","cursor-legacy","--require-targets"]} |
 | native-claude | command | E2E | Exact Claude 2.1.170 installed native plugin proves denied/allowed writes, canonical catalogue/helper origin and actual bounded continuation | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","native-claude","--require-targets"]} |
-| native-codex | command | integration | Exact 0.160.0 process loads root-format core/OpenAI extension and executes actual guard/resource boundary | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","native-codex","--require-targets"]} |
+| native-codex | command | integration | Exact 0.160.0 separately proves portable resource precedence and selected compatibility-container guards/resources/continuation; resource-only proof cannot establish enforcement | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","native-codex","--require-targets"]} |
 | native-opencode | command | integration | Exact V1/V2 CLI/TUI processes load actual packages and execute catalogue/allowed/denied actions | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","native-opencode","--require-targets"]} |
 | coexistence | command | integration | Actual V1/V2 processes read preserved profile configuration and separate project enrollments | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","coexistence","--require-targets"]} |
 | repository-boundaries | command | integration | Required repository check processes reject source/output/owner/bypass mutations in disposable trees | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test","tests/host-contract/repository-boundaries.test.ts"]} |
@@ -779,7 +833,7 @@ asserts its complete expected population before returning success.
 | all-hosts | command | E2E | Final exact eight runtime rows, complete catalogue/resources, allow/deny/continuation and demo composition | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","all-hosts","--require-targets"]} |
 | acceptance | command | integration | Actual Cucumber actors plus independently compiled complete 58-definition/91-example population; reject filtered, zero, skipped or omitted cases | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","acceptance","--require-targets"]} |
 | existing-regressions | command | integration | Existing CLI plugin/lifecycle/resource behavior remains usable | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test","tests/lifecycle/","tests/claude-plugin/","tests/codex-plugin/","tests/opencode/","tests/plugin-resource-contract.test.ts","tests/cursor/","tests/cursor-shell-gate.test.ts","tests/integration/cursor-pretooluse-gate.test.ts","tests/integration/cursor-stop-review.test.ts"]} |
-| documentation | review_receipt | integration | Independent review of final user/contributor guidance against implemented behavior and guarantees | real_boundary | current_required | {"type":"review_receipt","kind":"quality-review","targets":["AGENTS.md","ARCHITECTURE.md",".project/architecture-decisions/shared-host-contracts.md","README.md","packages/website/src/content/docs/getting-started/quick-start.mdx","packages/website/src/content/docs/reference/configuration.mdx","packages/website/src/content/docs/reference/hooks-and-skills.mdx","packages/website/src/content/docs/reference/cli.mdx"]} |
+| documentation | review_receipt | integration | Independent review of final user/contributor guidance and surface inventory against implemented behavior and guarantees | real_boundary | current_required | {"type":"review_receipt","kind":"quality-review","targets":["AGENTS.md","ARCHITECTURE.md",".project/architecture-decisions/shared-host-contracts.md",".project/surfaces.md","README.md","packages/website/src/content/docs/getting-started/quick-start.mdx","packages/website/src/content/docs/reference/configuration.mdx","packages/website/src/content/docs/reference/hooks-and-skills.mdx","packages/website/src/content/docs/reference/cli.mdx"]} |
 | delivery-review | review_receipt | integration | Independent final review of actual contract ownership, native adapters, evidence and recovery implementation | real_boundary | current_required | {"type":"review_receipt","kind":"quality-review","targets":["packages/cli/src/lifecycle","packages/cli/src/host-contract","packages/cli/src/commands","packages/opencode-v2-plugin","packages/cli/templates/hooks","packages/cli/scripts/run-host-contract-proof.ts"]} |
 | generated | command | integration | Deterministic generated-surface synchronization only | partial_or_structural | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/check-generated-surfaces.ts"]} |
 
@@ -840,19 +894,35 @@ Admission also rejects a stripped host_contract_version marker on a new package
 and a markerless unknown package; only recognized historical package identities
 receive the pre-contract status compatibility behavior.
 
-Cursor catalogue controls inspect both registered commands/rules and native skills,
-not only hook dispatch. The extension must supply no rules or commands. Exercise
-retained wrappers under legacy and native sessions and assert their resource
-origin is the one selected owner. A duplicate public workflow or second loaded
-content source blocks native activation; never infer inert rules from hook gating.
+Cursor catalogue controls inspect registered commands/rules and native skills,
+not only hook dispatch. The extension supplies no skills or duplicate public
+commands; necessary non-overlapping rules derive from canonical content.
+In a legacy checkout with tracked wrappers, attempted native activation must
+select proved legacy delivery, leave static references and tracked bytes unchanged,
+and load their actual content in the IDE. No rule executes a CLI resolver and no
+agent shell round-trip substitutes for host-loaded guidance. Test this on both
+exact legacy IDE versions, with native cache absent and CLI lookup unavailable.
+Observe an independently random marker through the actual rule/command entrypoint;
+record tool/context evidence of the project reference, not just a returned path.
+The cache-free cloud-like fixture and two-clone regression retain that same
+project-reference behavior; they do not establish new Cloud runtime conformance.
 
-Wrapper-origin proof keeps tracked wrapper bytes identical across an enrolled
-checkout, an unenrolled clone and a cache-free cloud-like fixture. Invoke the
-schema-owned helper through the existing shared CLI lookup; observe contained
-core origin only with a valid current native handshake, otherwise contained
-legacy project origin. Remove cache/stale epoch during a session and observe
-legacy authority restoration plus one origin. Missing both origins reports
-unavailable and never reads both. No static legacy @include may bypass resolution.
+For clean native-eligible projects with no competing project registrations,
+observe core/native facet loading and each package's contained origin. Existing
+tracked project wrappers make native ineligible even when the cache exists.
+Remove cache or stale the epoch during a native session: invalidate the native
+claim and retain independently available legacy guards. Reconciled fallback
+guidance is active only after actual IDE reload/loading succeeds; otherwise
+report unavailable with repair/reload recovery. Never claim a fallback from its
+path alone. Duplicate public registration blocks activation.
+
+The mixed-host upgrade replacement assertion covers actual migrated Claude,
+Codex and OpenCode delivery. Cursor with retained tracked wrappers is a separate
+legacy-preservation control, not a passing native-replacement assertion. Clean
+native Cursor installation and reinstall have their own actual package proofs.
+Exact-target engineering receipts never substitute for another target; customer
+binding-compatible status separately requires the reviewed publisher policy and
+fresh exact-observed activation specified in the Implementation Plan.
 Cursor activation observations remain explicitly unsealed profile-owned atomic
 records, with same-user forgery outside the stated trust guarantee; they cannot
 stand in for sealed conformance.

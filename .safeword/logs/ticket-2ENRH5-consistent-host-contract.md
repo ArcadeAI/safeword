@@ -600,3 +600,66 @@ targets JSON layout. No behavioral change or new production work is authorized
 from a receipt whose frozen source identity those formatting edits invalidate;
 retain the prior RED/partial-GREEN history and review any future changed primary
 proof against its current sources before subsequent production integration.
+
+### Return to planning after Codex format discovery
+
+Saved first checkpoint 0d1061ae6; pre-commit checks and all five generated-surface
+checks passed. No Vitest remains running. Native read-only format comparison
+codex-hook-format-tdZICY installed identical payloads in two fresh unauthenticated
+profiles: portable root discovers zero hooks; removing only root plugin.json
+discovers all five expected events, enabled but untrusted. Pinned Codex source
+rust-v0.160.0 loader.rs explicitly suppresses hooks for AgentPlugin format.
+No trust granted or bypassed; see codex-hook-discovery.md for ruled-out causes.
+
+Fresh checkpoint quality review 4eac303f-2142-49b3-867e-5060c1620636 independently
+APPROVED (Claude). An implement phase stamp could not bind because implementation
+files were already committed and there was no current Git implementation diff.
+Recorded a truthful implement-exit skip solely for returning to planning, not
+completion, then moved the ticket back to plan-implementation. Revised the Codex
+packaging choice to one existing native compatibility container deriving content
+from the shared renderer; no companion registration and no Product/target change.
+New superseding ADR records that choice. Current implementation/execution stamps
+do not authorize more production work until refreshed reviews pass.
+
+Scenario refresh d3ba2a37-3640-48fa-a18b-c25bfeef206b independently APPROVED
+(Claude/opus); scenario-gate stamp observed. Definitions remain 58/91 unchanged.
+Implementation review 0f71fb96-d0ed-4875-93f2-c5788a9a1067 requested changes:
+static Cursor wrappers could not execute the proposed origin resolver, and its
+failure path risked weakening legacy/Cloud guidance. No production resumed.
+
+Investigated Cursor public hooks/rules/plugin APIs and tested IDE 3.24.18 using
+a fresh disposable visibility-control package in owned catalogue-pE45oA. Actual
+workspaceOpen returned its new package path; both user-invocable:true and false
+skills appeared in the native slash menu. Thus CLI visibility metadata is not
+an IDE suppression solution. Restored the original candidate skill after that
+separate control. These are research observations, not conformance receipts.
+
+Revised the plan: preserve legacy static references and select verified legacy
+when project registrations would compete; native clean-project registration
+must expose one public workflow owner. No dynamic shell-running markdown, no
+user packaging choice, and no profile-local retirement of shared wrappers.
+Necessary generated compatibility resources remain single-authored and checked.
+New superseding Cursor loading ADR records the changed engineering decision.
+Fresh implementation review still required before execution-plan refresh/coding.
+
+Revised implementation review 5a9a9659-b391-47a5-a0bb-483da00669d6 APPROVED
+(independent Claude/opus), stamp observed. Canonical approve-plan advanced to
+plan-execution with approval_status not-required. Execution review
+5dcb57cd-73db-4d58-a055-b5e301888d53 requested one documentation mapping repair;
+added .project/surfaces.md task and documentation targets plus native-cursor PR4
+rerun. Follow-up 1f297442-d8f4-4c59-828e-e2ee173e47c5 APPROVED, stamp observed.
+Scenario refresh 66974aa1-459a-49ec-89bf-0c9c0ae86dcf APPROVED and stamped after
+the final plan edits (earlier scenario receipts were stale). Current coding
+authorization is authorized, cross-agent, input identity
+ab8db893aacd067ace70616cfb14d52ccb83ac182c32bb9bfd8587a981d6349b.
+
+Prepared actual generated Codex compatibility carrier in isolated profile
+codex-guard-KbebbV, retaining exact 0.160.0. Native hooks/list shows all five
+expected hooks enabled and untrusted. Hook manifest SHA256
+8c980427a949a53696c5f5354290f019fec733b6ce3bf482352e7402fb13f489.
+Requested explicit human authorization for those exact test-profile hooks;
+answer pending. No hook trust granted or bypassed. Native TUI session61208 is
+at the fixture folder-access prompt; do not activate it while approval is pending.
+Other native TUI probe sessions were closed. No Vitest currently running.
+Return to implement starts with current native guard proof scaffolding and its
+fresh executable RED review, not new production code from old resource receipts.

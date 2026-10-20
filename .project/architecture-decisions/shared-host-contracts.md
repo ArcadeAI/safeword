@@ -2,6 +2,12 @@
 
 **Status:** Proposed, 2026-10-20. Implementation owner: ticket 2ENRH5.
 
+**Partially superseded:** the Codex packaging aspect is superseded by
+[the version-matched native container decision](./20261020-codex-native-container.md).
+Cursor's dynamic wrapper-origin detail is superseded by
+[the static guidance decision](./20261020-cursor-static-guidance.md).
+All shared ownership, evidence and lifecycle constraints below remain applicable.
+
 ## Context
 
 Safeword's native integrations must preserve different host guarantees while
@@ -145,6 +151,10 @@ activation plus validated sealed publisher policy and reference proof. No
 renewal receipt, new key or new writer is introduced. Matching a version predicate or reusing old
 activation never renews proof; status stays not active until renewal. This is
 supported-binding proof, explicitly distinct from repeating an exact-target run.
+
+**Superseded Cursor loading detail (historical rationale):** the following two
+paragraphs describe the rejected dynamic-origin approach. The linked static
+guidance decision controls current design.
 
 Cursor retains generated project rules and command wrappers as their sole
 registrations in every mode. The native extension adds hooks and worker

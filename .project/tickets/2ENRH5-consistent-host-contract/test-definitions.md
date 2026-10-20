@@ -2,8 +2,10 @@
 
 Feature source: `features/consistent-host-contract.feature`
 
-This is the RED/GREEN/REFACTOR progress ledger. Scenario implementation has
-not started. All progress boxes remain unchecked.
+This is the RED/GREEN/REFACTOR progress ledger. Partial portable-content pilots
+are implemented and tested; no complete outline or full scenario is proved.
+All progress boxes remain unchecked. See portable-checkpoint-review.md and
+codex-hook-discovery.md for evidence and the packaging reassessment.
 
 ## Rule: consistent-host-contract.SWM1.R1 — Shared behavior has one authoritative definition
 
