@@ -291,6 +291,7 @@ printf 'bunx:%s\n' "$*" >> "$CALL_LOG"`,
         // its way back up here rather than treating that subdirectory as the project.
         mkdirSync(nodePath.join(fixture, '.safeword'), { recursive: true });
         mkdirSync(nodePath.join(fixture, 'node_modules/.bin'), { recursive: true });
+        pinLocalSafeword(fixture);
         executable(
           nodePath.join(fixture, 'node_modules/.bin/safeword'),
           String.raw`pwd -P > "$CWD_LOG"
@@ -337,6 +338,17 @@ printf 'local:%s\n' "$*" >> "$CALL_LOG"`,
   }
 }
 
+/** Pin the fixture to the version its node_modules safeword reports, as a real install does. */
+function pinLocalSafeword(fixture: string): void {
+  mkdirSync(nodePath.join(fixture, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(fixture, '.safeword/version'), '0.74.7\n');
+  mkdirSync(nodePath.join(fixture, 'node_modules/safeword'), { recursive: true });
+  writeFileSync(
+    nodePath.join(fixture, 'node_modules/safeword/package.json'),
+    '{"name":"safeword","version":"0.74.7"}',
+  );
+}
+
 describe('class-1 review surface parity', () => {
   it('keeps wrapper global-option parsing aligned with the CLI contract', () => {
     const valueless = new Set<string>();
@@ -362,6 +374,7 @@ describe('class-1 review surface parity', () => {
       const acknowledgement = nodePath.join(fixture, 'acknowledged');
       const probeEnvironment = nodePath.join(fixture, 'probe-environment.log');
       mkdirSync(localBin, { recursive: true });
+      pinLocalSafeword(fixture);
       executable(
         nodePath.join(localBin, 'safeword'),
         `if [ "$*" = "review run --help" ]; then printf '%s\n' "\${SAFEWORD_REVIEW_PROGRESS-unset}" > "$PROBE_ENVIRONMENT"; exit 0; fi
@@ -434,6 +447,7 @@ exit 2`,
       try {
         const localBin = nodePath.join(fixture, 'node_modules/.bin');
         mkdirSync(localBin, { recursive: true });
+        pinLocalSafeword(fixture);
         executable(
           nodePath.join(localBin, 'safeword'),
           `if [ "$*" = "review run --help" ]; then exit 0; fi

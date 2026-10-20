@@ -176,6 +176,64 @@ process.stdin.on('end', () => {
 }
 
 describe('Cursor installed planning copy admission', () => {
+  it.each([
+    { home: 'unset', codexHome: undefined },
+    { home: 'empty', codexHome: '' },
+  ])(
+    'shared planning checker ignores project PATH shims with $home CODEX_HOME',
+    { timeout: 90_000 },
+    ({ codexHome }) => {
+      const installed = fixture();
+      const asset = nodePath.join(installed.project, '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md');
+      writeFileSync(asset, `<!-- drift outside rubric -->\n${readFileSync(asset, 'utf8')}`);
+      const shimDirectory = nodePath.join(installed.project, 'bin');
+      mkdirSync(shimDirectory);
+      const marker = nodePath.join(installed.project, 'runtime-shim-executed');
+      writeFileSync(
+        nodePath.join(shimDirectory, 'bun'),
+        `#!${process.execPath}
+require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'executed');
+console.log(JSON.stringify({ state: 'healthy', data: {
+  command: 'ticket planning-contract-check', status: 'current', planning_phase: 'plan-implementation'
+}}));
+`,
+        { mode: 0o755 },
+      );
+      // Resolve the launcher before introducing the hostile project-owned PATH entry.
+      const launcher = spawnSync('which', ['bun'], { encoding: 'utf8' });
+      expect(launcher.status, launcher.stderr).toBe(0);
+      const checked = spawnSync(
+        launcher.stdout.trim(),
+        [nodePath.join(installed.project, '.safeword/hooks/pre-tool-quality.ts')],
+        {
+          cwd: installed.project,
+          encoding: 'utf8',
+          timeout: 15_000,
+          env: {
+            ...installed.environment,
+            CODEX_HOME: codexHome,
+            PATH: `${shimDirectory}:${installed.environment.PATH}`,
+          },
+          input: JSON.stringify({
+            session_id: 'copy-shim-refusal',
+            tool_name: 'Edit',
+            tool_input: {
+              file_path: installed.ticketPath,
+              old_string: 'phase: plan-implementation',
+              new_string: 'phase: plan-execution',
+            },
+          }),
+        },
+      );
+      expect(checked.status, `${checked.stdout}\n${checked.stderr}`).toBe(0);
+      expect(existsSync(marker), 'project-owned runtime must not answer an authority check').toBe(
+        false,
+      );
+      expect(JSON.parse(checked.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(checked.stdout).toContain('canonical_contract_copy_mismatch');
+    },
+  );
+
   it.each(['project', 'package'] as const)(
     'keeps the review current while cosmetic %s copy drift blocks the installed phase gate',
     { timeout: 90_000 },

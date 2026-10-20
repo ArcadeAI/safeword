@@ -92,6 +92,8 @@ function installFakeLocalCli(directory: string, options: { exitCode?: number } =
   const exitCode = options.exitCode ?? 0;
   const cliPath = nodePath.join(directory, 'packages/cli/src/cli.ts');
   mkdirSync(nodePath.dirname(cliPath), { recursive: true });
+  // A real source checkout: the shared CLI lookup trusts only the safeword package.
+  writeFileSync(nodePath.join(directory, 'packages/cli/package.json'), '{"name":"safeword"}\n');
   writeFileSync(
     cliPath,
     `#!/usr/bin/env bun
