@@ -82080,7 +82080,7 @@ function pending(request, kind, finding2) {
     findings: [
       {
         code: "REVIEW_DISPOSITION_PENDING",
-        message: `Declining this ${finding2.severity} finding requires interactive confirmation: ${finding2.message}`,
+        message: `Declining this ${finding2.severity} finding requires interactive confirmation: ${terminalSafeReviewerText(finding2.message)}`,
         severity: "warning"
       }
     ],

@@ -48,7 +48,7 @@ function pending(
     findings: [
       {
         code: 'REVIEW_DISPOSITION_PENDING',
-        message: `Declining this ${finding.severity} finding requires interactive confirmation: ${finding.message}`,
+        message: `Declining this ${finding.severity} finding requires interactive confirmation: ${terminalSafeReviewerText(finding.message)}`,
         severity: 'warning',
       },
     ],
