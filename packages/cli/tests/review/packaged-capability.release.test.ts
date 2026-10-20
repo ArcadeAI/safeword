@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PACKAGED_CAPABILITY_PAIRS,
   PACKAGED_CAPABILITY_REVISION,
+  PACKAGED_CAPABILITY_SETTINGS,
 } from '../../src/review/capability-catalogue.js';
 import {
   capabilityRevision,
@@ -33,6 +34,7 @@ describe('packaged reviewer capability evidence', () => {
     const codex = evidence('gpt-6-astra');
     const revision = capabilityRevision(REVIEWER_CAPABILITY_MANIFEST, REVIEWER_CAPABILITY_RUBRICS);
     expect(PACKAGED_CAPABILITY_REVISION).toEqual(revision);
+    expect(PACKAGED_CAPABILITY_SETTINGS).toEqual(REVIEWER_CAPABILITY_MANIFEST.settings);
     expect(PACKAGED_CAPABILITY_PAIRS).toHaveLength(2);
 
     for (const [author, reviewer] of [

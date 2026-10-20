@@ -1,3 +1,8 @@
+import {
+  PACKAGED_CAPABILITY_PAIRS as generatedPairs,
+  PACKAGED_CAPABILITY_REVISION as generatedRevision,
+} from './capability-catalogue.generated.js';
+
 export interface CapabilityRevision {
   readonly corpus_digest: string;
   readonly rubric_digest: string;
@@ -77,7 +82,5 @@ export function reviewerCapabilityFailure(
   if (comparison === 'weaker') return 'reviewer_capability_weaker';
   return comparison === 'not_weaker' ? undefined : 'reviewer_capability_unknown';
 }
-import {
-  PACKAGED_CAPABILITY_PAIRS as generatedPairs,
-  PACKAGED_CAPABILITY_REVISION as generatedRevision,
-} from './capability-catalogue.generated.js';
+
+export { PACKAGED_CAPABILITY_SETTINGS } from './capability-catalogue.generated.js';

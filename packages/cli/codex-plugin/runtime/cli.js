@@ -32265,17 +32265,26 @@ function readFrontmatterScalar(content, field) {
 }
 
 // src/review/capability-catalogue.generated.ts
-var PACKAGED_CAPABILITY_REVISION, PACKAGED_CAPABILITY_PAIRS;
+var PACKAGED_CAPABILITY_REVISION, PACKAGED_CAPABILITY_SETTINGS, PACKAGED_CAPABILITY_PAIRS;
 var init_capability_catalogue_generated = __esm(() => {
   PACKAGED_CAPABILITY_REVISION = {
     corpus_digest: "f76edddd71868835e161d06987bce170fb395a71849412dd96c2b6d18c698b24",
-    rubric_digest: "b9d97005601dcaaa38caefb84716497d792170da6d5d4a0076b039691df9594f",
+    rubric_digest: "863395c470634f93f595df05282540bfdbb1245849c0999a2c31beac19a70ca2",
     settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d"
+  };
+  PACKAGED_CAPABILITY_SETTINGS = {
+    anthropic_model: "claude-opus-5",
+    openai_model: "gpt-6-astra",
+    tools: "review prompt forbids tools",
+    claude_effort: "medium",
+    codex_reasoning: "medium",
+    review_timeout_ms: "600000",
+    review_run_bound_ms: "1800000"
   };
   PACKAGED_CAPABILITY_PAIRS = [
     {
       corpus_digest: "f76edddd71868835e161d06987bce170fb395a71849412dd96c2b6d18c698b24",
-      rubric_digest: "b9d97005601dcaaa38caefb84716497d792170da6d5d4a0076b039691df9594f",
+      rubric_digest: "863395c470634f93f595df05282540bfdbb1245849c0999a2c31beac19a70ca2",
       settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
       author_provider: "anthropic",
       author_model: "claude-opus-5",
@@ -32283,12 +32292,12 @@ var init_capability_catalogue_generated = __esm(() => {
       reviewer_model: "gpt-6-astra",
       direction: "not_weaker",
       qualification: "pinned-corpus",
-      evidence_date: "2026-09-29",
-      results_digest: "80cfc12c7eff986f7883df57f7d68168847b971a55c46306d039d6c1df552ea2"
+      evidence_date: "2026-10-20",
+      results_digest: "a2cbf52980f88db1962d3f6b59806cd9052fd10f84a7bdb577a2a657b0f72c58"
     },
     {
       corpus_digest: "f76edddd71868835e161d06987bce170fb395a71849412dd96c2b6d18c698b24",
-      rubric_digest: "b9d97005601dcaaa38caefb84716497d792170da6d5d4a0076b039691df9594f",
+      rubric_digest: "863395c470634f93f595df05282540bfdbb1245849c0999a2c31beac19a70ca2",
       settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
       author_provider: "openai",
       author_model: "gpt-6-astra",
@@ -32296,8 +32305,8 @@ var init_capability_catalogue_generated = __esm(() => {
       reviewer_model: "claude-opus-5",
       direction: "weaker",
       qualification: "pinned-corpus",
-      evidence_date: "2026-09-29",
-      results_digest: "72348e3e6bcc1ac1a6de07c0f73c51f905ed635c6154be619b4ec51aaf26ae1b"
+      evidence_date: "2026-10-20",
+      results_digest: "2bd888ccf9e34aacdc17caf777d825b16b586f86b859272e9082d36607a5ca09"
     }
   ];
 });
@@ -32323,6 +32332,7 @@ function reviewerCapabilityFailure(author, requestedModel, confirmed, current, r
 }
 var PACKAGED_CAPABILITY_REVISION2, PACKAGED_CAPABILITY_PAIRS2;
 var init_capability_catalogue = __esm(() => {
+  init_capability_catalogue_generated();
   init_capability_catalogue_generated();
   PACKAGED_CAPABILITY_REVISION2 = PACKAGED_CAPABILITY_REVISION;
   PACKAGED_CAPABILITY_PAIRS2 = PACKAGED_CAPABILITY_PAIRS;
@@ -58731,7 +58741,13 @@ function terminalSafeReviewerText(value) {
 async function executeReview(reviewer, prepared, model, runDeadline, retainPrepared = false) {
   let outcome;
   try {
-    const execution = await runHeadlessReviewerWithProvenance(reviewer, prepared.packet, prepared.workspace, prepared.sourceRoot, { model, runDeadline });
+    const execution = await runHeadlessReviewerWithProvenance(reviewer, prepared.packet, prepared.workspace, prepared.sourceRoot, {
+      model,
+      runDeadline,
+      ...(prepared.packet.planning_phase !== undefined || isPlanningReview(prepared.packet.kind)) && reviewer !== "opencode" && {
+        effort: reviewer === "codex" ? PACKAGED_CAPABILITY_SETTINGS.codex_reasoning : PACKAGED_CAPABILITY_SETTINGS.claude_effort
+      }
+    });
     outcome = { kind: "completed", ...execution };
   } catch (error2) {
     if (!(error2 instanceof ReviewRuntimeError)) {
@@ -59118,6 +59134,9 @@ function rankedReviewerCapabilityFailure(planning, author, route, confirmedModel
     return;
   return reviewerCapabilityFailure({ provider: "anthropic", model: authorModel }, route.model, confirmedModel2, PACKAGED_CAPABILITY_REVISION2, PACKAGED_CAPABILITY_PAIRS2);
 }
+function retainUnqualifiedRejection(current, output, route) {
+  return current?.output.verdict === "request_changes" ? current : { output, route };
+}
 function preparedRankedPacket(input, existing) {
   return existing ?? prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
     attestation: input.executionAttestation
@@ -59192,7 +59211,7 @@ async function runConfiguredRankedRoutes({
             status: "attempted",
             failure: capabilityFailure
           };
-          unqualified = capabilityFailure === "reviewer_capability_unknown" ? { output: assessment.output, route } : unqualified;
+          unqualified = capabilityFailure === "reviewer_capability_unknown" ? retainUnqualifiedRejection(unqualified, assessment.output, route) : unqualified;
           continue;
         }
         const result = independentReviewResult({
@@ -59231,7 +59250,8 @@ async function runConfiguredRankedRoutes({
   }
 }
 function rankedTerminalResult(input) {
-  return hostContinuationResult(input) ?? rankedExhaustedResult({
+  const rejected = input.unqualified?.output.verdict === "request_changes";
+  return (rejected ? undefined : hostContinuationResult(input)) ?? rankedExhaustedResult({
     author: input.author,
     policy: input.policy,
     kind: input.input.kind,
@@ -59239,7 +59259,7 @@ function rankedTerminalResult(input) {
     targets: input.input.targets,
     context: input.input.context,
     evidence: input.evidence,
-    degraded: input.degraded,
+    degraded: rejected ? undefined : input.degraded,
     unqualified: input.unqualified
   });
 }

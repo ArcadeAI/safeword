@@ -5,6 +5,16 @@ export const PACKAGED_CAPABILITY_REVISION = {
   settings_digest: 'acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d',
 } as const;
 
+export const PACKAGED_CAPABILITY_SETTINGS = {
+  anthropic_model: 'claude-opus-5',
+  openai_model: 'gpt-6-astra',
+  tools: 'review prompt forbids tools',
+  claude_effort: 'medium',
+  codex_reasoning: 'medium',
+  review_timeout_ms: '600000',
+  review_run_bound_ms: '1800000',
+} as const;
+
 export const PACKAGED_CAPABILITY_PAIRS = [
   {
     corpus_digest: 'f76edddd71868835e161d06987bce170fb395a71849412dd96c2b6d18c698b24',

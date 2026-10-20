@@ -9,6 +9,7 @@ import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import {
   PACKAGED_CAPABILITY_PAIRS,
   PACKAGED_CAPABILITY_REVISION,
+  PACKAGED_CAPABILITY_SETTINGS,
   reviewerCapabilityFailure,
 } from './capability-catalogue.js';
 import { retryCommand } from './command.js';
@@ -366,7 +367,18 @@ async function executeReview(
       prepared.packet,
       prepared.workspace,
       prepared.sourceRoot,
-      { model, runDeadline },
+      {
+        model,
+        runDeadline,
+        ...((prepared.packet.planning_phase !== undefined ||
+          isPlanningReview(prepared.packet.kind)) &&
+          reviewer !== 'opencode' && {
+            effort:
+              reviewer === 'codex'
+                ? PACKAGED_CAPABILITY_SETTINGS.codex_reasoning
+                : PACKAGED_CAPABILITY_SETTINGS.claude_effort,
+          }),
+      },
     );
     outcome = { kind: 'completed', ...execution };
   } catch (error) {
@@ -1000,6 +1012,14 @@ function rankedReviewerCapabilityFailure(
   );
 }
 
+function retainUnqualifiedRejection(
+  current: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined,
+  output: ReviewerOutput,
+  route: ReviewRoute,
+): { readonly output: ReviewerOutput; readonly route: ReviewRoute } {
+  return current?.output.verdict === 'request_changes' ? current : { output, route };
+}
+
 function preparedRankedPacket(
   input: ReviewRunInput,
   existing: ReturnType<typeof prepareReviewPacket> | undefined,
@@ -1095,7 +1115,7 @@ async function runConfiguredRankedRoutes({
           };
           unqualified =
             capabilityFailure === 'reviewer_capability_unknown'
-              ? { output: assessment.output, route }
+              ? retainUnqualifiedRejection(unqualified, assessment.output, route)
               : unqualified;
           continue;
         }
@@ -1141,8 +1161,12 @@ function rankedTerminalResult(
     readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
   },
 ): CliResult {
+  // A completed rejection with unknown capability must remain visible rather
+  // than being replaced by self-approval. Proven-weaker verdicts never enter
+  // this state; they remain discarded under the accepted capability contract.
+  const rejected = input.unqualified?.output.verdict === 'request_changes';
   return (
-    hostContinuationResult(input) ??
+    (rejected ? undefined : hostContinuationResult(input)) ??
     rankedExhaustedResult({
       author: input.author,
       policy: input.policy,
@@ -1151,7 +1175,7 @@ function rankedTerminalResult(
       targets: input.input.targets,
       context: input.input.context,
       evidence: input.evidence,
-      degraded: input.degraded,
+      degraded: rejected ? undefined : input.degraded,
       unqualified: input.unqualified,
     })
   );

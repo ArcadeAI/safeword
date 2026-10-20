@@ -77,7 +77,7 @@ afterEach(() => {
   projects.length = 0;
 });
 
-it('discards a weaker approval and continues to the next independent route', async () => {
+async function planningFixture() {
   const project = createTemporaryDirectory();
   projects.push(project);
   await createConfiguredProject(project);
@@ -115,6 +115,11 @@ it('discards a weaker approval and continues to the next independent route', asy
 
   vi.stubEnv('SAFEWORD_AGENT_RUNTIME', 'claude');
   vi.stubEnv('SAFEWORD_AUTHOR_MODEL', 'claude-opus-5');
+  return { project, ticket, configPath, config };
+}
+
+it('discards a weaker approval and continues to the next independent route', async () => {
+  const { project, ticket, configPath, config } = await planningFixture();
   const result = await runReview({
     cwd: project,
     kind: 'plan-implementation',
@@ -269,27 +274,50 @@ it('discards a weaker approval and continues to the next independent route', asy
   });
   expect(required.data).toMatchObject({ status: 'blocked' });
   expect((required.data as Record<string, unknown>).continuation).toBeUndefined();
+});
 
-  vi.stubEnv('SAFEWORD_TEST_REVIEWERS_FAIL', '0');
-  vi.stubEnv('SAFEWORD_TEST_UNKNOWN_REJECTION', '1');
-  writeFileSync(configPath, JSON.stringify(config));
-  const unqualifiedRejection = await runReview({
+it.each(['prefer', 'require'] as const)(
+  'keeps an unqualified rejection under %s without accepting self-approval',
+  async policy => {
+    const { project, ticket, configPath, config } = await planningFixture();
+    vi.stubEnv('SAFEWORD_TEST_REVIEWERS_FAIL', '0');
+    vi.stubEnv('SAFEWORD_TEST_UNKNOWN_REJECTION', '1');
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        ...config,
+        crossAgentReview: policy,
+        crossAgentReviewRoutes: { claude: [{ reviewer: 'codex' }, { reviewer: 'claude' }] },
+      }),
+    );
+    const unqualifiedRejection = await runReview({
+      cwd: project,
+      kind: 'plan-implementation',
+      targets: [`${ticket}/impl-plan.md`],
+      context: [`${ticket}/spec.md`],
+    });
+    expect(unqualifiedRejection.data).toMatchObject({
+      status: 'blocked',
+      independence: 'none',
+      actual_reviewer: 'codex',
+      reviewer_output: { verdict: 'request_changes' },
+    });
+    expect(unqualifiedRejection.findings).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        message: 'The unqualified reviewer found a blocking defect.',
+      }),
+    );
+  },
+);
+
+it('uses the pinned medium effort for planning qualification', async () => {
+  const { project, ticket } = await planningFixture();
+  await runReview({
     cwd: project,
     kind: 'plan-implementation',
     targets: [`${ticket}/impl-plan.md`],
     context: [`${ticket}/spec.md`],
   });
-  expect(unqualifiedRejection.data).toMatchObject({
-    status: 'blocked',
-    independence: 'none',
-    actual_reviewer: 'codex',
-    reviewer_output: { verdict: 'request_changes' },
-  });
-  expect(unqualifiedRejection.findings).toContainEqual(
-    expect.objectContaining({
-      severity: 'error',
-      message: 'The unqualified reviewer found a blocking defect.',
-    }),
-  );
-  expect(dispatchedEfforts.slice(0, 2)).toEqual(['medium', 'medium']);
+  expect(dispatchedEfforts).toEqual(['medium', 'medium']);
 });

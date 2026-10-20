@@ -448,6 +448,9 @@ supported independent reviewer before retrying.
 The continuation authenticates the saved job, packet, source currency, tier,
 and single-use submission. The fresh-context claim and current agent origin
 are host-reported; the receipt does not attest that an isolated reviewer ran.
+Planning CLI reviewers use the effort settings sealed with the packaged
+capability catalogue. A completed rejection whose reviewer capability is unknown
+remains blocked with its findings retained; fallback approval cannot hide it.
 
 The opt-in `architectureReviewGate` separately requires verified independent
 design review before implementation finishes. A reduced planning receipt does
