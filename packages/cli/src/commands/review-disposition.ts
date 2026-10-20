@@ -83,7 +83,9 @@ function addDisposition(
   if (match === null) throw new Error('The ticket has no valid frontmatter.');
   const document = parseDocument(match[2] ?? '', { uniqueKeys: true });
   if (document.errors.length > 0) throw new Error('The ticket has invalid frontmatter.');
-  const existing: unknown = document.get('review_dispositions');
+  const metadata: unknown = document.toJS();
+  if (!isRecord(metadata)) throw new Error('The ticket has invalid frontmatter.');
+  const existing = metadata.review_dispositions;
   if (existing !== undefined && !Array.isArray(existing))
     throw new Error('The ticket review dispositions are invalid.');
   const records = Array.isArray(existing) ? existing : [];
@@ -213,9 +215,10 @@ function writeDisposition(
         },
       });
     });
-  } catch {
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
     return writeUnavailable(
-      'The ticket or lock could not be updated atomically. Check the ticket before retrying.',
+      `The ticket or lock could not be updated atomically: ${reason}. Check the ticket before retrying.`,
     );
   }
 }

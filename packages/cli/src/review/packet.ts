@@ -804,8 +804,20 @@ function productPlanWorkTarget(cwd: string, kind: ReviewKind, targets: readonly 
   const target = targets[0];
   if (target === undefined || nodePath.basename(target) !== 'spec.md') return false;
   const ticketDirectory = nodePath.dirname(nodePath.resolve(cwd, target));
-  if (!existsSync(nodePath.join(ticketDirectory, 'ticket.md'))) return false;
-  return ownedPlanningTicket(cwd, target);
+  if (nodePath.dirname(ticketDirectory) !== resolveTicketsDirectory(cwd)) return false;
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+  const relativeTicketPath = nodePath.relative(cwd, ticketPath);
+  const marked = readFileSync(nodePath.resolve(cwd, target), 'utf8').includes(
+    '<!-- safeword:product-plan-contract:v1 -->',
+  );
+  if (!existsSync(ticketPath)) {
+    if (marked) throw new PlanningContextError('ticket', relativeTicketPath);
+    return false;
+  }
+  const metadata = planningTicketMetadata(cwd, ticketPath, 'ticket');
+  if (marked && metadata.product_plan_contract !== 'v1')
+    throw new PlanningContextError('ticket', relativeTicketPath);
+  return planningTicketOwner(metadata, nodePath.basename(ticketDirectory), relativeTicketPath);
 }
 
 function packetPlanContract(

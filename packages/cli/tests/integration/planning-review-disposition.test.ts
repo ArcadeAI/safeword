@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
 
 import { parseFrontmatter } from '../../templates/hooks/lib/hierarchy.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
@@ -195,7 +196,14 @@ describe('user-owned planning review disposition', () => {
     const second = project.terminal('y', reviewId);
     expect(second.status, `${second.stdout}\n${second.stderr}`).toBe(0);
     const frontmatter = readFileSync(project.ticketPath, 'utf8').split('---', 2)[1] ?? '';
-    expect(parseFrontmatter(frontmatter).review_dispositions).toHaveLength(2);
+    const metadata = parse(frontmatter) as {
+      review_dispositions: { review_id: string; reason: string }[];
+    };
+    expect(metadata.review_dispositions).toMatchObject([
+      { review_id: project.reviewId, reason: 'Outside the accepted scope.' },
+      { review_id: reviewId, reason: 'Outside the accepted scope.' },
+    ]);
+    expect(metadata.review_dispositions).toHaveLength(2);
   });
 
   it('refuses an unauthenticated review without changing the ticket', async () => {
