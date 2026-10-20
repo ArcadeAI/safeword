@@ -377,12 +377,10 @@ describe('Planning contract shared-clause generation', () => {
     const purpose = 'Sequence the accepted delivery without reopening its design.';
     writeFileSync(
       executionSource,
-      readFileSync(executionSource, 'utf8')
-        .replace(/^(- \*\*Purpose:\*\*)[^\n]+/mu, (_match, label: string) => `${label} ${purpose}`)
-        .replace(
-          'upstreamImplementationInvalidation: both_plan_reviews',
-          () => `upstreamImplementationInvalidation: ${mode}`,
-        ),
+      readFileSync(executionSource, 'utf8').replace(
+        /^(- \*\*Purpose:\*\*)[^\n]+/mu,
+        (_match, label: string) => `${label} ${purpose}`,
+      ),
     );
     generatePhaseContracts(distribution);
     const output = nodePath.join(distribution, 'src/planning/contracts.generated.ts');
@@ -437,6 +435,31 @@ describe('Planning contract shared-clause generation', () => {
     expect(
       readFileSync(nodePath.join(project, '.safeword/skills/bdd/PLAN_EXECUTION.md'), 'utf8'),
     ).toContain(`upstreamImplementationInvalidation: ${mode}`);
+
+    const copies = ['DISCOVERY.md', 'PLAN_IMPLEMENTATION.md', 'PLAN_EXECUTION.md'].map(name => {
+      const path = nodePath.join(project, '.safeword/skills/bdd', name);
+      return { name, path, before: readFileSync(path, 'utf8') };
+    });
+    const changedClause = 'Accepted scope remains user-owned after this canonical edit.';
+    writeCanonicalClause(distribution, changedClause);
+    generatePhaseContracts(distribution);
+    for (const copy of copies) {
+      expect(copy.before).not.toContain(changedClause);
+      expect(
+        readFileSync(nodePath.join(distribution, 'templates/skills/bdd', copy.name), 'utf8'),
+      ).toContain(changedClause);
+    }
+    reconcileProject(distribution, project, 'upgrade');
+    for (const copy of copies) {
+      const installed = readFileSync(copy.path, 'utf8');
+      expect(installed, `${copy.name} must receive the pending canonical update`).toContain(
+        changedClause,
+      );
+      expect(installed).not.toBe(copy.before);
+    }
+    expect(readFileSync(copies[2]?.path ?? '', 'utf8')).toContain(
+      `upstreamImplementationInvalidation: ${mode}`,
+    );
   });
 
   it.each([
