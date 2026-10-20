@@ -438,6 +438,17 @@ comparison. Projects that select `require` must configure exact reviewer model
 selectors in `crossAgentReviewRoutes` and use a currently qualified
 author/reviewer pair; otherwise the review remains blocked.
 
+Currently only Claude Code supplies the verified exact author-model metadata
+used for planning qualification. Codex and OpenCode authors also remain blocked
+under `require`; under `prefer`, their completed reviews record reduced
+independence. Planning fallback requires an attempted independent route: if all
+independent CLIs are absent or unsupported, the review stays blocked. Install a
+supported independent reviewer before retrying.
+
+The continuation authenticates the saved job, packet, source currency, tier,
+and single-use submission. The fresh-context claim and current agent origin
+are host-reported; the receipt does not attest that an isolated reviewer ran.
+
 The opt-in `architectureReviewGate` separately requires verified independent
 design review before implementation finishes. A reduced planning receipt does
 not clear it. Hosts without trusted exact author-model metadata cannot

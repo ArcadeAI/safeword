@@ -28,7 +28,7 @@ function evidence(model: string): SealedCapabilityResults {
 }
 
 describe('packaged reviewer capability evidence', () => {
-  it('qualifies both shipped default cross-provider orderings from current sealed results', () => {
+  it('reconstructs both directional capability classifications from current sealed results', () => {
     const claude = evidence('claude-opus-5');
     const codex = evidence('gpt-6-astra');
     const revision = capabilityRevision(REVIEWER_CAPABILITY_MANIFEST, REVIEWER_CAPABILITY_RUBRICS);

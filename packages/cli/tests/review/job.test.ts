@@ -264,6 +264,40 @@ afterEach(() => {
 });
 
 describe('durable review jobs', () => {
+  it('refuses output sealed for another job while leaving the original continuation usable', async () => {
+    const cwd = project();
+    vi.stubEnv(
+      'SAFEWORD_CLI_ENTRYPOINT',
+      worker(cwd, CONTINUATION_WORKER.replace("'fixture-dispatch'", 'id')),
+    );
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const first = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const second = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const firstId = (first.data as { review_id: string }).review_id;
+    const secondId = (second.data as { review_id: string }).review_id;
+    expect(secondId).not.toBe(firstId);
+    const output = {
+      schema_version: 1,
+      dispatch_id: firstId,
+      reviewer_agent: 'claude',
+      verdict: 'approve',
+      summary: 'Only the first sealed packet was reviewed.',
+      findings: [],
+    };
+    const refused = submitReviewContinuation(cwd, secondId, 'fresh-context', output, {
+      origin: 'claude',
+    });
+    expect(refused.data).toMatchObject({
+      status: 'continuation_required',
+      independence: 'none',
+      continuation: { tier: 'self-review', packet: { dispatch_id: secondId } },
+      continuation_attempts: [{ tier: 'fresh-context', failure: 'invalid_output' }],
+    });
+    expect(
+      submitReviewContinuation(cwd, firstId, 'fresh-context', output, { origin: 'claude' }).data,
+    ).toMatchObject({ status: 'approved', independence: 'reduced' });
+  });
+
   it('retains a packet-bound host continuation in the authenticated job result', async () => {
     const cwd = project();
     writePlanningInventories(cwd);

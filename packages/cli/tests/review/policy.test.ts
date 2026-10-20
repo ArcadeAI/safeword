@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import type { ReviewAuthor } from '../../src/review/contract.js';
 import {
   builtInReviewRoutes,
   readConfiguredReviewRoutes,
@@ -38,6 +39,13 @@ describe('review route policy', () => {
       degradedFallback: 'opencode',
     });
   });
+
+  it.each<ReviewAuthor>(['unknown'])(
+    'keeps unsupported author %s outside review routing',
+    author => {
+      expect(reviewRoutePlan(author)).toBeUndefined();
+    },
+  );
 
   it('routes Cursor through independent reviewers without inventing a Cursor CLI', () => {
     expect(reviewRoutePlan('cursor')).toEqual({
