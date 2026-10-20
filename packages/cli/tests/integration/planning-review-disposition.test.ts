@@ -76,6 +76,7 @@ afterEach(() => {
 async function reviewedProject(
   severity: 'info' | 'warning' | 'error' = 'warning',
   kind: Kind = 'quality-review',
+  findingMessage = suggestion,
 ) {
   const root = createTemporaryDirectory();
   roots.push(root);
@@ -162,7 +163,7 @@ process.stdin.on('end', () => {
     summary: packet.review_disposition_context?.records[0]
       ? 'The user decline for ' + packet.review_disposition_context.records[0].message + ' is ' + packet.review_disposition_context.records[0].boundary_status + ' in ticket context.'
       : 'The accepted boundary remains intact.',
-    findings: [{ severity: ${JSON.stringify(severity)}, message: ${JSON.stringify(suggestion)} }],
+    findings: [{ severity: ${JSON.stringify(severity)}, message: ${JSON.stringify(findingMessage)} }],
     planning_destination: ${kind === 'plan-execution' ? "'plan-execution'" : 'undefined'},
     execution_plan_record: ${kind === 'plan-execution' ? JSON.stringify(execution.record) : 'undefined'},
   } }));
@@ -254,6 +255,29 @@ sys.exit(child.wait())`,
 }
 
 describe('user-owned planning review disposition', () => {
+  it.each([
+    ['terminal controls', 'Visible\u{1B}[31m\u{7}\u{202E}\u{2066}\u{2028}\u{2029}\nreview advice'],
+    ['oversized prose', `Advice ${'x'.repeat(2500)}`],
+  ])(
+    'safely displays %s at confirmation while preserving the recorded finding',
+    async (_label, message) => {
+      const project = await reviewedProject('warning', 'quality-review', message);
+      const result = project.terminal('y', project.reviewId);
+      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+      const displayed = result.stdout
+        .split('Finding (warning): ', 2)[1]
+        ?.split('Accepted boundary: ', 1)[0]
+        ?.trimEnd();
+      expect(displayed).toBeDefined();
+      expect(displayed).not.toMatch(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u);
+      expect(displayed?.length).toBeLessThanOrEqual(2000);
+      const metadata = parse(readFileSync(project.ticketPath, 'utf8').split('---', 2)[1] ?? '');
+      expect(metadata.review_dispositions).toEqual([
+        expect.objectContaining({ finding_message: message, review_id: project.reviewId }),
+      ]);
+    },
+  );
+
   it.each([
     ['info', 'quality-review'],
     ['warning', 'plan-implementation'],

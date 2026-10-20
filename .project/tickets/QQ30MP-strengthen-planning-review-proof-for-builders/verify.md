@@ -7,7 +7,7 @@
 **Build:** ✅ Success across the resolved build plan, including the website.
 **Lint:** ✅ Clean: root ESLint, Gherkin lint and CLI TypeScript check, plus targeted changed-test lint.
 **Typecheck:** ✅ Clean: formal resolved typecheck plan (Astro 0 errors and Python 5 source files), plus root lint's CLI tsc.
-**Scenarios:** ❌ Broad feature ledger remains 0/159 RGR checkboxes complete; this bounded task does not close that ledger or stamp its scenarios accepted.
+**Scenarios:** ❌ Current broad feature ledger is 0/165 RGR checkboxes complete across 55 definitions. The earlier 0/159 count came from an undercounted 53-entry ledger; quality review repaired two missing entries and one title without marking any behavior complete. Historical runs and counts remain retained.
 **Refactor:** ✅ Completed — cccae7bcc shares the installed fixture; 16/16 protection tests passed before the subsequent hardening. Existing assertions were preserved.
 **PR Scope:** ✅ Diff matches ticket scope: #5051 residual admission/disposition, proof hardening, factual contract/copy correction, generated carriers and evidence. No #5086 fallback or runtime canonical/approval changes.
 **Dep Drift:** ✅ Clean: package manifests and bun.lock unchanged from main; documented dependency families still cover the implementation. Supply-chain audit is separately failed below.
