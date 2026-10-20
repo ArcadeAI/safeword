@@ -1316,12 +1316,6 @@ function assertRequiredUnsupportedAuthor(result: CliExecution): void {
     envelope.recovery?.map(item => item.command),
     ['safeword review run quality-review -- spec.md'],
   );
-  assert.ok(
-    readFileSync(
-      nodePath.join(repoRoot, 'packages/cli/templates/skills/finish-review/SKILL.md'),
-      'utf8',
-    ).includes("Include the coordinator's recovery command exactly as provided."),
-  );
 }
 
 const REQUIRED_OUTCOME_ASSERTIONS: Readonly<Record<string, (result: CliExecution) => void>> = {
@@ -1447,25 +1441,12 @@ function distributedContractPaths(name: ReviewContractName): readonly string[] {
   ];
 }
 
-const mandatoryFinishPolicyBlock = `Under \`prefer\`, map \`approve\` to \`State: approved\` and \`request_changes\` to
-\`State: action required\`; an \`approve\` verdict is not action required under
-\`prefer\`. Under \`require\`, always use
-\`Policy: require unsatisfied\` and \`State: action required\`, regardless of the
-supplemental verdict. A \`request_changes\` verdict must never be reported as
-approval.
-
-- Under \`prefer\`, supplemental findings complete the requested review with the
-  verdict above. Do not call them standard or independent coverage and do not
-  write machine provenance or a review stamp.
-- Under \`require\`, report the supplemental findings as additional feedback, keep
-  the coordinator's unsatisfied-independence verdict action required, and say:
-  "Required independent coverage remains unsatisfied. Use an environment with a
-  usable independent reviewer. Alternatively, explicitly choose \`prefer\`."
-  Include the coordinator's recovery command exactly as provided.
-
-Never describe either supplemental route as completed standard or independent
-coverage, and never write an
-independent review stamp from this workflow.`;
+const mandatoryFinishPolicyBlock = `Report the verdict, summary, and every finding as supplemental feedback in
+the foreground, with the actual reviewer and \`degraded\` for fresh context or
+\`none\` for self-review. Under \`require\`, the independent gate remains
+unsatisfied regardless of this verdict. Under \`prefer\`, an approval completes
+only this supplemental request; it creates no machine receipt or review stamp.
+`;
 
 const mandatoryQualityPolicyBlock = `Keep optional setup advice quiet by default. When the user asks
 \`Show review coverage details.\`, report the typed result's achieved coverage,
@@ -1591,9 +1572,9 @@ Then(
     assert.equal(this.distributedContract, 'finish-review');
     const contractPaths = distributedContractPaths('finish-review');
     const allowedClauses = [
-      'Do not call them standard or independent coverage and do not write machine provenance or a review stamp.',
-      'Required independent coverage remains unsatisfied.',
-      'Never describe either supplemental route as completed standard or independent coverage, and never write an independent review stamp from this workflow.',
+      'Never describe this as packet-only or independent coverage.',
+      'Under `require`, the independent gate remains unsatisfied regardless of this verdict.',
+      'Under `prefer`, an approval completes only this supplemental request; it creates no machine receipt or review stamp.',
     ];
     for (const relativePath of contractPaths) {
       assertPointerOnlyWrapper(relativePath, 'finish-review');

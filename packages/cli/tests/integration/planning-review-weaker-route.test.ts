@@ -17,6 +17,7 @@ vi.mock('../../src/review/capability-catalogue.js', async importOriginal => ({
 }));
 
 const dispatchedPackets = vi.hoisted(() => [] as { dispatch_id: string }[]);
+const dispatchedEfforts = vi.hoisted(() => [] as (string | undefined)[]);
 
 vi.mock('../../src/review/runtime.js', async importOriginal => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -28,9 +29,10 @@ vi.mock('../../src/review/runtime.js', async importOriginal => {
       packet: { dispatch_id: string },
       _workspace: unknown,
       _sourceRoot: unknown,
-      options: { model?: string },
+      options: { model?: string; effort?: string },
     ) => {
       dispatchedPackets.push(packet);
+      dispatchedEfforts.push(options.effort);
       if (process.env.SAFEWORD_TEST_REVIEWERS_FAIL === '1')
         return Promise.reject(new RuntimeError('process_failed', 'fixture reviewer failure'));
       return Promise.resolve({
@@ -38,13 +40,25 @@ vi.mock('../../src/review/runtime.js', async importOriginal => {
           schema_version: 1,
           dispatch_id: packet.dispatch_id,
           reviewer_agent: reviewer,
-          verdict: options.model === 'gpt-6-astra' ? 'request_changes' : 'approve',
+          verdict:
+            options.model === 'gpt-6-astra' ||
+            (reviewer !== 'claude' && process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1')
+              ? 'request_changes'
+              : 'approve',
           summary:
             {
               'gpt-6-luna': 'Weak approval.',
               'gpt-6-astra': 'Qualified rejection.',
             }[options.model ?? ''] ?? 'Runtime-default approval.',
-          findings: [],
+          findings:
+            reviewer !== 'claude' && process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1'
+              ? [
+                  {
+                    severity: 'error',
+                    message: 'The unqualified reviewer found a blocking defect.',
+                  },
+                ]
+              : [],
         },
         confirmedModel:
           options.model === undefined ? undefined : { provider: 'openai', model: options.model },
@@ -58,6 +72,7 @@ const projects: string[] = [];
 afterEach(() => {
   vi.unstubAllEnvs();
   dispatchedPackets.length = 0;
+  dispatchedEfforts.length = 0;
   for (const project of projects) rmSync(project, { recursive: true, force: true });
   projects.length = 0;
 });
@@ -254,4 +269,27 @@ it('discards a weaker approval and continues to the next independent route', asy
   });
   expect(required.data).toMatchObject({ status: 'blocked' });
   expect((required.data as Record<string, unknown>).continuation).toBeUndefined();
+
+  vi.stubEnv('SAFEWORD_TEST_REVIEWERS_FAIL', '0');
+  vi.stubEnv('SAFEWORD_TEST_UNKNOWN_REJECTION', '1');
+  writeFileSync(configPath, JSON.stringify(config));
+  const unqualifiedRejection = await runReview({
+    cwd: project,
+    kind: 'plan-implementation',
+    targets: [`${ticket}/impl-plan.md`],
+    context: [`${ticket}/spec.md`],
+  });
+  expect(unqualifiedRejection.data).toMatchObject({
+    status: 'blocked',
+    independence: 'none',
+    actual_reviewer: 'codex',
+    reviewer_output: { verdict: 'request_changes' },
+  });
+  expect(unqualifiedRejection.findings).toContainEqual(
+    expect.objectContaining({
+      severity: 'error',
+      message: 'The unqualified reviewer found a blocking defect.',
+    }),
+  );
+  expect(dispatchedEfforts.slice(0, 2)).toEqual(['medium', 'medium']);
 });
