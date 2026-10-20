@@ -74,6 +74,8 @@ describe('Codex Stop retries through the real extraction CLI', () => {
       const cli = nodePath.join(directory, 'packages/cli/src/cli.ts');
       mkdirSync(nodePath.dirname(cli), { recursive: true });
       symlinkSync(nodePath.join(ROOT, 'packages/cli/src/cli.ts'), cli);
+      // The source lookup runs a checkout's CLI only when its package is safeword.
+      writeFileSync(nodePath.join(directory, 'packages/cli/package.json'), '{"name":"safeword"}\n');
 
       const { bin, modePath, callsPath } = installFakeCodex(directory, mode);
       const transcript = [

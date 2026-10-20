@@ -405,7 +405,8 @@ describe('Execution Plan cold-start journey', () => {
         nodePath.join(receiptPluginRoot, 'templates'),
         { recursive: true },
       );
-      const reviewKeyRoot = nodePath.join(root, '.review-keys');
+      // Outside the project: trusted CLIs ignore a key root project code could write.
+      const reviewKeyRoot = createTrustedReviewerDirectory('safeword-review-keys-');
 
       const unstartablePlan = executionPlanWithUnstartableFourthStep();
       writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), unstartablePlan);
@@ -796,7 +797,8 @@ describe('Execution Plan cold-start journey', () => {
         ).status,
       ).toBe(0);
       const reviewerBin = installContractCheckingReviewer();
-      const reviewKeyRoot = nodePath.join(root, '.review-keys');
+      // Outside the project: trusted CLIs ignore a key root project code could write.
+      const reviewKeyRoot = createTrustedReviewerDirectory('safeword-review-keys-');
 
       for (const proofCase of CONCRETE_PROOF_CASES) {
         const proofPlan = executionPlanWithProofStep(proofCase.step);

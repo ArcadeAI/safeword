@@ -4,7 +4,6 @@
 // Pure-ish helper (reads only the ticket folder) so the pre-tool hook can call
 // it standalone from "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/, mirroring the #404 readiness gate.
 
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -13,6 +12,7 @@ import { type ImplPlanResult, parseImplPlan, unresolvedDecisionNames } from './i
 import { evaluateImplementationInspiration } from './inspiration.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { checkPrincipleTrace } from './principle-trace.js';
+import { askTrustedSafeword } from './safeword-cli.js';
 
 export type PlanGateVerdict = { ok: true } | { ok: false; reason: string; remediation: string };
 
@@ -22,41 +22,45 @@ const OK: PlanGateVerdict = { ok: true };
 export function evaluateCodingAuthorization(
   projectDirectory: string,
   ticketId: string,
-  commandParts: readonly [string, ...string[]] | 'project-writable' | undefined,
 ): PlanGateVerdict {
-  if (commandParts === undefined) {
-    return {
-      ok: false,
-      reason: 'Safeword could not check whether coding is authorized.',
-      remediation:
-        'Reinstall the Safeword plugin or set SAFEWORD_PLUGIN_CLI to the bundled runtime path.',
-    };
-  }
-  if (commandParts === 'project-writable') {
-    return {
-      ok: false,
-      reason: 'Safeword refused a project-writable coding-authorization command.',
-      remediation:
-        'Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.',
-    };
-  }
-  const [executable, ...prefix] = commandParts;
-  const checked = spawnSync(
-    executable,
-    [
-      ...prefix,
-      '--json',
-      '--no-input',
-      '--cwd',
-      projectDirectory,
-      'ticket',
-      'coding-authorization',
-      ticketId,
-    ],
-    { cwd: projectDirectory, encoding: 'utf8', timeout: 5000 },
+  const answer = askTrustedSafeword(
+    projectDirectory,
+    ['ticket', 'coding-authorization', ticketId],
+    run => codingAuthorizationVerdict(run, ticketId),
   );
+  switch (answer.kind) {
+    case 'refused':
+      return {
+        ok: false,
+        reason: 'Safeword refused a project-writable coding-authorization command.',
+        remediation:
+          'Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.',
+      };
+    case 'missing':
+      return {
+        ok: false,
+        reason: 'Safeword could not check whether coding is authorized.',
+        remediation:
+          'Reinstall the Safeword plugin, or reinstall Safeword in this project so .safeword/version names its version.',
+      };
+    case 'answered':
+      return answer.value;
+    case 'unanswered':
+      return {
+        ok: false,
+        reason: 'Safeword could not validate the coding-authorization result.',
+        remediation: `Run safeword ticket coding-authorization ${ticketId} and repair the reported local CLI problem.`,
+      };
+  }
+}
+
+/** One trusted CLI run's coding-authorization verdict, or undefined when it gave no valid result. */
+function codingAuthorizationVerdict(
+  run: { status: number | null; stdout: string },
+  ticketId: string,
+): PlanGateVerdict | undefined {
   try {
-    const parsed = JSON.parse(checked.stdout) as {
+    const parsed = JSON.parse(run.stdout) as {
       state?: unknown;
       findings?: Array<{ message?: unknown }>;
       next_actions?: Array<{ command?: unknown }>;
@@ -68,7 +72,7 @@ export function evaluateCodingAuthorization(
       };
     };
     if (
-      checked.status === 0 &&
+      run.status === 0 &&
       parsed.state === 'healthy' &&
       parsed.data?.command === 'ticket coding-authorization' &&
       parsed.data.coding_authorization === 'authorized' &&
@@ -102,13 +106,9 @@ export function evaluateCodingAuthorization(
       };
     }
   } catch {
-    // Fall through to the fail-closed invalid-result verdict below.
+    // No valid envelope from this CLI; the caller tries the next one.
   }
-  return {
-    ok: false,
-    reason: 'Safeword could not validate the coding-authorization result.',
-    remediation: `Run safeword ticket coding-authorization ${ticketId} and repair the reported local CLI problem.`,
-  };
+  return undefined;
 }
 
 /** Return the exact executable action carried by the first unmet RED row. */

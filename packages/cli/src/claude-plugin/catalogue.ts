@@ -147,24 +147,9 @@ function adaptPluginScriptText(content: string): string {
 }
 
 function adaptPluginRuntime(content: string): string {
-  // The bunx fallbacks rewritten below occur in lifecycle hooks launched by
-  // the verified dispatcher. It overwrites SAFEWORD_PLUGIN_CLI with the
-  // bundled path immediately before launching those child hooks.
-  const bunxFallback = "['bunx', ['safeword@latest',";
-  if (content.includes('safeword@latest') && !content.includes(bunxFallback)) {
-    throw new Error(
-      'Claude plugin runtime adaptation could not find the expected safeword@latest fallback.',
-    );
-  }
-  const adapted = adaptWorkflowReference(content)
-    .replaceAll(bunxFallback, "['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli,")
-    .replaceAll('`bunx safeword@latest`', 'the bundled plugin CLI');
-  if (
-    adapted.includes('process.env.SAFEWORD_PLUGIN_CLI ?? localCli') &&
-    !/\b(?:const|let|var)\s+localCli\b/u.test(adapted)
-  ) {
-    throw new Error('Claude plugin runtime adaptation requires a localCli fallback binding.');
-  }
+  // Hooks find the bundled CLI through hooks/lib/safeword-cli.ts, which reads the
+  // SAFEWORD_PLUGIN_CLI the verified dispatcher sets, so no runtime rewrite is needed.
+  const adapted = adaptWorkflowReference(content);
   // Runtime hooks are TypeScript. A project path inside a template literal is
   // rewritten to the plugin shell placeholder, but an unescaped `${...}` would
   // become JavaScript interpolation of a nonexistent global. Keep it literal so

@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -72,6 +72,39 @@ describe('installed retrospective closing gate', () => {
   ])('rejects %s from the CLI process', (_case, output) => {
     stub(outside, output);
     expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeDefined();
+  });
+
+  // 8VG20K: the published CLI runs only through the absolute Bun runtime (`bun x`),
+  // never a `bunx` found on PATH, which project code could shadow.
+  it('never trusts a bunx shim on PATH that prints approval', () => {
+    delete process.env.SAFEWORD_PLUGIN_CLI;
+    mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(project, '.safeword', 'version'), '9.9.9\n');
+    const bunx = nodePath.join(outside, 'bunx');
+    writeFileSync(bunx, `#!/bin/sh\nprintf '%s' ${JSON.stringify(envelope())}\n`);
+    chmodSync(bunx, 0o755);
+    const previousPath = process.env.PATH;
+    const previousHome = process.env.HOME;
+    const previousRegistry = process.env.BUN_CONFIG_REGISTRY;
+    process.env.PATH = `${outside}${nodePath.delimiter}${previousPath ?? ''}`;
+    process.env.HOME = outside;
+    // The real `bun x` fetch fails fast and offline.
+    process.env.BUN_CONFIG_REGISTRY = 'http://127.0.0.1:9';
+    const previousTmpdir = process.env.TMPDIR;
+    process.env.TMPDIR = outside;
+    try {
+      expect(retrospectiveCloseDenial(project, 'CKWE2D', ledger)).toBeDefined();
+    } finally {
+      if (previousPath === undefined) delete process.env.PATH;
+      else process.env.PATH = previousPath;
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      // Assigning undefined would store the string "undefined" (TMPDIR is unset in CI).
+      if (previousTmpdir === undefined) delete process.env.TMPDIR;
+      else process.env.TMPDIR = previousTmpdir;
+      if (previousRegistry === undefined) delete process.env.BUN_CONFIG_REGISTRY;
+      else process.env.BUN_CONFIG_REGISTRY = previousRegistry;
+    }
   });
 
   it('rejects a project-writable CLI even when it prints approval', () => {

@@ -184,6 +184,11 @@ function createRetroExtractionProject(projectRoot: string): { input: object; rec
 
   const localCliPath = nodePath.join(projectRoot, 'packages', 'cli', 'src', 'cli.ts');
   mkdirSync(nodePath.dirname(localCliPath), { recursive: true });
+  // A real source checkout: the shared CLI lookup trusts only the safeword package.
+  writeFileSync(
+    nodePath.join(projectRoot, 'packages', 'cli', 'package.json'),
+    JSON.stringify({ name: 'safeword' }),
+  );
   writeFileSync(
     localCliPath,
     `import { writeFileSync } from 'node:fs';

@@ -325,6 +325,10 @@ it.each([
           ? path.join(project, 'packages/cli/src/cli.ts')
           : path.join(project, 'extraction-fixture.mjs');
       mkdirSync(path.dirname(wrapper), { recursive: true });
+      if (harness === 'codex') {
+        // A real source checkout: the shared CLI lookup trusts only the safeword package.
+        writeFileSync(path.join(project, 'packages/cli/package.json'), '{"name":"safeword"}\n');
+      }
       writeFileSync(
         wrapper,
         `#!${process.execPath}\nimport { spawnSync } from 'node:child_process';\nconst args = process.argv.slice(2).filter(arg => arg !== '--auto-extract');\nargs.push('--findings', process.env.FINDINGS_PATH);\nconst result = spawnSync(process.execPath, [process.env.CLI_PATH, ...args], { cwd: process.cwd(), env: process.env, stdio: 'ignore' });\nprocess.exit(result.status ?? 1);\n`,

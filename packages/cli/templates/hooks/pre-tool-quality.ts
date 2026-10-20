@@ -3,7 +3,7 @@
 // Two-purpose: LOC gate (blast radius control) + artifact prerequisite check
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
-import { execSync, spawnSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -16,6 +16,7 @@ import {
 } from './lib/active-ticket.ts';
 import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-ledger-writes.ts';
 import { retrospectiveGateDenial } from './lib/retrospective-gate.ts';
+import { askTrustedSafeword } from './lib/safeword-cli.ts';
 import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
@@ -288,82 +289,53 @@ function crossAgentReviewPolicy() {
   );
 }
 
-function safewordCliCommand(): [string, ...string[]] | 'project-writable' | undefined {
-  const explicitCli = process.env.SAFEWORD_PLUGIN_CLI?.trim();
-  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT?.trim();
-  const pluginCli =
-    explicitCli !== undefined && explicitCli !== ''
-      ? explicitCli
-      : pluginRoot !== undefined && pluginRoot !== ''
-        ? nodePath.join(pluginRoot, 'runtime', 'cli.js')
-        : undefined;
-  if (pluginCli === undefined) return undefined;
+/** The receipt check's verdict from one trusted CLI run, or undefined when it gave no valid result. */
+function receiptGateVerdict(
+  run: { status: number | null; stdout: string },
+  scenario: string,
+  ledger: string,
+): { denial: string | undefined } | undefined {
   try {
-    const candidate = realpathSync(pluginCli);
-    const project = realpathSync(projectDirectory);
-    const relative = nodePath.relative(project, candidate);
-    const insideProject =
-      relative === '' ||
-      (relative !== '..' &&
-        !relative.startsWith(`..${nodePath.sep}`) &&
-        !nodePath.isAbsolute(relative));
-    if (insideProject) {
-      return 'project-writable';
-    }
-    return ['bun', candidate];
+    const parsed = JSON.parse(run.stdout) as {
+      state?: unknown;
+      findings?: Array<{ message?: unknown }>;
+      data?: { status?: unknown; scenario?: unknown; ledger?: unknown };
+    };
+    if (
+      run.status === 0 &&
+      parsed.state === 'healthy' &&
+      parsed.data?.status === 'approved' &&
+      parsed.data.scenario === scenario &&
+      parsed.data.ledger === ledger
+    )
+      return { denial: undefined };
+    const message = parsed.findings?.find(finding => typeof finding.message === 'string')?.message;
+    return {
+      denial:
+        typeof message === 'string'
+          ? message
+          : 'The executable RED receipt check did not approve this scenario.',
+    };
   } catch {
     return undefined;
   }
 }
 
 function executableRedGateDenial(scenario: string, ledger: string): string | undefined {
-  const commandParts = safewordCliCommand();
-  if (commandParts === undefined) {
-    return 'Safeword could not find its local CLI. Reinstall the Safeword plugin or set SAFEWORD_PLUGIN_CLI to the bundled runtime path.';
-  }
-  if (commandParts === 'project-writable') {
-    return 'Safeword refused the configured CLI because its resolved path is inside the project and can be changed by project code. Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.';
-  }
-  const [executable, ...prefix] = commandParts;
-  const command = [executable, ...prefix].join(' ');
-  const checked = spawnSync(
-    executable,
-    [
-      ...prefix,
-      '--json',
-      '--no-input',
-      '--cwd',
-      projectDirectory,
-      'review',
-      'gate',
-      'executable-red',
-      '--scenario',
-      scenario,
-      '--ledger',
-      ledger,
-    ],
-    { cwd: projectDirectory, encoding: 'utf8', timeout: 5000 },
+  const answer = askTrustedSafeword(
+    projectDirectory,
+    ['review', 'gate', 'executable-red', '--scenario', scenario, '--ledger', ledger],
+    run => receiptGateVerdict(run, scenario, ledger),
   );
-  try {
-    const parsed = JSON.parse(checked.stdout) as {
-      state?: unknown;
-      findings?: Array<{ message?: unknown }>;
-      data?: { status?: unknown; scenario?: unknown; ledger?: unknown };
-    };
-    if (
-      checked.status === 0 &&
-      parsed.state === 'healthy' &&
-      parsed.data?.status === 'approved' &&
-      parsed.data.scenario === scenario &&
-      parsed.data.ledger === ledger
-    )
-      return undefined;
-    const message = parsed.findings?.find(finding => typeof finding.message === 'string')?.message;
-    return typeof message === 'string'
-      ? message
-      : 'The executable RED receipt check did not approve this scenario.';
-  } catch {
-    return `The executable RED receipt check could not produce a valid result from ${command}.`;
+  switch (answer.kind) {
+    case 'refused':
+      return 'Safeword refused the configured CLI because its resolved path is inside the project and can be changed by project code. Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.';
+    case 'missing':
+      return 'Safeword could not find its CLI: no plugin runtime and no installed version in .safeword/version. Reinstall Safeword in this project.';
+    case 'answered':
+      return answer.value.denial;
+    case 'unanswered':
+      return `The executable RED receipt check could not produce a valid result from ${answer.tried}.`;
   }
 }
 
@@ -1112,11 +1084,7 @@ if (isCanonicalTicketEdit) {
           'Restore the ticket frontmatter id, then retry the move to implement.',
         );
       }
-      const authorization = evaluateCodingAuthorization(
-        projectDirectory,
-        ticketId,
-        safewordCliCommand(),
-      );
+      const authorization = evaluateCodingAuthorization(projectDirectory, ticketId);
       if (!authorization.ok) deny(authorization.reason, authorization.remediation);
     }
   }
@@ -1421,11 +1389,7 @@ if (state.activeTicket) {
     !isBehaviorDefinitionEdit &&
     (executionReviewRecorded || executionPlanContractProvenance(ticketDirectory) !== 'absent')
   ) {
-    const authorization = evaluateCodingAuthorization(
-      projectDirectory,
-      state.activeTicket,
-      safewordCliCommand(),
-    );
+    const authorization = evaluateCodingAuthorization(projectDirectory, state.activeTicket);
     if (!authorization.ok) {
       recordFailure(projectDirectory, input.session_id, 'coding-authorization-denied');
       deny(authorization.reason, authorization.remediation);
