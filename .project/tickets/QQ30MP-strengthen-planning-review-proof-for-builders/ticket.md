@@ -113,9 +113,12 @@ The user requested refactor after f5110a7b7. The bounded follow-up preserves
 public behavior, persisted bytes and all approval/canonical-copy semantics.
 Read-only lint/audit and independent command/admission scouts found this ledger:
 
-- [ ] Reuse the command's existing optional Finding type for repeated shapes.
-- [ ] Share the exact persisted finding fingerprint between writing and reading.
-- [ ] Rename private copy-only error names to reflect required-context errors.
+- [x] Reuse the command's existing optional Finding type for repeated shapes — 08a6f9299; 21 tests passed.
+- [x] Share the exact persisted finding fingerprint between writing and reading — 03a18d727; 22 tests passed, fixed hashes protected first in 5e2719a03.
+- Deferred after revert: rename private copy-only error names. The broader
+  regression run failed the unchanged 500 ms fallback-route timing test; an
+  isolated control also failed with the rename absent. Preserve both failures
+  and do not alter #5086-related fallback behavior/tests in this refactor.
 - Deferred: identical selected-parent fixture text in Product/scenario tests.
   Its extraction is valid but lower priority than the production trust-boundary
   contract; retain local ownership examples during this surgical pass.
