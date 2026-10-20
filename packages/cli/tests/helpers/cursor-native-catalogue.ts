@@ -1,193 +1,32 @@
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   appendFileSync,
   cpSync,
   existsSync,
   mkdirSync,
-  mkdtempSync,
-  readdirSync,
   readFileSync,
   realpathSync,
   writeFileSync,
 } from 'node:fs';
 import nodePath from 'node:path';
-import { setTimeout as pollInterval } from 'node:timers/promises';
-import { promisify } from 'node:util';
 
 import {
   createCursorCatalogueProbe,
   CURSOR_CATALOGUE_PROBE_DESCRIPTION,
   type CursorCatalogueProbe,
 } from './cursor-catalogue-probe.js';
-import { observeExactHostVersion } from './host-contract-version.js';
+import { command, CursorNativeWindowActor, eventually } from './cursor-native-window.js';
+export type { CursorNativeFixtureConfig } from './cursor-native-window.js';
 
-const executeFile = promisify(execFile);
 const cliRoot = nodePath.resolve(import.meta.dirname, '../..');
 const repoRoot = nodePath.resolve(cliRoot, '../..');
 const fixtureSources = nodePath.join(cliRoot, 'tests', 'fixtures', 'host-contract');
 
-export interface CursorNativeFixtureConfig {
-  applicationBundle: string;
-  profileDirectory: string;
-  extensionsDirectory: string;
-  runsDirectory: string;
-}
-
-async function command(
-  executable: string,
-  args: string[],
-  options: { cwd?: string; env?: NodeJS.ProcessEnv; timeout?: number } = {},
-): Promise<string> {
-  const result = await executeFile(executable, args, {
-    encoding: 'utf8',
-    timeout: 60_000,
-    maxBuffer: 2 * 1024 * 1024,
-    ...options,
-  });
-  return result.stdout;
-}
-
-function transientAccessibilityError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return (
-    message.includes('Invalid index. (-1719)') ||
-    message.includes('Error Domain=Native Agent input is not focused Code=5') ||
-    message.includes('Error Domain=Expected one native Agent input Code=4') ||
-    message.includes('Expected one isolated Agent input') ||
-    (message.includes('Can’t get') && message.includes('(-1728)'))
-  );
-}
-
-async function eventually(
-  description: string,
-  read: () => boolean | Promise<boolean>,
-): Promise<void> {
-  const deadline = Date.now() + 120_000;
-  let lastTransient: unknown;
-  while (Date.now() < deadline) {
-    try {
-      const result = await read();
-      if (result) return;
-    } catch (error) {
-      if (!transientAccessibilityError(error)) throw error;
-      lastTransient = error;
-    }
-    await pollInterval(200);
-  }
-  throw new Error(`CURSOR_SETUP_UNAVAILABLE: ${description}`, { cause: lastTransient });
-}
-
 /** Real IDE actor for the catalogue scenario only; never package admission evidence. */
-export class CursorNativeCatalogueActor {
-  private pid = 0;
+export class CursorNativeCatalogueActor extends CursorNativeWindowActor {
   private probe: CursorCatalogueProbe | undefined;
   private lastSnapshot = '';
-  readonly runDirectory: string;
-  readonly workspace: string;
-  readonly windowTitle: string;
-  readonly workspaceFile: string;
-
-  constructor(private readonly config: CursorNativeFixtureConfig) {
-    mkdirSync(config.runsDirectory, { recursive: true });
-    this.runDirectory = mkdtempSync(nodePath.join(config.runsDirectory, 'catalogue-'));
-    this.workspace = nodePath.join(this.runDirectory, 'workspace');
-    this.windowTitle = `SAFEWORD isolated — ${nodePath.basename(this.runDirectory)}`;
-    this.workspaceFile = nodePath.join(this.runDirectory, 'host-contract.code-workspace');
-  }
-
-  private get cursorCli(): string {
-    return nodePath.join(this.config.applicationBundle, 'Contents/Resources/app/bin/cursor');
-  }
-
-  private get environment(): NodeJS.ProcessEnv {
-    return {
-      ...process.env,
-      CODEX_HOME: nodePath.join(this.runDirectory, 'foreign-codex-profile'),
-      CLAUDE_CONFIG_DIR: nodePath.join(this.runDirectory, 'foreign-claude-profile'),
-      OPENCODE_CONFIG_DIR: nodePath.join(this.runDirectory, 'foreign-opencode-profile'),
-      SAFEWORD_CLI: nodePath.join(cliRoot, 'src', 'cli.ts'),
-    };
-  }
-
-  private async action(action: string, payload?: string): Promise<string> {
-    const invoke = () =>
-      command(nodePath.join(this.runDirectory, 'cursor-ide-native'), [
-        String(this.pid),
-        this.windowTitle,
-        action,
-        ...(payload ? [payload] : []),
-      ]);
-    // A dispatched action must never be repeated because a later UI read failed.
-    // Only idempotent focus and read operations may retry transient AX readiness.
-    if (!['activate', 'input', 'focused-input', 'snapshot'].includes(action)) return invoke();
-    let output = '';
-    await eventually(`stable native Accessibility controls for ${action}`, async () => {
-      output = await invoke();
-      return true;
-    });
-    return output;
-  }
-
-  private payload(name: string, content: string): string {
-    const destination = nodePath.join(this.runDirectory, name);
-    writeFileSync(destination, content);
-    return destination;
-  }
-
-  private async snapshot(): Promise<string> {
-    await this.action('activate');
-    const text = await this.action('snapshot');
-    writeFileSync(nodePath.join(this.runDirectory, 'last-ui.txt'), text);
-    return text;
-  }
-
-  private writeWorkspaceFolders(folders: string[]): void {
-    writeFileSync(
-      this.workspaceFile,
-      `${JSON.stringify({ folders: folders.map(path => ({ path })), settings: { 'window.title': this.windowTitle } })}\n`,
-    );
-  }
-
-  private hookConfigurationLoads(): number {
-    const pending = [nodePath.join(this.config.profileDirectory, 'logs')];
-    while (pending.length > 0) {
-      const directory = pending.pop();
-      if (directory === undefined) break;
-      const entries = readdirSync(directory, { withFileTypes: true });
-      for (const entry of entries) {
-        const path = nodePath.join(directory, entry.name);
-        if (entry.isDirectory()) pending.push(path);
-        else if (entry.name.startsWith('cursor.hooks.workspaceId-')) {
-          const log = readFileSync(path, 'utf8');
-          if (log.includes(this.workspace)) {
-            return (log.match(/Loaded \d+ project hook\(s\)/gu) ?? []).length;
-          }
-        }
-      }
-    }
-    return 0;
-  }
-
-  private async findProcess(): Promise<number> {
-    const processOutput = await command('ps', ['-axo', 'pid=,args=']);
-    const rows = processOutput.split('\n');
-    const executable = `${realpathSync(this.config.applicationBundle)}/Contents/MacOS/Cursor `;
-    const matches = rows.flatMap(row => {
-      const parsed = /^(\d+)[\t ]([\s\S]*)$/u.exec(row.trim());
-      if (parsed === null) return [];
-      const argumentsText = parsed[2]?.trimStart();
-      if (!argumentsText?.startsWith(executable)) return [];
-      return argumentsText.includes(`--user-data-dir ${this.config.profileDirectory} `)
-        ? [Number(parsed[1])]
-        : [];
-    });
-    if (matches.length > 1) return 0;
-    const [pid] = matches;
-    if (pid === undefined) throw new Error('CURSOR_SETUP_UNAVAILABLE: isolated process not found');
-    return pid;
-  }
 
   private async checkPackagedHelper(): Promise<void> {
     assert.ok(this.probe);
@@ -227,17 +66,6 @@ export class CursorNativeCatalogueActor {
         nodePath.join(this.probe.packageRoot, 'templates/hooks/audit-principle-trace.ts'),
       ),
     );
-  }
-
-  private async freshAgent(): Promise<void> {
-    await this.action('activate');
-    await this.action('new-agent');
-    // Cursor can restore a draft in a new editor. The fill primitive replaces
-    // and verifies it before submission; emptiness is not a readiness signal.
-    await eventually('new Agent input control', async () => {
-      await this.action('input');
-      return true;
-    });
   }
 
   private async proveExistingHookControl(): Promise<void> {
@@ -286,37 +114,7 @@ export class CursorNativeCatalogueActor {
   }
 
   async prepare(host: string, version: string, runtime: string): Promise<void> {
-    if (process.platform !== 'darwin') throw new Error('CURSOR_SETUP_UNAVAILABLE: macOS required');
-    const targets = JSON.parse(
-      readFileSync(nodePath.join(fixtureSources, 'targets.json'), 'utf8'),
-    ) as { targets: { agent: string; version: string; delivery_variants?: string[] }[] };
-    const target = targets.targets.find(
-      row => row.agent === 'cursor' && row.delivery_variants?.includes('native'),
-    );
-    assert.equal(host, 'Cursor');
-    assert.equal(runtime, 'IDE');
-    assert.equal(version, target?.version);
-    const versionOutput = await command(this.cursorCli, ['--version']);
-    const versionLines = versionOutput.trim().split(/\r?\n/u);
-    assert.deepEqual(observeExactHostVersion(version, versionLines[0] ?? ''), {
-      state: 'verified',
-      version,
-    });
-    assert.equal(versionLines.length, 3, 'Expected Cursor version, build and architecture');
-    assert.match(versionLines[1] ?? '', /^[a-f0-9]{40}$/u);
-    assert.equal(versionLines[2], process.arch);
-    await command('codesign', ['--verify', '--deep', '--strict', this.config.applicationBundle]);
-    await command(
-      'xcrun',
-      [
-        'swiftc',
-        nodePath.join(fixtureSources, 'cursor-ide-native.swift'),
-        '-o',
-        nodePath.join(this.runDirectory, 'cursor-ide-native'),
-      ],
-      { timeout: 120_000 },
-    );
-
+    await this.prepareHost(host, version, runtime);
     mkdirSync(this.workspace);
     writeFileSync(
       nodePath.join(this.workspace, 'README.md'),
@@ -395,41 +193,7 @@ export class CursorNativeCatalogueActor {
       },
     ];
     writeFileSync(hookFile, `${JSON.stringify(hooks)}\n`);
-    this.writeWorkspaceFolders([this.workspace]);
-    await command(
-      this.cursorCli,
-      [
-        '--user-data-dir',
-        this.config.profileDirectory,
-        '--extensions-dir',
-        this.config.extensionsDirectory,
-        '--locale',
-        'en-US',
-        '--new-window',
-        this.workspaceFile,
-      ],
-      { env: this.environment },
-    );
-    await eventually('single exact editor process after launcher exit', async () => {
-      this.pid = await this.findProcess();
-      return this.pid > 0;
-    });
-    await eventually('named editor launch', async () => {
-      try {
-        await this.action('activate');
-        return true;
-      } catch (error) {
-        if (error instanceof Error && error.message.includes('window is unavailable')) return false;
-        throw error;
-      }
-    });
-    await eventually('Agent controls', async () => {
-      const text = await this.snapshot();
-      if (text.includes('AI features require you to be logged in')) {
-        throw new Error('CURSOR_SETUP_UNAVAILABLE: sign in to the isolated profile');
-      }
-      return text.includes('Show Terminal') || text.includes('Plan, Build,');
-    });
+    await this.launchWindow();
     await this.proveExistingHookControl();
     const secondary = nodePath.join(this.runDirectory, 'empty-secondary');
     mkdirSync(secondary);
@@ -570,6 +334,9 @@ export class CursorNativeCatalogueActor {
       ),
     );
     assert.ok(this.lastSnapshot.includes(this.probe.helperMarker));
-    assert.ok(shells.some(row => row.helper_markers.includes(record.marker)));
+    assert.ok(
+      shells.some(row => row.helper_command_called && row.helper_markers.includes(record.marker)),
+      'The actual packaged helper invocation must produce the marker in that same shell result',
+    );
   }
 }

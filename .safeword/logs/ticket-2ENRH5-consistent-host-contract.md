@@ -708,3 +708,30 @@ Artifacts: /tmp/safeword-2enrh5-targets.aOFAud/codex-guard-KbebbV/guard-run-kQSZ
 Both required write case IDs passed; their future required-group registration,
 continuation and admission are not implemented. This checkpoint changes only
 live test infrastructure and proof notes, not production behavior or scenarios.
+
+Resumed Cursor guard work. Located the actual native Agents settings page in
+owned Cursor 3.24.18 PID64464/window SAFEWORD isolated — catalogue-LkLSIB.
+Changed only that disposable profile's exact Include Third-Party Plugins, Skills,
+and Other Configs checkbox from 1 to 0 through Accessibility. Its hook logs now
+explicitly say Claude Code hooks disabled (thirdPartyExtensibilityEnabled off).
+Regular Cursor PID42715 and global Claude files were not changed.
+
+Extracted the existing owned-window/version/launch/transport methods into
+cursor-native-window.ts so catalogue and upcoming guard actors share one driver.
+Preserved the catalogue's setup, actual workflow invocation and assertions.
+Lint/typecheck pass. Existing exact-version native catalogue rerun passed all
+4 steps in 60.69s, report
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-GKxNSx/cucumber.json.
+Required group still exits 3 HOST_CONTRACT_PROOF_INCOMPLETE, as designed.
+Independent review of this bounded test-support extraction is pending. No new
+production guard code, guard RED or scenario completion claimed.
+
+Review requested the existing probe/observer collaborators, then found a
+pre-existing evidence-correlation weakness. Strengthened the success assertion
+to require the helper command and expected marker in the same native shell row.
+Fresh catalogue rerun: all 4 steps passed in 75.2s, report
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-x5tiw9/cucumber.json.
+Independent follow-up c40076af-7e9e-4dcd-b4e8-3e05136a0e74 APPROVED (Claude/opus).
+Known pilot limits remain: catalogue fixture retains legacy project delivery,
+so it proves resources only, not sole authority or native eligibility. Guard
+work will use a separate clean workspace and current exact-version observations.
