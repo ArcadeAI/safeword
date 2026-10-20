@@ -90,11 +90,12 @@ describe('planning fallback after independent route exhaustion', () => {
       { mode: 0o755 },
     );
     const target = `${ticket}/impl-plan.md`;
-    const keyRoot = nodePath.join(project, '.review-keys');
+    const keyRoot = nodePath.join(reviewer, '.review-keys');
     const environment = {
       PATH: `${reviewer}:/usr/bin:/bin`,
       SAFEWORD_AGENT_RUNTIME: author,
       CLAUDE_PLUGIN_ROOT: reviewer,
+      SAFEWORD_PLUGIN_CLI: nodePath.join(reviewer, 'runtime/cli.js'),
       SAFEWORD_REVIEW_KEY_ROOT: keyRoot,
       SAFEWORD_REVIEW_TIMEOUT_MS: '3000',
       SAFEWORD_REVIEW_RUN_BOUND_MS: '10000',

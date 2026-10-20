@@ -55,6 +55,7 @@ function writeReviewResponse(
   status: string,
   model?: string,
   reviewId = REVIEW_ID,
+  independence: 'cross-agent' | 'reduced' = 'cross-agent',
 ): void {
   writeFileSync(
     nodePath.join(shared.pluginDirectory, `response-${reviewId}.json`),
@@ -64,7 +65,7 @@ function writeReviewResponse(
         status,
         review_kind: 'plan-implementation',
         review_targets: [`.project/tickets/${id}/impl-plan.md`],
-        independence: 'cross-agent',
+        independence,
         author_agent: 'codex',
         actual_reviewer: 'claude',
         reviewer_model: model,
@@ -162,6 +163,7 @@ function writeStamp(
     hashOf?: string;
     witnessed?: boolean;
     reviewId?: string;
+    independence?: 'cross-agent' | 'reduced';
   } = {},
 ): void {
   const scope = reviewScope(
@@ -175,7 +177,7 @@ function writeStamp(
     options.model,
     options.witnessed ? 'codex' : undefined,
     options.witnessed ? 'claude' : undefined,
-    options.witnessed ? 'cross-agent' : undefined,
+    options.witnessed ? (options.independence ?? 'cross-agent') : undefined,
     options.witnessed ? (options.reviewId ?? REVIEW_ID) : undefined,
   )}`;
   appendFileSync(
@@ -255,10 +257,11 @@ describe('architecture review gate (MR5M3A)', () => {
     expect(runStopHook('ARG003')).toContain(REVIEW_MSG);
   });
 
-  it('allows when cited and a matching stamp exists', () => {
+  it('allows when cited and a matching independent review receipt exists', () => {
     setConfig({ architectureReviewGate: true });
     writeTicket('ARG004', 'feature', CITED);
-    writeStamp('ARG004', CITED);
+    writeReviewResponse('ARG004', 'approved');
+    writeStamp('ARG004', CITED, { witnessed: true });
     const reason = runStopHook('ARG004');
     expect(reason).not.toContain(CITATION_MSG);
     expect(reason).not.toContain(REVIEW_MSG);
@@ -286,7 +289,7 @@ describe('architecture review gate (MR5M3A)', () => {
     writeTicket('ARG006B', 'feature', CITED);
     writeStamp('ARG006B', CITED, { model: 'claude-sonnet-4-6' });
     expect(runStopHook('ARG006B', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' })).toContain(
-      CROSS_MODEL_MSG,
+      REVIEW_MSG,
     );
   });
 
@@ -313,7 +316,8 @@ describe('architecture review gate (MR5M3A)', () => {
   it('blocks under cross-model when the stamp records no model (fails closed)', () => {
     setConfig({ architectureReviewGate: true, crossModelReview: true });
     writeTicket('ARG008', 'feature', CITED);
-    writeStamp('ARG008', CITED);
+    writeReviewResponse('ARG008', 'approved');
+    writeStamp('ARG008', CITED, { witnessed: true });
     expect(runStopHook('ARG008', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' })).toContain(
       CROSS_MODEL_MSG,
     );
@@ -339,7 +343,8 @@ describe('architecture review gate (MR5M3A)', () => {
     setConfig({ architectureReviewGate: true });
     const skipPlan = plan('skip: one obvious choice, nothing to weigh');
     writeTicket('ARG011', 'feature', skipPlan);
-    writeStamp('ARG011', skipPlan);
+    writeReviewResponse('ARG011', 'approved');
+    writeStamp('ARG011', skipPlan, { witnessed: true });
     const reason = runStopHook('ARG011');
     expect(reason).not.toContain(CITATION_MSG);
     expect(reason).not.toContain(REVIEW_MSG);
@@ -422,6 +427,15 @@ describe('architecture review gate (MR5M3A)', () => {
     writeStamp('ARG019', CITED, { witnessed: true });
 
     expect(runStopHook('ARG019')).not.toContain(REVIEW_MSG);
+  });
+
+  it('rejects an authenticated reduced receipt at the opt-in independent architecture gate', () => {
+    setConfig({ architectureReviewGate: true, crossAgentReview: 'prefer' });
+    writeTicket('ARG021', 'feature', CITED);
+    writeReviewResponse('ARG021', 'approved', undefined, REVIEW_ID, 'reduced');
+    writeStamp('ARG021', CITED, { witnessed: true, independence: 'reduced' });
+
+    expect(runStopHook('ARG021')).toContain(REVIEW_MSG);
   });
 
   it('rejects a hand-written coordinator claim when the receipt did not approve', () => {

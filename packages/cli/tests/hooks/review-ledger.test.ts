@@ -17,6 +17,7 @@ import {
   parseReviewStamps,
   readCrossAgentReviewPolicy,
   reviewGateAppliesToPhase,
+  reviewGateForIndependentDesign,
   reviewGateForNextAsset,
   reviewScope,
   type ReviewStamp,
@@ -24,6 +25,34 @@ import {
 
 /** A coordinator review id, as write-review-stamp.ts records it. */
 const REVIEW_ID = 'b3f1c2d4-0000-4000-8000-000000000001';
+
+describe('independent design review gate', () => {
+  const scope = reviewScope('DES123', 'impl-plan', hashArtifact('plan'));
+  const reduced: ReviewStamp = {
+    scope,
+    reviewId: REVIEW_ID,
+    author: 'claude',
+    reviewer: 'claude',
+    independence: 'reduced',
+  };
+
+  it('rejects an authenticated reduced receipt', () => {
+    expect(reviewGateForIndependentDesign(scope, [reduced]).ok).toBe(false);
+  });
+
+  it('accepts an independent receipt or an explicit reasoned skip', () => {
+    expect(
+      reviewGateForIndependentDesign(scope, [
+        { ...reduced, reviewer: 'codex', independence: 'cross-agent' },
+      ]),
+    ).toEqual({ ok: true });
+    expect(
+      reviewGateForIndependentDesign(scope, [
+        { scope, skipReason: 'Reviewed by architecture owner' },
+      ]),
+    ).toEqual({ ok: true });
+  });
+});
 
 describe('reviewGateForNextAsset (TB1.AC1 — per-asset stamp gates the next asset)', () => {
   it('unstamped_prior_blocks_next: denies, naming the unreviewed prior asset', () => {
