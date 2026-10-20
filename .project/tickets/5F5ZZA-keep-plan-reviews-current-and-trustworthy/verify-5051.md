@@ -92,3 +92,23 @@ DRAFT: final serialized GREEN and current-head CI are pending at this checkpoint
   pending with unchanged ticket → terminal-confirmed record → old review stale.
   Raw output is `native-walkthrough.log.gz`. It used a local reviewer fixture,
   not a live model, paid qualification or evidence of human intent.
+
+## Preservation aggregate and public fixture follow-up
+
+The fresh preservation aggregate passed all 81 files: 1,050 tests passed and two
+were skipped. Claude independently approved the native fixture-only delta as
+`75d05bd2-4ecd-4bc2-bab6-3d3207e71822`, preserving the original call-count,
+missing-copy, outside-rubric drift and restored-approval assertions. Its
+context-delivery and inverse-case observations are covered by the separate
+Product integration/role tests; its inherited packet-line parser warning is
+retained as fixture-only optional cleanup.
+
+A scan of remaining owned Product fixtures found public contract-routing rows
+with the same missing inputs, including the configured namespace. Their targeted
+RED produced three owned-Product failures and three passing generic/task/context
+controls; 133 unrelated cases were filtered, not claimed as executed. Only the
+owned Product rows now receive inventories and a valid Product frame, with the
+configured namespace receiving those same inventories. No routing assertion or
+negative control changed. The full 139-case public wiring file is running at
+this checkpoint; fresh fixture-only independent review and current-head CI are
+still required. See `public-fixture-red.log.gz` and `public-fixture.diff`.

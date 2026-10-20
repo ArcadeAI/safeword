@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -22,6 +23,8 @@ import type { ReviewPacket } from '../../src/review/contract.js';
 import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
+import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
 import { createTrustedReviewerDirectory } from '../review-fixtures.js';
 
 type ReviewAgent = 'claude' | 'codex' | 'opencode';
@@ -312,8 +315,19 @@ describe('cross-agent review public-command wiring', () => {
       const productPath = `${ticketPath}/spec.md`;
       writeFileSync(
         nodePath.join(directory, productPath),
-        '# Product Plan\n\nAccepted behavior.\n',
+        expectedProduct ? PLANNING_ROLE_PRODUCT : '# Product Plan\n\nAccepted behavior.\n',
       );
+      if (expectedProduct) {
+        writePlanningInventories(directory);
+        if (namespace !== '.project') {
+          for (const role of ['principles.md', 'personas.md', 'surfaces.md']) {
+            copyFileSync(
+              nodePath.join(directory, '.project', role),
+              nodePath.join(directory, namespace, role),
+            );
+          }
+        }
+      }
       mkdirSync(nodePath.join(directory, 'notes'));
       writeFileSync(
         nodePath.join(directory, 'notes/spec.md'),
