@@ -48,14 +48,14 @@ Feature: Keep plan reviews current and trustworthy
     @rejection
     Scenario Outline: Canonical phase entry requirements bind every required input
       Given the canonical <phase> contract requires <required_inventory> as review entry context
-      When review dispatch receives a packet missing any listed required role
+      When review dispatch receives a packet missing any listed role required by the current review's applicable conditions
       Then dispatch is blocked with the missing role named
 
       Examples:
         | phase | required_inventory |
-        | Product Plan | ticket, project, declared parent and milestone boundaries, Rules, epistemic state, principles, personas, and affected surfaces |
-        | Implementation Plan | ticket, project, declared parent and milestone boundaries, Rules, scenarios, dimensions when present, principles, personas, affected surfaces, configured architecture records, and triggered data guidance |
-        | Execution Plan | ticket, project, declared parent and milestone boundaries, Rules, scenarios, principles, personas, affected surfaces, and the accepted Implementation Plan |
+        | Product Plan | canonical phase contract, plan under review, ticket, project, declared parent and milestone boundaries, Rules, epistemic state, principles, personas, and affected surfaces |
+        | Implementation Plan | canonical phase contract, plan under review, ticket, project, declared parent and milestone boundaries, Rules, scenarios, dimensions when present, principles, personas, affected surfaces, configured architecture records or a justified no-record skip, and triggered data guidance |
+        | Execution Plan | canonical phase contract, plan under review, ticket, project, declared parent and milestone boundaries, Rules, scenarios, dimensions when present, principles, personas, affected surfaces, configured architecture records or a justified no-record skip, triggered data guidance, and the accepted Implementation Plan |
 
     @surface.claude-code @rejection
     Scenario Outline: Installed dispatch cannot bypass packet completeness
@@ -571,7 +571,7 @@ Feature: Keep plan reviews current and trustworthy
     Scenario: An undecided optional suggestion cannot alter or block the plan
       Given a nonblocking suggestion outside the accepted boundary awaits a user decision
       When the unchanged plan is re-reviewed while that decision remains outstanding
-      Then the reviewed plan bytes remain unchanged, the gate does not block on or silently add the suggestion, and the outstanding choice is re-presented for the user to decide
+      Then the reviewed plan bytes remain unchanged, the gate does not block on or silently add the suggestion, and the outstanding choice is recorded in reviewable output without prompting or waiting for interactive input in headless execution
 
     @surface.claude-code
     Scenario: Installed re-review retains a declined optional strengthening
