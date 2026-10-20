@@ -57,9 +57,34 @@
       "sha256": "140aa6707a83e4dba8169698d5cde8757dc5c1b463ff439bc618fecca22f691b"
     },
     {
+      "file": "ci-node24-full.log.gz",
+      "bytes": 155346,
+      "sha256": "cc6ba02ea5a875ecaa5468d103b17101bb96305cf96c2d8a6a3185958eaf1b4c"
+    },
+    {
+      "file": "ci-node24-summaries.log",
+      "bytes": 811,
+      "sha256": "bbf0e489120b6ba1440c4ff42c30b1efb329a9c4f2dc429e33ccfdc20f1ca6f5"
+    },
+    {
       "file": "ci-preclosure.json.txt",
       "bytes": 2553,
       "sha256": "ddb835b31b795385e00cfb9a08e034483a800b799e67fe15f356cd779972d111"
+    },
+    {
+      "file": "ci-source-checks.json.txt",
+      "bytes": 2958,
+      "sha256": "fea485f650153fc7eac00bc7d0288386f17f2c8b275da3400dd899d1bdd9dcf5"
+    },
+    {
+      "file": "ci-source-jobs.json.txt",
+      "bytes": 30124,
+      "sha256": "644b3c24cdfada28aa8748da6f81e6a753609cf7b8c5da5e11c73e8c76913d71"
+    },
+    {
+      "file": "ci-source-outcome.json.txt",
+      "bytes": 1195,
+      "sha256": "227efccd644873876867bac7853d3a3c2e6c921b7569cb82cb086d536bdb0454"
     },
     {
       "file": "cli-walkthrough-replay.json.txt",
