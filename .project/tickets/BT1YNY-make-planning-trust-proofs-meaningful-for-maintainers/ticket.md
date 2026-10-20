@@ -2,8 +2,8 @@
 id: BT1YNY
 slug: make-planning-trust-proofs-meaningful-for-maintainers
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-10-20T17:42:56.595Z
 last_modified: 2026-10-20T17:42:56.595Z
 scope:
@@ -106,3 +106,13 @@ installed copies; every rejected case preserves the existing exact error,
 metadata and byte-preservation assertions. One whole-matrix registration avoids
 the fan-in regression without changing the guard's 75/14 limits. Test support
 changed; production source and generated surfaces remain unchanged.
+
+2026-10-20: corrected proof checkpoint d4aba89ef passes 75/75 tests. Root lint,
+Gherkin lint, CLI typecheck, all five generated freshness checks, diff audit and
+Rule/surface/ledger checks pass. project codify emits byte-identical source.
+Final full scenario review 272b8c17 approves, with its normal scenario-gate stamp
+earned; warnings and original contrary evidence remain in review-dispositions.md.
+The task's scoped proof repair is locally complete; full final-head PR CI and
+any subsequent merge remain separate external delivery gates. No runtime R8
+conditional guidance, native/cloud qualification or broad scenario completion
+is claimed. The historical broad feature phase and unchecked evidence remain.
