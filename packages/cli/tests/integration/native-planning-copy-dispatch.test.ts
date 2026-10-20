@@ -17,6 +17,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { VERSION } from '../../src/version.js';
 import { realBunExecutable } from '../helpers.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
+import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -104,7 +106,10 @@ function writePhaseTicket(ticket: string, phase: NativePlanningPhase): void {
     nodePath.join(ticket, 'ticket.md'),
     `---\nid: NAT123\ntype: feature\nphase: ${phase === 'product-plan' ? 'intake' : phase}\nstatus: in_progress\n${phase === 'product-plan' ? 'product_plan_contract: v1\n' : ''}---\n`,
   );
-  writeFileSync(nodePath.join(ticket, 'spec.md'), '# Product Plan\n\nAccepted behavior.\n');
+  writeFileSync(
+    nodePath.join(ticket, 'spec.md'),
+    phase === 'product-plan' ? PLANNING_ROLE_PRODUCT : '# Product Plan\n\nAccepted behavior.\n',
+  );
   writeFileSync(
     nodePath.join(ticket, 'impl-plan.md'),
     '# Implementation Plan\n\nPreserve the accepted scope and implement its reviewed approach.\n',
@@ -138,6 +143,7 @@ describe('Complete native planning author-copy dispatch', () => {
       const project = nodePath.join(root, 'project');
       const ticket = nodePath.join(project, '.project/tickets/NAT123-native-copy');
       writePhaseTicket(ticket, phase);
+      if (phase === 'product-plan') writePlanningInventories(project);
       const kind = phase === 'product-plan' ? 'quality-review' : phase;
       const target = {
         'product-plan': 'spec.md',

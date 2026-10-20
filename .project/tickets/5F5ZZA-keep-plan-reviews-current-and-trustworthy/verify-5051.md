@@ -72,3 +72,23 @@ change was made. No epic acceptance, human usability, merge or Ready authority
 is inferred from the deterministic tests or reviewer verdict.
 
 DRAFT: final serialized GREEN and current-head CI are pending at this checkpoint.
+
+## Follow-up after the checkpoint
+
+- Serialized review-repair GREEN: all 15 tests pass, including both intended
+  RED repairs. The queued command acquired the shared lock and reached a
+  terminal result; it is separate from the earlier overlapped preambles.
+- The 81-file preservation sweep passed 1,048 tests, skipped two and failed two
+  Product rows of main's native-copy dispatch fixture because it supplied no
+  principles inventory. The minimal Product document also lacked the semantic
+  frame. This is retained as a failed run, not counted as a clean aggregate.
+- Only Product fixture setup in `native-planning-copy-dispatch.test.ts` was
+  extended with existing inventories and a valid Product frame. No assertion,
+  host/phase row, drift mutation or call-count check changed. All six native
+  host/phase cases then passed. A fresh aggregate sweep and current-head CI
+  remain required; fixture-only independent review follows separately.
+- A relocated Codex native bundle passed a standalone command walkthrough:
+  authenticated fixture Product review with identity → noninteractive decline
+  pending with unchanged ticket → terminal-confirmed record → old review stale.
+  Raw output is `native-walkthrough.log.gz`. It used a local reviewer fixture,
+  not a live model, paid qualification or evidence of human intent.
