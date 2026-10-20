@@ -1,9 +1,15 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, expect, it } from 'vitest';
 
-import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
+import {
+  createConfiguredProject,
+  createTemporaryDirectory,
+  runCli,
+  testCliPath,
+} from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
 import {
@@ -70,6 +76,53 @@ function reviewOutput(packet) {
 }
 ${review}
 `;
+}
+
+async function assertQualifiedAdmission(
+  flags: { authorKnown: boolean; codexConfirmed: boolean; codexFails: boolean },
+  project: string,
+  reviewer: string,
+  reviewId: string,
+): Promise<void> {
+  if (!flags.authorKnown || !flags.codexConfirmed || flags.codexFails) return;
+  const bun = spawnSync('which', ['bun'], { encoding: 'utf8' });
+  expect(bun.status).toBe(0);
+  const environment = {
+    ...process.env,
+    SAFEWORD_AGENT_RUNTIME: 'claude',
+    CLAUDE_SESSION_ID: 'qualified-route-order',
+    SAFEWORD_AUTHOR_MODEL: 'claude-opus-5',
+    SAFEWORD_PLUGIN_CLI: testCliPath,
+    SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(reviewer, '.review-keys'),
+  };
+  const stamped = spawnSync(
+    bun.stdout.trim(),
+    [
+      '.safeword/hooks/write-review-stamp.ts',
+      '--ticket',
+      'ORD123-independent-first',
+      '--phase',
+      'plan-implementation',
+      '--author-agent',
+      'claude',
+      '--reviewer-agent',
+      'codex',
+      '--independence',
+      'cross-agent',
+      '--review-id',
+      reviewId,
+    ],
+    { cwd: project, encoding: 'utf8', env: environment },
+  );
+  expect(stamped.status, stamped.stdout + stamped.stderr).toBe(0);
+  const admitted = await runCli(
+    ['ticket', 'approve-plan', 'ORD123', '--cwd', project, '--json', '--no-input'],
+    { cwd: project, env: environment },
+  );
+  expect(admitted.exitCode, admitted.stdout).toBe(0);
+  expect(JSON.parse(admitted.stdout).data).toMatchObject({
+    achieved_independence: 'cross-agent',
+  });
 }
 
 it.each([
@@ -156,6 +209,7 @@ it.each([
           PATH: `${reviewer}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_NO_UPDATE_CHECK: '1',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(reviewer, '.review-keys'),
           ...(authorKnown && { SAFEWORD_AUTHOR_MODEL: 'claude-opus-5' }),
           ...(authorModelState === 'empty' && { SAFEWORD_AUTHOR_MODEL: '' }),
         },
@@ -167,6 +221,12 @@ it.each([
       actual_reviewer: codexFails || (authorKnown && !codexConfirmed) ? 'claude' : 'codex',
       independence: codexConfirmed ? 'cross-agent' : 'reduced',
     });
+    await assertQualifiedAdmission(
+      { authorKnown, codexConfirmed, codexFails },
+      project,
+      reviewer,
+      output.data.review_id,
+    );
     expect(existsSync(independentInvoked)).toBe(true);
     expect(existsSync(sameAgentInvoked)).toBe(codexFails || (authorKnown && !codexConfirmed));
     if (authorKnown && !codexConfirmed) {

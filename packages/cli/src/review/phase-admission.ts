@@ -3,6 +3,7 @@ import nodePath from 'node:path';
 import { parseReviewStamps } from '../../templates/hooks/lib/review-ledger.js';
 import type { ReviewKind } from './contract.js';
 import { reviewJobStatus } from './job.js';
+import { reviewPolicyAllowsAssurance } from './policy.js';
 
 export interface ReviewProvenance {
   readonly authorAgent: string;
@@ -91,6 +92,7 @@ function assuranceAdmission(
   candidate: ReviewCandidate,
   stamp: ReturnType<typeof parseReviewStamps>[number],
   label: string,
+  cwd: string,
 ): PhaseReviewAdmission {
   const { data } = candidate;
   const independence = data.independence;
@@ -118,6 +120,12 @@ function assuranceAdmission(
     return {
       kind: 'unearned_assurance',
       message: `The recorded assurance disagrees with the authenticated ${label} review.`,
+    };
+  }
+  if (!reviewPolicyAllowsAssurance(cwd, independence)) {
+    return {
+      kind: 'unearned_assurance',
+      message: `The ${label} review has ${independence} independence, but the current require policy needs cross-agent review.`,
     };
   }
   return {
@@ -156,7 +164,7 @@ export function phaseReviewAdmission(input: {
     if (output.verdict !== 'approve' || data.status !== 'approved') {
       return { kind: 'not_admitted' };
     }
-    return assuranceAdmission(candidate, stamp, input.label);
+    return assuranceAdmission(candidate, stamp, input.label, input.cwd);
   }
   return { kind: 'not_admitted' };
 }

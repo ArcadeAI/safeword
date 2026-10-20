@@ -148,3 +148,8 @@ export function readReviewPolicy(cwd: string): ReviewPolicy {
     return (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'prefer' : 'require';
   }
 }
+
+/** Admission follows current policy, even when a receipt was earned under prefer. */
+export function reviewPolicyAllowsAssurance(cwd: string, independence: string): boolean {
+  return readReviewPolicy(cwd) !== 'require' || independence === 'cross-agent';
+}

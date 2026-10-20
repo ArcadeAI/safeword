@@ -374,6 +374,7 @@ async function featureFixture(
 async function codingAuthorization(root: string): Promise<{
   exitCode: number;
   data: Record<string, unknown>;
+  findings: { code: string }[];
 }> {
   const invoked = await runCli(
     ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
@@ -385,8 +386,11 @@ async function codingAuthorization(root: string): Promise<{
       },
     },
   );
-  const result = JSON.parse(invoked.stdout) as { data: Record<string, unknown> };
-  return { exitCode: invoked.exitCode, data: result.data };
+  const result = JSON.parse(invoked.stdout) as {
+    data: Record<string, unknown>;
+    findings: { code: string }[];
+  };
+  return { exitCode: invoked.exitCode, data: result.data, findings: result.findings };
 }
 
 function authorizationIdentity(result: { data: Record<string, unknown> }): string {
@@ -508,6 +512,21 @@ describe('coding authorization', () => {
         grants_authority: false,
       },
     });
+  });
+
+  it('refuses previously admitted reduced reviews after policy changes to require', async () => {
+    const root = await featureFixture(true);
+    const configPath = nodePath.join(root, '.safeword/config.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf8'));
+    writeFileSync(configPath, JSON.stringify({ ...config, crossAgentReview: 'require' }));
+    const result = await codingAuthorization(root);
+    expect(result.exitCode).toBe(2);
+    expect(result.data.coding_authorization).toBe('denied');
+    expect(result.findings.map(finding => finding.code)).toEqual([
+      'missing_accepted_scenarios',
+      'missing_accepted_approach',
+      'unearned_execution_plan_assurance',
+    ]);
   });
 
   it('limits an approved result to coding authorization without downstream authority', async () => {

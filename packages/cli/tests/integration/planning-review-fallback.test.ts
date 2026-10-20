@@ -26,6 +26,30 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
+async function assertPolicyFlip(
+  enabled: boolean,
+  project: string,
+  ticket: string,
+  environment: Record<string, string>,
+): Promise<void> {
+  if (!enabled) return;
+  const configPath = nodePath.join(project, '.safeword/config.json');
+  const previous = readFileSync(configPath, 'utf8');
+  writeFileSync(
+    configPath,
+    JSON.stringify({ ...JSON.parse(previous), crossAgentReview: 'require' }),
+  );
+  const refused = await runCli(
+    ['ticket', 'approve-plan', 'FAL123', '--cwd', project, '--json', '--no-input'],
+    { cwd: project, env: environment },
+  );
+  expect(refused.exitCode, refused.stdout).toBe(2);
+  expect(readFileSync(nodePath.join(project, ticket, 'ticket.md'), 'utf8')).toContain(
+    'phase: plan-implementation',
+  );
+  writeFileSync(configPath, previous);
+}
+
 describe('planning fallback after independent route exhaustion', () => {
   // eslint-disable-next-line complexity -- The fixture exercises one end-to-end review and admission path across host variants.
   async function reviewThroughAdmission(
@@ -33,6 +57,7 @@ describe('planning fallback after independent route exhaustion', () => {
     author: 'claude' | 'cursor' | 'opencode' = 'claude',
     independentOnly = false,
     failedFirstSameAgent = false,
+    options: { selfReview?: boolean; flipPolicy?: boolean } = {},
   ): Promise<Record<string, unknown>> {
     const project = createTemporaryDirectory();
     projects.push(project);
@@ -138,6 +163,52 @@ describe('planning fallback after independent route exhaustion', () => {
         status: 'continuation_required',
         continuation: { tier: 'fresh-context', packet: { kind: 'plan-implementation' } },
       });
+      if (options.selfReview) {
+        const second = await runCli(
+          [
+            'review',
+            'run',
+            'plan-implementation',
+            target,
+            '--context',
+            `${ticket}/spec.md`,
+            '--cwd',
+            project,
+            '--json',
+            '--no-input',
+          ],
+          { cwd: project, env: environment },
+        );
+        const secondOutput = JSON.parse(second.stdout);
+        expect(secondOutput.data.status).toBe('continuation_required');
+        expect(secondOutput.data.review_id).not.toBe(output.data.review_id);
+        expect(secondOutput.data.continuation.packet.dispatch_id).not.toBe(
+          output.data.continuation.packet.dispatch_id,
+        );
+        const failed = await runCli(
+          [
+            'review',
+            'continue',
+            output.data.review_id,
+            '--tier',
+            'fresh-context',
+            '--failure',
+            'unsupported',
+            '--cwd',
+            project,
+            '--json',
+            '--no-input',
+          ],
+          { cwd: project, env: environment },
+        );
+        expect(JSON.parse(failed.stdout).data).toMatchObject({
+          status: 'continuation_required',
+          continuation: {
+            tier: 'self-review',
+            packet: { dispatch_id: output.data.continuation.packet.dispatch_id },
+          },
+        });
+      }
       const pending = await runCli(
         ['ticket', 'approve-plan', 'FAL123', '--cwd', project, '--json', '--no-input'],
         { cwd: project, env: environment },
@@ -164,7 +235,7 @@ describe('planning fallback after independent route exhaustion', () => {
           'continue',
           output.data.review_id,
           '--tier',
-          'fresh-context',
+          options.selfReview ? 'self-review' : 'fresh-context',
           '--output',
           'host-review.json',
           '--offline',
@@ -251,6 +322,7 @@ describe('planning fallback after independent route exhaustion', () => {
     if (stamp.status !== 0) {
       throw new Error(`stamp failed: ${stamp.stdout}\n${stamp.stderr}\n${stamp.error ?? ''}`);
     }
+    await assertPolicyFlip(options.flipPolicy === true, project, ticket, environment);
     const approved = await runCli(
       ['ticket', 'approve-plan', 'FAL123', '--cwd', project, '--json', '--no-input'],
       { cwd: project, env: environment },
@@ -275,6 +347,18 @@ describe('planning fallback after independent route exhaustion', () => {
 
   it('admits a sealed fresh-host review only after independent and headless routes fail', async () => {
     expect(await reviewThroughAdmission(true)).toMatchObject({ achieved_independence: 'reduced' });
+  });
+
+  it('admits bounded self-review with reduced independence and distinct real job dispatches', async () => {
+    expect(
+      await reviewThroughAdmission(true, 'claude', false, false, { selfReview: true }),
+    ).toMatchObject({ achieved_independence: 'reduced' });
+  });
+
+  it('refuses a reduced receipt after policy changes to require', async () => {
+    expect(
+      await reviewThroughAdmission(false, 'claude', false, false, { flipPolicy: true }),
+    ).toMatchObject({ achieved_independence: 'reduced' });
   });
 
   it('admits fresh-host review after all configured independent routes fail without a headless route', async () => {

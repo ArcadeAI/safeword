@@ -1799,7 +1799,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/finish-review/REVIEWER.md':
         '9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7',
       '.claude/skills/finish-review/SKILL.md':
-        '7d907162daa0e6f51111ac8173d02a2b21e632532a3d736ccc02a91fb6973fb9',
+        '707ba187ea4f8f77cf5523b1fa4cf75c7ef48458b358f63ab147901ad560546f',
       '.claude/skills/lint/SKILL.md':
         'f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14',
       '.claude/skills/pr-readiness/SKILL.md':

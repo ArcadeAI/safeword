@@ -66,6 +66,14 @@ describe('job-bound host review continuation contract', () => {
     expect(contract).toContain('not a structural sandbox guarantee');
     expect(normalizedSkill).toContain('Read only the sealed packet');
     expect(normalizedSkill).toContain('actual reviewer and reduced independence');
+    expect(normalizedSkill).toContain(
+      'Take `review_policy` only from the trusted coordinator envelope',
+    );
+    expect(normalizedSkill).toContain(
+      "Include the coordinator's recovery command exactly as provided",
+    );
+    expect(normalizedSkill).toContain('Do not delegate or self-review for any other result');
+    expect(normalizedSkill).toContain('Under `require`, report `State: action required`');
     expect(normalizedSkill).toContain('.safeword/skills/finish-review/REVIEWER.md');
     expect(normalizedSkill).not.toContain('sibling `REVIEWER.md`');
     expect(skill).not.toContain('write-review-stamp');

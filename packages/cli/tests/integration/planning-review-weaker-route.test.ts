@@ -19,6 +19,23 @@ vi.mock('../../src/review/capability-catalogue.js', async importOriginal => ({
 const dispatchedPackets = vi.hoisted(() => [] as { dispatch_id: string }[]);
 const dispatchedEfforts = vi.hoisted(() => [] as (string | undefined)[]);
 
+function fixtureRejects(reviewer: string, model: string | undefined): boolean {
+  return (
+    model === 'gpt-6-astra' ||
+    (model === 'gpt-6-luna' && process.env.SAFEWORD_TEST_WEAKER_REJECTION === '1') ||
+    (reviewer !== 'claude' && process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1')
+  );
+}
+
+function fixtureSummary(model: string | undefined): string {
+  if (model === 'gpt-6-luna' && process.env.SAFEWORD_TEST_WEAKER_REJECTION === '1')
+    return 'Weak rejection.';
+  return (
+    { 'gpt-6-luna': 'Weak approval.', 'gpt-6-astra': 'Qualified rejection.' }[model ?? ''] ??
+    'Runtime-default approval.'
+  );
+}
+
 vi.mock('../../src/review/runtime.js', async importOriginal => {
   const actual = await importOriginal<Record<string, unknown>>();
   const RuntimeError = actual.ReviewRuntimeError as new (failure: string, message: string) => Error;
@@ -40,16 +57,8 @@ vi.mock('../../src/review/runtime.js', async importOriginal => {
           schema_version: 1,
           dispatch_id: packet.dispatch_id,
           reviewer_agent: reviewer,
-          verdict:
-            options.model === 'gpt-6-astra' ||
-            (reviewer !== 'claude' && process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1')
-              ? 'request_changes'
-              : 'approve',
-          summary:
-            {
-              'gpt-6-luna': 'Weak approval.',
-              'gpt-6-astra': 'Qualified rejection.',
-            }[options.model ?? ''] ?? 'Runtime-default approval.',
+          verdict: fixtureRejects(reviewer, options.model) ? 'request_changes' : 'approve',
+          summary: fixtureSummary(options.model),
           findings:
             reviewer !== 'claude' && process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1'
               ? [
@@ -320,4 +329,25 @@ it('uses the pinned medium effort for planning qualification', async () => {
     context: [`${ticket}/spec.md`],
   });
   expect(dispatchedEfforts).toEqual(['medium', 'medium']);
+});
+
+it('discards a proven-weaker rejection before taking a qualified verdict', async () => {
+  const { project, ticket } = await planningFixture();
+  vi.stubEnv('SAFEWORD_TEST_WEAKER_REJECTION', '1');
+  const result = await runReview({
+    cwd: project,
+    kind: 'plan-implementation',
+    targets: [`${ticket}/impl-plan.md`],
+    context: [`${ticket}/spec.md`],
+  });
+  expect(result.data).toMatchObject({
+    status: 'changes_requested',
+    independence: 'cross-agent',
+    review_routes: [
+      { model: 'gpt-6-luna', failure: 'reviewer_capability_weaker' },
+      { model: 'gpt-6-astra', status: 'attempted' },
+    ],
+    reviewer_output: { summary: 'Qualified rejection.' },
+  });
+  expect(JSON.stringify(result)).not.toContain('Weak rejection.');
 });

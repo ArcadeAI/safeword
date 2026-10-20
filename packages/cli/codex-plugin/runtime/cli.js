@@ -3625,7 +3625,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/explain/SKILL.md": "6673eccef3a9e68659c4e4b81b1e63bf9da03b1ae802dc7d22f419cb7c65472d",
         ".claude/skills/figure-it-out/SKILL.md": "18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d",
         ".claude/skills/finish-review/REVIEWER.md": "9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7",
-        ".claude/skills/finish-review/SKILL.md": "7d907162daa0e6f51111ac8173d02a2b21e632532a3d736ccc02a91fb6973fb9",
+        ".claude/skills/finish-review/SKILL.md": "707ba187ea4f8f77cf5523b1fa4cf75c7ef48458b358f63ab147901ad560546f",
         ".claude/skills/lint/SKILL.md": "f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14",
         ".claude/skills/pr-readiness/SKILL.md": "42fc32b8bef9a50d85c5d9ac81dcb3edab91f9d92c3e6bfe842fbabba2eed749",
         ".claude/skills/quality-review/SKILL.md": "ef63c3ca21b2c383c46d143fec48d229b4e17675015a77e858638dbefbdcfbac",
@@ -31831,6 +31831,7 @@ var init_preferences = __esm(() => {
 var exports_policy = {};
 __export(exports_policy, {
   reviewRoutePlan: () => reviewRoutePlan,
+  reviewPolicyAllowsAssurance: () => reviewPolicyAllowsAssurance,
   readReviewPolicy: () => readReviewPolicy,
   readPrimaryReviewerModel: () => readPrimaryReviewerModel,
   readConfiguredReviewRoutes: () => readConfiguredReviewRoutes,
@@ -31933,6 +31934,9 @@ function readReviewPolicy(cwd) {
   } catch (error2) {
     return error2.code === "ENOENT" ? "prefer" : "require";
   }
+}
+function reviewPolicyAllowsAssurance(cwd, independence) {
+  return readReviewPolicy(cwd) !== "require" || independence === "cross-agent";
 }
 var DEFAULT_PRIMARY_MODEL, DEFAULT_ALTERNATE_MODEL;
 var init_policy = __esm(() => {
@@ -82359,7 +82363,7 @@ function assuranceMatches(candidate, stamp, independence) {
     typeof data.actual_reviewer === "string"
   ].every(Boolean);
 }
-function assuranceAdmission(candidate, stamp, label) {
+function assuranceAdmission(candidate, stamp, label, cwd) {
   const { data } = candidate;
   const independence = data.independence;
   if (independence !== "cross-agent" && independence !== "reduced" && independence !== "degraded") {
@@ -82386,6 +82390,12 @@ function assuranceAdmission(candidate, stamp, label) {
     return {
       kind: "unearned_assurance",
       message: `The recorded assurance disagrees with the authenticated ${label} review.`
+    };
+  }
+  if (!reviewPolicyAllowsAssurance(cwd, independence)) {
+    return {
+      kind: "unearned_assurance",
+      message: `The ${label} review has ${independence} independence, but the current require policy needs cross-agent review.`
     };
   }
   return {
@@ -82415,13 +82425,14 @@ function phaseReviewAdmission(input) {
     if (output.verdict !== "approve" || data.status !== "approved") {
       return { kind: "not_admitted" };
     }
-    return assuranceAdmission(candidate, stamp, input.label);
+    return assuranceAdmission(candidate, stamp, input.label, input.cwd);
   }
   return { kind: "not_admitted" };
 }
 var init_phase_admission = __esm(() => {
   init_review_ledger();
   init_job();
+  init_policy();
 });
 
 // src/utils/planning-contract-copy-failure.ts
@@ -83223,7 +83234,7 @@ function candidateAdmission(input, stamp) {
     return { kind: "rejected", message: rejectionMessage2(output) };
   }
   const independence = achievedIndependence(data, output, stamp);
-  if (independence === undefined)
+  if (independence === undefined || !reviewPolicyAllowsAssurance(input.cwd, independence))
     return { kind: "unearned_assurance" };
   if (data.status !== "approved")
     return { kind: "not_admitted" };
@@ -83260,6 +83271,7 @@ var init_delivery_admission = __esm(() => {
   init_review_ledger();
   init_execution_plan_output();
   init_job();
+  init_policy();
 });
 
 // src/execution-plan/delivery-compatibility.ts
