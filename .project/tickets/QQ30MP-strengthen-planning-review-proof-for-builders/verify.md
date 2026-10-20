@@ -1,64 +1,79 @@
-# Formal verification of residual proof hardening
+# Verify bounded residual planning-review delivery
 
-This is the historical verification window recorded by f5110a7b7, not a
-current-head full-suite certificate. Later production refactors are recorded in
-[refactor.md](refactor.md); the subsequent consent/pending-text repair is
-recorded in [ticket.md](ticket.md). Their separate checks do not retroactively
-change this formal run. The ledger count below is an explicitly labeled later
-reference correction.
+Source/test checkpoint: 65283a40be2051d279df85d8af0f8b59c734dd21, CI run
+39446417791. Subsequent closure edits affect only ticket/evidence documents.
+The earlier formal verification is preserved byte-for-byte in
+[verify-historical-f5110a7b7.md](verify-historical-f5110a7b7.md).
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 173/173 tests pass in the hardening worktree recorded by f5110a7b7; that worktree's smoke run passed 2,236/2,236. The earlier formal resolved plan (production source 10c725b7d) passed CLI 11,489 tests with 14 skips in each of two runs, relay 198 with one skip, collector 153 twice, and the Go checker.
-**Gherkin:** ✅ Acceptance lane passes: 597 scenarios, 11,140 steps; proof-tag lane 51/51. ❌ The separate root broad-feature dry-run has 172 undefined cases and 516 undefined steps; this is not feature completion.
-**Build:** ✅ Success across the resolved build plan, including the website.
-**Lint:** ✅ Clean: root ESLint, Gherkin lint and CLI TypeScript check, plus targeted changed-test lint.
-**Typecheck:** ✅ Clean within this historical window: formal resolved plan at production source 10c725b7d (Astro 0 errors and Python 5 source files), plus CLI tsc for the hardening worktree recorded by f5110a7b7.
-**Scenarios:** ❌ Current broad feature ledger is 0/165 RGR checkboxes complete across 55 definitions. The earlier 0/159 count came from an undercounted 53-entry ledger; quality review repaired two missing entries and one title without marking any behavior complete. Historical runs and counts remain retained.
-**Refactor:** ✅ Completed for this window — cccae7bcc shares the installed fixture; 16/16 protection tests passed before the subsequent hardening. Existing assertions were preserved. Later production refactors have separate evidence in refactor.md.
-**PR Scope:** ✅ Diff matches ticket scope: #5051 residual admission/disposition, proof hardening, factual contract/copy correction, generated carriers and evidence. No #5086 fallback or runtime canonical/approval changes.
-**Dep Drift:** ✅ Clean: package manifests and bun.lock unchanged from main; documented dependency families still cover the implementation. Supply-chain audit is separately failed below.
-**Parent Epic:** 82T411 (#4200); historical siblings remain 0/11 done. No epic completion claimed.
-**Reconcile:** ✅ No pattern deviation: existing role resolution, canonical identity, authenticated review status, file lock and command catalogue are reused.
-**Experience:** ⚠️ No new human walkthrough; deterministic PTY interactions establish confirmation mechanics, not Non-Technical Builder usability or the broad Killer Demo payoff.
-**Surface Evidence:** ⚠️ Public CLI/PTY, installed distribution and existing native-boundary regressions have recorded proof. Actual cross-host/cloud/human qualification remains limited and deferred as recorded in the feature evidence.
-**Evidence limits:** ⚠️ Formal aggregate exits 1 because the unchanged JavaScript dependency graph reports eight vulnerabilities (2 high, 3 moderate, 3 low). Python audit is clear; Go reports zero called vulnerabilities, with imported/module advisories noted. Root broad scenarios remain undefined. No unchanged paid qualification rerun.
+**Test Suite:** ✓ 11506/11506 executed CLI tests pass in each Node 22/24 CI matrix, with 10 skipped each; relay Node 22: 198 passed/1 skipped, Node 24: 199 passed; collector: 153 passed each. Local final disposition file: 24/24 passed under pinned TERM=xterm. Historical failures remain below.
+**Gherkin:** ✅ Acceptance lane passes on Node 24: 597 scenarios, 11,140 steps, plus 51 proof-tag tests. The Node 22 workflow skips this lane; its job success is not a second acceptance run. Broad feature dry-run remains failed/undefined and is not this task's acceptance.
+**Build:** ✅ Success — both CI matrices rebuild packages and perform the non-git physical-install proof; the earlier formal website/other-stack build remains historical.
+**Lint:** ✅ Clean — current source/test CI lint, format, shell, architecture and version checks pass; focused final test ESLint/Prettier also pass.
+**Typecheck:** ✅ Clean — current CI type checks pass. Earlier Astro/Python checks are historical, not a new execution claim.
+**Scenarios:** ⏭️ Bounded task uses executable proof and inline completion criteria. Broader feature remains at scenario-gate/in_progress with 0/165 RGR boxes complete; no scenario is checked off here.
+**Refactor:** ✅ Completed — cccae7bcc preserves shared-fixture assertions; 08a6f9299 reuses the Finding type; 03a18d727 shares exact persisted fingerprints. Reverted rename and remaining fixture duplication are explicitly deferred.
+**PR Scope:** ✅ Diff matches the authorized residual #5051 delivery and supporting proof/documentation repairs. Preserve main #5957, native identity and approval repairs. No #5086 fallback or dependency changes, parent completion or paid requalification.
+**Dep Drift:** ✅ Clean — no manifest/lock changes. CI dependency policy passes; the historical formal scanner's eight advisories and YAML patch mismatch remain unresolved and separately recorded.
+**Parent Epic:** N/A — separate bounded delivery task related to feature 5F5ZZA and epic 82T411; neither is closed.
+**Reconcile:** ✅ No pattern deviation — existing reviewer context, authenticated status, canonical identity, sanitizer, fingerprint and cooperating file-lock patterns are reused.
+**Experience:** ⚠️ Real CLI/PTY walks establish mechanics only. No new human or multi-host usability qualification and no broad Killer Demo claim.
+**Surface Evidence:** ⚠️ CLI/PTY, installed distribution, native-layout boundaries, OpenCode conformance, release and parity checks pass at the stated source checkpoint. Actual native UI/cloud/human qualifications remain deferred.
+**Evidence limits:** ⚠️ Historical formal aggregate exit 1 (eight unchanged JS advisories), timing failures and broad undefined scenarios remain retained. CI's configured dependency policy passing does not mean zero vulnerabilities. Closure edits require final-head CI before admin merge; no unchanged paid qualification.
 
-Audit passed with warnings for the bounded diff; broad scenario proof remains
-request-changes. See [audit](audit.md) and [finding dispositions](review-dispositions.md).
+Historical audit at source checkpoint 39f635771 (recorded by d0b18c864)
+passed with warnings for the bounded source diff: 156 modules / 304
+dependencies, no violations. See audit.md, refactor.md and quality-review.md;
+whole-repository Knip/clone/upgrade discovery remains outside diff mode.
 
-## Commands and revisions
+Job and step conclusions supporting the CI build/lint/typecheck and install
+rows are retained in evidence/admin-ci-green-jobs.json, with the run URL.
+The intervening final test fix and closure docs do not change production
+dependencies; the audit is not presented as a new final-head execution.
 
-Base: e7b1f9f9c39da46f954d244d2371aa279ae96c1e (main after #5957).
-Production source was the pushed 10c725b7d revision throughout this historical pass.
-The formal resolved plan began before the test-only hardening; its two complete
-CLI runs report 11,489 passing tests each. Do not present those counts as the
-new cases' evidence. Final hardening 173/173, smoke 2,236/2,236, lint and static
-generated checks ran against the final test/source worktree based on cccae7bcc.
-The final commit adds only these verified changes, scenario corrections and
-evidence; recorded commands precede that commit, not an invented exact-SHA run.
+## Completion criteria and proof boundaries
 
-- `scripts/dev bash /tmp/5051-verify-block-2.sh`: verbatim packaged verify
-  execution block, resolving verify/BDD/build/typecheck/deps plans; aggregate 1.
-- `scripts/dev bun run test tests/cli-protocol/review-wiring.test.ts tests/integration/planning-review-disposition.test.ts tests/review/scenario-role-selected-parent.test.ts`: 173 passed, exit 0.
-- `scripts/dev bun run --cwd packages/cli test:smoke`: 108 files, 2,236 passed, exit 0.
-- `scripts/dev bun run lint`: exit 0.
-- `scripts/dev bun packages/cli/scripts/check-generated-surfaces.ts`: exit 0.
-- Root Cucumber dry-run with `NODE_OPTIONS='--import tsx'` and the explicit
-  feature path: exit 1, 172 undefined expanded cases. Imported package steps
-  account for 7,396 skipped steps; 516 are undefined for this root feature.
+Actionable test-quality findings have discriminating controls or explicit
+reasoned dispositions in review-dispositions.md, quality-review.md, refactor.md
+and admin-merge.md. The installed fixture extraction retained assertions and
+passed its 16-test protection run. Formal verify/audit retain their real
+revisions, failures and unfinished broad work. These are this task's three
+completion criteria; closing them does not complete the feature.
 
-The shared build-lock wrapper serialized Vitest. The smoke command waited for
-the hardening runner. The earlier 172-pass/1-fail run exposed an incomplete
-Execution reviewer fixture, subsequently repaired without production changes.
-The wrong root generated-check script name and two dry-run invocation errors
-are retained alongside corrected runs. Failed or unstarted checks are not passes.
+| Surface | Actual proof | Result / limit |
+| --- | --- | --- |
+| Human disposition command | Real CLI/PTY warning/info, prompt, pending output, confirmation-time changes, ownership and lock cases | Final local 24 passed; original authenticated bytes preserved |
+| Product/scenario admission | Real public CLI/installed/native-boundary tests in the 706-file CI suite | Passed; reviewer fixtures establish routing/mechanics, not live semantic quality |
+| Distributed assets | Five generated freshness checks, parity, physical install, CLI contract and release gates | Passed at source checkpoint; generated carriers unchanged by final test fix |
+| OpenCode | Pinned conformance CI job | Passed; no fallback implementation changes |
+| Native UI, cloud, human judgement | No new qualification | Deferred; retain contrary prior observations |
 
-## Review and delivery state
+Mechanical walk: a builder selects an authenticated optional finding, reads
+sanitized bounded prose, answers n and receives the sanitized pending result
+with exact ticket bytes unchanged; answering y records the original finding
+and makes the old review stale. Worst step is recovering from a stale review
+or truncated preview. The healthy confirmation flow adds no step beyond the
+already-designed explicit consent. This is not a human experience evaluation.
 
-Fresh Claude/opus cross-agent review
-44238cc8-99c4-4410-9706-f97eed5dce21 is approved; signed status rechecked
-against the final test files. Earlier scenario request-changes and all contrary
-historical qualification observations remain retained. Draft PR #5980 remains
-Draft; merge and Ready promotion are not authorized. Current-head CI is checked
-and reported in the PR body after push, separately from these local results.
+## Failures, review and closure
+
+Both Node jobs at d0b18c864 failed the pending-result test. Clean local xterm
+reproduction showed readline cursor controls outside the reviewer text. The
+fixture now pins xterm and checks the entire finding suffix exactly; no ANSI
+stripping or production changes. Preserve CI failure excerpt and local RED/GREEN
+in evidence/admin-*. Fresh Claude/opus cross-agent review 74db1381 approved this
+repair; its nonblocking coverage observations are explicitly deferred in
+admin-merge.md. Earlier full-source and document reviews remain in
+quality-review.md, with all warnings and dispositions.
+
+The earlier broad review still requests changes. Its 172 undefined expanded
+cases, 516 undefined steps, 7,396 imported skipped steps, historical six failed /
+585 unfinished, 418 undefined child bindings, 33 deferrals, R7 human deferral,
+old R9 observation, #5139 missing RED/SHA collision and #5857 unfinished evidence
+remain preserved. This closure cannot turn any of those into passing proof.
+
+The user explicitly authorized admin merge after green CI. The repository
+Ready hook rejected incomplete task closure; use normal verified task closure
+and the checked Ready command rather than bypassing it. Required final-head CI
+and GitHub admin merge remain external PR actions, separately evidenced there.

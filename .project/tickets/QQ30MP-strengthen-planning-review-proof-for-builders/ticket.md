@@ -2,8 +2,8 @@
 id: QQ30MP
 slug: strengthen-planning-review-proof-for-builders
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-10-20T12:40:50.974Z
 last_modified: 2026-10-20T12:40:50.974Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/5051
@@ -16,7 +16,7 @@ scope:
   - run formal verify and diff audit and retain failures and explicit limitations
 out_of_scope:
   - changing main canonical-contract or approval behavior, #5086 fallback work or dependency upgrades
-  - closing feature 5F5ZZA or epic 82T411, live qualification, merge or Ready promotion
+  - closing feature 5F5ZZA or epic 82T411, live qualification or release promotion
 done_when:
   - actionable test-quality findings have discriminating assertions and boundary controls or reasoned dispositions
   - fixture extraction preserves existing assertions and passes its protection tests
@@ -158,3 +158,20 @@ directly, retaining control-character rejection and unchanged-ticket proof.
 Do not strip ANSI from reviewer text or change production behavior. Preserve
 both CI failures and the local failing reproduction; broader completion and
 dependency deferrals remain unchanged.
+
+## Bounded delivery closure
+
+The user's explicit admin-merge request supersedes the earlier no-merge limit
+for PR #5980. This task's scoped outcomes are complete: actionable findings
+are fixed or reasoned dispositions are retained, fixture protection passes,
+and formal verification/audit keep their actual revisions and failures.
+Source/test head 65283a40b passed all required CI jobs in run 39446417791.
+The current verification record distinguishes that delivery from the broad
+feature, which remains scenario-gate/in_progress with 165 unchecked RGR boxes.
+No feature acceptance, dependency repair or host qualification is claimed.
+
+The implementation phase uses the documented explicit skip: cumulative source
+and final repair reviews exist, while the whole-branch stamp would require
+unrelated historical/generated and unfinished feature evidence. Verification
+exit must receive its own independent review. Close this bounded task normally
+before retrying the checked Ready command; do not bypass the repository hook.

@@ -51,3 +51,15 @@ claimed. The PR body must retain that distinction and the exact merged head.
 CI failure excerpts and local RED/GREEN logs are retained in evidence/admin-*.
 Current-head CI and the final merge result are recorded on the PR, rather than
 rewriting historical verification into a passing aggregate.
+
+## Repository hook resolution
+
+The raw Ready attempt was blocked by the repository PreToolUse hook. The
+preceding exception proposal did not bypass that hook or change PR state.
+Proceed through normal closure of this now-complete bounded task instead:
+retain the historical verification under its own filename, record current CI
+and limitations in verify.md, independently review verification and earn the
+normal closure receipt. Final-head CI remains required after closure edits.
+The broader feature remains unfinished. This supersedes the proposal to use
+an administrative exception for local ticket readiness; GitHub admin merge
+authority remains explicit.

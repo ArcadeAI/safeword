@@ -1,5 +1,10 @@
 # Current delivery quality review
 
+Historical review authority: the later user instruction explicitly authorizes
+admin merge after green CI. See [admin delivery follow-up](admin-merge.md) and
+[bounded verification](verify.md) for normal task closure and final PR gates.
+Earlier Draft/no-merge conclusions below remain historical, not current authority.
+
 ## Quality Review
 
 **Currency:** ⚠️ Checked against primary sources on 2026-10-20. Installed and locked YAML is 2.9.0, while the unchanged manifest asks for ^2.9.1 and upstream now lists 2.9.1 as stable. The used v2 APIs are documented; the inherited version mismatch is recorded rather than repaired through an unrelated dependency update.
