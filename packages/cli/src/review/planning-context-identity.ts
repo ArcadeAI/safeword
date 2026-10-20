@@ -327,10 +327,19 @@ const productFrameFields = [
   'Project non-goals',
 ];
 
+function nestedInventoryValue(node: MarkdownNode, parent?: MarkdownNode): string {
+  if (parent?.type !== 'listItem' || parent.children?.[0] !== node) return '';
+  return normalizeNodes(parent.children.slice(1))
+    .filter(child => child.type === 'list')
+    .map(child => headingText(child))
+    .join('')
+    .trim();
+}
+
 export function validatePlanningProductFrame(content: string): void {
   const frame = requiredSection(parseMarkdown(content), 2, 'Product Bet');
   const counts = new Map<string, number>();
-  const visit = (node: MarkdownNode): void => {
+  const visit = (node: MarkdownNode, parent?: MarkdownNode): void => {
     if (node.type === 'paragraph') {
       const text = normalizeChildren(node)
         .map(child => headingText(child))
@@ -338,12 +347,15 @@ export function validatePlanningProductFrame(content: string): void {
       const colon = text.indexOf(':');
       const label = text.slice(0, colon);
       if (productFrameFields.includes(label)) {
-        if (text.slice(colon + 1).trim() === '') throw new Error(`Blank Product Bet ${label}.`);
+        const nestedInventory =
+          label === 'Persona outcome inventory' ? nestedInventoryValue(node, parent) : '';
+        if (text.slice(colon + 1).trim() === '' && nestedInventory === '')
+          throw new Error(`Blank Product Bet ${label}.`);
         counts.set(label, (counts.get(label) ?? 0) + 1);
       }
     }
     const children = node.children ?? [];
-    for (const child of children) visit(child);
+    for (const child of children) visit(child, node);
   };
   for (const node of frame) visit(node);
   if (productFrameFields.some(field => counts.get(field) !== 1))
