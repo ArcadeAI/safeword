@@ -34,7 +34,7 @@ import {
   type ReviewPacket,
   type ReviewPacketFile,
 } from './contract.js';
-import { prepareReviewPacket, toReviewPath } from './packet.js';
+import { type PlanningContractUse, prepareReviewPacket, toReviewPath } from './packet.js';
 import {
   createPlanningReviewIdentity,
   productParentContextIdentity,
@@ -233,19 +233,24 @@ function reviewIdentity(
   cwd: string,
   kind: ReviewKind,
   targets: readonly string[],
-  context: readonly string[] = [],
-  execution?: RedExecutionRequest,
+  context: readonly string[],
+  options: {
+    readonly execution?: RedExecutionRequest;
+    readonly planningContractUse: PlanningContractUse;
+  },
 ): {
   fingerprint: string;
   excludedTargets: readonly string[];
   reviewIdentity?: PlanningReviewIdentity;
 } {
+  const { execution, planningContractUse } = options;
   // A GREEN receipt is bound to the reviewed scenario's ledger block, not just
   // its human-readable label. Other scenarios share this progress ledger, so
   // their later GREEN/REFACTOR updates are outputs rather than proof inputs.
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
   const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
     allowMissingExecutableRedAttestation: true,
+    planningContractUse,
   });
   try {
     const planningIdentity = createPlanningReviewIdentity(prepared.packet);
@@ -307,7 +312,8 @@ function fingerprint(
   context: readonly string[] = [],
   execution?: RedExecutionRequest,
 ): string {
-  return reviewIdentity(cwd, kind, targets, context, execution).fingerprint;
+  return reviewIdentity(cwd, kind, targets, context, { execution, planningContractUse: 'dispatch' })
+    .fingerprint;
 }
 
 function reviewFingerprintContent(
@@ -832,13 +838,10 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
     });
   }
   try {
-    const current = reviewIdentity(
-      cwd,
-      record.kind,
-      record.targets,
-      record.context,
-      record.execution,
-    );
+    const current = reviewIdentity(cwd, record.kind, record.targets, record.context ?? [], {
+      execution: record.execution,
+      planningContractUse: 'currency',
+    });
     if (current.fingerprint !== record.source_fingerprint) return staleResult(record);
     if (record.result !== undefined)
       return withReviewProvenance(cwd, record, record.result, current.excludedTargets);
@@ -1071,7 +1074,7 @@ export async function startReviewJob(input: {
     input.kind,
     input.targets,
     context,
-    input.execution,
+    { execution: input.execution, planningContractUse: 'dispatch' },
   );
   const targets = canonicalReviewTargets(planningIdentity, input.targets);
   mkdirSync(jobsDirectory(input.cwd), { recursive: true, mode: 0o700 });

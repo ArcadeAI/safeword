@@ -1,0 +1,96 @@
+{
+  "contract_sha256": "4cc38db52651b7073d8677ff89b94d896ba0b2321125d8eaef31c6152543e533",
+  "corpus_sha256": "833df049ac3d3cbe119fac7f8ecf43c614e1cf6c4d64b97c4f0781e4ee8f6309",
+  "reviewer": "claude",
+  "model": "opus",
+  "exit": 130,
+  "complete": false,
+  "reason": "Stopped after actual semantic assertion failures; no complete passing matrix possible. SIGINT did not flush the normal result file. Case IDs and unseen passing counts are not inferred. No admission regeneration performed.",
+  "observed_failed_outputs": [
+    {
+      "schema_version": 1,
+      "dispatch_id": "f10d8971-2e57-4b5a-9e34-5ec6afd1cdd7",
+      "reviewer_agent": "claude",
+      "verdict": "request_changes",
+      "summary": "The Schema slice can start: it is inert, has a concrete RED step with a named fixture, command and failure signal, and is proven by data-compatibility. The Reader slice cannot start. Its boundary lists failure signals, authorization, rollout, rollback and documentation, but its tasks only cover reading and retaining results. The GREEN and REFACTOR steps say to \"run every activation proof command\" without naming the fixtures, edit actions, expected assertions or actor boundaries for five of the six proofs. Nothing in the slice implements the recorded decision that one shared authorization service owns permission checks. All of these are execution-mechanics gaps. The accepted approach, decisions and proof boundaries stay unchanged, so the plan returns to plan-execution.",
+      "findings": [
+        {
+          "severity": "error",
+          "message": "Reader slice, steps 2\u20133: Purpose says only 'Read and retain schema-valid results', but the Boundary also covers failure signals, authorization, rollout, rollback and documentation. No task, RED step, fixture, edit action or expected assertion covers those obligations. 'Run every activation proof command with exit 0' leaves the work for test:failure-signals, test:authorization-boundary, test:rollout-rollback and test:documentation-contract for the implementer to invent. A step could claim item-6 to item-9 are done without anyone knowing what those tests are supposed to show. Add one startable step per obligation, each naming its fixture, command, edit action, expected exit or assertion, and real actor boundary."
+        },
+        {
+          "severity": "error",
+          "message": "Decision accounting: 'One shared authorization service owns permission checks for every transport' is marked unchanged, but no slice step implements it. The plan never says the reader must route permission checks through the shared service, and no proof step checks that it does. Under the current plan, a reader with its own inline permission check would still pass. Add a Reader task, with a RED step and the security-boundary proof, that wires the reader to the shared authorization service and asserts no separate check exists."
+        },
+        {
+          "severity": "warning",
+          "message": "Reader slice bundles result reading together with rollout, rollback and documentation activation. That is acceptable if they form one activation concern. If rollout and rollback can be proven on their own, consider stating why they share one pull request, or split them into a separate slice."
+        },
+        {
+          "severity": "warning",
+          "message": "Obligation ownership maps 'Affected-surface work' to Reader but never names the affected surfaces. Checklist items 6 and 7 therefore refer to a boundary the plan does not spell out."
+        }
+      ],
+      "planning_destination": "plan-execution",
+      "execution_plan_record": null
+    },
+    {
+      "schema_version": 1,
+      "dispatch_id": "401ca82d-646b-45b7-b988-85f35f700738",
+      "reviewer_agent": "claude",
+      "verdict": "request_changes",
+      "summary": "The slicing decision holds up. The scenario backs it: two separately provable outcomes (an inert schema, then public activation) justify two slices, and the rationale rests on what each slice does and how it is proven, not on file count. Dependency order is acyclic, the two Recorded Decisions are listed as unchanged, the proof table and checklist match the trusted delivery definition, and every contributor Required proof points to a real_boundary proof. Delivery still can't start without the implementer filling in gaps. In the 'Public activation' slice, five of the six obligations it owns have no task, no RED and no failure signal. In the 'Inert schema' slice, Migration work has no task, and its stated golden-bytes proof doesn't show migration works. Fixing both means repairing the Execution Plan only; no accepted decision or proof boundary has to change.",
+      "findings": [
+        {
+          "severity": "error",
+          "message": "Slice 'Public activation' can't be started as written. It owns failure signals, authorization, rollout, rollback and documentation, but its only steps are one RED (`bun run test:review-cli` / `review command is unavailable`, routing only) and a GREEN that says 'register the public review command... then run every activation proof command with exit 0'. Nothing says which action implements failure signals, authorization, rollout/rollback or the documentation. There's also no RED with a fixture and expected failure for test:failure-signals, test:authorization-boundary, test:rollout-rollback or test:documentation-contract. The plan also never says how authorization goes through the accepted 'one shared authorization service owns permission checks for every transport' decision. That leaves behavior and architecture for the implementer to invent. Consequence: the shared-service decision could be bypassed (for example, with a command-local permission check) and checklist items 2 and 6\u20139 would still show no task-level gap. Repair: add named RED/GREEN steps, each with a fixture, command, edit action, expected failure or assertion, and actor boundary, for each activation obligation, including routing permission checks through the shared authorization service."
+        },
+        {
+          "severity": "error",
+          "message": "Slice 'Public activation' has a non-concrete completion signal: 'The command and every activation obligation are supported.' It doesn't name an observable result, such as specific proof commands exiting 0 on the current revision. Repair: list each activation proof ID (behavior-boundary, failure-signals, security-boundary, rollout-rollback, documentation-contract, plan-integrity) and the result each must show."
+        },
+        {
+          "severity": "error",
+          "message": "The plan assigns 'Migration work' to slice 'Inert schema' (checklist item-5, data-compatibility), but that slice has no migration task. Its tasks only add and consolidate a schema. Its stated proof, 'a golden test proves the schema bytes', doesn't discriminate for the data-compatibility boundary ('Migration and backward-compatibility boundaries'): migration or backward compatibility could be broken while the schema bytes still match. Repair: add explicit migration and backward-compatibility steps, with a fixture, command and expected failure, plus an assertion in test:schema-compatibility that exercises the compatibility boundary rather than only byte equality."
+        },
+        {
+          "severity": "warning",
+          "message": "Slice 'Inert schema' doesn't name the schema file or fixture path it edits ('One schema file', 'the public-result fixture'). Name the exact file and fixture location so the GREEN edit is unambiguous."
+        },
+        {
+          "severity": "info",
+          "message": "The rationale mentions that only two files change, but it grounds the split in separate value and separate proof, which matches the accepted scenario. File count isn't the sole justification."
+        }
+      ],
+      "planning_destination": "plan-execution",
+      "execution_plan_record": null
+    },
+    {
+      "schema_version": 1,
+      "dispatch_id": "43e48e84-4fea-4ea3-8d92-f3629da64145",
+      "reviewer_agent": "claude",
+      "verdict": "request_changes",
+      "summary": "The slicing decision, the dependency order (Contract owner before Release owner), the proof table, the decision accounting, and the checklist all match the packet's delivery definition. The Release owner slice can't start as written, though. Its tasks give edit actions and fixtures only for review routing and result retention. They don't give any for failure signals, authorization, rollout, rollback, or documentation, even though five of the six required proof commands depend on that work. The recorded decision about a shared authorization service also has no task that implements it. These are execution mechanics, not changes to accepted decisions or proof boundaries, so the plan goes back to plan-execution for repair.",
+      "findings": [
+        {
+          "severity": "error",
+          "message": "Release owner slice, step GREEN: the only edit action is 'connect public review routing to typed result retention'. The same step requires `test:failure-signals`, `test:authorization-boundary`, `test:rollout-rollback`, and `test:documentation-contract` to exit 0. No step names the edits, fixtures, or failure assertions for failure-signal exposure (item-6), authorization and privacy protection (item-7), rollout and rollback work (item-8), or documentation work (item-9). Each test step must name its fixture, command, edit action, expected exit or assertion, and real actor boundary. As written, the implementer has to invent this behavior, or could ship routing alone and run tests that don't discriminate. Fix: add RED/GREEN steps for each of these obligations, each with its own fixture, its observable RED failure signal, its edit action, and its real actor boundary."
+        },
+        {
+          "severity": "error",
+          "message": "Decision preservation: the plan marks the recorded decision 'One shared authorization service owns permission checks for every transport' as unchanged, but no slice task implements it. The Release owner tasks never create or route through a shared authorization service, and no step or assertion checks that every transport uses it. Fix: add an owned task in the Release owner slice that sends all transport permission checks through the single shared authorization service, with a discriminating assertion (for example, one per transport) under `test:authorization-boundary`. This fixes execution mechanics only; the accepted decision stays the same."
+        },
+        {
+          "severity": "warning",
+          "message": "Release owner slice: the RED/GREEN/REFACTOR steps don't name the real actor boundary (for example, the public CLI invocation of `bun run test:review-cli`) inline. A reader can only find it in the proof specifications table. Name it in each test step."
+        },
+        {
+          "severity": "warning",
+          "message": "Release owner slice: the boundary covers routing, retention, CLI, failure signals, authorization, rollout, rollback, and documentation. That is acceptable as one activation outcome. But once the missing tasks are added, check that the slice still proves one concern and doesn't bundle work that could be proven on its own."
+        }
+      ],
+      "planning_destination": "plan-execution",
+      "execution_plan_record": null
+    }
+  ]
+}

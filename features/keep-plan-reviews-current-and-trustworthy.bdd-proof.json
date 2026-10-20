@@ -1,0 +1,9 @@
+{
+  "feature": "features/keep-plan-reviews-current-and-trustworthy.feature",
+  "scenarios": {
+    "Invalid Execution invalidation declarations preserve installed contracts": [
+      "packages/cli/tests/integration/planning-contract-generation.test.ts",
+      "blocks reconciliation for a $case Execution invalidation direction"
+    ]
+  }
+}

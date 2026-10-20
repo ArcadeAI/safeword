@@ -86,7 +86,8 @@
     "format:check": "prettier --check .",
     "knip": "knip",
     "publint": "publint",
-    "lint:sh": "if command -v shellcheck >/dev/null 2>&1; then shellcheck **/*.sh; else echo 'shellcheck not installed; skipping'; fi"
+    "lint:sh": "if command -v shellcheck >/dev/null 2>&1; then shellcheck **/*.sh; else echo 'shellcheck not installed; skipping'; fi",
+    "generate:planning-contracts": "bun scripts/generate-planning-contracts.ts"
   },
   "dependencies": {
     "@cucumber/gherkin": "^42.0.0",

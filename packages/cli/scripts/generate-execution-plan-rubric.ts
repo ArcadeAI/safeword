@@ -1,10 +1,12 @@
 import { extractExecutionPlanReviewRubric } from '../src/review/execution-plan-rubric.js';
+import { generatePlanningContracts } from './generate-planning-contracts.js';
 import {
   defineGeneratedRubric,
   isDirectGeneratorInvocation,
 } from './lib/reconcile-generated-file.js';
 
 export const generateExecutionPlanRubric = defineGeneratedRubric({
+  prepare: generatePlanningContracts,
   digestExportName: 'EXECUTION_PLAN_REVIEW_RUBRIC_SHA256',
   exportName: 'EXECUTION_PLAN_REVIEW_RUBRIC',
   extract: extractExecutionPlanReviewRubric,

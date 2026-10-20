@@ -373,15 +373,18 @@ Feature: Keep plan reviews current and trustworthy
         | only whitespace inside a reviewed Execution Plan checklist row's normalized progress cells | neither plan review is invalidated |
         | only ordinary progress in a reviewed Execution Plan checklist row's Disposition, Evidence class, Revision, or final evidence cell | neither plan review is invalidated |
 
-    Scenario Outline: Invalidation follows the canonical Execution Planning dependency direction
-      Given current plan-review receipts and a canonical Execution Planning contract that declares <dependency_direction>
+    Scenario: Invalidation follows the canonical Execution Planning dependency direction
+      Given current plan-review receipts and a canonical Execution Planning contract that declares accepted Implementation Plan changes invalidate both plan reviews
       When the accepted Implementation Plan changes semantically
-      Then <invalidation_result>
+      Then both plan reviews are invalidated
 
-      Examples:
-        | dependency_direction | invalidation_result |
-        | accepted Implementation Plan changes invalidate both plan reviews | both plan reviews are invalidated |
-        | accepted Implementation Plan changes invalidate only their own review | only the Implementation Plan review is invalidated and the Execution Plan review remains current |
+    @surface.safeword-cli @rejection @proof.vitest
+    Scenario: Invalid Execution invalidation declarations preserve installed contracts
+      Given valid shared-clause updates are pending for all three installed planning contracts
+      And the canonical Execution Planning contract declares an unsupported upstream invalidation direction
+      When the Safeword CLI upgrades the installed contracts through real project configuration
+      Then reconciliation reports invalid_invalidation_contract and names the Execution Planning contract
+      And all three installed planning contracts remain byte-for-byte unchanged
 
     @rejection
     Scenario Outline: An approving receipt is valid only for its own ticket and review kind
