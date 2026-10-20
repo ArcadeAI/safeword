@@ -1,7 +1,7 @@
 # Safeword Architecture
 
 **Version:** 1.25
-**Last Updated:** 2026-10-02
+**Last Updated:** 2026-10-20
 **Status:** Production
 
 ---

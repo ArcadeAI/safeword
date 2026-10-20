@@ -124,7 +124,22 @@ Read-only lint/audit and independent command/admission scouts found this ledger:
   contract; retain local ownership examples during this surgical pass.
 - Deferred: duplicated standalone Product dispatch fixtures. A separate fixture
   extraction can reduce setup; this pass caps changes to the three production
-  cleanups and does not claim that all test duplication is removed.
+cleanups and does not claim that all test duplication is removed.
+
+## Current-head quality-review repairs
+
+At 38ff2f745, CI is green. Fresh source/test review c3fb422b approved the
+bounded implementation; documentation review ca97a622 requested changes for
+two feature scenarios missing from the RGR ledger and one mismatched title.
+Repairing those references yields 55 tracked definitions and 165 unchecked
+RGR boxes, not completed behavior or new acceptance. Earlier 0/159 reports
+describe the undercounted historical ledger and remain retained.
+
+The source review also identified raw reviewer prose reaching the interactive
+consent prompt. Add a failing real CLI/PTY test first, then reuse the existing
+terminal text sanitizer while keeping original finding bytes and fingerprints
+in authenticated records. This is a bounded correction to the authorized
+disposition command, not #5086 fallback work or a change to approval semantics.
 
 Each production entry gets an isolated edit, focused regression run and commit.
 No canonical identity, target admission, persisted schema or fallback change
