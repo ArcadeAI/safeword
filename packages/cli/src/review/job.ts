@@ -414,7 +414,7 @@ function withJobLock<T>(cwd: string, id: string, operation: () => T): T {
   return withFileLock(`${jobPath(cwd, id)}.lock`, operation);
 }
 
-function withFileLock<T>(lock: string, operation: () => T): T {
+export function withFileLock<T>(lock: string, operation: () => T): T {
   const deadline = Date.now() + JOB_LOCK_WAIT_MS;
   let descriptor: number | undefined;
   while (descriptor === undefined) {

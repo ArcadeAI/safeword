@@ -25,7 +25,11 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../execution-plan/delivery-checklist.js';
-import { assertActivePlanningAuthorCopy, packagedPlanningAuthor } from '../planning/author-copy.js';
+import {
+  assertActivePlanningAuthorCopy,
+  packagedPlanningAuthor,
+  PlanningContractCopyError,
+} from '../planning/author-copy.js';
 import type { PlanningPhase } from '../planning/phase-contract.js';
 import { PLANNING_DATA_GUIDE_PATH, SAFEWORD_SCHEMA } from '../schema.js';
 import { resolveConfiguredPath, resolveTicketsDirectory } from '../utils/configured-paths.js';
@@ -281,9 +285,8 @@ function resolvedPlanningContext(
   context: readonly string[],
   productPlan = false,
 ): readonly string[] {
-  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return context;
   const inherited = requiredPlanningBoundaryContext(cwd, kind, targets, context, productPlan);
-  if (inherited === undefined || inherited.length === 0) return context;
+  if (inherited === undefined) return context;
   const included = new Set([...targets, ...context].map(path => nodePath.resolve(cwd, path)));
   const resolved = [...context];
   const required = [
@@ -1247,7 +1250,13 @@ function prepareReviewPacketUnsafe(
       rejectDuplicate(target);
       uniqueTargets.push(target);
     }
-    context = resolvedPlanningContext(canonicalRoot, kind, uniqueTargets, context);
+    context = resolvedPlanningContext(
+      canonicalRoot,
+      kind,
+      uniqueTargets,
+      context,
+      productPlanWorkTarget(canonicalRoot, kind, uniqueTargets),
+    );
     for (const target of context) rejectDuplicate(target);
     if (uniqueTargets.length + context.length > MAX_FILE_COUNT) {
       throw new ReviewPacketError(
@@ -1300,17 +1309,13 @@ function prepareReviewPacketUnsafe(
       uniqueTargets,
       execution.planningContractUse ?? 'dispatch',
     );
-    planningContext =
-      planningContract.planning_phase === undefined ||
-      planningContract.planning_phase === 'product-plan'
-        ? undefined
-        : resolvePlanningRoleContext(
-            canonicalRoot,
-            kind,
-            planningContract.planning_phase,
-            logicalFiles,
-            contextFiles,
-          );
+    planningContext = resolvePlanningRoleContext(
+      canonicalRoot,
+      kind,
+      planningContract.planning_phase,
+      logicalFiles,
+      contextFiles,
+    );
     const additional = planningRoleSources(canonicalRoot, planningContext, seen);
     requirePacketFileCount(uniqueTargets.length + context.length + additional.length);
     contextFiles.push(
@@ -1392,4 +1397,13 @@ export function prepareReviewPacket(
         : 'Review packet could not be prepared. Check that every target and context path exists and is readable.',
     );
   }
+}
+
+/** Keep required-context and author-copy recovery typed at public dispatch boundaries. */
+export function planningPacketError(
+  error: unknown,
+): PlanningContractCopyError | PlanningContextError | undefined {
+  return error instanceof PlanningContractCopyError || error instanceof PlanningContextError
+    ? error
+    : undefined;
 }
