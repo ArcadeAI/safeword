@@ -1575,6 +1575,7 @@ Then(
       'Never describe this as packet-only or independent coverage.',
       'Under `require`, the independent gate remains unsatisfied regardless of this verdict.',
       'Under `prefer`, an approval completes only this supplemental request; it creates no machine receipt or review stamp.',
+      'Under `require`, report `State: action required` regardless of the supplemental verdict; independent coverage remains unsatisfied.',
     ];
     for (const relativePath of contractPaths) {
       assertPointerOnlyWrapper(relativePath, 'finish-review');
