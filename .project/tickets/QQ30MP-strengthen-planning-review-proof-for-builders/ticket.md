@@ -145,3 +145,16 @@ Each production entry gets an isolated edit, focused regression run and commit.
 No canonical identity, target admission, persisted schema or fallback change
 is intended. Prior formal verification and failures remain bound to their
 recorded revision; regenerated carriers and fresh audit follow the refactor.
+
+## CI terminal portability repair
+
+The user authorized getting CI green and admin merging the bounded delivery.
+Both Node jobs at d0b18c864 failed the new pending-result assertion. Reproducing
+with TERM=xterm confirms readline emits cursor controls around its question;
+the reviewer finding is already sanitized. The test incorrectly applies a
+reviewer-text invariant to the entire PTY transcript. TERM=dumb local coverage
+missed this. Pin an xterm fixture and assert the complete pending finding text
+directly, retaining control-character rejection and unchanged-ticket proof.
+Do not strip ANSI from reviewer text or change production behavior. Preserve
+both CI failures and the local failing reproduction; broader completion and
+dependency deferrals remain unchanged.

@@ -249,6 +249,7 @@ sys.exit(child.wait())`,
           ...process.env,
           PATH: `${reviewer}:${process.env.PATH ?? ''}`,
           SAFEWORD_AGENT_RUNTIME: 'codex',
+          TERM: 'xterm',
         },
       },
     );
@@ -263,8 +264,12 @@ describe('user-owned planning review disposition', () => {
     const result = project.terminal('n', project.reviewId);
     expect(result.stdout).toContain('requires interactive confirmation: Visible');
     expect(result.stdout).not.toMatch(/[\p{Cf}\p{Zl}\p{Zp}]/u);
-    expect(result.stdout).not.toContain('\u{1B}');
-    expect(result.stdout).not.toContain('\u{7}');
+    // Readline may emit cursor controls outside the reviewer-owned text.
+    const displayed = result.stdout
+      .split('Declining this warning finding requires interactive confirmation: ', 2)[1]
+      ?.trimEnd();
+    expect(displayed).toBe('Visible [31m     review advice');
+    expect(displayed).not.toMatch(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u);
     expect(readFileSync(project.ticketPath, 'utf8')).toBe(before);
   });
 
