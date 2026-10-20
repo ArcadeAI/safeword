@@ -7,6 +7,7 @@ import { createInterface } from 'node:readline/promises';
 import { parseDocument } from 'yaml';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { terminalSafeReviewerText } from '../review/coordinator.js';
 import { reviewJobStatus, withFileLock } from '../review/job.js';
 import { toReviewPath } from '../review/packet.js';
 import {
@@ -109,7 +110,7 @@ function addDisposition(
 
 async function confirm(finding: Finding, boundaryDigest: string, reason: string): Promise<boolean> {
   process.stderr.write(
-    `Finding (${finding.severity}): ${finding.message}\nAccepted boundary: ${boundaryDigest}\nDecline reason: ${reason}\n`,
+    `Finding (${finding.severity}): ${terminalSafeReviewerText(finding.message)}\nAccepted boundary: ${boundaryDigest}\nDecline reason: ${reason}\n`,
   );
   const prompt = createInterface({ input: process.stdin, output: process.stderr });
   try {

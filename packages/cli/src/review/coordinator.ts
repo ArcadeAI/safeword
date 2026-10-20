@@ -232,7 +232,7 @@ function reviewerFeedback(output: ReviewerOutput): readonly Finding[] {
 
 const MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000;
 
-function terminalSafeReviewerText(value: string): string {
+export function terminalSafeReviewerText(value: string): string {
   const sanitized = value.replaceAll(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, ' ');
   const characters = sanitized.match(/[\s\S]/gu) ?? [];
   if (characters.length <= MAX_TERMINAL_REVIEWER_TEXT_LENGTH) return sanitized;

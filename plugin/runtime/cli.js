@@ -61822,6 +61822,7 @@ Move the handler file and replace the accepted public command response with a ne
 // src/review/coordinator.ts
 var exports_coordinator = {};
 __export(exports_coordinator, {
+  terminalSafeReviewerText: () => terminalSafeReviewerText,
   runReview: () => runReview
 });
 import { readFileSync as readFileSync45 } from "fs";
@@ -82133,7 +82134,7 @@ function addDisposition(content, request, kind, finding2, boundaryDigest) {
   return `${match[1]}${document2.toString({ lineWidth: 0 }).trimEnd()}${match[3]}${content.slice(match[0].length)}`;
 }
 async function confirm(finding2, boundaryDigest, reason) {
-  process20.stderr.write(`Finding (${finding2.severity}): ${finding2.message}
+  process20.stderr.write(`Finding (${finding2.severity}): ${terminalSafeReviewerText(finding2.message)}
 Accepted boundary: ${boundaryDigest}
 Decline reason: ${reason}
 `);
@@ -82303,6 +82304,7 @@ async function recordReviewDisposition(request) {
 var import_yaml6, command = "ticket record-review-disposition";
 var init_review_disposition = __esm(() => {
   init_result();
+  init_coordinator();
   init_job();
   init_packet();
   init_planning_accepted_boundary();
