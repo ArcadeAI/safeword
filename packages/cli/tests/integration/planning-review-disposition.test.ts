@@ -5,8 +5,19 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
+import {
+  createExecutionPlanDeliveryDefinition,
+  normalizedExecutionPlanDigest,
+  parseDeliveryPlanContract,
+} from '../../src/execution-plan/delivery-checklist.js';
+import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { parseFrontmatter } from '../../templates/hooks/lib/hierarchy.js';
-import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
+import {
+  createConfiguredProject,
+  createTemporaryDirectory,
+  runCli,
+  testCliPath,
+} from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
@@ -19,7 +30,42 @@ const ticketId = 'DIS123';
 const folder = `.project/tickets/${ticketId}-review-disposition`;
 const target = `${folder}/spec.md`;
 const suggestion = 'Consider adding an optional approval audit export.';
-const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+const cli = testCliPath;
+type Kind = 'quality-review' | 'plan-implementation' | 'plan-execution';
+type PromptEdit = string | { path: string; before: string; after: string };
+
+function executionFixture() {
+  const plan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+    row => row.id === 'one-coherent-change',
+  )?.execution_plan;
+  if (plan === undefined) throw new Error('Missing accepted execution fixture');
+  const parsed = parseDeliveryPlanContract(plan);
+  if (!parsed.ok) throw new Error(parsed.message);
+  return {
+    plan,
+    record: {
+      slicing_decision: 'one_pull_request',
+      rationale: 'One coherent approval change.',
+      slices: [
+        {
+          name: 'Complete delivery',
+          purpose: 'Preserve reviewed approval.',
+          boundary: 'The reviewed delivery boundary.',
+          prerequisites: [],
+          proof: 'The real CLI test passes.',
+          completion_signal: 'The command retains approval.',
+          relies_on_unmerged_successor: false,
+        },
+      ],
+      obligation_owners: [{ obligation: 'Accepted behavior', slices: ['Complete delivery'] }],
+      decision_statuses: [{ decision: 'Use one coordinator', status: 'unchanged' }],
+      accepted_scenarios_covered: true,
+      accepted_approach_preserved: true,
+      normalized_plan_digest: normalizedExecutionPlanDigest(plan),
+      delivery_definition: createExecutionPlanDeliveryDefinition(parsed, false),
+    },
+  };
+}
 
 afterEach(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
@@ -27,7 +73,10 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-async function reviewedProject(severity: 'warning' | 'error' = 'warning') {
+async function reviewedProject(
+  severity: 'info' | 'warning' | 'error' = 'warning',
+  kind: Kind = 'quality-review',
+) {
   const root = createTemporaryDirectory();
   roots.push(root);
   await createConfiguredProject(root);
@@ -36,7 +85,7 @@ async function reviewedProject(severity: 'warning' | 'error' = 'warning') {
   const ticketPath = nodePath.join(root, folder, 'ticket.md');
   writeFileSync(
     ticketPath,
-    `---\nid: ${ticketId}\ntype: feature\nproduct_plan_contract: v1\nscope:\n  - preserve current approval\nout_of_scope:\n  - optional audit export\n---\n`,
+    `---\nid: ${ticketId}\ntype: feature\nproduct_plan_contract: v1\nphase_anchors:\n  - scenario-gate: features/approval.feature\nscope:\n  - preserve current approval\nout_of_scope:\n  - optional audit export\n---\n`,
   );
   writeFileSync(
     nodePath.join(root, target),
@@ -75,6 +124,28 @@ Affected:
 - Safeword CLI
 `,
   );
+  mkdirSync(nodePath.join(root, 'features'), { recursive: true });
+  writeFileSync(
+    nodePath.join(root, 'features/approval.feature'),
+    'Feature: Preserve approval\n  Scenario: Current approval\n    Given current evidence\n',
+  );
+  const impl = `${folder}/impl-plan.md`;
+  writeFileSync(
+    nodePath.join(root, impl),
+    '# Implementation Plan\n\n**Status:** accepted\n\n## Approach\n\nPreserve current approval.\n\n## Decisions\n\nPreserve the coordinator.\n\n## Architecture applicability\n\nskip: no durable architecture records apply\n\n## Data applicability\n\nskip: no product data is stored\n',
+  );
+  const execution = executionFixture();
+  writeFileSync(nodePath.join(root, folder, 'execution-plan.md'), execution.plan);
+  const workTarget = {
+    'quality-review': target,
+    'plan-implementation': impl,
+    'plan-execution': `${folder}/execution-plan.md`,
+  }[kind];
+  const contexts = {
+    'quality-review': [],
+    'plan-implementation': ['--context', target, 'features/approval.feature'],
+    'plan-execution': ['--context', impl, target, 'features/approval.feature'],
+  }[kind];
   const reviewer = createTrustedReviewerDirectory('safeword-disposition-');
   writeFileSync(
     nodePath.join(reviewer, 'claude'),
@@ -92,6 +163,8 @@ process.stdin.on('end', () => {
       ? 'The user decline for ' + packet.review_disposition_context.records[0].message + ' is ' + packet.review_disposition_context.records[0].boundary_status + ' in ticket context.'
       : 'The accepted boundary remains intact.',
     findings: [{ severity: ${JSON.stringify(severity)}, message: ${JSON.stringify(suggestion)} }],
+    planning_destination: ${kind === 'plan-execution' ? "'plan-execution'" : 'undefined'},
+    execution_plan_record: ${kind === 'plan-execution' ? JSON.stringify(execution.record) : 'undefined'},
   } }));
 });
 `,
@@ -102,18 +175,18 @@ process.stdin.on('end', () => {
       cwd: root,
       env: { PATH: `${reviewer}:/usr/bin:/bin`, SAFEWORD_AGENT_RUNTIME: 'codex' },
     });
-  const reviewed = await run(['review', 'run', 'quality-review', target]);
+  const reviewed = await run(['review', 'run', kind, workTarget, ...contexts]);
   expect(reviewed.exitCode, `${reviewed.stdout}\n${reviewed.stderr}`).toBe(
     severity === 'error' ? 2 : 0,
   );
   const data = JSON.parse(reviewed.stdout).data as { status: string; review_id: string };
   expect(data.status).toBe(severity === 'error' ? 'changes_requested' : 'approved');
-  const terminal = (answer: string, reviewId: string, findingNumber = '1', edit = '') =>
+  const terminal = (answer: string, reviewId: string, findingNumber = '1', edit: PromptEdit = '') =>
     spawnSync(
       'python3',
       [
         '-c',
-        String.raw`import os, pty, select, subprocess, sys
+        String.raw`import json, os, pty, select, subprocess, sys
 master, slave = pty.openpty()
 child = subprocess.Popen(sys.argv[4:], stdin=slave, stdout=slave, stderr=slave)
 os.close(slave)
@@ -131,8 +204,17 @@ while True:
         output.extend(part)
         if not answered and b'Record this decline in the ticket?' in output:
             if sys.argv[3]:
-                with open(sys.argv[2], 'a') as ticket:
-                    ticket.write(sys.argv[3])
+                if sys.argv[3].startswith('{'):
+                    edit = json.loads(sys.argv[3])
+                    with open(sys.argv[2]) as source:
+                        content = source.read()
+                    if edit['before'] not in content:
+                        raise RuntimeError('The confirmation edit did not match its source')
+                    with open(sys.argv[2], 'w') as source:
+                        source.write(content.replace(edit['before'], edit['after']))
+                else:
+                    with open(sys.argv[2], 'a') as ticket:
+                        ticket.write(sys.argv[3])
             os.write(master, (sys.argv[1] + '\n').encode())
             answered = True
     if child.poll() is not None and not ready:
@@ -141,8 +223,8 @@ os.close(master)
 sys.stdout.buffer.write(output)
 sys.exit(child.wait())`,
         answer,
-        ticketPath,
-        edit,
+        typeof edit === 'string' ? ticketPath : edit.path,
+        typeof edit === 'string' ? edit : JSON.stringify(edit),
         process.execPath,
         cli,
         'ticket',
@@ -172,6 +254,88 @@ sys.exit(child.wait())`,
 }
 
 describe('user-owned planning review disposition', () => {
+  it.each([
+    ['info', 'quality-review'],
+    ['warning', 'plan-implementation'],
+    ['warning', 'plan-execution'],
+  ] as const)('records an optional %s finding for %s', async (severity, kind) => {
+    const project = await reviewedProject(severity, kind);
+    const result = project.terminal('y', project.reviewId);
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    const metadata = parse(readFileSync(project.ticketPath, 'utf8').split('---', 2)[1] ?? '');
+    expect(metadata.review_dispositions).toEqual([
+      expect.objectContaining({
+        review_id: project.reviewId,
+        review_kind: kind,
+        finding_severity: severity,
+        finding_message: suggestion,
+      }),
+    ]);
+  });
+
+  it.each(['1e0', '01', ' 1 '])(
+    'retains existing equivalent finding spelling %j',
+    async spelling => {
+      const project = await reviewedProject();
+      const result = project.terminal('y', project.reviewId, spelling);
+      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+      const metadata = parse(readFileSync(project.ticketPath, 'utf8').split('---', 2)[1] ?? '');
+      expect(metadata.review_dispositions).toEqual([
+        expect.objectContaining({ review_id: project.reviewId, finding_message: suggestion }),
+      ]);
+    },
+  );
+
+  it.each([
+    [
+      'accepted boundary',
+      'spec.md',
+      'No optional audit export.',
+      'No optional audit export or new policy.',
+    ],
+    [
+      'review currency',
+      '../../principles.md',
+      'Current authenticated approval controls advancement.',
+      'Only a newly authenticated approval controls advancement.',
+    ],
+  ])(
+    'refuses changed %s during confirmation with unchanged ticket bytes',
+    async (_label, relative, beforeText, afterText) => {
+      const project = await reviewedProject();
+      const before = readFileSync(project.ticketPath, 'utf8');
+      const path = nodePath.resolve(nodePath.dirname(project.ticketPath), relative);
+      const source = readFileSync(path, 'utf8');
+      expect(source).toContain(beforeText);
+      const result = project.terminal('y', project.reviewId, '1', {
+        path,
+        before: beforeText,
+        after: afterText,
+      });
+      expect(result.stdout, result.stderr).toContain('REVIEW_DISPOSITION_STALE');
+      expect(readFileSync(project.ticketPath, 'utf8')).toBe(before);
+      expect(readFileSync(path, 'utf8')).toBe(source.replace(beforeText, () => afterText));
+    },
+  );
+
+  it('refuses a current authenticated scenario-gate review as an unsupported disposition kind', async () => {
+    const project = await reviewedProject();
+    const review = await project.run([
+      'review',
+      'run',
+      'scenario-gate',
+      'features/approval.feature',
+      '--context',
+      target,
+    ]);
+    expect(review.exitCode, `${review.stdout}\n${review.stderr}`).toBe(0);
+    const data = JSON.parse(review.stdout).data;
+    expect(data.status).toBe('approved');
+    const before = readFileSync(project.ticketPath, 'utf8');
+    const result = project.terminal('y', data.review_id);
+    expect(result.stdout, result.stderr).toContain('REVIEW_NOT_CURRENT');
+    expect(readFileSync(project.ticketPath, 'utf8')).toBe(before);
+  });
   it('preserves long ticket lists for the installed hook reader after a decline', async () => {
     const project = await reviewedProject();
     const longScope =

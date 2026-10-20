@@ -84,3 +84,25 @@ Canonical/copy evidence is `assemblePlanContract` in
   unchanged; cover supported review kinds and optional severities.
 - Pin existing equivalent numeric spellings without tightening public syntax.
 - Retain broad BDD, parent currency and host/human qualification limitations.
+
+## Hardening progress
+
+Intake review 5515fe85-cfa8-4ae5-bcbf-12b44ae64876 approved this bounded task;
+the packaged helper witnessed its intake exit normally. Refactor cccae7bcc
+extracts the shared installed fixture, preserving all assertions. Its two-file
+protection run passed 16/16 after waiting for the shared lock; the earlier
+lock timeout started no tests and is retained separately. Continue this task's
+test-hardening work; edits to the broader feature artifacts do not advance or
+close that feature.
+
+| Finding | Required outcome |
+| --- | --- |
+| Weak generic-result assertion | Assert the start result is pending with no failure and clean up a live worker deterministically. |
+| Namespace / duplicate aliases | Assert configured inventory paths and contents with distinct defaults; prove one canonical public target for equivalent aliases. |
+| Confirmation-time boundary / receipt | Tests must preserve exact ticket bytes while changing the spec boundary or a bound principle during the prompt, then refuse stale confirmation. A written disposition cannot replace these tests. |
+| Supported disposition variants | Cover quality-review, plan-implementation and plan-execution plus info/warning; scenario-gate is deliberately unsupported by the command. |
+| Numeric spellings | Characterize `1e0`, `01`, and whitespace-padded ` 1 ` as the existing finding 1. |
+| Nested inventory / release / fallback | Preserve the reviewed nested fix; retain named inherited release ownership and #5086 exclusion, with no new qualification claim. |
+
+The final public-target proof also pairs each unowned/private plan rejection
+with equivalent aliases, ensuring normalization cannot bypass ownership admission.

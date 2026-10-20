@@ -4,7 +4,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { startReviewJob } from '../../src/review/job.js';
+import { cancelReviewJob, startReviewJob } from '../../src/review/job.js';
 import { prepareReviewPacket } from '../../src/review/packet.js';
 import { createPlanningReviewIdentity } from '../../src/review/planning-context-identity.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
@@ -222,18 +222,34 @@ describe('Scenario child selected-parent review identity', () => {
     const root = project();
     writeFileSync(nodePath.join(root, 'spec.md'), '# Generic spec\n\nNo owned ticket.\n');
     const worker = nodePath.join(root, 'worker.mjs');
-    writeFileSync(worker, 'process.exit(0);\n');
+    writeFileSync(
+      worker,
+      "import { createServer } from 'node:net';\ncreateServer().listen(0, '127.0.0.1');\n",
+    );
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker);
     vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
     vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', nodePath.join(root, 'keys'));
-    await expect(
-      startReviewJob({
-        cwd: root,
-        kind: 'scenario-gate',
-        targets: [feature],
-        context: ['spec.md'],
-      }),
-    ).resolves.toBeDefined();
+    const result = await startReviewJob({
+      cwd: root,
+      kind: 'scenario-gate',
+      targets: [feature],
+      context: ['spec.md'],
+    });
+    const data = result.data as { status?: string; review_id?: string } | undefined;
+    try {
+      expect(result).toMatchObject({
+        state: 'action_required',
+        errors: [],
+        data: { status: 'pending' },
+      });
+      expect(result.findings).toContainEqual(expect.objectContaining({ code: 'REVIEW_PENDING' }));
+      expect(result.findings.map(finding => finding.code)).not.toContain(
+        'missing_planning_context',
+      );
+      expect(result.findings.map(finding => finding.code)).not.toContain('REVIEW_PACKET_INVALID');
+    } finally {
+      if (data?.review_id) cancelReviewJob(root, data.review_id);
+    }
   });
   it('retains approval after an unrelated persona edit with AC-style criteria', () => {
     const root = project();

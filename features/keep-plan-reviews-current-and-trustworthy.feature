@@ -3,6 +3,7 @@ Feature: Keep plan reviews current and trustworthy
   # skip: Persona-specific wording for every fail-closed message introduced by R2-R6 and R9-R16 is owned and acceptance-tested by K3EBHB R7 and R10.
   # Every judged R7 and R10-R16 semantic-quality scenario uses fixed judge-model and rubric bytes, deterministic sampling settings, and three runs with at least two agreeing correct verdicts; below that threshold is inconclusive and cannot pass. They must not be implemented as structural text checks or mocked verdict echoes.
   # skip: Release-time generated-copy integrity and its regeneration path are owned by delivery task 3J7TGR / #5041, merged as #5957; dimensions.md names the release guards and executable proof. This residual #5051 slice does not claim new release qualification.
+  # OpenCode enforced rows specify the independent native lifecycle-dispatch proof required by the parent; undefined, failed, simulated-only or deferred proof does not grant that host authority.
 
   @plan-implementability.TBU4.5F5ZZA.R1
   Rule: plan-implementability.TBU4.5F5ZZA.R1 — Shared clauses are authored once and generated into both contracts
@@ -48,8 +49,8 @@ Feature: Keep plan reviews current and trustworthy
     @rejection
     Scenario Outline: Canonical phase entry requirements bind every required input
       Given the canonical <phase> contract requires <required_inventory> as review entry context
-      When review dispatch receives a packet missing any listed role required by the current review's applicable conditions
-      Then dispatch is blocked with the missing role named
+      When review dispatch is attempted separately for each listed role required by the current review's applicable conditions, omitting only that role each time
+      Then every attempt is blocked with its omitted required role named
 
       Examples:
         | phase | required_inventory |
@@ -97,6 +98,7 @@ Feature: Keep plan reviews current and trustworthy
         | override_state | gate_result |
         | current and nonblank | the phase transition proceeds |
         | blank | the phase remains blocked with override reconciliation named |
+        | unreadable | the phase remains blocked with override reconciliation named |
         | stale because its reconciliation lineage names a superseded packaged-source version | the phase remains blocked with override reconciliation named |
 
   @plan-implementability.TBU4.5F5ZZA.R4
@@ -350,7 +352,7 @@ Feature: Keep plan reviews current and trustworthy
 
     @surface.claude-code @surface.opencode
     Scenario Outline: Generated guidance identifies gated surfaces as enforced
-      Given planning guidance is generated for <gated_surface>
+      Given planning guidance is generated for <gated_surface> after independent native lifecycle-dispatch proof has passed
       When the Safeword CLI reconciles that installed guidance through real project configuration
       Then it states that planning review and approval are enforced there and does not label that surface advisory
 
@@ -369,11 +371,12 @@ Feature: Keep plan reviews current and trustworthy
 
       Examples:
         | change_description | invalidated_reviews |
-        | accepted behavior | both plan reviews are invalidated |
-        | accepted scope | both plan reviews are invalidated |
+        | accepted behavior while human design approval is enabled and current | both plan reviews and the human design approval are invalidated |
+        | accepted scope while human design approval is enabled and current | both plan reviews and the human design approval are invalidated |
         | canonical Implementation Planning contract bytes, including whitespace or comments, while human design approval is enabled and current | both plan reviews and the human design approval are invalidated |
         | canonical Execution Planning contract bytes, including whitespace or comments, while human design approval is enabled and current | only the Execution Plan review is invalidated and human design approval remains current |
-        | only the accepted Implementation Plan's formatting bytes | only the Implementation Plan review is invalidated and the Execution Plan review remains current |
+        | only the accepted Implementation Plan's formatting bytes while human design approval is enabled and current | the Implementation Plan review and human design approval are invalidated while the Execution Plan review remains current |
+        | the accepted Implementation Plan's decisions change semantically while human design approval is enabled and current | both plan reviews and the human design approval are invalidated |
         | only the Execution Plan bytes, including formatting-only bytes outside normalized checklist progress cells | only the Execution Plan review is invalidated |
         | only whitespace inside a reviewed Execution Plan checklist row's normalized progress cells | neither plan review is invalidated |
         | only ordinary progress in a reviewed Execution Plan checklist row's Disposition, Evidence class, Revision, or final evidence cell | neither plan review is invalidated |
@@ -569,7 +572,7 @@ Feature: Keep plan reviews current and trustworthy
         | accepts it | the expansion is recorded as user-accepted before the plan is corrected and re-reviewed |
 
     Scenario: An undecided optional suggestion cannot alter or block the plan
-      Given a nonblocking suggestion outside the accepted boundary awaits a user decision
+      Given a nonblocking suggestion outside the accepted boundary awaits a user decision in a headless invocation
       When the unchanged plan is re-reviewed while that decision remains outstanding
       Then the reviewed plan bytes remain unchanged, the gate does not block on or silently add the suggestion, and the outstanding choice is recorded in reviewable output without prompting or waiting for interactive input in headless execution
 

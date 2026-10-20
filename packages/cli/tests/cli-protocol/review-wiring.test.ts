@@ -285,20 +285,59 @@ async function runManagedJsonReview(
 
 describe('cross-agent review public-command wiring', () => {
   it.each([
-    { namespace: '.project', type: 'feature', targetRole: 'product', expectedProduct: true },
+    {
+      namespace: '.project',
+      type: 'feature',
+      targetRole: 'product',
+      expectedProduct: true,
+      aliases: false,
+    },
+    {
+      namespace: '.project',
+      type: 'feature',
+      targetRole: 'product',
+      expectedProduct: true,
+      aliases: true,
+    },
     {
       namespace: 'planning-context',
       type: 'feature',
       targetRole: 'product',
       expectedProduct: true,
+      aliases: false,
     },
-    { namespace: '.project', type: 'epic', targetRole: 'product', expectedProduct: true },
-    { namespace: '.project', type: 'feature', targetRole: 'unrelated', expectedProduct: false },
-    { namespace: '.project', type: 'feature', targetRole: 'context', expectedProduct: false },
-    { namespace: '.project', type: 'task', targetRole: 'product', expectedProduct: false },
+    {
+      namespace: '.project',
+      type: 'epic',
+      targetRole: 'product',
+      expectedProduct: true,
+      aliases: false,
+    },
+    {
+      namespace: '.project',
+      type: 'feature',
+      targetRole: 'unrelated',
+      expectedProduct: false,
+      aliases: false,
+    },
+    {
+      namespace: '.project',
+      type: 'feature',
+      targetRole: 'context',
+      expectedProduct: false,
+      aliases: false,
+    },
+    {
+      namespace: '.project',
+      type: 'task',
+      targetRole: 'product',
+      expectedProduct: false,
+      aliases: false,
+    },
   ] as const)(
-    'uses the Product planning contract only for its work target ($namespace/$type/$targetRole)',
-    async ({ namespace, type, targetRole, expectedProduct }) => {
+    'uses the Product planning contract only for its work target ($namespace/$type/$targetRole, aliases=$aliases)',
+    // eslint-disable-next-line complexity -- Matrix spans ownership, namespace and equivalent-target boundaries.
+    async ({ namespace, type, targetRole, expectedProduct, aliases }) => {
       const directory = createTemporaryDirectory();
       await createConfiguredProject(directory);
       if (namespace !== '.project') {
@@ -325,6 +364,16 @@ describe('cross-agent review public-command wiring', () => {
               nodePath.join(directory, '.project', role),
               nodePath.join(directory, namespace, role),
             );
+            const configured = nodePath.join(directory, namespace, role);
+            writeFileSync(
+              configured,
+              `${readFileSync(configured, 'utf8')}\nConfigured namespace inventory.\n`,
+            );
+            const fallback = nodePath.join(directory, '.project', role);
+            writeFileSync(
+              fallback,
+              `${readFileSync(fallback, 'utf8')}\nDefault namespace sentinel.\n`,
+            );
           }
         }
       }
@@ -345,6 +394,7 @@ describe('cross-agent review public-command wiring', () => {
           'run',
           'quality-review',
           target,
+          ...(aliases ? [`./${target}`] : []),
           ...(targetRole === 'context' ? ['--context', productPath] : []),
           '--json',
           '--no-input',
@@ -370,6 +420,18 @@ describe('cross-agent review public-command wiring', () => {
         { path: target, content: readFileSync(nodePath.join(directory, target), 'utf8') },
       ]);
       if (expectedProduct) {
+        expect(JSON.parse(result.stdout).data.review_targets).toEqual([target]);
+        const inventoryNames = ['principles.md', 'personas.md', 'surfaces.md'];
+        const inventories = (packet.context_files as { path: string; content: string }[]).filter(
+          file => inventoryNames.includes(nodePath.basename(file.path)),
+        );
+        expect(inventories).toEqual(
+          inventoryNames.map(role => ({
+            path: `${namespace}/${role}`,
+            content: readFileSync(nodePath.join(directory, namespace, role), 'utf8'),
+          })),
+        );
+        expect(JSON.stringify(packet.context_files)).not.toContain('Default namespace sentinel.');
         expect(
           packet.planning_phase,
           'Product work-target dispatch must carry its canonical planning phase',
@@ -782,23 +844,26 @@ describe('cross-agent review public-command wiring', () => {
     writeFileSync(nodePath.join(notesDirectory, 'impl-plan.md'), '# Unowned plan\n');
     writeFileSync(nodePath.join(directory, '.project', 'ticket.md'), '---\nid: parent\n---\n');
     writeFileSync(nodePath.join(directory, '.project', 'impl-plan.md'), '# Parent escape plan\n');
+    const bin = installFakeReviewer(directory, 'claude');
     const environment = {
+      PATH: `${bin}:/usr/bin:/bin`,
       SAFEWORD_AGENT_RUNTIME: 'codex',
       SAFEWORD_REVIEW_LOG: reviewLog,
       SAFEWORD_NO_UPDATE_CHECK: '1',
     };
 
-    for (const target of [
+    const unownedTargets = [
       '.claude/plans/impl-plan.md',
       'notes/impl-plan.md',
       '.project/impl-plan.md',
-    ]) {
+    ].flatMap(target => [[target], [target, `./${target}`]]);
+    for (const requested of unownedTargets) {
       const rejected = await runCli(
         [
           'review',
           'run',
           'plan-implementation',
-          target,
+          ...requested,
           '--json',
           '--no-input',
           '--cwd',
