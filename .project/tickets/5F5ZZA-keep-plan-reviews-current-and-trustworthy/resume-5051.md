@@ -17,8 +17,8 @@ missing. Keep main's strict malformed/opaque ticket ownership checks.
 Register the public disposition command. Authenticate a current planning job,
 select one optional finding for exactly this ticket's work target, require
 interactive confirmation, recheck ticket bytes, accepted-boundary digest and
-review currency under the existing exclusive lock, then atomically replace the
-ticket. Preserve prior dispositions and ordinary frontmatter lists. A decline
+review currency under the existing exclusive lock, then replace the ticket through a same-filesystem rename. The lock serializes
+cooperating disposition writers only; unrelated writers can still race. Preserve prior dispositions and ordinary frontmatter lists. A decline
 is scoped reviewer evidence, never a verdict override or scope expansion.
 
 Proof: public installed-distribution reviewer fixtures and CLI/PTY paths,
@@ -30,9 +30,9 @@ routes. No template wording, admission corpus, oracle or paid qualification work
 ## TDD and limitations
 
 Initial RED: `1d9670061`, five files, 13 intended failures and four passing
-controls (`evidence/5051-main/red.log`). Initial GREEN: `cf188cf91`, 17 tests
+controls (`evidence/5051-main/red.log.gz`). Initial GREEN: `cf188cf91`, 17 tests
 passed. Repeat-decline RED: `896fef833`, existing YAML collection rejected by
-old command (`evidence/5051-main/disposition-red.log`). Fixed collection decoding
+old command (`evidence/5051-main/disposition-red.log.gz`). Fixed collection decoding
 through YAML's plain JS representation. Expanded tests also exposed missing
 marked-ticket refusal and an incorrect new assertion using the hook's shallow
 frontmatter reader for nested disposition records; the assertion now checks
@@ -66,4 +66,3 @@ its original revision, including any contrary judgments; green deterministic
 tests do not replace it. No unchanged paid qualification is rerun or upgraded
 to a current pass. Main's canonical-copy and authenticated currency separation
 remain authoritative.
-

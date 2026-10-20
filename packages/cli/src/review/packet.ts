@@ -286,7 +286,7 @@ function resolvedPlanningContext(
   productPlan = false,
 ): readonly string[] {
   const inherited = requiredPlanningBoundaryContext(cwd, kind, targets, context, productPlan);
-  if (inherited === undefined) return context;
+  if (inherited === undefined || inherited.length === 0) return context;
   const included = new Set([...targets, ...context].map(path => nodePath.resolve(cwd, path)));
   const resolved = [...context];
   const required = [
@@ -799,17 +799,19 @@ function upstreamPlanContract(
   return { upstream_plan_contract: contractForUse('plan-implementation', use) };
 }
 
-function productPlanWorkTarget(cwd: string, kind: ReviewKind, targets: readonly string[]): boolean {
-  if (kind !== 'quality-review' || targets.length !== 1) return false;
-  const target = targets[0];
-  if (target === undefined || nodePath.basename(target) !== 'spec.md') return false;
-  const ticketDirectory = nodePath.dirname(nodePath.resolve(cwd, target));
+function productPlanWorkTarget(
+  cwd: string,
+  kind: ReviewKind,
+  files: readonly ReviewPacketFile[],
+): boolean {
+  if (kind !== 'quality-review' || files.length !== 1) return false;
+  const target = files[0];
+  if (target === undefined || nodePath.basename(target.path) !== 'spec.md') return false;
+  const ticketDirectory = nodePath.dirname(nodePath.resolve(cwd, target.path));
   if (nodePath.dirname(ticketDirectory) !== resolveTicketsDirectory(cwd)) return false;
   const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
   const relativeTicketPath = nodePath.relative(cwd, ticketPath);
-  const marked = readFileSync(nodePath.resolve(cwd, target), 'utf8').includes(
-    '<!-- safeword:product-plan-contract:v1 -->',
-  );
+  const marked = target.content.includes('<!-- safeword:product-plan-contract:v1 -->');
   if (!existsSync(ticketPath)) {
     if (marked) throw new PlanningContextError('ticket', relativeTicketPath);
     return false;
@@ -825,15 +827,18 @@ function packetPlanContract(
   configured: PlanContractPair | undefined,
   cwd: string,
   targets: readonly string[],
-  use: PlanningContractUse,
+  options: { readonly use: PlanningContractUse; readonly productTarget: boolean },
 ): Pick<ReviewPacket, 'planning_phase' | 'plan_contract' | 'upstream_plan_contract'> {
-  const target = targets.length === 1 ? targets[0] : undefined;
-  if (productPlanWorkTarget(cwd, kind, targets)) {
-    assertAuthorCopyForDispatch(cwd, 'product-plan', use);
-    return { planning_phase: 'product-plan', plan_contract: contractForUse('product-plan', use) };
+  if (options.productTarget) {
+    assertAuthorCopyForDispatch(cwd, 'product-plan', options.use);
+    return {
+      planning_phase: 'product-plan',
+      plan_contract: contractForUse('product-plan', options.use),
+    };
   }
   if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
-  assertAuthorCopyForDispatch(cwd, kind, use);
+  const target = targets.length === 1 ? targets[0] : undefined;
+  assertAuthorCopyForDispatch(cwd, kind, options.use);
   const expected = kind === 'plan-implementation' ? 'impl-plan.md' : 'execution-plan.md';
   const planningTarget =
     target !== undefined &&
@@ -841,8 +846,8 @@ function packetPlanContract(
     ownedPlanningTicket(cwd, target);
   return {
     ...(planningTarget && { planning_phase: kind }),
-    plan_contract: configured ?? contractForUse(kind, use),
-    ...upstreamPlanContract(planningTarget, kind, use),
+    plan_contract: configured ?? contractForUse(kind, options.use),
+    ...upstreamPlanContract(planningTarget, kind, options.use),
   };
 }
 
@@ -1262,13 +1267,10 @@ function prepareReviewPacketUnsafe(
       rejectDuplicate(target);
       uniqueTargets.push(target);
     }
-    context = resolvedPlanningContext(
-      canonicalRoot,
-      kind,
-      uniqueTargets,
-      context,
-      productPlanWorkTarget(canonicalRoot, kind, uniqueTargets),
-    );
+    requirePacketFileCount(uniqueTargets.length + context.length);
+    logicalFiles = captureFiles(uniqueTargets, true, 0);
+    const productTarget = productPlanWorkTarget(canonicalRoot, kind, logicalFiles);
+    context = resolvedPlanningContext(canonicalRoot, kind, uniqueTargets, context, productTarget);
     for (const target of context) rejectDuplicate(target);
     if (uniqueTargets.length + context.length > MAX_FILE_COUNT) {
       throw new ReviewPacketError(
@@ -1276,7 +1278,6 @@ function prepareReviewPacketUnsafe(
         'REVIEW_PACKET_TOO_LARGE',
       );
     }
-    logicalFiles = captureFiles(uniqueTargets, true, 0);
     contextFiles = captureFiles(context, false, uniqueTargets.length);
     requireStableSources(tracked);
     const overflowIndex = serializedOverflowIndex(kind, captured, executionAttestation);
@@ -1319,7 +1320,7 @@ function prepareReviewPacketUnsafe(
       execution.planContract,
       canonicalRoot,
       uniqueTargets,
-      execution.planningContractUse ?? 'dispatch',
+      { use: execution.planningContractUse ?? 'dispatch', productTarget },
     );
     planningContext = resolvePlanningRoleContext(
       canonicalRoot,

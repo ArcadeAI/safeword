@@ -8,6 +8,7 @@ import { parseDocument } from 'yaml';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { reviewJobStatus, withFileLock } from '../review/job.js';
+import { toReviewPath } from '../review/packet.js';
 import { acceptedBoundaryDigest } from '../review/planning-accepted-boundary.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
@@ -186,7 +187,18 @@ function writeDisposition(
         currentBoundaryDigest(request.cwd, ticketPath, before) !== boundaryDigest ||
         currentReview(request.cwd, request.reviewId) === undefined
       )
-        return pending(request, kind, finding);
+        return createResult({
+          state: 'action_required',
+          findings: [
+            {
+              code: 'REVIEW_DISPOSITION_STALE',
+              message:
+                'The ticket, accepted boundary, or review changed during confirmation. Refresh the review and confirm the finding again.',
+              severity: 'warning',
+            },
+          ],
+          data: { command, status: 'pending', review_id: request.reviewId },
+        });
       const next = addDisposition(before, request, kind, finding, boundaryDigest);
       const temporary = `${ticketPath}.${randomUUID()}.tmp`;
       try {
@@ -271,10 +283,8 @@ export async function recordReviewDisposition(
     'plan-implementation': 'impl-plan.md',
     'plan-execution': 'execution-plan.md',
   }[kind];
-  const expectedTarget = nodePath.relative(
-    request.cwd,
-    nodePath.join(nodePath.dirname(ticketPath), targetName ?? ''),
-  );
+  const targetPath = nodePath.join(nodePath.dirname(ticketPath), targetName);
+  const expectedTarget = toReviewPath(nodePath.relative(request.cwd, targetPath));
   const selected = selectedFinding(data, request.findingNumber, expectedTarget);
   if (selected === undefined) {
     return createResult({

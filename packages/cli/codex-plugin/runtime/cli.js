@@ -54422,7 +54422,7 @@ function requiredPlanningBoundaryContext(cwd, kind, targets, context, productPla
 }
 function resolvedPlanningContext(cwd, kind, targets, context, productPlan = false) {
   const inherited = requiredPlanningBoundaryContext(cwd, kind, targets, context, productPlan);
-  if (inherited === undefined)
+  if (inherited === undefined || inherited.length === 0)
     return context;
   const included = new Set([...targets, ...context].map((path7) => nodePath60.resolve(cwd, path7)));
   const resolved = [...context];
@@ -54740,18 +54740,18 @@ function upstreamPlanContract(planningTarget, kind, use) {
     return {};
   return { upstream_plan_contract: contractForUse("plan-implementation", use) };
 }
-function productPlanWorkTarget(cwd, kind, targets) {
-  if (kind !== "quality-review" || targets.length !== 1)
+function productPlanWorkTarget(cwd, kind, files) {
+  if (kind !== "quality-review" || files.length !== 1)
     return false;
-  const target = targets[0];
-  if (target === undefined || nodePath60.basename(target) !== "spec.md")
+  const target = files[0];
+  if (target === undefined || nodePath60.basename(target.path) !== "spec.md")
     return false;
-  const ticketDirectory = nodePath60.dirname(nodePath60.resolve(cwd, target));
+  const ticketDirectory = nodePath60.dirname(nodePath60.resolve(cwd, target.path));
   if (nodePath60.dirname(ticketDirectory) !== resolveTicketsDirectory(cwd))
     return false;
   const ticketPath = nodePath60.join(ticketDirectory, "ticket.md");
   const relativeTicketPath = nodePath60.relative(cwd, ticketPath);
-  const marked = readFileSync37(nodePath60.resolve(cwd, target), "utf8").includes("<!-- safeword:product-plan-contract:v1 -->");
+  const marked = target.content.includes("<!-- safeword:product-plan-contract:v1 -->");
   if (!existsSync24(ticketPath)) {
     if (marked)
       throw new PlanningContextError("ticket", relativeTicketPath);
@@ -54762,21 +54762,24 @@ function productPlanWorkTarget(cwd, kind, targets) {
     throw new PlanningContextError("ticket", relativeTicketPath);
   return planningTicketOwner(metadata2, nodePath60.basename(ticketDirectory), relativeTicketPath);
 }
-function packetPlanContract(kind, configured, cwd, targets, use) {
-  const target = targets.length === 1 ? targets[0] : undefined;
-  if (productPlanWorkTarget(cwd, kind, targets)) {
-    assertAuthorCopyForDispatch(cwd, "product-plan", use);
-    return { planning_phase: "product-plan", plan_contract: contractForUse("product-plan", use) };
+function packetPlanContract(kind, configured, cwd, targets, options) {
+  if (options.productTarget) {
+    assertAuthorCopyForDispatch(cwd, "product-plan", options.use);
+    return {
+      planning_phase: "product-plan",
+      plan_contract: contractForUse("product-plan", options.use)
+    };
   }
   if (kind !== "plan-implementation" && kind !== "plan-execution")
     return {};
-  assertAuthorCopyForDispatch(cwd, kind, use);
+  const target = targets.length === 1 ? targets[0] : undefined;
+  assertAuthorCopyForDispatch(cwd, kind, options.use);
   const expected = kind === "plan-implementation" ? "impl-plan.md" : "execution-plan.md";
   const planningTarget = target !== undefined && nodePath60.basename(target) === expected && ownedPlanningTicket(cwd, target);
   return {
     ...planningTarget && { planning_phase: kind },
-    plan_contract: configured ?? contractForUse(kind, use),
-    ...upstreamPlanContract(planningTarget, kind, use)
+    plan_contract: configured ?? contractForUse(kind, options.use),
+    ...upstreamPlanContract(planningTarget, kind, options.use)
   };
 }
 function fileDigest(path7) {
@@ -55066,13 +55069,15 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
       rejectDuplicate(target);
       uniqueTargets.push(target);
     }
-    context = resolvedPlanningContext(canonicalRoot, kind, uniqueTargets, context, productPlanWorkTarget(canonicalRoot, kind, uniqueTargets));
+    requirePacketFileCount(uniqueTargets.length + context.length);
+    logicalFiles = captureFiles(uniqueTargets, true, 0);
+    const productTarget = productPlanWorkTarget(canonicalRoot, kind, logicalFiles);
+    context = resolvedPlanningContext(canonicalRoot, kind, uniqueTargets, context, productTarget);
     for (const target of context)
       rejectDuplicate(target);
     if (uniqueTargets.length + context.length > MAX_FILE_COUNT) {
       throw new ReviewPacketError(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`, "REVIEW_PACKET_TOO_LARGE");
     }
-    logicalFiles = captureFiles(uniqueTargets, true, 0);
     contextFiles = captureFiles(context, false, uniqueTargets.length);
     requireStableSources(tracked);
     const overflowIndex = serializedOverflowIndex(kind, captured2, executionAttestation);
@@ -55100,7 +55105,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
     deliveryDefinition = retainedDeliveryDefinition(kind, logicalFiles, canonicalRoot);
-    planningContract = packetPlanContract(kind, execution.planContract, canonicalRoot, uniqueTargets, execution.planningContractUse ?? "dispatch");
+    planningContract = packetPlanContract(kind, execution.planContract, canonicalRoot, uniqueTargets, { use: execution.planningContractUse ?? "dispatch", productTarget });
     planningContext = resolvePlanningRoleContext(canonicalRoot, kind, planningContract.planning_phase, logicalFiles, contextFiles);
     const additional = planningRoleSources(canonicalRoot, planningContext, seen);
     requirePacketFileCount(uniqueTargets.length + context.length + additional.length);
@@ -82160,7 +82165,17 @@ function writeDisposition(request, ticketPath, kind, finding2, before, boundaryD
   try {
     return withFileLock(lockPath, () => {
       if (readFileSync88(ticketPath, "utf8") !== before || currentBoundaryDigest(request.cwd, ticketPath, before) !== boundaryDigest || currentReview2(request.cwd, request.reviewId) === undefined)
-        return pending(request, kind, finding2);
+        return createResult({
+          state: "action_required",
+          findings: [
+            {
+              code: "REVIEW_DISPOSITION_STALE",
+              message: "The ticket, accepted boundary, or review changed during confirmation. Refresh the review and confirm the finding again.",
+              severity: "warning"
+            }
+          ],
+          data: { command, status: "pending", review_id: request.reviewId }
+        });
       const next = addDisposition(before, request, kind, finding2, boundaryDigest);
       const temporary = `${ticketPath}.${randomUUID18()}.tmp`;
       try {
@@ -82240,7 +82255,8 @@ async function recordReviewDisposition(request) {
     "plan-implementation": "impl-plan.md",
     "plan-execution": "execution-plan.md"
   }[kind];
-  const expectedTarget = nodePath134.relative(request.cwd, nodePath134.join(nodePath134.dirname(ticketPath), targetName ?? ""));
+  const targetPath = nodePath134.join(nodePath134.dirname(ticketPath), targetName);
+  const expectedTarget = toReviewPath(nodePath134.relative(request.cwd, targetPath));
   const selected = selectedFinding(data, request.findingNumber, expectedTarget);
   if (selected === undefined) {
     return createResult({
@@ -82282,6 +82298,7 @@ var import_yaml6, command = "ticket record-review-disposition";
 var init_review_disposition = __esm(() => {
   init_result();
   init_job();
+  init_packet();
   init_planning_accepted_boundary();
   init_product_plan_contract();
   init_ticket_metadata();
