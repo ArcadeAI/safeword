@@ -78,6 +78,15 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Coverage notes:** Tag feature scenarios with `@surface.cursor-cloud-agents` when behavior depends on the cloud VM lifecycle rather than local IDE mechanics. Project-level `.cursor/rules`, `.cursor/commands`, and command-based `.cursor/hooks.json` still apply; user-level hooks and IDE-only events do not.
 **Do not confuse with:** Cursor — runs in the IDE on the developer's machine with full local environment access.
 
+## Agent Plugins 1.0
+
+**Kind:** Portable plugin format
+**Description:** Agent Plugins 1.0 packages reusable skills and their resources for supporting agent hosts. Safeword's portable core is loaded by Codex and Cursor; host extensions provide additional native capabilities.
+**Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
+**Examples:** Root plugin manifest, packaged skills, referenced guides and helpers, package-contained resources
+**Coverage notes:** Tag scenarios with `@surface.agent-plugins-1-0` when portable package discovery or resource loading is the boundary being proved.
+**Do not confuse with:** Host hook or worker enforcement — portable loading alone does not prove either guarantee.
+
 ## Safeword CLI
 
 **Kind:** CLI

@@ -70181,7 +70181,7 @@ var init_status = __esm(() => {
 // src/plugin-runtime-authority.ts
 var init_plugin_runtime_authority = () => {};
 
-// src/codex-plugin/catalogue.ts
+// src/host-contract/catalogue.ts
 import { existsSync as existsSync45, mkdirSync as mkdirSync20, readdirSync as readdirSync26, readFileSync as readFileSync62, rmSync as rmSync14, writeFileSync as writeFileSync26 } from "fs";
 import nodePath93 from "path";
 function files(directory, prefix = "") {
@@ -70263,7 +70263,7 @@ function hasWorkflowInvocationBoundary(markdown, nameEnd) {
   const next = markdown[nameEnd];
   return next === undefined || !isWorkflowNameCharacter(next) && !isAsciiDigit(next) && next !== "_";
 }
-function adaptCodexWorkflowInvocations(markdown, knownSkillNames) {
+function adaptWorkflowInvocations(markdown, knownSkillNames, invocation) {
   let adapted = "";
   let copiedThrough = 0;
   let slash = markdown.indexOf("/");
@@ -70274,12 +70274,15 @@ function adaptCodexWorkflowInvocations(markdown, knownSkillNames) {
       nameEnd += 1;
     const name = markdown.slice(nameStart, nameEnd);
     if (isAsciiLowercase(name[0] ?? "") && isWorkflowInvocationPrefix(markdown[slash - 1]) && knownSkillNames.has(name) && !hasWorkflowPathSuffix(markdown, nameEnd) && hasWorkflowInvocationBoundary(markdown, nameEnd)) {
-      adapted += `${markdown.slice(copiedThrough, slash)}$safeword:${name}`;
+      adapted += `${markdown.slice(copiedThrough, slash)}${invocation(name)}`;
       copiedThrough = nameEnd;
     }
     slash = markdown.indexOf("/", slash + 1);
   }
   return `${adapted}${markdown.slice(copiedThrough)}`;
+}
+function adaptCodexWorkflowInvocations(markdown, knownSkillNames) {
+  return adaptWorkflowInvocations(markdown, knownSkillNames, (name) => `$safeword:${name}`);
 }
 function codexBundledCliCommand(version2) {
   return `bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/${CODEX_MARKETPLACE_NAME}/${CODEX_PLUGIN_NAME}/${version2}/runtime/cli.js"`;
@@ -70330,9 +70333,9 @@ function adaptNamespaceRootInvocations(markdown, cli) {
   }
   return adapted;
 }
-function adaptWorkflowMarkdown(markdown, knownSkillNames, version2) {
-  let adapted = adaptCodexWorkflowInvocations(markdown, knownSkillNames);
-  adapted = adaptCodexNativeRuntimeInvocations(adapted, version2);
+function adaptWorkflowMarkdown(markdown, knownSkillNames, version2, projection) {
+  let adapted = projection ? adaptWorkflowInvocations(markdown, knownSkillNames, projection.workflowInvocation) : adaptCodexWorkflowInvocations(markdown, knownSkillNames);
+  adapted = projection ? adaptNamespaceRootInvocations(adaptRuntimeInvocations(adapted, projection.runtimeCommand), projection.runtimeCommand) : adaptCodexNativeRuntimeInvocations(adapted, version2);
   return formatMarkdownTables(adapted);
 }
 function adaptReferenceDestination(destination, referenceNames) {
@@ -70386,12 +70389,15 @@ function adaptPackagedTemplatePaths(markdown, referenceNames) {
   }
   return adapted;
 }
-function adaptSkillBody(body, skill, knownSkillNames, referenceNames, version2) {
+function adaptSkillBody(body, skill, knownSkillNames, referenceNames, context) {
   let adapted = body.replace(/^\r?\n/u, "");
   adapted = adaptInstalledReferencePaths(adapted, skill, referenceNames);
   adapted = adaptPackagedTemplatePaths(adapted, referenceNames);
   adapted = adaptReferenceLinks(adapted, referenceNames);
-  return adaptWorkflowMarkdown(adapted, knownSkillNames, version2);
+  const rendered = adaptWorkflowMarkdown(adapted, knownSkillNames, context.version, context.projection);
+  return context.projection ? `${context.projection.introduction}
+
+${rendered}` : rendered;
 }
 function tableCells(line) {
   return line.slice(1, -1).split("|").map((cell) => cell.trim());
@@ -70455,7 +70461,7 @@ function formatMarkdownTables(markdown) {
   return lines.join(`
 `);
 }
-function generateCodexPluginAssets(canonicalSkillsDirectory, version2) {
+function generatePluginAssets(canonicalSkillsDirectory, version2, projection) {
   const canonicalAssets = markdownFiles(canonicalSkillsDirectory).map((relativePath) => ({ relativePath, ...canonicalSkillPath(relativePath) }));
   const knownSkillNames = new Set(canonicalAssets.map((asset) => asset.skill));
   const referenceNamesBySkill = new Map;
@@ -70484,7 +70490,7 @@ function generateCodexPluginAssets(canonicalSkillsDirectory, version2) {
       const adaptedContent = adaptPackagedTemplatePaths(adaptInstalledReferencePaths(content, skill, referenceNames2), referenceNames2);
       return {
         relativePath: nodePath93.join("skills", skill, "references", filename),
-        content: adaptWorkflowMarkdown(adaptedContent, knownSkillNames, version2)
+        content: adaptWorkflowMarkdown(adaptedContent, knownSkillNames, version2, projection)
       };
     }
     const { body, description } = parseSkill(content, skill);
@@ -70494,18 +70500,21 @@ function generateCodexPluginAssets(canonicalSkillsDirectory, version2) {
       content: `---
 ${import_yaml4.stringify({
         name: skill,
-        description: adaptCodexWorkflowInvocations(description, knownSkillNames)
+        description: projection ? adaptWorkflowInvocations(description, knownSkillNames, projection.workflowInvocation) : adaptCodexWorkflowInvocations(description, knownSkillNames)
       }).trimEnd()}
 ---
 
-${adaptSkillBody(body, skill, knownSkillNames, referenceNames, version2)}`
+${adaptSkillBody(body, skill, knownSkillNames, referenceNames, { version: version2, projection })}`
     };
   });
   const referenceAssets = packagedReferences.map(({ skill, filename, source }) => ({
     relativePath: nodePath93.join("skills", skill, "references", filename),
-    content: adaptWorkflowMarkdown(readFileSync62(source, "utf8"), knownSkillNames, version2)
+    content: adaptWorkflowMarkdown(readFileSync62(source, "utf8"), knownSkillNames, version2, projection)
   }));
   return [...skillAssets, ...referenceAssets];
+}
+function generateCodexPluginAssets(canonicalSkillsDirectory, version2) {
+  return generatePluginAssets(canonicalSkillsDirectory, version2);
 }
 var import_yaml4, CODEX_MARKETPLACE_NAME = "safeword", CODEX_PLUGIN_NAME = "safeword", PACKAGED_SKILL_REFERENCES, FRONTMATTER, SUPPORTED_SOURCE_METADATA, SCRIPT_REWRITES, NAMESPACE_ROOT_INVOCATION_PREFIX = 'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"', NAMESPACE_ROOT_KEY, NAMESPACE_ROOT_BASENAME, TRAILING_OPERAND;
 var init_catalogue = __esm(() => {
@@ -70575,6 +70584,11 @@ var init_catalogue = __esm(() => {
   NAMESPACE_ROOT_KEY = /^ (?<key>[a-z]{1,32})(?=[ )"]|$)/u;
   NAMESPACE_ROOT_BASENAME = /^ (?<basename>[\w.-]{1,64})(?=[ )"]|$)/u;
   TRAILING_OPERAND = /^ (?!\d?[<>]|[|&#])\S/u;
+});
+
+// src/codex-plugin/catalogue.ts
+var init_catalogue2 = __esm(() => {
+  init_catalogue();
 });
 
 // src/opencode/catalogue.ts
@@ -70656,8 +70670,8 @@ function generateOpenCodeCatalogueAssets(templatesRoot) {
   return [...skills, ...commands, ...agents].toSorted((left, right) => left.relativePath.localeCompare(right.relativePath));
 }
 var SAFEWORD_SUBAGENTS;
-var init_catalogue2 = __esm(() => {
-  init_catalogue();
+var init_catalogue3 = __esm(() => {
+  init_catalogue2();
   init_cursor_wrappers();
   init_version();
   SAFEWORD_SUBAGENTS = [
@@ -71760,7 +71774,7 @@ var init_profile2 = __esm(() => {
   init_durable_write();
   init_profile_lock();
   init_version();
-  init_catalogue2();
+  init_catalogue3();
   init_evidence();
   init_identity();
   init_plugin();
@@ -72109,7 +72123,7 @@ var OPENCODE_EXPECTED_DISCOVERY;
 var init_conformance_fixture = __esm(() => {
   init_cursor_wrappers();
   init_fs();
-  init_catalogue2();
+  init_catalogue3();
   init_profile2();
   OPENCODE_EXPECTED_DISCOVERY = {
     command: "bdd",

@@ -8,6 +8,8 @@ import {
   writeCodexPluginCatalogue,
 } from '../src/codex-plugin/catalogue.js';
 import { codexPluginHookCommand, type CodexPluginHookEntry } from '../src/codex-plugin/hooks.js';
+import { type PortablePackageMetadata } from '../src/host-contract/delivery.js';
+import { writePortableCoreCatalogue } from '../src/host-contract/portable-core.js';
 import { COMPLETION_HOOK_TIMEOUT_SECONDS } from '../src/templates/config.js';
 import { VERSION } from '../src/version.js';
 import { generateDeliveryCompatibilityRubric } from './generate-delivery-compatibility-rubric.js';
@@ -22,6 +24,11 @@ import {
   parseCodexPluginGenerationOptions,
   publishFreshDirectory,
 } from './lib/codex-plugin-generation.js';
+
+type NativePluginManifest = Omit<PortablePackageMetadata, 'version'> & {
+  version: string;
+  interface: Record<string, unknown>;
+};
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const shippedRoot = nodePath.join(packageRoot, 'codex-plugin');
@@ -79,7 +86,7 @@ async function generatePlugin(
   includeAuthoredFiles: boolean,
 ): Promise<number> {
   const manifestPath = nodePath.join(shippedRoot, '.codex-plugin/plugin.json');
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>;
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as NativePluginManifest;
   if (manifest.version !== VERSION) {
     throw new Error(`Codex plugin manifest does not declare package version ${VERSION}`);
   }
@@ -143,6 +150,15 @@ async function generatePlugin(
   }
 
   writeHookManifest(generatedRoot);
+
+  if (options.portableCore) {
+    writePortableCoreCatalogue(
+      nodePath.join(packageRoot, 'templates'),
+      generatedRoot,
+      options.effectiveVersion,
+      { 'com.openai': { hooks: './hooks.json', interface: manifest.interface } },
+    );
+  }
 
   return assets.length;
 }

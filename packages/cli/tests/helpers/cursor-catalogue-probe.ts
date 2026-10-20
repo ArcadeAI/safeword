@@ -1,0 +1,127 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+import { writeCodexPluginCatalogue } from '../../src/codex-plugin/catalogue.js';
+import { VERSION } from '../../src/version.js';
+
+export const CURSOR_CATALOGUE_PROBE_DESCRIPTION =
+  'Runs the Safeword contract catalogue probe in an isolated native host test.';
+
+export interface CursorCatalogueProbe {
+  readonly packageRoot: string;
+  readonly workflowMarker: string;
+  readonly guideMarker: string;
+  readonly helperMarker: string;
+}
+
+/**
+ * Exercise the current production catalogue renderer in an independent portable
+ * test carrier. The carrier supplies metadata only, never runtime-path repairs.
+ * This is a resource-binding proof; shipped manifest generation needs its own proof.
+ */
+export async function createCursorCatalogueProbe(directory: string): Promise<CursorCatalogueProbe> {
+  const packageRoot = nodePath.join(directory, 'candidate');
+  const canonicalRoot = nodePath.join(directory, 'canonical');
+  const nonce = randomUUID();
+  const markers = {
+    workflowMarker: `WORKFLOW_${nonce}`,
+    guideMarker: `GUIDE_${nonce}`,
+    helperMarker: `HELPER_${nonce}`,
+  };
+  const cliRoot = nodePath.resolve(import.meta.dirname, '../..');
+  cpSync(nodePath.join(cliRoot, 'templates'), canonicalRoot, { recursive: true });
+  const skillDirectory = nodePath.join(canonicalRoot, 'skills', 'explain');
+  writeFileSync(
+    nodePath.join(skillDirectory, 'SKILL.md'),
+    [
+      '---',
+      'name: explain',
+      `description: ${CURSOR_CATALOGUE_PROBE_DESCRIPTION}`,
+      '---',
+      '',
+      '# Native catalogue probe',
+      '',
+      `Workflow marker: ${markers.workflowMarker}`,
+      '',
+      'Read [the packaged guide](HOST_CONTRACT_GUIDE.md) and remember its marker.',
+      'Invoke the runtime helper using exactly this command:',
+      '',
+      '```bash',
+      'PROJECT_DIR="$PWD"',
+      'bun "$PROJECT_DIR/.safeword/hooks/audit-principle-trace.ts" "$PROJECT_DIR"',
+      '```',
+      '',
+      'Report the workflow marker, guide marker and actual helper output.',
+      'If the supplied command fails or returns no helper marker, report that failure.',
+      'Do not substitute another runtime path, install anything, simulate output or write receipts.',
+      '',
+    ].join('\n'),
+  );
+  writeFileSync(
+    nodePath.join(skillDirectory, 'HOST_CONTRACT_GUIDE.md'),
+    `# Packaged guide\n\nGuide marker: ${markers.guideMarker}\n`,
+  );
+  writeFileSync(
+    nodePath.join(canonicalRoot, 'hooks', 'audit-principle-trace.ts'),
+    [
+      "import { writeFileSync } from 'node:fs';",
+      "import nodePath from 'node:path';",
+      "import { fileURLToPath } from 'node:url';",
+      `const marker = ${JSON.stringify(markers.helperMarker)};`,
+      'writeFileSync(',
+      "  nodePath.join(process.cwd(), '.host-contract', 'native-helper.json'),",
+      String.raw`  JSON.stringify({ marker, origin: fileURLToPath(import.meta.url) }) + "\n",`,
+      ');',
+      String.raw`process.stdout.write(marker + "\n");`,
+      '',
+    ].join('\n'),
+  );
+  mkdirSync(packageRoot);
+  const portableCoreModule = nodePath.join(cliRoot, 'src', 'host-contract', 'portable-core.ts');
+  if (existsSync(portableCoreModule)) {
+    const production = (await import(pathToFileURL(portableCoreModule).href)) as {
+      writePortableCoreCatalogue?: (
+        templatesDirectory: string,
+        outputDirectory: string,
+        version: string,
+      ) => void | Promise<void>;
+    };
+    if (typeof production.writePortableCoreCatalogue !== 'function') {
+      throw new TypeError('Portable core module does not export its production catalogue writer');
+    }
+    await production.writePortableCoreCatalogue(canonicalRoot, packageRoot, VERSION);
+  } else {
+    // The current baseline exposes only the existing renderer. A minimal test
+    // carrier lets its runtime bindings fail during real native use instead of
+    // treating an absent new module as behavioral RED.
+    writeFileSync(
+      nodePath.join(packageRoot, 'plugin.json'),
+      `${JSON.stringify({
+        $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+        name: 'safeword-contract-candidate',
+        description: 'Independent carrier for the production Safeword catalogue under test.',
+        version: VERSION,
+        author: { name: 'Safeword test fixture' },
+      })}\n`,
+    );
+    writeCodexPluginCatalogue(nodePath.join(canonicalRoot, 'skills'), packageRoot, VERSION);
+    const renderedWorkflow = readFileSync(
+      nodePath.join(packageRoot, 'skills/explain/SKILL.md'),
+      'utf8',
+    );
+    assert.ok(renderedWorkflow.includes('project runtime audit-principle-trace'));
+    assert.ok(renderedWorkflow.includes('plugins/cache/safeword/safeword/'));
+    cpSync(canonicalRoot, nodePath.join(packageRoot, 'templates'), { recursive: true });
+    cpSync(
+      nodePath.join(cliRoot, 'codex-plugin', 'package.json'),
+      nodePath.join(packageRoot, 'package.json'),
+    );
+  }
+  cpSync(nodePath.join(cliRoot, 'codex-plugin', 'runtime'), nodePath.join(packageRoot, 'runtime'), {
+    recursive: true,
+  });
+  return { packageRoot, ...markers };
+}

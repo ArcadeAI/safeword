@@ -1404,6 +1404,14 @@ extension to [Deterministic Readiness Evidence Status](#deterministic-readiness-
 | Alternatives   | Root-wide formatter detection: rejected because it crosses workspace boundaries. Generic package-manager invocation: rejected because it can download or select a global binary. Shell commands: rejected because filenames are operands, not code.                                                                                                                                                                               |
 | Implementation | `packages/cli/templates/hooks/lib/host-toolchain.ts` and the shared `lintFile` entry point; ticket 13E3EN.                                                                                                                                                                                                                                                                                                                        |
 
+## Shared host contracts and proof-gated delivery
+
+**Proposed, 2026-10-20; 2ENRH5.**
+
+**Context:** Shared policy, host guarantees and checkout ownership must agree.
+**Decision:** One content/policy owner; local activation plus package conformance; profile-local enrollment and one session authority; retain shared compatibility resources and distinct sealed-evidence writers.
+**Consequences / alternatives / reassess / implementation:** [Durable decision record](.project/architecture-decisions/shared-host-contracts.md).
+
 ## References
 
 - Language Pack Spec: `packages/cli/src/packs/LANGUAGE_PACK_SPEC.md`

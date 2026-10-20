@@ -1,0 +1,5 @@
+{
+  "name": "safeword-host-contract-control",
+  "version": "0.0.0",
+  "description": "Independent native discovery control for an isolated Safeword host test."
+}

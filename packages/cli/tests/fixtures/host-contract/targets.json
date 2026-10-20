@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "purpose": "Independent expected host/version/runtime population for 2ENRH5 conformance",
+  "targets": [
+    {
+      "agent": "claude",
+      "version": "2.1.170",
+      "runtimes": ["CLI"],
+      "package": "@anthropic-ai/claude-code@2.1.170"
+    },
+    {
+      "agent": "codex",
+      "version": "0.160.0",
+      "runtimes": ["CLI"],
+      "package": "@openai/codex@0.160.0"
+    },
+    {
+      "agent": "cursor",
+      "version": "3.24.18",
+      "runtimes": ["IDE"],
+      "delivery_variants": ["native", "project-hooks"],
+      "macos_arm64": {
+        "installed_bundle": "/Applications/Cursor.app",
+        "build": "be4c9e5350d77747b42cd467cbd3370a753d4640",
+        "signing_team": "VDXQ22DGB9",
+        "cdhash": "7bc50cab8b73a55b272a2ccfade2c8416b404b14"
+      }
+    },
+    {
+      "agent": "cursor",
+      "version": "3.8.23",
+      "runtimes": ["IDE"],
+      "delivery_variants": ["project-hooks"],
+      "macos_arm64": {
+        "url": "https://downloads.cursor.com/production/7cf19b7482706625cdb70db3211b7dd035b7aa35/darwin/arm64/Cursor-darwin-arm64.dmg",
+        "sha256": "f7be9968572cc38121432b187025b90bf7f30ec7e77a6cfe90868b0d8139d59d",
+        "signing_team": "VDXQ22DGB9"
+      }
+    },
+    {
+      "agent": "opencode",
+      "version": "1.18.23",
+      "runtimes": ["CLI", "TUI"],
+      "package": "opencode-ai@1.18.23"
+    },
+    {
+      "agent": "opencode",
+      "version": "2.0.32",
+      "runtimes": ["CLI", "TUI"],
+      "package": "@opencode/cli@2.0.32"
+    }
+  ]
+}

@@ -53,6 +53,15 @@ import { VERSION } from './version.js';
 
 export const PLANNING_DATA_GUIDE_PATH = '.safeword/guides/data-architecture-guide.md';
 
+/** Shared native package layout; these are bundle paths, not project installs. */
+export const PORTABLE_PLUGIN_LAYOUT = {
+  manifest: 'plugin.json',
+  manifestSchema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+  skills: 'skills',
+  runtime: 'runtime/cli.js',
+  templates: 'templates',
+} as const;
+
 export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
   // Static string, or a factory resolved with ctx at plan time so the block can

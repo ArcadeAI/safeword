@@ -26,7 +26,7 @@ function relativeFiles(directory: string, prefix = ''): string[] {
     .toSorted((left, right) => left.localeCompare(right));
 }
 
-function assertMatchingTree(expectedDirectory: string, actualDirectory: string): void {
+export function assertMatchingTree(expectedDirectory: string, actualDirectory: string): void {
   requireDirectory(expectedDirectory, 'Expected generated tree');
   requireDirectory(actualDirectory, 'Packed generated tree');
   const expectedFiles = relativeFiles(expectedDirectory);
