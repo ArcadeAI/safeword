@@ -735,3 +735,34 @@ Independent follow-up c40076af-7e9e-4dcd-b4e8-3e05136a0e74 APPROVED (Claude/opus
 Known pilot limits remain: catalogue fixture retains legacy project delivery,
 so it proves resources only, not sole authority or native eligibility. Guard
 work will use a separate clean workspace and current exact-version observations.
+
+## Cursor IDE guard RED and CLI-first test execution — 2026-10-20
+
+Resolved native IDE hook setup: the owned profile's third-party import switch
+also gates native plugin hooks in Cursor 3.24.18. Restored it on and disabled
+imported Claude plugins only in each synthetic workspace's local config.
+Added version 1 to native hook configuration and waited for actual native
+workspaceOpen execution before attempting the write. Both IDE guard rows now
+pass their Given/When steps and fail Then with NATIVE_GUARD_DISPATCH_MISSING.
+Report: /tmp/safeword-2enrh5-targets.aOFAud/cursor-native-guard-ready.json.
+This RED still requires independent executable-RED review before production
+guard integration. No scenario boxes checked.
+
+User selected Cursor CLI for the main automated runs, retaining small IDE
+integration checks. Installed CLI 2026.09.28-64d2043 supports --plugin-dir;
+CURSOR_CONFIG_DIR isolates test settings while existing authentication works
+without copying credentials. New run-cursor-cli-controls.ts executes four
+sequential real CLI/plugin cases: test allow/deny controls and relayed existing
+Safeword adapter fast-allow/shared ticket-write denial. No policy duplicated.
+Composer-2.5 selected only for the test process; no force flag or global settings
+changes. All four passed, including same-ticket-path positive/negative controls:
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-cursor-cli-controls-kBr3eH/.
+Quality reviews 754d2c10-0cce-4b25-9d1d-3b849c3f918e and
+fbbcac73-b04d-4ab0-b6e3-546ffed6d355 APPROVED the bounded supporting harness.
+Review warnings recorded in cursor-cli-proof.md. Added actual matching native
+afterShellExecution checks for allowed runs; all four final cases passed:
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-cursor-cli-controls-USOajL/.
+CLI package typecheck, targeted ESLint and formatting checks passed.
+Final CLI harness review 75be618e-a235-433a-9101-64ef7912165f APPROVED.
+These are supporting transport controls, not generated-production package or
+IDE conformance proof. Existing accepted plans/scenarios remain unchanged.
