@@ -21,9 +21,11 @@ const dispatchedEfforts = vi.hoisted(() => [] as (string | undefined)[]);
 
 function fixtureRejects(reviewer: string, model: string | undefined): boolean {
   return (
-    model === 'gpt-6-astra' ||
+    (model === 'gpt-6-astra' && process.env.SAFEWORD_TEST_QUALIFIED_APPROVAL !== '1') ||
     (model === 'gpt-6-luna' && process.env.SAFEWORD_TEST_WEAKER_REJECTION === '1') ||
-    (reviewer !== 'claude' && process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1')
+    (reviewer !== 'claude' &&
+      model === undefined &&
+      process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1')
   );
 }
 
@@ -60,11 +62,16 @@ vi.mock('../../src/review/runtime.js', async importOriginal => {
           verdict: fixtureRejects(reviewer, options.model) ? 'request_changes' : 'approve',
           summary: fixtureSummary(options.model),
           findings:
-            reviewer !== 'claude' && process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1'
+            fixtureRejects(reviewer, options.model) &&
+            process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1'
               ? [
                   {
                     severity: 'error',
-                    message: 'The unqualified reviewer found a blocking defect.',
+                    message: `The unqualified reviewer found a blocking defect.${
+                      process.env.SAFEWORD_TEST_UNSAFE_FEEDBACK === '1'
+                        ? `\u{1B}[31m\u{202E}${'x'.repeat(3000)}`
+                        : ''
+                    }`,
                   },
                 ]
               : [],
@@ -372,3 +379,52 @@ it('discards a proven-weaker rejection before taking a qualified verdict', async
   });
   expect(JSON.stringify(result)).not.toContain('Weak rejection.');
 });
+
+it.each([false, true])(
+  'keeps safe unqualified feedback when a qualified reviewer approves (unsafe text: %s)',
+  async unsafe => {
+    const { project, ticket, configPath, config } = await planningFixture();
+    vi.stubEnv('SAFEWORD_TEST_UNKNOWN_REJECTION', '1');
+    vi.stubEnv('SAFEWORD_TEST_QUALIFIED_APPROVAL', '1');
+    vi.stubEnv('SAFEWORD_TEST_UNSAFE_FEEDBACK', unsafe ? '1' : '0');
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        ...config,
+        crossAgentReviewRoutes: {
+          claude: [{ reviewer: 'codex' }, { reviewer: 'codex', model: 'gpt-6-astra' }],
+        },
+      }),
+    );
+    const result = await runReview({
+      cwd: project,
+      kind: 'plan-implementation',
+      targets: [`${ticket}/impl-plan.md`],
+      context: [`${ticket}/spec.md`],
+    });
+    expect(result.data).toMatchObject({
+      status: 'approved',
+      independence: 'cross-agent',
+      reviewer_output: { verdict: 'approve', findings: [] },
+      review_routes: [
+        { status: 'attempted', failure: 'reviewer_capability_unknown' },
+        { status: 'attempted', model: 'gpt-6-astra' },
+      ],
+    });
+    expect(result.findings).toContainEqual(
+      expect.objectContaining({
+        severity: 'warning',
+        message: expect.stringContaining('The unqualified reviewer found a blocking defect.'),
+      }),
+    );
+    const retained = result.findings.filter(
+      finding => finding.code === 'REVIEW_UNQUALIFIED_FEEDBACK',
+    );
+    for (const finding of retained) {
+      expect(finding.message).not.toMatch(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u);
+      expect(finding.message.match(/[\s\S]/gu)?.length ?? 0).toBeLessThanOrEqual(2000);
+    }
+    expect(retained).toHaveLength(2);
+    expect(retained.map(finding => finding.severity)).toEqual(['info', 'warning']);
+  },
+);

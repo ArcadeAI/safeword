@@ -9,6 +9,15 @@ function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+export function isCodexAppServerResponse(value: unknown, id: number): boolean {
+  return (
+    record(value) &&
+    value.id === id &&
+    value.method === undefined &&
+    ('result' in value || 'error' in value)
+  );
+}
+
 function unique(
   messages: readonly unknown[],
   predicate: (message: Record<string, unknown>) => boolean,
@@ -24,8 +33,8 @@ function startedTurn(
 ):
   | { readonly threadId: string; readonly turnId: string; readonly start: Record<string, unknown> }
   | undefined {
-  const start = unique(messages, message => message.id === 2);
-  const turnStart = unique(messages, message => message.id === 3);
+  const start = unique(messages, message => isCodexAppServerResponse(message, 2));
+  const turnStart = unique(messages, message => isCodexAppServerResponse(message, 3));
   if (!record(start?.result) || !record(start.result.thread) || !record(turnStart?.result))
     return undefined;
   const threadId = start.result.thread.id;

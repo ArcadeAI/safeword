@@ -293,6 +293,16 @@ describe('architecture review gate (MR5M3A)', () => {
     );
   });
 
+  it('blocks a witnessed stamp whose model differs from its coordinator receipt', () => {
+    setConfig({ architectureReviewGate: true, crossModelReview: true });
+    writeTicket('ARG006C', 'feature', CITED);
+    writeReviewResponse('ARG006C', 'approved', 'claude-opus-4-8');
+    writeStamp('ARG006C', CITED, { model: 'claude-sonnet-4-6', witnessed: true });
+    expect(runStopHook('ARG006C', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' })).toContain(
+      CROSS_MODEL_MSG,
+    );
+  });
+
   it('allows under cross-model when the stamp model differs from the author model', () => {
     setConfig({ architectureReviewGate: true, crossModelReview: true });
     writeTicket('ARG007', 'feature', CITED);

@@ -36,6 +36,7 @@ process.stdin.on('data', chunk => {
  let end;
  while ((end = buffer.indexOf('\n')) !== -1) {
   const m = JSON.parse(buffer.slice(0,end)); buffer = buffer.slice(end+1);
+  if (m.id) console.log(JSON.stringify({id:m.id,method:'item/commandExecution/requestApproval',params:{threadId:'t',turnId:'u'}}));
   if (m.id === 1) console.log(JSON.stringify({id:1,result:{}}));
   if (m.id === 2) { model=m.params.model; console.log(JSON.stringify({id:2,result:{thread:{id:'t'},model,modelProvider:'openai'}})); }
   if (m.id === 3) {

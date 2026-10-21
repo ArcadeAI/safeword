@@ -450,8 +450,10 @@ and single-use submission. The fresh-context claim and current agent origin
 are host-reported; the receipt does not attest that an isolated reviewer ran.
 Claude and Codex app-server planning reviewers use the effort settings sealed
 with the packaged capability catalogue. The legacy Codex exec path cannot confirm
-the reviewer model and remains unqualified. A completed rejection whose reviewer capability is unknown
-remains blocked with its findings retained; fallback approval cannot hide it.
+the reviewer model and remains unqualified. A completed rejection whose reviewer
+capability is unknown blocks fallback approval, with its findings retained. A later
+qualified independent verdict may resolve the review; the earlier unqualified
+findings remain visible as non-blocking feedback without replacing that verdict.
 
 The opt-in `architectureReviewGate` separately requires verified independent
 design review before implementation finishes. A reduced planning receipt does

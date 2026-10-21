@@ -506,7 +506,7 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it('rejects a host continuation without an enforced local agent origin', async () => {
+  it('rejects a host continuation without a recognized local agent runtime', async () => {
     const directory = createTemporaryDirectory();
     writeFileSync(nodePath.join(directory, 'review-output.json'), '{}\n');
 

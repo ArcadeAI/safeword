@@ -56624,13 +56624,16 @@ var init_packet = __esm(() => {
 function record(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+function isCodexAppServerResponse(value, id2) {
+  return record(value) && value.id === id2 && value.method === undefined && (("result" in value) || ("error" in value));
+}
 function unique(messages3, predicate) {
   const matches = messages3.filter((message) => record(message) && predicate(message));
   return matches.length === 1 ? matches[0] : undefined;
 }
 function startedTurn(messages3) {
-  const start = unique(messages3, (message) => message.id === 2);
-  const turnStart = unique(messages3, (message) => message.id === 3);
+  const start = unique(messages3, (message) => isCodexAppServerResponse(message, 2));
+  const turnStart = unique(messages3, (message) => isCodexAppServerResponse(message, 3));
   if (!record(start?.result) || !record(start.result.thread) || !record(turnStart?.result))
     return;
   const threadId = start.result.thread.id;
@@ -58006,7 +58009,7 @@ async function runCodexAppServerCandidate(executable, attempt, timeoutMs) {
         if (!isRecord8(message))
           return;
         messages3.push(message);
-        if (message.id === 1) {
+        if (isCodexAppServerResponse(message, 1)) {
           if (message.error !== undefined)
             throw new Error("initialize failed");
           send({ method: "initialized" });
@@ -58021,9 +58024,9 @@ async function runCodexAppServerCandidate(executable, attempt, timeoutMs) {
               ...attempt.model !== undefined && { model: attempt.model }
             }
           });
-        } else if (message.id === 2) {
+        } else if (isCodexAppServerResponse(message, 2)) {
           startTurn(message.result);
-        } else if (message.id === 3 && message.error !== undefined) {
+        } else if (isCodexAppServerResponse(message, 3) && message.error !== undefined) {
           throw new ReviewRuntimeError("process_failed", "codex turn was rejected");
         } else if (message.method === "turn/completed") {
           finishTurn();
@@ -59141,6 +59144,15 @@ function rankedReviewerCapabilityFailure(planning, author, route, confirmedModel
 function retainUnqualifiedRejection(current, output, route) {
   return current?.output.verdict === "request_changes" ? current : { output, route };
 }
+function unqualifiedReviewFeedback(retained) {
+  if (retained?.output.verdict !== "request_changes")
+    return [];
+  return reviewerFeedback(retained.output).map((finding) => ({
+    code: "REVIEW_UNQUALIFIED_FEEDBACK",
+    severity: finding.severity === "error" ? "warning" : finding.severity,
+    message: terminalSafeReviewerText(`Earlier unqualified ${agentName(retained.route.reviewer)} feedback: ${finding.message}`)
+  }));
+}
 function preparedRankedPacket(input, existing) {
   return existing ?? prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
     attestation: input.executionAttestation
@@ -59233,6 +59245,7 @@ async function runConfiguredRankedRoutes({
         });
         return {
           ...result,
+          findings: [...result.findings, ...unqualifiedReviewFeedback(unqualified)],
           effects: { ...result.effects, network: rankedNetworkEffects(evidence) },
           data: { ...result.data, review_routes: evidence }
         };

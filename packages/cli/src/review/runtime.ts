@@ -23,7 +23,11 @@ import nodePath from 'node:path';
 
 import { DELIVERY_CHECKLIST_CATEGORIES } from '../execution-plan/delivery-checklist.js';
 import { warn } from '../utils/output.js';
-import { codexAppServerFailedTurn, codexAppServerProof } from './codex-app-server-proof.js';
+import {
+  codexAppServerFailedTurn,
+  codexAppServerProof,
+  isCodexAppServerResponse,
+} from './codex-app-server-proof.js';
 import type {
   PlanContractPair,
   ReviewAgent,
@@ -1642,7 +1646,7 @@ async function runCodexAppServerCandidate(
       const handle = (message: unknown): void => {
         if (!isRecord(message)) return;
         messages.push(message);
-        if (message.id === 1) {
+        if (isCodexAppServerResponse(message, 1)) {
           if (message.error !== undefined) throw new Error('initialize failed');
           send({ method: 'initialized' });
           send({
@@ -1656,9 +1660,9 @@ async function runCodexAppServerCandidate(
               ...(attempt.model !== undefined && { model: attempt.model }),
             },
           });
-        } else if (message.id === 2) {
+        } else if (isCodexAppServerResponse(message, 2)) {
           startTurn(message.result);
-        } else if (message.id === 3 && message.error !== undefined) {
+        } else if (isCodexAppServerResponse(message, 3) && message.error !== undefined) {
           throw new ReviewRuntimeError('process_failed', 'codex turn was rejected');
         } else if (message.method === 'turn/completed') {
           finishTurn();

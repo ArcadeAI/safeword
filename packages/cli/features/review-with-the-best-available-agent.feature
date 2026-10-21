@@ -64,7 +64,7 @@ Feature: Keep review available with the best supported fallback
       | Cursor Cloud Agents |
 
   @review-with-the-best-available-agent.TBU1.R1 @surface.claude-code
-  Rule: review-with-the-best-available-agent.TBU1.R1 — Every independent reviewer precedes every degraded route
+  Rule: review-with-the-best-available-agent.TBU1.R1 — Planning reviews try every eligible independent reviewer before reduced fallback
 
     Scenario Outline: Ranked planning routes honor <case> eligibility and stop after completion
       Given a ranked planning review with "<case>" routes

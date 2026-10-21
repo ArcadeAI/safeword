@@ -299,7 +299,7 @@ describe('planning fallback after independent route exhaustion', () => {
         ...process.env,
         ...environment,
         CLAUDE_PROJECT_DIR: project,
-        CLAUDE_SESSION_ID: author === 'opencode' ? undefined : 'fallback-fixture',
+        CLAUDE_SESSION_ID: author === 'claude' ? 'fallback-fixture' : undefined,
         CLAUDE_CODE_SESSION_ID: undefined,
         CODEX_THREAD_ID: undefined,
       },
@@ -317,6 +317,18 @@ describe('planning fallback after independent route exhaustion', () => {
       );
       expect(skipped.status).not.toBe(0);
       expect(skipped.stdout).toContain('missing run identity');
+      const wrongReviewer = [...stampArguments];
+      wrongReviewer[wrongReviewer.indexOf('--reviewer-agent') + 1] = 'opencode';
+      const mismatched = spawnSync('bun', wrongReviewer, stampOptions);
+      expect(mismatched.status).not.toBe(0);
+      expect(mismatched.stdout).toContain('recorded "reviewer: claude"');
+      const planPath = nodePath.join(project, target);
+      const reviewedPlan = readFileSync(planPath, 'utf8');
+      writeFileSync(planPath, `${reviewedPlan}\nChanged after review.\n`);
+      const stale = spawnSync('bun', stampArguments, stampOptions);
+      expect(stale.status).not.toBe(0);
+      expect(stale.stdout).toContain('stale');
+      writeFileSync(planPath, reviewedPlan);
       const forged = [...stampArguments];
       forged[forged.indexOf('--review-id') + 1] = '00000000-0000-4000-8000-000000000000';
       const rejected = spawnSync('bun', forged, stampOptions);
@@ -372,7 +384,7 @@ describe('planning fallback after independent route exhaustion', () => {
     });
   });
 
-  it('admits a Cursor host review after independent routes fail without inventing a Cursor CLI', async () => {
+  it('admits a Cursor host review through its shell bridge without a Claude session', async () => {
     expect(await reviewThroughAdmission(true, 'cursor')).toMatchObject({
       achieved_independence: 'reduced',
     });

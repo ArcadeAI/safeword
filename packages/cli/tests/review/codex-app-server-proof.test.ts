@@ -30,6 +30,20 @@ describe('Codex app-server reviewer proof', () => {
     });
   });
 
+  it('ignores server requests that reuse client response ids', () => {
+    const serverRequests = [1, 2, 3].map(id => ({
+      id,
+      method: 'item/commandExecution/requestApproval',
+      params: { threadId: 'thread-1', turnId: 'turn-1' },
+    }));
+    expect(
+      codexAppServerProof([...serverRequests, threadStart, turnStart, completed], 'gpt-6-astra'),
+    ).toEqual({
+      text: '{"verdict":"approve"}',
+      confirmedModel: { provider: 'openai', model: 'gpt-6-astra' },
+    });
+  });
+
   it('keeps a completed review but does not confirm a mismatched or rerouted model', () => {
     const rerouted = {
       method: 'model/rerouted',

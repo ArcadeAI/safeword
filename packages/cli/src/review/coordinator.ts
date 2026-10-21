@@ -1020,6 +1020,19 @@ function retainUnqualifiedRejection(
   return current?.output.verdict === 'request_changes' ? current : { output, route };
 }
 
+function unqualifiedReviewFeedback(
+  retained: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined,
+) {
+  if (retained?.output.verdict !== 'request_changes') return [];
+  return reviewerFeedback(retained.output).map(finding => ({
+    code: 'REVIEW_UNQUALIFIED_FEEDBACK',
+    severity: finding.severity === 'error' ? ('warning' as const) : finding.severity,
+    message: terminalSafeReviewerText(
+      `Earlier unqualified ${agentName(retained.route.reviewer)} feedback: ${finding.message}`,
+    ),
+  }));
+}
+
 function preparedRankedPacket(
   input: ReviewRunInput,
   existing: ReturnType<typeof prepareReviewPacket> | undefined,
@@ -1134,6 +1147,7 @@ async function runConfiguredRankedRoutes({
         });
         return {
           ...result,
+          findings: [...result.findings, ...unqualifiedReviewFeedback(unqualified)],
           effects: { ...result.effects, network: rankedNetworkEffects(evidence) },
           data: { ...(result.data as Record<string, unknown>), review_routes: evidence },
         };
