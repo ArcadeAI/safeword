@@ -1,0 +1,5 @@
+Command: scripts/dev bun audit --audit-level high --ignore GHSA-vfj7-8cjw-p6xm --ignore GHSA-ch52-4w7c-c8xp
+ea9b8288c2a7e6893e0dbd54c569f67fff8fa14d
+be18ed22e67790dd2ef6b3736ac4bfd2bf436d9ca0dc5bb04a16ea82888da4eb  bun.lock
+[0m[1mbun audit [0m[2mv1.3.14 (0d9b296a)[0m
+exit=0
