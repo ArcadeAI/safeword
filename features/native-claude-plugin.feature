@@ -290,7 +290,8 @@ Feature: Ship Safeword as a native Claude Code plugin
         | installed at a different version                            | wrong-version     | 2    | safeword install --agents=claude        |
         | reported unhealthy by Claude                                | errored           | 1    | repair the reported Claude plugin error |
         | enabled without execution proof                              | unproven          | 2    | /reload-plugins                         |
-        | proven with a stale version or digest                        | unproven          | 2    | /reload-plugins                         |
+        | proven with a stale version                                  | unproven          | 2    | /reload-plugins                         |
+        | proven with a wrong hook-manifest digest                      | unproven          | 2    | /reload-plugins                         |
         | represented by a malformed proof record                      | unproven          | 2    | /reload-plugins                         |
         | proven from a different canonical installed cache path       | unproven          | 2    | /reload-plugins                         |
         | valid proof with recognized and conflicting legacy content   | cleanup-ready     | 2    | safeword claude cleanup                  |

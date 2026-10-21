@@ -254,7 +254,7 @@ describe('Claude plugin dispatcher', () => {
     expect(new Date(proof.recorded_at).toISOString()).toBe(proof.recorded_at);
   });
 
-  it.each(['metadata', 'body', 'runtime'])(
+  it.each(['metadata', 'body', 'runtime', 'malformed-metadata'])(
     'rejects changed %s after desktop sync normalizes a skill',
     mutation => {
       const projectDirectory = temporary('safeword-plugin-desktop-damage-project-');
@@ -267,8 +267,24 @@ describe('Claude plugin dispatcher', () => {
         /^---\n([\s\S]*?)\n---\n/u,
         (_header, yaml: string) => `---\n${stringify(parse(yaml), { lineWidth: 0 })}---\n`,
       );
-      if (mutation === 'metadata') normalized = normalized.replace('name: audit', 'name: changed');
-      else if (mutation === 'body') normalized += '\nChanged instructions.\n';
+      switch (mutation) {
+        case 'metadata': {
+          normalized = normalized.replace('name: audit', 'name: changed');
+          break;
+        }
+        case 'malformed-metadata': {
+          normalized = normalized.replace('name: audit', 'name: audit\nname: duplicate');
+
+          break;
+        }
+        case 'body': {
+          {
+            normalized += '\nChanged instructions.\n';
+            // No default
+          }
+          break;
+        }
+      }
       writeFileSync(skillPath, normalized);
       if (mutation === 'runtime') {
         writeFileSync(nodePath.join(pluginRoot, 'runtime/cli.js'), '// changed runtime\n');
@@ -289,7 +305,11 @@ describe('Claude plugin dispatcher', () => {
       expect(JSON.parse(result.stdout)).toMatchObject({
         hookSpecificOutput: {
           permissionDecision: 'ask',
-          permissionDecisionReason: expect.stringContaining('asset failed integrity validation'),
+          permissionDecisionReason: expect.stringContaining(
+            mutation === 'malformed-metadata'
+              ? 'Skill front matter is invalid'
+              : 'asset failed integrity validation',
+          ),
         },
       });
       expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);

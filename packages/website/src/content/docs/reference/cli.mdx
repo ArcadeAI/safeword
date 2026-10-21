@@ -240,6 +240,12 @@ safeword claude recover # only when status reports recovery-required
 
 The deprecated `claude install` route selects and verifies only the official stable plugin at project scope by default; it does not reconcile project configuration. Use `safeword install --agents=claude` for the canonical project-plus-Claude flow. Pass `--scope user` to the legacy route for profile-wide activation without project-file changes. After install or update, `/reload-plugins` activates it in the current task; the next successful prompt records proof bound to the installed version and bundled hook manifest, then automatically retires exact catalogued legacy Safeword files and settings entries. Modified, malformed, unknown, and third-party content is preserved with a non-blocking advisory. `claude status` is read-only; `claude cleanup` remains an explicit diagnostic/repair path. Neither path installs, updates, enables, reloads, or trusts a plugin.
 
+Claude plugin cache verification accepts formatting changes to exposed
+`skills/*/SKILL.md` headers only when their parsed YAML metadata and exact body
+bytes match the generated skill. Changed metadata, permissions, or instructions
+still fail verification. Runtime files, templates, and older inventories without
+semantic skill digests retain byte-exact verification.
+
 The **BDD acceptance lane is universal**: every project gets cucumber-js wired (`test:bdd` script, `features/` + `steps/` starters, `@cucumber/cucumber` + `tsx` + `@types/node` as devDependencies). Step definitions are always TypeScript — they test your app from the outside (shell out to `go test`, `cargo test`, or hit it over HTTP), so a pure Go/Python/Rust repo gets a minimal private `package.json` created to host the lane.
 
 **Unless you already have cucumber**: when install detects an existing cucumber harness — any `cucumber.{json,yaml,yml,js,cjs,mjs}` it didn't scaffold, or a `@cucumber/cucumber` dependency it didn't add — it skips the starter lane entirely (no files, no deps, no `test:bdd`) and prints the `paths.features` / `paths.steps` config lines that point safeword's BDD tooling at your suite instead. `safeword doctor` keeps warning until those paths are set, and warns about duplicate lanes left by older safeword versions (it never deletes anything itself). Uninstallation likewise leaves your cucumber config untouched; when safeword's own scaffolded lane is present, `uninstall` treats the cucumber devDependencies as Safeword-owned effects in its exact plan.

@@ -16,6 +16,15 @@ const asset = {
 };
 
 describe('Claude skill integrity', () => {
+  it('ignores mapping order while preserving distinct Unicode keys', () => {
+    const first = '---\nname: audit\noptions: {é: one, e\u{301}: two}\n---\n\n# Audit\n';
+    const reordered = '---\noptions: {e\u{301}: two, é: one}\nname: audit\n---\n\n# Audit\n';
+    expect(claudeSkillSha256(path, first)).toBe(claudeSkillSha256(path, reordered));
+    expect(claudeSkillSha256(path, reordered.replace('two', 'changed'))).not.toBe(
+      claudeSkillSha256(path, first),
+    );
+  });
+
   it('accepts folded scalars, quoting, and reordered mapping keys without ignoring metadata', () => {
     expect(claudeAssetMatches(asset, Buffer.from(normalized))).toBe(true);
     expect(claudeAssetMatches(asset, Buffer.from(original))).toBe(true);

@@ -69475,7 +69475,11 @@ function canonicalValue(value) {
     if (entries.some(([key]) => typeof key !== "string")) {
       throw new TypeError("Skill metadata keys must be strings.");
     }
-    return Object.fromEntries(entries.toSorted(([left], [right]) => left.localeCompare(right)).map(([key, item]) => [key, canonicalValue(item)]));
+    return Object.fromEntries(entries.toSorted(([left], [right]) => {
+      if (left === right)
+        return 0;
+      return left < right ? -1 : 1;
+    }).map(([key, item]) => [key, canonicalValue(item)]));
   }
   throw new TypeError("Skill metadata must contain JSON-compatible values.");
 }

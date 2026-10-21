@@ -9111,7 +9111,10 @@ function canonicalValue(value) {
     }
     return Object.fromEntries(
       entries
-        .toSorted(([left], [right]) => left.localeCompare(right))
+        .toSorted(([left], [right]) => {
+          if (left === right) return 0;
+          return left < right ? -1 : 1;
+        })
         .map(([key, item]) => [key, canonicalValue(item)]),
     );
   }

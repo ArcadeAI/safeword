@@ -478,7 +478,7 @@ describe('Claude marketplace update enrollment', () => {
     });
   });
 
-  it.each(['name: changed', 'name: audit\nallowed-tools: Bash'])(
+  it.each(['name: changed', 'name: audit\nallowed-tools: Bash', 'name: audit\nname: duplicate'])(
     'reports damaged skills when metadata changes: %s',
     replacement => {
       const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
