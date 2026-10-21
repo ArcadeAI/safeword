@@ -10,41 +10,7 @@ import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
 const execFileAsync = promisify(execFile);
 export type RankedCase = 'first' | 'alternate' | 'later' | 'unsupported';
 
-/** Real CLI/config/catalogue/job wiring; only the external reviewer processes are fake. */
-export async function rankedPlanningReview(project: string, bin: string, example: RankedCase) {
-  const codex = (model?: string) => ({ reviewer: 'codex', ...(model && { model }) });
-  const same = { reviewer: 'claude' };
-  const routes = {
-    first: [same, codex('gpt-6-astra')],
-    alternate: [codex(), same, codex('gpt-6-astra')],
-    later: [codex(), same, codex('gpt-6-sol'), codex('gpt-6-astra')],
-    unsupported: [codex(), codex('gpt-6-astra'), same],
-  }[example];
-  mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
-  writeFileSync(
-    nodePath.join(project, '.safeword/config.json'),
-    JSON.stringify({
-      crossAgentReview: 'prefer',
-      crossAgentReviewRoutes: { claude: routes },
-    }),
-  );
-  writePlanningInventories(project);
-  const ticket = '.project/tickets/RNK123-ranked';
-  mkdirSync(nodePath.join(project, ticket), { recursive: true });
-  writeFileSync(
-    nodePath.join(project, ticket, 'ticket.md'),
-    '---\nid: RNK123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: truthful review\nout_of_scope: bypass\ndone_when: qualified reviewer wins\n---\n',
-  );
-  writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
-  writeFileSync(
-    nodePath.join(project, ticket, 'impl-plan.md'),
-    '# Implementation Plan\n\n**Status:** planned\n\n## Approach\n\nKeep the existing approval authority.\n\n## Decisions\n\nTry every eligible independent route before same-agent review.\n\n## Design alignment\n\nPreserve truthful approval.\n\n## Architecture applicability\n\nskip: no architecture records apply\n\n## Data applicability\n\nskip: no product data changes\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: no customer docs change\n\n## Assessment triggers\n\nRevisit if review authority changes.\n',
-  );
-  mkdirSync(nodePath.join(project, 'features'), { recursive: true });
-  writeFileSync(
-    nodePath.join(project, 'features/ranked.feature'),
-    '@ranked.BU1.R1\nFeature: Ranked review\n  Scenario: Independent review precedes fallback\n    Given eligible routes\n    When review runs\n    Then the qualified route wins\n',
-  );
+function writeRankedReviewerExecutables(bin: string, example: RankedCase): string {
   const log = nodePath.join(bin, 'launches.jsonl');
   writeFileSync(log, '');
   for (const agent of ['codex', 'claude'] as const) {
@@ -84,6 +50,45 @@ process.stdin.on('end', () => { if (agent === 'claude') { const packet=JSON.pars
       { mode: 0o755 },
     );
   }
+  return log;
+}
+
+/** Real CLI/config/catalogue/job wiring; only the external reviewer processes are fake. */
+export async function rankedPlanningReview(project: string, bin: string, example: RankedCase) {
+  const codex = (model?: string) => ({ reviewer: 'codex', ...(model && { model }) });
+  const same = { reviewer: 'claude' };
+  const routes = {
+    first: [same, codex('gpt-6-astra')],
+    alternate: [codex(), same, codex('gpt-6-astra')],
+    later: [codex(), same, codex('gpt-6-sol'), codex('gpt-6-astra')],
+    unsupported: [codex(), codex('gpt-6-astra'), same],
+  }[example];
+  mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+  writeFileSync(
+    nodePath.join(project, '.safeword/config.json'),
+    JSON.stringify({
+      crossAgentReview: 'prefer',
+      crossAgentReviewRoutes: { claude: routes },
+    }),
+  );
+  writePlanningInventories(project);
+  const ticket = '.project/tickets/RNK123-ranked';
+  mkdirSync(nodePath.join(project, ticket), { recursive: true });
+  writeFileSync(
+    nodePath.join(project, ticket, 'ticket.md'),
+    '---\nid: RNK123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: truthful review\nout_of_scope: bypass\ndone_when: qualified reviewer wins\n---\n',
+  );
+  writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
+  writeFileSync(
+    nodePath.join(project, ticket, 'impl-plan.md'),
+    '# Implementation Plan\n\n**Status:** planned\n\n## Approach\n\nKeep the existing approval authority.\n\n## Decisions\n\nTry every eligible independent route before same-agent review.\n\n## Design alignment\n\nPreserve truthful approval.\n\n## Architecture applicability\n\nskip: no architecture records apply\n\n## Data applicability\n\nskip: no product data changes\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: no customer docs change\n\n## Assessment triggers\n\nRevisit if review authority changes.\n',
+  );
+  mkdirSync(nodePath.join(project, 'features'), { recursive: true });
+  writeFileSync(
+    nodePath.join(project, 'features/ranked.feature'),
+    '@ranked.BU1.R1\nFeature: Ranked review\n  Scenario: Independent review precedes fallback\n    Given eligible routes\n    When review runs\n    Then the qualified route wins\n',
+  );
+  const log = writeRankedReviewerExecutables(bin, example);
   const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
   let result;
   try {

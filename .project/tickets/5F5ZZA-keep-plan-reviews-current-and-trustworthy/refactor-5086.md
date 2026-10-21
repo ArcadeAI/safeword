@@ -11,7 +11,7 @@ verification and commit.
    `packages/cli/src/review/capability-eval.ts`. Keep the same one-finding rule,
    empty-group handling, severity guard, normalization and word-prefix matching.
    Protect with the existing capability evaluation/corpus/catalogue tests.
-2. Pending — extract fake reviewer executable setup from
+2. Resolved — extract fake reviewer executable setup from
    `packages/cli/tests/fixtures/ranked-planning-review.ts` into a private helper.
    Preserve executable bytes, log lifecycle and CLI environment. Protect with
    the four executable ranked-route BDD examples.
@@ -27,6 +27,14 @@ verification and commit.
 6. Deferred — split older multi-flow continuation integration tests. This pass
    targets the new test-quality delta; existing stronger assertions stay intact.
 
+7. Deferred — generic IPC race helper: only one consumer; keep the readiness
+   barrier and consumption assertions visible.
+8. Resolved by inspection — no BDD assertion abstraction needed; route order,
+   assurance and packet checks cover distinct contracts.
+9. Deferred — parsed-JSON compile-time types: separate hardening rather than
+   necessary extraction; retain current runtime assertions.
+
+
 Scout coverage: mechanical inspection of changed scoring/fixture code, plus an
 independent read-only reuse/abstraction scout. No whole-repository cleanup claim.
 Native-host manual deferrals, historical failures, and dependency audit blockers
@@ -41,9 +49,9 @@ remain as recorded in `test-quality-5086.md` and Draft PR #5995.
   equivalence check, not new semantic qualification. Regression inspection
   found no dropped guard, changed default, side effect or lifecycle change.
 
-7. Deferred — generic IPC race helper: only one consumer; keep the readiness
-   barrier and consumption assertions visible.
-8. Resolved by inspection — no BDD assertion abstraction needed; route order,
-   assurance and packet checks cover distinct contracts.
-9. Deferred — parsed-JSON compile-time types: separate hardening rather than
-   necessary extraction; retain current runtime assertions.
+- Step 2: four real-CLI BDD scenarios / 24 steps passed; scoped ESLint and CLI
+  typecheck passed. Moved setup body compared byte-identical with its parent.
+  Log initialization and permissions stay inside setup; caller retains cleanup,
+  timeouts, environment and packet decoding. A first launch used a package-relative
+  runner path from the root and exited 127 before any tests; corrected the
+  working directory and obtained the terminal green result above.
