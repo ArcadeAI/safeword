@@ -621,6 +621,286 @@
       "path": "pre-reconcile-parity-drift.log.gz",
       "uncompressed_bytes": 408,
       "sha256_uncompressed": "477f88846a53861eb80b12786a1d8a02a11df5e5fe54c6bbd9d35e5f7f4644fc"
+    },
+    {
+      "path": "execution-final-claude-remaining.json.gz",
+      "uncompressed_bytes": 8196,
+      "sha256_uncompressed": "0c2c4266a050713682ec56aa858fffe07659f227950163cd85a33891b1ffa515"
+    },
+    {
+      "path": "execution-final-claude-remaining.json.outputs.json.gz",
+      "uncompressed_bytes": 512813,
+      "sha256_uncompressed": "6961e57993d75f61b059d007a6a8fda01547e23337ea6ebd2cdb108050749217"
+    },
+    {
+      "path": "execution-final-claude-remaining.json.metadata.json.gz",
+      "uncompressed_bytes": 813,
+      "sha256_uncompressed": "ed7d60b03f6b389db0d27c905fea7049dd8da0cf19715309e4cb1e100d175b97"
+    },
+    {
+      "path": "execution-final-codex.json.gz",
+      "uncompressed_bytes": 8154,
+      "sha256_uncompressed": "2c3553f74156114d57e1f914d282d23392c1e88b46afc044775aaaa4d3022910"
+    },
+    {
+      "path": "execution-final-codex.json.outputs.json.gz",
+      "uncompressed_bytes": 139910,
+      "sha256_uncompressed": "2078d84344b5e83a2305af176785ad3d67f7d75c8cd605389d97e9ba1804f088"
+    },
+    {
+      "path": "execution-final-codex.json.metadata.json.gz",
+      "uncompressed_bytes": 469,
+      "sha256_uncompressed": "f764f35f9cfb8f4567b41582c19c659a72de0e2d54728ffaa1b99a319b43f03f"
+    },
+    {
+      "path": "execution-codex-complete.log.gz",
+      "uncompressed_bytes": 93112,
+      "sha256_uncompressed": "71b1c8f0fbf331873e90d4ec30d0a0e0db827d9e6abfe6bad184535333a31c49"
+    },
+    {
+      "path": "end-user-missing-evidence-walk.json.gz",
+      "uncompressed_bytes": 831,
+      "sha256_uncompressed": "10475560aba38ff47e8aaa2b0f3ef35c8a54e2e01406ef4d4668371c6fb6ed6d"
+    },
+    {
+      "path": "end-user-missing-evidence-walk-validated.json.gz",
+      "uncompressed_bytes": 662,
+      "sha256_uncompressed": "4295bebeee0688efaad3199f013faf78b68020ff3453d46557a61720fde15a39"
+    },
+    {
+      "path": "end-user-routes-unknown-command.json.gz",
+      "uncompressed_bytes": 300,
+      "sha256_uncompressed": "0807047b82ad68efc01e92c84106211680784a8ebf5ca53b0a9c1b5892b86c59"
+    },
+    {
+      "path": "end-user-routes-list.json.gz",
+      "uncompressed_bytes": 1353,
+      "sha256_uncompressed": "d634ee30f9e817afd9eae9724f3591c4682acaaee8c3ada3033fcfb2c70ff235"
+    },
+    {
+      "path": "initial-push.log.gz",
+      "uncompressed_bytes": 1411,
+      "sha256_uncompressed": "e7adc8b443b7f3f3145ddaf4ace130204c0c1b4942ac8e30b9cfa4874fdbf17e"
+    },
+    {
+      "path": "verify-invocation.log.gz",
+      "uncompressed_bytes": 34,
+      "sha256_uncompressed": "6aee58bed4b6bc3a5ea2d2730e9cca554201ffd9c64de63317a88dd837668a8b"
+    },
+    {
+      "path": "final-normal-full.log.gz",
+      "uncompressed_bytes": 1223069,
+      "sha256_uncompressed": "fe22f2fd30a503737493408d7f55991c34496eb72e9d85e16cfc936f6295b847"
+    },
+    {
+      "path": "verify-aggregate-invocation.sh.gz",
+      "uncompressed_bytes": 5694,
+      "sha256_uncompressed": "0524a7dd24804c3f766db709340f4b8b3c46202a8338a3ea344b247fb80f7a09"
+    },
+    {
+      "path": "verify-aggregate-interruption.json.gz",
+      "uncompressed_bytes": 450,
+      "sha256_uncompressed": "60b4cf01305a01bc1904aeeec6d86b44dc0dbbf9816be2eca54764456be1589c"
+    },
+    {
+      "path": "remaining-verify-invocation.sh.gz",
+      "uncompressed_bytes": 5620,
+      "sha256_uncompressed": "f9476bc616b6dc590b994d4e63132015deede8d8c2456b8fd8d8a4eced0f14b0"
+    },
+    {
+      "path": "final-admission-refusal.log.gz",
+      "uncompressed_bytes": 23567,
+      "sha256_uncompressed": "69cd26ec480a2c276ccabafce31e485ff932e36075f9dc01cbd06a36bbb8e0a3"
+    },
+    {
+      "path": "final-generated-fix.log.gz",
+      "uncompressed_bytes": 256,
+      "sha256_uncompressed": "506dac0919d9ab9c5664597d6e152fa5a2b41fddf0658ccf4317474a36e015d1"
+    },
+    {
+      "path": "final-project-reconcile-preview.json.gz",
+      "uncompressed_bytes": 1395,
+      "sha256_uncompressed": "a4790833e78ab3738b15a885fb4abdd79922d3fc86903505600306441950d74e"
+    },
+    {
+      "path": "final-project-reconcile-applied.json.gz",
+      "uncompressed_bytes": 2163,
+      "sha256_uncompressed": "80770b7ba2f5ee0e2fe1c00cedb649e34b13253d5d37f107c8c14ff491f969b2"
+    },
+    {
+      "path": "final-project-parity.log.gz",
+      "uncompressed_bytes": 110,
+      "sha256_uncompressed": "65107e673c739342f5b1fea27450dfeac02286ae9bbb9b47e5ca601f16ac0f4d"
+    },
+    {
+      "path": "fixture-repair-blocked-authorization.json.gz",
+      "uncompressed_bytes": 941,
+      "sha256_uncompressed": "da9d6645a9769a51d76b7412f6618712a89ea4f48c5b1e661c2bde9a54ffea2e"
+    },
+    {
+      "path": "fixture-repair-baseline-preview.json.gz",
+      "uncompressed_bytes": 1395,
+      "sha256_uncompressed": "12d9d5b5c07d1f86da5bbac37aa6cad4e5abc44554dd9bda02d239432396a32b"
+    },
+    {
+      "path": "fixture-repair-baseline-applied.json.gz",
+      "uncompressed_bytes": 2163,
+      "sha256_uncompressed": "80770b7ba2f5ee0e2fe1c00cedb649e34b13253d5d37f107c8c14ff491f969b2"
+    },
+    {
+      "path": "fixture-repair-authorization.json.gz",
+      "uncompressed_bytes": 451,
+      "sha256_uncompressed": "0530e1931357b8fad4c7be779fc112c8986855f0bc15fcc5c2f00650253a2b5a"
+    },
+    {
+      "path": "fixture-repair-focused-results.log.gz",
+      "uncompressed_bytes": 26932,
+      "sha256_uncompressed": "aee6234cf3a7961de8d630c5f909323100949e2e25b86dc8f14bc453bdf84f9e"
+    },
+    {
+      "path": "fixture-repair-review-approved.json.gz",
+      "uncompressed_bytes": 11518,
+      "sha256_uncompressed": "61bea3b936376a060f6a31af094c730f813805314df99644a7681a07a56e60f0"
+    },
+    {
+      "path": "fixture-repair-commit.log.gz",
+      "uncompressed_bytes": 2349,
+      "sha256_uncompressed": "ffe85e61d7dadcea6550d076b112a6229cd35314930b106089658b100ca6e7f1"
+    },
+    {
+      "path": "fixture-repair-format.log.gz",
+      "uncompressed_bytes": 66,
+      "sha256_uncompressed": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "path": "fixture-repair-lint.log.gz",
+      "uncompressed_bytes": 292,
+      "sha256_uncompressed": "89f1a2cf38570c929806f1e6dee3990eaec3b9a0c8ffa7ec4bc68ebbe08bfab0"
+    },
+    {
+      "path": "fixture-repair-typecheck.log.gz",
+      "uncompressed_bytes": 15,
+      "sha256_uncompressed": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+    },
+    {
+      "path": "final-input-compatibility.json.gz",
+      "uncompressed_bytes": 1958,
+      "sha256_uncompressed": "04f773771ebbc7b41ef7341de014e53f79d7234b39d00f8f532b3900639043ea"
+    },
+    {
+      "path": "initial-head-ci-node22.log.gz",
+      "uncompressed_bytes": 2124117,
+      "sha256_uncompressed": "95d952c985aa628dbcd0dfeba853299a5bf9c2fe861841e1d6aeb95c414d0605"
+    },
+    {
+      "path": "initial-head-ci-node24.log.gz",
+      "uncompressed_bytes": 2069414,
+      "sha256_uncompressed": "6082d594f39b4abb65db146081e46bb74131f0e04254105c709ed7e001298fba"
+    },
+    {
+      "path": "initial-head-terminal-pr-status.json.gz",
+      "uncompressed_bytes": 6128,
+      "sha256_uncompressed": "0fddb0ded8b9cff94aeffda796d13882b0d19ece0995971498afcf4c62bc7498"
+    },
+    {
+      "path": "remaining-verification-lanes.log.gz",
+      "uncompressed_bytes": 118379,
+      "sha256_uncompressed": "a23a6d5625b4e25ce3fb2646a64b1515d5991ee810f901678371da05bc805b46"
+    },
+    {
+      "path": "bdd-route-outline-green.log.gz",
+      "uncompressed_bytes": 344,
+      "sha256_uncompressed": "4e46877330f2139e1b1c6cfb3803f12177859f5547a65b46e15d978db5a584c8"
+    },
+    {
+      "path": "bdd-route-format-attempt.log.gz",
+      "uncompressed_bytes": 235,
+      "sha256_uncompressed": "740ce60ba892743c8c8c7133bd4bbfb5e56fa0d0243bea6471399ac4b6996308"
+    },
+    {
+      "path": "bdd-route-lint.log.gz",
+      "uncompressed_bytes": 0,
+      "sha256_uncompressed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "bdd-route-commit.log.gz",
+      "uncompressed_bytes": 1234,
+      "sha256_uncompressed": "5e344690e33355dc94ba136a42b1acdb7ecbb3888895b74d0b116619baf31dfc"
+    },
+    {
+      "path": "bdd-route-review-changes-requested.json.gz",
+      "uncompressed_bytes": 10310,
+      "sha256_uncompressed": "ce34c0197b95be9cfe3d4e0dc44b0586c53ec6b647b9e15c03824012f3e56202"
+    },
+    {
+      "path": "bdd-route-review-approved.json.gz",
+      "uncompressed_bytes": 9987,
+      "sha256_uncompressed": "2862439b521f56630ebcaa459df3dc1b30f03ecbbdc2ee392011a4c55a08c5a5"
+    },
+    {
+      "path": "post-bdd-route-typecheck.log.gz",
+      "uncompressed_bytes": 15,
+      "sha256_uncompressed": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+    },
+    {
+      "path": "final-boundary-core.log.gz",
+      "uncompressed_bytes": 57364,
+      "sha256_uncompressed": "e6addab7181beebfcb6ff5b7eed53897e190634ec53fe170c7950f84bb6aef2f"
+    },
+    {
+      "path": "final-release.log.gz",
+      "uncompressed_bytes": 22402,
+      "sha256_uncompressed": "bbc6b10a821ceed69961170811dcd21e13b5347eccb374ea9f35928f760c8182"
+    },
+    {
+      "path": "delivery-generated-check.log.gz",
+      "uncompressed_bytes": 34,
+      "sha256_uncompressed": "b14948a65d3e1915acfab0f60e2cc2b2b827aa96bfcf7e1d505dbd53eaf51a00"
+    },
+    {
+      "path": "delivery-parity-check.log.gz",
+      "uncompressed_bytes": 110,
+      "sha256_uncompressed": "65107e673c739342f5b1fea27450dfeac02286ae9bbb9b47e5ca601f16ac0f4d"
+    },
+    {
+      "path": "delivery-lint.log.gz",
+      "uncompressed_bytes": 161,
+      "sha256_uncompressed": "57d5f8367b5a58bba4b4cbada9293f039cf55e9aea854237c06c4f0f8274df90"
+    },
+    {
+      "path": "delivery-gherkin-lint.log.gz",
+      "uncompressed_bytes": 71,
+      "sha256_uncompressed": "748d29fcb7240aae4f8de903423b1d933d5f2e35f281268b02935dc051db8922"
+    },
+    {
+      "path": "delivery-reconcile-preview.json.gz",
+      "uncompressed_bytes": 1395,
+      "sha256_uncompressed": "b8e44dfb878fb2b5cd28d3e7c7cbc18e27fe5ede3123ce24a1649106cd9dbfb3"
+    },
+    {
+      "path": "delivery-reconcile-applied.json.gz",
+      "uncompressed_bytes": 2582,
+      "sha256_uncompressed": "e304dd9388dbefc1b6c73ab4cf964b0fa89320bfeb7c7ecada921e936614470b"
+    },
+    {
+      "path": "delivery-cli-walk.json.gz",
+      "uncompressed_bytes": 1078,
+      "sha256_uncompressed": "4b626c85d5096d308efd5ec21b0c340f374a09d185c354a89407d4b2fcc74ce5"
+    },
+    {
+      "path": "delivery-route-list.json.gz",
+      "uncompressed_bytes": 1353,
+      "sha256_uncompressed": "d634ee30f9e817afd9eae9724f3591c4682acaaee8c3ada3033fcfb2c70ff235"
+    },
+    {
+      "path": "delivery-shared-runtime.sha256.gz",
+      "uncompressed_bytes": 138,
+      "sha256_uncompressed": "f3edb63defa600a28e0d39387be5153c2eacd8f88f3d80743e298b56bfd83cfe"
+    },
+    {
+      "path": "codex-failure-triage.json.gz",
+      "uncompressed_bytes": 48017,
+      "sha256_uncompressed": "62ee336e61265102a4c2d8894116a5eab720203788833ba86af993e9c45aef9f"
     }
   ]
 }
