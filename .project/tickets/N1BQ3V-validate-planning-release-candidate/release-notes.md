@@ -1,6 +1,6 @@
 # Safeword 2.0.0-rc.1
 
-Opt-in release candidate from main a3c216940fc12a912f97a3f77820e280e1203b65. This candidate excludes unfinished #6031 and #5857. It is not completion of epic #4200 and is not a stable release.
+Release candidate from main a3c216940fc12a912f97a3f77820e280e1203b65, offered through npm next while the stable channels remain unchanged. Main-branch marketplace users can receive it after merge. This candidate excludes unfinished #6031 and #5857. It is not completion of epic #4200 and is not a stable release.
 
 ## Version and channels
 
@@ -22,6 +22,6 @@ Upgrading can require project reconciliation and fresh planning reviews. Review 
 
 ## Evidence boundaries
 
-Run release gates, deterministic activation and relevant install/upgrade checks against the packed candidate. Exercise supported Claude/Codex paths in isolated profiles. Keep package/host discovery separate from paid semantic qualification. Preserve full failures; do not relabel historical qualification, undefined scenarios or deferred OpenCode/cloud cases as candidate passes. No #6031 qualification failure is included by merging that branch; no claim is made that all semantic review judgments on main are freshly qualified.
+Run release gates, deterministic activation and relevant install/upgrade checks against the packed candidate. Exercise supported Claude/Codex paths in isolated profiles. Keep package/host discovery separate from paid semantic qualification. Preserve full failures; do not relabel historical qualification, undefined scenarios or deferred OpenCode/cloud cases as candidate passes. PR #6031 is not merged into this candidate; none of its qualification results establish candidate success. No claim is made that all semantic review judgments on main are freshly qualified.
 
-Publication and all checks are pending until recorded in verification.md. The user's request authorizes preparing/publishing this candidate, but standing no-merge/no-promotion instructions remain in effect; any required release-PR merge needs explicit approval.
+Publication and check outcomes are recorded in verify.md. The user's request authorizes preparing/publishing this candidate, but standing no-merge/no-promotion instructions remain in effect; any required release-PR merge needs explicit approval.
