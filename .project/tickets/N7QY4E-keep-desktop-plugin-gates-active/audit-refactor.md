@@ -17,7 +17,7 @@ a repository-wide cleanup.
 
 - [x] R0: Flattened the mutation fixture's auto-fixed nested block and made the runtime case explicit. All 66 dispatcher tests passed before the separate refactor commit.
 - [x] R1: Extracted the repeated desktop header normalization fixture into one test helper, keeping changed-byte assertions at the callers. Both affected suites passed 100 tests, with the existing prerelease-only skip, before the separate commit.
-- [ ] R2: Calculate the diagnostic asset hash only on failed integrity validation, avoiding duplicate hashing on successful hooks. Preserve the diagnostic, regenerate carriers, test and commit separately.
+- [x] R2 explicitly deferred: calculating the diagnostic hash only on failed validation is optional. The source and its generated mirrors were reverted after the wider lane exposed A5, which was repaired separately. Reverification could not acquire the shared Vitest lock while another checkout's live run held it for over 20 minutes. No unverified optimization is retained; integrity checks and diagnostics remain as previously tested.
 
 ## Mechanical audit evidence
 
@@ -47,3 +47,11 @@ policy questions, not demonstrated failures for the shipped skills.
 - Native BDD: 65 scenarios and 3,110 steps passed.
 - CLI build, root lint, Gherkin validation, and package typecheck passed. All five generated surfaces were regenerated and verified.
 - Independent Claude Opus review approved with cross-agent independence, receipt `9816f29e-e728-4b7d-8d7a-513f64919509`. The prior request for caller-level malformed-metadata proof was resolved with real cache tests and caller source evidence.
+
+## Final refactor verification and limit
+
+- R0 and R1 were each tested and committed separately (`abbb238bf`, `81dfa82e9`). The latter's two affected Vitest suites passed 100 tests with one existing prerelease-only skip.
+- The post-refactor audit found no dependency violations, config drift, learning-reference errors, or domain-reference errors. Root lint, Gherkin validation, and package typecheck passed. The independent refactor review approved with receipt `8a61c8e7-fc7a-4d5b-adea-401ef7a1277c`; its optional policy questions remain deferred above.
+- The expanded Claude BDD verification exposed A5. After its isolated correction (`178b8d614`), both Claude feature files pass: **104 scenarios, 4,986 steps**. This includes the 65-scenario native lane and the selected-scope workflows.
+- The broad repository acceptance run was interrupted when nested Vitest calls were discovered; its progress output is not a completed verdict. Fresh targeted Vitest/proof-tag runs and lifecycle-fixture verification could not acquire the shared package-test lock held by another checkout's live run. No lock was bypassed or removed and no other checkout's process was terminated. Earlier green unit/proof results remain the evidence; no fresh full-suite pass is claimed.
+- R2 was reverted and explicitly deferred rather than retaining an unverified production optimization. The remaining work is a fresh targeted/proof-tag rerun after the shared test slot is free; no new source fix is proposed for the lock contention.
