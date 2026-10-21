@@ -29,7 +29,7 @@ it.each([
   {
     label: 'unpaired output',
     change: { case_id: 'different-case' },
-    message: 'exact model confirmation',
+    message: 'paired raw observation',
   },
   { label: 'CLI output', change: { dispatch_mode: 'cli' }, message: 'headless' },
   { label: 'replayed output', change: { dispatch_mode: 'replay' }, message: 'headless' },
@@ -130,12 +130,37 @@ it.each(['metadata', 'results'])('refuses mixed generations after a %s write fai
     }).toThrow();
     expect(readFileSync(path, 'utf8')).toBe(original);
     expect(() => readExecutionCheckpoint(path, identity, ['old', 'new'])).toThrow(
-      'exact model confirmation',
+      'paired raw observation',
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+it.each([{ corpus_kind: 'acceptance' }, { dispatch_mode: 'cli' }, { mode: 'replay' }])(
+  'rejects unsupported markers in the retained file itself: %j',
+  markers => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'execution-retained-markers-'));
+    const path = nodePath.join(root, 'results.json');
+    const identity = {
+      schema_version: 1,
+      contract_sha256: 'contract',
+      corpus_sha256: 'corpus',
+      reviewer: 'claude',
+      requested_model: 'claude-opus-5',
+    };
+    try {
+      writeExecutionCheckpoint(path, [], [], identity);
+      expect(readExecutionCheckpoint(path, identity, []).results).toEqual([]);
+      writeFileSync(`${path}.metadata.json`, JSON.stringify({ ...identity, ...markers }));
+      expect(() => readExecutionCheckpoint(path, identity, [])).toThrow(
+        'exact headless conformance',
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
 
 it.each([
   { label: 'matching', overrides: {}, launches: true, message: '' },
