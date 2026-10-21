@@ -4,6 +4,16 @@ Base: current main `9f6ac6fce` (#5995 merged). Reconcile only remaining accepted
 
 Historical evidence remains unchanged: missing historical RED; GREEN/REFACTOR SHA collision; broad acceptance six failures and 585 unfinished; 33 deferred/unverified cases. New evidence never retroactively certifies those records.
 
+## Restart continuation — current observations
+
+The official-main shared runtime remains healthy/protected. The required installer retry again failed because published latest requires 1.1.0 while the installed plugin is 1.2.0; no candidate profile activation followed. #5486 has the concurrent-worktree findings and bounded hotfix limits.
+
+Restored main's R2 context row, then obtained scenario review `9c7862a3-9c05-4869-80f3-ebb22f83d1de` and Implementation review `894de2ac-8952-4bc0-be4e-3bc6fc89286f`, both reduced. The normal approve-plan command reported human approval not required. Execution review `7fd796cc-85c7-498f-b679-963d4f2a5f90` exhausted Claude with invalid output; its one fresh-context Codex approval was also rejected as invalid output. Its final bounded main-thread self-review earned an authenticated reduced receipt. No independent Execution coverage is claimed. Normal stamping and coding-authorization then admitted implementation.
+
+New RED `b085da6b8`: the complete owned-ticket control prepared successfully, but missing `security_limit` lost its diagnostic (1 failed / 4 passed). Both all-skipped selector cases wrongly launched fallback (2 failed / 95 passed). GREEN `636bfb5c6` restores typed diagnostics and requires an actual independent attempt; 102/102 targeted tests pass. That commit also includes the earlier packet currency change. Packet extraction `8fd7592c5` passed 17/17 tests; the commit also includes duplicate-key cleanup and a strengthened installed dispatch assertion, so it is not a pure test-free REFACTOR artifact.
+
+Checkpoint test RED `72d0374a4` failed because its new helper did not yet exist; this is missing-fixture RED, not a demonstrated teardown-loss mutation. GREEN `3979bb7bf` retains completed result/raw-output/metadata after real SIGKILL (1/1), adds per-case atomic checkpoints and local concurrent assertions, and typechecks. During the live file's active run, the first partial result and raw output were read successfully, with confirmed `claude-opus-5`. Both unchanged capability seals verify. The preserved first conformance archive and unchanged checkpoint inputs verify, without retroactively inventing model confirmation. Remaining Claude collection is in progress; no aggregate pass is claimed.
+
 Profile bootstrap retry: `scripts/dev bunx --bun safeword@latest codex install` failed because installer requires 1.1.0 while Codex reports 1.2.0; project hooks unchanged.
 
 Plan: (1) remaining contract judgments; (2) typed evidence validation through provider/host/packet boundaries; (3) bounded installed-rule currency while retaining whole-copy integrity; (4) exact qualification before fallback dispatch; (5) generated surfaces, verification, independent review, Draft PR.

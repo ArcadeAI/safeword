@@ -8,17 +8,12 @@ implements the contract family, phase-owned context, dispositions, approval,
 and authenticated fallback repairs. Those are implemented facts, not proposals
 for this continuation. The remaining #5139 decisions are accepted-scope/persona
 judgments, typed evidence records, bounded installed-rule currency, and stricter
-fallback qualification. Their implementation checkpoint is `5477ef85f`, with
-the packet integration still uncommitted and requiring a lint refactor.
-Available new proof includes the intended contract/evidence/currency/fallback
-RED runs, the corrected core run (190 passed, two existing skips), and both
-fresh sealed capability collections (18/18 each). These are bounded proofs,
-not feature completion. Execution conformance was cancelled without a completed
-matrix; its admission descriptor remains historical and unqualified for the
-changed rubric. Full final-head verification and independent test re-review
-remain pending. Historical missing RED, the GREEN/REFACTOR SHA collision,
-six failures, 585 unfinished checks, and 33 deferred/unverified cases remain
-unchanged. No merge, Ready promotion, or historical-evidence repair is authorized.
+fallback qualification. No available proof establishes feature completion;
+final-head verification and independent test re-review remain pending. The
+[qualification record](qualification-5139.md) and
+[verification record](verify-5139.md) retain implementation state, observed
+results, interrupted runs, and historical evidence defects. No merge, Ready
+promotion, or historical-evidence repair is authorized.
 
 The proposed capability extension in `ARCHITECTURE.md` now describes main's
 sealed pair comparison, replacing the rejected integer-rank overlay. This
@@ -46,152 +41,110 @@ nor profile/status fixtures grant authority. This continuation adds no such
 proof artifact and claims no OpenCode enforcement. The R8 generated-guidance
 proof must cover derivation from authenticated observations as well as rendered
 guidance before that broader obligation can be called complete. Current local
-adapter tests remain narrower evidence. No #5857 recovery work is imported.
+adapter tests remain narrower evidence. YCFFNC owns that deferred native-host
+qualification and coordinated activation. No #5857 recovery work is imported.
 
 ## Approach
+
+**Decision status:** The context resolver, identity projector, dispositions,
+approval boundary, authenticated fallback ladder, data ownership, and existing
+rollout described below are retained implemented main decisions. Only the four
+explicit continuation decisions below are proposed additions; wording that
+describes the broader feature does not reopen already-shipped main behavior.
+
+| Proposed continuation decision | Boundary retained from main |
+| --- | --- |
+| Judge accepted scope in both directions and inventory applicable persona outcomes | Existing phase contracts, context roles, and user-owned scope authority |
+| Retain typed planning and verdict evidence records, including declared reuse limits | Existing authenticated job store, receipt identity, and untrusted-evidence boundary |
+| Recompute currency from the bounded installed canonical rules while keeping whole-copy integrity mandatory for use | Exact canonical contract identity and separate authoring/dispatch/admission integrity checks |
+| Refuse unknown or weaker configured reviewers before launch on the supported verified-author path | Existing route order, successful stronger feedback, typed exhaustion, and reduced fallback semantics |
+
+### Continuation decisions
+
+**Accepted scope and personas:** Phase rubrics judge both omitted accepted work
+and overreach against the existing resolved authorities. Product authoring
+records applicable success, refusal, failure, approval, trust, and recovery
+outcomes per persona, separating facts, assumptions, and unresolved choices.
+The scenario gate judges the outcome-to-scenario mapping in its existing
+verdict. No persistent mapping store or structural tag scheme is introduced.
+
+**Typed evidence:** New reviewer planning verdicts carry a versioned
+`evidence_records` wrapper, with an empty records array when no new external
+evidence is asserted. A plan may embed a `#### PlanEvidenceRecordV1` heading
+inside `## Decisions`, immediately followed by a fenced JSON object with
+`schema_version: 1`. Each record has eleven nonblank fields: source_identity,
+checked_version, source_version, target_version, supported_claim,
+license_identifier, attribution_notice, redistribution_limit, security_limit,
+privacy_limit, and reuse_limit. Explicit `none_declared` retains a declared
+absence without inventing a permission. Every embedded V1 object must validate;
+legacy research tables do not have to become V1 objects. This preserves
+format-flexible historical decision evidence. New retrieved external evidence
+requires a V1 plan record before reuse; historical tables cannot qualify new
+reuse. The parser validates declared records, while semantic review must reject
+a missing required declaration. Plan records remain plan inputs; reviewer
+records remain authenticated verdict outputs and cannot rewrite plan bytes.
+
+**Bounded installed-rule currency:** The trusted package or plugin's
+`templates/skills/bdd/DISCOVERY.md`, `PLAN_IMPLEMENTATION.md`, or
+`PLAN_EXECUTION.md` supplies the phase's exact marked canonical region: the Product,
+Implementation, or Execution rubric start/end markers and its contained shared
+clauses. Currency compares those exact bytes, including internal whitespace
+and comments, against the packaged generated rubric and the reviewed contract
+identity. An edit outside that region leaves currency unchanged. An edit
+inside it, even cosmetic, is a canonical-contract change and stales the review.
+Independently, authoring, dispatch, and admission require the entire author
+copy to match its generated exact-byte digest, so even an outside-region
+cosmetic edit blocks use until reconciliation. R5's unchanged canonical phase
+contract is essential: its cosmetic installed-copy case does not permit a
+changed canonical region. The identity remains V1; no projection-version
+backfill is added. Changed canonical bytes invalidate earlier receipts through
+their existing contract identity while preserving historical records.
+
+**Pre-launch qualification:** For the existing supported verified Claude-author
+path, explicit cross-agent Claude/Codex model selectors are compared with the
+sealed catalogue before launch. An unknown exact selector, an unqualified
+explicit alias, or an observed weaker selector is skipped with its typed
+failure and sends no packet. An omitted model (a runtime-default route) and
+the unverified OpenCode adapter retain main's launch-and-confirm path; they
+cannot earn independent approval without the existing post-launch identity
+and capability checks. This continuation does not claim universal pre-egress
+qualification. Typed qualification refusals exhaust those candidates without
+pretending a process ran, but cannot alone unlock fallback. At least one
+independent route must actually be attempted and return a typed failure. If
+every selector is refused before launch, the result is blocked with recovery
+to pin a qualified selector. Existing authenticated job writes and retry
+currency preserve this evidence; no recovery protocol is added. Route order,
+retained stronger findings, zero-route
+refusal, and main's unknown-author reduced-receipt behavior remain unchanged.
+
+### Retained main reference
+
+The following architecture, context, disposition, and fallback detail describes
+the implemented baseline; the four decisions above are the continuation's
+review focus. The existing ARCHITECTURE records remain linked design records:
+their historical Proposed labels are not new claims that main lacks those
+mechanics, and this continuation does not silently promote those records.
 
 **Riskiest assumption:** Safeword can ignore cosmetic and unrelated context edits without also ignoring a decision that changes what the reviewer was required to judge. The cheapest discriminating proof is R4's paired context-identity outline: whitespace/comment and unrelated-inventory edits must retain approval, while a changed Rule, referenced persona, affected surface, principle, scope boundary, or plan decision must stale it.
 
 **Architecture at a glance:** one phase-aware context resolver constructs the complete review dependency set from the ticket and project configuration. One identity projector turns those inputs into a canonical record containing the target-plan identity, exact canonical-contract digest, ticket and review kind, and a semantic digest per load-bearing context role. Product and Implementation Plans use exact target bytes. Execution Plans retain the accepted normalized identity that excludes only ordinary progress in the four trusted Delivery Checklist progress cells; every stable obligation field and every other plan byte remains identity-bearing. The existing review coordinator snapshots that resolved packet and stores the identity with its authenticated receipt; every phase gate asks the same admission service whether the current identity still matches. A separate exact-byte copy-integrity check requires every installed authoring contract and generated reviewer rubric to match the canonical generated bytes at authoring, dispatch, and admission. Product, Implementation, and Execution Planning keep different rubrics and approval meanings, while generated shared clauses keep their lifecycle, scope-authority, and trust language identical.
 
-The closed `PlanningContextRole` model covers ticket, project, parent, milestone, rules,
-scenarios, dimensions, principles, personas, surfaces, architecture records,
-data guidance, reusable evidence, and the accepted upstream plan. The resolver accepts only ticket
-identity and review kind; callers cannot declare their own packet complete. It
-returns either the complete role-labeled dependency set, a typed
-`JustifiedAbsence { role, reason, authority }` for an inapplicable architecture
-record, an untriggered data guide, or a dimensions artifact that does not exist,
-or a typed missing-role error. The projector produces a
-versioned `PlanningReviewIdentity` containing ticket and review kind, target-plan
-identity, exact canonical-contract digest, and an ordered role/path/semantic-
-digest entry for every dependency. The ticket projection explicitly retains
-scope, exclusions, and versioned user-owned review dispositions matching the
-current review kind. The parent/spec
-projection explicitly retains inherited parent boundaries. The project
-projection retains the owning Product Plan's `Project non-goals` field—resolved
-from the declared parent Product Plan for a child and from the target Product
-Plan for a standalone feature. The rules projection retains each accepted Rule's
-lineage ID and full semantic text;
-the milestone projection explicitly retains milestone non-goals. Gherkin retains
-tags, structure, examples, and steps; personas, surfaces, and architecture
-retain only referenced entries. The principles role retains the full semantic
-principle set because a newly added or removed principle can change which
-principles apply before a plan references it. A reusable evidence projection
-retains its source identity, claims, declared or explicitly absent license,
-attribution, redistribution, security, privacy, and reuse limits.
-The accepted upstream plan projection retains every decision-bearing section,
-including Approach, proof scope and confidence limits, affected surfaces,
-contracts and failure behavior, rollout and rollback, Measurement applicability,
-Persona consequences, Recorded Decisions, Data applicability, Design alignment,
-Known deviations, Doc impact, and Assessment triggers. The
-canonical-contract identity retains every byte inside the canonical contract
-markers, including layout and comments. Context projections retain semantic
-content while ignoring cosmetic layout and comments. Meaningful
-order is preserved, declared sets are sorted, and missing, duplicate, unknown,
-or ambiguous required shapes fail closed.
-
-The parent role and rules role have separate ownership even when both resolve
-from one declared parent spec: parent retains the selected parent job, project
-and milestone boundaries, and non-goals; rules retains the inherited Rule IDs
-and full semantic text. An unresolvable declared parent therefore reports the
-parent role first and never fabricates either projection.
-
-For `product-plan`, the required dependency set is ticket, project, parent and milestone
-boundaries when present, spec Rules and epistemic state, principles, personas,
-and affected surfaces. Accepted scenarios, dimensions, architecture/data
-guidance, and an accepted upstream plan are explicitly inapplicable because
-Product Plan review precedes those downstream decisions. Implementation and
-Execution review retain that ticket/project/parent/milestone boundary base. Implementation
-review additionally requires accepted Rules and scenarios, applicable
-dimensions, principles, personas, affected surfaces, configured durable
-architecture records, and data guidance when triggered. Execution review
-additionally requires accepted Rules and scenarios, applicable dimensions,
-principles, personas, affected surfaces, configured durable architecture records,
-triggered data guidance, and the accepted Implementation Plan. This retains
-main `9f6ac6fce`'s Execution contract and context resolver unchanged.
-The exact plan under review and canonical phase contract are first-class
-identity fields, not context roles. Every inapplicable or unavailable optional
-role is represented explicitly rather than omitted.
-
-Parent and milestone presence comes from ticket declarations, never file
-existence: an undeclared relationship produces `JustifiedAbsence` authorized by
-the ticket projection, while a declared relationship whose target cannot be
-resolved is a missing-role error. Reusable evidence presence comes from the
-reviewed plan's evidence references: no reference produces `JustifiedAbsence`
-authorized by that plan; a named source that cannot be resolved is a missing-
-role error. For `product-plan`, the target spec's own Rules are already covered
-by the exact target bytes; the separate rules role contains only inherited
-parent Rules when a child declares a parent.
-
-The resolver derives data-guidance applicability from the reviewed plan's own
-`Data applicability` declaration: a justified `skip: <reason>` produces the
-typed absent data role with that reviewed plan as authority; every non-skip data
-decision requires current configured data guidance. The plan cannot silently
-remove that context: the skip stays in exact reviewed target bytes and the
-Implementation Plan rubric independently accepts or rejects its reason.
-Architecture applicability is deliberately stricter: only when no durable architecture record is configured may the
-reviewed plan's justified `Architecture applicability: skip: <reason>` produce
-an absent architecture role, with that reviewed plan as its authority; configured
-records remain required context. The optional generated
-architecture snapshot is advisory support outside `PlanningContextRole`: its
-absence never blocks dispatch and its regeneration never changes review
-identity. Only the configured durable architecture record role is authoritative.
-
-A declined optional strengthening is durable user-owned ticket context, not a
-reviewer decision and not a change to the plan. A versioned
-`review_dispositions` ticket field records the review kind, authenticated
-finding fingerprint, accepted-boundary digest, `declined` disposition, and the
-user's reason. The user is the change authority. A typed
-`ticket record-review-disposition` command may write it only from an
-authenticated warning/info finding after explicit user direction; it performs
-a compare-and-swap against the exact `ticket.md` bytes under the Data
-applicability boundary below. Recording,
-editing, or removing the disposition changes the ticket semantic projection,
-but the projector includes only dispositions whose recorded review kind matches
-the review being prepared. A disposition therefore stales only that kind's
-receipt and sends the unchanged plan through fresh same-kind review with the
-decline in context; other phase receipts remain current because neither accepted
-scope nor a plan decision changed. This reuses the ticket as accepted-boundary
-state; it does not widen scope or add another store.
-
-User direction is a structural boundary: the typed command presents the exact
-authenticated finding, boundary digest, and proposed reason in an interactive
-confirmation. `--no-input`, redirected input, or refusal records nothing and
-returns a pending action; agent prose or a reviewer field cannot stand in for
-confirmation. The confirmation proves control of the local interactive command,
-not a cryptographic human identity, which is sufficient because a fabricated
-decline cannot authorize work or block an otherwise optional finding.
-
-The accepted-boundary digest limits a decline to the boundary against which the
-user made it. It covers only accepted ticket scope and exclusions, project
-non-goals, declared parent Product Plan boundaries, and declared milestone
-non-goals. It deliberately excludes `review_dispositions`, so recording a
-decline cannot invalidate the boundary that gives the decline meaning. A
-matching disposition is supplied to the reviewer rubric as resolved user
-authority; the coordinator does not hide or filter the original finding. If the
-boundary digest no longer matches, the record remains preserved as history but
-no longer suppresses reconsideration of the suggestion against the new
-boundary. An undecided optional suggestion creates no disposition, cannot
-change plan bytes, and remains nonblocking.
-
-Accepting an optional expansion does not create an `accepted` disposition. The
-user first changes the authoritative ticket scope/exclusions—or the owning
-parent Product Plan when authority lives there—and only then may the plan be
-corrected. That semantic boundary change stales dependent approval and requires
-fresh review, making user authority visible before agent-authored plan bytes
-change.
-
-Planning-side evidence uses a versioned `PlanEvidenceRecordV1` embedded in the
-Implementation Inspiration decision entry, not the review job's output record.
-It retains source identity, checked/source/target versions, supported claim,
-license identifier or `none_declared`, attribution notice or `none_declared`,
-redistribution limit or `none_declared`, and security/privacy/reuse limits or
-`none_declared`. It is part of exact plan bytes and the accepted-upstream-plan
-semantic projection. Review-side `evidence_records` use the same limit fields
-inside the verdict payload; they remain distinct because reviewer-produced
-evidence cannot rewrite the plan under review.
+Retained context and identity invariants are defined in [Semantically Projected
+Planning Review Provenance](../../../ARCHITECTURE.md#semantically-projected-planning-review-provenance)
+and [Digest-Bound Planning Decisions](../../../ARCHITECTURE.md#digest-bound-planning-decisions-in-the-shared-review-ledger).
+The continuation preserves main's closed phase-owned role set, exact Product
+and Implementation target identity, normalized Execution progress identity,
+user-owned scope and dispositions, and direct Execution dimensions,
+architecture, and triggered data-guidance inputs. No resolver, disposition,
+approval, or transaction repair is part of this increment.
 
 ### Proof plan
+
+Deferred native-host proof: YCFFNC owns the accepted OpenCode R6 gate rows,
+R8 independently-passed guidance rows, and R9 installed-gate rows. Adapter
+fixtures do not prove native dispatch and activation authority. These rows
+remain deferred and unverified here; no scenario completion, historical skip
+rewrite, or enforced-authority claim is made.
 
 | Behavior | Owning boundary | Primary proof | Why this scope | Confidence limit / support |
 | --- | --- | --- | --- | --- |
@@ -226,145 +179,28 @@ Every new public or lifecycle entry point receives a real wiring proof: CLI conf
 - **OpenCode CLI/TUI:** local adapter/profile tests are narrower evidence; independent exact-version native dispatch and activation qualification remains deferred, so this continuation claims no enforced authority. **OpenCode Desktop** remains advisory.
 - **OpenAI Codex Cloud and Claude Code on the Web:** `skip:` the accepted feature marks them unaffected or advisory; no approval is claimed there.
 
-API contracts are internal typed CLI contracts: callers supply a ticket and review kind, not an arbitrary claim of completeness; the resolver returns either a complete, role-labeled dependency set or a typed blocking error. Authorization stays split: the coordinator authenticates review provenance, phase admission accepts only a current matching receipt, and neither grants Product approval, design approval, merge authority, or release authority it did not receive.
+Retained admission and fallback invariants are defined in [Authenticated
+Reduced-Independence Planning Review Fallback](../../../ARCHITECTURE.md#authenticated-reduced-independence-planning-review-fallback)
+and the [host-owned coordinator](../../../ARCHITECTURE.md#host-owned-cross-agent-adversarial-review-coordinator).
 
-Failure behavior is fail closed at authoring, dispatch, and admission. Typed
-failures distinguish `missing_review_target` for an absent plan under review,
-`missing_canonical_contract` for an absent canonical phase contract,
-`missing_generated_shared_clause` carrying the missing clause identifier and
-affected planning phase,
-`missing_generated_contract_copy` for an absent installed authoring or reviewer
-contract copy,
-`canonical_contract_copy_mismatch` for an installed byte mismatch, a missing
-context role, a blank/unreadable/stale override, reviewer-route exhaustion, and
-an ungated review origin. Each carries its own reconciliation action rather than
-forcing every recovery through a context-role error. Rollout activates the
-generator, resolver, coordinator identity, copy-integrity check, and admission
-reader together in the released package and regenerated host assets. Rollback
-reverts that unit; durable review records remain preserved but confer authority
-only when the active reader can authenticate and recompute their identity. The
-ticket adds no feature flag and no external service.
+- A current authenticated receipt remains separate from user scope, human
+  design approval, merge, or release authority.
+- Under prefer, fallback requires at least one actual independent reviewer
+  attempt with a typed failure and exhaustion of every stronger route. If all
+  explicit selectors are refused before launch, coding stays blocked with
+  qualified-selector recovery; a skipped route is never an actual attempt.
+- A successful different-agent review with unknown author capability retains
+  main's reduced classification. It is not independent; require still blocks.
+- Same-agent headless, fresh-context, and self-review tiers retain their order,
+  fixed packet, authenticated receipts, and source-currency checks.
+- Canonical integrity, configured policy, user route lists, and durable history
+  remain fail closed. No rollback or concurrency recovery is added.
 
-A configured project-knowledge override is stale only when its reconciliation
-lineage names a superseded packaged-source version; content that intentionally
-differs from the installed default remains current. Review fallback also stays
-fail closed until at least one configured independent route was attempted and
-every stronger available route returned a typed failure. When project policy
-permits fallback, the coordinator advances the fixed packet through same-agent
-headless, host-reported fresh-context, then bounded self-review in order. For
-the two host-owned tiers it issues a tier-bound continuation over the immutable
-packet and integrity-seals the returned typed verdict in the existing job store.
-An approval may then produce a stamp-eligible receipt whose actual reviewer and
-`reduced` independence are explicit; it never claims cross-agent independence
-or merge/human authority. `require` policy, an unattempted independent route,
-zero configured/reachable independent routes before any attempt, or an ungated
-origin remains blocking. Cross-agent classification additionally requires a
-different agent in a separate process using a reviewer capability at least as
-strong as the author. Same-process authors enter only their named policy-
-permitted fallback tier. A weaker cross-agent review returns
-`reviewer_capability_weaker`; its verdict is discarded, creates no receipt, and
-advances to the next configured independent route or, only after independent-
-route exhaustion, the first accepted fallback tier.
-Capability comparison uses main's versioned sealed empirical comparison for
-each exact author/reviewer pair. Project and user configuration may select
-routes but cannot invent capability evidence or override the comparison with
-integer ranks. The coordinator compares verified author and reviewer identities
-against the current corpus, rubric, and settings revision. Author identity comes from trusted host session
-metadata captured by the coordinator, never plan or agent prose. Reviewer
-identity comes only from the coordinator resolving an exact non-alias model ID
-for the selected route and launching that explicit selector through an adapter
-whose adapter-specific launch proof confirms the same ID. A runtime default,
-alias, missing confirmation, configured/launched/confirmed mismatch, or model name
-inside the reviewer's verdict is not verified. Reviewer output can never
-upgrade this coordinator-observed provenance. An absent, unverified, or
-unqualified identifier fails closed with `reviewer_capability_unknown` and
-cannot earn cross-agent independence. An observed weaker comparison returns
-`reviewer_capability_weaker` during route selection and is not launched as an
-independent reviewer. Adapter confirmation after launch still proves that an
-eligible requested selector was actually honored; a mismatch returns an
-unknown-capability failure and creates no receipt.
-Host capability is explicit rather than inferred. Claude Code's trusted
-SessionStart model field can establish an exact author model. The current Codex,
-Cursor, and OpenCode lifecycle contracts do not expose a trusted exact author
-model to Safeword, so reviews authored on those hosts return
-`author_capability_unknown` and cannot earn cross-agent classification until a
-host adapter proves such metadata. Under `prefer`, a successful different-agent,
-separate-process review is admitted immediately as `reduced`, with its actual
-reviewer, selected route, and unknown-author reason preserved; the coordinator
-does not discard that stronger evidence and descend to same-agent fallback.
-Under `require`, the same job and findings remain inspectable but create no
-admitting receipt. A failed route still follows the ordinary ladder. Real host
-lifecycle fixtures must prove both the supported Claude value and the absence
-cases before an adapter may advertise capability.
-
-Reviewer confirmation is adapter-specific and coordinator-owned. Claude must
-return a canonical model in its trusted JSON `modelUsage` envelope that matches
-the requested exact non-alias selector. Codex JSONL does not echo a model, so
-its proof is the coordinator-owned exact `--model` argv plus successful process
-completion after the versioned compatibility probe establishes that this CLI's
-selector is binding and unsupported selectors fail nonzero. OpenCode remains
-unverified until its live adapter proof establishes trusted provider/model
-metadata; no packaged cross-agent default may depend on it. Reviewer prose is
-never confirmation. Release verification runs the live selector/confirmation
-proof for every shipped default route claimed to provide cross-agent
-independence, in addition to checking its catalogue comparison.
-
-Existing explicit runtime-default reviewer routes remain readable and are still
-attempted in their configured position. They earn cross-agent classification
-only when the adapter-specific launch proof resolves an exact reviewer model
-that matches a qualified catalogue entry; otherwise they return
-`reviewer_capability_unknown`, create no independent receipt, and continue the
-ordered ladder. Upgrade does not rewrite user route configuration. Recovery is
-specific: pin a supported exact reviewer selector when reviewer identity is
-unknown; use a host with verified exact author metadata or change `require` to
-`prefer` when author identity is unknown; or update Safeword after that host
-gains a verified adapter.
-Packaged cross-provider comparisons use the pinned, predeclared qualification contract
-in Decisions below; unsupported comparisons remain unknown. Release
-verification fails if a shipped default route claimed as independent lacks
-either an admitted catalogue comparison or its live adapter confirmation proof.
-The host-capability matrix explicitly labels Codex-, Cursor-, and OpenCode-
-authored defaults `reduced` until they expose trusted author metadata, so reduced
-assurance is visible rather than silently presented as independent.
-The Safeword release maintainer owns capability-corpus refresh when a default
-model changes or retires. The release gate has no waiver that can mint an
-unsupported packaged comparison: maintainers update the default route or rerun
-the corpus. After release, an exact configured selector that the provider no
-longer offers returns its typed route failure and creates no receipt. A verified
-exact model absent from the active catalogue returns
-`reviewer_capability_unknown`; runtime code never reinterprets dated provider
-evidence to invent a comparison. The next Safeword release refreshes the packaged
-catalogue or changes the default route. This operational duty sits outside the
-accepted builder persona set; builders retain explicit route selection
-recovery below.
-An `off` coordinator policy cannot satisfy a planning phase review gate and
-therefore reports a blocking configuration error until cross-agent review is
-enabled.
-
-Behavioral compatibility is intentionally fail-closed at activation. Existing
-`off` projects must choose `prefer` or `require` before a planning phase can
-advance. Existing `require` projects authored on Codex, Cursor, or OpenCode
-block with `author_capability_unknown` until the host gains verified metadata or
-the user changes policy to `prefer`; Safeword never weakens `require`
-automatically. Existing `prefer` projects continue through the successful
-different-agent `reduced` receipt described above. Route lists and history are
-preserved without migration or rewrite. Customer guidance and the typed failure
-must name the exact policy edit or supported-host action before activation.
-
-The Product Plan review gate sits at the Product Plan's exit from `intake`,
-before `define-behavior` and scenario-quality review. It admits only the bounded
-behavior decision; it does not approve scenarios, design, execution, or release.
-
-The Product Plan rubric emits the accepted persona-outcome inventory already
-required by its contract: persona identity, outcome class, applicability, and
-the stated reason for every inapplicable class. Scenario review receives that
-inventory with the accepted scenarios and performs a separate judged mapping
-from every applicable outcome to at least one scenario. An uncovered outcome is
-a blocking scenario-review finding that names the persona and outcome class;
-Product Plan approval alone cannot clear it. The mapping is review evidence in
-the existing scenario-gate result, not a new persistent authority or structural
-tag scheme. Fixed pass/fail judged fixtures plus real installed scenario-gate
-dispatch prove both the semantic mapping and its wiring.
+Rollout and rollback cover only the four continuation additions and their
+generated carriers. Reverting them preserves main's implemented contract,
+context, disposition, approval, and fallback repairs. Records remain intact;
+an older reader that cannot authenticate or parse a new result must refuse
+admission rather than infer compatibility. No feature flag or service is added.
 
 Measurement applicability: skip: this child's accepted contribution carries no
 quantitative product promise. The capability corpus is an internal release gate,
@@ -398,9 +234,6 @@ implementation; historical failures and deferred host proofs remain unchanged.
 | [Bazel remote caching](https://bazel.build/remote/caching) | 2026-09-20 | current documentation | Safeword review jobs | Reuse is safe only when the action key covers declared inputs; untracked tools create false hits | Make every load-bearing review input an explicit typed dependency | Build-cache semantics are analogous evidence, not reused code; Safeword reviews are judgments, not builds |
 | [SLSA provenance 1.2](https://slsa.dev/spec/v1.2/provenance) | 2026-09-20 | v1.2 Approved | Review receipt schema v1 | Provenance identifies the subject and the inputs/process that produced a claim | Bind a verdict to its reviewed subject, context, and actual producer route | Community Specification License 1.0; conceptual use only; Safeword does not claim SLSA conformance |
 | [NIST FIPS 180-4](https://csrc.nist.gov/pubs/fips/180-4/upd1/final) | 2026-09-20 | August 2015, revision planned | Node/Bun `sha256` | SHA-256 produces a digest that detects changed message bytes | Retain the existing SHA-256 primitive for plan, contract, and projection identity | Public standard; no source reused; a digest authenticates neither the reviewer nor semantic completeness |
-| [OpenAI model catalogue](https://platform.openai.com/docs/models) | 2026-09-20 | current documentation | Packaged reviewer capability catalogue | The provider publishes exact model identities and an explicit within-family capability/cost ordering | Admit a packaged ordering only when current provider evidence is explicit; keep unsupported comparisons unrankable | Provider-authored claims do not establish cross-provider ordering; no source or model output reused |
-| [Anthropic model lifecycle](https://docs.anthropic.com/en/docs/about-claude/model-deprecations) | 2026-09-20 | current documentation | Packaged reviewer capability catalogue | Exact model lifecycle and recommended replacements change over time and require dated evidence | Bind catalogue entries to exact model IDs, evidence date, and evidence revision | Lifecycle/replacement guidance is not a cross-provider benchmark; no source or model output reused |
-| [Anthropic success criteria](https://docs.anthropic.com/en/docs/test-and-evaluate/define-success) | 2026-09-20 | current documentation | Reviewer capability eval | Evaluation criteria should be specific, measurable, achievable, and relevant, with explicit benchmarks | Predeclare a measurable absolute floor and fixture-level comparison before observing candidate results | Provider guidance does not choose Safeword's threshold or prove cross-provider capability; no source or model output reused |
 
 **Decision impact:** changed: review currency uses exact Product/Implementation
 target bytes and the accepted normalized Execution identity plus the exact
@@ -411,6 +244,15 @@ exact canonical contract and semantic projections of every load-bearing context
 role, without weakening exact generated-copy conformance.
 
 ### Supporting decision detail — capability catalogue qualification
+
+These retained research references were checked on 2026-09-20; they are not
+fresh qualification evidence or authority to infer a model comparison.
+
+| Historical reference | Decision consequence | Limit |
+| --- | --- | --- |
+| [OpenAI model catalogue](https://platform.openai.com/docs/models) | Identify exact selectors; admit comparisons only from the pinned Safeword corpus | Provider documentation cannot establish a packaged capability comparison |
+| [Anthropic model lifecycle](https://docs.anthropic.com/en/docs/about-claude/model-deprecations) | Bind records to exact selectors and dated evidence | Replacement guidance is not a cross-provider benchmark |
+| [Anthropic success criteria](https://docs.anthropic.com/en/docs/test-and-evaluate/define-success) | Predeclare measurable criteria and fixture-level comparison | Provider guidance neither chooses Safeword's threshold nor proves model capability |
 
 Packaged cross-provider comparisons are generated only from a release-gating pinned
 planning-review capability corpus. Each exact model reviews the same Product,
@@ -461,6 +303,10 @@ research, not fresh provider verification or capability admission evidence.
 
 | Decision | Choice | Alternatives considered | Rejected because |
 | --- | --- | --- | --- |
+| Proposed: judge persona outcomes and accepted scope in the existing phase verdicts. | Keep the mapping as judged review evidence and judge omissions as well as overreach. | A persistent mapping store; structural tags alone; reviewing only added scope. | Another store creates new authority and migration; tags cannot establish semantic coverage; one-sided review misses accepted work. Existing phase-gate dispatch and paired semantic fixtures are the proof boundary. |
+| Proposed: keep typed plan evidence separate from verdict evidence. | Embed optional V1 plan records in Decisions and require the V1 wrapper on new planning verdicts, using the same eleven limit fields. | One shared evidence store; a mandatory linked artifact; converting every legacy research table. | A shared store blurs author/reviewer authority; a linked artifact adds identity and lifecycle machinery; mandatory conversion breaks format-flexible historical evidence. Parser and authenticated-output integrations exercise the selected boundary. |
+| Proposed: read bounded installed canonical rules for currency and keep exact whole-copy integrity for use. | Hash the exact marked region of the installed packaged author file, compare it with the generated rubric, and retain the existing exact canonical identity. | Trust only compiled rubric bytes; hash the whole installed file for currency; normalize canonical whitespace/comments. | Compiled-only currency misses changed installed rules; whole-file currency stales on unrelated copy edits; canonical normalization violates the accepted exact-contract invariant. Paired inside/outside-marker mutations plus independent dispatch refusal distinguish these choices. |
+| Proposed: refuse unqualified explicit selectors before launch on the supported verified-author path. | Classify explicit Claude/Codex selectors before egress, retain post-launch confirmation, and record typed skipped exhaustion. | Launch every explicit selector before classification; reject all runtime-default and unverified-host routes before launch; discard retained stronger feedback. | Launching a known refusal exposes a packet unnecessarily; universal preflight changes main's compatibility and host boundaries; discarding stronger feedback weakens the existing ladder. Route subprocess logs and exact typed refusal assertions prove the chosen boundary. |
 | Bind each verdict to its phase's target-plan identity plus exact canonical-contract bytes and semantic context projections, while gating generated copies by exact bytes separately. | Use exact Product/Implementation target bytes and the accepted normalized Execution identity that excludes only ordinary checklist progress; use a versioned typed context projection and an exact canonical-copy digest for authoring, dispatch, and admission conformance; reject unknown required shapes. | Hash every packet byte into review currency; normalize stable Execution Plan fields; persist a general Merkle dependency graph. | Whole-packet hashing would rereview already-approved work after each checklist tick. Normalizing stable obligations could hide design changes. A general graph adds storage, migration, and traversal machinery without improving this fixed three-phase dependency model. |
 | Extend the existing coordinator and review ledger instead of creating a second planning-review subsystem. | One resolver feeds packet construction, job fingerprinting, status, stamps, and phase admission. | Validate only in hooks; add a new planning receipt store. | Hook-only checks drift by host. A second store would split authority and duplicate integrity, concurrency, and fallback behavior already present. |
 | Author shared planning clauses once and generate exact marked copies while keeping phase-only judgment separate. | One canonical shared-clause source generates Product, Implementation, and Execution contract mirrors; each phase owns its distinct rubric. | Duplicate prose with parity tests; collapse all phases into one rubric. | Duplicate prose remains two authorities even if tested. One rubric would erase the different behavior/design/delivery approval meanings. |
@@ -476,7 +322,7 @@ The recommendation is the typed semantic projection because it is the only candi
 Data applicability: review provenance and user-owned review dispositions are durable project-local authority data, so this feature changes their schemas but does not add a store.
 
 - **Purpose:** prove which phase-specific target identity and exactly identified canonical contract and accepted context, ticket, review kind, reviewer route, and independence level produced a verdict, while separately proving installed copies match the canonical generated bytes.
-- **Store and model:** retain the ticket file, existing integrity-protected review job JSON, and append-only review ledger. Add a versioned `review_identity` and versioned `evidence_records` collection to new job results; add versioned `review_dispositions` to ticket frontmatter; stamps continue to cite the coordinator review ID rather than copy identity data.
+- **Store and model:** retain the ticket file, integrity-protected review job JSON, append-only review ledger, and main's versioned `review_identity` and `review_dispositions`. Add only the versioned `evidence_records` collection to new planning verdicts; stamps continue to cite the coordinator review ID rather than copy identity data.
 - **Schema and relationships:** one review identity belongs to one review job and contains one phase-specific target-plan identity, one exact canonical-contract digest, and ordered role/path/semantic-digest dependencies. Each evidence record belongs to the verdict that produced it. Each ticket disposition cites one authenticated review kind and finding fingerprint plus the accepted-boundary digest it was judged against. A stamp references one job by ID and phase scope; generated-copy digests are recomputed conformance inputs, not currency fields.
 - **Source of truth:** captured plan and resolved project files are review inputs; the coordinator job record is the source of provenance and reviewer-produced evidence records; the ticket is the source of user-owned decline dispositions; the ledger is the source of phase-admission claims. No host-authored duplicate becomes authority.
 - **Ownership and access:** the coordinator writes job identity and evidence records; the stamp helper writes admission claims after authenticating that job; the user is the change authority for ticket dispositions and the typed CLI records one only after explicit user direction against an authenticated nonblocking finding. External reviewers receive bounded snapshots but never write authority files.
@@ -485,7 +331,7 @@ Data applicability: review provenance and user-owned review dispositions are dur
 - **Lifecycle and retention:** use existing ticket, review-job, and ledger retention. Source changes stale their declared dependents; disposition changes recompute only matching-kind identity and make that receipt non-current. Evidence records remain with their verdict and declare reuse limits before later use. No automatic deletion or compaction is added.
 - **Migration and backfill:** skip: the ticket excludes migration policy and adds no backfill. Existing receipts are preserved; they authorize only when the active admission reader can authenticate them and recompute the current required identity.
 - **Compliance:** packets retain the existing credential scan, size/containment checks, and prohibition on customer data, secrets, and private context sent for external research. Review dispatch follows the user's configured coordinator policy.
-- **Rollback:** reverting the feature leaves records intact. Unknown job-result and ticket fields stay authority-inert under older readers, and no rollback path rewrites or deletes ticket or ledger history.
+- **Rollback:** reverting the increment leaves records intact. An older reader that cannot authenticate or parse a new result must refuse admission; acceptance of new fields by older readers is not assumed. No rollback path rewrites or deletes ticket or ledger history.
 
 The identity is written in the same integrity-protected job result and under the
 same per-job lock as the verdict, using the existing temporary-file atomic
@@ -526,12 +372,22 @@ permission for the reviewer or agent to alter accepted scope.
 | 4. Discover decisions before prescribing work | Product, Implementation, and Execution contracts share decision-discovery boundaries while preserving their distinct outputs and return paths. | [R10 bounded-decision scenarios](features/keep-plan-reviews-current-and-trustworthy.feature) | |
 | 6. Correct and safe; then clear; then simple | One closed resolver/projector path replaces per-host context lists; no new dependency or general graph store is introduced. | [R2/R3 context-resolution scenarios](features/keep-plan-reviews-current-and-trustworthy.feature) | |
 
-Architecture applicability: this changes the shared `review` component's packet, provenance, and admission contract and the generated planning contracts consumed by every supported host. It honors [Separate Implementation and Execution Planning Gates](../../../ARCHITECTURE.md#separate-implementation-and-execution-planning-gates), [Conformance-Gated Execution Plan Review](../../../ARCHITECTURE.md#conformance-gated-execution-plan-review), the packet/routing/integrity boundaries of [Host-owned cross-agent adversarial review coordinator](../../../ARCHITECTURE.md#host-owned-cross-agent-adversarial-review-coordinator), and [Digest-Bound Planning Decisions in the Shared Review Ledger](../../../ARCHITECTURE.md#digest-bound-planning-decisions-in-the-shared-review-ledger). The new difficult-to-reverse identity and fallback-authority decisions are proposed in [Semantically Projected Planning Review Provenance](../../../ARCHITECTURE.md#semantically-projected-planning-review-provenance) and [Authenticated Reduced-Independence Planning Review Fallback](../../../ARCHITECTURE.md#authenticated-reduced-independence-planning-review-fallback); they become accepted authority only after this plan is approved.
+Architecture applicability: this continuation changes the shared verdict schema,
+installed canonical-currency source, and explicit-selector compatibility. Its
+durable proposed extensions are recorded in [Semantically Projected Planning
+Review Provenance](../../../ARCHITECTURE.md#semantically-projected-planning-review-provenance)
+and [Authenticated Reduced-Independence Planning Review Fallback](../../../ARCHITECTURE.md#authenticated-reduced-independence-planning-review-fallback).
+Main's separate planning gates, conformance admission, host-owned coordinator,
+and digest-bound ledger remain binding. Approving this plan accepts only its
+four continuation decisions; it does not promote the historical records as a
+whole. Safeword maintainers own separate reconciliation of their historical
+Proposed labels.
 
 ## Known deviations
 
-No unresolved deviations. If this plan is approved, the proposed fallback
-record linked above will supersede the older coordinator record's clauses that
+The scenario-definition correction below is resolved by the restored R2 row
+and its current approved scenario review. The retained fallback
+record linked above supersedes the older coordinator record's clauses that
 called every same-agent result `degraded`, prohibited host-owned fallback
 receipts from creating a stamp, and allowed host tiers to read live worktree
 paths without revalidating source integrity. It also narrows two older policy
@@ -565,11 +421,11 @@ The current-main continuation preserves direct Execution context requirements
 from `9f6ac6fce:packages/cli/templates/skills/bdd/PLAN_EXECUTION.md`: dimensions,
 configured architecture records and triggered data guidance remain direct
 inputs alongside the accepted Implementation Plan. The earlier narrower design
-description was incorrect for this baseline; the R2 scenario row must retain
-main's original inventory. No production context repair or expansion is part
-of this continuation. The attempted phase return to correct that row was
-refused pending an accepted Execution review; this remains an outstanding
-planning correction, not authority to weaken the gate.
+description was incorrect for this baseline. The R2 row now retains main's
+original inventory and has a current approved scenario review. No production
+context repair or expansion is part of this continuation. Both plan reviews
+must be current against these corrected inputs before coding resumes; the
+backward non-review exit did not authorize coding.
 The child R2 partition also narrows inherited TBU4.R4 for Product Plan review:
 accepted scenarios and downstream design guidance are not yet available at the
 Product Plan exit, so that phase directly reviews the ticket/project/parent/

@@ -54,7 +54,48 @@ This is one passing conformance case, not a qualified route or a complete
 63-case matrix. Reuse this result if the remaining unchanged cases are collected;
 do not pay to repeat the completed case without changed inputs.
 
+After the authorized local-plugin switch and restart, the remaining 62 cases
+are being collected with the same exact selector and unchanged current rubric:
+
+```sh
+SAFEWORD_TEST_LOCK_MAX_WAIT_MS=600000 \
+SAFEWORD_RUN_EXECUTION_PLAN_LIVE=1 \
+SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER=claude \
+SAFEWORD_EXECUTION_PLAN_LIVE_MODEL=claude-opus-5 \
+SAFEWORD_EXECUTION_PLAN_RESULTS_PATH=/tmp/5139-execution-opus-remaining.json \
+scripts/dev bun run --cwd packages/cli test --config vitest.live.config.ts \
+tests/smoke/execution-plan.live.test.ts -t '^(?!.*one-coherent-change)'
+```
+
+The run is pending. No complete matrix, new admission descriptor, or additional
+passing case is claimed before its actual result is retained. The existing
+descriptor cannot admit the changed contract; this collection does not repeat
+either completed capability collection or the completed first conformance case.
+
 The user authorized a bounded LOC exception on 2026-10-21. A normal progress
 checkpoint (`5477ef85f`) instead passed all precommit checks while retaining the
 uncommitted packet change that needs a cognitive-complexity refactor. No hook,
 threshold, receipt, historical ledger, or verification check was disabled.
+
+## 2026-10-21 restart interruption and official-baseline planning
+
+At 18:12 UTC, after the user's second full desktop restart, neither the Vitest
+parent nor worker remained. The remaining-case log ended at `RUN`; neither its
+result matrix nor output matrix existed. The run did not complete and provides
+no additional passing cases. Reviewer invocations used
+`--no-session-persistence`; no saved observations are available for replay.
+The earlier expectation that this process would survive was incorrect. Retain
+the completed first-case result and both complete capability collections.
+Any further collection must retain observations incrementally so another
+interruption cannot erase completed work.
+
+The shared official-main runtime is healthy/protected after restart. A
+project-only supported install (`--agents cursor,codex --no-modify`) reconciled
+four generated guidance files in this worktree to that runtime's baseline.
+Its actual effects contained no packages, configuration, network, or destructive
+changes; source templates remain untouched. The candidate guidance was archived
+before reconciliation. This permits planning against the installed official
+contract without replacing the shared runtime with this branch's candidate.
+Final regeneration must restore the candidate's derived surfaces before PR
+verification. The initial `--offline` install was refused without effects by
+the CLI's online-required policy; that refusal is not a successful install.

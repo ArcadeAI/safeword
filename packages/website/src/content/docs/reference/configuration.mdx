@@ -208,7 +208,40 @@ Only `crossAgentReviewRoutes` is user-scoped today; review policy and legacy pri
 
 Authentication is recoverable reviewer state, not a failed route. If a preferred or alternate independent route is not signed in, Safeword returns `REVIEW_AUTHENTICATION_REQUIRED` with that reviewer's login command and does not start a same-agent fallback. Managed agent workflows run the command, allow any browser or device login to finish, and retry the same review once; another authentication denial remains an explicit blocker.
 
-Without `crossAgentReviewRoutes`, Safeword retains the legacy chain and selects Claude's `opus` alias for the primary independent review and `sonnet` for its alternate attempt. Codex continues to use its authenticated profile unless configured. Override either legacy route per agent with `crossAgentReviewPrimaryModel` or `crossAgentReviewAlternateModel`; environment variables `SAFEWORD_REVIEW_PRIMARY_MODEL_CLAUDE`, `SAFEWORD_REVIEW_PRIMARY_MODEL_CODEX`, `SAFEWORD_REVIEW_ALTERNATE_MODEL_CLAUDE`, and `SAFEWORD_REVIEW_ALTERNATE_MODEL_CODEX` take precedence. Model identifiers must be 1–200 characters using letters, digits, `.`, `_`, `:`, `/`, or `-`, and cannot begin with `-`.
+Without `crossAgentReviewRoutes`, Execution Plan review selects exact defaults
+`claude-opus-5` and `gpt-6-astra`. Other review kinds retain Claude's `opus`
+primary and `sonnet` alternate, and Codex's authenticated profile. Override
+either legacy route per agent with `crossAgentReviewPrimaryModel` or
+`crossAgentReviewAlternateModel`; environment variables
+`SAFEWORD_REVIEW_PRIMARY_MODEL_CLAUDE`, `SAFEWORD_REVIEW_PRIMARY_MODEL_CODEX`,
+`SAFEWORD_REVIEW_ALTERNATE_MODEL_CLAUDE`, and
+`SAFEWORD_REVIEW_ALTERNATE_MODEL_CODEX` take precedence. Model identifiers must
+be 1–200 characters using letters, digits, `.`, `_`, `:`, `/`, or `-`, and cannot
+begin with `-`.
+
+For planning review with a verified Claude author, explicit Claude/Codex model
+selectors must have a current sealed capability comparison before launch.
+Unknown and observed weaker selectors are recorded as skipped typed refusals;
+they receive no packet. Pin a currently qualified exact selector in the named
+route and retry. Runtime-default routes and OpenCode retain the existing
+launch-and-confirm behavior. An unknown author cannot earn an independent
+capability claim; a successful different-agent review retains main's reduced
+classification under `prefer`.
+
+Planning fallback requires at least one actual independent attempt with a
+typed failure and exhaustion of every stronger route. All-skipped routes stay
+blocked even under `prefer`; skipped refusals never become attempted reviews.
+Permitted sealed-packet fallback records the actual reviewer and reduced
+independence, and cannot satisfy `require`. This receipt does not grant human
+design approval, merge authority or downstream completion. Codex Cloud and
+OpenCode Desktop remain advisory surfaces.
+
+New planning verdicts carry a versioned evidence-record collection; plans
+declare new reused external evidence as `PlanEvidenceRecordV1` in Decisions.
+Records preserve source/version, claim, license, attribution, redistribution,
+security, privacy and reuse limits without granting permission. Currency uses
+the exact canonical region of the trusted packaged author contract; whole-copy
+integrity remains separately required for authoring, dispatch and admission.
 
 For projects that opt into ranked routes, `safeword status` reports each configured route in order for the detected Claude, Codex, or OpenCode author runtime. A plain terminal with no detected author does not select an author-specific route list. Installation and compatibility come from bounded local inspection; OpenCode model routes also report whether the exact provider-qualified model appears in `opencode models --pure`. Catalogue presence is not proof that credentials or inference work. Only the most recent integrity-validated review job for the exact runtime plus explicit model—or the explicit runtime-default marker—reports `proven` or `known_failure`. Older records without that exact identity prove nothing. `--offline` skips this optional catalogue inspection while preserving the remaining local status checks.
 

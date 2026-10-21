@@ -2,7 +2,7 @@
 id: 5F5ZZA
 slug: keep-plan-reviews-current-and-trustworthy
 type: feature
-phase: plan-execution
+phase: implement
 status: in_progress
 phase_skips:
   - "intake: originally inherited the 2026-09-08 approval of 82T411; after material parent changes, 82T411 was freshly approved and this child was reconciled before scenario review resumed"

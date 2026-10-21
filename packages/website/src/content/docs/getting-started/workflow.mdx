@@ -68,6 +68,32 @@ The agent sizes the work — it doesn't announce a label, it just picks the righ
 - **task** runs the TDD loop: a failing test (RED), the minimum code to pass (GREEN), then cleanup (REFACTOR).
 - **feature** writes define-behavior scenarios first (saved to `features/<slug>.feature`, with `test-definitions.md` as the RED/GREEN/REFACTOR progress ledger) and validates them at the scenario gate. Implementation Planning captures current, comparable, version-matched primary evidence and settles approach decisions in `impl-plan.md`. After semantic review and any enabled human approval, Execution Planning turns those decisions into concrete proof and build order in `execution-plan.md`. Its semantic review checks that every step can start without inventing a decision. Implementation then follows the same TDD loop.
 
+Planning review checks for both missing accepted work and additions outside
+your scope. A Product Plan inventories each persona's consequential success,
+refusal, failure, approval, trust and recovery outcomes, or explains why an
+outcome does not apply. It distinguishes facts, assumptions and unresolved
+choices. Scenario review separately checks coverage of applicable outcomes.
+
+New external evidence reused by a plan declares its source and versions,
+supported claim, license, attribution, redistribution, security, privacy and
+reuse limits in a typed record. New planning verdicts retain their own typed
+evidence records. Neither record grants permission, changes accepted scope or
+authorizes execution of retrieved code.
+
+A current review uses the exact canonical rules inside the trusted packaged
+contract markers. An edit elsewhere can leave the review current while still
+blocking use until the whole authoring copy is reconciled. With a verified
+Claude author, unknown or weaker explicit Claude/Codex selectors are refused
+before launch. If none was actually attempted, fallback cannot approve; select
+a qualified exact model and retry. Runtime-default and OpenCode routes retain
+their existing identity checks after launch.
+
+Product approval establishes the accepted behavior, Implementation approval
+the accepted approach, and Execution approval startable delivery. None proves
+implementation, verification, human approval or merge authority. Codex Cloud
+and OpenCode Desktop execution remains advisory; use a supported gated surface
+for authoritative planning.
+
 ## 4 · Verify
 
 The agent runs the relevant tests itself after every fix, task, or feature. It never hands you something to test that it could have tested.
