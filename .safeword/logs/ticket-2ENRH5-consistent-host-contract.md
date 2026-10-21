@@ -981,3 +981,62 @@ work; the new evidence follow-up currently omits it. Repair will preserve the
 evidence reason first and the existing reminder in the same follow-up. No GREEN
 ledger transition or whole-ticket completion is claimed. A local partial
 checkpoint is required by the 400-LOC gate before that regression repair.
+
+Checkpoint 2ecef6168 saved the reviewed shared wiring and refreshed fixtures.
+Repaired the architecture regression by appending the existing advisory after
+the missing-evidence reason in the same Cursor follow-up. Expanded real-process
+Cursor controls for valid evidence/no status mutation, other or absent session,
+quiet ordinary verification, aborted/error stop, custom namespace and later
+loop. Targeted rerun passed all eight files / 114 tests. Quality review
+43060cc6-5f7a-431f-87b3-4bd3fe0f1fb8 APPROVED the repaired implementation.
+
+The native-cursor required group now collects every exact native IDE row from
+the Gherkin source, using the same parser/result path as CLI. It includes all
+four required cases rather than the old catalogue-only incomplete pilot. A
+first aggregate attempt had setup focus failures and correctly returned 3,
+report safeword-host-contract-proof-FuX4Li/cucumber.json; do not count it passing.
+Made activation/read readiness retry bounded, and reacquire the exact owned
+input before the single submission key. No submitted request is retried.
+Automation quality review 0ed53011-a0a8-4894-a840-2e874d270137 APPROVED.
+Group collector/result quality review dfd9f8c6-0851-414d-8a4e-4d72a3317a25
+APPROVED, with diagnostic-only/non-admission limits retained.
+
+Final actual Cursor IDE group passed 4 scenarios / 16 steps in 210.52s, exit 0.
+Report /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-Pvyppp/cucumber.json.
+Case IDs: cursor-3.24.18-native-denied-write,
+cursor-3.24.18-native-allowed-write, cursor-3.24.18-bounded-continuation,
+cursor-3.24.18-catalogue-helper. Continuation fixture CjI1or. Its completion
+record is explicitly diagnostic-only, admission_eligible=false.
+Final exact CLI regression passed 3 scenarios / 12 steps in 72.255s, exit 0,
+report safeword-host-contract-proof-aY1h7X/cucumber.json under the same temp root.
+No CLI continuation or customer activation is inferred.
+
+Typecheck, targeted lint, formatting, 277 parity pairs/11 contracts and all five
+generated surfaces passed. Lifecycle fixtures changed installed tree hashes
+only; result_sha256 values remained unchanged. The full CLI suite is currently
+running (log /tmp/safeword-completion-full-suite.log); no full-suite pass yet.
+Gracefully stopped only the exact owned isolated Cursor 3.24.18 process after
+all GUI proofs completed, retaining its profile and evidence. The regular
+application was untouched. Remaining ticket obligations include Codex native
+continuation, OpenCode lanes, inventory/ownership adoption and activation/admission
+lifecycle; all scenario-definition ledger checkboxes remain unchecked.
+
+Full CLI run completed in 1016.90s: 692 files passed / one failed, 11,405 tests
+passed / one failed / fourteen existing skips (11,420 total). The failing
+degraded-explanation timeout case expected a degraded fallback, but the fixture's
+fallback compatibility probe itself exceeded its two-second budget and returned
+probe_timed_out, correctly leaving independence none. See
+/tmp/safeword-completion-full-suite.log:415. The changed completion helpers do
+not own this route, and git diff confirms neither the review implementation nor
+that test changed. Auth failure is ruled out by the typed probe timeout and the
+fixture's fake reviewer binaries, rather than actual Claude authentication.
+Scheduling pressure is plausible but not established as the physical cause.
+
+Unchanged isolated rerun of tests/review/degraded-explanation.test.ts passed
+both tests in 3.41s, log /tmp/safeword-degraded-review-isolation.log. No assertion
+was weakened and no unrelated review fix was made. Preserve the distinction:
+the full run failed one timing-sensitive fixture; the isolated follow-up passed.
+All changed completion behavior passed its real-host and targeted regressions.
+The local checkpoint remains part of an open feature, not release readiness.
+Both task-owned installer disk images were gracefully unmounted after the GUI
+proof, retaining downloaded binaries and all evidence files.

@@ -193,7 +193,10 @@ struct NativeCursorWindow {
     }
 
     func submit(_ prompt: String) throws {
-        guard !prompt.isEmpty, foreground() else { throw failure("Isolated Cursor is not ready for submission") }
+        guard !prompt.isEmpty else { throw failure("Expected a synthetic prompt") }
+        // Restore the exact owned field before the one-shot Enter. Submission
+        // itself is never retried, and every key still checks PID/window focus.
+        try focusInput()
         let observed = attribute(try focusedInput(), kAXValueAttribute) as? String
         guard observed == prompt || observed == prompt + "\n" else {
             throw failure("Prepared prompt differs from the synthetic action")

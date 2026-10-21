@@ -171,9 +171,15 @@ if (input.status !== 'completed') {
 const runIdentity = resolveRunIdentity(input, { runtime: 'cursor' });
 const completion = evaluateSessionDoneEvidence(process.cwd(), runIdentity);
 if (completion && !completion.verdict.ok) {
+  const followup = [
+    completion.verdict.reason ?? 'Done evidence could not be verified.',
+    architectureNudgeForDonePhase(process.cwd(), runIdentity),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
   console.log(
     JSON.stringify({
-      followup_message: completion.verdict.reason ?? 'Done evidence could not be verified.',
+      followup_message: followup,
     } satisfies StopOutput),
   );
   process.exit(0);

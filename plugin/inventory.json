@@ -1143,7 +1143,7 @@
     },
     {
       "path": "templates/hooks/cursor/stop.ts",
-      "sha256": "295b2676e236a7b36840850537feeeef48ab2b5decc4f2251095741f7deb5986"
+      "sha256": "ee6a5f1326a7c0fb5cda393e2517472cf839675b362ab81511737f0dcb4fcaf8"
     },
     {
       "path": "templates/hooks/dependency-bootstrap.ts",

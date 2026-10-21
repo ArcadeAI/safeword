@@ -47,6 +47,8 @@ function transientAccessibilityError(error: unknown): boolean {
     message.includes('Error Domain=Native Agent input is not focused Code=5') ||
     message.includes('Error Domain=Expected one native Agent input Code=4') ||
     message.includes('Expected one isolated Agent input') ||
+    message.includes('Could not activate the isolated Cursor process') ||
+    message.includes('Could not raise the isolated Cursor window') ||
     (message.includes('Can’t get') && message.includes('(-1728)'))
   );
 }

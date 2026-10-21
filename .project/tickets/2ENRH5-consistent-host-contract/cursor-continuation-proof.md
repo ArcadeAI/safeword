@@ -70,3 +70,62 @@ observed failing behavior, not an approved independent review receipt. Complete
 the pending Claude sign-in, then retry the same executable review once before
 production integration. A preceding author rerun lost foreground during Given
 and correctly returned unavailable (3); that result supplies no product evidence.
+
+## Current implementation and proof
+
+Claude authentication recovered. Executable review
+`50585e69-c4a6-4174-96e8-b9899ee0e20f` approved a fresh attested real IDE RED
+at the existing completion boundary. The attestation—not the earlier narrative—
+was the review evidence: report `safeword-host-contract-proof-c2dK4G/cucumber.json`,
+fixture `unfinished-ticket-stop-HDcEpn`, about 35.19s, first three steps passed,
+only HOST_CONTINUATION_MISSING failed, exit 2.
+
+The shared done-gate module now owns session-bound completion eligibility and
+the evidence verdict. Codex and Cursor call the same function. Cursor translates
+an unmet verdict to a bounded follow-up; Codex retains its existing status writer.
+Cursor retains the existing architecture advisory after the evidence reason in
+the same follow-up. No alternative workflow predicate or native enrollment
+switch was added. Tests keep ordinary verification quiet and reject borrowing
+another session's ticket. Valid evidence does not make Cursor Stop edit status.
+
+Final native IDE group: four scenarios / sixteen steps passed, 210.52s, exit 0.
+Report:
+`/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-Pvyppp/cucumber.json`.
+The group includes denied write, allowed write, bounded continuation and the
+catalogue/helper. Required case discovery derives from the feature source.
+Continuation fixture: `unfinished-ticket-stop-CjI1or`.
+
+Final CLI regression group: three scenarios / twelve steps passed, 72.255s,
+exit 0. Report:
+`/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-aY1h7X/cucumber.json`.
+No Cursor CLI continuation claim is inferred.
+
+Both completed-case records explicitly say diagnostic-only and
+admission_eligible=false. They cannot stand in for sealed admission, current
+customer activation, eligibility/coexistence, or the complete accepted feature.
+All 58 scenario definitions / 94 expanded cases remain unchecked pending their full
+host populations and completion evidence.
+
+Independent quality approvals: completion implementation
+`43060cc6-5f7a-431f-87b3-4bd3fe0f1fb8`; group selection/result handling
+`dfd9f8c6-0851-414d-8a4e-4d72a3317a25`; owned-window automation
+`0ed53011-a0a8-4894-a840-2e874d270137`.
+Targeted regressions passed eight files / 114 tests. Typecheck, formatting,
+277 mirror pairs, 11 contracts and all five generated surfaces passed.
+The full CLI suite completed: 692 files passed / one failed; 11,405 tests
+passed, one failed, fourteen skipped, 1016.90s. The failure was the existing
+`tests/review/degraded-explanation.test.ts` timeout case: its mock fallback
+compatibility probe expired, producing probe_timed_out rather than degraded
+coverage. The unchanged isolated rerun passed both tests in 3.41s. No review
+implementation or assertion was changed. This is a recorded full-run failure
+with a clean isolated rerun, not a claim that the full run passed.
+
+Retained limits: synchronous completion tests can exceed the host's Stop timeout
+on a large customer suite; activation/admission must not infer a guarantee from
+this fixture. The four-file catalogue integrity snapshot is diagnostic rather
+than tamper protection. Resource reachability is not a distinct skill-load event.
+The IDE's configured continuation cap is not unlimited enforcement. Native IDE
+setup remains susceptible to foreground changes, but failures remain nonzero
+unavailable and cannot pass the group. Draft fill may retry; submission never
+retries. After success, closed only the exact owned test process and retained
+all evidence files.
