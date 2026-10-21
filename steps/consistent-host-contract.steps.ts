@@ -11,12 +11,15 @@ import {
 import type { SafewordWorld } from './world.js';
 import './world.js';
 import { CursorCliCatalogueActor } from '../packages/cli/tests/helpers/cursor-cli-catalogue.js';
+import { CodexNativeCatalogueActor } from '../packages/cli/tests/helpers/codex-native-catalogue.js';
+import type { CodexGuardFixture } from '../packages/cli/tests/helpers/codex-native-continuation.js';
 
 interface HostContractWorld extends SafewordWorld {
-  nativeCatalogue?: CursorNativeCatalogueActor | CursorCliCatalogueActor;
+  nativeCatalogue?:
+    CursorNativeCatalogueActor | CursorCliCatalogueActor | CodexNativeCatalogueActor;
 }
 
-function actor(world: HostContractWorld): CursorNativeCatalogueActor | CursorCliCatalogueActor {
+function actor(world: HostContractWorld): NonNullable<HostContractWorld['nativeCatalogue']> {
   assert.ok(world.nativeCatalogue, 'Native catalogue fixture must be prepared');
   return world.nativeCatalogue;
 }
@@ -25,13 +28,26 @@ Given(
   'an isolated profile for {string} version {string} in {string} has the Safeword native plugin installed',
   { timeout: 600_000 },
   async function (this: HostContractWorld, host: string, version: string, runtime: string) {
-    const parameters = this.parameters as { cursorFixtureFile?: unknown; cursorCli?: string };
+    const parameters = this.parameters as {
+      cursorFixtureFile?: unknown;
+      cursorCli?: string;
+      codexGuardFixtureFile?: string;
+    };
+    if (host === 'Codex') {
+      assert.ok(parameters.codexGuardFixtureFile);
+      this.nativeCatalogue = new CodexNativeCatalogueActor(
+        JSON.parse(readFileSync(parameters.codexGuardFixtureFile, 'utf8')) as CodexGuardFixture,
+      );
+      await this.nativeCatalogue.prepare(host, version, runtime);
+      return;
+    }
     if (host === 'Cursor' && runtime === 'CLI') {
       assert.ok(parameters.cursorCli, 'CURSOR_CLI_UNAVAILABLE: set SAFEWORD_CURSOR_CLI');
       this.nativeCatalogue = new CursorCliCatalogueActor(parameters.cursorCli);
       await actor(this).prepare(host, version, runtime);
       return;
     }
+    assert.equal(host, 'Cursor', 'HOST_CONTRACT_PROOF_UNAVAILABLE: unsupported catalogue host');
     assert.equal(typeof parameters.cursorFixtureFile, 'string', 'Native fixture path is required');
     const config = JSON.parse(
       readFileSync(parameters.cursorFixtureFile as string, 'utf8'),

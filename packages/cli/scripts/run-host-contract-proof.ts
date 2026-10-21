@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import {
+  codexCases,
   cursorCliCases,
   cursorIdeCases,
 } from '../tests/fixtures/host-contract/native-contract-cases.js';
@@ -73,14 +74,18 @@ function isIntendedFailure(
   );
 }
 
-function cursorResult(
+function nativeResult(
   repoRoot: string,
   report: string,
   scenarios: FeatureResult['elements'],
   status: number | null,
-  population: { cases: ReturnType<typeof cursorCliCases>; runtime: string },
+  population: {
+    cases: ReturnType<typeof cursorCliCases>;
+    runtime: string;
+    host: 'Cursor' | 'Codex';
+  },
 ): number {
-  const { cases, runtime } = population;
+  const { cases, runtime, host } = population;
   assert.equal(scenarios.length, cases.length, `Expected every contracted ${runtime} scenario`);
   const intendedFailures: string[] = [];
   let unavailable = false;
@@ -90,12 +95,22 @@ function cursorResult(
     assert.equal(scenario.name, required.scenario);
     assert.equal(scenario.line, required.line);
     assert.equal(scenario.steps.length, required.stepCount);
-    assertActualRow(repoRoot, scenario.line, true, required.runtime, required.version);
+    const portable =
+      required.scenario === 'Portable package loading proves only its portable components';
+    assertActualRow(
+      repoRoot,
+      scenario.line,
+      host === 'Cursor',
+      required.runtime,
+      portable ? undefined : required.version,
+    );
     const statuses = scenario.steps.map(step => step.result.status);
-    console.log(`Cursor ${runtime} ${scenario.name}: ${statuses.join(', ')}; report: ${report}`);
+    console.log(`${host} ${runtime} ${scenario.name}: ${statuses.join(', ')}; report: ${report}`);
     const failure = required.expectedFailure;
-    if (failure && isIntendedFailure(status, statuses, scenario, failure))
-      intendedFailures.push(failure);
+    const failures = failure ? [failure] : [];
+    if (required.id.endsWith('-bounded-continuation')) failures.push('CONTINUATION_BOUND_EXCEEDED');
+    const observed = failures.find(code => isIntendedFailure(status, statuses, scenario, code));
+    if (observed) intendedFailures.push(observed);
     else if (statuses.some(value => value !== 'passed')) unavailable = true;
   }
   if (unavailable) {
@@ -127,11 +142,11 @@ function cursorResult(
       2,
     ),
   );
-  console.log(`Cursor ${runtime} required cases passed: ${cases.map(row => row.id).join(', ')}`);
+  console.log(`${host} ${runtime} required cases passed: ${cases.map(row => row.id).join(', ')}`);
   return 0;
 }
 
-function cursorGroupResult(
+function nativeGroupResult(
   proof: string | undefined,
   repoRoot: string,
   report: string,
@@ -139,35 +154,34 @@ function cursorGroupResult(
   status: number | null,
 ): number | undefined {
   if (proof === 'native-cursor-cli')
-    return cursorResult(repoRoot, report, scenarios, status, {
+    return nativeResult(repoRoot, report, scenarios, status, {
       cases: cursorCliCases(),
       runtime: 'CLI',
+      host: 'Cursor',
     });
   if (proof === 'native-cursor')
-    return cursorResult(repoRoot, report, scenarios, status, {
+    return nativeResult(repoRoot, report, scenarios, status, {
       cases: cursorIdeCases(),
       runtime: 'IDE',
+      host: 'Cursor',
+    });
+  if (proof === 'native-codex')
+    return nativeResult(repoRoot, report, scenarios, status, {
+      cases: codexCases(),
+      runtime: 'CLI',
+      host: 'Codex',
     });
   return undefined;
 }
 
 function nativeProofTimeout(proof: string | undefined): number {
-  if (proof === 'native-cursor' || proof === 'native-cursor-cli') return 1_800_000;
+  if (['native-cursor', 'native-cursor-cli', 'native-codex'].includes(proof ?? ''))
+    return 1_800_000;
   if (proof === 'native-cursor-continuation') return 1_020_000;
   return 540_000;
 }
 
 const nativeCases = {
-  'native-cursor': {
-    title: 'Native delivery exposes the contracted catalogue',
-    failure: 'NATIVE_HELPER_ORIGIN_MISMATCH',
-    steps: 4,
-  },
-  'native-codex': {
-    title: 'Portable package loading proves only its portable components',
-    failure: 'CODEX_COMPATIBILITY_OVERLAY_FALLBACK',
-    steps: 3,
-  },
   'native-cursor-continuation': {
     title: 'A supported completion guard actually continues the conversation',
     failure: 'HOST_CONTINUATION_MISSING',
@@ -213,7 +227,6 @@ function main(): number {
     ].includes(proof ?? ''),
   );
   assert.deepEqual(args, ['--proof', proof, '--require-targets']);
-  const selected = nativeCases[proof as keyof typeof nativeCases] ?? nativeCases['native-codex'];
   const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
   const reportDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-host-contract-proof-'));
   const report = nodePath.join(reportDirectory, 'cucumber.json');
@@ -248,8 +261,10 @@ function main(): number {
     nodePath.resolve(repoRoot, feature.uri),
     nodePath.join(repoRoot, 'features/consistent-host-contract.feature'),
   );
-  const groupResult = cursorGroupResult(proof, repoRoot, report, scenarios, result.status);
+  const groupResult = nativeGroupResult(proof, repoRoot, report, scenarios, result.status);
   if (groupResult !== undefined) return groupResult;
+  const selected = nativeCases[proof as keyof typeof nativeCases];
+  assert.ok(selected);
   assert.equal(scenarios.length, 1, 'Expected exactly the selected native example row');
   const [scenario] = scenarios;
   assert.ok(scenario);
