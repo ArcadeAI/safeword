@@ -13,12 +13,14 @@ end-to-end fixture. Ruleguard found the relocated rule file but could not import
 its unavailable DSL dependency; successful rule execution remains unproven.
 
 - Automated real-linter coverage does not cover every row of the design's proof
-  list. Depguard interpolation was demonstrated in the design experiments;
-  ruleguard globs, formatter exclusions, home fallback, legacy YAML booleans,
-  malformed/unwritable-config warnings and fixable ordinary lint debt do not all
-  have dedicated end-to-end fixtures. Unit tests cover configuration
-  normalization and lossy-input rejection. The version matrix runs the actual
-  package/config fixtures, not every possible customer policy.
+  list. The follow-up now covers depguard interpolation, malformed-policy
+  warnings, genuine sibling type errors and fixable ordinary lint debt, plus
+  finding-producing controls for exclusions and relative header resources.
+  Partial-write, spawn, report and cleanup failures have automated boundary
+  tests. Ruleguard execution, formatter exclusions, home fallback, legacy YAML
+  booleans and an unwritable config base retain manual-only or incomplete proof.
+  The version matrix runs the actual package/config fixtures, not every possible
+  customer policy.
 - Customer machine formats directed to stdout can mix with captured text.
 - An existing customer issues-exit-code of zero suppresses agent findings, as
   it did before this change. Nonzero stdout containing only statistics can be

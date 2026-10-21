@@ -153,6 +153,9 @@ jobs:
         env:
           SAFEWORD_REQUIRE_GO_LINT: '1'
         run: scripts/dev bun run --cwd packages/cli test tests/hooks/lint-go-context.test.ts tests/go-lint/config.test.ts tests/go-lint/lifecycle.test.ts
+      - name: Verify installed Go hooks with shuffled fixture order
+        if: matrix.linter == '2.13.2'
+        run: PATH="$RUNNER_TEMP/go-lint-bin:$PATH" scripts/dev bun run --cwd packages/cli test tests/integration/golang-golden-path.test.ts --sequence.shuffle --sequence.seed 4733
 
   test:
     name: test (node ${{ matrix.node-version }})
@@ -209,7 +212,7 @@ jobs:
 
       # Pre-built binary (~3s) instead of go install (~55s compile from source)
       - name: Install golangci-lint v2
-        run: curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.10.1
+        run: curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v2.10.1
 
       - name: Install Python tools
         run: |

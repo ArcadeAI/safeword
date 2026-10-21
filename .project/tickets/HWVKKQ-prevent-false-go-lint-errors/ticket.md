@@ -86,3 +86,8 @@ are explicit; CI must provision tools and fail rather than skip the proof lane.
   tests with 12 skips and three timeouts in unchanged integration suites.
   An isolated rerun could not acquire another worktree's live test lock;
   repeatability remains unresolved. Broader follow-up CI is still running.
+- 2026-10-21 Re-ran the diff audit and fixed shared golden-path test fixtures,
+  replaced ineffective no-throw checks with process/output assertions, added a
+  shuffled-order installed-hook CI proof, corrected workflow path quoting, and
+  reconciled the test-coverage notes. Architecture, config drift, actionlint,
+  ESLint and TypeScript checks pass. Local proof was lock-blocked; using remote CI.
