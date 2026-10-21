@@ -73,6 +73,7 @@
     "svgo": "^4.1.0",
     "turbo": "2.9.18",
     "undici": "8.11.2",
+    "vite": "8.2.4",
     "yaml": "^2.9.0",
     "zod-validation-error": "^4.0.0"
   },

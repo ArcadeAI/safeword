@@ -1,66 +1,77 @@
-# Verify dependency audit repair
+# Verify the Markdown and Vite dependency audit repairs
+
+The earlier Markdown-only record is retained verbatim in
+verify-markdown-it-historical.md. Its green CI was followed by a fresh Vite audit
+failure; no merge was attempted. This record covers the subsequent Vite repair.
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 11853/11853 tests pass — CLI 11502 passed/14 skipped, relay 198 passed/1 skipped, collector 153 passed/0 skipped. The 15 skips are not counted as passes. Full pinned local output remains in .project/evidence/markdown-it-audit/full-tests.log.gz.
-**Gherkin:** ✅ Acceptance lane passes in hosted CI run 39479547605; this does not qualify excluded broader planning scenarios or native hosts.
-**Build:** ✅ Success — pinned local workspace build and both hosted Node lanes.
-**Lint:** ✅ Clean — root ESLint/Gherkin lint; separate real markdownlint stdin probes passed as recorded under Surface Evidence.
-**Typecheck:** ✅ Clean — CLI tsc in root lint; no typed source changed.
-**Scenarios:** All 0 scenarios marked complete — patch uses existing audit and suites, no feature ledger.
-**Refactor:** ✅ No change warranted — one dependency floor and artifact update.
-**PR Scope:** ✅ Diff matches ticket scope — manifest floor, lock override mirror and single resolved artifact/integrity entry, plus supporting delivery evidence only.
-**Dep Drift:** ✅ Clean — no new architectural dependency; seven inherited unfiltered audit findings remain.
-**Parent Epic:** N/A — isolated prerequisite for scenario PR 5994, not epic completion.
-**Reconcile:** ✅ No pattern deviation — retain the existing major-version override and CI ignore list.
-**Experience:** ⏭️ N/A — development dependency, no new persona workflow.
-**Surface Evidence:** ✅ 1/1 affected surfaces have recorded proof — actual markdownlint consumer resolves 14.3.3 after forced frozen reinstall, accepts valid Markdown, rejects empty links with MD042 and renders heading/bold correctly.
-**Evidence limits:** ⚠️ Independent material review covered the complete lockfile delta plus whole-file hash because the full lockfile exceeds the reviewer size limit. The implementation phase-wide review could not ingest retained gzip logs (REVIEW_TARGET_INVALID_TEXT), so the documented phase-review exception was recorded instead of claiming whole-branch independent coverage. Independent delivery-record review and exact-head CI remain required. No broad native qualification is claimed. Fresh metadata-head CI remains required before Ready or merge.
+**Test Suite:** ✓ 11855/11855 tests pass — CLI 11504 passed/12 skipped, relay 198 passed/1 skipped, collector 153 passed/0 skipped. All 13 skips are excluded from the ratio. Fresh pinned root suite exit 0 after forced frozen reinstall; raw log and process result retained.
+**Gherkin:** ⚠️ Pending — new-head hosted acceptance lane required before merge; prior exact-head successes are historical.
+**Build:** ✅ Success — real Astro static build, nine pages and search index; all three workspace builds also completed in the successful default test commands.
+**Lint:** ✅ Clean — root ESLint, Gherkin lint and CLI typecheck; separate real markdownlint accepting/rejecting stdin probes also pass.
+**Typecheck:** ✅ Clean — root lint's CLI tsc; Astro generated its types during the successful site build.
+**Scenarios:** All 0 scenarios marked complete — dependency-only patch uses the existing audit and regression suites; no feature ledger or native qualification claimed.
+**Refactor:** ✅ No change warranted — minimal version overrides and required resolver changes; no application source refactor.
+**PR Scope:** ✅ Diff matches ticket scope — Markdown and Vite audit repairs, required Rolldown/native-binding/type updates, and supporting evidence only. No #5994 scenario-source, template, canonical-policy, #5086 or audit-ignore change.
+**Dep Drift:** ✅ Clean — no new architectural dependency; unfiltered audit retains seven inherited findings (two already ignored high findings, two moderate, three low).
+**Parent Epic:** N/A — isolated prerequisite for updating scenario PR 5994, not completion of epic 4200.
+**Reconcile:** ✅ No pattern deviation — use existing exact-pin security overrides; keep the two original CI advisory ignores.
+**Experience:** ⏭️ N/A — no new product workflow; actual development consumers are exercised.
+**Surface Evidence:** ✅ 3/3 affected consumers have recorded proof — Vitest and Astro resolve Vite 8.2.4 after forced frozen reinstall; all three test workspaces and the Astro site build pass; markdownlint still resolves 14.3.3 and passes rendering/acceptance/refusal probes.
+**Evidence limits:** ⚠️ New-head hosted CI/acceptance pending before Ready or merge; local tests and build are green. Windows-only exploit not reproduced; no Windows or native-model qualification claim. Inherited PostCSS 8.5.23 override remains outside Vite's declared ^8.5.26 range; successful build and tests prove only exercised paths. Material review is bounded to the manifest and exact lock delta, not unchanged lockfile entries or binary logs.
 
-Audit passed within the dependency-only diff boundary. Its zero-module graph is
-non-discriminating; real consumer checks, artifact integrity and the complete delta
-review supply useful proof. No repository-wide dependency clearance is claimed.
+Audit passed within the diff boundary. Security-policy audit RED/GREEN is
+discriminating; architecture cruise reports zero modules/edges and contributes no
+architecture assurance. Whole-workspace Knip, clone totals and upgrade discovery
+remain outside diff mode.
 
-## Retained evidence
+## Proof and independent review
 
-- Material source head: `4d419f51d88c977b6e3ead2347de37e88fdd5b55`.
-- Hosted CI: <https://github.com/ArcadeAI/safeword/actions/runs/39479547605>, terminal success on that exact head, including both Node suites, audit, acceptance and release gates.
-- Local raw results, contrary observations and independent material review:
-  `.project/evidence/markdown-it-audit/verification.md` and colocated raw logs.
-- Material independent Claude/opus review: `e9797a52-540f-4ddd-be90-1a7406053ee2`, approved with no errors. Its stale-installed-copy warning is addressed by forced reinstall guidance and actual resolution proof.
-- Vendor patched floor: <https://github.com/markdown-it/markdown-it/security/advisories/GHSA-r7fv-28h4-cvq7>, first fixed 14.x release 14.3.2. Lockfile resolves 14.3.3.
-- 2026-10-20 pre-merge exact CI-policy audit rerun: exit 0, original ignores unchanged. Raw output is retained in pre-merge-audit.log.
-- source-head-ci.json retains the terminal source-head CI rollup; source-node24-job.json retains the successful acceptance and release step results.
+- vite-pre-merge-red.log records the fresh failure at ea9b8288c with old lock hash.
+- vite-audit-green.log records the same command and original ignores passing with
+  repaired lock hash be18ed22e67790dd2ef6b3736ac4bfd2bf436d9ca0dc5bb04a16ea82888da4eb.
+  Both are before commit, distinguishable by content hash. A fresh audit on the
+  committed merge head is still required immediately before merging.
+- vite-consumer-resolution.log records the actual Vitest and Astro Vite paths.
+  Forced install completed before any current test or build began.
+- Fresh independent Claude/opus material review
+  01623755-ba64-44ed-a02b-2d791b6e3d3f approved with no errors; its raw result is
+  vite-independent-review.json. Its targets were package.json, the incremental
+  vite-lockfile.diff against ea9b8288c, and vite-repair.md. Earlier source approval
+  is historical; do not describe the changed manifest's old review as current.
+- Vendor fixed-release evidence and registry integrity are in vite-repair.md.
+  The fixed Vite release is 8.2.4; required Rolldown ~1.2.4 resolves 1.2.14 with
+  matching bindings/types. There is no unrelated broad dependency update.
+- All five generated surfaces are current (vite-generated.log). Raw current
+  full-suite, build, lint, forced-install and unfiltered audit outputs are retained
+  alongside this record. The fresh run executes two more tests than the earlier
+  run (12 rather than 14 CLI skips); no test file was changed and earlier counts
+  remain historical. Only the observed current pass/skip totals are claimed.
 
-The original evidence documents are immutable historical snapshots from the Draft
-delivery, when no merge was authorized and local acceptance had not run. This
-newer record adds the subsequently completed hosted acceptance lane and the user's
-normal-merge authorization. Those additions do not grant administrative bypass or
-qualify broader excluded planning scenarios. The original lockfile-review approval
-remains current because neither its targets nor their supporting bytes changed.
-The recomputed current lockfile SHA-256 is retained in current-lock.sha256:
-`f4ec5a840d9469ef611c4b0d23572d228f69580c8aeda6e1ec8e956045969c02`.
-material-review-targets.diff is empty against source head 4d419f51d, confirming
-that the material review targets have no changes. The intake review of this new
-ticket is separately stale after bookkeeping edits and is not used as current
-delivery approval.
+## Contrary observations and dispositions
 
-## Review dispositions
+- Existing PostCSS override falls below Vite's requested range (already true at
+  old Vite). Kept separate rather than widening the patch; retain the observation,
+  site-build result and final regression result. No universal compatibility claim.
+- Rolldown's multiple patch releases, new native binding and type version are
+  substantive dependency changes. The site build, complete tests and current-head
+  CI must pass before admin merge.
+- The exact Vite override needs future maintenance; CI audit and a fresh pre-merge
+  audit remain guards. No audit exception was added for the new advisory.
+- The original implementation phase-wide review could not ingest preserved gzip
+  logs. Its documented exception remains a limitation, not successful full-branch
+  independent coverage. New material and verification reviews remain separate.
+- Reopening was initially blocked by a done-phase review gate. Review 6cdebf3a
+  requested reopening; a documented backward-transition exception allowed that
+  correction. Fresh independent intake review 42f0f689 approved and its normal
+  stamp succeeded. No review policy was modified.
+- Original failed/interrupted tests, stale installed copies, seven inherited audit
+  findings, native qualification gaps and wider scenario deferrals are preserved.
 
-Implementation-record review a96f6f87 approved independently with no errors. Its
-request for command provenance is addressed by material-review-currency.log and
-the additional HEAD/hash lines in pre-merge-audit.log. Its lint wording suggestion
-is applied above. The test ratio is the verifier's required executed-test pattern;
-all 15 skipped cases and package totals remain explicit beside it.
+## Delivery
 
-The implementation phase stamp uses the documented --skip form because the
-phase-wide inventory includes binary gzip output that the coordinator cannot
-decode as UTF-8. phase-wide-review-blocked.json retains that failure. This is an
-explicit exception, not a successful whole-branch review or a changed review
-policy. The independent material and delivery-record approvals remain separate.
-
-This record is retrospective delivery bookkeeping, not a fabricated pre-change TDD
-history. The earlier lint failure, interrupted test run and stale installed copy
-remain failures/contrary observations in their original evidence. The first green
-CI run does not cover newly added ticket metadata; wait for its new-head CI before
-Ready or merge. No administrative bypass or merge of PR 5994 is authorized here.
+The user explicitly authorized admin merge of PR 5996 after green CI. No merge
+attempt has consumed that authority. Finish verification and closure, push the
+exact reviewed head, wait for terminal CI, then rerun the exact audit immediately
+before merging. Only update and test PR 5994 afterward; do not promote or merge it.
