@@ -1,0 +1,57 @@
+{
+  "product_checkpoint": "5a7f3c6eec014cb7308182a5c1ba0fb57271363c",
+  "root_exit": 0,
+  "cli": {
+    "files": 717,
+    "passed": 11589,
+    "skipped": 14,
+    "seconds": 843.37
+  },
+  "relay": {
+    "passed": 198,
+    "skipped": 1
+  },
+  "collector": {
+    "passed": 153
+  },
+  "release": {
+    "exit": 0,
+    "files": 14,
+    "passed": 83,
+    "seconds": 25.76
+  },
+  "acceptance": {
+    "exit": 0,
+    "scenarios": 601,
+    "steps": 11821,
+    "proof_tests": 51
+  },
+  "scoped_acceptance": {
+    "exit": 0,
+    "scenarios": 123,
+    "steps": 2488,
+    "hooks": 2
+  },
+  "lint_exit": 0,
+  "typecheck_exit": 0,
+  "typecheck_packages": ["packages/retro-relay", "packages/retro-collector", "packages/cli"],
+  "typecheck_raw_log": "5086-quality-types-complete.log.gz",
+  "parity_exit": 0,
+  "parity_pairs": 277,
+  "parity_contracts": 11,
+  "parity_raw_log": "5086-quality-parity-complete.log.gz",
+  "generated_surfaces_exit": 0,
+  "generated_surface_count": 5,
+  "generated_surfaces_raw_log": "5086-quality-generated-check.log.gz",
+  "log_integrity_index": "archive-manifest.json.txt (sha256 values cover decompressed bytes)",
+  "cli_contract_exit": 0,
+  "go_exit": 0,
+  "go_test_files": 0,
+  "high_critical_dependency_audit_exit": 0,
+  "paid_qualification_calls": 0,
+  "native_job": "80ede8ef-c1ed-42a1-b382-b6a6c44bc4d8",
+  "native_verdict": "request_changes",
+  "native_independence": "reduced",
+  "premerge_CI": "pending",
+  "parent_ticket_closed": false
+}

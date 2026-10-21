@@ -199,16 +199,18 @@ describe('Execution Plan output schema', () => {
     expect(reviewOutputSchema('plan-execution')).not.toBe(reviewOutputSchema('quality-review'));
   });
 
-  it('gives Claude the selected strict schema without changing legacy arguments', () => {
+  it('changes only the schema and stream format for Claude planning review', () => {
     const legacy = reviewerArguments('claude', undefined, undefined, {}, 'quality-review');
     const execution = reviewerArguments('claude', undefined, undefined, {}, 'plan-execution');
     const schemaIndex = execution.indexOf('--json-schema') + 1;
 
     expect(execution[schemaIndex]).toBe(reviewOutputSchema('plan-execution'));
     expect(legacy[schemaIndex]).toBe(reviewOutputSchema('quality-review'));
-    expect(execution.filter((_argument, index) => index !== schemaIndex)).toEqual(
-      legacy.filter((_argument, index) => index !== schemaIndex),
-    );
+    const expected = [...legacy];
+    expected[schemaIndex] = reviewOutputSchema('plan-execution');
+    expected[expected.indexOf('--output-format') + 1] = 'stream-json';
+    expected.push('--verbose');
+    expect(execution).toEqual(expected);
   });
 
   it('parses the record only under the internal plan-execution kind', () => {

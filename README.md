@@ -418,11 +418,48 @@ second independent runtime before same-agent headless review. OpenCode-authored
 work routes to Claude and then Codex, so OpenCode self-review is never counted
 as independent. If those routes cannot complete, a foreground agent makes one
 best-effort fresh-context host review and then one bounded self-review. Those
-last two routes are useful feedback, not independent evidence; `require` stays
-blocked and no independent stamp is written. Both read the live worktree, so
-their assurance says source integrity was not revalidated. The Claude plugin's
-bundled `safeword-reviewer` agent provides the fresh-context route, including in
-Claude Code Cloud when no external agent CLI is available.
+last two routes are feedback, not independent evidence: `require` stays
+blocked. For non-planning reviews they read the live worktree, so source
+integrity was not revalidated; the bundled Claude reviewer also supports
+Claude Code Cloud when no external agent CLI is available. Planning fallbacks
+instead use the coordinator's immutable packet. After stronger routes are
+exhausted, `prefer` may admit their completed review with the actual reviewer
+and `reduced independence` recorded on the receipt; other review kinds retain
+their own gates.
+
+Cursor-authored planning work tries Claude and Codex as external reviewers;
+Cursor itself has no headless reviewer route. If those routes fail under
+`prefer`, the Cursor host can review the same sealed packet and record a
+reduced-independence receipt. A current receipt is still required at the phase
+gate. Cursor cannot satisfy `require` until trusted exact author-model metadata
+is available. The stock reviewer routes are attempted in configured order, but
+an unselected runtime-default model cannot earn a qualified cross-agent
+comparison. Projects that select `require` must configure exact reviewer model
+selectors in `crossAgentReviewRoutes` and use a currently qualified
+author/reviewer pair; otherwise the review remains blocked.
+
+Currently only Claude Code supplies the verified exact author-model metadata
+used for planning qualification. Codex and OpenCode authors also remain blocked
+under `require`; under `prefer`, their completed reviews record reduced
+independence. Planning fallback requires an attempted independent route: if all
+independent CLIs are absent or unsupported, the review stays blocked. Install a
+supported independent reviewer before retrying.
+
+The continuation authenticates the saved job, packet, source currency, tier,
+and single-use submission. The fresh-context claim and current agent origin
+are host-reported; the receipt does not attest that an isolated reviewer ran.
+Claude and Codex app-server planning reviewers use the effort settings sealed
+with the packaged capability catalogue. The legacy Codex exec path cannot confirm
+the reviewer model and remains unqualified. A completed rejection whose reviewer
+capability is unknown blocks fallback approval, with its findings retained. A later
+qualified independent verdict may resolve the review; the earlier unqualified
+findings remain visible as non-blocking feedback without replacing that verdict.
+
+The opt-in `architectureReviewGate` separately requires verified independent
+design review before implementation finishes. A reduced planning receipt does
+not clear it. Hosts without trusted exact author-model metadata cannot
+automatically satisfy that claim today; the existing reasoned skip remains an
+auditable escape hatch, without relabeling fallback as independent.
 
 **Codex plugin skills**: Codex gets Safeword workflow skills from the Safeword Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safeword-owned workflow aliases into `.agents/skills/`.
 

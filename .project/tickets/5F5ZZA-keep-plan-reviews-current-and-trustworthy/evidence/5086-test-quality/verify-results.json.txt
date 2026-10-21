@@ -1,0 +1,104 @@
+[
+  {
+    "stage": "generated-fix",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "packages/cli/scripts/check-generated-surfaces.ts",
+      "--fix"
+    ],
+    "exit": 0,
+    "seconds": 33.4
+  },
+  {
+    "stage": "full",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "test"
+    ],
+    "exit": 0,
+    "seconds": 964.67
+  },
+  {
+    "stage": "release",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "--cwd",
+      "packages/cli",
+      "test:release"
+    ],
+    "exit": 0,
+    "seconds": 31.05
+  },
+  {
+    "stage": "bdd",
+    "command": [
+      "../../scripts/dev",
+      "node",
+      "--import",
+      "tsx",
+      "../../node_modules/@cucumber/cucumber/bin/cucumber-js",
+      "--config",
+      ".ranked-quality.cucumber.mjs"
+    ],
+    "exit": 0,
+    "seconds": 22.04
+  },
+  {
+    "stage": "lint",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "lint"
+    ],
+    "exit": 0,
+    "seconds": 97.01
+  },
+  {
+    "stage": "typecheck",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "typecheck"
+    ],
+    "exit": 0,
+    "seconds": 6.52
+  },
+  {
+    "stage": "parity",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "scripts/parity-check.ts"
+    ],
+    "exit": 0,
+    "seconds": 0.12
+  },
+  {
+    "stage": "generated-check",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "packages/cli/scripts/check-generated-surfaces.ts"
+    ],
+    "exit": 0,
+    "seconds": 10.96
+  },
+  {
+    "stage": "cli-contract",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "check:cli-contract"
+    ],
+    "exit": 0,
+    "seconds": 35.46
+  }
+]

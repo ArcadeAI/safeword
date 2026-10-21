@@ -1,0 +1,15 @@
+# #5086 admission follow-up
+
+Prior complete source review 075fb458-1ff1-4db9-89f0-5ecda5500d6e and test review 9cfd6aa3-6da9-4b9e-a513-2b2bfc80a9b8 approved source checkpoint 9dcac79ac with warnings. Review only this delta and its integration with the previously reviewed code; no #5139 scope enforcement.
+
+The policy-flip warning reproduced as a real installed-CLI failure: a reduced receipt earned under prefer still advanced after config changed to require. Executable RED review 6a99e06f-ac8c-4d85-a4d0-5ff01d910ee4 approved that failure. An additional coding-authorization regression also failed with exit 0 rather than 2. Current policy is now checked by the shared policy owner at semantic phase admission and Execution Plan admission. Existing receipt provenance, context identity, newer-rejection precedence and copy checks stay in place. Both tests now pass without changing their configuration keys or refusal assertions.
+
+Further warning responses: restored trusted-envelope-only policy, exact coordinator recovery, unchanged-result/no-delegation, and require/action-required pins in the fallback skill/tests. README now limits sealed-effort claims to Claude and Codex app-server; legacy exec remains unqualified. Added successful self-review through installed review continue, stamp and approve-plan; distinct dispatch ids from two real coordinator jobs; a full qualified cross-agent stamp and approve-plan path; and explicit proven-weaker rejection discard.
+
+Latest targeted result: 61 tests pass across installed fallback, route order, weaker routes, coding authorization, delivery prerequisites and fallback contract. All three package typechecks pass. Test-helper extraction only reduced lint complexity. One interim helper result omitted findings; that run's 55 passes/1 failure is retained and fixed by exposing the actual emitted findings rather than changing the assertions.
+
+Fresh paid qualification remains 18/18 Codex, 17/18 Claude, directional not_weaker/weaker against the unchanged current rubric/schema/corpus/settings. These admission, skill-copy and test changes do not modify those qualification inputs; no unchanged paid rerun. The six-fixture/keyword and one-run sensitivity warning remains explicit, without relabeling the corpus or lowering its floor.
+
+All five derived surfaces are being checked after regeneration. Final local suites are serialized: the first full run was stopped after regeneration made dist stale; a second was stopped after the CLI checker unexpectedly launched a direct Vitest alongside it. The isolated CLI contract then passed unchanged. A Cucumber attempt was stopped because this pinned version merged explicit paths with its configured glob; a temporary config now selects just the touched features while preserving all standard tag exclusions. No interrupted run counts as green.
+
+This is source review, not Ready approval. Historical broad acceptance six failed/585 unfinished, 33 deferred cases, R7 human deferral, R9 old diagnostic limitation, and the previously documented adapter recovery/latency limits remain. No merge or Ready authority.
