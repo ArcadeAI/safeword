@@ -832,3 +832,56 @@ waiting for foreign checkout e24e owner PID3965; no second Vitest is started.
 Earlier queue exited 75 without starting a test. Typecheck, targeted ESLint,
 formatting and all five generated-surface checks passed. Broader customer
 coexistence/enrollment, non-shell semantics and continuation remain unproved.
+
+The queued relocation/parser/version run completed: 31 tests passed. Full CLI
+suite subsequently passed 689 files / 11,377 tests, 14 existing skips, 846.75s.
+Production checkpoint ae8410e0b contains the generated native Cursor extension.
+The same 264-file generated package passed real IDE 3.24.18 guard cases (2/8,
+96.63s) and CLI guard cases; sorted-path/NUL/content digest
+5991120ab77042945092f0805e16854ea34f17aaa0ac3d737ec8ea881e5f2794 matched.
+IDE report /tmp/safeword-cursor-ide-generated-guard.json.
+
+CLI required population now derives from actual feature rows, including future
+matching rows; five coverage-discovery tests passed. Added the actual native
+CLI catalogue/helper actor. Reviews 7b7d4c16-085f-4065-a598-bcb64b01c26a and
+0144f63a-6c8a-48d0-9375-4169b13b0ffc exposed proof flaws: model-only/refused
+execution could masquerade as RED, and a direct helper plus forged runtime
+environment could satisfy substring origin checks. Repaired with an actual
+Shell execution prerequisite, parsed executable/argument binding, prohibited
+foreign assignments, installed-resource byte snapshots and explicit assertion
+codes. Protocol unit tests are separate from real host proof.
+
+Repaired live CLI group passed 3 scenarios / 12 steps, 80.874s, exit zero.
+Report /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-6ExyVB/cucumber.json.
+Generated surfaces, typecheck and formatting passed. Required-case output is
+diagnostic-only and admission-ineligible. No 58-outline/94-case completion,
+customer activation, IDE continuation, release or merge is claimed.
+
+Final targeted regression run passed both files / 13 tests (coverage discovery
+and native invocation evidence). Typecheck and targeted ESLint passed; root
+Cucumber steps are excluded by repository ESLint configuration. All five
+generated surfaces remain current. Independent final review is pending.
+
+Review 824600ea-a18c-4559-852c-1f5d8ccd112b confirmed the observer repairs but
+found a fixture runtime substitution: the carrier copied codex-plugin/runtime
+after catalogue rendering. Production catalogue writing deliberately does not
+bundle the runtime; its caller does. The fixture now invokes that production
+portable generator first, asserts its emitted runtime exists, renders only the
+synthetic catalogue, and checks runtime bytes unchanged. Baseline copying is
+confined to the historical no-production-module branch. Final rerun passed
+3 scenarios / 12 steps in 52.516s, required-mode exit zero. Report:
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-eclkml/cucumber.json.
+Catalogue evidence cursor-cli-catalogue-S2Y8bv; write fixtures
+safeword-cursor-cli-write-nKlI2a and safeword-cursor-cli-write-B08qWv.
+Typecheck and targeted lint passed again. Final follow-up review is running.
+
+Final independent cross-agent quality review
+738aab5a-368c-4944-a14a-8cb47c67b1a8 APPROVED. It confirms executable/runtime
+binding, permission-refusal classification and actual packaged-helper dispatch.
+Retained limitations: catalogue markers establish packaged content reachability,
+not a separately observable native skill-registration event; four-file snapshots
+are diagnostics, not tamper protection; malformed native output fails setup but
+can lack a typed diagnostic. Baseline-carrier fallback and additional parser
+boundary tests remain follow-ups. No public admission is inferred from this
+bounded engineering proof. Unit regression result remains 13/13 and the final
+live group remains 3/3 scenarios, 12/12 steps.

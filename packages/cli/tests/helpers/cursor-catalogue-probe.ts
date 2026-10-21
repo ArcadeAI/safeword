@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 
 import { writeCodexPluginCatalogue } from '../../src/codex-plugin/catalogue.js';
 import { VERSION } from '../../src/version.js';
+import { command } from './cursor-native-window.js';
 
 export const CURSOR_CATALOGUE_PROBE_DESCRIPTION =
   'Runs the Safeword contract catalogue probe in an isolated native host test.';
@@ -19,7 +20,8 @@ export interface CursorCatalogueProbe {
 
 /**
  * Exercise the current production catalogue renderer in an independent portable
- * test carrier. The carrier supplies metadata only, never runtime-path repairs.
+ * test carrier. The production generator supplies the runtime before the
+ * synthetic catalogue is rendered; the fixture never repairs its runtime.
  * This is a resource-binding proof; shipped manifest generation needs its own proof.
  */
 export async function createCursorCatalogueProbe(directory: string): Promise<CursorCatalogueProbe> {
@@ -73,15 +75,29 @@ export async function createCursorCatalogueProbe(directory: string): Promise<Cur
       `const marker = ${JSON.stringify(markers.helperMarker)};`,
       'writeFileSync(',
       "  nodePath.join(process.cwd(), '.host-contract', 'native-helper.json'),",
-      String.raw`  JSON.stringify({ marker, origin: fileURLToPath(import.meta.url) }) + "\n",`,
+      String.raw`  JSON.stringify({ marker, origin: fileURLToPath(import.meta.url), runtime: process.env.SAFEWORD_PLUGIN_CLI }) + "\n",`,
       ');',
       String.raw`process.stdout.write(marker + "\n");`,
       '',
     ].join('\n'),
   );
-  mkdirSync(packageRoot);
   const portableCoreModule = nodePath.join(cliRoot, 'src', 'host-contract', 'portable-core.ts');
   if (existsSync(portableCoreModule)) {
+    await command(
+      'bun',
+      [
+        nodePath.join(cliRoot, 'scripts/generate-codex-plugin.ts'),
+        '--portable-core',
+        '--version',
+        VERSION,
+        '--output',
+        packageRoot,
+      ],
+      { timeout: 120_000 },
+    );
+    const runtime = nodePath.join(packageRoot, 'runtime/cli.js');
+    assert.ok(existsSync(runtime), 'Production portable generator omitted its runtime');
+    const generatedRuntime = readFileSync(runtime);
     const production = (await import(pathToFileURL(portableCoreModule).href)) as {
       writePortableCoreCatalogue?: (
         templatesDirectory: string,
@@ -93,10 +109,12 @@ export async function createCursorCatalogueProbe(directory: string): Promise<Cur
       throw new TypeError('Portable core module does not export its production catalogue writer');
     }
     await production.writePortableCoreCatalogue(canonicalRoot, packageRoot, VERSION);
+    assert.deepEqual(readFileSync(runtime), generatedRuntime, 'Catalogue replaced the runtime');
   } else {
     // The current baseline exposes only the existing renderer. A minimal test
     // carrier lets its runtime bindings fail during real native use instead of
     // treating an absent new module as behavioral RED.
+    mkdirSync(packageRoot);
     writeFileSync(
       nodePath.join(packageRoot, 'plugin.json'),
       `${JSON.stringify({
@@ -119,9 +137,13 @@ export async function createCursorCatalogueProbe(directory: string): Promise<Cur
       nodePath.join(cliRoot, 'codex-plugin', 'package.json'),
       nodePath.join(packageRoot, 'package.json'),
     );
+    cpSync(
+      nodePath.join(cliRoot, 'codex-plugin', 'runtime'),
+      nodePath.join(packageRoot, 'runtime'),
+      {
+        recursive: true,
+      },
+    );
   }
-  cpSync(nodePath.join(cliRoot, 'codex-plugin', 'runtime'), nodePath.join(packageRoot, 'runtime'), {
-    recursive: true,
-  });
   return { packageRoot, ...markers };
 }

@@ -21,7 +21,7 @@ Given(
   { timeout: 600_000 },
   async function (this: WriteWorld, host: string, version: string, runtime: string) {
     const parameters = this.parameters as { cursorFixtureFile?: string; cursorCli?: string };
-    if (runtime === 'CLI') {
+    if (host === 'Cursor' && runtime === 'CLI') {
       assert.ok(parameters.cursorCli, 'CURSOR_CLI_UNAVAILABLE: set SAFEWORD_CURSOR_CLI');
       this.nativeWrite = new CursorCliWriteActor(parameters.cursorCli);
     } else {

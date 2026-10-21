@@ -236,7 +236,7 @@ export class CursorCliWriteActor {
       assert.equal(
         this.shell.result.success?.command,
         this.shellCommand,
-        'NATIVE_GUARD_DISPATCH_MISSING: allowed shell command did not execute',
+        'ALLOWED_SIDE_EFFECT_MISSING: allowed shell command did not execute',
       );
       assert.equal(this.shell.result.success.exitCode, 0);
       assert.equal(readFileSync(target, 'utf8'), this.marker);

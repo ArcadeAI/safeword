@@ -10,12 +10,13 @@ import {
 } from '../packages/cli/tests/helpers/cursor-native-catalogue.js';
 import type { SafewordWorld } from './world.js';
 import './world.js';
+import { CursorCliCatalogueActor } from '../packages/cli/tests/helpers/cursor-cli-catalogue.js';
 
 interface HostContractWorld extends SafewordWorld {
-  nativeCatalogue?: CursorNativeCatalogueActor;
+  nativeCatalogue?: CursorNativeCatalogueActor | CursorCliCatalogueActor;
 }
 
-function actor(world: HostContractWorld): CursorNativeCatalogueActor {
+function actor(world: HostContractWorld): CursorNativeCatalogueActor | CursorCliCatalogueActor {
   assert.ok(world.nativeCatalogue, 'Native catalogue fixture must be prepared');
   return world.nativeCatalogue;
 }
@@ -24,7 +25,13 @@ Given(
   'an isolated profile for {string} version {string} in {string} has the Safeword native plugin installed',
   { timeout: 600_000 },
   async function (this: HostContractWorld, host: string, version: string, runtime: string) {
-    const parameters = this.parameters as { cursorFixtureFile?: unknown };
+    const parameters = this.parameters as { cursorFixtureFile?: unknown; cursorCli?: string };
+    if (host === 'Cursor' && runtime === 'CLI') {
+      assert.ok(parameters.cursorCli, 'CURSOR_CLI_UNAVAILABLE: set SAFEWORD_CURSOR_CLI');
+      this.nativeCatalogue = new CursorCliCatalogueActor(parameters.cursorCli);
+      await actor(this).prepare(host, version, runtime);
+      return;
+    }
     assert.equal(typeof parameters.cursorFixtureFile, 'string', 'Native fixture path is required');
     const config = JSON.parse(
       readFileSync(parameters.cursorFixtureFile as string, 'utf8'),

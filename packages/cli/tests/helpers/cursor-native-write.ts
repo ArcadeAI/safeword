@@ -7,6 +7,7 @@ import { writePortableCoreCatalogue } from '../../src/host-contract/portable-cor
 import { VERSION } from '../../src/version.js';
 import { CursorNativeCatalogueActor } from './cursor-native-catalogue.js';
 import {
+  command,
   type CursorNativeFixtureConfig,
   CursorNativeWindowActor,
   eventually,
@@ -146,7 +147,10 @@ export class CursorNativeWriteActor extends CursorNativeWindowActor {
     const candidate = nodePath.join(this.runDirectory, 'candidate');
     this.candidate = candidate;
     const generated = nodePath.join(cliRoot, 'cursor-plugin');
-    if (existsSync(generated)) cpSync(generated, candidate, { recursive: true });
+    const generator = nodePath.join(cliRoot, 'scripts/generate-cursor-plugin.ts');
+    if (existsSync(generator)) {
+      await command('bun', [generator, '--output', candidate], { timeout: 120_000 });
+    } else if (existsSync(generated)) cpSync(generated, candidate, { recursive: true });
     else {
       // Baseline container establishes a startable missing-guard RED. It cannot
       // decide permission or stand in for a generated production extension.
@@ -269,7 +273,7 @@ export class CursorNativeWriteActor extends CursorNativeWindowActor {
         core,
         control,
         legacyControl: legacy.runDirectory,
-        generatedCandidate: existsSync(generated),
+        generatedCandidate: existsSync(generator) || existsSync(generated),
         version,
       }),
     );

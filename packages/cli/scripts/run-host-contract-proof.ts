@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+
+import { cursorCliCases } from '../tests/fixtures/host-contract/cursor-cli-cases.js';
 
 interface StepResult {
   result: { status: string; error_message?: string };
@@ -13,12 +15,19 @@ interface FeatureResult {
   elements: { name: string; line: number; steps: StepResult[] }[];
 }
 
-function assertActualRow(repoRoot: string, line: number, cursor: boolean, runtime = 'IDE'): void {
+function assertActualRow(
+  repoRoot: string,
+  line: number,
+  cursor: boolean,
+  runtime = 'IDE',
+  expectedVersion?: string,
+): void {
   const source = readFileSync(
     nodePath.join(repoRoot, 'features/consistent-host-contract.feature'),
     'utf8',
   ).split('\n');
   const cells = source[line - 1]?.split('|').map(cell => cell.trim());
+  if (expectedVersion) assert.equal(cells?.[2], expectedVersion);
   assert.equal(cells?.[1], cursor ? 'Cursor' : 'Codex');
   if (cursor) {
     const matrix = JSON.parse(
@@ -66,33 +75,55 @@ function cursorCliResult(
   scenarios: FeatureResult['elements'],
   status: number | null,
 ): number {
-  const names = [
-    'A denied action has no side effect',
-    'An allowed action reaches the side-effect boundary',
-  ];
-  assert.equal(scenarios.length, names.length, 'Expected both exact CLI write rows');
-  let intendedFailure = false;
+  const cases = cursorCliCases();
+  assert.equal(scenarios.length, cases.length, 'Expected every contracted CLI scenario');
+  const intendedFailures: string[] = [];
   let unavailable = false;
   for (const [index, scenario] of scenarios.entries()) {
-    assert.equal(scenario.name, names[index]);
-    assert.equal(scenario.steps.length, 4);
-    assertActualRow(repoRoot, scenario.line, true, 'CLI');
+    const required = cases[index];
+    assert.ok(required);
+    assert.equal(scenario.name, required.scenario);
+    assert.equal(scenario.line, required.line);
+    assert.equal(scenario.steps.length, required.stepCount);
+    assertActualRow(repoRoot, scenario.line, true, required.runtime, required.version);
     const statuses = scenario.steps.map(step => step.result.status);
     console.log(`Cursor CLI ${scenario.name}: ${statuses.join(', ')}; report: ${report}`);
-    if (isIntendedFailure(status, statuses, scenario, 'NATIVE_GUARD_DISPATCH_MISSING'))
-      intendedFailure = true;
+    const failure = required.expectedFailure;
+    if (failure && isIntendedFailure(status, statuses, scenario, failure))
+      intendedFailures.push(failure);
     else if (statuses.some(value => value !== 'passed')) unavailable = true;
   }
   if (unavailable) {
     console.error('HOST_CONTRACT_PROOF_UNAVAILABLE: CLI setup/action did not reach its assertion');
     return 3;
   }
-  if (intendedFailure) {
-    console.error('NATIVE_GUARD_DISPATCH_MISSING: observed real CLI write contract failure');
+  if (intendedFailures.length > 0) {
+    console.error(`${intendedFailures.join(', ')}: observed real CLI contract failure`);
     return 2;
   }
-  console.error('HOST_CONTRACT_PROOF_INCOMPLETE: CLI catalogue-helper case is not yet wired');
-  return 3;
+  if (status !== 0) {
+    console.error('HOST_CONTRACT_PROOF_UNAVAILABLE: CLI runner failed outside scenario steps');
+    return 3;
+  }
+  writeFileSync(
+    nodePath.join(nodePath.dirname(report), 'completed-cases.json'),
+    JSON.stringify(
+      {
+        purpose: 'diagnostic-only',
+        admission_eligible: false,
+        case_ids: cases.map(row => row.id),
+        report,
+      },
+      undefined,
+      2,
+    ),
+  );
+  console.log(`Cursor CLI required cases passed: ${cases.map(row => row.id).join(', ')}`);
+  return 0;
+}
+
+function nativeProofTimeout(cursorCli: boolean): number {
+  return cursorCli ? 1_800_000 : 540_000;
 }
 
 /** Required pilot: preserve the actual Cucumber failure, never equate setup with RED. */
@@ -127,9 +158,12 @@ function main(): number {
       '--format',
       `json:${report}`,
     ],
-    { cwd: repoRoot, stdio: 'inherit', timeout: 540_000 },
+    { cwd: repoRoot, stdio: 'inherit', timeout: nativeProofTimeout(cursorCli) },
   );
-  if (result.error) throw result.error;
+  if (result.error) {
+    console.error(`HOST_CONTRACT_PROOF_UNAVAILABLE: ${result.error.message}`);
+    return 3;
+  }
   const features = JSON.parse(readFileSync(report, 'utf8')) as FeatureResult[];
   const scenarios = features.flatMap(feature => feature.elements);
   assert.equal(features.length, 1);
