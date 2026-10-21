@@ -51,8 +51,8 @@ import { ReviewPacketError } from './packet-error.js';
 import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { extractPlanReviewRubric } from './plan-rubric.js';
 import { reviewDispositionContext } from './planning-accepted-boundary.js';
-import { planningEvidenceRecords } from './planning-context-identity.js';
 import { PlanningContextError, type PlanningContextRole } from './planning-context-error.js';
+import { planningEvidenceRecords } from './planning-context-identity.js';
 import { type PlanningRoleContext, resolvePlanningRoleContext } from './planning-role-context.js';
 import { planningTicketOwner } from './planning-ticket-owner.js';
 import { PRODUCT_PLAN_REVIEW_RUBRIC } from './product-plan-rubric.generated.js';
@@ -792,7 +792,9 @@ function contractForUse(kind: PlanningPhase, use: PlanningContractUse): PlanCont
     }[kind];
     const contract = assemblePlanContract(extract(source), rubric);
     if (contract.author.sha256 !== contract.reviewer.sha256)
-      throw new ReviewPacketError('The current canonical planning contract differs from the reviewed contract.');
+      throw new ReviewPacketError(
+        'The current canonical planning contract differs from the reviewed contract.',
+      );
     return contract;
   }
   if (kind === 'product-plan') {
@@ -1157,6 +1159,12 @@ function packetDispositionContext(
   }
 }
 
+function validatePlanEvidence(kind: ReviewKind, files: readonly ReviewPacketFile[]): void {
+  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return;
+  for (const file of files)
+    if (nodePath.basename(file.path) === 'impl-plan.md') planningEvidenceRecords(file.content);
+}
+
 // Keep validation, generated classification, and packet capture in one atomic preflight.
 // eslint-disable-next-line complexity -- A partial packet must never escape this boundary.
 function prepareReviewPacketUnsafe(
@@ -1325,10 +1333,7 @@ function prepareReviewPacketUnsafe(
         'REVIEW_NO_ELIGIBLE_TARGETS',
       );
     }
-    if (kind === 'plan-implementation' || kind === 'plan-execution') {
-      for (const file of [...logicalFiles, ...contextFiles])
-        if (nodePath.basename(file.path) === 'impl-plan.md') planningEvidenceRecords(file.content);
-    }
+    validatePlanEvidence(kind, [...logicalFiles, ...contextFiles]);
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);

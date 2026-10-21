@@ -64,7 +64,7 @@ process.stdin.on('end', () => {
   const packet = JSON.parse(input.slice(input.lastIndexOf('{"schema_version":1')));
   console.log(JSON.stringify({ structured_output: {
     schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude',
-    verdict: 'approve', summary: 'Fixture approval.', findings: [], evidence_records: { schema_version: 1, records: [] }
+    verdict: 'approve', summary: 'Fixture approval.', findings: []
   }}));
 });
 `,
@@ -435,6 +435,8 @@ it.each([
     if (name === 'PLAN_IMPLEMENTATION.md') {
       expect(repeated.status).not.toBe(0);
       expect(repeated.stdout).toContain('canonical_contract_copy_mismatch');
+    } else {
+      expect(repeated.status, repeated.stdout + repeated.stderr).toBe(0);
     }
   },
 );
