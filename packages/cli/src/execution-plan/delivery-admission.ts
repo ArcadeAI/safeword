@@ -36,11 +36,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function reviewData(cwd: string, reviewId: string): Record<string, unknown> | undefined {
+interface ReviewData {
+  readonly admission: Record<string, unknown>;
+  readonly diagnostic: Record<string, unknown> | undefined;
+}
+
+function reviewData(cwd: string, reviewId: string): ReviewData | undefined {
   const current = reviewJobStatus(cwd, reviewId);
   if (current.findings.some(finding => finding.code === 'REVIEW_STALE')) return undefined;
   const status = reviewJobStatus(cwd, reviewId, { allowMalformedReviewerOutput: true });
-  return isRecord(status.data) ? status.data : undefined;
+  if (!isRecord(status.data)) return undefined;
+  // Keep legacy missing-verdict admission errors, but never infer diagnostic
+  // currency from the authenticated-only view of a malformed receipt.
+  const diagnostic =
+    isRecord(current.data) &&
+    current.data.command === 'review run' &&
+    (current.data.status === 'approved' || current.data.status === 'changes_requested')
+      ? current.data
+      : undefined;
+  return { admission: status.data, diagnostic };
 }
 
 function coversPlan(data: Record<string, unknown>, cwd: string, planPath: string): boolean {
@@ -185,9 +199,9 @@ export function executionPlanAdmission(input: {
   let mismatch: ExecutionPlanIdentityMismatch | undefined;
   for (const stamp of candidates) {
     const data = stamp.reviewId === undefined ? undefined : reviewData(input.cwd, stamp.reviewId);
-    const admission = candidateAdmission(input, stamp, data);
+    const admission = candidateAdmission(input, stamp, data?.admission);
     if (admission !== undefined) return admission;
-    mismatch ??= identityMismatch(input, data);
+    mismatch ??= identityMismatch(input, data?.diagnostic);
   }
   return mismatch ?? { kind: 'not_admitted' };
 }

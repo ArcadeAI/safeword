@@ -1,4 +1,5 @@
-import { cpSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHmac } from 'node:crypto';
+import { cpSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -54,6 +55,28 @@ async function fixture() {
 
 type Fixture = Awaited<ReturnType<typeof fixture>>;
 
+function malformedLegacyReceipt(project: Fixture, id: string): void {
+  const path = nodePath.join(project.root, '.safeword/state/reviews', `${id}.json`);
+  const receipt = JSON.parse(readFileSync(path, 'utf8'));
+  delete receipt.result.data.reviewer_output.verdict;
+  const { integrity: _integrity, ...unsigned } = receipt;
+  // Deliberately seal a malformed legacy fixture. This does not claim that the
+  // current coordinator can produce it; ordinary identity cases use real jobs.
+  const key = Buffer.from(
+    readFileSync(
+      nodePath.join(project.root, '.review-keys/safeword/review-integrity.key'),
+      'utf8',
+    ).trim(),
+    'hex',
+  );
+  const integrity = createHmac('sha256', key)
+    .update(realpathSync.native(project.root))
+    .update('\0')
+    .update(JSON.stringify(unsigned))
+    .digest('hex');
+  writeFileSync(path, JSON.stringify({ ...unsigned, integrity }));
+}
+
 function claim(project: Fixture, ids: readonly string[]): void {
   // Ledger position owns precedence; these timestamps intentionally disagree.
   const stamps = ids.map(
@@ -66,14 +89,14 @@ function claim(project: Fixture, ids: readonly string[]): void {
 async function executionReview(
   project: Fixture,
   sibling = false,
-  kind: 'plan-execution' | 'plan-implementation' = 'plan-execution',
+  kind: 'plan-execution' | 'plan-implementation' | 'quality-review' = 'plan-execution',
 ): Promise<string> {
   const folder = sibling ? SIBLING : FOLDER;
   if (sibling)
     cpSync(nodePath.join(project.root, FOLDER), nodePath.join(project.root, SIBLING), {
       recursive: true,
     });
-  const target = `${folder}/${kind === 'plan-execution' ? 'execution-plan' : 'impl-plan'}.md`;
+  const target = `${folder}/${kind === 'plan-implementation' ? 'impl-plan' : 'execution-plan'}.md`;
   const plan = readFileSync(nodePath.join(project.root, target), 'utf8');
   const parsed = parseDeliveryPlanContract(plan);
   if (!parsed.ok) throw new Error(parsed.message);
@@ -194,7 +217,7 @@ describe('Execution Plan receipt identity recovery through the public CLI', () =
     expect(result.output.data.prerequisite_status).toBeUndefined();
   });
 
-  it.each(['plan-execution', 'plan-implementation'] as const)(
+  it.each(['plan-execution', 'plan-implementation', 'quality-review'] as const)(
     'names the appropriate mismatch for a sibling %s receipt over identical plan bytes',
     async kind => {
       const project = await fixture();
@@ -212,15 +235,16 @@ describe('Execution Plan receipt identity recovery through the public CLI', () =
             kind === 'plan-execution'
               ? 'mismatched_execution_plan_review_ticket'
               : 'mismatched_execution_plan_review_kind',
-          message: expect.stringMatching(
+          message:
             kind === 'plan-execution'
-              ? /different ticket/iu
-              : /plan-implementation.*plan-execution/u,
-          ),
+              ? expect.stringMatching(/different ticket/iu)
+              : expect.stringContaining(kind),
           severity: 'warning',
         },
       ]);
       expect(result.output.next_actions.map(action => action.command)).toEqual([RECOVERY]);
+      if (kind !== 'plan-execution')
+        expect(result.output.findings[0]?.message).toContain('requires a plan-execution review.');
       expect(result.output.data.prerequisite_status).toBeUndefined();
     },
   );
@@ -303,6 +327,62 @@ describe('Execution Plan receipt identity recovery through the public CLI', () =
       const receipt = JSON.parse(readFileSync(path, 'utf8'));
       receipt.updated_at = 'tampered-without-resigning';
       writeFileSync(path, JSON.stringify(receipt));
+      claim(project, [id]);
+      const result = await prerequisite(project);
+      expect(result.exitCode, result.stdout).toBe(2);
+      expect(result.output.findings.map(finding => finding.code)).toEqual([
+        ...(mismatch === 'kind' ? ['missing_accepted_approach'] : []),
+        'missing_admitted_delivery_checklist',
+      ]);
+      expect(result.output.next_actions.map(action => action.command)).toContain(RECOVERY);
+      expect(result.output.data.prerequisite_status).toBeUndefined();
+    },
+  );
+
+  it('preserves missing-verdict recovery for a matching malformed legacy receipt', async () => {
+    const project = await fixture();
+    const id = await executionReview(project);
+    malformedLegacyReceipt(project, id);
+    claim(project, [id]);
+    const result = await prerequisite(project);
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(result.output.findings.map(finding => finding.code)).toEqual([
+      'missing_execution_plan_verdict',
+    ]);
+    expect(result.output.next_actions.map(action => action.command)).toEqual([RECOVERY]);
+    expect(result.output.data.prerequisite_status).toBeUndefined();
+  });
+
+  it.each([
+    ['kind', false],
+    ['kind', true],
+    ['ticket', false],
+    ['ticket', true],
+  ] as const)(
+    'does not diagnose malformed legacy %s receipt fields with stale=%s',
+    async (mismatch, stale) => {
+      const project = await fixture();
+      const id =
+        mismatch === 'kind' ? project.implementationId : await executionReview(project, true);
+      malformedLegacyReceipt(project, id);
+      if (stale) {
+        const path = nodePath.join(
+          project.root,
+          mismatch === 'kind' ? `${FOLDER}/impl-plan.md` : `${SIBLING}/execution-plan.md`,
+        );
+        writeFileSync(path, `${readFileSync(path, 'utf8')}\nChanged after review.\n`);
+      }
+      const strict = await runCli(['review', 'status', id, '--json', '--cwd', project.root], {
+        cwd: project.root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(project.root, '.review-keys'),
+        },
+      });
+      expect(strict.exitCode, strict.stdout).toBe(1);
+      expect(JSON.parse(strict.stdout).errors).toEqual([
+        expect.objectContaining({ code: 'REVIEW_JOB_INVALID' }),
+      ]);
       claim(project, [id]);
       const result = await prerequisite(project);
       expect(result.exitCode, result.stdout).toBe(2);

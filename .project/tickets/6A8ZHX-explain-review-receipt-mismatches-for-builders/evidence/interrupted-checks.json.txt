@@ -1,0 +1,11 @@
+{
+  "canonical_verification": {
+    "exit_code": 130,
+    "outcome": "interrupted before completion to repair a newly discovered malformed/stale receipt diagnostic gap"
+  },
+  "legacy_RED_first_attempt": {
+    "exit_code": 75,
+    "outcome": "no test started; shared package lock held by another checkout"
+  },
+  "followup": "queued unchanged RED with a longer lock wait only; test timeouts and assertions unchanged"
+}

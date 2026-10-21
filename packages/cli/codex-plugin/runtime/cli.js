@@ -83198,7 +83198,10 @@ function reviewData(cwd, reviewId) {
   if (current.findings.some((finding2) => finding2.code === "REVIEW_STALE"))
     return;
   const status = reviewJobStatus(cwd, reviewId, { allowMalformedReviewerOutput: true });
-  return isRecord14(status.data) ? status.data : undefined;
+  if (!isRecord14(status.data))
+    return;
+  const diagnostic = isRecord14(current.data) && current.data.command === "review run" && (current.data.status === "approved" || current.data.status === "changes_requested") ? current.data : undefined;
+  return { admission: status.data, diagnostic };
 }
 function coversPlan(data, cwd, planPath) {
   const targets = data.review_targets;
@@ -83290,10 +83293,10 @@ function executionPlanAdmission(input) {
   let mismatch;
   for (const stamp of candidates) {
     const data = stamp.reviewId === undefined ? undefined : reviewData(input.cwd, stamp.reviewId);
-    const admission = candidateAdmission(input, stamp, data);
+    const admission = candidateAdmission(input, stamp, data?.admission);
     if (admission !== undefined)
       return admission;
-    mismatch ??= identityMismatch(input, data);
+    mismatch ??= identityMismatch(input, data?.diagnostic);
   }
   return mismatch ?? { kind: "not_admitted" };
 }
