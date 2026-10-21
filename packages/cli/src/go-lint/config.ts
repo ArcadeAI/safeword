@@ -103,6 +103,20 @@ function caseInsensitive(value: Config): Config {
   return result;
 }
 
+function parseYamlConfig(text: string): unknown {
+  const document = YAML.parseDocument(text, { merge: true });
+  if (document.errors.length > 0) throw new Error(document.errors[0]?.message);
+  // go-yaml accepts legacy octals; YAML 1.2 would silently read these as decimal.
+  YAML.visit(document, {
+    Scalar(_key, node) {
+      if (typeof node.value === 'number' && /^[-+]?0\d+$/.test(node.source ?? '')) {
+        throw new Error('Go lint config uses ambiguous legacy octal; use decimal or 0o notation');
+      }
+    },
+  });
+  return document.toJS({ maxAliasCount: 100 }) as unknown;
+}
+
 function parseConfig(file: string): Config {
   const text = readFileSync(file, 'utf8');
   let parsed: unknown;
@@ -116,19 +130,7 @@ function parseConfig(file: string): Config {
       break;
     }
     default: {
-      const document = YAML.parseDocument(text, { merge: true });
-      if (document.errors.length > 0) throw new Error(document.errors[0]?.message);
-      // go-yaml accepts legacy octals; YAML 1.2 would silently read these as decimal.
-      YAML.visit(document, {
-        Scalar(_key, node) {
-          if (typeof node.value === 'number' && /^[-+]?0\d+$/.test(node.source ?? '')) {
-            throw new Error(
-              'Go lint config uses ambiguous legacy octal; use decimal or 0o notation',
-            );
-          }
-        },
-      });
-      parsed = document.toJS({ maxAliasCount: 100 }) as unknown;
+      parsed = parseYamlConfig(text);
     }
   }
   assertJson(parsed);

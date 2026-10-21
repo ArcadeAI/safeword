@@ -86547,6 +86547,19 @@ function caseInsensitive(value) {
   }
   return result3;
 }
+function parseYamlConfig(text) {
+  const document2 = import_yaml7.default.parseDocument(text, { merge: true });
+  if (document2.errors.length > 0)
+    throw new Error(document2.errors[0]?.message);
+  import_yaml7.default.visit(document2, {
+    Scalar(_key, node) {
+      if (typeof node.value === "number" && /^[-+]?0\d+$/.test(node.source ?? "")) {
+        throw new Error("Go lint config uses ambiguous legacy octal; use decimal or 0o notation");
+      }
+    }
+  });
+  return document2.toJS({ maxAliasCount: 100 });
+}
 function parseConfig2(file) {
   const text = readFileSync99(file, "utf8");
   let parsed2;
@@ -86560,17 +86573,7 @@ function parseConfig2(file) {
       break;
     }
     default: {
-      const document2 = import_yaml7.default.parseDocument(text, { merge: true });
-      if (document2.errors.length > 0)
-        throw new Error(document2.errors[0]?.message);
-      import_yaml7.default.visit(document2, {
-        Scalar(_key, node) {
-          if (typeof node.value === "number" && /^[-+]?0\d+$/.test(node.source ?? "")) {
-            throw new Error("Go lint config uses ambiguous legacy octal; use decimal or 0o notation");
-          }
-        }
-      });
-      parsed2 = document2.toJS({ maxAliasCount: 100 });
+      parsed2 = parseYamlConfig(text);
     }
   }
   assertJson(parsed2);
