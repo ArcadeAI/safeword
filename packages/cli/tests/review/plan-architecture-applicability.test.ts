@@ -90,6 +90,7 @@ function reviewArchitectureApplicability(contract: string, plan: string): Review
   return {
     schema_version: 1,
     dispatch_id: createHash('sha256').update(contract).digest('hex'),
+    evidence_records: { schema_version: 1, records: [] },
     reviewer_agent: 'claude',
     verdict: findings.length === 0 ? 'approve' : 'request_changes',
     summary:

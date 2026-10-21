@@ -64,7 +64,7 @@ process.stdin.on('end', () => {
   const packet = JSON.parse(input.slice(input.lastIndexOf('\n{"schema_version":1') + 1));
   require('node:fs').appendFileSync(${JSON.stringify(calls)}, 'review' + String.fromCharCode(10));
   const result = {
-    schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: agent,
+    schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: agent,
     verdict: 'approve', summary: 'Native copy fixture approval.', findings: [],
     ...(packet.kind === 'plan-execution' ? {
       planning_destination: 'plan-execution',

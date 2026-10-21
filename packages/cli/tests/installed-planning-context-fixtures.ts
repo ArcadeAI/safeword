@@ -65,7 +65,7 @@ process.stdin.on('end', () => {
   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
   const complete = packet.context_files?.some(file => file.content.includes(${JSON.stringify(installedContextPrinciple)}));
   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
-    reviewer_agent: 'claude', verdict: complete ? 'approve' : 'request_changes',
+    evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: complete ? 'approve' : 'request_changes',
     summary: complete ? 'The current principles reached review.' : 'Required principles were omitted.',
     findings: complete ? [] : [{ severity: 'error', message: 'Required principles were omitted from the actual packet.' }] } }));
 });

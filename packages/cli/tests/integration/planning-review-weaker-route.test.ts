@@ -58,6 +58,7 @@ vi.mock('../../src/review/runtime.js', async importOriginal => {
         output: {
           schema_version: 1,
           dispatch_id: packet.dispatch_id,
+          evidence_records: { schema_version: 1, records: [] },
           reviewer_agent: reviewer,
           verdict: fixtureRejects(reviewer, options.model) ? 'request_changes' : 'approve',
           summary: fixtureSummary(options.model),

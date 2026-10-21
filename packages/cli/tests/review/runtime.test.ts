@@ -64,6 +64,7 @@ function trustedTemporaryDirectory(): string {
 const output: ReviewerOutput = {
   schema_version: 1,
   dispatch_id: 'dispatch-1',
+  evidence_records: { schema_version: 1, records: [] },
   reviewer_agent: 'claude',
   verdict: 'approve',
   summary: 'reviewed',

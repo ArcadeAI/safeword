@@ -13,16 +13,12 @@ import {
   reviewOutputSchema,
 } from '../../src/review/runtime.js';
 
-const legacyKinds = [
-  'quality-review',
-  'scenario-gate',
-  'plan-implementation',
-  'executable-red',
-] as const;
+const legacyKinds = ['quality-review', 'executable-red'] as const;
 
 const baseOutput = {
   schema_version: 1,
   dispatch_id: 'dispatch-1',
+  evidence_records: { schema_version: 1, records: [] },
   reviewer_agent: 'claude',
   verdict: 'approve',
   summary: 'reviewed',
@@ -152,7 +148,7 @@ describe('Execution Plan output schema', () => {
     expect(validateExecutionPlanOutput(approval(updated))).toMatchObject({ kind: 'approved' });
   });
 
-  it('keeps every existing review-kind schema byte-for-byte unchanged', () => {
+  it('keeps ordinary non-planning review schemas unchanged', () => {
     const baseline = reviewOutputSchema('quality-review');
 
     for (const kind of legacyKinds) expect(reviewOutputSchema(kind)).toBe(baseline);
@@ -170,6 +166,16 @@ describe('Execution Plan output schema', () => {
       'findings',
     ]);
   });
+
+  it.each(['scenario-gate', 'plan-implementation'] as const)(
+    'requires typed evidence for %s without adding Execution decisions',
+    kind => {
+      const shape = JSON.parse(reviewOutputSchema(kind));
+      expect(shape.required).toContain('evidence_records');
+      expect(shape.properties).not.toHaveProperty('execution_plan_record');
+      expect(shape.properties).not.toHaveProperty('planning_destination');
+    },
+  );
 
   it('selects a strict required-but-nullable record only for plan-execution', () => {
     const shape = JSON.parse(reviewOutputSchema('plan-execution')) as {

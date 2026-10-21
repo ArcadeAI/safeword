@@ -236,6 +236,7 @@ describe('reviewer capability evaluation', () => {
           output: {
             schema_version: 1,
             dispatch_id: packet.dispatch_id,
+            evidence_records: { schema_version: 1, records: [] },
             reviewer_agent: 'claude',
             verdict: 'approve',
             summary: 'reviewed',
@@ -278,6 +279,7 @@ describe('reviewer capability evaluation', () => {
           output: {
             schema_version: 1,
             dispatch_id: attempt === 3 ? 'different-dispatch' : packet.dispatch_id,
+            evidence_records: { schema_version: 1, records: [] },
             reviewer_agent: 'claude',
             verdict: 'approve',
             summary: 'reviewed',

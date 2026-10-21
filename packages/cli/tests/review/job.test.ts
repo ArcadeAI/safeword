@@ -65,7 +65,7 @@ record.result = {
     command: 'review run', status: 'approved', author_agent: 'claude',
     actual_reviewer: 'codex', independence: 'cross-agent',
     reviewer_output: {
-      schema_version: 1, dispatch_id: 'fixture-dispatch', reviewer_agent: 'codex',
+      schema_version: 1, dispatch_id: 'fixture-dispatch', evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'codex',
       verdict: 'approve', summary: 'Independent review complete.', findings: []
     }
   }
@@ -273,6 +273,7 @@ describe('durable review jobs', () => {
     const output = {
       schema_version: 1,
       dispatch_id: 'fixture-dispatch',
+      evidence_records: { schema_version: 1, records: [] },
       reviewer_agent: 'claude',
       verdict: 'approve',
       summary: 'Host review.',
@@ -300,7 +301,7 @@ describe('durable review jobs', () => {
     const script = `import { submitReviewContinuation } from ${JSON.stringify(source)};
       process.on('message', () => {
         const result = submitReviewContinuation(${JSON.stringify(cwd)}, ${JSON.stringify(id)}, 'fresh-context', {
-          schema_version: 1, dispatch_id: 'fixture-dispatch', reviewer_agent: 'claude', verdict: 'approve', summary: 'Winner ' + process.pid, findings: []
+          schema_version: 1, dispatch_id: 'fixture-dispatch', evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude', verdict: 'approve', summary: 'Winner ' + process.pid, findings: []
         }, {origin:'claude'});
         process.send(result, () => process.exit(0));
       });
@@ -369,6 +370,7 @@ describe('durable review jobs', () => {
     const output = {
       schema_version: 1,
       dispatch_id: firstId,
+      evidence_records: { schema_version: 1, records: [] },
       reviewer_agent: 'claude',
       verdict: 'approve',
       summary: 'Only the first sealed packet was reviewed.',
@@ -437,6 +439,7 @@ describe('durable review jobs', () => {
         {
           schema_version: 1,
           dispatch_id: 'fixture-dispatch',
+          evidence_records: { schema_version: 1, records: [] },
           reviewer_agent: 'claude',
           verdict: 'approve',
           summary: 'Stale approval',
@@ -460,6 +463,7 @@ describe('durable review jobs', () => {
     const baseOutput = {
       schema_version: 1 as const,
       dispatch_id: 'fixture-dispatch',
+      evidence_records: { schema_version: 1, records: [] },
       reviewer_agent: 'claude' as const,
       verdict: 'approve' as const,
       summary: 'The saved product decision is coherent.',
@@ -483,6 +487,7 @@ describe('durable review jobs', () => {
         {
           schema_version: 1,
           dispatch_id: 'fixture-dispatch',
+          evidence_records: { schema_version: 1, records: [] },
           reviewer_agent: 'claude',
           verdict: 'approve',
           summary: 'Replay',
@@ -564,6 +569,25 @@ describe('durable review jobs', () => {
       independence: 'reduced',
     });
 
+    const missingEvidenceJob = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: [`${ticket}/spec.md`],
+    });
+    const missingEvidenceId = (missingEvidenceJob.data as { review_id: string }).review_id;
+    const { evidence_records: _omittedEvidence, ...withoutEvidence } = baseOutput;
+    const missingEvidence = submitReviewContinuation(
+      cwd,
+      missingEvidenceId,
+      'fresh-context',
+      withoutEvidence,
+      { origin: 'claude' },
+    );
+    expect(missingEvidence.data).toMatchObject({
+      status: 'continuation_required',
+      continuation: { tier: 'self-review' },
+    });
+
     const unavailableJob = await startReviewJob({
       cwd,
       kind: 'quality-review',
@@ -628,6 +652,7 @@ describe('durable review jobs', () => {
       {
         schema_version: 1,
         dispatch_id: 'fixture-dispatch',
+        evidence_records: { schema_version: 1, records: [] },
         reviewer_agent: 'claude',
         verdict: 'approve',
         summary: 'Looks complete.',

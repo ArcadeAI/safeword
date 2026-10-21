@@ -9,6 +9,7 @@ import { reconcilePlanContract } from '../../src/review/runtime.js';
 const approved: UnverifiedReviewerOutput = {
   schema_version: 1,
   dispatch_id: 'dispatch-1',
+  evidence_records: { schema_version: 1, records: [] },
   reviewer_agent: 'claude',
   verdict: 'approve',
   summary: 'Approved.',

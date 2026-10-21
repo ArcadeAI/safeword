@@ -46,6 +46,7 @@ import {
 } from './planning-context-identity.js';
 import { isPlanningReviewIdentity, type PlanningReviewIdentity } from './planning-role-context.js';
 import {
+  hasRequiredPlanningEvidence,
   hasValidReviewerOutputBody,
   reconcilePlanContract,
   reviewWorkerRunBoundMs,
@@ -684,11 +685,13 @@ function isContinuationResultData(data: Record<string, unknown>, state: unknown)
 function hasExhaustedRoutesForHostContinuation(value: unknown): boolean {
   if (!Array.isArray(value)) return false;
   const routes = value.map(route => plainRecord(route));
-  const attemptedIndependent = routes.some(
+  const exhaustedIndependent = routes.some(
     route =>
       route?.independence === 'cross-agent' &&
-      route.status === 'attempted' &&
-      typeof route.failure === 'string',
+      typeof route.failure === 'string' &&
+      (route.status === 'attempted' ||
+        (route.status === 'skipped' &&
+          ['reviewer_capability_unknown', 'reviewer_capability_weaker'].includes(route.failure))),
   );
   const exhausted = routes.every(
     route =>
@@ -703,7 +706,7 @@ function hasExhaustedRoutesForHostContinuation(value: unknown): boolean {
       typeof route.failure === 'string',
   );
   const headlessRoute = routes.some(route => route?.independence === 'degraded');
-  return attemptedIndependent && exhausted && (!headlessRoute || headlessFailed);
+  return exhaustedIndependent && exhausted && (!headlessRoute || headlessFailed);
 }
 
 function isCompletedReviewData(data: Record<string, unknown>, state: unknown): boolean {
@@ -1395,7 +1398,15 @@ function validatedHostOutput(
   packet: Record<string, unknown>,
   author: unknown,
 ): ReviewerOutput | undefined {
-  if (!hasValidReviewerOutputBody(value, kind)) return undefined;
+  if (
+    !hasValidReviewerOutputBody(value, kind) ||
+    !hasRequiredPlanningEvidence(
+      value,
+      kind,
+      packet.planning_phase as ReviewPacket['planning_phase'],
+    )
+  )
+    return undefined;
   const reviewer = value as ReviewerOutput;
   if (reviewer.dispatch_id !== packet.dispatch_id || reviewer.reviewer_agent !== author)
     return undefined;

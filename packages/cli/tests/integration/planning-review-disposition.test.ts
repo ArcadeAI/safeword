@@ -159,7 +159,7 @@ process.stdin.on('data', chunk => { input += chunk; });
 process.stdin.on('end', () => {
   const packet = JSON.parse(input.trim().split('\n').pop());
   console.log(JSON.stringify({ structured_output: {
-    schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude',
+    schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude',
     verdict: ${JSON.stringify(severity === 'error' ? 'request_changes' : 'approve')},
     summary: packet.review_disposition_context?.records[0]
       ? 'The user decline for ' + packet.review_disposition_context.records[0].message + ' is ' + packet.review_disposition_context.records[0].boundary_status + ' in ticket context.'

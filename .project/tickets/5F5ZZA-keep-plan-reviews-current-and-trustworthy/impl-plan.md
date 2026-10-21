@@ -344,10 +344,17 @@ sibling G1C9PP R15 under TBU1.R17.
 
 ### Persona consequences
 
+The 2026-10-21 #5139 continuation preserves current main (#5995)'s resolved
+context partition and sealed empirical capability comparison. It introduces no
+integer-rank overlay or additional Execution context authority. Earlier proposed
+rank-overlay text below is superseded for this continuation by main's shipped
+implementation; historical failures and deferred host proofs remain unchanged.
+
 | Persona | Consequential needs | Design consequence | Confidence limit |
 | --- | --- | --- | --- |
 | Technical Builder | Inspect what was reviewed, understand why a receipt is current or stale, retain user authority over scope and optional strengthening, and route design acceptance through the configured human gate when enabled. | Typed identity exposes the target identity, semantic contract, dependency role, reviewer route, and bounded authority; typed failures name the reconciliation action. Reviewer findings cannot expand scope, and review approval remains distinct from configured human design approval. An unranked reviewer returns `reviewer_capability_unknown` with one action: pin a supported exact selector, add an explicit exact-model route-policy rank, or update Safeword. An unknown author returns `author_capability_unknown` with one action: use a host with verified author metadata or change `require` to `prefer` for honest reduced fallback. | Deterministic integration proves identity, gate result, and preserved authority, not whether every explanation is optimally phrased for a particular developer. |
 | Non-Technical Builder | Trust that the agent cannot reuse stale approval, understand a refusal in plain language, and receive one concrete recovery action. Approval authority is not applicable merely because this persona is non-technical; the same user-owned scope and configured design-approval boundaries apply. | Phase admission fails closed on missing, stale, or unauthenticated evidence and carries a typed recovery value through the shared result contract. K3EBHB R7 and R10 own the final installed plain-language wording and its acceptance proof. | This ticket proves the typed reason, recovery value, and lack of invented authority, but cannot claim the NTB wording is understandable until K3EBHB's installed-surface scenarios pass. |
+| Safeword Maintainer | Reconcile generated copies, identify stale qualification, and preserve failed and deferred evidence when the planning contract changes. | Keep whole-copy integrity separate from bounded currency, derive qualification from sealed current observations, and retain historical collections separately. Unknown qualification refuses inference before the supported fallback path; it never authorizes a waiver or rewrites history. | Installed currency and refusal tests prove mechanics; fresh bounded model observations qualify only their exact corpus and selectors. Neither proves the deferred live-host privacy/retrieval cases or supplies missing historical RED. |
 
 ## Decisions
 

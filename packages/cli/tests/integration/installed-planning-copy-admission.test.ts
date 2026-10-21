@@ -63,8 +63,8 @@ process.stdin.on('data', chunk => { input += chunk; });
 process.stdin.on('end', () => {
   const packet = JSON.parse(input.slice(input.lastIndexOf('{"schema_version":1')));
   console.log(JSON.stringify({ structured_output: {
-    schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude',
-    verdict: 'approve', summary: 'Fixture approval.', findings: []
+    schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude',
+    verdict: 'approve', summary: 'Fixture approval.', findings: [], evidence_records: { schema_version: 1, records: [] }
   }}));
 });
 `,
@@ -401,3 +401,40 @@ console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data
     },
   );
 });
+
+// Currency is separate from whole-copy integrity at dispatch/admission.
+it.each([
+  ['PLAN_IMPLEMENTATION.md', false, 'stale'],
+  ['PLAN_EXECUTION.md', false, 'approved'],
+  ['PLAN_IMPLEMENTATION.md', true, 'approved'],
+] as const)(
+  'reconstructs installed rule currency after %s (editorial: %s)',
+  { timeout: 90_000 },
+  (name, editorial, expected) => {
+    const installed = fixture();
+    const path = nodePath.join(installed.distribution, 'templates/skills/bdd', name);
+    const original = readFileSync(path, 'utf8');
+    const changed = editorial
+      ? `<!-- editorial outside bounded contract -->\n${original}`
+      : original.replace(
+          'Accepted scope and exclusions belong to the user.',
+          'Accepted scope and exclusions require a new user decision.',
+        );
+    expect(changed).not.toBe(original);
+    writeFileSync(path, changed);
+    const status = installed.run(['review', 'status', installed.reviewId]);
+    expect(JSON.parse(status.stdout).data.status, status.stdout + status.stderr).toBe(expected);
+    const repeated = installed.run([
+      'review',
+      'run',
+      'plan-implementation',
+      `.project/tickets/${folder}/impl-plan.md`,
+      '--context',
+      `.project/tickets/${folder}/spec.md`,
+    ]);
+    if (name === 'PLAN_IMPLEMENTATION.md') {
+      expect(repeated.status).not.toBe(0);
+      expect(repeated.stdout).toContain('canonical_contract_copy_mismatch');
+    }
+  },
+);

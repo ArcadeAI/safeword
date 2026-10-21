@@ -42,6 +42,7 @@ const temporaryDirectories: string[] = [];
 const approved: UnverifiedReviewerOutput = {
   schema_version: 1,
   dispatch_id: 'dispatch-1',
+  evidence_records: { schema_version: 1, records: [] },
   reviewer_agent: 'claude',
   verdict: 'approve',
   planning_destination: 'plan-execution',
@@ -170,7 +171,7 @@ process.stdin.on('end', () => {
   const output = {
     schema_version: 1,
     dispatch_id: packet.dispatch_id,
-    reviewer_agent: 'claude',
+    evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude',
     verdict: 'approve',
     planning_destination: 'plan-execution',
     summary: 'approved',

@@ -178,6 +178,7 @@ function fixture(options: { plan?: string; designApprovalGate?: boolean } = {}):
       reviewer_output: {
         schema_version: 1,
         dispatch_id: 'dispatch-1',
+        evidence_records: { schema_version: 1, records: [] },
         reviewer_agent: 'claude',
         verdict: 'approve',
         summary: 'approved',
@@ -266,6 +267,7 @@ function compatibilityReviewResult(input: {
       reviewer_output: {
         schema_version: 1,
         dispatch_id: 'dispatch-compatibility-1',
+        evidence_records: { schema_version: 1, records: [] },
         reviewer_agent: 'claude',
         verdict: input.status === 'approved' ? 'approve' : 'request_changes',
         summary: input.status,
@@ -915,6 +917,7 @@ describe('Delivery Checklist CLI service', () => {
         reviewer_output: {
           schema_version: 1,
           dispatch_id: 'dispatch-compatibility-1',
+          evidence_records: { schema_version: 1, records: [] },
           reviewer_agent: 'claude',
           verdict: 'approve',
           summary: 'Documentation-only delta is compatible.',

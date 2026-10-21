@@ -72,7 +72,7 @@ writeFileSync(${JSON.stringify(marker)}, 'yes');
 ${agent === 'codex' && codexFails ? 'process.exit(7);' : ''}
 function reviewOutput(packet) {
   writeFileSync(${JSON.stringify(packetPath)}, JSON.stringify(packet));
-  return { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: '${agent}', verdict: 'approve', summary: 'Review approved.', findings: [] };
+  return { schema_version: 1, dispatch_id: packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent: '${agent}', verdict: 'approve', summary: 'Review approved.', findings: [], evidence_records: { schema_version: 1, records: [] } };
 }
 ${review}
 `;
@@ -255,5 +255,97 @@ it.each([
     } else if (!codexConfirmed) {
       expect(output.data.capability_failure).toBe('author_capability_unknown');
     }
+  },
+);
+
+it.each(['unqualified-model', 'gpt-6-luna'])(
+  'refuses explicit %s before inference and records reduced fallback',
+  async model => {
+    const project = createTemporaryDirectory();
+    projects.push(project);
+    await createConfiguredProject(project);
+    writePlanningInventories(project);
+    const configPath = nodePath.join(project, '.safeword/config.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf8'));
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        ...config,
+        crossAgentReviewRoutes: {
+          claude: [{ reviewer: 'codex', model }, { reviewer: 'claude' }],
+        },
+      }),
+    );
+    const ticket = '.project/tickets/PRQ123-qualification';
+    mkdirSync(nodePath.join(project, ticket), { recursive: true });
+    writeFileSync(
+      nodePath.join(project, ticket, 'ticket.md'),
+      '---\nid: PRQ123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: accepted behavior\nout_of_scope: new behavior\ndone_when: qualified review\nphase_anchors:\n  - scenario-gate: features/qualification.feature\n---\n',
+    );
+    mkdirSync(nodePath.join(project, 'features'), { recursive: true });
+    writeFileSync(
+      nodePath.join(project, 'features/qualification.feature'),
+      '@independent-first.BU1.R1\nFeature: Qualification\n  Scenario: Refuse unqualified model\n    Given a configured reviewer\n    When review runs\n    Then the unqualified model is skipped\n',
+    );
+    writeFileSync(
+      nodePath.join(project, ticket, 'impl-plan.md'),
+      '# Implementation Plan\n\n**Status:** planned\n\n## Approach\nPreserve review.\n\n## Decisions\nUse accepted behavior.\n\n## Design alignment\nPreserve scope.\n\n## Architecture applicability\nskip: no architecture changes\n\n## Data applicability\nskip: no data changes\n\n## Known deviations\nskip: none\n\n## Doc impact\nskip: no docs\n\n## Assessment triggers\nRevisit if review changes.\n',
+    );
+    writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
+    const reviewer = createTrustedReviewerDirectory('safeword-prequalification-');
+    const marker = nodePath.join(reviewer, 'independent-launched');
+    const fallback = nodePath.join(reviewer, 'fallback-launched');
+    for (const agent of ['claude', 'codex'] as const)
+      writeFileSync(
+        nodePath.join(reviewer, agent),
+        reviewerScript(
+          agent,
+          agent === 'codex' ? marker : fallback,
+          nodePath.join(reviewer, `${agent}-packet`),
+          false,
+          false,
+        ),
+        { mode: 0o755 },
+      );
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'plan-implementation',
+        `${ticket}/impl-plan.md`,
+        '--context',
+        `${ticket}/spec.md`,
+        '--cwd',
+        project,
+        '--json',
+        '--no-input',
+      ],
+      {
+        cwd: project,
+        env: {
+          PATH: `${reviewer}:${process.env.PATH ?? ''}`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_AUTHOR_MODEL: 'claude-opus-5',
+        },
+      },
+    );
+    const output = JSON.parse(result.stdout);
+    expect(existsSync(marker), 'unqualified exact selector must never launch inference').toBe(
+      false,
+    );
+    expect(existsSync(fallback), result.stdout + result.stderr).toBe(true);
+    expect(output.data).toMatchObject({
+      status: 'approved',
+      actual_reviewer: 'claude',
+      independence: 'reduced',
+    });
+    expect(output.data.review_routes).toContainEqual(
+      expect.objectContaining({
+        reviewer: 'codex',
+        model,
+        status: 'skipped',
+        failure: expect.stringMatching(/^reviewer_capability_(unknown|weaker)$/u),
+      }),
+    );
   },
 );
