@@ -36858,7 +36858,7 @@ function readPlanningAuthor(root, phase, identity) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "d7fdb4ccf2f9f702c0b6a96dbb21a0797217d39e3c70f49bf3c309a6fd3f9850" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "a3b251b4b5a959d63381f61b5bf6401c45dd4e63706bf157bf2a2418e9097533" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "29f67c4eb29d630cb7738df4cd72204b9cce3b1a9cd67ac78ec967e14bd0940c" } };
+  const copies = { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "d7fdb4ccf2f9f702c0b6a96dbb21a0797217d39e3c70f49bf3c309a6fd3f9850" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "d2379337051c3ac4774a7e4f23dd1066223727f250ec713076a66dc6904c68d9" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "92241150c514485bf0d32023c752a67291166f948ad06b685e0ba8eb1e09c4f6" } };
   return readPlanningAuthor(packageRoot(), phase, copies[phase]);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {
