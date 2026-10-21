@@ -885,3 +885,40 @@ can lack a typed diagnostic. Baseline-carrier fallback and additional parser
 boundary tests remain follow-ups. No public admission is inferred from this
 bounded engineering proof. Unit regression result remains 13/13 and the final
 live group remains 3/3 scenarios, 12/12 steps.
+
+Resume 2026-10-21: started the next PR 1 obligation, Cursor IDE completion.
+Extracted the existing native-plugin setup into CursorNativePluginActor within
+the write helper; write assertions remain in its derived actor. The new
+continuation actor reuses that setup, observes actual native Stop decisions,
+binds a synthetic unfinished verification task during Given, then submits one
+finish request. Its Then requires the native package follow-up, a subsequent
+host loop in the same conversation, and the unmet requirement in the real
+assistant response and UI. Added thin steps for the accepted completion outline
+and a diagnostic native-cursor-continuation runner. A passing component still
+cannot certify the incomplete native-cursor group.
+
+Regular Cursor auto-updated to 3.26.13. Restored an exact signed 3.24.18 copy at
+/tmp/safeword-2enrh5-targets.aOFAud/Cursor-3.24.18.app, verified version before
+use, and disabled automatic updates only in the existing isolated profile.
+The golden version URL unexpectedly returned 3.26.13; inspected its manifest
+and rejected it, then fetched the exact official production/build URL. The
+regular application was untouched.
+
+Actual continuation trial failed during Given, not at the product assertion:
+macOS refused activation of the owned isolated window. OS session reports
+CGSSessionScreenIsLocked=true. Runner returned 3 unavailable, 1 failed setup
+step / 3 skipped steps, 7.306s. Report:
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-6Uh4nT/cucumber.json.
+No live RED receipt, GREEN, completed outline, or production completion change.
+Asked user to unlock; independent observer/parser tests passed 14/14 across two
+files. The root test script also ran relay 198 passed/1 existing skipped and
+collector 153 passed sequentially. Targeted lint, typecheck and formatting passed.
+
+Quality-review bf303c06-7e14-4ead-991b-180027b868c4 was dispatched but returned
+REVIEW_AUTHENTICATION_REQUIRED, assigned Claude/opus, independence none. No
+review coverage was earned. Executed its exact recovery command, claude auth
+login, which opened the browser and waits for user sign-in. Asked user to finish
+that sign-in. After successful auth, retry the same coordinator command once;
+the future live RED also needs its own executable review before production work.
+The requested one-time profile-install retry failed without changes because
+another Safeword task held the Codex profile lock; no repeated retry or bypass.

@@ -126,21 +126,51 @@ function nativeProofTimeout(cursorCli: boolean): number {
   return cursorCli ? 1_800_000 : 540_000;
 }
 
+const nativeCases = {
+  'native-cursor': {
+    title: 'Native delivery exposes the contracted catalogue',
+    failure: 'NATIVE_HELPER_ORIGIN_MISMATCH',
+    steps: 4,
+  },
+  'native-codex': {
+    title: 'Portable package loading proves only its portable components',
+    failure: 'CODEX_COMPATIBILITY_OVERLAY_FALLBACK',
+    steps: 3,
+  },
+  'native-cursor-continuation': {
+    title: 'A supported completion guard actually continues the conversation',
+    failure: 'HOST_CONTINUATION_MISSING',
+    steps: 4,
+  },
+};
+
+function assertNativeRow(repoRoot: string, line: number, proof: string): void {
+  if (proof !== 'native-cursor-continuation') {
+    assertActualRow(repoRoot, line, proof === 'native-cursor');
+    return;
+  }
+  const cells = readFileSync(
+    nodePath.join(repoRoot, 'features/consistent-host-contract.feature'),
+    'utf8',
+  )
+    .split('\n')
+    [line - 1]?.split('|')
+    .map(cell => cell.trim());
+  assert.deepEqual(cells, ['', 'Cursor', '3.24.18', '']);
+}
+
 /** Required pilot: preserve the actual Cucumber failure, never equate setup with RED. */
 function main(): number {
   const args = process.argv.slice(2);
   const proof = args[1];
-  assert.ok(['native-cursor', 'native-codex', 'native-cursor-cli'].includes(proof ?? ''));
+  assert.ok(
+    ['native-cursor', 'native-codex', 'native-cursor-cli', 'native-cursor-continuation'].includes(
+      proof ?? '',
+    ),
+  );
   assert.deepEqual(args, ['--proof', proof, '--require-targets']);
-  const cursor = proof === 'native-cursor';
   const cursorCli = proof === 'native-cursor-cli';
-  const title = cursor
-    ? 'Native delivery exposes the contracted catalogue'
-    : 'Portable package loading proves only its portable components';
-  const expectedFailure = cursor
-    ? 'NATIVE_HELPER_ORIGIN_MISMATCH'
-    : 'CODEX_COMPATIBILITY_OVERLAY_FALLBACK';
-  const stepCount = cursor ? 4 : 3;
+  const selected = nativeCases[proof as keyof typeof nativeCases] ?? nativeCases['native-codex'];
   const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
   const reportDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-host-contract-proof-'));
   const report = nodePath.join(reportDirectory, 'cucumber.json');
@@ -177,13 +207,13 @@ function main(): number {
   assert.equal(scenarios.length, 1, 'Expected exactly the selected native example row');
   const [scenario] = scenarios;
   assert.ok(scenario);
-  assert.equal(scenario.name, title);
-  assert.equal(scenario.steps.length, stepCount);
-  assertActualRow(repoRoot, scenario.line, cursor);
+  assert.equal(scenario.name, selected.title);
+  assert.equal(scenario.steps.length, selected.steps);
+  assertNativeRow(repoRoot, scenario.line, proof ?? '');
   const statuses = scenario.steps.map(step => step.result.status);
   console.log(`Native ${proof} catalogue statuses: ${statuses.join(', ')}; report: ${report}`);
-  if (isIntendedFailure(result.status, statuses, scenario, expectedFailure)) {
-    console.error(`${expectedFailure}: observed native catalogue resource/selection failure`);
+  if (isIntendedFailure(result.status, statuses, scenario, selected.failure)) {
+    console.error(`${selected.failure}: observed native contract failure`);
     return 2;
   }
   if (result.status !== 0 || statuses.some(status => status !== 'passed')) {

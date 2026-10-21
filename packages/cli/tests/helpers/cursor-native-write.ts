@@ -24,6 +24,11 @@ interface Observation {
   version: string;
   tool?: string;
   command?: string;
+  conversation?: string;
+  generation?: string;
+  loop?: number;
+  status?: string;
+  text?: string;
 }
 
 interface NativeAction {
@@ -61,19 +66,15 @@ export function nativeCandidateDecisions(
 }
 
 /** Real clean-workspace actions; observers and bootstrap contain no policy. */
-export class CursorNativeWriteActor extends CursorNativeWindowActor {
-  private disposition: 'allowed' | 'denied' = 'allowed';
-  private readonly marker = `WRITE_${randomUUID()}`;
-  private target = '';
-  private shellCommand = '';
-  private candidate = '';
-  private version = '';
+export class CursorNativePluginActor extends CursorNativeWindowActor {
+  protected candidate = '';
+  protected version = '';
 
-  constructor(config: CursorNativeFixtureConfig) {
-    super(config, 'guard');
+  constructor(config: CursorNativeFixtureConfig, kind = 'guard') {
+    super(config, kind);
   }
 
-  private observations(): Observation[] {
+  protected observations(): Observation[] {
     const file = nodePath.join(this.workspace, '.host-contract/write-observations.jsonl');
     if (!existsSync(file)) return [];
     const text = readFileSync(file, 'utf8');
@@ -85,7 +86,7 @@ export class CursorNativeWriteActor extends CursorNativeWindowActor {
       .map(line => JSON.parse(line) as Observation);
   }
 
-  private hookLog(): string {
+  protected hookLog(): string {
     const pending = [nodePath.join(this.config.profileDirectory, 'logs')];
     const logs: string[] = [];
     while (pending.length > 0) {
@@ -102,10 +103,6 @@ export class CursorNativeWriteActor extends CursorNativeWindowActor {
       }
     }
     return logs.join('\n');
-  }
-
-  private decisions(): { permission?: string; user_message?: string }[] {
-    return nativeCandidateDecisions(this.hookLog(), this.candidate, this.shellCommand);
   }
 
   async prepare(host: string, version: string, runtime: string): Promise<void> {
@@ -277,6 +274,18 @@ export class CursorNativeWriteActor extends CursorNativeWindowActor {
         version,
       }),
     );
+  }
+}
+
+/** Real write actions on the shared clean native-plugin fixture. */
+export class CursorNativeWriteActor extends CursorNativePluginActor {
+  private disposition: 'allowed' | 'denied' = 'allowed';
+  private readonly marker = `WRITE_${randomUUID()}`;
+  private target = '';
+  private shellCommand = '';
+
+  private decisions(): { permission?: string; user_message?: string }[] {
+    return nativeCandidateDecisions(this.hookLog(), this.candidate, this.shellCommand);
   }
 
   setPolicy(disposition: 'allowed' | 'denied'): void {
