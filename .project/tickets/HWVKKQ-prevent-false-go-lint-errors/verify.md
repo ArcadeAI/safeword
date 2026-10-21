@@ -1,5 +1,29 @@
 # Verification
 
+## Test-quality follow-up (2026-10-21)
+
+Seven new automated cases and five strengthened policy cases pass 37/37 locally
+with golangci-lint v2.13.2 and Go 1.25.14. ESLint and TypeScript checks pass.
+The remote results below describe the earlier revision, before these tests.
+
+The full local CLI run completed with 11,628 passed, 12 skipped, and three
+subprocess-timeout failures in the unchanged stop-hook transcript and
+PR-readiness delivery suites. All three Go suites passed in that full run.
+An isolated rerun together with the older-linter lane could not acquire the
+shared test lock: PID 48551 in worktree ffcf held it for the full 60-second
+wait, and no test started. Repeatability of the three timeouts is unresolved.
+
+Two deliberately broken implementations were tested temporarily and restored:
+
+- Suppressed package findings: all five policy controls failed.
+- Omitted partial-write cleanup: the OS-limited write test failed on the leaked file.
+
+These are two targeted mutation checks, not an exhaustive mutation score. The
+new cases cover existing behavior; no claim is made that every added test
+preceded implementation. No new Gherkin scenarios were added.
+
+## Earlier remote verification
+
 Final remote result: **SUCCESS** for e4a3b079997efa91df1fad43d27e3026c7d5e258.
 Run: https://github.com/ArcadeAI/safeword/actions/runs/39667499218
 Machine result: remote-result.json. Audit/refactor detail: remote-verification.md.

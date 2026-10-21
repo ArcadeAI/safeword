@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
@@ -198,6 +199,40 @@ linters:
       ).toBe(false);
     },
   );
+
+  it('removes a partially written temporary config after a real filesystem write failure', () => {
+    const text = JSON.stringify({ version: '2', value: 'x'.repeat(64 * 1024) });
+    const { root, file, source } = fixture(text);
+    const runner = path.join(root, 'write-limit.ts');
+    writeFileSync(
+      runner,
+      `
+      import { prepareGoLintConfig } from ${JSON.stringify(path.resolve(__dirname, '../../src/go-lint/config.ts'))};
+      try {
+        prepareGoLintConfig(${JSON.stringify(file)}, ${JSON.stringify(root)}, ${JSON.stringify(root)});
+        process.exitCode = 1;
+      } catch (error) {
+        console.log(error.code);
+      }
+    `,
+    );
+    // Ignore SIGXFSZ so the kernel's file-size limit becomes a catchable write error.
+    // The limit applies only to the child, after its fixture and source config exist.
+    const result = spawnSync(
+      'sh',
+      ['-c', 'trap "" XFSZ; ulimit -f 1; exec "$@"', 'write-limit', 'bun', runner],
+      {
+        encoding: 'utf8',
+        cwd: root,
+      },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout.trim()).toBe('EFBIG');
+    expect(
+      readdirSync(path.dirname(source)).filter(name => name.startsWith('.safeword-go-lint-')),
+    ).toEqual([]);
+    expect(readFileSync(source, 'utf8')).toBe(text);
+  });
 
   it('prefers the caller config over a nested host config in fallback mode', () => {
     const { root, file, source } = fixture('version: "2"\n', '.golangci.yml');

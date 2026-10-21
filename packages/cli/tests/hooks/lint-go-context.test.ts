@@ -83,7 +83,7 @@ async function hook(root: string, file: string): Promise<string> {
       stderr += chunk;
     });
     child.on('error', reject);
-    child.on('exit', code => {
+    child.on('close', code => {
       if (code === 0) resolve(stdout.trim());
       else reject(new Error(stderr));
     });
@@ -168,6 +168,12 @@ describe.skipIf(!available)('Go post-edit package context (real Go and golangci-
       'package engine\n\nimport "fmt"\n\nfunc Value() { fmt.Printf("%d", "text") }\n',
     );
     expect(await hook(root, file)).toBe('');
+    write(
+      root,
+      '.safeword/.golangci.yml',
+      'version: "2"\nlinters: {default: none, enable: [govet]}\n',
+    );
+    expect(context(await hook(root, file))).toContain('govet');
     expect(readdirSync(root).filter(name => name.startsWith('.safeword-go-lint-'))).toEqual([]);
   });
 
@@ -192,6 +198,67 @@ describe.skipIf(!available)('Go post-edit package context (real Go and golangci-
       '// Copyright Example\npackage engine\n\nfunc Value() int { return 42 }\n',
     );
     expect(await hook(root, file)).toBe('');
+    write(
+      root,
+      'apps/engine/value.go',
+      '// Copyright Different\npackage engine\n\nfunc Value() int { return 42 }\n',
+    );
+    expect(context(await hook(root, file))).toContain('goheader');
+  });
+
+  it('retains genuine sibling type errors without changing the sibling', async () => {
+    const root = fixture();
+    const file = write(
+      root,
+      'apps/engine/value.go',
+      'package engine\n\nfunc Value() int { return 42 }\n',
+    );
+    const sibling = write(root, 'apps/engine/bad.go', 'package engine\n\nvar Bad = Undefined\n');
+    const before = readFileSync(sibling, 'utf8');
+    const feedback = context(await hook(root, file));
+    expect(feedback).toContain('undefined: Undefined');
+    expect(feedback).toContain(sibling);
+    expect(feedback).toContain('may predate');
+    expect(readFileSync(sibling, 'utf8')).toBe(before);
+  });
+
+  it('formats the edited file while leaving fixable lint findings for the user', async () => {
+    const root = fixture();
+    write(
+      root,
+      '.safeword/.golangci.yml',
+      JSON.stringify({
+        version: '2',
+        linters: { default: 'none', enable: ['misspell'] },
+        formatters: { enable: ['gofmt'] },
+      }),
+    );
+    const file = write(
+      root,
+      'apps/engine/value.go',
+      'package engine\n\n// Value returns teh value.\nfunc Value()int{return 42}\n',
+    );
+    expect(context(await hook(root, file))).toContain('misspell');
+    expect(readFileSync(file, 'utf8')).toContain('func Value() int { return 42 }');
+    expect(readFileSync(file, 'utf8')).toContain('teh');
+  });
+
+  it('warns on malformed policy without formatting or hiding the failure', async () => {
+    const root = fixture();
+    write(root, '.safeword/.golangci.yml', 'version: "2"\nlinters: [unterminated\n');
+    const file = write(
+      root,
+      'apps/engine/value.go',
+      'package engine\nfunc Value()int{return 42}\n',
+    );
+    const before = readFileSync(file, 'utf8');
+    expect(await hook(root, file)).toContain('Go lint could not run');
+    expect(readFileSync(file, 'utf8')).toBe(before);
+    expect(
+      readdirSync(path.join(root, '.safeword')).filter(name =>
+        name.startsWith('.safeword-go-lint-'),
+      ),
+    ).toEqual([]);
   });
 
   it('refuses an edited symlink whose target is outside the project', async () => {
@@ -281,6 +348,18 @@ describe.skipIf(!available)('Go post-edit package context (real Go and golangci-
         'package engine\n\nimport "fmt"\n\nfunc Value() int { fmt.Printf("%d", "text"); return helper() }\n',
       );
       expect(await hook(root, file)).toBe('');
+      write(
+        root,
+        '.safeword/.golangci.yml',
+        JSON.stringify({
+          version: '2',
+          run: { 'relative-path-mode': mode },
+          linters: { default: 'none', enable: ['govet'] },
+        }),
+      );
+      const feedback = context(await hook(root, file));
+      expect(feedback).toContain('govet');
+      expect(feedback).toContain(file);
       expect(readdirSync(root).filter(name => name.startsWith('.safeword-go-lint-'))).toEqual([]);
       expect(
         readdirSync(path.join(root, '.safeword')).filter(name =>

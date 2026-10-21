@@ -73,3 +73,11 @@ are explicit; CI must provision tools and fail rather than skip the proof lane.
   Codex warning feedback; two behavior-preserving refactors were committed.
   Independent reviews approved the implementation and inventory correction.
   All CI checks pass; verify.md supersedes the earlier local limitations.
+- 2026-10-21 Test-quality follow-up: strengthened five policy tests with finding-producing
+  controls; automated genuine sibling type errors, retained fixable misspellings,
+  malformed-policy warnings, spawn failure cleanup, report failure handling,
+  cleanup failure reporting, and partial-write cleanup under a child-only OS
+  file-size limit. All 37 focused tests pass with real v2.13.2/Go 1.25 tooling.
+  Two temporary source mutations were detected: suppressing findings failed all
+  five policy controls; omitting partial-write cleanup failed its regression.
+  Source was restored after both experiments. ESLint and TypeScript pass.

@@ -39,10 +39,11 @@ function fixture() {
     String.raw`#!/bin/sh
 printf '%s|%s\n' "$PWD" "$*" >> "$GO_LINT_TRACE"
 case "$1" in
-  version) printf '2.13.2\n'; exit 0 ;;
+  version) if [ -n "$GO_LINT_REMOVE_PACKAGE" ]; then mv -- "$GO_LINT_REMOVE_PACKAGE" "$GO_LINT_REMOVE_PACKAGE-moved"; fi; printf '2.13.2\n'; exit 0 ;;
   fmt) if [ "$GO_LINT_FORMAT_FAIL" = 1 ]; then printf 'formatter unavailable\n' >&2; exit 2; fi; exit 0 ;;
   run)
     if [ "$GO_LINT_HOLD" = 1 ]; then printf '%s' "$$" > "$GO_LINT_READY"; exec sleep 60; fi
+    if [ "$GO_LINT_BLOCK_CLEANUP" = 1 ]; then rm -- "$3"; mkdir -- "$3"; fi
     printf '%s\n' "$GO_LINT_DIAGNOSTIC"; exit 1 ;;
 esac
 `,
@@ -72,7 +73,7 @@ async function runHook(root: string, file: string, env: NodeJS.ProcessEnv) {
       output += chunk;
     });
     child.on('error', reject);
-    child.on('exit', status => {
+    child.on('close', status => {
       if (status === 0) resolve(output);
       else reject(new Error(`Hook exited ${status}`));
     });
@@ -94,6 +95,44 @@ describe('Go lint process boundary', () => {
     expect(trace).toContain(`--path-prefix ${root} .`);
     expect(trace).not.toContain('--fix');
     expect(readdirSync(root).some(name => name.startsWith('.safeword-go-lint-'))).toBe(false);
+  });
+
+  it('removes the prepared config when the package directory disappears before spawning', async () => {
+    const { root, file, env } = fixture();
+    const output = await runHook(root, file, {
+      ...env,
+      GO_LINT_REMOVE_PACKAGE: path.dirname(file),
+    });
+    expect(output).toContain('Go lint could not run');
+    expect(output).toContain('ENOENT');
+    expect(readdirSync(root).filter(name => name.startsWith('.safeword-go-lint-'))).toEqual([]);
+    expect(readFileSync(env.GO_LINT_TRACE, 'utf8')).toContain('|version --short');
+  });
+
+  it('preserves findings when the configured report destination cannot be written', async () => {
+    const { root, file, env } = fixture();
+    const report = path.join(root, 'report-directory');
+    mkdirSync(report);
+    writeFileSync(
+      path.join(root, '.safeword/.golangci.yml'),
+      JSON.stringify({
+        version: '2',
+        run: { 'relative-path-mode': 'wd' },
+        output: { formats: { text: { path: report } } },
+      }),
+    );
+    const output = await runHook(root, file, env);
+    expect(output).toContain('Go lint report could not be written');
+    expect(output).toContain('sample issue');
+    expect(readdirSync(root).filter(name => name.startsWith('.safeword-go-lint-'))).toEqual([]);
+  });
+
+  it('reports cleanup failure while retaining package findings', async () => {
+    const { root, file, env } = fixture();
+    const output = await runHook(root, file, { ...env, GO_LINT_BLOCK_CLEANUP: '1' });
+    expect(output).toContain('Go lint temporary config cleanup failed');
+    expect(output).toContain('sample issue');
+    expect(readdirSync(root).filter(name => name.startsWith('.safeword-go-lint-'))).toHaveLength(1);
   });
 
   it('caps the full context payload while admitting omitted findings', async () => {
