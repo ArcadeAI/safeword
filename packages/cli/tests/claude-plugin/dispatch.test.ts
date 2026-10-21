@@ -24,6 +24,7 @@ import {
 import { claudeWatchedSettingsDigest } from '../../src/claude-plugin/migration-state.js';
 import { claudeProofDirectory } from '../../src/claude-plugin/plugin-data.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+import { normalizeClaudeSkillHeader } from '../helpers/claude-skill-header.js';
 import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
 import { blockChildren } from '../helpers/io-failure.js';
 
@@ -213,6 +214,103 @@ describe('Claude plugin dispatcher', () => {
   beforeAll(() => {
     requireHistoricalReleaseTags(FIXTURE_VERSIONS);
   });
+
+  it('runs prompt hooks after desktop sync normalizes skill front matter', () => {
+    const projectDirectory = temporary('safeword-plugin-desktop-project-');
+    const pluginData = temporary('safeword-plugin-desktop-data-');
+    const configDirectory = temporary('safeword-plugin-desktop-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-desktop-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    const skillPath = nodePath.join(pluginRoot, 'skills/audit/SKILL.md');
+    const original = readFileSync(skillPath, 'utf8');
+    const normalized = normalizeClaudeSkillHeader(original);
+    expect(normalized).not.toBe(original);
+    writeFileSync(skillPath, normalized);
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'desktop', {
+      pluginRoot,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).not.toContain('damaged native plugin cache');
+    expect(result.stdout).not.toContain('No Safeword hook result was applied');
+    const digest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
+    const proofPath = nodePath.join(pluginData, 'execution-proofs-v2', `${digest}.json`);
+    const identity = JSON.parse(readFileSync(nodePath.join(pluginRoot, 'identity.json'), 'utf8'));
+    const proof = JSON.parse(readFileSync(proofPath, 'utf8'));
+    expect(proof).toEqual({
+      schema_version: 2,
+      project_root: realpathSync(projectDirectory),
+      plugin_version: SAFEWORD_SCHEMA.version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      canonical_plugin_root: realpathSync(pluginRoot),
+      event: 'UserPromptSubmit',
+      session_id: 'desktop',
+      recorded_at: expect.any(String),
+    });
+    expect(new Date(proof.recorded_at).toISOString()).toBe(proof.recorded_at);
+  });
+
+  it.each(['metadata', 'body', 'runtime', 'malformed-metadata'])(
+    'rejects changed %s after desktop sync normalizes a skill',
+    mutation => {
+      const projectDirectory = temporary('safeword-plugin-desktop-damage-project-');
+      const pluginData = temporary('safeword-plugin-desktop-damage-data-');
+      const configDirectory = temporary('safeword-plugin-desktop-damage-config-');
+      const pluginRoot = nodePath.join(temporary('safeword-plugin-desktop-damage-root-'), 'plugin');
+      cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+      const skillPath = nodePath.join(pluginRoot, 'skills/audit/SKILL.md');
+      let normalized = normalizeClaudeSkillHeader(readFileSync(skillPath, 'utf8'));
+      switch (mutation) {
+        case 'metadata': {
+          normalized = normalized.replace('name: audit', 'name: changed');
+          break;
+        }
+        case 'malformed-metadata': {
+          normalized = normalized.replace('name: audit', 'name: audit\nname: duplicate');
+          break;
+        }
+        case 'body': {
+          normalized += '\nChanged instructions.\n';
+          break;
+        }
+        case 'runtime': {
+          break;
+        }
+        default: {
+          throw new Error(`Unexpected test mutation: ${mutation}`);
+        }
+      }
+      writeFileSync(skillPath, normalized);
+      if (mutation === 'runtime') {
+        writeFileSync(nodePath.join(pluginRoot, 'runtime/cli.js'), '// changed runtime\n');
+      }
+
+      const result = dispatchEvent(
+        projectDirectory,
+        pluginData,
+        configDirectory,
+        'desktop-damage',
+        {
+          event: 'PreToolUse',
+          pluginRoot,
+        },
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        hookSpecificOutput: {
+          permissionDecision: 'ask',
+          permissionDecisionReason: expect.stringContaining(
+            mutation === 'malformed-metadata'
+              ? 'Skill front matter is invalid'
+              : 'asset failed integrity validation',
+          ),
+        },
+      });
+      expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
+    },
+  );
 
   it('passes the bundled CLI path to aggregate child hooks', () => {
     const projectDirectory = temporary('safeword-plugin-project-');

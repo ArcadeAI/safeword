@@ -70291,6 +70291,62 @@ var init_health = __esm(() => {
   ];
 });
 
+// src/claude-plugin/asset-integrity.ts
+import { createHash as createHash35 } from "crypto";
+function canonicalValue(value) {
+  if (value === null || typeof value === "string" || typeof value === "boolean")
+    return value;
+  if (typeof value === "number" && Number.isFinite(value))
+    return value;
+  if (Array.isArray(value))
+    return value.map((item) => canonicalValue(item));
+  if (value instanceof Map) {
+    const entries = [...value];
+    if (entries.some(([key]) => typeof key !== "string")) {
+      throw new TypeError("Skill metadata keys must be strings.");
+    }
+    return Object.fromEntries(entries.toSorted(([left], [right]) => {
+      if (left === right)
+        return 0;
+      return left < right ? -1 : 1;
+    }).map(([key, item]) => [key, canonicalValue(item)]));
+  }
+  throw new TypeError("Skill metadata must contain JSON-compatible values.");
+}
+function claudeSkillSha256(path8, content) {
+  if (!/^skills\/[^/]+\/SKILL\.md$/u.test(path8))
+    return;
+  const text = content.toString();
+  if (Buffer.isBuffer(content) && !Buffer.from(text).equals(content)) {
+    throw new TypeError(`Skill is not valid UTF-8: ${path8}`);
+  }
+  const header2 = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u.exec(text);
+  if (header2 === null)
+    throw new TypeError(`Skill front matter is missing: ${path8}`);
+  const document2 = import_yaml4.parseDocument(header2[1] ?? "", {
+    uniqueKeys: true,
+    version: "1.2",
+    schema: "core"
+  });
+  if (document2.errors.length > 0 || document2.warnings.length > 0 || !import_yaml4.isMap(document2.contents)) {
+    throw new TypeError(`Skill front matter is invalid: ${path8}`);
+  }
+  const metadata2 = canonicalValue(document2.toJS({ mapAsMap: true, maxAliasCount: 0 }));
+  return createHash35("sha256").update(JSON.stringify([metadata2, text.slice(header2[0].length)])).digest("hex");
+}
+function claudeAssetMatches(asset, content) {
+  if (createHash35("sha256").update(content).digest("hex") === asset.sha256)
+    return true;
+  if (typeof asset.skill_sha256 !== "string" || !/^[\da-f]{64}$/u.test(asset.skill_sha256)) {
+    return false;
+  }
+  return claudeSkillSha256(asset.path, content) === asset.skill_sha256;
+}
+var import_yaml4;
+var init_asset_integrity = __esm(() => {
+  import_yaml4 = __toESM(require_dist(), 1);
+});
+
 // src/claude-plugin/profile.ts
 var exports_profile = {};
 __export(exports_profile, {
@@ -70301,7 +70357,7 @@ __export(exports_profile, {
   claudeInstallRequiresMutation: () => claudeInstallRequiresMutation
 });
 import { spawnSync as spawnSync14 } from "child_process";
-import { createHash as createHash35 } from "crypto";
+import { createHash as createHash36 } from "crypto";
 import {
   closeSync as closeSync10,
   cpSync as cpSync2,
@@ -70844,19 +70900,19 @@ function convergePlugin(cwd, scope, effects) {
   }
 }
 function fileSha256(path8) {
-  return createHash35("sha256").update(readFileSync62(path8)).digest("hex");
+  return createHash36("sha256").update(readFileSync62(path8)).digest("hex");
 }
 function assertInstalledAsset(installPath, asset) {
   if (typeof asset.path !== "string" || nodePath92.isAbsolute(asset.path) || asset.path.split(/[\\/]/u).includes("..") || typeof asset.sha256 !== "string") {
     throw new TypeError("installed inventory contains an unsafe asset");
   }
   const path8 = nodePath92.join(installPath, asset.path);
-  if (!lstatSync18(path8).isFile() || fileSha256(path8) !== asset.sha256) {
+  if (!lstatSync18(path8).isFile() || !claudeAssetMatches({ path: asset.path, sha256: asset.sha256, skill_sha256: asset.skill_sha256 }, readFileSync62(path8))) {
     throw new TypeError(`installed asset failed integrity validation: ${asset.path}`);
   }
 }
 function assertInstalledIdentity(identity2, inventory, inventoryContent) {
-  if (identity2.schema_version !== 1 || identity2.plugin_version !== VERSION || identity2.inventory_sha256 !== createHash35("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
+  if (identity2.schema_version !== 1 || identity2.plugin_version !== VERSION || identity2.inventory_sha256 !== createHash36("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
     throw new TypeError("installed identity or inventory is inconsistent");
   }
 }
@@ -71116,6 +71172,7 @@ var init_profile = __esm(() => {
   init_durable_write();
   init_fs();
   init_version();
+  init_asset_integrity();
   init_inventory2();
   init_plugin_data();
   init_project_root();
@@ -71155,7 +71212,7 @@ var init_profile = __esm(() => {
 });
 
 // src/claude-plugin/hook-manifest.ts
-import { createHash as createHash36 } from "crypto";
+import { createHash as createHash37 } from "crypto";
 function adaptHookValue(value) {
   if (typeof value === "string") {
     return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
@@ -71205,7 +71262,7 @@ function pluginHookManifest() {
 `;
 }
 function currentClaudePluginHookManifestSha256() {
-  return createHash36("sha256").update(pluginHookManifest()).digest("hex");
+  return createHash37("sha256").update(pluginHookManifest()).digest("hex");
 }
 var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun --no-env-file --cwd "${CLAUDE_PLUGIN_ROOT}" "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js', EVENT_GROUP_EVENTS;
 var init_hook_manifest = __esm(() => {
@@ -71479,7 +71536,7 @@ function readFrontmatter(content) {
     return;
   return {
     body: content.slice(frontmatter[0].length),
-    metadata: import_yaml4.parse(frontmatter.groups.metadata)
+    metadata: import_yaml5.parse(frontmatter.groups.metadata)
   };
 }
 function parseSkill(content, skill) {
@@ -71759,7 +71816,7 @@ function generateCodexPluginAssets(canonicalSkillsDirectory, version2) {
     return {
       relativePath: nodePath94.join("skills", skill, "SKILL.md"),
       content: `---
-${import_yaml4.stringify({
+${import_yaml5.stringify({
         name: skill,
         description: adaptCodexWorkflowInvocations(description, knownSkillNames)
       }).trimEnd()}
@@ -71774,10 +71831,10 @@ ${adaptSkillBody(body, skill, knownSkillNames, referenceNames, version2)}`
   }));
   return [...skillAssets, ...referenceAssets];
 }
-var import_yaml4, CODEX_MARKETPLACE_NAME = "safeword", CODEX_PLUGIN_NAME = "safeword", PACKAGED_SKILL_REFERENCES, FRONTMATTER, SUPPORTED_SOURCE_METADATA, SCRIPT_REWRITES, NAMESPACE_ROOT_INVOCATION_PREFIX = 'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"', NAMESPACE_ROOT_KEY, NAMESPACE_ROOT_BASENAME, TRAILING_OPERAND;
+var import_yaml5, CODEX_MARKETPLACE_NAME = "safeword", CODEX_PLUGIN_NAME = "safeword", PACKAGED_SKILL_REFERENCES, FRONTMATTER, SUPPORTED_SOURCE_METADATA, SCRIPT_REWRITES, NAMESPACE_ROOT_INVOCATION_PREFIX = 'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"', NAMESPACE_ROOT_KEY, NAMESPACE_ROOT_BASENAME, TRAILING_OPERAND;
 var init_catalogue = __esm(() => {
   init_plugin_runtime_authority();
-  import_yaml4 = __toESM(require_dist(), 1);
+  import_yaml5 = __toESM(require_dist(), 1);
   PACKAGED_SKILL_REFERENCES = [
     { skill: "bdd", filename: "adr-template.md" },
     { skill: "bdd", filename: "execution-plan-template.md" },
@@ -72408,7 +72465,7 @@ __export(exports_profile2, {
   installOpenCodeProfile: () => installOpenCodeProfile,
   generateOpenCodeProfilePlugin: () => generateOpenCodeProfilePlugin
 });
-import { createHash as createHash37 } from "crypto";
+import { createHash as createHash38 } from "crypto";
 import {
   existsSync as existsSync46,
   lstatSync as lstatSync19,
@@ -72466,7 +72523,7 @@ function observeFile2(path8) {
   }
 }
 function sha2568(value) {
-  return createHash37("sha256").update(value).digest("hex");
+  return createHash38("sha256").update(value).digest("hex");
 }
 function packagedDispatcherPath() {
   const moduleDirectory = import.meta.dirname;
@@ -73392,7 +73449,7 @@ __export(exports_conformance, {
   observeOpenCodeVersion: () => observeOpenCodeVersion
 });
 import { spawnSync as spawnSync16 } from "child_process";
-import { createHash as createHash38 } from "crypto";
+import { createHash as createHash39 } from "crypto";
 import { accessSync as accessSync4, constants as constants6, lstatSync as lstatSync20, readFileSync as readFileSync67, realpathSync as realpathSync18, statSync as statSync9 } from "fs";
 import nodePath100 from "path";
 function resolveExecutable(environment) {
@@ -73447,7 +73504,7 @@ function profileRemediation() {
   });
 }
 function sha2569(value) {
-  return createHash38("sha256").update(value).digest("hex");
+  return createHash39("sha256").update(value).digest("hex");
 }
 function installedProfile(environment) {
   const root = resolveOpenCodeConfigRoot({
@@ -74381,7 +74438,7 @@ var init_doctor = __esm(() => {
 });
 
 // src/cli-protocol/reconciliation.ts
-import { createHash as createHash39 } from "crypto";
+import { createHash as createHash40 } from "crypto";
 import { lstatSync as lstatSync21, readdirSync as readdirSync29, readFileSync as readFileSync68, readlinkSync as readlinkSync3 } from "fs";
 import nodePath101 from "path";
 function actionTargets(action) {
@@ -74432,7 +74489,7 @@ function hashPath(hash, absolutePath, relativePath, readFile3) {
   }
 }
 function preconditionDigestForPaths(cwd, paths, readFile3 = readFileForDigest) {
-  const hash = createHash39("sha256");
+  const hash = createHash40("sha256");
   const targets = [...new Set(paths)].toSorted((left, right) => left.localeCompare(right));
   for (const target of targets) {
     hashField(hash, "target", target);
@@ -75162,7 +75219,7 @@ To wire the warn-only boundary gate, add under repos:
 
 // src/utils/namespace-migration.ts
 import { execSync } from "child_process";
-import { createHash as createHash40 } from "crypto";
+import { createHash as createHash41 } from "crypto";
 import {
   closeSync as closeSync11,
   constants as fsConstants3,
@@ -75211,7 +75268,7 @@ function validateDirectoryRoot(path8, label) {
 }
 function conflictArchivePath(source, relative) {
   const metadata2 = lstatSync22(source);
-  const digest7 = createHash40("sha256").update(`${metadata2.mode.toString(8)}\x00`).update(readFileSync71(source)).digest("hex");
+  const digest7 = createHash41("sha256").update(`${metadata2.mode.toString(8)}\x00`).update(readFileSync71(source)).digest("hex");
   return nodePath108.join(".safeword", "namespace-migration-conflicts-v1", digest7, relative);
 }
 function plannedNamespaceMigrationFiles(cwd) {
@@ -75923,7 +75980,7 @@ var init_vendored_ignores_nudge = __esm(() => {
 });
 
 // src/lifecycle/project-install.ts
-import { createHash as createHash41 } from "crypto";
+import { createHash as createHash42 } from "crypto";
 import {
   closeSync as closeSync12,
   constants as fsConstants4,
@@ -76224,7 +76281,7 @@ function setupPreconditionDigest(cwd, reconciliationDigest, effects, context, op
     ...effects.files.map((effect) => effect.target),
     ...effects.destructive.map((effect) => effect.target)
   ].filter((target) => !target.includes(" \u2192 "));
-  return createHash41("sha256").update(JSON.stringify([
+  return createHash42("sha256").update(JSON.stringify([
     reconciliationDigest,
     effects,
     JSON.stringify(context, (_key, value) => typeof value === "string" ? value.replaceAll(cwd, "<project>") : value),
@@ -77267,7 +77324,7 @@ __export(exports_commands, {
   planLifecycle: () => planLifecycle,
   installLifecycle: () => installLifecycle
 });
-import { createHash as createHash42 } from "crypto";
+import { createHash as createHash43 } from "crypto";
 function activationActionsFor(surface) {
   if (surface.name === "claude" && surface.result.changed)
     return ["run /reload-plugins"];
@@ -77463,7 +77520,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
   };
   const integrationSurfaces = observedSurfaces.filter((surface) => selected.has(surface.name));
   const surfaces = [{ name: "project", effects: project.plan.effects }, ...integrationSurfaces];
-  const preconditionDigest2 = createHash42("sha256").update(JSON.stringify([
+  const preconditionDigest2 = createHash43("sha256").update(JSON.stringify([
     project.plan.preconditionDigest,
     agents,
     scope,
@@ -77763,7 +77820,7 @@ __export(exports_cleanup, {
   claudeLegacyMutations: () => claudeLegacyMutations,
   claudeCleanupPreconditionDigest: () => claudeCleanupPreconditionDigest
 });
-import { createHash as createHash43, randomUUID as randomUUID14 } from "crypto";
+import { createHash as createHash44, randomUUID as randomUUID14 } from "crypto";
 import {
   closeSync as closeSync13,
   constants as fsConstants5,
@@ -77783,7 +77840,7 @@ import {
 } from "fs";
 import nodePath115 from "path";
 function sha25610(content) {
-  return createHash43("sha256").update(content).digest("hex");
+  return createHash44("sha256").update(content).digest("hex");
 }
 function containsJsonComments(content) {
   let found = false;
@@ -78820,7 +78877,7 @@ function resolveExecutionMode(input) {
 }
 
 // src/test-execution/remote-workflow-contract.ts
-import { createHash as createHash44 } from "crypto";
+import { createHash as createHash45 } from "crypto";
 function mapping(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
 }
@@ -78964,7 +79021,7 @@ function hasFixedUpload(steps) {
 }
 function resultViolations(steps) {
   const reportRun = stepById(steps, "report")?.run;
-  const reportValid = typeof reportRun === "string" && createHash44("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
+  const reportValid = typeof reportRun === "string" && createHash45("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
   return reportValid && hasFixedUpload(steps) ? [] : ["fixed_result_protocol"];
 }
 function hasSecretsKey(value) {
@@ -78988,7 +79045,7 @@ function secretViolations(workflow) {
 function evaluateRemoteTestWorkflow(source) {
   let workflow;
   try {
-    const document2 = import_yaml5.parseDocument(source, { uniqueKeys: true });
+    const document2 = import_yaml6.parseDocument(source, { uniqueKeys: true });
     workflow = document2.errors.length === 0 ? mapping(document2.toJS()) : undefined;
   } catch {
     workflow = undefined;
@@ -79009,9 +79066,9 @@ function evaluateRemoteTestWorkflow(source) {
   const uniqueViolations = [...new Set(violations)];
   return { accepted: uniqueViolations.length === 0, violations: uniqueViolations };
 }
-var import_yaml5, FULL_SHA, CHECKOUT = "actions/checkout", CHECKOUT_ACTION = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0", SETUP_NODE_ACTION = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020", SETUP_BUN_ACTION = "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6", SETUP_UV_ACTION = "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7", INPUT_SHA = "${{ inputs.target_sha }}", INPUT_LANE = "${{ inputs.lane }}", RESULT_FILE = "safeword-remote-test-result.json", UPLOAD_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", VALIDATE_COMMAND, VERIFY_COMMAND, TEST_COMMAND, REPORT_COMMAND_SHA256 = "b1cba179d7c3921553cb748e1c1759e2711f7aeef977317ec71515c6bd3608c9", STEP_SHAPES;
+var import_yaml6, FULL_SHA, CHECKOUT = "actions/checkout", CHECKOUT_ACTION = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0", SETUP_NODE_ACTION = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020", SETUP_BUN_ACTION = "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6", SETUP_UV_ACTION = "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7", INPUT_SHA = "${{ inputs.target_sha }}", INPUT_LANE = "${{ inputs.lane }}", RESULT_FILE = "safeword-remote-test-result.json", UPLOAD_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", VALIDATE_COMMAND, VERIFY_COMMAND, TEST_COMMAND, REPORT_COMMAND_SHA256 = "b1cba179d7c3921553cb748e1c1759e2711f7aeef977317ec71515c6bd3608c9", STEP_SHAPES;
 var init_remote_workflow_contract = __esm(() => {
-  import_yaml5 = __toESM(require_dist(), 1);
+  import_yaml6 = __toESM(require_dist(), 1);
   FULL_SHA = /^[0-9a-f]{40}$/u;
   VALIDATE_COMMAND = `[[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
 ` + `[[ "$LANE" == "done" || "$LANE" == "full" ]] || exit 1
@@ -79222,7 +79279,7 @@ var init_remote_workflow_fs = __esm(() => {
 });
 
 // src/test-execution/remote-workflow-state.ts
-import { createHash as createHash45 } from "crypto";
+import { createHash as createHash46 } from "crypto";
 import nodePath118 from "path";
 function observationError(error2, path8) {
   const code = filesystemErrorCode(error2);
@@ -79237,7 +79294,7 @@ function normalizeLineEndings2(content) {
 `);
 }
 function workflowDigest(content) {
-  return createHash45("sha256").update(normalizeLineEndings2(content)).digest("hex");
+  return createHash46("sha256").update(normalizeLineEndings2(content)).digest("hex");
 }
 function readOpenedWorkflow(descriptor, filesystem) {
   const metadata2 = filesystem.fstat(descriptor);
@@ -81873,7 +81930,7 @@ var init_plan_gate = __esm(() => {
 });
 
 // src/review/approval-ledger.ts
-import { createHash as createHash46, randomUUID as randomUUID16 } from "crypto";
+import { createHash as createHash47, randomUUID as randomUUID16 } from "crypto";
 import {
   closeSync as closeSync16,
   constants as constants9,
@@ -81992,7 +82049,7 @@ function positionedEvents(ledger) {
   ];
 }
 function decisionIdempotencyKey(identity2, supersedesPosition) {
-  return createHash46("sha256").update(JSON.stringify([
+  return createHash47("sha256").update(JSON.stringify([
     identity2.ticket,
     identity2.planDigest,
     identity2.decision,
@@ -82001,7 +82058,7 @@ function decisionIdempotencyKey(identity2, supersedesPosition) {
   ])).digest("hex");
 }
 function deliveryIdempotencyKey(identity2) {
-  return createHash46("sha256").update(JSON.stringify([
+  return createHash47("sha256").update(JSON.stringify([
     identity2.ticket,
     identity2.itemId,
     identity2.proofId,
@@ -82010,7 +82067,7 @@ function deliveryIdempotencyKey(identity2) {
   ])).digest("hex");
 }
 function deliveryCompatibilityIdempotencyKey(identity2) {
-  return createHash46("sha256").update(JSON.stringify([
+  return createHash47("sha256").update(JSON.stringify([
     identity2.ticket,
     identity2.itemId,
     identity2.proofId,
@@ -82472,7 +82529,7 @@ var exports_plan_approval = {};
 __export(exports_plan_approval, {
   approvePlanResult: () => approvePlanResult
 });
-import { createHash as createHash47, randomUUID as randomUUID17 } from "crypto";
+import { createHash as createHash48, randomUUID as randomUUID17 } from "crypto";
 import {
   appendFileSync as appendFileSync3,
   existsSync as existsSync61,
@@ -82490,7 +82547,7 @@ function interruptApprovalForTest(boundary) {
   }
 }
 function planDigest(content) {
-  return createHash47("sha256").update(content).digest("hex");
+  return createHash48("sha256").update(content).digest("hex");
 }
 function readContext2(cwd, ticketId) {
   const ticketDirectory = resolveTicketDirectory(cwd, ticketId);
@@ -82945,7 +83002,7 @@ function addDisposition(content, request, kind, finding2, boundaryDigest) {
   const match = /^(---\r?\n)([\s\S]*?)(\r?\n---(?:\r?\n|$))/u.exec(content);
   if (match === null)
     throw new Error("The ticket has no valid frontmatter.");
-  const document2 = import_yaml6.parseDocument(match[2] ?? "", { uniqueKeys: true });
+  const document2 = import_yaml7.parseDocument(match[2] ?? "", { uniqueKeys: true });
   if (document2.errors.length > 0)
     throw new Error("The ticket has invalid frontmatter.");
   const metadata2 = document2.toJS();
@@ -83139,7 +83196,7 @@ async function recordReviewDisposition(request) {
     return pending(request, kind, selected);
   return writeDisposition(request, ticketPath, kind, selected, before, boundaryDigest);
 }
-var import_yaml6, command = "ticket record-review-disposition";
+var import_yaml7, command = "ticket record-review-disposition";
 var init_review_disposition = __esm(() => {
   init_result();
   init_coordinator();
@@ -83148,7 +83205,7 @@ var init_review_disposition = __esm(() => {
   init_planning_accepted_boundary();
   init_product_plan_contract();
   init_ticket_metadata();
-  import_yaml6 = __toESM(require_dist(), 1);
+  import_yaml7 = __toESM(require_dist(), 1);
 });
 
 // src/commands/planning-contract-check.ts
@@ -83290,11 +83347,11 @@ var init_delivery_admission = __esm(() => {
 
 // src/execution-plan/delivery-compatibility.ts
 import { spawnSync as spawnSync21 } from "child_process";
-import { createHash as createHash48 } from "crypto";
+import { createHash as createHash49 } from "crypto";
 import { mkdirSync as mkdirSync27, writeFileSync as writeFileSync35 } from "fs";
 import nodePath136 from "path";
 function sha25611(value) {
-  return createHash48("sha256").update(value).digest("hex");
+  return createHash49("sha256").update(value).digest("hex");
 }
 function relativePathspec(projectRoot, path8) {
   const relative = nodePath136.relative(projectRoot, nodePath136.resolve(path8));
@@ -83545,7 +83602,7 @@ __export(exports_delivery_checklist, {
   observeDeliveryChecklist: () => observeDeliveryChecklist,
   hasAdmittedDeliveryChecklist: () => hasAdmittedDeliveryChecklist
 });
-import { createHash as createHash49 } from "crypto";
+import { createHash as createHash50 } from "crypto";
 import { existsSync as existsSync63, readFileSync as readFileSync90 } from "fs";
 import nodePath138 from "path";
 function findingResult(command2, code, message, recovery) {
@@ -83557,7 +83614,7 @@ function findingResult(command2, code, message, recovery) {
   });
 }
 function sha25612(value) {
-  return createHash49("sha256").update(value).digest("hex");
+  return createHash50("sha256").update(value).digest("hex");
 }
 function designApprovalEnabled2(cwd) {
   const path8 = nodePath138.join(cwd, ".safeword", "config.json");
@@ -84311,7 +84368,7 @@ var init_delivery_checklist2 = __esm(() => {
 });
 
 // src/execution-plan/execution-prerequisite.ts
-import { createHash as createHash50 } from "crypto";
+import { createHash as createHash51 } from "crypto";
 import { existsSync as existsSync64, readFileSync as readFileSync91 } from "fs";
 import nodePath139 from "path";
 function successful(status, achievedIndependence2, inputIdentity, executionPlanArtifact) {
@@ -84374,7 +84431,7 @@ function designDecisionAccepted(input) {
     return true;
   if (!existsSync64(input.implementationPath))
     return false;
-  const planDigest2 = createHash50("sha256").update(readFileSync91(input.implementationPath, "utf8")).digest("hex");
+  const planDigest2 = createHash51("sha256").update(readFileSync91(input.implementationPath, "utf8")).digest("hex");
   return currentDesignDecision(input.ledgerPath, input.ticketId, planDigest2) === "approved";
 }
 function contractedFeature(ticketDirectory, phase) {
@@ -84562,7 +84619,7 @@ function checklistPrerequisite(context, inspection) {
   };
 }
 function digest7(content) {
-  return createHash50("sha256").update(content).digest("hex");
+  return createHash51("sha256").update(content).digest("hex");
 }
 function fileDigest2(path8) {
   return path8 !== undefined && existsSync64(path8) ? digest7(readFileSync91(path8, "utf8")) : "missing";
