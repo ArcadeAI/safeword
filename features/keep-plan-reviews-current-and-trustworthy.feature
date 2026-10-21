@@ -348,18 +348,23 @@ Feature: Keep plan reviews current and trustworthy
     Scenario: OpenCode Desktop guidance cannot claim a gated approval
       Given the OpenCode profile plugin is read from Desktop where native lifecycle hooks are unavailable
       When the Safeword CLI reconciles the installed OpenCode profile guidance through real project configuration
-      Then it labels Desktop execution advisory, claims neither review nor approval there, and names both OpenCode CLI and TUI as authoritative planning entry points
+      Then it labels Desktop execution advisory, claims neither review nor approval there, and directs authoritative planning only to a supported entry point with current independent native lifecycle proof
 
     @surface.claude-code @surface.opencode
-    Scenario Outline: Generated guidance identifies gated surfaces as enforced
-      Given planning guidance is generated for <gated_surface> after independent native lifecycle-dispatch proof has passed
+    Scenario Outline: Generated guidance grants authority only to independently proven surfaces
+      Given the version- and plugin-bound native lifecycle-dispatch and activation evidence for <surface> is <proof_state>, with no caller-supplied authority flag
       When the Safeword CLI reconciles that installed guidance through real project configuration
-      Then it states that planning review and approval are enforced there and does not label that surface advisory
+      Then <guidance_result>
 
       Examples:
-        | gated_surface |
-        | local Claude Code |
-        | OpenCode CLI |
+        | surface | proof_state | guidance_result |
+        | local Claude Code | independently passed through its actual installed lifecycle boundary | it states that planning review and approval are enforced there and does not label that surface advisory |
+        | OpenCode CLI | independently passed through its actual installed lifecycle boundary | it states that planning review and approval are enforced there and does not label that surface advisory |
+        | OpenCode TUI | independently passed through its actual installed lifecycle boundary | it states that planning review and approval are enforced there and does not label that surface advisory |
+        | OpenCode CLI | absent for the running OpenCode version | it labels CLI planning advisory, claims neither review nor approval there, and directs authoritative planning to a supported surface with current independent native proof |
+        | OpenCode TUI | failed at the native lifecycle boundary | it labels TUI planning advisory, claims neither review nor approval there, and directs authoritative planning to a supported surface with current independent native proof |
+        | OpenCode CLI | simulated-only without actual native lifecycle dispatch | it labels CLI planning advisory, claims neither review nor approval there, and directs authoritative planning to a supported surface with current independent native proof |
+        | OpenCode TUI | explicitly deferred without native lifecycle proof | it labels TUI planning advisory, claims neither review nor approval there, and directs authoritative planning to a supported surface with current independent native proof |
 
   @plan-implementability.TBU4.5F5ZZA.R9
   Rule: plan-implementability.TBU4.5F5ZZA.R9 — Review invalidation follows the dependency direction specified by the Execution Planning contract; this child implements the shared provenance and invalidation mechanics rather than defining a second dependency matrix
@@ -381,18 +386,18 @@ Feature: Keep plan reviews current and trustworthy
         | only whitespace inside a reviewed Execution Plan checklist row's normalized progress cells | neither plan review is invalidated |
         | only ordinary progress in a reviewed Execution Plan checklist row's Disposition, Evidence class, Revision, or final evidence cell | neither plan review is invalidated |
 
-    Scenario: Invalidation follows the canonical Execution Planning dependency direction
-      Given current plan-review receipts and a canonical Execution Planning contract that declares accepted Implementation Plan changes invalidate both plan reviews
-      When the accepted Implementation Plan changes semantically
-      Then both plan reviews are invalidated
-
-    @surface.safeword-cli @rejection @proof.vitest
-    Scenario: Invalid Execution invalidation declarations preserve installed contracts
+    @surface.safeword-cli @proof.vitest
+    Scenario Outline: Canonical invalidation declarations admit only the supported direction
       Given valid shared-clause updates are pending for all three installed planning contracts
-      And the canonical Execution Planning contract declares an unsupported upstream invalidation direction
+      And the canonical Execution Planning contract's upstream invalidation declaration is <declaration>
       When the Safeword CLI upgrades the installed contracts through real project configuration
-      Then reconciliation reports invalid_invalidation_contract and names the Execution Planning contract
-      And all three installed planning contracts remain byte-for-byte unchanged
+      Then <reconciliation_result>
+
+      Examples:
+        | declaration | reconciliation_result |
+        | exactly the owner-supported both_plan_reviews direction | reconciliation installs the pending shared-clause updates in all three contracts and retains the canonical both_plan_reviews direction |
+        | missing while its version label remains unchanged | reconciliation reports invalid_invalidation_contract naming the Execution Planning contract and all three installed contracts remain byte-for-byte unchanged |
+        | a conflicting implementation_review_only direction while its version label remains unchanged | reconciliation reports invalid_invalidation_contract naming the Execution Planning contract and all three installed contracts remain byte-for-byte unchanged |
 
     @rejection
     Scenario Outline: An approving receipt is valid only for its own ticket and review kind

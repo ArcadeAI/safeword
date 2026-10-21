@@ -377,12 +377,10 @@ describe('Planning contract shared-clause generation', () => {
     const purpose = 'Sequence the accepted delivery without reopening its design.';
     writeFileSync(
       executionSource,
-      readFileSync(executionSource, 'utf8')
-        .replace(/^(- \*\*Purpose:\*\*)[^\n]+/mu, (_match, label: string) => `${label} ${purpose}`)
-        .replace(
-          'upstreamImplementationInvalidation: both_plan_reviews',
-          () => `upstreamImplementationInvalidation: ${mode}`,
-        ),
+      readFileSync(executionSource, 'utf8').replace(
+        /^(- \*\*Purpose:\*\*)[^\n]+/mu,
+        (_match, label: string) => `${label} ${purpose}`,
+      ),
     );
     generatePhaseContracts(distribution);
     const output = nodePath.join(distribution, 'src/planning/contracts.generated.ts');
@@ -441,10 +439,14 @@ describe('Planning contract shared-clause generation', () => {
 
   it.each([
     {
+      case: 'supported both-plan-reviews',
+      declaration: 'upstreamImplementationInvalidation: both_plan_reviews',
+    },
+    { case: 'missing', declaration: '' },
+    {
       case: 'unsupported own-review-only',
       declaration: 'upstreamImplementationInvalidation: implementation_review_only',
     },
-    { case: 'missing', declaration: '' },
     { case: 'missing entire field', declaration: undefined },
     { case: 'unknown', declaration: 'upstreamImplementationInvalidation: either_plan_review' },
     {
@@ -466,7 +468,7 @@ describe('Planning contract shared-clause generation', () => {
       declaration:
         'upstreamImplementationInvalidation: both_plan_reviews upstreamImplementationInvalidation:',
     },
-  ])('blocks reconciliation for a $case Execution invalidation direction', ({ declaration }) => {
+  ])('reconciles a $case canonical Execution invalidation declaration', ({ declaration }) => {
     const distribution = sourceDistribution();
     const project = nodePath.join(distribution, 'project');
     mkdirSync(project);
@@ -495,13 +497,26 @@ describe('Planning contract shared-clause generation', () => {
     const contract = readFileSync(contractPath, 'utf8');
     const direction = 'upstreamImplementationInvalidation: both_plan_reviews';
     expect(contract).toContain(direction);
-    const invalidContract =
+    const candidateContract =
       declaration === undefined
         ? contract.replace(/^- \*\*Invalidation:\*\*[\s\S]+?(?=^- \*\*Return path:)/mu, '')
         : contract.replace(direction, () => declaration);
-    expect(invalidContract).not.toBe(contract);
-    writeFileSync(contractPath, invalidContract);
+    if (declaration === direction) expect(candidateContract).toBe(contract);
+    else expect(candidateContract).not.toBe(contract);
+    writeFileSync(contractPath, candidateContract);
     const result = reconciliationResult(distribution, project, 'upgrade');
+    if (declaration === direction) {
+      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+      for (const snapshot of installed) {
+        const content = readFileSync(snapshot.path, 'utf8');
+        expect(content, `${snapshot.name} must receive the pending canonical update`).toContain(
+          changedClause,
+        );
+        expect(content).not.toBe(snapshot.bytes);
+        if (snapshot.name === 'PLAN_EXECUTION.md') expect(content).toContain(direction);
+      }
+      return;
+    }
     expect(
       result.status,
       'real CLI reconciliation must reject an invalid Execution invalidation contract',

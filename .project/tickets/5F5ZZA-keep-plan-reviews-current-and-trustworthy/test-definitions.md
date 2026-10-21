@@ -194,7 +194,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Generated guidance identifies gated surfaces as enforced
+### Scenario: Generated guidance grants authority only to independently proven surfaces
 
 - [ ] RED
 - [ ] GREEN
@@ -208,13 +208,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Invalidation follows the canonical Execution Planning dependency direction
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Invalid Execution invalidation declarations preserve installed contracts
+### Scenario: Canonical invalidation declarations admit only the supported direction
 
 - [ ] RED
 - [ ] GREEN
