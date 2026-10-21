@@ -16,8 +16,9 @@ Leaf-first execution ledger:
   shared filename source and every directory-search rule. Four direct format
   cases and nine real v2.13.2 policy probes pass; ESLint and all five generated
   surfaces pass. Native plugin carriers were regenerated in dependency order.
-- [ ] Rename the caller-directory config variable to distinguish it from the
-  project root. This distinction directly underlies the reported bugs.
+- [x] Rename the caller-directory config variable to distinguish it from the
+  project root. This distinction directly underlies the reported bugs. All
+  four precedence probes, ESLint and five generated-surface checks pass.
 - [ ] Name the version capability probe as a predicate; preserve its checks,
   errors and oldest-version behavior.
 - [ ] Extract helper invocation and JSON validation into one local function;
@@ -31,6 +32,8 @@ Leaf-first execution ledger:
   differ intentionally. The common mechanism would be larger than the duplication.
 - [x] Exclude signal-listener, exact stream-cap and aggregate-context behavior
   changes from this behavior-preserving pass; existing limitations remain explicit.
+- [x] Decline the optional standalone context-function rename: its small local
+  scope is already clear; no ambiguity justifies another change/test cycle.
 - [ ] Re-run the diff audit, then the independent quality-review coordinator;
   resolve every error, record optional suggestions, and verify the final source.
 

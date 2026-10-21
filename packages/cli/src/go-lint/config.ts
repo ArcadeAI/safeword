@@ -48,8 +48,8 @@ function lookupDirectory(directory: string): string | undefined {
 function selectedConfig(file: string, root: string, originalCwd: string): string | undefined {
   const managed = path.join(root, GO_LINT_MANAGED_CONFIG_PATH);
   if (existsSync(managed)) return managed;
-  const rootConfig = lookupDirectory(originalCwd);
-  if (rootConfig) return rootConfig;
+  const workingDirectoryConfig = lookupDirectory(originalCwd);
+  if (workingDirectoryConfig) return workingDirectoryConfig;
   let directory = path.dirname(file);
   for (;;) {
     const config = lookupDirectory(directory);

@@ -86497,9 +86497,9 @@ function selectedConfig(file, root, originalCwd) {
   const managed = path8.join(root, GO_LINT_MANAGED_CONFIG_PATH);
   if (existsSync75(managed))
     return managed;
-  const rootConfig = lookupDirectory(originalCwd);
-  if (rootConfig)
-    return rootConfig;
+  const workingDirectoryConfig = lookupDirectory(originalCwd);
+  if (workingDirectoryConfig)
+    return workingDirectoryConfig;
   let directory = path8.dirname(file);
   for (;; ) {
     const config = lookupDirectory(directory);
