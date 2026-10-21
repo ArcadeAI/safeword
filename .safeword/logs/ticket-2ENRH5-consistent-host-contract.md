@@ -946,3 +946,38 @@ waiting for user sign-in. Reminded the user through the input tool. No
 independent review was earned, no production integration began, and all outline
 checkboxes remain unchecked. Retry the exact coordinator command after auth
 succeeds; do not substitute a reviewer or bypass the receipt gate.
+
+2026-10-21 Claude login succeeded. Initial refreshed executable review
+6b754561-3c94-42d9-9e03-ccfed6515dd5 rejected an unavailable run: the Given
+lost foreground. Made draft fill retryable only for transient foreground loss;
+submission remains single-shot with exact PID/window/input checks. Commit
+6eaa1ab21 records that harness repair. Executable review
+50585e69-c4a6-4174-96e8-b9899ee0e20f APPROVED the fresh exact-target failure:
+exit 2, first three steps passed, only HOST_CONTINUATION_MISSING failed, about
+35.19s; report safeword-host-contract-proof-c2dK4G/cucumber.json, fixture HDcEpn.
+
+Implemented evaluateSessionDoneEvidence in the existing shared done-gate owner;
+Codex and Cursor now reuse its session ownership, completion-phase eligibility
+and evidence verdict. Cursor emits a bounded follow-up; Codex retains its status
+writer. No native enrollment/default delivery switch. Generated plugin carriers
+and dogfood mirrors were refreshed. Actual Cursor IDE component GREEN: all four
+steps passed in 56.578s, fixture unfinished-ticket-stop-YVIrIM, report
+safeword-host-contract-proof-s3TY3g/cucumber.json. Component runner correctly
+remains incomplete (3), since the aggregate native-cursor group is still unwired.
+
+Independent quality review a7c25f5f-b67d-455c-908d-97e83996b66b APPROVED
+shared completion implementation with warnings. Ten additional real adapter
+subprocess controls passed across Cursor/Codex: missing evidence, valid evidence,
+unbound session, ordinary verify work, and custom namespace. Cursor never changed
+ticket status; Codex changed status only on its passing completion case.
+
+The foreign live suite held the package lock. Generation's first lifecycle
+verification exited 75 without starting Vitest. Reordered only this task's
+queued wrapper to update lifecycle fixtures before targeted tests; no foreign
+process or lock was modified. The lifecycle update command then passed. Targeted
+regression run: seven files passed, one failed; 105 tests passed, one failed.
+Existing cursor-stop-review expects the architecture reminder during done-phase
+work; the new evidence follow-up currently omits it. Repair will preserve the
+evidence reason first and the existing reminder in the same follow-up. No GREEN
+ledger transition or whole-ticket completion is claimed. A local partial
+checkpoint is required by the 400-LOC gate before that regression repair.

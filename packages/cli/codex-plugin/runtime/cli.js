@@ -83544,47 +83544,6 @@ var init_dependency_readiness = __esm(() => {
   REPORT_ONLY_INSTALL_FLAGS = new Set(["--version", "-v", "--help", "-h"]);
 });
 
-// templates/hooks/lib/retrospective-gate.ts
-var init_retrospective_gate2 = __esm(() => {
-  init_safeword_cli();
-});
-// templates/hooks/lib/test-runner.ts
-var BDD_TEST_TIMEOUT_MS, projectDir;
-var init_test_runner = __esm(() => {
-  init_safeword_cli();
-  BDD_TEST_TIMEOUT_MS = 20 * 60000;
-  projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-});
-
-// templates/hooks/lib/done-gate.ts
-function checkVerifyArtifact(content) {
-  const prScopeMatch = PR_SCOPE_LINE_PATTERN.exec(content);
-  if (!prScopeMatch?.groups?.status) {
-    return {
-      ok: false,
-      reason: "verify.md is missing PR scope evidence. Run /verify again so it records `**PR Scope:**` before marking done."
-    };
-  }
-  const status = prScopeMatch.groups.status;
-  const failed = status.includes("\u274C") || !status.includes("\u2705") && /piggybacked changes/i.test(status);
-  if (failed) {
-    return {
-      ok: false,
-      reason: "verify.md says PR scope failed. Revert or split the piggybacked work, or explicitly accept the scope change in the ticket artifacts before marking done."
-    };
-  }
-  return { ok: true };
-}
-var PR_SCOPE_LINE_PATTERN;
-var init_done_gate = __esm(() => {
-  init_checkbox_transitions();
-  init_dependency_readiness();
-  init_retrospective_annotation();
-  init_retrospective_gate2();
-  init_test_runner();
-  PR_SCOPE_LINE_PATTERN = /^\*\*PR Scope:\*\*\s*(?<status>.+)$/im;
-});
-
 // templates/hooks/lib/quality-state.ts
 import { readFileSync as readFileSync93, writeFileSync as writeFileSync37 } from "fs";
 import nodePath144 from "path";
@@ -83638,6 +83597,49 @@ var init_quality_state = __esm(() => {
   init_namespace_root2();
   init_run_identity();
   init_self_report();
+});
+
+// templates/hooks/lib/retrospective-gate.ts
+var init_retrospective_gate2 = __esm(() => {
+  init_safeword_cli();
+});
+// templates/hooks/lib/test-runner.ts
+var BDD_TEST_TIMEOUT_MS, projectDir;
+var init_test_runner = __esm(() => {
+  init_safeword_cli();
+  BDD_TEST_TIMEOUT_MS = 20 * 60000;
+  projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+});
+
+// templates/hooks/lib/done-gate.ts
+function checkVerifyArtifact(content) {
+  const prScopeMatch = PR_SCOPE_LINE_PATTERN.exec(content);
+  if (!prScopeMatch?.groups?.status) {
+    return {
+      ok: false,
+      reason: "verify.md is missing PR scope evidence. Run /verify again so it records `**PR Scope:**` before marking done."
+    };
+  }
+  const status = prScopeMatch.groups.status;
+  const failed = status.includes("\u274C") || !status.includes("\u2705") && /piggybacked changes/i.test(status);
+  if (failed) {
+    return {
+      ok: false,
+      reason: "verify.md says PR scope failed. Revert or split the piggybacked work, or explicitly accept the scope change in the ticket artifacts before marking done."
+    };
+  }
+  return { ok: true };
+}
+var PR_SCOPE_LINE_PATTERN;
+var init_done_gate = __esm(() => {
+  init_checkbox_transitions();
+  init_dependency_readiness();
+  init_namespace_root2();
+  init_quality_state();
+  init_retrospective_annotation();
+  init_retrospective_gate2();
+  init_test_runner();
+  PR_SCOPE_LINE_PATTERN = /^\*\*PR Scope:\*\*\s*(?<status>.+)$/im;
 });
 
 // templates/hooks/lib/pr-readiness-guard.ts

@@ -1,7 +1,8 @@
 // Safeword: shared done-gate evidence checks.
 //
 // The done gate is the "you may close this ticket" chokepoint. Claude and Codex
-// run it at Stop; Cursor runs it at the closing edit because its Stop cannot block.
+// run it at Stop; Cursor runs it at the closing edit and can request a bounded
+// conversation continuation at Stop. Cursor Stop does not reject ticket edits.
 // OpenCode also checks unfinished feature evidence at that edit because its Stop is
 // observational and its pre-tool dispatcher has a strict two-second budget. These
 // paths MUST agree on what counts as unfinished feature evidence, so it lives here:
@@ -19,6 +20,9 @@ import nodePath from 'node:path';
 
 import { balancedFenceBodyLines } from './checkbox-transitions.js';
 import { formatDependencyRecovery, getDependencyReadiness } from './dependency-readiness.js';
+import { resolveNamespaceRoot } from './namespace-root.js';
+import { readSessionActiveTicket } from './quality-state.js';
+import type { RunIdentity } from './run-identity.js';
 import { parseRetrospectiveAnnotation } from './retrospective-annotation.js';
 import { retrospectiveCloseDenial } from './retrospective-gate.js';
 import { analyzeScenarioFormat } from './scenario-format.js';
@@ -139,6 +143,24 @@ export interface DoneEvidenceVerdict {
   ok: boolean;
   /** Human-readable explanation of the first failing check (undefined when ok). */
   reason?: string;
+}
+
+/** Evaluate only a completion explicitly owned by this host conversation. */
+export function evaluateSessionDoneEvidence(
+  projectDir: string,
+  identity: RunIdentity,
+): { ticketDir: string; verdict: DoneEvidenceVerdict } | undefined {
+  // An absent identity must never adopt another session's unscoped state or
+  // the globally most-recent ticket. Both adapters share this ownership rule.
+  if (identity.sessionKey === null) return undefined;
+  const ticket = readSessionActiveTicket(projectDir, identity);
+  if (!ticket?.folder || ticket.status !== 'in_progress' || ticket.phase !== 'done')
+    return undefined;
+  const ticketDir = nodePath.join(resolveNamespaceRoot(projectDir), 'tickets', ticket.folder);
+  return {
+    ticketDir,
+    verdict: evaluateDoneEvidence({ projectDir, ticketDir, ticketType: ticket.type }),
+  };
 }
 
 /**

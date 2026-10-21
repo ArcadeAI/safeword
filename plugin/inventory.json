@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f946424fa8543977c23f5def4c9774e7f662240057452c84dbe62d809de7ef4e"
+      "sha256": "67dcc1f7bfb6c34ff933893b17fd746cc40740beadbb76fc70def0e191f37bd1"
     },
     {
       "path": "runtime/dispatch.js",
@@ -239,7 +239,7 @@
     },
     {
       "path": "runtime/hooks/lib/done-gate.ts",
-      "sha256": "7ae0babe0c1435a4f64eb36f600b614ed4776520b30a0cd352a7e09f1362702e"
+      "sha256": "1231a45ab7e7d542670ae8bd7cb0fc5a3ac505e8fa0123c52da7f8b145a3697e"
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
@@ -1115,7 +1115,7 @@
     },
     {
       "path": "templates/hooks/codex/stop.ts",
-      "sha256": "e98d3c6834149be7091cc2df6dfdbd851d4090e7957fac0a0036c14a4a3d9f31"
+      "sha256": "e7e9221fd0ed234c12355a9ca6bdb35b189dc7864a2df3b11b1fc1860d1ecb7f"
     },
     {
       "path": "templates/hooks/cursor/after-file-edit.ts",
@@ -1143,7 +1143,7 @@
     },
     {
       "path": "templates/hooks/cursor/stop.ts",
-      "sha256": "f8319f2b4a120dceafa15118a1273650e4988eb2cb676fc214d82a7c1e07d4d2"
+      "sha256": "295b2676e236a7b36840850537feeeef48ab2b5decc4f2251095741f7deb5986"
     },
     {
       "path": "templates/hooks/dependency-bootstrap.ts",
@@ -1215,7 +1215,7 @@
     },
     {
       "path": "templates/hooks/lib/done-gate.ts",
-      "sha256": "7ae0babe0c1435a4f64eb36f600b614ed4776520b30a0cd352a7e09f1362702e"
+      "sha256": "1231a45ab7e7d542670ae8bd7cb0fc5a3ac505e8fa0123c52da7f8b145a3697e"
     },
     {
       "path": "templates/hooks/lib/drain-retro-spool.ts",

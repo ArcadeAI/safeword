@@ -11,6 +11,7 @@ import nodePath from 'node:path';
 
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
 import { cursorEditedMarkerPath } from '../lib/cursor-state.ts';
+import { evaluateSessionDoneEvidence } from '../lib/done-gate.ts';
 import {
   evaluateDecisionBriefCompliance,
   QUALITY_REVIEW_MESSAGE,
@@ -164,6 +165,20 @@ if (input.status !== 'completed') {
   process.exit(0);
 }
 
+// Completion evidence outranks presentation repair and optional nudges. The
+// host enforces the loop_limit from the canonical hook declaration; emitting a
+// follow-up requests continuation and does not claim an unlimited Stop block.
+const runIdentity = resolveRunIdentity(input, { runtime: 'cursor' });
+const completion = evaluateSessionDoneEvidence(process.cwd(), runIdentity);
+if (completion && !completion.verdict.ok) {
+  console.log(
+    JSON.stringify({
+      followup_message: completion.verdict.reason ?? 'Done evidence could not be verified.',
+    } satisfies StopOutput),
+  );
+  process.exit(0);
+}
+
 const markerFile = cursorEditedMarkerPath(input);
 const hasCurrentTurnEdit = await Bun.file(markerFile).exists();
 
@@ -202,7 +217,6 @@ if ((input.loop_count ?? 0) === 0) {
 // Cursor enforces max 5 auto-submissions, no additional limit needed
 
 // Check if any file edits occurred in this session by looking for marker file
-const runIdentity = resolveRunIdentity(input, { runtime: 'cursor' });
 
 if (hasCurrentTurnEdit) {
   // Clean up marker (best-effort; missing file or perm issue is non-fatal)
