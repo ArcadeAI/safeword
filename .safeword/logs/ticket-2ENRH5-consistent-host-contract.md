@@ -1040,3 +1040,21 @@ All changed completion behavior passed its real-host and targeted regressions.
 The local checkpoint remains part of an open feature, not release readiness.
 Both task-owned installer disk images were gracefully unmounted after the GUI
 proof, retaining downloaded binaries and all evidence files.
+
+### 2026-10-21 — Clarify shared verification and Cursor proof obligations
+
+Applied the quality-reviewed testing proposal after user authorization. The plan
+keeps shared policy/scenarios authored once, derives coverage automatically, and
+retains each exact runtime/delivery boundary. Explicitly reconciled legacy Cursor
+bounded-completion proof for both 3.8.23 and 3.24.18 with the existing status
+requirement. Updated native status to the four passing IDE/three CLI diagnostics;
+sealed admission, customer activation and lifecycle claims remain open. Removed
+stale duplicated lane counts. No new cloud or universal subagent scope.
+
+Independent Claude/opus plan reviews 22ae7676-9153-41db-a35d-467c1855c5f7 and
+e2ca4150-e9ce-4700-b0f7-9e62ce015844 approved; second result recovered via status
+after interruption. Optional wording notes and source-preservation verification
+are retained in evidence/cursor-testing-proposal-review/review.md under the ticket.
+Both original Cucumber reports remain present and all their scenario steps pass.
+No runtime code or scenarios changed; no runtime tests were rerun for this prose
+clarification. This completes the clarification, not the accepted feature.

@@ -37,6 +37,21 @@ boundary before bulk catalogue migration. Schema/registry scaffolding is a
 prerequisite, not completion of the accepted migration. A failed host proof leaves
 the claim unmet and prompts an engineering repair; it does not change Product.
 
+### Verification reuse and cadence
+
+Author shared policy cases and conformance scenarios once. Execute each required
+example through its actual host/version/runtime and delivery binding; a shared
+policy pass or generic plugin-load check cannot replace boundary proof.
+Routine development uses targeted shared-policy, generated-output and adapter
+checks, plus real-host proof for affected guarantees before dependent work or
+support claims. Broader compatibility runs use the existing verification and
+release lanes. Changing cadence does not remove required examples or permit
+CLI, manual, parent-agent or other-delivery results to substitute for them.
+The registry derives coverage; users do not maintain a host checklist.
+Model or agent-configuration changes require targeted checks when they affect
+contracted workflow, reviewer authority or continuation; they do not create a
+second full deterministic suite. Cloud-specific delivery remains outside scope.
+
 ### Components and interface decisions
 
 - Extend the existing integration registry, canonical schema, and shared hook
@@ -110,9 +125,12 @@ CLI, Cursor 3.24.18 IDE, Cursor 2026.09.28-64d2043 CLI, OpenCode V1 1.18.23 CLI
 and TUI, and OpenCode V2 2.0.32 CLI and TUI. Add Cursor project-hook IDE 3.8.23
 and 3.24.18 for ten denial/allow delivery cases. Native catalogue has six outline
 rows (Claude CLI, Codex CLI, both Cursor lanes, V2 CLI and TUI), plus separately
-required V1 CLI/TUI and both Cursor legacy IDE cases. Completion-continuation
-claims currently cover Claude 2.1.170 CLI, Codex 0.160.0 CLI and Cursor 3.24.18
-IDE only; no CLI continuation claim is inferred for Cursor or OpenCode.
+required V1 CLI/TUI and both Cursor legacy IDE cases. Required native completion-continuation
+proof targets are Claude 2.1.170 CLI, Codex 0.160.0 CLI and Cursor 3.24.18 IDE.
+Retained Cursor project-hook delivery separately requires bounded completion
+proof in both exact IDEs, 3.8.23 and 3.24.18, as specified under Status compatibility
+and recovery. Neither delivery class can satisfy the other's evidence. No CLI
+continuation claim is inferred for Cursor or OpenCode.
 
 | Host | Chosen delivery and boundary | Limit |
 | --- | --- | --- |
@@ -371,7 +389,7 @@ there is no pending product choice or request to reapprove unchanged scope.
 | --- | --- | --- | --- | --- | --- | --- |
 | [Superpowers adapter](https://github.com/obra/superpowers/blob/bb92a77741419a4ab5f06e711a283343f1ada0c3/.opencode/plugins/superpowers.js) | 2026-10-20 | bb92a77741419a4ab5f06e711a283343f1ada0c3 | OpenCode V2 2.0.32; V1 independently pinned 1.18.23 | One skill directory, separate V1/V2 registration; correct V2 path field and per-entry rejection handling | Register bundled content with narrow host translation | MIT; architectural inspiration only, no copied implementation or enforcement proof |
 | [Compound Engineering converter](https://github.com/EveryInc/compound-engineering-plugin/blob/2e41b4490a37f53db0beb6d4904618da9af2f559/src/converters/claude-to-codex.ts) | 2026-10-20 | 2e41b4490a37f53db0beb6d4904618da9af2f559 | Safeword native Codex 0.160.0 and lifecycle ownership | Native skills remain sole content owner; conversion fills genuine gaps | One active delivery owner | MIT; its newer V1 baseline is not compatibility proof for 1.18.23 |
-| [OpenSpec types](https://github.com/Fission-AI/OpenSpec/blob/c794978f4f8845ce59693373c9dd882ee776588c/src/core/command-generation/types.ts) | 2026-10-20 | c794978f4f8845ce59693373c9dd882ee776588c | Safeword delivery projections on all five lanes | Tool-neutral content separated from path/frontmatter formatting | Small content contract | MIT; conversion does not establish runtime policy equivalence |
+| [OpenSpec types](https://github.com/Fission-AI/OpenSpec/blob/c794978f4f8845ce59693373c9dd882ee776588c/src/core/command-generation/types.ts) | 2026-10-20 | c794978f4f8845ce59693373c9dd882ee776588c | Safeword delivery projections on all declared lanes | Tool-neutral content separated from path/frontmatter formatting | Small content contract | MIT; conversion does not establish runtime policy equivalence |
 
 The [Codex 0.160.0 native loader](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/core-plugins/src/loader.rs#L952-L963)
 was checked 2026-10-20 against the exact pinned target and a two-profile native
@@ -423,7 +441,7 @@ as root-format delivery. Cursor's native skill visibility control is documented
 in the linked loading decision; CLI-only metadata cannot suppress IDE aliases.
 
 All decision evidence was retrieved 2026-10-20. Applicable versions are the exact
-six target versions in Approach and Agent Plugins 1.0. Host reference pages for
+target versions declared in Approach and Agent Plugins 1.0. Host reference pages for
 [Cursor packaging/local import](https://cursor.com/docs/plugins),
 [Claude native components](https://code.claude.com/docs/en/plugins-reference),
 and [OpenCode V2](https://github.com/anomalyco/opencode/blob/v2.0.32/services/www/src/docs/content/build/plugins/index.mdx)
@@ -463,11 +481,17 @@ Native installation must not generate competing project wrappers in a clean
 eligible project. A profile-local request cannot retire tracked wrappers shared
 with teammates or Cloud; cache presence cannot override this eligibility check.
 The [current hooks contract](https://cursor.com/docs/hooks) documents workspaceOpen
-and pluginPaths. Exact 3.24.18 discovery and content/helper loading have partial
-automated evidence in cursor-static-guidance.md and the catalogue checkpoint.
-Guard attempts now reach the missing-dispatch assertion (cursor-native-guard-discovery.md).
-Native enforcement and complete admission remain unproved; registration alone
-does not establish them.
+and pluginPaths. The exact 3.24.18 native IDE diagnostic group now passes
+catalogue/helper loading, denied write, allowed write and bounded continuation.
+The separate exact CLI diagnostic group passes catalogue/helper loading and
+allowed/denied writes; it supplies no IDE or CLI-continuation claim. See
+[current proof and limits](./cursor-continuation-proof.md#current-implementation-and-proof).
+The earlier missing-dispatch result in cursor-native-guard-discovery.md is
+historical. These passing groups are diagnostic-only, admission_eligible=false:
+sealed conformance admission, customer activation, eligibility/coexistence and
+the full lifecycle remain unmet by these results. Native diagnostic proof cannot
+satisfy either legacy project-hook IDE case. Registration alone establishes none
+of the enforcement guarantees.
 No marketplace registration or user-wide Cursor hook is introduced. Trust/admin
 denial of this local discovery path remains actionable and unprotected; do not
 fall back to globally activating the payload.
