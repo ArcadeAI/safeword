@@ -53,17 +53,39 @@ Then(
       result.launches.map(({ agent, model }) => `${agent}:${model}`),
       expected.split(','),
     );
-    if (state(this).example === 'later') {
-      assert.ok(
-        result.output.data.review_routes.some(
-          (route: { model?: string; status: string; failure?: string }) =>
-            route.model === 'gpt-6-sol' &&
-            route.status === 'skipped' &&
-            route.failure === 'reviewer_capability_unknown',
-        ),
-        'the unqualified explicit selector must be a skipped refusal, not an attempt',
-      );
-    }
+  },
+);
+Then(
+  'the planning review reports capability-refused selectors {string} with failure {string}',
+  function (this: SafewordWorld, selectors: string, failure: string) {
+    const routes = state(this).result?.output.data.review_routes;
+    assert.ok(Array.isArray(routes), 'the CLI must return typed route evidence');
+    const refused = routes.filter((route: { failure?: string }) =>
+      route.failure?.startsWith('reviewer_capability_'),
+    );
+    const expected =
+      selectors === 'none'
+        ? []
+        : selectors.split(',').map(selector => {
+            const [reviewer, model] = selector.split(':', 2);
+            return { reviewer, model, status: 'skipped', failure };
+          });
+    assert.deepEqual(
+      refused.map(
+        ({
+          reviewer,
+          model,
+          status,
+          failure: actualFailure,
+        }: {
+          reviewer: string;
+          model?: string;
+          status: string;
+          failure?: string;
+        }) => ({ reviewer, model, status, failure: actualFailure }),
+      ),
+      expected,
+    );
   },
 );
 Then(

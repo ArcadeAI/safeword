@@ -253,7 +253,7 @@ function recordOf(output: ReviewerOutput): NonNullable<ReviewerOutput['execution
   return record;
 }
 
-function assertSlicingRationale(id: string, rationale: string, expect: Assertions): void {
+export function assertSlicingRationale(id: string, rationale: string, expect: Assertions): void {
   expect(rationale.trim()).not.toBe('');
   const patterns: Record<string, readonly RegExp[]> = {
     'one-coherent-change': [
@@ -403,6 +403,7 @@ function useLiveReviewerProfile(assigned: ReviewAgent): void {
   for (const [key, value] of environment) vi.stubEnv(key, value);
 }
 
+/* eslint-disable unicorn/no-top-level-side-effects -- This live test module exports its oracle for deterministic regression tests. */
 beforeAll(() => {
   if (!CAN_RUN || (reviewer !== 'claude' && reviewer !== 'codex')) return;
   if (retained !== undefined) {
@@ -520,3 +521,5 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
     }
   });
 });
+
+/* eslint-enable unicorn/no-top-level-side-effects */

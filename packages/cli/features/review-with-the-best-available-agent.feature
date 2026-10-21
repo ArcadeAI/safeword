@@ -70,15 +70,16 @@ Feature: Keep review available with the best supported fallback
       Given a ranked planning review with "<case>" routes
       When the real planning review CLI runs
       Then reviewer processes launch exactly in this order: "<launches>"
+      And the planning review reports capability-refused selectors "<skipped>" with failure "<failure>"
       And the completed planning review names "<reviewer>" with "<assurance>" assurance
       And <packets> reviewer packets retain the complete target and the same sealed dispatch
 
       Examples:
-        | case        | launches                                      | reviewer | assurance   | packets |
-        | first       | codex:gpt-6-astra                              | codex    | cross-agent | 1       |
-        | alternate   | codex:default,codex:gpt-6-astra                | codex    | cross-agent | 2       |
-        | later       | codex:default,codex:gpt-6-astra                | codex    | cross-agent | 2       |
-        | unsupported | codex:default,claude:default                  | claude   | reduced     | 1       |
+        | case        | launches                        | skipped         | failure                     | reviewer | assurance   | packets |
+        | first       | codex:gpt-6-astra               | none            | none                        | codex    | cross-agent | 1       |
+        | alternate   | codex:default,codex:gpt-6-astra | none            | none                        | codex    | cross-agent | 2       |
+        | later       | codex:default,codex:gpt-6-astra | codex:gpt-6-sol | reviewer_capability_unknown | codex    | cross-agent | 2       |
+        | unsupported | codex:default,claude:default    | none            | none                        | claude   | reduced     | 1       |
 
   @review-with-the-best-available-agent.TBU1.R2 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Rule: review-with-the-best-available-agent.TBU1.R2 — Same-agent headless review is the first degraded route

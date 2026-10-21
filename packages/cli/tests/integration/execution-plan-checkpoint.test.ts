@@ -1,9 +1,64 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { expect, it } from 'vitest';
+
+import {
+  readExecutionCheckpoint,
+  writeExecutionCheckpoint,
+} from '../fixtures/execution-plan-live-checkpoint.js';
+
+it.each([
+  {
+    label: 'missing confirmation',
+    change: { confirmed_model: undefined },
+    message: 'exact model confirmation',
+  },
+  {
+    label: 'wrong model',
+    change: { confirmed_model: { provider: 'anthropic', model: 'other-model' } },
+    message: 'exact model confirmation',
+  },
+  {
+    label: 'wrong provider',
+    change: { confirmed_model: { provider: 'openai', model: 'claude-opus-5' } },
+    message: 'exact model confirmation',
+  },
+  {
+    label: 'unpaired output',
+    change: { case_id: 'different-case' },
+    message: 'exact model confirmation',
+  },
+  { label: 'CLI output', change: { dispatch_mode: 'cli' }, message: 'headless' },
+  { label: 'replayed output', change: { dispatch_mode: 'replay' }, message: 'headless' },
+])('rejects retained passing evidence with $label', ({ change, message }) => {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'execution-provenance-'));
+  const path = nodePath.join(root, 'results.json');
+  const identity = {
+    schema_version: 1,
+    contract_sha256: 'contract',
+    corpus_sha256: 'corpus',
+    reviewer: 'claude',
+    requested_model: 'claude-opus-5',
+  };
+  const result = { case_id: 'completed', reviewer: 'claude', model: 'claude-opus-5', passed: true };
+  const output = {
+    case_id: 'completed',
+    dispatch_mode: 'headless',
+    output: { verdict: 'approve' },
+    confirmed_model: { provider: 'anthropic', model: 'claude-opus-5' },
+  };
+  try {
+    writeExecutionCheckpoint(path, [result], [output], identity);
+    expect(readExecutionCheckpoint(path, identity, ['completed']).results).toEqual([result]);
+    writeExecutionCheckpoint(path, [result], [{ ...output, ...change }], identity);
+    expect(() => readExecutionCheckpoint(path, identity, ['completed'])).toThrow(message);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 it('retains completed raw observations when the worker is killed before teardown', () => {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'execution-checkpoint-'));
@@ -34,6 +89,49 @@ it('retains completed raw observations when the worker is killed before teardown
     expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual(results);
     expect(JSON.parse(readFileSync(`${path}.outputs.json`, 'utf8'))).toEqual(outputs);
     expect(JSON.parse(readFileSync(`${path}.metadata.json`, 'utf8'))).toEqual(metadata);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it.each(['metadata', 'results'])('refuses mixed generations after a %s write fails', stage => {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'execution-interrupted-write-'));
+  const path = nodePath.join(root, 'results.json');
+  const identity = {
+    schema_version: 1,
+    contract_sha256: 'contract',
+    corpus_sha256: 'corpus',
+    reviewer: 'claude',
+    requested_model: 'claude-opus-5',
+  };
+  const result = (case_id: string) => ({
+    case_id,
+    reviewer: 'claude',
+    model: 'claude-opus-5',
+    passed: true,
+  });
+  const output = (case_id: string) => ({
+    case_id,
+    dispatch_mode: 'headless',
+    output: { verdict: 'approve' },
+    confirmed_model: { provider: 'anthropic', model: 'claude-opus-5' },
+  });
+  try {
+    writeExecutionCheckpoint(path, [result('old')], [output('old')], identity);
+    expect(readExecutionCheckpoint(path, identity, ['old', 'new']).results).toEqual([
+      result('old'),
+    ]);
+    const original = readFileSync(path, 'utf8');
+    // Force an actual filesystem failure after raw outputs have been replaced.
+    const target = stage === 'metadata' ? `${path}.metadata.json` : path;
+    mkdirSync(`${target}.${process.pid}.tmp`);
+    expect(() => {
+      writeExecutionCheckpoint(path, [result('new')], [output('new')], identity);
+    }).toThrow();
+    expect(readFileSync(path, 'utf8')).toBe(original);
+    expect(() => readExecutionCheckpoint(path, identity, ['old', 'new'])).toThrow(
+      'exact model confirmation',
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
