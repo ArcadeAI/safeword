@@ -65,7 +65,9 @@ export async function openCodeScriptedModelFixture(
         );
         return;
       }
-      const answer = reply(body);
+      // V2 also streams auxiliary title requests without tools. They are not agent turns.
+      const answer =
+        modelToolNames(body.tools).length > 0 ? reply(body) : { text: 'Fixture title' };
       const tool = answer.tool;
       const call = tool !== undefined;
       if (call) attempts++;

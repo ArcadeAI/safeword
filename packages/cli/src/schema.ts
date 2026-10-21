@@ -78,6 +78,7 @@ export const OPENCODE_V2_PLUGIN_LAYOUT = {
   manifest: 'package.json',
   entry: 'index.js',
   dispatcher: 'runtime/dispatch.js',
+  workers: 'workers.json',
   runtime: PORTABLE_PLUGIN_LAYOUT.runtime,
   templates: PORTABLE_PLUGIN_LAYOUT.templates,
 } as const;

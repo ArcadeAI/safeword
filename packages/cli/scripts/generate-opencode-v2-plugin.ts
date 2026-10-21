@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import rootPackage from '../../../package.json' with { type: 'json' };
 import sdkPackage from '../../opencode-v2-plugin/package.json' with { type: 'json' };
 import { writePortableCoreCatalogue } from '../src/host-contract/portable-core.js';
+import { readWorkerContracts } from '../src/host-contract/workers.js';
 import { generateOwnedPathsModule } from '../src/owned-paths.js';
 import { OPENCODE_V2_PLUGIN_LAYOUT as layout, SAFEWORD_SCHEMA } from '../src/schema.js';
 import { VERSION } from '../src/version.js';
@@ -16,6 +17,11 @@ const { values } = parseArgs({ options: { output: { type: 'string' } }, strict: 
 if (!values.output) throw new Error('Use --output <fresh plugin directory>');
 await publishFreshDirectory(nodePath.resolve(values.output), async output => {
   writePortableCoreCatalogue(nodePath.join(packageRoot, 'templates'), output, VERSION);
+  const workers = readWorkerContracts(nodePath.join(packageRoot, 'templates'));
+  writeFileSync(
+    nodePath.join(output, layout.workers),
+    `${JSON.stringify(workers, undefined, 2)}\n`,
+  );
   mkdirSync(nodePath.dirname(nodePath.join(output, layout.runtime)), { recursive: true });
   writeFileSync(
     nodePath.join(output, layout.manifest),

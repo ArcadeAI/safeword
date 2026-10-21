@@ -16123,7 +16123,7 @@ function schemaForSharedAgentRuntime(schema, needed) {
     return schema;
   return filterSchemaPaths(schema, (path3) => !isSharedAgentRuntimePath(path3));
 }
-var PLANNING_DATA_GUIDE_PATH = ".safeword/guides/data-architecture-guide.md", PLANNING_CONTRACT_TEMPLATE_PATHS, MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, SAFEWORD_TRANSIENT_ROOT_ENTRIES, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", TERMINAL_HANDOFF_CONTRACT_MARKERS, SAFEWORD_SCHEMA, ALL_SCHEMA_PATH_COLLECTIONS, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
+var PLANNING_DATA_GUIDE_PATH = ".safeword/guides/data-architecture-guide.md", PORTABLE_PLUGIN_LAYOUT, OPENCODE_V2_PLUGIN_LAYOUT, PLANNING_CONTRACT_TEMPLATE_PATHS, MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, SAFEWORD_TRANSIENT_ROOT_ENTRIES, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", TERMINAL_HANDOFF_CONTRACT_MARKERS, SAFEWORD_SCHEMA, ALL_SCHEMA_PATH_COLLECTIONS, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
 var init_schema = __esm(() => {
   init_historical_ownership();
   init_inventory();
@@ -16138,6 +16138,22 @@ var init_schema = __esm(() => {
   init_fs();
   init_install();
   init_version();
+  PORTABLE_PLUGIN_LAYOUT = {
+    manifest: "plugin.json",
+    manifestSchema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+    skills: "skills",
+    runtime: "runtime/cli.js",
+    templates: "templates"
+  };
+  OPENCODE_V2_PLUGIN_LAYOUT = {
+    directory: "opencode-v2-plugin",
+    manifest: "package.json",
+    entry: "index.js",
+    dispatcher: "runtime/dispatch.js",
+    workers: "workers.json",
+    runtime: PORTABLE_PLUGIN_LAYOUT.runtime,
+    templates: PORTABLE_PLUGIN_LAYOUT.templates
+  };
   PLANNING_CONTRACT_TEMPLATE_PATHS = {
     product: "skills/bdd/DISCOVERY.md",
     implementation: "skills/bdd/PLAN_IMPLEMENTATION.md",

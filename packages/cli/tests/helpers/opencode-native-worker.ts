@@ -79,6 +79,10 @@ export async function proveOpenCodeWorker(fixture: OpenCodeNativeFixture, runtim
     });
     return { ...model, prompt: `${parentNonce}. Delegate the isolated canonical worker task.` };
   });
+  writeFileSync(
+    nodePath.join(directory, 'native-worker-model-requests.json'),
+    JSON.stringify(requests, undefined, 2),
+  );
   const observations = readFileSync(nodePath.join(directory, 'native-observations.jsonl'), 'utf8')
     .trim()
     .split('\n')
