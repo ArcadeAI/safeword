@@ -218,6 +218,20 @@ export function compareSealedCapabilityResults(
   );
 }
 
+function findingMatchesConceptGroups(
+  message: string,
+  groups: NonNullable<CapabilityFixture['finding_groups']>,
+): boolean {
+  const words = ` ${message.replaceAll(/[^\p{L}\p{N}]+/gu, ' ')}`;
+  return groups.every(group =>
+    group.some(
+      concept =>
+        concept.trim() !== '' &&
+        words.includes(` ${concept.toLowerCase().replaceAll(/[^\p{L}\p{N}]+/gu, ' ')}`),
+    ),
+  );
+}
+
 export function scoreCapabilityRun(fixture: CapabilityFixture, run: CapabilityRun): boolean {
   const normalizedFindings = run.findings.map(finding => ({
     severity: finding.severity,
@@ -229,6 +243,7 @@ export function scoreCapabilityRun(fixture: CapabilityFixture, run: CapabilityRu
         (!errorOnly || finding.severity === 'error') &&
         finding.message.includes(phrase.toLowerCase().replaceAll(/\s+/gu, ' ')),
     );
+  const groups = fixture.finding_groups;
   return (
     run.fixture_id === fixture.id &&
     run.verdict === fixture.verdict &&
@@ -236,20 +251,11 @@ export function scoreCapabilityRun(fixture: CapabilityFixture, run: CapabilityRu
       normalizedFindings.some(finding => finding.severity === 'error') &&
     fixture.required.every(finding => contains(finding, true)) &&
     fixture.forbidden.every(finding => !contains(finding, false)) &&
-    (fixture.finding_groups === undefined ||
-      (fixture.finding_groups.length > 0 &&
+    (groups === undefined ||
+      (groups.length > 0 &&
         normalizedFindings.some(
           finding =>
-            finding.severity === 'error' &&
-            fixture.finding_groups?.every(group =>
-              group.some(
-                concept =>
-                  concept.trim() !== '' &&
-                  ` ${finding.message.replaceAll(/[^\p{L}\p{N}]+/gu, ' ')}`.includes(
-                    ` ${concept.toLowerCase().replaceAll(/[^\p{L}\p{N}]+/gu, ' ')}`,
-                  ),
-              ),
-            ),
+            finding.severity === 'error' && findingMatchesConceptGroups(finding.message, groups),
         )))
   );
 }
