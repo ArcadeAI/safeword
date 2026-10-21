@@ -90,6 +90,7 @@ function achievedIndependence(
 function reviewCandidate(
   input: Parameters<typeof executionPlanAdmission>[0],
   stamp: ReturnType<typeof parseReviewStamps>[number],
+  data: Record<string, unknown> | undefined,
 ):
   | {
       readonly reviewId: string;
@@ -98,7 +99,6 @@ function reviewCandidate(
     }
   | undefined {
   if (stamp.reviewId === undefined) return undefined;
-  const data = reviewData(input.cwd, stamp.reviewId);
   if (data?.review_kind !== 'plan-execution') return undefined;
   if (!coversPlan(data, input.cwd, input.planPath) || !isRecord(data.reviewer_output)) {
     return undefined;
@@ -109,8 +109,9 @@ function reviewCandidate(
 function candidateAdmission(
   input: Parameters<typeof executionPlanAdmission>[0],
   stamp: ReturnType<typeof parseReviewStamps>[number],
+  receiptData: Record<string, unknown> | undefined,
 ): ExecutionPlanAdmission | undefined {
-  const candidate = reviewCandidate(input, stamp);
+  const candidate = reviewCandidate(input, stamp, receiptData);
   if (candidate === undefined) return undefined;
   const { data, output, reviewId } = candidate;
   if (output.verdict === undefined) return { kind: 'missing_verdict' };
@@ -142,10 +143,8 @@ function candidateAdmission(
 
 function identityMismatch(
   input: Parameters<typeof executionPlanAdmission>[0],
-  stamp: ReturnType<typeof parseReviewStamps>[number],
+  data: Record<string, unknown> | undefined,
 ): ExecutionPlanIdentityMismatch | undefined {
-  if (stamp.reviewId === undefined) return undefined;
-  const data = reviewData(input.cwd, stamp.reviewId);
   if (data === undefined || !isRecord(data.reviewer_output)) return undefined;
   if (typeof data.review_kind === 'string' && data.review_kind !== 'plan-execution') {
     return { kind: 'mismatched_kind', actualKind: data.review_kind };
@@ -185,9 +184,10 @@ export function executionPlanAdmission(input: {
     .toReversed();
   let mismatch: ExecutionPlanIdentityMismatch | undefined;
   for (const stamp of candidates) {
-    const admission = candidateAdmission(input, stamp);
+    const data = stamp.reviewId === undefined ? undefined : reviewData(input.cwd, stamp.reviewId);
+    const admission = candidateAdmission(input, stamp, data);
     if (admission !== undefined) return admission;
-    mismatch ??= identityMismatch(input, stamp);
+    mismatch ??= identityMismatch(input, data);
   }
   return mismatch ?? { kind: 'not_admitted' };
 }

@@ -83226,10 +83226,9 @@ function achievedIndependence(data, output, stamp) {
     return;
   return independence;
 }
-function reviewCandidate2(input, stamp) {
+function reviewCandidate2(input, stamp, data) {
   if (stamp.reviewId === undefined)
     return;
-  const data = reviewData(input.cwd, stamp.reviewId);
   if (data?.review_kind !== "plan-execution")
     return;
   if (!coversPlan(data, input.cwd, input.planPath) || !isRecord14(data.reviewer_output)) {
@@ -83237,8 +83236,8 @@ function reviewCandidate2(input, stamp) {
   }
   return { reviewId: stamp.reviewId, data, output: data.reviewer_output };
 }
-function candidateAdmission(input, stamp) {
-  const candidate = reviewCandidate2(input, stamp);
+function candidateAdmission(input, stamp, receiptData) {
+  const candidate = reviewCandidate2(input, stamp, receiptData);
   if (candidate === undefined)
     return;
   const { data, output, reviewId } = candidate;
@@ -83267,10 +83266,7 @@ function candidateAdmission(input, stamp) {
     }
   };
 }
-function identityMismatch(input, stamp) {
-  if (stamp.reviewId === undefined)
-    return;
-  const data = reviewData(input.cwd, stamp.reviewId);
+function identityMismatch(input, data) {
   if (data === undefined || !isRecord14(data.reviewer_output))
     return;
   if (typeof data.review_kind === "string" && data.review_kind !== "plan-execution") {
@@ -83293,10 +83289,11 @@ function executionPlanAdmission(input) {
   const candidates = parseReviewStamps(input.ledger).filter((stamp) => stamp.scope === scope && stamp.skipReason === undefined).toReversed();
   let mismatch;
   for (const stamp of candidates) {
-    const admission = candidateAdmission(input, stamp);
+    const data = stamp.reviewId === undefined ? undefined : reviewData(input.cwd, stamp.reviewId);
+    const admission = candidateAdmission(input, stamp, data);
     if (admission !== undefined)
       return admission;
-    mismatch ??= identityMismatch(input, stamp);
+    mismatch ??= identityMismatch(input, data);
   }
   return mismatch ?? { kind: "not_admitted" };
 }
