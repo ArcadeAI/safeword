@@ -19,3 +19,19 @@ Contract cycle: `/tmp/5139-scope-red.log` reports 3 intended assertion failures;
 Qualification preflight correction: initial collection against pre-change fixture context was stopped (SIGTERM) after Claude started Product run 1 and Codex started Product run 2. No complete matrix or pass is claimed. The Product schema selector omitted its planning phase, and the synthetic corpus needed the accepted persona/refusal/recovery and boundary context required by the changed rubric. Correct these before fresh collection; preserve main's stronger finding-group oracle and exact Astra model. No Sol qualification is imported.
 
 The initial qualification RED used a root-level legacy fixture and failed before reviewer launch; excluded as behavioral RED. Corrected owned-ticket RED observes both forbidden launches against main. Core GREEN now reports 190 passed / 2 existing skips in 6 files, including installed currency and fallback.
+
+## Current continuation checkpoint — 2026-10-21
+
+Both corrected capability collections completed at 18/18; see
+`qualification-5139.md` and the sealed archives. The Execution conformance run
+was cancelled without a completed matrix and claims no pass. Source review
+approved its bounded checkpoint; test review requested changes, including a
+positive packet-preparation control and current qualification provenance.
+
+Commit `e46add8e6` retains the new contract RED test. Progress checkpoint
+`5477ef85f` passed precommit and all five generated-surface checks, leaving
+`packet.ts` uncommitted for its lint-required helper extraction. The checkpoint
+resolved the LOC deadlock without changing guards. The scenario Execution
+context row now matches main's accepted upstream-plan ownership; changed
+scenario and Implementation Plan reviews are pending before runtime edits.
+Historical evidence and all broad feature deferrals remain unchanged.

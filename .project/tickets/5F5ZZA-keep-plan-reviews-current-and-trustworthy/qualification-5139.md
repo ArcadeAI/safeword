@@ -39,6 +39,22 @@ their schema/context inputs. They remain interrupted attempts, not passes.
 The first test review did not have the completed logs and requested their
 provenance; that review remains `changes_requested` until re-review.
 
-Execution conformance is separate and still running. Its prior descriptor
+Execution conformance is separate. The attempted live run was cancelled with
+exit 130 after approximately twelve minutes without a completed result matrix;
+the verified orphan worker was then stopped. No case from that run is claimed as passed.
+The initial invocation also found no tests under the default configuration; the
+later invocation used `vitest.live.config.ts`. Its prior descriptor
 remains historical and cannot qualify the changed contract. No new Execution
 descriptor or fresh aggregate acceptance claim has been produced.
+
+A later bounded diagnostic selected only `one-coherent-change` with exact
+selector `claude-opus-5`. It passed: one test passed, 63 unselected tests skipped,
+95.45 seconds. The actual result and reviewer output are archived separately.
+This is one passing conformance case, not a qualified route or a complete
+63-case matrix. Reuse this result if the remaining unchanged cases are collected;
+do not pay to repeat the completed case without changed inputs.
+
+The user authorized a bounded LOC exception on 2026-10-21. A normal progress
+checkpoint (`5477ef85f`) instead passed all precommit checks while retaining the
+uncommitted packet change that needs a cognitive-complexity refactor. No hook,
+threshold, receipt, historical ledger, or verification check was disabled.

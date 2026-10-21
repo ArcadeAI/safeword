@@ -136,6 +136,161 @@
       "path": "fresh-gpt-6-astra.json.gz",
       "uncompressed_bytes": 15219,
       "sha256_uncompressed": "e13f97aa061653ded13fdc83c29fdbd6dcdded60485ad8e27cbaaf0ab77f5e06"
+    },
+    {
+      "path": "scenario-recovery-complete-context-status.json.gz",
+      "uncompressed_bytes": 21171,
+      "sha256_uncompressed": "ce0bede79db8837c2a589edb00e6437bbe7ff313af8d1d65b3e008cab57b7f42"
+    },
+    {
+      "path": "scenario-aligned-start.json.gz",
+      "uncompressed_bytes": 11057,
+      "sha256_uncompressed": "0be8f044d5b3cb0fc0f2c8169dc2e4ed819dd6998410a7dd67c0267c8baa218d"
+    },
+    {
+      "path": "implementation-recovery-status.json.gz",
+      "uncompressed_bytes": 22497,
+      "sha256_uncompressed": "f7d558b1f71003131df986428e2ef3fbde3eb13d0129d923c485533bddd81895"
+    },
+    {
+      "path": "implementation-aligned-status.json.gz",
+      "uncompressed_bytes": 22902,
+      "sha256_uncompressed": "84acdf3bc78a101bf696b76e3a9a304cfcd2e0a766b8d8dd1885d17b4636939c"
+    },
+    {
+      "path": "execution-conformance-live.log.gz",
+      "uncompressed_bytes": 22234,
+      "sha256_uncompressed": "c7ad090ecaab34c670a36849afd8e902468b1f0f9ba9f60d40f9a6ff07032158"
+    },
+    {
+      "path": "progress-commit.log.gz",
+      "uncompressed_bytes": 43138,
+      "sha256_uncompressed": "87822a0a27f3da076820e772eb76c557177a3f8f8a374a4446f6cdb4491270ec"
+    },
+    {
+      "path": "bounded-checkpoint.log.gz",
+      "uncompressed_bytes": 41632,
+      "sha256_uncompressed": "95c898caba4551fdf195315a31c6d7a2e6b72e3bd22eb8533abda67ab426e573"
+    },
+    {
+      "path": "generated-checkpoint.log.gz",
+      "uncompressed_bytes": 2637,
+      "sha256_uncompressed": "d37825a492843b2e6948ed280666fd4892ce7858bfa1ad41d6986110629935eb"
+    },
+    {
+      "path": "implementation-reconciled-status.json.gz",
+      "uncompressed_bytes": 22519,
+      "sha256_uncompressed": "6c1d5bcd04d2486992c14b02c34621decc57581d002b37069048822dd32dd56f"
+    },
+    {
+      "path": "implementation-inherited-status.json.gz",
+      "uncompressed_bytes": 17963,
+      "sha256_uncompressed": "368f879ee6a5fd2a9a46ec8b6299b5c42bd34da79b8093b5648b3035468696d1"
+    },
+    {
+      "path": "scenario-after-reconcile-status.json.gz",
+      "uncompressed_bytes": 1104,
+      "sha256_uncompressed": "5f4222c66fb68580f8586323ec4689841fe6eccffdef24acd8b13b50ca4d8607"
+    },
+    {
+      "path": "scenario-parent-current-status.json.gz",
+      "uncompressed_bytes": 13157,
+      "sha256_uncompressed": "bc3ec761a8166cdeee9654f56619303044201ef4f498c9f203ba1802edd9fe15"
+    },
+    {
+      "path": "implementation-consistent-status.json.gz",
+      "uncompressed_bytes": 15579,
+      "sha256_uncompressed": "8a212afe765d696912bb87499d21177efbd33d9a9c459fed1485805473747dec"
+    },
+    {
+      "path": "implementation-installed-status.json.gz",
+      "uncompressed_bytes": 3833,
+      "sha256_uncompressed": "cd691c92cfe1dc255950574b632fb90f6a295c4ab7ae5d8554727fc58d09add5"
+    },
+    {
+      "path": "implementation-current-final-status.json.gz",
+      "uncompressed_bytes": 15579,
+      "sha256_uncompressed": "8a212afe765d696912bb87499d21177efbd33d9a9c459fed1485805473747dec"
+    },
+    {
+      "path": "execution-admission-preflight.json.gz",
+      "uncompressed_bytes": 4322,
+      "sha256_uncompressed": "aae27925a1affc64df5ce6bbbb95bac50b45143575e34e5889a47e46437d3901"
+    },
+    {
+      "path": "execution-first-case.log.gz",
+      "uncompressed_bytes": 22386,
+      "sha256_uncompressed": "7770ab0e1c6f17677ccb1f189c43f22710a8b9c3cb897a2ae69bbf7937b0a1c0"
+    },
+    {
+      "path": "execution-first-case.json.gz",
+      "uncompressed_bytes": 125,
+      "sha256_uncompressed": "d664882792d04cacacd961ddf36bd4c22a10788ac35dfd667b45bb1a4f23baf0"
+    },
+    {
+      "path": "execution-first-case.json.outputs.json.gz",
+      "uncompressed_bytes": 14230,
+      "sha256_uncompressed": "90fe9e997698c1148f7b16446ae3ade812bd2cc6aaa5d28ec61583aa2e6e4f0e"
+    },
+    {
+      "path": "plugin-migrate.json.gz",
+      "uncompressed_bytes": 985,
+      "sha256_uncompressed": "1adaecfbb9328d7d98c0130932eb8ceec390715002850fb78dcceb35cdc9b51f"
+    },
+    {
+      "path": "marketplace-state.json.gz",
+      "uncompressed_bytes": 951,
+      "sha256_uncompressed": "d9129ef558e392d069cd683bc65edae6756d95298bd38de21b08266524529fa3"
+    },
+    {
+      "path": "plugin-before-install-check.log.gz",
+      "uncompressed_bytes": 34,
+      "sha256_uncompressed": "b14948a65d3e1915acfab0f60e2cc2b2b827aa96bfcf7e1d505dbd53eaf51a00"
+    },
+    {
+      "path": "local-marketplace-add.json.gz",
+      "uncompressed_bytes": 0,
+      "sha256_uncompressed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "local-marketplace-add-retry.json.gz",
+      "uncompressed_bytes": 126,
+      "sha256_uncompressed": "e76148861729d880b13fa8c89236ba37bb3e3fd998d90e6a83864f2ecc7331ca"
+    },
+    {
+      "path": "local-plugin-install.json.gz",
+      "uncompressed_bytes": 224,
+      "sha256_uncompressed": "6a602d4d938564c16d454a65b9cd50ec07dc5b25cfd8d2139d01cb71f99ee361"
+    },
+    {
+      "path": "local-marketplace-state.json.gz",
+      "uncompressed_bytes": 952,
+      "sha256_uncompressed": "95490b50783a460d8d63abf3d1d7094d255996a7535ff2a7ded4cf71110a6bec"
+    },
+    {
+      "path": "local-plugin-state.json.gz",
+      "uncompressed_bytes": 10409,
+      "sha256_uncompressed": "5c3d434789948ede6a48ed839bcd10d71587eb8cff52d46aa3a5b4a1b49b43a3"
+    },
+    {
+      "path": "local-plugin-status-before-restart.json.gz",
+      "uncompressed_bytes": 985,
+      "sha256_uncompressed": "30bc072a72818373b1c237f2e6f1651cd16ceb474fafa57f50465839d773f5ab"
+    },
+    {
+      "path": "local-plugin-receipt-before-restart.json.gz",
+      "uncompressed_bytes": 15579,
+      "sha256_uncompressed": "8a212afe765d696912bb87499d21177efbd33d9a9c459fed1485805473747dec"
+    },
+    {
+      "path": "restarted-bootstrap-retry.log.gz",
+      "uncompressed_bytes": 405,
+      "sha256_uncompressed": "1c4e13223819c4679e1e955a56041ddeb1cd5d76ec3a03b22a89ae00424dc85d"
+    },
+    {
+      "path": "restarted-plan-status.json.gz",
+      "uncompressed_bytes": 15579,
+      "sha256_uncompressed": "8a212afe765d696912bb87499d21177efbd33d9a9c459fed1485805473747dec"
     }
   ]
 }

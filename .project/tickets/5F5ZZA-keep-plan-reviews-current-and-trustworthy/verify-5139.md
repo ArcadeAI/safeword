@@ -31,8 +31,11 @@ remain owned by their current implementations.
 - All-package typecheck passes. Diff audit reports no dependency violations
   across 543 modules and 974 edges. All five derived surfaces were regenerated
   and checked; final source/evidence changes require a final freshness check.
-- Full lint found import sorting and packet-preflight complexity issues; repair
-  and rerun remain outstanding. Source and test reviews are pending.
+- Full lint found import sorting and packet-preflight complexity issues. The
+  progress checkpoint `5477ef85f` passed precommit and all five generated-surface
+  checks with packet.ts retained uncommitted for the remaining helper extraction.
+  Source review approved its bounded checkpoint. Test review requested stronger
+  packet controls and provenance context; those fixes and re-review remain open.
 
 ## Qualification boundaries
 
@@ -40,11 +43,14 @@ Only changed qualification inputs are being collected. The current capability
 corpus retains main's exact Astra model and stronger finding-group oracle. The
 first collection was stopped before a complete matrix because Product's schema
 selector and fixture context needed correction. It supplies no passing evidence.
-Fresh Astra collection passes 18/18. Claude collection remains pending.
+Both fresh collections pass 18/18. Their sealed records and logs remain separate
+from historical observations; no unchanged paid capability collection is repeated.
 
-Changed Execution conformance is pending behind the global package-test lock.
-The first attempt exited 75 without starting tests. A bounded longer lock wait
-is running. Old admission hashes have not been stamped onto the changed rubric.
+Changed Execution conformance remains unqualified. The first attempt exited 75
+without starting tests; a later default-config attempt found no tests. The live
+configuration run was cancelled with exit 130 after about twelve minutes without
+a completed result matrix; its orphan worker was stopped. No live case is claimed
+as passed. Old admission hashes have not been stamped onto the changed rubric.
 
 ## Historical limits preserved
 
@@ -53,7 +59,9 @@ are archived in `evidence/5139-current-main/historical-5139-pr.json.gz`. Missing
 historical RED, the GREEN/REFACTOR SHA collision, six failed and 585 unfinished
 broad scenarios, and 33 deferred/unverified accepted cases remain historical.
 No current characterization or new qualification repairs those records. Main's
-ledger checkboxes and parent state are unchanged. A shell archival attempt naming
+ledger checkboxes and parent state are unchanged. The supported reconcile-parent
+command refreshed only this child's stale parent_contract_digest after checking
+the current parent boundary; scope and exclusions remain unchanged. A shell archival attempt naming
 the historical ledger was refused by the ledger-write hook; it made no edits.
 
 The required profile-install retry failed on the reported 1.2.0/required 1.1.0

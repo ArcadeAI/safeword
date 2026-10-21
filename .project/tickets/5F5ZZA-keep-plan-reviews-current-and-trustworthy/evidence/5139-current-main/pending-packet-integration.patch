@@ -1,0 +1,42 @@
+diff --git a/packages/cli/src/review/packet.ts b/packages/cli/src/review/packet.ts
+index f4e4a71a3..e94613635 100644
+--- a/packages/cli/src/review/packet.ts
++++ b/packages/cli/src/review/packet.ts
+@@ -1,3 +1,4 @@
++import { planningEvidenceRecords } from './planning-context-identity.js';
+ import { spawnSync } from 'node:child_process';
+ import { createHash, randomUUID } from 'node:crypto';
+ import {
+@@ -780,7 +781,20 @@ function contractForUse(kind: PlanningPhase, use: PlanningContractUse): PlanCont
+     'plan-implementation': PLAN_REVIEW_RUBRIC,
+     'plan-execution': EXECUTION_PLAN_REVIEW_RUBRIC,
+   }[kind];
+-  if (use === 'currency') return assemblePlanContract(rubric, rubric);
++  if (use === 'currency') {
++    // Read bounded installed rules rather than trusting compiled copies. Whole-file
++    // integrity remains a separate dispatch/admission requirement.
++    const source = packagedPlanningAuthor(kind, false);
++    const extract = {
++      'product-plan': extractProductPlanReviewRubric,
++      'plan-implementation': extractPlanReviewRubric,
++      'plan-execution': extractExecutionPlanReviewRubric,
++    }[kind];
++    const contract = assemblePlanContract(extract(source), rubric);
++    if (contract.author.sha256 !== contract.reviewer.sha256)
++      throw new ReviewPacketError('The current canonical planning contract differs from the reviewed contract.');
++    return contract;
++  }
+   if (kind === 'product-plan') {
+     return assemblePlanContract(
+       extractProductPlanReviewRubric(packagedPlanningAuthor(kind)),
+@@ -1311,6 +1325,10 @@ function prepareReviewPacketUnsafe(
+         'REVIEW_NO_ELIGIBLE_TARGETS',
+       );
+     }
++    if (kind === 'plan-implementation' || kind === 'plan-execution') {
++      for (const file of [...logicalFiles, ...contextFiles])
++        if (nodePath.basename(file.path) === 'impl-plan.md') planningEvidenceRecords(file.content);
++    }
+     requireScenarioTicketSpec(kind, contextFiles);
+     requirePlanWorkArtifact(kind, logicalFiles);
+     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);

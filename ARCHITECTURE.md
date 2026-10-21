@@ -892,15 +892,15 @@ preserve the unknown ticket field but derive no authority from it.
 | Implementation | Ticket `5F5ZZA`; coordinator recovery jobs, authenticated result persistence, review stamps, phase admission, and installed host recovery guidance.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 **5F5ZZA capability-classification extension:** Cross-agent independence also
-requires a verified reviewer model whose capability rank is at least the
-verified author model's rank. A versioned packaged exact-model catalogue
+requires a verified reviewer model with a sealed not-weaker comparison to the
+verified author model. A versioned packaged exact-model pair catalogue
 provides fire-and-forget defaults for supported models; the existing project/
-user review-route configuration authority may overlay explicit ranks. Each
-packaged rank records its evidence date and revision. Current provider
-documentation may establish an explicit within-family order; cross-provider
-ordering requires a pinned Safeword planning-review eval. Missing, conflicting,
-or stale evidence leaves the pair unrankable. Unknown, unverified, or
-unrankable pairings fail closed and cannot earn cross-agent independence. Agent
+user review-route configuration authority selects routes but cannot override
+empirical comparisons with integer ranks. Each packaged comparison records its
+evidence date and revision. Provider documentation can identify selectors but
+cannot replace a pinned Safeword planning-review comparison. Missing, conflicting,
+or stale evidence leaves the pair unknown. Unknown, unverified, or
+observed weaker pairings fail closed and cannot earn cross-agent independence. Agent
 or vendor identity alone never implies model capability. The release-gating
 corpus gives each exact model the same human-labelled Product, Implementation,
 and Execution Plan packets, rubric, tools, and deterministic settings for three
@@ -927,8 +927,8 @@ inside reviewer output are unverified and return
 observed provenance. Safeword release maintainers own refreshing a retired or
 changed default and may not waive the release gate to mint an unsupported
 packaged comparison. A retired exact selector returns its typed route failure;
-an observed exact model absent from the active catalogue and overlays returns
-`reviewer_capability_unknown`. Runtime code never invents a rank from dated
+an observed exact model absent from the active catalogue returns
+`reviewer_capability_unknown`. Runtime code never invents a comparison from dated
 provider evidence. Claude Code's trusted SessionStart model field can establish
 exact author identity. Current Codex, Cursor, and OpenCode lifecycle contracts
 cannot, so those hosts return `author_capability_unknown`: `prefer` may reach an
@@ -941,7 +941,7 @@ probe; its JSONL does not echo model identity. OpenCode remains unverified until
 live adapter proof establishes trusted provider/model metadata, and no packaged
 independent default depends on it. Existing runtime-default reviewer routes
 remain readable and attempted but earn cross-agent classification only when the
-adapter-specific proof resolves an exact ranked model. Upgrade never rewrites
+adapter-specific proof resolves an exact qualified model. Upgrade never rewrites
 user route lists. Existing `off` configurations block at planning review until
 the user selects `prefer` or `require`; non-Claude `require` configurations block
 until the host exposes verified author identity. Safeword never weakens policy

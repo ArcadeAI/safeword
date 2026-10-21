@@ -2,7 +2,7 @@
 id: 5F5ZZA
 slug: keep-plan-reviews-current-and-trustworthy
 type: feature
-phase: scenario-gate
+phase: plan-execution
 status: in_progress
 phase_skips:
   - "intake: originally inherited the 2026-09-08 approval of 82T411; after material parent changes, 82T411 was freshly approved and this child was reconciled before scenario review resumed"
@@ -35,7 +35,7 @@ parent_job: plan-implementability.TBU4
 milestone: M2
 created: 2026-09-08T17:36:34.390Z
 last_modified: 2026-09-10T03:36:35.000Z
-parent_contract_digest: 2afd2f5559eafea9bd752ac826b46fa98e80a30ccdf6bed76a16ff7f30bcec20
+parent_contract_digest: 3ab3e75d9cc532c5442464a5a9ffd9eb0fb8387457150414bf8cb5151c4fc7cf
 ---
 
 # Keep plan reviews current and trustworthy

@@ -3,6 +3,27 @@
 **Status:** planned
 **Prepared on:** 2026-09-20
 
+**2026-10-21 bounded continuation:** The current-main continuation of #5139
+delivers only accepted-scope/persona judgments, typed evidence records, bounded
+installed-rule currency, and stricter fallback qualification. Main's merged
+contract, context, disposition, approval, and fallback repairs remain binding.
+The historical PR 1–5 sequence and complete-feature criteria below retain their
+original ownership; this continuation does not claim their completion. #5857
+recovery work, historical evidence repair, merge, and Ready promotion are excluded.
+
+The remaining order is: strengthen the evidence admission test with an owned
+ticket and successful complete-record control; extract packet validation without
+behavior change; resolve the bounded test-review findings; regenerate all five
+surfaces and dogfood mirrors; run targeted tests, typecheck, lint, final full
+suite and release checks; review the final source/test delta independently;
+then push a Draft PR with failures and unverified/deferred work disclosed.
+Reuse the two completed current capability collections after seal verification.
+Execution admission requires fresh observations for the changed rubric; a
+cancelled run and a historical descriptor cannot authorize it. Any unavailable
+qualification remains explicitly unqualified and cannot be described as GREEN.
+Preserve the missing historical RED, GREEN/REFACTOR SHA collision, six historical
+failures, 585 unfinished checks, and 33 deferred/unverified cases unchanged.
+
 ## Pull-request slicing
 
 **Decision:** multiple pull requests
@@ -469,7 +490,7 @@ remains required for structure, wiring, receipt identity, and corrected bytes.
 | outcome-scope | outcome and scope | Deliver R1–R16 without redefining sibling-owned plan content, migration, recovery copy, or release authority | contributor | feature-proof | open | missing | | |
 | resolved-decisions | resolved decisions | Preserve all seven recorded decisions and exact/fallback/capability/user-authority boundaries | contributor | feature-proof | open | missing | | |
 | pr-decomposition | dependency and pull-request decomposition | Land five ordered independently reviewable slices, each safe without a successor | contributor | phase-approval-proof | open | missing | | |
-| testing | testing | Complete deterministic boundary proof, 44 scenario ledgers, the capability-catalogue eval, and the pinned 2-of-3 semantic contract eval | contributor | planning-evals-proof | open | missing | | |
+| testing | testing | Complete deterministic boundary proof, all 54 scenario ledgers, the capability-catalogue eval, and the pinned 2-of-3 semantic contract eval | contributor | planning-evals-proof | open | missing | | |
 | data-compatibility | data and compatibility | Add versioned identity/evidence to existing job results and user dispositions to tickets; preserve history with no new store, migration, or backfill | contributor | identity-proof | open | missing | | |
 | monitoring | monitoring and failure signals | Expose typed context, copy, route, identity, and origin failures with one recovery action | contributor | fallback-proof | open | missing | | |
 | security-privacy | security and privacy | Preserve credential/privacy boundaries and deny execution or instruction authority to evidence | contributor | evidence-proof | open | missing | | |
