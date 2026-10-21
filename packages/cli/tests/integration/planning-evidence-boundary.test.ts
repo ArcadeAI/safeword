@@ -120,8 +120,13 @@ it('names missing source limits after a complete owned plan can prepare for disp
     };
     writePlan(evidence);
     const prepared = prepareReviewPacket(root, 'plan-implementation', [target]);
-    expect(prepared.packet.logical_files).toContainEqual(expect.objectContaining({ path: target }));
-    prepared.cleanup();
+    try {
+      expect(prepared.packet.logical_files).toContainEqual(
+        expect.objectContaining({ path: target }),
+      );
+    } finally {
+      prepared.cleanup();
+    }
     const { security_limit: _omitted, ...incomplete } = evidence;
     writePlan(incomplete);
     expect(() => prepareReviewPacket(root, 'plan-implementation', [target])).toThrow(

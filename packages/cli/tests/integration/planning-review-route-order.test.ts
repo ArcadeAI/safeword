@@ -330,6 +330,7 @@ it.each(['unqualified-model', 'gpt-6-luna'])(
       },
     );
     const output = JSON.parse(result.stdout);
+    expect(result.exitCode, result.stdout + result.stderr).toBe(2);
     expect(existsSync(marker), 'unqualified exact selector must never launch inference').toBe(
       false,
     );

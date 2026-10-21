@@ -182,7 +182,7 @@ Power users can replace the legacy fixed fallback chain with an exact per-author
 }
 ```
 
-Each route names `claude`, `codex`, or `opencode` and may name one model. Omitting `model` deliberately uses that runtime's authenticated default. When `crossAgentReviewRoutes` is present it is the complete authority: Safeword neither merges legacy primary/alternate settings nor reorders routes from cached health observations. Empty lists, unknown runtimes, and option-shaped or otherwise unsafe model identifiers reject the configuration without launching a reviewer. A same-author route is always reported as degraded, wherever it appears, and Safeword continues looking for a later independent success.
+Each route names `claude`, `codex`, or `opencode` and may name one model. Omitting `model` deliberately uses that runtime's authenticated default. When `crossAgentReviewRoutes` is present it supplies the route list: Safeword does not merge legacy primary/alternate settings or reorder routes from cached health observations. Planning reviews attempt different-agent routes before same-author routes, and Execution Plan routes must also pass current conformance admission. Empty lists, unknown runtimes, and option-shaped or otherwise unsafe model identifiers reject the configuration without launching a reviewer. A same-author route is always reported as degraded, wherever it appears, and Safeword continues looking for a later independent success.
 
 Set personal routes once in the Safeword user profile, or commit a project override:
 
@@ -204,7 +204,7 @@ Only `crossAgentReviewRoutes` is user-scoped today; review policy and legacy pri
 
 - `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer and its eligible alternate-model route cannot complete, Safeword tries OpenCode once before running a same-agent headless fallback. OpenCode-authored work routes to Claude and then Codex; OpenCode self-review is never independent. A completed same-agent result is presented as standard coverage; requested details can suggest how to add independent coverage. If every CLI route fails, a foreground agent may add supplemental host-native or self-review findings; their actual verdict is preserved.
 - `require` — only an opposite-agent result satisfies the gate. A completed same-agent headless review returns the existing independence-required failure. If every CLI route fails, a foreground agent may still report useful host-native or self-review findings, but the result remains action required, recommends restoring an independent reviewer or explicitly choosing `prefer`, and never writes independent evidence.
-- `off` — retain the existing review route and do not create cross-agent evidence.
+- `off` — applies to non-planning review kinds only. Product, scenario, Implementation and Execution planning remain blocked until review policy is `prefer` or `require`; `off` cannot bypass their required review.
 
 Authentication is recoverable reviewer state, not a failed route. If a preferred or alternate independent route is not signed in, Safeword returns `REVIEW_AUTHENTICATION_REQUIRED` with that reviewer's login command and does not start a same-agent fallback. Managed agent workflows run the command, allow any browser or device login to finish, and retry the same review once; another authentication denial remains an explicit blocker.
 
@@ -225,8 +225,8 @@ Unknown and observed weaker selectors are recorded as skipped typed refusals;
 they receive no packet. Pin a currently qualified exact selector in the named
 route and retry. Runtime-default routes and OpenCode retain the existing
 launch-and-confirm behavior. An unknown author cannot earn an independent
-capability claim; a successful different-agent review retains main's reduced
-classification under `prefer`.
+capability claim; without verified author-model identity, a successful
+different-agent planning review records reduced independence under `prefer`.
 
 Planning fallback requires at least one actual independent attempt with a
 typed failure and exhaustion of every stronger route. All-skipped routes stay
@@ -332,7 +332,9 @@ When a new decision is required, `safeword ticket approve-plan <ticket-id>` pres
 
 ### Other settings
 
-All keys live in `.safeword/config.json`; missing or malformed values keep the default.
+All keys live in `.safeword/config.json`. Review policy defaults to `prefer` when
+the file is absent, but an unreadable or malformed file fails closed to
+`require`. Individual settings apply their documented validation and defaults.
 
 | Key                                       | Default                   | Effect                                                                                                                                                                                              |
 | ----------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

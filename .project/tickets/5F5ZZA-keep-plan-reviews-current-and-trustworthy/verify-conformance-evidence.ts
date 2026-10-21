@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { gunzipSync } from 'node:zlib';
@@ -43,9 +43,14 @@ function preservedFirst(): ExecutionPlanConformanceResult[] {
   const manifest = readJson(nodePath.join(directory, 'manifest.json')) as {
     files: { path: string; sha256_uncompressed: string; uncompressed_bytes: number }[];
   };
+  const manifestPath = nodePath.relative(root, nodePath.join(directory, 'manifest.json'));
+  const committedManifest = JSON.parse(execFileSync('git', ['show', `${checkpoint}:${manifestPath}`],
+    { cwd: root, encoding: 'utf8' })) as typeof manifest;
   for (const name of ['execution-first-case.json.gz', 'execution-first-case.json.outputs.json.gz', 'execution-first-case.log.gz']) {
     const bytes = gunzipSync(readFileSync(nodePath.join(directory, name)));
     const entry = manifest.files.find(file => file.path === name);
+    requireProof(JSON.stringify(entry) === JSON.stringify(committedManifest.files.find(file => file.path === name)),
+      `Preserved manifest differs from immutable checkpoint: ${name}`);
     requireProof(entry?.sha256_uncompressed === createHash('sha256').update(bytes).digest('hex') &&
       entry.uncompressed_bytes === bytes.length, `Preserved archive differs: ${name}`);
   }
@@ -58,7 +63,23 @@ function preservedFirst(): ExecutionPlanConformanceResult[] {
   const earlier = execFileSync('git', ['show', `${checkpoint}:${harness}`], { cwd: root, encoding: 'utf8' });
   requireProof(packetConstructor(earlier) === packetConstructor(readFileSync(nodePath.join(root, harness), 'utf8')),
     'Changed packet constructor prevents first-case reuse');
-  console.log('Preserved first-case archive and unchanged inputs verified; historical model confirmation remains unretained.');
+  const replayRoot = nodePath.join(root, '.project/tmp', `5139-first-replay-${randomUUID()}`);
+  mkdirSync(replayRoot, { recursive: true });
+  const replay = nodePath.join(replayRoot, 'raw.json');
+  const results = nodePath.join(replayRoot, 'results.json');
+  writeFileSync(replay, gunzipSync(readFileSync(nodePath.join(directory, 'execution-first-case.json.outputs.json.gz'))), { mode: 0o600 });
+  execFileSync(nodePath.join(root, 'scripts/dev'), ['bun', 'run', '--cwd', 'packages/cli', 'test',
+    '--config', 'vitest.live.config.ts', 'tests/smoke/execution-plan.live.test.ts', '-t', 'one-coherent-change'], {
+    cwd: root, stdio: 'inherit', env: { ...process.env,
+      SAFEWORD_RUN_EXECUTION_PLAN_LIVE: '1', SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER: 'claude',
+      SAFEWORD_EXECUTION_PLAN_LIVE_MODEL: 'claude-opus-5', SAFEWORD_EXECUTION_PLAN_REPLAY_PATH: replay,
+      SAFEWORD_EXECUTION_PLAN_RESULTS_PATH: results, SAFEWORD_EXECUTION_PLAN_RETAINED_RESULTS_PATH: undefined,
+      SAFEWORD_EXECUTION_PLAN_ACCEPTANCE: '0', SAFEWORD_EXECUTION_PLAN_LIVE_CLI: '0' },
+  });
+  const replayed = readJson(results) as ExecutionPlanConformanceResult[];
+  requireProof(replayed.length === 1 && replayed[0]?.case_id === 'one-coherent-change' && replayed[0].passed,
+    'Preserved raw response failed current-oracle replay');
+  console.log('Preserved first-case checkpoint, unchanged inputs and current-oracle replay verified; historical model confirmation remains unretained.');
   return first;
 }
 
@@ -69,8 +90,11 @@ function currentMatrix(path: string, reviewer: string, model: string, ids: reado
     case_id: string; confirmed_model?: { provider: string; model: string };
   }[];
   const digests = executionPlanConformanceDigests();
+  const oracle = createHash('sha256').update(readFileSync(nodePath.join(root,
+    'packages/cli/tests/smoke/execution-plan.live.test.ts'))).digest('hex');
   requireProof(metadata.schema_version === 1 && metadata.reviewer === reviewer && metadata.requested_model === model &&
-    metadata.contract_sha256 === digests.contract_sha256 && metadata.corpus_sha256 === digests.corpus_sha256,
+    metadata.contract_sha256 === digests.contract_sha256 && metadata.corpus_sha256 === digests.corpus_sha256 &&
+    metadata.oracle_sha256 === oracle && metadata.mode === 'live',
     `Current metadata does not match ${reviewer}/${model}`);
   requireProof(Array.isArray(results) && results.length === ids.length &&
     new Set(results.map(result => result.case_id)).size === ids.length &&

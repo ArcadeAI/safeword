@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -38,3 +38,65 @@ it('retains completed raw observations when the worker is killed before teardown
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+it.each([true, false])(
+  'checks retained metadata before any reviewer launch (matching: %s)',
+  matching => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'execution-reuse-'));
+    const path = nodePath.join(root, 'results.json');
+    const marker = nodePath.join(root, 'launched');
+    const helper = nodePath.resolve(
+      import.meta.dirname,
+      '../fixtures/execution-plan-live-checkpoint.ts',
+    );
+    const metadata = {
+      schema_version: 1,
+      contract_sha256: 'contract',
+      corpus_sha256: 'corpus',
+      reviewer: 'claude',
+      requested_model: 'claude-opus-5',
+    };
+    const expected = { ...metadata, contract_sha256: matching ? 'contract' : 'changed-contract' };
+    writeFileSync(
+      path,
+      JSON.stringify([
+        { case_id: 'completed', reviewer: 'claude', model: 'claude-opus-5', passed: true },
+      ]),
+    );
+    writeFileSync(`${path}.metadata.json`, JSON.stringify(metadata));
+    writeFileSync(
+      `${path}.outputs.json`,
+      JSON.stringify([
+        {
+          case_id: 'completed',
+          dispatch_mode: 'headless',
+          output: { verdict: 'approve' },
+          confirmed_model: { provider: 'anthropic', model: 'claude-opus-5' },
+        },
+      ]),
+    );
+    try {
+      const child = spawnSync(
+        'bun',
+        [
+          '--eval',
+          `
+      import { readExecutionCheckpoint } from ${JSON.stringify(helper)};
+      import { writeFileSync } from 'node:fs';
+      try {
+        const retained = readExecutionCheckpoint(${JSON.stringify(path)}, ${JSON.stringify(expected)}, ['completed']);
+        if (retained.results.length !== 1) throw new Error('Missing retained result');
+        writeFileSync(${JSON.stringify(marker)}, 'would launch');
+      } catch (error) { console.error(error.message); process.exit(2); }
+    `,
+        ],
+        { encoding: 'utf8' },
+      );
+      expect(child.status, child.stderr).toBe(matching ? 0 : 2);
+      expect(existsSync(marker)).toBe(matching);
+      if (!matching) expect(child.stderr).toContain('Retained conformance metadata mismatch');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);

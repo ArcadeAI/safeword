@@ -1,9 +1,17 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { afterAll, beforeAll, describe, it, type TestContext, vi } from 'vitest';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect as hookExpect,
+  it,
+  type TestContext,
+  vi,
+} from 'vitest';
 
 import {
   createExecutionPlanDeliveryDefinition,
@@ -18,11 +26,14 @@ import {
   type ExecutionPlanConformanceResult,
 } from '../../src/review/execution-plan-conformance.js';
 import {
-  type ConfirmedReviewerModel,
   reviewTimeoutMilliseconds,
   runHeadlessReviewerWithProvenance,
 } from '../../src/review/runtime.js';
-import { writeExecutionCheckpoint } from '../fixtures/execution-plan-live-checkpoint.js';
+import {
+  type ExecutionObservation,
+  readExecutionCheckpoint,
+  writeExecutionCheckpoint,
+} from '../fixtures/execution-plan-live-checkpoint.js';
 import {
   EXECUTION_PLAN_SLICING_CASES,
   type SlicingAcceptanceCase,
@@ -42,24 +53,55 @@ const CAN_RUN = process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE === '1';
 if (CAN_RUN && ACCEPTANCE_CASES && !PUBLIC_CLI) {
   throw new Error('Semantic acceptance requires SAFEWORD_EXECUTION_PLAN_LIVE_CLI=1');
 }
-const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds({});
+const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds({ SAFEWORD_REVIEW_WORKER: '1' });
 const LIVE_TEST_TIMEOUT_MS = REVIEW_TIMEOUT_MS + 60_000;
 const reviewer = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER as ReviewAgent | undefined;
 const model = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL?.trim() || undefined;
 const resultsPath = process.env.SAFEWORD_EXECUTION_PLAN_RESULTS_PATH;
+const replayPath = process.env.SAFEWORD_EXECUTION_PLAN_REPLAY_PATH;
+const retainedPath = process.env.SAFEWORD_EXECUTION_PLAN_RETAINED_RESULTS_PATH;
 const results: ExecutionPlanConformanceResult[] = [];
-const outputs: {
-  case_id: string;
-  dispatch_mode: 'cli' | 'headless';
-  output: ReviewerOutput;
-  confirmed_model?: ConfirmedReviewerModel;
-}[] = [];
+const outputs: ExecutionObservation[] = [];
 type Assertions = TestContext['expect'];
-const metadata = {
+const collectionIdentity = {
   schema_version: 1,
   ...executionPlanConformanceDigests(),
   reviewer,
   requested_model: model,
+  oracle_sha256: createHash('sha256')
+    .update(readFileSync(import.meta.filename))
+    .digest('hex'),
+};
+const retained =
+  CAN_RUN && retainedPath !== undefined
+    ? readExecutionCheckpoint(
+        retainedPath,
+        collectionIdentity,
+        cases.map(testCase => testCase.id),
+      )
+    : undefined;
+const replay: ExecutionObservation[] =
+  CAN_RUN && replayPath !== undefined ? JSON.parse(readFileSync(replayPath, 'utf8')) : [];
+if (
+  CAN_RUN &&
+  replayPath !== undefined &&
+  (!Array.isArray(replay) ||
+    replay.length === 0 ||
+    new Set(replay.map(item => item.case_id)).size !== replay.length ||
+    replay.some(item => cases.every(testCase => testCase.id !== item.case_id)))
+) {
+  throw new Error('Replay requires unique known raw observations');
+}
+const selectedCases = cases.filter(testCase =>
+  replayPath === undefined
+    ? !retained?.results.some(result => result.case_id === testCase.id)
+    : replay.some(item => item.case_id === testCase.id),
+);
+const metadata = {
+  ...collectionIdentity,
+  mode: replayPath === undefined ? 'live' : 'replay',
+  current_attempt_timeout_ms: REVIEW_TIMEOUT_MS,
+  retained_source: retained?.source,
 };
 
 function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent): ReviewPacket {
@@ -350,12 +392,75 @@ function useLiveReviewerProfile(assigned: ReviewAgent): void {
 }
 
 beforeAll(() => {
-  if (CAN_RUN && (reviewer === 'claude' || reviewer === 'codex')) useLiveReviewerProfile(reviewer);
+  if (!CAN_RUN || (reviewer !== 'claude' && reviewer !== 'codex')) return;
+  if (retained !== undefined) {
+    for (const observation of retained.outputs) {
+      const testCase = cases.find(candidate => candidate.id === observation.case_id);
+      if (testCase === undefined) throw new Error('Unknown retained case');
+      assertCase(
+        testCase,
+        observation.output,
+        reviewer,
+        observation.output.dispatch_id,
+        hookExpect,
+      );
+    }
+    results.push(...retained.results);
+    outputs.push(...retained.outputs);
+  }
+  if (replayPath !== undefined) return;
+  if (!PUBLIC_CLI) vi.stubEnv('SAFEWORD_REVIEW_WORKER', '1');
+  useLiveReviewerProfile(reviewer);
 });
 afterAll(() => vi.unstubAllEnvs());
 
 function checkpoint(): void {
   if (resultsPath !== undefined) writeExecutionCheckpoint(resultsPath, results, outputs, metadata);
+}
+
+async function observationFor(
+  testCase: ExecutionPlanConformanceCase,
+  directory: string,
+  assigned: ReviewAgent,
+  expect: Assertions,
+): Promise<{ observation: ExecutionObservation; dispatchId?: string }> {
+  if (replayPath !== undefined) {
+    const saved = replay.find(item => item.case_id === testCase.id);
+    if (saved === undefined) throw new Error('Missing raw replay observation');
+    return {
+      observation: { ...saved, dispatch_mode: 'replay' },
+      dispatchId: saved.output.dispatch_id,
+    };
+  }
+  if (PUBLIC_CLI)
+    return {
+      observation: {
+        case_id: testCase.id,
+        dispatch_mode: 'cli',
+        output: await reviewThroughCli(testCase, directory, assigned, expect),
+      },
+    };
+  const packet = packetFor(testCase, assigned);
+  const execution = await runHeadlessReviewerWithProvenance(
+    assigned,
+    packet,
+    directory,
+    process.cwd(),
+    {
+      ...(model !== undefined && { model }),
+      runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
+    },
+  );
+  return {
+    observation: {
+      case_id: testCase.id,
+      dispatch_mode: 'headless',
+      output: execution.output as ReviewerOutput,
+      confirmed_model: execution.confirmedModel,
+      attempt_timeout_ms: REVIEW_TIMEOUT_MS,
+    },
+    dispatchId: packet.dispatch_id,
+  };
 }
 
 describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
@@ -365,7 +470,7 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
     expect(resultsPath).not.toBe('');
   });
 
-  it.for(cases)('$id', { timeout: LIVE_TEST_TIMEOUT_MS }, async (testCase, { expect }) => {
+  it.for(selectedCases)('$id', { timeout: LIVE_TEST_TIMEOUT_MS }, async (testCase, { expect }) => {
     expect.hasAssertions();
     if (reviewer !== 'claude' && reviewer !== 'codex') {
       throw new Error('SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER must be claude or codex');
@@ -373,35 +478,16 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
     const directory = createTemporaryDirectory();
     let passed = false;
     try {
-      let output: ReviewerOutput;
-      let confirmedModel: ConfirmedReviewerModel | undefined;
-      let expectedDispatchId: string | undefined;
-      if (PUBLIC_CLI) {
-        output = await reviewThroughCli(testCase, directory, reviewer, expect);
-      } else {
-        const packet = packetFor(testCase, reviewer);
-        expectedDispatchId = packet.dispatch_id;
-        const execution = await runHeadlessReviewerWithProvenance(
-          reviewer,
-          packet,
-          directory,
-          process.cwd(),
-          {
-            ...(model !== undefined && { model }),
-            runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
-          },
-        );
-        output = execution.output as ReviewerOutput;
-        confirmedModel = execution.confirmedModel;
-      }
-      outputs.push({
-        case_id: testCase.id,
-        dispatch_mode: PUBLIC_CLI ? 'cli' : 'headless',
-        output,
-        ...(confirmedModel !== undefined && { confirmed_model: confirmedModel }),
-      });
+      const { observation, dispatchId } = await observationFor(
+        testCase,
+        directory,
+        reviewer,
+        expect,
+      );
+      const output = observation.output;
+      outputs.push(observation);
       try {
-        assertCase(testCase, output, reviewer, expectedDispatchId, expect);
+        assertCase(testCase, output, reviewer, dispatchId, expect);
       } catch (error) {
         process.stderr.write(
           `Execution Plan reviewer output:\n${JSON.stringify(output, undefined, 2)}\n`,
