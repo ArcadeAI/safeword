@@ -46,6 +46,8 @@ export const EXECUTION_PREREQUISITE_REPAIR_CODES = [
   'missing_execution_plan_verdict',
   'rejected_execution_plan_review',
   'unearned_execution_plan_assurance',
+  'mismatched_execution_plan_review_kind',
+  'mismatched_execution_plan_review_ticket',
 ] as const;
 
 export type ExecutionPrerequisiteRepairCode = (typeof EXECUTION_PREREQUISITE_REPAIR_CODES)[number];
@@ -351,6 +353,28 @@ function reviewedChecklist(
           command,
         },
         receipt: 'valid',
+      };
+    }
+    case 'mismatched_kind': {
+      return {
+        admitted: false,
+        missing: {
+          code: 'mismatched_execution_plan_review_kind',
+          message: `The cited review is ${review.actualKind}, but this Execution Plan requires a plan-execution review.`,
+          command,
+        },
+        receipt: 'missing',
+      };
+    }
+    case 'mismatched_ticket': {
+      return {
+        admitted: false,
+        missing: {
+          code: 'mismatched_execution_plan_review_ticket',
+          message: 'The cited Execution Plan review belongs to a different ticket.',
+          command,
+        },
+        receipt: 'missing',
       };
     }
     case 'not_admitted': {

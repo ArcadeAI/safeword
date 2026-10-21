@@ -1,0 +1,53 @@
+{
+  "primary": {
+    "passed": 3,
+    "failed": 0
+  },
+  "protection": {
+    "passed": 38,
+    "failed": 0,
+    "new_identity_cases": 17
+  },
+  "logs": {
+    "green": {
+      "sha256": "91fba0fd20d84d4ae71af3f9c56c19cfc9a401cb15b221fedd49ae7107e3997b",
+      "exit_code": 0
+    },
+    "protect": {
+      "sha256": "84efeec86a1b40930a70f15f8bb3c6642a9027b4d7591be0d9c5d45f0d5d7be0",
+      "exit_code": 1
+    },
+    "protect-fixed": {
+      "sha256": "1ffd18263daf7ebcd3fb3118cf3ec8bccc12eb85c255e7c4558e46a4792cea43",
+      "exit_code": 0
+    },
+    "protect-receipt-bytes": {
+      "sha256": "f29616bedd42f6e6a02f5d8c91bf97d5337e0da3bf04fecb81c2c0bd5d416cef",
+      "exit_code": 0
+    },
+    "typecheck": {
+      "sha256": "336611721df5e258f1f63cfc3b7eb5afb028d2ac5940177b9818058a2081d7b2",
+      "exit_code": 0
+    },
+    "generated": {
+      "sha256": "506dac0919d9ab9c5664597d6e152fa5a2b41fddf0658ccf4317474a36e015d1",
+      "exit_code": 0
+    },
+    "audit-code": {
+      "sha256": "32f611e800c6b12ce540b42627cb7a6d6e354a8fb413f07d661c6359d261ebf3",
+      "exit_code": 0
+    },
+    "audit-learnings": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code": 0
+    },
+    "audit-principles": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code": 0
+    },
+    "audit-domain": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code": 0
+    }
+  }
+}

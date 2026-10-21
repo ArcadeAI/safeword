@@ -10,7 +10,12 @@ import { validateExecutionPlanOutput } from '../review/execution-plan-output.js'
 import { reviewJobStatus } from '../review/job.js';
 import { reviewPolicyAllowsAssurance } from '../review/policy.js';
 
+type ExecutionPlanIdentityMismatch =
+  | { readonly kind: 'mismatched_kind'; readonly actualKind: string }
+  | { readonly kind: 'mismatched_ticket' };
+
 export type ExecutionPlanAdmission =
+  | ExecutionPlanIdentityMismatch
   | {
       readonly kind: 'admitted';
       readonly reviewId: string;
@@ -135,6 +140,36 @@ function candidateAdmission(
   };
 }
 
+function identityMismatch(
+  input: Parameters<typeof executionPlanAdmission>[0],
+  stamp: ReturnType<typeof parseReviewStamps>[number],
+): ExecutionPlanIdentityMismatch | undefined {
+  if (stamp.reviewId === undefined) return undefined;
+  const data = reviewData(input.cwd, stamp.reviewId);
+  if (data === undefined || !isRecord(data.reviewer_output)) return undefined;
+  if (typeof data.review_kind === 'string' && data.review_kind !== 'plan-execution') {
+    return { kind: 'mismatched_kind', actualKind: data.review_kind };
+  }
+  const targets = data.review_targets;
+  if (
+    data.review_kind === 'plan-execution' &&
+    Array.isArray(targets) &&
+    targets.some(target => {
+      if (typeof target !== 'string') return false;
+      const resolved = nodePath.resolve(input.cwd, target);
+      const directory = nodePath.dirname(resolved);
+      return (
+        nodePath.basename(resolved) === 'execution-plan.md' &&
+        directory !== input.ticketDirectory &&
+        nodePath.dirname(directory) === nodePath.dirname(input.ticketDirectory)
+      );
+    })
+  ) {
+    return { kind: 'mismatched_ticket' };
+  }
+  return undefined;
+}
+
 /** Diagnose the latest review for the exact current Execution Plan contract. */
 export function executionPlanAdmission(input: {
   readonly cwd: string;
@@ -148,11 +183,13 @@ export function executionPlanAdmission(input: {
   const candidates = parseReviewStamps(input.ledger)
     .filter(stamp => stamp.scope === scope && stamp.skipReason === undefined)
     .toReversed();
+  let mismatch: ExecutionPlanIdentityMismatch | undefined;
   for (const stamp of candidates) {
     const admission = candidateAdmission(input, stamp);
     if (admission !== undefined) return admission;
+    mismatch ??= identityMismatch(input, stamp);
   }
-  return { kind: 'not_admitted' };
+  return mismatch ?? { kind: 'not_admitted' };
 }
 
 /** Resolve an admitted review for callers that need the approved plan record. */
