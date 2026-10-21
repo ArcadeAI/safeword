@@ -131,9 +131,11 @@ finding=$(printenv SAFEWORD_REVIEW_FAKE_FINDING || true)
 if [ "$verdict" = "request_changes" ] && printf '%s' "$payload" | /usr/bin/grep -q '"kind":"delivery-compatibility"'; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"earlier proof is incompatible","findings":[{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$finding"
 elif [ "$verdict" = "request_changes" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan needs repair","findings":[{"severity":"error","message":"%s"}],"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id" "$finding"
+  printf '{"schema_version":1,"dispatch_id":"%s","evidence_records":{"schema_version":1,"records":[]},"reviewer_agent":"claude","verdict":"request_changes","summary":"plan needs repair","findings":[{"severity":"error","message":"%s"}],"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id" "$finding"
 elif [ -n "$record" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[],"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$record"
+  printf '{"schema_version":1,"dispatch_id":"%s","evidence_records":{"schema_version":1,"records":[]},"reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[],"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$record"
+elif printf '%s' "$payload" | /usr/bin/grep -Eq '"kind":"(scenario-gate|plan-implementation)"|"planning_phase":"product-plan"'; then
+  printf '{"schema_version":1,"dispatch_id":"%s","evidence_records":{"schema_version":1,"records":[]},"reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[]}\n' "$dispatch_id"
 else
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[]}\n' "$dispatch_id"
 fi
