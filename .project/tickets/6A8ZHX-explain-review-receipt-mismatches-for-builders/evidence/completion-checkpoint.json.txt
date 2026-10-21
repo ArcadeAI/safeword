@@ -1,0 +1,11 @@
+{
+  "observed_at": "2026-10-21T17:21:40.805Z",
+  "gate": "evaluateDoneEvidence",
+  "ticket": "6A8ZHX",
+  "result": {
+    "ok": true
+  },
+  "scope": "Natural shared completion evaluator: dependencies, configured tests, verify artifact and task scope. This does not replace the CI full CLI matrix.",
+  "review": "e9e7013b-05c3-4213-9b63-01df10aa89b6",
+  "source_commit": "a63e0d1e89a12d830175fd5f5de16a790a55b565"
+}

@@ -1,0 +1,20 @@
+{
+  "RED": {
+    "passed": 19,
+    "failed": 4,
+    "exit_code": 1,
+    "source": "legacy-red-queued.log.gz"
+  },
+  "GREEN": {
+    "passed": 46,
+    "failed": 0,
+    "exit_code": 0,
+    "source": "currency-green.log.gz"
+  },
+  "independent_review": "db4c59a9-d449-45b8-822e-888704474d02",
+  "excluded_compiled_bundles": [
+    "packages/cli/codex-plugin/runtime/cli.js",
+    "plugin/runtime/cli.js"
+  ],
+  "legacy_fixtures": "Five explicit signed malformed records; ordinary identity cases retain genuine coordinator jobs."
+}

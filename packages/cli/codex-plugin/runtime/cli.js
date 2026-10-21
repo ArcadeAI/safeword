@@ -83198,7 +83198,10 @@ function reviewData(cwd, reviewId) {
   if (current.findings.some((finding2) => finding2.code === "REVIEW_STALE"))
     return;
   const status = reviewJobStatus(cwd, reviewId, { allowMalformedReviewerOutput: true });
-  return isRecord14(status.data) ? status.data : undefined;
+  if (!isRecord14(status.data))
+    return;
+  const diagnostic = isRecord14(current.data) && current.data.command === "review run" && (current.data.status === "approved" || current.data.status === "changes_requested") ? current.data : undefined;
+  return { admission: status.data, diagnostic };
 }
 function coversPlan(data, cwd, planPath) {
   const targets = data.review_targets;
@@ -83226,10 +83229,9 @@ function achievedIndependence(data, output, stamp) {
     return;
   return independence;
 }
-function reviewCandidate2(input, stamp) {
+function reviewCandidate2(input, stamp, data) {
   if (stamp.reviewId === undefined)
     return;
-  const data = reviewData(input.cwd, stamp.reviewId);
   if (data?.review_kind !== "plan-execution")
     return;
   if (!coversPlan(data, input.cwd, input.planPath) || !isRecord14(data.reviewer_output)) {
@@ -83237,8 +83239,8 @@ function reviewCandidate2(input, stamp) {
   }
   return { reviewId: stamp.reviewId, data, output: data.reviewer_output };
 }
-function candidateAdmission(input, stamp) {
-  const candidate = reviewCandidate2(input, stamp);
+function candidateAdmission(input, stamp, receiptData) {
+  const candidate = reviewCandidate2(input, stamp, receiptData);
   if (candidate === undefined)
     return;
   const { data, output, reviewId } = candidate;
@@ -83267,15 +83269,36 @@ function candidateAdmission(input, stamp) {
     }
   };
 }
+function identityMismatch(input, data) {
+  if (data === undefined || !isRecord14(data.reviewer_output))
+    return;
+  if (typeof data.review_kind === "string" && data.review_kind !== "plan-execution") {
+    return { kind: "mismatched_kind", actualKind: data.review_kind };
+  }
+  const targets = data.review_targets;
+  if (data.review_kind === "plan-execution" && Array.isArray(targets) && targets.some((target) => {
+    if (typeof target !== "string")
+      return false;
+    const resolved = nodePath135.resolve(input.cwd, target);
+    const directory = nodePath135.dirname(resolved);
+    return nodePath135.basename(resolved) === "execution-plan.md" && directory !== input.ticketDirectory && nodePath135.dirname(directory) === nodePath135.dirname(input.ticketDirectory);
+  })) {
+    return { kind: "mismatched_ticket" };
+  }
+  return;
+}
 function executionPlanAdmission(input) {
   const scope = `${nodePath135.basename(input.ticketDirectory)}:phase@plan-execution`;
   const candidates = parseReviewStamps(input.ledger).filter((stamp) => stamp.scope === scope && stamp.skipReason === undefined).toReversed();
+  let mismatch;
   for (const stamp of candidates) {
-    const admission = candidateAdmission(input, stamp);
+    const data = stamp.reviewId === undefined ? undefined : reviewData(input.cwd, stamp.reviewId);
+    const admission = candidateAdmission(input, stamp, data?.admission);
     if (admission !== undefined)
       return admission;
+    mismatch ??= identityMismatch(input, data?.diagnostic);
   }
-  return { kind: "not_admitted" };
+  return mismatch ?? { kind: "not_admitted" };
 }
 function admittedExecutionPlanReview(input) {
   const admission = executionPlanAdmission(input);
@@ -84527,6 +84550,28 @@ function reviewedChecklist(review, command2) {
         receipt: "valid"
       };
     }
+    case "mismatched_kind": {
+      return {
+        admitted: false,
+        missing: {
+          code: "mismatched_execution_plan_review_kind",
+          message: `The cited review is ${review.actualKind}, but this Execution Plan requires a plan-execution review.`,
+          command: command2
+        },
+        receipt: "missing"
+      };
+    }
+    case "mismatched_ticket": {
+      return {
+        admitted: false,
+        missing: {
+          code: "mismatched_execution_plan_review_ticket",
+          message: "The cited Execution Plan review belongs to a different ticket.",
+          command: command2
+        },
+        receipt: "missing"
+      };
+    }
     case "not_admitted": {
       return;
     }
@@ -84692,7 +84737,9 @@ var init_execution_prerequisite = __esm(() => {
     "missing_admitted_delivery_checklist",
     "missing_execution_plan_verdict",
     "rejected_execution_plan_review",
-    "unearned_execution_plan_assurance"
+    "unearned_execution_plan_assurance",
+    "mismatched_execution_plan_review_kind",
+    "mismatched_execution_plan_review_ticket"
   ];
 });
 

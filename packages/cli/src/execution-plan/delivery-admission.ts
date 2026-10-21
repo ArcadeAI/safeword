@@ -10,7 +10,12 @@ import { validateExecutionPlanOutput } from '../review/execution-plan-output.js'
 import { reviewJobStatus } from '../review/job.js';
 import { reviewPolicyAllowsAssurance } from '../review/policy.js';
 
+type ExecutionPlanIdentityMismatch =
+  | { readonly kind: 'mismatched_kind'; readonly actualKind: string }
+  | { readonly kind: 'mismatched_ticket' };
+
 export type ExecutionPlanAdmission =
+  | ExecutionPlanIdentityMismatch
   | {
       readonly kind: 'admitted';
       readonly reviewId: string;
@@ -31,11 +36,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function reviewData(cwd: string, reviewId: string): Record<string, unknown> | undefined {
+interface ReviewData {
+  readonly admission: Record<string, unknown>;
+  readonly diagnostic: Record<string, unknown> | undefined;
+}
+
+function reviewData(cwd: string, reviewId: string): ReviewData | undefined {
   const current = reviewJobStatus(cwd, reviewId);
   if (current.findings.some(finding => finding.code === 'REVIEW_STALE')) return undefined;
   const status = reviewJobStatus(cwd, reviewId, { allowMalformedReviewerOutput: true });
-  return isRecord(status.data) ? status.data : undefined;
+  if (!isRecord(status.data)) return undefined;
+  // Keep legacy missing-verdict admission errors, but never infer diagnostic
+  // currency from the authenticated-only view of a malformed receipt.
+  const diagnostic =
+    isRecord(current.data) &&
+    current.data.command === 'review run' &&
+    (current.data.status === 'approved' || current.data.status === 'changes_requested')
+      ? current.data
+      : undefined;
+  return { admission: status.data, diagnostic };
 }
 
 function coversPlan(data: Record<string, unknown>, cwd: string, planPath: string): boolean {
@@ -85,6 +104,7 @@ function achievedIndependence(
 function reviewCandidate(
   input: Parameters<typeof executionPlanAdmission>[0],
   stamp: ReturnType<typeof parseReviewStamps>[number],
+  data: Record<string, unknown> | undefined,
 ):
   | {
       readonly reviewId: string;
@@ -93,7 +113,6 @@ function reviewCandidate(
     }
   | undefined {
   if (stamp.reviewId === undefined) return undefined;
-  const data = reviewData(input.cwd, stamp.reviewId);
   if (data?.review_kind !== 'plan-execution') return undefined;
   if (!coversPlan(data, input.cwd, input.planPath) || !isRecord(data.reviewer_output)) {
     return undefined;
@@ -104,8 +123,9 @@ function reviewCandidate(
 function candidateAdmission(
   input: Parameters<typeof executionPlanAdmission>[0],
   stamp: ReturnType<typeof parseReviewStamps>[number],
+  receiptData: Record<string, unknown> | undefined,
 ): ExecutionPlanAdmission | undefined {
-  const candidate = reviewCandidate(input, stamp);
+  const candidate = reviewCandidate(input, stamp, receiptData);
   if (candidate === undefined) return undefined;
   const { data, output, reviewId } = candidate;
   if (output.verdict === undefined) return { kind: 'missing_verdict' };
@@ -135,6 +155,34 @@ function candidateAdmission(
   };
 }
 
+function identityMismatch(
+  input: Parameters<typeof executionPlanAdmission>[0],
+  data: Record<string, unknown> | undefined,
+): ExecutionPlanIdentityMismatch | undefined {
+  if (data === undefined || !isRecord(data.reviewer_output)) return undefined;
+  if (typeof data.review_kind === 'string' && data.review_kind !== 'plan-execution') {
+    return { kind: 'mismatched_kind', actualKind: data.review_kind };
+  }
+  const targets = data.review_targets;
+  if (
+    data.review_kind === 'plan-execution' &&
+    Array.isArray(targets) &&
+    targets.some(target => {
+      if (typeof target !== 'string') return false;
+      const resolved = nodePath.resolve(input.cwd, target);
+      const directory = nodePath.dirname(resolved);
+      return (
+        nodePath.basename(resolved) === 'execution-plan.md' &&
+        directory !== input.ticketDirectory &&
+        nodePath.dirname(directory) === nodePath.dirname(input.ticketDirectory)
+      );
+    })
+  ) {
+    return { kind: 'mismatched_ticket' };
+  }
+  return undefined;
+}
+
 /** Diagnose the latest review for the exact current Execution Plan contract. */
 export function executionPlanAdmission(input: {
   readonly cwd: string;
@@ -148,11 +196,14 @@ export function executionPlanAdmission(input: {
   const candidates = parseReviewStamps(input.ledger)
     .filter(stamp => stamp.scope === scope && stamp.skipReason === undefined)
     .toReversed();
+  let mismatch: ExecutionPlanIdentityMismatch | undefined;
   for (const stamp of candidates) {
-    const admission = candidateAdmission(input, stamp);
+    const data = stamp.reviewId === undefined ? undefined : reviewData(input.cwd, stamp.reviewId);
+    const admission = candidateAdmission(input, stamp, data?.admission);
     if (admission !== undefined) return admission;
+    mismatch ??= identityMismatch(input, data?.diagnostic);
   }
-  return { kind: 'not_admitted' };
+  return mismatch ?? { kind: 'not_admitted' };
 }
 
 /** Resolve an admitted review for callers that need the approved plan record. */

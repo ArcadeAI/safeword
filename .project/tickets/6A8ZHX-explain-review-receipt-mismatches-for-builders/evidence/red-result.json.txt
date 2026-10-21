@@ -1,0 +1,8 @@
+{
+  "command": "scripts/dev bun run test tests/integration/execution-receipt-recovery.test.ts",
+  "exit_code": 1,
+  "passed": 1,
+  "failed": 2,
+  "expected_failure": "Wrong-kind and sibling-ticket receipt diagnostics remain generic; positive current receipt control passes.",
+  "log_sha256": "06517ec771be43c461df846804ef71a5a1802ce0a44f6def7ccf3e370e85b3f4"
+}

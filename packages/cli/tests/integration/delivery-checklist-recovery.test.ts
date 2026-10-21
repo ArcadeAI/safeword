@@ -11,6 +11,8 @@ describe('delivery checklist recovery contract', () => {
       'missing_execution_plan_verdict',
       'rejected_execution_plan_review',
       'unearned_execution_plan_assurance',
+      'mismatched_execution_plan_review_kind',
+      'mismatched_execution_plan_review_ticket',
     ]);
     expect(new Set(EXECUTION_PREREQUISITE_REPAIR_CODES).size).toBe(
       EXECUTION_PREREQUISITE_REPAIR_CODES.length,

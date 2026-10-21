@@ -1,0 +1,57 @@
+---
+id: 6A8ZHX
+slug: explain-review-receipt-mismatches-for-builders
+type: task
+phase: done
+status: done
+created: 2026-10-21T15:45:34.972Z
+last_modified: 2026-10-21T17:20:00.000Z
+---
+
+# Explain review receipt mismatches for builders
+
+**Goal:** Identify wrong-kind planning review receipts and give the correct recovery action without admitting them or weakening current review gates.
+
+**Why:** The #5086 delivery preserved an R9 diagnostic gap: a wrong-kind receipt fails closed without naming the mismatch.
+
+**Category:** Bug
+
+**Scope:** Diagnose authenticated Execution Plan receipt claims whose recorded review kind or ticket differs from the current gate. Keep one concrete re-review command for the current ticket, with no new approval authority.
+
+**Out of Scope:** Admission-policy changes, reviewer routing, credential transport, R7 native retrieval/private-injection proof, #5139 scope enforcement, sibling-owned non-technical recovery copy, broad parent closure, paid qualification, merge and destructive cleanup.
+
+**Done When:**
+
+- [x] The public execution-prerequisite command identifies the actual and required review kind for an otherwise-current wrong-kind receipt.
+- [x] An authenticated sibling-ticket receipt over identical plan bytes names the ticket mismatch and re-review for the current ticket.
+- [x] Genuine current matching receipts still satisfy the prerequisite, and unrelated invalid claims cannot displace an existing valid receipt.
+- [x] Missing, stale and unauthenticated receipts retain fail-closed behavior without invented authenticated provenance.
+- [x] Every mismatch recovery requests plan-execution for the current ticket. With no applicable receipt, diagnose the newest current authenticated mismatch; if one receipt mismatches both kind and ticket, name the kind first. A valid current matching receipt retains precedence over mismatched claims in either ledger order.
+- [x] Targeted regression checks, derived surfaces, scoped audit and independent review pass; verification records failures and limits.
+
+**Tests (TDD):**
+
+- [x] RED: real CLI creates authentic receipts with a fake external reviewer; wrong-kind and sibling-ticket claims fail at the actor-visible mismatch assertions while refusal and the exact recovery command remain required.
+- [x] GREEN: preserve receipt validation and candidate selection, exposing mismatch diagnosis only when no applicable receipt is admitted.
+- [x] PROTECT: matching receipt, valid receipt with invalid claims in either order, multiple mismatches in both orders, a receipt mismatching both kind and ticket, missing and stale controls, and tampered wrong-kind/sibling receipts whose unauthenticated fields must never produce mismatch diagnostics.
+- [x] REFACTOR: inspect the bounded change and retain one owner for admission and its diagnostic result.
+
+**Principle consequence:** Preserve the natural admission gate and expose one concrete next action. Tests prove emitted diagnostic mechanics; no claim of non-technical comprehension or native host isolation is made.
+
+## Work Log
+
+- 2026-10-21T15:45:34.972Z Started: Created ticket 6A8ZHX
+- Intake reviews 88ead5d8 and 0e25d726 approved independently through Claude; the final authenticated intake stamp was recorded. Ordering means existing ledger append order, not timestamps. Stale receipts never supply mismatch diagnostics. These clarify the existing bounded task rather than broadening admission or sibling-owned copy.
+- A multi-hunk ticket edit was safely refused without changes; three exact single-hunk edits applied the intake suggestions. This failure is retained rather than attributed to production behavior.
+- RED: the real public CLI positive control passes with a genuine current review. Both identity regressions fail exactly at the missing mismatch diagnostics (2 failed /1 passed); they currently emit missing_admitted_delivery_checklist. No receipt was fabricated or re-signed; only reviewer executables are faked, and negative ledger claims are deliberately untrusted.
+- GREEN: 3/3 primary tests pass. The expanded protection run initially passed 37 with one fixture-only duplicate target/context refusal; the fixture now selects kind-appropriate context without changing assertions. All 38 checks then passed, including 17 identity cases. A subsequent 38/38 run also asserts every terminal receipt JSON is byte-for-byte unchanged, alongside ticket and ledger bytes.
+- All three package typechecks passed; all five derived surfaces were regenerated and verified. Diff-scoped audit at base 9f6ac6fce found no dependency violations (56 modules /86 dependencies); learnings, principle traces and domain checks had no findings. Repository-wide clone/dependency-freshness discovery was intentionally excluded.
+- Independent Claude review 31c51fd9 approved the source and tests. Its duplicate receipt-load warning will be applied as one protected refactor. Same-level sibling diagnosis matches the existing ticket resolver's supported directory model; nested/archived targets retain generic fail-closed recovery. Active-job status cleanup is pre-existing in reviewData, not introduced by this slice; it remains outside this terminal-receipt diagnostic change. The command-module repair-code re-export is present, and no unrelated import cleanup is needed.
+- Refactor: the first attempt failed to build because a parameter reused a local name; it was immediately reverted to the green commit. The corrected single-purpose refactor passed 38/38 and committed as 9a4c6db6a, with regenerated surfaces. One reviewData call is now shared per candidate; its two pre-existing strict/loose status reads are retained. This does not claim those two reads were eliminated or active-job cleanup was repaired.
+- Added a discriminating sibling quality-review target over execution-plan.md; 39/39 targeted checks passed. A dynamic-regex lint finding was corrected to literal/value assertions. A patch with a stale formatting anchor applied nothing before the corrected exact edit. Full lint and Gherkin lint passed; existing CI dependency policy passed with no added exceptions. The unrestricted audit's existing advisories remain recorded separately.
+- Reviews 0f75e02f and 6121f339 approved independently. The phase exit correctly refused a review whose ticket was context rather than a target. Its temporary runtime was subsequently unavailable after another worktree was removed; the installed runtime completed review 0fd8157b over the ticket and work as targets.
+- Review 0fd8157b found that a signed but malformed legacy receipt can avoid strict fingerprint validation and still supply mismatch wording after its sources change. This violates the accepted diagnostic currency rule despite failing closed. The unfinished canonical verification was stopped as exit 130; no full-suite pass is claimed. Four explicitly sealed malformed legacy fixtures were added, separately from the 18 ordinary real-job identity cases. Their first run exited 75 before any test because another checkout owns the shared test lock. The unchanged regression is queued with a longer lock wait only; RED is not yet observed.
+- Currency regression RED is now observed: the queued Vitest run completed with 4 failed /19 passed, including a passing matching missing-verdict control. A standalone built-CLI probe independently failed the same diagnostic assertion before repair and passed unchanged after repair. Its first plugin-runtime attempt could not locate an isolated fixture key and failed before resealing; no production key was read. The built CLI's isolated test-key mode was used for both behavioral observations. An attempted cancellation found the queued wrapper already exited and signaled no process.
+- Currency GREEN: strict validated current status supplies diagnostics; authenticated-only legacy data remains available to the unchanged admission/error path. All 46 tests across identity recovery, repair-code vocabulary, prerequisites and execution journey passed. The 23 identity cases comprise 18 ordinary real coordinator jobs plus five deliberately sealed malformed legacy controls; only the legacy setup signs controlled test records. Ticket, ledger and terminal receipt byte checks remain intact.
+- Final verification will run each relevant app lane once. The canonical monorepo attempt is preserved as interrupted; its plan repeats the full CLI suite through both the root script and a leaf entry. Final evidence will distinguish the single complete app run, acceptance/release checks, existing CI audit policy and the unrestricted advisory baseline rather than claiming the interrupted aggregate passed.
+- Local checkpoint: 46 targeted tests, 601 acceptance scenarios /11,821 steps plus 51 proof checks, and 83 release tests pass. All static checks and parity pass. Complete-scope review db4c59a9 earned the implement stamp; the eight product/test/carrier paths are frozen at a63e0d1e8. The final local full attempt exited 130 while queued behind another checkout; full Node 22/24 CLI verification awaits CI. The requested single profile-install retry failed on the installed 1.2.0 versus registry-required 1.1.0 mismatch and reported project hooks unchanged; no further install retry or downgrade was attempted.

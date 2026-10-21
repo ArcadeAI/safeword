@@ -1,0 +1,40 @@
+{
+  "snapshot": "local checkpoint before final verification-record commit and PR publication; current CI state is recorded in the live PR readiness block",
+  "source_commit": "a63e0d1e89a12d830175fd5f5de16a790a55b565",
+  "targeted": {
+    "files": 4,
+    "passed": 46,
+    "failed": 0,
+    "identity_cases": 23
+  },
+  "acceptance": {
+    "scenarios_passed": 601,
+    "steps_passed": 11821,
+    "proof_tests_passed": 51
+  },
+  "release": {
+    "files": 14,
+    "passed": 83,
+    "failed": 0,
+    "qualification": "offline verification only; no paid qualification"
+  },
+  "lint_exit": 0,
+  "three_package_typechecks_exit": 0,
+  "all_generated_surfaces": 5,
+  "parity": {
+    "pairs": 277,
+    "contracts": 11
+  },
+  "audit": {
+    "modules": 56,
+    "dependencies": 86,
+    "violations": 0
+  },
+  "dependency_audit": {
+    "existing_CI_policy_exit": 0,
+    "unrestricted_exit": 1,
+    "new_exceptions": 0
+  },
+  "full_CLI_suite": "pending CI; stopped local attempts are not passes",
+  "independent_source_review": "db4c59a9-d449-45b8-822e-888704474d02"
+}
