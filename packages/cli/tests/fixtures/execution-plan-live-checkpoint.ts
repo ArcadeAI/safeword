@@ -108,6 +108,10 @@ export function readExecutionCheckpoint(
   const passedIds = new Set(passing.map(result => result.case_id));
   const retained = outputs.filter(output => passedIds.has(output.case_id));
   requireRetained(
+    retained.every(output => output.dispatch_mode === 'headless'),
+    'Retained passing observations must be headless',
+  );
+  requireRetained(
     retained.length === passing.length &&
       retained.every(
         output =>

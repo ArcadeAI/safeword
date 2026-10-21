@@ -260,7 +260,7 @@ export function assertSlicingRationale(id: string, rationale: string, expect: As
       /coher|cohes|insepar|coupl|atomic|single boundary|same (?:boundary|contract|outcome)/iu,
       /review|judg|contract|command|result/iu,
       /split|separat|independen|insepar|indivis/iu,
-      /no |not |none |without|cannot|can't|insepar|indivis|artificial|would/iu,
+      /\b(?:(?:cannot|can't|not|no)\s+(?:[\p{L}-]+\s+){0,4}(?:split|separat|independen)|inseparable|indivisible)/iu,
     ],
     'several-ordered-changes': [
       /contract|schema/iu,
