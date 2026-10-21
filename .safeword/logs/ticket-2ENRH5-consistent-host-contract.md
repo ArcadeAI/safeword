@@ -922,3 +922,27 @@ that sign-in. After successful auth, retry the same coordinator command once;
 the future live RED also needs its own executable review before production work.
 The requested one-time profile-install retry failed without changes because
 another Safeword task held the Codex profile lock; no repeated retry or bypass.
+
+2026-10-21 resumed after user unlocked the desktop. Exact native IDE setup now
+works. First live trial FmgaKf reached the final expected assertion: 3/4 steps
+passed, HOST_CONTINUATION_MISSING, exit 2, 37.751s. Self-check aligned the fixture
+with the existing shared completion predicate (phase done/status in_progress),
+preserving its missing verify.md evidence and removing a potential new rule for
+ordinary verification work. No production behavior changed.
+
+One author rerun lost foreground during Given and returned unavailable (3),
+report safeword-host-contract-proof-UIu7qw/cucumber.json; do not count it as RED.
+The executable-review controller then reran the current refined fixture for
+38.945s: all setup/action steps passed, Then failed HOST_CONTINUATION_MISSING,
+exit 2, report safeword-host-contract-proof-jf9Rhj/cucumber.json under the usual
+temporary root. Fixture unfinished-ticket-stop-9Mx4ao. Its execution attestation
+records source fingerprint
+70f67f1005e9f9a32cac9300981345100543734f507568f7321f4aac103bc0fc.
+
+Executable review deb05b0e-17ec-4680-9cdf-d1aa072e6471 returned
+REVIEW_AUTHENTICATION_REQUIRED after retaining that attestation. Actual Claude
+auth status is loggedIn=false; the existing claude auth login process remains
+waiting for user sign-in. Reminded the user through the input tool. No
+independent review was earned, no production integration began, and all outline
+checkboxes remain unchecked. Retry the exact coordinator command after auth
+succeeds; do not substitute a reviewer or bypass the receipt gate.

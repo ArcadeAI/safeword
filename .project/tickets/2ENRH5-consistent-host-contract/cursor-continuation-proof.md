@@ -12,7 +12,10 @@ every policy decision; no project Stop hook returns a follow-up.
 Given establishes the exact signed IDE, generated plugin registration, a real
 setup conversation, and its actual native Stop dispatch with loop count zero.
 That setup turn must not have consumed any continuation. The synthetic task is
-in verification with no verify.md. Its session state is bound to the observed
+at the existing shared completion boundary (phase done, status in_progress),
+with no verify.md. This matches the Claude/Codex completion predicate rather
+than inventing enforcement during ordinary verification work.
+Its session state is bound to the observed
 conversation before the When; it is not patched during the trial.
 
 When submits one request to finish that same conversation. The actor never
@@ -50,3 +53,20 @@ ESLint and formatting passed. Independent quality review
 `bf303c06-7e14-4ead-991b-180027b868c4` could not run because Claude requires
 renewed authentication; the prescribed browser sign-in is awaiting the user.
 This is unreviewed scaffolding, not approved live evidence.
+
+After unlock, the live IDE reached the final assertion. Refined the fixture to
+the existing completion phase rather than ordinary verification work. The
+coordinator's execution attestation then independently reran that exact source:
+three setup/action steps passed, the final assertion failed with
+HOST_CONTINUATION_MISSING, and the runner returned 2 in 38.945s. Report:
+`/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-jf9Rhj/cucumber.json`.
+Fixture: `unfinished-ticket-stop-9Mx4ao` under the isolated runs directory.
+The actual generated Stop handler returned no follow-up; the original assistant
+response finished and the host supplied no subsequent loop.
+
+Executable review `deb05b0e-17ec-4680-9cdf-d1aa072e6471` retained this execution
+attestation but returned REVIEW_AUTHENTICATION_REQUIRED for Claude. This is
+observed failing behavior, not an approved independent review receipt. Complete
+the pending Claude sign-in, then retry the same executable review once before
+production integration. A preceding author rerun lost foreground during Given
+and correctly returned unavailable (3); that result supplies no product evidence.

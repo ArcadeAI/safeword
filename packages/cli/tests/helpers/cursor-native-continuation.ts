@@ -93,7 +93,7 @@ export class CursorNativeContinuationActor extends CursorNativePluginActor {
     mkdirSync(ticket, { recursive: true });
     writeFileSync(
       nodePath.join(ticket, 'ticket.md'),
-      '---\nid: UNFNSH\ntype: task\nphase: verify\nstatus: in_progress\n---\n\n# Verify the synthetic work\n',
+      '---\nid: UNFNSH\ntype: task\nphase: done\nstatus: in_progress\n---\n\n# Verify the synthetic work\n',
     );
     const identity = resolveRunIdentity(
       { conversation_id: this.conversation },
