@@ -22,9 +22,12 @@ Leaf-first execution ledger:
 - [x] Name the version capability probe as a predicate; preserve its checks,
   errors and oldest-version behavior. Nine policy probes passed on each of
   v2.0.0/Go 1.24 and v2.13.2/Go 1.25 (18/18); ESLint and all generated surfaces pass.
-- [ ] Extract helper invocation and JSON validation into one local function;
+- [x] Extract helper invocation and JSON validation into one local function;
   retain containment, availability/version checks and warning deduplication at
-  the caller. No new shipping or schema-managed file.
+  the caller. No new shipping or schema-managed file. Commit a3c8fdc70 passed
+  malformed-response and deduplication probes, 18 real-linter policy checks,
+  six source-hook checks, typecheck, parity and generated lifecycle verification.
+  Only installed-tree hashes changed; lifecycle result hashes stayed identical.
 - [x] Decline a normalizer registry, generic subprocess abstraction, repository-
   wide containment helper and further executor split: no duplicated contract
   warrants those interfaces.
@@ -38,8 +41,16 @@ Leaf-first execution ledger:
 - [ ] Re-run the diff audit, then the independent quality-review coordinator;
   resolve every error, record optional suggestions, and verify the final source.
 
-Each refactoring is a separate change, proof and scoped commit. The local
-Vitest lock currently belongs to worktree 3811; do not change its lock or process.
+Follow-up protection: all 49 focused tests pass locally with each pinned
+linter (v2.0.0/Go 1.24 and v2.13.2/Go 1.25). The four legacy-YAML cases compare
+native policy against actual hook feedback; the lifecycle trace now explicitly
+requires one format operation before one lint operation. ESLint and typecheck
+pass. Post-refactor audit is Healthy, Changed: no, with no violations across
+539 modules and 949 dependencies. The first independent Claude/Opus review
+approved without errors; a follow-up on the stronger tests is pending.
+
+Each refactoring is a separate change, proof and scoped commit. The shared
+Vitest lock is respected; do not change another checkout's lock or process.
 
 The first trial was restored immediately when an additional native config-path
 probe failed. That optional probe also failed on the unchanged baseline: it

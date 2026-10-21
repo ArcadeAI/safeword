@@ -91,6 +91,14 @@ describe('Go lint process boundary', () => {
     expect(context).toContain('formatter unavailable');
     expect(context).toContain('sample issue');
     const trace = readFileSync(env.GO_LINT_TRACE, 'utf8');
+    const packageCommands = trace
+      .trim()
+      .split('\n')
+      .filter(line => /\|(?:fmt|run) /.test(line));
+    expect(packageCommands).toHaveLength(2);
+    expect(packageCommands[0]).toContain(`${path.dirname(file)}|fmt --config `);
+    expect(packageCommands[0]).toContain(` ${file}`);
+    expect(packageCommands[1]).toContain(`${path.dirname(file)}|run --config `);
     expect(trace).toContain(`${path.dirname(file)}|run --config `);
     expect(trace).toContain(`--path-prefix ${root} .`);
     expect(trace).not.toContain('--fix');

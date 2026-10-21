@@ -312,6 +312,45 @@ describe.skipIf(!available)('Go post-edit package context (real Go and golangci-
     expect(await hook(root, file)).toBe('');
   });
 
+  it.each(['yes', 'no', 'on', 'off'])(
+    'preserves native test-policy behavior for the legacy YAML scalar %s',
+    async scalar => {
+      const root = fixture();
+      const config = write(
+        root,
+        '.safeword/.golangci.yml',
+        `version: "2"\nrun:\n  tests: ${scalar}\nlinters: {default: none, enable: [govet]}\nformatters: {enable: [gofmt]}\n`,
+      );
+      const file = write(
+        root,
+        'apps/engine/value.go',
+        'package engine\n\nfunc Value() int { return 42 }\n',
+      );
+      const marker = 'legacy-boolean-policy';
+      write(
+        root,
+        'apps/engine/value_test.go',
+        `package engine\nimport "fmt"\nimport "testing"\nfunc TestValue(t *testing.T) { fmt.Printf("%d", "${marker}") }\n`,
+      );
+      const native = spawnSync(LINTER, ['run', '--config', config, '.'], {
+        cwd: path.dirname(file),
+        env: environment(root),
+        encoding: 'utf8',
+      });
+      expect([0, 1, 3]).toContain(native.status);
+      const feedback = await hook(root, file);
+      if (native.status === 3) {
+        expect(`${native.stdout}${native.stderr}`).toContain('tests');
+        expect(feedback).toContain('tests');
+        expect(feedback).toMatch(/failed|could not run/);
+      } else {
+        expect(feedback.includes(marker)).toBe(native.stdout.includes(marker));
+        if (native.status === 0) expect(feedback).toBe('');
+        else expect(feedback).toContain('govet');
+      }
+    },
+  );
+
   it.each(['cfg', 'gomod', 'gitroot'] as const)(
     'freezes the original %s matching base',
     async mode => {
