@@ -123,5 +123,110 @@
     "source": "/tmp/5086-quality-intake-stamp.log",
     "archive": "5086-quality-intake-stamp.log.gz",
     "sha256": "d736b7ea771d5d46dbc279e7b5be427feaf6a1dc5a3ed051901466149fd47ed7"
+  },
+  {
+    "source": "/tmp/5086-quality-full-final.log",
+    "archive": "5086-quality-full-final.log.gz",
+    "sha256": "a6a357106da8826930d0ae78944dcbf16ce989d647036f9a0862f8cc9ebe3117"
+  },
+  {
+    "source": "/tmp/5086-quality-release-final.log",
+    "archive": "5086-quality-release-final.log.gz",
+    "sha256": "ef0b7ea802fdd96346770cb23bc09f36e5c76962fb28291caa54a841c3a2f83f"
+  },
+  {
+    "source": "/tmp/5086-quality-bdd-serial.log",
+    "archive": "5086-quality-bdd-serial.log.gz",
+    "sha256": "e3ace1201d26affd09e0f8091caa5bcddf4e5b34b9d083e11c7cc1ae3ef0f02f"
+  },
+  {
+    "source": "/tmp/5086-quality-bdd-authoritative.log",
+    "archive": "5086-quality-bdd-authoritative.log.gz",
+    "sha256": "7bf81c52aa208e8c6ab245ffc066c34a427952722367b3f148810238da8951bf"
+  },
+  {
+    "source": "/tmp/5086-quality-bdd-plan.sh",
+    "archive": "5086-quality-bdd-plan.sh.gz",
+    "sha256": "33f49149559bb710725b6b6052fef7dd6c4d94bcda5ff64f3e57ee5b92af2629"
+  },
+  {
+    "source": "/tmp/5086-quality-lint-complete.log",
+    "archive": "5086-quality-lint-complete.log.gz",
+    "sha256": "57d5f8367b5a58bba4b4cbada9293f039cf55e9aea854237c06c4f0f8274df90"
+  },
+  {
+    "source": "/tmp/5086-quality-types-complete.log",
+    "archive": "5086-quality-types-complete.log.gz",
+    "sha256": "336611721df5e258f1f63cfc3b7eb5afb028d2ac5940177b9818058a2081d7b2"
+  },
+  {
+    "source": "/tmp/5086-quality-parity-complete.log",
+    "archive": "5086-quality-parity-complete.log.gz",
+    "sha256": "65107e673c739342f5b1fea27450dfeac02286ae9bbb9b47e5ca601f16ac0f4d"
+  },
+  {
+    "source": "/tmp/5086-quality-generated-check.log",
+    "archive": "5086-quality-generated-check.log.gz",
+    "sha256": "b14948a65d3e1915acfab0f60e2cc2b2b827aa96bfcf7e1d505dbd53eaf51a00"
+  },
+  {
+    "source": "/tmp/5086-quality-contract-serial.log",
+    "archive": "5086-quality-contract-serial.log.gz",
+    "sha256": "61d14f844e04a16932d144ea07c4ee2cd82d5c8de164032962d9c7da6b5804ac"
+  },
+  {
+    "source": "/tmp/5086-quality-go.log",
+    "archive": "5086-quality-go.log.gz",
+    "sha256": "08ca7caaed341421404e5a9cf2fcd9183e2893096dddd69fe8b84caf71de17bd"
+  },
+  {
+    "source": "/tmp/5086-quality-audit-dependencies.log",
+    "archive": "5086-quality-audit-dependencies.log.gz",
+    "sha256": "c3b2a25099614cad289f037087aaa4d6cff46bd1b03247aa5559f2d8bf3f56e7"
+  },
+  {
+    "source": "/tmp/5086-quality-audit.log",
+    "archive": "5086-quality-audit.log.gz",
+    "sha256": "a188d790692480a4a52044c18c4d51ec28db3cbce8cba2df58ce21f97bd6aac6"
+  },
+  {
+    "source": "/tmp/5086-quality-audit-principles.log",
+    "archive": "5086-quality-audit-principles.log.gz",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "/tmp/5086-quality-audit-domain.log",
+    "archive": "5086-quality-audit-domain.log.gz",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "/tmp/5086-quality-audit-learnings.log",
+    "archive": "5086-quality-audit-learnings.log.gz",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "/tmp/5086-quality-verify-invocation.log",
+    "archive": "5086-quality-verify-invocation.log.gz",
+    "sha256": "6aee58bed4b6bc3a5ea2d2730e9cca554201ffd9c64de63317a88dd837668a8b"
+  },
+  {
+    "source": "/tmp/5086-quality-self-review.patch",
+    "archive": "5086-quality-self-review.patch.gz",
+    "sha256": "85c5990de06cc1cb62b21eda94d1c486ff5a9eb310b1322789bc495e178119cd"
+  },
+  {
+    "source": "/tmp/5086-quality-done-gate.log",
+    "archive": "5086-quality-done-gate.log.gz",
+    "sha256": "5f212be669b3520381c4efbfc77bfead6adb45f2683e802e0e067e4878022e9a"
+  },
+  {
+    "source": "/tmp/5086-quality-done-env-protection.log",
+    "archive": "5086-quality-done-env-protection.log.gz",
+    "sha256": "43747a2328e18fbf7b28181826e84114d388042ca006e467cb06e0316aeddcb8"
+  },
+  {
+    "source": "/tmp/5086-quality-done-gate-normal.log",
+    "archive": "5086-quality-done-gate-normal.log.gz",
+    "sha256": "9886eefd501bfd4def3c4e4291fa6618dc76887f54317c67b883387107b25c70"
   }
 ]

@@ -171,5 +171,9 @@
   "dependency_files": {
     "bun.lock": "be18ed22e67790dd2ef6b3736ac4bfd2bf436d9ca0dc5bb04a16ea82888da4eb",
     "package.json": "cb066302bcc25d6039f1427109de7a44c5a603cb11a837d5813efb8e7de5b2aa"
-  }
+  },
+  "captured_head": "23dd979ac122a2e01ac5eb2f2f6900439d29c0ef",
+  "verified_product_commit": "5a7f3c6eec014cb7308182a5c1ba0fb57271363c",
+  "integrated_main_commit": "65631937a73b8deadfbab5c348b13a14fc02a39b",
+  "git_checkpoint_bytes_verified": true
 }
