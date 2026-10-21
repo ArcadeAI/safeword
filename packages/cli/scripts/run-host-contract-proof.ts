@@ -13,7 +13,7 @@ interface FeatureResult {
   elements: { name: string; line: number; steps: StepResult[] }[];
 }
 
-function assertActualRow(repoRoot: string, line: number, cursor: boolean): void {
+function assertActualRow(repoRoot: string, line: number, cursor: boolean, runtime = 'IDE'): void {
   const source = readFileSync(
     nodePath.join(repoRoot, 'features/consistent-host-contract.feature'),
     'utf8',
@@ -27,14 +27,22 @@ function assertActualRow(repoRoot: string, line: number, cursor: boolean): void 
         'utf8',
       ),
     ) as {
-      targets: { agent: string; version: string; delivery_variants?: string[] }[];
+      targets: {
+        agent: string;
+        version: string;
+        runtimes: string[];
+        delivery_variants?: string[];
+      }[];
     };
     const target = matrix.targets.find(
-      row => row.agent === 'cursor' && row.delivery_variants?.includes('native'),
+      row =>
+        row.agent === 'cursor' &&
+        row.runtimes.includes(runtime) &&
+        row.delivery_variants?.includes('native'),
     );
     assert.ok(target);
     assert.equal(cells?.[2], target.version);
-    assert.equal(cells?.[3], 'IDE');
+    assert.equal(cells?.[3], runtime);
   }
 }
 
@@ -52,13 +60,49 @@ function isIntendedFailure(
   );
 }
 
+function cursorCliResult(
+  repoRoot: string,
+  report: string,
+  scenarios: FeatureResult['elements'],
+  status: number | null,
+): number {
+  const names = [
+    'A denied action has no side effect',
+    'An allowed action reaches the side-effect boundary',
+  ];
+  assert.equal(scenarios.length, names.length, 'Expected both exact CLI write rows');
+  let intendedFailure = false;
+  let unavailable = false;
+  for (const [index, scenario] of scenarios.entries()) {
+    assert.equal(scenario.name, names[index]);
+    assert.equal(scenario.steps.length, 4);
+    assertActualRow(repoRoot, scenario.line, true, 'CLI');
+    const statuses = scenario.steps.map(step => step.result.status);
+    console.log(`Cursor CLI ${scenario.name}: ${statuses.join(', ')}; report: ${report}`);
+    if (isIntendedFailure(status, statuses, scenario, 'NATIVE_GUARD_DISPATCH_MISSING'))
+      intendedFailure = true;
+    else if (statuses.some(value => value !== 'passed')) unavailable = true;
+  }
+  if (unavailable) {
+    console.error('HOST_CONTRACT_PROOF_UNAVAILABLE: CLI setup/action did not reach its assertion');
+    return 3;
+  }
+  if (intendedFailure) {
+    console.error('NATIVE_GUARD_DISPATCH_MISSING: observed real CLI write contract failure');
+    return 2;
+  }
+  console.error('HOST_CONTRACT_PROOF_INCOMPLETE: CLI catalogue-helper case is not yet wired');
+  return 3;
+}
+
 /** Required pilot: preserve the actual Cucumber failure, never equate setup with RED. */
 function main(): number {
   const args = process.argv.slice(2);
   const proof = args[1];
-  assert.ok(proof === 'native-cursor' || proof === 'native-codex');
+  assert.ok(['native-cursor', 'native-codex', 'native-cursor-cli'].includes(proof ?? ''));
   assert.deepEqual(args, ['--proof', proof, '--require-targets']);
   const cursor = proof === 'native-cursor';
+  const cursorCli = proof === 'native-cursor-cli';
   const title = cursor
     ? 'Native delivery exposes the contracted catalogue'
     : 'Portable package loading proves only its portable components';
@@ -95,6 +139,7 @@ function main(): number {
     nodePath.resolve(repoRoot, feature.uri),
     nodePath.join(repoRoot, 'features/consistent-host-contract.feature'),
   );
+  if (cursorCli) return cursorCliResult(repoRoot, report, scenarios, result.status);
   assert.equal(scenarios.length, 1, 'Expected exactly the selected native example row');
   const [scenario] = scenarios;
   assert.ok(scenario);

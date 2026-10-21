@@ -119,7 +119,7 @@ already works. They come from the repository's existing minimum/pinned/observed
 baselines and the researched V2 release. Record exact package and host identity
 with each result. Passing only on a different version cannot satisfy this set;
 changing a target requires a recorded compatibility decision and rerunning the
-affected proof. The supported product set is four agents, with six distinct
+affected proof. The supported product set is four agents, with seven distinct
 version lanes. OpenCode CLI and TUI need separately identified execution evidence;
 Desktop remains advisory and is not covered by either lane's enforcement claim.
 
@@ -134,6 +134,10 @@ Desktop remains advisory and is not covered by either lane's enforcement claim.
   After the user upgraded Cursor on 2026-10-20, the native-plugin target is
   3.24.18; it must earn its own proof. The 3.8.23 project-hook regression remains
   separate. This is an explicit target update, not failed-run substitution.
+  User selected CLI-first testing on 2026-10-20: add exact Cursor CLI
+  2026.09.28-64d2043 as a separate lane using the same generated core/extension.
+  This additive compatibility decision retains every IDE proof obligation;
+  CLI results do not establish IDE activation, enrollment, trust or continuation.
   Unavailable or failed target execution blocks the plugin claim rather than
   asking the user to select a version or silently using a different target.
 - OpenCode: retain the pinned 1.18.23 compatibility lane and add native V2 package

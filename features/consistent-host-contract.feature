@@ -192,6 +192,7 @@ Feature: Reduce duplicated maintenance and agent drift for Safeword maintainers
         | Claude Code | 2.1.170 | CLI |
         | Codex | 0.160.0 | CLI |
         | Cursor | 3.24.18 | IDE |
+        | Cursor | 2026.09.28-64d2043 | CLI |
         | OpenCode V1 | 1.18.23 | CLI |
         | OpenCode V1 | 1.18.23 | TUI |
         | OpenCode V2 | 2.0.32 | CLI |
@@ -209,6 +210,7 @@ Feature: Reduce duplicated maintenance and agent drift for Safeword maintainers
         | Claude Code | 2.1.170 | CLI |
         | Codex | 0.160.0 | CLI |
         | Cursor | 3.24.18 | IDE |
+        | Cursor | 2026.09.28-64d2043 | CLI |
         | OpenCode V1 | 1.18.23 | CLI |
         | OpenCode V1 | 1.18.23 | TUI |
         | OpenCode V2 | 2.0.32 | CLI |
@@ -367,6 +369,7 @@ Feature: Reduce duplicated maintenance and agent drift for Safeword maintainers
         | Claude Code | 2.1.170 | CLI |
         | Codex | 0.160.0 | CLI |
         | Cursor | 3.24.18 | IDE |
+        | Cursor | 2026.09.28-64d2043 | CLI |
         | OpenCode V2 | 2.0.32 | CLI |
         | OpenCode V2 | 2.0.32 | TUI |
 

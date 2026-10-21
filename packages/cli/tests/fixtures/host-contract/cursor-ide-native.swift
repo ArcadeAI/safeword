@@ -153,14 +153,19 @@ struct NativeCursorWindow {
 
     func pressNewAgent() throws {
         try activate()
-        let buttons = try elements().filter { element in
-            guard attribute(element, kAXRoleAttribute) as? String == kAXButtonRole else { return false }
-            let description = attribute(element, kAXDescriptionAttribute) as? String ?? ""
-            return description == "New Agent (⌘N) [⌥] Replace Agent" || description == "New Agent (⇧⌘L)"
+        var button: AXUIElement?
+        try waitFor("Expected one native New Agent control") {
+            let buttons = try elements().filter { element in
+                guard attribute(element, kAXRoleAttribute) as? String == kAXButtonRole else { return false }
+                let description = attribute(element, kAXDescriptionAttribute) as? String ?? ""
+                return description == "New Agent (⌘N) [⌥] Replace Agent" || description == "New Agent (⇧⌘L)"
+            }
+            button = buttons.count == 1 ? buttons[0] : nil
+            return button != nil
         }
-        guard buttons.count == 1 else { throw failure("Expected one native New Agent control") }
+        guard let button = button else { throw failure("Expected one native New Agent control") }
         guard foreground() else { throw failure("Isolated Cursor lost foreground before New Agent") }
-        guard AXUIElementPerformAction(buttons[0], kAXPressAction as CFString) == .success else {
+        guard AXUIElementPerformAction(button, kAXPressAction as CFString) == .success else {
             throw failure("Native New Agent action failed")
         }
     }

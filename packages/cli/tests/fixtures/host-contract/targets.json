@@ -3,6 +3,13 @@
   "purpose": "Independent expected host/version/runtime population for 2ENRH5 conformance",
   "targets": [
     {
+      "agent": "cursor",
+      "version": "2026.09.28-64d2043",
+      "runtimes": ["CLI"],
+      "delivery_variants": ["native"],
+      "binary": "cursor-agent"
+    },
+    {
       "agent": "claude",
       "version": "2.1.170",
       "runtimes": ["CLI"],

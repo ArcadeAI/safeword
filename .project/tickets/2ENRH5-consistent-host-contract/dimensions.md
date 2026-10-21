@@ -45,7 +45,9 @@ Rule IDs below have the `consistent-host-contract.` prefix.
   Existing Cursor observations do not prove native plugin registration.
 - Host execution targets are exact: Claude Code 2.1.170, Codex 0.160.0, Cursor
   IDE 3.24.18 native and 3.8.23 project-hook compatibility, OpenCode V1 1.18.23,
-  and OpenCode V2 2.0.32. OpenCode CLI/TUI proof
+  OpenCode V2 2.0.32, and Cursor CLI 2026.09.28-64d2043 (user-authorized
+  CLI-first testing addition on 2026-10-20, with separate IDE proof retained).
+  OpenCode CLI/TUI proof
   cannot establish Desktop protection; Desktop remains advisory.
 - Retained Cursor 3.8.23 project-hook compatibility has its own required installed-IDE
   proof: `cursor-legacy` in execution-plan.md, including catalogue/helper loading,

@@ -25,7 +25,7 @@ the remaining dependency order below. Existing passing cases stay regression
 evidence; do not fabricate a RED. Every changed primary proof needs its current
 independent RED before corresponding new production integration.
 All remaining implementation and full-group proof below are target work. The
-58 scenario definitions / 91 expanded cases remain unchecked. Existing source
+58 scenario definitions / 94 expanded cases remain unchecked. Existing source
 behavior and historical observations are baseline evidence only. The root-pinned
 Codex binary reports 0.160.0; installed global Codex 0.163.0, Claude 2.1.289 and
 Cursor 3.24.18 are not substitutes for the accepted exact targets. OpenCode is
@@ -46,6 +46,40 @@ discharges an obligation. No slice is automatically merged or published.
 
 ## PR 1 — Prove native Cursor delivery without changing default authority
 
+### CLI-first execution supplement (accepted 2026-10-20)
+
+Add the independent exact Cursor CLI 2026.09.28-64d2043 target to the existing
+native catalogue and paired write outlines. Preserve the IDE rows and their
+required proof unchanged. `native-cursor-cli` runs the actual source rows through
+Cucumber and a native CLI actor, using fresh workspaces/config directories and
+`--plugin-dir` for the generated portable core and Cursor extension. No test
+relay may supply the candidate's policy or permission decision. The existing
+four-mode CLI controls remain setup/supporting evidence only.
+
+The first CLI primary RED selects the denied and allowed write rows together:
+a test-owned empty
+baseline package is loadable before the production generator exists, while a
+separate observational native plugin proves the exact shell attempt occurred.
+The requested shell write targets absent `.project/tickets/sentinel-write/ticket.md`;
+shared policy should deny it. A real CLI tool result showing successful shell
+execution and the sentinel reaching disk is `NATIVE_GUARD_DISPATCH_MISSING`,
+exit 2. Missing binary, wrong version, login, model failure, missing native
+observer or no actual attempt is unavailable, exit 3. Independently review this
+executable RED before production integration. The required command is:
+`scripts/dev bun packages/cli/scripts/run-host-contract-proof.ts --proof native-cursor-cli --require-targets`.
+
+Generate one `packages/cli/cursor-plugin` extension from `CURSOR_HOOKS`, with
+package-origin runtime dispatch calling the existing Cursor adapters and shared
+decision owners. Keep skills solely in the portable core. CLI and IDE load the
+same extension. Retain legacy project delivery/default selection unchanged.
+GREEN must show the actual CLI shell result rejected for the shared ticket
+policy and no sentinel, with a permitted contrast producing exact bytes. The
+guard actor loads the native extension and observational control; catalogue
+proof additionally loads the portable core. The actor parses actual stream-json tool results; model prose or a test-owned
+decision record cannot stand in for production dispatch. Catalogue/helper cases
+join the CLI group before full CLI conformance. Continuation remains required
+only in the IDE native-cursor group; no CLI continuation claim is introduced.
+
 - **Purpose:** prove the highest-risk native Cursor boundary before migrating
   the catalogue and policy graph.
 - **Boundary:** add the small delivery/enforcement binding types to the existing
@@ -62,7 +96,7 @@ discharges an obligation. No slice is automatically merged or published.
   Later activation uses the same proven generator, not a hand-maintained bundle.
   Do not switch live customer enrollment or claim full consolidation here.
 - **Prerequisites:** none.
-- **Proof:** native-cursor (real IDE E2E), native-codex (real process/root-format
+- **Proof:** native-cursor-cli (real CLI process), native-cursor (real IDE E2E), native-codex (real process/root-format
   loading), and existing-regressions. Lower-level codec tests are supporting only.
 - **Completion signal:** exact Cursor 3.24.18 loads the core/extension and shared
   policy through the IDE; denied sentinel remains absent, allowed sentinel is
@@ -70,6 +104,9 @@ discharges an obligation. No slice is automatically merged or published.
   Exact Codex 0.160.0 separately proves root-format resources/metadata precedence
   and real guard/resource/continuation behavior in its selected native
   compatibility container, deriving content from the same canonical renderer.
+  Exact Cursor CLI 2026.09.28-64d2043 separately passes its catalogue/helper,
+  denied-write and allowed-write case IDs through the same generated packages;
+  all three required IDs must be present before native-cursor-cli can pass.
   Default existing delivery remains supported and no unproved native mechanism
   is eligible.
 - **Relies on an unmerged successor:** no. The native mechanism remains an
@@ -78,8 +115,8 @@ discharges an obligation. No slice is automatically merged or published.
 ### Tasks and tests
 
 1. Prepare test infrastructure first, with no production edits. Add
-   packages/cli/tests/fixtures/host-contract/targets.json for the six exact
-   version lanes, eight runtime rows and nine delivery cases, synthetic project builders, and a
+   packages/cli/tests/fixtures/host-contract/targets.json for the seven exact
+   version lanes, nine runtime rows and ten delivery cases, synthetic project builders, and a
    required-mode runner at packages/cli/scripts/run-host-contract-proof.ts.
    Resolve official exact-version distributions into an isolated test cache;
    verify binary-reported version, recorded artifact identity and vendor signature
@@ -104,7 +141,24 @@ discharges an obligation. No slice is automatically merged or published.
    checks the selected row actually ran, and retains its actor-boundary failure.
    Undefined/pending steps are preliminary wiring failure only. Vitest supports
    the harness; it does not replace this executable scenario boundary.
-3. First production RED: run native-cursor before any production edit:
+3. RED order after the user-authorized CLI-first update: the highest-risk
+   next primary proof is the actual Cursor CLI denied/allowed pair, followed
+   by the separate IDE guard proof before IDE GREEN. Historical IDE catalogue
+   RED/GREEN and Codex baseline evidence remain preserved, not rerun as invented
+   failures. Before new production guard integration, bind
+   packages/cli/tests/fixtures/host-contract/cucumber.native-cursor-cli.mjs
+   to the exact CLI rows through steps/consistent-host-native-write.steps.ts
+   and packages/cli/tests/helpers/cursor-cli-write.ts. Fixture cursor-cli-write
+   stages an empty-native-candidate baseline only when the production generator
+   is absent, and a separate native-cli-observer plugin with no permission output.
+   Case IDs are cursor-cli-2026.09.28-64d2043-denied-write,
+   cursor-cli-2026.09.28-64d2043-allowed-write and
+   cursor-cli-2026.09.28-64d2043-catalogue-helper. All three belong to the
+   independent native-cursor-cli and all-hosts required sets. The initial runner
+   executes the first two and cannot pass the full group until catalogue joins.
+   Run and independently review executable RED with the exact native-cursor-cli
+   command above. CLI GREEN for this pair may precede IDE GREEN. Then retain
+   native-cursor as a separate required IDE RED before its new guard wiring:
    scripts/dev bun packages/cli/scripts/run-host-contract-proof.ts --proof native-cursor --require-targets.
    Setup must first prove exact IDE launch and the existing project-hook positive
    control. The expected product failure is missing native catalogue/registration
@@ -115,6 +169,19 @@ discharges an obligation. No slice is automatically merged or published.
    production baseline before generating the core: expected failure is absent
    root-format loading or detected compatibility-overlay fallback. Keep this
    separate attested RED; step 7 is its post-implementation GREEN confirmation.
+   After the guard pair, add the exact CLI catalogue row to
+   cucumber.native-cursor-cli.mjs and steps/consistent-host-contract.steps.ts.
+   Fixture cursor-cli-catalogue reuses createCursorCatalogueProbe from
+   tests/helpers/cursor-catalogue-probe.ts in a fresh CLI config/project, loads
+   the generated portable core plus native extension with --plugin-dir, and
+   invokes the workflow through the CLI's native skill mechanism. Require
+   workflow and referenced-guide markers plus the exact package-root helper
+   command and helper marker in the same actual CLI Shell tool result. Missing
+   package helper origin is exit 2 NATIVE_HELPER_ORIGIN_MISMATCH; no native skill
+   invocation, wrong version, login or model failure is unavailable (3). Obtain
+   its independent executable RED review before resource-closure changes. GREEN
+   requires the origin-bound tool result and exact helper artifact marker,
+   alongside the allowed/denied pair. Omitted catalogue remains incomplete (3).
 4. GREEN: extend packages/cli/src/lifecycle/integrations.ts and schema.ts with
    the accepted binding declarations; add the canonical render primitives and
    generators for the portable core and packages/cli/cursor-plugin projection.
@@ -155,6 +222,18 @@ discharges an obligation. No slice is automatically merged or published.
 6. Repeat the native RED/GREEN pair with the same real allowed and denied action;
    then invoke a changed canonical skill and referenced guide/helper marker.
    Attempt actual turn completion and observe the bounded subsequent host turn.
+   Required IDE case cursor-3.24.18-bounded-continuation belongs to native-cursor
+   and all-hosts. Fixture cursor-unfinished-ticket-stop in
+   tests/helpers/cursor-native-continuation.ts uses a synthetic unfinished ticket,
+   clean native-eligible workspace and owned user-data profile. Bind the actual
+   completion outline through steps/consistent-host-native-continuation.steps.ts.
+   Run the exact native-cursor command after catalogue and guard setup controls.
+   RED is exit 2 HOST_CONTINUATION_MISSING when the actual IDE turn ends despite
+   missing evidence; setup failures are unavailable (3). Independently review
+   this RED before continuation integration. GREEN requires an actual subsequent
+   IDE turn with the unmet verification requirement and no manual resubmission.
+   Missing this case leaves native-cursor incomplete, never success. This is
+   distinct from PR 4's continuation-cap exhaustion case.
    A command listing, simulated hook payload or model saying it was blocked
    cannot satisfy these assertions.
 7. GREEN: rerun the pre-existing step-3 Codex root-format/extension-precedence
@@ -349,7 +428,7 @@ discharges an obligation. No slice is automatically merged or published.
    cases below, because those require PR 4's real evidence admission reader.
 6. Add packages/cli/tests/host-contract/propagation.live.test.ts and the propagation
    runner group: mutate only the existing canonical verification-marker policy,
-   refresh normally without a host list and invoke all eight real runtime rows.
+   refresh normally without a host list and invoke all nine real runtime rows.
    Repeat for one canonical skill plus referenced guide/helper. Leave one lane
    stale as a negative control; completion must name that exact lane. Restore
    fixture inputs, refresh and prove all rows pass.
@@ -418,7 +497,7 @@ discharges an obligation. No slice is automatically merged or published.
 - **Proof:** admission, sealed-writer, native-codex, native-cursor, cursor-legacy, lifecycle, propagation,
   all-hosts, acceptance, documentation and delivery-review; all required on final
   shipped bytes, not retained only from a pilot or PR 3.
-- **Completion signal:** all 58 definitions / 91 examples and final required
+- **Completion signal:** all 58 definitions / 94 examples and final required
   exact-target proofs pass; repeated selected-host operations preserve ownership,
   unselected sentinels remain untouched, no competing active authorities occur,
   and status reports only the actual applicable guarantee. Every contributor
@@ -503,8 +582,8 @@ discharges an obligation. No slice is automatically merged or published.
    setup. Its required manifest derives both project-hooks variants from targets.json
    and requires, for each version prefix, catalogue-helper, allowed-write,
    denied-write, bounded-completion and upgraded-unenrolled-status. Missing either
-   version or any case is exit 3, never success. The eight runtime rows contain
-   nine delivery cases: seven native cases plus these two legacy IDE cases.
+   version or any case is exit 3, never success. The nine runtime rows contain
+   ten delivery cases: eight native cases plus these two legacy IDE cases.
    GREEN is exit 0 only with all ten legacy case IDs, current legacy
    activation and healthy actual legacy guarantee. Tampering project resources,
    submitting native proof for legacy or removing required legacy evidence must
@@ -631,7 +710,7 @@ discharges an obligation. No slice is automatically merged or published.
    runner wrapping the ordinary root acceptance command. Parse Cucumber's JSON
    result and compare executed URI/scenario/example-row identities against all
    pickles compiled independently from the approved source: exactly 58 scenario
-   definitions and 91 expanded examples, all passed. Zero/filtered/duplicate or
+   definitions and 94 expanded examples, all passed. Zero/filtered/duplicate or
    omitted cases, undefined/pending/skipped steps and subprocess failures are
    nonzero even if Cucumber itself exits 0. A remaining @wip filter cannot clear
    this proof. Do not mark the R/G/R ledger from checklist status or inspection.
@@ -677,10 +756,16 @@ Run from the repository root through scripts/dev. Never run two Vitest processes
    proof cannot certify changed payloads without valid current proof.
 6. At PR 4, run acceptance through the required runner (which executes
    scripts/dev bun run test:bdd:acceptance features/consistent-host-contract.feature
-   and validates all 58 definitions / 91 examples) and run all-hosts. Record exact commands, revisions, seals and
+   and validates all 58 definitions / 94 examples) and run all-hosts. Record exact commands, revisions, seals and
    outcomes through the Delivery Checklist/verification paths, not prose claims.
 
 Required host runner group wiring is explicit:
+native-cursor-cli dispatches cucumber.native-cursor-cli.mjs, with cursor-cli-write
+and a catalogue CLI actor in steps/consistent-host-contract.steps.ts for the
+three exact case IDs in PR 1 task 3. All-hosts includes those three IDs in
+addition to every retained IDE and other host ID. The initial paired write pilot
+returns incomplete until the catalogue case is wired; a passing pair alone is
+not native-cursor-cli completion.
 coexistence runs opencode-coexistence.test.ts for real lifecycle/JSONC checks and
 then the four actual V1/V2 CLI/TUI coexistence cases in host-contract.live.test.ts;
 lifecycle runs lifecycle.test.ts for CLI/filesystem mutation and then the actual
@@ -815,6 +900,7 @@ asserts its complete expected population before returning success.
 
 | Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |
 | --- | --- | --- | --- | --- | --- | --- |
+| native-cursor-cli | command | E2E | Exact Cursor CLI 2026.09.28-64d2043 loads the same generated extension and portable core, with separate real tool-result evidence for writes and catalogue; cannot satisfy IDE rows | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","native-cursor-cli","--require-targets"]} |
 | native-cursor | command | E2E | Exact 3.24.18 IDE loads core/extension and genuinely dispatches shared guards, resources and continuation | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","native-cursor","--require-targets"]} |
 | cursor-legacy | command | E2E | Exact 3.8.23 and 3.24.18 IDEs retain project-hook guarantees and upgraded unenrolled status using CLI-owned conformance identity, with no native cache | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","cursor-legacy","--require-targets"]} |
 | native-claude | command | E2E | Exact Claude 2.1.170 installed native plugin proves denied/allowed writes, canonical catalogue/helper origin and actual bounded continuation | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","native-claude","--require-targets"]} |
@@ -830,8 +916,8 @@ asserts its complete expected population before returning success.
 | owner-delta | command | integration | Trusted capture entrypoint recomputes committed source graphs and exposes retired independent owners | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test","tests/host-contract/owner-inventory.test.ts"]} |
 | admission | command | integration | Public status/conformance/completion commands read real sealed stores and reject inapplicable proof | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test","tests/host-contract/admission.test.ts"]} |
 | lifecycle | command | E2E | Real selected lifecycle operations plus actual host use prove clone/profile isolation and single-owner recovery | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","lifecycle","--require-targets"]} |
-| all-hosts | command | E2E | Final exact eight runtime rows, complete catalogue/resources, allow/deny/continuation and demo composition | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","all-hosts","--require-targets"]} |
-| acceptance | command | integration | Actual Cucumber actors plus independently compiled complete 58-definition/91-example population; reject filtered, zero, skipped or omitted cases | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","acceptance","--require-targets"]} |
+| all-hosts | command | E2E | Final exact nine runtime rows, complete catalogue/resources, allow/deny/continuation and demo composition | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","all-hosts","--require-targets"]} |
+| acceptance | command | integration | Actual Cucumber actors plus independently compiled complete 58-definition/94-example population; reject filtered, zero, skipped or omitted cases | real_boundary | current_required | {"type":"command","cwd":".","argv":["scripts/dev","bun","packages/cli/scripts/run-host-contract-proof.ts","--proof","acceptance","--require-targets"]} |
 | existing-regressions | command | integration | Existing CLI plugin/lifecycle/resource behavior remains usable | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["../../scripts/dev","bun","run","test","tests/lifecycle/","tests/claude-plugin/","tests/codex-plugin/","tests/opencode/","tests/plugin-resource-contract.test.ts","tests/cursor/","tests/cursor-shell-gate.test.ts","tests/integration/cursor-pretooluse-gate.test.ts","tests/integration/cursor-stop-review.test.ts"]} |
 | documentation | review_receipt | integration | Independent review of final user/contributor guidance and surface inventory against implemented behavior and guarantees | real_boundary | current_required | {"type":"review_receipt","kind":"quality-review","targets":["AGENTS.md","ARCHITECTURE.md",".project/architecture-decisions/shared-host-contracts.md",".project/surfaces.md","README.md","packages/website/src/content/docs/getting-started/quick-start.mdx","packages/website/src/content/docs/reference/configuration.mdx","packages/website/src/content/docs/reference/hooks-and-skills.mdx","packages/website/src/content/docs/reference/cli.mdx"]} |
 | delivery-review | review_receipt | integration | Independent final review of actual contract ownership, native adapters, evidence and recovery implementation | real_boundary | current_required | {"type":"review_receipt","kind":"quality-review","targets":["packages/cli/src/lifecycle","packages/cli/src/host-contract","packages/cli/src/commands","packages/opencode-v2-plugin","packages/cli/templates/hooks","packages/cli/scripts/run-host-contract-proof.ts"]} |

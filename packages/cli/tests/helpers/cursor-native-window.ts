@@ -23,6 +23,7 @@ export interface CursorNativeFixtureConfig {
   profileDirectory: string;
   extensionsDirectory: string;
   runsDirectory: string;
+  disabledClaudePlugins?: string[];
 }
 
 export async function command(
@@ -182,6 +183,10 @@ export class CursorNativeWindowActor {
 
   protected async freshAgent(): Promise<void> {
     await this.action('activate');
+    await eventually('native New Agent control readiness', async () => {
+      const text = await this.action('snapshot');
+      return text.includes('New Agent (⌘N) [⌥] Replace Agent') || text.includes('New Agent (⇧⌘L)');
+    });
     await this.action('new-agent');
     // Cursor can restore a draft in a new editor. The fill primitive replaces
     // and verifies it before submission; emptiness is not a readiness signal.
@@ -195,9 +200,19 @@ export class CursorNativeWindowActor {
     if (process.platform !== 'darwin') throw new Error('CURSOR_SETUP_UNAVAILABLE: macOS required');
     const targets = JSON.parse(
       readFileSync(nodePath.join(fixtureSources, 'targets.json'), 'utf8'),
-    ) as { targets: { agent: string; version: string; delivery_variants?: string[] }[] };
+    ) as {
+      targets: {
+        agent: string;
+        version: string;
+        runtimes: string[];
+        delivery_variants?: string[];
+      }[];
+    };
     const target = targets.targets.find(
-      row => row.agent === 'cursor' && row.delivery_variants?.includes('native'),
+      row =>
+        row.agent === 'cursor' &&
+        row.runtimes.includes('IDE') &&
+        row.delivery_variants?.includes('native'),
     );
     assert.equal(host, 'Cursor');
     assert.equal(runtime, 'IDE');
@@ -225,6 +240,19 @@ export class CursorNativeWindowActor {
   }
 
   protected async launchWindow(): Promise<void> {
+    if (this.config.disabledClaudePlugins) {
+      const directory = nodePath.join(this.workspace, '.claude');
+      mkdirSync(directory, { recursive: true });
+      const enabledPlugins = Object.fromEntries(
+        this.config.disabledClaudePlugins.map(name => [name, false]),
+      );
+      writeFileSync(
+        nodePath.join(directory, 'settings.local.json'),
+        JSON.stringify({
+          enabledPlugins,
+        }),
+      );
+    }
     this.writeWorkspaceFolders([this.workspace]);
     await command(
       this.cursorCli,

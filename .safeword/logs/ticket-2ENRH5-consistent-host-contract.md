@@ -766,3 +766,43 @@ CLI package typecheck, targeted ESLint and formatting checks passed.
 Final CLI harness review 75be618e-a235-433a-9101-64ef7912165f APPROVED.
 These are supporting transport controls, not generated-production package or
 IDE conformance proof. Existing accepted plans/scenarios remain unchanged.
+
+## Connect actual Cursor CLI plugin proofs — 2026-10-21
+
+User authorized the next actual-plugin implementation with "go". Added exact
+Cursor CLI 2026.09.28-64d2043 rows to the existing denied/allowed/catalogue
+outlines, retaining every IDE row. Actual Gherkin parser confirms 58 definitions
+and 94 expanded cases. Target fixture, compatibility decision, dimensions and
+plans now account for seven version lanes, nine runtime rows and ten delivery
+cases. No customer activation/status guarantee is inferred from this engineering
+CLI lane or its explicit --plugin-dir fixture registration.
+
+Current scenario review 28c7bc42-0bb9-40e2-84f8-f17e1d68cebb APPROVED and stamped.
+Implementation review a5442545-00c0-4601-aa52-5ca8275e8945 requested exact coverage
+population repair; revised review 78fa2cb0-2fd1-4721-b5cb-5c11dcbd71b8 APPROVED
+and stamped. The canonical approve-plan command refuses the already-implement
+phase; no phase or approval is fabricated. Execution reviews c7e59687-0210-4593-b4f9-917c10584e1f
+and 1c5b501d-e9f6-4c5c-8e31-308ff8f8ca04 requested explicit CLI task order,
+case IDs and catalogue proof mechanics, plus the retained IDE continuation case.
+Those details are repaired; efda73d8-f7eb-4f3d-aeb6-973ea3a983af is pending.
+No new production edits or scenario completion while this authority is pending.
+
+Execution review efda73d8-f7eb-4f3d-aeb6-973ea3a983af APPROVED and stamped.
+Coding authorization is healthy, identity
+aec24ff7bc5ed0ad1adbcbebf4990b233cfc4e7548274489dcf7007994869e6f.
+Bound both actual CLI write rows through the shared thin Cucumber write steps
+and a CLI-specific process actor. No project hooks or test permission relay.
+Native observer must see the exact real Shell attempt at the expected version;
+assertions use native stream-json tool results and actual filesystem outcomes.
+Required runner returns 2 only for intended assertion failures, 3 for setup or
+unwired catalogue, and does not claim conformance for the paired write pilot.
+
+Normal cursor-agent launcher now points at auto-updated 2026.10.19-6bbf2c4.
+Its wrong-version setup correctly failed with exit 3. The retained versioned
+2026.09.28-64d2043 binary remains available and is used explicitly, without
+changing the normal launcher. Actual CLI RED: 2 scenarios, allowed passed,
+denied reached Then and failed NATIVE_GUARD_DISPATCH_MISSING with sentinel on
+disk; 7 of 8 steps passed, 29.929s, required-mode exit 2. Report:
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-wGeNa1/cucumber.json.
+Independent executable-RED review dispatched on the exact command and all CLI
+proof support; its terminal receipt is required before production integration.

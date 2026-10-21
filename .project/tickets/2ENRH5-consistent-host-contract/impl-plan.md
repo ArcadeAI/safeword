@@ -28,7 +28,8 @@ flowchart LR
 
 **Riskiest assumption:** a natively loaded Cursor/OpenCode V2 package can reach
 the same canonical resources and shared decision owner without relying on legacy
-project hooks or independently authored policy. The cheapest load-bearing proof
+project hooks or independently authored policy, and Cursor IDE can be exercised
+automatically at its real Agent boundary. The cheapest load-bearing proof
 combines **Native delivery exposes the contracted catalogue** with the paired
 **A denied action has no side effect** / **An allowed action reaches the
 side-effect boundary** examples on their exact native target. Try that small real
@@ -85,6 +86,33 @@ the claim unmet and prompts an engineering repair; it does not change Product.
   all required lanes independently of a user's selection.
 
 ### Native delivery decisions
+
+**CLI-first testing update (user accepted 2026-10-20):** Cursor CLI
+2026.09.28-64d2043 loads the same generated portable core and native extension
+through its documented `--plugin-dir` option. Use this separate exact-version
+runtime lane for repeatable catalogue and allowed/denied action tests. It does
+not satisfy IDE example rows, activation, trust or continuation claims. Existing
+IDE obligations remain required. No new policy owner or CLI-specific workflow
+copy is introduced. The production extension and canonical hook declarations
+remain shared between the CLI and IDE; only test driving and host observations
+differ. [CLI parameters](https://cursor.com/docs/cli/reference/parameters),
+[plugin hook support](https://cursor.com/docs/cli/changelog).
+
+CLI fixtures have no competing project hooks, rules or command registrations.
+Explicit `--plugin-dir` proves package dispatch only: it does not exercise the
+IDE enrollment, eligibility or authority-epoch handshake. Those gates retain
+their own IDE/lifecycle proofs.
+
+Exact coverage population: seven version lanes, nine distinct host/version/runtime
+rows, and ten delivery cases (Cursor 3.24.18 has native and project-hook delivery).
+The eight native denial/allow outline rows are Claude 2.1.170 CLI, Codex 0.160.0
+CLI, Cursor 3.24.18 IDE, Cursor 2026.09.28-64d2043 CLI, OpenCode V1 1.18.23 CLI
+and TUI, and OpenCode V2 2.0.32 CLI and TUI. Add Cursor project-hook IDE 3.8.23
+and 3.24.18 for ten denial/allow delivery cases. Native catalogue has six outline
+rows (Claude CLI, Codex CLI, both Cursor lanes, V2 CLI and TUI), plus separately
+required V1 CLI/TUI and both Cursor legacy IDE cases. Completion-continuation
+claims currently cover Claude 2.1.170 CLI, Codex 0.160.0 CLI and Cursor 3.24.18
+IDE only; no CLI continuation claim is inferred for Cursor or OpenCode.
 
 | Host | Chosen delivery and boundary | Limit |
 | --- | --- | --- |
@@ -243,8 +271,8 @@ not proof of arbitrary semantic equivalence.
 | The strongest verified satisfying mechanism is selected | Integration: real adapter selection with second-discovered mechanism ranked higher | Unit tests cover partial guarantee sets and deterministic ranking |
 | A permitted weaker alternative reports its actual guarantee | Admission: selected host route and centrally permitted alternative | No invented adapter fallback |
 | An adapter cannot invent a weaker fallback | Repo and Admission: unauthorized fallback stays unmet | Guidance may remain usable without an enforcement claim |
-| A denied action has no side effect | Host: seven native outline examples plus named cursor-legacy proof execute real denied write across nine delivery cases | Real sentinel and policy reason required; no mocked host |
-| An allowed action reaches the side-effect boundary | Host: same seven native examples and separate cursor-legacy delivery controls execute permitted write | Detects always-deny alongside the denial sibling |
+| A denied action has no side effect | Host: eight native outline examples plus both named cursor-legacy IDE cases execute real denied writes across ten delivery cases | Real sentinel and policy reason required; no mocked host |
+| An allowed action reaches the side-effect boundary | Host: same eight native examples and separate cursor-legacy delivery controls execute permitted write | Detects always-deny alongside the denial sibling |
 | Ticket rejection cannot masquerade as conversation continuation | Admission plus Host completion outcomes | Ticket and conversation guarantees have distinct evidence IDs |
 | Conversation continuation cannot masquerade as ticket-transition enforcement | Admission: continuation evidence cannot fill ticket-denial requirement | Preserve the separately proved continuation claim |
 | A supported completion guard actually continues the conversation | Host: attempt actual turn completion in Claude/Codex/Cursor | Model output text alone is insufficient; observe a subsequent host turn and configured bounds |
@@ -435,8 +463,11 @@ Native installation must not generate competing project wrappers in a clean
 eligible project. A profile-local request cannot retire tracked wrappers shared
 with teammates or Cloud; cache presence cannot override this eligibility check.
 The [current hooks contract](https://cursor.com/docs/hooks) documents workspaceOpen
-and pluginPaths; availability and dispatch on exact 3.24.18 remain an unverified
-assumption that the first native-boundary proof must settle.
+and pluginPaths. Exact 3.24.18 discovery and content/helper loading have partial
+automated evidence in cursor-static-guidance.md and the catalogue checkpoint.
+Guard attempts now reach the missing-dispatch assertion (cursor-native-guard-discovery.md).
+Native enforcement and complete admission remain unproved; registration alone
+does not establish them.
 No marketplace registration or user-wide Cursor hook is introduced. Trust/admin
 denial of this local discovery path remains actionable and unprotected; do not
 fall back to globally activating the payload.
@@ -937,7 +968,7 @@ shared rule/skill and complete migrated-host coverage, not a time or percentage
 saving. Observe authoring changes at the canonical source diff, the inventory of
 independent owners before/after consolidation, reproducible outputs and actual
 installed-host behavior after refresh. The population is the complete accepted
-catalogue/handler inventory and six version lanes, with eight runtime rows and nine delivery cases where
+catalogue/handler inventory and seven version lanes, with nine runtime rows and ten delivery cases where
 OpenCode CLI/TUI differ. Count identity sets, not emitted file totals. Missing
 facets, duplicates, stale proof, failed hosts or absent observations make the
 claim incomplete. Baselines and target diffs must be retained together; a selected
