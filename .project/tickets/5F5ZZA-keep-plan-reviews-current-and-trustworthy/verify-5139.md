@@ -214,3 +214,13 @@ five generated surfaces are current. The shared runtime SHA is unchanged. All
 new-artifact credential-pattern scan finds no matches. No candidate profile was
 activated and no dependency, historical ledger, conformance corpus, paid output or
 Execution admission artifact changed in this follow-up.
+
+## Subsequent user-requested remote verify and audit
+
+[verify-audit-5139.md](./verify-audit-5139.md) records the terminal full CI
+result at `4708329f9`: both Node versions retain 73 failures, 11,607 passes and
+10 skips. It also records the additional boundary-test matrix and shell-reviewer
+fixture compatibility repair, their focused and mutation evidence, and separate
+full acceptance results. Earlier results above remain historical observations,
+not overwritten or promoted to current proof. Qualification and Draft blockers
+remain open.

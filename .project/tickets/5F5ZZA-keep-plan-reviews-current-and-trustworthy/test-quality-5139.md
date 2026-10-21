@@ -1,5 +1,12 @@
 # BDD and TDD assessment follow-up
 
+The subsequent full remote verify and diff audit are recorded in
+[verify-audit-5139.md](./verify-audit-5139.md). They preserve the failed full
+results and add exhaustive typed-field boundary checks, a discriminating
+validator mutation, and a real fake-process-to-parser regression for shell
+fixtures that omitted the required evidence wrapper. These proofs do not
+resolve semantic qualification or historical ledger gaps.
+
 This continuation follows the user's request to improve the tests assessed at
 `7fa307972`. It adds free regression coverage, not a new qualification collection
 or a claim that the historical scenario ledger is complete.
