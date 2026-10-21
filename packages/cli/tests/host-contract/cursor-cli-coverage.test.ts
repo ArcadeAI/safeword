@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cursorCliCases } from '../fixtures/host-contract/cursor-cli-cases.js';
+import { cursorCliCases } from '../fixtures/host-contract/native-contract-cases.js';
 
 function feature(rows: string, columns = 'host | version | runtime'): string {
   return `Feature: Automatic CLI coverage

@@ -6,12 +6,16 @@ import { AstBuilder, GherkinClassicTokenMatcher, Parser } from '@cucumber/gherki
 import { IdGenerator } from '@cucumber/messages';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../../..');
-export const cursorContractFeature = nodePath.join(
+export const hostContractFeature = nodePath.join(
   repoRoot,
   'features/consistent-host-contract.feature',
 );
 const identities: Record<string, { suffix: string; ideSuffix?: string; expectedFailure?: string }> =
   {
+    'Portable package loading proves only its portable components': {
+      suffix: 'portable-components',
+      expectedFailure: 'CODEX_COMPATIBILITY_OVERLAY_FALLBACK',
+    },
     'A denied action has no side effect': {
       suffix: 'denied-write',
       ideSuffix: 'native-denied-write',
@@ -37,7 +41,7 @@ const slug = (value: string): string =>
     .replaceAll(/^-|-$/gu, '');
 
 /** Feature rows own coverage; this map preserves existing diagnostic IDs only. */
-function cursorCases(runtime: 'CLI' | 'IDE', source: string) {
+function nativeCases(host: 'Cursor' | 'Codex', runtime: 'CLI' | 'IDE', source: string) {
   const matrix = JSON.parse(
     readFileSync(nodePath.join(import.meta.dirname, 'targets.json'), 'utf8'),
   ) as {
@@ -45,12 +49,14 @@ function cursorCases(runtime: 'CLI' | 'IDE', source: string) {
   };
   const target = matrix.targets.find(
     row =>
-      row.agent === 'cursor' &&
+      row.agent === host.toLowerCase() &&
       row.runtimes.includes(runtime) &&
-      row.delivery_variants?.includes('native'),
+      (host !== 'Cursor' || row.delivery_variants?.includes('native')),
   );
-  assert.ok(target, `Missing independently pinned Cursor ${runtime} target`);
-  const prefix = runtime === 'CLI' ? 'cursor-cli' : 'cursor';
+  assert.ok(target, `Missing independently pinned ${host} ${runtime} target`);
+  let prefix = host.toLowerCase();
+  if (host === 'Cursor' && runtime === 'CLI') prefix += '-cli';
+  const defaultVersion = host === 'Codex' ? target.version : undefined;
   const document = new Parser(
     new AstBuilder(IdGenerator.incrementing()),
     new GherkinClassicTokenMatcher(),
@@ -66,13 +72,14 @@ function cursorCases(runtime: 'CLI' | 'IDE', source: string) {
         const values = Object.fromEntries(
           headers.map((header, index) => [header, row.cells[index]?.value]),
         );
+        const rowVersion = values.version ?? defaultVersion;
         if (
-          values.host !== 'Cursor' ||
-          values.version !== target.version ||
+          values.host !== host ||
+          rowVersion !== target.version ||
           (values.runtime ?? runtime) !== runtime
         )
           return [];
-        assert.ok(scenario.steps.length, 'Empty contracted Cursor CLI scenario');
+        assert.ok(scenario.steps.length, `Empty contracted ${host} ${runtime} scenario`);
         const identity: { suffix: string; ideSuffix?: string; expectedFailure?: string } =
           identities[scenario.name] ?? { suffix: slug(scenario.name) };
         const suffix =
@@ -96,19 +103,23 @@ function cursorCases(runtime: 'CLI' | 'IDE', source: string) {
       });
     }),
   );
-  assert.ok(cases.length, `No contracted Cursor ${runtime} cases`);
+  assert.ok(cases.length, `No contracted ${host} ${runtime} cases`);
   assert.equal(
     new Set(cases.map(row => row.id)).size,
     cases.length,
-    `Duplicate Cursor ${runtime} case identity`,
+    `Duplicate ${host} ${runtime} case identity`,
   );
   return cases;
 }
 
-export function cursorCliCases(source = readFileSync(cursorContractFeature, 'utf8')) {
-  return cursorCases('CLI', source);
+export function cursorCliCases(source = readFileSync(hostContractFeature, 'utf8')) {
+  return nativeCases('Cursor', 'CLI', source);
 }
 
-export function cursorIdeCases(source = readFileSync(cursorContractFeature, 'utf8')) {
-  return cursorCases('IDE', source);
+export function cursorIdeCases(source = readFileSync(hostContractFeature, 'utf8')) {
+  return nativeCases('Cursor', 'IDE', source);
+}
+
+export function codexCases(source = readFileSync(hostContractFeature, 'utf8')) {
+  return nativeCases('Codex', 'CLI', source);
 }

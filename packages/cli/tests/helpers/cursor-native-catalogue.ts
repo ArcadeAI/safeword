@@ -11,12 +11,12 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
-import {
-  createCursorCatalogueProbe,
-  CURSOR_CATALOGUE_PROBE_DESCRIPTION,
-  type CursorCatalogueProbe,
-} from './cursor-catalogue-probe.js';
 import { command, CursorNativeWindowActor, eventually } from './cursor-native-window.js';
+import {
+  createNativeCatalogueProbe,
+  NATIVE_CATALOGUE_PROBE_DESCRIPTION,
+  type NativeCatalogueProbe,
+} from './native-catalogue-probe.js';
 export type { CursorNativeFixtureConfig } from './cursor-native-window.js';
 
 const cliRoot = nodePath.resolve(import.meta.dirname, '../..');
@@ -25,7 +25,7 @@ const fixtureSources = nodePath.join(cliRoot, 'tests', 'fixtures', 'host-contrac
 
 /** Real IDE actor for the catalogue scenario only; never package admission evidence. */
 export class CursorNativeCatalogueActor extends CursorNativeWindowActor {
-  private probe: CursorCatalogueProbe | undefined;
+  private probe: NativeCatalogueProbe | undefined;
   private lastSnapshot = '';
 
   private async checkPackagedHelper(): Promise<void> {
@@ -155,7 +155,7 @@ export class CursorNativeCatalogueActor extends CursorNativeWindowActor {
     for (const name of ['.mcp.json', '.cursor/mcp.json']) {
       writeFileSync(nodePath.join(this.workspace, name), '{"mcpServers":{}}\n');
     }
-    this.probe = await createCursorCatalogueProbe(this.runDirectory);
+    this.probe = await createNativeCatalogueProbe(this.runDirectory);
     await this.checkPackagedHelper();
     const controlDirectory = nodePath.join(this.runDirectory, 'discovery-control');
     cpSync(nodePath.join(fixtureSources, 'discovery-control'), controlDirectory, {
@@ -255,7 +255,7 @@ export class CursorNativeCatalogueActor extends CursorNativeWindowActor {
     await this.action('fill', prompt);
     const label = this.payload(
       'native-label.txt',
-      `/explain ${CURSOR_CATALOGUE_PROBE_DESCRIPTION}`,
+      `/explain ${NATIVE_CATALOGUE_PROBE_DESCRIPTION}`,
     );
     await this.action('select-workflow', label);
     await eventually('native workflow selection', async () => {

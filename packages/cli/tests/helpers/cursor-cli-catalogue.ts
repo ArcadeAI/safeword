@@ -12,9 +12,9 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { createCursorCatalogueProbe, type CursorCatalogueProbe } from './cursor-catalogue-probe.js';
 import { observedHelperProgram, requireNativeHelperExecution } from './cursor-cli-observations.js';
 import { command } from './cursor-native-window.js';
+import { createNativeCatalogueProbe, type NativeCatalogueProbe } from './native-catalogue-probe.js';
 
 const cliRoot = nodePath.resolve(import.meta.dirname, '../..');
 
@@ -26,7 +26,7 @@ export class CursorCliCatalogueActor {
   private readonly root = mkdtempSync(nodePath.join(tmpdir(), 'cursor-cli-catalogue-'));
   private readonly workspace = nodePath.join(this.root, 'workspace');
   private readonly extension = nodePath.join(this.root, 'native-extension');
-  private probe?: CursorCatalogueProbe;
+  private probe?: NativeCatalogueProbe;
   private stdout = '';
   private readonly expectedResources = new Map<string, string>();
 
@@ -67,7 +67,7 @@ export class CursorCliCatalogueActor {
         selfReport: { capture: false, surface: false, file: false },
       }),
     );
-    this.probe = await createCursorCatalogueProbe(this.root);
+    this.probe = await createNativeCatalogueProbe(this.root);
     await command(
       'bun',
       [nodePath.join(cliRoot, 'scripts/generate-cursor-plugin.ts'), '--output', this.extension],

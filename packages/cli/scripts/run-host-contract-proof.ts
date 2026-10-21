@@ -7,7 +7,7 @@ import nodePath from 'node:path';
 import {
   cursorCliCases,
   cursorIdeCases,
-} from '../tests/fixtures/host-contract/cursor-cli-cases.js';
+} from '../tests/fixtures/host-contract/native-contract-cases.js';
 
 interface StepResult {
   result: { status: string; error_message?: string };

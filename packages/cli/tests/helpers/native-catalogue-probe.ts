@@ -8,10 +8,10 @@ import { writeCodexPluginCatalogue } from '../../src/codex-plugin/catalogue.js';
 import { VERSION } from '../../src/version.js';
 import { command } from './cursor-native-window.js';
 
-export const CURSOR_CATALOGUE_PROBE_DESCRIPTION =
+export const NATIVE_CATALOGUE_PROBE_DESCRIPTION =
   'Runs the Safeword contract catalogue probe in an isolated native host test.';
 
-export interface CursorCatalogueProbe {
+export interface NativeCatalogueProbe {
   readonly packageRoot: string;
   readonly workflowMarker: string;
   readonly guideMarker: string;
@@ -24,7 +24,7 @@ export interface CursorCatalogueProbe {
  * synthetic catalogue is rendered; the fixture never repairs its runtime.
  * This is a resource-binding proof; shipped manifest generation needs its own proof.
  */
-export async function createCursorCatalogueProbe(directory: string): Promise<CursorCatalogueProbe> {
+export async function createNativeCatalogueProbe(directory: string): Promise<NativeCatalogueProbe> {
   const packageRoot = nodePath.join(directory, 'candidate');
   const canonicalRoot = nodePath.join(directory, 'canonical');
   const nonce = randomUUID();
@@ -41,7 +41,7 @@ export async function createCursorCatalogueProbe(directory: string): Promise<Cur
     [
       '---',
       'name: explain',
-      `description: ${CURSOR_CATALOGUE_PROBE_DESCRIPTION}`,
+      `description: ${NATIVE_CATALOGUE_PROBE_DESCRIPTION}`,
       '---',
       '',
       '# Native catalogue probe',
