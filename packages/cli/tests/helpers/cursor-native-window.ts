@@ -113,11 +113,21 @@ export class CursorNativeWindowActor {
       ]);
     // A dispatched action must never be repeated because a later UI read failed.
     // Only idempotent focus and read operations may retry transient AX readiness.
-    if (!['activate', 'input', 'focused-input', 'snapshot'].includes(action)) return invoke();
+    if (!['activate', 'input', 'focused-input', 'snapshot', 'fill'].includes(action))
+      return invoke();
     let output = '';
     await eventually(`stable native Accessibility controls for ${action}`, async () => {
-      output = await invoke();
-      return true;
+      try {
+        output = await invoke();
+        return true;
+      } catch (error) {
+        // Draft replacement is idempotent and never submits. A foreground
+        // change may interrupt its bounded key sequence; refill only that
+        // owned window, retaining all PID/window/focus checks on every key.
+        if (action === 'fill' && String(error).includes('Isolated Cursor lost foreground'))
+          return false;
+        throw error;
+      }
     });
     return output;
   }
