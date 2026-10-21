@@ -19,8 +19,9 @@ Leaf-first execution ledger:
 - [x] Rename the caller-directory config variable to distinguish it from the
   project root. This distinction directly underlies the reported bugs. All
   four precedence probes, ESLint and five generated-surface checks pass.
-- [ ] Name the version capability probe as a predicate; preserve its checks,
-  errors and oldest-version behavior.
+- [x] Name the version capability probe as a predicate; preserve its checks,
+  errors and oldest-version behavior. Nine policy probes passed on each of
+  v2.0.0/Go 1.24 and v2.13.2/Go 1.25 (18/18); ESLint and all generated surfaces pass.
 - [ ] Extract helper invocation and JSON validation into one local function;
   retain containment, availability/version checks and warning deduplication at
   the caller. No new shipping or schema-managed file.

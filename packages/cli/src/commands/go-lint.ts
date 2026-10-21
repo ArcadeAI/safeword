@@ -20,7 +20,7 @@ function within(file: string, root: string): boolean {
   const relative = path.relative(root, file);
   return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 }
-function configPathInterpolation(cwd: string): boolean {
+function supportsConfigPathInterpolation(cwd: string): boolean {
   const version = spawnSync('golangci-lint', ['version', '--short'], {
     cwd,
     encoding: 'utf8',
@@ -89,7 +89,12 @@ export async function goLint(options: GoLintOptions): Promise<GoLintResult> {
   let findings: Partial<GoLintResult> = {};
   try {
     const { root, file, cwd, originalCwd } = context(options);
-    config = prepareGoLintConfig(file, root, originalCwd, configPathInterpolation(originalCwd));
+    config = prepareGoLintConfig(
+      file,
+      root,
+      originalCwd,
+      supportsConfigPathInterpolation(originalCwd),
+    );
     warnings.push(...configWarnings(config, root));
     runner = goLintProcess(config.cleanup);
     const formatted = await runner.run(['fmt', ...config.args, file], cwd);
