@@ -53,8 +53,7 @@ process.stdin.on('end', () => { if (agent === 'claude') { const packet=JSON.pars
   return log;
 }
 
-/** Real CLI/config/catalogue/job wiring; only the external reviewer processes are fake. */
-export async function rankedPlanningReview(project: string, bin: string, example: RankedCase) {
+function writeRankedPlanningProject(project: string, example: RankedCase): string {
   const codex = (model?: string) => ({ reviewer: 'codex', ...(model && { model }) });
   const same = { reviewer: 'claude' };
   const routes = {
@@ -88,6 +87,12 @@ export async function rankedPlanningReview(project: string, bin: string, example
     nodePath.join(project, 'features/ranked.feature'),
     '@ranked.BU1.R1\nFeature: Ranked review\n  Scenario: Independent review precedes fallback\n    Given eligible routes\n    When review runs\n    Then the qualified route wins\n',
   );
+  return ticket;
+}
+
+/** Real CLI/config/catalogue/job wiring; only the external reviewer processes are fake. */
+export async function rankedPlanningReview(project: string, bin: string, example: RankedCase) {
+  const ticket = writeRankedPlanningProject(project, example);
   const log = writeRankedReviewerExecutables(bin, example);
   const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
   let result;

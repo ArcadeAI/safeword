@@ -15,7 +15,7 @@ verification and commit.
    `packages/cli/tests/fixtures/ranked-planning-review.ts` into a private helper.
    Preserve executable bytes, log lifecycle and CLI environment. Protect with
    the four executable ranked-route BDD examples.
-3. Pending — extract project setup into a private helper in the ranked fixture,
+3. Resolved — extract project setup into a private helper in the ranked fixture,
    preserving route order and all authored planning bytes. Depends on step 2;
    protect with the same four BDD examples.
 4. Deferred — generalize reviewer scripts across integration fixtures. Those
@@ -55,3 +55,8 @@ remain as recorded in `test-quality-5086.md` and Draft PR #5995.
   timeouts, environment and packet decoding. A first launch used a package-relative
   runner path from the root and exited 127 before any tests; corrected the
   working directory and obtained the terminal green result above.
+
+- Step 3: four real-CLI BDD scenarios / 24 steps passed; scoped ESLint passed.
+  Project setup body compared byte-identical with its parent, including route
+  arrays, planning inventory calls and authored source fixtures. Caller still
+  owns the same project/bin lifecycle; no defaults or guards moved across it.
