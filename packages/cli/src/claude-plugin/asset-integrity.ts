@@ -23,7 +23,10 @@ function canonicalValue(value: unknown): unknown {
   throw new TypeError('Skill metadata must contain JSON-compatible values.');
 }
 
-/** Hash YAML meaning and exact body bytes; desktop sync rewrites skill headers (#6004). */
+/**
+ * Hash YAML meaning and exact body bytes; desktop sync rewrites skill headers (#6004).
+ * Equivalence uses YAML 1.2 core semantics, not a guarantee about every host parser.
+ */
 export function claudeSkillSha256(path: string, content: Buffer | string): string | undefined {
   if (!/^skills\/[^/]+\/SKILL\.md$/u.test(path)) return undefined;
   const text = content.toString();
