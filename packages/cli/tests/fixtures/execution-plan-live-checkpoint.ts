@@ -37,6 +37,25 @@ function requireRetained(condition: unknown, message: string): asserts condition
   if (!condition) throw new Error(message);
 }
 
+function optionalMarker(
+  record: Readonly<Record<string, unknown>>,
+  key: string,
+  value: string,
+): boolean {
+  return record[key] === undefined || record[key] === value;
+}
+
+function requireSupportedCheckpoint(record: Readonly<Record<string, unknown>>): void {
+  requireRetained(
+    optionalMarker(record, 'corpus_kind', 'conformance') &&
+      optionalMarker(record, 'dispatch_mode', 'headless') &&
+      optionalMarker(record, 'mode', 'live') &&
+      typeof record.requested_model === 'string' &&
+      record.requested_model.trim() !== '',
+    'Retained observations support exact headless conformance only',
+  );
+}
+
 /** Read only passing observations; failed attempts remain in their original checkpoint. */
 export function readExecutionCheckpoint(
   path: string,
@@ -47,10 +66,14 @@ export function readExecutionCheckpoint(
   outputs: ExecutionObservation[];
   source: Record<string, unknown>;
 } {
+  requireSupportedCheckpoint(expected);
   const resultBytes = readFileSync(path);
   const outputBytes = readFileSync(`${path}.outputs.json`);
   const metadataBytes = readFileSync(`${path}.metadata.json`);
   const metadata = JSON.parse(metadataBytes.toString()) as Record<string, unknown>;
+  // Legacy conformance markers may be absent. Current-oracle replay deliberately
+  // permits an older oracle; only headless assertions are reusable this way.
+  requireSupportedCheckpoint(metadata);
   const identity = [
     'schema_version',
     'contract_sha256',

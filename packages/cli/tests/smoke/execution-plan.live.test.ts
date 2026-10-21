@@ -60,6 +60,13 @@ const model = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL?.trim() || undefine
 const resultsPath = process.env.SAFEWORD_EXECUTION_PLAN_RESULTS_PATH;
 const replayPath = process.env.SAFEWORD_EXECUTION_PLAN_REPLAY_PATH;
 const retainedPath = process.env.SAFEWORD_EXECUTION_PLAN_RETAINED_RESULTS_PATH;
+if (
+  CAN_RUN &&
+  (replayPath !== undefined || retainedPath !== undefined) &&
+  (ACCEPTANCE_CASES || PUBLIC_CLI || model === undefined)
+) {
+  throw new Error('Saved observation reuse supports exact headless conformance only');
+}
 const results: ExecutionPlanConformanceResult[] = [];
 const outputs: ExecutionObservation[] = [];
 type Assertions = TestContext['expect'];
@@ -68,6 +75,11 @@ const collectionIdentity = {
   ...executionPlanConformanceDigests(),
   reviewer,
   requested_model: model,
+  corpus_kind: ACCEPTANCE_CASES ? 'acceptance' : 'conformance',
+  dispatch_mode: PUBLIC_CLI ? 'cli' : 'headless',
+  ...(ACCEPTANCE_CASES && {
+    corpus_sha256: createHash('sha256').update(JSON.stringify(cases)).digest('hex'),
+  }),
   oracle_sha256: createHash('sha256')
     .update(readFileSync(import.meta.filename))
     .digest('hex'),
@@ -407,6 +419,7 @@ beforeAll(() => {
     }
     results.push(...retained.results);
     outputs.push(...retained.outputs);
+    checkpoint();
   }
   if (replayPath !== undefined) return;
   if (!PUBLIC_CLI) vi.stubEnv('SAFEWORD_REVIEW_WORKER', '1');

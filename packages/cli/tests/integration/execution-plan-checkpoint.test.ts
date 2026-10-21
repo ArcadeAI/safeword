@@ -39,9 +39,41 @@ it('retains completed raw observations when the worker is killed before teardown
   }
 });
 
-it.each([true, false])(
-  'checks retained metadata before any reviewer launch (matching: %s)',
-  matching => {
+it.each([
+  { label: 'matching', overrides: {}, launches: true, message: '' },
+  {
+    label: 'changed contract',
+    overrides: { contract_sha256: 'changed-contract' },
+    launches: false,
+    message: 'Retained conformance metadata mismatch',
+  },
+  {
+    label: 'acceptance',
+    overrides: { corpus_kind: 'acceptance' },
+    launches: false,
+    message: 'exact headless conformance',
+  },
+  {
+    label: 'CLI',
+    overrides: { dispatch_mode: 'cli' },
+    launches: false,
+    message: 'exact headless conformance',
+  },
+  {
+    label: 'runtime default',
+    overrides: { requested_model: undefined },
+    launches: false,
+    message: 'exact headless conformance',
+  },
+  {
+    label: 'replay',
+    overrides: { mode: 'replay' },
+    launches: false,
+    message: 'exact headless conformance',
+  },
+])(
+  'checks retained metadata before any reviewer launch ($label)',
+  ({ overrides, launches, message }) => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'execution-reuse-'));
     const path = nodePath.join(root, 'results.json');
     const marker = nodePath.join(root, 'launched');
@@ -56,7 +88,7 @@ it.each([true, false])(
       reviewer: 'claude',
       requested_model: 'claude-opus-5',
     };
-    const expected = { ...metadata, contract_sha256: matching ? 'contract' : 'changed-contract' };
+    const expected = { ...metadata, ...overrides };
     writeFileSync(
       path,
       JSON.stringify([
@@ -92,9 +124,9 @@ it.each([true, false])(
         ],
         { encoding: 'utf8' },
       );
-      expect(child.status, child.stderr).toBe(matching ? 0 : 2);
-      expect(existsSync(marker)).toBe(matching);
-      if (!matching) expect(child.stderr).toContain('Retained conformance metadata mismatch');
+      expect(child.status, child.stderr).toBe(launches ? 0 : 2);
+      expect(existsSync(marker)).toBe(launches);
+      if (!launches) expect(child.stderr).toContain(message);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
