@@ -202,8 +202,8 @@ On macOS and Linux the user profile is `$XDG_CONFIG_HOME/safeword/config.json`, 
 
 Only `crossAgentReviewRoutes` is user-scoped today; review policy and legacy primary/alternate model settings remain project-scoped. Effective route reads validate both files before applying precedence, so malformed JSON in either file fails visibly even when the other scope has a route. Fix or remove the named malformed file, then retry.
 
-- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer and its eligible alternate-model route cannot complete, Safeword tries OpenCode once before running a same-agent headless fallback. OpenCode-authored work routes to Claude and then Codex; OpenCode self-review is never independent. A completed same-agent result names the actual reviewer and states that the review was not independent. If every CLI route fails, a foreground agent may add supplemental host-native or self-review findings; their actual verdict is preserved.
-- `require` — only a qualified independent result satisfies the planning gate. A completed same-agent headless review returns the existing independence-required failure. If every CLI route fails, a foreground agent may still report useful host-native or self-review findings, but the result remains action required, recommends restoring an independent reviewer or explicitly choosing `prefer`, and never writes independent evidence.
+- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. When failures permit further attempts and the run budget allows, Safeword tries the eligible alternate-model route, then OpenCode, then a same-agent headless fallback. OpenCode-authored work routes to Claude and then Codex; OpenCode self-review is never independent. A completed same-agent result names the actual reviewer and states that the review was not independent. After eligible planning CLI routes fail, a foreground agent may receive a sealed continuation for host-native or self-review findings; their actual verdict is preserved.
+- `require` — only a qualified independent result satisfies the planning gate. A completed same-agent headless review returns the existing independence-required failure. Exhaustion remains action required; restore an independent reviewer or explicitly choose `prefer`. This policy does not issue the sealed foreground continuation described above.
 - `off` — applies to non-planning review kinds only. Product, scenario, Implementation and Execution planning remain blocked until review policy is `prefer` or `require`; `off` cannot bypass their required review.
 
 Authentication is recoverable reviewer state, not a failed route. If a preferred or alternate independent route is not signed in, Safeword returns `REVIEW_AUTHENTICATION_REQUIRED` with that reviewer's login command and does not start a same-agent fallback. Managed agent workflows run the command, allow any browser or device login to finish, and retry the same review once; another authentication denial remains an explicit blocker.
@@ -218,6 +218,9 @@ either legacy route per agent with `crossAgentReviewPrimaryModel` or
 `SAFEWORD_REVIEW_ALTERNATE_MODEL_CODEX` take precedence. Model identifiers must
 be 1–200 characters using letters, digits, `.`, `_`, `:`, `/`, or `-`, and cannot
 begin with `-`.
+Invalid legacy environment selectors fall through to the configured selector;
+invalid configured selectors fall through to the built-in default. Explicit
+`crossAgentReviewRoutes` entries instead reject unsafe identifiers.
 
 For planning review with a verified Claude author, explicit Claude/Codex model
 selectors must have a current sealed capability comparison before launch.
@@ -227,6 +230,19 @@ route and retry. Runtime-default routes and OpenCode retain the existing
 launch-and-confirm behavior. An unknown author cannot earn an independent
 capability claim; without verified author-model identity, a successful
 different-agent planning review records reduced independence under `prefer`.
+The verified-author check currently supports only Claude-authored sessions
+whose host supplies the exact author model. Under `require`, a missing verified
+Claude identity, or any Codex- or OpenCode-authored planning session, returns
+`AUTHOR_CAPABILITY_UNKNOWN` and blocks with independence `none`, even if an
+independent CLI completed the review. There is no user configuration that
+establishes verified author capability for those other hosts; use `prefer` with
+its disclosed reduced assurance, or move authoritative planning to a supported
+Claude host. Do not set an author-model environment variable to manufacture
+verified identity.
+
+Cursor authors need an explicit compatible independent route in
+`crossAgentReviewRoutes.cursor`; the built-in chain has no compatible reviewer
+for Cursor. The same verified-author restriction applies to Cursor planning.
 
 Planning fallback requires at least one actual independent attempt with a
 typed failure and exhaustion of every stronger route. All-skipped routes stay
