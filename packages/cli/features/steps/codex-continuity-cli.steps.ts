@@ -88,8 +88,16 @@ function writeExecutable(path: string, content: string): void {
   chmodSync(path, 0o755);
 }
 
-function marketplaceStateForPluginState(state: FakePluginState): string {
-  return state === 'absent' ? 'absent' : 'git';
+function initializeMarketplace(profile: string, state: FakePluginState): void {
+  writeFileSync(nodePath.join(profile, 'marketplace-state'), state === 'absent' ? 'absent' : 'git');
+  if (state === 'absent') return;
+  const marketplaceReference = SAFEWORD_SCHEMA.version.includes('-')
+    ? `v${SAFEWORD_SCHEMA.version}`
+    : 'stable';
+  writeFileSync(
+    nodePath.join(profile, 'config.toml'),
+    `[marketplaces.safeword]\nsource = "https://github.com/ArcadeAI/safeword.git"\nref = "${marketplaceReference}"\n`,
+  );
 }
 
 function initialize(
@@ -129,10 +137,7 @@ function initialize(
     );
   }
   writeFileSync(nodePath.join(profile, 'plugin-state'), options.pluginState ?? 'enabled');
-  writeFileSync(
-    nodePath.join(profile, 'marketplace-state'),
-    marketplaceStateForPluginState(options.pluginState ?? 'enabled'),
-  );
+  initializeMarketplace(profile, options.pluginState ?? 'enabled');
   writeFileSync(
     nodePath.join(profile, 'plugin-version'),
     options.pluginVersion === null ? '' : (options.pluginVersion ?? SAFEWORD_SCHEMA.version),
@@ -171,6 +176,7 @@ case "$*" in
       exit 9
     fi
     printf 'git' > "$marketplace_state"
+    printf '[marketplaces.safeword]\\nsource = "%s"\\nref = "%s"\\n' "$4" "$6" > "$CODEX_HOME/config.toml"
     echo '{"marketplaceName":"safeword"}'
     ;;
   'plugin add safeword@safeword --json')

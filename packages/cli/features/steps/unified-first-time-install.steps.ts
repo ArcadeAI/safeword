@@ -296,8 +296,12 @@ case "$*" in
       echo '{"marketplaces":[]}'
     fi
     ;;
-  'plugin marketplace add '*|'plugin marketplace upgrade safeword --json')
+  'plugin marketplace add '*)
     printf 'official' > "$SAFEWORD_CODEX_MARKETPLACE"
+    printf '[marketplaces.safeword]\\nsource = "%s"\\nref = "%s"\\n' "$4" "$6" > "$CODEX_HOME/config.toml"
+    echo '{"marketplaceName":"safeword"}'
+    ;;
+  'plugin marketplace upgrade safeword --json')
     echo '{"marketplaceName":"safeword"}'
     ;;
   'plugin add safeword@safeword --json')
