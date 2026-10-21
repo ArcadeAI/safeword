@@ -85,3 +85,66 @@ Six real source-hook checks also passed after extraction, three per version.
 The refactored handwritten sources are stable while generated lifecycle fixture
 verification waits on the shared lock. Generated copies are not review targets;
 their parity/freshness and final CI are separate objective gates.
+
+## First independent result and follow-up
+
+Review bae13ae6-5c79-46c9-94ba-c938d523f766 returned APPROVE from Claude/Opus,
+with cross-agent independence and no errors. The machine receipt is preserved
+in refactor-quality-review.json.
+
+Applied suggestions: four automated real-linter comparisons for YAML
+yes/no/on/off, and an explicit external-process trace assertion that formatting
+precedes exactly one package lint. Eight direct native/helper scalar comparisons
+passed across the two pinned versions; both reject these scalars and the helper
+reports the configuration failure. A real-hook trace probe also passed the
+ordering and exactly-once contract while retaining formatter warnings and findings.
+The updated automated suites still require execution; this is not a claim that
+the direct probes executed those suites.
+
+Retained nonblocking limits: a cfg/gomod/gitroot base may lie outside the
+Safeword project; temporary files there remain exclusive and mode 0600. SIGKILL
+can leave residue, and there is a narrow window after writing the config before
+signal-handler registration. The version probe and path computation actually
+precede materialization, correcting that detail in the review's description.
+Changing resource placement or lifecycle ownership would change behavior and
+is outside this refactor. No broad orphan deletion was added.
+
+The TOML large-integer precision observation remains a nonblocking parser-range
+limit; no arbitrary-scalar fidelity claim is made. Deployment job dependencies
+and branch-protection policy are outside this delivery. Optional parser/linter
+upgrades remain currency notes. Re-review the changed tests with the same source
+targets before final verification.
+
+## Follow-up independent result
+
+Review eaf6ff61-5c21-4e6c-b5e6-0cf3db7c878e returned APPROVE from Claude/Opus,
+with cross-agent independence and no errors. Receipt: refactor-quality-followup.json.
+Both pinned linter versions now pass all 49 focused automated tests locally.
+ESLint, TypeScript and the post-refactor diff audit pass; all five generated
+surfaces were regenerated and verified. Remote CI is the remaining final gate.
+
+Follow-up suggestions answered:
+
+- The v2.0 gocritic placeholder concern is refuted by freshly fetched upstream
+  source: its ContextSetter creates a replacer for internal.PlaceholderBasePath,
+  and string settings use that replacer. The earlier source summary focused on
+  depguard and was incomplete; the implementation already matches gocritic.
+  Source: https://github.com/golangci/golangci-lint/blob/v2.0.0/pkg/golinters/gocritic/gocritic.go
+- Plain warning-only stdout remains uncapped in the shared Claude/Cursor hook;
+  structured additionalContext is capped, as is Codex's warning conversion.
+  Uniformly changing the existing stdout contract is outside this pure refactor.
+  This is a nonblocking output-size limitation, not proof of a false clean result.
+- Multiple customer report formats aimed at stdout can mix machine-readable
+  output with text diagnostics. Findings remain visible; no claim is made that
+  such an unusual stream is presentation-clean. Extra normalization is deferred.
+- Temporary files may appear outside the project under the chosen original
+  cfg/gomod/gitroot base, including home fallback. Existing cleanup limits above
+  remain; relocating files would break the preserved path-base contract.
+- Formatter order and exactly-once lint are now explicitly proven at the real
+  hook's executable boundary. No further duplicate test is needed.
+- The two version probes are harmless existing process overhead. Combining them
+  would change the helper protocol and add coupling; no such abstraction was added.
+
+**Verdict:** APPROVE. Critical issues: none. Currency notes and nonblocking
+limitations are retained above. **Next:** finish the full remote CI workflow,
+record its current-source evidence, then commit the review and verification notes.
