@@ -8,6 +8,7 @@ import {
   PACKAGED_CAPABILITY_PAIRS,
   PACKAGED_CAPABILITY_REVISION,
   PACKAGED_CAPABILITY_SETTINGS,
+  reviewerCapabilityFailure,
 } from '../../src/review/capability-catalogue.js';
 import {
   capabilityRevision,
@@ -29,6 +30,42 @@ function evidence(model: string): SealedCapabilityResults {
 }
 
 describe('packaged reviewer capability evidence', () => {
+  it('reports the observed weaker direction through the real catalogue without mocked classification', () => {
+    // The next test independently reconstructs these pairs from the sealed observations.
+    const pair = PACKAGED_CAPABILITY_PAIRS.find(record => record.direction === 'weaker');
+    if (pair === undefined) throw new Error('The retained qualification has a weaker direction');
+    const author = { provider: pair.author_provider, model: pair.author_model };
+    const reviewer = { provider: pair.reviewer_provider, model: pair.reviewer_model };
+    expect(
+      reviewerCapabilityFailure(
+        author,
+        reviewer.model,
+        reviewer,
+        PACKAGED_CAPABILITY_REVISION,
+        PACKAGED_CAPABILITY_PAIRS,
+      ),
+    ).toBe('reviewer_capability_weaker');
+    expect(
+      reviewerCapabilityFailure(
+        author,
+        `${reviewer.model}-unqualified`,
+        reviewer,
+        PACKAGED_CAPABILITY_REVISION,
+        PACKAGED_CAPABILITY_PAIRS,
+      ),
+    ).toBe('reviewer_capability_unknown');
+    const unknown = { ...reviewer, model: `${reviewer.model}-unqualified` };
+    expect(
+      reviewerCapabilityFailure(
+        author,
+        unknown.model,
+        unknown,
+        PACKAGED_CAPABILITY_REVISION,
+        PACKAGED_CAPABILITY_PAIRS,
+      ),
+    ).toBe('reviewer_capability_unknown');
+  });
+
   it('reconstructs both directional capability classifications from current sealed results', () => {
     const claude = evidence('claude-opus-5');
     const codex = evidence('gpt-6-astra');
@@ -48,6 +85,15 @@ describe('packaged reviewer capability evidence', () => {
         reviewer,
       );
       expect(direction).not.toBe('unknown');
+      expect(
+        reviewerCapabilityFailure(
+          { provider: author.provider, model: author.model },
+          reviewer.model,
+          { provider: reviewer.provider, model: reviewer.model },
+          revision,
+          PACKAGED_CAPABILITY_PAIRS,
+        ),
+      ).toBe(direction === 'weaker' ? 'reviewer_capability_weaker' : undefined);
       const resultsDigest = createHash('sha256')
         .update(`${author.results_digest}\0${reviewer.results_digest}`)
         .digest('hex');
