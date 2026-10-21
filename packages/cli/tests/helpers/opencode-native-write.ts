@@ -15,6 +15,7 @@ import { promisify } from 'node:util';
 
 import { assertMatchingTree } from './codex-plugin-package.js';
 import { observeExactHostVersion } from './host-contract-version.js';
+import type { openCodeScriptedModelFixture } from './opencode-native-driver.js';
 import { openCodeModelFixture, runOpenCodeTurn } from './opencode-native-driver.js';
 
 const execute = promisify(execFile);
@@ -104,6 +105,7 @@ export class OpenCodeNativeWriteActor {
         'import { appendFileSync } from "node:fs";',
         'export default Plugin.define({id: "safeword-native-observer", async setup(ctx) {',
         String.raw`appendFileSync(${log}, JSON.stringify({setup:true, version:ctx.app.version})+"\n");`,
+        String.raw`await ctx.session.hook("prompt", async event => { appendFileSync(${log}, JSON.stringify({prompt:event.prompt,session:await ctx.session.get({sessionID:event.sessionID})})+"\n"); });`,
         String.raw`await ctx.tool.hook("execute.before", async event => { const plugins = await ctx.plugin.list(); appendFileSync(${log}, JSON.stringify({tool:event.tool,input:event.input,session_id:event.sessionID,plugins:plugins.data})+"\n"); });`,
         '}});',
         '',
@@ -316,8 +318,19 @@ export class OpenCodeNativeWriteActor {
     this.command = `printf %s ${this.marker} > ${relative}`;
   }
 
-  async attempt(): Promise<void> {
-    const model = await openCodeModelFixture(this.command, this.root);
+  /** Share the owned native installation, model setup and process boundary across contract probes. */
+  async runModelFixture(
+    factory: (paths: {
+      directory: string;
+      project: string;
+      candidate: string;
+    }) => Promise<Awaited<ReturnType<typeof openCodeScriptedModelFixture>> & { prompt?: string }>,
+  ): Promise<void> {
+    const model = await factory({
+      directory: this.root,
+      project: this.project,
+      candidate: this.candidate,
+    });
     try {
       this.configureModel(model.url);
       await runOpenCodeTurn({
@@ -328,12 +341,17 @@ export class OpenCodeNativeWriteActor {
         environment: this.environment(),
         finish: model.finish,
         directory: this.root,
+        prompt: model.prompt,
       });
       this.attempts = model.attempts;
       this.toolResults = JSON.stringify(model.results);
     } finally {
       model.close();
     }
+  }
+
+  async attempt(): Promise<void> {
+    await this.runModelFixture(({ directory }) => openCodeModelFixture(this.command, directory));
   }
 
   /** Setup contrast only; never substitutes for a passing contracted scenario. */

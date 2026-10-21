@@ -4,7 +4,7 @@ import { writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import nodePath from 'node:path';
 
-interface ModelMessage {
+export interface ModelMessage {
   role: string;
   content?: unknown;
 }
@@ -19,8 +19,22 @@ function toolArguments(tool: string | undefined, command: string): string {
   );
 }
 
-/** Replace model transport only. Native plugins and tools make every policy decision. */
-export async function openCodeModelFixture(command: string, directory: string) {
+export interface NativeModelRequest {
+  stream?: boolean;
+  tools?: { function?: { name?: string } }[];
+  messages?: ModelMessage[];
+}
+
+export interface NativeModelReply {
+  tool?: { name: string; input: object };
+  text?: string;
+}
+
+/** Model transport only: scripted tool requests still execute through the actual host. */
+export async function openCodeScriptedModelFixture(
+  directory: string,
+  reply: (request: NativeModelRequest) => NativeModelReply,
+) {
   const results: ModelMessage[] = [];
   let attempts = 0;
   const finish = 'SAFEWORD_NATIVE_TURN_COMPLETE';
@@ -31,12 +45,7 @@ export async function openCodeModelFixture(command: string, directory: string) {
       raw += chunk;
     });
     request.on('end', () => {
-      const body = JSON.parse(raw) as {
-        stream?: boolean;
-        tools?: { function?: { name?: string } }[];
-        messages?: ModelMessage[];
-      };
-      const tools = modelToolNames(body.tools);
+      const body = JSON.parse(raw) as NativeModelRequest;
       const received = body.messages?.filter(message => message.role === 'tool') ?? [];
       results.push(...received);
       if (body.stream === false) {
@@ -56,8 +65,9 @@ export async function openCodeModelFixture(command: string, directory: string) {
         );
         return;
       }
-      const tool = tools.find(name => name === 'bash' || name === 'shell');
-      const call = tool && received.length === 0;
+      const answer = reply(body);
+      const tool = answer.tool;
+      const call = tool !== undefined;
       if (call) attempts++;
       const delta = call
         ? {
@@ -67,11 +77,11 @@ export async function openCodeModelFixture(command: string, directory: string) {
                 index: 0,
                 id: 'call_safeword_native',
                 type: 'function',
-                function: { name: tool, arguments: toolArguments(tool, command) },
+                function: { name: tool.name, arguments: JSON.stringify(tool.input) },
               },
             ],
           }
-        : { role: 'assistant', content: tools.length > 0 ? finish : 'Fixture title' };
+        : { role: 'assistant', content: answer.text ?? finish };
       response.writeHead(200, { 'content-type': 'text/event-stream' });
       const choices = [
         [{ index: 0, delta }],
@@ -105,6 +115,18 @@ export async function openCodeModelFixture(command: string, directory: string) {
   };
 }
 
+/** The paired write probe shares its transport with catalogue/worker probes. */
+export function openCodeModelFixture(command: string, directory: string) {
+  return openCodeScriptedModelFixture(directory, request => {
+    const tools = modelToolNames(request.tools);
+    const tool = tools.find(name => name === 'bash' || name === 'shell');
+    const received = request.messages?.some(message => message.role === 'tool') ?? false;
+    return tool && !received
+      ? { tool: { name: tool, input: JSON.parse(toolArguments(tool, command)) as object } }
+      : { text: tools.length > 0 ? 'SAFEWORD_NATIVE_TURN_COMPLETE' : 'Fixture title' };
+  });
+}
+
 /** Run either the real CLI or real TUI, preserving terminal bytes for diagnosis. */
 export async function runOpenCodeTurn(input: {
   binary: string;
@@ -114,6 +136,7 @@ export async function runOpenCodeTurn(input: {
   environment: NodeJS.ProcessEnv;
   finish: string;
   directory: string;
+  prompt?: string;
 }): Promise<{ stdout: string; stderr: string; code: number | null }> {
   const v2 = input.version.startsWith('2.');
   const args =
@@ -125,9 +148,9 @@ export async function runOpenCodeTurn(input: {
           'json',
           '--model',
           'fixture/model',
-          'Perform the isolated native write.',
+          input.prompt ?? 'Perform the isolated native write.',
         ]
-      : ['--auto', '--prompt', 'Perform the isolated native write.'];
+      : ['--auto', '--prompt', input.prompt ?? 'Perform the isolated native write.'];
   if (v2) args.splice(input.runtime === 'CLI' ? 1 : 0, 0, '--standalone');
   const pty = nodePath.resolve(import.meta.dirname, '../fixtures/host-contract/native-pty.py');
   const executable = input.runtime === 'TUI' ? 'python3' : input.binary;
