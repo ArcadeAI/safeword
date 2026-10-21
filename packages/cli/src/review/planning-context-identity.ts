@@ -12,7 +12,11 @@ import { parsePersonas, resolvePersonaCodes } from '../utils/personas.js';
 import { parseAffectedSurfaceReferences, surfaceSlug } from '../utils/scenario-coverage.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 import type { ReviewPacket } from './contract.js';
-import { isPlanEvidenceRecord, type PlanEvidenceRecordV1 } from './evidence-record.js';
+import {
+  EVIDENCE_RECORD_FIELDS,
+  isPlanEvidenceRecord,
+  type PlanEvidenceRecordV1,
+} from './evidence-record.js';
 import { ReviewPacketError } from './packet-error.js';
 import { PlanningContextError } from './planning-context-error.js';
 import type { PlanningReviewIdentity } from './planning-role-context.js';
@@ -430,15 +434,31 @@ export function planningEvidenceReferences(content: string): string[] {
 
 function parsePlanEvidenceRecord(node: MarkdownNode | undefined): PlanEvidenceRecordV1 {
   if (node?.type !== 'code' || node.lang !== 'json')
-    throw new Error('PlanEvidenceRecordV1 requires an immediately following JSON block.');
+    throw new ReviewPacketError(
+      'PlanEvidenceRecordV1 requires an immediately following JSON block.',
+    );
   let candidate: unknown;
   try {
     candidate = JSON.parse(node.value ?? '') as unknown;
   } catch {
-    throw new Error('PlanEvidenceRecordV1 contains invalid JSON.');
+    throw new ReviewPacketError('PlanEvidenceRecordV1 contains invalid JSON.');
   }
-  if (!isPlanEvidenceRecord(candidate))
-    throw new Error('PlanEvidenceRecordV1 is missing required evidence or reuse limits.');
+  if (!isPlanEvidenceRecord(candidate)) {
+    const record =
+      candidate !== null && typeof candidate === 'object'
+        ? (candidate as Record<string, unknown>)
+        : {};
+    const missing = EVIDENCE_RECORD_FIELDS.filter(
+      field => typeof record[field] !== 'string' || record[field].trim() === '',
+    );
+    throw new ReviewPacketError(
+      `PlanEvidenceRecordV1 is invalid; ${
+        missing.length > 0
+          ? `missing nonblank fields: ${missing.join(', ')}`
+          : 'requires schema_version 1 and exactly the declared evidence fields'
+      }.`,
+    );
+  }
   return candidate;
 }
 

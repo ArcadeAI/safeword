@@ -51,6 +51,7 @@ import { ReviewPacketError } from './packet-error.js';
 import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { extractPlanReviewRubric } from './plan-rubric.js';
 import { reviewDispositionContext } from './planning-accepted-boundary.js';
+import { planningEvidenceRecords } from './planning-context-identity.js';
 import { PlanningContextError, type PlanningContextRole } from './planning-context-error.js';
 import { type PlanningRoleContext, resolvePlanningRoleContext } from './planning-role-context.js';
 import { planningTicketOwner } from './planning-ticket-owner.js';
@@ -780,7 +781,20 @@ function contractForUse(kind: PlanningPhase, use: PlanningContractUse): PlanCont
     'plan-implementation': PLAN_REVIEW_RUBRIC,
     'plan-execution': EXECUTION_PLAN_REVIEW_RUBRIC,
   }[kind];
-  if (use === 'currency') return assemblePlanContract(rubric, rubric);
+  if (use === 'currency') {
+    // Read bounded installed rules rather than trusting compiled copies. Whole-file
+    // integrity remains a separate dispatch/admission requirement.
+    const source = packagedPlanningAuthor(kind, false);
+    const extract = {
+      'product-plan': extractProductPlanReviewRubric,
+      'plan-implementation': extractPlanReviewRubric,
+      'plan-execution': extractExecutionPlanReviewRubric,
+    }[kind];
+    const contract = assemblePlanContract(extract(source), rubric);
+    if (contract.author.sha256 !== contract.reviewer.sha256)
+      throw new ReviewPacketError('The current canonical planning contract differs from the reviewed contract.');
+    return contract;
+  }
   if (kind === 'product-plan') {
     return assemblePlanContract(
       extractProductPlanReviewRubric(packagedPlanningAuthor(kind)),
@@ -1310,6 +1324,10 @@ function prepareReviewPacketUnsafe(
           : 'Review has no eligible targets after generated outputs are excluded',
         'REVIEW_NO_ELIGIBLE_TARGETS',
       );
+    }
+    if (kind === 'plan-implementation' || kind === 'plan-execution') {
+      for (const file of [...logicalFiles, ...contextFiles])
+        if (nodePath.basename(file.path) === 'impl-plan.md') planningEvidenceRecords(file.content);
     }
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);

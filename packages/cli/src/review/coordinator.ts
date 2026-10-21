@@ -1289,15 +1289,12 @@ function orderedReviewRoutes(
   ];
 }
 
-/** Qualification refusals exhaust a candidate without pretending a reviewer process ran. */
+/** Fallback needs a real failed attempt; pre-launch refusals remain skipped evidence. */
 function independentRouteWasExhausted(route: RankedRouteEvidence): boolean {
   return (
     route.independence === 'cross-agent' &&
     route.failure !== undefined &&
-    (route.status === 'attempted' ||
-      (route.status === 'skipped' &&
-        (route.failure === 'reviewer_capability_unknown' ||
-          route.failure === 'reviewer_capability_weaker')))
+    route.status === 'attempted'
   );
 }
 

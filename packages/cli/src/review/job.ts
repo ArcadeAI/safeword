@@ -689,9 +689,7 @@ function hasExhaustedRoutesForHostContinuation(value: unknown): boolean {
     route =>
       route?.independence === 'cross-agent' &&
       typeof route.failure === 'string' &&
-      (route.status === 'attempted' ||
-        (route.status === 'skipped' &&
-          ['reviewer_capability_unknown', 'reviewer_capability_weaker'].includes(route.failure))),
+      route.status === 'attempted',
   );
   const exhausted = routes.every(
     route =>
