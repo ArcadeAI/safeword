@@ -1092,6 +1092,14 @@ patches preserve review coverage at the cost of a Git baseline and reconstructio
 step. New, deleted, renamed or unchanged oversized locks remain unsupported.
 Ticket `319VCW` records the regression and adversarial boundary proofs.
 
+**Superseded in part by the 2026-09-20 planning fallback decision.** Its
+same-agent `degraded` label, prohibition on fresh-context/self-review stamps,
+and live-worktree/no-revalidated-integrity clause do not govern planning
+fallback. Every planning tier receives the immutable coordinator packet, and
+an admitted fallback records `reduced` independence. The original route
+preference, typed failures, authentication, containment, and actual-provenance
+decisions remain in force.
+
 **OpenCode extension (2026-09-01, superseded in part 2026-09-02).** The coordinator's
 default remains the three-runtime route plan: Claude-authored work prefers Codex, Codex-authored
 work prefers Claude, and either may use OpenCode as the next independent route

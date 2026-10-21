@@ -1,0 +1,3437 @@
+diff --git a/packages/cli/scripts/reviewer-capability-eval.ts b/packages/cli/scripts/reviewer-capability-eval.ts
+new file mode 100644
+index 000000000..8c00eef3e
+--- /dev/null
++++ b/packages/cli/scripts/reviewer-capability-eval.ts
+@@ -0,0 +1,185 @@
++#!/usr/bin/env bun
++
++import { createHash } from 'node:crypto';
++import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
++import nodePath from 'node:path';
++
++import * as prettier from 'prettier';
++
++import {
++  type CapabilityManifest,
++  collectCapabilityResults,
++  compareSealedCapabilityResults,
++  rescoreCapabilityResults,
++  scoreCapabilityRun,
++  type SealedCapabilityResults,
++} from '../src/review/capability-eval.js';
++import { runHeadlessReviewerWithProvenance } from '../src/review/runtime.js';
++import {
++  REVIEWER_CAPABILITY_MANIFEST,
++  REVIEWER_CAPABILITY_RUBRICS,
++} from '../tests/fixtures/reviewer-capability-corpus.js';
++
++const packageRoot = nodePath.resolve(import.meta.dirname, '..');
++const evidenceDirectory = nodePath.join(packageRoot, 'tests/fixtures/reviewer-capability-evidence');
++const cataloguePath = nodePath.join(packageRoot, 'src/review/capability-catalogue.generated.ts');
++const rubrics = REVIEWER_CAPABILITY_RUBRICS;
++
++function modelFor(reviewer: 'claude' | 'codex'): string {
++  const key = reviewer === 'claude' ? 'anthropic_model' : 'openai_model';
++  const model = REVIEWER_CAPABILITY_MANIFEST.settings[key];
++  if (model === undefined || model === '') throw new Error(`Missing pinned ${key}`);
++  return model;
++}
++
++function evidencePath(reviewer: 'claude' | 'codex'): string {
++  return nodePath.join(evidenceDirectory, `${modelFor(reviewer)}.json`);
++}
++
++function readEvidence(reviewer: 'claude' | 'codex'): SealedCapabilityResults {
++  return JSON.parse(readFileSync(evidencePath(reviewer), 'utf8')) as SealedCapabilityResults;
++}
++
++function passingRuns(result: SealedCapabilityResults): number {
++  const labels = new Map(
++    REVIEWER_CAPABILITY_MANIFEST.fixtures.map(fixture => [fixture.label.id, fixture.label]),
++  );
++  return result.runs.filter(run => {
++    const label = labels.get(run.fixture_id);
++    return label !== undefined && scoreCapabilityRun(label, run);
++  }).length;
++}
++
++async function record(reviewer: 'claude' | 'codex'): Promise<void> {
++  process.env.SAFEWORD_REVIEW_WORKER = '1';
++  process.env.SAFEWORD_REVIEW_TIMEOUT_MS = REVIEWER_CAPABILITY_MANIFEST.settings.review_timeout_ms;
++  process.env.SAFEWORD_REVIEW_RUN_BOUND_MS =
++    REVIEWER_CAPABILITY_MANIFEST.settings.review_run_bound_ms;
++  const provider = reviewer === 'claude' ? 'anthropic' : 'openai';
++  const model = modelFor(reviewer);
++  let attempted = 0;
++  const result = await collectCapabilityResults({
++    manifest: REVIEWER_CAPABILITY_MANIFEST,
++    rubrics,
++    provider,
++    model,
++    evidenceDate: new Date().toISOString().slice(0, 10),
++    review: packet => {
++      attempted += 1;
++      process.stdout.write(`${attempted}: ${packet.dispatch_id}\n`);
++      return runHeadlessReviewerWithProvenance(reviewer, packet, packageRoot, packageRoot, {
++        model,
++        effort: 'medium',
++      });
++    },
++  });
++  mkdirSync(evidenceDirectory, { recursive: true });
++  writeFileSync(evidencePath(reviewer), `${JSON.stringify(result, undefined, 2)}\n`);
++  const passes = passingRuns(result);
++  process.stdout.write(`${model}: ${passes}/${result.runs.length} scored runs passed\n`);
++  if (
++    compareSealedCapabilityResults(REVIEWER_CAPABILITY_MANIFEST, rubrics, result, result) !==
++    'not_weaker'
++  ) {
++    process.exitCode = 1;
++  }
++}
++
++async function catalogueSource(): Promise<string> {
++  const claude = readEvidence('claude');
++  const codex = readEvidence('codex');
++  if (
++    claude.provider !== 'anthropic' ||
++    claude.model !== modelFor('claude') ||
++    codex.provider !== 'openai' ||
++    codex.model !== modelFor('codex')
++  ) {
++    throw new Error('Capability evidence does not match the pinned exact models');
++  }
++  const forward = compareSealedCapabilityResults(
++    REVIEWER_CAPABILITY_MANIFEST,
++    rubrics,
++    claude,
++    codex,
++  );
++  const reverse = compareSealedCapabilityResults(
++    REVIEWER_CAPABILITY_MANIFEST,
++    rubrics,
++    codex,
++    claude,
++  );
++  process.stdout.write(`Claude to Codex: ${forward}; Codex to Claude: ${reverse}\n`);
++  if (forward === 'unknown' || reverse === 'unknown') {
++    throw new Error('Shipped default cross-provider capability ordering is unqualified');
++  }
++  const revision = {
++    corpus_digest: claude.corpus_digest,
++    rubric_digest: claude.rubric_digest,
++    settings_digest: claude.settings_digest,
++  };
++  const pairs = (
++    [
++      [claude, codex, forward],
++      [codex, claude, reverse],
++    ] as const
++  ).map(([author, reviewer, direction]) => ({
++    ...revision,
++    author_provider: author.provider,
++    author_model: author.model,
++    reviewer_provider: reviewer.provider,
++    reviewer_model: reviewer.model,
++    direction,
++    qualification: 'pinned-corpus',
++    evidence_date:
++      author.evidence_date.localeCompare(reviewer.evidence_date) > 0
++        ? author.evidence_date
++        : reviewer.evidence_date,
++    results_digest: createHash('sha256')
++      .update(`${author.results_digest}\0${reviewer.results_digest}`)
++      .digest('hex'),
++  }));
++  const source = `// Generated by scripts/reviewer-capability-eval.ts from sealed live evidence.\nexport const PACKAGED_CAPABILITY_REVISION = ${JSON.stringify(revision, undefined, 2)} as const;\n\nexport const PACKAGED_CAPABILITY_SETTINGS = ${JSON.stringify(REVIEWER_CAPABILITY_MANIFEST.settings, undefined, 2)} as const;\n\nexport const PACKAGED_CAPABILITY_PAIRS = ${JSON.stringify(pairs, undefined, 2)} as const;\n`;
++  const options = await prettier.resolveConfig(cataloguePath);
++  return prettier.format(source, { ...options, filepath: cataloguePath });
++}
++
++async function verify(): Promise<void> {
++  if (readFileSync(cataloguePath, 'utf8') !== (await catalogueSource())) {
++    throw new Error('Packaged capability catalogue is stale; regenerate from current evidence');
++  }
++}
++
++const [command, reviewer] = process.argv.slice(2);
++try {
++  if (command === undefined || command === 'verify') await verify();
++  else if (command === 'generate') writeFileSync(cataloguePath, await catalogueSource());
++  else if (command === 'record' && (reviewer === 'claude' || reviewer === 'codex')) {
++    await record(reviewer);
++  } else if (command === 'rescore' && reviewer !== undefined) {
++    const previous = JSON.parse(readFileSync(reviewer, 'utf8')) as CapabilityManifest;
++    // Compute both before writing either: a failed migration leaves both original files intact.
++    const rescored = (['claude', 'codex'] as const).map(agent => ({
++      agent,
++      result: rescoreCapabilityResults(
++        previous,
++        REVIEWER_CAPABILITY_MANIFEST,
++        rubrics,
++        readEvidence(agent),
++        new Date().toISOString(),
++      ),
++    }));
++    for (const { agent, result } of rescored) {
++      writeFileSync(evidencePath(agent), `${JSON.stringify(result, undefined, 2)}\n`);
++      process.stdout.write(
++        `${result.model}: ${passingRuns(result)}/${result.runs.length} rescored observations; collected ${result.evidence_date}; original seal ${result.rescored_from?.results_digest}\n`,
++      );
++    }
++  } else {
++    throw new Error(
++      'Usage: bun run test:eval:reviewer-capability [verify | generate | record claude | record codex | rescore <previous-manifest.json>]',
++    );
++  }
++} catch (error) {
++  process.stderr.write(`${String(error)}\n`);
++  process.exitCode = 1;
++}
+diff --git a/packages/cli/src/cli-protocol/catalog.ts b/packages/cli/src/cli-protocol/catalog.ts
+index 52d8f5c99..6cb28884c 100644
+--- a/packages/cli/src/cli-protocol/catalog.ts
++++ b/packages/cli/src/cli-protocol/catalog.ts
+@@ -722,6 +722,29 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
+       environment: MACHINE_ENVIRONMENT,
+     },
+   }),
++  command('review continue', 'Complete a sealed planning review continuation', 'mutate', {
++    syntax: 'continue <review-id>',
++    commandOptions: [
++      { flags: '--tier <tier>', description: 'Pending fresh-context or self-review tier' },
++      { flags: '--output <path>', description: 'JSON reviewer result for the sealed packet' },
++      {
++        flags: '--failure <kind>',
++        description: 'Typed host failure when no reviewer result exists',
++      },
++    ],
++    fixture: {
++      argv: [
++        'review',
++        'continue',
++        'missing-review',
++        '--tier',
++        'fresh-context',
++        '--output',
++        'missing.json',
++      ],
++      environment: MACHINE_ENVIRONMENT,
++    },
++  }),
+   command('review gate executable-red', 'Check whether a scenario may claim GREEN', 'observe', {
+     syntax: 'executable-red',
+     commandOptions: [
+diff --git a/packages/cli/src/cli-protocol/public-handlers.ts b/packages/cli/src/cli-protocol/public-handlers.ts
+index 7ddffea28..96c1d09b9 100644
+--- a/packages/cli/src/cli-protocol/public-handlers.ts
++++ b/packages/cli/src/cli-protocol/public-handlers.ts
+@@ -29,6 +29,7 @@ import {
+   retrospectiveCloseGateHandler,
+   retrospectiveGateHandler,
+   reviewCancelHandler,
++  reviewContinueHandler,
+   reviewPrInspectHandler,
+   reviewPrPublicationHandler,
+   reviewPrReadinessHandler,
+@@ -617,6 +618,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
+   'review attest retrospective-close': retrospectiveCloseAttestHandler,
+   'review gate retrospective-close': retrospectiveCloseGateHandler,
+   'review status': reviewStatusHandler,
++  'review continue': reviewContinueHandler,
+   'review routes set': reviewRoutesSetHandler,
+   'review routes list': reviewRoutesListHandler,
+   'review routes reset': reviewRoutesResetHandler,
+diff --git a/packages/cli/src/cli-protocol/review-handlers.ts b/packages/cli/src/cli-protocol/review-handlers.ts
+index a434858a4..6c3e342d0 100644
+--- a/packages/cli/src/cli-protocol/review-handlers.ts
++++ b/packages/cli/src/cli-protocol/review-handlers.ts
+@@ -7,14 +7,16 @@
+  * behind dynamic imports.
+  */
+ 
+-import { existsSync } from 'node:fs';
++import { existsSync, readFileSync, statSync } from 'node:fs';
+ import nodePath from 'node:path';
+ 
++import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
+ import { retryCommand } from '../review/command.js';
+ import type {
+   RedEvidenceClass,
+   RedExecutionAttestation,
+   RedExecutionRequest,
++  ReviewFailure,
+   ReviewKind,
+ } from '../review/contract.js';
+ import type {
+@@ -22,6 +24,7 @@ import type {
+   PlanningContractCopyError,
+   ReviewPacketError as ReviewPacketErrorType,
+ } from '../review/packet.js';
++import { reviewRoutePlan } from '../review/policy.js';
+ import { ReviewConfigReadError, ReviewUserConfigPathError } from '../review/preferences.js';
+ import { ReviewRouteConfigError } from '../review/route-config.js';
+ import { resolveTicketsDirectory } from '../utils/configured-paths.js';
+@@ -193,9 +196,9 @@ export async function retrospectiveCloseGateHandler(
+   return retrospectiveCloseGate(invocation.cwd, ticket, ledger);
+ }
+ 
+-function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | undefined {
+-  return typeof value === 'string' && ['claude', 'codex', 'opencode'].includes(value)
+-    ? (value as 'claude' | 'codex' | 'opencode')
++function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'cursor' | 'opencode' | undefined {
++  return typeof value === 'string' && ['claude', 'codex', 'cursor', 'opencode'].includes(value)
++    ? (value as 'claude' | 'codex' | 'cursor' | 'opencode')
+     : undefined;
+ }
+ 
+@@ -274,13 +277,16 @@ export async function reviewRoutesSetHandler(invocation: CommandInvocation): Pro
+   });
+ }
+ 
+-const REVIEW_ROUTE_AUTHORS = ['claude', 'codex', 'opencode'] as const;
++const REVIEW_ROUTE_AUTHORS = ['claude', 'codex', 'cursor', 'opencode'] as const;
+ const REVIEW_ROUTE_CONFIG_KEY = 'crossAgentReviewRoutes';
+ 
+ export async function reviewRoutesListHandler(invocation: CommandInvocation): Promise<CliResult> {
+   const requested = reviewRouteAuthor(invocation.options.author);
+   if (requested === undefined && invocation.options.author !== undefined)
+-    return invalidOperand('review routes list', 'Provide --author as claude, codex, or opencode.');
++    return invalidOperand(
++      'review routes list',
++      'Provide --author as claude, codex, cursor, or opencode.',
++    );
+   // Without --author, list every author. Reviewer routing is the thing users
+   // come here to discover, so the read-only command should answer without
+   // first requiring the vocabulary it exists to teach.
+@@ -706,6 +712,70 @@ export async function reviewStatusHandler(invocation: CommandInvocation): Promis
+   return reviewJobStatus(invocation.cwd, id);
+ }
+ 
++// eslint-disable-next-line complexity -- All local origin, argument, and file checks guard a receipt mutation.
++export async function reviewContinueHandler(invocation: CommandInvocation): Promise<CliResult> {
++  const origin = reviewRoutePlan(resolveRunIdentity({}, { env: process.env }).runtime)?.author;
++  if (origin === undefined)
++    return createResult({
++      state: 'failed',
++      errors: [
++        {
++          code: 'REVIEW_CONTINUATION_ORIGIN_UNVERIFIED',
++          message: 'A supported local agent origin is required to continue this review.',
++          retryable: false,
++        },
++      ],
++      data: { command: 'review continue' },
++    });
++  const id = invocation.operands[0];
++  const tier = invocation.options.tier;
++  const outputPath = invocation.options.output;
++  const failure = invocation.options.failure;
++  const hostFailure =
++    typeof failure === 'string' &&
++    ['not_installed', 'unsupported', 'launch_failed', 'process_failed', 'timed_out'].includes(
++      failure,
++    )
++      ? (failure as ReviewFailure)
++      : undefined;
++  if (
++    typeof id !== 'string' ||
++    (tier !== 'fresh-context' && tier !== 'self-review') ||
++    (failure !== undefined && hostFailure === undefined) ||
++    (typeof outputPath !== 'string' || outputPath.trim() === '') === (hostFailure === undefined)
++  )
++    return invalidOperand(
++      'review continue',
++      'Provide a review id, --tier fresh-context|self-review, and exactly one of --output <json-file> or --failure <kind>.',
++    );
++  if (hostFailure !== undefined) {
++    const { submitReviewContinuation } = await import('../review/job.js');
++    return submitReviewContinuation(invocation.cwd, id, tier, undefined, {
++      origin,
++      failure: hostFailure,
++    });
++  }
++  let output: unknown;
++  try {
++    const path = nodePath.resolve(invocation.cwd, outputPath as string);
++    const file = statSync(path);
++    if (!file.isFile() || file.size > 1024 * 1024) throw new Error('invalid output file');
++    const body = readFileSync(path, 'utf8');
++    try {
++      output = JSON.parse(body) as unknown;
++    } catch {
++      output = undefined;
++    }
++  } catch {
++    return invalidOperand(
++      'review continue',
++      'The reviewer output must be a readable JSON file under 1 MiB.',
++    );
++  }
++  const { submitReviewContinuation } = await import('../review/job.js');
++  return submitReviewContinuation(invocation.cwd, id, tier, output, { origin });
++}
++
+ export async function reviewCancelHandler(invocation: CommandInvocation): Promise<CliResult> {
+   const id = typeof invocation.operands[0] === 'string' ? invocation.operands[0] : undefined;
+   const { cancelReviewJob } = await import('../review/job.js');
+diff --git a/packages/cli/src/commands/plan-approval.ts b/packages/cli/src/commands/plan-approval.ts
+index a3a6a2157..2e0b66a37 100644
+--- a/packages/cli/src/commands/plan-approval.ts
++++ b/packages/cli/src/commands/plan-approval.ts
+@@ -95,10 +95,12 @@ function designApprovalEnabled(cwd: string): boolean {
+   }
+ }
+ 
++type AchievedReviewIndependence = 'cross-agent' | 'reduced' | 'degraded';
++
+ function currentReview(
+   context: ApprovalContext,
+ ):
+-  | { readonly ok: true; readonly independence: 'cross-agent' | 'degraded' }
++  | { readonly ok: true; readonly independence: AchievedReviewIndependence }
+   | { readonly ok: false; readonly reason: string } {
+   const ticket = readFileSync(context.ticketPath, 'utf8');
+   if (
+@@ -394,7 +396,7 @@ function result(
+   finding?: string,
+   options: {
+     readonly severity?: 'info' | 'warning';
+-    readonly achievedIndependence?: 'cross-agent' | 'degraded';
++    readonly achievedIndependence?: AchievedReviewIndependence;
+   } = {},
+ ): CliResult {
+   let state: CliResult['state'] = changedFiles.length > 0 ? 'changed' : 'healthy';
+@@ -461,7 +463,7 @@ function settleInteractiveDecision(
+   context: ApprovalContext,
+   accepted: boolean,
+   ledgerTarget: string,
+-  achievedIndependence: 'cross-agent' | 'degraded',
++  achievedIndependence: AchievedReviewIndependence,
+   returnedToPlanning = false,
+ ): CliResult {
+   const submittedStatus = accepted ? 'approved' : 'declined';
+@@ -514,7 +516,7 @@ function settleInteractiveDecision(
+ 
+ function currentApprovalResult(
+   context: ApprovalContext,
+-  achievedIndependence: 'cross-agent' | 'degraded',
++  achievedIndependence: AchievedReviewIndependence,
+ ): CliResult | undefined {
+   if (currentDesignDecision(context.ledgerPath, context.ticketId, context.digest) !== 'approved') {
+     return undefined;
+@@ -544,6 +546,7 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
+   if (executionDiscovery !== undefined) {
+     return applyExecutionDiscovery(context, executionDiscovery);
+   }
++  const approvalRequired = designApprovalEnabled(context.cwd);
+   const review = currentReview(context);
+   if (!review.ok) {
+     return result(context, 'pending', [], review.reason);
+@@ -551,7 +554,7 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
+ 
+   const ledgerTarget = nodePath.relative(context.cwd, context.ledgerPath);
+   const ticketTarget = nodePath.relative(context.cwd, context.ticketPath);
+-  if (!designApprovalEnabled(context.cwd)) {
++  if (!approvalRequired) {
+     appendReceipt(context, 'not-required');
+     const advanced = advanceToExecutionPlanning(context);
+     return result(context, 'not-required', [ledgerTarget, ...advanced], undefined, {
+diff --git a/packages/cli/src/execution-plan/delivery-admission.ts b/packages/cli/src/execution-plan/delivery-admission.ts
+index 260d9ae8a..90e7dde1f 100644
+--- a/packages/cli/src/execution-plan/delivery-admission.ts
++++ b/packages/cli/src/execution-plan/delivery-admission.ts
+@@ -8,17 +8,18 @@ import type {
+ } from '../review/contract.js';
+ import { validateExecutionPlanOutput } from '../review/execution-plan-output.js';
+ import { reviewJobStatus } from '../review/job.js';
++import { reviewPolicyAllowsAssurance } from '../review/policy.js';
+ 
+ export type ExecutionPlanAdmission =
+   | {
+       readonly kind: 'admitted';
+       readonly reviewId: string;
+       readonly record: ExecutionPlanRecord;
+-      readonly independence: 'cross-agent' | 'degraded';
++      readonly independence: 'cross-agent' | 'reduced' | 'degraded';
+       readonly provenance: {
+         readonly authorAgent: string;
+         readonly reviewerAgent: string;
+-        readonly independence: 'cross-agent' | 'degraded';
++        readonly independence: 'cross-agent' | 'reduced' | 'degraded';
+       };
+     }
+   | { readonly kind: 'missing_verdict' }
+@@ -64,9 +65,10 @@ function achievedIndependence(
+   data: Record<string, unknown>,
+   output: Record<string, unknown>,
+   stamp: ReturnType<typeof parseReviewStamps>[number],
+-): 'cross-agent' | 'degraded' | undefined {
++): 'cross-agent' | 'reduced' | 'degraded' | undefined {
+   const independence = data.independence;
+-  if (independence !== 'cross-agent' && independence !== 'degraded') return undefined;
++  if (independence !== 'cross-agent' && independence !== 'reduced' && independence !== 'degraded')
++    return undefined;
+   if (
+     stamp.independence !== independence ||
+     stamp.author !== data.author_agent ||
+@@ -111,7 +113,8 @@ function candidateAdmission(
+     return { kind: 'rejected', message: rejectionMessage(output) };
+   }
+   const independence = achievedIndependence(data, output, stamp);
+-  if (independence === undefined) return { kind: 'unearned_assurance' };
++  if (independence === undefined || !reviewPolicyAllowsAssurance(input.cwd, independence))
++    return { kind: 'unearned_assurance' };
+   if (data.status !== 'approved') return { kind: 'not_admitted' };
+   const validated = validateExecutionPlanOutput(
+     output as unknown as UnverifiedReviewerOutput,
+diff --git a/packages/cli/src/execution-plan/execution-prerequisite.ts b/packages/cli/src/execution-plan/execution-prerequisite.ts
+index 2eed426fe..b82ccf779 100644
+--- a/packages/cli/src/execution-plan/execution-prerequisite.ts
++++ b/packages/cli/src/execution-plan/execution-prerequisite.ts
+@@ -58,7 +58,7 @@ interface MissingPrerequisite {
+ 
+ function successful(
+   status: ExecutionPrerequisiteStatus,
+-  achievedIndependence?: 'cross-agent' | 'degraded',
++  achievedIndependence?: 'cross-agent' | 'reduced' | 'degraded',
+   inputIdentity?: string,
+   executionPlanArtifact?: ExecutionPlanArtifactFacts,
+ ): CliResult {
+@@ -255,7 +255,7 @@ function approachPrerequisite(
+ type ChecklistPrerequisite =
+   | {
+       readonly admitted: true;
+-      readonly independence: 'cross-agent' | 'degraded';
++      readonly independence: 'cross-agent' | 'reduced' | 'degraded';
+       readonly provenance: ReviewProvenance;
+       readonly receipt: 'valid';
+     }
+diff --git a/packages/cli/src/lifecycle/status.ts b/packages/cli/src/lifecycle/status.ts
+index 9b49fafc2..8eb216b10 100644
+--- a/packages/cli/src/lifecycle/status.ts
++++ b/packages/cli/src/lifecycle/status.ts
+@@ -54,7 +54,7 @@ async function reviewRouteObservations(
+   routes: readonly {
+     readonly reviewer: 'claude' | 'codex' | 'opencode';
+     readonly model?: string;
+-    readonly independence: 'cross-agent' | 'degraded';
++    readonly independence: 'cross-agent' | 'reduced' | 'degraded';
+   }[],
+ ): Promise<readonly Record<string, unknown>[]> {
+   const inspectionDeadline = Date.now() + 5000;
+diff --git a/packages/cli/src/review/capability-catalogue.ts b/packages/cli/src/review/capability-catalogue.ts
+new file mode 100644
+index 000000000..f2da616df
+--- /dev/null
++++ b/packages/cli/src/review/capability-catalogue.ts
+@@ -0,0 +1,86 @@
++import {
++  PACKAGED_CAPABILITY_PAIRS as generatedPairs,
++  PACKAGED_CAPABILITY_REVISION as generatedRevision,
++} from './capability-catalogue.generated.js';
++
++export interface CapabilityRevision {
++  readonly corpus_digest: string;
++  readonly rubric_digest: string;
++  readonly settings_digest: string;
++}
++
++export interface CapabilityPairRecord extends CapabilityRevision {
++  readonly author_provider: string;
++  readonly reviewer_provider: string;
++  readonly author_model: string;
++  readonly reviewer_model: string;
++  readonly direction: 'not_weaker' | 'weaker';
++  readonly qualification: 'pinned-corpus' | 'provider-order' | 'unqualified';
++  readonly evidence_date: string;
++  readonly results_digest: string;
++}
++
++export type CapabilityComparison = 'not_weaker' | 'weaker' | 'unknown';
++
++export interface CapabilityModelIdentity {
++  readonly provider: string;
++  readonly model: string;
++}
++
++export const PACKAGED_CAPABILITY_REVISION: CapabilityRevision = generatedRevision;
++export const PACKAGED_CAPABILITY_PAIRS: readonly CapabilityPairRecord[] = generatedPairs;
++
++function matchesRevision(record: CapabilityPairRecord, current: CapabilityRevision): boolean {
++  return (
++    record.corpus_digest === current.corpus_digest &&
++    record.rubric_digest === current.rubric_digest &&
++    record.settings_digest === current.settings_digest
++  );
++}
++
++function hasQualifiedEvidence(record: CapabilityPairRecord): boolean {
++  return (
++    record.qualification !== 'unqualified' &&
++    record.author_provider !== '' &&
++    record.reviewer_provider !== '' &&
++    (record.qualification !== 'provider-order' ||
++      record.author_provider === record.reviewer_provider) &&
++    record.evidence_date !== '' &&
++    record.results_digest !== ''
++  );
++}
++
++/** Only current, qualified evidence for the exact directional pair carries authority. */
++export function compareReviewerCapability(
++  author: CapabilityModelIdentity,
++  reviewer: CapabilityModelIdentity,
++  current: CapabilityRevision,
++  records: readonly CapabilityPairRecord[],
++): CapabilityComparison {
++  const matching = records.filter(
++    record =>
++      record.author_provider === author.provider &&
++      record.author_model === author.model &&
++      record.reviewer_provider === reviewer.provider &&
++      record.reviewer_model === reviewer.model &&
++      matchesRevision(record, current) &&
++      hasQualifiedEvidence(record),
++  );
++  return matching.length === 1 ? (matching[0]?.direction ?? 'unknown') : 'unknown';
++}
++
++export function reviewerCapabilityFailure(
++  author: CapabilityModelIdentity,
++  requestedModel: string | undefined,
++  confirmed: CapabilityModelIdentity | undefined,
++  current: CapabilityRevision,
++  records: readonly CapabilityPairRecord[],
++): 'reviewer_capability_weaker' | 'reviewer_capability_unknown' | undefined {
++  if (requestedModel === undefined || confirmed?.model !== requestedModel)
++    return 'reviewer_capability_unknown';
++  const comparison = compareReviewerCapability(author, confirmed, current, records);
++  if (comparison === 'weaker') return 'reviewer_capability_weaker';
++  return comparison === 'not_weaker' ? undefined : 'reviewer_capability_unknown';
++}
++
++export { PACKAGED_CAPABILITY_SETTINGS } from './capability-catalogue.generated.js';
+diff --git a/packages/cli/src/review/capability-eval.ts b/packages/cli/src/review/capability-eval.ts
+new file mode 100644
+index 000000000..e7f4f562c
+--- /dev/null
++++ b/packages/cli/src/review/capability-eval.ts
+@@ -0,0 +1,338 @@
++import { createHash } from 'node:crypto';
++
++import type { CapabilityRevision } from './capability-catalogue.js';
++import type { ReviewPacket } from './contract.js';
++import type { ReviewerExecution } from './runtime.js';
++
++export interface CapabilityFixture {
++  readonly id: string;
++  readonly verdict: 'approve' | 'request_changes';
++  readonly required: readonly string[];
++  readonly forbidden: readonly string[];
++  /** All concept groups must occur in ONE blocking finding; each group lists alternatives.
++   * This is a bounded lexical oracle, not a semantic judge of arbitrary reviewer prose.
++   */
++  readonly finding_groups?: readonly (readonly string[])[];
++}
++
++export interface CapabilityRun {
++  readonly fixture_id: string;
++  readonly run: number;
++  readonly verdict: 'approve' | 'request_changes' | 'invalid';
++  readonly failure?: 'review_failed' | 'model_unconfirmed' | 'identity_mismatch';
++  readonly findings: readonly {
++    readonly severity: 'info' | 'warning' | 'error';
++    readonly message: string;
++  }[];
++}
++
++export interface CapabilityFloor {
++  readonly runs_per_fixture: number;
++  readonly minimum_fixture_passes: number;
++  readonly minimum_total_percent: number;
++}
++
++export interface CapabilityManifest {
++  readonly schema_version: 1;
++  readonly owner: string;
++  readonly floor: CapabilityFloor;
++  readonly settings: Readonly<Record<string, string>>;
++  readonly fixtures: readonly {
++    readonly label: CapabilityFixture;
++    readonly packet: ReviewPacket;
++  }[];
++}
++
++export interface SealedCapabilityResults extends CapabilityRevision {
++  readonly provider: string;
++  readonly model: string;
++  readonly evidence_date: string;
++  readonly runs: readonly CapabilityRun[];
++  readonly results_digest: string;
++  readonly rescored_from?: {
++    readonly results_digest: string;
++    readonly corpus_digest: string;
++    readonly scored_at: string;
++  };
++}
++
++function digest(value: unknown): string {
++  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
++}
++
++function sortedEntries(values: Readonly<Record<string, string>>): readonly [string, string][] {
++  return Object.entries(values).toSorted(([left], [right]) => left.localeCompare(right));
++}
++
++export function capabilityRevision(
++  manifest: CapabilityManifest,
++  rubrics: Readonly<Record<string, string>>,
++): CapabilityRevision {
++  return {
++    corpus_digest: digest({
++      schema_version: manifest.schema_version,
++      floor: manifest.floor,
++      fixtures: manifest.fixtures,
++    }),
++    rubric_digest: digest(sortedEntries(rubrics)),
++    settings_digest: digest(sortedEntries(manifest.settings)),
++  };
++}
++
++function resultsDigest(evidence: Omit<SealedCapabilityResults, 'results_digest'>): string {
++  return digest(evidence);
++}
++
++export function sealCapabilityResults(
++  provider: string,
++  model: string,
++  revision: CapabilityRevision,
++  runs: readonly CapabilityRun[],
++  evidenceDate: string,
++): SealedCapabilityResults {
++  const evidence = { provider, model, ...revision, evidence_date: evidenceDate, runs };
++  return { ...evidence, results_digest: resultsDigest(evidence) };
++}
++
++export interface CapabilityCollection {
++  readonly manifest: CapabilityManifest;
++  readonly rubrics: Readonly<Record<string, string>>;
++  readonly provider: 'anthropic' | 'openai';
++  readonly model: string;
++  readonly evidenceDate: string;
++  readonly review: (packet: ReviewPacket, model: string) => Promise<ReviewerExecution>;
++}
++
++function invalidCapabilityRun(
++  fixtureId: string,
++  run: number,
++  failure: NonNullable<CapabilityRun['failure']>,
++): CapabilityRun {
++  return { fixture_id: fixtureId, run, verdict: 'invalid', findings: [], failure };
++}
++
++async function collectCapabilityRun(
++  collection: CapabilityCollection,
++  fixture: CapabilityManifest['fixtures'][number],
++  run: number,
++): Promise<CapabilityRun> {
++  const { provider, model, review } = collection;
++  try {
++    const result = await review(fixture.packet, model);
++    if (result.confirmedModel?.provider !== provider || result.confirmedModel.model !== model) {
++      return invalidCapabilityRun(fixture.label.id, run, 'model_unconfirmed');
++    }
++    const expectedReviewer = provider === 'anthropic' ? 'claude' : 'codex';
++    if (
++      result.output.dispatch_id !== fixture.packet.dispatch_id ||
++      result.output.reviewer_agent !== expectedReviewer
++    ) {
++      return invalidCapabilityRun(fixture.label.id, run, 'identity_mismatch');
++    }
++    return {
++      fixture_id: fixture.label.id,
++      run,
++      verdict: result.output.verdict,
++      findings: result.output.findings,
++    };
++  } catch {
++    return invalidCapabilityRun(fixture.label.id, run, 'review_failed');
++  }
++}
++
++export async function collectCapabilityResults(
++  collection: CapabilityCollection,
++): Promise<SealedCapabilityResults> {
++  const { manifest, rubrics, provider, model, evidenceDate } = collection;
++  const runs: CapabilityRun[] = [];
++  for (const fixture of manifest.fixtures) {
++    for (let run = 1; run <= manifest.floor.runs_per_fixture; run += 1) {
++      runs.push(await collectCapabilityRun(collection, fixture, run));
++    }
++  }
++  return sealCapabilityResults(
++    provider,
++    model,
++    capabilityRevision(manifest, rubrics),
++    runs,
++    evidenceDate,
++  );
++}
++
++function currentEvidence(result: SealedCapabilityResults, revision: CapabilityRevision): boolean {
++  const { results_digest, ...evidence } = result;
++  return (
++    result.corpus_digest === revision.corpus_digest &&
++    result.rubric_digest === revision.rubric_digest &&
++    result.settings_digest === revision.settings_digest &&
++    result.provider !== '' &&
++    result.model !== '' &&
++    results_digest === resultsDigest(evidence)
++  );
++}
++
++/** Regrade unchanged observations; never represent them as newly collected model runs. */
++export function rescoreCapabilityResults(
++  previous: CapabilityManifest,
++  current: CapabilityManifest,
++  rubrics: Readonly<Record<string, string>>,
++  original: SealedCapabilityResults,
++  scoredAt: string,
++): SealedCapabilityResults {
++  const observationInputs = (manifest: CapabilityManifest) => ({
++    schema_version: manifest.schema_version,
++    floor: manifest.floor,
++    settings: manifest.settings,
++    fixtures: manifest.fixtures.map(fixture => ({ id: fixture.label.id, packet: fixture.packet })),
++  });
++  if (
++    original.rescored_from !== undefined ||
++    !currentEvidence(original, capabilityRevision(previous, rubrics)) ||
++    digest(observationInputs(previous)) !== digest(observationInputs(current))
++  )
++    throw new Error(
++      'Rescoring requires original sealed observations with unchanged packets, rubric, settings and floor',
++    );
++  const { results_digest, ...observations } = original;
++  const evidence = {
++    ...observations,
++    ...capabilityRevision(current, rubrics),
++    rescored_from: { results_digest, corpus_digest: original.corpus_digest, scored_at: scoredAt },
++  };
++  return { ...evidence, results_digest: resultsDigest(evidence) };
++}
++
++export function compareSealedCapabilityResults(
++  manifest: CapabilityManifest,
++  rubrics: Readonly<Record<string, string>>,
++  author: SealedCapabilityResults,
++  candidate: SealedCapabilityResults,
++): 'not_weaker' | 'weaker' | 'unknown' {
++  const revision = capabilityRevision(manifest, rubrics);
++  if (!currentEvidence(author, revision) || !currentEvidence(candidate, revision)) return 'unknown';
++  return compareCapabilityRuns(
++    manifest.fixtures.map(fixture => fixture.label),
++    author.runs,
++    candidate.runs,
++    manifest.floor,
++  );
++}
++
++function findingMatchesConceptGroups(
++  message: string,
++  groups: NonNullable<CapabilityFixture['finding_groups']>,
++): boolean {
++  const words = ` ${message.replaceAll(/[^\p{L}\p{N}]+/gu, ' ')}`;
++  return groups.every(group =>
++    group.some(
++      concept =>
++        concept.trim() !== '' &&
++        words.includes(` ${concept.toLowerCase().replaceAll(/[^\p{L}\p{N}]+/gu, ' ')}`),
++    ),
++  );
++}
++
++export function scoreCapabilityRun(fixture: CapabilityFixture, run: CapabilityRun): boolean {
++  const normalizedFindings = run.findings.map(finding => ({
++    severity: finding.severity,
++    message: finding.message.toLowerCase().replaceAll(/\s+/gu, ' '),
++  }));
++  const contains = (phrase: string, errorOnly: boolean): boolean =>
++    normalizedFindings.some(
++      finding =>
++        (!errorOnly || finding.severity === 'error') &&
++        finding.message.includes(phrase.toLowerCase().replaceAll(/\s+/gu, ' ')),
++    );
++  const groups = fixture.finding_groups;
++  return (
++    run.fixture_id === fixture.id &&
++    run.verdict === fixture.verdict &&
++    (run.verdict === 'request_changes') ===
++      normalizedFindings.some(finding => finding.severity === 'error') &&
++    fixture.required.every(finding => contains(finding, true)) &&
++    fixture.forbidden.every(finding => !contains(finding, false)) &&
++    (groups === undefined ||
++      (groups.length > 0 &&
++        normalizedFindings.some(
++          finding =>
++            finding.severity === 'error' && findingMatchesConceptGroups(finding.message, groups),
++        )))
++  );
++}
++
++function invalidCorpusShape(
++  fixtures: readonly CapabilityFixture[],
++  runs: readonly CapabilityRun[],
++  floor: CapabilityFloor,
++): boolean {
++  return (
++    fixtures.length === 0 ||
++    new Set(fixtures.map(fixture => fixture.id)).size !== fixtures.length ||
++    !Number.isSafeInteger(floor.runs_per_fixture) ||
++    floor.runs_per_fixture < 1 ||
++    !Number.isSafeInteger(floor.minimum_fixture_passes) ||
++    floor.minimum_fixture_passes < 1 ||
++    floor.minimum_fixture_passes > floor.runs_per_fixture ||
++    floor.minimum_total_percent < 0 ||
++    floor.minimum_total_percent > 100 ||
++    runs.length !== fixtures.length * floor.runs_per_fixture
++  );
++}
++
++function passCounts(
++  fixtures: readonly CapabilityFixture[],
++  runs: readonly CapabilityRun[],
++  floor: CapabilityFloor,
++): ReadonlyMap<string, number> | undefined {
++  const byFixture = new Map(fixtures.map(fixture => [fixture.id, fixture]));
++  const seen = new Set<string>();
++  const passes = new Map(fixtures.map(fixture => [fixture.id, 0]));
++  for (const run of runs) {
++    const fixture = byFixture.get(run.fixture_id);
++    const key = `${run.fixture_id}:${run.run}`;
++    if (
++      fixture === undefined ||
++      !Number.isSafeInteger(run.run) ||
++      run.run < 1 ||
++      run.run > floor.runs_per_fixture ||
++      seen.has(key)
++    )
++      return undefined;
++    seen.add(key);
++    if (scoreCapabilityRun(fixture, run)) {
++      passes.set(fixture.id, (passes.get(fixture.id) ?? 0) + 1);
++    }
++  }
++  return passes;
++}
++
++function qualifiedPassCounts(
++  fixtures: readonly CapabilityFixture[],
++  runs: readonly CapabilityRun[],
++  floor: CapabilityFloor,
++): ReadonlyMap<string, number> | undefined {
++  if (invalidCorpusShape(fixtures, runs, floor)) return undefined;
++  const passes = passCounts(fixtures, runs, floor);
++  if (passes === undefined) return undefined;
++  let totalPasses = 0;
++  for (const count of passes.values()) {
++    if (count < floor.minimum_fixture_passes) return undefined;
++    totalPasses += count;
++  }
++  if (totalPasses * 100 < floor.minimum_total_percent * runs.length) return undefined;
++  return passes;
++}
++
++export function compareCapabilityRuns(
++  fixtures: readonly CapabilityFixture[],
++  author: readonly CapabilityRun[],
++  candidate: readonly CapabilityRun[],
++  floor: CapabilityFloor,
++): 'not_weaker' | 'weaker' | 'unknown' {
++  const authorPasses = qualifiedPassCounts(fixtures, author, floor);
++  const candidatePasses = qualifiedPassCounts(fixtures, candidate, floor);
++  if (authorPasses === undefined || candidatePasses === undefined) return 'unknown';
++  return [...authorPasses].every(([id, count]) => (candidatePasses.get(id) ?? 0) >= count)
++    ? 'not_weaker'
++    : 'weaker';
++}
+diff --git a/packages/cli/src/review/codex-app-server-proof.ts b/packages/cli/src/review/codex-app-server-proof.ts
+new file mode 100644
+index 000000000..41c2b401f
+--- /dev/null
++++ b/packages/cli/src/review/codex-app-server-proof.ts
+@@ -0,0 +1,131 @@
++import type { ConfirmedReviewerModel } from './runtime.js';
++
++interface CodexTurnProof {
++  readonly text: string;
++  readonly confirmedModel?: ConfirmedReviewerModel;
++}
++
++function record(value: unknown): value is Record<string, unknown> {
++  return typeof value === 'object' && value !== null && !Array.isArray(value);
++}
++
++function unique(
++  messages: readonly unknown[],
++  predicate: (message: Record<string, unknown>) => boolean,
++): Record<string, unknown> | undefined {
++  const matches = messages.filter(
++    (message): message is Record<string, unknown> => record(message) && predicate(message),
++  );
++  return matches.length === 1 ? matches[0] : undefined;
++}
++
++function startedTurn(
++  messages: readonly unknown[],
++):
++  | { readonly threadId: string; readonly turnId: string; readonly start: Record<string, unknown> }
++  | undefined {
++  const start = unique(messages, message => message.id === 2);
++  const turnStart = unique(messages, message => message.id === 3);
++  if (!record(start?.result) || !record(start.result.thread) || !record(turnStart?.result))
++    return undefined;
++  const threadId = start.result.thread.id;
++  const turn = turnStart.result.turn;
++  if (typeof threadId !== 'string' || !record(turn) || typeof turn.id !== 'string')
++    return undefined;
++  return { threadId, turnId: turn.id, start: start.result };
++}
++
++function completedTurn(
++  messages: readonly unknown[],
++  threadId: string,
++  turnId: string,
++): Record<string, unknown> | undefined {
++  const completed = unique(
++    messages,
++    message =>
++      message.method === 'turn/completed' &&
++      record(message.params) &&
++      message.params.threadId === threadId &&
++      record(message.params.turn) &&
++      message.params.turn.id === turnId,
++  );
++  if (!record(completed?.params) || !record(completed.params.turn)) return undefined;
++  const finishedTurn = completed.params.turn;
++  if (finishedTurn.status !== 'completed' || !Array.isArray(finishedTurn.items)) return undefined;
++  return finishedTurn;
++}
++
++export function codexAppServerFailedTurn(messages: readonly unknown[]): boolean {
++  const started = startedTurn(messages);
++  if (started === undefined) return false;
++  return messages.some(
++    message =>
++      record(message) &&
++      message.method === 'turn/completed' &&
++      record(message.params) &&
++      message.params.threadId === started.threadId &&
++      record(message.params.turn) &&
++      message.params.turn.id === started.turnId &&
++      message.params.turn.status === 'failed',
++  );
++}
++
++function finalAnswer(turn: Record<string, unknown>): string | undefined {
++  if (!Array.isArray(turn.items)) return undefined;
++  const answers = turn.items.filter(
++    (item): item is Record<string, unknown> =>
++      record(item) &&
++      item.type === 'agentMessage' &&
++      item.phase === 'final_answer' &&
++      typeof item.text === 'string',
++  );
++  if (answers.length !== 1 || typeof answers[0]?.text !== 'string') return undefined;
++  return answers[0].text;
++}
++
++function wasRerouted(messages: readonly unknown[], threadId: string, turnId: string): boolean {
++  return messages.some(
++    message =>
++      record(message) &&
++      message.method === 'model/rerouted' &&
++      record(message.params) &&
++      message.params.threadId === threadId &&
++      message.params.turnId === turnId,
++  );
++}
++
++function confirmedModel(
++  start: Record<string, unknown>,
++  selectedModel: string | undefined,
++): ConfirmedReviewerModel | undefined {
++  const model = start.model;
++  const provider = start.modelProvider;
++  if (
++    typeof model !== 'string' ||
++    model === '' ||
++    provider !== 'openai' ||
++    (selectedModel !== undefined && selectedModel !== model)
++  )
++    return undefined;
++  return { provider, model };
++}
++
++/** A model acknowledgement has authority only for its matching completed turn. */
++export function codexAppServerProof(
++  messages: readonly unknown[],
++  selectedModel: string | undefined,
++): CodexTurnProof | undefined {
++  const started = startedTurn(messages);
++  if (started === undefined) return undefined;
++  const completed = completedTurn(messages, started.threadId, started.turnId);
++  if (completed === undefined) return undefined;
++  const text = finalAnswer(completed);
++  if (text === undefined) return undefined;
++  const model = wasRerouted(messages, started.threadId, started.turnId)
++    ? undefined
++    : confirmedModel(started.start, selectedModel);
++  return {
++    text,
++    ...(model && { confirmedModel: model }),
++  };
++}
+diff --git a/packages/cli/src/review/contract.ts b/packages/cli/src/review/contract.ts
+index eff611882..9572caca7 100644
+--- a/packages/cli/src/review/contract.ts
++++ b/packages/cli/src/review/contract.ts
+@@ -2,6 +2,7 @@ import type { ReviewDispositionContext } from './planning-accepted-boundary.js';
+ import type { PlanningRoleContext } from './planning-role-context.js';
+ export type ReviewAgent = 'claude' | 'codex' | 'opencode';
+ export type ReviewAuthor = ReviewAgent | 'cursor' | 'unknown';
++export type SupportedReviewAuthor = Exclude<ReviewAuthor, 'unknown'>;
+ export type ReviewKind =
+   | 'quality-review'
+   | 'scenario-gate'
+@@ -69,6 +70,8 @@ export type ReviewFailure =
+   | 'process_failed'
+   | 'timed_out'
+   | 'invalid_output'
++  | 'reviewer_capability_unknown'
++  | 'reviewer_capability_weaker'
+   | 'REVIEWER_PROVENANCE_MISSING'
+   | 'REVIEWER_PROVENANCE_CONTRADICTORY';
+ 
+@@ -145,7 +148,7 @@ export interface ExecutionPlanRecord {
+ export interface ReviewerOutput {
+   readonly schema_version: 1;
+   readonly dispatch_id: string;
+-  readonly reviewer_agent: ReviewAgent;
++  readonly reviewer_agent: SupportedReviewAuthor;
+   readonly verdict: 'approve' | 'request_changes';
+   readonly summary: string;
+   readonly findings: readonly ReviewFinding[];
+diff --git a/packages/cli/src/review/coordinator.ts b/packages/cli/src/review/coordinator.ts
+index 37467a8a6..df1b0171d 100644
+--- a/packages/cli/src/review/coordinator.ts
++++ b/packages/cli/src/review/coordinator.ts
+@@ -1,10 +1,17 @@
+ import { readFileSync } from 'node:fs';
+ import nodePath from 'node:path';
+ 
++import { AUTHOR_MODEL_ENV } from '../../templates/hooks/lib/review-ledger.js';
+ import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
+ import type { ProgressReporter } from '../cli-protocol/handler.js';
+ import { type CliResult, createResult, type Effect, type Finding } from '../cli-protocol/result.js';
+ import { readFrontmatterScalar } from '../utils/frontmatter.js';
++import {
++  PACKAGED_CAPABILITY_PAIRS,
++  PACKAGED_CAPABILITY_REVISION,
++  PACKAGED_CAPABILITY_SETTINGS,
++  reviewerCapabilityFailure,
++} from './capability-catalogue.js';
+ import { retryCommand } from './command.js';
+ import type {
+   RedExecutionAttestation,
+@@ -14,6 +21,7 @@ import type {
+   ReviewFailure,
+   ReviewKind,
+   ReviewPolicy,
++  SupportedReviewAuthor,
+   UnverifiedReviewerOutput,
+ } from './contract.js';
+ import { filterExecutionPlanRoutes } from './execution-plan-conformance.js';
+@@ -27,7 +35,14 @@ import {
+   readReviewPolicy,
+   reviewRoutePlan,
+ } from './policy.js';
+-import { minimumRouteMs, ReviewRuntimeError, runBoundMs, runHeadlessReviewer } from './runtime.js';
++import { reviewerPromptInstructions } from './review-rubric.js';
++import {
++  type ConfirmedReviewerModel,
++  minimumRouteMs,
++  ReviewRuntimeError,
++  runBoundMs,
++  runHeadlessReviewerWithProvenance,
++} from './runtime.js';
+ import { withReviewScope } from './scope.js';
+ 
+ /** The command runner owns reporter shutdown; review routing only updates it. */
+@@ -105,6 +120,12 @@ function planExecutionRecovery(input: {
+   ];
+ }
+ 
++function confirmedReviewerData(model: ConfirmedReviewerModel | undefined): {
++  readonly confirmed_reviewer_model?: ConfirmedReviewerModel;
++} {
++  return model === undefined ? {} : { confirmed_reviewer_model: model };
++}
++
+ type DegradedReviewInput = ReviewRunInput & {
+   readonly author: ReviewAgent;
+   readonly assignedReviewer: ReviewAgent;
+@@ -155,12 +176,15 @@ function verifyProvenance(
+ function independentReviewResult(input: {
+   readonly cwd: string;
+   readonly author: ReviewAuthor;
++  readonly policy: ReviewPolicy;
+   readonly kind: ReviewKind;
+   readonly targets: readonly string[];
+   readonly context?: readonly string[];
+   readonly reviewer: ReviewAgent;
+   readonly output: ReviewerOutput;
+   readonly model?: string;
++  readonly confirmedModel?: ConfirmedReviewerModel;
++  readonly planning?: boolean;
+   readonly preferredReviewer?: ReviewAgent;
+   readonly preferredModel?: string;
+   readonly preferredModelFailure?: ReviewFailure;
+@@ -169,7 +193,7 @@ function independentReviewResult(input: {
+   readonly alternateModel?: string;
+   readonly alternateFailure?: ReviewFailure;
+ }): CliResult {
+-  return createResult({
++  const result = createResult({
+     state: input.output.verdict === 'approve' ? 'healthy' : 'action_required',
+     findings: [
+       {
+@@ -199,6 +223,7 @@ function independentReviewResult(input: {
+       assigned_reviewer: input.reviewer,
+       actual_reviewer: input.output.reviewer_agent,
+       ...(input.model !== undefined && { reviewer_model: input.model }),
++      ...confirmedReviewerData(input.confirmedModel),
+       ...(input.preferredModel !== undefined && { preferred_model: input.preferredModel }),
+       ...(input.preferredModelFailure !== undefined && {
+         preferred_model_failure: input.preferredModelFailure,
+@@ -212,6 +237,43 @@ function independentReviewResult(input: {
+       reviewer_output: input.output,
+     },
+   });
++  return withPlanningAuthorCapability(input, result);
++}
++
++function withPlanningAuthorCapability(
++  input: {
++    readonly kind: ReviewKind;
++    readonly author: ReviewAuthor;
++    readonly policy: ReviewPolicy;
++    readonly planning?: boolean;
++  },
++  result: CliResult,
++): CliResult {
++  const authorModel = process.env[AUTHOR_MODEL_ENV];
++  if (
++    !(input.planning ?? isPlanningReview(input.kind)) ||
++    (input.author === 'claude' && authorModel !== undefined && authorModel.trim() !== '')
++  )
++    return result;
++  return {
++    ...result,
++    state: input.policy === 'require' ? 'action_required' : result.state,
++    findings: [
++      {
++        code: 'AUTHOR_CAPABILITY_UNKNOWN',
++        message: 'This host did not provide a verified exact author model for the planning review.',
++        severity: 'warning',
++      },
++      ...result.findings.filter(finding => finding.code !== 'REVIEW_INDEPENDENCE'),
++    ],
++    data: {
++      ...(result.data as Record<string, unknown>),
++      status:
++        input.policy === 'require' ? 'blocked' : (result.data as Record<string, unknown>).status,
++      independence: input.policy === 'require' ? 'none' : 'reduced',
++      capability_failure: 'author_capability_unknown',
++    },
++  };
+ }
+ 
+ /** Project validated reviewer feedback into the public result as well as typed metadata. */
+@@ -230,6 +292,46 @@ function reviewerFeedback(output: ReviewerOutput): readonly Finding[] {
+   ];
+ }
+ 
++/** Convert a job-bound same-agent host review into an honestly reduced receipt. */
++export function hostContinuationCompletion(input: {
++  readonly pending: CliResult;
++  readonly output: ReviewerOutput;
++  readonly tier: 'fresh-context' | 'self-review';
++  readonly cwd: string;
++  readonly kind: ReviewKind;
++  readonly targets: readonly string[];
++}): CliResult {
++  const data = input.pending.data as Record<string, unknown>;
++  return createResult({
++    state: input.output.verdict === 'approve' ? 'healthy' : 'action_required',
++    findings: [
++      {
++        code: 'REVIEW_INDEPENDENCE_REDUCED',
++        message:
++          input.tier === 'fresh-context'
++            ? 'A fresh context of the author agent reviewed the sealed packet; independence is reduced.'
++            : 'The author agent reviewed the sealed packet in its own context; independence is reduced.',
++        severity: 'warning',
++      },
++      ...reviewerFeedback(input.output),
++    ],
++    effects: { ...input.pending.effects, network: [] },
++    recovery: planExecutionRecovery({
++      cwd: input.cwd,
++      kind: input.kind,
++      targets: input.targets,
++      output: input.output,
++    }),
++    data: {
++      ...data,
++      status: input.output.verdict === 'approve' ? 'approved' : 'changes_requested',
++      actual_reviewer: input.output.reviewer_agent,
++      independence: 'reduced',
++      reviewer_output: input.output,
++    },
++  });
++}
++
+ const MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000;
+ 
+ export function terminalSafeReviewerText(value: string): string {
+@@ -239,33 +341,49 @@ export function terminalSafeReviewerText(value: string): string {
+   return `${characters.slice(0, MAX_TERMINAL_REVIEWER_TEXT_LENGTH - 1).join('')}…`;
+ }
+ 
++type ReviewExecutionOutcome =
++  | {
++      readonly kind: 'completed';
++      readonly output: UnverifiedReviewerOutput;
++      readonly confirmedModel?: ConfirmedReviewerModel;
++    }
++  | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean };
++
+ async function executeReview(
+   reviewer: ReviewAgent,
+   prepared: ReturnType<typeof prepareReviewPacket>,
+   model?: string,
+   runDeadline?: number,
++  retainPrepared = false,
+ ): Promise<{
+-  outcome:
+-    | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
+-    | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean };
++  outcome: ReviewExecutionOutcome;
+   sourceChanged: boolean;
+   snapshotChanged: boolean;
+ }> {
+-  let outcome:
+-    | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
+-    | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean };
++  let outcome: ReviewExecutionOutcome;
+   try {
+-    const output = await runHeadlessReviewer(
++    const execution = await runHeadlessReviewerWithProvenance(
+       reviewer,
+       prepared.packet,
+       prepared.workspace,
+       prepared.sourceRoot,
+-      { model, runDeadline },
++      {
++        model,
++        runDeadline,
++        ...((prepared.packet.planning_phase !== undefined ||
++          isPlanningReview(prepared.packet.kind)) &&
++          reviewer !== 'opencode' && {
++            effort:
++              reviewer === 'codex'
++                ? PACKAGED_CAPABILITY_SETTINGS.codex_reasoning
++                : PACKAGED_CAPABILITY_SETTINGS.claude_effort,
++          }),
++      },
+     );
+-    outcome = { kind: 'completed', output };
++    outcome = { kind: 'completed', ...execution };
+   } catch (error) {
+     if (!(error instanceof ReviewRuntimeError)) {
+-      prepared.cleanup();
++      if (!retainPrepared) prepared.cleanup();
+       throw error;
+     }
+     outcome = { kind: 'failed', failure: error.failure, terminal: error.terminal };
+@@ -277,30 +395,33 @@ async function executeReview(
+       snapshotChanged: prepared.snapshotChanged(),
+     };
+   } finally {
+-    prepared.cleanup();
++    if (!retainPrepared) prepared.cleanup();
+   }
+ }
+ 
+ function assessReviewOutcome(
+-  outcome:
+-    | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
+-    | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean },
++  outcome: ReviewExecutionOutcome,
+   reviewer: ReviewAgent,
+   dispatchId: string,
+ ):
+-  | { readonly kind: 'completed'; readonly output: ReviewerOutput }
++  | {
++      readonly kind: 'completed';
++      readonly output: ReviewerOutput;
++      readonly confirmedModel?: ConfirmedReviewerModel;
++    }
+   | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean } {
+   if (outcome.kind === 'failed') return outcome;
+   const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
+   return provenance.kind === 'failed'
+     ? { kind: 'failed', failure: provenance.code, terminal: false }
+-    : { kind: 'completed', output: provenance.output };
++    : { kind: 'completed', output: provenance.output, confirmedModel: outcome.confirmedModel };
+ }
+ 
+ /** How an agent is written for a reader: the product name, not the runtime id. */
+-function agentName(agent: ReviewAgent): string {
++function agentName(agent: SupportedReviewAuthor): string {
+   if (agent === 'codex') return 'Codex';
+   if (agent === 'opencode') return 'OpenCode';
++  if (agent === 'cursor') return 'Cursor';
+   return 'Claude';
+ }
+ 
+@@ -321,6 +442,8 @@ const FAILURE_CAUSES: Readonly<Record<string, string>> = {
+   launch_failed: 'could not launch its compatibility check',
+   not_authenticated: 'is not signed in',
+   invalid_output: 'gave an answer that could not be accepted',
++  reviewer_capability_unknown: 'did not establish a qualified reviewer model',
++  reviewer_capability_weaker: 'was proven weaker than the author model',
+   REVIEWER_PROVENANCE_MISSING: 'gave an answer that did not identify it as the reviewer',
+   REVIEWER_PROVENANCE_CONTRADICTORY: 'gave an answer that did not identify it as the reviewer',
+ };
+@@ -480,7 +603,7 @@ const RUNTIME_WIDE_FAILURES: ReadonlySet<ReviewFailure> = new Set([
+ 
+ function invalidRouteConfigResult(
+   error: unknown,
+-  author: ReviewAgent,
++  author: SupportedReviewAuthor,
+   policy: ReviewPolicy,
+ ): CliResult {
+   return createResult({
+@@ -513,7 +636,7 @@ function invalidRouteConfigResult(
+ }
+ 
+ function degradedIndependenceMessage(
+-  author: ReviewAgent,
++  author: SupportedReviewAuthor,
+   evidence: readonly RankedRouteEvidence[],
+ ): string {
+   const suffix = evidence.some(route => route.independence === 'cross-agent')
+@@ -524,6 +647,30 @@ function degradedIndependenceMessage(
+   return `This review was not independent: ${agentName(author)} checked its own work${suffix}.${detail}`;
+ }
+ 
++function isPlanningReview(kind: ReviewKind): boolean {
++  return ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(kind);
++}
++
++function rankedFallbackFinding(
++  planning: boolean,
++  author: SupportedReviewAuthor,
++  reviewer: ReviewAgent,
++  evidence: readonly RankedRouteEvidence[],
++): Finding {
++  if (planning) {
++    return {
++      code: 'REVIEW_INDEPENDENCE_REDUCED',
++      message: `Independent reviewer routes were exhausted; ${agentName(reviewer)} reviewed this plan in a separate headless process with reduced independence.`,
++      severity: 'warning',
++    };
++  }
++  return {
++    code: 'REVIEW_INDEPENDENCE_DEGRADED',
++    message: degradedIndependenceMessage(author, evidence),
++    severity: 'warning',
++  };
++}
++
+ function rankedFailureExplanation(evidence: readonly RankedRouteEvidence[]): string {
+   return evidence
+     .filter(
+@@ -537,27 +684,40 @@ function rankedFailureExplanation(evidence: readonly RankedRouteEvidence[]): str
+     .join(' ');
+ }
+ 
++function rankedBlockingCode(
++  hasDegraded: boolean,
++  hasUnqualified: boolean,
++  hasWeaker: boolean,
++): string {
++  if (hasDegraded) return 'REVIEW_INDEPENDENCE_REQUIRED';
++  if (hasUnqualified) return 'REVIEWER_CAPABILITY_UNKNOWN';
++  return hasWeaker ? 'REVIEWER_CAPABILITY_WEAKER' : 'REVIEW_ROUTES_EXHAUSTED';
++}
++
+ // The result mirrors the evidence matrix deliberately; flattening these
+ // policy-dependent fields would make degraded proof easier to misreport.
+-// eslint-disable-next-line complexity -- Result fields vary together by review policy and proof state.
++// eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Result fields vary together by review policy and proof state.
+ function rankedExhaustedResult(input: {
+-  readonly author: ReviewAgent;
++  readonly author: SupportedReviewAuthor;
+   readonly policy: ReviewPolicy;
+   readonly kind: ReviewKind;
++  readonly planning: boolean;
+   readonly targets: readonly string[];
+   readonly context?: readonly string[];
+   readonly evidence: readonly RankedRouteEvidence[];
+   readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
++  readonly unqualified?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
+ }): CliResult {
+   if (input.degraded !== undefined && input.policy === 'prefer') {
+     return createResult({
+       state: input.degraded.output.verdict === 'approve' ? 'healthy' : 'action_required',
+       findings: [
+-        {
+-          code: 'REVIEW_INDEPENDENCE_DEGRADED',
+-          message: degradedIndependenceMessage(input.author, input.evidence),
+-          severity: 'warning',
+-        },
++        rankedFallbackFinding(
++          input.planning,
++          input.author,
++          input.degraded.route.reviewer,
++          input.evidence,
++        ),
+         ...reviewerFeedback(input.degraded.output),
+       ],
+       effects: { network: rankedNetworkEffects(input.evidence) },
+@@ -570,7 +730,7 @@ function rankedExhaustedResult(input: {
+         ...(input.degraded.route.model !== undefined && {
+           reviewer_model: input.degraded.route.model,
+         }),
+-        independence: 'degraded',
++        independence: input.planning ? 'reduced' : 'degraded',
+         review_routes: input.evidence,
+         reviewer_output: input.degraded.output,
+       },
+@@ -581,8 +741,11 @@ function rankedExhaustedResult(input: {
+     ['attempted', 'unavailable'].includes(route.status),
+   );
+   const hasDegraded = input.degraded !== undefined;
++  const achievedIndependence = hasDegraded ? 'degraded' : 'none';
++  const independence = hasDegraded && input.planning ? 'reduced' : achievedIndependence;
+   const evaluatedLabel = evaluated.length === 1 ? 'route was' : 'routes were';
+-  const code = hasDegraded ? 'REVIEW_INDEPENDENCE_REQUIRED' : 'REVIEW_ROUTES_EXHAUSTED';
++  const hasWeaker = input.evidence.some(route => route.failure === 'reviewer_capability_weaker');
++  const code = rankedBlockingCode(hasDegraded, input.unqualified !== undefined, hasWeaker);
+   const failureExplanation = rankedFailureExplanation(input.evidence);
+   const failureDetail = failureExplanation === '' ? '' : ` ${failureExplanation}`;
+   const message = hasDegraded
+@@ -600,6 +763,7 @@ function rankedExhaustedResult(input: {
+         message,
+         severity: 'warning',
+       },
++      ...(input.unqualified === undefined ? [] : reviewerFeedback(input.unqualified.output)),
+       ...(hasDegraded ? reviewerFeedback(input.degraded.output) : []),
+     ],
+     effects: { network: rankedNetworkEffects(input.evidence) },
+@@ -615,8 +779,17 @@ function rankedExhaustedResult(input: {
+       status: 'blocked',
+       author_agent: input.author,
+       review_policy: input.policy,
+-      independence: hasDegraded ? 'degraded' : 'none',
++      independence,
+       review_routes: input.evidence,
++      ...(input.unqualified !== undefined && {
++        capability_failure: 'reviewer_capability_unknown',
++        actual_reviewer: input.unqualified.output.reviewer_agent,
++        reviewer_output: input.unqualified.output,
++      }),
++      ...(input.unqualified === undefined &&
++        hasWeaker && {
++          capability_failure: 'reviewer_capability_weaker',
++        }),
+       ...(input.degraded !== undefined && {
+         assigned_reviewer: input.degraded.route.reviewer,
+         actual_reviewer: input.degraded.output.reviewer_agent,
+@@ -660,7 +833,7 @@ function recordRankedFailure(
+ }
+ 
+ function rankedAuthenticationRequiredResult(input: {
+-  readonly author: ReviewAgent;
++  readonly author: SupportedReviewAuthor;
+   readonly policy: ReviewPolicy;
+   readonly route: ReviewRoute;
+   readonly evidence: readonly RankedRouteEvidence[];
+@@ -694,14 +867,16 @@ function rankedAuthenticationRequiredResult(input: {
+ 
+ function rankedFailureResult(input: {
+   readonly run: ReviewRunInput;
+-  readonly author: ReviewAgent;
++  readonly author: SupportedReviewAuthor;
+   readonly policy: ReviewPolicy;
++  readonly planning: boolean;
+   readonly route: ReviewRoute;
+   readonly remainingRoutes: readonly ReviewRoute[];
+   readonly failure: Extract<ReturnType<typeof assessReviewOutcome>, { readonly kind: 'failed' }>;
+   readonly evidence: RankedRouteEvidence[];
+   readonly unavailable: Set<ReviewAgent>;
+   readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
++  readonly unqualified?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
+ }): CliResult | undefined {
+   const terminal = recordRankedFailure(
+     input.route,
+@@ -720,19 +895,22 @@ function rankedFailureResult(input: {
+     author: input.author,
+     policy: input.policy,
+     kind: input.run.kind,
++    planning: input.planning,
+     targets: input.run.targets,
+     context: input.run.context,
+     evidence: input.evidence,
+     degraded: input.degraded,
++    unqualified: input.unqualified,
+   });
+ }
+ 
+ async function executeRankedRoute(input: {
+   readonly run: ReviewRunInput;
+-  readonly author: ReviewAgent;
++  readonly author: SupportedReviewAuthor;
+   readonly policy: ReviewPolicy;
+   readonly route: ReviewRoute;
+   readonly runDeadline: number;
++  readonly prepared: ReturnType<typeof prepareReviewPacket>;
+ }): Promise<
+   ReturnType<typeof assessReviewOutcome> | { readonly kind: 'result'; readonly result: CliResult }
+ > {
+@@ -741,21 +919,15 @@ async function executeRankedRoute(input: {
+   input.run.progress?.start(
+     `Requesting ${independentLabel}${agentName(input.route.reviewer)} review${modelLabel}…`,
+   );
+-  const prepared = prepareReviewPacket(
+-    input.run.cwd,
+-    input.run.kind,
+-    input.run.targets,
+-    input.run.context,
+-    { attestation: input.run.executionAttestation },
+-  );
+   input.run.progress?.heartbeat?.(
+     `Still waiting for a response from ${agentName(input.route.reviewer)}…`,
+   );
+   const execution = await executeReview(
+     input.route.reviewer,
+-    prepared,
++    input.prepared,
+     input.route.model,
+     input.runDeadline,
++    true,
+   );
+   const changed = changedReviewResult({
+     author: input.author,
+@@ -772,96 +944,331 @@ async function executeRankedRoute(input: {
+         : [reviewRequest(input.route.reviewer)],
+   });
+   if (changed !== undefined) return { kind: 'result', result: changed };
+-  return assessReviewOutcome(execution.outcome, input.route.reviewer, prepared.packet.dispatch_id);
++  return assessReviewOutcome(
++    execution.outcome,
++    input.route.reviewer,
++    input.prepared.packet.dispatch_id,
++  );
++}
++
++interface RankedRun {
++  readonly input: ReviewRunInput;
++  readonly author: SupportedReviewAuthor;
++  readonly policy: ReviewPolicy;
++  readonly routes: readonly ReviewRoute[];
++  readonly planning: boolean;
++  readonly prepared?: ReturnType<typeof prepareReviewPacket>;
++}
++
++async function runRankedRoutes({
++  input,
++  author,
++  policy,
++  routes,
++  planning,
++  prepared,
++}: RankedRun): Promise<CliResult> {
++  if (planning && routes.every(route => route.independence !== 'cross-agent')) {
++    prepared?.cleanup();
++    return rankedExhaustedResult({
++      author,
++      policy,
++      kind: input.kind,
++      planning,
++      targets: input.targets,
++      context: input.context,
++      evidence: routes.map(route => ({ ...route, status: 'unattempted' })),
++    });
++  }
++  return runConfiguredRankedRoutes({ input, author, policy, routes, planning, prepared });
++}
++
++function cannotAttemptRankedRoute(
++  planning: boolean,
++  route: ReviewRoute,
++  evidence: readonly RankedRouteEvidence[],
++  deadline: number,
++): boolean {
++  return (
++    !canFundRoute(deadline) || planningFallbackLacksIndependentAttempt(planning, route, evidence)
++  );
++}
++
++function rankedReviewerCapabilityFailure(
++  planning: boolean,
++  author: SupportedReviewAuthor,
++  route: ReviewRoute,
++  confirmedModel: ConfirmedReviewerModel | undefined,
++): 'reviewer_capability_unknown' | 'reviewer_capability_weaker' | undefined {
++  const authorModel = process.env[AUTHOR_MODEL_ENV];
++  if (!planning || author !== 'claude' || authorModel === undefined || authorModel.trim() === '')
++    return undefined;
++  return reviewerCapabilityFailure(
++    { provider: 'anthropic', model: authorModel },
++    route.model,
++    confirmedModel,
++    PACKAGED_CAPABILITY_REVISION,
++    PACKAGED_CAPABILITY_PAIRS,
++  );
+ }
+ 
+-async function runRankedRoutes(
++function retainUnqualifiedRejection(
++  current: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined,
++  output: ReviewerOutput,
++  route: ReviewRoute,
++): { readonly output: ReviewerOutput; readonly route: ReviewRoute } {
++  return current?.output.verdict === 'request_changes' ? current : { output, route };
++}
++
++function preparedRankedPacket(
+   input: ReviewRunInput,
+-  author: ReviewAgent,
+-  policy: ReviewPolicy,
+-  routes: readonly ReviewRoute[],
+-): Promise<CliResult> {
++  existing: ReturnType<typeof prepareReviewPacket> | undefined,
++): ReturnType<typeof prepareReviewPacket> {
++  return (
++    existing ??
++    prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
++      attestation: input.executionAttestation,
++    })
++  );
++}
++
++// eslint-disable-next-line sonarjs/cognitive-complexity -- This loop preserves route order across completed, failed, and unqualified reviews.
++async function runConfiguredRankedRoutes({
++  input,
++  author,
++  policy,
++  routes,
++  planning,
++  prepared: existingPrepared,
++}: RankedRun): Promise<CliResult> {
+   const evidence: RankedRouteEvidence[] = [];
+   const unavailable = new Set<ReviewAgent>();
+   let degraded: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined;
++  let unqualified: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined;
+   const runDeadline = Date.now() + runBoundMs();
++  const orderedRoutes = orderedReviewRoutes(planning, routes);
++  const prepared = preparedRankedPacket(input, existingPrepared);
+ 
+-  for (const [index, route] of routes.entries()) {
+-    if (shouldSkipRankedRoute(route, degraded, unavailable)) {
+-      evidence.push({ ...route, status: 'skipped' });
+-      continue;
+-    }
+-    if (!canFundRoute(runDeadline)) {
+-      evidence.push(
+-        ...routes.slice(index).map(remaining => ({ ...remaining, status: 'unattempted' as const })),
+-      );
+-      break;
+-    }
+-
+-    const assessment = await executeRankedRoute({
+-      run: input,
+-      author,
+-      policy,
+-      route,
+-      runDeadline,
+-    });
+-    if (assessment.kind === 'result') {
+-      return {
+-        ...assessment.result,
+-        effects: {
+-          ...assessment.result.effects,
+-          network: [...rankedNetworkEffects(evidence), ...assessment.result.effects.network],
+-        },
+-      };
+-    }
+-    if (assessment.kind === 'failed') {
+-      const result = rankedFailureResult({
++  try {
++    for (const [index, route] of orderedRoutes.entries()) {
++      if (shouldSkipRankedRoute(route, degraded, unavailable)) {
++        evidence.push({ ...route, status: 'skipped' });
++        continue;
++      }
++      if (cannotAttemptRankedRoute(planning, route, evidence, runDeadline)) {
++        evidence.push(
++          ...orderedRoutes
++            .slice(index)
++            .map(remaining => ({ ...remaining, status: 'unattempted' as const })),
++        );
++        break;
++      }
++
++      const assessment = await executeRankedRoute({
+         run: input,
+         author,
+         policy,
+         route,
+-        remainingRoutes: routes.slice(index + 1),
+-        failure: assessment,
+-        evidence,
+-        unavailable,
+-        degraded,
++        runDeadline,
++        prepared,
+       });
+-      if (result !== undefined) return result;
+-      continue;
++      if (assessment.kind === 'result') {
++        return {
++          ...assessment.result,
++          effects: {
++            ...assessment.result.effects,
++            network: [...rankedNetworkEffects(evidence), ...assessment.result.effects.network],
++          },
++        };
++      }
++      if (assessment.kind === 'failed') {
++        const result = rankedFailureResult({
++          run: input,
++          author,
++          policy,
++          planning,
++          route,
++          remainingRoutes: orderedRoutes.slice(index + 1),
++          failure: assessment,
++          evidence,
++          unavailable,
++          degraded,
++          unqualified,
++        });
++        if (result !== undefined) return result;
++        continue;
++      }
++
++      evidence.push({ ...route, status: 'attempted' });
++      if (route.independence === 'cross-agent') {
++        const capabilityFailure = rankedReviewerCapabilityFailure(
++          planning,
++          author,
++          route,
++          assessment.confirmedModel,
++        );
++        if (capabilityFailure !== undefined) {
++          evidence[evidence.length - 1] = {
++            ...route,
++            status: 'attempted',
++            failure: capabilityFailure,
++          };
++          unqualified =
++            capabilityFailure === 'reviewer_capability_unknown'
++              ? retainUnqualifiedRejection(unqualified, assessment.output, route)
++              : unqualified;
++          continue;
++        }
++        const result = independentReviewResult({
++          cwd: input.cwd,
++          author,
++          policy,
++          kind: input.kind,
++          planning,
++          targets: input.targets,
++          context: input.context,
++          reviewer: route.reviewer,
++          output: assessment.output,
++          model: route.model,
++          confirmedModel: assessment.confirmedModel,
++        });
++        return {
++          ...result,
++          effects: { ...result.effects, network: rankedNetworkEffects(evidence) },
++          data: { ...(result.data as Record<string, unknown>), review_routes: evidence },
++        };
++      }
++      degraded = { output: assessment.output, route };
+     }
+ 
+-    evidence.push({ ...route, status: 'attempted' });
+-    if (route.independence === 'cross-agent') {
+-      const result = independentReviewResult({
+-        cwd: input.cwd,
+-        author,
+-        kind: input.kind,
+-        targets: input.targets,
+-        context: input.context,
+-        reviewer: route.reviewer,
+-        output: assessment.output,
+-        model: route.model,
+-      });
+-      return {
+-        ...result,
+-        effects: { ...result.effects, network: rankedNetworkEffects(evidence) },
+-        data: { ...(result.data as Record<string, unknown>), review_routes: evidence },
+-      };
+-    }
+-    degraded = { output: assessment.output, route };
++    return rankedTerminalResult({
++      input,
++      author,
++      policy,
++      planning,
++      evidence,
++      prepared,
++      unqualified,
++      degraded,
++    });
++  } finally {
++    prepared.cleanup();
+   }
++}
+ 
+-  return rankedExhaustedResult({
+-    author,
+-    policy,
+-    kind: input.kind,
+-    targets: input.targets,
+-    context: input.context,
+-    evidence,
+-    degraded,
++function rankedTerminalResult(
++  input: Parameters<typeof hostContinuationResult>[0] & {
++    readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
++  },
++): CliResult {
++  // A completed rejection with unknown capability must remain visible rather
++  // than being replaced by self-approval. Proven-weaker verdicts never enter
++  // this state; they remain discarded under the accepted capability contract.
++  const rejected = input.unqualified?.output.verdict === 'request_changes';
++  return (
++    (rejected ? undefined : hostContinuationResult(input)) ??
++    rankedExhaustedResult({
++      author: input.author,
++      policy: input.policy,
++      kind: input.input.kind,
++      planning: input.planning,
++      targets: input.input.targets,
++      context: input.input.context,
++      evidence: input.evidence,
++      degraded: rejected ? undefined : input.degraded,
++      unqualified: input.unqualified,
++    })
++  );
++}
++
++function hostContinuationResult(input: {
++  readonly input: ReviewRunInput;
++  readonly author: SupportedReviewAuthor;
++  readonly policy: ReviewPolicy;
++  readonly planning: boolean;
++  readonly evidence: readonly RankedRouteEvidence[];
++  readonly prepared: ReturnType<typeof prepareReviewPacket>;
++  readonly unqualified?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
++  readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
++}): CliResult | undefined {
++  if (!input.planning || input.policy !== 'prefer' || input.degraded !== undefined)
++    return undefined;
++  const attemptedIndependent = input.evidence.some(
++    route =>
++      route.independence === 'cross-agent' &&
++      route.status === 'attempted' &&
++      route.failure !== undefined,
++  );
++  const strongerExhausted = input.evidence.every(route => route.status !== 'unattempted');
++  const headlessFailed = input.evidence.some(
++    route =>
++      route.independence === 'degraded' &&
++      ['attempted', 'unavailable'].includes(route.status) &&
++      route.failure !== undefined,
++  );
++  const headlessRoute = input.evidence.some(route => route.independence === 'degraded');
++  if (!attemptedIndependent || !strongerExhausted || (headlessRoute && !headlessFailed))
++    return undefined;
++  return createResult({
++    state: 'action_required',
++    findings: [
++      {
++        code: 'REVIEW_CONTINUATION_REQUIRED',
++        message: headlessRoute
++          ? 'The independent and same-agent headless routes did not complete. A fresh-context review of the sealed packet is next.'
++          : 'The independent routes did not complete, and no headless reviewer route was configured. A fresh-context review of the sealed packet is next.',
++        severity: 'warning',
++      },
++      ...(input.unqualified === undefined ? [] : reviewerFeedback(input.unqualified.output)),
++    ],
++    effects: { network: rankedNetworkEffects(input.evidence) },
++    data: {
++      command: 'review run',
++      status: 'continuation_required',
++      review_kind: input.input.kind,
++      review_targets: input.input.targets,
++      author_agent: input.author,
++      review_policy: 'prefer',
++      independence: 'none',
++      review_routes: input.evidence,
++      continuation: {
++        tier: 'fresh-context',
++        instructions: reviewerPromptInstructions(
++          input.input.kind,
++          input.author,
++          input.prepared.packet.planning_phase,
++        ),
++        packet: input.prepared.packet,
++      },
++    },
+   });
+ }
+ 
++function orderedReviewRoutes(
++  planning: boolean,
++  routes: readonly ReviewRoute[],
++): readonly ReviewRoute[] {
++  if (!planning) return routes;
++  return [
++    ...routes.filter(route => route.independence === 'cross-agent'),
++    ...routes.filter(route => route.independence === 'degraded'),
++  ];
++}
++
++function planningFallbackLacksIndependentAttempt(
++  planning: boolean,
++  route: ReviewRoute,
++  evidence: readonly RankedRouteEvidence[],
++): boolean {
++  return (
++    planning &&
++    route.independence === 'degraded' &&
++    evidence.every(
++      candidate => candidate.independence !== 'cross-agent' || candidate.status !== 'attempted',
++    )
++  );
++}
++
+ function shouldSkipRankedRoute(
+   route: ReviewRoute,
+   degraded: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined,
+@@ -873,7 +1280,7 @@ function shouldSkipRankedRoute(
+ }
+ 
+ function changedReviewResult(input: {
+-  readonly author: ReviewAgent;
++  readonly author: ReviewAuthor;
+   readonly reviewer: ReviewAgent;
+   readonly policy: ReviewPolicy;
+   readonly kind: ReviewKind;
+@@ -972,7 +1379,7 @@ function routeFailureData(input: {
+  * the calling agent before any same-agent fallback can weaken coverage.
+  */
+ function authenticationRequiredResult(input: {
+-  readonly author: ReviewAgent;
++  readonly author: SupportedReviewAuthor;
+   readonly assignedReviewer: ReviewAgent;
+   readonly preferredFailure: ReviewFailure;
+   readonly preferredModel?: string;
+@@ -1186,6 +1593,27 @@ function degradedFallbackNetworkEffects(
+   });
+ }
+ 
++function fallbackAssurance(kind: ReviewKind, reviewer: ReviewAgent, input: DegradedReviewInput) {
++  if (isPlanningReview(kind)) {
++    return {
++      independence: 'reduced',
++      finding: {
++        code: 'REVIEW_INDEPENDENCE_REDUCED',
++        message: `Independent reviewer routes were exhausted; ${agentName(reviewer)} reviewed this plan in a separate headless process with reduced independence.`,
++        severity: 'warning',
++      },
++    } as const;
++  }
++  return {
++    independence: 'degraded',
++    finding: {
++      code: 'REVIEW_INDEPENDENCE_DEGRADED',
++      message: degradedDescription(input.assignedReviewer, reviewer, input.preferredFailure),
++      severity: 'warning',
++    },
++  } as const;
++}
++
+ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResult> {
+   const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
+   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
+@@ -1250,6 +1678,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
+     });
+   }
+   const completedOutput = assessment.output;
++  const assurance = fallbackAssurance(input.kind, input.assignedReviewer, input);
+ 
+   if (input.policy === 'require') {
+     return createResult({
+@@ -1280,7 +1709,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
+         actual_reviewer: completedOutput.reviewer_agent,
+         ...routeFailureData(input),
+         review_policy: input.policy,
+-        independence: 'degraded',
++        independence: assurance.independence,
+         reviewer_output: completedOutput,
+       },
+     });
+@@ -1288,18 +1717,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
+ 
+   return createResult({
+     state: completedOutput.verdict === 'approve' ? 'healthy' : 'action_required',
+-    findings: [
+-      {
+-        code: 'REVIEW_INDEPENDENCE_DEGRADED',
+-        message: degradedDescription(
+-          input.assignedReviewer,
+-          completedOutput.reviewer_agent,
+-          input.preferredFailure,
+-        ),
+-        severity: 'warning',
+-      },
+-      ...reviewerFeedback(completedOutput),
+-    ],
++    findings: [assurance.finding, ...reviewerFeedback(completedOutput)],
+     effects: {
+       network: degradedFallbackNetworkEffects(input, { kind: 'completed' }),
+     },
+@@ -1310,7 +1728,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
+       assigned_reviewer: input.assignedReviewer,
+       actual_reviewer: completedOutput.reviewer_agent,
+       ...routeFailureData(input),
+-      independence: 'degraded',
++      independence: assurance.independence,
+       reviewer_output: completedOutput,
+     },
+   });
+@@ -1387,6 +1805,7 @@ async function runAlternateModelRoute(
+   const result = independentReviewResult({
+     cwd: input.cwd,
+     author: input.author,
++    policy: input.policy,
+     kind: input.kind,
+     targets: input.targets,
+     context: input.context,
+@@ -1410,6 +1829,7 @@ async function runIndependentFallback(
+     readonly preferredFailure: ReviewFailure;
+     readonly alternateFailure?: ReviewFailure;
+     readonly alternateModel?: string;
++    readonly policy: ReviewPolicy;
+     readonly runDeadline: number;
+   },
+ ): Promise<
+@@ -1434,7 +1854,7 @@ async function runIndependentFallback(
+   const changedResult = changedReviewResult({
+     author: input.author,
+     reviewer: input.reviewer,
+-    policy: readReviewPolicy(input.cwd),
++    policy: input.policy,
+     kind: input.kind,
+     targets: input.targets,
+     context: input.context,
+@@ -1461,6 +1881,7 @@ async function runIndependentFallback(
+     result: independentReviewResult({
+       cwd: input.cwd,
+       author: input.author,
++      policy: input.policy,
+       kind: input.kind,
+       targets: input.targets,
+       context: input.context,
+@@ -1713,28 +2134,11 @@ function runAfterPrimaryFailure(
+   });
+ }
+ 
++// eslint-disable-next-line complexity -- The Cursor author is routed through planning only; legacy non-planning dispatch remains separate.
+ async function runReviewCore(input: ReviewRunInput): Promise<CliResult> {
+   const author = resolveRunIdentity({}, { env: process.env }).runtime;
+   const policy = readReviewPolicy(input.cwd);
+-  if (policy === 'off') {
+-    return createResult({
+-      state: 'healthy',
+-      findings: [
+-        {
+-          code: 'REVIEW_NOT_REQUESTED',
+-          message: 'An independent agent check was not requested.',
+-          severity: 'info',
+-        },
+-      ],
+-      data: {
+-        command: 'review run',
+-        status: 'existing_route',
+-        author_agent: author,
+-        independence: 'none',
+-        cross_agent_review: 'not_requested',
+-      },
+-    });
+-  }
++  if (policy === 'off') return policyOffResult(input, author);
+   const routes = reviewRoutePlan(author);
+   if (routes === undefined) {
+     return unsupportedAuthorResult({
+@@ -1751,9 +2155,17 @@ async function runReviewCore(input: ReviewRunInput): Promise<CliResult> {
+   } catch (error) {
+     return invalidRouteConfigResult(error, routes.author, policy);
+   }
+-  const rankedRoutes = rankedReviewRoutes(input, routes.author, configuredRoutes);
+-  if (rankedRoutes !== undefined)
+-    return runRankedRoutes(input, routes.author, policy, rankedRoutes);
++  const ranked = selectRankedReview(input, routes.author, configuredRoutes);
++  if (ranked !== undefined)
++    return runRankedRoutes({ input, author: routes.author, policy, ...ranked });
++  if (routes.author === 'cursor')
++    return unsupportedAuthorResult({
++      author,
++      policy,
++      kind: input.kind,
++      targets: input.targets,
++      context: input.context,
++    });
+   const reviewer = routes.preferred;
+   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
+ 
+@@ -1820,23 +2232,109 @@ async function runReviewCore(input: ReviewRunInput): Promise<CliResult> {
+   return independentReviewResult({
+     cwd: input.cwd,
+     author: routes.author,
++    policy,
+     kind: input.kind,
+     targets: input.targets,
+     context: input.context,
+     reviewer,
+     output,
+     model: completedModel,
++    confirmedModel: outcome.confirmedModel,
+     preferredModel,
+     preferredModelFailure,
+   });
+ }
+ 
++function policyOffResult(input: ReviewRunInput, author: ReviewAuthor): CliResult {
++  if (isPlanningReviewRequest(input)) return planningReviewPolicyOff(input, author);
++  return createResult({
++    state: 'healthy',
++    findings: [
++      {
++        code: 'REVIEW_NOT_REQUESTED',
++        message: 'An independent agent check was not requested.',
++        severity: 'info',
++      },
++    ],
++    data: {
++      command: 'review run',
++      status: 'existing_route',
++      author_agent: author,
++      independence: 'none',
++      cross_agent_review: 'not_requested',
++    },
++  });
++}
++
++function isPlanningReviewRequest(input: ReviewRunInput): boolean {
++  if (isPlanningReview(input.kind)) return true;
++  if (
++    input.kind !== 'quality-review' ||
++    input.targets.length !== 1 ||
++    nodePath.basename(input.targets[0] ?? '') !== 'spec.md'
++  )
++    return false;
++  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
++  try {
++    return prepared.packet.planning_phase === 'product-plan';
++  } finally {
++    prepared.cleanup();
++  }
++}
++
++function planningReviewPolicyOff(input: ReviewRunInput, author: ReviewAuthor): CliResult {
++  return createResult({
++    state: 'action_required',
++    findings: [
++      {
++        code: 'PLANNING_REVIEW_POLICY_OFF',
++        message:
++          'Planning review is required before this phase can advance. Set crossAgentReview to prefer or require in .safeword/config.json, then run the review again.',
++        severity: 'warning',
++      },
++    ],
++    data: {
++      command: 'review run',
++      status: 'blocked',
++      review_policy: 'off',
++      review_kind: input.kind,
++      review_targets: input.targets,
++      author_agent: author,
++      independence: 'none',
++    },
++  });
++}
++
++function selectRankedReview(
++  input: ReviewRunInput,
++  author: SupportedReviewAuthor,
++  configured: readonly ReviewRoute[] | undefined,
++): Pick<RankedRun, 'routes' | 'planning' | 'prepared'> | undefined {
++  const productPacket =
++    input.kind === 'quality-review'
++      ? prepareReviewPacket(input.cwd, input.kind, input.targets, input.context)
++      : undefined;
++  const productPlan = productPacket?.packet.planning_phase === 'product-plan';
++  const routes = rankedReviewRoutes(input, author, configured, productPlan);
++  if (!productPlan || routes === undefined) productPacket?.cleanup();
++  if (routes === undefined) return undefined;
++  return {
++    routes,
++    planning: isPlanningReview(input.kind) || productPlan,
++    ...(productPlan && { prepared: productPacket }),
++  };
++}
++
+ function rankedReviewRoutes(
+   input: ReviewRunInput,
+-  author: ReviewAgent,
++  author: SupportedReviewAuthor,
+   configured: readonly ReviewRoute[] | undefined,
++  productPlan: boolean,
+ ): readonly ReviewRoute[] | undefined {
+-  if (input.kind !== 'plan-execution') return configured;
++  if (input.kind !== 'plan-execution')
++    return isPlanningReview(input.kind) || productPlan
++      ? (configured ?? builtInReviewRoutes(input.cwd, author))
++      : configured;
+   return filterExecutionPlanRoutes(
+     input.kind,
+     configured ?? builtInReviewRoutes(input.cwd, author),
+diff --git a/packages/cli/src/review/job.ts b/packages/cli/src/review/job.ts
+index 1b9dcdbd1..d7702eeb7 100644
+--- a/packages/cli/src/review/job.ts
++++ b/packages/cli/src/review/job.ts
+@@ -30,17 +30,26 @@ import { retryCommand } from './command.js';
+ import {
+   isReviewKind,
+   type RedExecutionRequest,
++  type ReviewerOutput,
++  type ReviewFailure,
+   type ReviewKind,
+   type ReviewPacket,
+   type ReviewPacketFile,
++  type SupportedReviewAuthor,
+ } from './contract.js';
++import { hostContinuationCompletion } from './coordinator.js';
++import { validateExecutionPlanOutput } from './execution-plan-output.js';
+ import { type PlanningContractUse, prepareReviewPacket, toReviewPath } from './packet.js';
+ import {
+   createPlanningReviewIdentity,
+   productParentContextIdentity,
+ } from './planning-context-identity.js';
+ import { isPlanningReviewIdentity, type PlanningReviewIdentity } from './planning-role-context.js';
+-import { reviewWorkerRunBoundMs } from './runtime.js';
++import {
++  hasValidReviewerOutputBody,
++  reconcilePlanContract,
++  reviewWorkerRunBoundMs,
++} from './runtime.js';
+ 
+ type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
+ type WorkerInspection = 'match' | 'mismatch' | 'unavailable';
+@@ -563,10 +572,32 @@ function isCoherentTerminalResult(candidate: Record<string, unknown>, failed: bo
+   return (
+     isCliResult(candidate.result) &&
+     (candidate.result.state === 'failed') === failed &&
++    hasContinuationJobIdentity(candidate) &&
+     typeof candidate.integrity === 'string'
+   );
+ }
+ 
++// eslint-disable-next-line complexity -- Persisted continuation identity must bind the packet to this planning job.
++function hasContinuationJobIdentity(record: Record<string, unknown>): boolean {
++  const result = plainRecord(record.result);
++  const data = plainRecord(result?.data);
++  if (data?.status !== 'continuation_required') return true;
++  const continuation = plainRecord(data.continuation);
++  const packet = plainRecord(continuation?.packet);
++  const logicalFiles = packet?.logical_files;
++  const targets = record.targets;
++  return (
++    packet?.kind === record.kind &&
++    (record.kind === 'scenario-gate' ||
++      record.kind === 'plan-implementation' ||
++      record.kind === 'plan-execution' ||
++      (record.kind === 'quality-review' && packet?.planning_phase === 'product-plan')) &&
++    Array.isArray(targets) &&
++    Array.isArray(logicalFiles) &&
++    JSON.stringify(logicalFiles.map(file => plainRecord(file)?.path)) === JSON.stringify(targets)
++  );
++}
++
+ function isOptional(value: unknown, predicate: (candidate: unknown) => boolean): boolean {
+   return value === undefined || predicate(value);
+ }
+@@ -617,11 +648,64 @@ function isReviewResultData(value: unknown, state: unknown): boolean {
+   if (!['review run', 'review status'].includes(String(data.command))) return false;
+   if (typeof data.status !== 'string') return false;
+   if (data.command === 'review status') return ['failed', 'stale'].includes(data.status);
++  if (data.status === 'continuation_required') return isContinuationResultData(data, state);
+   if (data.status !== 'approved' && data.status !== 'changes_requested')
+     return ['blocked', 'existing_route', 'failed', 'stale'].includes(data.status);
+   return isCompletedReviewData(data, state);
+ }
+ 
++// eslint-disable-next-line complexity -- Every required field is part of the sealed continuation contract.
++function isContinuationResultData(data: Record<string, unknown>, state: unknown): boolean {
++  const continuation = plainRecord(data.continuation);
++  const packet = plainRecord(continuation?.packet);
++  const files = packet?.logical_files;
++  return (
++    state === 'action_required' &&
++    data.review_policy === 'prefer' &&
++    data.independence === 'none' &&
++    ['claude', 'codex', 'cursor', 'opencode'].includes(String(data.author_agent)) &&
++    ['fresh-context', 'self-review'].includes(String(continuation?.tier)) &&
++    typeof continuation?.instructions === 'string' &&
++    continuation.instructions.length > 0 &&
++    packet?.schema_version === 1 &&
++    typeof packet.dispatch_id === 'string' &&
++    packet.dispatch_id.length > 0 &&
++    Array.isArray(files) &&
++    files.length > 0 &&
++    files.every(
++      file =>
++        typeof plainRecord(file)?.path === 'string' &&
++        typeof plainRecord(file)?.content === 'string',
++    ) &&
++    hasExhaustedRoutesForHostContinuation(data.review_routes)
++  );
++}
++
++function hasExhaustedRoutesForHostContinuation(value: unknown): boolean {
++  if (!Array.isArray(value)) return false;
++  const routes = value.map(route => plainRecord(route));
++  const attemptedIndependent = routes.some(
++    route =>
++      route?.independence === 'cross-agent' &&
++      route.status === 'attempted' &&
++      typeof route.failure === 'string',
++  );
++  const exhausted = routes.every(
++    route =>
++      route !== undefined &&
++      route.status !== 'unattempted' &&
++      (route.status === 'skipped' || typeof route.failure === 'string'),
++  );
++  const headlessFailed = routes.some(
++    route =>
++      route?.independence === 'degraded' &&
++      ['attempted', 'unavailable'].includes(String(route.status)) &&
++      typeof route.failure === 'string',
++  );
++  const headlessRoute = routes.some(route => route?.independence === 'degraded');
++  return attemptedIndependent && exhausted && (!headlessRoute || headlessFailed);
++}
++
+ function isCompletedReviewData(data: Record<string, unknown>, state: unknown): boolean {
+   const output = data.reviewer_output;
+   if (typeof output !== 'object' || output === null || Array.isArray(output)) return false;
+@@ -640,7 +724,7 @@ function hasReviewerIdentity(reviewer: Record<string, unknown>): boolean {
+   return (
+     typeof reviewer.dispatch_id === 'string' &&
+     reviewer.dispatch_id.length > 0 &&
+-    ['claude', 'codex', 'opencode'].includes(String(reviewer.reviewer_agent))
++    ['claude', 'codex', 'cursor', 'opencode'].includes(String(reviewer.reviewer_agent))
+   );
+ }
+ 
+@@ -1263,6 +1347,139 @@ export function completeReviewJob(cwd: string, id: string, result: CliResult): v
+   });
+ }
+ 
++function continuationFailure(id: string, code: string, message: string): CliResult {
++  return createResult({
++    state: 'failed',
++    errors: [{ code, message, retryable: false }],
++    data: { command: 'review status', status: 'failed', review_id: id },
++  });
++}
++
++function failedHostContinuation(
++  record: ReviewJobRecord,
++  tier: 'fresh-context' | 'self-review',
++  failure: ReviewFailure,
++): CliResult {
++  const data = record.result?.data as Record<string, unknown>;
++  const continuation = data.continuation as Record<string, unknown>;
++  const nextTier = tier === 'fresh-context' ? 'self-review' : undefined;
++  return createResult({
++    state: 'action_required',
++    findings: [
++      {
++        code: nextTier === undefined ? 'REVIEW_ROUTES_EXHAUSTED' : 'REVIEW_SELF_REVIEW_REQUIRED',
++        message:
++          nextTier === undefined
++            ? 'The final host review did not return valid output; this review remains blocked.'
++            : 'The fresh-context review did not return valid output. One self-review of the same sealed packet remains.',
++        severity: 'warning',
++      },
++    ],
++    effects: { ...record.result?.effects, network: [] },
++    data: {
++      ...data,
++      status: nextTier === undefined ? 'blocked' : 'continuation_required',
++      independence: 'none',
++      continuation: { ...continuation, ...(nextTier !== undefined && { tier: nextTier }) },
++      continuation_attempts: [
++        ...((data.continuation_attempts as readonly unknown[] | undefined) ?? []),
++        { tier, failure },
++      ],
++    },
++  });
++}
++
++function validatedHostOutput(
++  value: unknown,
++  kind: ReviewKind,
++  packet: Record<string, unknown>,
++  author: unknown,
++): ReviewerOutput | undefined {
++  if (!hasValidReviewerOutputBody(value, kind)) return undefined;
++  const reviewer = value as ReviewerOutput;
++  if (reviewer.dispatch_id !== packet.dispatch_id || reviewer.reviewer_agent !== author)
++    return undefined;
++  const sealedPacket = packet as unknown as ReviewPacket;
++  if (kind !== 'plan-execution')
++    return reconcilePlanContract(sealedPacket, reviewer) as ReviewerOutput;
++  const validated = validateExecutionPlanOutput(
++    reviewer,
++    sealedPacket.execution_plan_delivery_definition,
++    sealedPacket.execution_plan_normalized_digest,
++  );
++  if (validated.kind === 'invalid_output') return undefined;
++  return reconcilePlanContract(sealedPacket, validated.output) as ReviewerOutput;
++}
++
++/** Atomically consume one authenticated, current host continuation. */
++export function submitReviewContinuation(
++  cwd: string,
++  id: string,
++  tier: 'fresh-context' | 'self-review',
++  output: unknown,
++  options: { readonly origin: SupportedReviewAuthor; readonly failure?: ReviewFailure },
++): CliResult {
++  try {
++    // eslint-disable-next-line complexity -- Each refusal protects a distinct authenticated continuation invariant.
++    return withJobLock(cwd, id, () => {
++      const record = readJob(cwd, id);
++      const pending = record.result;
++      if (pending === undefined) return invalidJobResult(id);
++      const data = plainRecord(pending.data);
++      if (data?.status !== 'continuation_required')
++        return continuationFailure(
++          id,
++          'REVIEW_CONTINUATION_ALREADY_USED',
++          'This review has no pending continuation.',
++        );
++      if (!hasCurrentFingerprint(cwd, record)) return staleResult(record);
++      if (data.author_agent !== options.origin)
++        return continuationFailure(
++          id,
++          'REVIEW_CONTINUATION_ORIGIN_UNVERIFIED',
++          'The current agent origin does not match the review author.',
++        );
++      const continuation = plainRecord(data.continuation);
++      const packet = plainRecord(continuation?.packet);
++      if (continuation?.tier !== tier || packet === undefined)
++        return continuationFailure(
++          id,
++          'REVIEW_CONTINUATION_TIER_INVALID',
++          'This continuation tier is not pending.',
++        );
++      const validated =
++        options.failure === undefined
++          ? validatedHostOutput(output, record.kind, packet, data.author_agent)
++          : undefined;
++      if (validated === undefined) {
++        const result = failedHostContinuation(record, tier, options.failure ?? 'invalid_output');
++        const updated = writeJob(cwd, {
++          ...record,
++          result,
++          updated_at: new Date().toISOString(),
++        });
++        return terminalResult(cwd, updated);
++      }
++      const result = hostContinuationCompletion({
++        pending,
++        output: validated,
++        tier,
++        cwd,
++        kind: record.kind,
++        targets: record.targets,
++      });
++      const completed = writeJob(cwd, {
++        ...record,
++        result,
++        updated_at: new Date().toISOString(),
++      });
++      return terminalResult(cwd, completed);
++    });
++  } catch {
++    return invalidJobResult(id);
++  }
++}
++
+ export function reviewJobWorkerInput(
+   cwd: string,
+   id: string,
+@@ -1487,7 +1704,7 @@ function hasIndependentApproval(data: Record<string, unknown> | undefined): bool
+     data?.status === 'approved',
+     data?.independence === 'cross-agent',
+     typeof data?.author_agent === 'string',
+-    ['claude', 'codex', 'opencode'].includes(actualReviewer as string),
++    ['claude', 'codex', 'cursor', 'opencode'].includes(actualReviewer as string),
+     data?.author_agent !== actualReviewer,
+     reviewerOutput?.reviewer_agent === actualReviewer,
+   ].every(Boolean);
+diff --git a/packages/cli/src/review/phase-admission.ts b/packages/cli/src/review/phase-admission.ts
+index dd6625607..77e09b650 100644
+--- a/packages/cli/src/review/phase-admission.ts
++++ b/packages/cli/src/review/phase-admission.ts
+@@ -3,11 +3,12 @@ import nodePath from 'node:path';
+ import { parseReviewStamps } from '../../templates/hooks/lib/review-ledger.js';
+ import type { ReviewKind } from './contract.js';
+ import { reviewJobStatus } from './job.js';
++import { reviewPolicyAllowsAssurance } from './policy.js';
+ 
+ export interface ReviewProvenance {
+   readonly authorAgent: string;
+   readonly reviewerAgent: string;
+-  readonly independence: 'cross-agent' | 'degraded';
++  readonly independence: 'cross-agent' | 'reduced' | 'degraded';
+ }
+ 
+ export type PhaseReviewAdmission =
+@@ -74,7 +75,7 @@ function isCurrentReceipt(cwd: string, reviewId: string): boolean {
+ function assuranceMatches(
+   candidate: ReviewCandidate,
+   stamp: ReturnType<typeof parseReviewStamps>[number],
+-  independence: 'cross-agent' | 'degraded',
++  independence: 'cross-agent' | 'reduced' | 'degraded',
+ ): boolean {
+   const { data, output } = candidate;
+   return [
+@@ -91,10 +92,11 @@ function assuranceAdmission(
+   candidate: ReviewCandidate,
+   stamp: ReturnType<typeof parseReviewStamps>[number],
+   label: string,
++  cwd: string,
+ ): PhaseReviewAdmission {
+   const { data } = candidate;
+   const independence = data.independence;
+-  if (independence !== 'cross-agent' && independence !== 'degraded') {
++  if (independence !== 'cross-agent' && independence !== 'reduced' && independence !== 'degraded') {
+     return {
+       kind: 'unearned_assurance',
+       message: `The ${label} review has no validated achieved independence.`,
+@@ -120,6 +122,12 @@ function assuranceAdmission(
+       message: `The recorded assurance disagrees with the authenticated ${label} review.`,
+     };
+   }
++  if (!reviewPolicyAllowsAssurance(cwd, independence)) {
++    return {
++      kind: 'unearned_assurance',
++      message: `The ${label} review has ${independence} independence, but the current require policy needs cross-agent review.`,
++    };
++  }
+   return {
+     kind: 'admitted',
+     provenance: {
+@@ -156,7 +164,7 @@ export function phaseReviewAdmission(input: {
+     if (output.verdict !== 'approve' || data.status !== 'approved') {
+       return { kind: 'not_admitted' };
+     }
+-    return assuranceAdmission(candidate, stamp, input.label);
++    return assuranceAdmission(candidate, stamp, input.label, input.cwd);
+   }
+   return { kind: 'not_admitted' };
+ }
+diff --git a/packages/cli/src/review/policy.ts b/packages/cli/src/review/policy.ts
+index 97ef20368..2af01abed 100644
+--- a/packages/cli/src/review/policy.ts
++++ b/packages/cli/src/review/policy.ts
+@@ -2,17 +2,17 @@ import { readFileSync } from 'node:fs';
+ import nodePath from 'node:path';
+ 
+ import { readCrossAgentReviewPolicy } from '../../templates/hooks/lib/review-ledger.js';
+-import type { ReviewAgent, ReviewAuthor, ReviewPolicy } from './contract.js';
++import type { ReviewAgent, ReviewAuthor, ReviewPolicy, SupportedReviewAuthor } from './contract.js';
+ import { effectiveConfiguredRoutes } from './preferences.js';
+ import { MODEL_NAME, type ReviewRoute } from './route-config.js';
+ 
+ export type { ReviewRoute } from './route-config.js';
+ 
+ export interface ReviewRoutePlan {
+-  readonly author: ReviewAgent;
++  readonly author: SupportedReviewAuthor;
+   readonly preferred: ReviewAgent;
+   readonly independentFallback: ReviewAgent;
+-  readonly degradedFallback: ReviewAgent;
++  readonly degradedFallback?: ReviewAgent;
+ }
+ 
+ export function reviewRoutePlan(author: ReviewAuthor): ReviewRoutePlan | undefined {
+@@ -40,6 +40,13 @@ export function reviewRoutePlan(author: ReviewAuthor): ReviewRoutePlan | undefin
+       degradedFallback: author,
+     };
+   }
++  if (author === 'cursor') {
++    return {
++      author,
++      preferred: 'claude',
++      independentFallback: 'codex',
++    };
++  }
+   return undefined;
+ }
+ 
+@@ -55,7 +62,10 @@ export function readConfiguredReviewRoutes(
+   return effectiveConfiguredRoutes(cwd, author)?.routes;
+ }
+ 
+-export function builtInReviewRoutes(cwd: string, author: ReviewAuthor): readonly ReviewRoute[] {
++export function builtInReviewRoutes(
++  cwd: string,
++  author: SupportedReviewAuthor,
++): readonly ReviewRoute[] {
+   const plan = reviewRoutePlan(author);
+   if (plan === undefined) return [];
+   const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
+@@ -70,7 +80,9 @@ export function builtInReviewRoutes(cwd: string, author: ReviewAuthor): readonly
+       ? [{ reviewer: plan.preferred, model: alternateModel, independence: 'cross-agent' as const }]
+       : []),
+     { reviewer: plan.independentFallback, independence: 'cross-agent' },
+-    { reviewer: plan.degradedFallback, independence: 'degraded' },
++    ...(plan.degradedFallback === undefined
++      ? []
++      : [{ reviewer: plan.degradedFallback, independence: 'degraded' as const }]),
+   ];
+ }
+ 
+@@ -136,3 +148,8 @@ export function readReviewPolicy(cwd: string): ReviewPolicy {
+     return (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'prefer' : 'require';
+   }
+ }
++
++/** Admission follows current policy, even when a receipt was earned under prefer. */
++export function reviewPolicyAllowsAssurance(cwd: string, independence: string): boolean {
++  return readReviewPolicy(cwd) !== 'require' || independence === 'cross-agent';
++}
+diff --git a/packages/cli/src/review/preferences.ts b/packages/cli/src/review/preferences.ts
+index 19bf7bb5a..9ac3a9d08 100644
+--- a/packages/cli/src/review/preferences.ts
++++ b/packages/cli/src/review/preferences.ts
+@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
+ import nodePath from 'node:path';
+ 
+ import { writeDurableFile } from '../codex-plugin/durable-write.js';
+-import type { ReviewAgent, ReviewAuthor } from './contract.js';
++import type { ReviewAgent, ReviewAuthor, SupportedReviewAuthor } from './contract.js';
+ import {
+   parseConfiguredReviewRoutes,
+   type ReviewRoute,
+@@ -95,7 +95,7 @@ function readConfigFile(path: string): Record<string, unknown> {
+ export function setScopedReviewRoutes(
+   cwd: string,
+   scope: ReviewRouteScope,
+-  author: ReviewAgent,
++  author: SupportedReviewAuthor,
+   routes: readonly { readonly reviewer: ReviewAgent; readonly model?: string }[],
+ ): void {
+   const path = scopedConfigPath(cwd, scope);
+@@ -131,7 +131,7 @@ export function setScopedReviewRoutes(
+ export function resetScopedReviewRoutes(
+   cwd: string,
+   scope: ReviewRouteScope,
+-  author: ReviewAgent,
++  author: SupportedReviewAuthor,
+ ): boolean {
+   const path = scopedConfigPath(cwd, scope);
+   if (!existsSync(path)) return false;
+@@ -157,7 +157,7 @@ export function effectiveConfiguredRoutes(
+   cwd: string,
+   author: ReviewAuthor,
+ ): { readonly source: ReviewRouteScope; readonly routes: readonly ReviewRoute[] } | undefined {
+-  if (author !== 'claude' && author !== 'codex' && author !== 'opencode') return undefined;
++  if (author === 'unknown') return undefined;
+   const projectPath = scopedConfigPath(cwd, 'project');
+   const projectRoutes = parseConfiguredReviewRoutes(
+     readConfigFile(projectPath),
+diff --git a/packages/cli/src/review/route-config.ts b/packages/cli/src/review/route-config.ts
+index dc5d063f7..49cec595f 100644
+--- a/packages/cli/src/review/route-config.ts
++++ b/packages/cli/src/review/route-config.ts
+@@ -1,4 +1,4 @@
+-import type { ReviewAgent } from './contract.js';
++import type { ReviewAgent, SupportedReviewAuthor } from './contract.js';
+ 
+ export interface ReviewRoute {
+   readonly reviewer: ReviewAgent;
+@@ -20,10 +20,11 @@ export class ReviewRouteConfigError extends Error {
+  */
+ export const MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
+ const REVIEW_AGENTS = new Set<ReviewAgent>(['claude', 'codex', 'opencode']);
++const REVIEW_AUTHORS = new Set<SupportedReviewAuthor>([...REVIEW_AGENTS, 'cursor']);
+ 
+ export function parseConfiguredReviewRoutes(
+   config: Record<string, unknown>,
+-  author: ReviewAgent,
++  author: SupportedReviewAuthor,
+   source: string,
+ ): readonly ReviewRoute[] | undefined {
+   const configured = config.crossAgentReviewRoutes;
+@@ -31,10 +32,13 @@ export function parseConfiguredReviewRoutes(
+   if (!isRecord(configured) || Array.isArray(configured))
+     throw configError('must be an object', source);
+   const unsupportedAuthor = Object.keys(configured).find(
+-    key => !REVIEW_AGENTS.has(key as ReviewAgent),
++    key => !REVIEW_AUTHORS.has(key as SupportedReviewAuthor),
+   );
+   if (unsupportedAuthor !== undefined)
+-    throw configError('contains an unsupported author key; use claude, codex, or opencode', source);
++    throw configError(
++      'contains an unsupported author key; use claude, codex, cursor, or opencode',
++      source,
++    );
+   const values = configured[author];
+   if (values === undefined) return undefined;
+   if (!Array.isArray(values) || values.length === 0)
+@@ -42,7 +46,7 @@ export function parseConfiguredReviewRoutes(
+   return values.map((value, index) => parseRoute(value, index, author, source));
+ }
+ 
+-export function parseRouteText(value: string, author: ReviewAgent): ReviewRoute {
++export function parseRouteText(value: string, author: SupportedReviewAuthor): ReviewRoute {
+   const separator = value.indexOf('=');
+   return parseRoute(
+     {
+@@ -57,7 +61,7 @@ export function parseRouteText(value: string, author: ReviewAgent): ReviewRoute
+ function parseRoute(
+   value: unknown,
+   index: number,
+-  author: ReviewAgent,
++  author: SupportedReviewAuthor,
+   source?: string,
+ ): ReviewRoute {
+   if (!isRecord(value) || Array.isArray(value))
+diff --git a/packages/cli/src/review/runtime.ts b/packages/cli/src/review/runtime.ts
+index ba20d050c..b3f102476 100644
+--- a/packages/cli/src/review/runtime.ts
++++ b/packages/cli/src/review/runtime.ts
+@@ -15,6 +15,7 @@ import {
+   realpathSync,
+   renameSync,
+   rmSync,
++  symlinkSync,
+   writeFileSync,
+ } from 'node:fs';
+ import { homedir, tmpdir } from 'node:os';
+@@ -22,6 +23,7 @@ import nodePath from 'node:path';
+ 
+ import { DELIVERY_CHECKLIST_CATEGORIES } from '../execution-plan/delivery-checklist.js';
+ import { warn } from '../utils/output.js';
++import { codexAppServerFailedTurn, codexAppServerProof } from './codex-app-server-proof.js';
+ import type {
+   PlanContractPair,
+   ReviewAgent,
+@@ -95,7 +97,7 @@ const EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA = {
+       enum: ['current_required', 'compatible_earlier_allowed'],
+     },
+     invocation: {
+-      oneOf: [
++      anyOf: [
+         {
+           type: 'object',
+           properties: {
+@@ -329,11 +331,22 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
+   opencode: ['run', '--format', 'json', '--pure'],
+ };
+ 
+-function baseReviewerArguments(reviewer: ReviewAgent, kind: ReviewKind): string[] {
++function baseReviewerArguments(
++  reviewer: ReviewAgent,
++  kind: ReviewKind,
++  planningPhase?: ReviewPacket['planning_phase'],
++): string[] {
+   const base = [...ARGUMENTS[reviewer]];
+   if (reviewer !== 'claude') return base;
+   const schemaIndex = base.indexOf('--json-schema') + 1;
+   base[schemaIndex] = reviewOutputSchema(kind);
++  if (
++    planningPhase === 'product-plan' ||
++    ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(kind)
++  ) {
++    base[base.indexOf('--output-format') + 1] = 'stream-json';
++    base.push('--verbose');
++  }
+   return base;
+ }
+ 
+@@ -361,9 +374,11 @@ export function reviewerArguments(
+   model: string | undefined,
+   schemaPath: string | undefined,
+   environment: Readonly<Record<string, string | undefined>> = process.env,
+-  kind: ReviewKind = 'quality-review',
++  review: ReviewKind | Pick<ReviewPacket, 'kind' | 'planning_phase'> = 'quality-review',
+ ): string[] {
+-  const base = baseReviewerArguments(reviewer, kind);
++  const kind = typeof review === 'string' ? review : review.kind;
++  const planningPhase = typeof review === 'string' ? undefined : review.planning_phase;
++  const base = baseReviewerArguments(reviewer, kind, planningPhase);
+   const extra = reviewerExtraArguments(reviewer, model, schemaPath, environment);
+   if (extra.length === 0) return base;
+   if (reviewer !== 'codex') return [...base, ...extra];
+@@ -378,6 +393,7 @@ interface ReviewAttempt {
+   readonly packet: ReviewPacket;
+   readonly cwd: string;
+   readonly model: string | undefined;
++  readonly effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+   /** Written once per dispatch; owned by the dispatch, never by an attempt. */
+   readonly schemaPath: string | undefined;
+ }
+@@ -515,7 +531,14 @@ function parseJson(value: string): unknown {
+ }
+ 
+ function parseClaudeOutput(stdout: string): unknown {
+-  const envelope = parseJson(stdout);
++  let envelope: unknown;
++  try {
++    envelope = parseJson(stdout);
++  } catch {
++    envelope = ndjsonEvents(stdout).findLast(
++      event => isRecord(event) && event.type === 'result' && event.subtype === 'success',
++    );
++  }
+   if (isRecord(envelope) && isRecord(envelope.structured_output)) {
+     return envelope.structured_output;
+   }
+@@ -606,7 +629,7 @@ function hasKindSpecificOutput(value: Record<string, unknown>, kind: ReviewKind)
+   );
+ }
+ 
+-function hasValidReviewerOutputBody(value: unknown, kind: ReviewKind): boolean {
++export function hasValidReviewerOutputBody(value: unknown, kind: ReviewKind): boolean {
+   if (!isRecord(value)) return false;
+   const allowedOutputKeys = reviewerOutputKeys(kind);
+   if (
+@@ -653,6 +676,52 @@ export function parseReviewerOutput(
+   return output as UnverifiedReviewerOutput;
+ }
+ 
++export interface ConfirmedReviewerModel {
++  readonly provider: string;
++  readonly model: string;
++}
++
++export interface ReviewerExecution {
++  readonly output: UnverifiedReviewerOutput;
++  readonly confirmedModel?: ConfirmedReviewerModel;
++}
++
++/** Claude's assistant events identify the response model; modelUsage also lists auxiliary calls. */
++function confirmedClaudeAssistantModel(stdout: string): ConfirmedReviewerModel | undefined {
++  const events = ndjsonEvents(stdout);
++  const result = events.findLast(
++    event => isRecord(event) && event.type === 'result' && event.subtype === 'success',
++  );
++  const models = new Set(
++    events.flatMap(event =>
++      isRecord(event) &&
++      event.type === 'assistant' &&
++      isRecord(event.message) &&
++      typeof event.message.model === 'string'
++        ? [event.message.model]
++        : [],
++    ),
++  );
++  if (models.size !== 1 || !isRecord(result) || !isRecord(result.modelUsage)) return undefined;
++  const model = [...models][0];
++  if (model === undefined) return undefined;
++  const matchingUsage = Object.values(result.modelUsage).filter(
++    usage => isRecord(usage) && usage.provider === 'firstParty' && usage.canonicalModel === model,
++  );
++  if (matchingUsage.length !== 1) return undefined;
++  return { provider: 'anthropic', model };
++}
++
++export function parseReviewerExecution(
++  reviewer: ReviewAgent,
++  stdout: string,
++  kind: ReviewKind = 'quality-review',
++): ReviewerExecution {
++  const output = parseReviewerOutput(reviewer, stdout, kind);
++  const confirmedModel = reviewer === 'claude' ? confirmedClaudeAssistantModel(stdout) : undefined;
++  return confirmedModel === undefined ? { output } : { output, confirmedModel };
++}
++
+ function reviewPrompt(reviewer: ReviewAgent, packet: ReviewPacket): string {
+   return `${reviewerPromptInstructions(packet.kind, reviewer, packet.planning_phase)}\n${JSON.stringify(packet)}`;
+ }
+@@ -1131,13 +1200,9 @@ export async function inspectReviewRoute(
+       inspectionUnavailable = true;
+       break;
+     }
+-    const capability = await supportsReviewContract(
+-      reviewer,
+-      candidate,
+-      tmpdir(),
+-      remaining,
++    const capability = await supportsReviewContract(reviewer, candidate, tmpdir(), remaining, {
+       model,
+-    );
++    });
+     if (capability.kind === 'failed') {
+       inspectionUnavailable ||= capability.failure !== 'unsupported';
+       continue;
+@@ -1158,9 +1223,13 @@ async function supportsReviewContract(
+   executable: string,
+   cwd: string,
+   timeoutMs: number,
+-  model: string | undefined,
++  options: {
++    readonly model?: string;
++    readonly arguments?: readonly string[];
++    readonly required?: readonly string[];
++  },
+ ): Promise<CapabilityAssessment> {
+-  const child = spawn(executable, HELP_ARGUMENTS[reviewer], {
++  const child = spawn(executable, options.arguments ?? HELP_ARGUMENTS[reviewer], {
+     cwd,
+     env: reviewerProbeEnvironment(),
+     stdio: ['ignore', 'pipe', 'pipe'],
+@@ -1198,9 +1267,10 @@ async function supportsReviewContract(
+       const advertisedFlags = new Set<string>();
+       for (const match of help.matchAll(/--[\w-]+/gu)) advertisedFlags.add(match[0]);
+       const requiredCapabilities =
+-        model === undefined
++        options.required ??
++        (options.model === undefined
+           ? REQUIRED_CAPABILITIES[reviewer]
+-          : [...REQUIRED_CAPABILITIES[reviewer], '--model'];
++          : [...REQUIRED_CAPABILITIES[reviewer], '--model']);
+       finish(
+         requiredCapabilities.every(flag => advertisedFlags.has(flag))
+           ? { kind: 'supported' }
+@@ -1463,15 +1533,241 @@ async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<boolea
+   return groupIsStopped();
+ }
+ 
++function isolatedCodexHome(): { readonly path: string; readonly cleanup: () => void } {
++  const path = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-review-'));
++  chmodSync(path, 0o700);
++  const source = nodePath.join(
++    process.env.CODEX_HOME ?? nodePath.join(homedir(), '.codex'),
++    'auth.json',
++  );
++  try {
++    accessSync(source, constants.R_OK);
++    symlinkSync(source, nodePath.join(path, 'auth.json'));
++  } catch {
++    // API-key and keychain profiles may not have an auth.json file.
++  }
++  return {
++    path,
++    cleanup: () => {
++      rmSync(path, { recursive: true, force: true });
++    },
++  };
++}
++
++function codexAppServerReviewOutput(
++  packet: ReviewPacket,
++  text: string,
++  confirmedModel: ConfirmedReviewerModel | undefined,
++): ReviewerExecution {
++  const event = JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text } });
++  const output = parseReviewerOutput('codex', event, packet.kind);
++  if (packet.kind !== 'plan-execution') return { output, confirmedModel };
++  const validation = validateExecutionPlanOutput(
++    output,
++    packet.execution_plan_delivery_definition,
++    packet.execution_plan_normalized_digest,
++  );
++  if (validation.kind === 'invalid_output') throw new Error('invalid reviewer output');
++  return { output: validation.output, confirmedModel };
++}
++
++function installReviewerTerminationHandler(child: ReturnType<typeof spawn>): () => void {
++  const terminateReviewer = (): void => {
++    void stopReviewer(child).finally(() => process.exit(143));
++  };
++  process.once('SIGTERM', terminateReviewer);
++  return () => process.off('SIGTERM', terminateReviewer);
++}
++
++async function runCodexAppServerCandidate(
++  executable: string,
++  attempt: ReviewAttempt,
++  timeoutMs: number,
++): Promise<ReviewerExecution> {
++  const isolatedHome = isolatedCodexHome();
++  const child = spawn(executable, ['app-server', '--stdio', '--config', 'mcp_servers={}'], {
++    cwd: attempt.cwd,
++    env: { ...reviewerEnvironment('codex'), CODEX_HOME: isolatedHome.path },
++    stdio: ['pipe', 'pipe', 'pipe'],
++    detached: process.platform !== 'win32',
++  });
++  const removeTerminationHandler = installReviewerTerminationHandler(child);
++  try {
++    const execution = await new Promise<ReviewerExecution>((resolve, reject) => {
++      const messages: unknown[] = [];
++      let pending = '';
++      let stdout = '';
++      let stderr = '';
++      let stdoutBytes = 0;
++      let stderrBytes = 0;
++      let settled = false;
++      const settle = (finish: () => void): void => {
++        if (settled) return;
++        settled = true;
++        clearTimeout(timeout);
++        finish();
++      };
++      const send = (message: unknown): void => {
++        child.stdin.write(`${JSON.stringify(message)}\n`);
++      };
++      const timeout = setTimeout(() => {
++        settle(() => {
++          reject(new ReviewRuntimeError('timed_out', 'codex review timed out'));
++        });
++      }, timeoutMs);
++      const startTurn = (result: unknown): void => {
++        if (!isRecord(result) || !isRecord(result.thread)) throw new Error('thread start failed');
++        send({
++          id: 3,
++          method: 'turn/start',
++          params: {
++            threadId: result.thread.id,
++            input: [{ type: 'text', text: reviewPrompt('codex', attempt.packet) }],
++            outputSchema: JSON.parse(reviewOutputSchema(attempt.packet.kind)) as unknown,
++            ...(attempt.effort !== undefined && { effort: attempt.effort }),
++          },
++        });
++      };
++      const finishTurn = (): void => {
++        if (codexAppServerFailedTurn(messages)) {
++          throw new ReviewRuntimeError('process_failed', 'codex turn failed');
++        }
++        const proof = codexAppServerProof(messages, attempt.model);
++        if (proof === undefined) return;
++        const parsed = codexAppServerReviewOutput(attempt.packet, proof.text, proof.confirmedModel);
++        settle(() => {
++          resolve(parsed);
++        });
++      };
++      const handle = (message: unknown): void => {
++        if (!isRecord(message)) return;
++        messages.push(message);
++        if (message.id === 1) {
++          if (message.error !== undefined) throw new Error('initialize failed');
++          send({ method: 'initialized' });
++          send({
++            id: 2,
++            method: 'thread/start',
++            params: {
++              cwd: attempt.cwd,
++              ephemeral: true,
++              sandbox: 'read-only',
++              approvalPolicy: 'never',
++              ...(attempt.model !== undefined && { model: attempt.model }),
++            },
++          });
++        } else if (message.id === 2) {
++          startTurn(message.result);
++        } else if (message.id === 3 && message.error !== undefined) {
++          throw new ReviewRuntimeError('process_failed', 'codex turn was rejected');
++        } else if (message.method === 'turn/completed') {
++          finishTurn();
++        }
++      };
++      child.stdout.setEncoding('utf8');
++      child.stderr.setEncoding('utf8');
++      child.stdout.on('data', (chunk: string) => {
++        const appended = appendBounded(stdout, stdoutBytes, chunk);
++        stdout = appended.value;
++        stdoutBytes = appended.bytes;
++        if (appended.overflow) {
++          settle(() => {
++            reject(new ReviewRuntimeError('invalid_output', 'codex output exceeded limit'));
++          });
++          return;
++        }
++        pending += chunk;
++        let newline: number;
++        while ((newline = pending.indexOf('\n')) !== -1 && !settled) {
++          const line = pending.slice(0, newline);
++          pending = pending.slice(newline + 1);
++          try {
++            handle(JSON.parse(line) as unknown);
++          } catch (error) {
++            settle(() => {
++              reject(
++                error instanceof ReviewRuntimeError
++                  ? error
++                  : new ReviewRuntimeError('invalid_output', 'codex protocol failed'),
++              );
++            });
++          }
++        }
++      });
++      child.stderr.on('data', (chunk: string) => {
++        const appended = appendBounded(stderr, stderrBytes, chunk);
++        stderr = appended.value;
++        stderrBytes = appended.bytes;
++      });
++      child.stdin.on('error', () => {
++        // The child close handler classifies an early exit.
++      });
++      child.on('error', error => {
++        settle(() => {
++          reject(new ReviewRuntimeError('process_failed', error.message));
++        });
++      });
++      child.on('close', () => {
++        settle(() => {
++          reject(
++            new ReviewRuntimeError(
++              classifyExit(stdout, stderr, 'unsupported'),
++              'codex app-server did not complete the review',
++            ),
++          );
++        });
++      });
++      send({
++        id: 1,
++        method: 'initialize',
++        params: { clientInfo: { name: 'safeword', version: '1' } },
++      });
++    });
++    await stopReviewerOrThrow(child, 'codex', false);
++    return { ...execution, output: reconcilePlanContract(attempt.packet, execution.output) };
++  } catch (error) {
++    await stopReviewerOrThrow(child, 'codex');
++    throw error;
++  } finally {
++    removeTerminationHandler();
++    isolatedHome.cleanup();
++  }
++}
++
+ async function runCandidate(
+   executable: string,
+   attempt: ReviewAttempt,
+   timeoutMs: number,
+-): Promise<UnverifiedReviewerOutput> {
++): Promise<ReviewerExecution> {
++  if (
++    attempt.reviewer === 'codex' &&
++    (attempt.packet.planning_phase === 'product-plan' ||
++      ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(attempt.packet.kind))
++  ) {
++    const appServer = await supportsReviewContract(
++      'codex',
++      executable,
++      attempt.cwd,
++      Math.min(5000, timeoutMs),
++      { arguments: ['app-server', '--help'], required: ['--stdio', '--config'] },
++    );
++    if (appServer.kind === 'supported') {
++      try {
++        return await runCodexAppServerCandidate(executable, attempt, timeoutMs);
++      } catch (error) {
++        if (!(error instanceof ReviewRuntimeError) || error.failure !== 'unsupported') throw error;
++      }
++    }
++    // Older Codex CLIs can still return readable review evidence through exec.
++  }
+   const { reviewer, packet, cwd, model, schemaPath } = attempt;
++  const argumentEnvironment =
++    attempt.effort === undefined
++      ? process.env
++      : { ...process.env, SAFEWORD_REVIEW_EFFORT_CLAUDE: attempt.effort };
+   const child = spawn(
+     executable,
+-    reviewerArguments(reviewer, model, schemaPath, process.env, packet.kind),
++    reviewerArguments(reviewer, model, schemaPath, argumentEnvironment, packet),
+     {
+       cwd,
+       env: reviewerEnvironment(reviewer),
+@@ -1480,18 +1776,16 @@ async function runCandidate(
+       detached: process.platform !== 'win32',
+     },
+   );
+-  const terminateReviewer = (): void => {
+-    void stopReviewer(child).finally(() => process.exit(143));
+-  };
+-  process.once('SIGTERM', terminateReviewer);
++  const removeTerminationHandler = installReviewerTerminationHandler(child);
+   try {
+-    let output: UnverifiedReviewerOutput;
++    let execution: ReviewerExecution;
+     try {
+-      output = await new Promise<UnverifiedReviewerOutput>((resolve, reject) => {
++      execution = await new Promise<ReviewerExecution>((resolve, reject) => {
+         let overflow = false;
+         // One outcome per attempt, settled once. A late answer arriving after a
+         // deadline never changes a verdict that is already decided.
+         let settled = false;
++        // eslint-disable-next-line sonarjs/no-identical-functions -- Each reviewer process owns its timeout and settlement state.
+         const settle = (finish: () => void): void => {
+           if (settled) return;
+           settled = true;
+@@ -1558,13 +1852,13 @@ async function runCandidate(
+               return;
+             }
+             try {
+-              const parsed = parseReviewerOutput(reviewer, stdout, packet.kind);
++              const parsed = parseReviewerExecution(reviewer, stdout, packet.kind);
+               if (packet.kind !== 'plan-execution') {
+                 resolve(parsed);
+                 return;
+               }
+               const validation = validateExecutionPlanOutput(
+-                parsed,
++                parsed.output,
+                 packet.execution_plan_delivery_definition,
+                 packet.execution_plan_normalized_digest,
+               );
+@@ -1574,7 +1868,7 @@ async function runCandidate(
+                   `${reviewer} returned invalid review output: ${validation.reason}`,
+                 );
+               }
+-              resolve(validation.output);
++              resolve({ ...parsed, output: validation.output });
+             } catch (error) {
+               if (error instanceof ReviewRuntimeError) {
+                 reject(error);
+@@ -1600,9 +1894,9 @@ async function runCandidate(
+     // Preserve the review, but surface failed cleanup as a retryable candidate
+     // failure so another installation or route can still provide coverage.
+     await stopReviewerOrThrow(child, reviewer, false);
+-    return reconcilePlanContract(packet, output);
++    return { ...execution, output: reconcilePlanContract(packet, execution.output) };
+   } finally {
+-    process.off('SIGTERM', terminateReviewer);
++    removeTerminationHandler();
+   }
+ }
+ 
+@@ -1610,7 +1904,7 @@ async function runReviewerCandidates(
+   attempt: ReviewAttempt,
+   candidates: readonly string[],
+   deadline: number,
+-): Promise<UnverifiedReviewerOutput> {
++): Promise<ReviewerExecution> {
+   const reviewer = attempt.reviewer;
+   let foundCompatible = false;
+   let lastFailure: ReviewRuntimeError | undefined;
+@@ -1620,13 +1914,9 @@ async function runReviewerCandidates(
+     const untried = candidates.length - index;
+     const candidateDeadline = Date.now() + remainingMs / untried;
+     const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
+-    const assessment = await supportsReviewContract(
+-      reviewer,
+-      candidate,
+-      attempt.cwd,
+-      probeBudget,
+-      attempt.model,
+-    );
++    const assessment = await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget, {
++      model: attempt.model,
++    });
+     if (assessment.kind === 'failed') {
+       lastProbeFailure = new ReviewRuntimeError(
+         assessment.failure,
+@@ -1660,14 +1950,18 @@ async function runReviewerCandidates(
+   throw lastFailure ?? new ReviewRuntimeError('process_failed', `${reviewer} review failed`);
+ }
+ 
+-export async function runHeadlessReviewer(
++export async function runHeadlessReviewerWithProvenance(
+   reviewer: ReviewAgent,
+   packet: ReviewPacket,
+   cwd: string,
+   untrustedRoot: string = process.cwd(),
+-  options: { readonly model?: string; readonly runDeadline?: number } = {},
+-): Promise<UnverifiedReviewerOutput> {
+-  const { model, runDeadline } = options;
++  options: {
++    readonly model?: string;
++    readonly runDeadline?: number;
++    readonly effort?: NonNullable<ReviewAttempt['effort']>;
++  } = {},
++): Promise<ReviewerExecution> {
++  const { model, runDeadline, effort } = options;
+   // A route never outlives the run: whichever bound arrives first wins.
+   const deadline = Math.min(Date.now() + reviewTimeoutMilliseconds(), runDeadline ?? Infinity);
+   const candidates = executableCandidates(reviewer, untrustedRoot);
+@@ -1687,7 +1981,7 @@ export async function runHeadlessReviewer(
+   }
+   try {
+     return await runReviewerCandidates(
+-      { reviewer, packet, cwd, model, schemaPath: contract?.path },
++      { reviewer, packet, cwd, model, effort, schemaPath: contract?.path },
+       candidates.paths,
+       deadline,
+     );
+@@ -1696,6 +1990,27 @@ export async function runHeadlessReviewer(
+   }
+ }
+ 
++export async function runHeadlessReviewer(
++  reviewer: ReviewAgent,
++  packet: ReviewPacket,
++  cwd: string,
++  untrustedRoot: string = process.cwd(),
++  options: {
++    readonly model?: string;
++    readonly runDeadline?: number;
++    readonly effort?: NonNullable<ReviewAttempt['effort']>;
++  } = {},
++): Promise<UnverifiedReviewerOutput> {
++  const execution = await runHeadlessReviewerWithProvenance(
++    reviewer,
++    packet,
++    cwd,
++    untrustedRoot,
++    options,
++  );
++  return execution.output;
++}
++
+ interface ContractFile {
+   readonly path: string;
+   readonly cleanup: () => void;

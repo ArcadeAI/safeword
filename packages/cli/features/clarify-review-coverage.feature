@@ -264,9 +264,9 @@ Feature: Make review coverage clear without false alarms
 
     Examples:
       | contract       | required_text                                                    |
-      | finish-review  | Provide supplemental review feedback in this foreground session. |
-      | finish-review  | Required independent coverage remains unsatisfied.               |
-      | finish-review  | Include the coordinator's recovery command exactly as provided. |
+      | finish-review  | Report the verdict, summary, and every finding as supplemental feedback in |
+      | finish-review  | unsatisfied regardless of this verdict. |
+      | finish-review  | it creates no machine receipt or review stamp. |
       | quality-review | Show review coverage details.                                     |
 
   @clarify-review-coverage.SWM1.R1 @contract.host @rejection

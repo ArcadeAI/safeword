@@ -1,0 +1,5 @@
+import base from './cucumber.mjs';
+export default {
+  ...base,
+  paths: ['features/review-with-the-best-available-agent.feature', 'features/clarify-review-coverage.feature'],
+};

@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import { readFileSync,writeFileSync,rmSync,mkdtempSync } from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+const root=process.cwd();
+const mutant=path.join(root,'packages/cli/dist/coordinator-quality-mutant.js');
+let seeded=false;
+const built=await Bun.build({entrypoints:[path.join(root,'packages/cli/src/review/coordinator.ts')],target:'node',packages:'external',outdir:path.dirname(mutant),naming:path.basename(mutant),plugins:[{name:'seed-order',setup(build){build.onLoad({filter:/\/review\/coordinator\.ts$/},args=>{const source=readFileSync(args.path,'utf8');const match="return [\n    ...routes.filter(route => route.independence === 'cross-agent'),\n    ...routes.filter(route => route.independence === 'degraded'),\n  ];";assert.ok(source.includes(match));seeded=true;return {contents:source.replace(match,'return routes;'),loader:'ts'};});}}]});
+assert.ok(built.success && seeded);
+const {rankedPlanningReview}=await import(path.join(root,'packages/cli/tests/fixtures/ranked-planning-review.ts'));
+const {createTrustedReviewerDirectory}=await import(path.join(root,'packages/cli/tests/review-fixtures.ts'));
+const project=mkdtempSync(path.join(tmpdir(),'safeword-order-probe-'));
+const bin=createTrustedReviewerDirectory('safeword-order-probe-bin-');
+try {
+ const original=await rankedPlanningReview(project,bin,'first');
+ assert.deepEqual(original.launches.map(x=>x.agent+':'+x.model),['codex:gpt-6-astra']);
+ writeFileSync(path.join(bin,'launches.jsonl'),'');
+ Object.assign(process.env,{PATH:bin+':/usr/bin:/bin',SAFEWORD_AGENT_RUNTIME:'claude',SAFEWORD_AUTHOR_MODEL:'claude-opus-5',SAFEWORD_REVIEW_TIMEOUT_MS:'3000',SAFEWORD_REVIEW_KEY_ROOT:path.join(bin,'keys')});
+ const {runReview}=await import(mutant);
+ const result=await runReview({cwd:project,kind:'plan-implementation',targets:['.project/tickets/RNK123-ranked/impl-plan.md'],context:['.project/tickets/RNK123-ranked/spec.md']});
+ const actual=readFileSync(path.join(bin,'launches.jsonl'),'utf8').trim().split('\n').filter(Boolean).map(x=>JSON.parse(x)).map(x=>x.agent+':'+x.model);
+ assert.equal(result.data.status,'blocked');
+ assert.ok(result.findings.some(f=>f.code==='REVIEW_ROUTES_EXHAUSTED'));
+ assert.notDeepEqual(actual,['codex:gpt-6-astra']);
+ console.log(JSON.stringify({mutation:'remove independent-first ordering',baseline_launches:['codex:gpt-6-astra'],mutated_launches:actual,mutated_status:result.data.status,findings:result.findings.map(f=>f.code),killed:true,boundary:'direct real coordinator; baseline is real CLI; worker mutation attempts are separate inconclusive evidence'}));
+} finally { rmSync(mutant,{force:true});rmSync(project,{recursive:true,force:true});rmSync(bin,{recursive:true,force:true}); }

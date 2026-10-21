@@ -22,11 +22,11 @@ export interface ReviewStamp {
   /** The reviewing model, recorded by the orchestrator that assigned it (ticket MR5M3A). Absent on pre-MR5M3A stamps. */
   model?: string;
   /** Author runtime recorded from the validated coordinator result. */
-  author?: 'claude' | 'codex' | 'opencode';
+  author?: 'claude' | 'codex' | 'cursor' | 'opencode';
   /** Actual reviewer runtime recorded from the validated coordinator result. */
-  reviewer?: 'claude' | 'codex' | 'opencode';
+  reviewer?: 'claude' | 'codex' | 'cursor' | 'opencode';
   /** Independence earned by the validated route. */
-  independence?: 'cross-agent' | 'degraded' | 'none';
+  independence?: 'cross-agent' | 'reduced' | 'degraded' | 'none';
   /**
    * The coordinator review this stamp cites (ticket PB1GMZ). Recorded so the
    * claim stays checkable after the fact: `review status <id>` still reports
@@ -55,7 +55,7 @@ export function reviewScope(ticketId: string, artifact: string, contentHash: str
 export type GateVerdict = { ok: true } | { ok: false; reason: string };
 
 /** Levels that assert a coordinator ran and returned a verdict. */
-const COORDINATOR_CLAIMS = new Set(['cross-agent', 'degraded']);
+const COORDINATOR_CLAIMS = new Set(['cross-agent', 'reduced', 'degraded']);
 
 /** A stamp satisfies a gate when it's a real review, or a skip with a non-empty reason. */
 function isSatisfyingStamp(stamp: ReviewStamp, policy: CrossAgentReviewPolicy = 'prefer'): boolean {
@@ -148,6 +148,22 @@ export function reviewGateForNextAsset(
   };
 }
 
+/** The opt-in architecture gate requires independent design review or a reasoned skip. */
+export function reviewGateForIndependentDesign(
+  scope: string,
+  stamps: readonly ReviewStamp[],
+): GateVerdict {
+  if (
+    stamps.some(
+      stamp =>
+        isSatisfyingSkipStamp(scope, stamp) ||
+        isSatisfyingCoordinatorReviewStamp(scope, stamp, 'require'),
+    )
+  )
+    return { ok: true };
+  return { ok: false, reason: `"${scope}" has no independent design review` };
+}
+
 /**
  * Phase-exit gate (TB2.AC1): advancing past a phase is allowed only when an
  * independent review stamp for that phase exists. Unlike the per-asset gate
@@ -177,7 +193,7 @@ export function gatePhaseAdvance(
 // fork review). The content-hash binding in <scope> at least defeats accidental
 // stale-after-edit passes, not deliberate spoofing.
 const REVIEW_LINE =
-  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|opencode))?(?:\s+reviewer:(claude|codex|opencode))?(?:\s+independence:(cross-agent|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
+  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|cursor|opencode))?(?:\s+reviewer:(claude|codex|cursor|opencode))?(?:\s+independence:(cross-agent|reduced|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
 
 /**
  * Tier 1 (the per-asset inline stamp) is OFF unless `.safeword/config.json` sets

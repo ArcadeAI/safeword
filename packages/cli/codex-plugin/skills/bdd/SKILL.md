@@ -12,6 +12,12 @@ description: Behavior-first feature development — use when building new
 Behavior-first development for features. Discovery → Scenarios → Implementation Planning →
 Execution Planning → Implementation.
 
+Safeword planning review and approval are enforced on local Claude Code, local
+Codex, local Cursor, OpenCode CLI and TUI, Claude Code Cloud, and Cursor Cloud
+Agents. Codex Cloud and OpenCode Desktop execution is advisory. Do not claim
+authoritative planning review or approval there; move authoritative planning to
+a supported gated surface.
+
 Define the behavior before implementing it. When unsure whether work is a feature, default to a task (TDD directly) — the user can `$safeword:bdd` to override.
 
 ## Phase Tracking

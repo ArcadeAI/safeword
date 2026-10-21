@@ -3,11 +3,12 @@ import nodePath from 'node:path';
 import { parseReviewStamps } from '../../templates/hooks/lib/review-ledger.js';
 import type { ReviewKind } from './contract.js';
 import { reviewJobStatus } from './job.js';
+import { reviewPolicyAllowsAssurance } from './policy.js';
 
 export interface ReviewProvenance {
   readonly authorAgent: string;
   readonly reviewerAgent: string;
-  readonly independence: 'cross-agent' | 'degraded';
+  readonly independence: 'cross-agent' | 'reduced' | 'degraded';
 }
 
 export type PhaseReviewAdmission =
@@ -74,7 +75,7 @@ function isCurrentReceipt(cwd: string, reviewId: string): boolean {
 function assuranceMatches(
   candidate: ReviewCandidate,
   stamp: ReturnType<typeof parseReviewStamps>[number],
-  independence: 'cross-agent' | 'degraded',
+  independence: 'cross-agent' | 'reduced' | 'degraded',
 ): boolean {
   const { data, output } = candidate;
   return [
@@ -91,10 +92,11 @@ function assuranceAdmission(
   candidate: ReviewCandidate,
   stamp: ReturnType<typeof parseReviewStamps>[number],
   label: string,
+  cwd: string,
 ): PhaseReviewAdmission {
   const { data } = candidate;
   const independence = data.independence;
-  if (independence !== 'cross-agent' && independence !== 'degraded') {
+  if (independence !== 'cross-agent' && independence !== 'reduced' && independence !== 'degraded') {
     return {
       kind: 'unearned_assurance',
       message: `The ${label} review has no validated achieved independence.`,
@@ -118,6 +120,12 @@ function assuranceAdmission(
     return {
       kind: 'unearned_assurance',
       message: `The recorded assurance disagrees with the authenticated ${label} review.`,
+    };
+  }
+  if (!reviewPolicyAllowsAssurance(cwd, independence)) {
+    return {
+      kind: 'unearned_assurance',
+      message: `The ${label} review has ${independence} independence, but the current require policy needs cross-agent review.`,
     };
   }
   return {
@@ -156,7 +164,7 @@ export function phaseReviewAdmission(input: {
     if (output.verdict !== 'approve' || data.status !== 'approved') {
       return { kind: 'not_admitted' };
     }
-    return assuranceAdmission(candidate, stamp, input.label);
+    return assuranceAdmission(candidate, stamp, input.label, input.cwd);
   }
   return { kind: 'not_admitted' };
 }

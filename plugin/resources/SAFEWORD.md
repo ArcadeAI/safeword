@@ -10,6 +10,12 @@ Project knowledge (tickets, learnings, principles, personas, glossary, surfaces)
 
 A safeword session runs through these phases in order. Each phase has an exit criterion — meet it before advancing.
 
+Safeword planning review and approval are enforced on local Claude Code, local
+Codex, local Cursor, OpenCode CLI and TUI, Claude Code Cloud, and Cursor Cloud
+Agents. Codex Cloud and OpenCode Desktop execution is advisory. Do not claim
+authoritative planning review or approval there; move authoritative planning to
+a supported gated surface.
+
 ### 1. Clarify (Propose-and-Converge)
 
 Understand what the user is asking before classifying or building. **Propose-and-Converge** means: lead with a perspective, then surface open questions _inside_ that proposal. Don't ask first — propose first.

@@ -87,7 +87,7 @@ export function reviewKindForPhase(phase: string): string {
 }
 
 /** Levels that assert a coordinator ran and returned a verdict. */
-const COORDINATOR_CLAIMS = new Set(['cross-agent', 'degraded']);
+const COORDINATOR_CLAIMS = new Set(['cross-agent', 'reduced', 'degraded']);
 
 /** Whether a stamp asserts a coordinator ran — the claims that need a witness. */
 export function claimsCoordinatorVerdict(independence?: string): boolean {

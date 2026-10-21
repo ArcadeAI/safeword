@@ -1,0 +1,2434 @@
+diff --git a/packages/cli/tests/integration/planning-review-route-order.test.ts b/packages/cli/tests/integration/planning-review-route-order.test.ts
+new file mode 100644
+index 000000000..f4f75d23a
+--- /dev/null
++++ b/packages/cli/tests/integration/planning-review-route-order.test.ts
+@@ -0,0 +1,259 @@
++import { spawnSync } from 'node:child_process';
++import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
++import nodePath from 'node:path';
++
++import { afterEach, expect, it } from 'vitest';
++
++import {
++  createConfiguredProject,
++  createTemporaryDirectory,
++  runCli,
++  testCliPath,
++} from '../helpers.js';
++import { writePlanningInventories } from '../planning-fixtures.js';
++import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
++import {
++  cleanupTrustedReviewerDirectories,
++  createTrustedReviewerDirectory,
++  REVIEWER_CAPABILITIES,
++} from '../review-fixtures.js';
++
++const projects: string[] = [];
++
++afterEach(() => {
++  for (const project of projects) rmSync(project, { recursive: true, force: true });
++  projects.length = 0;
++  cleanupTrustedReviewerDirectories();
++});
++
++function reviewerScript(
++  agent: 'claude' | 'codex',
++  marker: string,
++  packetPath: string,
++  codexFails: boolean,
++  codexConfirmed: boolean,
++): string {
++  const help =
++    agent === 'codex' && codexConfirmed
++      ? `process.argv.includes('app-server') ? '--stdio --config' : ${JSON.stringify(REVIEWER_CAPABILITIES.codex)}`
++      : JSON.stringify(REVIEWER_CAPABILITIES[agent]);
++  const review =
++    agent === 'codex' && codexConfirmed
++      ? String.raw`let buffer = '';
++process.stdin.setEncoding('utf8');
++process.stdin.on('data', chunk => {
++  buffer += chunk;
++  let index;
++  while ((index = buffer.indexOf('\n')) !== -1) {
++    const message = JSON.parse(buffer.slice(0, index));
++    buffer = buffer.slice(index + 1);
++    if (message.id === 1) console.log(JSON.stringify({ id: 1, result: {} }));
++    if (message.id === 2) console.log(JSON.stringify({ id: 2, result: { thread: { id: 'thread-1' }, model: message.params.model, modelProvider: 'openai' } }));
++    if (message.id === 3) {
++      const packet = JSON.parse(message.params.input[0].text.trim().split('\n').pop());
++      console.log(JSON.stringify({ id: 3, result: { turn: { id: 'turn-1' } } }));
++      console.log(JSON.stringify({ method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed', items: [{ type: 'agentMessage', phase: 'final_answer', text: JSON.stringify(reviewOutput(packet)) }] } } }));
++    }
++  }
++});`
++      : String.raw`let input = '';
++process.stdin.setEncoding('utf8');
++process.stdin.on('data', chunk => { input += chunk; });
++process.stdin.on('end', () => {
++  const packet = JSON.parse(input.trim().split('\n').pop());
++  const output = reviewOutput(packet);
++  console.log(JSON.stringify('${agent}' === 'codex' ? { type: 'item.completed', item: { type: 'agent_message', text: JSON.stringify(output) } } : { structured_output: output }));
++});`;
++  return `#!${process.execPath}
++const { writeFileSync } = require('node:fs');
++if (process.argv.includes('--version')) { console.log('${agent} 1.0.0'); process.exit(0); }
++if (process.argv.includes('--help')) { console.log(${help}); process.exit(0); }
++writeFileSync(${JSON.stringify(marker)}, 'yes');
++${agent === 'codex' && codexFails ? 'process.exit(7);' : ''}
++function reviewOutput(packet) {
++  writeFileSync(${JSON.stringify(packetPath)}, JSON.stringify(packet));
++  return { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: '${agent}', verdict: 'approve', summary: 'Review approved.', findings: [] };
++}
++${review}
++`;
++}
++
++async function assertQualifiedAdmission(
++  flags: { authorKnown: boolean; codexConfirmed: boolean; codexFails: boolean },
++  project: string,
++  reviewer: string,
++  reviewId: string,
++): Promise<void> {
++  if (!flags.authorKnown || !flags.codexConfirmed || flags.codexFails) return;
++  const bun = spawnSync('which', ['bun'], { encoding: 'utf8' });
++  expect(bun.status).toBe(0);
++  const environment = {
++    ...process.env,
++    SAFEWORD_AGENT_RUNTIME: 'claude',
++    CLAUDE_SESSION_ID: 'qualified-route-order',
++    SAFEWORD_AUTHOR_MODEL: 'claude-opus-5',
++    SAFEWORD_PLUGIN_CLI: testCliPath,
++    SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(reviewer, '.review-keys'),
++  };
++  const stamped = spawnSync(
++    bun.stdout.trim(),
++    [
++      '.safeword/hooks/write-review-stamp.ts',
++      '--ticket',
++      'ORD123-independent-first',
++      '--phase',
++      'plan-implementation',
++      '--author-agent',
++      'claude',
++      '--reviewer-agent',
++      'codex',
++      '--independence',
++      'cross-agent',
++      '--review-id',
++      reviewId,
++    ],
++    { cwd: project, encoding: 'utf8', env: environment },
++  );
++  expect(stamped.status, stamped.stdout + stamped.stderr).toBe(0);
++  const admitted = await runCli(
++    ['ticket', 'approve-plan', 'ORD123', '--cwd', project, '--json', '--no-input'],
++    { cwd: project, env: environment },
++  );
++  expect(admitted.exitCode, admitted.stdout).toBe(0);
++  expect(JSON.parse(admitted.stdout).data).toMatchObject({
++    achieved_independence: 'cross-agent',
++  });
++}
++
++it.each([
++  ['claude', 'codex', false, 'absent', false],
++  ['claude', 'codex', false, 'empty', false],
++  ['codex', 'claude', false, 'absent', false],
++  ['claude', 'codex', true, 'absent', false],
++  ['codex', 'claude', true, 'absent', false],
++  ['codex', 'claude', false, 'known', false],
++  ['codex', 'claude', false, 'known', true],
++] as const)(
++  'tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, author model is %s, and model is confirmed %s',
++  // eslint-disable-next-line complexity -- The route-order matrix shares one real CLI fixture.
++  async (first, second, codexFails, authorModelState, codexConfirmed) => {
++    const authorKnown = authorModelState === 'known';
++    const project = createTemporaryDirectory();
++    projects.push(project);
++    await createConfiguredProject(project);
++    writePlanningInventories(project);
++    const configPath = nodePath.join(project, '.safeword/config.json');
++    const config = JSON.parse(readFileSync(configPath, 'utf8'));
++    writeFileSync(
++      configPath,
++      JSON.stringify({
++        ...config,
++        crossAgentReviewRoutes: {
++          claude: [
++            {
++              reviewer: first,
++              ...(first === 'codex' && codexConfirmed && { model: 'gpt-6-astra' }),
++            },
++            { reviewer: second },
++          ],
++        },
++      }),
++    );
++    const ticket = '.project/tickets/ORD123-independent-first';
++    mkdirSync(nodePath.join(project, ticket), { recursive: true });
++    writeFileSync(
++      nodePath.join(project, ticket, 'ticket.md'),
++      '---\nid: ORD123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: preserve independent review\nout_of_scope: bypassing review\ndone_when: independent review runs first\nphase_anchors:\n  - scenario-gate: features/independent-first.feature\n---\n',
++    );
++    writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
++    writeFileSync(
++      nodePath.join(project, ticket, 'impl-plan.md'),
++      '# Implementation Plan\n\n**Status:** planned\n\n## Approach\n\nPreserve independent-first review.\n\n## Decisions\n\nUse the current review receipt.\n\n## Design alignment\n\nEnsure independent review is attempted first.\n\n## Architecture applicability\n\nskip: no architecture records apply\n\n## Data applicability\n\nskip: no product data changes\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: no customer docs change\n\n## Assessment triggers\n\nRevisit if review authority changes.\n',
++    );
++    mkdirSync(nodePath.join(project, 'features'), { recursive: true });
++    writeFileSync(
++      nodePath.join(project, 'features/independent-first.feature'),
++      '@independent-first.BU1.R1\nFeature: Independent first\n  Scenario: Available independent route\n    Given both routes are available\n    When review runs\n    Then independent review runs first\n',
++    );
++    const reviewer = createTrustedReviewerDirectory('safeword-route-order-');
++    const sameAgentInvoked = nodePath.join(reviewer, 'same-agent-invoked');
++    const independentInvoked = nodePath.join(reviewer, 'independent-invoked');
++    const packets = {
++      claude: nodePath.join(reviewer, 'claude-packet.json'),
++      codex: nodePath.join(reviewer, 'codex-packet.json'),
++    };
++    for (const agent of ['claude', 'codex'] as const) {
++      const marker = agent === 'claude' ? sameAgentInvoked : independentInvoked;
++      writeFileSync(
++        nodePath.join(reviewer, agent),
++        reviewerScript(agent, marker, packets[agent], codexFails, codexConfirmed),
++        { mode: 0o755 },
++      );
++    }
++    const reviewed = await runCli(
++      [
++        'review',
++        'run',
++        'plan-implementation',
++        `${ticket}/impl-plan.md`,
++        '--context',
++        `${ticket}/spec.md`,
++        '--cwd',
++        project,
++        '--json',
++        '--no-input',
++      ],
++      {
++        cwd: project,
++        env: {
++          PATH: `${reviewer}:/usr/bin:/bin`,
++          SAFEWORD_AGENT_RUNTIME: 'claude',
++          SAFEWORD_NO_UPDATE_CHECK: '1',
++          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(reviewer, '.review-keys'),
++          ...(authorKnown && { SAFEWORD_AUTHOR_MODEL: 'claude-opus-5' }),
++          ...(authorModelState === 'empty' && { SAFEWORD_AUTHOR_MODEL: '' }),
++        },
++      },
++    );
++    const output = JSON.parse(reviewed.stdout);
++    expect(output.data).toMatchObject({
++      status: 'approved',
++      actual_reviewer: codexFails || (authorKnown && !codexConfirmed) ? 'claude' : 'codex',
++      independence: codexConfirmed ? 'cross-agent' : 'reduced',
++    });
++    await assertQualifiedAdmission(
++      { authorKnown, codexConfirmed, codexFails },
++      project,
++      reviewer,
++      output.data.review_id,
++    );
++    expect(existsSync(independentInvoked)).toBe(true);
++    expect(existsSync(sameAgentInvoked)).toBe(codexFails || (authorKnown && !codexConfirmed));
++    if (authorKnown && !codexConfirmed) {
++      expect(JSON.parse(readFileSync(packets.claude, 'utf8'))).toEqual(
++        JSON.parse(readFileSync(packets.codex, 'utf8')),
++      );
++      expect(output.data.review_routes).toContainEqual(
++        expect.objectContaining({
++          reviewer: 'codex',
++          failure: 'reviewer_capability_unknown',
++          status: 'attempted',
++        }),
++      );
++    }
++    if (codexFails || (authorKnown && !codexConfirmed)) {
++      expect(output.findings).toContainEqual(
++        expect.objectContaining({ code: 'REVIEW_INDEPENDENCE_REDUCED' }),
++      );
++      expect(
++        output.findings.some(
++          (finding: { code: string; message: string }) =>
++            /degraded/iu.test(`${finding.code} ${finding.message}`) ||
++            /was not independent/iu.test(finding.message),
++        ),
++      ).toBe(false);
++    } else if (!codexConfirmed) {
++      expect(output.data.capability_failure).toBe('author_capability_unknown');
++    }
++  },
++);
+diff --git a/packages/cli/tests/integration/planning-review-unavailable-independent.test.ts b/packages/cli/tests/integration/planning-review-unavailable-independent.test.ts
+new file mode 100644
+index 000000000..cd9885ebb
+--- /dev/null
++++ b/packages/cli/tests/integration/planning-review-unavailable-independent.test.ts
+@@ -0,0 +1,91 @@
++import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
++import nodePath from 'node:path';
++
++import { afterEach, expect, it } from 'vitest';
++
++import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
++import { writePlanningInventories } from '../planning-fixtures.js';
++import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
++import {
++  cleanupTrustedReviewerDirectories,
++  createTrustedReviewerDirectory,
++  REVIEWER_CAPABILITIES,
++} from '../review-fixtures.js';
++
++const projects: string[] = [];
++
++afterEach(() => {
++  for (const project of projects) rmSync(project, { recursive: true, force: true });
++  projects.length = 0;
++  cleanupTrustedReviewerDirectories();
++});
++
++it('blocks planning fallback when the configured independent route is unavailable', async () => {
++  const project = createTemporaryDirectory();
++  projects.push(project);
++  await createConfiguredProject(project);
++  writePlanningInventories(project);
++  const configPath = nodePath.join(project, '.safeword/config.json');
++  const config = JSON.parse(readFileSync(configPath, 'utf8'));
++  writeFileSync(
++    configPath,
++    JSON.stringify({
++      ...config,
++      crossAgentReviewRoutes: { claude: [{ reviewer: 'codex' }, { reviewer: 'claude' }] },
++    }),
++  );
++  const ticket = '.project/tickets/UNA123-unavailable-independent-route';
++  mkdirSync(nodePath.join(project, ticket), { recursive: true });
++  writeFileSync(
++    nodePath.join(project, ticket, 'ticket.md'),
++    '---\nid: UNA123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: preserve approval\nout_of_scope: anonymous approval\ndone_when: independent review precedes fallback\nphase_anchors:\n  - scenario-gate: features/unavailable-independent.feature\n---\n',
++  );
++  writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
++  writeFileSync(
++    nodePath.join(project, ticket, 'impl-plan.md'),
++    '# Implementation Plan\n\n**Status:** planned\n\n## Approach\n\nPreserve authenticated approval.\n\n## Decisions\n\nUse the current review receipt.\n\n## Design alignment\n\nEnsure independent review is attempted first.\n\n## Architecture applicability\n\nskip: no architecture records apply\n\n## Data applicability\n\nskip: no product data changes\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: no customer docs change\n\n## Assessment triggers\n\nRevisit if review authority changes.\n',
++  );
++  mkdirSync(nodePath.join(project, 'features'), { recursive: true });
++  writeFileSync(
++    nodePath.join(project, 'features/unavailable-independent.feature'),
++    '@unavailable-independent.BU1.R1\nFeature: Independent first\n  Scenario: Independent route unavailable\n    Given the independent reviewer is not installed\n    When review runs\n    Then approval remains blocked\n',
++  );
++  const reviewer = createTrustedReviewerDirectory('safeword-unavailable-independent-');
++  const invoked = nodePath.join(reviewer, 'invoked');
++  writeFileSync(
++    nodePath.join(reviewer, 'claude'),
++    `#!${process.execPath}\nconst { writeFileSync } = require('node:fs');\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nwriteFileSync(${JSON.stringify(invoked)}, 'yes');\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Same-agent approval.', findings: [] } })); });\n`,
++    { mode: 0o755 },
++  );
++  const reviewed = await runCli(
++    [
++      'review',
++      'run',
++      'plan-implementation',
++      `${ticket}/impl-plan.md`,
++      '--context',
++      `${ticket}/spec.md`,
++      '--cwd',
++      project,
++      '--json',
++      '--no-input',
++    ],
++    {
++      cwd: project,
++      env: {
++        PATH: `${reviewer}:/usr/bin:/bin`,
++        SAFEWORD_AGENT_RUNTIME: 'claude',
++        SAFEWORD_NO_UPDATE_CHECK: '1',
++      },
++    },
++  );
++  const output = JSON.parse(reviewed.stdout);
++  expect(output.data).toMatchObject({ status: 'blocked', independence: 'none' });
++  expect(output.findings).toContainEqual(
++    expect.objectContaining({ code: 'REVIEW_ROUTES_EXHAUSTED' }),
++  );
++  expect(output.data.review_routes).toContainEqual(
++    expect.objectContaining({ reviewer: 'codex', status: 'unavailable' }),
++  );
++  expect(existsSync(invoked)).toBe(false);
++});
+diff --git a/packages/cli/tests/integration/planning-review-weaker-route.test.ts b/packages/cli/tests/integration/planning-review-weaker-route.test.ts
+new file mode 100644
+index 000000000..fa90c7c9e
+--- /dev/null
++++ b/packages/cli/tests/integration/planning-review-weaker-route.test.ts
+@@ -0,0 +1,374 @@
++import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
++import nodePath from 'node:path';
++
++import { afterEach, expect, it, vi } from 'vitest';
++
++import { runReview } from '../../src/review/coordinator.js';
++import { createConfiguredProject, createTemporaryDirectory } from '../helpers.js';
++import { writePlanningInventories } from '../planning-fixtures.js';
++import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
++
++vi.mock('../../src/review/capability-catalogue.js', async importOriginal => ({
++  ...(await importOriginal<Record<string, unknown>>()),
++  reviewerCapabilityFailure: (_author: unknown, requestedModel: string | undefined) => {
++    if (requestedModel === undefined) return 'reviewer_capability_unknown';
++    return requestedModel === 'gpt-6-luna' ? 'reviewer_capability_weaker' : undefined;
++  },
++}));
++
++const dispatchedPackets = vi.hoisted(() => [] as { dispatch_id: string }[]);
++const dispatchedEfforts = vi.hoisted(() => [] as (string | undefined)[]);
++
++function fixtureRejects(reviewer: string, model: string | undefined): boolean {
++  return (
++    model === 'gpt-6-astra' ||
++    (model === 'gpt-6-luna' && process.env.SAFEWORD_TEST_WEAKER_REJECTION === '1') ||
++    (reviewer !== 'claude' && process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1')
++  );
++}
++
++function fixtureSummary(model: string | undefined): string {
++  if (model === 'gpt-6-luna' && process.env.SAFEWORD_TEST_WEAKER_REJECTION === '1')
++    return 'Weak rejection.';
++  return (
++    { 'gpt-6-luna': 'Weak approval.', 'gpt-6-astra': 'Qualified rejection.' }[model ?? ''] ??
++    'Runtime-default approval.'
++  );
++}
++
++vi.mock('../../src/review/runtime.js', async importOriginal => {
++  const actual = await importOriginal<Record<string, unknown>>();
++  const RuntimeError = actual.ReviewRuntimeError as new (failure: string, message: string) => Error;
++  return {
++    ...actual,
++    runHeadlessReviewerWithProvenance: (
++      reviewer: string,
++      packet: { dispatch_id: string },
++      _workspace: unknown,
++      _sourceRoot: unknown,
++      options: { model?: string; effort?: string },
++    ) => {
++      dispatchedPackets.push(packet);
++      dispatchedEfforts.push(options.effort);
++      if (process.env.SAFEWORD_TEST_REVIEWERS_FAIL === '1')
++        return Promise.reject(new RuntimeError('process_failed', 'fixture reviewer failure'));
++      return Promise.resolve({
++        output: {
++          schema_version: 1,
++          dispatch_id: packet.dispatch_id,
++          reviewer_agent: reviewer,
++          verdict: fixtureRejects(reviewer, options.model) ? 'request_changes' : 'approve',
++          summary: fixtureSummary(options.model),
++          findings:
++            reviewer !== 'claude' && process.env.SAFEWORD_TEST_UNKNOWN_REJECTION === '1'
++              ? [
++                  {
++                    severity: 'error',
++                    message: 'The unqualified reviewer found a blocking defect.',
++                  },
++                ]
++              : [],
++        },
++        confirmedModel:
++          options.model === undefined ? undefined : { provider: 'openai', model: options.model },
++      });
++    },
++  };
++});
++
++const projects: string[] = [];
++
++afterEach(() => {
++  vi.unstubAllEnvs();
++  dispatchedPackets.length = 0;
++  dispatchedEfforts.length = 0;
++  for (const project of projects) rmSync(project, { recursive: true, force: true });
++  projects.length = 0;
++});
++
++async function planningFixture() {
++  const project = createTemporaryDirectory();
++  projects.push(project);
++  await createConfiguredProject(project);
++  writePlanningInventories(project);
++  const configPath = nodePath.join(project, '.safeword/config.json');
++  const config = JSON.parse(readFileSync(configPath, 'utf8'));
++  writeFileSync(
++    configPath,
++    JSON.stringify({
++      ...config,
++      crossAgentReviewRoutes: {
++        claude: [
++          { reviewer: 'codex', model: 'gpt-6-luna' },
++          { reviewer: 'codex', model: 'gpt-6-astra' },
++        ],
++      },
++    }),
++  );
++  const ticket = '.project/tickets/WEK123-weaker-reviewer';
++  mkdirSync(nodePath.join(project, ticket), { recursive: true });
++  writeFileSync(
++    nodePath.join(project, ticket, 'ticket.md'),
++    '---\nid: WEK123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: truthful review\nout_of_scope: weaker approval\ndone_when: weaker reviewer is refused\nphase_anchors:\n  - scenario-gate: features/weaker-reviewer.feature\n---\n',
++  );
++  writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
++  writeFileSync(
++    nodePath.join(project, ticket, 'impl-plan.md'),
++    '# Implementation Plan\n\n**Status:** planned\n\n## Approach\n\nKeep review evidence truthful.\n\n## Decisions\n\nRequire qualified independent review.\n\n## Design alignment\n\nUse the current plan.\n\n## Architecture applicability\n\nskip: no architecture records apply\n\n## Data applicability\n\nskip: no product data changes\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: no customer docs change\n\n## Assessment triggers\n\nRevisit if review authority changes.\n',
++  );
++  mkdirSync(nodePath.join(project, 'features'), { recursive: true });
++  writeFileSync(
++    nodePath.join(project, 'features/weaker-reviewer.feature'),
++    '@weaker-reviewer.BU1.R1\nFeature: Weaker reviewer\n  Scenario: Weaker approval\n    Given a weaker reviewer approves\n    When another independent reviewer requests changes\n    Then the weaker approval is discarded\n',
++  );
++
++  vi.stubEnv('SAFEWORD_AGENT_RUNTIME', 'claude');
++  vi.stubEnv('SAFEWORD_AUTHOR_MODEL', 'claude-opus-5');
++  return { project, ticket, configPath, config };
++}
++
++it('discards a weaker approval before a qualified rejection', async () => {
++  const { project, ticket } = await planningFixture();
++  const result = await runReview({
++    cwd: project,
++    kind: 'plan-implementation',
++    targets: [`${ticket}/impl-plan.md`],
++    context: [`${ticket}/spec.md`],
++  });
++
++  expect(result.state).toBe('action_required');
++  expect(result.data).toMatchObject({
++    status: 'changes_requested',
++    independence: 'cross-agent',
++    review_routes: [
++      { model: 'gpt-6-luna', status: 'attempted', failure: 'reviewer_capability_weaker' },
++      { model: 'gpt-6-astra', status: 'attempted' },
++    ],
++    reviewer_output: { summary: 'Qualified rejection.', verdict: 'request_changes' },
++  });
++  expect(JSON.stringify(result)).not.toContain('Weak approval.');
++});
++
++it('exhausts when only a proven-weaker route is configured', async () => {
++  const { project, ticket, configPath, config } = await planningFixture();
++  writeFileSync(
++    configPath,
++    JSON.stringify({
++      ...config,
++      crossAgentReviewRoutes: { claude: [{ reviewer: 'codex', model: 'gpt-6-luna' }] },
++    }),
++  );
++  const exhausted = await runReview({
++    cwd: project,
++    kind: 'plan-implementation',
++    targets: [`${ticket}/impl-plan.md`],
++    context: [`${ticket}/spec.md`],
++  });
++  expect(exhausted.data).toMatchObject({
++    status: 'continuation_required',
++    continuation: { tier: 'fresh-context' },
++    review_routes: [{ model: 'gpt-6-luna', failure: 'reviewer_capability_weaker' }],
++  });
++  expect(exhausted.findings).toContainEqual(
++    expect.objectContaining({ code: 'REVIEW_CONTINUATION_REQUIRED' }),
++  );
++  expect(JSON.stringify(exhausted)).not.toContain('Weak approval.');
++});
++
++it('uses same-agent review after unqualified default routes', async () => {
++  const { project, ticket, configPath, config } = await planningFixture();
++  writeFileSync(configPath, JSON.stringify(config));
++  const defaulted = await runReview({
++    cwd: project,
++    kind: 'plan-implementation',
++    targets: [`${ticket}/impl-plan.md`],
++    context: [`${ticket}/spec.md`],
++  });
++  expect(defaulted.data).toMatchObject({
++    status: 'approved',
++    actual_reviewer: 'claude',
++    independence: 'reduced',
++    review_routes: [
++      { reviewer: 'codex', status: 'attempted', failure: 'reviewer_capability_unknown' },
++      { reviewer: 'opencode', status: 'attempted', failure: 'reviewer_capability_unknown' },
++      { reviewer: 'claude', status: 'attempted' },
++    ],
++  });
++});
++
++it('applies qualification to product-plan quality reviews', async () => {
++  const { project, ticket, configPath, config } = await planningFixture();
++  writeFileSync(
++    nodePath.join(project, ticket, 'spec.md'),
++    '# Product Plan: Truthful review\n\n<!-- safeword:product-plan-contract:v1 -->\n\n## Product Bet\n\n- **Problem / Why now:** Builders need trustworthy planning review.\n- **Expected outcome:** Only current qualified approval advances.\n- **Success threshold:** Unverified review is labeled reduced.\n- **Project non-goals:** Inventing independent assurance.\n- **Persona outcome inventory:** Builder receives approval or a named refusal.\n- **Known facts:** The fixture has one Builder and one CLI surface.\n- **Assumptions:** none\n- **Unresolved product decisions:** none\n\n## Jobs To Be Done\n\n### approval.BU1 — Trust review\n\n**Persona:** Builder (BU)\n\n> When I request review, I want actual assurance reported, so I can decide whether to advance.\n\n#### approval.BU1.R1 — Preserve truthful assurance\n\nOnly current qualified approval advances.\n\n## Shape\n\n### M1 — Trust review\n\n- **Outcome:** Current review is labeled honestly.\n- **Non-goals:** Unqualified independence.\n\n## Surfaces\n\nAffected:\n- Safeword CLI\n',
++  );
++  writeFileSync(configPath, JSON.stringify(config));
++  const product = await runReview({
++    cwd: project,
++    kind: 'quality-review',
++    targets: [`${ticket}/spec.md`],
++  });
++  expect(product.data).toMatchObject({
++    status: 'approved',
++    actual_reviewer: 'claude',
++    independence: 'reduced',
++    review_routes: [
++      { reviewer: 'codex', status: 'attempted', failure: 'reviewer_capability_unknown' },
++      { reviewer: 'opencode', status: 'attempted', failure: 'reviewer_capability_unknown' },
++      { reviewer: 'claude', status: 'attempted' },
++    ],
++  });
++});
++
++it('preserves ordinary non-planning cross-agent review', async () => {
++  const { project, configPath, config } = await planningFixture();
++  writeFileSync(configPath, JSON.stringify(config));
++  writeFileSync(nodePath.join(project, 'notes.md'), '# Ordinary review\n\nNo planning contract.\n');
++  const ordinary = await runReview({
++    cwd: project,
++    kind: 'quality-review',
++    targets: ['notes.md'],
++  });
++  expect(ordinary.data).toMatchObject({
++    status: 'approved',
++    actual_reviewer: 'codex',
++    independence: 'cross-agent',
++  });
++  expect((ordinary.data as Record<string, unknown>).review_routes).toBeUndefined();
++});
++
++it('blocks planning policy off while retaining ordinary review', async () => {
++  const { project, ticket, configPath, config } = await planningFixture();
++  writeFileSync(nodePath.join(project, 'notes.md'), '# Ordinary review\n\nNo planning contract.\n');
++  writeFileSync(configPath, JSON.stringify({ ...config, crossAgentReview: 'off' }));
++  for (const [kind, target] of [
++    ['quality-review', `${ticket}/spec.md`],
++    ['plan-implementation', `${ticket}/impl-plan.md`],
++  ] as const) {
++    const disabled = await runReview({ cwd: project, kind, targets: [target] });
++    expect(disabled.state).toBe('action_required');
++    expect(disabled.findings).toContainEqual(
++      expect.objectContaining({ code: 'PLANNING_REVIEW_POLICY_OFF' }),
++    );
++    expect(disabled.data).toMatchObject({ status: 'blocked', review_policy: 'off' });
++  }
++  const ordinaryOff = await runReview({
++    cwd: project,
++    kind: 'quality-review',
++    targets: ['notes.md'],
++  });
++  expect(ordinaryOff.data).toMatchObject({ status: 'existing_route' });
++});
++
++it('requires independent policy to block host continuation after runtime failures', async () => {
++  const { project, ticket, configPath, config } = await planningFixture();
++  vi.stubEnv('SAFEWORD_TEST_REVIEWERS_FAIL', '1');
++  writeFileSync(
++    configPath,
++    JSON.stringify({
++      ...config,
++      crossAgentReview: 'prefer',
++      crossAgentReviewRoutes: {
++        claude: [{ reviewer: 'codex', model: 'gpt-6-astra' }, { reviewer: 'claude' }],
++      },
++    }),
++  );
++  const continuation = await runReview({
++    cwd: project,
++    kind: 'plan-implementation',
++    targets: [`${ticket}/impl-plan.md`],
++    context: [`${ticket}/spec.md`],
++  });
++  expect(continuation.data).toMatchObject({
++    status: 'continuation_required',
++    independence: 'none',
++    continuation: {
++      tier: 'fresh-context',
++      instructions: expect.stringContaining('Review only the bounded files in this packet.'),
++      packet: { dispatch_id: expect.any(String) },
++    },
++    review_routes: [
++      { reviewer: 'codex', status: 'attempted', failure: 'process_failed' },
++      { reviewer: 'claude', status: 'attempted', failure: 'process_failed' },
++    ],
++  });
++  expect(dispatchedPackets.at(-1)).toBe(dispatchedPackets.at(-2));
++
++  const requireConfig = JSON.parse(readFileSync(configPath, 'utf8'));
++  writeFileSync(configPath, JSON.stringify({ ...requireConfig, crossAgentReview: 'require' }));
++  const required = await runReview({
++    cwd: project,
++    kind: 'plan-implementation',
++    targets: [`${ticket}/impl-plan.md`],
++    context: [`${ticket}/spec.md`],
++  });
++  expect(required.data).toMatchObject({ status: 'blocked' });
++  expect((required.data as Record<string, unknown>).continuation).toBeUndefined();
++});
++
++it.each(['prefer', 'require'] as const)(
++  'keeps an unqualified rejection under %s without accepting self-approval',
++  async policy => {
++    const { project, ticket, configPath, config } = await planningFixture();
++    vi.stubEnv('SAFEWORD_TEST_REVIEWERS_FAIL', '0');
++    vi.stubEnv('SAFEWORD_TEST_UNKNOWN_REJECTION', '1');
++    writeFileSync(
++      configPath,
++      JSON.stringify({
++        ...config,
++        crossAgentReview: policy,
++        crossAgentReviewRoutes: { claude: [{ reviewer: 'codex' }, { reviewer: 'claude' }] },
++      }),
++    );
++    const unqualifiedRejection = await runReview({
++      cwd: project,
++      kind: 'plan-implementation',
++      targets: [`${ticket}/impl-plan.md`],
++      context: [`${ticket}/spec.md`],
++    });
++    expect(unqualifiedRejection.data).toMatchObject({
++      status: 'blocked',
++      independence: 'none',
++      actual_reviewer: 'codex',
++      reviewer_output: { verdict: 'request_changes' },
++    });
++    expect(unqualifiedRejection.findings).toContainEqual(
++      expect.objectContaining({
++        severity: 'error',
++        message: 'The unqualified reviewer found a blocking defect.',
++      }),
++    );
++  },
++);
++
++it('uses the pinned medium effort for planning qualification', async () => {
++  const { project, ticket } = await planningFixture();
++  await runReview({
++    cwd: project,
++    kind: 'plan-implementation',
++    targets: [`${ticket}/impl-plan.md`],
++    context: [`${ticket}/spec.md`],
++  });
++  expect(dispatchedEfforts).toEqual(['medium', 'medium']);
++});
++
++it('discards a proven-weaker rejection before taking a qualified verdict', async () => {
++  const { project, ticket } = await planningFixture();
++  vi.stubEnv('SAFEWORD_TEST_WEAKER_REJECTION', '1');
++  const result = await runReview({
++    cwd: project,
++    kind: 'plan-implementation',
++    targets: [`${ticket}/impl-plan.md`],
++    context: [`${ticket}/spec.md`],
++  });
++  expect(result.data).toMatchObject({
++    status: 'changes_requested',
++    independence: 'cross-agent',
++    review_routes: [
++      { model: 'gpt-6-luna', failure: 'reviewer_capability_weaker' },
++      { model: 'gpt-6-astra', status: 'attempted' },
++    ],
++    reviewer_output: { summary: 'Qualified rejection.' },
++  });
++  expect(JSON.stringify(result)).not.toContain('Weak rejection.');
++});
+diff --git a/packages/cli/tests/integration/planning-review-zero-independent.test.ts b/packages/cli/tests/integration/planning-review-zero-independent.test.ts
+new file mode 100644
+index 000000000..a50be699f
+--- /dev/null
++++ b/packages/cli/tests/integration/planning-review-zero-independent.test.ts
+@@ -0,0 +1,93 @@
++import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
++import nodePath from 'node:path';
++
++import { afterEach, expect, it } from 'vitest';
++
++import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
++import { writePlanningInventories } from '../planning-fixtures.js';
++import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
++import {
++  cleanupTrustedReviewerDirectories,
++  createTrustedReviewerDirectory,
++  REVIEWER_CAPABILITIES,
++} from '../review-fixtures.js';
++
++const projects: string[] = [];
++
++afterEach(() => {
++  for (const project of projects) rmSync(project, { recursive: true, force: true });
++  projects.length = 0;
++  cleanupTrustedReviewerDirectories();
++});
++
++it.each(['claude', 'cursor'] as const)(
++  'blocks %s planning approval when no independent route was attempted',
++  async author => {
++    const project = createTemporaryDirectory();
++    projects.push(project);
++    await createConfiguredProject(project);
++    writePlanningInventories(project);
++    const configPath = nodePath.join(project, '.safeword/config.json');
++    const config = JSON.parse(readFileSync(configPath, 'utf8'));
++    writeFileSync(
++      configPath,
++      JSON.stringify({
++        ...config,
++        crossAgentReviewRoutes: {
++          [author]: [{ reviewer: author === 'claude' ? 'claude' : 'codex' }],
++        },
++      }),
++    );
++    const ticket = '.project/tickets/ZER123-no-independent-route';
++    mkdirSync(nodePath.join(project, ticket), { recursive: true });
++    writeFileSync(
++      nodePath.join(project, ticket, 'ticket.md'),
++      '---\nid: ZER123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: preserve approval\nout_of_scope: anonymous approval\ndone_when: independent review precedes fallback\nphase_anchors:\n  - scenario-gate: features/zero-independent.feature\n---\n',
++    );
++    writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
++    writeFileSync(
++      nodePath.join(project, ticket, 'impl-plan.md'),
++      '# Implementation Plan\n\n**Status:** planned\n\n## Approach\n\nPreserve authenticated approval.\n\n## Decisions\n\nUse the current review receipt.\n\n## Design alignment\n\nEnsure independent review is attempted first.\n\n## Architecture applicability\n\nskip: no architecture records apply\n\n## Data applicability\n\nskip: no product data changes\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: no customer docs change\n\n## Assessment triggers\n\nRevisit if review authority changes.\n',
++    );
++    mkdirSync(nodePath.join(project, 'features'), { recursive: true });
++    writeFileSync(
++      nodePath.join(project, 'features/zero-independent.feature'),
++      '@zero-independent.BU1.R1\nFeature: Independent first\n  Scenario: No independent route\n    Given no independent route\n    When review runs\n    Then approval remains blocked\n',
++    );
++    const reviewer = createTrustedReviewerDirectory('safeword-zero-independent-');
++    const invoked = nodePath.join(reviewer, 'invoked');
++    writeFileSync(
++      nodePath.join(reviewer, 'claude'),
++      `#!${process.execPath}\nconst { writeFileSync } = require('node:fs');\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nwriteFileSync(${JSON.stringify(invoked)}, 'yes');\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Same-agent approval.', findings: [] } })); });\n`,
++      { mode: 0o755 },
++    );
++    const reviewed = await runCli(
++      [
++        'review',
++        'run',
++        'plan-implementation',
++        `${ticket}/impl-plan.md`,
++        '--context',
++        `${ticket}/spec.md`,
++        '--cwd',
++        project,
++        '--json',
++        '--no-input',
++      ],
++      {
++        cwd: project,
++        env: {
++          PATH: `${reviewer}:/usr/bin:/bin`,
++          SAFEWORD_AGENT_RUNTIME: author,
++          SAFEWORD_NO_UPDATE_CHECK: '1',
++        },
++      },
++    );
++    const output = JSON.parse(reviewed.stdout);
++    expect(output.data).toMatchObject({ status: 'blocked', independence: 'none' });
++    expect(output.findings).toContainEqual(
++      expect.objectContaining({ code: 'REVIEW_ROUTES_EXHAUSTED' }),
++    );
++    expect(existsSync(invoked)).toBe(false);
++  },
++);
+diff --git a/packages/cli/tests/review/capability-catalogue.test.ts b/packages/cli/tests/review/capability-catalogue.test.ts
+new file mode 100644
+index 000000000..04efea6b4
+--- /dev/null
++++ b/packages/cli/tests/review/capability-catalogue.test.ts
+@@ -0,0 +1,125 @@
++import { describe, expect, it } from 'vitest';
++
++import {
++  compareReviewerCapability,
++  reviewerCapabilityFailure,
++} from '../../src/review/capability-catalogue.js';
++
++const current = {
++  corpus_digest: 'corpus-1',
++  rubric_digest: 'rubric-1',
++  settings_digest: 'settings-1',
++};
++
++const qualified = {
++  author_provider: 'vendor-a',
++  reviewer_provider: 'vendor-b',
++  author_model: 'vendor-a/author-1',
++  reviewer_model: 'vendor-b/reviewer-2',
++  direction: 'not_weaker' as const,
++  qualification: 'pinned-corpus' as const,
++  evidence_date: '2026-09-28',
++  results_digest: 'results-1',
++  ...current,
++};
++
++function compare(
++  authorModel: string,
++  reviewerModel: string,
++  records: Parameters<typeof compareReviewerCapability>[3],
++) {
++  return compareReviewerCapability(
++    { provider: authorModel.split('/', 1)[0] ?? '', model: authorModel },
++    { provider: reviewerModel.split('/', 1)[0] ?? '', model: reviewerModel },
++    current,
++    records,
++  );
++}
++
++describe('reviewer capability comparison', () => {
++  it('binds both providers as well as their exact model IDs', () => {
++    const author = { provider: 'vendor-a', model: 'vendor-a/author-1' };
++    const reviewer = { provider: 'vendor-b', model: 'vendor-b/reviewer-2' };
++    expect(compareReviewerCapability(author, reviewer, current, [qualified])).toBe('not_weaker');
++    expect(
++      compareReviewerCapability({ ...author, provider: 'vendor-c' }, reviewer, current, [
++        qualified,
++      ]),
++    ).toBe('unknown');
++    expect(
++      compareReviewerCapability(author, { ...reviewer, provider: 'vendor-c' }, current, [
++        qualified,
++      ]),
++    ).toBe('unknown');
++  });
++  it('admits only a qualified current exact ordered pair', () => {
++    expect(compare('vendor-a/author-1', 'vendor-b/reviewer-2', [qualified])).toBe('not_weaker');
++    expect(compare('vendor-b/reviewer-2', 'vendor-a/author-1', [qualified])).toBe('unknown');
++    expect(compare('vendor-a/author-1', 'vendor-b/reviewer-3', [qualified])).toBe('unknown');
++  });
++
++  it('does not inherit stale or unqualified evidence', () => {
++    expect(
++      compare('vendor-a/author-1', 'vendor-b/reviewer-2', [
++        { ...qualified, corpus_digest: 'old-corpus' },
++      ]),
++    ).toBe('unknown');
++    expect(
++      compare('vendor-a/author-1', 'vendor-b/reviewer-2', [
++        { ...qualified, qualification: 'unqualified' },
++      ]),
++    ).toBe('unknown');
++  });
++
++  it('preserves a qualified weaker result and rejects conflicting records', () => {
++    expect(
++      compare('vendor-a/author-1', 'vendor-b/reviewer-2', [{ ...qualified, direction: 'weaker' }]),
++    ).toBe('weaker');
++    expect(
++      compare('vendor-a/author-1', 'vendor-b/reviewer-2', [
++        qualified,
++        { ...qualified, direction: 'weaker' },
++      ]),
++    ).toBe('unknown');
++  });
++
++  it('distinguishes a proven weaker reviewer from missing identity or pair evidence', () => {
++    const author = { provider: 'vendor-a', model: 'vendor-a/author-1' };
++    const reviewer = { provider: 'vendor-b', model: 'vendor-b/reviewer-2' };
++    expect(
++      reviewerCapabilityFailure(author, reviewer.model, reviewer, current, [qualified]),
++    ).toBeUndefined();
++    expect(
++      reviewerCapabilityFailure(author, reviewer.model, reviewer, current, [
++        { ...qualified, direction: 'weaker' },
++      ]),
++    ).toBe('reviewer_capability_weaker');
++    expect(reviewerCapabilityFailure(author, reviewer.model, undefined, current, [qualified])).toBe(
++      'reviewer_capability_unknown',
++    );
++    expect(reviewerCapabilityFailure(author, 'other-model', reviewer, current, [qualified])).toBe(
++      'reviewer_capability_unknown',
++    );
++    expect(reviewerCapabilityFailure(author, reviewer.model, reviewer, current, [])).toBe(
++      'reviewer_capability_unknown',
++    );
++  });
++
++  it('never uses within-provider ordering as cross-provider evidence', () => {
++    expect(
++      compare('vendor-a/author-1', 'vendor-b/reviewer-2', [
++        { ...qualified, qualification: 'provider-order' },
++      ]),
++    ).toBe('unknown');
++    expect(
++      compare('vendor-a/author-1', 'vendor-a/reviewer-2', [
++        {
++          ...qualified,
++          reviewer_provider: 'vendor-a',
++          reviewer_model: 'vendor-a/reviewer-2',
++          qualification: 'provider-order',
++        },
++      ]),
++    ).toBe('not_weaker');
++  });
++});
+diff --git a/packages/cli/tests/review/capability-corpus.test.ts b/packages/cli/tests/review/capability-corpus.test.ts
+new file mode 100644
+index 000000000..b720e130c
+--- /dev/null
++++ b/packages/cli/tests/review/capability-corpus.test.ts
+@@ -0,0 +1,78 @@
++import { describe, expect, it } from 'vitest';
++
++import {
++  createExecutionPlanDeliveryDefinition,
++  normalizedExecutionPlanDigest,
++  parseDeliveryPlanContract,
++} from '../../src/execution-plan/delivery-checklist.js';
++import { reviewTimeoutMilliseconds, runBoundMs } from '../../src/review/runtime.js';
++import { REVIEWER_CAPABILITY_MANIFEST } from '../fixtures/reviewer-capability-corpus.js';
++
++describe('pinned reviewer capability corpus', () => {
++  it('uses the production background-worker review deadline', () => {
++    const settings = REVIEWER_CAPABILITY_MANIFEST.settings;
++    const environment = {
++      SAFEWORD_REVIEW_WORKER: '1',
++      SAFEWORD_REVIEW_TIMEOUT_MS: settings.review_timeout_ms,
++      SAFEWORD_REVIEW_RUN_BOUND_MS: settings.review_run_bound_ms,
++    };
++    expect(reviewTimeoutMilliseconds(environment)).toBe(600_000);
++    expect(runBoundMs(environment)).toBe(1_800_000);
++  });
++
++  it('pairs an approval and a blocking defect in each planning phase', () => {
++    const fixtures = REVIEWER_CAPABILITY_MANIFEST.fixtures;
++    expect(fixtures.map(({ label }) => label.id)).toEqual([
++      'product-approve',
++      'product-reject',
++      'implementation-approve',
++      'implementation-reject',
++      'execution-approve',
++      'execution-reject',
++    ]);
++    for (let index = 0; index < fixtures.length; index += 2) {
++      const approval = fixtures[index];
++      const rejection = fixtures[index + 1];
++      if (approval === undefined || rejection === undefined) throw new Error('Incomplete pair');
++      expect(approval.label.verdict).toBe('approve');
++      expect(rejection.label.verdict).toBe('request_changes');
++      expect(rejection.label.required.length).toBeGreaterThan(0);
++      expect(approval.packet.kind).toBe(rejection.packet.kind);
++      expect(approval.packet.planning_phase).toBe(rejection.packet.planning_phase);
++      expect(approval.packet.context_files).toEqual(rejection.packet.context_files);
++      expect(approval.packet.logical_files).not.toEqual(rejection.packet.logical_files);
++      expect(approval.packet.dispatch_id).toBe(approval.label.id);
++      expect(rejection.packet.dispatch_id).toBe(rejection.label.id);
++    }
++  });
++
++  it('derives each Execution packet identity and delivery definition from its own plan', () => {
++    const executionFixtures = REVIEWER_CAPABILITY_MANIFEST.fixtures.slice(-2);
++    for (const { packet } of executionFixtures) {
++      const plan = packet.logical_files[0]?.content;
++      if (plan === undefined) throw new Error('Missing Execution Plan');
++      const parsed = parseDeliveryPlanContract(plan);
++      expect(parsed.ok).toBe(true);
++      if (!parsed.ok) continue;
++      expect(packet.execution_plan_delivery_definition).toEqual(
++        createExecutionPlanDeliveryDefinition(parsed, false),
++      );
++      expect(packet.execution_plan_normalized_digest).toBe(normalizedExecutionPlanDigest(plan));
++    }
++  });
++
++  it('requires the approved Execution proof to exercise accepted failure boundaries', () => {
++    const plan = REVIEWER_CAPABILITY_MANIFEST.fixtures.find(
++      fixture => fixture.label.id === 'execution-approve',
++    )?.packet.logical_files[0]?.content;
++    expect(plan).toContain('crash before retry binding');
++    expect(plan).toContain('interrupted review');
++    expect(plan).toContain('failed status read');
++    expect(plan).toContain('actual error state');
++    expect(plan).toContain('receipt for another job');
++    expect(plan).toContain('different plan digest under the current job');
++    expect(plan).toContain('unauthenticated approval verdict');
++    expect(plan).toContain('CLI process exit codes');
++    expect(plan).toContain('coordinator records');
++  });
++});
+diff --git a/packages/cli/tests/review/capability-eval.test.ts b/packages/cli/tests/review/capability-eval.test.ts
+new file mode 100644
+index 000000000..0c1db2230
+--- /dev/null
++++ b/packages/cli/tests/review/capability-eval.test.ts
+@@ -0,0 +1,442 @@
++import { describe, expect, it } from 'vitest';
++
++import {
++  type CapabilityFixture,
++  type CapabilityManifest,
++  capabilityRevision,
++  type CapabilityRun,
++  collectCapabilityResults,
++  compareCapabilityRuns,
++  compareSealedCapabilityResults,
++  rescoreCapabilityResults,
++  scoreCapabilityRun,
++  sealCapabilityResults,
++} from '../../src/review/capability-eval.js';
++import { REVIEWER_CAPABILITY_MANIFEST } from '../fixtures/reviewer-capability-corpus.js';
++
++const fixtures: CapabilityFixture[] = [
++  { id: 'product-approve', verdict: 'approve', required: [], forbidden: ['invented-scope'] },
++  {
++    id: 'product-reject',
++    verdict: 'request_changes',
++    required: ['missing-outcome'],
++    forbidden: ['invented-scope'],
++  },
++  {
++    id: 'implementation-approve',
++    verdict: 'approve',
++    required: [],
++    forbidden: ['invented-design'],
++  },
++  {
++    id: 'implementation-reject',
++    verdict: 'request_changes',
++    required: ['missing-boundary'],
++    forbidden: [],
++  },
++  { id: 'execution-approve', verdict: 'approve', required: [], forbidden: ['invented-proof'] },
++  {
++    id: 'execution-reject',
++    verdict: 'request_changes',
++    required: ['missing-slice'],
++    forbidden: [],
++  },
++];
++
++const floor = { runs_per_fixture: 3, minimum_fixture_passes: 2, minimum_total_percent: 90 };
++
++const manifest: CapabilityManifest = {
++  schema_version: 1,
++  owner: 'Safeword release maintainers',
++  floor,
++  settings: { tools: 'none', reasoning: 'medium' },
++  fixtures: fixtures.map(label => ({
++    label,
++    packet: {
++      schema_version: 1,
++      dispatch_id: label.id,
++      kind: 'plan-implementation',
++      logical_files: [{ path: 'impl-plan.md', content: `Reviewed plan for ${label.id}` }],
++    },
++  })),
++};
++
++const rubrics = {
++  product: 'product rubric',
++  implementation: 'implementation rubric',
++  execution: 'execution rubric',
++};
++
++function runs(): CapabilityRun[] {
++  return fixtures.flatMap(fixture =>
++    [1, 2, 3].map(run => ({
++      fixture_id: fixture.id,
++      run,
++      verdict: fixture.verdict,
++      findings: fixture.required.map(message => ({ severity: 'error' as const, message })),
++    })),
++  );
++}
++
++function withVerdict(
++  source: readonly CapabilityRun[],
++  index: number,
++  verdict: CapabilityRun['verdict'],
++): CapabilityRun[] {
++  const changed = [...source];
++  const previous = changed[index];
++  if (previous === undefined) throw new Error(`Missing test run ${index}`);
++  changed[index] = { ...previous, verdict };
++  return changed;
++}
++
++describe('reviewer capability evaluation', () => {
++  it('rescores only unchanged sealed observations and preserves their original collection date', () => {
++    const original = sealCapabilityResults(
++      'openai',
++      'exact',
++      capabilityRevision(manifest, rubrics),
++      runs(),
++      '2026-09-28',
++    );
++    const stronger = {
++      ...manifest,
++      fixtures: manifest.fixtures.map(fixture => ({
++        ...fixture,
++        label: { ...fixture.label, finding_groups: [['actual defect']] },
++      })),
++    };
++    const rescored = rescoreCapabilityResults(
++      manifest,
++      stronger,
++      rubrics,
++      original,
++      '2026-10-21T00:00:00Z',
++    );
++    expect(rescored.runs).toEqual(original.runs);
++    expect(rescored.evidence_date).toBe(original.evidence_date);
++    expect(rescored.rescored_from).toEqual({
++      results_digest: original.results_digest,
++      corpus_digest: original.corpus_digest,
++      scored_at: '2026-10-21T00:00:00Z',
++    });
++    expect(rescored.corpus_digest).not.toBe(original.corpus_digest);
++    const compatible = {
++      ...manifest,
++      fixtures: manifest.fixtures.map(fixture => ({
++        ...fixture,
++        label: {
++          ...fixture.label,
++          forbidden: [...fixture.label.forbidden, 'new unobserved defect'],
++        },
++      })),
++    };
++    const passing = rescoreCapabilityResults(
++      manifest,
++      compatible,
++      rubrics,
++      original,
++      '2026-10-21T00:00:00Z',
++    );
++    expect(compareSealedCapabilityResults(compatible, rubrics, passing, passing)).toBe(
++      'not_weaker',
++    );
++    expect(compareSealedCapabilityResults(stronger, rubrics, rescored, rescored)).toBe('unknown');
++    expect(() =>
++      rescoreCapabilityResults(manifest, stronger, rubrics, { ...original, runs: [] }, 'now'),
++    ).toThrow('original sealed observations');
++    expect(() =>
++      rescoreCapabilityResults(
++        manifest,
++        stronger,
++        { ...rubrics, product: 'changed' },
++        original,
++        'now',
++      ),
++    ).toThrow('unchanged packets');
++    for (const changed of [
++      { ...stronger, settings: { ...stronger.settings, reasoning: 'high' } },
++      { ...stronger, floor: { ...floor, minimum_total_percent: 80 } },
++      {
++        ...stronger,
++        fixtures: stronger.fixtures.map(fixture => ({
++          ...fixture,
++          packet: { ...fixture.packet, dispatch_id: 'changed' },
++        })),
++      },
++    ])
++      expect(() => rescoreCapabilityResults(manifest, changed, rubrics, original, 'now')).toThrow(
++        'unchanged packets',
++      );
++    expect(() => rescoreCapabilityResults(stronger, stronger, rubrics, rescored, 'now')).toThrow(
++      'original sealed observations',
++    );
++  });
++
++  it.each(['product-reject', 'execution-reject'])(
++    'does not qualify irrelevant keyword-only findings for %s',
++    id => {
++      const fixture = REVIEWER_CAPABILITY_MANIFEST.fixtures.find(
++        candidate => candidate.label.id === id,
++      )?.label;
++      if (fixture === undefined) throw new Error('Missing defect fixture');
++      expect(
++        scoreCapabilityRun(fixture, {
++          fixture_id: id,
++          run: 1,
++          verdict: 'request_changes',
++          findings: [
++            { severity: 'error', message: 'The rejected release is missing the latest tag.' },
++          ],
++        }),
++      ).toBe(false);
++    },
++  );
++  it('requires a finding about the actual approval-authority defect, not an isolated keyword', () => {
++    const fixture = REVIEWER_CAPABILITY_MANIFEST.fixtures.find(
++      candidate => candidate.label.id === 'implementation-reject',
++    )?.label;
++    if (fixture === undefined) throw new Error('Missing implementation defect');
++    const score = (messages: string[]) =>
++      scoreCapabilityRun(fixture, {
++        fixture_id: fixture.id,
++        run: 1,
++        verdict: 'request_changes',
++        findings: messages.map(message => ({ severity: 'error' as const, message })),
++      });
++    expect(score(['The authenticated banana must be purple.'])).toBe(false);
++    expect(
++      score([
++        'An authenticated approval receipt for a stale job may be accepted before retry binding.',
++      ]),
++    ).toBe(false);
++    expect(score(['An authenticated receipt is present.', 'The approval text has a typo.'])).toBe(
++      false,
++    );
++    expect(
++      score([
++        'The plan allows approval from an unauthenticated reviewer verdict instead of requiring a receipt.',
++      ]),
++    ).toBe(true);
++    expect(
++      score(['Raw reviewer output can grant Approved without an authenticated receipt.']),
++    ).toBe(true);
++  });
++  it('records all three attempts per packet and refuses unconfirmed or mismatched models', async () => {
++    const attempts: string[] = [];
++    const results = await collectCapabilityResults({
++      manifest,
++      rubrics,
++      provider: 'anthropic',
++      model: 'claude-opus-5',
++      evidenceDate: '2026-09-28',
++      review: packet => {
++        attempts.push(packet.dispatch_id);
++        return Promise.resolve({
++          output: {
++            schema_version: 1,
++            dispatch_id: packet.dispatch_id,
++            reviewer_agent: 'claude',
++            verdict: 'approve',
++            summary: 'reviewed',
++            findings: [],
++          },
++          ...(attempts.length !== 1 && {
++            confirmedModel: { provider: 'anthropic', model: 'claude-opus-5' },
++          }),
++        });
++      },
++    });
++    expect(attempts).toHaveLength(fixtures.length * 3);
++    expect(results.runs[0]).toMatchObject({
++      fixture_id: 'product-approve',
++      run: 1,
++      verdict: 'invalid',
++      failure: 'model_unconfirmed',
++    });
++    expect(results.runs[1]).toMatchObject({ fixture_id: 'product-approve', run: 2 });
++    expect(compareSealedCapabilityResults(manifest, rubrics, results, results)).toBe('unknown');
++  });
++
++  it('counts process failure, a different exact model, and a wrong dispatch as failed attempts', async () => {
++    const oneFixture = { ...manifest, fixtures: manifest.fixtures.slice(0, 1) };
++    let attempt = 0;
++    const result = await collectCapabilityResults({
++      manifest: oneFixture,
++      rubrics,
++      provider: 'anthropic',
++      model: 'claude-opus-5',
++      evidenceDate: '2026-09-28',
++      review: packet => {
++        attempt += 1;
++        if (attempt === 1) return Promise.reject(new Error('review failed'));
++        return Promise.resolve({
++          confirmedModel: {
++            provider: 'anthropic',
++            model: attempt === 2 ? 'claude-sonnet-5' : 'claude-opus-5',
++          },
++          output: {
++            schema_version: 1,
++            dispatch_id: attempt === 3 ? 'different-dispatch' : packet.dispatch_id,
++            reviewer_agent: 'claude',
++            verdict: 'approve',
++            summary: 'reviewed',
++            findings: [],
++          },
++        });
++      },
++    });
++    expect(result.runs.map(run => run.failure)).toEqual([
++      'review_failed',
++      'model_unconfirmed',
++      'identity_mismatch',
++    ]);
++    expect(compareSealedCapabilityResults(oneFixture, rubrics, result, result)).toBe('unknown');
++  });
++
++  it('requires the verdict and every labelled finding without forbidden findings', () => {
++    const fixture = fixtures[1];
++    const run = runs()[3];
++    if (fixture === undefined || run === undefined) throw new Error('Missing test fixture');
++    expect(scoreCapabilityRun(fixture, run)).toBe(true);
++    expect(
++      scoreCapabilityRun(fixture, {
++        ...run,
++        findings: [
++          { severity: 'error', message: 'The builder plan has a MISSING-OUTCOME for recovery.' },
++        ],
++      }),
++    ).toBe(true);
++    expect(
++      scoreCapabilityRun(fixture, {
++        ...run,
++        findings: [{ severity: 'warning', message: 'The builder plan has a missing-outcome.' }],
++      }),
++    ).toBe(false);
++    expect(scoreCapabilityRun(fixture, { ...run, verdict: 'approve' })).toBe(false);
++    expect(scoreCapabilityRun(fixture, { ...run, findings: [] })).toBe(false);
++    const approvingFixture = fixtures[0];
++    if (approvingFixture === undefined) throw new Error('Missing approval fixture');
++    expect(
++      scoreCapabilityRun(approvingFixture, {
++        fixture_id: approvingFixture.id,
++        run: 1,
++        verdict: 'approve',
++        findings: [{ severity: 'error', message: 'A real blocking defect.' }],
++      }),
++    ).toBe(false);
++    expect(
++      scoreCapabilityRun(fixture, {
++        ...run,
++        findings: [
++          { severity: 'error', message: 'missing-outcome' },
++          { severity: 'warning', message: 'invented-scope' },
++        ],
++      }),
++    ).toBe(false);
++  });
++
++  it('qualifies a candidate only when every fixture and the predeclared 90% floor pass', () => {
++    const author = withVerdict(runs(), 0, 'request_changes');
++    const candidate = withVerdict(runs(), 0, 'request_changes');
++    expect(compareCapabilityRuns(fixtures, author, candidate, floor)).toBe('not_weaker');
++
++    expect(
++      compareCapabilityRuns(fixtures, author, withVerdict(candidate, 1, 'request_changes'), floor),
++    ).toBe('unknown');
++  });
++
++  it('calibrates a known weaker candidate against an author-reliable fixture', () => {
++    const candidate = withVerdict(runs(), 1, 'request_changes');
++    expect(compareCapabilityRuns(fixtures, runs(), candidate, floor)).toBe('weaker');
++  });
++
++  it('refuses incomplete or duplicated three-run evidence', () => {
++    const candidate = runs();
++    expect(compareCapabilityRuns(fixtures, runs(), candidate.slice(1), floor)).toBe('unknown');
++    const previous = candidate[1];
++    if (previous === undefined) throw new Error('Missing test run');
++    candidate[1] = { ...previous, run: 1 };
++    expect(compareCapabilityRuns(fixtures, runs(), candidate, floor)).toBe('unknown');
++  });
++
++  it('invalidates old results when the floor, packet, rubric, or settings changes', () => {
++    const revision = capabilityRevision(manifest, rubrics);
++    const author = sealCapabilityResults(
++      'anthropic',
++      'claude-exact',
++      revision,
++      runs(),
++      '2026-09-28',
++    );
++    const candidate = sealCapabilityResults(
++      'openai',
++      'codex-exact',
++      revision,
++      runs(),
++      '2026-09-28',
++    );
++    expect(compareSealedCapabilityResults(manifest, rubrics, author, candidate)).toBe('not_weaker');
++
++    expect(
++      compareSealedCapabilityResults(
++        { ...manifest, floor: { ...floor, minimum_total_percent: 95 } },
++        rubrics,
++        author,
++        candidate,
++      ),
++    ).toBe('unknown');
++    const first = manifest.fixtures[0];
++    if (first === undefined) throw new Error('Missing test fixture');
++    expect(
++      compareSealedCapabilityResults(
++        {
++          ...manifest,
++          fixtures: [
++            { ...first, packet: { ...first.packet, dispatch_id: 'changed' } },
++            ...manifest.fixtures.slice(1),
++          ],
++        },
++        rubrics,
++        author,
++        candidate,
++      ),
++    ).toBe('unknown');
++    expect(
++      compareSealedCapabilityResults(
++        manifest,
++        { ...rubrics, product: 'changed' },
++        author,
++        candidate,
++      ),
++    ).toBe('unknown');
++    expect(
++      compareSealedCapabilityResults(
++        { ...manifest, settings: { ...manifest.settings, reasoning: 'high' } },
++        rubrics,
++        author,
++        candidate,
++      ),
++    ).toBe('unknown');
++  });
++
++  it('rejects altered result evidence even when its verdicts still look qualified', () => {
++    const revision = capabilityRevision(manifest, rubrics);
++    const author = sealCapabilityResults(
++      'anthropic',
++      'claude-exact',
++      revision,
++      runs(),
++      '2026-09-28',
++    );
++    const candidate = sealCapabilityResults(
++      'openai',
++      'codex-exact',
++      revision,
++      runs(),
++      '2026-09-28',
++    );
++    const altered = { ...candidate, runs: withVerdict(candidate.runs, 0, 'request_changes') };
++    expect(compareSealedCapabilityResults(manifest, rubrics, author, altered)).toBe('unknown');
++  });
++});
+diff --git a/packages/cli/tests/review/codex-app-server-proof.test.ts b/packages/cli/tests/review/codex-app-server-proof.test.ts
+new file mode 100644
+index 000000000..2cdbff565
+--- /dev/null
++++ b/packages/cli/tests/review/codex-app-server-proof.test.ts
+@@ -0,0 +1,127 @@
++import { describe, expect, it } from 'vitest';
++
++import {
++  codexAppServerFailedTurn,
++  codexAppServerProof,
++} from '../../src/review/codex-app-server-proof.js';
++
++const threadStart = {
++  id: 2,
++  result: { thread: { id: 'thread-1' }, model: 'gpt-6-astra', modelProvider: 'openai' },
++};
++const turnStart = { id: 3, result: { turn: { id: 'turn-1' } } };
++const completed = {
++  method: 'turn/completed',
++  params: {
++    threadId: 'thread-1',
++    turn: {
++      id: 'turn-1',
++      status: 'completed',
++      items: [{ type: 'agentMessage', phase: 'final_answer', text: '{"verdict":"approve"}' }],
++    },
++  },
++};
++
++describe('Codex app-server reviewer proof', () => {
++  it('binds the final answer and exact model to the acknowledged completed turn', () => {
++    expect(codexAppServerProof([threadStart, turnStart, completed], 'gpt-6-astra')).toEqual({
++      text: '{"verdict":"approve"}',
++      confirmedModel: { provider: 'openai', model: 'gpt-6-astra' },
++    });
++  });
++
++  it('keeps a completed review but does not confirm a mismatched or rerouted model', () => {
++    const rerouted = {
++      method: 'model/rerouted',
++      params: {
++        threadId: 'thread-1',
++        turnId: 'turn-1',
++        fromModel: 'gpt-6-astra',
++        toModel: 'gpt-6-sol',
++      },
++    };
++    expect(codexAppServerProof([threadStart, turnStart, completed], 'gpt-6-sol')).toEqual({
++      text: '{"verdict":"approve"}',
++    });
++    expect(
++      codexAppServerProof([threadStart, turnStart, rerouted, completed], 'gpt-6-astra'),
++    ).toEqual({ text: '{"verdict":"approve"}' });
++    expect(
++      codexAppServerProof(
++        [
++          { ...threadStart, result: { ...threadStart.result, modelProvider: 'anthropic' } },
++          turnStart,
++          completed,
++        ],
++        'gpt-6-astra',
++      ),
++    ).toEqual({ text: '{"verdict":"approve"}' });
++  });
++
++  it('refuses to bind an answer from another thread or unfinished turn', () => {
++    expect(
++      codexAppServerProof(
++        [
++          threadStart,
++          turnStart,
++          { ...completed, params: { ...completed.params, threadId: 'thread-2' } },
++        ],
++        'gpt-6-astra',
++      ),
++    ).toBeUndefined();
++    expect(
++      codexAppServerProof(
++        [
++          threadStart,
++          turnStart,
++          {
++            ...completed,
++            params: {
++              ...completed.params,
++              turn: { ...completed.params.turn, id: 'turn-2' },
++            },
++          },
++        ],
++        'gpt-6-astra',
++      ),
++    ).toBeUndefined();
++    expect(
++      codexAppServerProof(
++        [
++          threadStart,
++          turnStart,
++          {
++            ...completed,
++            params: {
++              ...completed.params,
++              turn: { ...completed.params.turn, status: 'failed' },
++            },
++          },
++        ],
++        'gpt-6-astra',
++      ),
++    ).toBeUndefined();
++  });
++
++  it('recognizes failure only for the acknowledged turn', () => {
++    const failed = {
++      ...completed,
++      params: { ...completed.params, turn: { ...completed.params.turn, status: 'failed' } },
++    };
++    expect(codexAppServerFailedTurn([threadStart, turnStart, failed])).toBe(true);
++    expect(
++      codexAppServerFailedTurn([
++        threadStart,
++        turnStart,
++        { ...failed, params: { ...failed.params, threadId: 'thread-2' } },
++      ]),
++    ).toBe(false);
++    expect(
++      codexAppServerFailedTurn([
++        threadStart,
++        turnStart,
++        { ...failed, params: { ...failed.params, turn: { ...failed.params.turn, id: 'turn-2' } } },
++      ]),
++    ).toBe(false);
++  });
++});
+diff --git a/packages/cli/tests/review/execution-plan-output.test.ts b/packages/cli/tests/review/execution-plan-output.test.ts
+index 6c5438170..086b6e1c8 100644
+--- a/packages/cli/tests/review/execution-plan-output.test.ts
++++ b/packages/cli/tests/review/execution-plan-output.test.ts
+@@ -199,16 +199,18 @@ describe('Execution Plan output schema', () => {
+     expect(reviewOutputSchema('plan-execution')).not.toBe(reviewOutputSchema('quality-review'));
+   });
+ 
+-  it('gives Claude the selected strict schema without changing legacy arguments', () => {
++  it('changes only the schema and stream format for Claude planning review', () => {
+     const legacy = reviewerArguments('claude', undefined, undefined, {}, 'quality-review');
+     const execution = reviewerArguments('claude', undefined, undefined, {}, 'plan-execution');
+     const schemaIndex = execution.indexOf('--json-schema') + 1;
+ 
+     expect(execution[schemaIndex]).toBe(reviewOutputSchema('plan-execution'));
+     expect(legacy[schemaIndex]).toBe(reviewOutputSchema('quality-review'));
+-    expect(execution.filter((_argument, index) => index !== schemaIndex)).toEqual(
+-      legacy.filter((_argument, index) => index !== schemaIndex),
+-    );
++    const expected = [...legacy];
++    expected[schemaIndex] = reviewOutputSchema('plan-execution');
++    expected[expected.indexOf('--output-format') + 1] = 'stream-json';
++    expected.push('--verbose');
++    expect(execution).toEqual(expected);
+   });
+ 
+   it('parses the record only under the internal plan-execution kind', () => {
+diff --git a/packages/cli/tests/review/finish-review-contract.test.ts b/packages/cli/tests/review/finish-review-contract.test.ts
+index 2cf637e68..06df04e48 100644
+--- a/packages/cli/tests/review/finish-review-contract.test.ts
++++ b/packages/cli/tests/review/finish-review-contract.test.ts
+@@ -28,25 +28,25 @@ function required<T>(value: T | undefined, message: string): T {
+   return value;
+ }
+ 
+-describe('best-available host review contract', () => {
+-  it('enters only for typed route exhaustion and advances each degraded route once', () => {
++describe('job-bound host review continuation contract', () => {
++  it('enters only for a sealed continuation and advances each host tier once', () => {
+     const skill = read(skillPath);
+     const normalizedSkill = skill.replaceAll(/\s+/gu, ' ');
+ 
+     expect(skill).toContain('user-invocable: false');
+     expect(skill).toContain("allowed-tools: '*'");
+-    expect(skill).toContain('REVIEW_ROUTES_EXHAUSTED');
+-    expect(skill).toContain('with `status: blocked` and `independence: none`');
+-    expect(normalizedSkill).toContain('reports completed or satisfied independent review');
+-    expect(skill).toContain('return the original coordinator result unchanged');
++    expect(skill).toContain('REVIEW_CONTINUATION_REQUIRED');
++    expect(skill).toContain('continuation_required');
++    expect(skill).toContain('review_id');
++    expect(skill).toContain('continuation.packet');
++    expect(skill).toContain('review continue');
++    expect(normalizedSkill).toContain('same sealed packet');
+     expect(skill).toMatch(/one fresh-context reviewer/i);
+     expect(skill).toMatch(/one main-thread self-review/i);
+     expect(skill).toContain('host timeout');
+-    expect(skill).toContain('Never return timed-out, failed, or invalid reviewer output');
+-    expect(skill).toMatch(/never (restart|rerun).*coordinator/i);
+-    expect(skill.replaceAll(/\s+/gu, ' ')).toContain(
+-      'Invalid terminal output returns the original `REVIEW_ROUTES_EXHAUSTED` coordinator result unchanged.',
+-    );
++    expect(skill).toContain('invalid reviewer output');
++    expect(normalizedSkill).toMatch(/never (restart|rerun).*coordinator/i);
++    expect(skill).toContain('REVIEW_ROUTES_EXHAUSTED');
+   });
+ 
+   it('pins structured output, hostile-input containment, policy, verdict, and assurance', () => {
+@@ -54,6 +54,9 @@ describe('best-available host review contract', () => {
+     const contract = read(contractPath);
+     const normalizedSkill = skill.replaceAll(/^>\s?/gmu, '').replaceAll(/\s+/gu, ' ');
+     const normalizedContract = contract.replaceAll(/\s+/gu, ' ');
++    expect(contract).toContain('"schema_version": 1');
++    expect(contract).toContain('"dispatch_id"');
++    expect(contract).toContain('"reviewer_agent"');
+     expect(contract).toContain('"verdict": "approve" | "request_changes"');
+     expect(contract).toContain('"findings"');
+     expect(contract).toContain('untrusted review material');
+@@ -61,32 +64,34 @@ describe('best-available host review contract', () => {
+     expect(normalizedContract).toContain('credentials, or secrets');
+     expect(contract).toContain('cannot independently prove');
+     expect(contract).toContain('not a structural sandbox guarantee');
++    expect(normalizedSkill).toContain('Read only the sealed packet');
++    expect(normalizedSkill).toContain('actual reviewer and reduced independence');
+     expect(normalizedSkill).toContain(
+-      'Provide supplemental review feedback in this foreground session.',
+-    );
+-    expect(normalizedSkill).toContain('Required independent coverage remains unsatisfied.');
+-    expect(normalizedSkill).not.toContain('This review was not independent.');
+-    expect(normalizedSkill).toContain('Host-mandated project context may have loaded');
+-    expect(normalizedSkill).toContain('source integrity was not revalidated');
+-    expect(normalizedSkill).toContain('Supplemental feedback came from the main agent');
+-    expect(normalizedSkill).toContain('Use an environment with a usable independent reviewer.');
+-    expect(normalizedSkill).toContain(
+-      "Include the coordinator's recovery command exactly as provided.",
++      'Take `review_policy` only from the trusted coordinator envelope',
+     );
+-    expect(normalizedSkill).toContain('Alternatively, explicitly choose `prefer`.');
+-    expect(normalizedSkill).toContain('map `approve` to `State: approved`');
+-    expect(normalizedSkill).toContain('and `request_changes` to `State: action required`');
+     expect(normalizedSkill).toContain(
+-      'Take `review_policy` only from the trusted coordinator envelope',
++      "Include the coordinator's recovery command exactly as provided",
+     );
++    expect(normalizedSkill).toContain('Do not delegate or self-review for any other result');
++    expect(normalizedSkill).toContain('Under `require`, report `State: action required`');
+     expect(normalizedSkill).toContain('.safeword/skills/finish-review/REVIEWER.md');
+     expect(normalizedSkill).not.toContain('sibling `REVIEWER.md`');
+-    expect(skill).toContain('Coordinator: `REVIEW_ROUTES_EXHAUSTED`');
+-    expect(skill).toContain('Policy:');
+-    expect(skill).toContain('State:');
+     expect(skill).not.toContain('write-review-stamp');
+   });
+ 
++  it('preserves supplemental non-planning review without creating a machine receipt', () => {
++    const skill = read(skillPath);
++    const contract = read(contractPath);
++    const agent = read(agentPath);
++    expect(skill).toContain('legacy non-planning supplemental path');
++    expect(skill).toContain('source integrity is not revalidated');
++    expect(skill).toContain('no machine receipt or review stamp');
++    expect(skill).toContain('Under `require`, the independent gate remains');
++    expect(contract).toContain('omit `schema_version`');
++    expect(contract).toContain('read only the accepted target');
++    expect(agent).toContain('legacy non-planning');
++  });
++
+   it('ships one reviewer contract and host-native assets on every supported surface', () => {
+     const agent = read(agentPath);
+     const contract = read(contractPath);
+diff --git a/packages/cli/tests/review/job.test.ts b/packages/cli/tests/review/job.test.ts
+index 1cdbe0f92..ab14a27d2 100644
+--- a/packages/cli/tests/review/job.test.ts
++++ b/packages/cli/tests/review/job.test.ts
+@@ -30,11 +30,14 @@ import {
+   relayManagedWorkerStderr,
+   reviewJobStatus,
+   startReviewJob,
++  submitReviewContinuation,
+ } from '../../src/review/job.js';
+ import { prepareReviewPacket } from '../../src/review/packet.js';
+ import { readReviewReceipt } from '../../templates/hooks/lib/read-receipt.js';
+ import { receiptGateVerdict } from '../../templates/hooks/lib/review-receipt.js';
++import { runCli } from '../helpers.js';
+ import { largeLockfileFixture } from '../helpers/large-lockfile.js';
++import { writePlanningInventories } from '../planning-fixtures.js';
+ import {
+   cleanupTrustedReviewerDirectories,
+   createTrustedReviewerDirectory,
+@@ -93,6 +96,32 @@ const REQUEST_CHANGES_WORKER = COMPLETE_WORKER.replace(
+   .replace("verdict: 'approve'", "verdict: 'request_changes'")
+   .replace('findings: []', "findings: [{ severity: 'error', message: 'Unsafe retry' }]");
+ 
++const CONTINUATION_WORKER = `${COMPLETE_WORKER.slice(0, COMPLETE_WORKER.indexOf('record.result = {'))}
++record.result = {
++  schemaVersion: 1, ok: true, state: 'action_required', changed: false,
++  findings: [{ code: 'REVIEW_CONTINUATION_REQUIRED', message: 'Fresh-context review is next.', severity: 'warning' }],
++  effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
++  errors: [], recovery: [], nextActions: [],
++  data: {
++    command: 'review run', status: 'continuation_required',
++    author_agent: 'claude', review_policy: 'prefer', independence: 'none',
++    continuation: {
++      tier: 'fresh-context',
++      instructions: 'Review only the bounded files in this packet.',
++      packet: {
++        schema_version: 1, dispatch_id: 'fixture-dispatch', kind: record.kind,
++        planning_phase: 'product-plan',
++        logical_files: record.targets.map(path => ({ path, content: readFileSync(path, 'utf8') })),
++      },
++    },
++    review_routes: [
++      { reviewer: 'codex', independence: 'cross-agent', status: 'attempted', failure: 'process_failed' },
++      { reviewer: 'claude', independence: 'degraded', status: 'attempted', failure: 'process_failed' },
++    ],
++  },
++};
++${COMPLETE_WORKER.slice(COMPLETE_WORKER.indexOf('const canonicalProject'))}`;
++
+ const APPROVED_RED_ATTESTATION =
+   'execution_attestation: { source_fingerprint: record.source_fingerprint, expected_failure: { matched: true }, termination: { exit_code: 1, timed_out: false } }, reviewer_output: {';
+ 
+@@ -235,6 +264,386 @@ afterEach(() => {
+ });
+ 
+ describe('durable review jobs', () => {
++  it('refuses a different recognized host without consuming the pending continuation', async () => {
++    const cwd = project();
++    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, CONTINUATION_WORKER));
++    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
++    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
++    const id = (pending.data as { review_id: string }).review_id;
++    const output = {
++      schema_version: 1,
++      dispatch_id: 'fixture-dispatch',
++      reviewer_agent: 'claude',
++      verdict: 'approve',
++      summary: 'Host review.',
++      findings: [],
++    };
++    const record = nodePath.join(cwd, '.safeword/state/reviews', `${id}.json`);
++    const before = readFileSync(record, 'utf8');
++    expect(
++      submitReviewContinuation(cwd, id, 'fresh-context', output, { origin: 'codex' }).errors[0]
++        ?.code,
++    ).toBe('REVIEW_CONTINUATION_ORIGIN_UNVERIFIED');
++    expect(readFileSync(record, 'utf8')).toBe(before);
++    expect(
++      submitReviewContinuation(cwd, id, 'fresh-context', output, { origin: 'claude' }).data,
++    ).toMatchObject({ status: 'approved', independence: 'reduced' });
++  });
++
++  it('allows exactly one competing process to consume a host continuation', async () => {
++    const cwd = project();
++    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, CONTINUATION_WORKER));
++    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
++    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
++    const id = (pending.data as { review_id: string }).review_id;
++    const source = nodePath.join(PACKAGE_ROOT, 'src/review/job.ts');
++    const script = `import { submitReviewContinuation } from ${JSON.stringify(source)};
++      process.on('message', () => {
++        const result = submitReviewContinuation(${JSON.stringify(cwd)}, ${JSON.stringify(id)}, 'fresh-context', {
++          schema_version: 1, dispatch_id: 'fixture-dispatch', reviewer_agent: 'claude', verdict: 'approve', summary: 'Winner ' + process.pid, findings: []
++        }, {origin:'claude'});
++        process.send(result, () => process.exit(0));
++      });
++      process.send('ready');`;
++    const children = Array.from({ length: 4 }, () =>
++      spawn(
++        process.execPath,
++        ['--import', import.meta.resolve('tsx'), '--input-type=module', '-e', script],
++        {
++          cwd: PACKAGE_ROOT,
++          env: { ...process.env },
++          stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
++        },
++      ),
++    );
++    try {
++      await Promise.all(
++        children.map(
++          child =>
++            new Promise<void>((resolve, reject) => {
++              child.once('error', reject);
++              child.once('message', message => {
++                if (message === 'ready') resolve();
++                else reject(new Error('Missing race barrier'));
++              });
++              child.once('exit', code => {
++                if (code !== 0) reject(new Error(`Race worker exited ${code}`));
++              });
++            }),
++        ),
++      );
++      const results = children.map(
++        child =>
++          new Promise<ReturnType<typeof submitReviewContinuation>>((resolve, reject) => {
++            child.once('message', resolve);
++            child.once('error', reject);
++          }),
++      );
++      for (const child of children) child.send('submit');
++      const completed = await Promise.all(results);
++      const winners = completed.filter(
++        result => (result.data as { status?: string })?.status === 'approved',
++      );
++      expect(winners).toHaveLength(1);
++      expect(
++        completed.filter(result => result.errors[0]?.code === 'REVIEW_CONTINUATION_ALREADY_USED'),
++      ).toHaveLength(3);
++      expect(reviewJobStatus(cwd, id).data).toEqual(winners[0]?.data);
++    } finally {
++      for (const child of children) child.kill();
++    }
++  });
++
++  it('refuses output sealed for another job while leaving the original continuation usable', async () => {
++    const cwd = project();
++    vi.stubEnv(
++      'SAFEWORD_CLI_ENTRYPOINT',
++      worker(cwd, CONTINUATION_WORKER.replace("'fixture-dispatch'", 'id')),
++    );
++    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
++    const first = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
++    const second = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
++    const firstId = (first.data as { review_id: string }).review_id;
++    const secondId = (second.data as { review_id: string }).review_id;
++    expect(secondId).not.toBe(firstId);
++    const output = {
++      schema_version: 1,
++      dispatch_id: firstId,
++      reviewer_agent: 'claude',
++      verdict: 'approve',
++      summary: 'Only the first sealed packet was reviewed.',
++      findings: [],
++    };
++    const refused = submitReviewContinuation(cwd, secondId, 'fresh-context', output, {
++      origin: 'claude',
++    });
++    expect(refused.data).toMatchObject({
++      status: 'continuation_required',
++      independence: 'none',
++      continuation: { tier: 'self-review', packet: { dispatch_id: secondId } },
++      continuation_attempts: [{ tier: 'fresh-context', failure: 'invalid_output' }],
++    });
++    expect(
++      submitReviewContinuation(cwd, firstId, 'fresh-context', output, { origin: 'claude' }).data,
++    ).toMatchObject({ status: 'approved', independence: 'reduced' });
++  });
++
++  it('retains a packet-bound host continuation in the authenticated job result', async () => {
++    const cwd = project();
++    writePlanningInventories(cwd);
++    const ticket = '.project/tickets/CON123-host-continuation';
++    mkdirSync(nodePath.join(cwd, ticket), { recursive: true });
++    writeFileSync(
++      nodePath.join(cwd, ticket, 'ticket.md'),
++      '---\nid: CON123\ntype: feature\nphase: intake\nstatus: in_progress\nproduct_plan_contract: v1\nscope: truthful review\nout_of_scope: unverified independence\ndone_when: host continuation is authenticated\n---\n',
++    );
++    writeFileSync(
++      nodePath.join(cwd, ticket, 'spec.md'),
++      '# Product Plan: Truthful review\n\n<!-- safeword:product-plan-contract:v1 -->\n\n## Product Bet\n\n- **Problem / Why now:** Builders need trustworthy planning review.\n- **Expected outcome:** Only current approval advances.\n- **Success threshold:** Host continuation retains packet identity.\n- **Project non-goals:** Inventing independent assurance.\n- **Persona outcome inventory:** Builder receives approval or refusal.\n- **Known facts:** This fixture has one Builder.\n- **Assumptions:** none\n- **Unresolved product decisions:** none\n\n## Jobs To Be Done\n\n### review.BU1 — Trust review\n\n**Persona:** Builder (BU)\n\n> When I request review, I want current evidence, so I can trust the result.\n\n#### review.BU1.R1 — Preserve review provenance\n\nOnly current review advances.\n\n## Shape\n\n### M1 — Trust review\n\n- **Outcome:** Current review is authenticated.\n- **Non-goals:** Unqualified independence.\n\n## Surfaces\n\nAffected:\n- Safeword CLI\n',
++    );
++    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, CONTINUATION_WORKER));
++    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
++    const result = await startReviewJob({
++      cwd,
++      kind: 'quality-review',
++      targets: [`${ticket}/spec.md`],
++    });
++
++    expect(result.state).toBe('action_required');
++    expect(result.data).toMatchObject({
++      status: 'continuation_required',
++      continuation: {
++        tier: 'fresh-context',
++        packet: {
++          dispatch_id: 'fixture-dispatch',
++          planning_phase: 'product-plan',
++          logical_files: [{ path: `${ticket}/spec.md` }],
++        },
++      },
++    });
++    expect(reviewJobStatus(cwd, (result.data as { review_id: string }).review_id).data).toEqual(
++      result.data,
++    );
++    const id = (result.data as { review_id: string }).review_id;
++    const specPath = nodePath.join(cwd, ticket, 'spec.md');
++    const original = readFileSync(specPath, 'utf8');
++    writeFileSync(specPath, `${original}\n## Changed decision\n\nA new boundary.\n`);
++    expect(reviewJobStatus(cwd, id).findings[0]?.code).toBe('REVIEW_STALE');
++    expect(
++      submitReviewContinuation(
++        cwd,
++        id,
++        'fresh-context',
++        {
++          schema_version: 1,
++          dispatch_id: 'fixture-dispatch',
++          reviewer_agent: 'claude',
++          verdict: 'approve',
++          summary: 'Stale approval',
++          findings: [],
++        },
++        { origin: 'claude' },
++      ).findings[0]?.code,
++    ).toBe('REVIEW_STALE');
++    writeFileSync(specPath, original);
++
++    const recordPath = nodePath.join(cwd, '.safeword/state/reviews', `${id}.json`);
++    const sealedRecord = readFileSync(recordPath, 'utf8');
++    const record = JSON.parse(sealedRecord) as {
++      result: { data: { continuation: { packet: { dispatch_id: string } } } };
++    };
++    record.result.data.continuation.packet.dispatch_id = 'forged-dispatch';
++    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
++    expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_JOB_INVALID');
++    writeFileSync(recordPath, sealedRecord);
++
++    const baseOutput = {
++      schema_version: 1 as const,
++      dispatch_id: 'fixture-dispatch',
++      reviewer_agent: 'claude' as const,
++      verdict: 'approve' as const,
++      summary: 'The saved product decision is coherent.',
++      findings: [],
++    };
++    const completed = submitReviewContinuation(cwd, id, 'fresh-context', baseOutput, {
++      origin: 'claude',
++    });
++    expect(completed.data).toMatchObject({
++      status: 'approved',
++      independence: 'reduced',
++      actual_reviewer: 'claude',
++      reviewer_output: { dispatch_id: 'fixture-dispatch' },
++    });
++    expect(reviewJobStatus(cwd, id).data).toEqual(completed.data);
++    expect(
++      submitReviewContinuation(
++        cwd,
++        id,
++        'fresh-context',
++        {
++          schema_version: 1,
++          dispatch_id: 'fixture-dispatch',
++          reviewer_agent: 'claude',
++          verdict: 'approve',
++          summary: 'Replay',
++          findings: [],
++        },
++        { origin: 'claude' },
++      ).errors[0]?.code,
++    ).toBe('REVIEW_CONTINUATION_ALREADY_USED');
++
++    const next = await startReviewJob({
++      cwd,
++      kind: 'quality-review',
++      targets: [`${ticket}/spec.md`],
++    });
++    const nextId = (next.data as { review_id: string }).review_id;
++    const escalated = submitReviewContinuation(
++      cwd,
++      nextId,
++      'fresh-context',
++      {
++        ...baseOutput,
++        dispatch_id: 'wrong-dispatch',
++      },
++      { origin: 'claude' },
++    );
++    expect(escalated.data).toMatchObject({
++      status: 'continuation_required',
++      continuation: { tier: 'self-review', packet: { dispatch_id: 'fixture-dispatch' } },
++    });
++    expect(reviewJobStatus(cwd, nextId).data).toEqual(escalated.data);
++    expect(
++      submitReviewContinuation(cwd, nextId, 'fresh-context', baseOutput, { origin: 'claude' })
++        .errors[0]?.code,
++    ).toBe('REVIEW_CONTINUATION_TIER_INVALID');
++    const final = submitReviewContinuation(
++      cwd,
++      nextId,
++      'self-review',
++      {
++        ...baseOutput,
++        findings: [{ severity: 'error', message: 'Blocking defect' }],
++      },
++      { origin: 'claude' },
++    );
++    expect(final.data).toMatchObject({ status: 'blocked', independence: 'none' });
++    expect(reviewJobStatus(cwd, nextId).data).toEqual(final.data);
++
++    const publicJob = await startReviewJob({
++      cwd,
++      kind: 'quality-review',
++      targets: [`${ticket}/spec.md`],
++    });
++    const publicId = (publicJob.data as { review_id: string }).review_id;
++    writeFileSync(nodePath.join(cwd, 'host-review.json'), `${JSON.stringify(baseOutput)}\n`);
++    const submitted = await runCli(
++      [
++        'review',
++        'continue',
++        publicId,
++        '--tier',
++        'fresh-context',
++        '--output',
++        'host-review.json',
++        '--offline',
++        '--json',
++        '--no-input',
++        '--cwd',
++        cwd,
++      ],
++      { cwd, env: { SAFEWORD_AGENT_RUNTIME: 'claude' } },
++    );
++    expect(submitted.exitCode).toBe(0);
++    expect(JSON.parse(submitted.stdout)).toMatchObject({
++      effects: { network: [] },
++      data: { status: 'approved', review_id: publicId, independence: 'reduced' },
++    });
++    expect(reviewJobStatus(cwd, publicId).data).toMatchObject({
++      status: 'approved',
++      independence: 'reduced',
++    });
++
++    const unavailableJob = await startReviewJob({
++      cwd,
++      kind: 'quality-review',
++      targets: [`${ticket}/spec.md`],
++    });
++    const unavailableId = (unavailableJob.data as { review_id: string }).review_id;
++    const unavailable = await runCli(
++      [
++        'review',
++        'continue',
++        unavailableId,
++        '--tier',
++        'fresh-context',
++        '--failure',
++        'unsupported',
++        '--offline',
++        '--json',
++        '--no-input',
++        '--cwd',
++        cwd,
++      ],
++      { cwd, env: { SAFEWORD_AGENT_RUNTIME: 'claude' } },
++    );
++    expect(unavailable.exitCode).toBe(2);
++    expect(JSON.parse(unavailable.stdout)).toMatchObject({
++      state: 'action_required',
++      effects: { network: [] },
++      errors: [],
++      data: {
++        status: 'continuation_required',
++        continuation: { tier: 'self-review' },
++        continuation_attempts: [{ tier: 'fresh-context', failure: 'unsupported' }],
++      },
++    });
++  });
++
++  it('does not admit a host Execution Plan approval with an invalid delivery record', async () => {
++    const cwd = executionPlanProject();
++    vi.stubEnv(
++      'SAFEWORD_CLI_ENTRYPOINT',
++      worker(
++        cwd,
++        CONTINUATION_WORKER.replace(
++          "planning_phase: 'product-plan'",
++          "planning_phase: 'plan-execution'",
++        ),
++      ),
++    );
++    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
++    const pending = await startReviewJob({
++      cwd,
++      kind: 'plan-execution',
++      targets: ['execution-plan.md'],
++      context: ['impl-plan.md', 'behavior.feature'],
++    });
++    const id = (pending.data as { review_id: string }).review_id;
++
++    const result = submitReviewContinuation(
++      cwd,
++      id,
++      'fresh-context',
++      {
++        schema_version: 1,
++        dispatch_id: 'fixture-dispatch',
++        reviewer_agent: 'claude',
++        verdict: 'approve',
++        summary: 'Looks complete.',
++        findings: [],
++        planning_destination: 'plan-execution',
++        execution_plan_record: {},
++      },
++      { origin: 'claude' },
++    );
++    expect(result.data).toMatchObject({
++      status: 'continuation_required',
++      independence: 'none',
++      continuation: { tier: 'self-review' },
++    });
++  });
++
+   it('contains managed child-stderr errors and removes the scoped listener on close', async () => {
+     const stderr = new PassThrough();
+     const child = { stderr } as unknown as ChildProcess;
+diff --git a/packages/cli/tests/review/packaged-capability.release.test.ts b/packages/cli/tests/review/packaged-capability.release.test.ts
+new file mode 100644
+index 000000000..a7b799f75
+--- /dev/null
++++ b/packages/cli/tests/review/packaged-capability.release.test.ts
+@@ -0,0 +1,116 @@
++import { createHash } from 'node:crypto';
++import { readFileSync } from 'node:fs';
++import nodePath from 'node:path';
++
++import { describe, expect, it } from 'vitest';
++
++import {
++  PACKAGED_CAPABILITY_PAIRS,
++  PACKAGED_CAPABILITY_REVISION,
++  PACKAGED_CAPABILITY_SETTINGS,
++  reviewerCapabilityFailure,
++} from '../../src/review/capability-catalogue.js';
++import {
++  capabilityRevision,
++  compareSealedCapabilityResults,
++  type SealedCapabilityResults,
++} from '../../src/review/capability-eval.js';
++import {
++  REVIEWER_CAPABILITY_MANIFEST,
++  REVIEWER_CAPABILITY_RUBRICS,
++} from '../fixtures/reviewer-capability-corpus.js';
++
++function evidence(model: string): SealedCapabilityResults {
++  const path = nodePath.join(
++    import.meta.dirname,
++    '../fixtures/reviewer-capability-evidence',
++    `${model}.json`,
++  );
++  return JSON.parse(readFileSync(path, 'utf8')) as SealedCapabilityResults;
++}
++
++describe('packaged reviewer capability evidence', () => {
++  it('reports the observed weaker direction through the real catalogue without mocked classification', () => {
++    // The next test independently reconstructs these pairs from the sealed observations.
++    const pair = PACKAGED_CAPABILITY_PAIRS.find(record => record.direction === 'weaker');
++    if (pair === undefined) throw new Error('The retained qualification has a weaker direction');
++    const author = { provider: pair.author_provider, model: pair.author_model };
++    const reviewer = { provider: pair.reviewer_provider, model: pair.reviewer_model };
++    expect(
++      reviewerCapabilityFailure(
++        author,
++        reviewer.model,
++        reviewer,
++        PACKAGED_CAPABILITY_REVISION,
++        PACKAGED_CAPABILITY_PAIRS,
++      ),
++    ).toBe('reviewer_capability_weaker');
++    expect(
++      reviewerCapabilityFailure(
++        author,
++        `${reviewer.model}-unqualified`,
++        reviewer,
++        PACKAGED_CAPABILITY_REVISION,
++        PACKAGED_CAPABILITY_PAIRS,
++      ),
++    ).toBe('reviewer_capability_unknown');
++    const unknown = { ...reviewer, model: `${reviewer.model}-unqualified` };
++    expect(
++      reviewerCapabilityFailure(
++        author,
++        unknown.model,
++        unknown,
++        PACKAGED_CAPABILITY_REVISION,
++        PACKAGED_CAPABILITY_PAIRS,
++      ),
++    ).toBe('reviewer_capability_unknown');
++  });
++
++  it('reconstructs both directional capability classifications from current sealed results', () => {
++    const claude = evidence('claude-opus-5');
++    const codex = evidence('gpt-6-astra');
++    const revision = capabilityRevision(REVIEWER_CAPABILITY_MANIFEST, REVIEWER_CAPABILITY_RUBRICS);
++    expect(PACKAGED_CAPABILITY_REVISION).toEqual(revision);
++    expect(PACKAGED_CAPABILITY_SETTINGS).toEqual(REVIEWER_CAPABILITY_MANIFEST.settings);
++    expect(PACKAGED_CAPABILITY_PAIRS).toHaveLength(2);
++
++    for (const [author, reviewer] of [
++      [claude, codex],
++      [codex, claude],
++    ] as const) {
++      const direction = compareSealedCapabilityResults(
++        REVIEWER_CAPABILITY_MANIFEST,
++        REVIEWER_CAPABILITY_RUBRICS,
++        author,
++        reviewer,
++      );
++      expect(direction).not.toBe('unknown');
++      expect(
++        reviewerCapabilityFailure(
++          { provider: author.provider, model: author.model },
++          reviewer.model,
++          { provider: reviewer.provider, model: reviewer.model },
++          revision,
++          PACKAGED_CAPABILITY_PAIRS,
++        ),
++      ).toBe(direction === 'weaker' ? 'reviewer_capability_weaker' : undefined);
++      const resultsDigest = createHash('sha256')
++        .update(`${author.results_digest}\0${reviewer.results_digest}`)
++        .digest('hex');
++      expect(PACKAGED_CAPABILITY_PAIRS).toContainEqual({
++        ...revision,
++        author_provider: author.provider,
++        author_model: author.model,
++        reviewer_provider: reviewer.provider,
++        reviewer_model: reviewer.model,
++        direction,
++        qualification: 'pinned-corpus',
++        evidence_date:
++          author.evidence_date.localeCompare(reviewer.evidence_date) > 0
++            ? author.evidence_date
++            : reviewer.evidence_date,
++        results_digest: resultsDigest,
++      });
++    }
++  });
++});
+diff --git a/packages/cli/tests/review/policy.test.ts b/packages/cli/tests/review/policy.test.ts
+index ac4657ccc..bf5658997 100644
+--- a/packages/cli/tests/review/policy.test.ts
++++ b/packages/cli/tests/review/policy.test.ts
+@@ -5,7 +5,11 @@ import nodePath from 'node:path';
+ import { describe, expect, it } from 'vitest';
+ 
+ import type { ReviewAuthor } from '../../src/review/contract.js';
+-import { readConfiguredReviewRoutes, reviewRoutePlan } from '../../src/review/policy.js';
++import {
++  builtInReviewRoutes,
++  readConfiguredReviewRoutes,
++  reviewRoutePlan,
++} from '../../src/review/policy.js';
+ 
+ describe('review route policy', () => {
+   function project(config: unknown): string {
+@@ -36,13 +40,26 @@ describe('review route policy', () => {
+     });
+   });
+ 
+-  it.each<ReviewAuthor>(['cursor', 'unknown'])(
++  it.each<ReviewAuthor>(['unknown'])(
+     'keeps unsupported author %s outside review routing',
+     author => {
+       expect(reviewRoutePlan(author)).toBeUndefined();
+     },
+   );
+ 
++  it('routes Cursor through independent reviewers without inventing a Cursor CLI', () => {
++    expect(reviewRoutePlan('cursor')).toEqual({
++      author: 'cursor',
++      preferred: 'claude',
++      independentFallback: 'codex',
++    });
++    const routes = builtInReviewRoutes(project({}), 'cursor');
++    expect(routes.every(route => route.independence === 'cross-agent')).toBe(true);
++    expect(routes[0]?.reviewer).toBe('claude');
++    expect(routes.at(-1)?.reviewer).toBe('codex');
++    expect(reviewRoutePlan('unknown')).toBeUndefined();
++  });
++
+   it('uses an ordered reviewer and model list as the complete route authority', () => {
+     const cwd = project({
+       crossAgentReviewRoutes: {
+diff --git a/packages/cli/tests/review/surface-parity.test.ts b/packages/cli/tests/review/surface-parity.test.ts
+index dbfd37d65..303fdbc5c 100644
+--- a/packages/cli/tests/review/surface-parity.test.ts
++++ b/packages/cli/tests/review/surface-parity.test.ts
+@@ -160,21 +160,20 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
+   if (relativePath.endsWith('PLAN_EXECUTION.md')) {
+     expect(normalized, context).toContain('--agent-handoff --json');
+     expect(normalized, context).toContain('REVIEW_PENDING');
+-    expect(normalized, context).toContain('typed route exhaustion');
+-    expect(normalized, context).toMatch(/approving `[^`]*finish-review` fallback/u);
+-    expect(normalized, context).toContain('actual reduced independence');
++    expect(normalized, context).toContain('REVIEW_CONTINUATION_REQUIRED');
++    expect(normalized, context).toContain('continuation_required');
++    expect(normalized, context).toContain('authenticated reduced independence');
+     return;
+   }
++  const planning = kind === 'scenario-gate' || kind === 'plan-implementation';
+   expect(normalized, context).toContain('--agent-handoff --json');
+   expect(normalized, context).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
+   expect(normalized, context).toMatch(/execute its exact recovery command/iu);
+   expect(normalized, context).toMatch(/rerun the same coordinator command once/iu);
+   expect(section, context).toContain('REVIEW_PENDING');
+-  if (relativePath.endsWith('PLAN_IMPLEMENTATION.md')) {
+-    expect(normalized, context).toMatch(/degraded result[^.]{0,320}REVIEW_ROUTES_EXHAUSTED/iu);
+-    expect(normalized, context).toMatch(/actual reviewer was not independent/iu);
+-  } else {
+-    expect(normalized, context).toMatch(/independence: degraded[^.]{0,240}not independent/iu);
++  if (planning) {
++    expect(normalized, context).toContain('REVIEW_CONTINUATION_REQUIRED');
++    expect(normalized, context).toContain('continuation_required');
+   }
+   expect(normalized, context).toContain(
+     'Never substitute another surface-private reviewer or hand-written independent evidence.',
+@@ -192,21 +191,13 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
+     return;
+   }
+ 
+-  if (kind !== 'quality-review') {
+-    if (relativePath.endsWith('PLAN_IMPLEMENTATION.md')) {
+-      expect(normalized, context).toContain('Otherwise do not stamp or advance');
+-    } else {
+-      expect(normalized, context).toMatch(
+-        /independence: degraded[^.]{0,240}do not stamp or advance/iu,
+-      );
+-    }
++  if (planning) {
++    expect(normalized, context).toContain('do not stamp or advance');
++    expect(normalized, context).toMatch(/continuation_required[^.]{0,320}finish-review/iu);
++  } else if (kind === 'quality-review') {
++    expect(section, context).toContain('REVIEW_ROUTES_EXHAUSTED');
++    expect(normalized, context).toContain('REVIEW_CONTINUATION_REQUIRED');
+   }
+-
+-  expect(section, context).toContain('REVIEW_ROUTES_EXHAUSTED');
+-  expect(normalized, context).toMatch(/Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u);
+-  expect(normalized, context).toMatch(
+-    /REVIEW_ROUTES_EXHAUSTED[^.]{0,200}invoke[^.]{0,80}finish-review/iu,
+-  );
+ }
+ 
+ function markedQualityRubric(content: string): string {
