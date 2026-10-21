@@ -274,15 +274,17 @@ describe('Claude plugin dispatcher', () => {
         }
         case 'malformed-metadata': {
           normalized = normalized.replace('name: audit', 'name: audit\nname: duplicate');
-
           break;
         }
         case 'body': {
-          {
-            normalized += '\nChanged instructions.\n';
-            // No default
-          }
+          normalized += '\nChanged instructions.\n';
           break;
+        }
+        case 'runtime': {
+          break;
+        }
+        default: {
+          throw new Error(`Unexpected test mutation: ${mutation}`);
         }
       }
       writeFileSync(skillPath, normalized);
