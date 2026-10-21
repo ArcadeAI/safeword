@@ -6,6 +6,13 @@ Seven new automated cases and five strengthened policy cases pass 37/37 locally
 with golangci-lint v2.13.2 and Go 1.25.14. ESLint and TypeScript checks pass.
 The remote results below describe the earlier revision, before these tests.
 
+Follow-up remote proof for commit f490b07272bc9c89cdd54582515c1168c4f16423:
+[CI run 39685589843](https://github.com/ArcadeAI/safeword/actions/runs/39685589843).
+Both Linux Go jobs passed 37/37 tests across three suites: golangci-lint v2.0.0
+and v2.13.2. This also verifies the child-only file-size-limit test on Linux.
+The broader CI workflow was still running when these job results were recorded;
+no claim is made that the complete follow-up CI run passed.
+
 The full local CLI run completed with 11,628 passed, 12 skipped, and three
 subprocess-timeout failures in the unchanged stop-hook transcript and
 PR-readiness delivery suites. All three Go suites passed in that full run.

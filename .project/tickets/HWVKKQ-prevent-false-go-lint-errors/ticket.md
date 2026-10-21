@@ -81,3 +81,8 @@ are explicit; CI must provision tools and fail rather than skip the proof lane.
   Two temporary source mutations were detected: suppressing findings failed all
   five policy controls; omitting partial-write cleanup failed its regression.
   Source was restored after both experiments. ESLint and TypeScript pass.
+- 2026-10-21 Follow-up Linux CI verified all 37 Go tests on both v2.0.0 and
+  v2.13.2 at f490b0727 (run 39685589843). Full local CLI run passed 11,628
+  tests with 12 skips and three timeouts in unchanged integration suites.
+  An isolated rerun could not acquire another worktree's live test lock;
+  repeatability remains unresolved. Broader follow-up CI is still running.
