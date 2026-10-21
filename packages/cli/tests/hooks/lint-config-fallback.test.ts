@@ -27,6 +27,12 @@ const LINT_MODULES = [
     modulePath: path.resolve(REPO_ROOT, '.safeword/hooks/lib/lint.ts'),
   },
 ];
+function sourceContent(extension: string): string {
+  return extension === 'go' ? 'package source\n' : 'export const source = 1;\n';
+}
+function configContent(extension: string): string {
+  return extension === 'go' ? 'version: "2"\n' : '';
+}
 const LANGUAGE_CASES = [
   {
     languageName: 'TypeScript',
@@ -92,9 +98,9 @@ const LANGUAGE_CASES = [
     stubCommands: ['golangci-lint'],
     expectedInvocations: [
       /^golangci-lint version --short$/,
-      /^golangci-lint run --fix .*source\.go$/,
-      /^golangci-lint fmt .*source\.go$/,
-      /^golangci-lint run .*source\.go$/,
+      /^golangci-lint run --no-config --path-prefix .* \.$/,
+      /^golangci-lint fmt --no-config .*source\.go$/,
+      /^golangci-lint run --no-config --path-prefix .* \.$/,
     ],
   },
   {
@@ -106,9 +112,9 @@ const LANGUAGE_CASES = [
     stubCommands: ['golangci-lint'],
     expectedInvocations: [
       /^golangci-lint version --short$/,
-      /^golangci-lint run --config .*\/\.safeword\/\.golangci\.yml --fix .*source\.go$/,
-      /^golangci-lint fmt --config .*\/\.safeword\/\.golangci\.yml .*source\.go$/,
-      /^golangci-lint run --config .*\/\.safeword\/\.golangci\.yml .*source\.go$/,
+      /^golangci-lint run --config .*\/\.safeword\/\.safeword-go-lint-.*\.json --path-prefix .* \.$/,
+      /^golangci-lint fmt --config .*\/\.safeword\/\.safeword-go-lint-.*\.json .*source\.go$/,
+      /^golangci-lint run --config .*\/\.safeword\/\.safeword-go-lint-.*\.json --path-prefix .* \.$/,
     ],
   },
   {
@@ -180,11 +186,11 @@ describe('lintFile language-pack config ownership', () => {
       const stubBin = path.join(directory, 'stub-bin');
       const invocationLog = path.join(directory, 'invocations.log');
       mkdirSync(stubBin);
-      writeFileSync(sourceFile, 'export const source = 1;\n');
+      writeFileSync(sourceFile, sourceContent(extension));
       if (configRelativePath) {
         const configPath = path.join(directory, configRelativePath);
         mkdirSync(path.dirname(configPath), { recursive: true });
-        writeFileSync(configPath, '');
+        writeFileSync(configPath, configContent(extension));
       }
 
       for (const command of ['bunx', 'git', ...stubCommands]) {
@@ -207,10 +213,12 @@ describe('lintFile language-pack config ownership', () => {
         console.log(JSON.stringify({ first, second }));
       `;
       const { stdout } = await execFileAsync('bun', ['-e', script], {
-        cwd: REPO_ROOT,
+        cwd: directory,
         env: {
           ...process.env,
           CLAUDE_PROJECT_DIR: directory,
+          SAFEWORD_PLUGIN_CLI: path.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
+          HOME: directory,
           PATH: `${stubBin}${path.delimiter}${process.env.PATH ?? ''}`,
         },
         timeout: 30_000,

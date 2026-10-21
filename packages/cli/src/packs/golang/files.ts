@@ -309,8 +309,10 @@ function fillGapMerge(
 // Owned Files (overwritten on upgrade)
 // ============================================================================
 
+export const GO_LINT_MANAGED_CONFIG_PATH = '.safeword/.golangci.yml';
+
 export const golangOwnedFiles: Record<string, FileDefinition> = {
-  '.safeword/.golangci.yml': {
+  [GO_LINT_MANAGED_CONFIG_PATH]: {
     generator: ctx =>
       ctx.languages?.golang
         ? generateSafewordGolangciConfig(ctx.projectType.existingGolangciConfig, ctx.cwd)

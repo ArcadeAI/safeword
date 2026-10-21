@@ -1,0 +1,7 @@
+$ bun run --cwd packages/cli test:smoke:fast
+$ node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts tests/integration/quality-gates.test.ts tests/integration/jtbd-gate.test.ts tests/smoke/hook-coverage.test.ts
+Waiting for safeword package test lock (1s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Waiting for safeword package test lock (31s elapsed; owner PID 248; checkout /Users/alex/.codex/worktrees/dba0/safeword).
+Safeword package test lock busy: could not acquire /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-locks/safeword-package-test.lock after waiting 1m 0s; no test was started. The active owner is PID 248 in /Users/alex/.codex/worktrees/dba0/safeword. A transition may be blocked at /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-locks/safeword-package-test.lock.transition. Re-run after it finishes, set SAFEWORD_TEST_LOCK_MAX_WAIT_MS to a larger positive millisecond value, or remove either directory only if you are sure no package test is running.
+error: script "test:smoke:fast" exited with code 75
+error: script "test:smoke:fast" exited with code 75

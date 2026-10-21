@@ -47,7 +47,7 @@ const ESLINT_CONFIG_FILES = [
 ] as const;
 
 // golangci-lint config file markers
-const GOLANGCI_CONFIG_FILES = [
+export const GOLANGCI_CONFIG_FILES = [
   '.golangci.yml',
   '.golangci.yaml',
   '.golangci.toml',

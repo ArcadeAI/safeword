@@ -1150,6 +1150,16 @@ const HIDDEN_COMMANDS: readonly CommandDefinition[] = [
     ...hidden('codex-hook', { syntax: 'codex-hook <event>' }),
     fixture: { argv: ['codex-hook', 'SessionStart'], environment: MACHINE_ENVIRONMENT },
   },
+  hidden('hook go-lint', {
+    commandOptions: [
+      { flags: '--file <path>', description: 'Edited Go file' },
+      { flags: '--project-root <path>', description: 'Canonical Safeword project root' },
+      {
+        flags: '--original-cwd <path>',
+        description: 'Configuration working directory before package loading',
+      },
+    ],
+  }),
   hidden('feature-directories'),
 ];
 

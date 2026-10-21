@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "4f837f49bf8a3d894483fa8621b2970de13dd228f1432712b2b9cf61c311c646"
+      "sha256": "b85e3a5fc36d51cdde3e5b9067cfd0565ac5f0ca55488cd647c5f2a9d533f583"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "ebe9db6dce6b744ad9c41a3af296765e0a9fdbe13517db540f0b2fc16dfe5458"
+      "sha256": "951d4bf645a6f19608ef2b2ef1edfcd4300672747172c402fc169d38ea2bbf86"
     },
     {
       "path": "runtime/event-groups.json",
@@ -295,7 +295,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
-      "sha256": "721e682ea605ca70c6d07216264d09ba1f7146c58b39c40b81452611739df64c"
+      "sha256": "75be08fa1c3d1568caaf1b8ec526d4b0b70223c4cfcc7ced072998f3b3c559bf"
     },
     {
       "path": "runtime/hooks/lib/markdown-structure.ts",
@@ -487,7 +487,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-lint.ts",
-      "sha256": "f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa"
+      "sha256": "ca708ea4ff7d184441e8bc5e5d136c2a5f40ffc74bffb98b6d886451669df7d6"
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
@@ -1271,7 +1271,7 @@
     },
     {
       "path": "templates/hooks/lib/lint.ts",
-      "sha256": "721e682ea605ca70c6d07216264d09ba1f7146c58b39c40b81452611739df64c"
+      "sha256": "75be08fa1c3d1568caaf1b8ec526d4b0b70223c4cfcc7ced072998f3b3c559bf"
     },
     {
       "path": "templates/hooks/lib/markdown-structure.ts",
@@ -1459,7 +1459,7 @@
     },
     {
       "path": "templates/hooks/post-tool-lint.ts",
-      "sha256": "f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa"
+      "sha256": "ca708ea4ff7d184441e8bc5e5d136c2a5f40ffc74bffb98b6d886451669df7d6"
     },
     {
       "path": "templates/hooks/post-tool-quality.ts",

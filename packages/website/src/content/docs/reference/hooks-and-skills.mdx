@@ -145,6 +145,8 @@ If a linter isn't installed, it's silently skipped.
 
 **What you see:** Usually nothing — the linter auto-fixes quietly. If problems remain, your agent sees them and fixes them immediately.
 
+For Go, Safeword formats only the edited file and runs check-only lint on its complete package from that file's directory. Go lint findings are not auto-fixed. Where hook feedback is supported, findings identify their source files and may include issues that predate the edit.
+
 ---
 
 ## Language coding-skills
