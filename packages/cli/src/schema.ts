@@ -72,6 +72,16 @@ export const CURSOR_PLUGIN_LAYOUT = {
   templates: 'templates',
 } as const;
 
+/** Isolated native SDK carrier; content and policy remain in the portable core. */
+export const OPENCODE_V2_PLUGIN_LAYOUT = {
+  directory: 'opencode-v2-plugin',
+  manifest: 'package.json',
+  entry: 'index.js',
+  dispatcher: 'runtime/dispatch.js',
+  runtime: PORTABLE_PLUGIN_LAYOUT.runtime,
+  templates: PORTABLE_PLUGIN_LAYOUT.templates,
+} as const;
+
 /** Closed planning-template classifier; registered templates stay literal for catalogue extraction. */
 export const PLANNING_CONTRACT_TEMPLATE_PATHS = {
   product: 'skills/bdd/DISCOVERY.md',
