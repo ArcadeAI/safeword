@@ -3,15 +3,21 @@ import { readFileSync } from 'node:fs';
 
 import { Given, Then, When } from '@cucumber/cucumber';
 
+import {
+  CodexNativeContinuationActor,
+  type CodexGuardFixture,
+} from '../packages/cli/tests/helpers/codex-native-continuation.js';
 import { CursorNativeContinuationActor } from '../packages/cli/tests/helpers/cursor-native-continuation.js';
 import type { CursorNativeFixtureConfig } from '../packages/cli/tests/helpers/cursor-native-window.js';
 import type { SafewordWorld } from './world.js';
 import './world.js';
 
 interface ContinuationWorld extends SafewordWorld {
-  continuation?: CursorNativeContinuationActor;
+  continuation?: CursorNativeContinuationActor | CodexNativeContinuationActor;
 }
-function actor(world: ContinuationWorld): CursorNativeContinuationActor {
+function actor(
+  world: ContinuationWorld,
+): CursorNativeContinuationActor | CodexNativeContinuationActor {
   assert.ok(world.continuation);
   return world.continuation;
 }
@@ -19,12 +25,28 @@ Given(
   '{string} version {string} has its claimed completion guard active with continuation capacity remaining',
   { timeout: 600_000 },
   async function (this: ContinuationWorld, host: string, version: string) {
-    const parameters = this.parameters as { cursorFixtureFile?: string };
-    assert.ok(parameters.cursorFixtureFile);
-    const config = JSON.parse(
-      readFileSync(parameters.cursorFixtureFile, 'utf8'),
-    ) as CursorNativeFixtureConfig;
-    this.continuation = new CursorNativeContinuationActor(config, 'unfinished-ticket-stop');
+    const parameters = this.parameters as {
+      cursorFixtureFile?: string;
+      codexGuardFixtureFile?: string;
+    };
+    if (host === 'Codex') {
+      assert.ok(parameters.codexGuardFixtureFile);
+      const config = JSON.parse(
+        readFileSync(parameters.codexGuardFixtureFile, 'utf8'),
+      ) as CodexGuardFixture;
+      this.continuation = new CodexNativeContinuationActor(config);
+    } else {
+      assert.equal(
+        host,
+        'Cursor',
+        'HOST_CONTRACT_PROOF_UNAVAILABLE: unsupported continuation host',
+      );
+      assert.ok(parameters.cursorFixtureFile);
+      const config = JSON.parse(
+        readFileSync(parameters.cursorFixtureFile, 'utf8'),
+      ) as CursorNativeFixtureConfig;
+      this.continuation = new CursorNativeContinuationActor(config, 'unfinished-ticket-stop');
+    }
     await actor(this).prepareContinuation(host, version);
   },
 );

@@ -173,9 +173,18 @@ const nativeCases = {
     failure: 'HOST_CONTINUATION_MISSING',
     steps: 4,
   },
+  'native-codex-continuation': {
+    title: 'A supported completion guard actually continues the conversation',
+    failure: 'HOST_CONTINUATION_MISSING',
+    steps: 4,
+  },
 };
 
 function assertNativeRow(repoRoot: string, line: number, proof: string): void {
+  if (proof === 'native-codex-continuation') {
+    assertActualRow(repoRoot, line, false, 'CLI', '0.160.0');
+    return;
+  }
   if (proof !== 'native-cursor-continuation') {
     assertActualRow(repoRoot, line, proof === 'native-cursor');
     return;
@@ -195,9 +204,13 @@ function main(): number {
   const args = process.argv.slice(2);
   const proof = args[1];
   assert.ok(
-    ['native-cursor', 'native-codex', 'native-cursor-cli', 'native-cursor-continuation'].includes(
-      proof ?? '',
-    ),
+    [
+      'native-cursor',
+      'native-codex',
+      'native-cursor-cli',
+      'native-cursor-continuation',
+      'native-codex-continuation',
+    ].includes(proof ?? ''),
   );
   assert.deepEqual(args, ['--proof', proof, '--require-targets']);
   const selected = nativeCases[proof as keyof typeof nativeCases] ?? nativeCases['native-codex'];
@@ -245,8 +258,13 @@ function main(): number {
   assertNativeRow(repoRoot, scenario.line, proof ?? '');
   const statuses = scenario.steps.map(step => step.result.status);
   console.log(`Native ${proof} catalogue statuses: ${statuses.join(', ')}; report: ${report}`);
-  if (isIntendedFailure(result.status, statuses, scenario, selected.failure)) {
-    console.error(`${selected.failure}: observed native contract failure`);
+  const failures = [selected.failure];
+  if (proof === 'native-codex-continuation') failures.push('CONTINUATION_BOUND_EXCEEDED');
+  const intendedFailure = failures.find(failure =>
+    isIntendedFailure(result.status, statuses, scenario, failure),
+  );
+  if (intendedFailure) {
+    console.error(`${intendedFailure}: observed native contract failure`);
     return 2;
   }
   if (result.status !== 0 || statuses.some(status => status !== 'passed')) {

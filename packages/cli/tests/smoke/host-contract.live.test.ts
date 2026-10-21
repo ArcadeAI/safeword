@@ -16,6 +16,7 @@ import { promisify } from 'node:util';
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { CodexNativeContinuationActor } from '../helpers/codex-native-continuation.js';
 import { assertMatchingTree } from '../helpers/codex-plugin-package.js';
 import { observeExactHostVersion } from '../helpers/host-contract-version.js';
 
@@ -292,5 +293,15 @@ describe.runIf(Boolean(process.env.SAFEWORD_CODEX_GUARD_FIXTURE))(
       },
       240_000,
     );
+
+    // eslint-disable-next-line vitest/expect-expect -- shared Cucumber actor asserts native decisions, turns and bound
+    it('codex-0.160.0-bounded-continuation', async () => {
+      assert.ok(context.fixture);
+      const actor = new CodexNativeContinuationActor(context.fixture);
+      await actor.prepareContinuation('Codex', '0.160.0');
+      actor.setMissingVerification();
+      await actor.attemptCompletion();
+      actor.assertContinuation();
+    }, 420_000);
   },
 );
