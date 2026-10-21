@@ -180,18 +180,14 @@ function snapshotDirectory(directory: string): string {
 }
 
 /**
- * Claude's user config directory, minus Safeword's own per-project plugin state.
- *
- * That state is the subject of these scenarios, not the "unrelated state" they
- * assert stays byte-identical: since #3787 it lives in the plugin data
- * directory, so snapshotting it verbatim would make every prompt that enters
- * plugin mode read as collateral damage. Execution proofs stay in the snapshot.
+ * Include plugin state in read-only assertions. Confirmed cleanup can explicitly
+ * exclude its own expected state transition from the unrelated-profile comparison.
  */
-function snapshotClaudeConfig(directory: string): string {
+function snapshotClaudeConfig(directory: string, includeProjectState = true): string {
   if (!existsSync(directory)) return '[]';
   return JSON.stringify(
     filesBeneath(directory)
-      .filter(path => !path.split('/').includes('project-state-v1'))
+      .filter(path => includeProjectState || !path.split('/').includes('project-state-v1'))
       .map(path => [path, readFileSync(nodePath.join(directory, path)).toString('base64')]),
   );
 }
@@ -1193,7 +1189,7 @@ function createStatusFixture(
       })}\n`,
     );
   }
-  if (stateDescription.includes('recognized and conflicting legacy content')) {
+  if (stateDescription.includes('conflicting legacy content')) {
     const conflict = nodePath.join(fixture.project, '.claude/skills/quality-review/SKILL.md');
     mkdirSync(nodePath.dirname(conflict), { recursive: true });
     writeFileSync(conflict, 'user customized legacy protection\n');
@@ -1578,7 +1574,7 @@ Then(
     assert.ok(this.lifecycle);
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
     assert.equal(
-      snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
+      snapshotClaudeConfig(this.lifecycle.configRoot ?? '', false),
       this.lifecycle.configTreeSnapshot,
     );
   },

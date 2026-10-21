@@ -268,6 +268,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Examples:
         | state                                                    | classification | exit | action-count | action                    |
         | valid proof and wholly recognized removable legacy       | cleanup-ready  | 2    | 1            | safeword claude cleanup   |
+        | valid proof and only conflicting legacy content          | coexistence    | 2    | 1            | resolve reported legacy conflicts |
         | valid proof, durable plugin-mode marker, and no legacy    | plugin-mode    | 0    | 0            | none                      |
 
     @rejection

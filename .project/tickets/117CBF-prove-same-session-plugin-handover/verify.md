@@ -11,6 +11,10 @@
 - Complete acceptance passes 597 scenarios and 11,140 steps. CLI and relay builds pass. The subsequent 51 proof-tag tests did not start: another checkout held the shared package-test lock and the wrapper exited 75 after 60 seconds. No concurrent Vitest run or lock bypass was attempted. Those tests passed in the preceding M1 verification; this repair preserves scenario names and tags.
 - No production code, template, generated runtime, or dependency was changed.
 
+Follow-up during M3: `scripts/dev bun run test:bdd:proof` passed all 51 tests
+after the other checkout released the lock. This resolves the test-execution
+limit above; the earlier exit-75 log remains as observed evidence.
+
 ## Discriminating proof
 
 Temporary copies of the final step definitions import the real repository

@@ -26,6 +26,7 @@ last_modified: 2026-10-21T15:05:13.253Z
 - Committed the fix as `c0af11ddb`; independent Claude review approved it.
 - Full CLI suite: 707 files, 11,534 tests passed; root lint, build, and types passed.
 - Compared all 24 real desktop skills with the current generated plugin: all semantic digests match, including 16 byte-different skills.
+- Completed all three must-fix test-review repairs: M1 executes real legacy protection; M2 performs real same-session cleanup handover; M3 asserts coexistence status and includes plugin state in read-only snapshots. Final native lane: 64 scenarios and 3,061 steps; proof-tag lane: 51 tests. Independent Claude Opus review approved the final M3 source. Eight non-blocking suggestions remain out of scope.
 
 ## Root Cause
 

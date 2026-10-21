@@ -2,8 +2,10 @@
 
 Update: M1 was repaired in task `4RGYMY-prove-legacy-protection-executes` after
 this assessment. M2 was repaired in `117CBF-prove-same-session-plugin-handover`.
-Their verification reports record real guard execution, cleanup, and targeted
-fault probes. M3 and the other findings remain as assessed below.
+M3 is repaired by the coexistence example and inclusive read-only snapshots,
+with evidence in `m3-verification.md`. All three must-fix findings are resolved.
+Their verification reports record real execution and targeted fault probes.
+The eight non-blocking suggestions remain outside this issue's scope.
 
 **Findings:** 3 must-fix BDD proof gaps, 8 should-strengthen findings, 3 looks-good findings.
 
