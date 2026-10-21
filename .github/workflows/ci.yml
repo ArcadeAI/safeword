@@ -132,7 +132,7 @@ jobs:
           - linter: '2.0.0'
             go: '1.24.x'
           - linter: '2.13.2'
-            go: '1.27.x'
+            go: '1.25.x'
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v4

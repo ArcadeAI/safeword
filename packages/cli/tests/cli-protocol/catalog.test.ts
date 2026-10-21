@@ -225,6 +225,7 @@ describe('CLI command catalog', () => {
       'boundary',
       'hook codex',
       'codex-hook',
+      'hook go-lint',
       'feature-directories',
     ]);
   });

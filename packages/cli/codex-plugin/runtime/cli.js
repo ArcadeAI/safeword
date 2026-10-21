@@ -87460,6 +87460,15 @@ function postToolLintInputs(input, rawInput, projectDirectory) {
     tool_input: { file_path: nodePath155.resolve(projectDirectory, filePath) }
   }));
 }
+function boundedLintWarning(output) {
+  const bytes = Buffer.from(output);
+  const limit = 16 * 1024;
+  if (bytes.length <= limit)
+    return output;
+  const notice = `
+[Additional lint output truncated; these are not all findings.]`;
+  return `${bytes.subarray(0, limit - Buffer.byteLength(notice) - 3).toString("utf8")}${notice}`;
+}
 function collectPostToolLintContexts(lintInputs, projectDirectory) {
   const contexts = [];
   for (const lintInput of lintInputs) {
@@ -87469,7 +87478,7 @@ function collectPostToolLintContexts(lintInputs, projectDirectory) {
     if (context2)
       contexts.push(context2);
     else if (output)
-      contexts.push(output);
+      contexts.push(boundedLintWarning(output));
   }
   return contexts;
 }

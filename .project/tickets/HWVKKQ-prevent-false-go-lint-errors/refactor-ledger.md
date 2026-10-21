@@ -8,9 +8,11 @@ lifetime, orchestration, tests and host collaborators. No Vitest process was
 started by either scout. Findings are ordered leaf-first; mutations will be
 serial and independently tested/committed.
 
-- [ ] Fix the audit finding separately from refactoring: warning-only output
-  bypasses the 16 KiB cap before Codex wraps it in additionalContext. Add a
-  warning-only process-boundary regression and use the same cap in both paths.
+- [x] Fix the audit finding separately from refactoring: warning-only output
+  bypassed the 16 KiB cap before Codex wrapped it in additionalContext. Cap that
+  fallback at the Codex conversion boundary; preserve the shared hook's current
+  structured-output cap. A real Codex probe reproduced 30039 bytes before the
+  fix and 16381 bytes afterward. Both boundary regression cases pass.
 - [x] Extract YAML parsing from parseConfig, preserving its merge settings,
   legacy-octal rejection, alias bound and subsequent validation unchanged.
   Eighteen real-linter policy checks passed across both versions after this
@@ -31,3 +33,11 @@ Protection: existing configuration/lifecycle/real-linter suites, plus the
 reproducible final manual probes. The local Vitest lock remains occupied by
 another worktree; remote runs provide automated verification. No dependency
 upgrades or customer policy changes belong to these refactors.
+
+The first remote run found three validation gaps: the hidden-helper inventory
+needed hook go-lint, the Go golden-path hook fixtures needed the built CLI under
+test, and the generated module inventory needed the new go-lint module. Those
+are corrected. Its Linux v2.13.2 binary cannot decode Go 1.27 export data; the
+matrix now pairs that linter with the repository's Go 1.25 baseline. The v2.0.0
+remote lane passed all 30 tests. Five targeted checks for inventory, warning
+feedback and golden-path formatting passed locally after the corrections.
