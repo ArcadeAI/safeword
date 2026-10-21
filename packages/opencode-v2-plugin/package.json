@@ -1,0 +1,9 @@
+{
+  "name": "@safeword/opencode-v2-plugin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@opencode/plugin": "2.0.32"
+  }
+}
