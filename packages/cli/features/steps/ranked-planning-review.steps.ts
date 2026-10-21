@@ -53,6 +53,17 @@ Then(
       result.launches.map(({ agent, model }) => `${agent}:${model}`),
       expected.split(','),
     );
+    if (state(this).example === 'later') {
+      assert.ok(
+        result.output.data.review_routes.some(
+          (route: { model?: string; status: string; failure?: string }) =>
+            route.model === 'gpt-6-sol' &&
+            route.status === 'skipped' &&
+            route.failure === 'reviewer_capability_unknown',
+        ),
+        'the unqualified explicit selector must be a skipped refusal, not an attempt',
+      );
+    }
   },
 );
 Then(

@@ -77,7 +77,7 @@ Feature: Keep review available with the best supported fallback
         | case        | launches                                      | reviewer | assurance   | packets |
         | first       | codex:gpt-6-astra                              | codex    | cross-agent | 1       |
         | alternate   | codex:default,codex:gpt-6-astra                | codex    | cross-agent | 2       |
-        | later       | codex:default,codex:gpt-6-sol,codex:gpt-6-astra | codex    | cross-agent | 3       |
+        | later       | codex:default,codex:gpt-6-astra                | codex    | cross-agent | 2       |
         | unsupported | codex:default,claude:default                  | claude   | reduced     | 1       |
 
   @review-with-the-best-available-agent.TBU1.R2 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
