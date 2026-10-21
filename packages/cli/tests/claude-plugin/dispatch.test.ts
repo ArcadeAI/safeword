@@ -237,7 +237,21 @@ describe('Claude plugin dispatcher', () => {
     expect(result.status, result.stderr).toBe(0);
     expect(result.stderr).not.toContain('damaged native plugin cache');
     expect(result.stdout).not.toContain('No Safeword hook result was applied');
-    expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(true);
+    const digest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
+    const proofPath = nodePath.join(pluginData, 'execution-proofs-v2', `${digest}.json`);
+    const identity = JSON.parse(readFileSync(nodePath.join(pluginRoot, 'identity.json'), 'utf8'));
+    const proof = JSON.parse(readFileSync(proofPath, 'utf8'));
+    expect(proof).toEqual({
+      schema_version: 2,
+      project_root: realpathSync(projectDirectory),
+      plugin_version: SAFEWORD_SCHEMA.version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      canonical_plugin_root: realpathSync(pluginRoot),
+      event: 'UserPromptSubmit',
+      session_id: 'desktop',
+      recorded_at: expect.any(String),
+    });
+    expect(new Date(proof.recorded_at).toISOString()).toBe(proof.recorded_at);
   });
 
   it.each(['metadata', 'body', 'runtime'])(

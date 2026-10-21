@@ -5,7 +5,10 @@ this assessment. M2 was repaired in `117CBF-prove-same-session-plugin-handover`.
 M3 is repaired by the coexistence example and inclusive read-only snapshots,
 with evidence in `m3-verification.md`. All three must-fix findings are resolved.
 Their verification reports record real execution and targeted fault probes.
-The eight non-blocking suggestions remain outside this issue's scope.
+Follow-up improvements in `test-improvements-verification.md` address S1,
+narrow confirmed cleanup's marker exclusion, validate every generated exposed
+skill's digest, and require the exact desktop execution-proof record. The other
+original non-blocking suggestions remain outside this issue's scope.
 
 **Findings:** 3 must-fix BDD proof gaps, 8 should-strengthen findings, 3 looks-good findings.
 

@@ -27,6 +27,7 @@ last_modified: 2026-10-21T15:05:13.253Z
 - Full CLI suite: 707 files, 11,534 tests passed; root lint, build, and types passed.
 - Compared all 24 real desktop skills with the current generated plugin: all semantic digests match, including 16 byte-different skills.
 - Completed all three must-fix test-review repairs: M1 executes real legacy protection; M2 performs real same-session cleanup handover; M3 asserts coexistence status and includes plugin state in read-only snapshots. Final native lane: 64 scenarios and 3,061 steps; proof-tag lane: 51 tests. Independent Claude Opus review approved the final M3 source. Eight non-blocking suggestions remain out of scope.
+- Completed the four subsequently requested test improvements: exact cleanup-marker exclusion, lifecycle-attempt log checks, all-skill generated digest coverage, and exact normalized-desktop execution proof. Native lane: 64 scenarios; relevant Vitest files: 137 passing tests plus one existing prerelease-only skip; proof tags: 51 passing tests. Fault probes discriminate and independent Claude Opus review approves; no production behavior changed.
 
 ## Root Cause
 

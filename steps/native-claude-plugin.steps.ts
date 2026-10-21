@@ -180,15 +180,15 @@ function snapshotDirectory(directory: string): string {
 }
 
 /**
- * Include plugin state in read-only assertions. Confirmed cleanup can explicitly
- * exclude its own expected state transition from the unrelated-profile comparison.
+ * Confirmed cleanup may change only the named project's plugin-mode marker.
+ * Use the same exclusion before and after; all other profile state remains protected.
  */
-function snapshotClaudeConfig(directory: string, includeProjectState = true): string {
-  if (!existsSync(directory)) return '[]';
-  return JSON.stringify(
-    filesBeneath(directory)
-      .filter(path => includeProjectState || !path.split('/').includes('project-state-v1'))
-      .map(path => [path, readFileSync(nodePath.join(directory, path)).toString('base64')]),
+function snapshotClaudeConfig(directory: string, modeMarkerProject?: string): string {
+  if (modeMarkerProject === undefined) return snapshotDirectory(directory);
+  const marker = lifecycleStatePath(directory, modeMarkerProject, 'plugin-mode-v2.json');
+  return snapshotDirectoryExcept(
+    directory,
+    nodePath.relative(directory, marker).split(nodePath.sep).join('/'),
   );
 }
 
@@ -1528,6 +1528,16 @@ Given(
     mkdirSync(nodePath.dirname(projectOwned), { recursive: true });
     writeFileSync(cursor, '{"cursor":"keep"}\n');
     writeFileSync(projectOwned, '{"project":"keep"}\n');
+    const configRoot = this.lifecycle.configRoot!;
+    const otherMarker = nodePath.join(
+      configRoot,
+      'plugins/data/safeword-safeword/project-state-v1',
+      'f'.repeat(64),
+      'plugin-mode-v2.json',
+    );
+    mkdirSync(nodePath.dirname(otherMarker), { recursive: true });
+    writeFileSync(otherMarker, '{"state":"preserve unrelated project"}\n');
+    this.lifecycle.configTreeSnapshot = snapshotClaudeConfig(configRoot, this.lifecycle.project);
     this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
   },
 );
@@ -1574,7 +1584,7 @@ Then(
     assert.ok(this.lifecycle);
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
     assert.equal(
-      snapshotClaudeConfig(this.lifecycle.configRoot ?? '', false),
+      snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
       this.lifecycle.configTreeSnapshot,
     );
   },
@@ -1601,10 +1611,23 @@ Then('every profile and project file is byte-identical', function (this: NativeC
   );
 });
 
-Then('no Claude lifecycle command is invoked', function (this: NativeClaudePluginWorld) {
-  assert.ok(this.lifecycle);
-  assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
-});
+Then(
+  "the Claude profile outside the current project's plugin-mode marker is byte-identical",
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle?.configRoot);
+    const { configRoot, project } = this.lifecycle;
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+    assert.equal(snapshotClaudeConfig(configRoot, project), this.lifecycle.configTreeSnapshot);
+    const marker = JSON.parse(
+      readFileSync(lifecycleStatePath(configRoot, project, 'plugin-mode-v2.json'), 'utf8'),
+    );
+    assert.equal(marker.state, 'clean');
+    assert.equal(
+      existsSync(lifecycleStatePath(configRoot, project, 'cleanup-transaction-v1.json')),
+      false,
+    );
+  },
+);
 
 Given(
   'a cleanup-ready project whose managed Claude skill path contains content with no accepted Safeword fingerprint',

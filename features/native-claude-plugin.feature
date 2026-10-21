@@ -109,7 +109,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       When safeword claude cleanup is confirmed
       Then only the recognized Safeword files and settings entries are removed
       And user-authored, third-party, Cursor-shared, and project-owned assets are byte-identical
-      And the complete Claude profile is byte-identical to its pre-command snapshot
+      And the Claude profile outside the current project's plugin-mode marker is byte-identical
 
       Examples:
         | accepted-fingerprint          |
@@ -121,7 +121,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Given a cleanup-ready project and profile
       When the user declines safeword claude cleanup confirmation
       Then every profile and project file is byte-identical
-      And no Claude lifecycle command is invoked
+      And no marketplace, install, update, enable, reload, or trust call occurs
 
     @rejection
     Scenario: Cleanup preserves and reports unknown content at a managed legacy path
