@@ -1,0 +1,25 @@
+{
+  "review_id": "e9e7013b-05c3-4213-9b63-01df10aa89b6",
+  "responses": [
+    {
+      "finding": "legacy count",
+      "resolution": "Four negative malformed controls and the matching missing-verdict positive compatibility control were added in the same currency regression: five sealed controls total, plus 18 ordinary identity cases = 23. Historical four refers to negative controls; no test was dropped."
+    },
+    {
+      "finding": "targeted Done When",
+      "resolution": "The criterion deliberately requires targeted checks. Final work log and verify.md explicitly reserve full CLI verification for CI; PR gates 4 and 7 remain blocked until terminal exact-head CI."
+    },
+    {
+      "finding": "last_modified",
+      "resolution": "Will update with the guarded closing transition; preserve the historical reviewed artifact snapshot."
+    },
+    {
+      "finding": "profile retry",
+      "resolution": "Recorded in ticket work log immediately after it occurred, following verification artifact authoring. No production change and no further install retry or downgrade."
+    },
+    {
+      "finding": "source not in verification packet",
+      "resolution": "This review covers records only. Source/test/metadata review is db4c59a9; no claim this record review repeats code review."
+    }
+  ]
+}

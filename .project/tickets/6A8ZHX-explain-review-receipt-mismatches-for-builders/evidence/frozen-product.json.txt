@@ -1,0 +1,16 @@
+{
+  "base": "9f6ac6fcee254b684abf7a5bb014538a6aa6470d",
+  "verified_source_commit": "a63e0d1e89a12d830175fd5f5de16a790a55b565",
+  "files": {
+    "packages/cli/codex-plugin/runtime/cli.js": "24206ca1b25be3423e149095d31c1d08f424b666edd2edb8dc877acefdca14d3",
+    "packages/cli/src/execution-plan/delivery-admission.ts": "463ca539b8f604f56dbcea7ea4351558c5e8b8c5b02b639cf11c48a473cf17bd",
+    "packages/cli/src/execution-plan/execution-prerequisite.ts": "14ce34cbf68203bcfd42f3e6aa3f02ca40de206e41db3e9691b491ffbaad9806",
+    "packages/cli/tests/integration/delivery-checklist-recovery.test.ts": "fd017666eab05e7d7f4d19e4bc26a19e11daadb1c29c9d425da26fce27d122aa",
+    "packages/cli/tests/integration/execution-receipt-recovery.test.ts": "d0bcd777b7f78fae2c42a35781788d7e1baabb9d04b799b99e46df3ddb5c79d7",
+    "plugin/identity.json": "722fdd58f16432e10d92a6389825c986d8d995fe22f50fb348a5aca55f49d7f0",
+    "plugin/inventory.json": "8f9c4d269b5d3ef646941546263d1589603877961fbccd9c698a03ceccdc271e",
+    "plugin/runtime/cli.js": "ba5b92b2725491602f1a521e971acc8ae80bc48a47bbe9d212c435d29cf93fe6"
+  },
+  "count": 8,
+  "scope": "2 production modules, 2 test files, 4 generated carriers"
+}

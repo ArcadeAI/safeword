@@ -2,10 +2,10 @@
 id: 6A8ZHX
 slug: explain-review-receipt-mismatches-for-builders
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-10-21T15:45:34.972Z
-last_modified: 2026-10-21T15:45:34.972Z
+last_modified: 2026-10-21T17:20:00.000Z
 ---
 
 # Explain review receipt mismatches for builders
@@ -22,19 +22,19 @@ last_modified: 2026-10-21T15:45:34.972Z
 
 **Done When:**
 
-- [ ] The public execution-prerequisite command identifies the actual and required review kind for an otherwise-current wrong-kind receipt.
-- [ ] An authenticated sibling-ticket receipt over identical plan bytes names the ticket mismatch and re-review for the current ticket.
-- [ ] Genuine current matching receipts still satisfy the prerequisite, and unrelated invalid claims cannot displace an existing valid receipt.
-- [ ] Missing, stale and unauthenticated receipts retain fail-closed behavior without invented authenticated provenance.
-- [ ] Every mismatch recovery requests plan-execution for the current ticket. With no applicable receipt, diagnose the newest current authenticated mismatch; if one receipt mismatches both kind and ticket, name the kind first. A valid current matching receipt retains precedence over mismatched claims in either ledger order.
-- [ ] Targeted regression checks, derived surfaces, scoped audit and independent review pass; verification records failures and limits.
+- [x] The public execution-prerequisite command identifies the actual and required review kind for an otherwise-current wrong-kind receipt.
+- [x] An authenticated sibling-ticket receipt over identical plan bytes names the ticket mismatch and re-review for the current ticket.
+- [x] Genuine current matching receipts still satisfy the prerequisite, and unrelated invalid claims cannot displace an existing valid receipt.
+- [x] Missing, stale and unauthenticated receipts retain fail-closed behavior without invented authenticated provenance.
+- [x] Every mismatch recovery requests plan-execution for the current ticket. With no applicable receipt, diagnose the newest current authenticated mismatch; if one receipt mismatches both kind and ticket, name the kind first. A valid current matching receipt retains precedence over mismatched claims in either ledger order.
+- [x] Targeted regression checks, derived surfaces, scoped audit and independent review pass; verification records failures and limits.
 
 **Tests (TDD):**
 
-- [ ] RED: real CLI creates authentic receipts with a fake external reviewer; wrong-kind and sibling-ticket claims fail at the actor-visible mismatch assertions while refusal and the exact recovery command remain required.
-- [ ] GREEN: preserve receipt validation and candidate selection, exposing mismatch diagnosis only when no applicable receipt is admitted.
-- [ ] PROTECT: matching receipt, valid receipt with invalid claims in either order, multiple mismatches in both orders, a receipt mismatching both kind and ticket, missing and stale controls, and tampered wrong-kind/sibling receipts whose unauthenticated fields must never produce mismatch diagnostics.
-- [ ] REFACTOR: inspect the bounded change and retain one owner for admission and its diagnostic result.
+- [x] RED: real CLI creates authentic receipts with a fake external reviewer; wrong-kind and sibling-ticket claims fail at the actor-visible mismatch assertions while refusal and the exact recovery command remain required.
+- [x] GREEN: preserve receipt validation and candidate selection, exposing mismatch diagnosis only when no applicable receipt is admitted.
+- [x] PROTECT: matching receipt, valid receipt with invalid claims in either order, multiple mismatches in both orders, a receipt mismatching both kind and ticket, missing and stale controls, and tampered wrong-kind/sibling receipts whose unauthenticated fields must never produce mismatch diagnostics.
+- [x] REFACTOR: inspect the bounded change and retain one owner for admission and its diagnostic result.
 
 **Principle consequence:** Preserve the natural admission gate and expose one concrete next action. Tests prove emitted diagnostic mechanics; no claim of non-technical comprehension or native host isolation is made.
 
@@ -54,3 +54,4 @@ last_modified: 2026-10-21T15:45:34.972Z
 - Currency regression RED is now observed: the queued Vitest run completed with 4 failed /19 passed, including a passing matching missing-verdict control. A standalone built-CLI probe independently failed the same diagnostic assertion before repair and passed unchanged after repair. Its first plugin-runtime attempt could not locate an isolated fixture key and failed before resealing; no production key was read. The built CLI's isolated test-key mode was used for both behavioral observations. An attempted cancellation found the queued wrapper already exited and signaled no process.
 - Currency GREEN: strict validated current status supplies diagnostics; authenticated-only legacy data remains available to the unchanged admission/error path. All 46 tests across identity recovery, repair-code vocabulary, prerequisites and execution journey passed. The 23 identity cases comprise 18 ordinary real coordinator jobs plus five deliberately sealed malformed legacy controls; only the legacy setup signs controlled test records. Ticket, ledger and terminal receipt byte checks remain intact.
 - Final verification will run each relevant app lane once. The canonical monorepo attempt is preserved as interrupted; its plan repeats the full CLI suite through both the root script and a leaf entry. Final evidence will distinguish the single complete app run, acceptance/release checks, existing CI audit policy and the unrestricted advisory baseline rather than claiming the interrupted aggregate passed.
+- Local checkpoint: 46 targeted tests, 601 acceptance scenarios /11,821 steps plus 51 proof checks, and 83 release tests pass. All static checks and parity pass. Complete-scope review db4c59a9 earned the implement stamp; the eight product/test/carrier paths are frozen at a63e0d1e8. The final local full attempt exited 130 while queued behind another checkout; full Node 22/24 CLI verification awaits CI. The requested single profile-install retry failed on the installed 1.2.0 versus registry-required 1.1.0 mismatch and reported project hooks unchanged; no further install retry or downgrade was attempted.
