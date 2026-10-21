@@ -16,7 +16,12 @@ import {
 } from './lib/active-ticket.ts';
 import { detectInspirationArtifactWrite, detectLedgerWrite } from './lib/bash-ledger-writes.ts';
 import { retrospectiveGateDenial } from './lib/retrospective-gate.ts';
-import { askTrustedSafeword } from './lib/safeword-cli.ts';
+import {
+  askTrustedSafeword,
+  projectWritablePluginCli,
+  trustedEnvironment,
+  trustedSafewordClis,
+} from './lib/safeword-cli.ts';
 import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
@@ -319,6 +324,68 @@ function receiptGateVerdict(
   } catch {
     return undefined;
   }
+}
+
+function assertPlanningContractCopy(ticket: string, phase: string): void {
+  const candidates = trustedSafewordClis(projectDirectory);
+  if (
+    process.env.SAFEWORD_AGENT_RUNTIME !== 'cursor' &&
+    projectWritablePluginCli(projectDirectory) === undefined &&
+    candidates.length === 0
+  )
+    return;
+  if (process.env.CODEX_HOME && trustedEnvironment(projectDirectory).CODEX_HOME === undefined) {
+    deny(
+      'Safeword refused a project-writable cached planning checker.',
+      'Install the trusted runtime outside the project and retry.',
+    );
+  }
+  const answer = askTrustedSafeword(
+    projectDirectory,
+    ['ticket', 'planning-contract-check', ticket, phase],
+    run => {
+      try {
+        const result = JSON.parse(run.stdout) as {
+          state?: unknown;
+          data?: { status?: unknown; planning_phase?: unknown; command?: unknown };
+          findings?: Array<{ code?: unknown; message?: unknown }>;
+        };
+        if (
+          run.status === 0 &&
+          result.state === 'healthy' &&
+          result.data?.command === 'ticket planning-contract-check' &&
+          result.data.status === 'current' &&
+          result.data.planning_phase === phase
+        )
+          return { denial: undefined };
+        const finding = result.findings?.find(
+          item =>
+            (item.code === 'canonical_contract_copy_mismatch' ||
+              item.code === 'missing_generated_contract_copy') &&
+            typeof item.message === 'string',
+        );
+        return finding === undefined
+          ? undefined
+          : { denial: `${finding.code}: ${finding.message}` };
+      } catch {
+        return undefined;
+      }
+    },
+  );
+  if (answer.kind === 'answered') {
+    if (answer.value.denial === undefined) return;
+    deny(answer.value.denial, 'Reconcile the installed planning contract copy and retry.');
+  }
+  if (answer.kind === 'refused') {
+    deny(
+      'Safeword refused a project-writable planning contract checker.',
+      'Point the configured runtime at the installed distribution and retry.',
+    );
+  }
+  deny(
+    'Safeword could not validate its trusted planning contract checker response.',
+    'Install the current runtime and rerun ticket planning-contract-check; no contract mismatch has been established.',
+  );
 }
 
 function executableRedGateDenial(scenario: string, ledger: string): string | undefined {
@@ -914,6 +981,7 @@ if (isCanonicalTicketEdit) {
     proposedPhase === 'plan-execution'
   ) {
     const ticketDirectory = nodePath.dirname(editedFile);
+    assertPlanningContractCopy(nodePath.basename(ticketDirectory), 'plan-implementation');
     const verdict = evaluateExecutionPlanningEntry(ticketDirectory, { projectDirectory });
     if (!verdict.ok) deny(verdict.reason, verdict.remediation);
 
@@ -1072,6 +1140,9 @@ if (isCanonicalTicketEdit) {
 
   if (proposedType === 'feature' && proposedPhase === 'implement' && priorPhase !== proposedPhase) {
     const ticketDirectory = nodePath.dirname(editedFile);
+    if (priorPhase !== 'plan-execution') {
+      assertPlanningContractCopy(nodePath.basename(ticketDirectory), 'plan-implementation');
+    }
     const verdict = evaluateImplementEntry(ticketDirectory, { projectDirectory });
     if (!verdict.ok) {
       deny(verdict.reason, verdict.remediation);

@@ -114,9 +114,33 @@ differ. [CLI parameters](https://cursor.com/docs/cli/reference/parameters),
 [plugin hook support](https://cursor.com/docs/cli/changelog).
 
 CLI fixtures have no competing project hooks, rules or command registrations.
-Explicit `--plugin-dir` proves package dispatch only: it does not exercise the
-IDE enrollment, eligibility or authority-epoch handshake. Those gates retain
-their own IDE/lifecycle proofs.
+Explicit `--plugin-dir` alone proves package dispatch, not IDE enrollment,
+eligibility or authority-epoch handling. The current pilot runs before the new
+authority gate is implemented. Its diagnostic results cannot certify that gate.
+
+The CLI lane is an engineering test driver, not a new customer installation or
+status binding. Once the shared authority gate exists, its required CLI fixture
+must establish enrollment through the real lifecycle controller in the disposable
+profile before the trial. Bind that record and the native SessionStart observation
+to the CLI runtime/version, canonical checkout, profile, package identities and
+delivery epoch; do not borrow an IDE record. SessionStart supplies the same
+normalized registration/authority handshake to the shared gate that the IDE
+workspace bootstrap uses. Loading through `--plugin-dir` never exempts a hook
+from that gate. The controller may enroll this explicitly requested diagnostic
+fixture without exposing a customer CLI enrollment path or probing unselected
+customer hosts. Its records and results satisfy only their declared engineering
+proof obligation; they cannot establish customer status or admission of an IDE
+or other customer binding. The existing pilot results remain diagnostic-only.
+
+Discriminating proof runs the real CLI route with native authority selected and
+observes its allowed/denied effects, then omits or mismatches enrollment and
+confirms the native guard stays inert. With legacy project hooks present, the
+same authority gate must select exactly one decision owner, preserving legacy
+protection when the native handshake is absent. Test both dispatch counts and
+the resulting side effect; CLI loading cannot activate a second authority.
+Rerun these cases against the final generated gate-bearing package. The existing
+pre-gate CLI diagnostics cannot satisfy them or replace the separate IDE
+enrollment, registration, trust, activation or continuation proofs.
 
 Exact coverage population: seven version lanes, nine distinct host/version/runtime
 rows, and ten delivery cases (Cursor 3.24.18 has native and project-hook delivery).
@@ -353,20 +377,28 @@ Claude's six configured event families and Cursor's six families, plus nested
 handlers, Codex bindings, OpenCode dispatch, references and worker entrypoints.
 Checkpoint 0d1061ae6 adds the shared catalogue renderer and opt-in isolated
 portable writer. Default shipped Codex generation still uses its existing
-compatibility projection. Full catalogue/policy consolidation is not implemented.
+compatibility projection. Generated Cursor core/extension diagnostics and the
+shared Codex/Cursor session-bound completion helper are implemented. Full
+catalogue/policy consolidation and the new enrollment/authority gate are not.
 
 **Available proof:** the 58 behavior definitions passed independent scenario review
 and source/ledger checks. That is specification evidence, not implementation or
 installed-host proof for this design. Existing host observations retain their
 documented version and delivery limits.
 The portable pilot proves Codex root metadata precedence and fixture resource
-loading; the Cursor pilot additionally proves rendered helper origin. Both
-required proof groups remain incomplete. Native format comparison proves that
+loading. The exact Cursor 3.24.18 native IDE diagnostic group passes catalogue/
+helper loading, allowed/denied writes and bounded continuation; the separate
+exact CLI group passes catalogue/helper loading and allowed/denied writes.
+See [current diagnostics and limits](./cursor-continuation-proof.md#current-implementation-and-proof).
+These pre-authority-gate results are diagnostic-only, admission_eligible=false;
+they do not establish sealed admission, customer activation, eligibility/
+coexistence, full lifecycle or legacy project-hook proof. No CLI continuation
+claim is inferred. Both required proof groups remain incomplete. Native format comparison proves that
 Codex 0.160.0 discovers five untrusted hooks in compatibility format and zero
 in portable format; this is discovery evidence, not hook execution.
 
 **Target work:** common inventory/owner enforcement, full shared-policy adoption,
-native Cursor and OpenCode V2 delivery, truthful per-behavior projection,
+admitted native Cursor and OpenCode V2 delivery, truthful per-behavior projection,
 production portable delivery, and full proof obligations remain unimplemented.
 
 **Known defects/limits:** host renderers and schema currently carry overlapping
@@ -481,17 +513,10 @@ Native installation must not generate competing project wrappers in a clean
 eligible project. A profile-local request cannot retire tracked wrappers shared
 with teammates or Cloud; cache presence cannot override this eligibility check.
 The [current hooks contract](https://cursor.com/docs/hooks) documents workspaceOpen
-and pluginPaths. The exact 3.24.18 native IDE diagnostic group now passes
-catalogue/helper loading, denied write, allowed write and bounded continuation.
-The separate exact CLI diagnostic group passes catalogue/helper loading and
-allowed/denied writes; it supplies no IDE or CLI-continuation claim. See
-[current proof and limits](./cursor-continuation-proof.md#current-implementation-and-proof).
-The earlier missing-dispatch result in cursor-native-guard-discovery.md is
-historical. These passing groups are diagnostic-only, admission_eligible=false:
-sealed conformance admission, customer activation, eligibility/coexistence and
-the full lifecycle remain unmet by these results. Native diagnostic proof cannot
-satisfy either legacy project-hook IDE case. Registration alone establishes none
-of the enforcement guarantees.
+and pluginPaths. Current diagnostic results and their admission limits are
+recorded under Current and target truth; the earlier missing-dispatch result in
+cursor-native-guard-discovery.md is historical. Registration alone establishes
+none of the enforcement guarantees.
 No marketplace registration or user-wide Cursor hook is introduced. Trust/admin
 denial of this local discovery path remains actionable and unprotected; do not
 fall back to globally activating the payload.
@@ -761,6 +786,7 @@ exclusions cannot match by proximity or by sharing a major version.
 | Cursor project hooks | Existing project-hook support with manifest protocol version 1, required blockable events and the declared completion bound | Native plugin proof cannot fill this class; exact 3.8.23 and 3.24.18 legacy controls are required before shipping |
 | OpenCode V1 | Existing stable 1.x support predicate plus the unchanged V1 plugin API/event binding and CLI/TUI-specific capabilities | Preserve V1 delivery; never admit a V2 protocol or transfer V1 CLI evidence to TUI |
 | Cursor native | Initially exact 3.24.18 IDE with the proved workspaceOpen/pluginPaths, hook and continuation binding | A later native version needs an explicit reviewed compatibility-policy update or exact proof; retain a satisfying proved legacy mechanism when native is ineligible |
+| Cursor CLI diagnostic driver | Exact 2026.09.28-64d2043 in an explicitly requested disposable test profile, using CLI-scoped controller enrollment and the shared authority gate | Test-only: no customer installation/status binding, customer-binding admission or IDE activation claim; `--plugin-dir` is not an authority exemption |
 | OpenCode V2 | Initially exact 2.0.32 with its proved Promise SDK/native binding, separately for CLI and TUI | No V1/V2 evidence transfer; later support needs an explicit reviewed policy update or exact proof |
 
 For existing delivery families, the release controller admits that compatibility
@@ -1003,8 +1029,8 @@ invented improvement percentage or wall-clock threshold is introduced.
 
 Architecture applicability: shared content/enforcement APIs, evidence meaning and
 migration compatibility change. The durable constraints are recorded in
-[Shared host contracts and proof-gated delivery](../../../ARCHITECTURE.md#shared-host-contracts-and-proof-gated-delivery)
-and its linked [durable decision record](../../architecture-decisions/shared-host-contracts.md).
+[the durable host-contract decision](../../architecture-decisions/shared-host-contracts.md),
+indexed by the configured [architecture record](../../../ARCHITECTURE.md#references).
 This extends the existing registry/native-trust decision and preserves schema
 ownership, reconciliation and profile isolation. Cursor's project-only delivery
 statement is superseded only when its verified native cutover is implemented;

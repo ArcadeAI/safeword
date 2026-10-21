@@ -5,31 +5,40 @@
 
 ## Approval context and current state
 
-Implementation review 5a9a9659-b391-47a5-a0bb-483da00669d6 approved the
-current impl-plan.md with cross-agent independence (Codex author, Claude reviewer).
-Its current plan-implementation review stamp is written. The user's upgraded
-native Cursor target is 3.24.18; 3.8.23 remains a legacy compatibility target.
-The ticket returned to planning after native discovery disproved the earlier
-Codex root-hook and Cursor dynamic-wrapper assumptions. Canonical approve-plan
-accepted the revised current plan and moved to plan-execution; approval_status
-is not-required because designApprovalGate remains disabled. Current execution
-review and coding-authorization must be refreshed
-before production edits. Merge, publication, destructive cleanup and host trust
-remain separate authorities.
+Implementation review 0c909541-ee02-46ad-b141-b0294b55d73f approved the
+current impl-plan.md with reduced independence (Codex author, Claude/opus
+reviewer; this host supplied no verified exact author model). Its current stamp
+is recorded. Canonical approve-plan returned approval_status not-required and
+moved the ticket to plan-execution. Refresh execution review and coding
+authorization before further code edits. Merge, publication, destructive cleanup
+and native hook trust remain separate authorities.
 
-Checkpoint 0d1061ae6 implements the shared renderer and isolated portable writer;
-native Codex resource/precedence and Cursor resource/helper cases pass partially.
-They do not complete either required group or establish enforcement. The revised
-resume point is the first unproved native guard obligation in PR 1, followed by
-the remaining dependency order below. Existing passing cases stay regression
-evidence; do not fabricate a RED. Every changed primary proof needs its current
-independent RED before corresponding new production integration.
-All remaining implementation and full-group proof below are target work. The
-58 scenario definitions / 94 expanded cases remain unchecked. Existing source
-behavior and historical observations are baseline evidence only. The root-pinned
-Codex binary reports 0.160.0; installed global Codex 0.163.0, Claude 2.1.289 and
-Cursor 3.24.18 are not substitutes for the accepted exact targets. OpenCode is
-not currently on PATH. A setup failure is NOT a product RED.
+The generated Cursor core/extension and shared Codex/Cursor completion helper
+are implemented. Exact Cursor CLI diagnostics pass catalogue/helper and
+allowed/denied writes; exact 3.24.18 IDE diagnostics pass those plus bounded
+continuation. Codex portable/resource precedence and native allowed/denied writes
+also have baseline evidence. See cursor-continuation-proof.md and
+codex-native-guard-proof.md for actual receipts and limitations. These are
+regression/diagnostic results, not sealed admission or customer activation.
+The remaining PR 1 work starts with the unproved native Codex continuation
+case and complete proof-group wiring. Characterize that current behavior: if it
+already passes, retain it without inventing a RED or changing production policy.
+No new missing-behavior RED is asserted for PR 1 at this checkpoint. Historical
+attested Cursor REDs remain preserved; do not replace the current generator
+with an empty candidate to reproduce them. Any newly exposed behavior failure
+needs its own attested executable RED before a production repair.
+
+The next planned new-behavior RED is PR 2 task 1: fixture
+opencode-v2-native-guard, exact 2.0.32 CLI/TUI, through
+`scripts/dev bun packages/cli/scripts/run-host-contract-proof.ts --proof native-opencode --require-targets`.
+After valid native setup and a real denied sentinel-write attempt, absent V2
+shared-guard dispatch is NATIVE_OPENCODE_V2_GUARD_MISSING (exit 2), while V1
+controls must pass. Missing setup/undefined steps are unavailable (3), not that
+RED. Implement its executable fixture first; obtain the attested review before
+new V2 production integration. PR 4 separately owns final gate-bearing Cursor
+proof. All 58 definitions / 94 expanded cases remain unchecked pending their
+complete populations. Exact target versions remain those in targets.json; local
+newer applications cannot silently substitute for them.
 
 ## Pull-request slicing
 
@@ -79,6 +88,10 @@ proof additionally loads the portable core. The actor parses actual stream-json 
 decision record cannot stand in for production dispatch. Catalogue/helper cases
 join the CLI group before full CLI conformance. Continuation remains required
 only in the IDE native-cursor group; no CLI continuation claim is introduced.
+
+Final gate-bearing CLI confirmation belongs to PR 4 task 3. PR 1 retains its
+pre-gate diagnostics without claiming customer activation or relying on PR 4
+for the safety of its preliminary delivery.
 
 - **Purpose:** prove the highest-risk native Cursor boundary before migrating
   the catalogue and policy graph.
@@ -141,47 +154,17 @@ only in the IDE native-cursor group; no CLI continuation claim is introduced.
    checks the selected row actually ran, and retains its actor-boundary failure.
    Undefined/pending steps are preliminary wiring failure only. Vitest supports
    the harness; it does not replace this executable scenario boundary.
-3. RED order after the user-authorized CLI-first update: the highest-risk
-   next primary proof is the actual Cursor CLI denied/allowed pair, followed
-   by the separate IDE guard proof before IDE GREEN. Historical IDE catalogue
-   RED/GREEN and Codex baseline evidence remain preserved, not rerun as invented
-   failures. Before new production guard integration, bind
-   packages/cli/tests/fixtures/host-contract/cucumber.native-cursor-cli.mjs
-   to the exact CLI rows through steps/consistent-host-native-write.steps.ts
-   and packages/cli/tests/helpers/cursor-cli-write.ts. Fixture cursor-cli-write
-   stages an empty-native-candidate baseline only when the production generator
-   is absent, and a separate native-cli-observer plugin with no permission output.
-   Case IDs are cursor-cli-2026.09.28-64d2043-denied-write,
-   cursor-cli-2026.09.28-64d2043-allowed-write and
-   cursor-cli-2026.09.28-64d2043-catalogue-helper. All three belong to the
-   independent native-cursor-cli and all-hosts required sets. The initial runner
-   executes the first two and cannot pass the full group until catalogue joins.
-   Run and independently review executable RED with the exact native-cursor-cli
-   command above. CLI GREEN for this pair may precede IDE GREEN. Then retain
-   native-cursor as a separate required IDE RED before its new guard wiring:
-   scripts/dev bun packages/cli/scripts/run-host-contract-proof.ts --proof native-cursor --require-targets.
-   Setup must first prove exact IDE launch and the existing project-hook positive
-   control. The expected product failure is missing native catalogue/registration
-   or shared-denial dispatch; missing executable, login, model, permission or test
-   helper is not acceptable RED. Assert the failed native boundary by code and
-   observed side effect, not a generic nonzero process.
-   After that Cursor RED, add and run native-codex against the same unchanged
-   production baseline before generating the core: expected failure is absent
-   root-format loading or detected compatibility-overlay fallback. Keep this
-   separate attested RED; step 7 is its post-implementation GREEN confirmation.
-   After the guard pair, add the exact CLI catalogue row to
-   cucumber.native-cursor-cli.mjs and steps/consistent-host-contract.steps.ts.
-   Fixture cursor-cli-catalogue reuses createCursorCatalogueProbe from
-   tests/helpers/cursor-catalogue-probe.ts in a fresh CLI config/project, loads
-   the generated portable core plus native extension with --plugin-dir, and
-   invokes the workflow through the CLI's native skill mechanism. Require
-   workflow and referenced-guide markers plus the exact package-root helper
-   command and helper marker in the same actual CLI Shell tool result. Missing
-   package helper origin is exit 2 NATIVE_HELPER_ORIGIN_MISMATCH; no native skill
-   invocation, wrong version, login or model failure is unavailable (3). Obtain
-   its independent executable RED review before resource-closure changes. GREEN
-   requires the origin-bound tool result and exact helper artifact marker,
-   alongside the allowed/denied pair. Omitted catalogue remains incomplete (3).
+3. Regression: rerun the already-passing exact CLI and IDE write/catalogue
+   cases using their normal native-cursor-cli and native-cursor commands. Keep
+   their existing case IDs, actual tool-result/side-effect assertions and
+   resource-origin checks. The production generator now exists; never stage
+   the historical empty candidate to manufacture another missing-dispatch RED.
+   Retain the original independent RED receipts. Existing passing cases need no
+   new production implementation. Setup/login/version failures remain unavailable
+   (3); an observed regression must reach its specific boundary assertion before
+   being treated as product failure. The runner still requires all three CLI
+   IDs and all four IDE IDs; diagnostic success alone cannot admit a package.
+
 4. GREEN: extend packages/cli/src/lifecycle/integrations.ts and schema.ts with
    the accepted binding declarations; add the canonical render primitives and
    generators for the portable core and packages/cli/cursor-plugin projection.
@@ -203,7 +186,7 @@ only in the IDE native-cursor group; no CLI continuation claim is introduced.
    mechanism ineligible. Capture observed host/package/workspace identity in the
    declared activation family and sealed originating conformance receipt.
    Keep the shared project compatibility hooks and reachable assets intact.
-   For the guard RED, first prove the existing allowed-action control in its
+   For the historical guard RED, the existing allowed-action control ran in its
    separate legacy setup, then exercise the clean native fixture with test-only
    observers and bootstrap, without legacy guard dispatch supplying the result.
    Add thin steps for the exact Cursor denied/allowed outline rows and required
@@ -217,9 +200,10 @@ only in the IDE native-cursor group; no CLI continuation claim is introduced.
    NATIVE_GUARD_DISPATCH_MISSING; no actual attempt, login or discovery failure is
    unavailable (3). GREEN requires the native hook's shared policy reason and
    absent denied file, plus the allowed file's exact content and genuine native
-   dispatch traces. Observers never decide permission. Obtain a fresh executable
-   RED review for this primary proof before the guard integration.
-6. Repeat the native RED/GREEN pair with the same real allowed and denied action;
+   dispatch traces. Observers never decide permission. The original executable
+   RED and implementation receipts are preserved in cursor-native-guard-proof.md
+   and cursor-continuation-proof.md; current runs are regression confirmation.
+6. Regression: retain the already-passing native allowed/denied cases;
    then invoke a changed canonical skill and referenced guide/helper marker.
    Attempt actual turn completion and observe the bounded subsequent host turn.
    Required IDE case cursor-3.24.18-bounded-continuation belongs to native-cursor
@@ -228,9 +212,10 @@ only in the IDE native-cursor group; no CLI continuation claim is introduced.
    clean native-eligible workspace and owned user-data profile. Bind the actual
    completion outline through steps/consistent-host-native-continuation.steps.ts.
    Run the exact native-cursor command after catalogue and guard setup controls.
-   RED is exit 2 HOST_CONTINUATION_MISSING when the actual IDE turn ends despite
-   missing evidence; setup failures are unavailable (3). Independently review
-   this RED before continuation integration. GREEN requires an actual subsequent
+   The historical RED was HOST_CONTINUATION_MISSING (exit 2); its approved
+   executable receipt and passing implementation are recorded in
+   cursor-continuation-proof.md. Do not seek a new missing-behavior RED for this
+   existing passing case. Setup failures remain unavailable (3). Passing proof requires an actual subsequent
    IDE turn with the unmet verification requirement and no manual resubmission.
    Missing this case leaves native-cursor incomplete, never success. This is
    distinct from PR 4's continuation-cap exhaustion case.
@@ -294,8 +279,11 @@ only in the IDE native-cursor group; no CLI continuation claim is introduced.
 1. RED: extend the live fixture with exact 1.18.23 and 2.0.32 executables, separate
    CLI/TUI sessions and a shared synthetic profile. Run
    scripts/dev bun packages/cli/scripts/run-host-contract-proof.ts --proof native-opencode --require-targets.
-   Expected failure after successful setup is absent V2 native catalogue/shared
-   guard. V1 baseline must continue to pass.
+   Fixture opencode-v2-native-guard must observe an actual native sentinel-write
+   attempt. Expected failure after successful setup is absent V2 shared guard:
+   NATIVE_OPENCODE_V2_GUARD_MISSING, exit 2. V1 baseline must continue to pass;
+   missing setup/undefined steps are unavailable (3). Catalogue absence is a
+   separate resource assertion, not a substitute for this guard RED.
 2. GREEN: add the isolated V2 package at packages/opencode-v2-plugin with only
    its @opencode/plugin 2.0.32 dependency and generated canonical resources.
    Use ctx.skill.transform, ctx.command.transform and Tool.Error. Do not add the
@@ -594,6 +582,26 @@ only in the IDE native-cursor group; no CLI continuation claim is introduced.
    final all-hosts and lifecycle second-clone checks. A cache-free cloud-like
    profile keeps its pre-existing configuration-scoped result/exit and never
    receives desktop-derived active enforcement.
+   Final gate-bearing CLI confirmation (PR 4 owner):
+   The current passing CLI pilot predates the shared authority gate and is
+   diagnostic-only. After PR 4 publishes that gate and its lifecycle controller,
+   extend `tests/helpers/cursor-cli-write.ts` with the disposable
+   `cursor-cli-enrolled-authority` fixture. Use the real controller to enroll the
+   exact CLI/runtime/profile/project/package/epoch tuple, then observe the real
+   native session-start handshake before the same allowed/denied trials. Do not
+   exempt `--plugin-dir` from the shared gate or copy an IDE activation record.
+   Add absent/foreign-epoch enrollment and retained-legacy-hook controls: native
+   dispatch stays inert without its handshake, legacy protection remains available,
+   and exactly one owner produces the decision when native is selected. Assert
+   dispatch cardinality and the actual write result. Missing session-start support
+   or trust is unavailable (3), never a successful native claim. Run the same
+   `native-cursor-cli --require-targets` proof command against the final generated
+   gate-bearing package; earlier pre-gate results cannot complete this obligation.
+   The CLI result satisfies engineering coverage only, not customer status or
+   admission of an IDE/customer binding. PR 4 owns this final confirmation alongside
+   its other activation/coexistence proofs; PR 1's safe preliminary delivery does
+   not depend on an unmerged successor.
+
 4. Add packages/cli/tests/host-contract/lifecycle.test.ts and perform real
    install/upgrade/repair/uninstall on disposable historical mixed-host projects.
    Use modified/unverifiable/current-collision assets, authored tickets/learnings,

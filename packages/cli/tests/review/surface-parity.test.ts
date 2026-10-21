@@ -160,21 +160,20 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
   if (relativePath.endsWith('PLAN_EXECUTION.md')) {
     expect(normalized, context).toContain('--agent-handoff --json');
     expect(normalized, context).toContain('REVIEW_PENDING');
-    expect(normalized, context).toContain('typed route exhaustion');
-    expect(normalized, context).toMatch(/approving `[^`]*finish-review` fallback/u);
-    expect(normalized, context).toContain('actual reduced independence');
+    expect(normalized, context).toContain('REVIEW_CONTINUATION_REQUIRED');
+    expect(normalized, context).toContain('continuation_required');
+    expect(normalized, context).toContain('authenticated reduced independence');
     return;
   }
+  const planning = kind === 'scenario-gate' || kind === 'plan-implementation';
   expect(normalized, context).toContain('--agent-handoff --json');
   expect(normalized, context).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
   expect(normalized, context).toMatch(/execute its exact recovery command/iu);
   expect(normalized, context).toMatch(/rerun the same coordinator command once/iu);
   expect(section, context).toContain('REVIEW_PENDING');
-  if (relativePath.endsWith('PLAN_IMPLEMENTATION.md')) {
-    expect(normalized, context).toMatch(/degraded result[^.]{0,320}REVIEW_ROUTES_EXHAUSTED/iu);
-    expect(normalized, context).toMatch(/actual reviewer was not independent/iu);
-  } else {
-    expect(normalized, context).toMatch(/independence: degraded[^.]{0,240}not independent/iu);
+  if (planning) {
+    expect(normalized, context).toContain('REVIEW_CONTINUATION_REQUIRED');
+    expect(normalized, context).toContain('continuation_required');
   }
   expect(normalized, context).toContain(
     'Never substitute another surface-private reviewer or hand-written independent evidence.',
@@ -192,21 +191,13 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
     return;
   }
 
-  if (kind !== 'quality-review') {
-    if (relativePath.endsWith('PLAN_IMPLEMENTATION.md')) {
-      expect(normalized, context).toContain('Otherwise do not stamp or advance');
-    } else {
-      expect(normalized, context).toMatch(
-        /independence: degraded[^.]{0,240}do not stamp or advance/iu,
-      );
-    }
+  if (planning) {
+    expect(normalized, context).toContain('do not stamp or advance');
+    expect(normalized, context).toMatch(/continuation_required[^.]{0,320}finish-review/iu);
+  } else if (kind === 'quality-review') {
+    expect(section, context).toContain('REVIEW_ROUTES_EXHAUSTED');
+    expect(normalized, context).toContain('REVIEW_CONTINUATION_REQUIRED');
   }
-
-  expect(section, context).toContain('REVIEW_ROUTES_EXHAUSTED');
-  expect(normalized, context).toMatch(/Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u);
-  expect(normalized, context).toMatch(
-    /REVIEW_ROUTES_EXHAUSTED[^.]{0,200}invoke[^.]{0,80}finish-review/iu,
-  );
 }
 
 function markedQualityRubric(content: string): string {

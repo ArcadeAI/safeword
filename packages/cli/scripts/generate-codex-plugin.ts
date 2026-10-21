@@ -24,6 +24,7 @@ import {
   parseCodexPluginGenerationOptions,
   publishFreshDirectory,
 } from './lib/codex-plugin-generation.js';
+import { planningAuthorCopies } from './lib/planning-author-copies.js';
 
 type NativePluginManifest = Omit<PortablePackageMetadata, 'version'> & {
   version: string;
@@ -91,6 +92,11 @@ async function generatePlugin(
     throw new Error(`Codex plugin manifest does not declare package version ${VERSION}`);
   }
   const builtVersion = options.effectiveVersion === VERSION ? undefined : options.effectiveVersion;
+  const assets = writeCodexPluginCatalogue(
+    nodePath.join(packageRoot, 'templates/skills'),
+    generatedRoot,
+    options.effectiveVersion,
+  );
   // Keep Codex hooks and skill commands independent from bunx's shared mutable
   // package installation. This is the same standalone build shape as the Claude
   // plugin runtime, emitted into the Codex plugin payload.
@@ -99,6 +105,7 @@ async function generatePlugin(
     rootPackageJson.packageManager,
     'Codex',
     builtVersion,
+    planningAuthorCopies(generatedRoot, 'codex'),
   );
   const runtimeDirectory = nodePath.join(generatedRoot, 'runtime');
   mkdirSync(runtimeDirectory, { recursive: true });
@@ -112,11 +119,6 @@ async function generatePlugin(
     )}\n`,
   );
 
-  const assets = writeCodexPluginCatalogue(
-    nodePath.join(packageRoot, 'templates/skills'),
-    generatedRoot,
-    options.effectiveVersion,
-  );
   const knownSkillNames = new Set<string>();
   for (const asset of assets) {
     const [directory, skill, filename] = asset.relativePath.split(nodePath.sep);

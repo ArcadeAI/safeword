@@ -1,0 +1,9 @@
+{
+  "source_checkpoint": "8d8a43d5493dd8908a7e925df73256ce64d4895f",
+  "verification_metadata_head": "8420448f42ac00a4f345de2344b91b6ef510461c",
+  "excluded_metadata_prefix": ".project/",
+  "product_tree_identical": true,
+  "product_tree_sha256": "b99171b13dc9a9a3cfcef222f599d063c7af06db22accdaf1d9cbf76e3b66389",
+  "main_rechecked": "150eb7c619b2d5852174da99ba675ae326354153",
+  "tests": "All six serialized stages exit 0; lint separately exits 0. Later evidence-only commits must preserve this product tree."
+}

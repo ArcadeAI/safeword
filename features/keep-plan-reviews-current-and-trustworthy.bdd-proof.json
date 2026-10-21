@@ -1,0 +1,9 @@
+{
+  "feature": "features/keep-plan-reviews-current-and-trustworthy.feature",
+  "scenarios": {
+    "Canonical invalidation declarations admit only the supported direction": [
+      "packages/cli/tests/integration/planning-contract-generation.test.ts",
+      "reconciles a $case canonical Execution invalidation declaration"
+    ]
+  }
+}

@@ -217,7 +217,7 @@ describe('implementation planning transition gates (wired)', () => {
         tool_input: { file_path: filePath, content },
       }),
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot, SAFEWORD_PLUGIN_CLI: PACKAGED_CLI },
     });
     return JSON.parse(result.stdout || '{}') as { permission?: string; user_message?: string };
   }
@@ -327,13 +327,25 @@ describe('implementation planning transition gates (wired)', () => {
       [
         "import { readFileSync } from 'node:fs';",
         "import nodePath from 'node:path';",
+        "import { spawnSync } from 'node:child_process';",
+        "if (process.argv.includes('planning-contract-check')) {",
+        `  const checked = spawnSync(process.execPath, [${JSON.stringify(PACKAGED_CLI)}, ...process.argv.slice(2)], { encoding: 'utf8', env: process.env });`,
+        "  process.stdout.write(checked.stdout ?? ''); process.stderr.write(checked.stderr ?? ''); process.exit(checked.status ?? 1);",
+        '}',
         "process.stdout.write(readFileSync(nodePath.join(import.meta.dirname, '..', 'response.json'), 'utf8'));",
       ].join('\n'),
     );
     writeGateConfig(projectRoot, { reviewGate: false });
     ticketDirectory = nodePath.join(projectRoot, '.project', 'tickets', `${TICKET_ID}-gate`);
     mkdirSync(ticketDirectory, { recursive: true });
-    mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+    const planningContracts = nodePath.join(projectRoot, '.safeword', 'skills', 'bdd');
+    mkdirSync(planningContracts, { recursive: true });
+    writeFileSync(
+      nodePath.join(planningContracts, 'PLAN_IMPLEMENTATION.md'),
+      readFileSync(
+        nodePath.resolve(__dirname, '../../templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
+      ),
+    );
     ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
   });
 

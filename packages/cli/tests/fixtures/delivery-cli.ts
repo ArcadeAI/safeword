@@ -170,7 +170,7 @@ function admitPlanExecutionFixture(
       review_targets: [target],
       author_agent: 'codex',
       actual_reviewer: 'claude',
-      independence: 'cross-agent',
+      independence: 'reduced',
       reviewer_output: {
         schema_version: 1,
         dispatch_id: 'plan-execution-fixture',
@@ -373,8 +373,10 @@ export async function admitThroughInstalledCli(
       },
     );
     const id = admittedReviewId(root, reviewKind, target, record, reviewed);
+    // This Codex host supplies no verified author model. Preserve the real
+    // coordinator's reduced assurance while testing the downstream gates.
     stamps.push(
-      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:cross-agent review-id:${id}`,
+      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:reduced review-id:${id}`,
     );
   }
   writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), `${stamps.join('\n')}\n`);

@@ -64,7 +64,7 @@
     "file-type": "^21.3.2",
     "fast-uri": "3.1.7",
     "js-yaml": "^4.3.2",
-    "markdown-it": "^14.2.0",
+    "markdown-it": "^14.3.2",
     "nanoid": "3.3.18",
     "postcss": "8.5.23",
     "sharp": "0.35.5",
@@ -73,6 +73,7 @@
     "svgo": "^4.1.0",
     "turbo": "2.9.18",
     "undici": "8.11.2",
+    "vite": "8.2.4",
     "yaml": "^2.9.0",
     "zod-validation-error": "^4.0.0"
   },

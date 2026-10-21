@@ -584,6 +584,30 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     },
   ),
+  command(
+    'ticket record-review-disposition',
+    'Decline one optional reviewed suggestion',
+    'mutate',
+    {
+      promptPolicy: 'confirm',
+      syntax: 'record-review-disposition <ticketId> <reviewId> <findingNumber>',
+      commandOptions: [
+        { flags: '--reason <reason>', description: 'Explain why the suggestion is declined' },
+      ],
+    },
+  ),
+  command(
+    'ticket planning-contract-check',
+    'Check active planning author-copy integrity',
+    'observe',
+    {
+      syntax: 'planning-contract-check <ticketId> <phase>',
+      fixture: {
+        argv: ['ticket', 'planning-contract-check', 'fixture', 'plan-implementation'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('ticket delivery-checklist', 'Report feature delivery readiness', 'observe', {
     syntax: 'delivery-checklist <ticketId>',
     fixture: {
@@ -695,6 +719,29 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     syntax: 'status [review-id]',
     fixture: {
       argv: ['review', 'status'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('review continue', 'Complete a sealed planning review continuation', 'mutate', {
+    syntax: 'continue <review-id>',
+    commandOptions: [
+      { flags: '--tier <tier>', description: 'Pending fresh-context or self-review tier' },
+      { flags: '--output <path>', description: 'JSON reviewer result for the sealed packet' },
+      {
+        flags: '--failure <kind>',
+        description: 'Typed host failure when no reviewer result exists',
+      },
+    ],
+    fixture: {
+      argv: [
+        'review',
+        'continue',
+        'missing-review',
+        '--tier',
+        'fresh-context',
+        '--output',
+        'missing.json',
+      ],
       environment: MACHINE_ENVIRONMENT,
     },
   }),

@@ -25,6 +25,12 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../execution-plan/delivery-checklist.js';
+import {
+  assertActivePlanningAuthorCopy,
+  packagedPlanningAuthor,
+  PlanningContractCopyError,
+} from '../planning/author-copy.js';
+import type { PlanningPhase } from '../planning/phase-contract.js';
 import { PLANNING_DATA_GUIDE_PATH, SAFEWORD_SCHEMA } from '../schema.js';
 import { resolveConfiguredPath, resolveTicketsDirectory } from '../utils/configured-paths.js';
 import { getTemplatesDirectory } from '../utils/fs.js';
@@ -48,8 +54,14 @@ import { reviewDispositionContext } from './planning-accepted-boundary.js';
 import { PlanningContextError, type PlanningContextRole } from './planning-context-error.js';
 import { type PlanningRoleContext, resolvePlanningRoleContext } from './planning-role-context.js';
 import { planningTicketOwner } from './planning-ticket-owner.js';
+import { PRODUCT_PLAN_REVIEW_RUBRIC } from './product-plan-rubric.generated.js';
+import { extractProductPlanReviewRubric } from './product-plan-rubric.js';
 import { recordFinalizedScope } from './scope.js';
 import { decodeReviewText } from './text.js';
+export {
+  assertActivePlanningAuthorCopy,
+  PlanningContractCopyError,
+} from '../planning/author-copy.js';
 export { ReviewPacketError } from './packet-error.js';
 export { PlanningContextError } from './planning-context-error.js';
 
@@ -273,7 +285,6 @@ function resolvedPlanningContext(
   context: readonly string[],
   productPlan = false,
 ): readonly string[] {
-  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return context;
   const inherited = requiredPlanningBoundaryContext(cwd, kind, targets, context, productPlan);
   if (inherited === undefined || inherited.length === 0) return context;
   const included = new Set([...targets, ...context].map(path => nodePath.resolve(cwd, path)));
@@ -665,7 +676,11 @@ function requireExecutableRedAttestation(
   }
 }
 
+export type PlanningContractUse = 'dispatch' | 'currency';
+
 interface ReviewPacketExecution {
+  /** Trusted status reconstruction only; never serialized or accepted from CLI input. */
+  readonly planningContractUse?: PlanningContractUse;
   readonly attestation?: RedExecutionAttestation;
   readonly planContract?: PlanContractPair;
   /** Fingerprint preparation only: no review is dispatched from this packet. */
@@ -707,23 +722,10 @@ export function assemblePlanContract(
   };
 }
 
-function packageRoot(): string {
-  const runtimeDirectory = nodePath.basename(import.meta.dirname);
-  return runtimeDirectory === 'dist' || runtimeDirectory === 'runtime'
-    ? nodePath.dirname(import.meta.dirname)
-    : nodePath.resolve(import.meta.dirname, '../..');
-}
-
 function packagedPlanAuthorRubric(): string {
-  const root = packageRoot();
-  const contractPath = [
-    nodePath.join(root, 'templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
-    nodePath.join(root, 'skills/bdd/PLAN_IMPLEMENTATION.md'),
-    nodePath.join(root, 'skills/bdd/references/PLAN_IMPLEMENTATION.md'),
-  ].find(candidate => existsSync(candidate));
+  const source = packagedPlanningAuthor('plan-implementation');
   try {
-    if (contractPath === undefined) throw new Error('contract file is absent');
-    return extractPlanReviewRubric(readFileSync(contractPath, 'utf8'));
+    return extractPlanReviewRubric(source);
   } catch {
     throw new ReviewPacketError(
       'The packaged decision-quality contract is unavailable, so Safeword cannot author or approve an Implementation Plan. Run `bun run generate:plan-rubric`, rebuild the Safeword package, and retry.',
@@ -732,15 +734,9 @@ function packagedPlanAuthorRubric(): string {
 }
 
 function packagedExecutionPlanAuthorRubric(): string {
-  const root = packageRoot();
-  const contractPath = [
-    nodePath.join(root, 'templates/skills/bdd/PLAN_EXECUTION.md'),
-    nodePath.join(root, 'skills/bdd/PLAN_EXECUTION.md'),
-    nodePath.join(root, 'skills/bdd/references/PLAN_EXECUTION.md'),
-  ].find(candidate => existsSync(candidate));
+  const source = packagedPlanningAuthor('plan-execution');
   try {
-    if (contractPath === undefined) throw new Error('contract file is absent');
-    return extractExecutionPlanReviewRubric(readFileSync(contractPath, 'utf8'));
+    return extractExecutionPlanReviewRubric(source);
   } catch {
     throw new ReviewPacketError(
       'The packaged Execution Planning authoring contract copy is unavailable, so Safeword cannot author or approve an Execution Plan. Run `bun run generate:execution-plan-rubric`, rebuild the Safeword package, and retry.',
@@ -770,12 +766,60 @@ function ownedPlanningTicket(root: string, target: string): boolean {
   );
 }
 
+function assertAuthorCopyForDispatch(
+  cwd: string,
+  phase: PlanningPhase,
+  use: PlanningContractUse,
+): void {
+  if (use === 'dispatch') assertActivePlanningAuthorCopy(cwd, phase);
+}
+
+function contractForUse(kind: PlanningPhase, use: PlanningContractUse): PlanContractPair {
+  const rubric = {
+    'product-plan': PRODUCT_PLAN_REVIEW_RUBRIC,
+    'plan-implementation': PLAN_REVIEW_RUBRIC,
+    'plan-execution': EXECUTION_PLAN_REVIEW_RUBRIC,
+  }[kind];
+  if (use === 'currency') return assemblePlanContract(rubric, rubric);
+  if (kind === 'product-plan') {
+    return assemblePlanContract(
+      extractProductPlanReviewRubric(packagedPlanningAuthor(kind)),
+      rubric,
+    );
+  }
+  return packagedPlanContract(kind);
+}
+
 function upstreamPlanContract(
   planningTarget: boolean,
   kind: ReviewKind,
+  use: PlanningContractUse,
 ): Pick<ReviewPacket, 'upstream_plan_contract'> {
   if (!planningTarget || kind !== 'plan-execution') return {};
-  return { upstream_plan_contract: packagedPlanContract('plan-implementation') };
+  return { upstream_plan_contract: contractForUse('plan-implementation', use) };
+}
+
+function productPlanWorkTarget(
+  cwd: string,
+  kind: ReviewKind,
+  files: readonly ReviewPacketFile[],
+): boolean {
+  if (kind !== 'quality-review' || files.length !== 1) return false;
+  const target = files[0];
+  if (target === undefined || nodePath.basename(target.path) !== 'spec.md') return false;
+  const ticketDirectory = nodePath.dirname(nodePath.resolve(cwd, target.path));
+  if (nodePath.dirname(ticketDirectory) !== resolveTicketsDirectory(cwd)) return false;
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+  const relativeTicketPath = nodePath.relative(cwd, ticketPath);
+  const marked = target.content.includes('<!-- safeword:product-plan-contract:v1 -->');
+  if (!existsSync(ticketPath)) {
+    if (marked) throw new PlanningContextError('ticket', relativeTicketPath);
+    return false;
+  }
+  const metadata = planningTicketMetadata(cwd, ticketPath, 'ticket');
+  if (marked && metadata.product_plan_contract !== 'v1')
+    throw new PlanningContextError('ticket', relativeTicketPath);
+  return planningTicketOwner(metadata, nodePath.basename(ticketDirectory), relativeTicketPath);
 }
 
 function packetPlanContract(
@@ -783,9 +827,18 @@ function packetPlanContract(
   configured: PlanContractPair | undefined,
   cwd: string,
   targets: readonly string[],
+  options: { readonly use: PlanningContractUse; readonly productTarget: boolean },
 ): Pick<ReviewPacket, 'planning_phase' | 'plan_contract' | 'upstream_plan_contract'> {
+  if (options.productTarget) {
+    assertAuthorCopyForDispatch(cwd, 'product-plan', options.use);
+    return {
+      planning_phase: 'product-plan',
+      plan_contract: contractForUse('product-plan', options.use),
+    };
+  }
   if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
   const target = targets.length === 1 ? targets[0] : undefined;
+  assertAuthorCopyForDispatch(cwd, kind, options.use);
   const expected = kind === 'plan-implementation' ? 'impl-plan.md' : 'execution-plan.md';
   const planningTarget =
     target !== undefined &&
@@ -793,8 +846,8 @@ function packetPlanContract(
     ownedPlanningTicket(cwd, target);
   return {
     ...(planningTarget && { planning_phase: kind }),
-    plan_contract: configured ?? packagedPlanContract(kind),
-    ...upstreamPlanContract(planningTarget, kind),
+    plan_contract: configured ?? contractForUse(kind, options.use),
+    ...upstreamPlanContract(planningTarget, kind, options.use),
   };
 }
 
@@ -1214,7 +1267,10 @@ function prepareReviewPacketUnsafe(
       rejectDuplicate(target);
       uniqueTargets.push(target);
     }
-    context = resolvedPlanningContext(canonicalRoot, kind, uniqueTargets, context);
+    requirePacketFileCount(uniqueTargets.length + context.length);
+    logicalFiles = captureFiles(uniqueTargets, true, 0);
+    const productTarget = productPlanWorkTarget(canonicalRoot, kind, logicalFiles);
+    context = resolvedPlanningContext(canonicalRoot, kind, uniqueTargets, context, productTarget);
     for (const target of context) rejectDuplicate(target);
     if (uniqueTargets.length + context.length > MAX_FILE_COUNT) {
       throw new ReviewPacketError(
@@ -1222,7 +1278,6 @@ function prepareReviewPacketUnsafe(
         'REVIEW_PACKET_TOO_LARGE',
       );
     }
-    logicalFiles = captureFiles(uniqueTargets, true, 0);
     contextFiles = captureFiles(context, false, uniqueTargets.length);
     requireStableSources(tracked);
     const overflowIndex = serializedOverflowIndex(kind, captured, executionAttestation);
@@ -1265,17 +1320,15 @@ function prepareReviewPacketUnsafe(
       execution.planContract,
       canonicalRoot,
       uniqueTargets,
+      { use: execution.planningContractUse ?? 'dispatch', productTarget },
     );
-    planningContext =
-      planningContract.planning_phase === undefined
-        ? undefined
-        : resolvePlanningRoleContext(
-            canonicalRoot,
-            kind,
-            planningContract.planning_phase,
-            logicalFiles,
-            contextFiles,
-          );
+    planningContext = resolvePlanningRoleContext(
+      canonicalRoot,
+      kind,
+      planningContract.planning_phase,
+      logicalFiles,
+      contextFiles,
+    );
     const additional = planningRoleSources(canonicalRoot, planningContext, seen);
     requirePacketFileCount(uniqueTargets.length + context.length + additional.length);
     contextFiles.push(
@@ -1357,4 +1410,13 @@ export function prepareReviewPacket(
         : 'Review packet could not be prepared. Check that every target and context path exists and is readable.',
     );
   }
+}
+
+/** Keep required-context and author-copy recovery typed at public dispatch boundaries. */
+export function planningPacketError(
+  error: unknown,
+): PlanningContractCopyError | PlanningContextError | undefined {
+  return error instanceof PlanningContractCopyError || error instanceof PlanningContextError
+    ? error
+    : undefined;
 }

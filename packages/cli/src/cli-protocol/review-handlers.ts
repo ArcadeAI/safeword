@@ -7,17 +7,24 @@
  * behind dynamic imports.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import { retryCommand } from '../review/command.js';
 import type {
   RedEvidenceClass,
   RedExecutionAttestation,
   RedExecutionRequest,
+  ReviewFailure,
   ReviewKind,
 } from '../review/contract.js';
-import type { ReviewPacketError as ReviewPacketErrorType } from '../review/packet.js';
+import type {
+  PlanningContextError,
+  PlanningContractCopyError,
+  ReviewPacketError as ReviewPacketErrorType,
+} from '../review/packet.js';
+import { reviewRoutePlan } from '../review/policy.js';
 import { ReviewConfigReadError, ReviewUserConfigPathError } from '../review/preferences.js';
 import { ReviewRouteConfigError } from '../review/route-config.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
@@ -45,7 +52,13 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
   }
   if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
   const targets = Array.isArray(rawTargets)
-    ? rawTargets.filter((target): target is string => typeof target === 'string')
+    ? new Map(
+        rawTargets
+          .filter((target): target is string => typeof target === 'string')
+          .map(target => [nodePath.resolve(invocation.cwd, target), target]),
+      )
+        .values()
+        .toArray()
     : [];
   const context = reviewContext(invocation.options.context);
   if (rawKind === 'plan-implementation' || rawKind === 'plan-execution') {
@@ -183,9 +196,9 @@ export async function retrospectiveCloseGateHandler(
   return retrospectiveCloseGate(invocation.cwd, ticket, ledger);
 }
 
-function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | undefined {
-  return typeof value === 'string' && ['claude', 'codex', 'opencode'].includes(value)
-    ? (value as 'claude' | 'codex' | 'opencode')
+function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'cursor' | 'opencode' | undefined {
+  return typeof value === 'string' && ['claude', 'codex', 'cursor', 'opencode'].includes(value)
+    ? (value as 'claude' | 'codex' | 'cursor' | 'opencode')
     : undefined;
 }
 
@@ -264,13 +277,16 @@ export async function reviewRoutesSetHandler(invocation: CommandInvocation): Pro
   });
 }
 
-const REVIEW_ROUTE_AUTHORS = ['claude', 'codex', 'opencode'] as const;
+const REVIEW_ROUTE_AUTHORS = ['claude', 'codex', 'cursor', 'opencode'] as const;
 const REVIEW_ROUTE_CONFIG_KEY = 'crossAgentReviewRoutes';
 
 export async function reviewRoutesListHandler(invocation: CommandInvocation): Promise<CliResult> {
   const requested = reviewRouteAuthor(invocation.options.author);
   if (requested === undefined && invocation.options.author !== undefined)
-    return invalidOperand('review routes list', 'Provide --author as claude, codex, or opencode.');
+    return invalidOperand(
+      'review routes list',
+      'Provide --author as claude, codex, cursor, or opencode.',
+    );
   // Without --author, list every author. Reviewer routing is the thing users
   // come here to discover, so the read-only command should answer without
   // first requiring the vocabulary it exists to teach.
@@ -494,10 +510,33 @@ function withExecutionAttestation(
   };
 }
 
-function failedReviewWorker(error: CliResult['errors'][number], reviewId?: string): CliResult {
+function planningCopyFindings(
+  error?: PlanningContractCopyError | PlanningContextError,
+): CliResult['findings'] {
+  return error === undefined
+    ? []
+    : [
+        {
+          code: error.code,
+          message: error.message,
+          severity: 'error',
+          metadata:
+            'contextRole' in error
+              ? { context_role: error.contextRole, context_path: error.contextPath }
+              : { planning_phase: error.phase, contract_path: error.contractPath },
+        },
+      ];
+}
+
+function failedReviewWorker(
+  error: CliResult['errors'][number],
+  reviewId?: string,
+  copyError?: PlanningContractCopyError | PlanningContextError,
+): CliResult {
   return createResult({
     state: 'failed',
     errors: [error],
+    findings: planningCopyFindings(copyError),
     data: {
       command: 'review run',
       status: 'failed',
@@ -522,12 +561,15 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
       retryable: false,
     });
   }
-  const [{ runReview }, { completeReviewJob, reviewJobWorkerInput }, { ReviewPacketError }] =
-    await Promise.all([
-      import('../review/coordinator.js'),
-      import('../review/job.js'),
-      import('../review/packet.js'),
-    ]);
+  const [
+    { runReview },
+    { completeReviewJob, reviewJobWorkerInput },
+    { ReviewPacketError, planningPacketError },
+  ] = await Promise.all([
+    import('../review/coordinator.js'),
+    import('../review/job.js'),
+    import('../review/packet.js'),
+  ]);
   let persistedInput: ReturnType<typeof reviewJobWorkerInput>;
   try {
     persistedInput = reviewJobWorkerInput(invocation.cwd, id);
@@ -571,7 +613,7 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
           },
     );
   } catch (error) {
-    result = reviewExecutionFailure(error, ReviewPacketError);
+    result = reviewExecutionFailure(error, ReviewPacketError, planningPacketError(error));
   }
   try {
     completeReviewJob(invocation.cwd, id, result);
@@ -594,13 +636,18 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
 function reviewExecutionFailure(
   error: unknown,
   PacketError: typeof ReviewPacketErrorType,
+  copyError?: PlanningContractCopyError | PlanningContextError,
 ): CliResult {
   const packetError = error instanceof PacketError;
-  return failedReviewWorker({
-    code: packetError ? error.code : 'REVIEW_WORKER_FAILED',
-    message: error instanceof Error ? error.message : 'The review worker failed.',
-    retryable: !packetError,
-  });
+  return failedReviewWorker(
+    {
+      code: packetError ? error.code : 'REVIEW_WORKER_FAILED',
+      message: error instanceof Error ? error.message : 'The review worker failed.',
+      retryable: !packetError,
+    },
+    undefined,
+    copyError,
+  );
 }
 
 async function startReviewInBackground(
@@ -610,7 +657,7 @@ async function startReviewInBackground(
   context: readonly string[],
   execution?: RedExecutionRequest,
 ): Promise<CliResult> {
-  const [{ startReviewJob }, { ReviewPacketError }] = await Promise.all([
+  const [{ startReviewJob }, { ReviewPacketError, planningPacketError }] = await Promise.all([
     import('../review/job.js'),
     import('../review/packet.js'),
   ]);
@@ -624,14 +671,19 @@ async function startReviewInBackground(
       progress: invocation.progress,
     });
   } catch (error) {
-    return reviewStartFailure(error, ReviewPacketError);
+    return reviewStartFailure(error, ReviewPacketError, planningPacketError(error));
   }
 }
 
-function reviewStartFailure(error: unknown, PacketError: typeof ReviewPacketErrorType): CliResult {
+function reviewStartFailure(
+  error: unknown,
+  PacketError: typeof ReviewPacketErrorType,
+  copyError?: PlanningContractCopyError | PlanningContextError,
+): CliResult {
   const packetError = error instanceof PacketError;
   return createResult({
     state: 'failed',
+    findings: planningCopyFindings(copyError),
     errors: [
       {
         code: packetError ? error.code : 'REVIEW_JOB_START_FAILED',
@@ -644,6 +696,7 @@ function reviewStartFailure(error: unknown, PacketError: typeof ReviewPacketErro
           {
             command: 'safeword review run <kind> <targets...>',
             description:
+              copyError?.message ??
               'Correct the review target and context paths or reduce the packet, then run the review again.',
             requiresHuman: true,
           },
@@ -657,6 +710,70 @@ export async function reviewStatusHandler(invocation: CommandInvocation): Promis
   const id = typeof invocation.operands[0] === 'string' ? invocation.operands[0] : undefined;
   const { reviewJobStatus } = await import('../review/job.js');
   return reviewJobStatus(invocation.cwd, id);
+}
+
+// eslint-disable-next-line complexity -- All local origin, argument, and file checks guard a receipt mutation.
+export async function reviewContinueHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const origin = reviewRoutePlan(resolveRunIdentity({}, { env: process.env }).runtime)?.author;
+  if (origin === undefined)
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEW_CONTINUATION_ORIGIN_UNVERIFIED',
+          message: 'A supported local agent origin is required to continue this review.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'review continue' },
+    });
+  const id = invocation.operands[0];
+  const tier = invocation.options.tier;
+  const outputPath = invocation.options.output;
+  const failure = invocation.options.failure;
+  const hostFailure =
+    typeof failure === 'string' &&
+    ['not_installed', 'unsupported', 'launch_failed', 'process_failed', 'timed_out'].includes(
+      failure,
+    )
+      ? (failure as ReviewFailure)
+      : undefined;
+  if (
+    typeof id !== 'string' ||
+    (tier !== 'fresh-context' && tier !== 'self-review') ||
+    (failure !== undefined && hostFailure === undefined) ||
+    (typeof outputPath !== 'string' || outputPath.trim() === '') === (hostFailure === undefined)
+  )
+    return invalidOperand(
+      'review continue',
+      'Provide a review id, --tier fresh-context|self-review, and exactly one of --output <json-file> or --failure <kind>.',
+    );
+  if (hostFailure !== undefined) {
+    const { submitReviewContinuation } = await import('../review/job.js');
+    return submitReviewContinuation(invocation.cwd, id, tier, undefined, {
+      origin,
+      failure: hostFailure,
+    });
+  }
+  let output: unknown;
+  try {
+    const path = nodePath.resolve(invocation.cwd, outputPath as string);
+    const file = statSync(path);
+    if (!file.isFile() || file.size > 1024 * 1024) throw new Error('invalid output file');
+    const body = readFileSync(path, 'utf8');
+    try {
+      output = JSON.parse(body) as unknown;
+    } catch {
+      output = undefined;
+    }
+  } catch {
+    return invalidOperand(
+      'review continue',
+      'The reviewer output must be a readable JSON file under 1 MiB.',
+    );
+  }
+  const { submitReviewContinuation } = await import('../review/job.js');
+  return submitReviewContinuation(invocation.cwd, id, tier, output, { origin });
 }
 
 export async function reviewCancelHandler(invocation: CommandInvocation): Promise<CliResult> {

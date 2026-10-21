@@ -1,0 +1,43 @@
+{
+  "source_checkpoint": "6bb984f96",
+  "full_root_suite_exit": 0,
+  "cli": {
+    "files_passed": 717,
+    "tests_passed": 11585,
+    "tests_skipped": 14,
+    "seconds": 1245.2
+  },
+  "relay": {
+    "passed": 198,
+    "skipped": 1
+  },
+  "collector": {
+    "passed": 153
+  },
+  "release": {
+    "exit": 0,
+    "files": 14,
+    "tests": 83,
+    "seconds": 26.97
+  },
+  "bdd": {
+    "exit": 0,
+    "scenarios": 123,
+    "steps": 2488,
+    "hooks": 2
+  },
+  "targeted_capability": {
+    "exit": 0,
+    "files": 3,
+    "tests": 22
+  },
+  "lint_exit": 0,
+  "all_package_typechecks_exit": 0,
+  "parity_exit": 0,
+  "generated_surfaces_exit": 0,
+  "cli_contract_exit": 0,
+  "offline_qualification_exit": 0,
+  "review_id": "08e022fb-4f1d-46a2-8a72-2c04c522d630",
+  "review_verdict": "approve",
+  "paid_qualification_calls": 0
+}

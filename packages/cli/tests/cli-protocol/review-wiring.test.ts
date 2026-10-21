@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -22,6 +23,8 @@ import type { ReviewPacket } from '../../src/review/contract.js';
 import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
+import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
 import { createTrustedReviewerDirectory } from '../review-fixtures.js';
 
 type ReviewAgent = 'claude' | 'codex' | 'opencode';
@@ -281,6 +284,184 @@ async function runManagedJsonReview(
 }
 
 describe('cross-agent review public-command wiring', () => {
+  it.each([
+    {
+      namespace: '.project',
+      type: 'feature',
+      targetRole: 'product',
+      expectedProduct: true,
+      aliases: false,
+    },
+    {
+      namespace: '.project',
+      type: 'feature',
+      targetRole: 'product',
+      expectedProduct: true,
+      aliases: true,
+    },
+    {
+      namespace: 'planning-context',
+      type: 'feature',
+      targetRole: 'product',
+      expectedProduct: true,
+      aliases: false,
+    },
+    {
+      namespace: '.project',
+      type: 'epic',
+      targetRole: 'product',
+      expectedProduct: true,
+      aliases: false,
+    },
+    {
+      namespace: '.project',
+      type: 'feature',
+      targetRole: 'unrelated',
+      expectedProduct: false,
+      aliases: false,
+    },
+    {
+      namespace: '.project',
+      type: 'feature',
+      targetRole: 'context',
+      expectedProduct: false,
+      aliases: false,
+    },
+    {
+      namespace: '.project',
+      type: 'task',
+      targetRole: 'product',
+      expectedProduct: false,
+      aliases: false,
+    },
+  ] as const)(
+    'uses the Product planning contract only for its work target ($namespace/$type/$targetRole, aliases=$aliases)',
+    // eslint-disable-next-line complexity -- Matrix spans ownership, namespace and equivalent-target boundaries.
+    async ({ namespace, type, targetRole, expectedProduct, aliases }) => {
+      const directory = createTemporaryDirectory();
+      await createConfiguredProject(directory);
+      if (namespace !== '.project') {
+        const configPath = nodePath.join(directory, '.safeword/config.json');
+        const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+        writeFileSync(configPath, JSON.stringify({ ...config, paths: { projectRoot: namespace } }));
+      }
+      const ticketPath = `${namespace}/tickets/ABC123-product-review`;
+      mkdirSync(nodePath.join(directory, ticketPath), { recursive: true });
+      writeFileSync(
+        nodePath.join(directory, ticketPath, 'ticket.md'),
+        `---\nid: ABC123\ntype: ${type}\nphase: intake\nstatus: in_progress\nproduct_plan_contract: v1\n---\n`,
+      );
+      const productPath = `${ticketPath}/spec.md`;
+      writeFileSync(
+        nodePath.join(directory, productPath),
+        expectedProduct ? PLANNING_ROLE_PRODUCT : '# Product Plan\n\nAccepted behavior.\n',
+      );
+      if (expectedProduct) {
+        writePlanningInventories(directory);
+        if (namespace !== '.project') {
+          for (const role of ['principles.md', 'personas.md', 'surfaces.md']) {
+            copyFileSync(
+              nodePath.join(directory, '.project', role),
+              nodePath.join(directory, namespace, role),
+            );
+            const configured = nodePath.join(directory, namespace, role);
+            writeFileSync(
+              configured,
+              `${readFileSync(configured, 'utf8')}\nConfigured namespace inventory.\n`,
+            );
+            const fallback = nodePath.join(directory, '.project', role);
+            writeFileSync(
+              fallback,
+              `${readFileSync(fallback, 'utf8')}\nDefault namespace sentinel.\n`,
+            );
+          }
+        }
+      }
+      mkdirSync(nodePath.join(directory, 'notes'));
+      writeFileSync(
+        nodePath.join(directory, 'notes/spec.md'),
+        '# Product Plan\n\nUnrelated notes.\n',
+      );
+      writeFileSync(nodePath.join(directory, 'target.md'), 'Code work under review.\n');
+      const target = { unrelated: 'notes/spec.md', context: 'target.md', product: productPath }[
+        targetRole
+      ];
+      const promptLog = nodePath.join(directory, 'prompt.log');
+      const bin = installFakeReviewer(directory, 'claude');
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          target,
+          ...(aliases ? [`./${target}`] : []),
+          ...(targetRole === 'context' ? ['--context', productPath] : []),
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'codex',
+            SAFEWORD_REVIEW_LOG: nodePath.join(directory, 'review.log'),
+            SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+      expect(result.exitCode, result.stdout).toBe(0);
+      const prompt = readFileSync(promptLog, 'utf8');
+      const packet = JSON.parse(prompt.split('\n').at(-1) ?? '') as Record<string, unknown>;
+      expect(packet.kind).toBe('quality-review');
+      expect(packet.logical_files).toEqual([
+        { path: target, content: readFileSync(nodePath.join(directory, target), 'utf8') },
+      ]);
+      if (expectedProduct) {
+        expect(JSON.parse(result.stdout).data.review_targets).toEqual([target]);
+        const inventoryNames = ['principles.md', 'personas.md', 'surfaces.md'];
+        const inventories = (packet.context_files as { path: string; content: string }[]).filter(
+          file => inventoryNames.includes(nodePath.basename(file.path)),
+        );
+        expect(inventories).toEqual(
+          inventoryNames.map(role => ({
+            path: `${namespace}/${role}`,
+            content: readFileSync(nodePath.join(directory, namespace, role), 'utf8'),
+          })),
+        );
+        expect(JSON.stringify(packet.context_files)).not.toContain('Default namespace sentinel.');
+        expect(
+          packet.planning_phase,
+          'Product work-target dispatch must carry its canonical planning phase',
+        ).toBe('product-plan');
+        expect(packet.plan_contract).toMatchObject({
+          author: {
+            sha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
+            obligations: expect.arrayContaining(['Purpose', 'Approval meaning', 'Return path']),
+          },
+        });
+        const pair = packet.plan_contract as { author: unknown; reviewer: unknown };
+        expect(pair.author).toEqual(pair.reviewer);
+        expect(prompt).toContain('Define the accepted behavior and its product boundaries.');
+        expect(prompt).toContain('The behavior is ready for scenario definition.');
+        expect(prompt).not.toContain('Startable steps:');
+      } else {
+        expect(packet.planning_phase).toBeUndefined();
+        expect(packet.plan_contract).toBeUndefined();
+        expect(prompt).not.toContain('Define the accepted behavior and its product boundaries.');
+        if (targetRole === 'context')
+          expect(packet.context_files).toEqual([
+            {
+              path: productPath,
+              content: readFileSync(nodePath.join(directory, productPath), 'utf8'),
+            },
+          ]);
+      }
+    },
+  );
+
   it('rejects starting a detached review offline before creating durable job state', async () => {
     const directory = createTemporaryDirectory();
 
@@ -322,6 +503,42 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.exitCode).toBe(1);
     expect(JSON.parse(result.stdout)).toMatchObject({
       errors: [{ code: 'REVIEW_JOB_NOT_FOUND' }],
+    });
+  });
+
+  it('rejects a host continuation without a recognized local agent runtime', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'review-output.json'), '{}\n');
+
+    const result = await runCli(
+      [
+        'review',
+        'continue',
+        'not-a-review-id',
+        '--tier',
+        'fresh-context',
+        '--output',
+        'review-output.json',
+        '--offline',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          SAFEWORD_AGENT_RUNTIME: 'unknown',
+          CODEX_THREAD_ID: '',
+          CLAUDE_SESSION_ID: '',
+          CLAUDE_CODE_SESSION_ID: '',
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      errors: [{ code: 'REVIEW_CONTINUATION_ORIGIN_UNVERIFIED' }],
     });
   });
 
@@ -663,23 +880,26 @@ describe('cross-agent review public-command wiring', () => {
     writeFileSync(nodePath.join(notesDirectory, 'impl-plan.md'), '# Unowned plan\n');
     writeFileSync(nodePath.join(directory, '.project', 'ticket.md'), '---\nid: parent\n---\n');
     writeFileSync(nodePath.join(directory, '.project', 'impl-plan.md'), '# Parent escape plan\n');
+    const bin = installFakeReviewer(directory, 'claude');
     const environment = {
+      PATH: `${bin}:/usr/bin:/bin`,
       SAFEWORD_AGENT_RUNTIME: 'codex',
       SAFEWORD_REVIEW_LOG: reviewLog,
       SAFEWORD_NO_UPDATE_CHECK: '1',
     };
 
-    for (const target of [
+    const unownedTargets = [
       '.claude/plans/impl-plan.md',
       'notes/impl-plan.md',
       '.project/impl-plan.md',
-    ]) {
+    ].flatMap(target => [[target], [target, `./${target}`]]);
+    for (const requested of unownedTargets) {
       const rejected = await runCli(
         [
           'review',
           'run',
           'plan-implementation',
-          target,
+          ...requested,
           '--json',
           '--no-input',
           '--cwd',

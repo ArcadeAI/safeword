@@ -1,0 +1,61 @@
+[
+  {
+    "head": "8420448f42ac00a4f345de2344b91b6ef510461c",
+    "source_checkpoint": "8d8a43d54",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "packages/cli/src/cli.ts",
+      "review",
+      "routes",
+      "list",
+      "--author",
+      "cursor",
+      "--json"
+    ],
+    "exit": 0,
+    "state": "healthy",
+    "changed": false,
+    "errors": [],
+    "effects": {
+      "files": [],
+      "packages": [],
+      "configuration": [],
+      "network": [],
+      "destructive": []
+    },
+    "stdout_sha256": "b480e5bf2b1a843876ad14c767455284b244dd141ddb3c65eb21bb91e5ef9815"
+  },
+  {
+    "head": "8420448f42ac00a4f345de2344b91b6ef510461c",
+    "source_checkpoint": "8d8a43d54",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "packages/cli/src/cli.ts",
+      "review",
+      "continue",
+      "fbe89f41-6f36-4261-ba4a-ff9679582edb",
+      "--tier",
+      "fresh-context",
+      "--failure",
+      "unsupported",
+      "--offline",
+      "--json"
+    ],
+    "exit": 1,
+    "state": "failed",
+    "changed": false,
+    "errors": [
+      "REVIEW_CONTINUATION_ALREADY_USED"
+    ],
+    "effects": {
+      "files": [],
+      "packages": [],
+      "configuration": [],
+      "network": [],
+      "destructive": []
+    },
+    "stdout_sha256": "ef07edefaaf05c78f83b383e5caf3c6fc0a4a5d90673cfccdf04bc8336ebd16c"
+  }
+]

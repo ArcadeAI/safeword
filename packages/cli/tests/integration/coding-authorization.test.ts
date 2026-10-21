@@ -220,6 +220,8 @@ async function refreshReviews(
     readFileSync(nodePath.join(root, '.safeword', 'config.json'), 'utf8'),
   ) as { designApprovalGate?: unknown };
   const bin = installReviewer();
+  // The fixture's Codex author has no verified model, so these real reviews
+  // earn reduced assurance. Tampering tests below retain their exact refusals.
   const stamps: string[] = [];
   if (from === 'scenario') {
     const reviewId = await admitReview(
@@ -230,7 +232,7 @@ async function refreshReviews(
       { bin },
     );
     stamps.push(
-      `2026-09-18T00:01:01.000Z fixture review:${ticketFolder}:phase@scenario-gate author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      `2026-09-18T00:01:01.000Z fixture review:${ticketFolder}:phase@scenario-gate author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
     );
   }
   if (from === 'scenario' || from === 'implementation') {
@@ -246,7 +248,7 @@ async function refreshReviews(
       { bin },
     );
     stamps.push(
-      `2026-09-18T00:01:02.000Z fixture review:${ticketFolder}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      `2026-09-18T00:01:02.000Z fixture review:${ticketFolder}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
     );
   }
   const plan = readFileSync(nodePath.join(root, executionTarget), 'utf8');
@@ -266,7 +268,7 @@ async function refreshReviews(
     },
   );
   stamps.push(
-    `2026-09-18T00:01:03.000Z fixture review:${ticketFolder}:phase@plan-execution author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+    `2026-09-18T00:01:03.000Z fixture review:${ticketFolder}:phase@plan-execution author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
   );
   const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
   writeFileSync(ledgerPath, `${readFileSync(ledgerPath, 'utf8')}${stamps.join('\n')}\n`);
@@ -341,8 +343,8 @@ async function featureFixture(
     { bin },
   );
   const reviewStamps = [
-    `2026-09-18T00:00:02.000Z fixture review:${ticketFolder}:phase@scenario-gate author:codex reviewer:claude independence:cross-agent review-id:${scenarioReviewId}`,
-    `2026-09-18T00:00:03.000Z fixture review:${ticketFolder}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${implementationReviewId}`,
+    `2026-09-18T00:00:02.000Z fixture review:${ticketFolder}:phase@scenario-gate author:codex reviewer:claude independence:reduced review-id:${scenarioReviewId}`,
+    `2026-09-18T00:00:03.000Z fixture review:${ticketFolder}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${implementationReviewId}`,
   ];
   if (includeExecutionPlan) {
     const plan = executionContent;
@@ -359,7 +361,7 @@ async function featureFixture(
       { bin, executionPlanRecord: executionReviewRecord(plan, designApprovalGate) },
     );
     reviewStamps.push(
-      `2026-09-18T00:00:04.000Z fixture review:${ticketFolder}:phase@plan-execution author:codex reviewer:claude independence:cross-agent review-id:${executionReviewId}`,
+      `2026-09-18T00:00:04.000Z fixture review:${ticketFolder}:phase@plan-execution author:codex reviewer:claude independence:reduced review-id:${executionReviewId}`,
     );
   }
   writeFileSync(
@@ -372,6 +374,7 @@ async function featureFixture(
 async function codingAuthorization(root: string): Promise<{
   exitCode: number;
   data: Record<string, unknown>;
+  findings: { code: string }[];
 }> {
   const invoked = await runCli(
     ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
@@ -383,8 +386,11 @@ async function codingAuthorization(root: string): Promise<{
       },
     },
   );
-  const result = JSON.parse(invoked.stdout) as { data: Record<string, unknown> };
-  return { exitCode: invoked.exitCode, data: result.data };
+  const result = JSON.parse(invoked.stdout) as {
+    data: Record<string, unknown>;
+    findings: { code: string }[];
+  };
+  return { exitCode: invoked.exitCode, data: result.data, findings: result.findings };
 }
 
 function authorizationIdentity(result: { data: Record<string, unknown> }): string {
@@ -508,6 +514,21 @@ describe('coding authorization', () => {
     });
   });
 
+  it('refuses previously admitted reduced reviews after policy changes to require', async () => {
+    const root = await featureFixture(true);
+    const configPath = nodePath.join(root, '.safeword/config.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf8'));
+    writeFileSync(configPath, JSON.stringify({ ...config, crossAgentReview: 'require' }));
+    const result = await codingAuthorization(root);
+    expect(result.exitCode).toBe(2);
+    expect(result.data.coding_authorization).toBe('denied');
+    expect(result.findings.map(finding => finding.code)).toEqual([
+      'missing_accepted_scenarios',
+      'missing_accepted_approach',
+      'unearned_execution_plan_assurance',
+    ]);
+  });
+
   it('limits an approved result to coding authorization without downstream authority', async () => {
     const root = await featureFixture(true);
 
@@ -516,7 +537,7 @@ describe('coding authorization', () => {
     expect(result.exitCode).toBe(0);
     expect(result.data).toMatchObject({
       coding_authorization: 'authorized',
-      achieved_independence: 'cross-agent',
+      achieved_independence: 'reduced',
       grants_authority: false,
     });
     expect(
@@ -678,7 +699,7 @@ describe('coding authorization', () => {
             }));
             rewriteExecutionReviewStamp(root, line =>
               line.replace(
-                'author:codex reviewer:claude independence:cross-agent',
+                'author:codex reviewer:claude independence:reduced',
                 'author:codex reviewer:codex independence:degraded',
               ),
             );
@@ -827,7 +848,7 @@ describe('coding authorization', () => {
     const reviewLedger = nodePath.join(root, '.project', 'skill-invocations.log');
     writeFileSync(
       reviewLedger,
-      `${readFileSync(reviewLedger, 'utf8')}2026-09-18T00:01:02.000Z fixture review:ABC123-feature:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${implementationReviewId}\n`,
+      `${readFileSync(reviewLedger, 'utf8')}2026-09-18T00:01:02.000Z fixture review:ABC123-feature:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${implementationReviewId}\n`,
     );
 
     const staleReceipt = await runCli(['review', 'status', originalExecutionReviewId ?? ''], {
@@ -870,7 +891,7 @@ describe('coding authorization', () => {
     const unchangedLedger = nodePath.join(unchangedRoot, '.project', 'skill-invocations.log');
     writeFileSync(
       unchangedLedger,
-      `${readFileSync(unchangedLedger, 'utf8')}2026-09-18T00:01:02.000Z fixture review:ABC123-feature:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${unchangedImplementationReviewId}\n`,
+      `${readFileSync(unchangedLedger, 'utf8')}2026-09-18T00:01:02.000Z fixture review:ABC123-feature:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${unchangedImplementationReviewId}\n`,
     );
     const contentIdenticalRereview = await codingAuthorization(unchangedRoot);
     expect(contentIdenticalRereview.exitCode).toBe(0);
@@ -1047,7 +1068,7 @@ describe('coding authorization', () => {
         );
       } else {
         rewriteExecutionReviewStamp(root, line =>
-          line.replace('independence:cross-agent', 'independence:degraded'),
+          line.replace('independence:reduced', 'independence:degraded'),
         );
       }
       const authorization = await codingAuthorization(root);
@@ -1121,7 +1142,7 @@ describe('coding authorization', () => {
     }));
     rewriteExecutionReviewStamp(root, line =>
       line.replace(
-        'author:codex reviewer:claude independence:cross-agent',
+        'author:codex reviewer:claude independence:reduced',
         'author:codex reviewer:codex independence:degraded',
       ),
     );

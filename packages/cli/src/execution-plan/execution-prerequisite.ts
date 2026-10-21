@@ -13,11 +13,16 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../execution-plan/delivery-checklist.js';
+import {
+  assertActivePlanningAuthorCopy,
+  PlanningContractCopyError,
+} from '../planning/author-copy.js';
 import { currentDesignDecision } from '../review/approval-ledger.js';
 import { phaseReviewAdmission, type ReviewProvenance } from '../review/phase-admission.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { findFeatureSourcePath } from '../utils/feature-source.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
+import { planningContractCopyFailure } from '../utils/planning-contract-copy-failure.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
 
 type ExecutionPrerequisiteStatus = 'satisfied' | 'not_applicable';
@@ -53,7 +58,7 @@ interface MissingPrerequisite {
 
 function successful(
   status: ExecutionPrerequisiteStatus,
-  achievedIndependence?: 'cross-agent' | 'degraded',
+  achievedIndependence?: 'cross-agent' | 'reduced' | 'degraded',
   inputIdentity?: string,
   executionPlanArtifact?: ExecutionPlanArtifactFacts,
 ): CliResult {
@@ -250,7 +255,7 @@ function approachPrerequisite(
 type ChecklistPrerequisite =
   | {
       readonly admitted: true;
-      readonly independence: 'cross-agent' | 'degraded';
+      readonly independence: 'cross-agent' | 'reduced' | 'degraded';
       readonly provenance: ReviewProvenance;
       readonly receipt: 'valid';
     }
@@ -486,6 +491,24 @@ function maybeAuthorizationIdentity(
   return enabled === true ? authorizationInputIdentity(input) : undefined;
 }
 
+function planningCopyDenial(cwd: string): CliResult | undefined {
+  try {
+    assertActivePlanningAuthorCopy(cwd, 'plan-implementation');
+    assertActivePlanningAuthorCopy(cwd, 'plan-execution');
+  } catch (error) {
+    if (!(error instanceof PlanningContractCopyError)) throw error;
+    return {
+      ...planningContractCopyFailure(error, 'ticket execution-prerequisite'),
+      data: {
+        command: 'ticket execution-prerequisite',
+        prerequisite_status: 'blocked',
+        grants_authority: false,
+      },
+    };
+  }
+  return undefined;
+}
+
 /** Evaluate planning admission without granting coding or merge authority. */
 export function evaluateExecutionPrerequisite(
   cwd: string,
@@ -505,6 +528,8 @@ export function evaluateExecutionPrerequisite(
     });
     return successful(loaded.status, undefined, identity);
   }
+  const copyDenial = planningCopyDenial(cwd);
+  if (copyDenial !== undefined) return copyDenial;
   const scenarioReview = admittedPhaseReview(
     loaded.context,
     'scenario-gate',

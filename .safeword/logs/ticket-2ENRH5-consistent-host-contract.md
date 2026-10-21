@@ -1087,3 +1087,77 @@ after the authorized plan clarifications; once distribution consistency is
 resolved, refresh the required planning reviews/admission before code edits.
 The repository is unchanged except this record; no new runtime proof or
 feature completion is claimed.
+
+### 2026-10-21 — Restart recovery and current-main integration
+
+After the user restarted Codex, the shared marketplace was restored to the
+official Git source. The installed planning contract now matches origin/main
+9f6ac6fce (20f3b847…), rather than dba0's experimental contract. This feature's
+older local contract still differed. Kept the dedicated worktree and branch;
+checkpointed the earlier blocker as 022415749 and began a normal merge of
+origin/main without touching another worktree or the shared plugin. One source
+conflict is in schema.ts; the other eight conflicts are generated carriers or
+lifecycle fixtures. The merge remains in progress until normal planning
+authorization permits source conflict repair and regeneration.
+
+The pre-merge native Codex guard regression ran once: hooks were discovered and
+trusted, but both turns failed at model access with token_expired / 401 before
+their assertions. Artifacts are guard-run-HMhrrM in the disposable fixture.
+Refreshed only that fixture's auth using the established test setup, without
+printing credentials. A subsequent real no-tool native turn completed; see
+/tmp/safeword-codex-fixture-auth-retry.jsonl. No guard/continuation pass is
+inferred from that auth recovery.
+
+Fresh scenario review 0ed45d57-b844-4545-802d-2eb7d34961c7 approved the unchanged
+feature and was stamped. Actual reviewer Claude/opus, independence reduced:
+the host exposes no verified exact author-model identity. Returned through the
+normal planning phase to repair the architecture index's 262144-byte packet
+limit. Replaced this ticket's duplicate summary with an index link to its
+existing complete durable decision; no architectural decision was removed.
+
+Implementation review fb842f5a-74d0-4a97-ad37-f49ad7545d45 found the CLI authority
+gate treatment undecided. Clarified the existing engineering-only CLI lane:
+real controller enrollment and runtime-specific session handshake must exercise
+the same shared authority gate; --plugin-dir is no exemption, and no customer
+binding claim is added. Final gate-bearing controls cannot reuse pre-gate
+diagnostics. Updated stale current-state text. Review
+0c909541-ee02-46ad-b141-b0294b55d73f approved and was stamped with actual reduced
+independence. Canonical approve-plan returned not-required and advanced to
+plan-execution. Warnings include verifying the pinned CLI session-start event
+before relying on it; missing support must remain unavailable.
+
+Execution review 5340d25e-3270-44e8-ac1e-8b5d34535ef3 requested repair of obsolete
+instructions to reproduce already-fixed Cursor REDs. Updated current state,
+preserved historical receipts, classified current cases as regression proof,
+and retained Codex continuation as the next characterization. The next planned
+new-behavior RED is the exact V2 guard boundary in PR 2; setup failure is not RED.
+Moved final gate-bearing CLI confirmation to its PR 4 owner. Fresh execution
+review 3739c65d-458d-4749-b548-fdc4aadb93e5 is pending. Collect it through review
+status; do not redispatch unchanged sources or claim code authorization.
+
+Execution review 3739c65d-458d-4749-b548-fdc4aadb93e5 approved with reduced
+independence and was stamped. Coding authorization now reports authorized;
+returned the ticket to implement before source conflict resolution. Preserved
+the feature's two layout constants and main's planning-template classifier in
+schema.ts, then regenerated all five conflicting surfaces from canonical source.
+No unresolved merge paths remain. Typecheck, targeted schema/generator ESLint,
+277 parity pairs/11 contracts and generated-surface verification passed.
+Eight focused regression files passed 111 tests; schema passed 38 tests; two
+generator/catalogue files passed 14 tests. Logs use /tmp/safeword-contract-main-*.
+
+Refreshed only the disposable Codex marketplace source, retained its prior
+bundle, and reinstalled through native plugin add. The hook manifest remained
+byte-identical. Fresh native guard regression passed both exact 0.160.0 cases
+in 22.26 seconds after trusted native discovery and complete source/cache byte
+equality. The earlier auth-failed run remains preserved, not relabeled passing.
+
+Merge quality review ef875a0a-ba0a-430e-a9b9-67c3bd0b5c27 questioned the portable
+pilot because its option validator was omitted from context. Supplied that
+validator, its existing rejection tests, catalogue writer and accepted native-
+container decision: portable output is deliberate and only permitted at a fresh
+explicit destination, never the shipped native reconciliation path. Review
+cfe8ea9f-ca94-4f33-adaa-8b2c77e44463 approved the source integration with cross-
+agent independence (Claude). Its context and response are preserved at
+evidence/main-merge-review-context.md. No code was changed to weaken an output
+boundary. New Codex continuation observer/actor scaffolding is separate untracked
+work and is excluded from this integration checkpoint; it is not passing proof.

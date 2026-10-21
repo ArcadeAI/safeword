@@ -38,6 +38,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Canonical phase entry requirements bind every required input
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU4.5F5ZZA.R3 — Required context resolves or fails closed
 
 ### Scenario: Context resolution distinguishes defaults from broken overrides
@@ -74,7 +80,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Cosmetic canonical changes preserve review currency but require copy reconciliation
+### Scenario: Cosmetic installed-copy changes preserve review currency but require copy reconciliation
 
 - [ ] RED
 - [ ] GREEN
@@ -188,7 +194,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Generated guidance identifies gated surfaces as enforced
+### Scenario: Generated guidance grants authority only to independently proven surfaces
 
 - [ ] RED
 - [ ] GREEN
@@ -196,13 +202,13 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU4.5F5ZZA.R9 — Review invalidation follows the dependency direction specified by the Execution Planning contract; this child implements the shared provenance and invalidation mechanics rather than defining a second dependency matrix
 
-### Scenario: A changed artifact invalidates exactly its dependent reviews
+### Scenario: A declared change invalidates exactly its dependent reviews
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Invalidation follows the canonical Execution Planning dependency direction
+### Scenario: Canonical invalidation declarations admit only the supported direction
 
 - [ ] RED
 - [ ] GREEN
@@ -309,6 +315,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: An undecided optional suggestion cannot alter or block the plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Installed re-review retains a declined optional strengthening
 
 - [ ] RED
 - [ ] GREEN
