@@ -2,8 +2,8 @@
 id: 4RGYMY
 slug: prove-legacy-protection-executes
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-10-21T15:55:30.471Z
 last_modified: 2026-10-21T15:55:30.471Z
 ---

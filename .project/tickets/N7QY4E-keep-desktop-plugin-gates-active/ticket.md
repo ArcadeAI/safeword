@@ -2,8 +2,8 @@
 id: N7QY4E
 slug: keep-desktop-plugin-gates-active
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 subtype: bug-investigated
 external_issue: https://github.com/ArcadeAI/safeword/issues/6004
 scope: Accept equivalent YAML front matter for exposed Claude plugin skills
