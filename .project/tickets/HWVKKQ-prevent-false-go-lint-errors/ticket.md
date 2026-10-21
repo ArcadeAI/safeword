@@ -67,3 +67,9 @@ are explicit; CI must provision tools and fail rather than skip the proof lane.
   and generated-surface checks passed. Full CLI/smoke/proof-tag Vitest checks
   were lock-limited; dependency audit flagged unchanged dependencies. See
   verify.md for exact evidence and remaining verification. Not marked done.
+- 2026-10-21 Remote verification completed successfully in run 39667499218:
+  11626 CLI tests per Node lane, 30 tests per Go lane, 601 acceptance scenarios,
+  51 proof-tag tests and 83 release tests per Node lane. Audit fixed oversized
+  Codex warning feedback; two behavior-preserving refactors were committed.
+  Independent reviews approved the implementation and inventory correction.
+  All CI checks pass; verify.md supersedes the earlier local limitations.

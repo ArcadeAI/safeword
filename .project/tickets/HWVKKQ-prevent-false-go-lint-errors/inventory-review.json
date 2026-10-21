@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "state": "healthy",
+  "changed": false,
+  "findings": [
+    {
+      "code": "REVIEW_INDEPENDENCE",
+      "message": "A different agent (Claude) checked the work in a separate headless process.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_SUMMARY",
+      "message": "I compared the generated architecture doc with the before snapshot. The only content change is a new `go-lint` module entry (`src/go-lint`), placed in alphabetical order between `execution-plan` and `health`. The fingerprint was updated the same way in the frontmatter and in every `reconciled` marker. The stated purpose matches the supplied `config.ts` and `process.ts`. No other module entries changed. I found no errors.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "The go-lint purpose text, \"Preserves Go lint configuration context and owns linter child-process cleanup.\", matches the supplied sources. In config.ts, prepareGoLintConfig resolves the selected config, fixes the base, `${config-path}` and `${base-path}` locations, rewrites the config into a temporary cfg-mode JSON file, and returns its cleanup function. In process.ts, goLintProcess owns the spawned golangci-lint child and performs the temporary-config cleanup on SIGINT, SIGTERM and SIGHUP.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "The new fingerprint (7e2649e2\u2026) is applied the same way in the frontmatter and in all 39 reconciled markers, and no stale eff5d1e4\u2026 marker remains. This review cannot check that the hash itself was computed correctly, because the generator's fingerprint inputs were not supplied. That is left to the generator's own drift check.",
+      "severity": "info"
+    },
+    {
+      "code": "REVIEWER_FINDING",
+      "message": "The go-lint entry has no seeded-purpose marker. That is consistent with other hand-written module purposes in this file, such as boundary, packs and retro, so it is not a defect.",
+      "severity": "info"
+    }
+  ],
+  "effects": {
+    "files": [],
+    "packages": [],
+    "configuration": [],
+    "network": [
+      {
+        "kind": "review",
+        "target": "claude",
+        "operation": "request"
+      }
+    ],
+    "destructive": []
+  },
+  "errors": [],
+  "recovery": [],
+  "next_actions": [],
+  "data": {
+    "command": "review run",
+    "status": "approved",
+    "review_kind": "quality-review",
+    "review_targets": [
+      "packages/cli/architecture.generated.md"
+    ],
+    "author_agent": "codex",
+    "assigned_reviewer": "claude",
+    "actual_reviewer": "claude",
+    "reviewer_model": "opus",
+    "independence": "cross-agent",
+    "reviewer_output": {
+      "schema_version": 1,
+      "dispatch_id": "bb69d2c0-26ae-4e11-89ae-3d3ca7921409",
+      "reviewer_agent": "claude",
+      "verdict": "approve",
+      "summary": "I compared the generated architecture doc with the before snapshot. The only content change is a new `go-lint` module entry (`src/go-lint`), placed in alphabetical order between `execution-plan` and `health`. The fingerprint was updated the same way in the frontmatter and in every `reconciled` marker. The stated purpose matches the supplied `config.ts` and `process.ts`. No other module entries changed. I found no errors.",
+      "findings": [
+        {
+          "severity": "info",
+          "message": "The go-lint purpose text, \"Preserves Go lint configuration context and owns linter child-process cleanup.\", matches the supplied sources. In config.ts, prepareGoLintConfig resolves the selected config, fixes the base, `${config-path}` and `${base-path}` locations, rewrites the config into a temporary cfg-mode JSON file, and returns its cleanup function. In process.ts, goLintProcess owns the spawned golangci-lint child and performs the temporary-config cleanup on SIGINT, SIGTERM and SIGHUP."
+        },
+        {
+          "severity": "info",
+          "message": "The new fingerprint (7e2649e2\u2026) is applied the same way in the frontmatter and in all 39 reconciled markers, and no stale eff5d1e4\u2026 marker remains. This review cannot check that the hash itself was computed correctly, because the generator's fingerprint inputs were not supplied. That is left to the generator's own drift check."
+        },
+        {
+          "severity": "info",
+          "message": "The go-lint entry has no seeded-purpose marker. That is consistent with other hand-written module purposes in this file, such as boundary, packs and retro, so it is not a defect."
+        }
+      ]
+    },
+    "excluded_targets": [],
+    "review_id": "2a517a26-2bc8-4978-92c9-c275ca989069",
+    "review_excluded_targets": []
+  }
+}
