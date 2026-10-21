@@ -1,5 +1,42 @@
 # Audit and refactor follow-up
 
+## Full refactor pass (2026-10-21)
+
+Baseline: 17bfde5fd; runtime/test source at 536dd1fe7 passed every job in
+remote run 39686478082. Two fresh read-only scouts covered config/command
+ownership and hook/process/test boundaries. No candidates were truncated.
+
+Leaf-first execution ledger:
+
+- [x] Protect configuration-format precedence and malformed helper responses
+  with eight characterization cases before moving code. Direct API/process
+  probes passed all eight on the baseline. ESLint passed. The Vitest attempt
+  was lock-limited and started no tests; final CI must execute the expanded suites.
+- [ ] Precompute immutable config filename precedence once, preserving the
+  shared filename source and every directory-search rule.
+- [ ] Rename the caller-directory config variable to distinguish it from the
+  project root. This distinction directly underlies the reported bugs.
+- [ ] Name the version capability probe as a predicate; preserve its checks,
+  errors and oldest-version behavior.
+- [ ] Extract helper invocation and JSON validation into one local function;
+  retain containment, availability/version checks and warning deduplication at
+  the caller. No new shipping or schema-managed file.
+- [x] Decline a normalizer registry, generic subprocess abstraction, repository-
+  wide containment helper and further executor split: no duplicated contract
+  warrants those interfaces.
+- [x] Decline shared truncation delivery and cross-suite fixture abstractions:
+  installed-template/CLI shipping boundaries and fake/real tool environments
+  differ intentionally. The common mechanism would be larger than the duplication.
+- [x] Exclude signal-listener, exact stream-cap and aggregate-context behavior
+  changes from this behavior-preserving pass; existing limitations remain explicit.
+- [ ] Re-run the diff audit, then the independent quality-review coordinator;
+  resolve every error, record optional suggestions, and verify the final source.
+
+Each refactoring is a separate change, proof and scoped commit. The local
+Vitest lock currently belongs to worktree 3811; do not change its lock or process.
+
+## Earlier refactor pass
+
 User authorized remote verification, audit and refactoring after the initial
 delivery. Remote CI run 39649296690 tests commit 4795aefdb.
 

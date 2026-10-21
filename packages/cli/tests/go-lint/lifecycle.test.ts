@@ -154,6 +154,21 @@ describe('Go lint process boundary', () => {
     expect(readFileSync(env.GO_LINT_TRACE, 'utf8')).not.toContain('|run ');
   });
 
+  it.each([
+    'not JSON',
+    '{"warnings":[42]}',
+    '{"warnings":[],"errors":42}',
+    '{"warnings":[],"diagnosticContext":42}',
+  ])('warns on malformed helper output without falling back to file lint: %s', async output => {
+    const { root, file, env } = fixture();
+    const helper = path.join(root, 'invalid-cli.ts');
+    writeFileSync(helper, `process.stdout.write(${JSON.stringify(output)});`);
+    expect(await runHook(root, file, { ...env, SAFEWORD_PLUGIN_CLI: helper })).toContain(
+      'Go lint helper returned an invalid result',
+    );
+    expect(readFileSync(env.GO_LINT_TRACE, 'utf8')).not.toContain('|run ');
+  });
+
   it('uses the selected Cursor workspace even when the launch directory differs', async () => {
     const { root, file, env } = fixture();
     const launch = path.dirname(root);

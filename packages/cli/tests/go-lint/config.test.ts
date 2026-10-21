@@ -52,6 +52,29 @@ afterEach(() => {
 });
 
 describe('Go configuration context', () => {
+  it.each(['json', 'toml', 'yaml', 'yml'])(
+    'selects %s before lower-priority formats in the same directory',
+    extension => {
+      const formats = [
+        ['json', '{"version":"2"}'],
+        ['toml', 'version = "2"\n'],
+        ['yaml', 'version: "2"\n'],
+        ['yml', 'version: "2"\n'],
+      ];
+      const { root, file, source } = fixture('version: "2"\n', `.golangci.${extension}`);
+      const first = formats.findIndex(([name]) => name === extension);
+      for (const [name, content] of formats.slice(first)) {
+        writeFileSync(path.join(root, `.golangci.${name}`), content ?? '');
+      }
+      const prepared = prepareGoLintConfig(file, root, root);
+      try {
+        expect(prepared.source).toBe(source);
+      } finally {
+        prepared.cleanup();
+      }
+    },
+  );
+
   it('keeps YAML merge-key exclusions without changing the source config', () => {
     const text = `version: "2"
 run:
