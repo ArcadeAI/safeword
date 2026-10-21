@@ -8,9 +8,11 @@ import {
   collectCapabilityResults,
   compareCapabilityRuns,
   compareSealedCapabilityResults,
+  rescoreCapabilityResults,
   scoreCapabilityRun,
   sealCapabilityResults,
 } from '../../src/review/capability-eval.js';
+import { REVIEWER_CAPABILITY_MANIFEST } from '../fixtures/reviewer-capability-corpus.js';
 
 const fixtures: CapabilityFixture[] = [
   { id: 'product-approve', verdict: 'approve', required: [], forbidden: ['invented-scope'] },
@@ -89,6 +91,137 @@ function withVerdict(
 }
 
 describe('reviewer capability evaluation', () => {
+  it('rescores only unchanged sealed observations and preserves their original collection date', () => {
+    const original = sealCapabilityResults(
+      'openai',
+      'exact',
+      capabilityRevision(manifest, rubrics),
+      runs(),
+      '2026-09-28',
+    );
+    const stronger = {
+      ...manifest,
+      fixtures: manifest.fixtures.map(fixture => ({
+        ...fixture,
+        label: { ...fixture.label, finding_groups: [['actual defect']] },
+      })),
+    };
+    const rescored = rescoreCapabilityResults(
+      manifest,
+      stronger,
+      rubrics,
+      original,
+      '2026-10-21T00:00:00Z',
+    );
+    expect(rescored.runs).toEqual(original.runs);
+    expect(rescored.evidence_date).toBe(original.evidence_date);
+    expect(rescored.rescored_from).toEqual({
+      results_digest: original.results_digest,
+      corpus_digest: original.corpus_digest,
+      scored_at: '2026-10-21T00:00:00Z',
+    });
+    expect(rescored.corpus_digest).not.toBe(original.corpus_digest);
+    const compatible = {
+      ...manifest,
+      fixtures: manifest.fixtures.map(fixture => ({
+        ...fixture,
+        label: {
+          ...fixture.label,
+          forbidden: [...fixture.label.forbidden, 'new unobserved defect'],
+        },
+      })),
+    };
+    const passing = rescoreCapabilityResults(
+      manifest,
+      compatible,
+      rubrics,
+      original,
+      '2026-10-21T00:00:00Z',
+    );
+    expect(compareSealedCapabilityResults(compatible, rubrics, passing, passing)).toBe(
+      'not_weaker',
+    );
+    expect(compareSealedCapabilityResults(stronger, rubrics, rescored, rescored)).toBe('unknown');
+    expect(() =>
+      rescoreCapabilityResults(manifest, stronger, rubrics, { ...original, runs: [] }, 'now'),
+    ).toThrow('original sealed observations');
+    expect(() =>
+      rescoreCapabilityResults(
+        manifest,
+        stronger,
+        { ...rubrics, product: 'changed' },
+        original,
+        'now',
+      ),
+    ).toThrow('unchanged packets');
+    for (const changed of [
+      { ...stronger, settings: { ...stronger.settings, reasoning: 'high' } },
+      { ...stronger, floor: { ...floor, minimum_total_percent: 80 } },
+      {
+        ...stronger,
+        fixtures: stronger.fixtures.map(fixture => ({
+          ...fixture,
+          packet: { ...fixture.packet, dispatch_id: 'changed' },
+        })),
+      },
+    ])
+      expect(() => rescoreCapabilityResults(manifest, changed, rubrics, original, 'now')).toThrow(
+        'unchanged packets',
+      );
+    expect(() => rescoreCapabilityResults(stronger, stronger, rubrics, rescored, 'now')).toThrow(
+      'original sealed observations',
+    );
+  });
+
+  it.each(['product-reject', 'execution-reject'])(
+    'does not qualify irrelevant keyword-only findings for %s',
+    id => {
+      const fixture = REVIEWER_CAPABILITY_MANIFEST.fixtures.find(
+        candidate => candidate.label.id === id,
+      )?.label;
+      if (fixture === undefined) throw new Error('Missing defect fixture');
+      expect(
+        scoreCapabilityRun(fixture, {
+          fixture_id: id,
+          run: 1,
+          verdict: 'request_changes',
+          findings: [
+            { severity: 'error', message: 'The rejected release is missing the latest tag.' },
+          ],
+        }),
+      ).toBe(false);
+    },
+  );
+  it('requires a finding about the actual approval-authority defect, not an isolated keyword', () => {
+    const fixture = REVIEWER_CAPABILITY_MANIFEST.fixtures.find(
+      candidate => candidate.label.id === 'implementation-reject',
+    )?.label;
+    if (fixture === undefined) throw new Error('Missing implementation defect');
+    const score = (messages: string[]) =>
+      scoreCapabilityRun(fixture, {
+        fixture_id: fixture.id,
+        run: 1,
+        verdict: 'request_changes',
+        findings: messages.map(message => ({ severity: 'error' as const, message })),
+      });
+    expect(score(['The authenticated banana must be purple.'])).toBe(false);
+    expect(
+      score([
+        'An authenticated approval receipt for a stale job may be accepted before retry binding.',
+      ]),
+    ).toBe(false);
+    expect(score(['An authenticated receipt is present.', 'The approval text has a typo.'])).toBe(
+      false,
+    );
+    expect(
+      score([
+        'The plan allows approval from an unauthenticated reviewer verdict instead of requiring a receipt.',
+      ]),
+    ).toBe(true);
+    expect(
+      score(['Raw reviewer output can grant Approved without an authenticated receipt.']),
+    ).toBe(true);
+  });
   it('records all three attempts per packet and refuses unconfirmed or mismatched models', async () => {
     const attempts: string[] = [];
     const results = await collectCapabilityResults({

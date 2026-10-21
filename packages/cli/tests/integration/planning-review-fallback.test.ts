@@ -44,6 +44,11 @@ async function assertPolicyFlip(
     { cwd: project, env: environment },
   );
   expect(refused.exitCode, refused.stdout).toBe(2);
+  expect(JSON.parse(refused.stdout).findings).toContainEqual(
+    expect.objectContaining({
+      message: expect.stringContaining('current require policy needs cross-agent review'),
+    }),
+  );
   expect(readFileSync(nodePath.join(project, ticket, 'ticket.md'), 'utf8')).toContain(
     'phase: plan-implementation',
   );

@@ -127,8 +127,8 @@ async function planningFixture() {
   return { project, ticket, configPath, config };
 }
 
-it('discards a weaker approval and continues to the next independent route', async () => {
-  const { project, ticket, configPath, config } = await planningFixture();
+it('discards a weaker approval before a qualified rejection', async () => {
+  const { project, ticket } = await planningFixture();
   const result = await runReview({
     cwd: project,
     kind: 'plan-implementation',
@@ -147,7 +147,10 @@ it('discards a weaker approval and continues to the next independent route', asy
     reviewer_output: { summary: 'Qualified rejection.', verdict: 'request_changes' },
   });
   expect(JSON.stringify(result)).not.toContain('Weak approval.');
+});
 
+it('exhausts when only a proven-weaker route is configured', async () => {
+  const { project, ticket, configPath, config } = await planningFixture();
   writeFileSync(
     configPath,
     JSON.stringify({
@@ -170,7 +173,10 @@ it('discards a weaker approval and continues to the next independent route', asy
     expect.objectContaining({ code: 'REVIEW_CONTINUATION_REQUIRED' }),
   );
   expect(JSON.stringify(exhausted)).not.toContain('Weak approval.');
+});
 
+it('uses same-agent review after unqualified default routes', async () => {
+  const { project, ticket, configPath, config } = await planningFixture();
   writeFileSync(configPath, JSON.stringify(config));
   const defaulted = await runReview({
     cwd: project,
@@ -188,11 +194,15 @@ it('discards a weaker approval and continues to the next independent route', asy
       { reviewer: 'claude', status: 'attempted' },
     ],
   });
+});
 
+it('applies qualification to product-plan quality reviews', async () => {
+  const { project, ticket, configPath, config } = await planningFixture();
   writeFileSync(
     nodePath.join(project, ticket, 'spec.md'),
     '# Product Plan: Truthful review\n\n<!-- safeword:product-plan-contract:v1 -->\n\n## Product Bet\n\n- **Problem / Why now:** Builders need trustworthy planning review.\n- **Expected outcome:** Only current qualified approval advances.\n- **Success threshold:** Unverified review is labeled reduced.\n- **Project non-goals:** Inventing independent assurance.\n- **Persona outcome inventory:** Builder receives approval or a named refusal.\n- **Known facts:** The fixture has one Builder and one CLI surface.\n- **Assumptions:** none\n- **Unresolved product decisions:** none\n\n## Jobs To Be Done\n\n### approval.BU1 — Trust review\n\n**Persona:** Builder (BU)\n\n> When I request review, I want actual assurance reported, so I can decide whether to advance.\n\n#### approval.BU1.R1 — Preserve truthful assurance\n\nOnly current qualified approval advances.\n\n## Shape\n\n### M1 — Trust review\n\n- **Outcome:** Current review is labeled honestly.\n- **Non-goals:** Unqualified independence.\n\n## Surfaces\n\nAffected:\n- Safeword CLI\n',
   );
+  writeFileSync(configPath, JSON.stringify(config));
   const product = await runReview({
     cwd: project,
     kind: 'quality-review',
@@ -208,7 +218,11 @@ it('discards a weaker approval and continues to the next independent route', asy
       { reviewer: 'claude', status: 'attempted' },
     ],
   });
+});
 
+it('preserves ordinary non-planning cross-agent review', async () => {
+  const { project, configPath, config } = await planningFixture();
+  writeFileSync(configPath, JSON.stringify(config));
   writeFileSync(nodePath.join(project, 'notes.md'), '# Ordinary review\n\nNo planning contract.\n');
   const ordinary = await runReview({
     cwd: project,
@@ -221,7 +235,11 @@ it('discards a weaker approval and continues to the next independent route', asy
     independence: 'cross-agent',
   });
   expect((ordinary.data as Record<string, unknown>).review_routes).toBeUndefined();
+});
 
+it('blocks planning policy off while retaining ordinary review', async () => {
+  const { project, ticket, configPath, config } = await planningFixture();
+  writeFileSync(nodePath.join(project, 'notes.md'), '# Ordinary review\n\nNo planning contract.\n');
   writeFileSync(configPath, JSON.stringify({ ...config, crossAgentReview: 'off' }));
   for (const [kind, target] of [
     ['quality-review', `${ticket}/spec.md`],
@@ -240,7 +258,10 @@ it('discards a weaker approval and continues to the next independent route', asy
     targets: ['notes.md'],
   });
   expect(ordinaryOff.data).toMatchObject({ status: 'existing_route' });
+});
 
+it('requires independent policy to block host continuation after runtime failures', async () => {
+  const { project, ticket, configPath, config } = await planningFixture();
   vi.stubEnv('SAFEWORD_TEST_REVIEWERS_FAIL', '1');
   writeFileSync(
     configPath,

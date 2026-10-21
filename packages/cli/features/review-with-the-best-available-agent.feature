@@ -63,50 +63,22 @@ Feature: Keep review available with the best supported fallback
       | Cursor              |
       | Cursor Cloud Agents |
 
-  @review-with-the-best-available-agent.TBU1.R1 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
+  @review-with-the-best-available-agent.TBU1.R1 @surface.claude-code
   Rule: review-with-the-best-available-agent.TBU1.R1 — Every independent reviewer precedes every degraded route
 
-    @review-with-the-best-available-agent.TBU1.R1 @review-with-the-best-available-agent.NTB1.R1
-    Scenario: The first available opposite local agent completes the review
-      Given an opposite local agent can review the accepted packet
-      When the CLI coordinator runs
-      Then the builder receives that agent's findings
-      And the result explains that an independent reviewer completed the review
-      And that reviewer route is attempted exactly once
-      And no coordinator route restarts
+    Scenario Outline: Ranked planning routes honor <case> eligibility and stop after completion
+      Given a ranked planning review with "<case>" routes
+      When the real planning review CLI runs
+      Then reviewer processes launch exactly in this order: "<launches>"
+      And the completed planning review names "<reviewer>" with "<assurance>" assurance
+      And <packets> reviewer packets retain the complete target and the same sealed dispatch
 
-    @review-with-the-best-available-agent.TBU1.R1 @review-with-the-best-available-agent.NTB1.R1
-    Scenario: A failed opposite default model falls through to its independent alternate model
-      Given the opposite local agent's default model cannot complete the review
-      And its configured alternate model can complete an independent review
-      And a degraded reviewer is also available
-      When the CLI coordinator runs
-      Then the builder receives the opposite agent's alternate-model findings
-      And no degraded reviewer is used
-      And the result explains that an independent reviewer completed the review
-      And each eligible independent route is attempted at most once
-      And no coordinator route restarts
-
-    @review-with-the-best-available-agent.TBU1.R1 @review-with-the-best-available-agent.NTB1.R1
-    Scenario: A later compatible independent reviewer still precedes degradation
-      Given two compatible independent reviewers fail to complete
-      And a later compatible independent reviewer can complete the accepted packet
-      And a same-agent headless reviewer is also available
-      When the CLI coordinator runs
-      Then the builder receives the later independent reviewer's findings
-      And no degraded reviewer is used
-      And the result explains that an independent reviewer completed the review
-      And each eligible independent route is attempted at most once
-      And no coordinator route restarts
-
-    @review-with-the-best-available-agent.TBU1.R1
-    Scenario: An alternate model route without model selection is skipped before degradation
-      Given the opposite default reviewer fails
-      And its configured alternate reviewer does not support explicit model selection
-      And the author's headless CLI can review the accepted packet
-      When the CLI coordinator runs
-      Then the unsupported alternate route consumes no review attempt
-      And the builder receives the headless review's findings
+      Examples:
+        | case        | launches                                      | reviewer | assurance   | packets |
+        | first       | codex:gpt-6-astra                              | codex    | cross-agent | 1       |
+        | alternate   | codex:default,codex:gpt-6-astra                | codex    | cross-agent | 2       |
+        | later       | codex:default,codex:gpt-6-sol,codex:gpt-6-astra | codex    | cross-agent | 3       |
+        | unsupported | codex:default,claude:default                  | claude   | reduced     | 1       |
 
   @review-with-the-best-available-agent.TBU1.R2 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents @manual
   Rule: review-with-the-best-available-agent.TBU1.R2 — Same-agent headless review is the first degraded route

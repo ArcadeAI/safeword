@@ -264,6 +264,96 @@ afterEach(() => {
 });
 
 describe('durable review jobs', () => {
+  it('refuses a different recognized host without consuming the pending continuation', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, CONTINUATION_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    const output = {
+      schema_version: 1,
+      dispatch_id: 'fixture-dispatch',
+      reviewer_agent: 'claude',
+      verdict: 'approve',
+      summary: 'Host review.',
+      findings: [],
+    };
+    const record = nodePath.join(cwd, '.safeword/state/reviews', `${id}.json`);
+    const before = readFileSync(record, 'utf8');
+    expect(
+      submitReviewContinuation(cwd, id, 'fresh-context', output, { origin: 'codex' }).errors[0]
+        ?.code,
+    ).toBe('REVIEW_CONTINUATION_ORIGIN_UNVERIFIED');
+    expect(readFileSync(record, 'utf8')).toBe(before);
+    expect(
+      submitReviewContinuation(cwd, id, 'fresh-context', output, { origin: 'claude' }).data,
+    ).toMatchObject({ status: 'approved', independence: 'reduced' });
+  });
+
+  it('allows exactly one competing process to consume a host continuation', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, CONTINUATION_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    const source = nodePath.join(PACKAGE_ROOT, 'src/review/job.ts');
+    const script = `import { submitReviewContinuation } from ${JSON.stringify(source)};
+      process.on('message', () => {
+        const result = submitReviewContinuation(${JSON.stringify(cwd)}, ${JSON.stringify(id)}, 'fresh-context', {
+          schema_version: 1, dispatch_id: 'fixture-dispatch', reviewer_agent: 'claude', verdict: 'approve', summary: 'Winner ' + process.pid, findings: []
+        }, {origin:'claude'});
+        process.send(result, () => process.exit(0));
+      });
+      process.send('ready');`;
+    const children = Array.from({ length: 4 }, () =>
+      spawn(
+        process.execPath,
+        ['--import', import.meta.resolve('tsx'), '--input-type=module', '-e', script],
+        {
+          cwd: PACKAGE_ROOT,
+          env: { ...process.env },
+          stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+        },
+      ),
+    );
+    try {
+      await Promise.all(
+        children.map(
+          child =>
+            new Promise<void>((resolve, reject) => {
+              child.once('error', reject);
+              child.once('message', message => {
+                if (message === 'ready') resolve();
+                else reject(new Error('Missing race barrier'));
+              });
+              child.once('exit', code => {
+                if (code !== 0) reject(new Error(`Race worker exited ${code}`));
+              });
+            }),
+        ),
+      );
+      const results = children.map(
+        child =>
+          new Promise<ReturnType<typeof submitReviewContinuation>>((resolve, reject) => {
+            child.once('message', resolve);
+            child.once('error', reject);
+          }),
+      );
+      for (const child of children) child.send('submit');
+      const completed = await Promise.all(results);
+      const winners = completed.filter(
+        result => (result.data as { status?: string })?.status === 'approved',
+      );
+      expect(winners).toHaveLength(1);
+      expect(
+        completed.filter(result => result.errors[0]?.code === 'REVIEW_CONTINUATION_ALREADY_USED'),
+      ).toHaveLength(3);
+      expect(reviewJobStatus(cwd, id).data).toEqual(winners[0]?.data);
+    } finally {
+      for (const child of children) child.kill();
+    }
+  });
+
   it('refuses output sealed for another job while leaving the original continuation usable', async () => {
     const cwd = project();
     vi.stubEnv(

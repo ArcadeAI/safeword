@@ -32272,7 +32272,7 @@ function readFrontmatterScalar(content, field) {
 var PACKAGED_CAPABILITY_REVISION, PACKAGED_CAPABILITY_SETTINGS, PACKAGED_CAPABILITY_PAIRS;
 var init_capability_catalogue_generated = __esm(() => {
   PACKAGED_CAPABILITY_REVISION = {
-    corpus_digest: "f76edddd71868835e161d06987bce170fb395a71849412dd96c2b6d18c698b24",
+    corpus_digest: "7a496326df08c8260e1ae4aae952cbc5afbbd03a7e50251c6597a5191c0abc7a",
     rubric_digest: "863395c470634f93f595df05282540bfdbb1245849c0999a2c31beac19a70ca2",
     settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d"
   };
@@ -32287,7 +32287,7 @@ var init_capability_catalogue_generated = __esm(() => {
   };
   PACKAGED_CAPABILITY_PAIRS = [
     {
-      corpus_digest: "f76edddd71868835e161d06987bce170fb395a71849412dd96c2b6d18c698b24",
+      corpus_digest: "7a496326df08c8260e1ae4aae952cbc5afbbd03a7e50251c6597a5191c0abc7a",
       rubric_digest: "863395c470634f93f595df05282540bfdbb1245849c0999a2c31beac19a70ca2",
       settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
       author_provider: "anthropic",
@@ -32297,10 +32297,10 @@ var init_capability_catalogue_generated = __esm(() => {
       direction: "not_weaker",
       qualification: "pinned-corpus",
       evidence_date: "2026-10-20",
-      results_digest: "a2cbf52980f88db1962d3f6b59806cd9052fd10f84a7bdb577a2a657b0f72c58"
+      results_digest: "888e99c13d57bed8710fdbe31be1ec5fbb65cc66cf173fe595f5e96424d1ddad"
     },
     {
-      corpus_digest: "f76edddd71868835e161d06987bce170fb395a71849412dd96c2b6d18c698b24",
+      corpus_digest: "7a496326df08c8260e1ae4aae952cbc5afbbd03a7e50251c6597a5191c0abc7a",
       rubric_digest: "863395c470634f93f595df05282540bfdbb1245849c0999a2c31beac19a70ca2",
       settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
       author_provider: "openai",
@@ -32310,7 +32310,7 @@ var init_capability_catalogue_generated = __esm(() => {
       direction: "weaker",
       qualification: "pinned-corpus",
       evidence_date: "2026-10-20",
-      results_digest: "2bd888ccf9e34aacdc17caf777d825b16b586f86b859272e9082d36607a5ca09"
+      results_digest: "9f9e6fc36f92c2af1c15a2430075443d7f43c39dea06d6622ccce4fe9432dd1a"
     }
   ];
 });

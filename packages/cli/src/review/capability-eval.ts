@@ -9,6 +9,10 @@ export interface CapabilityFixture {
   readonly verdict: 'approve' | 'request_changes';
   readonly required: readonly string[];
   readonly forbidden: readonly string[];
+  /** All concept groups must occur in ONE blocking finding; each group lists alternatives.
+   * This is a bounded lexical oracle, not a semantic judge of arbitrary reviewer prose.
+   */
+  readonly finding_groups?: readonly (readonly string[])[];
 }
 
 export interface CapabilityRun {
@@ -45,6 +49,11 @@ export interface SealedCapabilityResults extends CapabilityRevision {
   readonly evidence_date: string;
   readonly runs: readonly CapabilityRun[];
   readonly results_digest: string;
+  readonly rescored_from?: {
+    readonly results_digest: string;
+    readonly corpus_digest: string;
+    readonly scored_at: string;
+  };
 }
 
 function digest(value: unknown): string {
@@ -162,6 +171,37 @@ function currentEvidence(result: SealedCapabilityResults, revision: CapabilityRe
   );
 }
 
+/** Regrade unchanged observations; never represent them as newly collected model runs. */
+export function rescoreCapabilityResults(
+  previous: CapabilityManifest,
+  current: CapabilityManifest,
+  rubrics: Readonly<Record<string, string>>,
+  original: SealedCapabilityResults,
+  scoredAt: string,
+): SealedCapabilityResults {
+  const observationInputs = (manifest: CapabilityManifest) => ({
+    schema_version: manifest.schema_version,
+    floor: manifest.floor,
+    settings: manifest.settings,
+    fixtures: manifest.fixtures.map(fixture => ({ id: fixture.label.id, packet: fixture.packet })),
+  });
+  if (
+    original.rescored_from !== undefined ||
+    !currentEvidence(original, capabilityRevision(previous, rubrics)) ||
+    digest(observationInputs(previous)) !== digest(observationInputs(current))
+  )
+    throw new Error(
+      'Rescoring requires original sealed observations with unchanged packets, rubric, settings and floor',
+    );
+  const { results_digest, ...observations } = original;
+  const evidence = {
+    ...observations,
+    ...capabilityRevision(current, rubrics),
+    rescored_from: { results_digest, corpus_digest: original.corpus_digest, scored_at: scoredAt },
+  };
+  return { ...evidence, results_digest: resultsDigest(evidence) };
+}
+
 export function compareSealedCapabilityResults(
   manifest: CapabilityManifest,
   rubrics: Readonly<Record<string, string>>,
@@ -195,7 +235,22 @@ export function scoreCapabilityRun(fixture: CapabilityFixture, run: CapabilityRu
     (run.verdict === 'request_changes') ===
       normalizedFindings.some(finding => finding.severity === 'error') &&
     fixture.required.every(finding => contains(finding, true)) &&
-    fixture.forbidden.every(finding => !contains(finding, false))
+    fixture.forbidden.every(finding => !contains(finding, false)) &&
+    (fixture.finding_groups === undefined ||
+      (fixture.finding_groups.length > 0 &&
+        normalizedFindings.some(
+          finding =>
+            finding.severity === 'error' &&
+            fixture.finding_groups?.every(group =>
+              group.some(
+                concept =>
+                  concept.trim() !== '' &&
+                  ` ${finding.message.replaceAll(/[^\p{L}\p{N}]+/gu, ' ')}`.includes(
+                    ` ${concept.toLowerCase().replaceAll(/[^\p{L}\p{N}]+/gu, ' ')}`,
+                  ),
+              ),
+            ),
+        )))
   );
 }
 

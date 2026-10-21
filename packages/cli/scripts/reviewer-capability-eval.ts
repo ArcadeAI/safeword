@@ -7,8 +7,10 @@ import nodePath from 'node:path';
 import * as prettier from 'prettier';
 
 import {
+  type CapabilityManifest,
   collectCapabilityResults,
   compareSealedCapabilityResults,
+  rescoreCapabilityResults,
   scoreCapabilityRun,
   type SealedCapabilityResults,
 } from '../src/review/capability-eval.js';
@@ -153,9 +155,28 @@ try {
   else if (command === 'generate') writeFileSync(cataloguePath, await catalogueSource());
   else if (command === 'record' && (reviewer === 'claude' || reviewer === 'codex')) {
     await record(reviewer);
+  } else if (command === 'rescore' && reviewer !== undefined) {
+    const previous = JSON.parse(readFileSync(reviewer, 'utf8')) as CapabilityManifest;
+    // Compute both before writing either: a failed migration leaves both original files intact.
+    const rescored = (['claude', 'codex'] as const).map(agent => ({
+      agent,
+      result: rescoreCapabilityResults(
+        previous,
+        REVIEWER_CAPABILITY_MANIFEST,
+        rubrics,
+        readEvidence(agent),
+        new Date().toISOString(),
+      ),
+    }));
+    for (const { agent, result } of rescored) {
+      writeFileSync(evidencePath(agent), `${JSON.stringify(result, undefined, 2)}\n`);
+      process.stdout.write(
+        `${result.model}: ${passingRuns(result)}/${result.runs.length} rescored observations; collected ${result.evidence_date}; original seal ${result.rescored_from?.results_digest}\n`,
+      );
+    }
   } else {
     throw new Error(
-      'Usage: bun run test:eval:reviewer-capability [verify | generate | record claude | record codex]',
+      'Usage: bun run test:eval:reviewer-capability [verify | generate | record claude | record codex | rescore <previous-manifest.json>]',
     );
   }
 } catch (error) {

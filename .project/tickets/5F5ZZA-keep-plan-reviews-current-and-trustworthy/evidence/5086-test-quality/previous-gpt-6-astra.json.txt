@@ -1,0 +1,214 @@
+{
+  "provider": "openai",
+  "model": "gpt-6-astra",
+  "corpus_digest": "f76edddd71868835e161d06987bce170fb395a71849412dd96c2b6d18c698b24",
+  "rubric_digest": "863395c470634f93f595df05282540bfdbb1245849c0999a2c31beac19a70ca2",
+  "settings_digest": "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
+  "evidence_date": "2026-10-20",
+  "runs": [
+    {
+      "fixture_id": "product-approve",
+      "run": 1,
+      "verdict": "approve",
+      "findings": []
+    },
+    {
+      "fixture_id": "product-approve",
+      "run": 2,
+      "verdict": "approve",
+      "findings": []
+    },
+    {
+      "fixture_id": "product-approve",
+      "run": 3,
+      "verdict": "approve",
+      "findings": []
+    },
+    {
+      "fixture_id": "product-reject",
+      "run": 1,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "error",
+          "message": "spec.md defines only Pending and Approved. The ticket requires completed reviews with blocking findings to display Rejected with the actual findings and permit repair and retry. A two-state display could satisfy this plan's done state while hiding rejection and blocking the required recovery workflow. Include these outcomes in accepted behavior and completion criteria."
+        },
+        {
+          "severity": "error",
+          "message": "Approved requires an authenticated receipt but does not require that receipt to apply to the current plan. After repair, an earlier approval could satisfy this definition and falsely display Approved. Require current applicable approval and explicitly exclude stale approvals after changes."
+        }
+      ]
+    },
+    {
+      "fixture_id": "product-reject",
+      "run": 2,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "error",
+          "message": "spec.md omits Rejected, actual blocking findings, and repair/retry behavior required by CAP100. A completed review with blocking findings could remain Pending or expose no findings or retry path while satisfying the stated done condition. Include these outcomes in accepted behavior and observable completion criteria."
+        },
+        {
+          "severity": "error",
+          "message": "Approved requires an authenticated receipt but does not require that receipt to apply to the current plan and review. After a repair, an implementation could display Approved using a stale receipt while satisfying this plan. Require current approval validity and explicitly prevent stale approvals from approving a repaired plan."
+        }
+      ]
+    },
+    {
+      "fixture_id": "product-reject",
+      "run": 3,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "error",
+          "message": "spec.md omits Rejected status and actual blocking findings. A completed review with blocking findings could remain Pending or hide its findings while satisfying the stated done condition, violating the ticket's required three-state display. Define Rejected and require display of the actual blocking findings."
+        },
+        {
+          "severity": "error",
+          "message": "spec.md omits repair and retry and defines Approved without requiring a current authenticated receipt. After a plan changes, an implementation could display Approved using a stale receipt and still satisfy this plan. Require repair and review retry, with stale approvals unable to approve the repaired plan."
+        }
+      ]
+    },
+    {
+      "fixture_id": "implementation-approve",
+      "run": 1,
+      "verdict": "approve",
+      "findings": [
+        {
+          "severity": "warning",
+          "message": "The proof-confidence sentence is ambiguous: “the CLI integration proof has that limit” appears to assign the isolated mapper test’s wiring limitation to the integration proof. Clarify which boundary the integration proof establishes and what remains outside its confidence."
+        }
+      ]
+    },
+    {
+      "fixture_id": "implementation-approve",
+      "run": 2,
+      "verdict": "approve",
+      "findings": [
+        {
+          "severity": "warning",
+          "message": "The proof paragraph ambiguously says the CLI integration proof shares the isolated mapper test's inability to prove public wiring. Clarify the integration proof's actual confidence limit; the proposed real CLI-to-coordinator exercise otherwise covers that wiring."
+        },
+        {
+          "severity": "info",
+          "message": "Configured principles, personas, surfaces, and architecture records were not supplied. Alignment review is limited to the builder persona, CLI surface, and constraints stated in the provided ticket, scenarios, and Product Plan."
+        }
+      ]
+    },
+    {
+      "fixture_id": "implementation-approve",
+      "run": 3,
+      "verdict": "approve",
+      "findings": []
+    },
+    {
+      "fixture_id": "implementation-reject",
+      "run": 1,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "error",
+          "message": "impl-plan.md permits a reviewer verdict to display Approved before an authenticated approval receipt exists. When a reviewer returns approval but receipt authentication or creation has not completed, this can falsely report Approved, violating the Product Plan and ticket. It also contradicts the plan's own missing-receipt and authorization rules. The Implementation Plan author must remove verdict-only approval and require a current authenticated receipt bound to both job identifier and plan digest. Include a real CLI/coordinator proof that an approving verdict without that receipt cannot display Approved; the accepted product authority has already decided this requirement."
+        }
+      ]
+    },
+    {
+      "fixture_id": "implementation-reject",
+      "run": 2,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "error",
+          "message": "impl-plan.md explicitly allows reviewer verdict output to display Approved before an authenticated approval receipt exists. When the current reviewer returns approve but receipt authentication or persistence has not completed, the CLI can falsely report approval. This contradicts the accepted Product Plan, ticket scope, and the plan's own missing-receipt rule. Implementation Planning must remove verdict-only approval and consistently require a current authenticated receipt bound to the job and plan digest. Include a CLI/coordinator proof where the current verdict is approve but its authenticated receipt is absent; the named positive-approval and stale-receipt checks alone would not detect this bypass."
+        }
+      ]
+    },
+    {
+      "fixture_id": "implementation-reject",
+      "run": 3,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "error",
+          "message": "The decision that a reviewer verdict alone can display Approved before an authenticated receipt exists violates the accepted Product Plan and ticket. When a current reviewer returns approve but no authenticated approval receipt exists, this approach permits the CLI to falsely report Approved. It also contradicts the plan's own missing-receipt and authorization contracts. Implementation Planning must remove verdict-only approval and require a current authenticated receipt bound to both job identifier and plan digest. Include proof through the CLI/coordinator boundary that an approve verdict without that receipt cannot display Approved; the currently named positive-approval and stale-receipt checks do not establish this condition."
+        }
+      ]
+    },
+    {
+      "fixture_id": "execution-approve",
+      "run": 1,
+      "verdict": "approve",
+      "findings": []
+    },
+    {
+      "fixture_id": "execution-approve",
+      "run": 2,
+      "verdict": "approve",
+      "findings": []
+    },
+    {
+      "fixture_id": "execution-approve",
+      "run": 3,
+      "verdict": "approve",
+      "findings": []
+    },
+    {
+      "fixture_id": "execution-reject",
+      "run": 1,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "error",
+          "message": "Slice 1's fixture and completion signal cover only Pending and Approved. All named checks could pass while Rejected, verbatim blocking findings, repaired-plan retry, and stale-receipt rejection are broken. Expand cli-status-integration with concrete CLI/coordinator fixture actions and assertions for all four accepted scenarios, including receipts bound to a different job or different plan bytes. Begin production work with the highest-risk authority-binding RED and specify its observable failure."
+        },
+        {
+          "severity": "error",
+          "message": "Slice 1's instruction to 'implement the mapper and CLI wiring' leaves accepted decision-derived work without executable steps or completion signals. Explicitly map current-job/digest binding, authenticated-only approval, verbatim rejection findings, retry binding, concurrent completion ordering, crash-before-binding behavior, interrupted-review error display, and status-read failure handling to actions, prerequisites, and discriminating assertions. The generic source-of-truth decision status does not account for these accepted decisions."
+        },
+        {
+          "severity": "error",
+          "message": "Slice 1 declares completion when help names only two states, contradicting status-9 and the accepted three-state CLI contract. Its sole proof also specifies no assertions for help text or existing exit-code compatibility. Add the three-state documentation action and concrete help/exit-code checks so completion cannot be reported with Rejected undocumented or CLI compatibility broken."
+        }
+      ]
+    },
+    {
+      "fixture_id": "execution-reject",
+      "run": 2,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "error",
+          "message": "Slice 1 and cli-status-integration specify only Pending and Approved assertions. A CLI that never displays Rejected, drops blocking findings, cannot retry, or accepts a stale receipt could pass every stated assertion. Add concrete fixture actions and expected CLI assertions for accepted scenarios 3 and 4, including verbatim findings and receipts bound to a different job or plan digest. Make all four scenarios part of the slice completion signal."
+        },
+        {
+          "severity": "error",
+          "message": "Slice 1's generic instruction to implement the mapper and CLI wiring does not operationalize the accepted decisions for retry binding, concurrent retries finishing out of order, crashes before binding, interrupted reviews, or failed status reads. The sole decision-status entry covers only the coordinator/receipt source of truth. Explicitly account for each accepted decision as unchanged and map it to owned execution steps and discriminating proof, including fixture setup, actions, and observable results. Otherwise delivery can satisfy the stated completion signal while displaying an obsolete job's approval or mishandling the accepted failure states."
+        },
+        {
+          "severity": "error",
+          "message": "Slice 1's completion signal requires help text naming only two states, whereas status-9 and the accepted CLI contract require all three. Require the documentation edit and its proof to cover Pending, Approved, and Rejected; the current completion signal permits shipping incomplete help while recording the documentation obligation complete."
+        }
+      ]
+    },
+    {
+      "fixture_id": "execution-reject",
+      "run": 3,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "error",
+          "message": "Slice 1 and cli-status-integration cover only Pending and Approved. A CLI that omits Rejected, hides blocking findings, or approves a repaired plan using a stale receipt could pass every specified assertion. Add concrete real CLI/coordinator fixtures and assertions for all four accepted scenarios, including verbatim findings, retry with changed plan bytes, and receipts bound to a different job or digest. Begin with the highest-risk named RED and its explicit failure signal."
+        },
+        {
+          "severity": "error",
+          "message": "Slice 1's executable sequence and completion signal omit accepted obligations despite listing them in the checklist. 'Implement the mapper and CLI wiring' supplies no concrete retry action or execution mechanics for concurrent retries, a crash before binding, interrupted reviews, status-read failures, or exit-code compatibility. Map these accepted requirements to explicit actions, inputs, prerequisites, fixtures, and observable results within the slice. Its completion signal and help-text verification must require all three statuses, rather than only Pending and Approved."
+        },
+        {
+          "severity": "error",
+          "message": "The sole decision-status entry preserves only the coordinator/receipt source of truth, and the generic obligation-owner statement does not account for the remaining accepted decisions. Explicitly retain and map job/digest binding, verbatim error findings, retry history, atomic current-job binding under concurrency and crashes, and interrupted-review behavior to Slice 1 and concrete completion evidence. The existing integration specification cannot substantiate all obligations assigned to it."
+        }
+      ]
+    }
+  ],
+  "results_digest": "ca4cabb73bfbbd00023b00bd5323dbd7713402c7b4e2f271f92d332a0daee1ce"
+}
