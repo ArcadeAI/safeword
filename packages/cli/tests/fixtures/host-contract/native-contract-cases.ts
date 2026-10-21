@@ -41,7 +41,11 @@ const slug = (value: string): string =>
     .replaceAll(/^-|-$/gu, '');
 
 /** Feature rows own coverage; this map preserves existing diagnostic IDs only. */
-function nativeCases(host: 'Cursor' | 'Codex', runtime: 'CLI' | 'IDE', source: string) {
+function nativeCases(
+  host: 'Cursor' | 'Codex' | 'OpenCode V2',
+  runtime: 'CLI' | 'IDE' | 'TUI',
+  source: string,
+) {
   const matrix = JSON.parse(
     readFileSync(nodePath.join(import.meta.dirname, 'targets.json'), 'utf8'),
   ) as {
@@ -49,13 +53,19 @@ function nativeCases(host: 'Cursor' | 'Codex', runtime: 'CLI' | 'IDE', source: s
   };
   const target = matrix.targets.find(
     row =>
-      row.agent === host.toLowerCase() &&
+      (host === 'OpenCode V2'
+        ? row.agent === 'opencode' && row.version.startsWith('2.')
+        : row.agent === host.toLowerCase()) &&
       row.runtimes.includes(runtime) &&
       (host !== 'Cursor' || row.delivery_variants?.includes('native')),
   );
   assert.ok(target, `Missing independently pinned ${host} ${runtime} target`);
   let prefix = host.toLowerCase();
   if (host === 'Cursor' && runtime === 'CLI') prefix += '-cli';
+  const lane =
+    host === 'OpenCode V2'
+      ? `opencode-v2-${target.version}-${runtime.toLowerCase()}`
+      : `${prefix}-${target.version}`;
   const defaultVersion = host === 'Codex' ? target.version : undefined;
   const document = new Parser(
     new AstBuilder(IdGenerator.incrementing()),
@@ -91,7 +101,7 @@ function nativeCases(host: 'Cursor' | 'Codex', runtime: 'CLI' | 'IDE', source: s
         const qualifierSuffix = qualifiers ? `-${slug(qualifiers)}` : '';
         return [
           {
-            id: `${prefix}-${target.version}-${suffix}${qualifierSuffix}`,
+            id: `${lane}-${suffix}${qualifierSuffix}`,
             scenario: scenario.name,
             version: target.version,
             runtime,
@@ -122,4 +132,15 @@ export function cursorIdeCases(source = readFileSync(hostContractFeature, 'utf8'
 
 export function codexCases(source = readFileSync(hostContractFeature, 'utf8')) {
   return nativeCases('Codex', 'CLI', source);
+}
+
+/** Initial denied-action component only; this cannot certify the full V2 group. */
+export function openCodeV2GuardCases(source = readFileSync(hostContractFeature, 'utf8')) {
+  const cases = (['CLI', 'TUI'] as const).flatMap(runtime =>
+    nativeCases('OpenCode V2', runtime, source)
+      .filter(row => row.scenario === 'A denied action has no side effect')
+      .map(row => ({ ...row, expectedFailure: 'NATIVE_OPENCODE_V2_GUARD_MISSING' })),
+  );
+  assert.ok(cases.length, 'No contracted OpenCode V2 guard cases');
+  return cases;
 }

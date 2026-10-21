@@ -1,0 +1,8 @@
+{
+  "name": "safeword-opencode-v2-bootstrap",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./index.mjs",
+  "safewordBootstrap": true
+}

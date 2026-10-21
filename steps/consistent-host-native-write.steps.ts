@@ -7,12 +7,17 @@ import { CursorNativeWriteActor } from '../packages/cli/tests/helpers/cursor-nat
 import { CursorCliWriteActor } from '../packages/cli/tests/helpers/cursor-cli-write.js';
 import { CodexNativeWriteActor } from '../packages/cli/tests/helpers/codex-native-write.js';
 import type { CodexGuardFixture } from '../packages/cli/tests/helpers/codex-native-continuation.js';
+import {
+  OpenCodeNativeWriteActor,
+  type OpenCodeNativeFixture,
+} from '../packages/cli/tests/helpers/opencode-native-write.js';
 import type { CursorNativeFixtureConfig } from '../packages/cli/tests/helpers/cursor-native-window.js';
 import type { SafewordWorld } from './world.js';
 import './world.js';
 
 interface WriteWorld extends SafewordWorld {
-  nativeWrite?: CursorNativeWriteActor | CursorCliWriteActor | CodexNativeWriteActor;
+  nativeWrite?:
+    CursorNativeWriteActor | CursorCliWriteActor | CodexNativeWriteActor | OpenCodeNativeWriteActor;
 }
 function actor(world: WriteWorld): NonNullable<WriteWorld['nativeWrite']> {
   assert.ok(world.nativeWrite, 'Native write fixture must be ready');
@@ -26,8 +31,20 @@ Given(
       cursorFixtureFile?: string;
       cursorCli?: string;
       codexGuardFixtureFile?: string;
+      opencodeFixtureFile?: string;
     };
-    if (host === 'Codex') {
+    if (host === 'OpenCode V2') {
+      assert.ok(parameters.opencodeFixtureFile);
+      const fixture = JSON.parse(
+        readFileSync(parameters.opencodeFixtureFile, 'utf8'),
+      ) as OpenCodeNativeFixture;
+      const contrast = new OpenCodeNativeWriteActor(fixture);
+      await contrast.prepare(host, version, runtime);
+      contrast.setPolicy('allowed');
+      await contrast.attempt();
+      contrast.assertAllowedControl();
+      this.nativeWrite = new OpenCodeNativeWriteActor(fixture);
+    } else if (host === 'Codex') {
       assert.ok(parameters.codexGuardFixtureFile);
       this.nativeWrite = new CodexNativeWriteActor(
         JSON.parse(readFileSync(parameters.codexGuardFixtureFile, 'utf8')) as CodexGuardFixture,

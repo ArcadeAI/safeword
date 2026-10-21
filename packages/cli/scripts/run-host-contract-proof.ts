@@ -8,6 +8,7 @@ import {
   codexCases,
   cursorCliCases,
   cursorIdeCases,
+  openCodeV2GuardCases,
 } from '../tests/fixtures/host-contract/native-contract-cases.js';
 
 interface StepResult {
@@ -41,7 +42,7 @@ function cursorTargetVersion(repoRoot: string, runtime: string): string {
 function assertActualRow(
   repoRoot: string,
   line: number,
-  cursor: boolean,
+  host: 'Cursor' | 'Codex' | 'OpenCode V2',
   runtime = 'IDE',
   expectedVersion?: string,
 ): void {
@@ -53,8 +54,8 @@ function assertActualRow(
   assert.ok(row);
   const cells = row.split('|').map(cell => cell.trim());
   if (expectedVersion) assert.equal(cells[2], expectedVersion);
-  assert.equal(cells[1], cursor ? 'Cursor' : 'Codex');
-  if (cursor) {
+  assert.equal(cells[1], host);
+  if (host === 'Cursor') {
     assert.equal(cells[2], cursorTargetVersion(repoRoot, runtime));
     if (cells.length !== 4) assert.equal(cells[3], runtime);
   }
@@ -82,7 +83,7 @@ function nativeResult(
   population: {
     cases: ReturnType<typeof cursorCliCases>;
     runtime: string;
-    host: 'Cursor' | 'Codex';
+    host: 'Cursor' | 'Codex' | 'OpenCode V2';
   },
 ): number {
   const { cases, runtime, host } = population;
@@ -100,7 +101,7 @@ function nativeResult(
     assertActualRow(
       repoRoot,
       scenario.line,
-      host === 'Cursor',
+      host,
       required.runtime,
       portable ? undefined : required.version,
     );
@@ -171,11 +172,25 @@ function nativeGroupResult(
       runtime: 'CLI',
       host: 'Codex',
     });
+  if (proof === 'native-opencode') {
+    const result = nativeResult(repoRoot, report, scenarios, status, {
+      cases: openCodeV2GuardCases(),
+      runtime: 'CLI/TUI',
+      host: 'OpenCode V2',
+    });
+    if (result !== 0) return result;
+    console.error(
+      'HOST_CONTRACT_PROOF_INCOMPLETE: OpenCode catalogue, workers and remaining runtime cases are required',
+    );
+    return 3;
+  }
   return undefined;
 }
 
 function nativeProofTimeout(proof: string | undefined): number {
-  if (['native-cursor', 'native-cursor-cli', 'native-codex'].includes(proof ?? ''))
+  if (
+    ['native-cursor', 'native-cursor-cli', 'native-codex', 'native-opencode'].includes(proof ?? '')
+  )
     return 1_800_000;
   if (proof === 'native-cursor-continuation') return 1_020_000;
   return 540_000;
@@ -196,11 +211,11 @@ const nativeCases = {
 
 function assertNativeRow(repoRoot: string, line: number, proof: string): void {
   if (proof === 'native-codex-continuation') {
-    assertActualRow(repoRoot, line, false, 'CLI', '0.160.0');
+    assertActualRow(repoRoot, line, 'Codex', 'CLI', '0.160.0');
     return;
   }
   if (proof !== 'native-cursor-continuation') {
-    assertActualRow(repoRoot, line, proof === 'native-cursor');
+    assertActualRow(repoRoot, line, proof === 'native-cursor' ? 'Cursor' : 'Codex');
     return;
   }
   const cells = readFileSync(
@@ -224,6 +239,7 @@ function main(): number {
       'native-cursor-cli',
       'native-cursor-continuation',
       'native-codex-continuation',
+      'native-opencode',
     ].includes(proof ?? ''),
   );
   assert.deepEqual(args, ['--proof', proof, '--require-targets']);
@@ -292,4 +308,15 @@ function main(): number {
   return 3;
 }
 
-process.exitCode = main();
+function runProof(): number {
+  try {
+    return main();
+  } catch (error) {
+    console.error(
+      `HOST_CONTRACT_PROOF_UNAVAILABLE: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return 3;
+  }
+}
+
+process.exitCode = runProof();
