@@ -2804,7 +2804,10 @@ Given(
       installPath: string;
     };
     writeStatusProofV2(this.lifecycle.configRoot ?? '', this.lifecycle.project, state.installPath);
-    this.lifecycle.configTreeSnapshot = snapshotClaudeConfig(this.lifecycle.configRoot ?? '');
+    this.lifecycle.configTreeSnapshot = snapshotClaudeConfig(
+      this.lifecycle.configRoot ?? '',
+      this.lifecycle.project,
+    );
   },
 );
 
@@ -3576,10 +3579,18 @@ Then(
   function (this: NativeClaudePluginWorld, _scope: string) {
     assert.ok(this.lifecycle);
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+    const configRoot = this.lifecycle.configRoot ?? '';
     assert.equal(
-      snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
+      snapshotClaudeConfig(configRoot, this.lifecycle.project),
       this.lifecycle.configTreeSnapshot,
     );
+    const marker = JSON.parse(
+      readFileSync(
+        lifecycleStatePath(configRoot, this.lifecycle.project, 'plugin-mode-v2.json'),
+        'utf8',
+      ),
+    ) as { state?: string };
+    assert.equal(marker.state, 'clean');
   },
 );
 

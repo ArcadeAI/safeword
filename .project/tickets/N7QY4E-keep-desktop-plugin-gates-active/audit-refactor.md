@@ -11,6 +11,7 @@ a repository-wide cleanup.
 - [x] A2: Split the status outline's stale-version and wrong-manifest-digest examples so each named input is constructed.
 - [x] A3: Documented semantic skill verification versus byte-exact runtime/template verification in the configured public docs and architecture description.
 - [x] A4: Added malformed-metadata cases through the real dispatcher and profile observer; structured approval/no proof and errored health are required.
+- [x] A5: The wider scope lane exposed two cleanup snapshot regressions from the earlier inclusive-snapshot improvement. They reproduce with R2 reverted: confirmed cleanup creates the permitted current-project marker. Both snapshots now exclude exactly that marker and separately require its `clean` state; read-only and rejection snapshots remain inclusive. The four targeted cleanup/damaged-cache examples pass. An initial command-adapter failure did not reproduce in the isolated damaged-cache examples; no production change was made for it.
 
 ## Refactor ledger, in dependency order
 
@@ -20,7 +21,7 @@ a repository-wide cleanup.
 
 ## Mechanical audit evidence
 
-- Config-drift check passes; dependency-cruiser reports no violations across 81 modules and 117 dependencies.
+- Config-drift check passes; the final dependency-cruiser run reports no violations across 82 modules and 119 dependencies, including the extracted test helper.
 - Changed learnings pass their Covers checks; changed domain references produce no findings. No agent configuration changed.
 - Docs sources are configured: README.md and packages/website/src/content/docs. Only the native Claude integrity section is affected; no new dependency or architectural layer is introduced.
 - Explicit ticket selection resolves all three task tickets. None has an implementation plan declaring principle traces, so this check is not applicable.
