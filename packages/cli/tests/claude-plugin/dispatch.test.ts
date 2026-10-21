@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { parse, stringify } from 'yaml';
 
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
 import {
@@ -213,6 +214,73 @@ describe('Claude plugin dispatcher', () => {
   beforeAll(() => {
     requireHistoricalReleaseTags(FIXTURE_VERSIONS);
   });
+
+  it('runs prompt hooks after desktop sync normalizes skill front matter', () => {
+    const projectDirectory = temporary('safeword-plugin-desktop-project-');
+    const pluginData = temporary('safeword-plugin-desktop-data-');
+    const configDirectory = temporary('safeword-plugin-desktop-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-desktop-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    const skillPath = nodePath.join(pluginRoot, 'skills/audit/SKILL.md');
+    const original = readFileSync(skillPath, 'utf8');
+    const normalized = original.replace(
+      /^---\n([\s\S]*?)\n---\n/u,
+      (_header, yaml: string) => `---\n${stringify(parse(yaml), { lineWidth: 0 })}---\n`,
+    );
+    expect(normalized).not.toBe(original);
+    writeFileSync(skillPath, normalized);
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'desktop', {
+      pluginRoot,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).not.toContain('damaged native plugin cache');
+    expect(result.stdout).not.toContain('No Safeword hook result was applied');
+    expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(true);
+  });
+
+  it.each(['metadata', 'body', 'runtime'])(
+    'rejects changed %s after desktop sync normalizes a skill',
+    mutation => {
+      const projectDirectory = temporary('safeword-plugin-desktop-damage-project-');
+      const pluginData = temporary('safeword-plugin-desktop-damage-data-');
+      const configDirectory = temporary('safeword-plugin-desktop-damage-config-');
+      const pluginRoot = nodePath.join(temporary('safeword-plugin-desktop-damage-root-'), 'plugin');
+      cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+      const skillPath = nodePath.join(pluginRoot, 'skills/audit/SKILL.md');
+      let normalized = readFileSync(skillPath, 'utf8').replace(
+        /^---\n([\s\S]*?)\n---\n/u,
+        (_header, yaml: string) => `---\n${stringify(parse(yaml), { lineWidth: 0 })}---\n`,
+      );
+      if (mutation === 'metadata') normalized = normalized.replace('name: audit', 'name: changed');
+      else if (mutation === 'body') normalized += '\nChanged instructions.\n';
+      writeFileSync(skillPath, normalized);
+      if (mutation === 'runtime') {
+        writeFileSync(nodePath.join(pluginRoot, 'runtime/cli.js'), '// changed runtime\n');
+      }
+
+      const result = dispatchEvent(
+        projectDirectory,
+        pluginData,
+        configDirectory,
+        'desktop-damage',
+        {
+          event: 'PreToolUse',
+          pluginRoot,
+        },
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        hookSpecificOutput: {
+          permissionDecision: 'ask',
+          permissionDecisionReason: expect.stringContaining('asset failed integrity validation'),
+        },
+      });
+      expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
+    },
+  );
 
   it('passes the bundled CLI path to aggregate child hooks', () => {
     const projectDirectory = temporary('safeword-plugin-project-');

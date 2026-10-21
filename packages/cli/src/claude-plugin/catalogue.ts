@@ -9,6 +9,7 @@ import { normalizePluginBundle } from '../plugin-bundle.js';
 import { assertNativePluginRuntimeAuthority } from '../plugin-runtime-authority.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { SETTINGS_HOOKS } from '../templates/config.js';
+import { claudeSkillSha256 } from './asset-integrity.js';
 import {
   adaptHookValue,
   pluginEventGroupEvents,
@@ -402,6 +403,7 @@ function pluginInventory(
       assets: assets.map(asset => ({
         path: asset.relativePath,
         sha256: createHash('sha256').update(asset.content).digest('hex'),
+        skill_sha256: claudeSkillSha256(asset.relativePath, asset.content),
       })),
     },
     undefined,

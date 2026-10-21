@@ -10,6 +10,7 @@ import {
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { parse, stringify } from 'yaml';
 
 vi.mock('node:fs', { spy: true });
 
@@ -456,6 +457,48 @@ describe('Claude marketplace update enrollment', () => {
       installations: [{ scope: 'project', health: 'current' }],
     });
   });
+
+  it('reports healthy after desktop sync normalizes skill front matter', () => {
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, { cacheMetadata: true });
+    const skillPath = nodePath.join(
+      nodePath.dirname(project),
+      'cached-plugin/skills/audit/SKILL.md',
+    );
+    const original = readFileSync(skillPath, 'utf8');
+    const normalized = original.replace(
+      /^---\n([\s\S]*?)\n---\n/u,
+      (_header, yaml: string) => `---\n${stringify(parse(yaml), { lineWidth: 0 })}---\n`,
+    );
+    expect(normalized).not.toBe(original);
+    writeFileSync(skillPath, normalized);
+
+    expect(observeApplicableClaudePlugins(project)).toMatchObject({
+      status: 'observed',
+      installations: [{ scope: 'project', health: 'current' }],
+    });
+  });
+
+  it.each(['name: changed', 'name: audit\nallowed-tools: Bash'])(
+    'reports damaged skills when metadata changes: %s',
+    replacement => {
+      const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
+        cacheMetadata: true,
+      });
+      const skillPath = nodePath.join(
+        nodePath.dirname(project),
+        'cached-plugin/skills/audit/SKILL.md',
+      );
+      writeFileSync(
+        skillPath,
+        readFileSync(skillPath, 'utf8').replace('name: audit', () => replacement),
+      );
+
+      expect(observeApplicableClaudePlugins(project)).toMatchObject({
+        status: 'observed',
+        installations: [{ health: 'errored' }],
+      });
+    },
+  );
 
   it('treats an omitted Claude plugin scope as the default user scope', () => {
     const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
