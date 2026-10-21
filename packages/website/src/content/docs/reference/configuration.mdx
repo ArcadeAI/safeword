@@ -240,9 +240,10 @@ its disclosed reduced assurance, or move authoritative planning to a supported
 Claude host. Do not set an author-model environment variable to manufacture
 verified identity.
 
-Cursor authors need an explicit compatible independent route in
-`crossAgentReviewRoutes.cursor`; the built-in chain has no compatible reviewer
-for Cursor. The same verified-author restriction applies to Cursor planning.
+Cursor planning uses the built-in Claude/Codex chain unless explicit routes
+replace it. The same verified-author restriction applies to Cursor planning.
+Non-planning Cursor reviews need an explicit compatible independent route in
+`crossAgentReviewRoutes.cursor`; their legacy chain has no compatible reviewer.
 
 Planning fallback requires at least one actual independent attempt with a
 typed failure and exhaustion of every stronger route. All-skipped routes stay
