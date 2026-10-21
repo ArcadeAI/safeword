@@ -68,7 +68,7 @@ interface NativeClaudePluginWorld {
     data: string;
     project: string;
     result?: { status: number; output: string };
-    legacySentinel?: string;
+    legacyResults?: { status: number; stdout: string; stderr: string }[];
     effectLog?: string;
     priorProof?: string;
     lifecycleLease?: { path: string; content: string };
@@ -88,6 +88,61 @@ function pluginCachePath(root: string): string {
 function executionProofV2Path(pluginData: string, project: string): string {
   const digest = createHash('sha256').update(realpathSync(project)).digest('hex');
   return nodePath.join(pluginData, 'execution-proofs-v2', `${digest}.json`);
+}
+
+function installLegacyConfigGuard(world: NativeClaudePluginWorld): void {
+  const fixture = world.cacheFixture;
+  assert.ok(fixture);
+  const fingerprint = CLAUDE_HISTORICAL_CATALOGUE.current.hooks.PreToolUse.find(candidate =>
+    JSON.stringify(historicalHookEntry(candidate)).includes('pre-tool-config-guard'),
+  );
+  assert.ok(fingerprint, 'catalogue has no accepted legacy config guard');
+  const entry = historicalHookEntry(fingerprint);
+  const reference = /\.safeword\/hooks\/[\w./-]+/u.exec(JSON.stringify(entry))?.[0];
+  assert.ok(reference, 'accepted legacy config guard has no project hook path');
+  const target = nodePath.join(fixture.project, reference);
+  mkdirSync(nodePath.dirname(target), { recursive: true });
+  cpSync(
+    nodePath.join(REPO_ROOT, 'packages/cli/templates', reference.replace('.safeword/', '')),
+    target,
+  );
+  const settings = nodePath.join(fixture.project, '.claude/settings.json');
+  mkdirSync(nodePath.dirname(settings), { recursive: true });
+  writeFileSync(settings, `${JSON.stringify({ hooks: { PreToolUse: [entry] } })}\n`);
+  fixture.legacyResults = [];
+}
+
+// Probe the registered legacy protection after the attempted plugin event, even when that
+// event is a prompt rather than a tool use. The response must come from the real hook process.
+function executeLegacyConfigGuard(world: NativeClaudePluginWorld): void {
+  const fixture = world.cacheFixture;
+  if (fixture?.legacyResults === undefined) return;
+  const settings = JSON.parse(
+    readFileSync(nodePath.join(fixture.project, '.claude/settings.json'), 'utf8'),
+  ) as { hooks: { PreToolUse: { hooks: { command: string }[] }[] } };
+  const command = settings.hooks.PreToolUse[0]?.hooks[0]?.command;
+  assert.ok(command, 'registered legacy config guard command is missing');
+  const result = spawnSync('bash', ['-c', command], {
+    cwd: fixture.project,
+    env: {
+      PATH: process.env.PATH,
+      HOME: fixture.root,
+      CLAUDE_PROJECT_DIR: fixture.project,
+      CLAUDE_CONFIG_DIR: nodePath.join(fixture.root, 'claude-config'),
+    },
+    encoding: 'utf8',
+    input: JSON.stringify({
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Edit',
+      tool_input: { file_path: nodePath.join(fixture.project, 'eslint.config.ts') },
+      session_id: 'authority-test',
+    }),
+  });
+  fixture.legacyResults.push({
+    status: result.status ?? 1,
+    stdout: result.stdout,
+    stderr: result.error?.message ?? result.stderr,
+  });
 }
 
 After(function (this: NativeClaudePluginWorld) {
@@ -317,6 +372,7 @@ When('a Safeword plugin hook executes', function (this: NativeClaudePluginWorld)
     output:
       result.status === 0 ? (result.stdout ?? '') : `${result.stdout ?? ''}${result.stderr ?? ''}`,
   };
+  executeLegacyConfigGuard(this);
 });
 
 When('its generated SessionStart entrypoint executes', function (this: NativeClaudePluginWorld) {
@@ -445,10 +501,6 @@ Given(
     const data = nodePath.join(root, 'data');
     const project = nodePath.join(root, 'project');
     cpSync(PLUGIN_ROOT, plugin, { recursive: true });
-    const legacySentinel = nodePath.join(project, '.safeword', 'hooks', 'legacy.ts');
-    mkdirSync(nodePath.dirname(legacySentinel), { recursive: true });
-    writeFileSync(legacySentinel, 'legacy protection remains authoritative\n');
-
     const eventGroupsPath = nodePath.join(plugin, 'runtime', 'event-groups.json');
     const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
       groups: { UserPromptSubmit: { hooks: { type: string; command: string }[] }[] };
@@ -475,7 +527,8 @@ Given(
     };
     identity.inventory_sha256 = createHash('sha256').update(inventoryContent).digest('hex');
     writeFileSync(identityPath, `${JSON.stringify(identity, undefined, 2)}\n`);
-    this.cacheFixture = { root, plugin, data, project, legacySentinel };
+    this.cacheFixture = { root, plugin, data, project };
+    installLegacyConfigGuard(this);
   },
 );
 
@@ -612,9 +665,6 @@ Given(
     const data = nodePath.join(root, 'data');
     const project = nodePath.join(root, 'project');
     cpSync(PLUGIN_ROOT, plugin, { recursive: true });
-    const legacySentinel = nodePath.join(project, '.safeword', 'hooks', 'legacy.ts');
-    mkdirSync(nodePath.dirname(legacySentinel), { recursive: true });
-    writeFileSync(legacySentinel, 'legacy protection remains authoritative\n');
     if (damage === 'a mismatched hook manifest') {
       appendFileSync(nodePath.join(plugin, 'hooks', 'hooks.json'), ' ');
     } else if (damage === 'a missing hook entrypoint') {
@@ -625,7 +675,8 @@ Given(
         '\n// damaged\n',
       );
     }
-    this.cacheFixture = { root, plugin, data, project, legacySentinel };
+    this.cacheFixture = { root, plugin, data, project };
+    installLegacyConfigGuard(this);
   },
 );
 
@@ -653,6 +704,7 @@ When(
       status: result.status ?? 1,
       output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
     };
+    executeLegacyConfigGuard(this);
   },
 );
 
@@ -669,12 +721,31 @@ Then(
   },
 );
 
-Then('viable legacy protection remains authoritative', function (this: NativeClaudePluginWorld) {
-  assert.equal(
-    readFileSync(this.cacheFixture?.legacySentinel ?? '', 'utf8'),
-    'legacy protection remains authoritative\n',
+function assertLegacyConfigProtection(world: NativeClaudePluginWorld): void {
+  const results = world.cacheFixture?.legacyResults ?? [];
+  assert.equal(results.length, 1, 'expected one executed legacy config guard');
+  const result = results[0];
+  assert.ok(result);
+  assert.equal(result.status, 0, result.stderr);
+  const response = JSON.parse(result.stdout) as {
+    hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
+  };
+  assert.equal(response.hookSpecificOutput?.permissionDecision, 'ask');
+  assert.match(response.hookSpecificOutput?.permissionDecisionReason ?? '', /ESLint config/u);
+  assert.ok(world.cacheFixture);
+  assert.ok(
+    response.hookSpecificOutput?.permissionDecisionReason?.includes(
+      nodePath.join(world.cacheFixture.project, 'eslint.config.ts'),
+    ),
   );
-});
+}
+
+Then(
+  'the registered legacy guard still requests approval for a protected config edit',
+  function (this: NativeClaudePluginWorld) {
+    assertLegacyConfigProtection(this);
+  },
+);
 
 function writeFakeClaude(fakeBin: string): void {
   const fakeClaude = nodePath.join(fakeBin, 'claude');
@@ -1666,6 +1737,7 @@ function runAuthorityHook(world: NativeClaudePluginWorld, event: string): void {
     status: result.status ?? 1,
     output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
   };
+  if (event === 'PreToolUse') executeLegacyConfigGuard(world);
 }
 
 Given(
@@ -1697,24 +1769,7 @@ Given(
 Given(
   'a viable recognized legacy PreToolUse hook and the matching plugin hook coexist',
   function (this: NativeClaudePluginWorld) {
-    assert.ok(this.cacheFixture?.effectLog);
-    const fingerprint = CLAUDE_HISTORICAL_CATALOGUE.current.hooks.PreToolUse.find(candidate =>
-      JSON.stringify(historicalHookEntry(candidate)).includes('pre-tool-quality'),
-    );
-    assert.ok(fingerprint, 'catalogue has no accepted pre-tool-quality hook');
-    const acceptedHook = historicalHookEntry(fingerprint);
-    const hookReference = /\.safeword\/hooks\/[\w./-]+/u.exec(JSON.stringify(acceptedHook))?.[0];
-    assert.ok(hookReference, 'accepted PreToolUse hook has no project hook path');
-    const legacyHook = nodePath.join(this.cacheFixture.project, hookReference);
-    const settings = nodePath.join(this.cacheFixture.project, '.claude/settings.json');
-    mkdirSync(nodePath.dirname(legacyHook), { recursive: true });
-    mkdirSync(nodePath.dirname(settings), { recursive: true });
-    cpSync(
-      nodePath.join(REPO_ROOT, 'packages/cli/templates', hookReference.replace('.safeword/', '')),
-      legacyHook,
-    );
-    writeFileSync(settings, `${JSON.stringify({ hooks: { PreToolUse: [acceptedHook] } })}\n`);
-    writeFileSync(this.cacheFixture.effectLog, 'legacy\n');
+    installLegacyConfigGuard(this);
   },
 );
 
@@ -1735,9 +1790,10 @@ Then(
 );
 
 Then(
-  'the protected functional effect occurs exactly once through the viable legacy hook',
+  'the registered legacy guard requests approval once without duplicate plugin work',
   function (this: NativeClaudePluginWorld) {
-    assert.equal(readFileSync(this.cacheFixture?.effectLog ?? '', 'utf8'), 'legacy\n');
+    assertLegacyConfigProtection(this);
+    assert.equal(existsSync(this.cacheFixture?.effectLog ?? ''), false, 'duplicate plugin effect');
   },
 );
 

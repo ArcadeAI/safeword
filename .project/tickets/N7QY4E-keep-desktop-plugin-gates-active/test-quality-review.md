@@ -1,5 +1,9 @@
 # Test quality review for issue 6004
 
+Update: M1 was repaired in task `4RGYMY-prove-legacy-protection-executes` after
+this assessment. Its verification report records real guard execution and
+fault probes. M2, M3, and the other findings remain as assessed below.
+
 **Findings:** 3 must-fix BDD proof gaps, 8 should-strengthen findings, 3 looks-good findings.
 
 The new regression tests discriminate between correct and broken behavior.

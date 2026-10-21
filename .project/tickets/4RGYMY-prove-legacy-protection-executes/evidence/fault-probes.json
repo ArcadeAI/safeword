@@ -1,0 +1,34 @@
+[
+  {
+    "variant": "baseline",
+    "exit_code": 0,
+    "summary": [
+      "5 scenarios (5 passed)",
+      "26 steps (26 passed)"
+    ]
+  },
+  {
+    "variant": "no-legacy-execution",
+    "exit_code": 1,
+    "summary": [
+      "5 scenarios (5 failed)",
+      "26 steps (21 passed, 5 failed)"
+    ]
+  },
+  {
+    "variant": "legacy-exits-without-protection",
+    "exit_code": 1,
+    "summary": [
+      "5 scenarios (5 failed)",
+      "26 steps (21 passed, 5 failed)"
+    ]
+  },
+  {
+    "variant": "duplicate-plugin-effect",
+    "exit_code": 1,
+    "summary": [
+      "5 scenarios (4 passed, 1 failed)",
+      "26 steps (25 passed, 1 failed)"
+    ]
+  }
+]

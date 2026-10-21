@@ -163,7 +163,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Given an intact cached UserPromptSubmit event whose final sibling hook fails
       When a Safeword plugin hook executes
       Then the aggregate event blocks the prompt without writing execution proof
-      And viable legacy protection remains authoritative
+      And the registered legacy guard still requests approval for a protected config edit
 
     @rejection
     Scenario: A generated plugin reference cannot depend on a materialized project framework copy
@@ -226,7 +226,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       And a viable recognized legacy PreToolUse hook and the matching plugin hook coexist
       When the plugin PreToolUse hook executes
       Then the bundled identity is validated without writing new cleanup-authorizing proof
-      And the protected functional effect occurs exactly once through the viable legacy hook
+      And the registered legacy guard requests approval once without duplicate plugin work
 
     Scenario: Plugin hooks remain functional for events without viable legacy authority
       Given no viable legacy SessionStart hook exists
@@ -299,7 +299,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Given the installed plugin cache has <damage>
       When its generated UserPromptSubmit entrypoint executes
       Then the hook reports the damaged cache without blocking and writes no proof
-      And viable legacy protection remains authoritative
+      And the registered legacy guard still requests approval for a protected config edit
 
       Examples:
         | damage                    |
