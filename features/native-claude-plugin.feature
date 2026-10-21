@@ -250,8 +250,8 @@ Feature: Ship Safeword as a native Claude Code plugin
         | bound to a different canonical cache path |
 
     Scenario: The loaded plugin becomes authoritative in the same task after cleanup
-      Given the current task has exact plugin proof and is in post-cleanup state with no matching legacy authority
-      When the next matching plugin event executes
+      Given viable legacy protection and the current plugin have run in the same session
+      When cleanup completes and the next matching plugin event executes
       Then the plugin functional effect occurs exactly once
       And no plugin reload or task restart is required
 
