@@ -2,6 +2,8 @@
 
 ## Results
 
+**PR Scope:** ✅ The M2 commit contains the existing handover scenario, its bindings, and supporting assessment/evidence only. This branch also retains the earlier issue 6004 fix and M1 repair.
+
 - RED: the previous fresh fixture fails the stronger requirement with `the handover must execute real cleanup`.
 - GREEN: the repaired scenario passes. The complete native feature passes 63 scenarios and 3,013 steps.
 - Root lint, Gherkin validation, and CLI typecheck pass.
