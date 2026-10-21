@@ -2,23 +2,29 @@
 
 ## Test-quality follow-up (2026-10-21)
 
+Audit-fix commit 536dd1fe7aaf2eb660f7fac108cef396fe1b54ed passed every job in
+[CI run 39686478082](https://github.com/ArcadeAI/safeword/actions/runs/39686478082).
+Both linter versions passed 37 focused Go tests. The current-linter job also
+passed 12 installed-hook golden-path tests in shuffled order (seed 4733).
+
 Seven new automated cases and five strengthened policy cases pass 37/37 locally
 with golangci-lint v2.13.2 and Go 1.25.14. ESLint and TypeScript checks pass.
-The remote results below describe the earlier revision, before these tests.
+The final remote results below cover the audit-fix revision and all these tests.
 
 Follow-up remote proof for commit f490b07272bc9c89cdd54582515c1168c4f16423:
 [CI run 39685589843](https://github.com/ArcadeAI/safeword/actions/runs/39685589843).
 Both Linux Go jobs passed 37/37 tests across three suites: golangci-lint v2.0.0
 and v2.13.2. This also verifies the child-only file-size-limit test on Linux.
-The broader CI workflow was still running when these job results were recorded;
-no claim is made that the complete follow-up CI run passed.
+That entire workflow subsequently passed, including both full Node suites.
 
 The full local CLI run completed with 11,628 passed, 12 skipped, and three
 subprocess-timeout failures in the unchanged stop-hook transcript and
 PR-readiness delivery suites. All three Go suites passed in that full run.
 An isolated rerun together with the older-linter lane could not acquire the
 shared test lock: PID 48551 in worktree ffcf held it for the full 60-second
-wait, and no test started. Repeatability of the three timeouts is unresolved.
+wait, and no test started. The three timeout failures did not reproduce in
+either passing remote full run; the latest remote evidence supersedes the
+local verification limitation.
 
 Two deliberately broken implementations were tested temporarily and restored:
 
@@ -29,21 +35,21 @@ These are two targeted mutation checks, not an exhaustive mutation score. The
 new cases cover existing behavior; no claim is made that every added test
 preceded implementation. No new Gherkin scenarios were added.
 
-## Earlier remote verification
+## Final remote verification
 
-Final remote result: **SUCCESS** for e4a3b079997efa91df1fad43d27e3026c7d5e258.
-Run: https://github.com/ArcadeAI/safeword/actions/runs/39667499218
+Final remote result: **SUCCESS** for 536dd1fe7aaf2eb660f7fac108cef396fe1b54ed.
+Run: https://github.com/ArcadeAI/safeword/actions/runs/39686478082
 Machine result: remote-result.json. Audit/refactor detail: remote-verification.md.
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 11626/11626 CLI tests pass on both Node 22.23.2 and 24.18.1, with 10 explicit skips per lane. Relay and collector suites pass; both physical-install proofs pass; 83/83 release tests pass per lane. Both Go compatibility lanes pass 30/30 tests.
+**Test Suite:** ✓ 11633/11633 CLI tests pass on both Node 22.23.2 and 24.18.1, with 10 explicit skips per lane. Relay and collector suites pass; both physical-install proofs pass; 83/83 release tests pass per lane. Both Go compatibility lanes pass 37/37 tests; 12/12 installed-hook golden-path tests also pass in shuffled order.
 **Gherkin:** ✅ Acceptance lane passes — 601/601 scenarios, 11821/11821 steps, and 51/51 proof-tag tests.
 **Build:** ✅ Success — all resolved project build lanes passed.
 **Lint:** ✅ Clean — remote ESLint, Gherkin lint, formatting, Shellcheck and generated-plugin checks pass.
 **Typecheck:** ✅ Clean — remote typechecks pass after the final source changes.
 **Scenarios:** ⏭️ Skipped — this bug-investigated task uses regression tests and a manual proof matrix, with no separate scenario artifact.
-**Refactor:** ✅ Completed — 731e56450 extracts YAML parsing; 258accff3 names stream character limits. Each was independently tested and committed. The scout ledger records declined extractions.
+**Refactor:** ✅ Completed — 731e56450 extracts YAML parsing; 258accff3 names stream character limits. Each was independently tested and committed. 536dd1fe7 isolates installed-hook test fixtures and replaces ineffective assertions. The scout ledger records declined extractions.
 **PR Scope:** ✅ Diff matches ticket scope — Go package loading, configuration preservation, feedback, host wiring, regression proof, generated carriers and directly affected documentation only.
 **Dep Drift:** ✅ Clean — no dependency manifests or lockfiles changed; existing YAML/TOML runtime dependencies are documented in ARCHITECTURE.md.
 **Parent Epic:** N/A
@@ -97,7 +103,7 @@ historical runs before the final compatibility correction.
 | Codex packaged-hook boundary | Final full suite and parameterized warning-plus-findings / oversized-warning checks | Passes remotely on Node 22 and 24 |
 | Cursor after-file-edit boundary | Final lifecycle.test.ts launch/workspace check | Passes remotely; no new feedback delivery claimed |
 | Generated/dogfood copies | Final CI parity, plugin freshness, release and lifecycle tests | Passes remotely |
-| CI compatibility lane | Tool-required v2.0.0/Go 1.24 and v2.13.2/Go 1.25 matrix | 30/30 tests pass in each lane |
+| CI compatibility lane | Tool-required v2.0.0/Go 1.24 and v2.13.2/Go 1.25 matrix | 37/37 tests pass in each lane; 12/12 installed-hook tests also pass in the current-linter lane |
 
 ## Completion state
 

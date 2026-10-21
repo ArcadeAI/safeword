@@ -1,10 +1,11 @@
 # Remote verification and refactor follow-up
 
-Revision under test: e4a3b079997efa91df1fad43d27e3026c7d5e258. Its only change
-from production revision cc1a96e7f690520e10fa90930faf222ee8191611 is architecture
-documentation reconciliation.
+Verified revision: 536dd1fe7aaf2eb660f7fac108cef396fe1b54ed. Changes after the
+earlier verified e4a3b079997efa91df1fad43d27e3026c7d5e258 add stronger regression
+tests, isolated installed-hook fixtures, supporting CI coverage and evidence.
+The runtime implementation is unchanged from that earlier verified revision.
 
-Current run: https://github.com/ArcadeAI/safeword/actions/runs/39667499218
+Current run: https://github.com/ArcadeAI/safeword/actions/runs/39686478082
 
 Previous production run: https://github.com/ArcadeAI/safeword/actions/runs/39664728877
 
@@ -35,9 +36,10 @@ No dependency manifests or lockfiles changed.
 
 Independent follow-up review: APPROVE, Claude/Opus in a separate headless
 process, review a8655cf9-7403-4631-b263-7060959b545d. Receipt:
-followup-review.json. Remaining nonblocking observations concern aggregate
+followup-review.json. Observations at that checkpoint concerned aggregate
 context across multiple edited targets, other registered signal listeners,
-and coverage of partial temporary-file writes. The cap is per lint response;
+and coverage of partial temporary-file writes. The latter now has an automated
+OS-limited write-failure regression test, verified on macOS and Linux. The cap is per lint response;
 it does not promise a global cap over unrelated hook guidance or many targets.
 
 Local follow-up evidence: all 30 Go-focused tests passed after both refactors;
@@ -46,7 +48,7 @@ corrections. An earlier mixed run had three timeouts, which are retained as
 limited local evidence rather than silently counted as passing. Architecture,
 ESLint, typecheck, formatting, parity and generated-surface checks passed.
 
-## Remote result
+## Earlier remote result
 
 The production run passed both Go lanes (30/30 each), CLI contract, lint, parity,
 dependency policy and OpenCode conformance. Its Node 24 CLI suite passed 11625
@@ -71,3 +73,20 @@ evidence commits do not change the verified implementation.
 
 The repository dependency-policy job permits its documented existing advisories;
 its pass does not mean the unrestricted local audit found zero advisories.
+
+## Final audit-fix result
+
+Run 39686478082 passed every job for 536dd1fe7. Both Node lanes passed
+11,633 CLI tests with 10 skips, physical-install proof and 83 release tests.
+Acceptance passed 601 scenarios, 11,821 steps and 51 proof-tag tests. Both Go
+versions passed 37 focused tests; the current-linter job additionally passed
+12 installed-hook tests with shuffled order, seed 4733. All lint, typecheck,
+formatting, architecture, parity, dependency-policy and conformance checks passed.
+
+The audit fixed shared mutable golden-path fixtures, two ineffective no-throw
+assertions, workflow path quoting and stale coverage notes. Its executable
+checks again found no config drift or dependency violations. All actionable
+findings are resolved; the remaining evidence limits are recorded in verify.md.
+The three earlier local timeout failures did not reproduce in the remote full
+suites. remote-result.json contains the final machine receipt. Subsequent
+evidence-only commits do not change the verified test or runtime implementation.

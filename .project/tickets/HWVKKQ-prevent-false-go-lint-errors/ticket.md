@@ -91,3 +91,8 @@ are explicit; CI must provision tools and fail rather than skip the proof lane.
   shuffled-order installed-hook CI proof, corrected workflow path quoting, and
   reconciled the test-coverage notes. Architecture, config drift, actionlint,
   ESLint and TypeScript checks pass. Local proof was lock-blocked; using remote CI.
+- 2026-10-21 Final audit-fix verification passed every job in run 39686478082
+  at 536dd1fe7: 11,633 CLI tests per Node lane, 601 acceptance scenarios,
+  51 proof-tag tests, 83 release tests per lane, 37 tests per Go version and
+  12 shuffled installed-hook tests. Local timeout failures did not reproduce.
+  Audit findings are fixed; evidence limitations remain explicit. No merge or release.

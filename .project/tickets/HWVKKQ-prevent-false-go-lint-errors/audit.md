@@ -62,4 +62,15 @@ CI now exercises the installed Go golden path with shuffled test order in the
 current-linter lane. The v2.0 compatibility lane retains its focused config and
 package fixtures because the full curated preset contains newer linters.
 ESLint and TypeScript pass. The local shuffled run could not acquire worktree
-ffcf's live test lock after 60 seconds; no test started. Remote proof is pending.
+ffcf's live test lock after 60 seconds; no test started.
+
+Remote run 39686478082 verifies audit-fix commit
+536dd1fe7aaf2eb660f7fac108cef396fe1b54ed. The current-linter job passed all
+37 focused Go tests and all 12 installed-hook golden-path tests with shuffle
+seed 4733. The older-linter job also passed 37/37. The complete workflow passed:
+11,633 CLI tests per Node lane, 601 acceptance scenarios, 51 proof-tag tests,
+83 release tests per Node lane, and all static, parity and dependency-policy
+checks. The local timeout cases did not reproduce remotely.
+
+Audit passed with retained nonblocking evidence limits in review-notes.md and
+verify.md. No actionable audit findings remain unresolved in this diff.
