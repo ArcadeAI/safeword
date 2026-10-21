@@ -1058,3 +1058,32 @@ are retained in evidence/cursor-testing-proposal-review/review.md under the tick
 Both original Cucumber reports remain present and all their scenario steps pass.
 No runtime code or scenarios changed; no runtime tests were rerun for this prose
 clarification. This completes the clarification, not the accepted feature.
+
+### 2026-10-21 — Resume Codex continuation proof; shared-runtime mismatch
+
+Resumed the accepted native Codex continuation obligation. Refreshed only the
+disposable codex-guard-KbebbV marketplace's generated package and used the pinned
+0.160.0 native plugin add command to refresh its cache. The hook manifest was
+byte-identical; no hook trust record or regular profile setting was changed.
+
+The existing native guard regression did not start: the package test wrapper
+timed out after 60 seconds waiting for PID 248 in worktree dba0, running an
+execution-plan live test. No concurrent Vitest was launched and that process
+was not interrupted. This is unavailable setup, not failing product evidence.
+
+The attempted new continuation observer/actor patch was rejected before any
+file was written. Installed Safeword coding authorization reports
+canonical_contract_copy_mismatch for .safeword/skills/bdd/PLAN_IMPLEMENTATION.md.
+This checkout's dogfood/template hashes agree (248b11fd…), while the installed
+1.2.0 distribution expects a newer contract (7097df93…). Native marketplace list
+shows the shared safeword source now points at the active dba0 worktree. This
+is not local template drift. No rejected implementation was written elsewhere.
+
+Asked the user whether to keep dba0 as shared plugin owner and align this branch
+with its committed contracts, or restore ffcf as plugin source. No shared runtime
+replacement or foreign-worktree edits were attempted. Source-owned coding
+authorization also reports missing accepted approach/delivery-checklist evidence
+after the authorized plan clarifications; once distribution consistency is
+resolved, refresh the required planning reviews/admission before code edits.
+The repository is unchanged except this record; no new runtime proof or
+feature completion is claimed.
