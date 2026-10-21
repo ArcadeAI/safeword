@@ -15,7 +15,6 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { parse, stringify } from 'yaml';
 
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
 import {
@@ -25,6 +24,7 @@ import {
 import { claudeWatchedSettingsDigest } from '../../src/claude-plugin/migration-state.js';
 import { claudeProofDirectory } from '../../src/claude-plugin/plugin-data.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+import { normalizeClaudeSkillHeader } from '../helpers/claude-skill-header.js';
 import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
 import { blockChildren } from '../helpers/io-failure.js';
 
@@ -223,10 +223,7 @@ describe('Claude plugin dispatcher', () => {
     cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
     const skillPath = nodePath.join(pluginRoot, 'skills/audit/SKILL.md');
     const original = readFileSync(skillPath, 'utf8');
-    const normalized = original.replace(
-      /^---\n([\s\S]*?)\n---\n/u,
-      (_header, yaml: string) => `---\n${stringify(parse(yaml), { lineWidth: 0 })}---\n`,
-    );
+    const normalized = normalizeClaudeSkillHeader(original);
     expect(normalized).not.toBe(original);
     writeFileSync(skillPath, normalized);
 
@@ -263,10 +260,7 @@ describe('Claude plugin dispatcher', () => {
       const pluginRoot = nodePath.join(temporary('safeword-plugin-desktop-damage-root-'), 'plugin');
       cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
       const skillPath = nodePath.join(pluginRoot, 'skills/audit/SKILL.md');
-      let normalized = readFileSync(skillPath, 'utf8').replace(
-        /^---\n([\s\S]*?)\n---\n/u,
-        (_header, yaml: string) => `---\n${stringify(parse(yaml), { lineWidth: 0 })}---\n`,
-      );
+      let normalized = normalizeClaudeSkillHeader(readFileSync(skillPath, 'utf8'));
       switch (mutation) {
         case 'metadata': {
           normalized = normalized.replace('name: audit', 'name: changed');

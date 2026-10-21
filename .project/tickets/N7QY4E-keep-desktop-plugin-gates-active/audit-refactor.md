@@ -15,7 +15,7 @@ a repository-wide cleanup.
 ## Refactor ledger, in dependency order
 
 - [x] R0: Flattened the mutation fixture's auto-fixed nested block and made the runtime case explicit. All 66 dispatcher tests passed before the separate refactor commit.
-- [ ] R1: Extract the repeated desktop header normalization fixture into one test helper. Keep changed-byte assertions at the callers. Test and commit separately.
+- [x] R1: Extracted the repeated desktop header normalization fixture into one test helper, keeping changed-byte assertions at the callers. Both affected suites passed 100 tests, with the existing prerelease-only skip, before the separate commit.
 - [ ] R2: Calculate the diagnostic asset hash only on failed integrity validation, avoiding duplicate hashing on successful hooks. Preserve the diagnostic, regenerate carriers, test and commit separately.
 
 ## Mechanical audit evidence

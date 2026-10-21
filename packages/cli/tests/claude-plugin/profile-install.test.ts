@@ -10,7 +10,6 @@ import {
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { parse, stringify } from 'yaml';
 
 vi.mock('node:fs', { spy: true });
 
@@ -21,6 +20,7 @@ import {
 } from '../../src/claude-plugin/profile.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { createTemporaryDirectory } from '../helpers.js';
+import { normalizeClaudeSkillHeader } from '../helpers/claude-skill-header.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 // The fake host must expect the same prerelease-aware marketplace ref as
@@ -465,10 +465,7 @@ describe('Claude marketplace update enrollment', () => {
       'cached-plugin/skills/audit/SKILL.md',
     );
     const original = readFileSync(skillPath, 'utf8');
-    const normalized = original.replace(
-      /^---\n([\s\S]*?)\n---\n/u,
-      (_header, yaml: string) => `---\n${stringify(parse(yaml), { lineWidth: 0 })}---\n`,
-    );
+    const normalized = normalizeClaudeSkillHeader(original);
     expect(normalized).not.toBe(original);
     writeFileSync(skillPath, normalized);
 
