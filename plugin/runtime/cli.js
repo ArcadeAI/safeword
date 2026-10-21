@@ -34764,6 +34764,2848 @@ Move the handler file and replace the accepted public command response with a ne
   ];
 });
 
+// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
+function createScanner(text, ignoreTrivia = false) {
+  const len = text.length;
+  let pos = 0, value = "", tokenOffset = 0, token = 16, lineNumber = 0, lineStartOffset = 0, tokenLineStartOffset = 0, prevTokenLineStartOffset = 0, scanError = 0;
+  function scanHexDigits(count, exact) {
+    let digits = 0;
+    let value2 = 0;
+    while (digits < count || !exact) {
+      let ch = text.charCodeAt(pos);
+      if (ch >= 48 && ch <= 57) {
+        value2 = value2 * 16 + ch - 48;
+      } else if (ch >= 65 && ch <= 70) {
+        value2 = value2 * 16 + ch - 65 + 10;
+      } else if (ch >= 97 && ch <= 102) {
+        value2 = value2 * 16 + ch - 97 + 10;
+      } else {
+        break;
+      }
+      pos++;
+      digits++;
+    }
+    if (digits < count) {
+      value2 = -1;
+    }
+    return value2;
+  }
+  function setPosition(newPosition) {
+    pos = newPosition;
+    value = "";
+    tokenOffset = 0;
+    token = 16;
+    scanError = 0;
+  }
+  function scanNumber() {
+    let start = pos;
+    if (text.charCodeAt(pos) === 48) {
+      pos++;
+    } else {
+      pos++;
+      while (pos < text.length && isDigit2(text.charCodeAt(pos))) {
+        pos++;
+      }
+    }
+    if (pos < text.length && text.charCodeAt(pos) === 46) {
+      pos++;
+      if (pos < text.length && isDigit2(text.charCodeAt(pos))) {
+        pos++;
+        while (pos < text.length && isDigit2(text.charCodeAt(pos))) {
+          pos++;
+        }
+      } else {
+        scanError = 3;
+        return text.substring(start, pos);
+      }
+    }
+    let end = pos;
+    if (pos < text.length && (text.charCodeAt(pos) === 69 || text.charCodeAt(pos) === 101)) {
+      pos++;
+      if (pos < text.length && text.charCodeAt(pos) === 43 || text.charCodeAt(pos) === 45) {
+        pos++;
+      }
+      if (pos < text.length && isDigit2(text.charCodeAt(pos))) {
+        pos++;
+        while (pos < text.length && isDigit2(text.charCodeAt(pos))) {
+          pos++;
+        }
+        end = pos;
+      } else {
+        scanError = 3;
+      }
+    }
+    return text.substring(start, end);
+  }
+  function scanString() {
+    let result = "", start = pos;
+    while (true) {
+      if (pos >= len) {
+        result += text.substring(start, pos);
+        scanError = 2;
+        break;
+      }
+      const ch = text.charCodeAt(pos);
+      if (ch === 34) {
+        result += text.substring(start, pos);
+        pos++;
+        break;
+      }
+      if (ch === 92) {
+        result += text.substring(start, pos);
+        pos++;
+        if (pos >= len) {
+          scanError = 2;
+          break;
+        }
+        const ch2 = text.charCodeAt(pos++);
+        switch (ch2) {
+          case 34:
+            result += '"';
+            break;
+          case 92:
+            result += "\\";
+            break;
+          case 47:
+            result += "/";
+            break;
+          case 98:
+            result += "\b";
+            break;
+          case 102:
+            result += "\f";
+            break;
+          case 110:
+            result += `
+`;
+            break;
+          case 114:
+            result += "\r";
+            break;
+          case 116:
+            result += "\t";
+            break;
+          case 117:
+            const ch3 = scanHexDigits(4, true);
+            if (ch3 >= 0) {
+              result += String.fromCharCode(ch3);
+            } else {
+              scanError = 4;
+            }
+            break;
+          default:
+            scanError = 5;
+        }
+        start = pos;
+        continue;
+      }
+      if (ch >= 0 && ch <= 31) {
+        if (isLineBreak(ch)) {
+          result += text.substring(start, pos);
+          scanError = 2;
+          break;
+        } else {
+          scanError = 6;
+        }
+      }
+      pos++;
+    }
+    return result;
+  }
+  function scanNext() {
+    value = "";
+    scanError = 0;
+    tokenOffset = pos;
+    lineStartOffset = lineNumber;
+    prevTokenLineStartOffset = tokenLineStartOffset;
+    if (pos >= len) {
+      tokenOffset = len;
+      return token = 17;
+    }
+    let code = text.charCodeAt(pos);
+    if (isWhiteSpace(code)) {
+      do {
+        pos++;
+        value += String.fromCharCode(code);
+        code = text.charCodeAt(pos);
+      } while (isWhiteSpace(code));
+      return token = 15;
+    }
+    if (isLineBreak(code)) {
+      pos++;
+      value += String.fromCharCode(code);
+      if (code === 13 && text.charCodeAt(pos) === 10) {
+        pos++;
+        value += `
+`;
+      }
+      lineNumber++;
+      tokenLineStartOffset = pos;
+      return token = 14;
+    }
+    switch (code) {
+      case 123:
+        pos++;
+        return token = 1;
+      case 125:
+        pos++;
+        return token = 2;
+      case 91:
+        pos++;
+        return token = 3;
+      case 93:
+        pos++;
+        return token = 4;
+      case 58:
+        pos++;
+        return token = 6;
+      case 44:
+        pos++;
+        return token = 5;
+      case 34:
+        pos++;
+        value = scanString();
+        return token = 10;
+      case 47:
+        const start = pos - 1;
+        if (text.charCodeAt(pos + 1) === 47) {
+          pos += 2;
+          while (pos < len) {
+            if (isLineBreak(text.charCodeAt(pos))) {
+              break;
+            }
+            pos++;
+          }
+          value = text.substring(start, pos);
+          return token = 12;
+        }
+        if (text.charCodeAt(pos + 1) === 42) {
+          pos += 2;
+          const safeLength = len - 1;
+          let commentClosed = false;
+          while (pos < safeLength) {
+            const ch = text.charCodeAt(pos);
+            if (ch === 42 && text.charCodeAt(pos + 1) === 47) {
+              pos += 2;
+              commentClosed = true;
+              break;
+            }
+            pos++;
+            if (isLineBreak(ch)) {
+              if (ch === 13 && text.charCodeAt(pos) === 10) {
+                pos++;
+              }
+              lineNumber++;
+              tokenLineStartOffset = pos;
+            }
+          }
+          if (!commentClosed) {
+            pos++;
+            scanError = 1;
+          }
+          value = text.substring(start, pos);
+          return token = 13;
+        }
+        value += String.fromCharCode(code);
+        pos++;
+        return token = 16;
+      case 45:
+        value += String.fromCharCode(code);
+        pos++;
+        if (pos === len || !isDigit2(text.charCodeAt(pos))) {
+          return token = 16;
+        }
+      case 48:
+      case 49:
+      case 50:
+      case 51:
+      case 52:
+      case 53:
+      case 54:
+      case 55:
+      case 56:
+      case 57:
+        value += scanNumber();
+        return token = 11;
+      default:
+        while (pos < len && isUnknownContentCharacter(code)) {
+          pos++;
+          code = text.charCodeAt(pos);
+        }
+        if (tokenOffset !== pos) {
+          value = text.substring(tokenOffset, pos);
+          switch (value) {
+            case "true":
+              return token = 8;
+            case "false":
+              return token = 9;
+            case "null":
+              return token = 7;
+          }
+          return token = 16;
+        }
+        value += String.fromCharCode(code);
+        pos++;
+        return token = 16;
+    }
+  }
+  function isUnknownContentCharacter(code) {
+    if (isWhiteSpace(code) || isLineBreak(code)) {
+      return false;
+    }
+    switch (code) {
+      case 125:
+      case 93:
+      case 123:
+      case 91:
+      case 34:
+      case 58:
+      case 44:
+      case 47:
+        return false;
+    }
+    return true;
+  }
+  function scanNextNonTrivia() {
+    let result;
+    do {
+      result = scanNext();
+    } while (result >= 12 && result <= 15);
+    return result;
+  }
+  return {
+    setPosition,
+    getPosition: () => pos,
+    scan: ignoreTrivia ? scanNextNonTrivia : scanNext,
+    getToken: () => token,
+    getTokenValue: () => value,
+    getTokenOffset: () => tokenOffset,
+    getTokenLength: () => pos - tokenOffset,
+    getTokenStartLine: () => lineStartOffset,
+    getTokenStartCharacter: () => tokenOffset - prevTokenLineStartOffset,
+    getTokenError: () => scanError
+  };
+}
+function isWhiteSpace(ch) {
+  return ch === 32 || ch === 9;
+}
+function isLineBreak(ch) {
+  return ch === 10 || ch === 13;
+}
+function isDigit2(ch) {
+  return ch >= 48 && ch <= 57;
+}
+var CharacterCodes;
+var init_scanner = __esm(() => {
+  (function(CharacterCodes2) {
+    CharacterCodes2[CharacterCodes2["lineFeed"] = 10] = "lineFeed";
+    CharacterCodes2[CharacterCodes2["carriageReturn"] = 13] = "carriageReturn";
+    CharacterCodes2[CharacterCodes2["space"] = 32] = "space";
+    CharacterCodes2[CharacterCodes2["_0"] = 48] = "_0";
+    CharacterCodes2[CharacterCodes2["_1"] = 49] = "_1";
+    CharacterCodes2[CharacterCodes2["_2"] = 50] = "_2";
+    CharacterCodes2[CharacterCodes2["_3"] = 51] = "_3";
+    CharacterCodes2[CharacterCodes2["_4"] = 52] = "_4";
+    CharacterCodes2[CharacterCodes2["_5"] = 53] = "_5";
+    CharacterCodes2[CharacterCodes2["_6"] = 54] = "_6";
+    CharacterCodes2[CharacterCodes2["_7"] = 55] = "_7";
+    CharacterCodes2[CharacterCodes2["_8"] = 56] = "_8";
+    CharacterCodes2[CharacterCodes2["_9"] = 57] = "_9";
+    CharacterCodes2[CharacterCodes2["a"] = 97] = "a";
+    CharacterCodes2[CharacterCodes2["b"] = 98] = "b";
+    CharacterCodes2[CharacterCodes2["c"] = 99] = "c";
+    CharacterCodes2[CharacterCodes2["d"] = 100] = "d";
+    CharacterCodes2[CharacterCodes2["e"] = 101] = "e";
+    CharacterCodes2[CharacterCodes2["f"] = 102] = "f";
+    CharacterCodes2[CharacterCodes2["g"] = 103] = "g";
+    CharacterCodes2[CharacterCodes2["h"] = 104] = "h";
+    CharacterCodes2[CharacterCodes2["i"] = 105] = "i";
+    CharacterCodes2[CharacterCodes2["j"] = 106] = "j";
+    CharacterCodes2[CharacterCodes2["k"] = 107] = "k";
+    CharacterCodes2[CharacterCodes2["l"] = 108] = "l";
+    CharacterCodes2[CharacterCodes2["m"] = 109] = "m";
+    CharacterCodes2[CharacterCodes2["n"] = 110] = "n";
+    CharacterCodes2[CharacterCodes2["o"] = 111] = "o";
+    CharacterCodes2[CharacterCodes2["p"] = 112] = "p";
+    CharacterCodes2[CharacterCodes2["q"] = 113] = "q";
+    CharacterCodes2[CharacterCodes2["r"] = 114] = "r";
+    CharacterCodes2[CharacterCodes2["s"] = 115] = "s";
+    CharacterCodes2[CharacterCodes2["t"] = 116] = "t";
+    CharacterCodes2[CharacterCodes2["u"] = 117] = "u";
+    CharacterCodes2[CharacterCodes2["v"] = 118] = "v";
+    CharacterCodes2[CharacterCodes2["w"] = 119] = "w";
+    CharacterCodes2[CharacterCodes2["x"] = 120] = "x";
+    CharacterCodes2[CharacterCodes2["y"] = 121] = "y";
+    CharacterCodes2[CharacterCodes2["z"] = 122] = "z";
+    CharacterCodes2[CharacterCodes2["A"] = 65] = "A";
+    CharacterCodes2[CharacterCodes2["B"] = 66] = "B";
+    CharacterCodes2[CharacterCodes2["C"] = 67] = "C";
+    CharacterCodes2[CharacterCodes2["D"] = 68] = "D";
+    CharacterCodes2[CharacterCodes2["E"] = 69] = "E";
+    CharacterCodes2[CharacterCodes2["F"] = 70] = "F";
+    CharacterCodes2[CharacterCodes2["G"] = 71] = "G";
+    CharacterCodes2[CharacterCodes2["H"] = 72] = "H";
+    CharacterCodes2[CharacterCodes2["I"] = 73] = "I";
+    CharacterCodes2[CharacterCodes2["J"] = 74] = "J";
+    CharacterCodes2[CharacterCodes2["K"] = 75] = "K";
+    CharacterCodes2[CharacterCodes2["L"] = 76] = "L";
+    CharacterCodes2[CharacterCodes2["M"] = 77] = "M";
+    CharacterCodes2[CharacterCodes2["N"] = 78] = "N";
+    CharacterCodes2[CharacterCodes2["O"] = 79] = "O";
+    CharacterCodes2[CharacterCodes2["P"] = 80] = "P";
+    CharacterCodes2[CharacterCodes2["Q"] = 81] = "Q";
+    CharacterCodes2[CharacterCodes2["R"] = 82] = "R";
+    CharacterCodes2[CharacterCodes2["S"] = 83] = "S";
+    CharacterCodes2[CharacterCodes2["T"] = 84] = "T";
+    CharacterCodes2[CharacterCodes2["U"] = 85] = "U";
+    CharacterCodes2[CharacterCodes2["V"] = 86] = "V";
+    CharacterCodes2[CharacterCodes2["W"] = 87] = "W";
+    CharacterCodes2[CharacterCodes2["X"] = 88] = "X";
+    CharacterCodes2[CharacterCodes2["Y"] = 89] = "Y";
+    CharacterCodes2[CharacterCodes2["Z"] = 90] = "Z";
+    CharacterCodes2[CharacterCodes2["asterisk"] = 42] = "asterisk";
+    CharacterCodes2[CharacterCodes2["backslash"] = 92] = "backslash";
+    CharacterCodes2[CharacterCodes2["closeBrace"] = 125] = "closeBrace";
+    CharacterCodes2[CharacterCodes2["closeBracket"] = 93] = "closeBracket";
+    CharacterCodes2[CharacterCodes2["colon"] = 58] = "colon";
+    CharacterCodes2[CharacterCodes2["comma"] = 44] = "comma";
+    CharacterCodes2[CharacterCodes2["dot"] = 46] = "dot";
+    CharacterCodes2[CharacterCodes2["doubleQuote"] = 34] = "doubleQuote";
+    CharacterCodes2[CharacterCodes2["minus"] = 45] = "minus";
+    CharacterCodes2[CharacterCodes2["openBrace"] = 123] = "openBrace";
+    CharacterCodes2[CharacterCodes2["openBracket"] = 91] = "openBracket";
+    CharacterCodes2[CharacterCodes2["plus"] = 43] = "plus";
+    CharacterCodes2[CharacterCodes2["slash"] = 47] = "slash";
+    CharacterCodes2[CharacterCodes2["formFeed"] = 12] = "formFeed";
+    CharacterCodes2[CharacterCodes2["tab"] = 9] = "tab";
+  })(CharacterCodes || (CharacterCodes = {}));
+});
+
+// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
+var cachedSpaces, maxCachedValues = 200, cachedBreakLinesWithSpaces, supportedEols;
+var init_string_intern = __esm(() => {
+  cachedSpaces = new Array(20).fill(0).map((_, index) => {
+    return " ".repeat(index);
+  });
+  cachedBreakLinesWithSpaces = {
+    " ": {
+      "\n": new Array(maxCachedValues).fill(0).map((_, index) => {
+        return `
+` + " ".repeat(index);
+      }),
+      "\r": new Array(maxCachedValues).fill(0).map((_, index) => {
+        return "\r" + " ".repeat(index);
+      }),
+      "\r\n": new Array(maxCachedValues).fill(0).map((_, index) => {
+        return `\r
+` + " ".repeat(index);
+      })
+    },
+    "\t": {
+      "\n": new Array(maxCachedValues).fill(0).map((_, index) => {
+        return `
+` + "\t".repeat(index);
+      }),
+      "\r": new Array(maxCachedValues).fill(0).map((_, index) => {
+        return "\r" + "\t".repeat(index);
+      }),
+      "\r\n": new Array(maxCachedValues).fill(0).map((_, index) => {
+        return `\r
+` + "\t".repeat(index);
+      })
+    }
+  };
+  supportedEols = [`
+`, "\r", `\r
+`];
+});
+
+// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
+function format(documentText, range, options) {
+  let initialIndentLevel;
+  let formatText;
+  let formatTextStart;
+  let rangeStart;
+  let rangeEnd;
+  if (range) {
+    rangeStart = range.offset;
+    rangeEnd = rangeStart + range.length;
+    formatTextStart = rangeStart;
+    while (formatTextStart > 0 && !isEOL(documentText, formatTextStart - 1)) {
+      formatTextStart--;
+    }
+    let endOffset = rangeEnd;
+    while (endOffset < documentText.length && !isEOL(documentText, endOffset)) {
+      endOffset++;
+    }
+    formatText = documentText.substring(formatTextStart, endOffset);
+    initialIndentLevel = computeIndentLevel(formatText, options);
+  } else {
+    formatText = documentText;
+    initialIndentLevel = 0;
+    formatTextStart = 0;
+    rangeStart = 0;
+    rangeEnd = documentText.length;
+  }
+  const eol = getEOL(options, documentText);
+  const eolFastPathSupported = supportedEols.includes(eol);
+  let numberLineBreaks = 0;
+  let indentLevel = 0;
+  let indentValue;
+  if (options.insertSpaces) {
+    indentValue = cachedSpaces[options.tabSize || 4] ?? repeat(cachedSpaces[1], options.tabSize || 4);
+  } else {
+    indentValue = "\t";
+  }
+  const indentType = indentValue === "\t" ? "\t" : " ";
+  let scanner = createScanner(formatText, false);
+  let hasError = false;
+  function newLinesAndIndent() {
+    if (numberLineBreaks > 1) {
+      return repeat(eol, numberLineBreaks) + repeat(indentValue, initialIndentLevel + indentLevel);
+    }
+    const amountOfSpaces = indentValue.length * (initialIndentLevel + indentLevel);
+    if (!eolFastPathSupported || amountOfSpaces > cachedBreakLinesWithSpaces[indentType][eol].length) {
+      return eol + repeat(indentValue, initialIndentLevel + indentLevel);
+    }
+    if (amountOfSpaces <= 0) {
+      return eol;
+    }
+    return cachedBreakLinesWithSpaces[indentType][eol][amountOfSpaces];
+  }
+  function scanNext() {
+    let token = scanner.scan();
+    numberLineBreaks = 0;
+    while (token === 15 || token === 14) {
+      if (token === 14 && options.keepLines) {
+        numberLineBreaks += 1;
+      } else if (token === 14) {
+        numberLineBreaks = 1;
+      }
+      token = scanner.scan();
+    }
+    hasError = token === 16 || scanner.getTokenError() !== 0;
+    return token;
+  }
+  const editOperations = [];
+  function addEdit(text, startOffset, endOffset) {
+    if (!hasError && (!range || startOffset < rangeEnd && endOffset > rangeStart) && documentText.substring(startOffset, endOffset) !== text) {
+      editOperations.push({ offset: startOffset, length: endOffset - startOffset, content: text });
+    }
+  }
+  let firstToken = scanNext();
+  if (options.keepLines && numberLineBreaks > 0) {
+    addEdit(repeat(eol, numberLineBreaks), 0, 0);
+  }
+  if (firstToken !== 17) {
+    let firstTokenStart = scanner.getTokenOffset() + formatTextStart;
+    let initialIndent = indentValue.length * initialIndentLevel < 20 && options.insertSpaces ? cachedSpaces[indentValue.length * initialIndentLevel] : repeat(indentValue, initialIndentLevel);
+    addEdit(initialIndent, formatTextStart, firstTokenStart);
+  }
+  while (firstToken !== 17) {
+    let firstTokenEnd = scanner.getTokenOffset() + scanner.getTokenLength() + formatTextStart;
+    let secondToken = scanNext();
+    let replaceContent = "";
+    let needsLineBreak = false;
+    while (numberLineBreaks === 0 && (secondToken === 12 || secondToken === 13)) {
+      let commentTokenStart = scanner.getTokenOffset() + formatTextStart;
+      addEdit(cachedSpaces[1], firstTokenEnd, commentTokenStart);
+      firstTokenEnd = scanner.getTokenOffset() + scanner.getTokenLength() + formatTextStart;
+      needsLineBreak = secondToken === 12;
+      replaceContent = needsLineBreak ? newLinesAndIndent() : "";
+      secondToken = scanNext();
+    }
+    if (secondToken === 2) {
+      if (firstToken !== 1) {
+        indentLevel--;
+      }
+      if (options.keepLines && numberLineBreaks > 0 || !options.keepLines && firstToken !== 1) {
+        replaceContent = newLinesAndIndent();
+      } else if (options.keepLines) {
+        replaceContent = cachedSpaces[1];
+      }
+    } else if (secondToken === 4) {
+      if (firstToken !== 3) {
+        indentLevel--;
+      }
+      if (options.keepLines && numberLineBreaks > 0 || !options.keepLines && firstToken !== 3) {
+        replaceContent = newLinesAndIndent();
+      } else if (options.keepLines) {
+        replaceContent = cachedSpaces[1];
+      }
+    } else {
+      switch (firstToken) {
+        case 3:
+        case 1:
+          indentLevel++;
+          if (options.keepLines && numberLineBreaks > 0 || !options.keepLines) {
+            replaceContent = newLinesAndIndent();
+          } else {
+            replaceContent = cachedSpaces[1];
+          }
+          break;
+        case 5:
+          if (options.keepLines && numberLineBreaks > 0 || !options.keepLines) {
+            replaceContent = newLinesAndIndent();
+          } else {
+            replaceContent = cachedSpaces[1];
+          }
+          break;
+        case 12:
+          replaceContent = newLinesAndIndent();
+          break;
+        case 13:
+          if (numberLineBreaks > 0) {
+            replaceContent = newLinesAndIndent();
+          } else if (!needsLineBreak) {
+            replaceContent = cachedSpaces[1];
+          }
+          break;
+        case 6:
+          if (options.keepLines && numberLineBreaks > 0) {
+            replaceContent = newLinesAndIndent();
+          } else if (!needsLineBreak) {
+            replaceContent = cachedSpaces[1];
+          }
+          break;
+        case 10:
+          if (options.keepLines && numberLineBreaks > 0) {
+            replaceContent = newLinesAndIndent();
+          } else if (secondToken === 6 && !needsLineBreak) {
+            replaceContent = "";
+          }
+          break;
+        case 7:
+        case 8:
+        case 9:
+        case 11:
+        case 2:
+        case 4:
+          if (options.keepLines && numberLineBreaks > 0) {
+            replaceContent = newLinesAndIndent();
+          } else {
+            if ((secondToken === 12 || secondToken === 13) && !needsLineBreak) {
+              replaceContent = cachedSpaces[1];
+            } else if (secondToken !== 5 && secondToken !== 17) {
+              hasError = true;
+            }
+          }
+          break;
+        case 16:
+          hasError = true;
+          break;
+      }
+      if (numberLineBreaks > 0 && (secondToken === 12 || secondToken === 13)) {
+        replaceContent = newLinesAndIndent();
+      }
+    }
+    if (secondToken === 17) {
+      if (options.keepLines && numberLineBreaks > 0) {
+        replaceContent = newLinesAndIndent();
+      } else {
+        replaceContent = options.insertFinalNewline ? eol : "";
+      }
+    }
+    const secondTokenStart = scanner.getTokenOffset() + formatTextStart;
+    addEdit(replaceContent, firstTokenEnd, secondTokenStart);
+    firstToken = secondToken;
+  }
+  return editOperations;
+}
+function repeat(s, count) {
+  let result = "";
+  for (let i = 0;i < count; i++) {
+    result += s;
+  }
+  return result;
+}
+function computeIndentLevel(content, options) {
+  let i = 0;
+  let nChars = 0;
+  const tabSize = options.tabSize || 4;
+  while (i < content.length) {
+    let ch = content.charAt(i);
+    if (ch === cachedSpaces[1]) {
+      nChars++;
+    } else if (ch === "\t") {
+      nChars += tabSize;
+    } else {
+      break;
+    }
+    i++;
+  }
+  return Math.floor(nChars / tabSize);
+}
+function getEOL(options, text) {
+  for (let i = 0;i < text.length; i++) {
+    const ch = text.charAt(i);
+    if (ch === "\r") {
+      if (i + 1 < text.length && text.charAt(i + 1) === `
+`) {
+        return `\r
+`;
+      }
+      return "\r";
+    } else if (ch === `
+`) {
+      return `
+`;
+    }
+  }
+  return options && options.eol || `
+`;
+}
+function isEOL(text, offset) {
+  return `\r
+`.indexOf(text.charAt(offset)) !== -1;
+}
+var init_format = __esm(() => {
+  init_scanner();
+  init_string_intern();
+});
+
+// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
+function parse2(text, errors = [], options = ParseOptions.DEFAULT) {
+  let currentProperty = null;
+  let currentParent = [];
+  const previousParents = [];
+  function onValue(value) {
+    if (Array.isArray(currentParent)) {
+      currentParent.push(value);
+    } else if (currentProperty !== null) {
+      currentParent[currentProperty] = value;
+    }
+  }
+  const visitor = {
+    onObjectBegin: () => {
+      const object = {};
+      onValue(object);
+      previousParents.push(currentParent);
+      currentParent = object;
+      currentProperty = null;
+    },
+    onObjectProperty: (name) => {
+      currentProperty = name;
+    },
+    onObjectEnd: () => {
+      currentParent = previousParents.pop();
+    },
+    onArrayBegin: () => {
+      const array = [];
+      onValue(array);
+      previousParents.push(currentParent);
+      currentParent = array;
+      currentProperty = null;
+    },
+    onArrayEnd: () => {
+      currentParent = previousParents.pop();
+    },
+    onLiteralValue: onValue,
+    onError: (error2, offset, length) => {
+      errors.push({ error: error2, offset, length });
+    }
+  };
+  visit(text, visitor, options);
+  return currentParent[0];
+}
+function parseTree(text, errors = [], options = ParseOptions.DEFAULT) {
+  let currentParent = { type: "array", offset: -1, length: -1, children: [], parent: undefined };
+  function ensurePropertyComplete(endOffset) {
+    if (currentParent.type === "property") {
+      currentParent.length = endOffset - currentParent.offset;
+      currentParent = currentParent.parent;
+    }
+  }
+  function onValue(valueNode) {
+    currentParent.children.push(valueNode);
+    return valueNode;
+  }
+  const visitor = {
+    onObjectBegin: (offset) => {
+      currentParent = onValue({ type: "object", offset, length: -1, parent: currentParent, children: [] });
+    },
+    onObjectProperty: (name, offset, length) => {
+      currentParent = onValue({ type: "property", offset, length: -1, parent: currentParent, children: [] });
+      currentParent.children.push({ type: "string", value: name, offset, length, parent: currentParent });
+    },
+    onObjectEnd: (offset, length) => {
+      ensurePropertyComplete(offset + length);
+      currentParent.length = offset + length - currentParent.offset;
+      currentParent = currentParent.parent;
+      ensurePropertyComplete(offset + length);
+    },
+    onArrayBegin: (offset, length) => {
+      currentParent = onValue({ type: "array", offset, length: -1, parent: currentParent, children: [] });
+    },
+    onArrayEnd: (offset, length) => {
+      currentParent.length = offset + length - currentParent.offset;
+      currentParent = currentParent.parent;
+      ensurePropertyComplete(offset + length);
+    },
+    onLiteralValue: (value, offset, length) => {
+      onValue({ type: getNodeType(value), offset, length, parent: currentParent, value });
+      ensurePropertyComplete(offset + length);
+    },
+    onSeparator: (sep, offset, length) => {
+      if (currentParent.type === "property") {
+        if (sep === ":") {
+          currentParent.colonOffset = offset;
+        } else if (sep === ",") {
+          ensurePropertyComplete(offset);
+        }
+      }
+    },
+    onError: (error2, offset, length) => {
+      errors.push({ error: error2, offset, length });
+    }
+  };
+  visit(text, visitor, options);
+  const result = currentParent.children[0];
+  if (result) {
+    delete result.parent;
+  }
+  return result;
+}
+function findNodeAtLocation(root, path7) {
+  if (!root) {
+    return;
+  }
+  let node = root;
+  for (let segment of path7) {
+    if (typeof segment === "string") {
+      if (node.type !== "object" || !Array.isArray(node.children)) {
+        return;
+      }
+      let found = false;
+      for (const propertyNode of node.children) {
+        if (Array.isArray(propertyNode.children) && propertyNode.children[0].value === segment && propertyNode.children.length === 2) {
+          node = propertyNode.children[1];
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        return;
+      }
+    } else {
+      const index = segment;
+      if (node.type !== "array" || index < 0 || !Array.isArray(node.children) || index >= node.children.length) {
+        return;
+      }
+      node = node.children[index];
+    }
+  }
+  return node;
+}
+function visit(text, visitor, options = ParseOptions.DEFAULT) {
+  const _scanner = createScanner(text, false);
+  const _jsonPath = [];
+  let suppressedCallbacks = 0;
+  function toNoArgVisit(visitFunction) {
+    return visitFunction ? () => suppressedCallbacks === 0 && visitFunction(_scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter()) : () => true;
+  }
+  function toOneArgVisit(visitFunction) {
+    return visitFunction ? (arg) => suppressedCallbacks === 0 && visitFunction(arg, _scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter()) : () => true;
+  }
+  function toOneArgVisitWithPath(visitFunction) {
+    return visitFunction ? (arg) => suppressedCallbacks === 0 && visitFunction(arg, _scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter(), () => _jsonPath.slice()) : () => true;
+  }
+  function toBeginVisit(visitFunction) {
+    return visitFunction ? () => {
+      if (suppressedCallbacks > 0) {
+        suppressedCallbacks++;
+      } else {
+        let cbReturn = visitFunction(_scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter(), () => _jsonPath.slice());
+        if (cbReturn === false) {
+          suppressedCallbacks = 1;
+        }
+      }
+    } : () => true;
+  }
+  function toEndVisit(visitFunction) {
+    return visitFunction ? () => {
+      if (suppressedCallbacks > 0) {
+        suppressedCallbacks--;
+      }
+      if (suppressedCallbacks === 0) {
+        visitFunction(_scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter());
+      }
+    } : () => true;
+  }
+  const onObjectBegin = toBeginVisit(visitor.onObjectBegin), onObjectProperty = toOneArgVisitWithPath(visitor.onObjectProperty), onObjectEnd = toEndVisit(visitor.onObjectEnd), onArrayBegin = toBeginVisit(visitor.onArrayBegin), onArrayEnd = toEndVisit(visitor.onArrayEnd), onLiteralValue = toOneArgVisitWithPath(visitor.onLiteralValue), onSeparator = toOneArgVisit(visitor.onSeparator), onComment = toNoArgVisit(visitor.onComment), onError = toOneArgVisit(visitor.onError);
+  const disallowComments = options && options.disallowComments;
+  const allowTrailingComma = options && options.allowTrailingComma;
+  function scanNext() {
+    while (true) {
+      const token = _scanner.scan();
+      switch (_scanner.getTokenError()) {
+        case 4:
+          handleError(14);
+          break;
+        case 5:
+          handleError(15);
+          break;
+        case 3:
+          handleError(13);
+          break;
+        case 1:
+          if (!disallowComments) {
+            handleError(11);
+          }
+          break;
+        case 2:
+          handleError(12);
+          break;
+        case 6:
+          handleError(16);
+          break;
+      }
+      switch (token) {
+        case 12:
+        case 13:
+          if (disallowComments) {
+            handleError(10);
+          } else {
+            onComment();
+          }
+          break;
+        case 16:
+          handleError(1);
+          break;
+        case 15:
+        case 14:
+          break;
+        default:
+          return token;
+      }
+    }
+  }
+  function handleError(error2, skipUntilAfter = [], skipUntil = []) {
+    onError(error2);
+    if (skipUntilAfter.length + skipUntil.length > 0) {
+      let token = _scanner.getToken();
+      while (token !== 17) {
+        if (skipUntilAfter.indexOf(token) !== -1) {
+          scanNext();
+          break;
+        } else if (skipUntil.indexOf(token) !== -1) {
+          break;
+        }
+        token = scanNext();
+      }
+    }
+  }
+  function parseString2(isValue) {
+    const value = _scanner.getTokenValue();
+    if (isValue) {
+      onLiteralValue(value);
+    } else {
+      onObjectProperty(value);
+      _jsonPath.push(value);
+    }
+    scanNext();
+    return true;
+  }
+  function parseLiteral() {
+    switch (_scanner.getToken()) {
+      case 11:
+        const tokenValue = _scanner.getTokenValue();
+        let value = Number(tokenValue);
+        if (isNaN(value)) {
+          handleError(2);
+          value = 0;
+        }
+        onLiteralValue(value);
+        break;
+      case 7:
+        onLiteralValue(null);
+        break;
+      case 8:
+        onLiteralValue(true);
+        break;
+      case 9:
+        onLiteralValue(false);
+        break;
+      default:
+        return false;
+    }
+    scanNext();
+    return true;
+  }
+  function parseProperty() {
+    if (_scanner.getToken() !== 10) {
+      handleError(3, [], [2, 5]);
+      return false;
+    }
+    parseString2(false);
+    if (_scanner.getToken() === 6) {
+      onSeparator(":");
+      scanNext();
+      if (!parseValue()) {
+        handleError(4, [], [2, 5]);
+      }
+    } else {
+      handleError(5, [], [2, 5]);
+    }
+    _jsonPath.pop();
+    return true;
+  }
+  function parseObject2() {
+    onObjectBegin();
+    scanNext();
+    let needsComma = false;
+    while (_scanner.getToken() !== 2 && _scanner.getToken() !== 17) {
+      if (_scanner.getToken() === 5) {
+        if (!needsComma) {
+          handleError(4, [], []);
+        }
+        onSeparator(",");
+        scanNext();
+        if (_scanner.getToken() === 2 && allowTrailingComma) {
+          break;
+        }
+      } else if (needsComma) {
+        handleError(6, [], []);
+      }
+      if (!parseProperty()) {
+        handleError(4, [], [2, 5]);
+      }
+      needsComma = true;
+    }
+    onObjectEnd();
+    if (_scanner.getToken() !== 2) {
+      handleError(7, [2], []);
+    } else {
+      scanNext();
+    }
+    return true;
+  }
+  function parseArray2() {
+    onArrayBegin();
+    scanNext();
+    let isFirstElement = true;
+    let needsComma = false;
+    while (_scanner.getToken() !== 4 && _scanner.getToken() !== 17) {
+      if (_scanner.getToken() === 5) {
+        if (!needsComma) {
+          handleError(4, [], []);
+        }
+        onSeparator(",");
+        scanNext();
+        if (_scanner.getToken() === 4 && allowTrailingComma) {
+          break;
+        }
+      } else if (needsComma) {
+        handleError(6, [], []);
+      }
+      if (isFirstElement) {
+        _jsonPath.push(0);
+        isFirstElement = false;
+      } else {
+        _jsonPath[_jsonPath.length - 1]++;
+      }
+      if (!parseValue()) {
+        handleError(4, [], [4, 5]);
+      }
+      needsComma = true;
+    }
+    onArrayEnd();
+    if (!isFirstElement) {
+      _jsonPath.pop();
+    }
+    if (_scanner.getToken() !== 4) {
+      handleError(8, [4], []);
+    } else {
+      scanNext();
+    }
+    return true;
+  }
+  function parseValue() {
+    switch (_scanner.getToken()) {
+      case 3:
+        return parseArray2();
+      case 1:
+        return parseObject2();
+      case 10:
+        return parseString2(true);
+      default:
+        return parseLiteral();
+    }
+  }
+  scanNext();
+  if (_scanner.getToken() === 17) {
+    if (options.allowEmptyContent) {
+      return true;
+    }
+    handleError(4, [], []);
+    return false;
+  }
+  if (!parseValue()) {
+    handleError(4, [], []);
+    return false;
+  }
+  if (_scanner.getToken() !== 17) {
+    handleError(9, [], []);
+  }
+  return true;
+}
+function getNodeType(value) {
+  switch (typeof value) {
+    case "boolean":
+      return "boolean";
+    case "number":
+      return "number";
+    case "string":
+      return "string";
+    case "object": {
+      if (!value) {
+        return "null";
+      } else if (Array.isArray(value)) {
+        return "array";
+      }
+      return "object";
+    }
+    default:
+      return "null";
+  }
+}
+var ParseOptions;
+var init_parser = __esm(() => {
+  init_scanner();
+  (function(ParseOptions2) {
+    ParseOptions2.DEFAULT = {
+      allowTrailingComma: false
+    };
+  })(ParseOptions || (ParseOptions = {}));
+});
+
+// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
+function setProperty(text, originalPath, value, options) {
+  const path7 = originalPath.slice();
+  const errors = [];
+  const root = parseTree(text, errors);
+  let parent = undefined;
+  let lastSegment = undefined;
+  while (path7.length > 0) {
+    lastSegment = path7.pop();
+    parent = findNodeAtLocation(root, path7);
+    if (parent === undefined && value !== undefined) {
+      if (typeof lastSegment === "string") {
+        value = { [lastSegment]: value };
+      } else {
+        value = [value];
+      }
+    } else {
+      break;
+    }
+  }
+  if (!parent) {
+    if (value === undefined) {
+      throw new Error("Can not delete in empty document");
+    }
+    return withFormatting(text, { offset: root ? root.offset : 0, length: root ? root.length : 0, content: JSON.stringify(value) }, options);
+  } else if (parent.type === "object" && typeof lastSegment === "string" && Array.isArray(parent.children)) {
+    const existing = findNodeAtLocation(parent, [lastSegment]);
+    if (existing !== undefined) {
+      if (value === undefined) {
+        if (!existing.parent) {
+          throw new Error("Malformed AST");
+        }
+        const propertyIndex = parent.children.indexOf(existing.parent);
+        let removeBegin;
+        let removeEnd = existing.parent.offset + existing.parent.length;
+        if (propertyIndex > 0) {
+          let previous = parent.children[propertyIndex - 1];
+          removeBegin = previous.offset + previous.length;
+        } else {
+          removeBegin = parent.offset + 1;
+          if (parent.children.length > 1) {
+            let next = parent.children[1];
+            removeEnd = next.offset;
+          }
+        }
+        return withFormatting(text, { offset: removeBegin, length: removeEnd - removeBegin, content: "" }, options);
+      } else {
+        return withFormatting(text, { offset: existing.offset, length: existing.length, content: JSON.stringify(value) }, options);
+      }
+    } else {
+      if (value === undefined) {
+        return [];
+      }
+      const newProperty = `${JSON.stringify(lastSegment)}: ${JSON.stringify(value)}`;
+      const index = options.getInsertionIndex ? options.getInsertionIndex(parent.children.map((p) => p.children[0].value)) : parent.children.length;
+      let edit;
+      if (index > 0) {
+        let previous = parent.children[index - 1];
+        edit = { offset: previous.offset + previous.length, length: 0, content: "," + newProperty };
+      } else if (parent.children.length === 0) {
+        edit = { offset: parent.offset + 1, length: 0, content: newProperty };
+      } else {
+        edit = { offset: parent.offset + 1, length: 0, content: newProperty + "," };
+      }
+      return withFormatting(text, edit, options);
+    }
+  } else if (parent.type === "array" && typeof lastSegment === "number" && Array.isArray(parent.children)) {
+    const insertIndex = lastSegment;
+    if (insertIndex === -1) {
+      const newProperty = `${JSON.stringify(value)}`;
+      let edit;
+      if (parent.children.length === 0) {
+        edit = { offset: parent.offset + 1, length: 0, content: newProperty };
+      } else {
+        const previous = parent.children[parent.children.length - 1];
+        edit = { offset: previous.offset + previous.length, length: 0, content: "," + newProperty };
+      }
+      return withFormatting(text, edit, options);
+    } else if (value === undefined && parent.children.length >= 0) {
+      const removalIndex = lastSegment;
+      const toRemove = parent.children[removalIndex];
+      let edit;
+      if (parent.children.length === 1) {
+        edit = { offset: parent.offset + 1, length: parent.length - 2, content: "" };
+      } else if (parent.children.length - 1 === removalIndex) {
+        let previous = parent.children[removalIndex - 1];
+        let offset = previous.offset + previous.length;
+        let parentEndOffset = parent.offset + parent.length;
+        edit = { offset, length: parentEndOffset - 2 - offset, content: "" };
+      } else {
+        edit = { offset: toRemove.offset, length: parent.children[removalIndex + 1].offset - toRemove.offset, content: "" };
+      }
+      return withFormatting(text, edit, options);
+    } else if (value !== undefined) {
+      let edit;
+      const newProperty = `${JSON.stringify(value)}`;
+      if (!options.isArrayInsertion && parent.children.length > lastSegment) {
+        const toModify = parent.children[lastSegment];
+        edit = { offset: toModify.offset, length: toModify.length, content: newProperty };
+      } else if (parent.children.length === 0 || lastSegment === 0) {
+        edit = { offset: parent.offset + 1, length: 0, content: parent.children.length === 0 ? newProperty : newProperty + "," };
+      } else {
+        const index = lastSegment > parent.children.length ? parent.children.length : lastSegment;
+        const previous = parent.children[index - 1];
+        edit = { offset: previous.offset + previous.length, length: 0, content: "," + newProperty };
+      }
+      return withFormatting(text, edit, options);
+    } else {
+      throw new Error(`Can not ${value === undefined ? "remove" : options.isArrayInsertion ? "insert" : "modify"} Array index ${insertIndex} as length is not sufficient`);
+    }
+  } else {
+    throw new Error(`Can not add ${typeof lastSegment !== "number" ? "index" : "property"} to parent of type ${parent.type}`);
+  }
+}
+function withFormatting(text, edit, options) {
+  if (!options.formattingOptions) {
+    return [edit];
+  }
+  let newText = applyEdit(text, edit);
+  let begin = edit.offset;
+  let end = edit.offset + edit.content.length;
+  if (edit.length === 0 || edit.content.length === 0) {
+    while (begin > 0 && !isEOL(newText, begin - 1)) {
+      begin--;
+    }
+    while (end < newText.length && !isEOL(newText, end)) {
+      end++;
+    }
+  }
+  const edits = format(newText, { offset: begin, length: end - begin }, { ...options.formattingOptions, keepLines: false });
+  for (let i = edits.length - 1;i >= 0; i--) {
+    const edit2 = edits[i];
+    newText = applyEdit(newText, edit2);
+    begin = Math.min(begin, edit2.offset);
+    end = Math.max(end, edit2.offset + edit2.length);
+    end += edit2.content.length - edit2.length;
+  }
+  const editLength = text.length - (newText.length - end) - begin;
+  return [{ offset: begin, length: editLength, content: newText.substring(begin, end) }];
+}
+function applyEdit(text, edit) {
+  return text.substring(0, edit.offset) + edit.content + text.substring(edit.offset + edit.length);
+}
+var init_edit = __esm(() => {
+  init_format();
+  init_parser();
+});
+
+// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
+function modify(text, path7, value, options) {
+  return setProperty(text, path7, value, options);
+}
+function applyEdits(text, edits) {
+  let sortedEdits = edits.slice(0).sort((a, b) => {
+    const diff = a.offset - b.offset;
+    if (diff === 0) {
+      return a.length - b.length;
+    }
+    return diff;
+  });
+  let lastModifiedOffset = text.length;
+  for (let i = sortedEdits.length - 1;i >= 0; i--) {
+    let e = sortedEdits[i];
+    if (e.offset + e.length <= lastModifiedOffset) {
+      text = applyEdit(text, e);
+    } else {
+      throw new Error("Overlapping edit");
+    }
+    lastModifiedOffset = e.offset;
+  }
+  return text;
+}
+var ScanError, SyntaxKind, parse3, visit2, ParseErrorCode;
+var init_main = __esm(() => {
+  init_format();
+  init_edit();
+  init_scanner();
+  init_parser();
+  (function(ScanError2) {
+    ScanError2[ScanError2["None"] = 0] = "None";
+    ScanError2[ScanError2["UnexpectedEndOfComment"] = 1] = "UnexpectedEndOfComment";
+    ScanError2[ScanError2["UnexpectedEndOfString"] = 2] = "UnexpectedEndOfString";
+    ScanError2[ScanError2["UnexpectedEndOfNumber"] = 3] = "UnexpectedEndOfNumber";
+    ScanError2[ScanError2["InvalidUnicode"] = 4] = "InvalidUnicode";
+    ScanError2[ScanError2["InvalidEscapeCharacter"] = 5] = "InvalidEscapeCharacter";
+    ScanError2[ScanError2["InvalidCharacter"] = 6] = "InvalidCharacter";
+  })(ScanError || (ScanError = {}));
+  (function(SyntaxKind2) {
+    SyntaxKind2[SyntaxKind2["OpenBraceToken"] = 1] = "OpenBraceToken";
+    SyntaxKind2[SyntaxKind2["CloseBraceToken"] = 2] = "CloseBraceToken";
+    SyntaxKind2[SyntaxKind2["OpenBracketToken"] = 3] = "OpenBracketToken";
+    SyntaxKind2[SyntaxKind2["CloseBracketToken"] = 4] = "CloseBracketToken";
+    SyntaxKind2[SyntaxKind2["CommaToken"] = 5] = "CommaToken";
+    SyntaxKind2[SyntaxKind2["ColonToken"] = 6] = "ColonToken";
+    SyntaxKind2[SyntaxKind2["NullKeyword"] = 7] = "NullKeyword";
+    SyntaxKind2[SyntaxKind2["TrueKeyword"] = 8] = "TrueKeyword";
+    SyntaxKind2[SyntaxKind2["FalseKeyword"] = 9] = "FalseKeyword";
+    SyntaxKind2[SyntaxKind2["StringLiteral"] = 10] = "StringLiteral";
+    SyntaxKind2[SyntaxKind2["NumericLiteral"] = 11] = "NumericLiteral";
+    SyntaxKind2[SyntaxKind2["LineCommentTrivia"] = 12] = "LineCommentTrivia";
+    SyntaxKind2[SyntaxKind2["BlockCommentTrivia"] = 13] = "BlockCommentTrivia";
+    SyntaxKind2[SyntaxKind2["LineBreakTrivia"] = 14] = "LineBreakTrivia";
+    SyntaxKind2[SyntaxKind2["Trivia"] = 15] = "Trivia";
+    SyntaxKind2[SyntaxKind2["Unknown"] = 16] = "Unknown";
+    SyntaxKind2[SyntaxKind2["EOF"] = 17] = "EOF";
+  })(SyntaxKind || (SyntaxKind = {}));
+  parse3 = parse2;
+  visit2 = visit;
+  (function(ParseErrorCode2) {
+    ParseErrorCode2[ParseErrorCode2["InvalidSymbol"] = 1] = "InvalidSymbol";
+    ParseErrorCode2[ParseErrorCode2["InvalidNumberFormat"] = 2] = "InvalidNumberFormat";
+    ParseErrorCode2[ParseErrorCode2["PropertyNameExpected"] = 3] = "PropertyNameExpected";
+    ParseErrorCode2[ParseErrorCode2["ValueExpected"] = 4] = "ValueExpected";
+    ParseErrorCode2[ParseErrorCode2["ColonExpected"] = 5] = "ColonExpected";
+    ParseErrorCode2[ParseErrorCode2["CommaExpected"] = 6] = "CommaExpected";
+    ParseErrorCode2[ParseErrorCode2["CloseBraceExpected"] = 7] = "CloseBraceExpected";
+    ParseErrorCode2[ParseErrorCode2["CloseBracketExpected"] = 8] = "CloseBracketExpected";
+    ParseErrorCode2[ParseErrorCode2["EndOfFileExpected"] = 9] = "EndOfFileExpected";
+    ParseErrorCode2[ParseErrorCode2["InvalidCommentToken"] = 10] = "InvalidCommentToken";
+    ParseErrorCode2[ParseErrorCode2["UnexpectedEndOfComment"] = 11] = "UnexpectedEndOfComment";
+    ParseErrorCode2[ParseErrorCode2["UnexpectedEndOfString"] = 12] = "UnexpectedEndOfString";
+    ParseErrorCode2[ParseErrorCode2["UnexpectedEndOfNumber"] = 13] = "UnexpectedEndOfNumber";
+    ParseErrorCode2[ParseErrorCode2["InvalidUnicode"] = 14] = "InvalidUnicode";
+    ParseErrorCode2[ParseErrorCode2["InvalidEscapeCharacter"] = 15] = "InvalidEscapeCharacter";
+    ParseErrorCode2[ParseErrorCode2["InvalidCharacter"] = 16] = "InvalidCharacter";
+  })(ParseErrorCode || (ParseErrorCode = {}));
+});
+
+// src/claude-plugin/cleanup-target.ts
+import { existsSync as existsSync16, lstatSync as lstatSync9 } from "fs";
+import nodePath46 from "path";
+function containedClaudeCleanupPath(cwd, relative) {
+  if (relative === "" || nodePath46.isAbsolute(relative) || relative.split(/[\\/]/u).includes("..")) {
+    throw new Error(`Unsafe Claude cleanup target: ${relative}`);
+  }
+  const root = nodePath46.resolve(cwd);
+  const target = nodePath46.resolve(root, relative);
+  if (!target.startsWith(`${root}${nodePath46.sep}`)) {
+    throw new Error(`Unsafe Claude cleanup target: ${relative}`);
+  }
+  return target;
+}
+function assertSafeClaudeCleanupTarget(cwd, relative) {
+  const target = containedClaudeCleanupPath(cwd, relative);
+  let cursor = nodePath46.resolve(cwd);
+  for (const segment of relative.split(/[\\/]/u)) {
+    cursor = nodePath46.join(cursor, segment);
+    if (!existsSync16(cursor))
+      continue;
+    const metadata = lstatSync9(cursor);
+    if (metadata.isSymbolicLink()) {
+      throw new Error(`Unsafe symlinked Claude cleanup target: ${relative}`);
+    }
+    if (cursor === target ? !metadata.isFile() : !metadata.isDirectory()) {
+      throw new Error(`Unsafe non-file Claude cleanup target: ${relative}`);
+    }
+  }
+  return target;
+}
+var init_cleanup_target = () => {};
+
+// src/claude-plugin/legacy-classifier.ts
+import { existsSync as existsSync17, lstatSync as lstatSync10, readFileSync as readFileSync32 } from "fs";
+import nodePath47 from "path";
+function referencesLegacyHook(value) {
+  if (typeof value === "string")
+    return value.includes(".safeword/hooks/");
+  if (Array.isArray(value))
+    return value.some((child) => referencesLegacyHook(child));
+  if (typeof value !== "object" || value === null)
+    return false;
+  return Object.values(value).some((child) => referencesLegacyHook(child));
+}
+function observeFiles(cwd) {
+  const recognizedFiles = [];
+  const conflictingFiles = [];
+  for (const relativePath of cataloguedClaudeLegacyPaths()) {
+    const path7 = nodePath47.join(cwd, relativePath);
+    if (!existsSync17(path7))
+      continue;
+    try {
+      const safePath = assertSafeClaudeCleanupTarget(cwd, relativePath);
+      const regular = lstatSync10(safePath).isFile();
+      if (regular && isAcceptedHistoricalFile(relativePath, readFileSync32(safePath))) {
+        recognizedFiles.push(relativePath);
+      } else {
+        conflictingFiles.push(relativePath);
+      }
+    } catch {
+      if (existsSync17(path7))
+        conflictingFiles.push(relativePath);
+    }
+  }
+  return { recognizedFiles, conflictingFiles };
+}
+function observeSettings(cwd) {
+  const settingsPath = nodePath47.join(cwd, ".claude/settings.json");
+  if (!existsSync17(settingsPath))
+    return { recognizedHooks: [], conflictingHooks: [] };
+  if (!lstatSync10(settingsPath).isFile()) {
+    return {
+      recognizedHooks: [],
+      conflictingHooks: [],
+      settingsError: ".claude/settings.json is not a regular file."
+    };
+  }
+  const errors = [];
+  const settings = parse3(readFileSync32(settingsPath, "utf8"), errors, {
+    allowTrailingComma: true,
+    disallowComments: false
+  });
+  if (errors.length > 0 || typeof settings !== "object" || settings === null) {
+    return {
+      recognizedHooks: [],
+      conflictingHooks: [],
+      settingsError: ".claude/settings.json could not be parsed safely."
+    };
+  }
+  return classifySettingsHooks(settings.hooks ?? {});
+}
+function classifySettingsHooks(hooks) {
+  const recognizedHooks = [];
+  const conflictingHooks = [];
+  const events = Object.entries(hooks);
+  for (const [event, value] of events) {
+    if (!Array.isArray(value))
+      continue;
+    const entries = value.entries();
+    for (const [index, entry] of entries) {
+      if (isAcceptedHistoricalHook(event, entry)) {
+        recognizedHooks.push({ event, index, entry });
+      } else if (referencesLegacyHook(entry)) {
+        conflictingHooks.push({ event, index, entry });
+      }
+    }
+  }
+  return { recognizedHooks, conflictingHooks };
+}
+function observeClaudeLegacy(cwd) {
+  return { ...observeFiles(cwd), ...observeSettings(cwd) };
+}
+function legacyObservationIsEmpty(observation) {
+  return observation.recognizedFiles.length === 0 && observation.conflictingFiles.length === 0 && observation.recognizedHooks.length === 0 && observation.conflictingHooks.length === 0 && observation.settingsError === undefined;
+}
+var init_legacy_classifier = __esm(() => {
+  init_main();
+  init_cleanup_target();
+  init_historical_ownership();
+});
+
+// src/claude-plugin/inventory.ts
+import {
+  closeSync as closeSync5,
+  constants as fsConstants2,
+  fstatSync as fstatSync2,
+  lstatSync as lstatSync11,
+  openSync as openSync5,
+  readdirSync as readdirSync8,
+  readSync as readSync2,
+  realpathSync as realpathSync7
+} from "fs";
+import nodePath48 from "path";
+function isSmallRegularMetadata(metadata) {
+  return metadata.isFile() && !metadata.isSymbolicLink() && metadata.size <= MAX_CLAUDE_CACHE_METADATA_BYTES;
+}
+function isSameSmallMetadata(before, opened, after) {
+  return opened.isFile() && isSmallRegularMetadata(after) && opened.dev === before.dev && opened.ino === before.ino && opened.dev === after.dev && opened.ino === after.ino && opened.nlink === 1 && opened.size <= MAX_CLAUDE_CACHE_METADATA_BYTES;
+}
+function readSmallDescriptor(descriptor) {
+  const buffer = Buffer.alloc(MAX_CLAUDE_CACHE_METADATA_BYTES + 1);
+  let offset = 0;
+  while (offset < buffer.length) {
+    const count = readSync2(descriptor, buffer, offset, buffer.length - offset, offset);
+    if (count === 0)
+      break;
+    offset += count;
+  }
+  return offset > MAX_CLAUDE_CACHE_METADATA_BYTES ? undefined : buffer.subarray(0, offset).toString("utf8");
+}
+function readSmallMetadataFile(path7) {
+  let descriptor;
+  try {
+    const linkedBefore = lstatSync11(path7);
+    if (!isSmallRegularMetadata(linkedBefore))
+      return;
+    descriptor = openSync5(path7, fsConstants2.O_RDONLY | fsConstants2.O_NONBLOCK | (fsConstants2.O_NOFOLLOW ?? 0));
+    const opened = fstatSync2(descriptor);
+    const linkedAfter = lstatSync11(path7);
+    if (!isSameSmallMetadata(linkedBefore, opened, linkedAfter))
+      return;
+    const content = readSmallDescriptor(descriptor);
+    const final = fstatSync2(descriptor);
+    return content !== undefined && isSameSmallMetadata(linkedBefore, final, linkedAfter) ? content : undefined;
+  } catch {
+    return;
+  } finally {
+    if (descriptor !== undefined)
+      closeSync5(descriptor);
+  }
+}
+function isLeaseRecord(value, expectedPid) {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
+  const record = value;
+  const hasExactFields = Object.keys(record).length === 2 && Object.hasOwn(record, "pid") && Object.hasOwn(record, "procStart");
+  return hasExactFields && Number.isSafeInteger(record.pid) && record.pid === expectedPid && typeof record.procStart === "string" && record.procStart.length > 0;
+}
+function leaseMarkerPid(name) {
+  const infix = name.indexOf(LEASE_TEMP_INFIX);
+  if (infix === -1)
+    return LEASE_PID.test(name) ? name : undefined;
+  const pid = name.slice(0, infix);
+  const suffix = name.slice(infix + LEASE_TEMP_INFIX.length);
+  if (!LEASE_PID.test(pid) || !LEASE_TEMP_SUFFIX.test(suffix))
+    return;
+  return pid;
+}
+function vanishedDuringScan(path7) {
+  try {
+    lstatSync11(path7);
+    return false;
+  } catch (error2) {
+    return error2.code === "ENOENT";
+  }
+}
+function isClaudeLeaseMarker(path7, name) {
+  const pid = leaseMarkerPid(name);
+  if (pid === undefined)
+    return false;
+  const content = readSmallMetadataFile(path7);
+  if (content === undefined)
+    return name.includes(LEASE_TEMP_INFIX) && vanishedDuringScan(path7);
+  try {
+    return isLeaseRecord(JSON.parse(content), Number(pid));
+  } catch {
+    return name.includes(LEASE_TEMP_INFIX);
+  }
+}
+function isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry) {
+  if (!entry.isFile())
+    return false;
+  if (logicalDirectory === ".in_use")
+    return isClaudeLeaseMarker(physicalPath, entry.name);
+  if (logicalDirectory !== "" || entry.name !== ".orphaned_at")
+    return false;
+  return /^\d{13}\n?$/u.test(readSmallMetadataFile(physicalPath) ?? "");
+}
+function directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot) {
+  const metadata = lstatSync11(physicalDirectory);
+  const canonical = realpathSync7(physicalDirectory);
+  const insideRoot = canonical === canonicalRoot || canonical.startsWith(`${canonicalRoot}${nodePath48.sep}`);
+  if (!metadata.isDirectory() || !insideRoot) {
+    throw new Error(`Claude plugin cache traversal escaped its root: ${logicalDirectory || "."}`);
+  }
+  return { canonical, device: metadata.dev, inode: metadata.ino };
+}
+function claudeNativePayloadFiles(root) {
+  const files = [];
+  const canonicalRoot = realpathSync7(root);
+  const visit3 = (physicalDirectory, logicalDirectory) => {
+    const before = directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot);
+    const entries = readdirSync8(physicalDirectory, { withFileTypes: true });
+    const after = directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot);
+    if (before.device !== after.device || before.inode !== after.inode || before.canonical !== after.canonical) {
+      throw new Error(`Claude plugin cache changed during traversal: ${logicalDirectory || "."}`);
+    }
+    for (const entry of entries) {
+      const physicalPath = nodePath48.join(physicalDirectory, entry.name);
+      const logicalPath = logicalDirectory === "" ? entry.name : nodePath48.posix.join(logicalDirectory, entry.name);
+      if (isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry))
+        continue;
+      if (entry.isDirectory())
+        visit3(physicalPath, logicalPath);
+      else
+        files.push(logicalPath);
+    }
+  };
+  visit3(root, "");
+  return files;
+}
+var CLAUDE_PLUGIN_ID = "safeword@safeword", CLAUDE_MIGRATION_SCHEMA, CLAUDE_ADOPTED_LEGACY_STATE, CLAUDE_NATIVE_REQUIRED_ASSETS, CLAUDE_NATIVE_METADATA_FILES, MAX_CLAUDE_CACHE_METADATA_BYTES = 1024, LEASE_TEMP_INFIX = ".tmp.", LEASE_PID, LEASE_TEMP_SUFFIX;
+var init_inventory2 = __esm(() => {
+  CLAUDE_MIGRATION_SCHEMA = {
+    data: {
+      pluginsRoot: "plugins/data",
+      proofs: "execution-proofs-v2",
+      projectState: "project-state-v1"
+    },
+    state: {
+      pluginMarkerV2: "plugin-mode-v2.json",
+      attention: "attention-v1.json",
+      attemptsDirectory: "attempts-v1",
+      transaction: "cleanup-transaction-v1.json"
+    },
+    legacy: {
+      pluginMarker: ".safeword/claude-plugin/plugin-mode-v1.json",
+      pluginMarkerV2: ".safeword/claude-plugin/plugin-mode-v2.json",
+      attention: ".safeword/claude-plugin/attention-v1.json",
+      attemptsDirectory: ".safeword/claude-plugin/attempts-v1",
+      transaction: ".safeword/claude-plugin/cleanup-transaction-v1.json"
+    }
+  };
+  CLAUDE_ADOPTED_LEGACY_STATE = [
+    "pluginMarkerV2",
+    "attention",
+    "attemptsDirectory",
+    "transaction"
+  ];
+  CLAUDE_NATIVE_REQUIRED_ASSETS = [
+    ".claude-plugin/plugin.json",
+    "hooks/hooks.json",
+    "resources/SAFEWORD.md",
+    "runtime/cli.js",
+    "runtime/dispatch.js",
+    "runtime/event-groups.json"
+  ];
+  CLAUDE_NATIVE_METADATA_FILES = [
+    "README.md",
+    "identity.json",
+    "inventory.json"
+  ];
+  LEASE_PID = /^\d{1,10}$/u;
+  LEASE_TEMP_SUFFIX = /^[0-9a-f]{1,32}$/u;
+});
+
+// src/claude-plugin/project-root.ts
+import { spawnSync as spawnSync5 } from "child_process";
+function canonicalClaudeProjectRoot(cwd) {
+  const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
+  const environmentRoot = configuredRoot === undefined ? undefined : configuredRoot.trim();
+  let candidate = environmentRoot === "" ? undefined : environmentRoot;
+  if (candidate === undefined) {
+    const result = spawnSync5("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
+      encoding: "utf8"
+    });
+    const gitRoot = result.status === 0 ? result.stdout?.trim() : undefined;
+    candidate = gitRoot === "" || gitRoot === undefined ? cwd : gitRoot;
+  }
+  const canonical = canonicalDirectory(candidate);
+  if (canonical === undefined) {
+    throw new Error(`Claude project root is missing, not a directory, or cannot be resolved: ${candidate}`);
+  }
+  return canonical;
+}
+var init_project_root = __esm(() => {
+  init_fs();
+});
+
+// src/claude-plugin/plugin-data.ts
+import { createHash as createHash19 } from "crypto";
+import { homedir as homedir5 } from "os";
+import nodePath49 from "path";
+function claudeConfigDirectory(environment = process.env) {
+  const configured = (environment.CLAUDE_CONFIG_DIR ?? "").trim();
+  return configured === "" ? nodePath49.join(homedir5(), ".claude") : configured;
+}
+function claudePluginDataId(pluginId = CLAUDE_PLUGIN_ID) {
+  return pluginId.replaceAll(/[^\w-]/gu, "-");
+}
+function claudePluginDataDirectory(environment = process.env) {
+  const exported = (environment.CLAUDE_PLUGIN_DATA ?? "").trim();
+  if (exported !== "")
+    return exported;
+  return nodePath49.join(claudeConfigDirectory(environment), CLAUDE_MIGRATION_SCHEMA.data.pluginsRoot, claudePluginDataId());
+}
+function claudeProjectDigest(canonicalProjectRoot) {
+  return createHash19("sha256").update(canonicalProjectRoot).digest("hex");
+}
+function claudeProofDirectory(environment = process.env) {
+  return nodePath49.join(claudePluginDataDirectory(environment), CLAUDE_MIGRATION_SCHEMA.data.proofs);
+}
+function claudeProjectStateDirectory(cwd) {
+  const canonical = canonicalClaudeProjectRoot(cwd);
+  return nodePath49.join(claudePluginDataDirectory(), CLAUDE_MIGRATION_SCHEMA.data.projectState, claudeProjectDigest(canonical));
+}
+var init_plugin_data = __esm(() => {
+  init_inventory2();
+  init_project_root();
+});
+
+// src/claude-plugin/migration-state.ts
+import { createHash as createHash20, randomUUID as randomUUID9 } from "crypto";
+import { cpSync, existsSync as existsSync18, mkdirSync as mkdirSync11, readFileSync as readFileSync33, renameSync as renameSync7, rmSync as rmSync7 } from "fs";
+import nodePath50 from "path";
+function createClaudePluginMode(marker) {
+  return {
+    ...marker,
+    schema_version: 2,
+    state: marker.unresolved_paths.length === 0 ? "clean" : "unresolved"
+  };
+}
+function digest2(value) {
+  return createHash20("sha256").update(value).digest("hex");
+}
+function relocateLegacyState(from, to, rename2 = renameSync7, copy = (source, destination) => {
+  cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
+}) {
+  try {
+    rename2(from, to);
+    return false;
+  } catch (error2) {
+    if (error2.code !== "EXDEV")
+      throw error2;
+  }
+  const staging = `${to}.${randomUUID9()}.partial`;
+  try {
+    copy(from, staging);
+    rename2(staging, to);
+  } catch (error2) {
+    rmSync7(staging, { recursive: true, force: true });
+    throw error2;
+  }
+  return true;
+}
+function adoptLegacyProjectState(cwd, directory) {
+  if (adopted.has(directory))
+    return;
+  adopted.add(directory);
+  for (const key of CLAUDE_ADOPTED_LEGACY_STATE) {
+    const legacy = nodePath50.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
+    if (!existsSync18(legacy))
+      continue;
+    const destination = nodePath50.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
+    try {
+      if (existsSync18(adoptionReceipt(directory, key)) || existsSync18(destination)) {
+        recordAdoption(directory, key);
+        rmSync7(legacy, { recursive: true, force: true });
+        continue;
+      }
+      mkdirSync11(directory, { recursive: true, mode: 448 });
+      const sourceRemains = relocateLegacyState(legacy, destination);
+      recordAdoption(directory, key);
+      if (sourceRemains)
+        rmSync7(legacy, { recursive: true, force: true });
+    } catch {}
+  }
+}
+function adoptionReceipt(directory, key) {
+  return nodePath50.join(directory, `.adopted-${CLAUDE_MIGRATION_SCHEMA.state[key]}`);
+}
+function recordAdoption(directory, key) {
+  try {
+    writeDurableFile(adoptionReceipt(directory, key), "", { mode: 384 });
+  } catch {}
+}
+function stateDirectory(cwd) {
+  const directory = claudeProjectStateDirectory(cwd);
+  adoptLegacyProjectState(cwd, directory);
+  return directory;
+}
+function claudeProjectStatePath(cwd, key) {
+  const directory = stateDirectory(cwd);
+  const adoptedPath = nodePath50.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
+  if (existsSync18(adoptedPath))
+    return adoptedPath;
+  if (existsSync18(adoptionReceipt(directory, key)))
+    return adoptedPath;
+  const legacy = nodePath50.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
+  return existsSync18(legacy) ? legacy : adoptedPath;
+}
+function removeClaudeProjectState(cwd, key) {
+  rmSync7(nodePath50.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]), {
+    recursive: true,
+    force: true
+  });
+  rmSync7(nodePath50.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]), {
+    recursive: true,
+    force: true
+  });
+}
+function advisoryStateDigest(advisory) {
+  return digest2(advisory);
+}
+function claudeWatchedSettingsDigest(cwd) {
+  const configDirectory = claudeConfigDirectory();
+  const paths = [
+    nodePath50.join(cwd, ".claude/settings.json"),
+    nodePath50.join(configDirectory, "settings.json")
+  ];
+  const hash = createHash20("sha256");
+  for (const path7 of paths) {
+    hash.update(path7);
+    hash.update("\x00");
+    hash.update(existsSync18(path7) ? readFileSync33(path7) : "<absent>");
+    hash.update("\x00");
+  }
+  return hash.digest("hex");
+}
+function markerPath(cwd) {
+  return claudeProjectStatePath(cwd, "pluginMarkerV2");
+}
+function validDigest(value) {
+  return typeof value === "string" && /^[\da-f]{64}$/u.test(value);
+}
+function validPluginMode(value) {
+  const unresolvedPaths = value.unresolved_paths;
+  const consistentState = value.state === "clean" && unresolvedPaths?.length === 0 || value.state === "unresolved" && (unresolvedPaths?.length ?? 0) > 0;
+  return [
+    value.schema_version === 2,
+    ["clean", "unresolved"].includes(value.state ?? ""),
+    typeof value.plugin_version === "string",
+    validDigest(value.hook_manifest_sha256),
+    validDigest(value.catalogue_sha256),
+    Array.isArray(unresolvedPaths),
+    Array.isArray(unresolvedPaths) && unresolvedPaths.every((item) => typeof item === "string"),
+    consistentState
+  ].every(Boolean);
+}
+function readClaudePluginMode(cwd) {
+  try {
+    const path7 = markerPath(cwd);
+    const value = JSON.parse(readFileSync33(path7, "utf8"));
+    return validPluginMode(value) ? value : undefined;
+  } catch {
+    return;
+  }
+}
+function writeClaudePluginMode(cwd, marker) {
+  const normalized = createClaudePluginMode({
+    plugin_version: marker.plugin_version,
+    hook_manifest_sha256: marker.hook_manifest_sha256,
+    catalogue_sha256: marker.catalogue_sha256,
+    unresolved_paths: marker.unresolved_paths,
+    ...marker.advisory !== undefined && { advisory: marker.advisory },
+    ...marker.transaction_id !== undefined && { transaction_id: marker.transaction_id }
+  });
+  writeDurableFile(markerPath(cwd), `${JSON.stringify(normalized, undefined, 2)}
+`, {
+    mode: 384
+  });
+}
+function writeClaudeMigrationAttention(cwd, attention) {
+  writeDurableFile(claudeProjectStatePath(cwd, "attention"), `${JSON.stringify(attention, undefined, 2)}
+`, { mode: 384 });
+}
+function hasLegacyClaudePluginMode(cwd) {
+  return existsSync18(nodePath50.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy.pluginMarker));
+}
+var PROCESS_SESSION_ID, adopted;
+var init_migration_state = __esm(() => {
+  init_durable_write();
+  init_inventory2();
+  init_plugin_data();
+  PROCESS_SESSION_ID = `process-${randomUUID9()}`;
+  adopted = new Set;
+});
+
+// src/claude-plugin/delivery-schema.ts
+function withoutLegacyClaude(values) {
+  return Object.fromEntries(Object.entries(values).filter(([path7]) => !path7.startsWith(".claude/")));
+}
+function schemaForClaudeDelivery(cwd) {
+  const legacyPluginMode = hasLegacyClaudePluginMode(cwd);
+  const nativePluginMode = readClaudePluginMode(cwd) !== undefined;
+  if (!legacyPluginMode && !nativePluginMode && !legacyObservationIsEmpty(observeClaudeLegacy(cwd))) {
+    return SAFEWORD_SCHEMA;
+  }
+  return {
+    ...SAFEWORD_SCHEMA,
+    ownedDirs: SAFEWORD_SCHEMA.ownedDirs.filter((path7) => !path7.startsWith(".claude")),
+    sharedDirs: SAFEWORD_SCHEMA.sharedDirs.filter((path7) => !path7.startsWith(".claude")),
+    deprecatedFiles: SAFEWORD_SCHEMA.deprecatedFiles.filter((path7) => !path7.startsWith(".claude/")),
+    deprecatedDirs: SAFEWORD_SCHEMA.deprecatedDirs.filter((path7) => !path7.startsWith(".claude")),
+    ownedFiles: withoutLegacyClaude(SAFEWORD_SCHEMA.ownedFiles),
+    managedFiles: withoutLegacyClaude(SAFEWORD_SCHEMA.managedFiles),
+    jsonMerges: withoutLegacyClaude(SAFEWORD_SCHEMA.jsonMerges)
+  };
+}
+var init_delivery_schema = __esm(() => {
+  init_schema();
+  init_legacy_classifier();
+  init_migration_state();
+});
+
+// src/codex-plugin/delivery-schema.ts
+function withoutFinalizedCodexEntries(values, retiredPaths) {
+  return Object.fromEntries(Object.entries(values).filter(([path7]) => !retiredPaths.has(path7)));
+}
+function schemaForCodexDelivery(cwd, schema) {
+  if (!codexFinalizationIsComplete(cwd))
+    return schema;
+  const retiredPaths = new Set(schema.codexMigration.cleanupFiles);
+  return {
+    ...schema,
+    deprecatedFiles: schema.deprecatedFiles.filter((path7) => !retiredPaths.has(path7)),
+    ownedFiles: withoutFinalizedCodexEntries(schema.ownedFiles, retiredPaths),
+    managedFiles: withoutFinalizedCodexEntries(schema.managedFiles, retiredPaths),
+    jsonMerges: withoutFinalizedCodexEntries(schema.jsonMerges, retiredPaths),
+    textPatches: withoutFinalizedCodexEntries(schema.textPatches, retiredPaths),
+    legacyTextPatches: withoutFinalizedCodexEntries(schema.legacyTextPatches, retiredPaths),
+    contracts: withoutFinalizedCodexEntries(schema.contracts, retiredPaths)
+  };
+}
+var init_delivery_schema2 = __esm(() => {
+  init_finalization();
+});
+
+// src/lifecycle/schema.ts
+var exports_schema = {};
+__export(exports_schema, {
+  projectLifecycleSchema: () => projectLifecycleSchema
+});
+import { existsSync as existsSync19 } from "fs";
+import nodePath51 from "path";
+function isLegacyClaudePath(path7) {
+  return path7 === ".claude" || path7.startsWith(".claude/");
+}
+function withSelectedOwnedPaths(schema) {
+  const path7 = ".safeword/hooks/lib/owned-paths.ts";
+  if (schema.ownedFiles[path7] === undefined)
+    return schema;
+  const ownershipSchema = schemaForProjectSurfaces(SAFEWORD_SCHEMA, ["core", "cursor"]);
+  return {
+    ...schema,
+    ownedFiles: {
+      ...schema.ownedFiles,
+      [path7]: {
+        generator: (ctx) => generateOwnedPathsModule(ownershipSchema, resolvedNamespaceDirectory(ctx))
+      }
+    }
+  };
+}
+function hasLegacyClaudeDelivery(schema) {
+  return [...Object.keys(schema.ownedFiles), ...Object.keys(schema.jsonMerges)].some((path7) => isLegacyClaudePath(path7));
+}
+function selectedDeliverySchema(schema, selected) {
+  return selected.has("claude") ? schema : filterSchemaPaths(schema, (path7) => !isLegacyClaudePath(path7));
+}
+function selectedProjectSurfaces(selected) {
+  return ["core", ...selected.has("cursor") ? ["cursor"] : []];
+}
+function sharedRuntimeNeeded(selected, legacyClaudeActive) {
+  return selected.has("cursor") || legacyClaudeActive;
+}
+function installedCursorActive(cwd) {
+  const cursorSchema = schemaForProjectSurfaces(SAFEWORD_SCHEMA, ["cursor"]);
+  return [...Object.keys(cursorSchema.ownedFiles), ...Object.keys(cursorSchema.jsonMerges)].some((path7) => path7.startsWith(".cursor/") && existsSync19(nodePath51.join(cwd, path7)));
+}
+function preserveSharedProjectSchema(schema, keepPath = () => false) {
+  return {
+    ...filterSchemaPaths(schema, keepPath),
+    deprecatedPackages: [],
+    packages: { base: [], conditional: {} }
+  };
+}
+function retainedHostUninstallSchema(cwd, schema, selected, legacyClaudeInstalled, remainingNativeProfile) {
+  if (!selected.has("cursor") && installedCursorActive(cwd)) {
+    return preserveSharedProjectSchema(schema, (path7) => selected.has("claude") && isLegacyClaudePath(path7));
+  }
+  const remainingLegacyClaude = legacyClaudeInstalled && !selected.has("claude");
+  if (!remainingNativeProfile && !remainingLegacyClaude)
+    return;
+  return preserveSharedProjectSchema(schema, (path7) => {
+    if (isSharedAgentRuntimePath(path7))
+      return selected.has("cursor") && !remainingLegacyClaude;
+    return selected.has("cursor") && isCursorProjectPath(path7) || selected.has("claude") && isLegacyClaudePath(path7);
+  });
+}
+function projectLifecycleSchema(cwd, agents, operation = "check", remainingNativeProfile = false) {
+  const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
+  const selected = new Set(agents);
+  const legacyClaudeInstalled = hasLegacyClaudeDelivery(claudeDeliverySchema);
+  const legacyClaudeActive = selected.has("claude") && legacyClaudeInstalled;
+  const selectedSchema = selectedDeliverySchema(claudeDeliverySchema, selected);
+  const deliverySchema = schemaForCodexDelivery(cwd, selectedSchema);
+  const surfaceSchema = schemaForProjectSurfaces(deliverySchema, selectedProjectSurfaces(selected));
+  if (operation === "uninstall" && selected.size > 0) {
+    const retained = retainedHostUninstallSchema(cwd, surfaceSchema, selected, legacyClaudeInstalled, remainingNativeProfile);
+    if (retained !== undefined)
+      return retained;
+  }
+  return withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)));
+}
+var init_schema2 = __esm(() => {
+  init_delivery_schema();
+  init_delivery_schema2();
+  init_owned_paths();
+  init_schema();
+});
+
+// src/lifecycle/cursor.ts
+var exports_cursor = {};
+__export(exports_cursor, {
+  unselectedCursorFinding: () => unselectedCursorFinding,
+  observeCursorProject: () => observeCursorProject,
+  hasCursorProjectAssets: () => hasCursorProjectAssets
+});
+import { existsSync as existsSync20 } from "fs";
+import nodePath52 from "path";
+function cursorOwnedFiles(schema) {
+  return [...Object.keys(schema.ownedFiles), ...Object.keys(schema.managedFiles)].filter((path7) => isCursorProjectPath(path7));
+}
+function hasCursorProjectAssets(cwd, schema) {
+  return cursorOwnedFiles(schema).some((path7) => existsSync20(nodePath52.join(cwd, path7)));
+}
+function observeCursorProject(cwd, schema) {
+  const owned = cursorOwnedFiles(schema);
+  const missing = owned.filter((path7) => !existsSync20(nodePath52.join(cwd, path7)));
+  if (missing.length === 0) {
+    return createResult({
+      state: "healthy",
+      data: {
+        command: "cursor status",
+        coverage: "project-owned Cursor assets",
+        owned_files: owned.length
+      }
+    });
+  }
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: "CURSOR_ASSETS_MISSING",
+        message: `${missing.length} Safeword-owned Cursor file(s) are missing; run \`safeword install --agents=cursor\`.`,
+        severity: "warning"
+      }
+    ],
+    nextActions: [
+      { command: "safeword install --agents=cursor", mutates: true, requiresHuman: false }
+    ],
+    data: {
+      command: "cursor status",
+      coverage: "project-owned Cursor assets",
+      owned_files: owned.length,
+      missing_files: missing.length
+    }
+  });
+}
+function unselectedCursorFinding(cwd, agents) {
+  if (agents.includes("cursor"))
+    return [];
+  if (!hasCursorProjectAssets(cwd, projectLifecycleSchema(cwd, ["cursor"])))
+    return [];
+  return [
+    {
+      code: "CURSOR_NOT_SELECTED",
+      message: "This project has Safeword-owned Cursor assets that the current selection excludes; include `--agents=cursor` to keep them current.",
+      severity: "info"
+    }
+  ];
+}
+var init_cursor = __esm(() => {
+  init_result();
+  init_schema();
+  init_schema2();
+});
+
+// src/review/packet-error.ts
+var ReviewPacketError;
+var init_packet_error = __esm(() => {
+  ReviewPacketError = class ReviewPacketError extends Error {
+    code;
+    name = "ReviewPacketError";
+    constructor(message, code = "REVIEW_PACKET_INVALID") {
+      super(message);
+      this.code = code;
+    }
+  };
+});
+
+// src/planning/contracts.generated.ts
+var PLANNING_AUTHOR_COPIES;
+var init_contracts_generated = __esm(() => {
+  PLANNING_AUTHOR_COPIES = {
+    "product-plan": {
+      relativePath: "templates/skills/bdd/DISCOVERY.md",
+      sha256: "9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557"
+    },
+    "plan-implementation": {
+      relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
+      sha256: "7097df93aee9e2050d756a20b7518eb2c3663ca63a3fc5c8ee72518401a493f4"
+    },
+    "plan-execution": {
+      relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
+      sha256: "b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d"
+    }
+  };
+});
+
+// src/planning/author-copy.ts
+import { createHash as createHash21 } from "crypto";
+import { readFileSync as readFileSync34 } from "fs";
+import nodePath53 from "path";
+import process10 from "process";
+function digest3(bytes) {
+  return createHash21("sha256").update(bytes).digest("hex");
+}
+function packageRoot() {
+  const directory = nodePath53.basename(import.meta.dirname);
+  return directory === "dist" || directory === "runtime" ? nodePath53.dirname(import.meta.dirname) : nodePath53.resolve(import.meta.dirname, "../..");
+}
+function readPlanningAuthor(root, phase, identity, verifyWholeCopy = true) {
+  let bytes;
+  try {
+    bytes = readFileSync34(nodePath53.join(root, identity.relativePath));
+  } catch {
+    throw new PlanningContractCopyError("missing_generated_contract_copy", phase, identity.relativePath);
+  }
+  if (verifyWholeCopy && digest3(bytes) !== identity.sha256) {
+    throw new PlanningContractCopyError("canonical_contract_copy_mismatch", phase, identity.relativePath);
+  }
+  return bytes.toString("utf8");
+}
+function packagedPlanningAuthor(phase, verifyWholeCopy = true) {
+  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "8fe3812619a384e569571e00548b2b168dbdbd55f1f06ccacf1fa14bdf5d6a7c" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } };
+  return readPlanningAuthor(packageRoot(), phase, copies[phase], verifyWholeCopy);
+}
+function assertActivePlanningAuthorCopy(cwd, phase) {
+  packagedPlanningAuthor(phase);
+  if (process10.env.SAFEWORD_AGENT_RUNTIME !== "cursor" && !hasCursorProjectAssets(cwd, SAFEWORD_SCHEMA)) {
+    return;
+  }
+  const identity = PLANNING_AUTHOR_COPIES[phase];
+  const template = identity.relativePath.replace(/^templates\//u, "");
+  readPlanningAuthor(cwd, phase, {
+    relativePath: cursorPlanningContractPath(template),
+    sha256: identity.sha256
+  });
+}
+var PlanningContractCopyError;
+var init_author_copy = __esm(() => {
+  init_cursor();
+  init_packet_error();
+  init_schema();
+  init_contracts_generated();
+  PlanningContractCopyError = class PlanningContractCopyError extends ReviewPacketError {
+    code;
+    phase;
+    contractPath;
+    constructor(code, phase, contractPath) {
+      const generator = {
+        "product-plan": "generate:planning-contracts",
+        "plan-implementation": "generate:plan-rubric",
+        "plan-execution": "generate:execution-plan-rubric"
+      }[phase];
+      super(`The ${phase} authoring contract copy at ${contractPath} ${code === "missing_generated_contract_copy" ? "is unavailable" : "differs from the canonical contract-byte identity"}. Restore the packaged decision-quality contract by reinstalling or reconciling the intact Safeword distribution and retry. For source builds, restore the canonical authoring contract, run \`bun run ${generator}\` and \`bun run fix:generated-surfaces\`, then rebuild and reinstall.`);
+      this.code = code;
+      this.phase = phase;
+      this.contractPath = contractPath;
+    }
+  };
+});
+
+// src/utils/ticket-metadata.ts
+function parseTicketMetadata(content) {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u.exec(content);
+  if (match === null)
+    throw new Error("Planning context ticket has no YAML metadata.");
+  const document2 = import_yaml3.parseDocument(match[1] ?? "", { uniqueKeys: true });
+  if (document2.errors.length > 0)
+    throw new Error("Planning context ticket has invalid YAML metadata.");
+  const value = document2.toJS();
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("Planning context ticket metadata must be a mapping.");
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new TypeError("Planning context ticket metadata must be a mapping.");
+  }
+  const metadata = { ...value, ...opaqueTicketIdentifiers(document2) };
+  return { metadata, body: content.slice(match[0].length) };
+}
+function opaqueTicketIdentifiers(document2) {
+  const identifiers = {};
+  for (const field of ["id", "parent"]) {
+    const node = document2.get(field, true);
+    const scalar = import_yaml3.isAlias(node) ? node.resolve(document2) : node;
+    if (import_yaml3.isScalar(scalar) && typeof scalar.value === "number" && scalar.source !== undefined) {
+      identifiers[field] = scalar.source;
+    }
+  }
+  return identifiers;
+}
+var import_yaml3;
+var init_ticket_metadata = __esm(() => {
+  import_yaml3 = __toESM(require_dist(), 1);
+});
+
+// src/review/execution-plan-rubric.ts
+function extractExecutionPlanReviewRubric(reference) {
+  const starts = reference.split(EXECUTION_PLAN_RUBRIC_START).length - 1;
+  const ends = reference.split(EXECUTION_PLAN_RUBRIC_END).length - 1;
+  if (starts !== 1 || ends !== 1) {
+    throw new Error("PLAN_EXECUTION.md must contain exactly one rubric marker pair");
+  }
+  const start = reference.indexOf(EXECUTION_PLAN_RUBRIC_START) + EXECUTION_PLAN_RUBRIC_START.length;
+  const end = reference.indexOf(EXECUTION_PLAN_RUBRIC_END);
+  if (end <= start)
+    throw new Error("PLAN_EXECUTION.md rubric markers are out of order");
+  const rubric = reference.slice(start, end).trim();
+  if (rubric === "")
+    throw new Error("PLAN_EXECUTION.md rubric is empty");
+  for (const forbidden of [
+    "run-review.ts",
+    "/finish-review",
+    "advance the ticket",
+    "write-review-stamp.ts"
+  ]) {
+    if (rubric.includes(forbidden)) {
+      throw new Error(`PLAN_EXECUTION.md rubric contains host-only instruction: ${forbidden}`);
+    }
+  }
+  return rubric;
+}
+var EXECUTION_PLAN_RUBRIC_START = "<!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_START -->", EXECUTION_PLAN_RUBRIC_END = "<!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_END -->";
+
+// src/review/git-prefix.ts
+function parseGitProjectPrefix(output) {
+  const prefix = output.slice(0, -1);
+  if (!output.endsWith(`
+`) || prefix.startsWith("/") || prefix !== "" && !prefix.endsWith("/") || prefix.split("/").includes("..")) {
+    return;
+  }
+  return prefix;
+}
+
+// src/review/text.ts
+function decodeReviewText(bytes, target) {
+  let content;
+  try {
+    content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new ReviewPacketError(`Review target is not valid UTF-8 text: ${target}`, "REVIEW_TARGET_INVALID_TEXT");
+  }
+  if (HIGH_CONFIDENCE_SECRET_PATTERNS.some((pattern) => pattern.test(content))) {
+    throw new Error(`Review packet rejected a high-confidence credential in ${target}; redact it before dispatch`);
+  }
+  return content;
+}
+var HIGH_CONFIDENCE_SECRET_PATTERNS;
+var init_text = __esm(() => {
+  init_packet_error();
+  HIGH_CONFIDENCE_SECRET_PATTERNS = [
+    /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u,
+    /\bAKIA[0-9A-Z]{16}\b/u,
+    /\bgh[pousr]_[A-Za-z0-9]{36,}\b/u,
+    /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/u,
+    /\bsk-(?:proj-|ant-)[\w-]{16,}\b/u,
+    /\bAIza[\w-]{35}\b/u
+  ];
+});
+
+// src/review/lockfile-diff.ts
+import { spawnSync as spawnSync6 } from "child_process";
+import { createHash as createHash22 } from "crypto";
+import {
+  chmodSync as chmodSync3,
+  closeSync as closeSync6,
+  mkdirSync as mkdirSync12,
+  mkdtempSync as mkdtempSync5,
+  openSync as openSync6,
+  readFileSync as readFileSync35,
+  rmSync as rmSync8,
+  statSync as statSync4,
+  writeFileSync as writeFileSync12
+} from "fs";
+import { tmpdir as tmpdir3 } from "os";
+import nodePath54 from "path";
+function unavailable(message) {
+  throw new ReviewPacketError(message, "REVIEW_LOCKFILE_DIFF_UNAVAILABLE");
+}
+function tooLarge(subject, limit) {
+  throw new ReviewPacketError(`${subject} exceeds the ${limit}-byte review capture limit; refresh a stale default branch or narrow the change`, "REVIEW_TARGET_TOO_LARGE");
+}
+function git(root, args, environment) {
+  const result = spawnSync6("git", [...args], {
+    cwd: root,
+    env: environment,
+    encoding: "buffer",
+    timeout: 5000,
+    maxBuffer: GIT_METADATA_BYTES
+  });
+  if (result.error !== undefined || result.signal !== null) {
+    unavailable("Git could not complete bounded lockfile review");
+  }
+  return result;
+}
+function metadata(root, args, environment) {
+  const result = git(root, args, environment);
+  if (result.status !== 0)
+    unavailable("Git could not read the lockfile baseline metadata");
+  return decodeReviewText(result.stdout, "lockfile Git metadata");
+}
+function resolveBaseline(root, environment) {
+  for (const ref of DEFAULT_REFS) {
+    const result = git(root, ["rev-parse", "--verify", "--quiet", ref], environment);
+    if (result.status === 1)
+      continue;
+    if (result.status !== 0)
+      unavailable("Git could not resolve the default branch for lockfile review");
+    const commit = metadata(root, ["merge-base", "HEAD", ref], environment).trim();
+    if (!/^[a-f0-9]{40,64}$/u.test(commit))
+      unavailable("Default branch has no lockfile review baseline");
+    return { ref, commit };
+  }
+  return unavailable("No default branch baseline for bounded lockfile review; fetch its history first");
+}
+function baselineChanged(root, environment, original) {
+  return () => {
+    try {
+      const current = resolveBaseline(root, environment);
+      return current.ref !== original.ref || current.commit !== original.commit;
+    } catch {
+      return true;
+    }
+  };
+}
+function projectPrefix(request) {
+  const prefixLine = metadata(request.root, ["rev-parse", "--show-prefix"], request.environment);
+  const prefix = parseGitProjectPrefix(prefixLine);
+  if (prefix === undefined) {
+    unavailable("Invalid Git project prefix for lockfile review");
+  }
+  return prefix;
+}
+function parseBlob(entry, path7) {
+  const tab = entry.indexOf("\t");
+  const match = /^(100644|100755) blob ([a-f0-9]{40,64}) +(\d+)$/u.exec(entry.slice(0, tab));
+  const mode = match?.[1];
+  const oid = match?.[2];
+  const bytes = Number(match?.[3]);
+  if (mode !== "100644" && mode !== "100755" || oid === undefined || !Number.isSafeInteger(bytes) || bytes < 0 || entry.slice(tab + 1) !== `${path7}\x00`) {
+    unavailable("No regular tracked baseline exists at this large lockfile path");
+  }
+  return { path: path7, mode, oid, bytes };
+}
+function baselineBlob(request, base) {
+  const path7 = projectPrefix(request) + request.relative;
+  const entry = metadata(request.root, ["ls-tree", "-l", "-z", "--full-tree", base.commit, "--", `:(literal)${path7}`], request.environment);
+  const blob = parseBlob(entry, path7);
+  if (blob.bytes > MAX_LOCKFILE_SOURCE_BYTES)
+    tooLarge("Lockfile baseline", MAX_LOCKFILE_SOURCE_BYTES);
+  return blob;
+}
+function lockfileText(bytes, target) {
+  const content = decodeReviewText(bytes, target);
+  if (content.includes("\x00")) {
+    throw new ReviewPacketError(`Review target is binary rather than UTF-8 lockfile text: ${target}`, "REVIEW_TARGET_INVALID_TEXT");
+  }
+  return content;
+}
+function captureBlob(request, blob, destination) {
+  const descriptor = openSync6(destination, "wx", 384);
+  try {
+    const run2 = spawnSync6("git", ["cat-file", "blob", blob.oid], {
+      cwd: request.root,
+      env: request.environment,
+      stdio: ["ignore", descriptor, "pipe"],
+      timeout: 5000,
+      maxBuffer: GIT_METADATA_BYTES
+    });
+    if (run2.status !== 0 || run2.error !== undefined || run2.signal !== null) {
+      unavailable("Git could not capture the complete lockfile baseline");
+    }
+  } finally {
+    closeSync6(descriptor);
+  }
+  if (statSync4(destination).size !== blob.bytes)
+    unavailable("Git returned an incomplete lockfile baseline");
+  const bytes = readFileSync35(destination);
+  lockfileText(bytes, `${request.relative} baseline`);
+  return bytes;
+}
+function setMode(path7, executable) {
+  chmodSync3(path7, executable ? 493 : 420);
+  if (Boolean(statSync4(path7).mode & 73) !== executable) {
+    unavailable("This host cannot preserve the lockfile executable mode for review");
+  }
+}
+function displayedPatch(raw, relative) {
+  const lines = raw.split(`
+`);
+  if (lines[0] !== "diff --git a/before/bun.lock b/after/bun.lock") {
+    unavailable("Git returned unexpected lockfile diff paths");
+  }
+  const before = JSON.stringify(`a/${relative}`);
+  const after = JSON.stringify(`b/${relative}`);
+  lines[0] = `diff --git ${before} ${after}`;
+  for (let index = 1;index < lines.length; index++) {
+    const line = lines[index];
+    if (line?.startsWith("@@ "))
+      break;
+    if (line === "--- a/before/bun.lock")
+      lines[index] = `--- ${before}`;
+    else if (line === "+++ b/after/bun.lock")
+      lines[index] = `+++ ${after}`;
+  }
+  return lines.join(`
+`);
+}
+function reconstruct(request, directory, isolatedGit, beforeBytes, file) {
+  const replay = nodePath54.join(directory, "replay");
+  const replayPath = nodePath54.resolve(replay, request.relative);
+  const relative = nodePath54.relative(replay, replayPath);
+  if (relative === ".." || relative.startsWith(`..${nodePath54.sep}`) || nodePath54.isAbsolute(relative)) {
+    unavailable("Lockfile reconstruction path escapes its private directory");
+  }
+  mkdirSync12(nodePath54.dirname(replayPath), { recursive: true });
+  writeFileSync12(replayPath, beforeBytes, { mode: 384 });
+  setMode(replayPath, file.representation.base_mode === "100755");
+  const patchPath = nodePath54.join(directory, "displayed.patch");
+  writeFileSync12(patchPath, file.content, { mode: 384 });
+  const applied = git(replay, [
+    `--git-dir=${isolatedGit}`,
+    `--work-tree=${replay}`,
+    "-c",
+    "core.filemode=true",
+    "apply",
+    "-p1",
+    "--whitespace=nowarn",
+    patchPath
+  ], request.environment);
+  const observed = statSync4(replayPath);
+  if (applied.status !== 0 || observed.size !== request.bytes.length || digest4(readFileSync35(replayPath)) !== file.representation.source_sha256 || Boolean(observed.mode & 73) !== request.executable) {
+    unavailable("The displayed lockfile patch does not reconstruct the exact captured source bytes and mode");
+  }
+}
+function capturePatch(request, directory, blob) {
+  const before = nodePath54.join(directory, "before");
+  const after = nodePath54.join(directory, "after");
+  mkdirSync12(before);
+  mkdirSync12(after);
+  const beforePath = nodePath54.join(before, "bun.lock");
+  const beforeBytes = captureBlob(request, blob, beforePath);
+  setMode(beforePath, blob.mode === "100755");
+  const afterPath = nodePath54.join(after, "bun.lock");
+  writeFileSync12(afterPath, request.bytes, { mode: 384 });
+  setMode(afterPath, request.executable);
+  const template = nodePath54.join(directory, "empty-template");
+  const isolatedGit = nodePath54.join(directory, "bare");
+  mkdirSync12(template);
+  const initialized = git(directory, ["init", "--bare", "-q", `--template=${template}`, isolatedGit], request.environment);
+  if (initialized.status !== 0)
+    unavailable("Git could not isolate lockfile review configuration");
+  const patch = nodePath54.join(directory, "raw.patch");
+  const run2 = git(directory, [
+    `--git-dir=${isolatedGit}`,
+    "-c",
+    "core.filemode=true",
+    "diff",
+    "--no-index",
+    "--text",
+    "--no-ext-diff",
+    "--no-textconv",
+    "--no-color",
+    "--no-renames",
+    "--diff-algorithm=myers",
+    "--src-prefix=a/",
+    "--dst-prefix=b/",
+    "--unified=20",
+    `--output=${patch}`,
+    "--",
+    "before/bun.lock",
+    "after/bun.lock"
+  ], request.environment);
+  if (run2.status !== 1)
+    unavailable("No complete changed lockfile patch is available");
+  if (statSync4(patch).size > request.maxFileBytes)
+    tooLarge("Lockfile patch", request.maxFileBytes);
+  const raw = lockfileText(readFileSync35(patch), request.relative);
+  const content = displayedPatch(raw, request.relative);
+  lockfileText(Buffer.from(content), request.relative);
+  return { content, beforeBytes, isolatedGit };
+}
+function prepareLockfileDiff(request) {
+  if (request.bytes.length > MAX_LOCKFILE_SOURCE_BYTES)
+    tooLarge("Lockfile source", MAX_LOCKFILE_SOURCE_BYTES);
+  lockfileText(request.bytes, request.relative);
+  const base = resolveBaseline(request.root, request.environment);
+  const blob = baselineBlob(request, base);
+  const directory = mkdtempSync5(nodePath54.join(tmpdir3(), "safeword-lock-diff-"));
+  try {
+    const { content, beforeBytes, isolatedGit } = capturePatch(request, directory, blob);
+    const representation = {
+      kind: "git-diff",
+      base_ref: base.ref,
+      base_commit: base.commit,
+      base_path: blob.path,
+      base_blob: blob.oid,
+      base_sha256: digest4(beforeBytes),
+      base_mode: blob.mode,
+      source_sha256: digest4(request.bytes),
+      source_bytes: request.bytes.length,
+      source_mode: request.executable ? "100755" : "100644"
+    };
+    const file = { path: request.relative, content, representation };
+    if (Buffer.byteLength(JSON.stringify(file)) > request.maxFileBytes) {
+      tooLarge("Lockfile representation", request.maxFileBytes);
+    }
+    reconstruct(request, directory, isolatedGit, beforeBytes, file);
+    return { file, baselineChanged: baselineChanged(request.root, request.environment, base) };
+  } finally {
+    rmSync8(directory, { recursive: true, force: true });
+  }
+}
+var MAX_LOCKFILE_SOURCE_BYTES, DEFAULT_REFS, GIT_METADATA_BYTES, digest4 = (bytes) => createHash22("sha256").update(bytes).digest("hex");
+var init_lockfile_diff = __esm(() => {
+  init_packet_error();
+  init_text();
+  MAX_LOCKFILE_SOURCE_BYTES = 8 * 1024 * 1024;
+  DEFAULT_REFS = [
+    "refs/remotes/origin/HEAD",
+    "refs/remotes/origin/main",
+    "refs/remotes/origin/master",
+    "refs/heads/main",
+    "refs/heads/master"
+  ];
+  GIT_METADATA_BYTES = 256 * 1024;
+});
+
+// src/review/plan-rubric.ts
+function extractPlanReviewRubric(skill) {
+  const starts = skill.split(PLAN_RUBRIC_START).length - 1;
+  const ends = skill.split(PLAN_RUBRIC_END).length - 1;
+  if (starts !== 1 || ends !== 1) {
+    throw new Error("PLAN_IMPLEMENTATION.md must contain exactly one plan-rubric marker pair");
+  }
+  const start = skill.indexOf(PLAN_RUBRIC_START) + PLAN_RUBRIC_START.length;
+  const end = skill.indexOf(PLAN_RUBRIC_END);
+  if (end <= start)
+    throw new Error("PLAN_IMPLEMENTATION.md plan-rubric markers are out of order");
+  const rubric = skill.slice(start, end).trim();
+  if (rubric === "")
+    throw new Error("PLAN_IMPLEMENTATION.md plan rubric is empty");
+  for (const forbidden of [
+    "run-review.ts",
+    "resolve-project-knowledge.ts",
+    "/finish-review",
+    "advance the phase",
+    "write-review-stamp.ts",
+    "designApprovalGate"
+  ]) {
+    if (rubric.includes(forbidden)) {
+      throw new Error(`PLAN_IMPLEMENTATION.md plan rubric contains host-only instruction: ${forbidden}`);
+    }
+  }
+  return rubric;
+}
+var PLAN_RUBRIC_START = "<!-- SAFEWORD:PLAN_RUBRIC_START -->", PLAN_RUBRIC_END = "<!-- SAFEWORD:PLAN_RUBRIC_END -->";
+
+// src/utils/ticket-folder-matches.ts
+function findTicketFolderMatch(names, ticketId) {
+  let sluggedMatch;
+  const slugPrefix = `${ticketId}-`;
+  for (const name of names) {
+    if (name === ticketId) {
+      return name;
+    }
+    if (sluggedMatch === undefined && name.startsWith(slugPrefix)) {
+      sluggedMatch = name;
+    }
+  }
+  return sluggedMatch;
+}
+
+// src/utils/product-plan-contract.ts
+import { createHash as createHash23 } from "crypto";
+import { existsSync as existsSync21, readdirSync as readdirSync9, readFileSync as readFileSync36 } from "fs";
+import nodePath55 from "path";
+function sectionAfterHeading(content, level, id) {
+  const prefix = "#".repeat(level);
+  const lines = content.split(/\r?\n/);
+  const start = lines.findIndex((line) => {
+    if (!line.startsWith(`${prefix} ${id}`))
+      return false;
+    const suffix = line.slice(prefix.length + id.length + 1);
+    return suffix === "" || /^\s|^\u2014/.test(suffix);
+  });
+  if (start === -1)
+    return;
+  let end = lines.length;
+  for (let index = start + 1;index < lines.length; index += 1) {
+    const headingLevel = /^(#+)\s/.exec(lines[index] ?? "")?.[1]?.length;
+    if (headingLevel !== undefined && headingLevel <= level) {
+      end = index;
+      break;
+    }
+  }
+  return lines.slice(start + 1, end).join(`
+`).trim();
+}
+function sectionContractValue(content, level, id) {
+  const prefix = `${"#".repeat(level)} `;
+  const heading = content.split(/\r?\n/).find((line) => {
+    if (!line.startsWith(`${prefix}${id}`))
+      return false;
+    const suffix = line.slice(prefix.length + id.length);
+    return suffix === "" || /^\s|^\u2014/.test(suffix);
+  });
+  if (heading === undefined)
+    return;
+  const body = sectionAfterHeading(content, level, id) ?? "";
+  return [heading.slice(prefix.length).trim(), body].filter(Boolean).join(`
+`);
+}
+function fieldValue(content, label) {
+  const prefix = `- **${label}:**`;
+  const lines = content.split(/\r?\n/);
+  const index = lines.findIndex((line) => line.trimStart().startsWith(prefix));
+  if (index === -1)
+    return;
+  const matchedLine = lines[index];
+  if (matchedLine === undefined)
+    return;
+  const first = matchedLine.trimStart().slice(prefix.length).trim();
+  const continuation = [];
+  const remainingLines = lines.slice(index + 1);
+  for (const line of remainingLines) {
+    const trimmed = line.trim();
+    if (trimmed === "" || trimmed.startsWith("#"))
+      break;
+    if (!/^\s/.test(line))
+      break;
+    continuation.push(trimmed);
+  }
+  return [first, ...continuation].join(" ").trim();
+}
+function canonicalizeContractValue(value) {
+  return value.replaceAll(/`|\*\*|__|(?<!\*)\*(?!\*)|(?<!_)_(?!_)/g, "").replaceAll(/\s+/g, " ").trim();
+}
+function digestParentContract(values) {
+  const canonical = CONTRACT_KEYS.map((key) => [key, canonicalizeContractValue(values[key])]);
+  return createHash23("sha256").update(JSON.stringify(canonical)).digest("hex");
+}
+function resolveTicketDirectory(cwd, ticketId) {
+  const root = resolveTicketsDirectory(cwd);
+  if (!existsSync21(root))
+    return;
+  const names = readdirSync9(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const match = findTicketFolderMatch(names, ticketId);
+  return match ? nodePath55.join(root, match) : undefined;
+}
+function resolveParentContract(cwd, parentId, parentJobId, milestoneId) {
+  const directory = resolveTicketDirectory(cwd, parentId);
+  if (!directory)
+    throw new Error(`Parent ticket "${parentId}" does not resolve.`);
+  const spec = readParentSpec(directory, parentId);
+  const values = parentContractValuesFromSpec(spec, parentJobId, milestoneId);
+  return { values, digest: digestParentContract(values) };
+}
+function parentContractValuesFromSpec(spec, parentJobId, milestoneId) {
+  const jobs = requireSection(spec, 2, "Jobs To Be Done", "Jobs To Be Done");
+  const shape = requireSection(spec, 2, "Shape", "Shape");
+  const parentJob = requireContractSection(jobs, 3, parentJobId, `Parent job "${parentJobId}"`);
+  const milestone = requireSection(shape, 3, milestoneId, `Milestone "${milestoneId}"`);
+  const productBet = sectionAfterHeading(spec, 2, "Product Bet") ?? "";
+  return contractValues(parentJob, milestone, productBet);
+}
+function readParentSpec(directory, parentId) {
+  const ticket = readFileSync36(nodePath55.join(directory, "ticket.md"), "utf8");
+  if (readFrontmatterScalar(ticket, "type") !== "epic") {
+    throw new Error(`Parent ticket "${parentId}" is not a feature epic.`);
+  }
+  const specPath = nodePath55.join(directory, "spec.md");
+  if (!existsSync21(specPath))
+    throw new Error(`Parent epic "${parentId}" has no Product Plan.`);
+  return readFileSync36(specPath, "utf8");
+}
+function requireSection(spec, level, id, label) {
+  const section = sectionAfterHeading(spec, level, id);
+  if (section === undefined)
+    throw new Error(`${label} does not resolve in the parent Product Plan.`);
+  return section;
+}
+function requireContractSection(spec, level, id, label) {
+  const section = sectionContractValue(spec, level, id);
+  if (section === undefined)
+    throw new Error(`${label} does not resolve in the parent Product Plan.`);
+  return section;
+}
+function contractValues(parentJob, milestone, productBet) {
+  const values = {
+    parentJob,
+    milestoneOutcome: fieldValue(milestone, "Outcome") ?? "",
+    milestoneNonGoals: fieldValue(milestone, "Non-goals") ?? "",
+    projectNonGoals: fieldValue(productBet, "Project non-goals") ?? "",
+    successThreshold: fieldValue(productBet, "Success threshold") ?? ""
+  };
+  const missing = Object.entries(values).find(([, value]) => value.trim() === "");
+  if (missing)
+    throw new Error(`Parent Product Plan is missing ${missing[0]}.`);
+  return values;
+}
+var CONTRACT_KEYS;
+var init_product_plan_contract = __esm(() => {
+  init_configured_paths();
+  CONTRACT_KEYS = [
+    "parentJob",
+    "milestoneOutcome",
+    "milestoneNonGoals",
+    "projectNonGoals",
+    "successThreshold"
+  ];
+});
+
+// src/review/planning-accepted-boundary.ts
+import { createHash as createHash24 } from "crypto";
+function acceptedTerms(value, field) {
+  const terms = typeof value === "string" ? [value] : value;
+  if (!Array.isArray(terms) || terms.length === 0 || terms.some((term) => typeof term !== "string" || term.trim() === ""))
+    throw new Error(`The ticket must declare ${field}.`);
+  return terms;
+}
+function productBetLines(spec) {
+  const lines = spec.split(`
+`);
+  const start = lines.findIndex((line) => line.trim() === "## Product Bet");
+  if (start === -1)
+    throw new Error("The Product Plan must declare a Product Bet.");
+  const end = lines.findIndex((line, index) => index > start && line.startsWith("## "));
+  return lines.slice(start + 1, end === -1 ? lines.length : end);
+}
+function projectNonGoals(spec) {
+  const section = productBetLines(spec);
+  const index = section.findIndex((line) => line.includes("Project non-goals:"));
+  if (index === -1)
+    throw new Error("The Product Plan must declare project non-goals.");
+  const first = section[index]?.split("Project non-goals:", 2)[1]?.replaceAll("**", "").trim() ?? "";
+  const continued = [];
+  const remainder = section.slice(index + 1);
+  for (const line of remainder) {
+    if (line.trim() === "" || line.trimStart().startsWith("- ") || line.startsWith("#"))
+      break;
+    continued.push(line.trim());
+  }
+  const value = [first, ...continued].join(" ").trim();
+  if (value === "")
+    throw new Error("The Product Plan must declare project non-goals.");
+  return value;
+}
+function acceptedBoundaryDigest(ticketContent, productSpec) {
+  const { metadata: metadata2 } = parseTicketMetadata(ticketContent);
+  const scope = acceptedTerms(metadata2.scope, "scope");
+  const exclusions = acceptedTerms(metadata2.out_of_scope, "out_of_scope");
+  let productBoundary;
+  if (metadata2.parent === undefined)
+    productBoundary = { projectNonGoals: canonicalizeContractValue(projectNonGoals(productSpec)) };
+  else {
+    if (typeof metadata2.parent_job !== "string" || typeof metadata2.milestone !== "string")
+      throw new Error("The ticket must declare its parent job and milestone.");
+    const values = parentContractValuesFromSpec(productSpec, metadata2.parent_job, metadata2.milestone);
+    productBoundary = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, canonicalizeContractValue(value)]));
+  }
+  return createHash24("sha256").update(JSON.stringify({ version: 1, scope, exclusions, parent: productBoundary })).digest("hex");
+}
+function isRecord6(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function reviewDispositionFindingFingerprint(severity, message) {
+  return createHash24("sha256").update(JSON.stringify({ severity, message })).digest("hex");
+}
+function reviewDispositionContext(ticketContent, productSpec, reviewKind) {
+  const { metadata: metadata2 } = parseTicketMetadata(ticketContent);
+  const dispositions = metadata2.review_dispositions;
+  if (dispositions === undefined)
+    return;
+  if (!Array.isArray(dispositions))
+    throw new Error("The ticket review dispositions are invalid.");
+  const current = acceptedBoundaryDigest(ticketContent, productSpec);
+  const records = dispositions.map((value) => {
+    if (!isRecord6(value) || value.version !== 1 || typeof value.review_kind !== "string" || typeof value.review_id !== "string" || value.disposition !== "declined" || typeof value.finding_fingerprint !== "string" || value.finding_severity !== "info" && value.finding_severity !== "warning" || typeof value.finding_message !== "string" || typeof value.accepted_boundary_digest !== "string" || typeof value.reason !== "string")
+      throw new Error("The ticket review dispositions are invalid.");
+    const fingerprint = reviewDispositionFindingFingerprint(value.finding_severity, value.finding_message);
+    if (value.finding_fingerprint !== fingerprint)
+      throw new Error("The ticket review dispositions are invalid.");
+    return {
+      version: 1,
+      review_kind: value.review_kind,
+      review_id: value.review_id,
+      finding_fingerprint: value.finding_fingerprint,
+      finding_severity: value.finding_severity,
+      message: value.finding_message,
+      accepted_boundary_digest: value.accepted_boundary_digest,
+      disposition: "declined",
+      reason: value.reason,
+      boundary_status: value.accepted_boundary_digest === current ? "current" : "superseded"
+    };
+  }).filter((value) => value.review_kind === reviewKind);
+  return { schema_version: 1, current_boundary_digest: current, records };
+}
+var init_planning_accepted_boundary = __esm(() => {
+  init_product_plan_contract();
+  init_ticket_metadata();
+});
+
+// src/review/planning-context-error.ts
+var PLANNING_CONTEXT_ROLES, PlanningContextError;
+var init_planning_context_error = __esm(() => {
+  init_packet_error();
+  PLANNING_CONTEXT_ROLES = [
+    "ticket",
+    "project",
+    "parent",
+    "milestone",
+    "rules",
+    "scenarios",
+    "dimensions",
+    "principles",
+    "personas",
+    "surfaces",
+    "architecture",
+    "data",
+    "reusable-evidence",
+    "accepted-upstream-plan"
+  ];
+  PlanningContextError = class PlanningContextError extends ReviewPacketError {
+    contextRole;
+    contextPath;
+    code = "missing_planning_context";
+    constructor(contextRole, contextPath, declaration) {
+      const settings = {
+        parent: "the ticket parent reference",
+        ticket: "the ticket metadata",
+        project: "the ticket Product Plan",
+        "accepted-upstream-plan": "the owning Implementation Plan",
+        scenarios: "the ticket scenario source",
+        dimensions: "the ticket dimensions artifact",
+        data: "the active data architecture guide"
+      };
+      const setting = settings[contextRole] ?? `paths.${contextRole}`;
+      super(declaration === undefined ? `Required planning ${contextRole} at ${contextPath} are unavailable. Restore that source or correct ${setting}, then rerun the planning review.` : `The reviewed plan at ${contextPath} needs one parseable ${declaration} declaration. Add the plan decision or a justified skip, then rerun the planning review.`);
+      this.contextRole = contextRole;
+      this.contextPath = contextPath;
+    }
+  };
+});
+
 // ../../node_modules/.bun/prettier@3.9.9/node_modules/prettier/plugins/markdown.mjs
 function Dm({ slug: e, permalink: t, alias: r }) {
   return { hName: "a", hProperties: { href: t ?? e }, hChildren: [{ type: "text", value: r ?? e }] };
@@ -51108,9 +53950,9 @@ function isLowercaseAlphaNumeric(segment) {
     const code = character.codePointAt(0);
     if (code === undefined)
       return false;
-    const isDigit2 = code >= 48 && code <= 57;
+    const isDigit3 = code >= 48 && code <= 57;
     const isLowercaseLetter = code >= 97 && code <= 122;
-    if (!isDigit2 && !isLowercaseLetter)
+    if (!isDigit3 && !isLowercaseLetter)
       return false;
   }
   return true;
@@ -51652,41 +54494,6 @@ var init_scenario_coverage = __esm(() => {
   LINEAGE_TAG_TOKEN = /@\S+/g;
 });
 
-// src/utils/ticket-metadata.ts
-function parseTicketMetadata(content) {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u.exec(content);
-  if (match === null)
-    throw new Error("Planning context ticket has no YAML metadata.");
-  const document2 = import_yaml3.parseDocument(match[1] ?? "", { uniqueKeys: true });
-  if (document2.errors.length > 0)
-    throw new Error("Planning context ticket has invalid YAML metadata.");
-  const value = document2.toJS();
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new TypeError("Planning context ticket metadata must be a mapping.");
-  }
-  const prototype = Object.getPrototypeOf(value);
-  if (prototype !== Object.prototype && prototype !== null) {
-    throw new TypeError("Planning context ticket metadata must be a mapping.");
-  }
-  const metadata = { ...value, ...opaqueTicketIdentifiers(document2) };
-  return { metadata, body: content.slice(match[0].length) };
-}
-function opaqueTicketIdentifiers(document2) {
-  const identifiers = {};
-  for (const field of ["id", "parent"]) {
-    const node = document2.get(field, true);
-    const scalar = import_yaml3.isAlias(node) ? node.resolve(document2) : node;
-    if (import_yaml3.isScalar(scalar) && typeof scalar.value === "number" && scalar.source !== undefined) {
-      identifiers[field] = scalar.source;
-    }
-  }
-  return identifiers;
-}
-var import_yaml3;
-var init_ticket_metadata = __esm(() => {
-  import_yaml3 = __toESM(require_dist(), 1);
-});
-
 // src/review/evidence-record.ts
 function isEvidenceRecord(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value))
@@ -51717,64 +54524,9 @@ var init_evidence_record = __esm(() => {
   ];
 });
 
-// src/review/packet-error.ts
-var ReviewPacketError;
-var init_packet_error = __esm(() => {
-  ReviewPacketError = class ReviewPacketError extends Error {
-    code;
-    name = "ReviewPacketError";
-    constructor(message, code = "REVIEW_PACKET_INVALID") {
-      super(message);
-      this.code = code;
-    }
-  };
-});
-
-// src/review/planning-context-error.ts
-var PLANNING_CONTEXT_ROLES, PlanningContextError;
-var init_planning_context_error = __esm(() => {
-  init_packet_error();
-  PLANNING_CONTEXT_ROLES = [
-    "ticket",
-    "project",
-    "parent",
-    "milestone",
-    "rules",
-    "scenarios",
-    "dimensions",
-    "principles",
-    "personas",
-    "surfaces",
-    "architecture",
-    "data",
-    "reusable-evidence",
-    "accepted-upstream-plan"
-  ];
-  PlanningContextError = class PlanningContextError extends ReviewPacketError {
-    contextRole;
-    contextPath;
-    code = "missing_planning_context";
-    constructor(contextRole, contextPath, declaration) {
-      const settings = {
-        parent: "the ticket parent reference",
-        ticket: "the ticket metadata",
-        project: "the ticket Product Plan",
-        "accepted-upstream-plan": "the owning Implementation Plan",
-        scenarios: "the ticket scenario source",
-        dimensions: "the ticket dimensions artifact",
-        data: "the active data architecture guide"
-      };
-      const setting = settings[contextRole] ?? `paths.${contextRole}`;
-      super(declaration === undefined ? `Required planning ${contextRole} at ${contextPath} are unavailable. Restore that source or correct ${setting}, then rerun the planning review.` : `The reviewed plan at ${contextPath} needs one parseable ${declaration} declaration. Add the plan decision or a justified skip, then rerun the planning review.`);
-      this.contextRole = contextRole;
-      this.contextPath = contextPath;
-    }
-  };
-});
-
 // src/review/planning-context-identity.ts
-import { createHash as createHash19 } from "crypto";
-import nodePath46 from "path";
+import { createHash as createHash25 } from "crypto";
+import nodePath56 from "path";
 function parseMarkdown(content) {
   const ast = Reflect.apply(ru.markdown.parse, undefined, [content, {}]);
   if (ast === null || typeof ast !== "object" || !("type" in ast) || ast.type !== "root" || !("children" in ast) || !Array.isArray(ast.children)) {
@@ -51863,10 +54615,10 @@ function semanticMarkdownIdentity(content) {
   return identity(normalizeNodes(nodes));
 }
 function semanticTicketIdentity(content, reviewKind) {
-  const { metadata, body } = parseTicketMetadata(content);
-  const retained = Object.fromEntries(Object.entries(metadata).filter(([key]) => !["phase", "status", "last_modified", "review_dispositions"].includes(key)));
-  if (reviewKind !== undefined && Array.isArray(metadata.review_dispositions)) {
-    const matching = metadata.review_dispositions.filter((value) => value !== null && typeof value === "object" && !Array.isArray(value) && value.review_kind === reviewKind);
+  const { metadata: metadata2, body } = parseTicketMetadata(content);
+  const retained = Object.fromEntries(Object.entries(metadata2).filter(([key]) => !["phase", "status", "last_modified", "review_dispositions"].includes(key)));
+  if (reviewKind !== undefined && Array.isArray(metadata2.review_dispositions)) {
+    const matching = metadata2.review_dispositions.filter((value) => value !== null && typeof value === "object" && !Array.isArray(value) && value.review_kind === reviewKind);
     if (matching.length > 0)
       retained.review_dispositions = matching;
   }
@@ -51891,29 +54643,29 @@ function requiredSection(nodes, depth, key, identifier = false) {
   const end = nodes.findIndex((node, index) => index > start && node.type === "heading" && (node.depth ?? 0) <= depth);
   return nodes.slice(start, end === -1 ? undefined : end);
 }
-function childRelationship(metadata) {
-  if (!Object.hasOwn(metadata, "parent"))
+function childRelationship(metadata2) {
+  if (!Object.hasOwn(metadata2, "parent"))
     return;
-  if (typeof metadata.parent !== "string" || typeof metadata.parent_job !== "string" || typeof metadata.milestone !== "string") {
+  if (typeof metadata2.parent !== "string" || typeof metadata2.parent_job !== "string" || typeof metadata2.milestone !== "string") {
     throw new TypeError("Planning child context must declare parent, parent_job and milestone.");
   }
-  return { parent: metadata.parent, job: metadata.parent_job, milestone: metadata.milestone };
+  return { parent: metadata2.parent, job: metadata2.parent_job, milestone: metadata2.milestone };
 }
 function capturedParent(packet, target) {
   const context = packet.context_files ?? [];
-  const ticketPath = nodePath46.join(nodePath46.dirname(target.path), "ticket.md");
+  const ticketPath = nodePath56.join(nodePath56.dirname(target.path), "ticket.md");
   const ticket = context.find((file) => file.path === ticketPath);
   if (ticket === undefined)
     return;
-  const { metadata } = parseTicketMetadata(ticket.content);
-  const relationship = childRelationship(metadata);
+  const { metadata: metadata2 } = parseTicketMetadata(ticket.content);
+  const relationship = childRelationship(metadata2);
   if (relationship === undefined)
     return;
-  const parentTickets = context.filter((file) => nodePath46.basename(file.path) === "ticket.md" && file.path !== ticketPath && parseTicketMetadata(file.content).metadata.id === relationship.parent);
+  const parentTickets = context.filter((file) => nodePath56.basename(file.path) === "ticket.md" && file.path !== ticketPath && parseTicketMetadata(file.content).metadata.id === relationship.parent);
   const [parentTicket] = parentTickets;
   if (parentTickets.length !== 1 || parentTicket === undefined)
     throw new Error("Planning child context must have one captured parent ticket.");
-  const parentPath = nodePath46.join(nodePath46.dirname(parentTicket.path), "spec.md");
+  const parentPath = nodePath56.join(nodePath56.dirname(parentTicket.path), "spec.md");
   const parent = context.find((file) => file.path === parentPath);
   if (parent === undefined)
     throw new Error("Planning child context has no captured parent spec.");
@@ -51921,15 +54673,15 @@ function capturedParent(packet, target) {
 }
 function referencedDefinitions(nodes, retained) {
   const references = new Set;
-  const visit = (node) => {
+  const visit3 = (node) => {
     if ((node.type === "linkReference" || node.type === "imageReference") && typeof node.identifier === "string")
       references.add(node.identifier);
     const children = node.children ?? [];
     for (const child of children)
-      visit(child);
+      visit3(child);
   };
   for (const node of retained)
-    visit(node);
+    visit3(node);
   const definitions = nodes.filter((node) => node.type === "definition" && typeof node.identifier === "string" && references.has(node.identifier));
   if ([...references].some((reference) => definitions.filter((node) => node.identifier === reference).length !== 1)) {
     throw new Error("Planning parent context has missing or duplicate referenced link definitions.");
@@ -51980,7 +54732,7 @@ function nestedInventoryValue(node, parent) {
 function validatePlanningProductFrame(content) {
   const frame = requiredSection(parseMarkdown(content), 2, "Product Bet");
   const counts = new Map;
-  const visit = (node, parent) => {
+  const visit3 = (node, parent) => {
     if (node.type === "paragraph") {
       const text = normalizeChildren(node).map((child) => headingText(child)).join("");
       const colon = text.indexOf(":");
@@ -51994,10 +54746,10 @@ function validatePlanningProductFrame(content) {
     }
     const children = node.children ?? [];
     for (const child of children)
-      visit(child, node);
+      visit3(child, node);
   };
   for (const node of frame)
-    visit(node);
+    visit3(node);
   if (productFrameFields.some((field) => counts.get(field) !== 1))
     throw new Error("Incomplete or ambiguous Product Bet framing.");
 }
@@ -52040,12 +54792,12 @@ function planningSkipReason(content, heading) {
 function planningEvidenceReferences(content) {
   const nodes = parseMarkdown(content);
   const references = [];
-  const visit = (node) => {
+  const visit3 = (node) => {
     if (node.type === "link" && typeof node.url === "string")
       references.push(node.url);
     const children = node.children ?? [];
     for (const child of children)
-      visit(child);
+      visit3(child);
   };
   for (const [index, node] of nodes.entries()) {
     if (node.type !== "heading" || !headingText(node).startsWith("Implementation Inspiration"))
@@ -52053,21 +54805,24 @@ function planningEvidenceReferences(content) {
     const end = nodes.findIndex((next, position) => position > index && next.type === "heading" && (next.depth ?? 0) <= (node.depth ?? 0));
     const section = nodes.slice(index + 1, end === -1 ? undefined : end);
     for (const child of section)
-      visit(child);
+      visit3(child);
   }
   return references;
 }
 function parsePlanEvidenceRecord(node) {
   if (node?.type !== "code" || node.lang !== "json")
-    throw new Error("PlanEvidenceRecordV1 requires an immediately following JSON block.");
+    throw new ReviewPacketError("PlanEvidenceRecordV1 requires an immediately following JSON block.");
   let candidate;
   try {
     candidate = JSON.parse(node.value ?? "");
   } catch {
-    throw new Error("PlanEvidenceRecordV1 contains invalid JSON.");
+    throw new ReviewPacketError("PlanEvidenceRecordV1 contains invalid JSON.");
   }
-  if (!isPlanEvidenceRecord(candidate))
-    throw new Error("PlanEvidenceRecordV1 is missing required evidence or reuse limits.");
+  if (!isPlanEvidenceRecord(candidate)) {
+    const record = candidate !== null && typeof candidate === "object" ? candidate : {};
+    const missing = EVIDENCE_RECORD_FIELDS.filter((field) => typeof record[field] !== "string" || record[field].trim() === "");
+    throw new ReviewPacketError(`PlanEvidenceRecordV1 is invalid; ${missing.length > 0 ? `missing nonblank fields: ${missing.join(", ")}` : "requires schema_version 1 and exactly the declared evidence fields"}.`);
+  }
   return candidate;
 }
 function planningEvidenceRecords(content) {
@@ -52095,8 +54850,8 @@ function gherkinIdentity(value) {
 function artifactIdentity(content) {
   if (!content.startsWith("---"))
     return semanticMarkdownIdentity(content);
-  const { metadata, body } = parseTicketMetadata(content);
-  return identity({ metadata, body: normalizeNodes(parseMarkdown(body)) });
+  const { metadata: metadata2, body } = parseTicketMetadata(content);
+  return identity({ metadata: metadata2, body: normalizeNodes(parseMarkdown(body)) });
 }
 function planningRoleContent(packet, role) {
   const path7 = packet.planning_context?.dependencies.find((source) => source.role === role)?.path;
@@ -52105,7 +54860,7 @@ function planningRoleContent(packet, role) {
 function productPersonaInventory(content) {
   const frame = requiredSection(parseMarkdown(content), 2, "Product Bet");
   const inventories = [];
-  const visit = (node) => {
+  const visit3 = (node) => {
     if (node.type === "listItem") {
       const first = node.children?.find((child) => child.type === "paragraph");
       if (first !== undefined && headingText(first).startsWith("Persona outcome inventory:"))
@@ -52113,10 +54868,10 @@ function productPersonaInventory(content) {
     }
     const children = node.children ?? [];
     for (const child of children)
-      visit(child);
+      visit3(child);
   };
   for (const node of frame)
-    visit(node);
+    visit3(node);
   return inventories.length === 1 ? inventories[0] ?? "" : "";
 }
 function planningPersonaIdentity(packet, content) {
@@ -52198,7 +54953,7 @@ function planningSurfaceIdentity(packet, content) {
   return identity({ version: 1, selected });
 }
 function sha2565(content) {
-  return createHash19("sha256").update(content).digest("hex");
+  return createHash25("sha256").update(content).digest("hex");
 }
 function semanticRoleIdentity(packet, role, content) {
   if (role === "ticket")
@@ -52315,2758 +55070,6 @@ var init_planning_context_identity = __esm(() => {
     "Success threshold",
     "Project non-goals"
   ];
-});
-
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
-function createScanner(text, ignoreTrivia = false) {
-  const len = text.length;
-  let pos = 0, value = "", tokenOffset = 0, token = 16, lineNumber = 0, lineStartOffset = 0, tokenLineStartOffset = 0, prevTokenLineStartOffset = 0, scanError = 0;
-  function scanHexDigits(count, exact) {
-    let digits = 0;
-    let value2 = 0;
-    while (digits < count || !exact) {
-      let ch2 = text.charCodeAt(pos);
-      if (ch2 >= 48 && ch2 <= 57) {
-        value2 = value2 * 16 + ch2 - 48;
-      } else if (ch2 >= 65 && ch2 <= 70) {
-        value2 = value2 * 16 + ch2 - 65 + 10;
-      } else if (ch2 >= 97 && ch2 <= 102) {
-        value2 = value2 * 16 + ch2 - 97 + 10;
-      } else {
-        break;
-      }
-      pos++;
-      digits++;
-    }
-    if (digits < count) {
-      value2 = -1;
-    }
-    return value2;
-  }
-  function setPosition(newPosition) {
-    pos = newPosition;
-    value = "";
-    tokenOffset = 0;
-    token = 16;
-    scanError = 0;
-  }
-  function scanNumber() {
-    let start = pos;
-    if (text.charCodeAt(pos) === 48) {
-      pos++;
-    } else {
-      pos++;
-      while (pos < text.length && isDigit2(text.charCodeAt(pos))) {
-        pos++;
-      }
-    }
-    if (pos < text.length && text.charCodeAt(pos) === 46) {
-      pos++;
-      if (pos < text.length && isDigit2(text.charCodeAt(pos))) {
-        pos++;
-        while (pos < text.length && isDigit2(text.charCodeAt(pos))) {
-          pos++;
-        }
-      } else {
-        scanError = 3;
-        return text.substring(start, pos);
-      }
-    }
-    let end = pos;
-    if (pos < text.length && (text.charCodeAt(pos) === 69 || text.charCodeAt(pos) === 101)) {
-      pos++;
-      if (pos < text.length && text.charCodeAt(pos) === 43 || text.charCodeAt(pos) === 45) {
-        pos++;
-      }
-      if (pos < text.length && isDigit2(text.charCodeAt(pos))) {
-        pos++;
-        while (pos < text.length && isDigit2(text.charCodeAt(pos))) {
-          pos++;
-        }
-        end = pos;
-      } else {
-        scanError = 3;
-      }
-    }
-    return text.substring(start, end);
-  }
-  function scanString() {
-    let result = "", start = pos;
-    while (true) {
-      if (pos >= len) {
-        result += text.substring(start, pos);
-        scanError = 2;
-        break;
-      }
-      const ch2 = text.charCodeAt(pos);
-      if (ch2 === 34) {
-        result += text.substring(start, pos);
-        pos++;
-        break;
-      }
-      if (ch2 === 92) {
-        result += text.substring(start, pos);
-        pos++;
-        if (pos >= len) {
-          scanError = 2;
-          break;
-        }
-        const ch22 = text.charCodeAt(pos++);
-        switch (ch22) {
-          case 34:
-            result += '"';
-            break;
-          case 92:
-            result += "\\";
-            break;
-          case 47:
-            result += "/";
-            break;
-          case 98:
-            result += "\b";
-            break;
-          case 102:
-            result += "\f";
-            break;
-          case 110:
-            result += `
-`;
-            break;
-          case 114:
-            result += "\r";
-            break;
-          case 116:
-            result += "\t";
-            break;
-          case 117:
-            const ch3 = scanHexDigits(4, true);
-            if (ch3 >= 0) {
-              result += String.fromCharCode(ch3);
-            } else {
-              scanError = 4;
-            }
-            break;
-          default:
-            scanError = 5;
-        }
-        start = pos;
-        continue;
-      }
-      if (ch2 >= 0 && ch2 <= 31) {
-        if (isLineBreak(ch2)) {
-          result += text.substring(start, pos);
-          scanError = 2;
-          break;
-        } else {
-          scanError = 6;
-        }
-      }
-      pos++;
-    }
-    return result;
-  }
-  function scanNext() {
-    value = "";
-    scanError = 0;
-    tokenOffset = pos;
-    lineStartOffset = lineNumber;
-    prevTokenLineStartOffset = tokenLineStartOffset;
-    if (pos >= len) {
-      tokenOffset = len;
-      return token = 17;
-    }
-    let code = text.charCodeAt(pos);
-    if (isWhiteSpace(code)) {
-      do {
-        pos++;
-        value += String.fromCharCode(code);
-        code = text.charCodeAt(pos);
-      } while (isWhiteSpace(code));
-      return token = 15;
-    }
-    if (isLineBreak(code)) {
-      pos++;
-      value += String.fromCharCode(code);
-      if (code === 13 && text.charCodeAt(pos) === 10) {
-        pos++;
-        value += `
-`;
-      }
-      lineNumber++;
-      tokenLineStartOffset = pos;
-      return token = 14;
-    }
-    switch (code) {
-      case 123:
-        pos++;
-        return token = 1;
-      case 125:
-        pos++;
-        return token = 2;
-      case 91:
-        pos++;
-        return token = 3;
-      case 93:
-        pos++;
-        return token = 4;
-      case 58:
-        pos++;
-        return token = 6;
-      case 44:
-        pos++;
-        return token = 5;
-      case 34:
-        pos++;
-        value = scanString();
-        return token = 10;
-      case 47:
-        const start = pos - 1;
-        if (text.charCodeAt(pos + 1) === 47) {
-          pos += 2;
-          while (pos < len) {
-            if (isLineBreak(text.charCodeAt(pos))) {
-              break;
-            }
-            pos++;
-          }
-          value = text.substring(start, pos);
-          return token = 12;
-        }
-        if (text.charCodeAt(pos + 1) === 42) {
-          pos += 2;
-          const safeLength = len - 1;
-          let commentClosed = false;
-          while (pos < safeLength) {
-            const ch2 = text.charCodeAt(pos);
-            if (ch2 === 42 && text.charCodeAt(pos + 1) === 47) {
-              pos += 2;
-              commentClosed = true;
-              break;
-            }
-            pos++;
-            if (isLineBreak(ch2)) {
-              if (ch2 === 13 && text.charCodeAt(pos) === 10) {
-                pos++;
-              }
-              lineNumber++;
-              tokenLineStartOffset = pos;
-            }
-          }
-          if (!commentClosed) {
-            pos++;
-            scanError = 1;
-          }
-          value = text.substring(start, pos);
-          return token = 13;
-        }
-        value += String.fromCharCode(code);
-        pos++;
-        return token = 16;
-      case 45:
-        value += String.fromCharCode(code);
-        pos++;
-        if (pos === len || !isDigit2(text.charCodeAt(pos))) {
-          return token = 16;
-        }
-      case 48:
-      case 49:
-      case 50:
-      case 51:
-      case 52:
-      case 53:
-      case 54:
-      case 55:
-      case 56:
-      case 57:
-        value += scanNumber();
-        return token = 11;
-      default:
-        while (pos < len && isUnknownContentCharacter(code)) {
-          pos++;
-          code = text.charCodeAt(pos);
-        }
-        if (tokenOffset !== pos) {
-          value = text.substring(tokenOffset, pos);
-          switch (value) {
-            case "true":
-              return token = 8;
-            case "false":
-              return token = 9;
-            case "null":
-              return token = 7;
-          }
-          return token = 16;
-        }
-        value += String.fromCharCode(code);
-        pos++;
-        return token = 16;
-    }
-  }
-  function isUnknownContentCharacter(code) {
-    if (isWhiteSpace(code) || isLineBreak(code)) {
-      return false;
-    }
-    switch (code) {
-      case 125:
-      case 93:
-      case 123:
-      case 91:
-      case 34:
-      case 58:
-      case 44:
-      case 47:
-        return false;
-    }
-    return true;
-  }
-  function scanNextNonTrivia() {
-    let result;
-    do {
-      result = scanNext();
-    } while (result >= 12 && result <= 15);
-    return result;
-  }
-  return {
-    setPosition,
-    getPosition: () => pos,
-    scan: ignoreTrivia ? scanNextNonTrivia : scanNext,
-    getToken: () => token,
-    getTokenValue: () => value,
-    getTokenOffset: () => tokenOffset,
-    getTokenLength: () => pos - tokenOffset,
-    getTokenStartLine: () => lineStartOffset,
-    getTokenStartCharacter: () => tokenOffset - prevTokenLineStartOffset,
-    getTokenError: () => scanError
-  };
-}
-function isWhiteSpace(ch2) {
-  return ch2 === 32 || ch2 === 9;
-}
-function isLineBreak(ch2) {
-  return ch2 === 10 || ch2 === 13;
-}
-function isDigit2(ch2) {
-  return ch2 >= 48 && ch2 <= 57;
-}
-var CharacterCodes;
-var init_scanner = __esm(() => {
-  (function(CharacterCodes2) {
-    CharacterCodes2[CharacterCodes2["lineFeed"] = 10] = "lineFeed";
-    CharacterCodes2[CharacterCodes2["carriageReturn"] = 13] = "carriageReturn";
-    CharacterCodes2[CharacterCodes2["space"] = 32] = "space";
-    CharacterCodes2[CharacterCodes2["_0"] = 48] = "_0";
-    CharacterCodes2[CharacterCodes2["_1"] = 49] = "_1";
-    CharacterCodes2[CharacterCodes2["_2"] = 50] = "_2";
-    CharacterCodes2[CharacterCodes2["_3"] = 51] = "_3";
-    CharacterCodes2[CharacterCodes2["_4"] = 52] = "_4";
-    CharacterCodes2[CharacterCodes2["_5"] = 53] = "_5";
-    CharacterCodes2[CharacterCodes2["_6"] = 54] = "_6";
-    CharacterCodes2[CharacterCodes2["_7"] = 55] = "_7";
-    CharacterCodes2[CharacterCodes2["_8"] = 56] = "_8";
-    CharacterCodes2[CharacterCodes2["_9"] = 57] = "_9";
-    CharacterCodes2[CharacterCodes2["a"] = 97] = "a";
-    CharacterCodes2[CharacterCodes2["b"] = 98] = "b";
-    CharacterCodes2[CharacterCodes2["c"] = 99] = "c";
-    CharacterCodes2[CharacterCodes2["d"] = 100] = "d";
-    CharacterCodes2[CharacterCodes2["e"] = 101] = "e";
-    CharacterCodes2[CharacterCodes2["f"] = 102] = "f";
-    CharacterCodes2[CharacterCodes2["g"] = 103] = "g";
-    CharacterCodes2[CharacterCodes2["h"] = 104] = "h";
-    CharacterCodes2[CharacterCodes2["i"] = 105] = "i";
-    CharacterCodes2[CharacterCodes2["j"] = 106] = "j";
-    CharacterCodes2[CharacterCodes2["k"] = 107] = "k";
-    CharacterCodes2[CharacterCodes2["l"] = 108] = "l";
-    CharacterCodes2[CharacterCodes2["m"] = 109] = "m";
-    CharacterCodes2[CharacterCodes2["n"] = 110] = "n";
-    CharacterCodes2[CharacterCodes2["o"] = 111] = "o";
-    CharacterCodes2[CharacterCodes2["p"] = 112] = "p";
-    CharacterCodes2[CharacterCodes2["q"] = 113] = "q";
-    CharacterCodes2[CharacterCodes2["r"] = 114] = "r";
-    CharacterCodes2[CharacterCodes2["s"] = 115] = "s";
-    CharacterCodes2[CharacterCodes2["t"] = 116] = "t";
-    CharacterCodes2[CharacterCodes2["u"] = 117] = "u";
-    CharacterCodes2[CharacterCodes2["v"] = 118] = "v";
-    CharacterCodes2[CharacterCodes2["w"] = 119] = "w";
-    CharacterCodes2[CharacterCodes2["x"] = 120] = "x";
-    CharacterCodes2[CharacterCodes2["y"] = 121] = "y";
-    CharacterCodes2[CharacterCodes2["z"] = 122] = "z";
-    CharacterCodes2[CharacterCodes2["A"] = 65] = "A";
-    CharacterCodes2[CharacterCodes2["B"] = 66] = "B";
-    CharacterCodes2[CharacterCodes2["C"] = 67] = "C";
-    CharacterCodes2[CharacterCodes2["D"] = 68] = "D";
-    CharacterCodes2[CharacterCodes2["E"] = 69] = "E";
-    CharacterCodes2[CharacterCodes2["F"] = 70] = "F";
-    CharacterCodes2[CharacterCodes2["G"] = 71] = "G";
-    CharacterCodes2[CharacterCodes2["H"] = 72] = "H";
-    CharacterCodes2[CharacterCodes2["I"] = 73] = "I";
-    CharacterCodes2[CharacterCodes2["J"] = 74] = "J";
-    CharacterCodes2[CharacterCodes2["K"] = 75] = "K";
-    CharacterCodes2[CharacterCodes2["L"] = 76] = "L";
-    CharacterCodes2[CharacterCodes2["M"] = 77] = "M";
-    CharacterCodes2[CharacterCodes2["N"] = 78] = "N";
-    CharacterCodes2[CharacterCodes2["O"] = 79] = "O";
-    CharacterCodes2[CharacterCodes2["P"] = 80] = "P";
-    CharacterCodes2[CharacterCodes2["Q"] = 81] = "Q";
-    CharacterCodes2[CharacterCodes2["R"] = 82] = "R";
-    CharacterCodes2[CharacterCodes2["S"] = 83] = "S";
-    CharacterCodes2[CharacterCodes2["T"] = 84] = "T";
-    CharacterCodes2[CharacterCodes2["U"] = 85] = "U";
-    CharacterCodes2[CharacterCodes2["V"] = 86] = "V";
-    CharacterCodes2[CharacterCodes2["W"] = 87] = "W";
-    CharacterCodes2[CharacterCodes2["X"] = 88] = "X";
-    CharacterCodes2[CharacterCodes2["Y"] = 89] = "Y";
-    CharacterCodes2[CharacterCodes2["Z"] = 90] = "Z";
-    CharacterCodes2[CharacterCodes2["asterisk"] = 42] = "asterisk";
-    CharacterCodes2[CharacterCodes2["backslash"] = 92] = "backslash";
-    CharacterCodes2[CharacterCodes2["closeBrace"] = 125] = "closeBrace";
-    CharacterCodes2[CharacterCodes2["closeBracket"] = 93] = "closeBracket";
-    CharacterCodes2[CharacterCodes2["colon"] = 58] = "colon";
-    CharacterCodes2[CharacterCodes2["comma"] = 44] = "comma";
-    CharacterCodes2[CharacterCodes2["dot"] = 46] = "dot";
-    CharacterCodes2[CharacterCodes2["doubleQuote"] = 34] = "doubleQuote";
-    CharacterCodes2[CharacterCodes2["minus"] = 45] = "minus";
-    CharacterCodes2[CharacterCodes2["openBrace"] = 123] = "openBrace";
-    CharacterCodes2[CharacterCodes2["openBracket"] = 91] = "openBracket";
-    CharacterCodes2[CharacterCodes2["plus"] = 43] = "plus";
-    CharacterCodes2[CharacterCodes2["slash"] = 47] = "slash";
-    CharacterCodes2[CharacterCodes2["formFeed"] = 12] = "formFeed";
-    CharacterCodes2[CharacterCodes2["tab"] = 9] = "tab";
-  })(CharacterCodes || (CharacterCodes = {}));
-});
-
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
-var cachedSpaces, maxCachedValues = 200, cachedBreakLinesWithSpaces, supportedEols;
-var init_string_intern = __esm(() => {
-  cachedSpaces = new Array(20).fill(0).map((_, index) => {
-    return " ".repeat(index);
-  });
-  cachedBreakLinesWithSpaces = {
-    " ": {
-      "\n": new Array(maxCachedValues).fill(0).map((_, index) => {
-        return `
-` + " ".repeat(index);
-      }),
-      "\r": new Array(maxCachedValues).fill(0).map((_, index) => {
-        return "\r" + " ".repeat(index);
-      }),
-      "\r\n": new Array(maxCachedValues).fill(0).map((_, index) => {
-        return `\r
-` + " ".repeat(index);
-      })
-    },
-    "\t": {
-      "\n": new Array(maxCachedValues).fill(0).map((_, index) => {
-        return `
-` + "\t".repeat(index);
-      }),
-      "\r": new Array(maxCachedValues).fill(0).map((_, index) => {
-        return "\r" + "\t".repeat(index);
-      }),
-      "\r\n": new Array(maxCachedValues).fill(0).map((_, index) => {
-        return `\r
-` + "\t".repeat(index);
-      })
-    }
-  };
-  supportedEols = [`
-`, "\r", `\r
-`];
-});
-
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
-function format(documentText, range, options) {
-  let initialIndentLevel;
-  let formatText;
-  let formatTextStart;
-  let rangeStart;
-  let rangeEnd;
-  if (range) {
-    rangeStart = range.offset;
-    rangeEnd = rangeStart + range.length;
-    formatTextStart = rangeStart;
-    while (formatTextStart > 0 && !isEOL(documentText, formatTextStart - 1)) {
-      formatTextStart--;
-    }
-    let endOffset = rangeEnd;
-    while (endOffset < documentText.length && !isEOL(documentText, endOffset)) {
-      endOffset++;
-    }
-    formatText = documentText.substring(formatTextStart, endOffset);
-    initialIndentLevel = computeIndentLevel(formatText, options);
-  } else {
-    formatText = documentText;
-    initialIndentLevel = 0;
-    formatTextStart = 0;
-    rangeStart = 0;
-    rangeEnd = documentText.length;
-  }
-  const eol = getEOL(options, documentText);
-  const eolFastPathSupported = supportedEols.includes(eol);
-  let numberLineBreaks = 0;
-  let indentLevel = 0;
-  let indentValue;
-  if (options.insertSpaces) {
-    indentValue = cachedSpaces[options.tabSize || 4] ?? repeat(cachedSpaces[1], options.tabSize || 4);
-  } else {
-    indentValue = "\t";
-  }
-  const indentType = indentValue === "\t" ? "\t" : " ";
-  let scanner = createScanner(formatText, false);
-  let hasError = false;
-  function newLinesAndIndent() {
-    if (numberLineBreaks > 1) {
-      return repeat(eol, numberLineBreaks) + repeat(indentValue, initialIndentLevel + indentLevel);
-    }
-    const amountOfSpaces = indentValue.length * (initialIndentLevel + indentLevel);
-    if (!eolFastPathSupported || amountOfSpaces > cachedBreakLinesWithSpaces[indentType][eol].length) {
-      return eol + repeat(indentValue, initialIndentLevel + indentLevel);
-    }
-    if (amountOfSpaces <= 0) {
-      return eol;
-    }
-    return cachedBreakLinesWithSpaces[indentType][eol][amountOfSpaces];
-  }
-  function scanNext() {
-    let token = scanner.scan();
-    numberLineBreaks = 0;
-    while (token === 15 || token === 14) {
-      if (token === 14 && options.keepLines) {
-        numberLineBreaks += 1;
-      } else if (token === 14) {
-        numberLineBreaks = 1;
-      }
-      token = scanner.scan();
-    }
-    hasError = token === 16 || scanner.getTokenError() !== 0;
-    return token;
-  }
-  const editOperations = [];
-  function addEdit(text, startOffset, endOffset) {
-    if (!hasError && (!range || startOffset < rangeEnd && endOffset > rangeStart) && documentText.substring(startOffset, endOffset) !== text) {
-      editOperations.push({ offset: startOffset, length: endOffset - startOffset, content: text });
-    }
-  }
-  let firstToken2 = scanNext();
-  if (options.keepLines && numberLineBreaks > 0) {
-    addEdit(repeat(eol, numberLineBreaks), 0, 0);
-  }
-  if (firstToken2 !== 17) {
-    let firstTokenStart = scanner.getTokenOffset() + formatTextStart;
-    let initialIndent = indentValue.length * initialIndentLevel < 20 && options.insertSpaces ? cachedSpaces[indentValue.length * initialIndentLevel] : repeat(indentValue, initialIndentLevel);
-    addEdit(initialIndent, formatTextStart, firstTokenStart);
-  }
-  while (firstToken2 !== 17) {
-    let firstTokenEnd = scanner.getTokenOffset() + scanner.getTokenLength() + formatTextStart;
-    let secondToken = scanNext();
-    let replaceContent = "";
-    let needsLineBreak = false;
-    while (numberLineBreaks === 0 && (secondToken === 12 || secondToken === 13)) {
-      let commentTokenStart = scanner.getTokenOffset() + formatTextStart;
-      addEdit(cachedSpaces[1], firstTokenEnd, commentTokenStart);
-      firstTokenEnd = scanner.getTokenOffset() + scanner.getTokenLength() + formatTextStart;
-      needsLineBreak = secondToken === 12;
-      replaceContent = needsLineBreak ? newLinesAndIndent() : "";
-      secondToken = scanNext();
-    }
-    if (secondToken === 2) {
-      if (firstToken2 !== 1) {
-        indentLevel--;
-      }
-      if (options.keepLines && numberLineBreaks > 0 || !options.keepLines && firstToken2 !== 1) {
-        replaceContent = newLinesAndIndent();
-      } else if (options.keepLines) {
-        replaceContent = cachedSpaces[1];
-      }
-    } else if (secondToken === 4) {
-      if (firstToken2 !== 3) {
-        indentLevel--;
-      }
-      if (options.keepLines && numberLineBreaks > 0 || !options.keepLines && firstToken2 !== 3) {
-        replaceContent = newLinesAndIndent();
-      } else if (options.keepLines) {
-        replaceContent = cachedSpaces[1];
-      }
-    } else {
-      switch (firstToken2) {
-        case 3:
-        case 1:
-          indentLevel++;
-          if (options.keepLines && numberLineBreaks > 0 || !options.keepLines) {
-            replaceContent = newLinesAndIndent();
-          } else {
-            replaceContent = cachedSpaces[1];
-          }
-          break;
-        case 5:
-          if (options.keepLines && numberLineBreaks > 0 || !options.keepLines) {
-            replaceContent = newLinesAndIndent();
-          } else {
-            replaceContent = cachedSpaces[1];
-          }
-          break;
-        case 12:
-          replaceContent = newLinesAndIndent();
-          break;
-        case 13:
-          if (numberLineBreaks > 0) {
-            replaceContent = newLinesAndIndent();
-          } else if (!needsLineBreak) {
-            replaceContent = cachedSpaces[1];
-          }
-          break;
-        case 6:
-          if (options.keepLines && numberLineBreaks > 0) {
-            replaceContent = newLinesAndIndent();
-          } else if (!needsLineBreak) {
-            replaceContent = cachedSpaces[1];
-          }
-          break;
-        case 10:
-          if (options.keepLines && numberLineBreaks > 0) {
-            replaceContent = newLinesAndIndent();
-          } else if (secondToken === 6 && !needsLineBreak) {
-            replaceContent = "";
-          }
-          break;
-        case 7:
-        case 8:
-        case 9:
-        case 11:
-        case 2:
-        case 4:
-          if (options.keepLines && numberLineBreaks > 0) {
-            replaceContent = newLinesAndIndent();
-          } else {
-            if ((secondToken === 12 || secondToken === 13) && !needsLineBreak) {
-              replaceContent = cachedSpaces[1];
-            } else if (secondToken !== 5 && secondToken !== 17) {
-              hasError = true;
-            }
-          }
-          break;
-        case 16:
-          hasError = true;
-          break;
-      }
-      if (numberLineBreaks > 0 && (secondToken === 12 || secondToken === 13)) {
-        replaceContent = newLinesAndIndent();
-      }
-    }
-    if (secondToken === 17) {
-      if (options.keepLines && numberLineBreaks > 0) {
-        replaceContent = newLinesAndIndent();
-      } else {
-        replaceContent = options.insertFinalNewline ? eol : "";
-      }
-    }
-    const secondTokenStart = scanner.getTokenOffset() + formatTextStart;
-    addEdit(replaceContent, firstTokenEnd, secondTokenStart);
-    firstToken2 = secondToken;
-  }
-  return editOperations;
-}
-function repeat(s, count) {
-  let result = "";
-  for (let i = 0;i < count; i++) {
-    result += s;
-  }
-  return result;
-}
-function computeIndentLevel(content, options) {
-  let i = 0;
-  let nChars = 0;
-  const tabSize = options.tabSize || 4;
-  while (i < content.length) {
-    let ch2 = content.charAt(i);
-    if (ch2 === cachedSpaces[1]) {
-      nChars++;
-    } else if (ch2 === "\t") {
-      nChars += tabSize;
-    } else {
-      break;
-    }
-    i++;
-  }
-  return Math.floor(nChars / tabSize);
-}
-function getEOL(options, text) {
-  for (let i = 0;i < text.length; i++) {
-    const ch2 = text.charAt(i);
-    if (ch2 === "\r") {
-      if (i + 1 < text.length && text.charAt(i + 1) === `
-`) {
-        return `\r
-`;
-      }
-      return "\r";
-    } else if (ch2 === `
-`) {
-      return `
-`;
-    }
-  }
-  return options && options.eol || `
-`;
-}
-function isEOL(text, offset) {
-  return `\r
-`.indexOf(text.charAt(offset)) !== -1;
-}
-var init_format = __esm(() => {
-  init_scanner();
-  init_string_intern();
-});
-
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
-function parse2(text, errors = [], options = ParseOptions.DEFAULT) {
-  let currentProperty = null;
-  let currentParent = [];
-  const previousParents = [];
-  function onValue(value) {
-    if (Array.isArray(currentParent)) {
-      currentParent.push(value);
-    } else if (currentProperty !== null) {
-      currentParent[currentProperty] = value;
-    }
-  }
-  const visitor = {
-    onObjectBegin: () => {
-      const object = {};
-      onValue(object);
-      previousParents.push(currentParent);
-      currentParent = object;
-      currentProperty = null;
-    },
-    onObjectProperty: (name) => {
-      currentProperty = name;
-    },
-    onObjectEnd: () => {
-      currentParent = previousParents.pop();
-    },
-    onArrayBegin: () => {
-      const array = [];
-      onValue(array);
-      previousParents.push(currentParent);
-      currentParent = array;
-      currentProperty = null;
-    },
-    onArrayEnd: () => {
-      currentParent = previousParents.pop();
-    },
-    onLiteralValue: onValue,
-    onError: (error2, offset, length) => {
-      errors.push({ error: error2, offset, length });
-    }
-  };
-  visit(text, visitor, options);
-  return currentParent[0];
-}
-function parseTree(text, errors = [], options = ParseOptions.DEFAULT) {
-  let currentParent = { type: "array", offset: -1, length: -1, children: [], parent: undefined };
-  function ensurePropertyComplete(endOffset) {
-    if (currentParent.type === "property") {
-      currentParent.length = endOffset - currentParent.offset;
-      currentParent = currentParent.parent;
-    }
-  }
-  function onValue(valueNode) {
-    currentParent.children.push(valueNode);
-    return valueNode;
-  }
-  const visitor = {
-    onObjectBegin: (offset) => {
-      currentParent = onValue({ type: "object", offset, length: -1, parent: currentParent, children: [] });
-    },
-    onObjectProperty: (name, offset, length) => {
-      currentParent = onValue({ type: "property", offset, length: -1, parent: currentParent, children: [] });
-      currentParent.children.push({ type: "string", value: name, offset, length, parent: currentParent });
-    },
-    onObjectEnd: (offset, length) => {
-      ensurePropertyComplete(offset + length);
-      currentParent.length = offset + length - currentParent.offset;
-      currentParent = currentParent.parent;
-      ensurePropertyComplete(offset + length);
-    },
-    onArrayBegin: (offset, length) => {
-      currentParent = onValue({ type: "array", offset, length: -1, parent: currentParent, children: [] });
-    },
-    onArrayEnd: (offset, length) => {
-      currentParent.length = offset + length - currentParent.offset;
-      currentParent = currentParent.parent;
-      ensurePropertyComplete(offset + length);
-    },
-    onLiteralValue: (value, offset, length) => {
-      onValue({ type: getNodeType(value), offset, length, parent: currentParent, value });
-      ensurePropertyComplete(offset + length);
-    },
-    onSeparator: (sep, offset, length) => {
-      if (currentParent.type === "property") {
-        if (sep === ":") {
-          currentParent.colonOffset = offset;
-        } else if (sep === ",") {
-          ensurePropertyComplete(offset);
-        }
-      }
-    },
-    onError: (error2, offset, length) => {
-      errors.push({ error: error2, offset, length });
-    }
-  };
-  visit(text, visitor, options);
-  const result = currentParent.children[0];
-  if (result) {
-    delete result.parent;
-  }
-  return result;
-}
-function findNodeAtLocation(root, path7) {
-  if (!root) {
-    return;
-  }
-  let node = root;
-  for (let segment of path7) {
-    if (typeof segment === "string") {
-      if (node.type !== "object" || !Array.isArray(node.children)) {
-        return;
-      }
-      let found = false;
-      for (const propertyNode of node.children) {
-        if (Array.isArray(propertyNode.children) && propertyNode.children[0].value === segment && propertyNode.children.length === 2) {
-          node = propertyNode.children[1];
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        return;
-      }
-    } else {
-      const index = segment;
-      if (node.type !== "array" || index < 0 || !Array.isArray(node.children) || index >= node.children.length) {
-        return;
-      }
-      node = node.children[index];
-    }
-  }
-  return node;
-}
-function visit(text, visitor, options = ParseOptions.DEFAULT) {
-  const _scanner = createScanner(text, false);
-  const _jsonPath = [];
-  let suppressedCallbacks = 0;
-  function toNoArgVisit(visitFunction) {
-    return visitFunction ? () => suppressedCallbacks === 0 && visitFunction(_scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter()) : () => true;
-  }
-  function toOneArgVisit(visitFunction) {
-    return visitFunction ? (arg) => suppressedCallbacks === 0 && visitFunction(arg, _scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter()) : () => true;
-  }
-  function toOneArgVisitWithPath(visitFunction) {
-    return visitFunction ? (arg) => suppressedCallbacks === 0 && visitFunction(arg, _scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter(), () => _jsonPath.slice()) : () => true;
-  }
-  function toBeginVisit(visitFunction) {
-    return visitFunction ? () => {
-      if (suppressedCallbacks > 0) {
-        suppressedCallbacks++;
-      } else {
-        let cbReturn = visitFunction(_scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter(), () => _jsonPath.slice());
-        if (cbReturn === false) {
-          suppressedCallbacks = 1;
-        }
-      }
-    } : () => true;
-  }
-  function toEndVisit(visitFunction) {
-    return visitFunction ? () => {
-      if (suppressedCallbacks > 0) {
-        suppressedCallbacks--;
-      }
-      if (suppressedCallbacks === 0) {
-        visitFunction(_scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter());
-      }
-    } : () => true;
-  }
-  const onObjectBegin = toBeginVisit(visitor.onObjectBegin), onObjectProperty = toOneArgVisitWithPath(visitor.onObjectProperty), onObjectEnd = toEndVisit(visitor.onObjectEnd), onArrayBegin = toBeginVisit(visitor.onArrayBegin), onArrayEnd = toEndVisit(visitor.onArrayEnd), onLiteralValue = toOneArgVisitWithPath(visitor.onLiteralValue), onSeparator = toOneArgVisit(visitor.onSeparator), onComment = toNoArgVisit(visitor.onComment), onError = toOneArgVisit(visitor.onError);
-  const disallowComments = options && options.disallowComments;
-  const allowTrailingComma = options && options.allowTrailingComma;
-  function scanNext() {
-    while (true) {
-      const token = _scanner.scan();
-      switch (_scanner.getTokenError()) {
-        case 4:
-          handleError(14);
-          break;
-        case 5:
-          handleError(15);
-          break;
-        case 3:
-          handleError(13);
-          break;
-        case 1:
-          if (!disallowComments) {
-            handleError(11);
-          }
-          break;
-        case 2:
-          handleError(12);
-          break;
-        case 6:
-          handleError(16);
-          break;
-      }
-      switch (token) {
-        case 12:
-        case 13:
-          if (disallowComments) {
-            handleError(10);
-          } else {
-            onComment();
-          }
-          break;
-        case 16:
-          handleError(1);
-          break;
-        case 15:
-        case 14:
-          break;
-        default:
-          return token;
-      }
-    }
-  }
-  function handleError(error2, skipUntilAfter = [], skipUntil = []) {
-    onError(error2);
-    if (skipUntilAfter.length + skipUntil.length > 0) {
-      let token = _scanner.getToken();
-      while (token !== 17) {
-        if (skipUntilAfter.indexOf(token) !== -1) {
-          scanNext();
-          break;
-        } else if (skipUntil.indexOf(token) !== -1) {
-          break;
-        }
-        token = scanNext();
-      }
-    }
-  }
-  function parseString2(isValue) {
-    const value = _scanner.getTokenValue();
-    if (isValue) {
-      onLiteralValue(value);
-    } else {
-      onObjectProperty(value);
-      _jsonPath.push(value);
-    }
-    scanNext();
-    return true;
-  }
-  function parseLiteral() {
-    switch (_scanner.getToken()) {
-      case 11:
-        const tokenValue = _scanner.getTokenValue();
-        let value = Number(tokenValue);
-        if (isNaN(value)) {
-          handleError(2);
-          value = 0;
-        }
-        onLiteralValue(value);
-        break;
-      case 7:
-        onLiteralValue(null);
-        break;
-      case 8:
-        onLiteralValue(true);
-        break;
-      case 9:
-        onLiteralValue(false);
-        break;
-      default:
-        return false;
-    }
-    scanNext();
-    return true;
-  }
-  function parseProperty() {
-    if (_scanner.getToken() !== 10) {
-      handleError(3, [], [2, 5]);
-      return false;
-    }
-    parseString2(false);
-    if (_scanner.getToken() === 6) {
-      onSeparator(":");
-      scanNext();
-      if (!parseValue()) {
-        handleError(4, [], [2, 5]);
-      }
-    } else {
-      handleError(5, [], [2, 5]);
-    }
-    _jsonPath.pop();
-    return true;
-  }
-  function parseObject2() {
-    onObjectBegin();
-    scanNext();
-    let needsComma = false;
-    while (_scanner.getToken() !== 2 && _scanner.getToken() !== 17) {
-      if (_scanner.getToken() === 5) {
-        if (!needsComma) {
-          handleError(4, [], []);
-        }
-        onSeparator(",");
-        scanNext();
-        if (_scanner.getToken() === 2 && allowTrailingComma) {
-          break;
-        }
-      } else if (needsComma) {
-        handleError(6, [], []);
-      }
-      if (!parseProperty()) {
-        handleError(4, [], [2, 5]);
-      }
-      needsComma = true;
-    }
-    onObjectEnd();
-    if (_scanner.getToken() !== 2) {
-      handleError(7, [2], []);
-    } else {
-      scanNext();
-    }
-    return true;
-  }
-  function parseArray2() {
-    onArrayBegin();
-    scanNext();
-    let isFirstElement = true;
-    let needsComma = false;
-    while (_scanner.getToken() !== 4 && _scanner.getToken() !== 17) {
-      if (_scanner.getToken() === 5) {
-        if (!needsComma) {
-          handleError(4, [], []);
-        }
-        onSeparator(",");
-        scanNext();
-        if (_scanner.getToken() === 4 && allowTrailingComma) {
-          break;
-        }
-      } else if (needsComma) {
-        handleError(6, [], []);
-      }
-      if (isFirstElement) {
-        _jsonPath.push(0);
-        isFirstElement = false;
-      } else {
-        _jsonPath[_jsonPath.length - 1]++;
-      }
-      if (!parseValue()) {
-        handleError(4, [], [4, 5]);
-      }
-      needsComma = true;
-    }
-    onArrayEnd();
-    if (!isFirstElement) {
-      _jsonPath.pop();
-    }
-    if (_scanner.getToken() !== 4) {
-      handleError(8, [4], []);
-    } else {
-      scanNext();
-    }
-    return true;
-  }
-  function parseValue() {
-    switch (_scanner.getToken()) {
-      case 3:
-        return parseArray2();
-      case 1:
-        return parseObject2();
-      case 10:
-        return parseString2(true);
-      default:
-        return parseLiteral();
-    }
-  }
-  scanNext();
-  if (_scanner.getToken() === 17) {
-    if (options.allowEmptyContent) {
-      return true;
-    }
-    handleError(4, [], []);
-    return false;
-  }
-  if (!parseValue()) {
-    handleError(4, [], []);
-    return false;
-  }
-  if (_scanner.getToken() !== 17) {
-    handleError(9, [], []);
-  }
-  return true;
-}
-function getNodeType(value) {
-  switch (typeof value) {
-    case "boolean":
-      return "boolean";
-    case "number":
-      return "number";
-    case "string":
-      return "string";
-    case "object": {
-      if (!value) {
-        return "null";
-      } else if (Array.isArray(value)) {
-        return "array";
-      }
-      return "object";
-    }
-    default:
-      return "null";
-  }
-}
-var ParseOptions;
-var init_parser = __esm(() => {
-  init_scanner();
-  (function(ParseOptions2) {
-    ParseOptions2.DEFAULT = {
-      allowTrailingComma: false
-    };
-  })(ParseOptions || (ParseOptions = {}));
-});
-
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
-function setProperty(text, originalPath, value, options) {
-  const path7 = originalPath.slice();
-  const errors = [];
-  const root = parseTree(text, errors);
-  let parent = undefined;
-  let lastSegment = undefined;
-  while (path7.length > 0) {
-    lastSegment = path7.pop();
-    parent = findNodeAtLocation(root, path7);
-    if (parent === undefined && value !== undefined) {
-      if (typeof lastSegment === "string") {
-        value = { [lastSegment]: value };
-      } else {
-        value = [value];
-      }
-    } else {
-      break;
-    }
-  }
-  if (!parent) {
-    if (value === undefined) {
-      throw new Error("Can not delete in empty document");
-    }
-    return withFormatting(text, { offset: root ? root.offset : 0, length: root ? root.length : 0, content: JSON.stringify(value) }, options);
-  } else if (parent.type === "object" && typeof lastSegment === "string" && Array.isArray(parent.children)) {
-    const existing = findNodeAtLocation(parent, [lastSegment]);
-    if (existing !== undefined) {
-      if (value === undefined) {
-        if (!existing.parent) {
-          throw new Error("Malformed AST");
-        }
-        const propertyIndex = parent.children.indexOf(existing.parent);
-        let removeBegin;
-        let removeEnd = existing.parent.offset + existing.parent.length;
-        if (propertyIndex > 0) {
-          let previous = parent.children[propertyIndex - 1];
-          removeBegin = previous.offset + previous.length;
-        } else {
-          removeBegin = parent.offset + 1;
-          if (parent.children.length > 1) {
-            let next = parent.children[1];
-            removeEnd = next.offset;
-          }
-        }
-        return withFormatting(text, { offset: removeBegin, length: removeEnd - removeBegin, content: "" }, options);
-      } else {
-        return withFormatting(text, { offset: existing.offset, length: existing.length, content: JSON.stringify(value) }, options);
-      }
-    } else {
-      if (value === undefined) {
-        return [];
-      }
-      const newProperty = `${JSON.stringify(lastSegment)}: ${JSON.stringify(value)}`;
-      const index = options.getInsertionIndex ? options.getInsertionIndex(parent.children.map((p) => p.children[0].value)) : parent.children.length;
-      let edit;
-      if (index > 0) {
-        let previous = parent.children[index - 1];
-        edit = { offset: previous.offset + previous.length, length: 0, content: "," + newProperty };
-      } else if (parent.children.length === 0) {
-        edit = { offset: parent.offset + 1, length: 0, content: newProperty };
-      } else {
-        edit = { offset: parent.offset + 1, length: 0, content: newProperty + "," };
-      }
-      return withFormatting(text, edit, options);
-    }
-  } else if (parent.type === "array" && typeof lastSegment === "number" && Array.isArray(parent.children)) {
-    const insertIndex = lastSegment;
-    if (insertIndex === -1) {
-      const newProperty = `${JSON.stringify(value)}`;
-      let edit;
-      if (parent.children.length === 0) {
-        edit = { offset: parent.offset + 1, length: 0, content: newProperty };
-      } else {
-        const previous = parent.children[parent.children.length - 1];
-        edit = { offset: previous.offset + previous.length, length: 0, content: "," + newProperty };
-      }
-      return withFormatting(text, edit, options);
-    } else if (value === undefined && parent.children.length >= 0) {
-      const removalIndex = lastSegment;
-      const toRemove = parent.children[removalIndex];
-      let edit;
-      if (parent.children.length === 1) {
-        edit = { offset: parent.offset + 1, length: parent.length - 2, content: "" };
-      } else if (parent.children.length - 1 === removalIndex) {
-        let previous = parent.children[removalIndex - 1];
-        let offset = previous.offset + previous.length;
-        let parentEndOffset = parent.offset + parent.length;
-        edit = { offset, length: parentEndOffset - 2 - offset, content: "" };
-      } else {
-        edit = { offset: toRemove.offset, length: parent.children[removalIndex + 1].offset - toRemove.offset, content: "" };
-      }
-      return withFormatting(text, edit, options);
-    } else if (value !== undefined) {
-      let edit;
-      const newProperty = `${JSON.stringify(value)}`;
-      if (!options.isArrayInsertion && parent.children.length > lastSegment) {
-        const toModify = parent.children[lastSegment];
-        edit = { offset: toModify.offset, length: toModify.length, content: newProperty };
-      } else if (parent.children.length === 0 || lastSegment === 0) {
-        edit = { offset: parent.offset + 1, length: 0, content: parent.children.length === 0 ? newProperty : newProperty + "," };
-      } else {
-        const index = lastSegment > parent.children.length ? parent.children.length : lastSegment;
-        const previous = parent.children[index - 1];
-        edit = { offset: previous.offset + previous.length, length: 0, content: "," + newProperty };
-      }
-      return withFormatting(text, edit, options);
-    } else {
-      throw new Error(`Can not ${value === undefined ? "remove" : options.isArrayInsertion ? "insert" : "modify"} Array index ${insertIndex} as length is not sufficient`);
-    }
-  } else {
-    throw new Error(`Can not add ${typeof lastSegment !== "number" ? "index" : "property"} to parent of type ${parent.type}`);
-  }
-}
-function withFormatting(text, edit, options) {
-  if (!options.formattingOptions) {
-    return [edit];
-  }
-  let newText = applyEdit(text, edit);
-  let begin = edit.offset;
-  let end = edit.offset + edit.content.length;
-  if (edit.length === 0 || edit.content.length === 0) {
-    while (begin > 0 && !isEOL(newText, begin - 1)) {
-      begin--;
-    }
-    while (end < newText.length && !isEOL(newText, end)) {
-      end++;
-    }
-  }
-  const edits = format(newText, { offset: begin, length: end - begin }, { ...options.formattingOptions, keepLines: false });
-  for (let i = edits.length - 1;i >= 0; i--) {
-    const edit2 = edits[i];
-    newText = applyEdit(newText, edit2);
-    begin = Math.min(begin, edit2.offset);
-    end = Math.max(end, edit2.offset + edit2.length);
-    end += edit2.content.length - edit2.length;
-  }
-  const editLength = text.length - (newText.length - end) - begin;
-  return [{ offset: begin, length: editLength, content: newText.substring(begin, end) }];
-}
-function applyEdit(text, edit) {
-  return text.substring(0, edit.offset) + edit.content + text.substring(edit.offset + edit.length);
-}
-var init_edit = __esm(() => {
-  init_format();
-  init_parser();
-});
-
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
-function modify(text, path7, value, options) {
-  return setProperty(text, path7, value, options);
-}
-function applyEdits(text, edits) {
-  let sortedEdits = edits.slice(0).sort((a, b) => {
-    const diff = a.offset - b.offset;
-    if (diff === 0) {
-      return a.length - b.length;
-    }
-    return diff;
-  });
-  let lastModifiedOffset = text.length;
-  for (let i = sortedEdits.length - 1;i >= 0; i--) {
-    let e = sortedEdits[i];
-    if (e.offset + e.length <= lastModifiedOffset) {
-      text = applyEdit(text, e);
-    } else {
-      throw new Error("Overlapping edit");
-    }
-    lastModifiedOffset = e.offset;
-  }
-  return text;
-}
-var ScanError, SyntaxKind, parse3, visit2, ParseErrorCode;
-var init_main = __esm(() => {
-  init_format();
-  init_edit();
-  init_scanner();
-  init_parser();
-  (function(ScanError2) {
-    ScanError2[ScanError2["None"] = 0] = "None";
-    ScanError2[ScanError2["UnexpectedEndOfComment"] = 1] = "UnexpectedEndOfComment";
-    ScanError2[ScanError2["UnexpectedEndOfString"] = 2] = "UnexpectedEndOfString";
-    ScanError2[ScanError2["UnexpectedEndOfNumber"] = 3] = "UnexpectedEndOfNumber";
-    ScanError2[ScanError2["InvalidUnicode"] = 4] = "InvalidUnicode";
-    ScanError2[ScanError2["InvalidEscapeCharacter"] = 5] = "InvalidEscapeCharacter";
-    ScanError2[ScanError2["InvalidCharacter"] = 6] = "InvalidCharacter";
-  })(ScanError || (ScanError = {}));
-  (function(SyntaxKind2) {
-    SyntaxKind2[SyntaxKind2["OpenBraceToken"] = 1] = "OpenBraceToken";
-    SyntaxKind2[SyntaxKind2["CloseBraceToken"] = 2] = "CloseBraceToken";
-    SyntaxKind2[SyntaxKind2["OpenBracketToken"] = 3] = "OpenBracketToken";
-    SyntaxKind2[SyntaxKind2["CloseBracketToken"] = 4] = "CloseBracketToken";
-    SyntaxKind2[SyntaxKind2["CommaToken"] = 5] = "CommaToken";
-    SyntaxKind2[SyntaxKind2["ColonToken"] = 6] = "ColonToken";
-    SyntaxKind2[SyntaxKind2["NullKeyword"] = 7] = "NullKeyword";
-    SyntaxKind2[SyntaxKind2["TrueKeyword"] = 8] = "TrueKeyword";
-    SyntaxKind2[SyntaxKind2["FalseKeyword"] = 9] = "FalseKeyword";
-    SyntaxKind2[SyntaxKind2["StringLiteral"] = 10] = "StringLiteral";
-    SyntaxKind2[SyntaxKind2["NumericLiteral"] = 11] = "NumericLiteral";
-    SyntaxKind2[SyntaxKind2["LineCommentTrivia"] = 12] = "LineCommentTrivia";
-    SyntaxKind2[SyntaxKind2["BlockCommentTrivia"] = 13] = "BlockCommentTrivia";
-    SyntaxKind2[SyntaxKind2["LineBreakTrivia"] = 14] = "LineBreakTrivia";
-    SyntaxKind2[SyntaxKind2["Trivia"] = 15] = "Trivia";
-    SyntaxKind2[SyntaxKind2["Unknown"] = 16] = "Unknown";
-    SyntaxKind2[SyntaxKind2["EOF"] = 17] = "EOF";
-  })(SyntaxKind || (SyntaxKind = {}));
-  parse3 = parse2;
-  visit2 = visit;
-  (function(ParseErrorCode2) {
-    ParseErrorCode2[ParseErrorCode2["InvalidSymbol"] = 1] = "InvalidSymbol";
-    ParseErrorCode2[ParseErrorCode2["InvalidNumberFormat"] = 2] = "InvalidNumberFormat";
-    ParseErrorCode2[ParseErrorCode2["PropertyNameExpected"] = 3] = "PropertyNameExpected";
-    ParseErrorCode2[ParseErrorCode2["ValueExpected"] = 4] = "ValueExpected";
-    ParseErrorCode2[ParseErrorCode2["ColonExpected"] = 5] = "ColonExpected";
-    ParseErrorCode2[ParseErrorCode2["CommaExpected"] = 6] = "CommaExpected";
-    ParseErrorCode2[ParseErrorCode2["CloseBraceExpected"] = 7] = "CloseBraceExpected";
-    ParseErrorCode2[ParseErrorCode2["CloseBracketExpected"] = 8] = "CloseBracketExpected";
-    ParseErrorCode2[ParseErrorCode2["EndOfFileExpected"] = 9] = "EndOfFileExpected";
-    ParseErrorCode2[ParseErrorCode2["InvalidCommentToken"] = 10] = "InvalidCommentToken";
-    ParseErrorCode2[ParseErrorCode2["UnexpectedEndOfComment"] = 11] = "UnexpectedEndOfComment";
-    ParseErrorCode2[ParseErrorCode2["UnexpectedEndOfString"] = 12] = "UnexpectedEndOfString";
-    ParseErrorCode2[ParseErrorCode2["UnexpectedEndOfNumber"] = 13] = "UnexpectedEndOfNumber";
-    ParseErrorCode2[ParseErrorCode2["InvalidUnicode"] = 14] = "InvalidUnicode";
-    ParseErrorCode2[ParseErrorCode2["InvalidEscapeCharacter"] = 15] = "InvalidEscapeCharacter";
-    ParseErrorCode2[ParseErrorCode2["InvalidCharacter"] = 16] = "InvalidCharacter";
-  })(ParseErrorCode || (ParseErrorCode = {}));
-});
-
-// src/claude-plugin/cleanup-target.ts
-import { existsSync as existsSync16, lstatSync as lstatSync9 } from "fs";
-import nodePath47 from "path";
-function containedClaudeCleanupPath(cwd, relative) {
-  if (relative === "" || nodePath47.isAbsolute(relative) || relative.split(/[\\/]/u).includes("..")) {
-    throw new Error(`Unsafe Claude cleanup target: ${relative}`);
-  }
-  const root = nodePath47.resolve(cwd);
-  const target = nodePath47.resolve(root, relative);
-  if (!target.startsWith(`${root}${nodePath47.sep}`)) {
-    throw new Error(`Unsafe Claude cleanup target: ${relative}`);
-  }
-  return target;
-}
-function assertSafeClaudeCleanupTarget(cwd, relative) {
-  const target = containedClaudeCleanupPath(cwd, relative);
-  let cursor = nodePath47.resolve(cwd);
-  for (const segment of relative.split(/[\\/]/u)) {
-    cursor = nodePath47.join(cursor, segment);
-    if (!existsSync16(cursor))
-      continue;
-    const metadata = lstatSync9(cursor);
-    if (metadata.isSymbolicLink()) {
-      throw new Error(`Unsafe symlinked Claude cleanup target: ${relative}`);
-    }
-    if (cursor === target ? !metadata.isFile() : !metadata.isDirectory()) {
-      throw new Error(`Unsafe non-file Claude cleanup target: ${relative}`);
-    }
-  }
-  return target;
-}
-var init_cleanup_target = () => {};
-
-// src/claude-plugin/legacy-classifier.ts
-import { existsSync as existsSync17, lstatSync as lstatSync10, readFileSync as readFileSync32 } from "fs";
-import nodePath48 from "path";
-function referencesLegacyHook(value) {
-  if (typeof value === "string")
-    return value.includes(".safeword/hooks/");
-  if (Array.isArray(value))
-    return value.some((child) => referencesLegacyHook(child));
-  if (typeof value !== "object" || value === null)
-    return false;
-  return Object.values(value).some((child) => referencesLegacyHook(child));
-}
-function observeFiles(cwd) {
-  const recognizedFiles = [];
-  const conflictingFiles = [];
-  for (const relativePath of cataloguedClaudeLegacyPaths()) {
-    const path7 = nodePath48.join(cwd, relativePath);
-    if (!existsSync17(path7))
-      continue;
-    try {
-      const safePath = assertSafeClaudeCleanupTarget(cwd, relativePath);
-      const regular = lstatSync10(safePath).isFile();
-      if (regular && isAcceptedHistoricalFile(relativePath, readFileSync32(safePath))) {
-        recognizedFiles.push(relativePath);
-      } else {
-        conflictingFiles.push(relativePath);
-      }
-    } catch {
-      if (existsSync17(path7))
-        conflictingFiles.push(relativePath);
-    }
-  }
-  return { recognizedFiles, conflictingFiles };
-}
-function observeSettings(cwd) {
-  const settingsPath = nodePath48.join(cwd, ".claude/settings.json");
-  if (!existsSync17(settingsPath))
-    return { recognizedHooks: [], conflictingHooks: [] };
-  if (!lstatSync10(settingsPath).isFile()) {
-    return {
-      recognizedHooks: [],
-      conflictingHooks: [],
-      settingsError: ".claude/settings.json is not a regular file."
-    };
-  }
-  const errors = [];
-  const settings = parse3(readFileSync32(settingsPath, "utf8"), errors, {
-    allowTrailingComma: true,
-    disallowComments: false
-  });
-  if (errors.length > 0 || typeof settings !== "object" || settings === null) {
-    return {
-      recognizedHooks: [],
-      conflictingHooks: [],
-      settingsError: ".claude/settings.json could not be parsed safely."
-    };
-  }
-  return classifySettingsHooks(settings.hooks ?? {});
-}
-function classifySettingsHooks(hooks) {
-  const recognizedHooks = [];
-  const conflictingHooks = [];
-  const events = Object.entries(hooks);
-  for (const [event, value] of events) {
-    if (!Array.isArray(value))
-      continue;
-    const entries = value.entries();
-    for (const [index, entry] of entries) {
-      if (isAcceptedHistoricalHook(event, entry)) {
-        recognizedHooks.push({ event, index, entry });
-      } else if (referencesLegacyHook(entry)) {
-        conflictingHooks.push({ event, index, entry });
-      }
-    }
-  }
-  return { recognizedHooks, conflictingHooks };
-}
-function observeClaudeLegacy(cwd) {
-  return { ...observeFiles(cwd), ...observeSettings(cwd) };
-}
-function legacyObservationIsEmpty(observation) {
-  return observation.recognizedFiles.length === 0 && observation.conflictingFiles.length === 0 && observation.recognizedHooks.length === 0 && observation.conflictingHooks.length === 0 && observation.settingsError === undefined;
-}
-var init_legacy_classifier = __esm(() => {
-  init_main();
-  init_cleanup_target();
-  init_historical_ownership();
-});
-
-// src/claude-plugin/inventory.ts
-import {
-  closeSync as closeSync5,
-  constants as fsConstants2,
-  fstatSync as fstatSync2,
-  lstatSync as lstatSync11,
-  openSync as openSync5,
-  readdirSync as readdirSync8,
-  readSync as readSync2,
-  realpathSync as realpathSync7
-} from "fs";
-import nodePath49 from "path";
-function isSmallRegularMetadata(metadata) {
-  return metadata.isFile() && !metadata.isSymbolicLink() && metadata.size <= MAX_CLAUDE_CACHE_METADATA_BYTES;
-}
-function isSameSmallMetadata(before, opened, after) {
-  return opened.isFile() && isSmallRegularMetadata(after) && opened.dev === before.dev && opened.ino === before.ino && opened.dev === after.dev && opened.ino === after.ino && opened.nlink === 1 && opened.size <= MAX_CLAUDE_CACHE_METADATA_BYTES;
-}
-function readSmallDescriptor(descriptor) {
-  const buffer = Buffer.alloc(MAX_CLAUDE_CACHE_METADATA_BYTES + 1);
-  let offset = 0;
-  while (offset < buffer.length) {
-    const count = readSync2(descriptor, buffer, offset, buffer.length - offset, offset);
-    if (count === 0)
-      break;
-    offset += count;
-  }
-  return offset > MAX_CLAUDE_CACHE_METADATA_BYTES ? undefined : buffer.subarray(0, offset).toString("utf8");
-}
-function readSmallMetadataFile(path7) {
-  let descriptor;
-  try {
-    const linkedBefore = lstatSync11(path7);
-    if (!isSmallRegularMetadata(linkedBefore))
-      return;
-    descriptor = openSync5(path7, fsConstants2.O_RDONLY | fsConstants2.O_NONBLOCK | (fsConstants2.O_NOFOLLOW ?? 0));
-    const opened = fstatSync2(descriptor);
-    const linkedAfter = lstatSync11(path7);
-    if (!isSameSmallMetadata(linkedBefore, opened, linkedAfter))
-      return;
-    const content = readSmallDescriptor(descriptor);
-    const final = fstatSync2(descriptor);
-    return content !== undefined && isSameSmallMetadata(linkedBefore, final, linkedAfter) ? content : undefined;
-  } catch {
-    return;
-  } finally {
-    if (descriptor !== undefined)
-      closeSync5(descriptor);
-  }
-}
-function isLeaseRecord(value, expectedPid) {
-  if (typeof value !== "object" || value === null || Array.isArray(value))
-    return false;
-  const record = value;
-  const hasExactFields = Object.keys(record).length === 2 && Object.hasOwn(record, "pid") && Object.hasOwn(record, "procStart");
-  return hasExactFields && Number.isSafeInteger(record.pid) && record.pid === expectedPid && typeof record.procStart === "string" && record.procStart.length > 0;
-}
-function leaseMarkerPid(name) {
-  const infix = name.indexOf(LEASE_TEMP_INFIX);
-  if (infix === -1)
-    return LEASE_PID.test(name) ? name : undefined;
-  const pid = name.slice(0, infix);
-  const suffix = name.slice(infix + LEASE_TEMP_INFIX.length);
-  if (!LEASE_PID.test(pid) || !LEASE_TEMP_SUFFIX.test(suffix))
-    return;
-  return pid;
-}
-function vanishedDuringScan(path7) {
-  try {
-    lstatSync11(path7);
-    return false;
-  } catch (error2) {
-    return error2.code === "ENOENT";
-  }
-}
-function isClaudeLeaseMarker(path7, name) {
-  const pid = leaseMarkerPid(name);
-  if (pid === undefined)
-    return false;
-  const content = readSmallMetadataFile(path7);
-  if (content === undefined)
-    return name.includes(LEASE_TEMP_INFIX) && vanishedDuringScan(path7);
-  try {
-    return isLeaseRecord(JSON.parse(content), Number(pid));
-  } catch {
-    return name.includes(LEASE_TEMP_INFIX);
-  }
-}
-function isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry) {
-  if (!entry.isFile())
-    return false;
-  if (logicalDirectory === ".in_use")
-    return isClaudeLeaseMarker(physicalPath, entry.name);
-  if (logicalDirectory !== "" || entry.name !== ".orphaned_at")
-    return false;
-  return /^\d{13}\n?$/u.test(readSmallMetadataFile(physicalPath) ?? "");
-}
-function directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot) {
-  const metadata = lstatSync11(physicalDirectory);
-  const canonical = realpathSync7(physicalDirectory);
-  const insideRoot = canonical === canonicalRoot || canonical.startsWith(`${canonicalRoot}${nodePath49.sep}`);
-  if (!metadata.isDirectory() || !insideRoot) {
-    throw new Error(`Claude plugin cache traversal escaped its root: ${logicalDirectory || "."}`);
-  }
-  return { canonical, device: metadata.dev, inode: metadata.ino };
-}
-function claudeNativePayloadFiles(root) {
-  const files = [];
-  const canonicalRoot = realpathSync7(root);
-  const visit3 = (physicalDirectory, logicalDirectory) => {
-    const before = directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot);
-    const entries = readdirSync8(physicalDirectory, { withFileTypes: true });
-    const after = directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot);
-    if (before.device !== after.device || before.inode !== after.inode || before.canonical !== after.canonical) {
-      throw new Error(`Claude plugin cache changed during traversal: ${logicalDirectory || "."}`);
-    }
-    for (const entry of entries) {
-      const physicalPath = nodePath49.join(physicalDirectory, entry.name);
-      const logicalPath = logicalDirectory === "" ? entry.name : nodePath49.posix.join(logicalDirectory, entry.name);
-      if (isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry))
-        continue;
-      if (entry.isDirectory())
-        visit3(physicalPath, logicalPath);
-      else
-        files.push(logicalPath);
-    }
-  };
-  visit3(root, "");
-  return files;
-}
-var CLAUDE_PLUGIN_ID = "safeword@safeword", CLAUDE_MIGRATION_SCHEMA, CLAUDE_ADOPTED_LEGACY_STATE, CLAUDE_NATIVE_REQUIRED_ASSETS, CLAUDE_NATIVE_METADATA_FILES, MAX_CLAUDE_CACHE_METADATA_BYTES = 1024, LEASE_TEMP_INFIX = ".tmp.", LEASE_PID, LEASE_TEMP_SUFFIX;
-var init_inventory2 = __esm(() => {
-  CLAUDE_MIGRATION_SCHEMA = {
-    data: {
-      pluginsRoot: "plugins/data",
-      proofs: "execution-proofs-v2",
-      projectState: "project-state-v1"
-    },
-    state: {
-      pluginMarkerV2: "plugin-mode-v2.json",
-      attention: "attention-v1.json",
-      attemptsDirectory: "attempts-v1",
-      transaction: "cleanup-transaction-v1.json"
-    },
-    legacy: {
-      pluginMarker: ".safeword/claude-plugin/plugin-mode-v1.json",
-      pluginMarkerV2: ".safeword/claude-plugin/plugin-mode-v2.json",
-      attention: ".safeword/claude-plugin/attention-v1.json",
-      attemptsDirectory: ".safeword/claude-plugin/attempts-v1",
-      transaction: ".safeword/claude-plugin/cleanup-transaction-v1.json"
-    }
-  };
-  CLAUDE_ADOPTED_LEGACY_STATE = [
-    "pluginMarkerV2",
-    "attention",
-    "attemptsDirectory",
-    "transaction"
-  ];
-  CLAUDE_NATIVE_REQUIRED_ASSETS = [
-    ".claude-plugin/plugin.json",
-    "hooks/hooks.json",
-    "resources/SAFEWORD.md",
-    "runtime/cli.js",
-    "runtime/dispatch.js",
-    "runtime/event-groups.json"
-  ];
-  CLAUDE_NATIVE_METADATA_FILES = [
-    "README.md",
-    "identity.json",
-    "inventory.json"
-  ];
-  LEASE_PID = /^\d{1,10}$/u;
-  LEASE_TEMP_SUFFIX = /^[0-9a-f]{1,32}$/u;
-});
-
-// src/claude-plugin/project-root.ts
-import { spawnSync as spawnSync5 } from "child_process";
-function canonicalClaudeProjectRoot(cwd) {
-  const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
-  const environmentRoot = configuredRoot === undefined ? undefined : configuredRoot.trim();
-  let candidate = environmentRoot === "" ? undefined : environmentRoot;
-  if (candidate === undefined) {
-    const result = spawnSync5("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
-      encoding: "utf8"
-    });
-    const gitRoot = result.status === 0 ? result.stdout?.trim() : undefined;
-    candidate = gitRoot === "" || gitRoot === undefined ? cwd : gitRoot;
-  }
-  const canonical = canonicalDirectory(candidate);
-  if (canonical === undefined) {
-    throw new Error(`Claude project root is missing, not a directory, or cannot be resolved: ${candidate}`);
-  }
-  return canonical;
-}
-var init_project_root = __esm(() => {
-  init_fs();
-});
-
-// src/claude-plugin/plugin-data.ts
-import { createHash as createHash20 } from "crypto";
-import { homedir as homedir5 } from "os";
-import nodePath50 from "path";
-function claudeConfigDirectory(environment = process.env) {
-  const configured = (environment.CLAUDE_CONFIG_DIR ?? "").trim();
-  return configured === "" ? nodePath50.join(homedir5(), ".claude") : configured;
-}
-function claudePluginDataId(pluginId = CLAUDE_PLUGIN_ID) {
-  return pluginId.replaceAll(/[^\w-]/gu, "-");
-}
-function claudePluginDataDirectory(environment = process.env) {
-  const exported = (environment.CLAUDE_PLUGIN_DATA ?? "").trim();
-  if (exported !== "")
-    return exported;
-  return nodePath50.join(claudeConfigDirectory(environment), CLAUDE_MIGRATION_SCHEMA.data.pluginsRoot, claudePluginDataId());
-}
-function claudeProjectDigest(canonicalProjectRoot) {
-  return createHash20("sha256").update(canonicalProjectRoot).digest("hex");
-}
-function claudeProofDirectory(environment = process.env) {
-  return nodePath50.join(claudePluginDataDirectory(environment), CLAUDE_MIGRATION_SCHEMA.data.proofs);
-}
-function claudeProjectStateDirectory(cwd) {
-  const canonical = canonicalClaudeProjectRoot(cwd);
-  return nodePath50.join(claudePluginDataDirectory(), CLAUDE_MIGRATION_SCHEMA.data.projectState, claudeProjectDigest(canonical));
-}
-var init_plugin_data = __esm(() => {
-  init_inventory2();
-  init_project_root();
-});
-
-// src/claude-plugin/migration-state.ts
-import { createHash as createHash21, randomUUID as randomUUID9 } from "crypto";
-import { cpSync, existsSync as existsSync18, mkdirSync as mkdirSync11, readFileSync as readFileSync33, renameSync as renameSync7, rmSync as rmSync7 } from "fs";
-import nodePath51 from "path";
-function createClaudePluginMode(marker) {
-  return {
-    ...marker,
-    schema_version: 2,
-    state: marker.unresolved_paths.length === 0 ? "clean" : "unresolved"
-  };
-}
-function digest2(value) {
-  return createHash21("sha256").update(value).digest("hex");
-}
-function relocateLegacyState(from, to2, rename2 = renameSync7, copy = (source, destination) => {
-  cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
-}) {
-  try {
-    rename2(from, to2);
-    return false;
-  } catch (error2) {
-    if (error2.code !== "EXDEV")
-      throw error2;
-  }
-  const staging = `${to2}.${randomUUID9()}.partial`;
-  try {
-    copy(from, staging);
-    rename2(staging, to2);
-  } catch (error2) {
-    rmSync7(staging, { recursive: true, force: true });
-    throw error2;
-  }
-  return true;
-}
-function adoptLegacyProjectState(cwd, directory) {
-  if (adopted.has(directory))
-    return;
-  adopted.add(directory);
-  for (const key of CLAUDE_ADOPTED_LEGACY_STATE) {
-    const legacy = nodePath51.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
-    if (!existsSync18(legacy))
-      continue;
-    const destination = nodePath51.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
-    try {
-      if (existsSync18(adoptionReceipt(directory, key)) || existsSync18(destination)) {
-        recordAdoption(directory, key);
-        rmSync7(legacy, { recursive: true, force: true });
-        continue;
-      }
-      mkdirSync11(directory, { recursive: true, mode: 448 });
-      const sourceRemains = relocateLegacyState(legacy, destination);
-      recordAdoption(directory, key);
-      if (sourceRemains)
-        rmSync7(legacy, { recursive: true, force: true });
-    } catch {}
-  }
-}
-function adoptionReceipt(directory, key) {
-  return nodePath51.join(directory, `.adopted-${CLAUDE_MIGRATION_SCHEMA.state[key]}`);
-}
-function recordAdoption(directory, key) {
-  try {
-    writeDurableFile(adoptionReceipt(directory, key), "", { mode: 384 });
-  } catch {}
-}
-function stateDirectory(cwd) {
-  const directory = claudeProjectStateDirectory(cwd);
-  adoptLegacyProjectState(cwd, directory);
-  return directory;
-}
-function claudeProjectStatePath(cwd, key) {
-  const directory = stateDirectory(cwd);
-  const adoptedPath = nodePath51.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
-  if (existsSync18(adoptedPath))
-    return adoptedPath;
-  if (existsSync18(adoptionReceipt(directory, key)))
-    return adoptedPath;
-  const legacy = nodePath51.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
-  return existsSync18(legacy) ? legacy : adoptedPath;
-}
-function removeClaudeProjectState(cwd, key) {
-  rmSync7(nodePath51.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]), {
-    recursive: true,
-    force: true
-  });
-  rmSync7(nodePath51.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]), {
-    recursive: true,
-    force: true
-  });
-}
-function advisoryStateDigest(advisory) {
-  return digest2(advisory);
-}
-function claudeWatchedSettingsDigest(cwd) {
-  const configDirectory = claudeConfigDirectory();
-  const paths = [
-    nodePath51.join(cwd, ".claude/settings.json"),
-    nodePath51.join(configDirectory, "settings.json")
-  ];
-  const hash = createHash21("sha256");
-  for (const path7 of paths) {
-    hash.update(path7);
-    hash.update("\x00");
-    hash.update(existsSync18(path7) ? readFileSync33(path7) : "<absent>");
-    hash.update("\x00");
-  }
-  return hash.digest("hex");
-}
-function markerPath(cwd) {
-  return claudeProjectStatePath(cwd, "pluginMarkerV2");
-}
-function validDigest(value) {
-  return typeof value === "string" && /^[\da-f]{64}$/u.test(value);
-}
-function validPluginMode(value) {
-  const unresolvedPaths = value.unresolved_paths;
-  const consistentState = value.state === "clean" && unresolvedPaths?.length === 0 || value.state === "unresolved" && (unresolvedPaths?.length ?? 0) > 0;
-  return [
-    value.schema_version === 2,
-    ["clean", "unresolved"].includes(value.state ?? ""),
-    typeof value.plugin_version === "string",
-    validDigest(value.hook_manifest_sha256),
-    validDigest(value.catalogue_sha256),
-    Array.isArray(unresolvedPaths),
-    Array.isArray(unresolvedPaths) && unresolvedPaths.every((item) => typeof item === "string"),
-    consistentState
-  ].every(Boolean);
-}
-function readClaudePluginMode(cwd) {
-  try {
-    const path7 = markerPath(cwd);
-    const value = JSON.parse(readFileSync33(path7, "utf8"));
-    return validPluginMode(value) ? value : undefined;
-  } catch {
-    return;
-  }
-}
-function writeClaudePluginMode(cwd, marker) {
-  const normalized = createClaudePluginMode({
-    plugin_version: marker.plugin_version,
-    hook_manifest_sha256: marker.hook_manifest_sha256,
-    catalogue_sha256: marker.catalogue_sha256,
-    unresolved_paths: marker.unresolved_paths,
-    ...marker.advisory !== undefined && { advisory: marker.advisory },
-    ...marker.transaction_id !== undefined && { transaction_id: marker.transaction_id }
-  });
-  writeDurableFile(markerPath(cwd), `${JSON.stringify(normalized, undefined, 2)}
-`, {
-    mode: 384
-  });
-}
-function writeClaudeMigrationAttention(cwd, attention) {
-  writeDurableFile(claudeProjectStatePath(cwd, "attention"), `${JSON.stringify(attention, undefined, 2)}
-`, { mode: 384 });
-}
-function hasLegacyClaudePluginMode(cwd) {
-  return existsSync18(nodePath51.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy.pluginMarker));
-}
-var PROCESS_SESSION_ID, adopted;
-var init_migration_state = __esm(() => {
-  init_durable_write();
-  init_inventory2();
-  init_plugin_data();
-  PROCESS_SESSION_ID = `process-${randomUUID9()}`;
-  adopted = new Set;
-});
-
-// src/claude-plugin/delivery-schema.ts
-function withoutLegacyClaude(values) {
-  return Object.fromEntries(Object.entries(values).filter(([path7]) => !path7.startsWith(".claude/")));
-}
-function schemaForClaudeDelivery(cwd) {
-  const legacyPluginMode = hasLegacyClaudePluginMode(cwd);
-  const nativePluginMode = readClaudePluginMode(cwd) !== undefined;
-  if (!legacyPluginMode && !nativePluginMode && !legacyObservationIsEmpty(observeClaudeLegacy(cwd))) {
-    return SAFEWORD_SCHEMA;
-  }
-  return {
-    ...SAFEWORD_SCHEMA,
-    ownedDirs: SAFEWORD_SCHEMA.ownedDirs.filter((path7) => !path7.startsWith(".claude")),
-    sharedDirs: SAFEWORD_SCHEMA.sharedDirs.filter((path7) => !path7.startsWith(".claude")),
-    deprecatedFiles: SAFEWORD_SCHEMA.deprecatedFiles.filter((path7) => !path7.startsWith(".claude/")),
-    deprecatedDirs: SAFEWORD_SCHEMA.deprecatedDirs.filter((path7) => !path7.startsWith(".claude")),
-    ownedFiles: withoutLegacyClaude(SAFEWORD_SCHEMA.ownedFiles),
-    managedFiles: withoutLegacyClaude(SAFEWORD_SCHEMA.managedFiles),
-    jsonMerges: withoutLegacyClaude(SAFEWORD_SCHEMA.jsonMerges)
-  };
-}
-var init_delivery_schema = __esm(() => {
-  init_schema();
-  init_legacy_classifier();
-  init_migration_state();
-});
-
-// src/codex-plugin/delivery-schema.ts
-function withoutFinalizedCodexEntries(values, retiredPaths) {
-  return Object.fromEntries(Object.entries(values).filter(([path7]) => !retiredPaths.has(path7)));
-}
-function schemaForCodexDelivery(cwd, schema) {
-  if (!codexFinalizationIsComplete(cwd))
-    return schema;
-  const retiredPaths = new Set(schema.codexMigration.cleanupFiles);
-  return {
-    ...schema,
-    deprecatedFiles: schema.deprecatedFiles.filter((path7) => !retiredPaths.has(path7)),
-    ownedFiles: withoutFinalizedCodexEntries(schema.ownedFiles, retiredPaths),
-    managedFiles: withoutFinalizedCodexEntries(schema.managedFiles, retiredPaths),
-    jsonMerges: withoutFinalizedCodexEntries(schema.jsonMerges, retiredPaths),
-    textPatches: withoutFinalizedCodexEntries(schema.textPatches, retiredPaths),
-    legacyTextPatches: withoutFinalizedCodexEntries(schema.legacyTextPatches, retiredPaths),
-    contracts: withoutFinalizedCodexEntries(schema.contracts, retiredPaths)
-  };
-}
-var init_delivery_schema2 = __esm(() => {
-  init_finalization();
-});
-
-// src/lifecycle/schema.ts
-var exports_schema = {};
-__export(exports_schema, {
-  projectLifecycleSchema: () => projectLifecycleSchema
-});
-import { existsSync as existsSync19 } from "fs";
-import nodePath52 from "path";
-function isLegacyClaudePath(path7) {
-  return path7 === ".claude" || path7.startsWith(".claude/");
-}
-function withSelectedOwnedPaths(schema) {
-  const path7 = ".safeword/hooks/lib/owned-paths.ts";
-  if (schema.ownedFiles[path7] === undefined)
-    return schema;
-  const ownershipSchema = schemaForProjectSurfaces(SAFEWORD_SCHEMA, ["core", "cursor"]);
-  return {
-    ...schema,
-    ownedFiles: {
-      ...schema.ownedFiles,
-      [path7]: {
-        generator: (ctx) => generateOwnedPathsModule(ownershipSchema, resolvedNamespaceDirectory(ctx))
-      }
-    }
-  };
-}
-function hasLegacyClaudeDelivery(schema) {
-  return [...Object.keys(schema.ownedFiles), ...Object.keys(schema.jsonMerges)].some((path7) => isLegacyClaudePath(path7));
-}
-function selectedDeliverySchema(schema, selected) {
-  return selected.has("claude") ? schema : filterSchemaPaths(schema, (path7) => !isLegacyClaudePath(path7));
-}
-function selectedProjectSurfaces(selected) {
-  return ["core", ...selected.has("cursor") ? ["cursor"] : []];
-}
-function sharedRuntimeNeeded(selected, legacyClaudeActive) {
-  return selected.has("cursor") || legacyClaudeActive;
-}
-function installedCursorActive(cwd) {
-  const cursorSchema = schemaForProjectSurfaces(SAFEWORD_SCHEMA, ["cursor"]);
-  return [...Object.keys(cursorSchema.ownedFiles), ...Object.keys(cursorSchema.jsonMerges)].some((path7) => path7.startsWith(".cursor/") && existsSync19(nodePath52.join(cwd, path7)));
-}
-function preserveSharedProjectSchema(schema, keepPath = () => false) {
-  return {
-    ...filterSchemaPaths(schema, keepPath),
-    deprecatedPackages: [],
-    packages: { base: [], conditional: {} }
-  };
-}
-function retainedHostUninstallSchema(cwd, schema, selected, legacyClaudeInstalled, remainingNativeProfile) {
-  if (!selected.has("cursor") && installedCursorActive(cwd)) {
-    return preserveSharedProjectSchema(schema, (path7) => selected.has("claude") && isLegacyClaudePath(path7));
-  }
-  const remainingLegacyClaude = legacyClaudeInstalled && !selected.has("claude");
-  if (!remainingNativeProfile && !remainingLegacyClaude)
-    return;
-  return preserveSharedProjectSchema(schema, (path7) => {
-    if (isSharedAgentRuntimePath(path7))
-      return selected.has("cursor") && !remainingLegacyClaude;
-    return selected.has("cursor") && isCursorProjectPath(path7) || selected.has("claude") && isLegacyClaudePath(path7);
-  });
-}
-function projectLifecycleSchema(cwd, agents, operation = "check", remainingNativeProfile = false) {
-  const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
-  const selected = new Set(agents);
-  const legacyClaudeInstalled = hasLegacyClaudeDelivery(claudeDeliverySchema);
-  const legacyClaudeActive = selected.has("claude") && legacyClaudeInstalled;
-  const selectedSchema = selectedDeliverySchema(claudeDeliverySchema, selected);
-  const deliverySchema = schemaForCodexDelivery(cwd, selectedSchema);
-  const surfaceSchema = schemaForProjectSurfaces(deliverySchema, selectedProjectSurfaces(selected));
-  if (operation === "uninstall" && selected.size > 0) {
-    const retained = retainedHostUninstallSchema(cwd, surfaceSchema, selected, legacyClaudeInstalled, remainingNativeProfile);
-    if (retained !== undefined)
-      return retained;
-  }
-  return withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)));
-}
-var init_schema2 = __esm(() => {
-  init_delivery_schema();
-  init_delivery_schema2();
-  init_owned_paths();
-  init_schema();
-});
-
-// src/lifecycle/cursor.ts
-var exports_cursor = {};
-__export(exports_cursor, {
-  unselectedCursorFinding: () => unselectedCursorFinding,
-  observeCursorProject: () => observeCursorProject,
-  hasCursorProjectAssets: () => hasCursorProjectAssets
-});
-import { existsSync as existsSync20 } from "fs";
-import nodePath53 from "path";
-function cursorOwnedFiles(schema) {
-  return [...Object.keys(schema.ownedFiles), ...Object.keys(schema.managedFiles)].filter((path7) => isCursorProjectPath(path7));
-}
-function hasCursorProjectAssets(cwd, schema) {
-  return cursorOwnedFiles(schema).some((path7) => existsSync20(nodePath53.join(cwd, path7)));
-}
-function observeCursorProject(cwd, schema) {
-  const owned = cursorOwnedFiles(schema);
-  const missing = owned.filter((path7) => !existsSync20(nodePath53.join(cwd, path7)));
-  if (missing.length === 0) {
-    return createResult({
-      state: "healthy",
-      data: {
-        command: "cursor status",
-        coverage: "project-owned Cursor assets",
-        owned_files: owned.length
-      }
-    });
-  }
-  return createResult({
-    state: "action_required",
-    findings: [
-      {
-        code: "CURSOR_ASSETS_MISSING",
-        message: `${missing.length} Safeword-owned Cursor file(s) are missing; run \`safeword install --agents=cursor\`.`,
-        severity: "warning"
-      }
-    ],
-    nextActions: [
-      { command: "safeword install --agents=cursor", mutates: true, requiresHuman: false }
-    ],
-    data: {
-      command: "cursor status",
-      coverage: "project-owned Cursor assets",
-      owned_files: owned.length,
-      missing_files: missing.length
-    }
-  });
-}
-function unselectedCursorFinding(cwd, agents) {
-  if (agents.includes("cursor"))
-    return [];
-  if (!hasCursorProjectAssets(cwd, projectLifecycleSchema(cwd, ["cursor"])))
-    return [];
-  return [
-    {
-      code: "CURSOR_NOT_SELECTED",
-      message: "This project has Safeword-owned Cursor assets that the current selection excludes; include `--agents=cursor` to keep them current.",
-      severity: "info"
-    }
-  ];
-}
-var init_cursor = __esm(() => {
-  init_result();
-  init_schema();
-  init_schema2();
-});
-
-// src/planning/contracts.generated.ts
-var PLANNING_AUTHOR_COPIES;
-var init_contracts_generated = __esm(() => {
-  PLANNING_AUTHOR_COPIES = {
-    "product-plan": {
-      relativePath: "templates/skills/bdd/DISCOVERY.md",
-      sha256: "9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557"
-    },
-    "plan-implementation": {
-      relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      sha256: "7097df93aee9e2050d756a20b7518eb2c3663ca63a3fc5c8ee72518401a493f4"
-    },
-    "plan-execution": {
-      relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
-      sha256: "b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d"
-    }
-  };
-});
-
-// src/planning/author-copy.ts
-import { createHash as createHash22 } from "crypto";
-import { readFileSync as readFileSync34 } from "fs";
-import nodePath54 from "path";
-import process10 from "process";
-function digest3(bytes) {
-  return createHash22("sha256").update(bytes).digest("hex");
-}
-function packageRoot() {
-  const directory = nodePath54.basename(import.meta.dirname);
-  return directory === "dist" || directory === "runtime" ? nodePath54.dirname(import.meta.dirname) : nodePath54.resolve(import.meta.dirname, "../..");
-}
-function readPlanningAuthor(root, phase, identity2, verifyWholeCopy = true) {
-  let bytes;
-  try {
-    bytes = readFileSync34(nodePath54.join(root, identity2.relativePath));
-  } catch {
-    throw new PlanningContractCopyError("missing_generated_contract_copy", phase, identity2.relativePath);
-  }
-  if (verifyWholeCopy && digest3(bytes) !== identity2.sha256) {
-    throw new PlanningContractCopyError("canonical_contract_copy_mismatch", phase, identity2.relativePath);
-  }
-  return bytes.toString("utf8");
-}
-function packagedPlanningAuthor(phase, verifyWholeCopy = true) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "8fe3812619a384e569571e00548b2b168dbdbd55f1f06ccacf1fa14bdf5d6a7c" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } };
-  return readPlanningAuthor(packageRoot(), phase, copies[phase], verifyWholeCopy);
-}
-function assertActivePlanningAuthorCopy(cwd, phase) {
-  packagedPlanningAuthor(phase);
-  if (process10.env.SAFEWORD_AGENT_RUNTIME !== "cursor" && !hasCursorProjectAssets(cwd, SAFEWORD_SCHEMA)) {
-    return;
-  }
-  const identity2 = PLANNING_AUTHOR_COPIES[phase];
-  const template = identity2.relativePath.replace(/^templates\//u, "");
-  readPlanningAuthor(cwd, phase, {
-    relativePath: cursorPlanningContractPath(template),
-    sha256: identity2.sha256
-  });
-}
-var PlanningContractCopyError;
-var init_author_copy = __esm(() => {
-  init_cursor();
-  init_packet_error();
-  init_schema();
-  init_contracts_generated();
-  PlanningContractCopyError = class PlanningContractCopyError extends ReviewPacketError {
-    code;
-    phase;
-    contractPath;
-    constructor(code, phase, contractPath) {
-      const generator = {
-        "product-plan": "generate:planning-contracts",
-        "plan-implementation": "generate:plan-rubric",
-        "plan-execution": "generate:execution-plan-rubric"
-      }[phase];
-      super(`The ${phase} authoring contract copy at ${contractPath} ${code === "missing_generated_contract_copy" ? "is unavailable" : "differs from the canonical contract-byte identity"}. Restore the packaged decision-quality contract by reinstalling or reconciling the intact Safeword distribution and retry. For source builds, restore the canonical authoring contract, run \`bun run ${generator}\` and \`bun run fix:generated-surfaces\`, then rebuild and reinstall.`);
-      this.code = code;
-      this.phase = phase;
-      this.contractPath = contractPath;
-    }
-  };
-});
-
-// src/review/execution-plan-rubric.ts
-function extractExecutionPlanReviewRubric(reference) {
-  const starts = reference.split(EXECUTION_PLAN_RUBRIC_START).length - 1;
-  const ends = reference.split(EXECUTION_PLAN_RUBRIC_END).length - 1;
-  if (starts !== 1 || ends !== 1) {
-    throw new Error("PLAN_EXECUTION.md must contain exactly one rubric marker pair");
-  }
-  const start = reference.indexOf(EXECUTION_PLAN_RUBRIC_START) + EXECUTION_PLAN_RUBRIC_START.length;
-  const end = reference.indexOf(EXECUTION_PLAN_RUBRIC_END);
-  if (end <= start)
-    throw new Error("PLAN_EXECUTION.md rubric markers are out of order");
-  const rubric = reference.slice(start, end).trim();
-  if (rubric === "")
-    throw new Error("PLAN_EXECUTION.md rubric is empty");
-  for (const forbidden of [
-    "run-review.ts",
-    "/finish-review",
-    "advance the ticket",
-    "write-review-stamp.ts"
-  ]) {
-    if (rubric.includes(forbidden)) {
-      throw new Error(`PLAN_EXECUTION.md rubric contains host-only instruction: ${forbidden}`);
-    }
-  }
-  return rubric;
-}
-var EXECUTION_PLAN_RUBRIC_START = "<!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_START -->", EXECUTION_PLAN_RUBRIC_END = "<!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_END -->";
-
-// src/review/git-prefix.ts
-function parseGitProjectPrefix(output) {
-  const prefix = output.slice(0, -1);
-  if (!output.endsWith(`
-`) || prefix.startsWith("/") || prefix !== "" && !prefix.endsWith("/") || prefix.split("/").includes("..")) {
-    return;
-  }
-  return prefix;
-}
-
-// src/review/text.ts
-function decodeReviewText(bytes, target) {
-  let content;
-  try {
-    content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  } catch {
-    throw new ReviewPacketError(`Review target is not valid UTF-8 text: ${target}`, "REVIEW_TARGET_INVALID_TEXT");
-  }
-  if (HIGH_CONFIDENCE_SECRET_PATTERNS.some((pattern) => pattern.test(content))) {
-    throw new Error(`Review packet rejected a high-confidence credential in ${target}; redact it before dispatch`);
-  }
-  return content;
-}
-var HIGH_CONFIDENCE_SECRET_PATTERNS;
-var init_text = __esm(() => {
-  init_packet_error();
-  HIGH_CONFIDENCE_SECRET_PATTERNS = [
-    /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u,
-    /\bAKIA[0-9A-Z]{16}\b/u,
-    /\bgh[pousr]_[A-Za-z0-9]{36,}\b/u,
-    /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/u,
-    /\bsk-(?:proj-|ant-)[\w-]{16,}\b/u,
-    /\bAIza[\w-]{35}\b/u
-  ];
-});
-
-// src/review/lockfile-diff.ts
-import { spawnSync as spawnSync6 } from "child_process";
-import { createHash as createHash23 } from "crypto";
-import {
-  chmodSync as chmodSync3,
-  closeSync as closeSync6,
-  mkdirSync as mkdirSync12,
-  mkdtempSync as mkdtempSync5,
-  openSync as openSync6,
-  readFileSync as readFileSync35,
-  rmSync as rmSync8,
-  statSync as statSync4,
-  writeFileSync as writeFileSync12
-} from "fs";
-import { tmpdir as tmpdir3 } from "os";
-import nodePath55 from "path";
-function unavailable(message) {
-  throw new ReviewPacketError(message, "REVIEW_LOCKFILE_DIFF_UNAVAILABLE");
-}
-function tooLarge(subject, limit) {
-  throw new ReviewPacketError(`${subject} exceeds the ${limit}-byte review capture limit; refresh a stale default branch or narrow the change`, "REVIEW_TARGET_TOO_LARGE");
-}
-function git(root, args, environment) {
-  const result = spawnSync6("git", [...args], {
-    cwd: root,
-    env: environment,
-    encoding: "buffer",
-    timeout: 5000,
-    maxBuffer: GIT_METADATA_BYTES
-  });
-  if (result.error !== undefined || result.signal !== null) {
-    unavailable("Git could not complete bounded lockfile review");
-  }
-  return result;
-}
-function metadata(root, args, environment) {
-  const result = git(root, args, environment);
-  if (result.status !== 0)
-    unavailable("Git could not read the lockfile baseline metadata");
-  return decodeReviewText(result.stdout, "lockfile Git metadata");
-}
-function resolveBaseline(root, environment) {
-  for (const ref of DEFAULT_REFS) {
-    const result = git(root, ["rev-parse", "--verify", "--quiet", ref], environment);
-    if (result.status === 1)
-      continue;
-    if (result.status !== 0)
-      unavailable("Git could not resolve the default branch for lockfile review");
-    const commit = metadata(root, ["merge-base", "HEAD", ref], environment).trim();
-    if (!/^[a-f0-9]{40,64}$/u.test(commit))
-      unavailable("Default branch has no lockfile review baseline");
-    return { ref, commit };
-  }
-  return unavailable("No default branch baseline for bounded lockfile review; fetch its history first");
-}
-function baselineChanged(root, environment, original) {
-  return () => {
-    try {
-      const current = resolveBaseline(root, environment);
-      return current.ref !== original.ref || current.commit !== original.commit;
-    } catch {
-      return true;
-    }
-  };
-}
-function projectPrefix(request) {
-  const prefixLine = metadata(request.root, ["rev-parse", "--show-prefix"], request.environment);
-  const prefix = parseGitProjectPrefix(prefixLine);
-  if (prefix === undefined) {
-    unavailable("Invalid Git project prefix for lockfile review");
-  }
-  return prefix;
-}
-function parseBlob(entry, path7) {
-  const tab = entry.indexOf("\t");
-  const match = /^(100644|100755) blob ([a-f0-9]{40,64}) +(\d+)$/u.exec(entry.slice(0, tab));
-  const mode = match?.[1];
-  const oid = match?.[2];
-  const bytes = Number(match?.[3]);
-  if (mode !== "100644" && mode !== "100755" || oid === undefined || !Number.isSafeInteger(bytes) || bytes < 0 || entry.slice(tab + 1) !== `${path7}\x00`) {
-    unavailable("No regular tracked baseline exists at this large lockfile path");
-  }
-  return { path: path7, mode, oid, bytes };
-}
-function baselineBlob(request, base) {
-  const path7 = projectPrefix(request) + request.relative;
-  const entry = metadata(request.root, ["ls-tree", "-l", "-z", "--full-tree", base.commit, "--", `:(literal)${path7}`], request.environment);
-  const blob = parseBlob(entry, path7);
-  if (blob.bytes > MAX_LOCKFILE_SOURCE_BYTES)
-    tooLarge("Lockfile baseline", MAX_LOCKFILE_SOURCE_BYTES);
-  return blob;
-}
-function lockfileText(bytes, target) {
-  const content = decodeReviewText(bytes, target);
-  if (content.includes("\x00")) {
-    throw new ReviewPacketError(`Review target is binary rather than UTF-8 lockfile text: ${target}`, "REVIEW_TARGET_INVALID_TEXT");
-  }
-  return content;
-}
-function captureBlob(request, blob, destination) {
-  const descriptor = openSync6(destination, "wx", 384);
-  try {
-    const run2 = spawnSync6("git", ["cat-file", "blob", blob.oid], {
-      cwd: request.root,
-      env: request.environment,
-      stdio: ["ignore", descriptor, "pipe"],
-      timeout: 5000,
-      maxBuffer: GIT_METADATA_BYTES
-    });
-    if (run2.status !== 0 || run2.error !== undefined || run2.signal !== null) {
-      unavailable("Git could not capture the complete lockfile baseline");
-    }
-  } finally {
-    closeSync6(descriptor);
-  }
-  if (statSync4(destination).size !== blob.bytes)
-    unavailable("Git returned an incomplete lockfile baseline");
-  const bytes = readFileSync35(destination);
-  lockfileText(bytes, `${request.relative} baseline`);
-  return bytes;
-}
-function setMode(path7, executable) {
-  chmodSync3(path7, executable ? 493 : 420);
-  if (Boolean(statSync4(path7).mode & 73) !== executable) {
-    unavailable("This host cannot preserve the lockfile executable mode for review");
-  }
-}
-function displayedPatch(raw, relative) {
-  const lines = raw.split(`
-`);
-  if (lines[0] !== "diff --git a/before/bun.lock b/after/bun.lock") {
-    unavailable("Git returned unexpected lockfile diff paths");
-  }
-  const before = JSON.stringify(`a/${relative}`);
-  const after = JSON.stringify(`b/${relative}`);
-  lines[0] = `diff --git ${before} ${after}`;
-  for (let index = 1;index < lines.length; index++) {
-    const line = lines[index];
-    if (line?.startsWith("@@ "))
-      break;
-    if (line === "--- a/before/bun.lock")
-      lines[index] = `--- ${before}`;
-    else if (line === "+++ b/after/bun.lock")
-      lines[index] = `+++ ${after}`;
-  }
-  return lines.join(`
-`);
-}
-function reconstruct(request, directory, isolatedGit, beforeBytes, file) {
-  const replay = nodePath55.join(directory, "replay");
-  const replayPath = nodePath55.resolve(replay, request.relative);
-  const relative = nodePath55.relative(replay, replayPath);
-  if (relative === ".." || relative.startsWith(`..${nodePath55.sep}`) || nodePath55.isAbsolute(relative)) {
-    unavailable("Lockfile reconstruction path escapes its private directory");
-  }
-  mkdirSync12(nodePath55.dirname(replayPath), { recursive: true });
-  writeFileSync12(replayPath, beforeBytes, { mode: 384 });
-  setMode(replayPath, file.representation.base_mode === "100755");
-  const patchPath = nodePath55.join(directory, "displayed.patch");
-  writeFileSync12(patchPath, file.content, { mode: 384 });
-  const applied = git(replay, [
-    `--git-dir=${isolatedGit}`,
-    `--work-tree=${replay}`,
-    "-c",
-    "core.filemode=true",
-    "apply",
-    "-p1",
-    "--whitespace=nowarn",
-    patchPath
-  ], request.environment);
-  const observed = statSync4(replayPath);
-  if (applied.status !== 0 || observed.size !== request.bytes.length || digest4(readFileSync35(replayPath)) !== file.representation.source_sha256 || Boolean(observed.mode & 73) !== request.executable) {
-    unavailable("The displayed lockfile patch does not reconstruct the exact captured source bytes and mode");
-  }
-}
-function capturePatch(request, directory, blob) {
-  const before = nodePath55.join(directory, "before");
-  const after = nodePath55.join(directory, "after");
-  mkdirSync12(before);
-  mkdirSync12(after);
-  const beforePath = nodePath55.join(before, "bun.lock");
-  const beforeBytes = captureBlob(request, blob, beforePath);
-  setMode(beforePath, blob.mode === "100755");
-  const afterPath = nodePath55.join(after, "bun.lock");
-  writeFileSync12(afterPath, request.bytes, { mode: 384 });
-  setMode(afterPath, request.executable);
-  const template = nodePath55.join(directory, "empty-template");
-  const isolatedGit = nodePath55.join(directory, "bare");
-  mkdirSync12(template);
-  const initialized = git(directory, ["init", "--bare", "-q", `--template=${template}`, isolatedGit], request.environment);
-  if (initialized.status !== 0)
-    unavailable("Git could not isolate lockfile review configuration");
-  const patch = nodePath55.join(directory, "raw.patch");
-  const run2 = git(directory, [
-    `--git-dir=${isolatedGit}`,
-    "-c",
-    "core.filemode=true",
-    "diff",
-    "--no-index",
-    "--text",
-    "--no-ext-diff",
-    "--no-textconv",
-    "--no-color",
-    "--no-renames",
-    "--diff-algorithm=myers",
-    "--src-prefix=a/",
-    "--dst-prefix=b/",
-    "--unified=20",
-    `--output=${patch}`,
-    "--",
-    "before/bun.lock",
-    "after/bun.lock"
-  ], request.environment);
-  if (run2.status !== 1)
-    unavailable("No complete changed lockfile patch is available");
-  if (statSync4(patch).size > request.maxFileBytes)
-    tooLarge("Lockfile patch", request.maxFileBytes);
-  const raw = lockfileText(readFileSync35(patch), request.relative);
-  const content = displayedPatch(raw, request.relative);
-  lockfileText(Buffer.from(content), request.relative);
-  return { content, beforeBytes, isolatedGit };
-}
-function prepareLockfileDiff(request) {
-  if (request.bytes.length > MAX_LOCKFILE_SOURCE_BYTES)
-    tooLarge("Lockfile source", MAX_LOCKFILE_SOURCE_BYTES);
-  lockfileText(request.bytes, request.relative);
-  const base = resolveBaseline(request.root, request.environment);
-  const blob = baselineBlob(request, base);
-  const directory = mkdtempSync5(nodePath55.join(tmpdir3(), "safeword-lock-diff-"));
-  try {
-    const { content, beforeBytes, isolatedGit } = capturePatch(request, directory, blob);
-    const representation = {
-      kind: "git-diff",
-      base_ref: base.ref,
-      base_commit: base.commit,
-      base_path: blob.path,
-      base_blob: blob.oid,
-      base_sha256: digest4(beforeBytes),
-      base_mode: blob.mode,
-      source_sha256: digest4(request.bytes),
-      source_bytes: request.bytes.length,
-      source_mode: request.executable ? "100755" : "100644"
-    };
-    const file = { path: request.relative, content, representation };
-    if (Buffer.byteLength(JSON.stringify(file)) > request.maxFileBytes) {
-      tooLarge("Lockfile representation", request.maxFileBytes);
-    }
-    reconstruct(request, directory, isolatedGit, beforeBytes, file);
-    return { file, baselineChanged: baselineChanged(request.root, request.environment, base) };
-  } finally {
-    rmSync8(directory, { recursive: true, force: true });
-  }
-}
-var MAX_LOCKFILE_SOURCE_BYTES, DEFAULT_REFS, GIT_METADATA_BYTES, digest4 = (bytes) => createHash23("sha256").update(bytes).digest("hex");
-var init_lockfile_diff = __esm(() => {
-  init_packet_error();
-  init_text();
-  MAX_LOCKFILE_SOURCE_BYTES = 8 * 1024 * 1024;
-  DEFAULT_REFS = [
-    "refs/remotes/origin/HEAD",
-    "refs/remotes/origin/main",
-    "refs/remotes/origin/master",
-    "refs/heads/main",
-    "refs/heads/master"
-  ];
-  GIT_METADATA_BYTES = 256 * 1024;
-});
-
-// src/review/plan-rubric.ts
-function extractPlanReviewRubric(skill) {
-  const starts = skill.split(PLAN_RUBRIC_START).length - 1;
-  const ends = skill.split(PLAN_RUBRIC_END).length - 1;
-  if (starts !== 1 || ends !== 1) {
-    throw new Error("PLAN_IMPLEMENTATION.md must contain exactly one plan-rubric marker pair");
-  }
-  const start = skill.indexOf(PLAN_RUBRIC_START) + PLAN_RUBRIC_START.length;
-  const end = skill.indexOf(PLAN_RUBRIC_END);
-  if (end <= start)
-    throw new Error("PLAN_IMPLEMENTATION.md plan-rubric markers are out of order");
-  const rubric = skill.slice(start, end).trim();
-  if (rubric === "")
-    throw new Error("PLAN_IMPLEMENTATION.md plan rubric is empty");
-  for (const forbidden of [
-    "run-review.ts",
-    "resolve-project-knowledge.ts",
-    "/finish-review",
-    "advance the phase",
-    "write-review-stamp.ts",
-    "designApprovalGate"
-  ]) {
-    if (rubric.includes(forbidden)) {
-      throw new Error(`PLAN_IMPLEMENTATION.md plan rubric contains host-only instruction: ${forbidden}`);
-    }
-  }
-  return rubric;
-}
-var PLAN_RUBRIC_START = "<!-- SAFEWORD:PLAN_RUBRIC_START -->", PLAN_RUBRIC_END = "<!-- SAFEWORD:PLAN_RUBRIC_END -->";
-
-// src/utils/ticket-folder-matches.ts
-function findTicketFolderMatch(names, ticketId) {
-  let sluggedMatch;
-  const slugPrefix = `${ticketId}-`;
-  for (const name of names) {
-    if (name === ticketId) {
-      return name;
-    }
-    if (sluggedMatch === undefined && name.startsWith(slugPrefix)) {
-      sluggedMatch = name;
-    }
-  }
-  return sluggedMatch;
-}
-
-// src/utils/product-plan-contract.ts
-import { createHash as createHash24 } from "crypto";
-import { existsSync as existsSync21, readdirSync as readdirSync9, readFileSync as readFileSync36 } from "fs";
-import nodePath56 from "path";
-function sectionAfterHeading(content, level, id2) {
-  const prefix = "#".repeat(level);
-  const lines = content.split(/\r?\n/);
-  const start = lines.findIndex((line) => {
-    if (!line.startsWith(`${prefix} ${id2}`))
-      return false;
-    const suffix = line.slice(prefix.length + id2.length + 1);
-    return suffix === "" || /^\s|^\u2014/.test(suffix);
-  });
-  if (start === -1)
-    return;
-  let end = lines.length;
-  for (let index = start + 1;index < lines.length; index += 1) {
-    const headingLevel = /^(#+)\s/.exec(lines[index] ?? "")?.[1]?.length;
-    if (headingLevel !== undefined && headingLevel <= level) {
-      end = index;
-      break;
-    }
-  }
-  return lines.slice(start + 1, end).join(`
-`).trim();
-}
-function sectionContractValue(content, level, id2) {
-  const prefix = `${"#".repeat(level)} `;
-  const heading = content.split(/\r?\n/).find((line) => {
-    if (!line.startsWith(`${prefix}${id2}`))
-      return false;
-    const suffix = line.slice(prefix.length + id2.length);
-    return suffix === "" || /^\s|^\u2014/.test(suffix);
-  });
-  if (heading === undefined)
-    return;
-  const body = sectionAfterHeading(content, level, id2) ?? "";
-  return [heading.slice(prefix.length).trim(), body].filter(Boolean).join(`
-`);
-}
-function fieldValue(content, label) {
-  const prefix = `- **${label}:**`;
-  const lines = content.split(/\r?\n/);
-  const index = lines.findIndex((line) => line.trimStart().startsWith(prefix));
-  if (index === -1)
-    return;
-  const matchedLine = lines[index];
-  if (matchedLine === undefined)
-    return;
-  const first = matchedLine.trimStart().slice(prefix.length).trim();
-  const continuation = [];
-  const remainingLines = lines.slice(index + 1);
-  for (const line of remainingLines) {
-    const trimmed = line.trim();
-    if (trimmed === "" || trimmed.startsWith("#"))
-      break;
-    if (!/^\s/.test(line))
-      break;
-    continuation.push(trimmed);
-  }
-  return [first, ...continuation].join(" ").trim();
-}
-function canonicalizeContractValue(value) {
-  return value.replaceAll(/`|\*\*|__|(?<!\*)\*(?!\*)|(?<!_)_(?!_)/g, "").replaceAll(/\s+/g, " ").trim();
-}
-function digestParentContract(values) {
-  const canonical = CONTRACT_KEYS.map((key) => [key, canonicalizeContractValue(values[key])]);
-  return createHash24("sha256").update(JSON.stringify(canonical)).digest("hex");
-}
-function resolveTicketDirectory(cwd, ticketId) {
-  const root = resolveTicketsDirectory(cwd);
-  if (!existsSync21(root))
-    return;
-  const names = readdirSync9(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
-  const match = findTicketFolderMatch(names, ticketId);
-  return match ? nodePath56.join(root, match) : undefined;
-}
-function resolveParentContract(cwd, parentId, parentJobId, milestoneId) {
-  const directory = resolveTicketDirectory(cwd, parentId);
-  if (!directory)
-    throw new Error(`Parent ticket "${parentId}" does not resolve.`);
-  const spec = readParentSpec(directory, parentId);
-  const values = parentContractValuesFromSpec(spec, parentJobId, milestoneId);
-  return { values, digest: digestParentContract(values) };
-}
-function parentContractValuesFromSpec(spec, parentJobId, milestoneId) {
-  const jobs = requireSection(spec, 2, "Jobs To Be Done", "Jobs To Be Done");
-  const shape = requireSection(spec, 2, "Shape", "Shape");
-  const parentJob = requireContractSection(jobs, 3, parentJobId, `Parent job "${parentJobId}"`);
-  const milestone = requireSection(shape, 3, milestoneId, `Milestone "${milestoneId}"`);
-  const productBet = sectionAfterHeading(spec, 2, "Product Bet") ?? "";
-  return contractValues(parentJob, milestone, productBet);
-}
-function readParentSpec(directory, parentId) {
-  const ticket = readFileSync36(nodePath56.join(directory, "ticket.md"), "utf8");
-  if (readFrontmatterScalar(ticket, "type") !== "epic") {
-    throw new Error(`Parent ticket "${parentId}" is not a feature epic.`);
-  }
-  const specPath = nodePath56.join(directory, "spec.md");
-  if (!existsSync21(specPath))
-    throw new Error(`Parent epic "${parentId}" has no Product Plan.`);
-  return readFileSync36(specPath, "utf8");
-}
-function requireSection(spec, level, id2, label) {
-  const section = sectionAfterHeading(spec, level, id2);
-  if (section === undefined)
-    throw new Error(`${label} does not resolve in the parent Product Plan.`);
-  return section;
-}
-function requireContractSection(spec, level, id2, label) {
-  const section = sectionContractValue(spec, level, id2);
-  if (section === undefined)
-    throw new Error(`${label} does not resolve in the parent Product Plan.`);
-  return section;
-}
-function contractValues(parentJob, milestone, productBet) {
-  const values = {
-    parentJob,
-    milestoneOutcome: fieldValue(milestone, "Outcome") ?? "",
-    milestoneNonGoals: fieldValue(milestone, "Non-goals") ?? "",
-    projectNonGoals: fieldValue(productBet, "Project non-goals") ?? "",
-    successThreshold: fieldValue(productBet, "Success threshold") ?? ""
-  };
-  const missing = Object.entries(values).find(([, value]) => value.trim() === "");
-  if (missing)
-    throw new Error(`Parent Product Plan is missing ${missing[0]}.`);
-  return values;
-}
-var CONTRACT_KEYS;
-var init_product_plan_contract = __esm(() => {
-  init_configured_paths();
-  CONTRACT_KEYS = [
-    "parentJob",
-    "milestoneOutcome",
-    "milestoneNonGoals",
-    "projectNonGoals",
-    "successThreshold"
-  ];
-});
-
-// src/review/planning-accepted-boundary.ts
-import { createHash as createHash25 } from "crypto";
-function acceptedTerms(value, field) {
-  const terms = typeof value === "string" ? [value] : value;
-  if (!Array.isArray(terms) || terms.length === 0 || terms.some((term) => typeof term !== "string" || term.trim() === ""))
-    throw new Error(`The ticket must declare ${field}.`);
-  return terms;
-}
-function productBetLines(spec) {
-  const lines = spec.split(`
-`);
-  const start = lines.findIndex((line) => line.trim() === "## Product Bet");
-  if (start === -1)
-    throw new Error("The Product Plan must declare a Product Bet.");
-  const end = lines.findIndex((line, index) => index > start && line.startsWith("## "));
-  return lines.slice(start + 1, end === -1 ? lines.length : end);
-}
-function projectNonGoals(spec) {
-  const section = productBetLines(spec);
-  const index = section.findIndex((line) => line.includes("Project non-goals:"));
-  if (index === -1)
-    throw new Error("The Product Plan must declare project non-goals.");
-  const first = section[index]?.split("Project non-goals:", 2)[1]?.replaceAll("**", "").trim() ?? "";
-  const continued = [];
-  const remainder = section.slice(index + 1);
-  for (const line of remainder) {
-    if (line.trim() === "" || line.trimStart().startsWith("- ") || line.startsWith("#"))
-      break;
-    continued.push(line.trim());
-  }
-  const value = [first, ...continued].join(" ").trim();
-  if (value === "")
-    throw new Error("The Product Plan must declare project non-goals.");
-  return value;
-}
-function acceptedBoundaryDigest(ticketContent, productSpec) {
-  const { metadata: metadata2 } = parseTicketMetadata(ticketContent);
-  const scope = acceptedTerms(metadata2.scope, "scope");
-  const exclusions = acceptedTerms(metadata2.out_of_scope, "out_of_scope");
-  let productBoundary;
-  if (metadata2.parent === undefined)
-    productBoundary = { projectNonGoals: canonicalizeContractValue(projectNonGoals(productSpec)) };
-  else {
-    if (typeof metadata2.parent_job !== "string" || typeof metadata2.milestone !== "string")
-      throw new Error("The ticket must declare its parent job and milestone.");
-    const values = parentContractValuesFromSpec(productSpec, metadata2.parent_job, metadata2.milestone);
-    productBoundary = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, canonicalizeContractValue(value)]));
-  }
-  return createHash25("sha256").update(JSON.stringify({ version: 1, scope, exclusions, parent: productBoundary })).digest("hex");
-}
-function isRecord6(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-function reviewDispositionFindingFingerprint(severity, message) {
-  return createHash25("sha256").update(JSON.stringify({ severity, message })).digest("hex");
-}
-function reviewDispositionContext(ticketContent, productSpec, reviewKind) {
-  const { metadata: metadata2 } = parseTicketMetadata(ticketContent);
-  const dispositions = metadata2.review_dispositions;
-  if (dispositions === undefined)
-    return;
-  if (!Array.isArray(dispositions))
-    throw new Error("The ticket review dispositions are invalid.");
-  const current = acceptedBoundaryDigest(ticketContent, productSpec);
-  const records = dispositions.map((value) => {
-    if (!isRecord6(value) || value.version !== 1 || typeof value.review_kind !== "string" || typeof value.review_id !== "string" || value.disposition !== "declined" || typeof value.finding_fingerprint !== "string" || value.finding_severity !== "info" && value.finding_severity !== "warning" || typeof value.finding_message !== "string" || typeof value.accepted_boundary_digest !== "string" || typeof value.reason !== "string")
-      throw new Error("The ticket review dispositions are invalid.");
-    const fingerprint = reviewDispositionFindingFingerprint(value.finding_severity, value.finding_message);
-    if (value.finding_fingerprint !== fingerprint)
-      throw new Error("The ticket review dispositions are invalid.");
-    return {
-      version: 1,
-      review_kind: value.review_kind,
-      review_id: value.review_id,
-      finding_fingerprint: value.finding_fingerprint,
-      finding_severity: value.finding_severity,
-      message: value.finding_message,
-      accepted_boundary_digest: value.accepted_boundary_digest,
-      disposition: "declined",
-      reason: value.reason,
-      boundary_status: value.accepted_boundary_digest === current ? "current" : "superseded"
-    };
-  }).filter((value) => value.review_kind === reviewKind);
-  return { schema_version: 1, current_boundary_digest: current, records };
-}
-var init_planning_accepted_boundary = __esm(() => {
-  init_product_plan_contract();
-  init_ticket_metadata();
 });
 
 // src/utils/architecture-records.ts
@@ -56498,6 +56501,13 @@ function packetDispositionContext(kind, context, files) {
     throw new PlanningContextError("ticket", ticket.path);
   }
 }
+function validatePlanEvidence(kind, files) {
+  if (kind !== "plan-implementation" && kind !== "plan-execution")
+    return;
+  for (const file of files)
+    if (nodePath61.basename(file.path) === "impl-plan.md")
+      planningEvidenceRecords(file.content);
+}
 function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution = {}) {
   const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot = realpathSync8(cwd);
@@ -56618,11 +56628,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     if (logicalFiles.length === 0) {
       throw new ReviewPacketError(targets.length === 0 ? "Review has no submitted targets" : "Review has no eligible targets after generated outputs are excluded", "REVIEW_NO_ELIGIBLE_TARGETS");
     }
-    if (kind === "plan-implementation" || kind === "plan-execution") {
-      for (const file of [...logicalFiles, ...contextFiles])
-        if (nodePath61.basename(file.path) === "impl-plan.md")
-          planningEvidenceRecords(file.content);
-    }
+    validatePlanEvidence(kind, [...logicalFiles, ...contextFiles]);
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
@@ -56697,7 +56703,6 @@ function planningPacketError(error2) {
 }
 var MAX_FILE_COUNT = 64, MAX_FILE_BYTES, MAX_PACKET_BYTES, PLANNING_KNOWLEDGE_ROLES;
 var init_packet = __esm(() => {
-  init_planning_context_identity();
   init_delivery_checklist();
   init_author_copy();
   init_schema();
@@ -56708,6 +56713,7 @@ var init_packet = __esm(() => {
   init_packet_error();
   init_planning_accepted_boundary();
   init_planning_context_error();
+  init_planning_context_identity();
   init_planning_role_context();
   init_planning_ticket_owner();
   init_scope();
@@ -59490,7 +59496,7 @@ function orderedReviewRoutes(planning, routes) {
   ];
 }
 function independentRouteWasExhausted(route) {
-  return route.independence === "cross-agent" && route.failure !== undefined && (route.status === "attempted" || route.status === "skipped" && (route.failure === "reviewer_capability_unknown" || route.failure === "reviewer_capability_weaker"));
+  return route.independence === "cross-agent" && route.failure !== undefined && route.status === "attempted";
 }
 function planningFallbackLacksIndependentExhaustion(planning, route, evidence) {
   return planning && route.independence === "degraded" && evidence.every((candidate) => !independentRouteWasExhausted(candidate));
@@ -60757,7 +60763,7 @@ function hasExhaustedRoutesForHostContinuation(value) {
   if (!Array.isArray(value))
     return false;
   const routes = value.map((route) => plainRecord2(route));
-  const exhaustedIndependent = routes.some((route) => route?.independence === "cross-agent" && typeof route.failure === "string" && (route.status === "attempted" || route.status === "skipped" && ["reviewer_capability_unknown", "reviewer_capability_weaker"].includes(route.failure)));
+  const exhaustedIndependent = routes.some((route) => route?.independence === "cross-agent" && typeof route.failure === "string" && route.status === "attempted");
   const exhausted = routes.every((route) => route !== undefined && route.status !== "unattempted" && (route.status === "skipped" || typeof route.failure === "string"));
   const headlessFailed = routes.some((route) => route?.independence === "degraded" && ["attempted", "unavailable"].includes(String(route.status)) && typeof route.failure === "string");
   const headlessRoute = routes.some((route) => route?.independence === "degraded");
@@ -70461,6 +70467,62 @@ var init_health = __esm(() => {
   ];
 });
 
+// src/claude-plugin/asset-integrity.ts
+import { createHash as createHash35 } from "crypto";
+function canonicalValue(value) {
+  if (value === null || typeof value === "string" || typeof value === "boolean")
+    return value;
+  if (typeof value === "number" && Number.isFinite(value))
+    return value;
+  if (Array.isArray(value))
+    return value.map((item) => canonicalValue(item));
+  if (value instanceof Map) {
+    const entries = [...value];
+    if (entries.some(([key]) => typeof key !== "string")) {
+      throw new TypeError("Skill metadata keys must be strings.");
+    }
+    return Object.fromEntries(entries.toSorted(([left], [right]) => {
+      if (left === right)
+        return 0;
+      return left < right ? -1 : 1;
+    }).map(([key, item]) => [key, canonicalValue(item)]));
+  }
+  throw new TypeError("Skill metadata must contain JSON-compatible values.");
+}
+function claudeSkillSha256(path8, content) {
+  if (!/^skills\/[^/]+\/SKILL\.md$/u.test(path8))
+    return;
+  const text = content.toString();
+  if (Buffer.isBuffer(content) && !Buffer.from(text).equals(content)) {
+    throw new TypeError(`Skill is not valid UTF-8: ${path8}`);
+  }
+  const header2 = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u.exec(text);
+  if (header2 === null)
+    throw new TypeError(`Skill front matter is missing: ${path8}`);
+  const document2 = import_yaml4.parseDocument(header2[1] ?? "", {
+    uniqueKeys: true,
+    version: "1.2",
+    schema: "core"
+  });
+  if (document2.errors.length > 0 || document2.warnings.length > 0 || !import_yaml4.isMap(document2.contents)) {
+    throw new TypeError(`Skill front matter is invalid: ${path8}`);
+  }
+  const metadata2 = canonicalValue(document2.toJS({ mapAsMap: true, maxAliasCount: 0 }));
+  return createHash35("sha256").update(JSON.stringify([metadata2, text.slice(header2[0].length)])).digest("hex");
+}
+function claudeAssetMatches(asset, content) {
+  if (createHash35("sha256").update(content).digest("hex") === asset.sha256)
+    return true;
+  if (typeof asset.skill_sha256 !== "string" || !/^[\da-f]{64}$/u.test(asset.skill_sha256)) {
+    return false;
+  }
+  return claudeSkillSha256(asset.path, content) === asset.skill_sha256;
+}
+var import_yaml4;
+var init_asset_integrity = __esm(() => {
+  import_yaml4 = __toESM(require_dist(), 1);
+});
+
 // src/claude-plugin/profile.ts
 var exports_profile = {};
 __export(exports_profile, {
@@ -70471,7 +70533,7 @@ __export(exports_profile, {
   claudeInstallRequiresMutation: () => claudeInstallRequiresMutation
 });
 import { spawnSync as spawnSync14 } from "child_process";
-import { createHash as createHash35 } from "crypto";
+import { createHash as createHash36 } from "crypto";
 import {
   closeSync as closeSync10,
   cpSync as cpSync2,
@@ -71014,19 +71076,19 @@ function convergePlugin(cwd, scope, effects) {
   }
 }
 function fileSha256(path8) {
-  return createHash35("sha256").update(readFileSync62(path8)).digest("hex");
+  return createHash36("sha256").update(readFileSync62(path8)).digest("hex");
 }
 function assertInstalledAsset(installPath, asset) {
   if (typeof asset.path !== "string" || nodePath92.isAbsolute(asset.path) || asset.path.split(/[\\/]/u).includes("..") || typeof asset.sha256 !== "string") {
     throw new TypeError("installed inventory contains an unsafe asset");
   }
   const path8 = nodePath92.join(installPath, asset.path);
-  if (!lstatSync18(path8).isFile() || fileSha256(path8) !== asset.sha256) {
+  if (!lstatSync18(path8).isFile() || !claudeAssetMatches({ path: asset.path, sha256: asset.sha256, skill_sha256: asset.skill_sha256 }, readFileSync62(path8))) {
     throw new TypeError(`installed asset failed integrity validation: ${asset.path}`);
   }
 }
 function assertInstalledIdentity(identity2, inventory, inventoryContent) {
-  if (identity2.schema_version !== 1 || identity2.plugin_version !== VERSION || identity2.inventory_sha256 !== createHash35("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
+  if (identity2.schema_version !== 1 || identity2.plugin_version !== VERSION || identity2.inventory_sha256 !== createHash36("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
     throw new TypeError("installed identity or inventory is inconsistent");
   }
 }
@@ -71286,6 +71348,7 @@ var init_profile = __esm(() => {
   init_durable_write();
   init_fs();
   init_version();
+  init_asset_integrity();
   init_inventory2();
   init_plugin_data();
   init_project_root();
@@ -71325,7 +71388,7 @@ var init_profile = __esm(() => {
 });
 
 // src/claude-plugin/hook-manifest.ts
-import { createHash as createHash36 } from "crypto";
+import { createHash as createHash37 } from "crypto";
 function adaptHookValue(value) {
   if (typeof value === "string") {
     return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
@@ -71375,7 +71438,7 @@ function pluginHookManifest() {
 `;
 }
 function currentClaudePluginHookManifestSha256() {
-  return createHash36("sha256").update(pluginHookManifest()).digest("hex");
+  return createHash37("sha256").update(pluginHookManifest()).digest("hex");
 }
 var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun --no-env-file --cwd "${CLAUDE_PLUGIN_ROOT}" "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js', EVENT_GROUP_EVENTS;
 var init_hook_manifest = __esm(() => {
@@ -71649,7 +71712,7 @@ function readFrontmatter(content) {
     return;
   return {
     body: content.slice(frontmatter[0].length),
-    metadata: import_yaml4.parse(frontmatter.groups.metadata)
+    metadata: import_yaml5.parse(frontmatter.groups.metadata)
   };
 }
 function parseSkill(content, skill) {
@@ -71929,7 +71992,7 @@ function generateCodexPluginAssets(canonicalSkillsDirectory, version2) {
     return {
       relativePath: nodePath94.join("skills", skill, "SKILL.md"),
       content: `---
-${import_yaml4.stringify({
+${import_yaml5.stringify({
         name: skill,
         description: adaptCodexWorkflowInvocations(description, knownSkillNames)
       }).trimEnd()}
@@ -71944,10 +72007,10 @@ ${adaptSkillBody(body, skill, knownSkillNames, referenceNames, version2)}`
   }));
   return [...skillAssets, ...referenceAssets];
 }
-var import_yaml4, CODEX_MARKETPLACE_NAME = "safeword", CODEX_PLUGIN_NAME = "safeword", PACKAGED_SKILL_REFERENCES, FRONTMATTER, SUPPORTED_SOURCE_METADATA, SCRIPT_REWRITES, NAMESPACE_ROOT_INVOCATION_PREFIX = 'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"', NAMESPACE_ROOT_KEY, NAMESPACE_ROOT_BASENAME, TRAILING_OPERAND;
+var import_yaml5, CODEX_MARKETPLACE_NAME = "safeword", CODEX_PLUGIN_NAME = "safeword", PACKAGED_SKILL_REFERENCES, FRONTMATTER, SUPPORTED_SOURCE_METADATA, SCRIPT_REWRITES, NAMESPACE_ROOT_INVOCATION_PREFIX = 'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"', NAMESPACE_ROOT_KEY, NAMESPACE_ROOT_BASENAME, TRAILING_OPERAND;
 var init_catalogue = __esm(() => {
   init_plugin_runtime_authority();
-  import_yaml4 = __toESM(require_dist(), 1);
+  import_yaml5 = __toESM(require_dist(), 1);
   PACKAGED_SKILL_REFERENCES = [
     { skill: "bdd", filename: "adr-template.md" },
     { skill: "bdd", filename: "execution-plan-template.md" },
@@ -72578,7 +72641,7 @@ __export(exports_profile2, {
   installOpenCodeProfile: () => installOpenCodeProfile,
   generateOpenCodeProfilePlugin: () => generateOpenCodeProfilePlugin
 });
-import { createHash as createHash37 } from "crypto";
+import { createHash as createHash38 } from "crypto";
 import {
   existsSync as existsSync46,
   lstatSync as lstatSync19,
@@ -72636,7 +72699,7 @@ function observeFile2(path8) {
   }
 }
 function sha2568(value) {
-  return createHash37("sha256").update(value).digest("hex");
+  return createHash38("sha256").update(value).digest("hex");
 }
 function packagedDispatcherPath() {
   const moduleDirectory = import.meta.dirname;
@@ -73562,7 +73625,7 @@ __export(exports_conformance, {
   observeOpenCodeVersion: () => observeOpenCodeVersion
 });
 import { spawnSync as spawnSync16 } from "child_process";
-import { createHash as createHash38 } from "crypto";
+import { createHash as createHash39 } from "crypto";
 import { accessSync as accessSync4, constants as constants6, lstatSync as lstatSync20, readFileSync as readFileSync67, realpathSync as realpathSync18, statSync as statSync9 } from "fs";
 import nodePath100 from "path";
 function resolveExecutable(environment) {
@@ -73617,7 +73680,7 @@ function profileRemediation() {
   });
 }
 function sha2569(value) {
-  return createHash38("sha256").update(value).digest("hex");
+  return createHash39("sha256").update(value).digest("hex");
 }
 function installedProfile(environment) {
   const root = resolveOpenCodeConfigRoot({
@@ -74551,7 +74614,7 @@ var init_doctor = __esm(() => {
 });
 
 // src/cli-protocol/reconciliation.ts
-import { createHash as createHash39 } from "crypto";
+import { createHash as createHash40 } from "crypto";
 import { lstatSync as lstatSync21, readdirSync as readdirSync29, readFileSync as readFileSync68, readlinkSync as readlinkSync3 } from "fs";
 import nodePath101 from "path";
 function actionTargets(action) {
@@ -74602,7 +74665,7 @@ function hashPath(hash, absolutePath, relativePath, readFile3) {
   }
 }
 function preconditionDigestForPaths(cwd, paths, readFile3 = readFileForDigest) {
-  const hash = createHash39("sha256");
+  const hash = createHash40("sha256");
   const targets = [...new Set(paths)].toSorted((left, right) => left.localeCompare(right));
   for (const target of targets) {
     hashField(hash, "target", target);
@@ -75332,7 +75395,7 @@ To wire the warn-only boundary gate, add under repos:
 
 // src/utils/namespace-migration.ts
 import { execSync } from "child_process";
-import { createHash as createHash40 } from "crypto";
+import { createHash as createHash41 } from "crypto";
 import {
   closeSync as closeSync11,
   constants as fsConstants3,
@@ -75381,7 +75444,7 @@ function validateDirectoryRoot(path8, label) {
 }
 function conflictArchivePath(source, relative) {
   const metadata2 = lstatSync22(source);
-  const digest7 = createHash40("sha256").update(`${metadata2.mode.toString(8)}\x00`).update(readFileSync71(source)).digest("hex");
+  const digest7 = createHash41("sha256").update(`${metadata2.mode.toString(8)}\x00`).update(readFileSync71(source)).digest("hex");
   return nodePath108.join(".safeword", "namespace-migration-conflicts-v1", digest7, relative);
 }
 function plannedNamespaceMigrationFiles(cwd) {
@@ -76093,7 +76156,7 @@ var init_vendored_ignores_nudge = __esm(() => {
 });
 
 // src/lifecycle/project-install.ts
-import { createHash as createHash41 } from "crypto";
+import { createHash as createHash42 } from "crypto";
 import {
   closeSync as closeSync12,
   constants as fsConstants4,
@@ -76394,7 +76457,7 @@ function setupPreconditionDigest(cwd, reconciliationDigest, effects, context, op
     ...effects.files.map((effect) => effect.target),
     ...effects.destructive.map((effect) => effect.target)
   ].filter((target) => !target.includes(" \u2192 "));
-  return createHash41("sha256").update(JSON.stringify([
+  return createHash42("sha256").update(JSON.stringify([
     reconciliationDigest,
     effects,
     JSON.stringify(context, (_key, value) => typeof value === "string" ? value.replaceAll(cwd, "<project>") : value),
@@ -77437,7 +77500,7 @@ __export(exports_commands, {
   planLifecycle: () => planLifecycle,
   installLifecycle: () => installLifecycle
 });
-import { createHash as createHash42 } from "crypto";
+import { createHash as createHash43 } from "crypto";
 function activationActionsFor(surface) {
   if (surface.name === "claude" && surface.result.changed)
     return ["run /reload-plugins"];
@@ -77633,7 +77696,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
   };
   const integrationSurfaces = observedSurfaces.filter((surface) => selected.has(surface.name));
   const surfaces = [{ name: "project", effects: project.plan.effects }, ...integrationSurfaces];
-  const preconditionDigest2 = createHash42("sha256").update(JSON.stringify([
+  const preconditionDigest2 = createHash43("sha256").update(JSON.stringify([
     project.plan.preconditionDigest,
     agents,
     scope,
@@ -77933,7 +77996,7 @@ __export(exports_cleanup, {
   claudeLegacyMutations: () => claudeLegacyMutations,
   claudeCleanupPreconditionDigest: () => claudeCleanupPreconditionDigest
 });
-import { createHash as createHash43, randomUUID as randomUUID14 } from "crypto";
+import { createHash as createHash44, randomUUID as randomUUID14 } from "crypto";
 import {
   closeSync as closeSync13,
   constants as fsConstants5,
@@ -77953,7 +78016,7 @@ import {
 } from "fs";
 import nodePath115 from "path";
 function sha25610(content) {
-  return createHash43("sha256").update(content).digest("hex");
+  return createHash44("sha256").update(content).digest("hex");
 }
 function containsJsonComments(content) {
   let found = false;
@@ -78990,7 +79053,7 @@ function resolveExecutionMode(input) {
 }
 
 // src/test-execution/remote-workflow-contract.ts
-import { createHash as createHash44 } from "crypto";
+import { createHash as createHash45 } from "crypto";
 function mapping(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
 }
@@ -79134,7 +79197,7 @@ function hasFixedUpload(steps) {
 }
 function resultViolations(steps) {
   const reportRun = stepById(steps, "report")?.run;
-  const reportValid = typeof reportRun === "string" && createHash44("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
+  const reportValid = typeof reportRun === "string" && createHash45("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
   return reportValid && hasFixedUpload(steps) ? [] : ["fixed_result_protocol"];
 }
 function hasSecretsKey(value) {
@@ -79158,7 +79221,7 @@ function secretViolations(workflow) {
 function evaluateRemoteTestWorkflow(source) {
   let workflow;
   try {
-    const document2 = import_yaml5.parseDocument(source, { uniqueKeys: true });
+    const document2 = import_yaml6.parseDocument(source, { uniqueKeys: true });
     workflow = document2.errors.length === 0 ? mapping(document2.toJS()) : undefined;
   } catch {
     workflow = undefined;
@@ -79179,9 +79242,9 @@ function evaluateRemoteTestWorkflow(source) {
   const uniqueViolations = [...new Set(violations)];
   return { accepted: uniqueViolations.length === 0, violations: uniqueViolations };
 }
-var import_yaml5, FULL_SHA, CHECKOUT = "actions/checkout", CHECKOUT_ACTION = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0", SETUP_NODE_ACTION = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020", SETUP_BUN_ACTION = "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6", SETUP_UV_ACTION = "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7", INPUT_SHA = "${{ inputs.target_sha }}", INPUT_LANE = "${{ inputs.lane }}", RESULT_FILE = "safeword-remote-test-result.json", UPLOAD_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", VALIDATE_COMMAND, VERIFY_COMMAND, TEST_COMMAND, REPORT_COMMAND_SHA256 = "b1cba179d7c3921553cb748e1c1759e2711f7aeef977317ec71515c6bd3608c9", STEP_SHAPES;
+var import_yaml6, FULL_SHA, CHECKOUT = "actions/checkout", CHECKOUT_ACTION = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0", SETUP_NODE_ACTION = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020", SETUP_BUN_ACTION = "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6", SETUP_UV_ACTION = "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7", INPUT_SHA = "${{ inputs.target_sha }}", INPUT_LANE = "${{ inputs.lane }}", RESULT_FILE = "safeword-remote-test-result.json", UPLOAD_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", VALIDATE_COMMAND, VERIFY_COMMAND, TEST_COMMAND, REPORT_COMMAND_SHA256 = "b1cba179d7c3921553cb748e1c1759e2711f7aeef977317ec71515c6bd3608c9", STEP_SHAPES;
 var init_remote_workflow_contract = __esm(() => {
-  import_yaml5 = __toESM(require_dist(), 1);
+  import_yaml6 = __toESM(require_dist(), 1);
   FULL_SHA = /^[0-9a-f]{40}$/u;
   VALIDATE_COMMAND = `[[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
 ` + `[[ "$LANE" == "done" || "$LANE" == "full" ]] || exit 1
@@ -79392,7 +79455,7 @@ var init_remote_workflow_fs = __esm(() => {
 });
 
 // src/test-execution/remote-workflow-state.ts
-import { createHash as createHash45 } from "crypto";
+import { createHash as createHash46 } from "crypto";
 import nodePath118 from "path";
 function observationError(error2, path8) {
   const code = filesystemErrorCode(error2);
@@ -79407,7 +79470,7 @@ function normalizeLineEndings2(content) {
 `);
 }
 function workflowDigest(content) {
-  return createHash45("sha256").update(normalizeLineEndings2(content)).digest("hex");
+  return createHash46("sha256").update(normalizeLineEndings2(content)).digest("hex");
 }
 function readOpenedWorkflow(descriptor, filesystem) {
   const metadata2 = filesystem.fstat(descriptor);
@@ -82043,7 +82106,7 @@ var init_plan_gate = __esm(() => {
 });
 
 // src/review/approval-ledger.ts
-import { createHash as createHash46, randomUUID as randomUUID16 } from "crypto";
+import { createHash as createHash47, randomUUID as randomUUID16 } from "crypto";
 import {
   closeSync as closeSync16,
   constants as constants9,
@@ -82162,7 +82225,7 @@ function positionedEvents(ledger) {
   ];
 }
 function decisionIdempotencyKey(identity2, supersedesPosition) {
-  return createHash46("sha256").update(JSON.stringify([
+  return createHash47("sha256").update(JSON.stringify([
     identity2.ticket,
     identity2.planDigest,
     identity2.decision,
@@ -82171,7 +82234,7 @@ function decisionIdempotencyKey(identity2, supersedesPosition) {
   ])).digest("hex");
 }
 function deliveryIdempotencyKey(identity2) {
-  return createHash46("sha256").update(JSON.stringify([
+  return createHash47("sha256").update(JSON.stringify([
     identity2.ticket,
     identity2.itemId,
     identity2.proofId,
@@ -82180,7 +82243,7 @@ function deliveryIdempotencyKey(identity2) {
   ])).digest("hex");
 }
 function deliveryCompatibilityIdempotencyKey(identity2) {
-  return createHash46("sha256").update(JSON.stringify([
+  return createHash47("sha256").update(JSON.stringify([
     identity2.ticket,
     identity2.itemId,
     identity2.proofId,
@@ -82642,7 +82705,7 @@ var exports_plan_approval = {};
 __export(exports_plan_approval, {
   approvePlanResult: () => approvePlanResult
 });
-import { createHash as createHash47, randomUUID as randomUUID17 } from "crypto";
+import { createHash as createHash48, randomUUID as randomUUID17 } from "crypto";
 import {
   appendFileSync as appendFileSync3,
   existsSync as existsSync61,
@@ -82660,7 +82723,7 @@ function interruptApprovalForTest(boundary) {
   }
 }
 function planDigest(content) {
-  return createHash47("sha256").update(content).digest("hex");
+  return createHash48("sha256").update(content).digest("hex");
 }
 function readContext2(cwd, ticketId) {
   const ticketDirectory = resolveTicketDirectory(cwd, ticketId);
@@ -83115,7 +83178,7 @@ function addDisposition(content, request, kind, finding2, boundaryDigest) {
   const match = /^(---\r?\n)([\s\S]*?)(\r?\n---(?:\r?\n|$))/u.exec(content);
   if (match === null)
     throw new Error("The ticket has no valid frontmatter.");
-  const document2 = import_yaml6.parseDocument(match[2] ?? "", { uniqueKeys: true });
+  const document2 = import_yaml7.parseDocument(match[2] ?? "", { uniqueKeys: true });
   if (document2.errors.length > 0)
     throw new Error("The ticket has invalid frontmatter.");
   const metadata2 = document2.toJS();
@@ -83309,7 +83372,7 @@ async function recordReviewDisposition(request) {
     return pending(request, kind, selected);
   return writeDisposition(request, ticketPath, kind, selected, before, boundaryDigest);
 }
-var import_yaml6, command = "ticket record-review-disposition";
+var import_yaml7, command = "ticket record-review-disposition";
 var init_review_disposition = __esm(() => {
   init_result();
   init_coordinator();
@@ -83318,7 +83381,7 @@ var init_review_disposition = __esm(() => {
   init_planning_accepted_boundary();
   init_product_plan_contract();
   init_ticket_metadata();
-  import_yaml6 = __toESM(require_dist(), 1);
+  import_yaml7 = __toESM(require_dist(), 1);
 });
 
 // src/commands/planning-contract-check.ts
@@ -83460,11 +83523,11 @@ var init_delivery_admission = __esm(() => {
 
 // src/execution-plan/delivery-compatibility.ts
 import { spawnSync as spawnSync21 } from "child_process";
-import { createHash as createHash48 } from "crypto";
+import { createHash as createHash49 } from "crypto";
 import { mkdirSync as mkdirSync27, writeFileSync as writeFileSync35 } from "fs";
 import nodePath136 from "path";
 function sha25611(value) {
-  return createHash48("sha256").update(value).digest("hex");
+  return createHash49("sha256").update(value).digest("hex");
 }
 function relativePathspec(projectRoot, path8) {
   const relative = nodePath136.relative(projectRoot, nodePath136.resolve(path8));
@@ -83715,7 +83778,7 @@ __export(exports_delivery_checklist, {
   observeDeliveryChecklist: () => observeDeliveryChecklist,
   hasAdmittedDeliveryChecklist: () => hasAdmittedDeliveryChecklist
 });
-import { createHash as createHash49 } from "crypto";
+import { createHash as createHash50 } from "crypto";
 import { existsSync as existsSync63, readFileSync as readFileSync90 } from "fs";
 import nodePath138 from "path";
 function findingResult(command2, code, message, recovery) {
@@ -83727,7 +83790,7 @@ function findingResult(command2, code, message, recovery) {
   });
 }
 function sha25612(value) {
-  return createHash49("sha256").update(value).digest("hex");
+  return createHash50("sha256").update(value).digest("hex");
 }
 function designApprovalEnabled2(cwd) {
   const path8 = nodePath138.join(cwd, ".safeword", "config.json");
@@ -84481,7 +84544,7 @@ var init_delivery_checklist2 = __esm(() => {
 });
 
 // src/execution-plan/execution-prerequisite.ts
-import { createHash as createHash50 } from "crypto";
+import { createHash as createHash51 } from "crypto";
 import { existsSync as existsSync64, readFileSync as readFileSync91 } from "fs";
 import nodePath139 from "path";
 function successful(status, achievedIndependence2, inputIdentity, executionPlanArtifact) {
@@ -84544,7 +84607,7 @@ function designDecisionAccepted(input) {
     return true;
   if (!existsSync64(input.implementationPath))
     return false;
-  const planDigest2 = createHash50("sha256").update(readFileSync91(input.implementationPath, "utf8")).digest("hex");
+  const planDigest2 = createHash51("sha256").update(readFileSync91(input.implementationPath, "utf8")).digest("hex");
   return currentDesignDecision(input.ledgerPath, input.ticketId, planDigest2) === "approved";
 }
 function contractedFeature(ticketDirectory, phase) {
@@ -84732,7 +84795,7 @@ function checklistPrerequisite(context, inspection) {
   };
 }
 function digest7(content) {
-  return createHash50("sha256").update(content).digest("hex");
+  return createHash51("sha256").update(content).digest("hex");
 }
 function fileDigest2(path8) {
   return path8 !== undefined && existsSync64(path8) ? digest7(readFileSync91(path8, "utf8")) : "missing";
