@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -60,6 +60,19 @@ const model = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL?.trim() || undefine
 const resultsPath = process.env.SAFEWORD_EXECUTION_PLAN_RESULTS_PATH;
 const replayPath = process.env.SAFEWORD_EXECUTION_PLAN_REPLAY_PATH;
 const retainedPath = process.env.SAFEWORD_EXECUTION_PLAN_RETAINED_RESULTS_PATH;
+if (CAN_RUN && replayPath !== undefined && retainedPath !== undefined) {
+  throw new Error('Saved observation reuse cannot combine replay and retained inputs');
+}
+if (CAN_RUN && resultsPath !== undefined && retainedPath !== undefined) {
+  const canonical = (path: string) =>
+    existsSync(path) ? realpathSync(path) : nodePath.resolve(path);
+  const carriers = (path: string) =>
+    [path, `${path}.outputs.json`, `${path}.metadata.json`].map(canonical);
+  const source = new Set(carriers(retainedPath));
+  if (carriers(resultsPath).some(path => source.has(path))) {
+    throw new Error('Saved evidence source and destination must be distinct');
+  }
+}
 if (
   CAN_RUN &&
   (replayPath !== undefined || retainedPath !== undefined) &&
@@ -260,7 +273,6 @@ export function assertSlicingRationale(id: string, rationale: string, expect: As
       /coher|cohes|insepar|coupl|atomic|single boundary|same (?:boundary|contract|outcome)/iu,
       /review|judg|contract|command|result/iu,
       /split|separat|independen|insepar|indivis/iu,
-      /\b(?:(?:cannot|can't|not|no)\s+(?:[\p{L}-]+\s+){0,4}(?:split|separat|independen)|inseparable|indivisible)/iu,
     ],
     'several-ordered-changes': [
       /contract|schema/iu,
@@ -270,6 +282,17 @@ export function assertSlicingRationale(id: string, rationale: string, expect: As
   };
   const expectedPatterns = patterns[id] ?? [];
   for (const pattern of expectedPatterns) expect(rationale).toMatch(pattern);
+  if (id === 'one-coherent-change') {
+    const inseparability = [
+      /\b(?:(?:cannot|can't|not|no)\s+(?:[\p{L}-]+\s+){0,4}(?:split|separat|independen)|inseparable|indivisible)/iu,
+      /\b(?:splitting|separation)\s+is\s+(?:not possible|impossible)\b/iu,
+      /\b(?:must|need to)\s+ship\s+together\b/iu,
+    ];
+    expect(
+      inseparability.some(pattern => pattern.test(rationale)),
+      'rationale must explain why separate changes cannot stand alone',
+    ).toBe(true);
+  }
 }
 
 function assertObligationOwners(
@@ -414,7 +437,8 @@ beforeAll(() => {
         testCase,
         observation.output,
         reviewer,
-        observation.output.dispatch_id,
+        // The original dispatch packet is not retained; do not assert an ID against itself.
+        undefined,
         hookExpect,
       );
     }
@@ -443,7 +467,6 @@ async function observationFor(
     if (saved === undefined) throw new Error('Missing raw replay observation');
     return {
       observation: { ...saved, dispatch_mode: 'replay' },
-      dispatchId: saved.output.dispatch_id,
     };
   }
   if (PUBLIC_CLI)

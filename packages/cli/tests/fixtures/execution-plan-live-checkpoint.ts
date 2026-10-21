@@ -112,14 +112,17 @@ export function readExecutionCheckpoint(
     'Retained passing observations must be headless',
   );
   requireRetained(
-    retained.length === passing.length &&
-      retained.every(
-        output =>
-          output.confirmed_model !== undefined &&
-          output.confirmed_model.model === expected.requested_model &&
-          output.confirmed_model.provider ===
-            (expected.reviewer === 'claude' ? 'anthropic' : 'openai'),
-      ),
+    retained.length === passing.length,
+    'Retained passing result lacks a paired raw observation',
+  );
+  requireRetained(
+    retained.every(
+      output =>
+        output.confirmed_model !== undefined &&
+        output.confirmed_model.model === expected.requested_model &&
+        output.confirmed_model.provider ===
+          (expected.reviewer === 'claude' ? 'anthropic' : 'openai'),
+    ),
     'Retained passing observation lacks exact model confirmation',
   );
   const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
