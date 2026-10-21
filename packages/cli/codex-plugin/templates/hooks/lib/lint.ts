@@ -289,6 +289,56 @@ async function runPrettier(file: string): Promise<void> {
   }
 }
 
+/** Invoke the bundled Go helper and validate its JSON response. */
+function runGoLintHelper(file: string, projectRoot: string): LintResult {
+  const cli = safewordCli(projectRoot);
+  if (!cli)
+    return {
+      warnings: [
+        'Go lint helper is unavailable; run `safeword install` to align hooks and runtime.',
+      ],
+    };
+  const result = spawnSync(
+    cli.command,
+    [
+      ...cli.args,
+      'hook',
+      'go-lint',
+      '--file',
+      file,
+      '--project-root',
+      projectRoot,
+      '--original-cwd',
+      process.cwd(),
+    ],
+    { cwd: cli.cwd, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 },
+  );
+  if (result.status !== 0 || result.error) {
+    return {
+      warnings: [
+        `Go lint helper failed; update Safeword to align hooks and runtime: ${result.error?.message ?? result.stderr.trim()}`,
+      ],
+    };
+  }
+  try {
+    const answer: unknown = JSON.parse(result.stdout);
+    if (
+      typeof answer !== 'object' ||
+      answer === null ||
+      !('warnings' in answer) ||
+      !Array.isArray(answer.warnings) ||
+      !answer.warnings.every(entry => typeof entry === 'string') ||
+      ('errors' in answer && typeof answer.errors !== 'string') ||
+      ('diagnosticContext' in answer && typeof answer.diagnosticContext !== 'string')
+    ) {
+      throw new Error('invalid helper result');
+    }
+    return answer as LintResult;
+  } catch (error) {
+    return { warnings: [`Go lint helper returned an invalid result: ${String(error)}`] };
+  }
+}
+
 /**
  * Lint a file based on its extension.
  * Uses safeword configs (.safeword/) for stricter LLM enforcement when available.
@@ -412,59 +462,14 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       }
       toolWarnings.add('golangci-lint-v2-ok');
     }
-    const cli = safewordCli(_projectDir);
-    if (!cli)
-      return {
-        warnings: [
-          'Go lint helper is unavailable; run `safeword install` to align hooks and runtime.',
-        ],
-      };
-    const result = spawnSync(
-      cli.command,
-      [
-        ...cli.args,
-        'hook',
-        'go-lint',
-        '--file',
-        normalizedFile,
-        '--project-root',
-        _projectDir,
-        '--original-cwd',
-        process.cwd(),
-      ],
-      { cwd: cli.cwd, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 },
-    );
-    if (result.status !== 0 || result.error) {
-      return {
-        warnings: [
-          `Go lint helper failed; update Safeword to align hooks and runtime: ${result.error?.message ?? result.stderr.trim()}`,
-        ],
-      };
-    }
-    try {
-      const answer: unknown = JSON.parse(result.stdout);
-      if (
-        typeof answer !== 'object' ||
-        answer === null ||
-        !('warnings' in answer) ||
-        !Array.isArray(answer.warnings) ||
-        !answer.warnings.every(entry => typeof entry === 'string') ||
-        ('errors' in answer && typeof answer.errors !== 'string') ||
-        ('diagnosticContext' in answer && typeof answer.diagnosticContext !== 'string')
-      ) {
-        throw new Error('invalid helper result');
-      }
-      const lintResult = answer as LintResult;
-      lintResult.warnings = lintResult.warnings.filter(warning => {
-        if (!warning.startsWith('Go Safeword config is missing')) return true;
-        if (toolWarnings.has('pack:Go')) return false;
-        toolWarnings.add('pack:Go');
-        return true;
-      });
-      return lintResult;
-    } catch (error) {
-      return { warnings: [`Go lint helper returned an invalid result: ${String(error)}`] };
-    }
+    const lintResult = runGoLintHelper(normalizedFile, _projectDir);
+    lintResult.warnings = lintResult.warnings.filter(warning => {
+      if (!warning.startsWith('Go Safeword config is missing')) return true;
+      if (toolWarnings.has('pack:Go')) return false;
+      toolWarnings.add('pack:Go');
+      return true;
+    });
+    return lintResult;
   }
 
   // Rust files - clippy for linting (package-level), rustfmt for formatting (file-level)
