@@ -62,6 +62,16 @@ export const PORTABLE_PLUGIN_LAYOUT = {
   templates: 'templates',
 } as const;
 
+/** Native Cursor extension; workflow skills remain in the portable core. */
+export const CURSOR_PLUGIN_LAYOUT = {
+  directory: 'cursor-plugin',
+  manifest: '.cursor-plugin/plugin.json',
+  hooks: 'hooks/hooks.json',
+  dispatcher: 'runtime/dispatch.js',
+  runtime: 'runtime/cli.js',
+  templates: 'templates',
+} as const;
+
 export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
   // Static string, or a factory resolved with ctx at plan time so the block can

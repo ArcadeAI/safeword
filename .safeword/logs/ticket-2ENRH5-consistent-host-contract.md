@@ -806,3 +806,29 @@ disk; 7 of 8 steps passed, 29.929s, required-mode exit 2. Report:
 /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-wGeNa1/cucumber.json.
 Independent executable-RED review dispatched on the exact command and all CLI
 proof support; its terminal receipt is required before production integration.
+
+Executable RED review 8658ec69-c4f2-41d3-88e6-cb3771f92af8 APPROVED its attested
+26.352s exit-2 run. Added opt-in fresh-directory Cursor plugin generator,
+schema-owned extension layout, canonical CURSOR_HOOKS binding projection and
+package-origin dispatcher. Dispatch executes existing packaged adapters/shared
+policy, preserving native flags and malformed-input decisions. It ships no
+top-level duplicate skills/commands, and leaves default project delivery intact.
+
+Actual generated-package guard GREEN: 2 scenarios / 8 steps passed, 27.512s,
+report /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-uHJUCe/cucumber.json.
+Both fixture manifests confirm generatedCandidate=true. The real denied Shell
+result carries the shared policy rejection, with no sentinel; allowed Shell
+reports exit 0 and exact content. Required group remains exit 3 until catalogue
+joins. No full-outline ledger completion or customer activation claim.
+
+Quality reviews ce388bee-90a9-45c1-98f6-dc074024fd8d and
+bc612785-16bb-4fd8-97b7-0b6b6a212099 APPROVED with bounded pilot warnings.
+Fixed missing schema-generated owned-paths resource, stdout flush, and preserved
+the shared malformed-input policy. Follow-up 0b6c02be-5f0e-4a5a-92c6-3fba9185a557
+APPROVED dispatcher and relocation/resource tests. Those tests cover relocation,
+project shadow, all eight declared handler imports and malformed-input behavior;
+they are queued, not yet passing evidence. Current Vitest queue session 52326 is
+waiting for foreign checkout e24e owner PID3965; no second Vitest is started.
+Earlier queue exited 75 without starting a test. Typecheck, targeted ESLint,
+formatting and all five generated-surface checks passed. Broader customer
+coexistence/enrollment, non-shell semantics and continuation remain unproved.
