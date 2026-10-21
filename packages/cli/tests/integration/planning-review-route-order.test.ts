@@ -259,7 +259,7 @@ it.each([
 );
 
 it.each(['unqualified-model', 'gpt-6-luna'])(
-  'refuses explicit %s before inference and records reduced fallback',
+  'blocks explicit %s without launching any route when no independent attempt exists',
   async model => {
     const project = createTemporaryDirectory();
     projects.push(project);
@@ -333,18 +333,17 @@ it.each(['unqualified-model', 'gpt-6-luna'])(
     expect(existsSync(marker), 'unqualified exact selector must never launch inference').toBe(
       false,
     );
-    expect(existsSync(fallback), result.stdout + result.stderr).toBe(true);
+    expect(existsSync(fallback), result.stdout + result.stderr).toBe(false);
     expect(output.data).toMatchObject({
-      status: 'approved',
-      actual_reviewer: 'claude',
-      independence: 'reduced',
+      status: 'blocked',
+      independence: 'none',
     });
     expect(output.data.review_routes).toContainEqual(
       expect.objectContaining({
         reviewer: 'codex',
         model,
         status: 'skipped',
-        failure: expect.stringMatching(/^reviewer_capability_(unknown|weaker)$/u),
+        failure: 'reviewer_capability_unknown',
       }),
     );
   },

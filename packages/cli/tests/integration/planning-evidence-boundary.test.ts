@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 
 import { prepareReviewPacket } from '../../src/review/packet.js';
 import { parseReviewerOutput, reviewOutputSchema } from '../../src/review/runtime.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
+import { PLANNING_ROLE_PRODUCT, writeImplementationRoleInputs } from '../planning-role-fixtures.js';
 
 const evidence = {
   source_identity: 'https://example.org/guide',
@@ -89,29 +91,42 @@ describe('planning review evidence boundary', () => {
   });
 });
 
-it('refuses incomplete source limits before dispatch without executing retrieved code', () => {
+it('names missing source limits after a complete owned plan can prepare for dispatch', () => {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-evidence-admission-'));
   try {
-    mkdirSync(nodePath.join(root, '.project'));
-    for (const name of ['principles', 'personas', 'surfaces'])
-      writeFileSync(nodePath.join(root, '.project', `${name}.md`), `# ${name}\n`);
-    writeFileSync(nodePath.join(root, 'spec.md'), '# Accepted scope\n');
-    const { security_limit: _omitted, ...incomplete } = evidence;
+    const ticket = '.project/tickets/EVID42-evidence';
+    const target = `${ticket}/impl-plan.md`;
+    mkdirSync(nodePath.join(root, ticket), { recursive: true });
     writeFileSync(
-      nodePath.join(root, 'impl-plan.md'),
-      [
-        '# Implementation Plan',
-        '## Decisions',
-        '### Recorded Decisions',
-        '#### PlanEvidenceRecordV1',
-        '```json',
-        JSON.stringify({ schema_version: 1, ...incomplete }),
-        '```',
-      ].join('\n'),
+      nodePath.join(root, ticket, 'ticket.md'),
+      '---\nid: EVID42\ntype: feature\nproduct_plan_contract: v1\n---\n# Ticket\n',
     );
-    expect(() =>
-      prepareReviewPacket(root, 'plan-implementation', ['impl-plan.md'], ['spec.md']),
-    ).toThrow('Review packet could not be prepared');
+    writeFileSync(nodePath.join(root, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
+    writePlanningInventories(root);
+    const writePlan = (record: Record<string, unknown>) => {
+      writeFileSync(
+        nodePath.join(root, target),
+        [
+          '# Implementation Plan',
+          '## Decisions',
+          '### Recorded Decisions',
+          '#### PlanEvidenceRecordV1',
+          '```json',
+          JSON.stringify({ schema_version: 1, ...record }),
+          '```',
+        ].join('\n'),
+      );
+      writeImplementationRoleInputs(root, target, 'evidence.feature');
+    };
+    writePlan(evidence);
+    const prepared = prepareReviewPacket(root, 'plan-implementation', [target]);
+    expect(prepared.packet.logical_files).toContainEqual(expect.objectContaining({ path: target }));
+    prepared.cleanup();
+    const { security_limit: _omitted, ...incomplete } = evidence;
+    writePlan(incomplete);
+    expect(() => prepareReviewPacket(root, 'plan-implementation', [target])).toThrow(
+      /PlanEvidenceRecordV1.*security_limit/u,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
