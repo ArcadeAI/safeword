@@ -1,0 +1,160 @@
+Review only the three behavior-preserving refactors above 5d3d11a96; current source commit 6bb984f96. User requested refactor and suggested cleanup, no new behavior. Compare the patch below against full target files. Challenge changed behavior, dropped guards, changed defaults or fixture bytes, lifecycle asymmetry, bloat and test adequacy. Capability scorer remains a bounded lexical oracle with word-prefix semantics, not a semantic judge. Existing seals/labels/observations are unchanged. No dependency edits, no #5139, no host manual-proof claims. Current dependency audit and native-host deferrals remain open.
+
+Protection: 22 capability evaluation/corpus/catalogue tests passed; 1620 old/new boundary comparisons equal. Four real-CLI BDD scenarios /24 steps passed after each fixture extraction, covering first/alternate/later/unsupported routes and full packet contents. Moved setup bodies independently compared byte-identical. Typecheck/scoped ESLint passed. Full-suite final run in progress, not yet claimed green. A first BDD runner invocation exited127 before tests due wrong cwd, corrected and passed. Unchanged paid qualification not replayed.
+
+Patch:
+diff --git a/packages/cli/src/review/capability-eval.ts b/packages/cli/src/review/capability-eval.ts
+index 50389c7b6..e7f4f562c 100644
+--- a/packages/cli/src/review/capability-eval.ts
++++ b/packages/cli/src/review/capability-eval.ts
+@@ -218,6 +218,20 @@ export function compareSealedCapabilityResults(
+   );
+ }
+ 
++function findingMatchesConceptGroups(
++  message: string,
++  groups: NonNullable<CapabilityFixture['finding_groups']>,
++): boolean {
++  const words = ` ${message.replaceAll(/[^\p{L}\p{N}]+/gu, ' ')}`;
++  return groups.every(group =>
++    group.some(
++      concept =>
++        concept.trim() !== '' &&
++        words.includes(` ${concept.toLowerCase().replaceAll(/[^\p{L}\p{N}]+/gu, ' ')}`),
++    ),
++  );
++}
++
+ export function scoreCapabilityRun(fixture: CapabilityFixture, run: CapabilityRun): boolean {
+   const normalizedFindings = run.findings.map(finding => ({
+     severity: finding.severity,
+@@ -229,6 +243,7 @@ export function scoreCapabilityRun(fixture: CapabilityFixture, run: CapabilityRu
+         (!errorOnly || finding.severity === 'error') &&
+         finding.message.includes(phrase.toLowerCase().replaceAll(/\s+/gu, ' ')),
+     );
++  const groups = fixture.finding_groups;
+   return (
+     run.fixture_id === fixture.id &&
+     run.verdict === fixture.verdict &&
+@@ -236,20 +251,11 @@ export function scoreCapabilityRun(fixture: CapabilityFixture, run: CapabilityRu
+       normalizedFindings.some(finding => finding.severity === 'error') &&
+     fixture.required.every(finding => contains(finding, true)) &&
+     fixture.forbidden.every(finding => !contains(finding, false)) &&
+-    (fixture.finding_groups === undefined ||
+-      (fixture.finding_groups.length > 0 &&
++    (groups === undefined ||
++      (groups.length > 0 &&
+         normalizedFindings.some(
+           finding =>
+-            finding.severity === 'error' &&
+-            fixture.finding_groups?.every(group =>
+-              group.some(
+-                concept =>
+-                  concept.trim() !== '' &&
+-                  ` ${finding.message.replaceAll(/[^\p{L}\p{N}]+/gu, ' ')}`.includes(
+-                    ` ${concept.toLowerCase().replaceAll(/[^\p{L}\p{N}]+/gu, ' ')}`,
+-                  ),
+-              ),
+-            ),
++            finding.severity === 'error' && findingMatchesConceptGroups(finding.message, groups),
+         )))
+   );
+ }
+diff --git a/packages/cli/tests/fixtures/ranked-planning-review.ts b/packages/cli/tests/fixtures/ranked-planning-review.ts
+index bb0b14299..fc5b9f34f 100644
+--- a/packages/cli/tests/fixtures/ranked-planning-review.ts
++++ b/packages/cli/tests/fixtures/ranked-planning-review.ts
+@@ -10,41 +10,7 @@ import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+ const execFileAsync = promisify(execFile);
+ export type RankedCase = 'first' | 'alternate' | 'later' | 'unsupported';
+ 
+-/** Real CLI/config/catalogue/job wiring; only the external reviewer processes are fake. */
+-export async function rankedPlanningReview(project: string, bin: string, example: RankedCase) {
+-  const codex = (model?: string) => ({ reviewer: 'codex', ...(model && { model }) });
+-  const same = { reviewer: 'claude' };
+-  const routes = {
+-    first: [same, codex('gpt-6-astra')],
+-    alternate: [codex(), same, codex('gpt-6-astra')],
+-    later: [codex(), same, codex('gpt-6-sol'), codex('gpt-6-astra')],
+-    unsupported: [codex(), codex('gpt-6-astra'), same],
+-  }[example];
+-  mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+-  writeFileSync(
+-    nodePath.join(project, '.safeword/config.json'),
+-    JSON.stringify({
+-      crossAgentReview: 'prefer',
+-      crossAgentReviewRoutes: { claude: routes },
+-    }),
+-  );
+-  writePlanningInventories(project);
+-  const ticket = '.project/tickets/RNK123-ranked';
+-  mkdirSync(nodePath.join(project, ticket), { recursive: true });
+-  writeFileSync(
+-    nodePath.join(project, ticket, 'ticket.md'),
+-    '---\nid: RNK123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: truthful review\nout_of_scope: bypass\ndone_when: qualified reviewer wins\n---\n',
+-  );
+-  writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
+-  writeFileSync(
+-    nodePath.join(project, ticket, 'impl-plan.md'),
+-    '# Implementation Plan\n\n**Status:** planned\n\n## Approach\n\nKeep the existing approval authority.\n\n## Decisions\n\nTry every eligible independent route before same-agent review.\n\n## Design alignment\n\nPreserve truthful approval.\n\n## Architecture applicability\n\nskip: no architecture records apply\n\n## Data applicability\n\nskip: no product data changes\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: no customer docs change\n\n## Assessment triggers\n\nRevisit if review authority changes.\n',
+-  );
+-  mkdirSync(nodePath.join(project, 'features'), { recursive: true });
+-  writeFileSync(
+-    nodePath.join(project, 'features/ranked.feature'),
+-    '@ranked.BU1.R1\nFeature: Ranked review\n  Scenario: Independent review precedes fallback\n    Given eligible routes\n    When review runs\n    Then the qualified route wins\n',
+-  );
++function writeRankedReviewerExecutables(bin: string, example: RankedCase): string {
+   const log = nodePath.join(bin, 'launches.jsonl');
+   writeFileSync(log, '');
+   for (const agent of ['codex', 'claude'] as const) {
+@@ -84,6 +50,50 @@ process.stdin.on('end', () => { if (agent === 'claude') { const packet=JSON.pars
+       { mode: 0o755 },
+     );
+   }
++  return log;
++}
++
++function writeRankedPlanningProject(project: string, example: RankedCase): string {
++  const codex = (model?: string) => ({ reviewer: 'codex', ...(model && { model }) });
++  const same = { reviewer: 'claude' };
++  const routes = {
++    first: [same, codex('gpt-6-astra')],
++    alternate: [codex(), same, codex('gpt-6-astra')],
++    later: [codex(), same, codex('gpt-6-sol'), codex('gpt-6-astra')],
++    unsupported: [codex(), codex('gpt-6-astra'), same],
++  }[example];
++  mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
++  writeFileSync(
++    nodePath.join(project, '.safeword/config.json'),
++    JSON.stringify({
++      crossAgentReview: 'prefer',
++      crossAgentReviewRoutes: { claude: routes },
++    }),
++  );
++  writePlanningInventories(project);
++  const ticket = '.project/tickets/RNK123-ranked';
++  mkdirSync(nodePath.join(project, ticket), { recursive: true });
++  writeFileSync(
++    nodePath.join(project, ticket, 'ticket.md'),
++    '---\nid: RNK123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\nproduct_plan_contract: v1\nscope: truthful review\nout_of_scope: bypass\ndone_when: qualified reviewer wins\n---\n',
++  );
++  writeFileSync(nodePath.join(project, ticket, 'spec.md'), PLANNING_ROLE_PRODUCT);
++  writeFileSync(
++    nodePath.join(project, ticket, 'impl-plan.md'),
++    '# Implementation Plan\n\n**Status:** planned\n\n## Approach\n\nKeep the existing approval authority.\n\n## Decisions\n\nTry every eligible independent route before same-agent review.\n\n## Design alignment\n\nPreserve truthful approval.\n\n## Architecture applicability\n\nskip: no architecture records apply\n\n## Data applicability\n\nskip: no product data changes\n\n## Known deviations\n\nskip: none\n\n## Doc impact\n\nskip: no customer docs change\n\n## Assessment triggers\n\nRevisit if review authority changes.\n',
++  );
++  mkdirSync(nodePath.join(project, 'features'), { recursive: true });
++  writeFileSync(
++    nodePath.join(project, 'features/ranked.feature'),
++    '@ranked.BU1.R1\nFeature: Ranked review\n  Scenario: Independent review precedes fallback\n    Given eligible routes\n    When review runs\n    Then the qualified route wins\n',
++  );
++  return ticket;
++}
++
++/** Real CLI/config/catalogue/job wiring; only the external reviewer processes are fake. */
++export async function rankedPlanningReview(project: string, bin: string, example: RankedCase) {
++  const ticket = writeRankedPlanningProject(project, example);
++  const log = writeRankedReviewerExecutables(bin, example);
+   const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+   let result;
+   try {
