@@ -15,8 +15,9 @@ serial and independently tested/committed.
   legacy-octal rejection, alias bound and subsequent validation unchanged.
   Eighteen real-linter policy checks passed across both versions after this
   extraction; ESLint and typecheck passed. Generated plugin carriers refreshed.
-- [ ] Name stdout/stderr character limits. Preserve current chunk accumulation,
-  truncation notices and measured units exactly.
+- [x] Name stdout/stderr character limits. Preserved current chunk accumulation,
+  truncation notices and measured units exactly. Three source-hook regressions
+  passed after the change; ESLint passed. Generated carriers refreshed.
 - [x] Decline further executor extraction: passing five pieces of execution
   context to a new helper adds an interface without removing duplicated intent.
   The current configuration, process and command ownership is already clear.

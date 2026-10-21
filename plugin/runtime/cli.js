@@ -86765,13 +86765,13 @@ function goLintProcess(cleanup) {
         let stderr = "";
         let truncated = false;
         child.stdout?.setEncoding("utf8").on("data", (chunk) => {
-          if (stdout.length < 256 * 1024)
+          if (stdout.length < MAX_STDOUT_CHARACTERS)
             stdout += chunk;
           else
             truncated = true;
         });
         child.stderr?.setEncoding("utf8").on("data", (chunk) => {
-          if (stderr.length < 64 * 1024)
+          if (stderr.length < MAX_STDERR_CHARACTERS)
             stderr += chunk;
         });
         child.on("error", reject);
@@ -86785,7 +86785,11 @@ function goLintProcess(cleanup) {
     }
   };
 }
-var init_process = () => {};
+var MAX_STDOUT_CHARACTERS, MAX_STDERR_CHARACTERS;
+var init_process = __esm(() => {
+  MAX_STDOUT_CHARACTERS = 256 * 1024;
+  MAX_STDERR_CHARACTERS = 64 * 1024;
+});
 
 // src/commands/go-lint.ts
 var exports_go_lint = {};
