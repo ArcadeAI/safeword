@@ -86491,8 +86491,7 @@ function section(value, name) {
   return existing;
 }
 function lookupDirectory(directory) {
-  const extensions = [".json", ".toml", ".yaml", ".yml"];
-  return GOLANGCI_CONFIG_FILES.toSorted((a, b) => extensions.indexOf(path8.extname(a)) - extensions.indexOf(path8.extname(b))).map((name) => path8.join(directory, name)).find(existsSync75);
+  return ORDERED_CONFIG_FILES.map((name) => path8.join(directory, name)).find(existsSync75);
 }
 function selectedConfig(file, root, originalCwd) {
   const managed = path8.join(root, GO_LINT_MANAGED_CONFIG_PATH);
@@ -86726,12 +86725,14 @@ function prepareGoLintConfig(file, root, cwd, configPathSupported = true) {
     }
   };
 }
-var import_yaml7;
+var import_yaml7, CONFIG_EXTENSIONS, ORDERED_CONFIG_FILES;
 var init_config5 = __esm(() => {
   init_dist();
   init_files();
   init_project_detector();
   import_yaml7 = __toESM(require_dist(), 1);
+  CONFIG_EXTENSIONS = [".json", ".toml", ".yaml", ".yml"];
+  ORDERED_CONFIG_FILES = GOLANGCI_CONFIG_FILES.toSorted((a, b) => CONFIG_EXTENSIONS.indexOf(path8.extname(a)) - CONFIG_EXTENSIONS.indexOf(path8.extname(b)));
 });
 
 // src/go-lint/process.ts

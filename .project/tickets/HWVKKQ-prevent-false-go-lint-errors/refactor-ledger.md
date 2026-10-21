@@ -12,8 +12,10 @@ Leaf-first execution ledger:
   with eight characterization cases before moving code. Direct API/process
   probes passed all eight on the baseline. ESLint passed. The Vitest attempt
   was lock-limited and started no tests; final CI must execute the expanded suites.
-- [ ] Precompute immutable config filename precedence once, preserving the
-  shared filename source and every directory-search rule.
+- [x] Precompute immutable config filename precedence once, preserving the
+  shared filename source and every directory-search rule. Four direct format
+  cases and nine real v2.13.2 policy probes pass; ESLint and all five generated
+  surfaces pass. Native plugin carriers were regenerated in dependency order.
 - [ ] Rename the caller-directory config variable to distinguish it from the
   project root. This distinction directly underlies the reported bugs.
 - [ ] Name the version capability probe as a predicate; preserve its checks,
@@ -34,6 +36,15 @@ Leaf-first execution ledger:
 
 Each refactoring is a separate change, proof and scoped commit. The local
 Vitest lock currently belongs to worktree 3811; do not change its lock or process.
+
+The first trial was restored immediately when an additional native config-path
+probe failed. That optional probe also failed on the unchanged baseline: it
+assumed stdout path output and paired the old linter with the default newer Go.
+It is excluded from passing proof. The established direct API cases pass before
+and after the refactor; the actual pinned Viper v1.12.0 source confirms format
+precedence. No shipped assertion was weakened. The all-surfaces fix command's
+unconditional lifecycle test was also lock-limited; its read-only check passes
+because this step did not change templates or lifecycle fixture digests.
 
 ## Earlier refactor pass
 

@@ -11,6 +11,12 @@ import { GO_LINT_MANAGED_CONFIG_PATH } from '../packs/golang/files.js';
 import { GOLANGCI_CONFIG_FILES } from '../utils/project-detector.js';
 
 type Config = Record<string, unknown>;
+// Viper tries JSON, TOML, YAML, then YML within each search directory.
+const CONFIG_EXTENSIONS = ['.json', '.toml', '.yaml', '.yml'];
+const ORDERED_CONFIG_FILES = GOLANGCI_CONFIG_FILES.toSorted(
+  (a, b) => CONFIG_EXTENSIONS.indexOf(path.extname(a)) - CONFIG_EXTENSIONS.indexOf(path.extname(b)),
+);
+
 export interface GoLintConfig {
   args: string[];
   base: string;
@@ -36,13 +42,7 @@ function section(value: Config, name: string): Config {
 }
 
 function lookupDirectory(directory: string): string | undefined {
-  // Viper tries JSON, TOML, YAML, then YML within each search directory.
-  const extensions = ['.json', '.toml', '.yaml', '.yml'];
-  return GOLANGCI_CONFIG_FILES.toSorted(
-    (a, b) => extensions.indexOf(path.extname(a)) - extensions.indexOf(path.extname(b)),
-  )
-    .map(name => path.join(directory, name))
-    .find(existsSync);
+  return ORDERED_CONFIG_FILES.map(name => path.join(directory, name)).find(existsSync);
 }
 
 function selectedConfig(file: string, root: string, originalCwd: string): string | undefined {
