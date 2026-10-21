@@ -178,3 +178,39 @@ Audit passed its diff-scoped dependency check (549 modules / 981 dependencies); 
 | Native privacy, private retrieval, cloud and OpenCode authority | Historical deferrals / sibling ownership | skip: no new live-native proof; no strengthened claim |
 
 DRAFT — qualification and admission-dependent regressions block Ready/merge. The requested Draft delivery does not close this ticket, its ledger or the parent feature.
+
+
+## User-requested BDD and TDD quality follow-up
+
+The test-only continuation after `7fa307972` is recorded in `test-quality-5139.md`.
+It adds actual-harness replay controls, provenance and source-preservation negative
+cases, real interrupted-write failures, explicit Gherkin refusal columns, and
+bounded rationale false-positive/false-negative controls. New test-first and
+implementation commits are distinct; no historical RED or REFACTOR receipt is
+repaired or claimed. The historical ledger, six failures, 585 unfinished checks,
+33 deferrals and original SHA collision remain unchanged.
+
+At `f3f5f2974`, the final focused run passes nine files / 147 tests. The real CLI
+outline passes four scenarios / 200 steps and its wrong-refusal negative control
+fails as intended. Deleting the replay validation loop is detected, and the source
+is restored before verification. Final free Codex replay preserves every one of
+the original 63 per-case results: 38 pass, 25 fail; its metadata is explicitly
+replay evidence with the new oracle digest. Earlier qualification metadata remains
+historical, and the stale Execution admission artifact is unchanged. No paid
+qualification, new all-green full suite or whole-feature acceptance is claimed.
+
+
+Both fresh Claude reviews approve the bounded test changes with cross-agent
+independence: `84986cd6-6185-4053-b9cd-222369d6f2c0` and
+`23a7b820-4096-4856-b72a-5354553b34ee`. Their warning dispositions and exact
+reviewed patch SHA are in `test-quality-5139.md`. Replay-only source/output
+collision hardening remains a disclosed #5857 deferral; the current commands use
+distinct destinations. The source and original qualification evidence remain
+unchanged by that deferral. The PR remains Draft and the feature remains open.
+
+The final project-only reconciliation restores 277 pairs / 11 contracts, and all
+five generated surfaces are current. The shared runtime SHA is unchanged. All
+212 archived artifacts verify; 32 are new test-quality evidence. The
+new-artifact credential-pattern scan finds no matches. No candidate profile was
+activated and no dependency, historical ledger, conformance corpus, paid output or
+Execution admission artifact changed in this follow-up.

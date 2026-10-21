@@ -130,7 +130,7 @@ it.each([
 });
 
 it.each(['same', 'normalized alias', 'symlink alias', 'sidecar overlap', 'combined replay'])(
-  'refuses saved-evidence reuse that can overwrite or duplicate source observations: %s',
+  'refuses retained-source collisions or combined saved-input modes: %s',
   async kind => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'execution-source-preservation-'));
     roots.push(root);
