@@ -25,7 +25,12 @@ export interface ClaudeNativeFixture {
 
 interface HookObservation {
   args: string[];
-  input: { session_id: string; tool_name?: string; tool_input?: { file_path?: string } };
+  input: {
+    session_id: string;
+    tool_use_id?: string;
+    tool_name?: string;
+    tool_input?: { file_path?: string };
+  };
   stdout: string;
   stderr: string;
   status: number;
@@ -228,8 +233,55 @@ export class ClaudeNativeContractActor {
     assert.ok(guard);
     if (disposition === 'denied') {
       assert.equal(existsSync(target), false, 'DENIED_SIDE_EFFECT_OBSERVED');
-      assert.equal(guard.status, 2, 'NATIVE_GUARD_DISPATCH_MISSING');
-      assert.match(guard.stderr, /scope.*out_of_scope.*done_when/u);
+      assert.equal(guard.status, 0);
+      const decision = JSON.parse(guard.stdout) as {
+        hookSpecificOutput: {
+          hookEventName: string;
+          permissionDecision: string;
+          permissionDecisionReason: string;
+        };
+      };
+      assert.equal(decision.hookSpecificOutput.hookEventName, 'PreToolUse');
+      assert.equal(
+        decision.hookSpecificOutput.permissionDecision,
+        'deny',
+        'NATIVE_GUARD_DISPATCH_MISSING',
+      );
+      assert.match(
+        decision.hookSpecificOutput.permissionDecisionReason,
+        /scope.*out_of_scope.*done_when/u,
+      );
+      assert.ok(guard.input.tool_use_id);
+      const events = readFileSync(nodePath.join(this.directory, 'denied-events.jsonl'), 'utf8')
+        .trim()
+        .split('\n')
+        .map(
+          line =>
+            JSON.parse(line) as {
+              type: string;
+              message?: {
+                content?: {
+                  type: string;
+                  tool_use_id?: string;
+                  is_error?: boolean;
+                  content?: string;
+                }[];
+              };
+            },
+        );
+      const result = events
+        .flatMap(event => (event.type === 'user' ? (event.message?.content ?? []) : []))
+        .find(
+          content =>
+            content.type === 'tool_result' && content.tool_use_id === guard.input.tool_use_id,
+        );
+      assert.equal(
+        result?.is_error,
+        true,
+        'NATIVE_GUARD_DISPATCH_MISSING: host did not reject the actual Write',
+      );
+      assert.ok(result);
+      assert.match(result.content ?? '', /scope.*out_of_scope.*done_when/u);
     } else {
       assert.equal(guard.status, 0);
       assert.ok(existsSync(target), 'ALLOWED_SIDE_EFFECT_MISSING');
