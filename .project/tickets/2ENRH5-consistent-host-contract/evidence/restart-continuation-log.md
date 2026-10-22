@@ -544,3 +544,16 @@ Newer/global-profile and simulated substitutes cannot clear the accepted native
 cases. Next dependency is manual Mac/1Password unlock, followed by actual exact
 Claude controls and Cursor IDE controls. Feature stays in implement; no scenario
 or admission claim is advanced. Production checkpoint:a6c7b225d.
+
+### Resume after manual unlock: exact Claude authentication still pending
+
+Mac/password-manager blocker resolved by the user. Narrow credential resolution
+now completes, but actual Claude2.1.170 rejects the stored API key. Normal OAuth
+sign-in opened and awaits the user's Google passkey verification; async question
+pending, login session87384. Prepared real native Write controls with exact-host
+discovery/payload checks and the existing transparent observer. Actual candidate
+SessionStart dispatch and native init observed; model returns Not logged in,
+runner3/unavailable. No guard pass or product RED claimed. Types/lint pass.
+See claude-native-preparation.md for fixture paths, root-cause evidence and the
+native CLI's local-directory source-loading behavior. Required four-case group
+is not yet complete. Next dependency is completing the pending browser login.
