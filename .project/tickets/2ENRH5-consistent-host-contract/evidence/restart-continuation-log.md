@@ -557,3 +557,26 @@ runner3/unavailable. No guard pass or product RED claimed. Types/lint pass.
 See claude-native-preparation.md for fixture paths, root-cause evidence and the
 native CLI's local-directory source-loading behavior. Required four-case group
 is not yet complete. Next dependency is completing the pending browser login.
+
+### Google sign-in completed; final Claude browser authorization rejected
+
+After the user's sign-in confirmation, completed the existing Google Continue
+and Claude Authorize steps. Google authentication succeeded; Claude recognized
+the account but returned Couldn’t verify your browser. One normal Try again /
+Authorize retry produced the same browser error. No browser-security bypass or
+credential extraction attempted. Requested manual completion asynchronously;
+the same auth process87384 still awaits its callback. CLI remains unauthenticated.
+
+Independent work while awaiting authorization: current exact Cursor CLI native
+group passed3scenarios/12steps (denied-write, allowed-write, catalogue-helper).
+Report:safeword-host-contract-proof-gMjMB9/cucumber.json under the system temp
+root. Log:/tmp/safeword-cursor-cli-after-command-consolidation.log.
+
+Fresh current V2 candidate native-v2-bootstrap-20261022-1 generated normally.
+OpenCode combined runner did not reach any feature scenario: its V1 CLI preflight
+timed out in BeforeAll after bootstrap, with model attempts0. Recorded as
+unavailable, not RED or GREEN. Actual native log stops during configuration load;
+no policy decision/side effect was observed. No matching native run process
+remained after the runner ended. Log:/tmp/safeword-opencode-after-bootstrap-consolidation.log;
+owned run:opencode-native-YEWTlc. Previous successful receipts remain historical;
+this current refresh did not renew OpenCode conformance. No scenario advanced.
