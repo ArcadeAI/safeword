@@ -18,18 +18,11 @@ export interface NativeCatalogueProbe {
   readonly helperMarker: string;
 }
 
-/**
- * Exercise the current production catalogue renderer in an independent portable
- * test carrier. The production generator supplies the runtime before the
- * synthetic catalogue is rendered; the fixture never repairs its runtime.
- * This is a resource-binding proof; shipped manifest generation needs its own proof.
- */
-export async function createNativeCatalogueProbe(
+/** Vary only canonical fixture inputs before any host renderer runs. */
+export function createCanonicalCatalogueInputs(
   directory: string,
-  generateCarrier?: (output: string) => Promise<unknown>,
   skill = 'explain',
-): Promise<NativeCatalogueProbe> {
-  const packageRoot = nodePath.join(directory, 'candidate');
+): Omit<NativeCatalogueProbe, 'packageRoot'> & { canonicalRoot: string } {
   const canonicalRoot = nodePath.join(directory, 'canonical');
   const nonce = randomUUID();
   const markers = {
@@ -85,6 +78,21 @@ export async function createNativeCatalogueProbe(
       '',
     ].join('\n'),
   );
+  return { canonicalRoot, ...markers };
+}
+
+/**
+ * Exercise the production portable renderer; never repair the generated runtime.
+ * This is resource-binding proof, not shipped manifest or package admission proof.
+ */
+export async function createNativeCatalogueProbe(
+  directory: string,
+  generateCarrier?: (output: string) => Promise<unknown>,
+  skill = 'explain',
+): Promise<NativeCatalogueProbe> {
+  const packageRoot = nodePath.join(directory, 'candidate');
+  const { canonicalRoot, ...markers } = createCanonicalCatalogueInputs(directory, skill);
+  const cliRoot = nodePath.resolve(import.meta.dirname, '../..');
   const portableCoreModule = nodePath.join(cliRoot, 'src', 'host-contract', 'portable-core.ts');
   if (existsSync(portableCoreModule)) {
     if (generateCarrier) await generateCarrier(packageRoot);
