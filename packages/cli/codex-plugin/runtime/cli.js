@@ -3643,7 +3643,7 @@ var init_historical_catalogue_generated = __esm(() => {
       hook_files: {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
         ".safeword/hooks/post-tool-dependency-readiness.ts": "0142957ea227b630a5ab17d0cee2d6ff2c6df24e7ca3f4bd7a57dbf6940060be",
-        ".safeword/hooks/post-tool-lint.ts": "f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa",
+        ".safeword/hooks/post-tool-lint.ts": "ca708ea4ff7d184441e8bc5e5d136c2a5f40ffc74bffb98b6d886451669df7d6",
         ".safeword/hooks/post-tool-quality.ts": "21a850043772895828c0d75de6d7735bc5566da9711f2ed1eac6ecd8c8cbe5db",
         ".safeword/hooks/post-tool-skill-nudge.ts": "a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4",
         ".safeword/hooks/post-tool-sync-learnings.ts": "de5f52c221b2f029841beded78d65af80217949072a99c2790d503f492528290",
@@ -12325,7 +12325,7 @@ function fillGapMerge(base, defaults) {
   }
   return result;
 }
-var import_yaml, SAFEWORD_ENABLE, SAFEWORD_DISABLE, SAFEWORD_EXCLUSION_PRESETS, SAFEWORD_SETTINGS, golangOwnedFiles, golangManagedFiles;
+var import_yaml, SAFEWORD_ENABLE, SAFEWORD_DISABLE, SAFEWORD_EXCLUSION_PRESETS, SAFEWORD_SETTINGS, GO_LINT_MANAGED_CONFIG_PATH = ".safeword/.golangci.yml", golangOwnedFiles, golangManagedFiles;
 var init_files = __esm(() => {
   init_fs();
   import_yaml = __toESM(require_dist(), 1);
@@ -12371,7 +12371,7 @@ var init_files = __esm(() => {
     }
   };
   golangOwnedFiles = {
-    ".safeword/.golangci.yml": {
+    [GO_LINT_MANAGED_CONFIG_PATH]: {
       generator: (ctx) => ctx.languages?.golang ? generateSafewordGolangciConfig(ctx.projectType.existingGolangciConfig, ctx.cwd) : undefined
     }
   };
@@ -86527,6 +86527,435 @@ var init_boundary = __esm(() => {
   AUDIT_RELATIVE_PATH = nodePath154.join(".safeword", "boundary-audit.jsonl");
 });
 
+// src/go-lint/config.ts
+import { spawnSync as spawnSync26 } from "child_process";
+import { randomUUID as randomUUID19 } from "crypto";
+import { closeSync as closeSync17, existsSync as existsSync75, openSync as openSync17, readFileSync as readFileSync99, unlinkSync as unlinkSync10, writeFileSync as writeFileSync39 } from "fs";
+import { homedir as homedir8 } from "os";
+import path8 from "path";
+function record3(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function section(value, name) {
+  const existing = value[name];
+  if (existing === undefined) {
+    const empty = {};
+    value[name] = empty;
+    return empty;
+  }
+  if (!record3(existing))
+    throw new Error(`Go lint config ${name} must be an object`);
+  return existing;
+}
+function lookupDirectory(directory) {
+  return ORDERED_CONFIG_FILES.map((name) => path8.join(directory, name)).find(existsSync75);
+}
+function selectedConfig(file, root, originalCwd) {
+  const managed = path8.join(root, GO_LINT_MANAGED_CONFIG_PATH);
+  if (existsSync75(managed))
+    return managed;
+  const workingDirectoryConfig = lookupDirectory(originalCwd);
+  if (workingDirectoryConfig)
+    return workingDirectoryConfig;
+  let directory = path8.dirname(file);
+  for (;; ) {
+    const config = lookupDirectory(directory);
+    if (config)
+      return config;
+    const parent = path8.dirname(directory);
+    if (parent === directory)
+      break;
+    directory = parent;
+  }
+  return lookupDirectory(homedir8());
+}
+function jsonScalar(value) {
+  return value === null || typeof value === "string" || typeof value === "boolean" || typeof value === "number" && Number.isFinite(value);
+}
+function plainObject(value) {
+  return Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null;
+}
+function assertJson(value, ancestors = new Set) {
+  if (jsonScalar(value))
+    return;
+  if (typeof value !== "object" || value === null || ancestors.has(value)) {
+    throw new Error("Go lint config contains a value that cannot be preserved in JSON");
+  }
+  if (!Array.isArray(value) && !plainObject(value)) {
+    throw new Error("Go lint config contains an unsupported non-JSON object");
+  }
+  ancestors.add(value);
+  for (const entry2 of Object.values(value))
+    assertJson(entry2, ancestors);
+  ancestors.delete(value);
+}
+function caseInsensitive(value) {
+  const result3 = {};
+  for (const [key, entry2] of Object.entries(value)) {
+    const lower = key.toLowerCase();
+    if (Object.hasOwn(result3, lower))
+      throw new Error("Go lint config has ambiguous case-duplicate keys");
+    Object.defineProperty(result3, lower, {
+      value: record3(entry2) ? caseInsensitive(entry2) : entry2,
+      enumerable: true,
+      writable: true
+    });
+  }
+  return result3;
+}
+function parseYamlConfig(text) {
+  const document2 = import_yaml8.default.parseDocument(text, { merge: true });
+  if (document2.errors.length > 0)
+    throw new Error(document2.errors[0]?.message);
+  import_yaml8.default.visit(document2, {
+    Scalar(_key, node) {
+      if (typeof node.value === "number" && /^[-+]?0\d+$/.test(node.source ?? "")) {
+        throw new Error("Go lint config uses ambiguous legacy octal; use decimal or 0o notation");
+      }
+    }
+  });
+  return document2.toJS({ maxAliasCount: 100 });
+}
+function parseConfig2(file) {
+  const text = readFileSync99(file, "utf8");
+  let parsed2;
+  switch (path8.extname(file)) {
+    case ".json": {
+      parsed2 = JSON.parse(text);
+      break;
+    }
+    case ".toml": {
+      parsed2 = parse(text);
+      break;
+    }
+    default: {
+      parsed2 = parseYamlConfig(text);
+    }
+  }
+  assertJson(parsed2);
+  if (!record3(parsed2))
+    throw new Error("Go lint config must be an object");
+  return caseInsensitive(parsed2);
+}
+function query(command3, args, cwd) {
+  const result3 = spawnSync26(command3, args, { cwd, encoding: "utf8", timeout: 1e4 });
+  if (result3.error || result3.status !== 0) {
+    throw new Error(`Cannot resolve Go lint base: ${result3.error?.message ?? result3.stderr.trim()}`);
+  }
+  const value = result3.stdout.trim();
+  if (!value)
+    throw new Error(`Cannot resolve Go lint base: ${command3} returned no path`);
+  return value;
+}
+function originalBase(config, source, cwd) {
+  const mode = section(config, "run")["relative-path-mode"] ?? "cfg";
+  switch (mode) {
+    case "cfg": {
+      return path8.dirname(source);
+    }
+    case "wd": {
+      return cwd;
+    }
+    case "gitroot": {
+      return query("git", ["rev-parse", "--show-toplevel"], cwd);
+    }
+    case "gomod": {
+      const manifest = query("go", ["env", "GOMOD"], cwd);
+      if (manifest === "/dev/null" || manifest.toUpperCase() === "NUL") {
+        throw new Error("Cannot preserve gomod lint paths: the original working directory has no Go module");
+      }
+      return path8.dirname(manifest);
+    }
+    default: {
+      throw new Error("Unsupported Go lint relative-path-mode; expected cfg, wd, gomod or gitroot");
+    }
+  }
+}
+function mapStrings(value, replace) {
+  if (typeof value === "string")
+    return replace(value);
+  if (Array.isArray(value))
+    return value.map((entry2) => mapStrings(entry2, replace));
+  if (record3(value)) {
+    return Object.fromEntries(Object.entries(value).map(([key, entry2]) => [key, mapStrings(entry2, replace)]));
+  }
+  return value;
+}
+function normalizeDepguard(value, replace) {
+  if (!record3(value) || !record3(value.rules))
+    return;
+  for (const rule of Object.values(value.rules)) {
+    if (record3(rule) && Array.isArray(rule.files))
+      rule.files = mapStrings(rule.files, replace);
+  }
+}
+function normalizeGocritic(value, replace, absolute2) {
+  if (!record3(value) || !record3(value.settings))
+    return;
+  const checks = mapStrings(value.settings, replace);
+  value.settings = checks;
+  if (!record3(checks.ruleguard) || typeof checks.ruleguard.rules !== "string")
+    return;
+  checks.ruleguard.rules = checks.ruleguard.rules.split(",").map((entry2) => absolute2(entry2.trim())).join(",");
+}
+function normalizeGoheader(value, absolute2) {
+  if (!record3(value) || typeof value["template-path"] !== "string" || !value["template-path"])
+    return;
+  value["template-path"] = absolute2(value["template-path"]);
+}
+function fileDestination(value) {
+  return typeof value === "string" && value !== "" && value !== "stdout" && value !== "stderr";
+}
+function normalizeReports(config, absolute2) {
+  const output = section(config, "output");
+  const formats = section(output, "formats");
+  for (const format2 of Object.values(formats)) {
+    if (record3(format2) && fileDestination(format2.path))
+      format2.path = absolute2(format2.path);
+  }
+  const text = section(formats, "text");
+  const report2 = fileDestination(text.path) ? text.path : undefined;
+  text.path = "stdout";
+  text.colors = false;
+  return report2;
+}
+function normalizeLocations(config, source, base, cwd, configPathSupported) {
+  const replace = (text) => (configPathSupported ? text.replaceAll("${config-path}", () => path8.dirname(source)) : text).replaceAll("${base-path}", () => base);
+  const absolute2 = (text) => path8.resolve(cwd, replace(text));
+  const linters = config.linters;
+  if (record3(linters) && record3(linters.settings)) {
+    const settings = linters.settings;
+    normalizeDepguard(settings.depguard, replace);
+    normalizeGocritic(settings.gocritic, replace, absolute2);
+    normalizeGoheader(settings.goheader, absolute2);
+  }
+  return normalizeReports(config, absolute2);
+}
+function writeTemporary(file, content) {
+  let owned = false;
+  try {
+    const descriptor = openSync17(file, "wx", 384);
+    owned = true;
+    try {
+      writeFileSync39(descriptor, content);
+    } finally {
+      closeSync17(descriptor);
+    }
+  } catch (error2) {
+    if (owned) {
+      try {
+        unlinkSync10(file);
+      } catch (cleanupError) {
+        throw new AggregateError([error2, cleanupError], "Go lint temporary config creation and cleanup failed", { cause: cleanupError });
+      }
+    }
+    throw error2;
+  }
+}
+function prepareGoLintConfig(file, root, cwd, configPathSupported = true) {
+  const source = selectedConfig(file, root, cwd);
+  if (!source)
+    return {
+      args: ["--no-config"],
+      base: path8.dirname(file),
+      cleanup: () => {}
+    };
+  const config = parseConfig2(source);
+  const base = path8.resolve(cwd, originalBase(config, source, cwd));
+  const textReport = normalizeLocations(config, source, base, cwd, configPathSupported);
+  section(config, "run")["relative-path-mode"] = "cfg";
+  const temporary = path8.join(base, `.safeword-go-lint-${randomUUID19()}.json`);
+  writeTemporary(temporary, JSON.stringify(config));
+  let removed = false;
+  return {
+    args: ["--config", temporary],
+    source,
+    temporary,
+    base,
+    textReport,
+    cleanup() {
+      if (removed) {
+        return;
+      }
+      unlinkSync10(temporary);
+      removed = true;
+    }
+  };
+}
+var import_yaml8, CONFIG_EXTENSIONS, ORDERED_CONFIG_FILES;
+var init_config5 = __esm(() => {
+  init_dist();
+  init_files();
+  init_project_detector();
+  import_yaml8 = __toESM(require_dist(), 1);
+  CONFIG_EXTENSIONS = [".json", ".toml", ".yaml", ".yml"];
+  ORDERED_CONFIG_FILES = GOLANGCI_CONFIG_FILES.toSorted((a, b) => CONFIG_EXTENSIONS.indexOf(path8.extname(a)) - CONFIG_EXTENSIONS.indexOf(path8.extname(b)));
+});
+
+// src/go-lint/process.ts
+import { spawn as spawn5 } from "child_process";
+function goLintProcess(cleanup) {
+  let child;
+  const signals = ["SIGINT", "SIGTERM", "SIGHUP"];
+  const dispose = () => {
+    for (const signal of signals)
+      process.removeListener(signal, onSignal);
+  };
+  const onSignal = (signal) => {
+    child?.kill(signal);
+    try {
+      cleanup();
+    } catch (error2) {
+      process.stderr.write(`Go lint temporary config cleanup failed: ${String(error2)}
+`);
+    }
+    dispose();
+    process.kill(process.pid, signal);
+  };
+  for (const signal of signals)
+    process.on(signal, onSignal);
+  return {
+    dispose,
+    run(args, cwd) {
+      return new Promise((resolve, reject) => {
+        child = spawn5("golangci-lint", args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+        let stdout = "";
+        let stderr = "";
+        let truncated = false;
+        child.stdout?.setEncoding("utf8").on("data", (chunk) => {
+          if (stdout.length < MAX_STDOUT_CHARACTERS)
+            stdout += chunk;
+          else
+            truncated = true;
+        });
+        child.stderr?.setEncoding("utf8").on("data", (chunk) => {
+          if (stderr.length < MAX_STDERR_CHARACTERS)
+            stderr += chunk;
+        });
+        child.on("error", reject);
+        child.on("close", (code) => {
+          child = undefined;
+          const notice = truncated ? `
+[Further package diagnostics were truncated.]` : "";
+          resolve({ code, stdout: `${stdout.trim()}${notice}`, stderr: stderr.trim() });
+        });
+      });
+    }
+  };
+}
+var MAX_STDOUT_CHARACTERS, MAX_STDERR_CHARACTERS;
+var init_process = __esm(() => {
+  MAX_STDOUT_CHARACTERS = 256 * 1024;
+  MAX_STDERR_CHARACTERS = 64 * 1024;
+});
+
+// src/commands/go-lint.ts
+var exports_go_lint = {};
+__export(exports_go_lint, {
+  goLint: () => goLint
+});
+import { spawnSync as spawnSync27 } from "child_process";
+import { realpathSync as realpathSync24, writeFileSync as writeFileSync40 } from "fs";
+import path9 from "path";
+function within(file, root) {
+  const relative = path9.relative(root, file);
+  return relative !== ".." && !relative.startsWith(`..${path9.sep}`) && !path9.isAbsolute(relative);
+}
+function supportsConfigPathInterpolation(cwd) {
+  const version2 = spawnSync27("golangci-lint", ["version", "--short"], {
+    cwd,
+    encoding: "utf8",
+    timeout: 1e4
+  });
+  const match = /^v?(\d+)\.(\d+)\./.exec(version2.stdout.trim());
+  if (version2.error || version2.status !== 0 || !match) {
+    throw new Error("Cannot preserve Go lint policy: golangci-lint version could not be resolved");
+  }
+  return Number(match[1]) > 2 || Number(match[1]) === 2 && Number(match[2]) >= 1;
+}
+function context(options) {
+  if (!options.file || !options.projectRoot || !options.originalCwd) {
+    throw new Error("Go lint helper requires --file, --project-root and --original-cwd; update Safeword if hooks and runtime differ");
+  }
+  const root = realpathSync24(options.projectRoot);
+  const file = realpathSync24(options.file);
+  if (!within(file, root)) {
+    throw new Error(`Edited file ${file} resolves outside the Safeword project root ${root}; Go lint and formatting were skipped.`);
+  }
+  return { root, file, cwd: path9.dirname(file), originalCwd: realpathSync24(options.originalCwd) };
+}
+function configWarnings(config, root) {
+  if (!config.source) {
+    return [
+      "Go Safeword config is missing \u2014 linting with golangci-lint defaults, not Safeword rules. Run `safeword install` to install it."
+    ];
+  }
+  if (!within(config.source, path9.join(root, ".safeword"))) {
+    return [
+      `Go Safeword config is missing \u2014 linting with customer config ${config.source}. Run \`safeword install\` to layer Safeword rules.`
+    ];
+  }
+  return [];
+}
+function failure(command3, result3) {
+  const detail = result3.stderr || result3.stdout || `exit ${result3.code} with no diagnostic output`;
+  return `golangci-lint ${command3} failed: ${detail}`;
+}
+function diagnostics2(result3, file, cwd) {
+  if (result3.code === 0 || !result3.stdout)
+    return {};
+  return {
+    errors: result3.stdout,
+    diagnosticContext: `Go lint findings for package ${cwd} after editing ${file}. These findings may predate this edit; sibling files were not auto-fixed.`
+  };
+}
+function saveTextReport(config, output, warnings) {
+  if (!config.textReport)
+    return;
+  try {
+    writeFileSync40(config.textReport, `${output}
+`);
+  } catch (error2) {
+    warnings.push(`Go lint report could not be written: ${String(error2)}`);
+  }
+}
+async function goLint(options) {
+  const warnings = [];
+  let config;
+  let runner;
+  let findings2 = {};
+  try {
+    const { root, file, cwd, originalCwd } = context(options);
+    config = prepareGoLintConfig(file, root, originalCwd, supportsConfigPathInterpolation(originalCwd));
+    warnings.push(...configWarnings(config, root));
+    runner = goLintProcess(config.cleanup);
+    const formatted = await runner.run(["fmt", ...config.args, file], cwd);
+    if (formatted.code !== 0)
+      warnings.push(failure("fmt", formatted));
+    const checked = await runner.run(["run", ...config.args, "--path-prefix", config.base, "."], cwd);
+    saveTextReport(config, checked.stdout, warnings);
+    findings2 = diagnostics2(checked, file, cwd);
+    if (checked.code !== 0 && !checked.stdout)
+      warnings.push(failure("run", checked));
+    if (checked.stderr)
+      warnings.push(checked.stderr);
+  } catch (error2) {
+    warnings.push(`Go lint could not run: ${error2 instanceof Error ? error2.message : String(error2)}`);
+  } finally {
+    runner?.dispose();
+    try {
+      config?.cleanup();
+    } catch (error2) {
+      warnings.push(`Go lint temporary config cleanup failed: ${String(error2)}`);
+    }
+  }
+  return { warnings, ...findings2 };
+}
+var init_go_lint = __esm(() => {
+  init_config5();
+  init_process();
+});
+
 // src/commands/codex-hook.ts
 var exports_codex_hook = {};
 __export(exports_codex_hook, {
@@ -86536,17 +86965,17 @@ __export(exports_codex_hook, {
   commandInvokesWriteReviewStamp: () => commandInvokesWriteReviewStamp,
   codexHook: () => codexHook
 });
-import { spawnSync as spawnSync26 } from "child_process";
+import { spawnSync as spawnSync28 } from "child_process";
 import {
   cpSync as cpSync5,
-  existsSync as existsSync75,
+  existsSync as existsSync76,
   mkdirSync as mkdirSync31,
   mkdtempSync as mkdtempSync11,
   readdirSync as readdirSync38,
-  readFileSync as readFileSync99,
+  readFileSync as readFileSync100,
   renameSync as renameSync19,
   rmSync as rmSync19,
-  writeFileSync as writeFileSync39
+  writeFileSync as writeFileSync41
 } from "fs";
 import { tmpdir as tmpdir9 } from "os";
 import nodePath155 from "path";
@@ -86578,8 +87007,8 @@ function parseCodexHookInput(raw) {
     return;
   }
 }
-function optionalString(record3, key) {
-  return typeof record3[key] === "string" ? record3[key] : undefined;
+function optionalString(record4, key) {
+  return typeof record4[key] === "string" ? record4[key] : undefined;
 }
 function normalizeToolInput(value) {
   if (typeof value !== "object" || value === null)
@@ -86673,7 +87102,7 @@ function writeCodexIdentityCache(input) {
   try {
     const cachePath = nodePath155.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
     mkdirSync31(nodePath155.dirname(cachePath), { recursive: true });
-    writeFileSync39(cachePath, JSON.stringify({ id: sessionId, skillName: skillName2, recordedAt: new Date().toISOString() }), "utf8");
+    writeFileSync41(cachePath, JSON.stringify({ id: sessionId, skillName: skillName2, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
 function rememberCodexRunIdentity(input) {
@@ -86767,7 +87196,7 @@ function readPackagedSafewordInstructions() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
   if (!instructionsPath)
     return;
-  if (!readFileSync99(instructionsPath, "utf8").trim())
+  if (!readFileSync100(instructionsPath, "utf8").trim())
     return;
   return [
     "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
@@ -86781,7 +87210,7 @@ function readPackagedSafewordInstructions() {
 `);
 }
 function findPackagedTemplate(relativePath) {
-  return TEMPLATE_DIRECTORIES.map((directory) => nodePath155.join(directory, relativePath)).find((candidate) => existsSync75(candidate));
+  return TEMPLATE_DIRECTORIES.map((directory) => nodePath155.join(directory, relativePath)).find((candidate) => existsSync76(candidate));
 }
 function resolvePackagedHook(relativePath) {
   return findPackagedTemplate(nodePath155.join("hooks", relativePath));
@@ -86794,7 +87223,7 @@ function hookRuntime(hookPath) {
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
   const { runtime, args } = hookRuntime(hookPath);
-  const result3 = spawnSync26(runtime, args, {
+  const result3 = spawnSync28(runtime, args, {
     cwd: nodePath155.dirname(hookPath),
     input: rawInput,
     encoding: "utf8",
@@ -86836,7 +87265,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
     if (relativePath === "session-codex-start.ts") {
       temporaryHookDirectory = mkdtempSync11(nodePath155.join(tmpdir9(), "safeword-codex-hook-"));
       cpSync5(nodePath155.dirname(hookPath), temporaryHookDirectory, { recursive: true });
-      writeFileSync39(nodePath155.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
+      writeFileSync41(nodePath155.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
       executableHookPath = nodePath155.join(temporaryHookDirectory, nodePath155.basename(hookPath));
     }
     const packagedContextPath = relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : "";
@@ -86867,49 +87296,49 @@ function snapshotEmbeddedOpenCodePreToolHook(relativePath) {
   const hooksDirectory = nodePath155.join(directory, "hooks");
   const codexDirectory = nodePath155.join(hooksDirectory, "codex");
   mkdirSync31(codexDirectory, { recursive: true });
-  writeFileSync39(nodePath155.join(hooksDirectory, "pre-tool-quality.ts"), embedded.preTool, "utf8");
+  writeFileSync41(nodePath155.join(hooksDirectory, "pre-tool-quality.ts"), embedded.preTool, "utf8");
   const hookPath = nodePath155.join(codexDirectory, "pre-tool-quality.ts");
-  writeFileSync39(hookPath, embedded.codexPreTool, "utf8");
+  writeFileSync41(hookPath, embedded.codexPreTool, "utf8");
   return { directory, hookPath };
 }
-function requiredSourceRewrite(source, expected, replacement, path8) {
+function requiredSourceRewrite(source, expected, replacement, path10) {
   const index = source.indexOf(expected);
   if (index === -1) {
-    throw new Error(`OpenCode hook rewrite contract drifted: ${path8} no longer contains ${expected}`);
+    throw new Error(`OpenCode hook rewrite contract drifted: ${path10} no longer contains ${expected}`);
   }
   return source.slice(0, index) + replacement + source.slice(index + expected.length);
 }
-function rewriteOpenCodeHookRuntime(relativePath, source, rewritten, path8) {
+function rewriteOpenCodeHookRuntime(relativePath, source, rewritten, path10) {
   if (relativePath === nodePath155.join("codex", "pre-tool-quality.ts") && source.includes("Bun.stdin")) {
     return requiredSourceRewrite(rewritten, "return JSON.parse(await Bun.stdin.text()) as CodexHookInput;", `const raw = (await import('node:fs')).readFileSync(0, 'utf8');
-    return JSON.parse(raw) as CodexHookInput;`, path8);
+    return JSON.parse(raw) as CodexHookInput;`, path10);
   }
   if (relativePath === nodePath155.join("codex", "pre-tool-quality-helpers.ts") && source.includes("spawnSync('bun'")) {
-    const nodeSpawn = requiredSourceRewrite(rewritten, "return spawnSync('bun', [claudeHookPath], {", "return spawnSync(process.execPath, [claudeHookPath], {", path8);
-    return requiredSourceRewrite(nodeSpawn, "SAFEWORD_AGENT_RUNTIME: 'codex',", "SAFEWORD_AGENT_RUNTIME: 'opencode',", path8);
+    const nodeSpawn = requiredSourceRewrite(rewritten, "return spawnSync('bun', [claudeHookPath], {", "return spawnSync(process.execPath, [claudeHookPath], {", path10);
+    return requiredSourceRewrite(nodeSpawn, "SAFEWORD_AGENT_RUNTIME: 'codex',", "SAFEWORD_AGENT_RUNTIME: 'opencode',", path10);
   }
   if (relativePath === "pre-tool-quality.ts" && source.includes("Bun.stdin")) {
     return requiredSourceRewrite(rewritten, "input = await Bun.stdin.json();", `const raw = (await import('node:fs')).readFileSync(0, 'utf8');
-  input = JSON.parse(raw) as HookInput;`, path8);
+  input = JSON.parse(raw) as HookInput;`, path10);
   }
   return rewritten;
 }
 function rewriteSnapshotImportsForNode(directory, root = directory) {
   const entries = readdirSync38(directory, { withFileTypes: true });
   for (const entry2 of entries) {
-    const path8 = nodePath155.join(directory, entry2.name);
+    const path10 = nodePath155.join(directory, entry2.name);
     if (entry2.isDirectory()) {
-      rewriteSnapshotImportsForNode(path8, root);
+      rewriteSnapshotImportsForNode(path10, root);
       continue;
     }
     if (!entry2.isFile() || !entry2.name.endsWith(".ts"))
       continue;
-    const relativePath = nodePath155.relative(root, path8);
-    const source = readFileSync99(path8, "utf8");
+    const relativePath = nodePath155.relative(root, path10);
+    const source = readFileSync100(path10, "utf8");
     const importRewritten = source.replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, "$1$2.ts$3");
-    const rewritten = rewriteOpenCodeHookRuntime(relativePath, source, importRewritten, path8);
+    const rewritten = rewriteOpenCodeHookRuntime(relativePath, source, importRewritten, path10);
     if (rewritten !== source)
-      writeFileSync39(path8, rewritten, "utf8");
+      writeFileSync41(path10, rewritten, "utf8");
   }
 }
 function snapshotPackagedHook(relativePath) {
@@ -86929,7 +87358,7 @@ function snapshotPackagedHook(relativePath) {
     }
     renameSync19(stagingHooksDirectory, snapshotHooksDirectory);
     const hookPath = nodePath155.join(snapshotHooksDirectory, relativePath);
-    return existsSync75(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
+    return existsSync76(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   } catch (error2) {
     return {
       directory,
@@ -86975,7 +87404,7 @@ function emitPackagedPreToolResult(result3) {
 }
 function readProjectTextFile(projectDirectory, relativePath) {
   const filePath = nodePath155.join(projectDirectory, relativePath);
-  return existsSync75(filePath) ? readFileSync99(filePath, "utf8") : undefined;
+  return existsSync76(filePath) ? readFileSync100(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
   process26.stdout.write(`${JSON.stringify(output)}
@@ -87023,7 +87452,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   if (!ticketFolder)
     return false;
   const ticketPath = nodePath155.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
-  const ticketContent = existsSync75(ticketPath) ? readFileSync99(ticketPath, "utf8") : "";
+  const ticketContent = existsSync76(ticketPath) ? readFileSync100(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
     return false;
@@ -87089,16 +87518,25 @@ function postToolLintInputs(input, rawInput, projectDirectory) {
     tool_input: { file_path: nodePath155.resolve(projectDirectory, filePath) }
   }));
 }
+function boundedLintWarning(output) {
+  const bytes = Buffer.from(output);
+  const limit = 16 * 1024;
+  if (bytes.length <= limit)
+    return output;
+  const notice = `
+[Additional lint output truncated; these are not all findings.]`;
+  return `${bytes.subarray(0, limit - Buffer.byteLength(notice) - 3).toString("utf8")}${notice}`;
+}
 function collectPostToolLintContexts(lintInputs, projectDirectory) {
   const contexts = [];
   for (const lintInput of lintInputs) {
     const lintResult = runPackagedHook("post-tool-lint.ts", lintInput, projectDirectory);
-    const context = packagedAdditionalContext(lintResult, "PostToolUse");
+    const context2 = packagedAdditionalContext(lintResult, "PostToolUse");
     const output = lintResult.stdout.trim();
-    if (context)
-      contexts.push(context);
+    if (context2)
+      contexts.push(context2);
     else if (output)
-      contexts.push(output);
+      contexts.push(boundedLintWarning(output));
   }
   return contexts;
 }
@@ -87110,9 +87548,9 @@ async function runPostToolUse(projectDirectory) {
   const lintInputs = postToolLintInputs(input, rawInput, projectDirectory);
   const contexts = collectPostToolLintContexts(lintInputs, projectDirectory);
   for (const hook2 of POST_TOOL_CONTEXT_HOOKS) {
-    const context = packagedAdditionalContext(runPackagedHook(hook2, rawInput, projectDirectory), "PostToolUse");
-    if (context)
-      contexts.push(context);
+    const context2 = packagedAdditionalContext(runPackagedHook(hook2, rawInput, projectDirectory), "PostToolUse");
+    if (context2)
+      contexts.push(context2);
   }
   const additionalContext2 = readProjectTextFile(projectDirectory, POST_TOOL_GUIDANCE_PATH)?.trim();
   if (additionalContext2)
@@ -92001,6 +92439,7 @@ var HANDLERS = {
   "retro-relay-retry": retroRelayRetryHandler,
   "retro-relay-discard": retroRelayDiscardHandler,
   boundary: () => Promise.resolve(createResult({ state: "healthy", data: { command: "boundary", internal: true } })),
+  "hook go-lint": () => Promise.resolve(createResult({ state: "healthy", data: { command: "hook go-lint", internal: true } })),
   "hook codex": () => Promise.resolve(createResult({ state: "healthy", data: { command: "hook codex", internal: true } })),
   "codex-hook": () => Promise.resolve(createResult({ state: "healthy", data: { command: "codex-hook", internal: true } })),
   "feature-directories": () => Promise.resolve(createResult({
@@ -92944,6 +93383,16 @@ var HIDDEN_COMMANDS = [
     ...hidden("codex-hook", { syntax: "codex-hook <event>" }),
     fixture: { argv: ["codex-hook", "SessionStart"], environment: MACHINE_ENVIRONMENT }
   },
+  hidden("hook go-lint", {
+    commandOptions: [
+      { flags: "--file <path>", description: "Edited Go file" },
+      { flags: "--project-root <path>", description: "Canonical Safeword project root" },
+      {
+        flags: "--original-cwd <path>",
+        description: "Configuration working directory before package loading"
+      }
+    ]
+  }),
   hidden("feature-directories")
 ];
 var commandCatalog = [
@@ -93433,6 +93882,13 @@ function registerInternalCommands(program2) {
   if (hookFamily === undefined)
     throw new Error("Missing hook command family contract");
   const hook2 = program2.command(hookFamily.route, { hidden: hookFamily.visibility === "hidden" }).description(hookFamily.description);
+  const goLintDefinition = findCommandDefinition("hook go-lint");
+  const goLintHook = hook2.command(goLintDefinition.registration.syntax, { hidden: true });
+  addDefinitionOptions(goLintHook, goLintDefinition);
+  goLintHook.action(async (options) => {
+    const { goLint: goLint2 } = await Promise.resolve().then(() => (init_go_lint(), exports_go_lint));
+    console.log(JSON.stringify(await goLint2(options)));
+  });
   const hookCodex = hook2.command(hookDefinition.registration.syntax, { hidden: true }).description(hookDefinition.description);
   addDefinitionOptions(hookCodex, hookDefinition);
   hookCodex.action(async (event, options) => {
