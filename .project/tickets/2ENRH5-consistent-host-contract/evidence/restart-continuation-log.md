@@ -505,3 +505,20 @@ admission-ineligible; remaining native transports, shared policy owners,
 guarantee/alternative semantics and all runtime-lane dispositions must be
 validated before healthy coverage. Required CI wiring is still not claimed.
 Logs /tmp/safeword-native-package-inventory-{red,green,types,dependencies,generated}.log.
+
+### Share command purpose and retire copied command procedures
+
+Approved RED226b7c47-800a-417c-9b75-c0035bc1d8d0 now passes3/3 real delivery
+cases. Shared metadata is read at the caller's canonical root, with all18
+command identities. Removed the12-entry Cursor purpose table and OpenCode's
+dependence on it. Four independent command procedures now reference canonical
+skills. Checkpoints9290f5c29/60a9efb36. Evidence:command-metadata-green.md.
+Final7files/132tests, CLI types, targeted lint and all5 generated checks pass.
+Normal precommit passed after fixing actual YAML/formatter disagreement using
+literal block scalars. Lifecycle result hashes unchanged. Current independent
+quality review05ef1a43-8178-4bbe-9798-78ab740c7067 approved with scoped warnings:
+schema-name registration remains explicit, and metadata invocation flags are
+still part of unfinished full contract work. Cursor installation proof now
+deletes generator-produced destination commands before actual installation.
+Real OpenCode2.0.32 CLI/TUI command and1.18.23 CLI/TUI guide/helper controls pass
+on the current component. No full scenario or host-schema/status claim advanced.

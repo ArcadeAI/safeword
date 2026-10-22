@@ -39,6 +39,25 @@ Verification before independent quality review:
   uses the existing YAML serializer with explicit scalar/key styles. The normal
   precommit remains required; no check is bypassed.
 
+Final correction: forced single quotes also changed under Prettier for purposes
+containing apostrophes. The existing YAML serializer now emits literal block
+scalars, retaining exact parsed text and stable formatting for all18 commands.
+The normal precommit passed in60a9efb36. The shared reader checkpoint is9290f5c29.
+After independent review identified a fixture overlap, Cursor's test explicitly
+deletes generated dogfood commands before invoking install. Installation must
+recreate the complete set. Final targeted regression:7files/132tests pass.
+Independent quality review05ef1a43-8178-4bbe-9798-78ab740c7067 approved the corrected
+component. Remaining schema-name registration and invocation-flag dispositions
+are acknowledged pending full graph/metadata obligations, not claimed complete.
+
+Real OpenCode controls after the current payload:2.0.32 command invocation in
+CLI/TUI passes;1.18.23 canonical guide/helper invocation in CLI/TUI passes. Owned
+V2 candidate native-v2-command-metadata-20261022-1 was generated normally.
+Logs:/tmp/safeword-command-metadata-native-{commands,v1}.log. These targeted
+controls do not clear the outstanding required host-schema/status cases.
+YAML option provenance fetched this pass:https://eemeli.org/yaml/ and formatter
+options:https://prettier.io/docs/options. No dependency version changed.
+
 Review angles: verify actual caller roots and18-name population; YAML field
 fidelity under formatting; no remaining command-table purpose authority; retained
 procedure requirements; real build/install proof versus native-host limitations.
