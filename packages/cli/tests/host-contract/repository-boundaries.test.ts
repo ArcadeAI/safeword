@@ -33,10 +33,23 @@ describe('required repository boundary for shared policy ownership', () => {
       'hooks/pre-tool-git-bare-fix.sh',
     ];
     const bindingsPath = 'packages/cli/templates/hooks/lib/behavior-contract.ts';
-    if (existsSync(nodePath.join(directory, bindingsPath))) {
+    const originalBindings = existsSync(nodePath.join(directory, bindingsPath))
+      ? fixtureSource(directory, bindingsPath)
+      : undefined;
+    const baseline = JSON.parse(runContractRepoCheck(directory).output.trim()) as {
+      findings: { code: string; metadata?: { handler_path?: string } }[];
+    };
+    expect(
+      baseline.findings.filter(
+        finding =>
+          finding.code === 'UNCLASSIFIED_HOST_CONTRACT_HANDLER' &&
+          handlers.includes(finding.metadata?.handler_path ?? ''),
+      ),
+    ).toEqual([]);
+    if (originalBindings !== undefined) {
       writeFileSync(
         nodePath.join(directory, bindingsPath),
-        `${fixtureSource(directory, bindingsPath)}\nfor (let index = SHARED_BEHAVIOR_BINDINGS.length - 1; index >= 0; index -= 1) {\n  if (${JSON.stringify(handlers)}.includes(SHARED_BEHAVIOR_BINDINGS[index].owner)) SHARED_BEHAVIOR_BINDINGS.splice(index, 1);\n}\n`,
+        `${originalBindings}\nfor (let index = SHARED_BEHAVIOR_BINDINGS.length - 1; index >= 0; index -= 1) {\n  if (${JSON.stringify(handlers)}.includes(SHARED_BEHAVIOR_BINDINGS[index].owner)) SHARED_BEHAVIOR_BINDINGS.splice(index, 1);\n}\n`,
       );
     }
     const configured = fixtureSource(directory, 'packages/cli/src/templates/config.ts');
@@ -48,6 +61,7 @@ describe('required repository boundary for shared policy ownership', () => {
     expect(result.status).toBe(2);
     const report = JSON.parse(result.output.trim()) as {
       findings: { code: string; severity: string; metadata?: { handler_path?: string } }[];
+      data: { handler_inventory: Record<string, unknown>[] };
     };
     for (const handler of handlers) {
       expect(
@@ -61,6 +75,32 @@ describe('required repository boundary for shared policy ownership', () => {
         }),
       );
     }
+    for (const [handler, event, execution, interpreter] of [
+      [handlers[0], 'SessionEnd', 'synchronous', 'bun'],
+      [handlers[1], 'SessionStart', 'async-rewake', 'bun'],
+      [handlers[2], 'Stop', 'background', 'bun'],
+      [handlers[3], 'PreToolUse', 'synchronous', 'bash'],
+    ]) {
+      expect(report.data.handler_inventory).toContainEqual(
+        expect.objectContaining({
+          host: 'claude',
+          handler_path: handler,
+          event,
+          execution,
+          interpreter,
+        }),
+      );
+    }
+    if (originalBindings === undefined) throw new Error('Canonical handler bindings are missing');
+    writeFileSync(nodePath.join(directory, bindingsPath), originalBindings);
+    const repaired = JSON.parse(runContractRepoCheck(directory).output.trim()) as typeof baseline;
+    expect(
+      repaired.findings.filter(
+        finding =>
+          finding.code === 'UNCLASSIFIED_HOST_CONTRACT_HANDLER' &&
+          handlers.includes(finding.metadata?.handler_path ?? ''),
+      ),
+    ).toEqual([]);
   }, 60_000);
 
   it('reports every intended shipped source from the independently frozen baseline', () => {

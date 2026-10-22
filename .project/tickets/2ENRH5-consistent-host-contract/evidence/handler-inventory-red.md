@@ -28,3 +28,12 @@ with exit3, preserving the check's explicit partial state once old owners are
 removed. Failed/unavailable exit3 envelopes remain rejected; this scenario
 still requires actual exit2 and all four named error findings. This resolves
 the prior quality review warning without treating incomplete coverage as healthy.
+
+First independent RED approved with warnings. Before production edits, strengthen
+the same proof: unchanged classification must produce no selected-handler
+errors; after omission, real inventory rows must retain each actual native
+event, execution mode and interpreter; restoring the exact binding module
+bytes must clear those same findings through the same real subprocess. These
+controls discriminate blanket error reporting and verify executable configuration
+semantics rather than inferring them from substrings. Refresh the executable
+RED receipt against these changed proof/support bytes before implementation.
