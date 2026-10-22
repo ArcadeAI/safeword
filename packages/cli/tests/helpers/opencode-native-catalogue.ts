@@ -16,6 +16,28 @@ import { OpenCodeNativeWriteActor } from './opencode-native-write.js';
 const execute = promisify(execFile);
 const repo = nodePath.resolve(import.meta.dirname, '../../../..');
 
+function commandsFromNativeSkill(content: string, packageRoot: string) {
+  const base = /^Base directory for this skill: (.+)$/mu.exec(content)?.[1];
+  assert.equal(
+    base,
+    nodePath.join(packageRoot, 'skills/explain'),
+    'Native skill base directory differs from its packaged workflow',
+  );
+  assert.ok(base);
+  const runtime = catalogueHelperRuntime(
+    content,
+    nodePath.join(base, 'SKILL.md'),
+    nodePath.join(packageRoot, 'runtime/cli.js'),
+  );
+  const script = /```bash\n([\s\S]*?)```/u.exec(content)?.[1];
+  const guideLink = /\[the packaged guide\]\(([^)]+)\)/u.exec(content)?.[1];
+  assert.ok(script && guideLink);
+  return {
+    guide: nodePath.resolve(base, guideLink),
+    helper: `SAFEWORD_PLUGIN_RUNTIME="${runtime}"; ${script}`,
+  };
+}
+
 /** Same canonical content/guide/helper probe as Codex and Cursor, through the native V2 SDK. */
 export class OpenCodeNativeCatalogueActor {
   private readonly source: string;
@@ -25,6 +47,7 @@ export class OpenCodeNativeCatalogueActor {
   private directory = '';
   private project = '';
   private results: ModelMessage[] = [];
+  private bindingFailure = '';
 
   constructor(private readonly fixture: OpenCodeNativeFixture) {
     this.source = mkdtempSync(nodePath.join(fixture.runsDirectory, 'opencode-catalogue-'));
@@ -67,6 +90,7 @@ export class OpenCodeNativeCatalogueActor {
   async invokeWorkflow(): Promise<void> {
     assert.ok(this.native);
     assert.ok(this.probe);
+    const probe = this.probe;
     await this.native.runModelFixture(async paths => {
       this.candidate = paths.candidate;
       this.directory = paths.directory;
@@ -103,24 +127,23 @@ export class OpenCodeNativeCatalogueActor {
       const artifact = nodePath.join(paths.project, '.host-contract/native-helper.json');
       assert.equal(JSON.parse(readFileSync(artifact, 'utf8')).marker, this.probe?.helperMarker);
       rmSync(artifact);
-      const script = /```bash\n([\s\S]*?)```/u.exec(workflow)?.[1];
-      assert.ok(script);
-      const guideLink = /\[the packaged guide\]\(([^)]+)\)/u.exec(workflow)?.[1];
-      assert.ok(guideLink);
-      const guide = nodePath.resolve(nodePath.dirname(skillFile), guideLink);
       const model = await openCodeScriptedModelFixture(paths.directory, request => {
         const results = request.messages?.filter(message => message.role === 'tool') ?? [];
         if (results.length === 0)
           return { tool: { name: 'skill', input: { id: 'safeword-explain' } } };
-        if (results.length === 1) return { tool: { name: 'read', input: { path: guide } } };
-        if (results.length === 2)
-          return {
-            tool: {
-              name: 'shell',
-              input: { command: `SAFEWORD_PLUGIN_RUNTIME="${runtime}"; ${script}` },
-            },
-          };
-        return {};
+        const loaded = results[0]?.content;
+        if (typeof loaded !== 'string' || !loaded.includes(probe.workflowMarker)) return {};
+        try {
+          const commands = commandsFromNativeSkill(loaded, paths.candidate);
+          if (results.length === 1)
+            return { tool: { name: 'read', input: { path: commands.guide } } };
+          if (results.length === 2)
+            return { tool: { name: 'shell', input: { command: commands.helper } } };
+          return {};
+        } catch (error) {
+          this.bindingFailure = String(error);
+          return {};
+        }
       });
       this.results = model.results;
       return {
@@ -168,8 +191,9 @@ export class OpenCodeNativeCatalogueActor {
     const result = JSON.stringify(this.results);
     assert.ok(
       result.includes(this.probe.workflowMarker),
-      'NATIVE_OPENCODE_V2_CATALOGUE_MISSING: native skill did not load the canonical workflow',
+      `NATIVE_OPENCODE_V2_CATALOGUE_MISSING: native skill did not load the canonical workflow; native result: ${JSON.stringify(this.results[0])}`,
     );
+    assert.equal(this.bindingFailure, '', `NATIVE_HELPER_ORIGIN_MISMATCH: ${this.bindingFailure}`);
     assert.ok(
       result.includes(this.probe.guideMarker),
       'NATIVE_HELPER_ORIGIN_MISMATCH: native guide content was not loaded',

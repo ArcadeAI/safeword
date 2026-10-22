@@ -45,3 +45,24 @@ profile was modified. Log:
 Focused population/parser regressions pass 3 files / 14 tests. Targeted ESLint
 and CLI typecheck pass. Native OpenCode catalogue registration remains absent;
 no new production implementation or whole-scenario GREEN is claimed here.
+
+
+## Resource-fidelity review response
+
+Independent RED review `4f8584ed-5e34-44f1-9bc9-10af8e6bfaa2` approved the
+missing-registration failure. Before GREEN, strengthen the scripted model so
+it derives its guide link, helper block and base directory from the actual
+native skill tool result. On-disk parsing remains only the helper readiness
+prerequisite. If the native skill fails to load, the model does not invent its
+resources; the Then reports that real result. Resource-binding errors finish
+the native turn and fail the final assertion with a specific diagnostic.
+
+This follows the exact target's skill output contract, including its native
+base-directory line:
+[2.0.32 Skill.toModelOutput](https://github.com/anomalyco/opencode/blob/v2.0.32/packages/core/src/skill.ts).
+The native id safeword-explain preserves Safeword's existing OpenCode public
+naming; the failure now includes the actual native tool result to distinguish
+an id mismatch from wrong content. The guard obligation remains separately
+proved by its passing rows; this catalogue RED does not replace it. Static
+planning artifacts are retained; progress and distinct receipts live here.
+Refresh executable attestation after this proof strengthening before production.
