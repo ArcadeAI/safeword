@@ -10,6 +10,16 @@ import {
   writeExecutionCheckpoint,
 } from '../fixtures/execution-plan-live-checkpoint.js';
 
+function checkpointIdentity() {
+  return {
+    schema_version: 1,
+    contract_sha256: 'contract',
+    corpus_sha256: 'corpus',
+    reviewer: 'claude',
+    requested_model: 'claude-opus-5',
+  };
+}
+
 it.each([
   {
     label: 'missing confirmation',
@@ -36,13 +46,7 @@ it.each([
 ])('rejects retained passing evidence with $label', ({ change, message }) => {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'execution-provenance-'));
   const path = nodePath.join(root, 'results.json');
-  const identity = {
-    schema_version: 1,
-    contract_sha256: 'contract',
-    corpus_sha256: 'corpus',
-    reviewer: 'claude',
-    requested_model: 'claude-opus-5',
-  };
+  const identity = checkpointIdentity();
   const result = { case_id: 'completed', reviewer: 'claude', model: 'claude-opus-5', passed: true };
   const output = {
     case_id: 'completed',
@@ -97,13 +101,7 @@ it('retains completed raw observations when the worker is killed before teardown
 it.each(['metadata', 'results'])('refuses mixed generations after a %s write fails', stage => {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'execution-interrupted-write-'));
   const path = nodePath.join(root, 'results.json');
-  const identity = {
-    schema_version: 1,
-    contract_sha256: 'contract',
-    corpus_sha256: 'corpus',
-    reviewer: 'claude',
-    requested_model: 'claude-opus-5',
-  };
+  const identity = checkpointIdentity();
   const result = (case_id: string) => ({
     case_id,
     reviewer: 'claude',
@@ -142,13 +140,7 @@ it.each([{ corpus_kind: 'acceptance' }, { dispatch_mode: 'cli' }, { mode: 'repla
   markers => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'execution-retained-markers-'));
     const path = nodePath.join(root, 'results.json');
-    const identity = {
-      schema_version: 1,
-      contract_sha256: 'contract',
-      corpus_sha256: 'corpus',
-      reviewer: 'claude',
-      requested_model: 'claude-opus-5',
-    };
+    const identity = checkpointIdentity();
     try {
       writeExecutionCheckpoint(path, [], [], identity);
       expect(readExecutionCheckpoint(path, identity, []).results).toEqual([]);
@@ -204,13 +196,7 @@ it.each([
       import.meta.dirname,
       '../fixtures/execution-plan-live-checkpoint.ts',
     );
-    const metadata = {
-      schema_version: 1,
-      contract_sha256: 'contract',
-      corpus_sha256: 'corpus',
-      reviewer: 'claude',
-      requested_model: 'claude-opus-5',
-    };
+    const metadata = checkpointIdentity();
     const expected = { ...metadata, ...overrides };
     writeFileSync(
       path,
