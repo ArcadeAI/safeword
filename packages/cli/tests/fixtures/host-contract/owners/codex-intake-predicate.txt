@@ -1,0 +1,31 @@
+const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
+
+function frontmatterBody(content: string): string | undefined {
+  const normalized = content.replaceAll('\r\n', '\n');
+  if (!normalized.startsWith('---\n')) return undefined;
+  const end = normalized.indexOf('\n---', 4);
+  return end === -1 ? undefined : normalized.slice(4, end);
+}
+
+function frontmatterHasField(body: string, field: string): boolean {
+  const lines = body.split('\n');
+  const fieldPrefix = `${field}:`;
+
+  for (const [index, line] of lines.entries()) {
+    if (!line.startsWith(fieldPrefix)) continue;
+
+    const afterColon = line.slice(fieldPrefix.length).trim();
+    if (afterColon.length > 0) return true;
+
+    return lines.slice(index + 1).some(nextLine => /^\s+-\s*\S/u.test(nextLine));
+  }
+
+  return false;
+}
+
+function missingIntakeFields(ticketContent: string): string[] {
+  const body = frontmatterBody(ticketContent);
+  if (body === undefined) return [...REQUIRED_INTAKE_FIELDS];
+  return REQUIRED_INTAKE_FIELDS.filter(field => !frontmatterHasField(body, field));
+}
+
