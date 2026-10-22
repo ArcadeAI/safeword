@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "ad41baa7f68284b4fa850af2876b33e112506903e78e8513275b6d6885736b00"
+      "sha256": "478c82ca1d4815473069c047fa853095b67c1bbec0200851676939271a4bb7d1"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "ebe9db6dce6b744ad9c41a3af296765e0a9fdbe13517db540f0b2fc16dfe5458"
+      "sha256": "cd26d3b90fcf31de2e7bb13af0df08eef5cf746be5cbf10890f66d292119acfc"
     },
     {
       "path": "runtime/event-groups.json",
@@ -303,7 +303,7 @@
     },
     {
       "path": "runtime/hooks/lib/namespace-root.ts",
-      "sha256": "f521d754f12aebc1fc4d3e80cb4ab3c7ac41cca049f6083b139ead7258b0d3bd"
+      "sha256": "ee83bd95d708efedf14ac361026c3b443b19783961e8c88ae37137424a5219ef"
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
@@ -523,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "280ae29da28874b3cd96b9cf4a5d8dc2bffc7c36ca075c202f764c61e52823b0"
+      "sha256": "5d186e0c9c3cc74708f99c1779bc53514cd0869ad08663b34ae7310d936971b0"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -1279,7 +1279,7 @@
     },
     {
       "path": "templates/hooks/lib/namespace-root.ts",
-      "sha256": "f521d754f12aebc1fc4d3e80cb4ab3c7ac41cca049f6083b139ead7258b0d3bd"
+      "sha256": "ee83bd95d708efedf14ac361026c3b443b19783961e8c88ae37137424a5219ef"
     },
     {
       "path": "templates/hooks/lib/parse-annotation.ts",
@@ -1495,7 +1495,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "3e2071275815d93ca154aa0af8d0b766087f3b4824b31fc511dd62112e7369dc"
+      "sha256": "f29da46d29ec804f20f5a5fd401f12c5c00bc95f027918544210338952c303c8"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",

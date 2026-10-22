@@ -34,6 +34,26 @@ describe('isNamespacePath (TAGWZ8)', () => {
     expect(isNamespacePath('.project/tickets/T/ticket.md', 'tickets/')).toBe(true);
   });
 
+  it('recognizes the owning project custom root without matching a similarly named directory', () => {
+    const root = createTemporaryDirectory();
+    try {
+      mkdirSync(nodePath.join(root, '.safeword'));
+      writeFileSync(
+        nodePath.join(root, '.safeword/config.json'),
+        JSON.stringify({ paths: { projectRoot: 'knowledge' } }),
+      );
+      expect(isNamespacePath('knowledge/tickets/T/ticket.md', 'tickets/', root)).toBe(true);
+      expect(
+        isNamespacePath(nodePath.join(root, 'knowledge/tickets/T/ticket.md'), 'tickets/', root),
+      ).toBe(true);
+      expect(isNamespacePath('knowledge-archive/tickets/T/ticket.md', 'tickets/', root)).toBe(
+        false,
+      );
+    } finally {
+      removeTemporaryDirectory(root);
+    }
+  });
+
   it('matches the legacy root', () => {
     expect(isNamespacePath('.safeword-project/tickets/T/ticket.md', 'tickets/')).toBe(true);
     expect(isNamespacePath('/repo/.safeword-project/learnings/foo.md', 'learnings/')).toBe(true);

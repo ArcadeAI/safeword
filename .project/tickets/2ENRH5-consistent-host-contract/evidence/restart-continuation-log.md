@@ -277,3 +277,33 @@ feature complete from this component commit. Build log:
 /tmp/safeword-host-contract-build-current.log; focused regression log:
 /tmp/safeword-host-contract-repaired-regressions.log; native log:
 /tmp/safeword-opencode-native-current.log.
+
+### Codex private intake owner retired; remaining inventory explicitly partial
+
+Removed the adapter-local intake predicate, path matcher, denial codec and fallback
+loop. The existing native patch decoder now reaches only the shared pre-tool gate.
+Custom namespace checks receive the owning canonical project. Portable helper
+guidance separates environment assignment from argument expansion. The native
+continuation observer recognizes actual inability-to-verify wording without
+weakening its Stop, continuation count or missing-artifact assertions.
+
+Fresh quality review 708ae677-c43d-40a4-bda5-f477e7ad18b7 approves this component
+after direct relative apply_patch coverage for default/custom ticket roots.
+Native Codex 0.160.0: 5 scenarios /19 steps pass (Zhfmiv), including guard,
+resources/helper and bounded continuation. Native OpenCode wired controls also
+pass with current candidate; its group correctly remains incomplete. Root lint,
+types, parity 277 pairs /11 contracts and all five generated surfaces pass.
+
+Full CLI suite recorded 6 failed files /5 failed tests and setup timeouts,
+with 723 passed files /11,688 passed tests. All six failed files pass when
+rerun serialized: 6 files /227 tests, 165.47 seconds. Retain the failed full
+run rather than calling it green. Logs: /tmp/safeword-owner-retirement-full-suite.log
+and /tmp/safeword-owner-retirement-failure-isolation.log.
+
+The source ownership check is deliberately partial and admission-ineligible;
+it identifies two remaining OpenCode authority couplings. Review also notes
+the custom absolute/symlink namespace spelling edge and packaged SessionStart
+fallback guide wording; both remain concrete follow-up work, not claims of
+complete source ownership or universal namespace coverage. Exact Claude 2.1.170
+authentication still waits on the user's locked Mac/1Password approval; no
+credentials were copied and no global profile was changed.

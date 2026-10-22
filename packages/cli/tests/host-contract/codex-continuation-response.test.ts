@@ -14,6 +14,8 @@ describe('native Codex missing-verification response', () => {
     'Missing required verify.md; completion remains blocked.',
     'The verification evidence is missing.',
     'The unmet verification requirement prevents completion.',
+    'Unable to satisfy the verification requirement without changing files.',
+    'Unable to run verification: the prior instruction required no tools and no file changes.',
   ])('accepts an actual missing-evidence explanation: %s', text => {
     expect(reportsMissingVerification(text)).toBe(true);
   });
@@ -28,6 +30,7 @@ describe('native Codex missing-verification response', () => {
     'The verification evidence is not missing.',
     'verify.md exists and all checks passed.',
     'Cannot comply: network unavailable.',
+    'I am not unable to satisfy the verification requirement.',
   ])('rejects completion or an unrelated failure: %s', text => {
     expect(reportsMissingVerification(text)).toBe(false);
   });

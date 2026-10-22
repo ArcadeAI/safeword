@@ -678,6 +678,67 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.stderr).toContain('scope, out_of_scope, done_when');
   });
 
+  it.each([
+    ['.project', undefined],
+    ['knowledge', { paths: { projectRoot: 'knowledge' } }],
+  ])(
+    'checks relative apply_patch intake targets under %s through the shared gate',
+    (namespaceRoot, config) => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-patch-intake-'));
+      directories.push(projectDirectory);
+      markSafewordProject(projectDirectory, config);
+      const ticketDirectory = nodePath.join(projectDirectory, namespaceRoot, 'tickets/incomplete');
+      mkdirSync(ticketDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        '---\nid: incomplete\ntype: task\n---\n',
+      );
+      const patch = `*** Begin Patch\n*** Add File: ${namespaceRoot}/tickets/incomplete/test-definitions.md\n+# Unscoped definitions\n*** End Patch`;
+      const result = runCodexHook(
+        projectDirectory,
+        'pre-tool-use',
+        {
+          cwd: projectDirectory,
+          session_id: 'patch-intake-session',
+          tool_name: 'apply_patch',
+          tool_input: { command: patch },
+        },
+        { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+      );
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
+      expect(result.stderr).toContain('scope, out_of_scope, done_when');
+      expect(existsSync(nodePath.join(ticketDirectory, 'test-definitions.md'))).toBe(false);
+    },
+  );
+
+  it('keeps the shared intake decision when editing existing test definitions', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-shared-intake-'));
+    directories.push(projectDirectory);
+    markSafewordProject(projectDirectory);
+    const ticketDirectory = nodePath.join(projectDirectory, '.project/tickets/incomplete');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      '---\nid: incomplete\ntype: task\n---\n',
+    );
+    const definitions = nodePath.join(ticketDirectory, 'test-definitions.md');
+    writeFileSync(definitions, '# Existing test definitions\n');
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'shared-intake-session',
+        tool_name: 'Write',
+        tool_input: { file_path: definitions },
+      },
+      { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+    );
+    expect(
+      result.status,
+      `ADAPTER_INTAKE_POLICY_OVERRIDES_SHARED_OWNER\n${result.stderr}\n${result.stdout}`,
+    ).toBe(0);
+  });
+
   it('defers a plugin event to an exact runnable legacy handler', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
     const binDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-bin-'));

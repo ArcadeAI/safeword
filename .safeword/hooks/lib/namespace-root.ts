@@ -182,7 +182,18 @@ function readConfiguredProjectRoot(projectDirectory: string): string | undefined
  * the default or the legacy root. String-level check for hook filters that
  * receive edited-file paths in unknown (absolute or relative) form.
  */
-export function isNamespacePath(filePath: string, subpath: string): boolean {
+export function isNamespacePath(
+  filePath: string,
+  subpath: string,
+  projectDirectory?: string,
+): boolean {
+  if (projectDirectory !== undefined) {
+    const root = resolveNamespaceRoot(projectDirectory);
+    const relative = nodePath
+      .relative(root, nodePath.resolve(projectDirectory, filePath))
+      .replaceAll('\\', '/');
+    if (relative.startsWith(subpath)) return true;
+  }
   return [NAMESPACE_ROOT_DEFAULT, NAMESPACE_ROOT_LEGACY].some(root => {
     const needle = `${root}/${subpath}`;
     // Boundary-anchored: the root must start the path or follow a separator,

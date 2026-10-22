@@ -48,8 +48,12 @@ export function reportsMissingVerification(text: string): boolean {
     /\b(?:no|not|without)\s+(?:missing|unmet)\s+(?:required\s+)?(?:verify\.md|verification\s+(?:evidence|requirement))\b/iu;
   const nothingMissing =
     /\bno\s+(?:valid\s+)?(?:verify\.md|verification\s+(?:evidence|requirement))\s+(?:is|was)\s+(?:missing|unmet|absent)\b/iu;
-  if (negatedGap.test(text) || nothingMissing.test(text)) return false;
+  if (negatedGap.test(text) || nothingMissing.test(text) || /\bnot\s+unable\s+to\b/iu.test(text))
+    return false;
   return (
+    /\b(?:unable to|cannot|can't)\s+(?:run|complete|satisfy)\s+(?:the\s+)?(?:verification(?:\s+(?:evidence|requirement))?|verify\.md)\b/iu.test(
+      text,
+    ) ||
     /\b(?:missing|unmet|no(?: valid)?|without)\s+(?:required\s+)?(?:verify\.md|verification\s+(?:evidence|requirement))\b/iu.test(
       text,
     ) ||

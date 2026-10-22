@@ -71,10 +71,8 @@ interface HookProcessResult {
   stdout: string;
 }
 
-const EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
 const EXIT_CODE_DENY_MODE = 'exit-code';
 const PRE_TOOL_QUALITY_HOOK_PATH = 'codex/pre-tool-quality.ts';
-const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
 const MODULE_DIRECTORY = import.meta.dirname;
 const TEMPLATE_DIRECTORIES = [
   nodePath.resolve(MODULE_DIRECTORY, '../resources'),
@@ -283,67 +281,6 @@ function extractTargetPaths(input: CodexHookInput): string[] {
 
   const filePath = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
   return filePath ? [filePath] : [];
-}
-
-function frontmatterBody(content: string): string | undefined {
-  const normalized = content.replaceAll('\r\n', '\n');
-  if (!normalized.startsWith('---\n')) return undefined;
-  const end = normalized.indexOf('\n---', 4);
-  return end === -1 ? undefined : normalized.slice(4, end);
-}
-
-function frontmatterHasField(body: string, field: string): boolean {
-  const lines = body.split('\n');
-  const fieldPrefix = `${field}:`;
-
-  for (const [index, line] of lines.entries()) {
-    if (!line.startsWith(fieldPrefix)) continue;
-
-    const afterColon = line.slice(fieldPrefix.length).trim();
-    if (afterColon.length > 0) return true;
-
-    return lines.slice(index + 1).some(nextLine => /^\s+-\s*\S/u.test(nextLine));
-  }
-
-  return false;
-}
-
-function missingIntakeFields(ticketContent: string): string[] {
-  const body = frontmatterBody(ticketContent);
-  if (body === undefined) return [...REQUIRED_INTAKE_FIELDS];
-  return REQUIRED_INTAKE_FIELDS.filter(field => !frontmatterHasField(body, field));
-}
-
-function testDefinitionsTicketFolder(
-  projectDirectory: string,
-  targetPath: string,
-): string | undefined {
-  const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
-  const absoluteTarget = nodePath.resolve(projectDirectory, targetPath);
-  const normalized = nodePath.relative(ticketsDirectory, absoluteTarget).replaceAll('\\', '/');
-  const match = /^([^/]+)\/test-definitions\.md$/u.exec(normalized);
-  return match?.[1];
-}
-
-function buildDenyOutput(reason: string): DenialOutput {
-  return {
-    systemMessage: EXPLAIN_HINT,
-    hookSpecificOutput: {
-      hookEventName: 'PreToolUse',
-      permissionDecision: 'deny',
-      permissionDecisionReason: `${reason}\n\n${EXPLAIN_HINT}`,
-    },
-  };
-}
-
-function deny(reason: string): void {
-  const output = buildDenyOutput(reason);
-  if (process.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
-    process.stderr.write(`${output.hookSpecificOutput.permissionDecisionReason}\n`);
-    process.exit(2);
-  }
-
-  process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
 function readPackagedSafewordInstructions(): string | undefined {
@@ -722,28 +659,6 @@ function emitStopContinuation(output: StopContinuationOutput): void {
   process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
-function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: string): boolean {
-  const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
-  if (!ticketFolder) return false;
-
-  const ticketPath = nodePath.join(
-    resolveNamespaceRoot(projectDirectory),
-    'tickets',
-    ticketFolder,
-    'ticket.md',
-  );
-  const ticketContent = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
-  const missing = missingIntakeFields(ticketContent);
-  if (missing.length === 0) return false;
-
-  deny(
-    `Cannot create test-definitions.md for ${ticketFolder} until ticket.md declares ${missing.join(
-      ', ',
-    )}.`,
-  );
-  return true;
-}
-
 function runEnrolledPreToolUse(
   rawInput: string,
   projectDirectory: string,
@@ -765,10 +680,6 @@ function runEnrolledPreToolUse(
       projectDirectory,
       sessionId: input.session_id,
     });
-  }
-
-  for (const targetPath of extractTargetPaths(input)) {
-    if (maybeDenyTestDefinitionsWrite(projectDirectory, targetPath)) return;
   }
 }
 
