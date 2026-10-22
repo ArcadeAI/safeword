@@ -188,9 +188,9 @@ export function isNamespacePath(
   projectDirectory?: string,
 ): boolean {
   if (projectDirectory !== undefined) {
-    const root = resolveNamespaceRoot(projectDirectory);
+    const root = canonicalPathForGate(resolveNamespaceRoot(projectDirectory));
     const relative = nodePath
-      .relative(root, nodePath.resolve(projectDirectory, filePath))
+      .relative(root, canonicalPathForGate(nodePath.resolve(projectDirectory, filePath)))
       .replaceAll('\\', '/');
     if (relative.startsWith(subpath)) return true;
   }

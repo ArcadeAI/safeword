@@ -344,3 +344,22 @@ The real repository check now reports only the remaining OpenCode-to-Cursor
 command authority, plus explicit incomplete inventory. No healthy/full-consolidation
 claim is made. Byte-control files: /tmp/safeword-opencode-{before,after}-direct-projection.json.
 Focused test log: /tmp/safeword-opencode-direct-projection-tests.log.
+
+### Shared gate recognizes configured namespace aliases
+
+Reproduced review's concrete bypass through the actual CLI hook route for both
+relative and absolute symlink roots. Fresh executable RED review
+a4d169a1-77a6-4328-b9e2-6055cf482150 approved both intended false-allow failures.
+The minimal repair canonicalizes both namespace root and target through the
+existing canonicalPathForGate before relative comparison. No host-local rule
+is added. All 2 files /70 tests pass, including ordinary namespace controls,
+both required denial reasons and both post-scope allow0 contrasts. File absence
+is only fixture context here: this hook subprocess does not perform a Write,
+so no native-host side-effect claim is inferred.
+
+Self-check: one existing helper reused, no new public option/dependency/state,
+no blanket symlink denial, no change to the two-argument compatibility branch.
+No structural refactor needed for this small shared comparison. All five
+generated surfaces regenerate and verify; lifecycle fixture result hashes stay
+unchanged. Logs /tmp/safeword-namespace-alias-{red,green,generated}.log.
+Next: continue the full configured-handler and lane contract inventory.
