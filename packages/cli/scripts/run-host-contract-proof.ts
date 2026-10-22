@@ -211,6 +211,7 @@ function nativeGroupResult(
       'probe-opencode-v2-workers.ts',
       'probe-opencode-registration.ts',
       'probe-opencode-required-registration.ts',
+      'probe-opencode-host-schema.ts',
       'probe-opencode-commands.ts',
       'probe-opencode-v1-catalogue.ts',
     ]) {
@@ -218,7 +219,7 @@ function nativeGroupResult(
       if (supplement !== 0) return supplement;
     }
     console.error(
-      'HOST_CONTRACT_PROOF_INCOMPLETE: required host-schema rejection/status and complete case population remain',
+      'HOST_CONTRACT_PROOF_INCOMPLETE: required status binding and complete case population remain',
     );
     return 3;
   }

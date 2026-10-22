@@ -638,3 +638,22 @@ hashes move for regenerated descriptions. Independent quality reviewee36b52c-
 native group also passes5scenarios/19steps, reportMEkPH3 after updating only its
 owned stale cache with unchanged registration identities. See
 cursor-rule-purpose-green.md. No full feature, propagation or admission claim.
+
+### Add actual OpenCode host-schema rejection proof
+
+Exact2.0.32 module schema rejects a deliberately numeric required plugin id.
+Unlike a valid module whose setup fails, an unloadable module is absent from
+native plugin.list; actual failure is in the candidate-targeted native loader log.
+Proof requires both observations, exact SchemaError path, no guard dispatch and
+one real harmless control side effect. Paired unchanged candidate in the same
+runtime lane activates and denies through the shared guard. CLI/TUI both pass.
+No product change/RED, native unavailable row or same-profile recovery is invented.
+
+Required native-opencode runner now executes this supplement in addition to
+worker-constraint and optional-skill controls. Full refreshed implemented group
+passes on new normally generated native-v2-rules-20261022-1 candidate, then returns
+3/incomplete for remaining public status binding and complete population.
+Log:/tmp/safeword-opencode-current-with-host-schema-native.log. Lint/types pass;
+quality review34b3d408-84bd-43f6-b71c-fa3acaf2e348 approved. Source investigation,
+proof limits and native roots:opencode-host-schema-proof.md. No ticket/PR2/admission
+completion claim advanced.
