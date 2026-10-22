@@ -739,6 +739,60 @@ describe('packagedNamespaceRootLabel', () => {
     ).toBe(0);
   });
 
+  it.each(['relative', 'absolute'])(
+    'checks intake through a %s configured namespace symlink',
+    form => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-symlink-intake-'));
+      directories.push(projectDirectory);
+      const physicalRoot = nodePath.join(projectDirectory, 'knowledge-real');
+      const alias = nodePath.join(projectDirectory, 'knowledge-link');
+      const ticketDirectory = nodePath.join(physicalRoot, 'tickets/incomplete');
+      mkdirSync(ticketDirectory, { recursive: true });
+      symlinkSync(physicalRoot, alias, 'dir');
+      markSafewordProject(projectDirectory, {
+        paths: { projectRoot: form === 'relative' ? 'knowledge-link' : alias },
+      });
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        '---\nid: incomplete\ntype: task\n---\n',
+      );
+      const definitions = nodePath.join(ticketDirectory, 'test-definitions.md');
+      const result = runCodexHook(
+        projectDirectory,
+        'pre-tool-use',
+        {
+          cwd: projectDirectory,
+          session_id: 'symlink-intake-session',
+          tool_name: 'Write',
+          tool_input: { file_path: definitions, content: '# Unscoped definitions\n' },
+        },
+        { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+      );
+      expect(
+        result.status,
+        `SHARED_INTAKE_NAMESPACE_ALIAS_BYPASS\n${result.stderr}\n${result.stdout}`,
+      ).toBe(2);
+      expect(result.stderr).toContain('scope, out_of_scope, done_when');
+      expect(existsSync(definitions)).toBe(false);
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        '---\nid: incomplete\ntype: task\nscope: Verify aliases\nout_of_scope: Other behavior\ndone_when: The shared gate decides\n---\n',
+      );
+      const allowed = runCodexHook(
+        projectDirectory,
+        'pre-tool-use',
+        {
+          cwd: projectDirectory,
+          session_id: 'symlink-intake-session',
+          tool_name: 'Write',
+          tool_input: { file_path: definitions, content: '# Scoped definitions\n' },
+        },
+        { CLAUDE_PROJECT_DIR: projectDirectory, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+      );
+      expect(allowed.status, `${allowed.stderr}\n${allowed.stdout}`).toBe(0);
+    },
+  );
+
   it('defers a plugin event to an exact runnable legacy handler', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
     const binDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-bin-'));
