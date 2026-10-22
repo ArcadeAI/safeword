@@ -8,13 +8,7 @@ import { generateOwnedPathsModule } from '../owned-paths.js';
 import { normalizePluginBundle } from '../plugin-bundle.js';
 import { assertNativePluginRuntimeAuthority } from '../plugin-runtime-authority.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
-import { SETTINGS_HOOKS } from '../templates/config.js';
-import {
-  adaptHookValue,
-  pluginEventGroupEvents,
-  pluginHookManifest,
-  pluginSessionStartEntries,
-} from './hook-manifest.js';
+import { pluginEventGroups, pluginHookManifest } from './hook-manifest.js';
 
 export interface GeneratedClaudePluginAsset {
   readonly relativePath: string;
@@ -363,17 +357,6 @@ function claudeHookAssets(templatesRoot: string): GeneratedClaudePluginAsset[] {
           ? asset.content
           : adaptPluginRuntime(asset.content),
     }));
-}
-
-function pluginEventGroups(): string {
-  const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
-  const groups = Object.fromEntries(
-    pluginEventGroupEvents().map(event => [
-      event,
-      event === 'SessionStart' ? pluginSessionStartEntries(adapted) : (adapted[event] ?? []),
-    ]),
-  );
-  return `${JSON.stringify({ schema_version: 1, groups }, undefined, 2)}\n`;
 }
 
 function assertEventGroupManifestCoverage(hookManifest: string, eventGroups: string): void {

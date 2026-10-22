@@ -462,3 +462,13 @@ Current check still reports unclassified facets and incomplete/admission-ineligi
 state. Native exact-host receipts must be refreshed after the final payload.
 Logs: /tmp/safeword-native-handler-inventory-{red,green,types}.log; final source
 prototype report /tmp/safeword-native-handler-prototype.json.
+
+### Expose the existing pure Claude event-group producer
+
+Moved pluginEventGroups unchanged from the build catalogue into hook-manifest.ts,
+where the other pure native manifest producers already live. The catalogue
+imports that same function; no second event-group implementation is authored.
+Direct comparison to tracked plugin/runtime/event-groups.json is byte-identical.
+All existing Claude catalogue tests pass (14), with lint/types green. This
+small protected refactor prepares source discovery without importing esbuild
+from the build catalogue into the runtime registry.

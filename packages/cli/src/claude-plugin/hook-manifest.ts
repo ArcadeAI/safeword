@@ -59,6 +59,17 @@ export function pluginSessionStartEntries(adapted: Record<string, unknown>): unk
     : [];
 }
 
+export function pluginEventGroups(): string {
+  const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
+  const groups = Object.fromEntries(
+    pluginEventGroupEvents().map(event => [
+      event,
+      event === 'SessionStart' ? pluginSessionStartEntries(adapted) : (adapted[event] ?? []),
+    ]),
+  );
+  return `${JSON.stringify({ schema_version: 1, groups }, undefined, 2)}\n`;
+}
+
 function pluginHookEntries(event: string, entries: unknown): unknown {
   if (EVENT_GROUP_EVENTS.has(event)) {
     return [
