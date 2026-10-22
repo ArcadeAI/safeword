@@ -580,3 +580,23 @@ no policy decision/side effect was observed. No matching native run process
 remained after the runner ended. Log:/tmp/safeword-opencode-after-bootstrap-consolidation.log;
 owned run:opencode-native-YEWTlc. Previous successful receipts remain historical;
 this current refresh did not renew OpenCode conformance. No scenario advanced.
+
+### Exact Claude authorization resolved; all four baseline controls pass
+
+Normal browser authorization reached the isolated exact Claude2.1.170 profile.
+Native Write denied/allowed controls pass; an owned missing-guard negative creates
+the forbidden side effect and proves product-failure classification. Independent
+review caught and repaired classification after host errors; approved review
+1c4e2670-4070-43f6-a428-e4abf1135d33, commit03ce1e6bd.
+
+Current generated native Claude plugin now passes native-claude required runner:
+four actual feature rows, sixteen steps, exact population derived from the shared
+feature and independently pinned target matrix. Includes packaged Skill/Read/Bash
+with correlated helper output/origin, plus actual Stop rejection and a subsequent
+model response in one CLI invocation. Bound is explicitly host max-turns=2;
+production hard done gate remains active. Catalogue probe uses common canonical
+input factory and production renderer; owned registered source/cache restored
+byte-for-byte. Evidence:claude-native-four-cases.md, native reportIP7v8K.
+Seventeen population tests, lint and types pass. Independent review
+ ee49914d-f196-4713-960e-ea37c4f47677 approved with scoped warnings. No full feature,
+source-ownership completeness, public admission or current OpenCode refresh claim.

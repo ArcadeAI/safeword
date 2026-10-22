@@ -55,7 +55,7 @@ function expectedFailureForHost(host: string, identity: NativeCaseIdentity): str
 
 /** Feature rows own coverage; this map preserves existing diagnostic IDs only. */
 function nativeCases(
-  host: 'Cursor' | 'Codex' | 'OpenCode V2',
+  host: 'Cursor' | 'Codex' | 'OpenCode V2' | 'Claude Code',
   runtime: 'CLI' | 'IDE' | 'TUI',
   source: string,
 ) {
@@ -64,16 +64,17 @@ function nativeCases(
   ) as {
     targets: { agent: string; version: string; runtimes: string[]; delivery_variants?: string[] }[];
   };
+  const agent = host === 'Claude Code' ? 'claude' : host.toLowerCase();
   const target = matrix.targets.find(
     row =>
       (host === 'OpenCode V2'
         ? row.agent === 'opencode' && row.version.startsWith('2.')
-        : row.agent === host.toLowerCase()) &&
+        : row.agent === agent) &&
       row.runtimes.includes(runtime) &&
       (host !== 'Cursor' || row.delivery_variants?.includes('native')),
   );
   assert.ok(target, `Missing independently pinned ${host} ${runtime} target`);
-  let prefix = host.toLowerCase();
+  let prefix = host === 'Claude Code' ? 'claude' : host.toLowerCase();
   if (host === 'Cursor' && runtime === 'CLI') prefix += '-cli';
   const lane =
     host === 'OpenCode V2'
@@ -146,6 +147,10 @@ export function cursorIdeCases(source = readFileSync(hostContractFeature, 'utf8'
 
 export function codexCases(source = readFileSync(hostContractFeature, 'utf8')) {
   return nativeCases('Codex', 'CLI', source);
+}
+
+export function claudeCases(source = readFileSync(hostContractFeature, 'utf8')) {
+  return nativeCases('Claude Code', 'CLI', source);
 }
 
 /** Initial denied-action component only; this cannot certify the full V2 group. */

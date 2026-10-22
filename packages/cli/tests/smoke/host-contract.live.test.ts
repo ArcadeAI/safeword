@@ -3,6 +3,12 @@ import { readFileSync } from 'node:fs';
 
 import { describe, it } from 'vitest';
 
+import { proveClaudeNativeCatalogue } from '../helpers/claude-native-catalogue.js';
+import { proveClaudeNativeContinuation } from '../helpers/claude-native-continuation.js';
+import {
+  ClaudeNativeContractActor,
+  type ClaudeNativeFixture,
+} from '../helpers/claude-native-contract.js';
 import {
   type CodexGuardFixture,
   CodexNativeContinuationActor,
@@ -37,6 +43,31 @@ describe.runIf(Boolean(process.env.SAFEWORD_CODEX_GUARD_FIXTURE))(
       await actor.attemptCompletion();
       actor.assertContinuation();
     }, 420_000);
+  },
+);
+describe.runIf(Boolean(process.env.SAFEWORD_CLAUDE_TEST_CONFIG))(
+  'claude-2.1.170-installed-contract',
+  () => {
+    const readFixture = (): ClaudeNativeFixture => {
+      const path = process.env.SAFEWORD_CLAUDE_TEST_CONFIG;
+      assert.ok(path, 'HOST_CONTRACT_PROOF_UNAVAILABLE: explicit Claude fixture required');
+      return JSON.parse(readFileSync(path, 'utf8')) as ClaudeNativeFixture;
+    };
+    it.each(['allowed', 'denied'] as const)(
+      'claude-2.1.170-%s-write',
+      async disposition => {
+        const actor = new ClaudeNativeContractActor(readFixture());
+        await actor.prepare();
+        await actor.proveWrite(disposition);
+      },
+      300_000,
+    );
+    it('claude-2.1.170-catalogue-helper', async () => {
+      await proveClaudeNativeCatalogue(readFixture());
+    }, 360_000);
+    it('claude-2.1.170-bounded-continuation', async () => {
+      await proveClaudeNativeContinuation(readFixture());
+    }, 300_000);
   },
 );
 /* eslint-enable vitest/expect-expect */

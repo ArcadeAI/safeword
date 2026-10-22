@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import {
+  claudeCases,
   codexCases,
   cursorCliCases,
   cursorIdeCases,
@@ -42,7 +43,7 @@ function cursorTargetVersion(repoRoot: string, runtime: string): string {
 function assertActualRow(
   repoRoot: string,
   line: number,
-  host: 'Cursor' | 'Codex' | 'OpenCode V2',
+  host: 'Cursor' | 'Codex' | 'OpenCode V2' | 'Claude Code',
   runtime = 'IDE',
   expectedVersion?: string,
 ): void {
@@ -77,6 +78,8 @@ function isIntendedFailure(
 
 function expectedNativeFailures(required: { id: string; expectedFailure?: string }): string[] {
   const failures = required.expectedFailure ? [required.expectedFailure] : [];
+  if (required.id.endsWith('-denied-write')) failures.push('DENIED_SIDE_EFFECT_OBSERVED');
+  if (required.id.endsWith('-allowed-write')) failures.push('ALLOWED_SIDE_EFFECT_MISSING');
   if (required.id.endsWith('-catalogue-helper')) failures.push('NATIVE_HELPER_ORIGIN_MISMATCH');
   if (required.id.endsWith('-bounded-continuation')) failures.push('CONTINUATION_BOUND_EXCEEDED');
   return failures;
@@ -90,7 +93,7 @@ function nativeResult(
   population: {
     cases: ReturnType<typeof cursorCliCases>;
     runtime: string;
-    host: 'Cursor' | 'Codex' | 'OpenCode V2';
+    host: 'Cursor' | 'Codex' | 'OpenCode V2' | 'Claude Code';
   },
 ): number {
   const { cases, runtime, host } = population;
@@ -191,6 +194,12 @@ function nativeGroupResult(
       runtime: 'CLI',
       host: 'Codex',
     });
+  if (proof === 'native-claude')
+    return nativeResult(repoRoot, report, scenarios, status, {
+      cases: claudeCases(),
+      runtime: 'CLI',
+      host: 'Claude Code',
+    });
   if (proof === 'native-opencode') {
     const result = nativeResult(repoRoot, report, scenarios, status, {
       cases: openCodeV2Cases(),
@@ -218,7 +227,13 @@ function nativeGroupResult(
 
 function nativeProofTimeout(proof: string | undefined): number {
   if (
-    ['native-cursor', 'native-cursor-cli', 'native-codex', 'native-opencode'].includes(proof ?? '')
+    [
+      'native-cursor',
+      'native-cursor-cli',
+      'native-codex',
+      'native-opencode',
+      'native-claude',
+    ].includes(proof ?? '')
   )
     return 1_800_000;
   if (proof === 'native-cursor-continuation') return 1_020_000;
@@ -265,6 +280,7 @@ function main(): number {
     [
       'native-cursor',
       'native-codex',
+      'native-claude',
       'native-cursor-cli',
       'native-cursor-continuation',
       'native-codex-continuation',
