@@ -182,7 +182,7 @@ Power users can replace the legacy fixed fallback chain with an exact per-author
 }
 ```
 
-Each route names `claude`, `codex`, or `opencode` and may name one model. Omitting `model` deliberately uses that runtime's authenticated default. When `crossAgentReviewRoutes` is present it is the complete authority: Safeword neither merges legacy primary/alternate settings nor reorders routes from cached health observations. Empty lists, unknown runtimes, and option-shaped or otherwise unsafe model identifiers reject the configuration without launching a reviewer. A same-author route is always reported as degraded, wherever it appears, and Safeword continues looking for a later independent success.
+Each route names `claude`, `codex`, or `opencode` and may name one model. Omitting `model` deliberately uses that runtime's authenticated default. When `crossAgentReviewRoutes` is present it supplies the route list: Safeword does not merge legacy primary/alternate settings or reorder routes from cached health observations. Planning reviews attempt different-agent routes before same-author routes, and Execution Plan routes must also pass current conformance admission. Empty lists, unknown runtimes, and option-shaped or otherwise unsafe model identifiers reject the configuration without launching a reviewer. A same-author route is always reported as degraded, wherever it appears, and Safeword continues looking for a later independent success.
 
 Set personal routes once in the Safeword user profile, or commit a project override:
 
@@ -202,13 +202,63 @@ On macOS and Linux the user profile is `$XDG_CONFIG_HOME/safeword/config.json`, 
 
 Only `crossAgentReviewRoutes` is user-scoped today; review policy and legacy primary/alternate model settings remain project-scoped. Effective route reads validate both files before applying precedence, so malformed JSON in either file fails visibly even when the other scope has a route. Fix or remove the named malformed file, then retry.
 
-- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer and its eligible alternate-model route cannot complete, Safeword tries OpenCode once before running a same-agent headless fallback. OpenCode-authored work routes to Claude and then Codex; OpenCode self-review is never independent. A completed same-agent result is presented as standard coverage; requested details can suggest how to add independent coverage. If every CLI route fails, a foreground agent may add supplemental host-native or self-review findings; their actual verdict is preserved.
-- `require` — only an opposite-agent result satisfies the gate. A completed same-agent headless review returns the existing independence-required failure. If every CLI route fails, a foreground agent may still report useful host-native or self-review findings, but the result remains action required, recommends restoring an independent reviewer or explicitly choosing `prefer`, and never writes independent evidence.
-- `off` — retain the existing review route and do not create cross-agent evidence.
+- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. When failures permit further attempts and the run budget allows, Safeword tries the eligible alternate-model route, then OpenCode, then a same-agent headless fallback. OpenCode-authored work routes to Claude and then Codex; OpenCode self-review is never independent. A completed same-agent result names the actual reviewer and states that the review was not independent. After eligible planning CLI routes fail, a foreground agent may receive a sealed continuation for host-native or self-review findings; their actual verdict is preserved.
+- `require` — only a qualified independent result satisfies the planning gate. A completed same-agent headless review returns the existing independence-required failure. Exhaustion remains action required; restore an independent reviewer or explicitly choose `prefer`. This policy does not issue the sealed foreground continuation described above.
+- `off` — applies to non-planning review kinds only. Product, scenario, Implementation and Execution planning remain blocked until review policy is `prefer` or `require`; `off` cannot bypass their required review.
 
 Authentication is recoverable reviewer state, not a failed route. If a preferred or alternate independent route is not signed in, Safeword returns `REVIEW_AUTHENTICATION_REQUIRED` with that reviewer's login command and does not start a same-agent fallback. Managed agent workflows run the command, allow any browser or device login to finish, and retry the same review once; another authentication denial remains an explicit blocker.
 
-Without `crossAgentReviewRoutes`, Safeword retains the legacy chain and selects Claude's `opus` alias for the primary independent review and `sonnet` for its alternate attempt. Codex continues to use its authenticated profile unless configured. Override either legacy route per agent with `crossAgentReviewPrimaryModel` or `crossAgentReviewAlternateModel`; environment variables `SAFEWORD_REVIEW_PRIMARY_MODEL_CLAUDE`, `SAFEWORD_REVIEW_PRIMARY_MODEL_CODEX`, `SAFEWORD_REVIEW_ALTERNATE_MODEL_CLAUDE`, and `SAFEWORD_REVIEW_ALTERNATE_MODEL_CODEX` take precedence. Model identifiers must be 1–200 characters using letters, digits, `.`, `_`, `:`, `/`, or `-`, and cannot begin with `-`.
+Without `crossAgentReviewRoutes`, Execution Plan review selects exact defaults
+`claude-opus-5` and `gpt-6-astra`. Other review kinds retain Claude's `opus`
+primary and `sonnet` alternate, and Codex's authenticated profile. Override
+either legacy route per agent with `crossAgentReviewPrimaryModel` or
+`crossAgentReviewAlternateModel`; environment variables
+`SAFEWORD_REVIEW_PRIMARY_MODEL_CLAUDE`, `SAFEWORD_REVIEW_PRIMARY_MODEL_CODEX`,
+`SAFEWORD_REVIEW_ALTERNATE_MODEL_CLAUDE`, and
+`SAFEWORD_REVIEW_ALTERNATE_MODEL_CODEX` take precedence. Model identifiers must
+be 1–200 characters using letters, digits, `.`, `_`, `:`, `/`, or `-`, and cannot
+begin with `-`.
+Invalid legacy environment selectors fall through to the configured selector;
+invalid configured selectors fall through to the built-in default. Explicit
+`crossAgentReviewRoutes` entries instead reject unsafe identifiers.
+
+For planning review with a verified Claude author, explicit Claude/Codex model
+selectors must have a current sealed capability comparison before launch.
+Unknown and observed weaker selectors are recorded as skipped typed refusals;
+they receive no packet. Pin a currently qualified exact selector in the named
+route and retry. Runtime-default routes and OpenCode retain the existing
+launch-and-confirm behavior. An unknown author cannot earn an independent
+capability claim; without verified author-model identity, a successful
+different-agent planning review records reduced independence under `prefer`.
+The verified-author check currently supports only Claude-authored sessions
+whose host supplies the exact author model. Under `require`, a missing verified
+Claude identity, or any Codex- or OpenCode-authored planning session, returns
+`AUTHOR_CAPABILITY_UNKNOWN` and blocks with independence `none`, even if an
+independent CLI completed the review. There is no user configuration that
+establishes verified author capability for those other hosts; use `prefer` with
+its disclosed reduced assurance, or move authoritative planning to a supported
+Claude host. Do not set an author-model environment variable to manufacture
+verified identity.
+
+Cursor planning uses the built-in Claude/Codex chain unless explicit routes
+replace it. The same verified-author restriction applies to Cursor planning.
+Non-planning Cursor reviews need an explicit compatible independent route in
+`crossAgentReviewRoutes.cursor`; their legacy chain has no compatible reviewer.
+
+Planning fallback requires at least one actual independent attempt with a
+typed failure and exhaustion of every stronger route. All-skipped routes stay
+blocked even under `prefer`; skipped refusals never become attempted reviews.
+Permitted sealed-packet fallback records the actual reviewer and reduced
+independence, and cannot satisfy `require`. This receipt does not grant human
+design approval, merge authority or downstream completion. Codex Cloud and
+OpenCode Desktop remain advisory surfaces.
+
+New planning verdicts carry a versioned evidence-record collection; plans
+declare new reused external evidence as `PlanEvidenceRecordV1` in Decisions.
+Records preserve source/version, claim, license, attribution, redistribution,
+security, privacy and reuse limits without granting permission. Currency uses
+the exact canonical region of the trusted packaged author contract; whole-copy
+integrity remains separately required for authoring, dispatch and admission.
 
 For projects that opt into ranked routes, `safeword status` reports each configured route in order for the detected Claude, Codex, or OpenCode author runtime. A plain terminal with no detected author does not select an author-specific route list. Installation and compatibility come from bounded local inspection; OpenCode model routes also report whether the exact provider-qualified model appears in `opencode models --pure`. Catalogue presence is not proof that credentials or inference work. Only the most recent integrity-validated review job for the exact runtime plus explicit model—or the explicit runtime-default marker—reports `proven` or `known_failure`. Older records without that exact identity prove nothing. `--offline` skips this optional catalogue inspection while preserving the remaining local status checks.
 
@@ -216,7 +266,7 @@ Foreground review attempts default to two minutes, with packet preparation and r
 
 Keep each review packet to the smallest coherent set of artifacts that lets the reviewer judge the change: include the implementation together with directly coupled tests, contracts, and documentation, but split unrelated subsystems into separate reviews. This preserves enough context for a meaningful verdict without making the primary route consume the alternate route's reserved time.
 
-Desktop and managed cloud sessions reuse each CLI's existing authentication; Safeword does not copy API keys between vendors or expose credential values. OpenCode is a multi-provider runtime, so selecting it as a route makes the provider credentials already present in the caller's environment available to that OpenCode reviewer process. Install and sign in to at least one independent headless CLI for independent coverage. A model-specific route requires the runtime to advertise model selection. Human output calls a validated same-agent result standard coverage and a validated different-agent result independent coverage; machine results retain exact ordered-route evidence and `cross-agent`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy.
+Desktop and managed cloud sessions reuse each CLI's existing authentication; Safeword does not copy API keys between vendors or expose credential values. OpenCode is a multi-provider runtime, so selecting it as a route makes the provider credentials already present in the caller's environment available to that OpenCode reviewer process. Install and sign in to at least one independent headless CLI for independent coverage. A model-specific route requires the runtime to advertise model selection. Planning results name the actual reviewer and classify achieved independence from verified identity and capability, rather than agent names alone. Machine results retain exact ordered-route evidence and `cross-agent`, `reduced`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy.
 
 ### Advisory pull request review
 
@@ -299,7 +349,9 @@ When a new decision is required, `safeword ticket approve-plan <ticket-id>` pres
 
 ### Other settings
 
-All keys live in `.safeword/config.json`; missing or malformed values keep the default.
+All keys live in `.safeword/config.json`. Review policy defaults to `prefer` when
+the file is absent, but an unreadable or malformed file fails closed to
+`require`. Individual settings apply their documented validation and defaults.
 
 | Key                                       | Default                   | Effect                                                                                                                                                                                              |
 | ----------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

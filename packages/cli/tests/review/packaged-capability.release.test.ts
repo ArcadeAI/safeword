@@ -31,8 +31,20 @@ function evidence(model: string): SealedCapabilityResults {
 
 describe('packaged reviewer capability evidence', () => {
   it('reports the observed weaker direction through the real catalogue without mocked classification', () => {
-    // The next test independently reconstructs these pairs from the sealed observations.
-    const pair = PACKAGED_CAPABILITY_PAIRS.find(record => record.direction === 'weaker');
+    // Frozen negative control, not current admission; fresh pairs are reconstructed below.
+    const historical = JSON.parse(
+      readFileSync(
+        nodePath.join(
+          import.meta.dirname,
+          '../fixtures/reviewer-capability-evidence/historical-2026-10-20-catalogue.json',
+        ),
+        'utf8',
+      ),
+    ) as {
+      revision: typeof PACKAGED_CAPABILITY_REVISION;
+      pairs: typeof PACKAGED_CAPABILITY_PAIRS;
+    };
+    const pair = historical.pairs.find(record => record.direction === 'weaker');
     if (pair === undefined) throw new Error('The retained qualification has a weaker direction');
     const author = { provider: pair.author_provider, model: pair.author_model };
     const reviewer = { provider: pair.reviewer_provider, model: pair.reviewer_model };
@@ -41,8 +53,8 @@ describe('packaged reviewer capability evidence', () => {
         author,
         reviewer.model,
         reviewer,
-        PACKAGED_CAPABILITY_REVISION,
-        PACKAGED_CAPABILITY_PAIRS,
+        historical.revision,
+        historical.pairs,
       ),
     ).toBe('reviewer_capability_weaker');
     expect(
@@ -50,8 +62,8 @@ describe('packaged reviewer capability evidence', () => {
         author,
         `${reviewer.model}-unqualified`,
         reviewer,
-        PACKAGED_CAPABILITY_REVISION,
-        PACKAGED_CAPABILITY_PAIRS,
+        historical.revision,
+        historical.pairs,
       ),
     ).toBe('reviewer_capability_unknown');
     const unknown = { ...reviewer, model: `${reviewer.model}-unqualified` };
@@ -60,8 +72,8 @@ describe('packaged reviewer capability evidence', () => {
         author,
         unknown.model,
         unknown,
-        PACKAGED_CAPABILITY_REVISION,
-        PACKAGED_CAPABILITY_PAIRS,
+        historical.revision,
+        historical.pairs,
       ),
     ).toBe('reviewer_capability_unknown');
   });

@@ -427,6 +427,25 @@ exhausted, `prefer` may admit their completed review with the actual reviewer
 and `reduced independence` recorded on the receipt; other review kinds retain
 their own gates.
 
+Planning reviews check both missing accepted work and proposed work beyond the
+user's scope. Product Plans inventory each accepted persona's consequential
+outcomes and distinguish facts, assumptions and unresolved choices; scenario
+review separately checks their coverage. New planning verdicts retain typed
+source/version and reuse-limit records. Declared license, attribution,
+redistribution, security and privacy limits remain evidence, not permission or
+approval authority.
+
+Review currency binds the exact canonical rules inside the trusted packaged
+contract markers. Changes outside those markers retain currency, but the
+whole authoring copy must still match before use. On the verified Claude-author
+path, an unknown or weaker explicit Claude/Codex selector is refused before
+launch. If every route is refused without an actual independent attempt,
+fallback stays blocked: configure a qualified exact selector and retry.
+Runtime-default and OpenCode routes retain their existing launch-and-confirm
+checks. Each planning approval establishes only its own phase; implementation,
+verification, human approval and merge authority remain separate. Codex Cloud
+and OpenCode Desktop guidance remains advisory.
+
 Cursor-authored planning work tries Claude and Codex as external reviewers;
 Cursor itself has no headless reviewer route. If those routes fail under
 `prefer`, the Cursor host can review the same sealed packet and record a

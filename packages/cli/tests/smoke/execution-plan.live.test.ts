@@ -1,9 +1,17 @@
-import { randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect as hookExpect,
+  it,
+  type TestContext,
+  vi,
+} from 'vitest';
 
 import {
   createExecutionPlanDeliveryDefinition,
@@ -14,9 +22,18 @@ import type { ReviewAgent, ReviewerOutput, ReviewPacket } from '../../src/review
 import {
   EXECUTION_PLAN_CONFORMANCE_CASES,
   type ExecutionPlanConformanceCase,
+  executionPlanConformanceDigests,
   type ExecutionPlanConformanceResult,
 } from '../../src/review/execution-plan-conformance.js';
-import { reviewTimeoutMilliseconds, runHeadlessReviewer } from '../../src/review/runtime.js';
+import {
+  reviewTimeoutMilliseconds,
+  runHeadlessReviewerWithProvenance,
+} from '../../src/review/runtime.js';
+import {
+  type ExecutionObservation,
+  readExecutionCheckpoint,
+  writeExecutionCheckpoint,
+} from '../fixtures/execution-plan-live-checkpoint.js';
 import {
   EXECUTION_PLAN_SLICING_CASES,
   type SlicingAcceptanceCase,
@@ -36,17 +53,81 @@ const CAN_RUN = process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE === '1';
 if (CAN_RUN && ACCEPTANCE_CASES && !PUBLIC_CLI) {
   throw new Error('Semantic acceptance requires SAFEWORD_EXECUTION_PLAN_LIVE_CLI=1');
 }
-const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds({});
+const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds({ SAFEWORD_REVIEW_WORKER: '1' });
 const LIVE_TEST_TIMEOUT_MS = REVIEW_TIMEOUT_MS + 60_000;
 const reviewer = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER as ReviewAgent | undefined;
 const model = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL?.trim() || undefined;
 const resultsPath = process.env.SAFEWORD_EXECUTION_PLAN_RESULTS_PATH;
+const replayPath = process.env.SAFEWORD_EXECUTION_PLAN_REPLAY_PATH;
+const retainedPath = process.env.SAFEWORD_EXECUTION_PLAN_RETAINED_RESULTS_PATH;
+if (CAN_RUN && replayPath !== undefined && retainedPath !== undefined) {
+  throw new Error('Saved observation reuse cannot combine replay and retained inputs');
+}
+if (CAN_RUN && resultsPath !== undefined && retainedPath !== undefined) {
+  const canonical = (path: string) =>
+    existsSync(path) ? realpathSync(path) : nodePath.resolve(path);
+  const carriers = (path: string) =>
+    [path, `${path}.outputs.json`, `${path}.metadata.json`].map(canonical);
+  const source = new Set(carriers(retainedPath));
+  if (carriers(resultsPath).some(path => source.has(path))) {
+    throw new Error('Saved evidence source and destination must be distinct');
+  }
+}
+if (
+  CAN_RUN &&
+  (replayPath !== undefined || retainedPath !== undefined) &&
+  (ACCEPTANCE_CASES || PUBLIC_CLI || model === undefined)
+) {
+  throw new Error('Saved observation reuse supports exact headless conformance only');
+}
 const results: ExecutionPlanConformanceResult[] = [];
-const outputs: {
-  case_id: string;
-  dispatch_mode: 'cli' | 'headless';
-  output: ReviewerOutput;
-}[] = [];
+const outputs: ExecutionObservation[] = [];
+type Assertions = TestContext['expect'];
+const collectionIdentity = {
+  schema_version: 1,
+  ...executionPlanConformanceDigests(),
+  reviewer,
+  requested_model: model,
+  corpus_kind: ACCEPTANCE_CASES ? 'acceptance' : 'conformance',
+  dispatch_mode: PUBLIC_CLI ? 'cli' : 'headless',
+  ...(ACCEPTANCE_CASES && {
+    corpus_sha256: createHash('sha256').update(JSON.stringify(cases)).digest('hex'),
+  }),
+  oracle_sha256: createHash('sha256')
+    .update(readFileSync(import.meta.filename))
+    .digest('hex'),
+};
+const retained =
+  CAN_RUN && retainedPath !== undefined
+    ? readExecutionCheckpoint(
+        retainedPath,
+        collectionIdentity,
+        cases.map(testCase => testCase.id),
+      )
+    : undefined;
+const replay: ExecutionObservation[] =
+  CAN_RUN && replayPath !== undefined ? JSON.parse(readFileSync(replayPath, 'utf8')) : [];
+if (
+  CAN_RUN &&
+  replayPath !== undefined &&
+  (!Array.isArray(replay) ||
+    replay.length === 0 ||
+    new Set(replay.map(item => item.case_id)).size !== replay.length ||
+    replay.some(item => cases.every(testCase => testCase.id !== item.case_id)))
+) {
+  throw new Error('Replay requires unique known raw observations');
+}
+const selectedCases = cases.filter(testCase =>
+  replayPath === undefined
+    ? !retained?.results.some(result => result.case_id === testCase.id)
+    : replay.some(item => item.case_id === testCase.id),
+);
+const metadata = {
+  ...collectionIdentity,
+  mode: replayPath === undefined ? 'live' : 'replay',
+  current_attempt_timeout_ms: REVIEW_TIMEOUT_MS,
+  retained_source: retained?.source,
+};
 
 function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent): ReviewPacket {
   const identity =
@@ -76,6 +157,7 @@ async function reviewThroughCli(
   testCase: ExecutionPlanConformanceCase,
   root: string,
   assigned: ReviewAgent,
+  expect: Assertions,
 ): Promise<ReviewerOutput> {
   const relative = '.project/tickets/CASE01-conformance';
   const ticket = nodePath.join(root, relative);
@@ -150,17 +232,18 @@ async function reviewThroughCli(
   expect(readFileSync(nodePath.join(ticket, 'execution-plan.md'), 'utf8')).toBe(
     testCase.execution_plan,
   );
-  await assertCliDiscovery(testCase, root, ticket, output, options);
+  await assertCliDiscovery(testCase, { root, ticket }, output, options, expect);
   return output;
 }
 
 async function assertCliDiscovery(
   testCase: ExecutionPlanConformanceCase,
-  root: string,
-  ticket: string,
+  paths: { root: string; ticket: string },
   output: ReviewerOutput,
   options: Parameters<typeof runCliWithLiteralArguments>[1],
+  expect: Assertions,
 ): Promise<void> {
+  const { root, ticket } = paths;
   if (!testCase.id.includes('discovery')) return;
   if (output.verdict === 'request_changes') {
     const applied = await runCliWithLiteralArguments(
@@ -183,14 +266,13 @@ function recordOf(output: ReviewerOutput): NonNullable<ReviewerOutput['execution
   return record;
 }
 
-function assertSlicingRationale(id: string, rationale: string): void {
+export function assertSlicingRationale(id: string, rationale: string, expect: Assertions): void {
   expect(rationale.trim()).not.toBe('');
   const patterns: Record<string, readonly RegExp[]> = {
     'one-coherent-change': [
       /coher|cohes|insepar|coupl|atomic|single boundary|same (?:boundary|contract|outcome)/iu,
       /review|judg|contract|command|result/iu,
       /split|separat|independen|insepar|indivis/iu,
-      /no |not |none |without|cannot|can't|insepar|indivis|artificial|would/iu,
     ],
     'several-ordered-changes': [
       /contract|schema/iu,
@@ -200,11 +282,23 @@ function assertSlicingRationale(id: string, rationale: string): void {
   };
   const expectedPatterns = patterns[id] ?? [];
   for (const pattern of expectedPatterns) expect(rationale).toMatch(pattern);
+  if (id === 'one-coherent-change') {
+    const inseparability = [
+      /\b(?:(?:cannot|can't|not|no)\s+(?:[\p{L}-]+\s+){0,4}(?:split|separat|independen)|inseparable|indivisible)/iu,
+      /\b(?:splitting|separation)\s+is\s+(?:not possible|impossible)\b/iu,
+      /\b(?:must|need to)\s+ship\s+together\b/iu,
+    ];
+    expect(
+      inseparability.some(pattern => pattern.test(rationale)),
+      'rationale must explain why separate changes cannot stand alone',
+    ).toBe(true);
+  }
 }
 
 function assertObligationOwners(
   testCase: ExecutionPlanConformanceCase,
   record: ReturnType<typeof recordOf>,
+  expect: Assertions,
 ): void {
   const expectedObligations = testCase.expectation.obligations ?? [];
   for (const obligation of expectedObligations) {
@@ -221,8 +315,9 @@ function assertObligationOwners(
 function assertAcceptanceRecord(
   testCase: ExecutionPlanConformanceCase,
   record: ReturnType<typeof recordOf>,
+  expect: Assertions,
 ): void {
-  assertSlicingRationale(testCase.id, record.rationale);
+  assertSlicingRationale(testCase.id, record.rationale, expect);
   for (const slice of record.slices) {
     expect(slice.relies_on_unmerged_successor).toBe(false);
     const fields = [slice.purpose, slice.boundary, slice.proof, slice.completion_signal];
@@ -247,10 +342,14 @@ function assertAcceptanceRecord(
   for (const [name, proof] of expectedProofOwners) {
     expect(record.slices.find(slice => slice.name === name)?.proof).toContain(proof);
   }
-  assertObligationOwners(testCase, record);
+  assertObligationOwners(testCase, record, expect);
 }
 
-function assertApproval(testCase: ExecutionPlanConformanceCase, output: ReviewerOutput): void {
+function assertApproval(
+  testCase: ExecutionPlanConformanceCase,
+  output: ReviewerOutput,
+  expect: Assertions,
+): void {
   expect(output.verdict).toBe('approve');
   const record = recordOf(output);
   expect(record.slicing_decision).toBe(testCase.expectation.slicing_decision);
@@ -258,7 +357,7 @@ function assertApproval(testCase: ExecutionPlanConformanceCase, output: Reviewer
   expect(record.accepted_approach_preserved).toBe(true);
   expect(record.slices.map(slice => slice.name)).toEqual(testCase.expectation.slice_names);
   if (ACCEPTANCE_CASES) {
-    assertAcceptanceRecord(testCase, record);
+    assertAcceptanceRecord(testCase, record, expect);
   } else {
     // Keep production route qualification independent of the stricter acceptance oracle.
     const obligations = testCase.expectation.obligations ?? [];
@@ -272,7 +371,11 @@ function assertApproval(testCase: ExecutionPlanConformanceCase, output: Reviewer
   }
 }
 
-function assertDenial(testCase: SlicingAcceptanceCase, output: ReviewerOutput): void {
+function assertDenial(
+  testCase: SlicingAcceptanceCase,
+  output: ReviewerOutput,
+  expect: Assertions,
+): void {
   expect(output.verdict).toBe('request_changes');
   expect(output.execution_plan_record).toBeNull();
   const explanation =
@@ -306,13 +409,14 @@ function assertCase(
   output: ReviewerOutput,
   assigned: ReviewAgent,
   dispatchId: string | undefined,
+  expect: Assertions,
 ): void {
   expect(output.reviewer_agent).toBe(assigned);
   // The public CLI owns dispatch binding; direct runtime probes own their packet.
   if (dispatchId !== undefined) expect(output.dispatch_id).toBe(dispatchId);
   expect(output.planning_destination).toBe(testCase.expectation.planning_destination);
-  if (testCase.expectation.verdict === 'approve') assertApproval(testCase, output);
-  else assertDenial(testCase, output);
+  if (testCase.expectation.verdict === 'approve') assertApproval(testCase, output, expect);
+  else assertDenial(testCase, output, expect);
 }
 
 function useLiveReviewerProfile(assigned: ReviewAgent): void {
@@ -322,72 +426,123 @@ function useLiveReviewerProfile(assigned: ReviewAgent): void {
   for (const [key, value] of environment) vi.stubEnv(key, value);
 }
 
-afterAll(() => {
-  if (!CAN_RUN || resultsPath === undefined) {
-    return;
+/* eslint-disable unicorn/no-top-level-side-effects -- This live test module exports its oracle for deterministic regression tests. */
+beforeAll(() => {
+  if (!CAN_RUN || (reviewer !== 'claude' && reviewer !== 'codex')) return;
+  if (retained !== undefined) {
+    for (const observation of retained.outputs) {
+      const testCase = cases.find(candidate => candidate.id === observation.case_id);
+      if (testCase === undefined) throw new Error('Unknown retained case');
+      assertCase(
+        testCase,
+        observation.output,
+        reviewer,
+        // The original dispatch packet is not retained; do not assert an ID against itself.
+        undefined,
+        hookExpect,
+      );
+    }
+    results.push(...retained.results);
+    outputs.push(...retained.outputs);
+    checkpoint();
   }
-
-  writeFileSync(resultsPath, `${JSON.stringify(results, undefined, 2)}\n`, { mode: 0o600 });
-  writeFileSync(`${resultsPath}.outputs.json`, `${JSON.stringify(outputs, undefined, 2)}\n`, {
-    mode: 0o600,
-  });
+  if (replayPath !== undefined) return;
+  if (!PUBLIC_CLI) vi.stubEnv('SAFEWORD_REVIEW_WORKER', '1');
+  useLiveReviewerProfile(reviewer);
 });
+afterAll(() => vi.unstubAllEnvs());
+
+function checkpoint(): void {
+  if (resultsPath !== undefined) writeExecutionCheckpoint(resultsPath, results, outputs, metadata);
+}
+
+async function observationFor(
+  testCase: ExecutionPlanConformanceCase,
+  directory: string,
+  assigned: ReviewAgent,
+  expect: Assertions,
+): Promise<{ observation: ExecutionObservation; dispatchId?: string }> {
+  if (replayPath !== undefined) {
+    const saved = replay.find(item => item.case_id === testCase.id);
+    if (saved === undefined) throw new Error('Missing raw replay observation');
+    return {
+      observation: { ...saved, dispatch_mode: 'replay' },
+    };
+  }
+  if (PUBLIC_CLI)
+    return {
+      observation: {
+        case_id: testCase.id,
+        dispatch_mode: 'cli',
+        output: await reviewThroughCli(testCase, directory, assigned, expect),
+      },
+    };
+  const packet = packetFor(testCase, assigned);
+  const execution = await runHeadlessReviewerWithProvenance(
+    assigned,
+    packet,
+    directory,
+    process.cwd(),
+    {
+      ...(model !== undefined && { model }),
+      runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
+    },
+  );
+  return {
+    observation: {
+      case_id: testCase.id,
+      dispatch_mode: 'headless',
+      output: execution.output as ReviewerOutput,
+      confirmed_model: execution.confirmedModel,
+      attempt_timeout_ms: REVIEW_TIMEOUT_MS,
+    },
+    dispatchId: packet.dispatch_id,
+  };
+}
 
 describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
-  it('requires one explicit reviewer identity and evidence destination', () => {
+  it('requires one explicit reviewer identity and evidence destination', ({ expect }) => {
     expect(['claude', 'codex']).toContain(reviewer);
     expect(resultsPath).toBeTypeOf('string');
     expect(resultsPath).not.toBe('');
   });
 
-  it.each(cases)(
-    '$id',
-    async testCase => {
-      expect.hasAssertions();
-      if (reviewer !== 'claude' && reviewer !== 'codex') {
-        throw new Error('SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER must be claude or codex');
-      }
-      const directory = createTemporaryDirectory();
-      let passed = false;
-      useLiveReviewerProfile(reviewer);
+  it.for(selectedCases)('$id', { timeout: LIVE_TEST_TIMEOUT_MS }, async (testCase, { expect }) => {
+    expect.hasAssertions();
+    if (reviewer !== 'claude' && reviewer !== 'codex') {
+      throw new Error('SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER must be claude or codex');
+    }
+    const directory = createTemporaryDirectory();
+    let passed = false;
+    try {
+      const { observation, dispatchId } = await observationFor(
+        testCase,
+        directory,
+        reviewer,
+        expect,
+      );
+      const output = observation.output;
+      outputs.push(observation);
       try {
-        let output: ReviewerOutput;
-        let expectedDispatchId: string | undefined;
-        if (PUBLIC_CLI) {
-          output = await reviewThroughCli(testCase, directory, reviewer);
-        } else {
-          const packet = packetFor(testCase, reviewer);
-          expectedDispatchId = packet.dispatch_id;
-          output = (await runHeadlessReviewer(reviewer, packet, directory, process.cwd(), {
-            ...(model !== undefined && { model }),
-            runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
-          })) as ReviewerOutput;
-        }
-        outputs.push({
-          case_id: testCase.id,
-          dispatch_mode: PUBLIC_CLI ? 'cli' : 'headless',
-          output,
-        });
-        try {
-          assertCase(testCase, output, reviewer, expectedDispatchId);
-        } catch (error) {
-          process.stderr.write(
-            `Execution Plan reviewer output:\n${JSON.stringify(output, undefined, 2)}\n`,
-          );
-          throw error;
-        }
-        passed = true;
-      } finally {
-        results.push({
-          case_id: ACCEPTANCE_CASES ? `acceptance:${testCase.id}` : testCase.id,
-          reviewer,
-          ...(model !== undefined && { model }),
-          passed,
-        });
-        vi.unstubAllEnvs();
-        removeTemporaryDirectory(directory);
+        assertCase(testCase, output, reviewer, dispatchId, expect);
+      } catch (error) {
+        process.stderr.write(
+          `Execution Plan reviewer output:\n${JSON.stringify(output, undefined, 2)}\n`,
+        );
+        throw error;
       }
-    },
-    LIVE_TEST_TIMEOUT_MS,
-  );
+      passed = true;
+    } finally {
+      results.push({
+        case_id: ACCEPTANCE_CASES ? `acceptance:${testCase.id}` : testCase.id,
+        reviewer,
+        ...(model !== undefined && { model }),
+        passed,
+      });
+      checkpoint();
+      removeTemporaryDirectory(directory);
+    }
+  });
 });
+
+/* eslint-enable unicorn/no-top-level-side-effects */

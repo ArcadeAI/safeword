@@ -58,6 +58,7 @@ vi.mock('../../src/review/runtime.js', async importOriginal => {
         output: {
           schema_version: 1,
           dispatch_id: packet.dispatch_id,
+          evidence_records: { schema_version: 1, records: [] },
           reviewer_agent: reviewer,
           verdict: fixtureRejects(reviewer, options.model) ? 'request_changes' : 'approve',
           summary: fixtureSummary(options.model),
@@ -134,7 +135,7 @@ async function planningFixture() {
   return { project, ticket, configPath, config };
 }
 
-it('discards a weaker approval before a qualified rejection', async () => {
+it('skips a weaker selector before a qualified rejection without dispatching it', async () => {
   const { project, ticket } = await planningFixture();
   const result = await runReview({
     cwd: project,
@@ -148,12 +149,13 @@ it('discards a weaker approval before a qualified rejection', async () => {
     status: 'changes_requested',
     independence: 'cross-agent',
     review_routes: [
-      { model: 'gpt-6-luna', status: 'attempted', failure: 'reviewer_capability_weaker' },
+      { model: 'gpt-6-luna', status: 'skipped', failure: 'reviewer_capability_weaker' },
       { model: 'gpt-6-astra', status: 'attempted' },
     ],
     reviewer_output: { summary: 'Qualified rejection.', verdict: 'request_changes' },
   });
   expect(JSON.stringify(result)).not.toContain('Weak approval.');
+  expect(dispatchedPackets).toHaveLength(1);
 });
 
 it('exhausts when only a proven-weaker route is configured', async () => {
@@ -172,14 +174,18 @@ it('exhausts when only a proven-weaker route is configured', async () => {
     context: [`${ticket}/spec.md`],
   });
   expect(exhausted.data).toMatchObject({
-    status: 'continuation_required',
-    continuation: { tier: 'fresh-context' },
-    review_routes: [{ model: 'gpt-6-luna', failure: 'reviewer_capability_weaker' }],
+    status: 'blocked',
+    independence: 'none',
+    review_routes: [
+      { model: 'gpt-6-luna', status: 'skipped', failure: 'reviewer_capability_weaker' },
+    ],
   });
   expect(exhausted.findings).toContainEqual(
-    expect.objectContaining({ code: 'REVIEW_CONTINUATION_REQUIRED' }),
+    expect.objectContaining({ code: 'REVIEWER_CAPABILITY_WEAKER' }),
   );
   expect(JSON.stringify(exhausted)).not.toContain('Weak approval.');
+  expect(exhausted.data).not.toHaveProperty('continuation');
+  expect(dispatchedPackets).toHaveLength(0);
 });
 
 it('uses same-agent review after unqualified default routes', async () => {
@@ -356,7 +362,8 @@ it('uses the pinned medium effort for planning qualification', async () => {
     targets: [`${ticket}/impl-plan.md`],
     context: [`${ticket}/spec.md`],
   });
-  expect(dispatchedEfforts).toEqual(['medium', 'medium']);
+  expect(dispatchedEfforts).toEqual(['medium']);
+  expect(dispatchedPackets).toHaveLength(1);
 });
 
 it('discards a proven-weaker rejection before taking a qualified verdict', async () => {

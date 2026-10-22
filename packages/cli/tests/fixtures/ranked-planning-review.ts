@@ -26,7 +26,7 @@ const agent = ${JSON.stringify(agent)};
 if (process.argv.includes('--version')) { console.log(agent + ' 1.0.0'); process.exit(0); }
 if (process.argv.includes('--help')) { console.log(process.argv.includes('app-server') ? ${example === 'unsupported' ? "''" : "'--stdio --config'"} : ${JSON.stringify(help)}); process.exit(0); }
 function log(model, packet) { appendFileSync(${JSON.stringify(log)}, JSON.stringify({agent, model, packet}) + '\n'); }
-function output(packet) { return {schema_version:1, dispatch_id:packet.dispatch_id, reviewer_agent:agent, verdict:'approve', summary:'Qualified route completed.', findings:[]}; }
+function output(packet) { return {schema_version:1, dispatch_id:packet.dispatch_id, evidence_records: { schema_version: 1, records: [] }, reviewer_agent:agent, verdict:'approve', summary:'Qualified route completed.', findings:[]}; }
 if (agent === 'codex' && !process.argv.includes('app-server')) { log('default'); process.exit(7); }
 let buffer = '', model = '';
 process.stdin.setEncoding('utf8');

@@ -40,6 +40,7 @@ try {
     const reviewerOutput = {
       schema_version: 1,
       dispatch_id: prepared.packet.dispatch_id,
+      evidence_records: { schema_version: 1, records: [] },
       reviewer_agent: 'claude',
       verdict: 'approve',
       summary: 'The supplied plan is otherwise reviewable.',

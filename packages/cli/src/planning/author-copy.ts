@@ -44,6 +44,7 @@ function readPlanningAuthor(
   root: string,
   phase: PlanningPhase,
   identity: PlanningAuthorCopyIdentity,
+  verifyWholeCopy = true,
 ): string {
   let bytes: Buffer;
   try {
@@ -55,7 +56,7 @@ function readPlanningAuthor(
       identity.relativePath,
     );
   }
-  if (digest(bytes) !== identity.sha256) {
+  if (verifyWholeCopy && digest(bytes) !== identity.sha256) {
     throw new PlanningContractCopyError(
       'canonical_contract_copy_mismatch',
       phase,
@@ -65,12 +66,12 @@ function readPlanningAuthor(
   return bytes.toString('utf8');
 }
 
-export function packagedPlanningAuthor(phase: PlanningPhase): string {
+export function packagedPlanningAuthor(phase: PlanningPhase, verifyWholeCopy = true): string {
   const copies =
     typeof __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__ === 'object'
       ? __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__
       : PLANNING_AUTHOR_COPIES;
-  return readPlanningAuthor(packageRoot(), phase, copies[phase]);
+  return readPlanningAuthor(packageRoot(), phase, copies[phase], verifyWholeCopy);
 }
 
 /** Raw author-copy integrity is separate from the authenticated reviewer verdict. */

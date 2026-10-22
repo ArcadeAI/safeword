@@ -1,0 +1,105 @@
+{
+  "scope": "T3E4NS late delivery split; no historical completion credit",
+  "files": [
+    {
+      "path": "5139-delivery-gherkin-final.json.gz",
+      "uncompressed_bytes": 278,
+      "sha256_uncompressed": "339bde1f603880f2c1a76e227492e6826700eb4df9f41f94b5684cb70db4fb21"
+    },
+    {
+      "path": "5139-delivery-proof-map-current.log.gz",
+      "uncompressed_bytes": 22410,
+      "sha256_uncompressed": "6bbecb99e113d747d945fa697b540f82cc48db5ae070faf920dafbd5d5be0dae"
+    },
+    {
+      "path": "5139-delivery-proof-map-final.log.gz",
+      "uncompressed_bytes": 23176,
+      "sha256_uncompressed": "8293846327b783095bd7c8518d7480d1ca523cd69587d5bdf33c9ed424b3949c"
+    },
+    {
+      "path": "5139-delivery-proof-map-green.log.gz",
+      "uncompressed_bytes": 24303,
+      "sha256_uncompressed": "64ee9f1a31c0cd0705b187697b931058e04b7772fd79bd99fccc08194248e58a"
+    },
+    {
+      "path": "5139-delivery-proof-map-validated.log.gz",
+      "uncompressed_bytes": 22410,
+      "sha256_uncompressed": "185788e57ad341e859d4ea8ab1d7a2a60db165b69ce46e8a8cdbe23eb58552aa"
+    },
+    {
+      "path": "5139-delivery-proof-tests-retry.log.gz",
+      "uncompressed_bytes": 24184,
+      "sha256_uncompressed": "405c67f7d8a8f17e979801f69a9d9f6a6da2061c0424a5e5b97cf777a7546940"
+    },
+    {
+      "path": "5139-delivery-proof-tests.log.gz",
+      "uncompressed_bytes": 4122,
+      "sha256_uncompressed": "c3a96e0c04cc6d334e950c26886beb630f6697753f5c481188a458342930bd98"
+    },
+    {
+      "path": "5139-delivery-ready-refusal.json.gz",
+      "uncompressed_bytes": 518,
+      "sha256_uncompressed": "218e08baaeaae3dd5cdd988eb6cc58ba17de22cd0e7deda34dc586d816c879dc"
+    },
+    {
+      "path": "5139-delivery-scenario-current-status.json.gz",
+      "uncompressed_bytes": 14659,
+      "sha256_uncompressed": "34992fbb95c9c7d7a7aa913548c965583304f1bb5abc56b2e9167b4099139b4c"
+    },
+    {
+      "path": "5139-delivery-scenario-review-final-status.json.gz",
+      "uncompressed_bytes": 16354,
+      "sha256_uncompressed": "85c285ff5f143b37afceac0eabdc876d3adde043b13a78f54747d1a3d46393c2"
+    },
+    {
+      "path": "5139-delivery-scenario-review-v3.json.gz",
+      "uncompressed_bytes": 738,
+      "sha256_uncompressed": "db35384828286c072745ac3d45332023fc43ad9621eea78fe51be5760af6956a"
+    },
+    {
+      "path": "5139-delivery-scenario-v2-readback.json.gz",
+      "uncompressed_bytes": 4505,
+      "sha256_uncompressed": "00a00ee10c71bdb7a71ffc8aee21c50e49ebdd1feb039895f072f530be4901be"
+    },
+    {
+      "path": "5139-delivery-scenario-v3-cancel.json.gz",
+      "uncompressed_bytes": 4422,
+      "sha256_uncompressed": "8553942477489ce26c0df0055bb65ac2d6d70d691c55a6e802684d00eac0e83a"
+    },
+    {
+      "path": "5139-delivery-split-push.log.gz",
+      "uncompressed_bytes": 1212,
+      "sha256_uncompressed": "bcdb98e30050dab665bd0c2f1fac19d949ba592ec27a1b22367d585adfe05b94"
+    },
+    {
+      "path": "archive-preservation.json.gz",
+      "uncompressed_bytes": 244,
+      "sha256_uncompressed": "a02a845f9c9392a20941e48fca49fda15c016d93f0d77bd0dcdbf7e686d3063d"
+    },
+    {
+      "path": "closure-refusal.json.gz",
+      "uncompressed_bytes": 628,
+      "sha256_uncompressed": "bdc0a288149f06c1dc1f57bcd506292e9a202d92e546ad3e2a419483291f418d"
+    },
+    {
+      "path": "commit-attempt-1.log.gz",
+      "uncompressed_bytes": 8349,
+      "sha256_uncompressed": "7f2c8c1c556c69a65bdb384a2598f9a97f950cd4402b086a23c92f9996c5f313"
+    },
+    {
+      "path": "intake-review.json.gz",
+      "uncompressed_bytes": 8737,
+      "sha256_uncompressed": "efd8f7e4e9524a48f73df0c12ba1d0f1cebc24adbd6e7163b4a5ca42d15d7839"
+    },
+    {
+      "path": "scenario-review-v1.json.gz",
+      "uncompressed_bytes": 20101,
+      "sha256_uncompressed": "904e044acd5cbe1ea4a09b4fae6ad7218e495e025b2d5ade4b1a75dce86f7ad4"
+    },
+    {
+      "path": "scenario-review-v2.json.gz",
+      "uncompressed_bytes": 18877,
+      "sha256_uncompressed": "ff8d6fc763d25203f06af539a8dcfc667a6cbfa0462a18b763745729ee94ab87"
+    }
+  ]
+}

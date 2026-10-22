@@ -52,6 +52,7 @@ import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { extractPlanReviewRubric } from './plan-rubric.js';
 import { reviewDispositionContext } from './planning-accepted-boundary.js';
 import { PlanningContextError, type PlanningContextRole } from './planning-context-error.js';
+import { planningEvidenceRecords } from './planning-context-identity.js';
 import { type PlanningRoleContext, resolvePlanningRoleContext } from './planning-role-context.js';
 import { planningTicketOwner } from './planning-ticket-owner.js';
 import { PRODUCT_PLAN_REVIEW_RUBRIC } from './product-plan-rubric.generated.js';
@@ -780,14 +781,31 @@ function contractForUse(kind: PlanningPhase, use: PlanningContractUse): PlanCont
     'plan-implementation': PLAN_REVIEW_RUBRIC,
     'plan-execution': EXECUTION_PLAN_REVIEW_RUBRIC,
   }[kind];
-  if (use === 'currency') return assemblePlanContract(rubric, rubric);
-  if (kind === 'product-plan') {
-    return assemblePlanContract(
-      extractProductPlanReviewRubric(packagedPlanningAuthor(kind)),
-      rubric,
-    );
+  if (use === 'currency') {
+    // Read bounded installed rules rather than trusting compiled copies. Whole-file
+    // integrity remains a separate dispatch/admission requirement.
+    const source = packagedPlanningAuthor(kind, false);
+    const extract = {
+      'product-plan': extractProductPlanReviewRubric,
+      'plan-implementation': extractPlanReviewRubric,
+      'plan-execution': extractExecutionPlanReviewRubric,
+    }[kind];
+    const contract = assemblePlanContract(extract(source), rubric);
+    if (contract.author.sha256 !== contract.reviewer.sha256)
+      throw new ReviewPacketError(
+        'The current canonical planning contract differs from the reviewed contract.',
+      );
+    return contract;
   }
-  return packagedPlanContract(kind);
+  const contract =
+    kind === 'product-plan'
+      ? assemblePlanContract(extractProductPlanReviewRubric(packagedPlanningAuthor(kind)), rubric)
+      : packagedPlanContract(kind);
+  if (contract.author.sha256 !== contract.reviewer.sha256)
+    throw new ReviewPacketError(
+      `The stale generated reviewer contract copy for ${kind} differs from the packaged canonical contract-byte identity. Reinstall or reconcile the intact Safeword distribution, then retry.`,
+    );
+  return contract;
 }
 
 function upstreamPlanContract(
@@ -1143,6 +1161,12 @@ function packetDispositionContext(
   }
 }
 
+function validatePlanEvidence(kind: ReviewKind, files: readonly ReviewPacketFile[]): void {
+  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return;
+  for (const file of files)
+    if (nodePath.basename(file.path) === 'impl-plan.md') planningEvidenceRecords(file.content);
+}
+
 // Keep validation, generated classification, and packet capture in one atomic preflight.
 // eslint-disable-next-line complexity -- A partial packet must never escape this boundary.
 function prepareReviewPacketUnsafe(
@@ -1311,6 +1335,7 @@ function prepareReviewPacketUnsafe(
         'REVIEW_NO_ELIGIBLE_TARGETS',
       );
     }
+    validatePlanEvidence(kind, [...logicalFiles, ...contextFiles]);
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);

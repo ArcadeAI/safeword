@@ -68,7 +68,7 @@ describe('pinned reviewer capability corpus', () => {
     expect(plan).toContain('crash before retry binding');
     expect(plan).toContain('interrupted review');
     expect(plan).toContain('failed status read');
-    expect(plan).toContain('actual error state');
+    expect(plan).toContain('the actual error');
     expect(plan).toContain('receipt for another job');
     expect(plan).toContain('different plan digest under the current job');
     expect(plan).toContain('unauthenticated approval verdict');

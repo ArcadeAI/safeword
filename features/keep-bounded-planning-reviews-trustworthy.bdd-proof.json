@@ -1,0 +1,135 @@
+{
+  "feature": "features/keep-bounded-planning-reviews-trustworthy.feature",
+  "scenarios": {
+    "Phase contracts ask the bounded scope and persona questions": [
+      [
+        "packages/cli/tests/integration/planning-scope-review.test.ts",
+        "asks every phase to check both omissions and overreach against accepted authority"
+      ],
+      [
+        "packages/cli/tests/integration/planning-scope-review.test.ts",
+        "makes persona outcomes and epistemic status Product approval questions"
+      ],
+      [
+        "packages/cli/tests/integration/planning-scope-review.test.ts",
+        "treats external guidance as candidate decisions within the accepted boundary"
+      ]
+    ],
+    "Reviewer evidence survives validated output without inventing missing limits": [
+      [
+        "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+        "retains declared source and reuse limits in a versioned reviewer result"
+      ],
+      [
+        "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+        "refuses undeclared evidence fields rather than silently discarding them"
+      ],
+      [
+        "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+        "rejects an empty license identifier instead of silently dropping its limit"
+      ],
+      [
+        "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+        "refuses a new planning verdict that omits evidence records"
+      ]
+    ],
+    "A malformed plan record refuses after the complete plan succeeds": [
+      "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+      "names missing source limits after a complete owned plan can prepare for dispatch"
+    ],
+    "Installed rule edits preserve unrelated Implementation review currency": [
+      [
+        "packages/cli/tests/integration/installed-planning-copy-admission.test.ts",
+        "reconstructs installed rule currency after %s (editorial: %s)"
+      ],
+      [
+        "packages/cli/tests/integration/execution-upstream-planning-context.test.ts",
+        "stales only dependent approvals after canonical $phase contract bytes change"
+      ]
+    ],
+    "Refused selectors cannot manufacture permission for fallback": [
+      "packages/cli/tests/integration/planning-review-route-order.test.ts",
+      "blocks explicit %s without launching any route when no independent attempt exists"
+    ],
+    "A failed independent attempt precedes eligible fallback": [
+      "packages/cli/tests/integration/planning-review-route-order.test.ts",
+      "tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, author model is %s, and model is confirmed %s"
+    ],
+    "Completed observations survive termination": [
+      [
+        "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+        "retains completed raw observations when the worker is killed before teardown"
+      ]
+    ],
+    "Corrupt or unconfirmed retained output refuses": [
+      [
+        "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+        "rejects retained passing evidence with $label"
+      ]
+    ],
+    "Retained reuse checks current identity before any reviewer launch": [
+      [
+        "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+        "checks retained metadata before any reviewer launch ($label)"
+      ]
+    ],
+    "Qualification evidence refuses incomplete or failed matrices": [
+      [
+        "packages/cli/tests/review/execution-plan-conformance.test.ts",
+        "writes evidence only after every case passes for each exact identity"
+      ],
+      [
+        "packages/cli/tests/review/execution-plan-conformance.test.ts",
+        "refuses to write evidence from %s"
+      ]
+    ],
+    "Route admission binds exact identity and current input bytes": [
+      [
+        "packages/cli/tests/review/execution-plan-conformance.test.ts",
+        "admits exact models and explicit runtime defaults without conflating them"
+      ],
+      [
+        "packages/cli/tests/review/execution-plan-conformance.test.ts",
+        "preserves admitted degraded labeling and deterministically exhausts an empty set"
+      ],
+      [
+        "packages/cli/tests/review/execution-plan-conformance.test.ts",
+        "rejects evidence bound to any other contract or fixture corpus bytes"
+      ]
+    ],
+    "Corrupt reviewer copies refuse and the canonical pair dispatches": [
+      [
+        "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+        "refuses %s before dispatching its plan to a reviewer"
+      ],
+      [
+        "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+        "names the phase and repair action for %s"
+      ],
+      [
+        "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+        "allows the packaged canonical pair through the installed CLI"
+      ]
+    ],
+    "Native generated distributions carry their canonical template roots": [
+      [
+        "packages/cli/tests/claude-plugin/catalogue.test.ts",
+        "packages the canonical template root consumed by the standalone CLI"
+      ],
+      [
+        "packages/cli/tests/codex-plugin-version.test.ts",
+        "executes the bundled CLI without project dependencies or a populated package cache"
+      ]
+    ],
+    "Public documentation describes reduced assurance and its limits": [
+      [
+        "packages/cli/tests/integration/planning-documentation.test.ts",
+        "describes reduced fallback honestly in the public overview"
+      ],
+      [
+        "packages/cli/tests/integration/planning-documentation.test.ts",
+        "distinguishes planning approval from the later independent architecture gate"
+      ]
+    ]
+  }
+}

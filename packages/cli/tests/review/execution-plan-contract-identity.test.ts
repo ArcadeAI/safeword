@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import {
   chmodSync,
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -42,6 +43,7 @@ const temporaryDirectories: string[] = [];
 const approved: UnverifiedReviewerOutput = {
   schema_version: 1,
   dispatch_id: 'dispatch-1',
+  evidence_records: { schema_version: 1, records: [] },
   reviewer_agent: 'claude',
   verdict: 'approve',
   planning_destination: 'plan-execution',
@@ -165,12 +167,13 @@ let input = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', chunk => { input += chunk; });
 process.stdin.on('end', () => {
+  require('node:fs').appendFileSync(process.env.SAFEWORD_REVIEW_LOG, 'dispatch\n');
   const start = input.lastIndexOf('\n{"schema_version":1');
   const packet = JSON.parse(input.slice(start + 1));
   const output = {
     schema_version: 1,
     dispatch_id: packet.dispatch_id,
-    reviewer_agent: 'claude',
+    evidence_records: { schema_version: 1, records: [] }, reviewer_agent: 'claude',
     verdict: 'approve',
     planning_destination: 'plan-execution',
     summary: 'approved',
@@ -283,8 +286,9 @@ function runInstalledReview(state: InstalledContractState) {
   writeFileSync(nodePath.join(ticket, 'impl-plan.md'), testCase.implementation_plan);
   writeFileSync(nodePath.join(ticket, 'behavior.feature'), testCase.scenario);
   const reviewer = installApprovingReviewer();
+  const dispatchLog = nodePath.join(project, 'reviewer-dispatch.log');
 
-  return spawnSync(
+  const result = spawnSync(
     process.execPath,
     [
       nodePath.join(distribution, 'dist/cli.js'),
@@ -310,12 +314,44 @@ function runInstalledReview(state: InstalledContractState) {
         PATH: `${reviewer}:/usr/bin:/bin`,
         SAFEWORD_AGENT_RUNTIME: 'codex',
         SAFEWORD_NO_UPDATE_CHECK: '1',
+        SAFEWORD_REVIEW_LOG: dispatchLog,
       },
     },
   );
+  return { ...result, reviewerDispatched: existsSync(dispatchLog) };
 }
 
 describe('Execution Plan review-contract identity', () => {
+  it.each(['stale-reviewer', 'stale-slicing-contract'] as const)(
+    'names the phase and repair action for %s',
+    state => {
+      const result = runInstalledReview(state);
+      const output = JSON.parse(result.stdout) as {
+        errors?: { message: string }[];
+        findings?: { message: string }[];
+      };
+
+      expect(result.status).not.toBe(0);
+      expect(
+        [...(output.errors ?? []), ...(output.findings ?? [])].some(
+          entry =>
+            entry.message.includes('plan-execution') &&
+            entry.message.includes('Reinstall or reconcile'),
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it.each(['stale-reviewer', 'stale-slicing-contract'] as const)(
+    'refuses %s before dispatching its plan to a reviewer',
+    state => {
+      const result = runInstalledReview(state);
+
+      expect(result.status).not.toBe(0);
+      expect(result.reviewerDispatched).toBe(false);
+    },
+  );
+
   it.each([
     ['authoring', undefined, EXECUTION_PLAN_REVIEW_RUBRIC, 'authoring contract copy'],
     ['reviewer', canonicalRubric, undefined, 'generated reviewer contract copy'],
@@ -404,6 +440,7 @@ describe('Execution Plan review-contract identity', () => {
     const result = runInstalledReview('canonical');
 
     expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(result.reviewerDispatched).toBe(true);
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'healthy',
       data: { status: 'approved', review_kind: 'plan-execution' },

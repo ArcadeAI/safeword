@@ -27,9 +27,9 @@ import {
   TIMEOUT_ACCEPTANCE_LANE,
 } from '../helpers.js';
 import {
+  claudeReviewerShellPrelude,
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
-  REVIEWER_CAPABILITIES,
 } from '../review-fixtures.js';
 
 const CATEGORIES = [
@@ -121,20 +121,12 @@ function installReviewer(): string {
   const executable = nodePath.join(bin, 'claude');
   writeFileSync(
     executable,
-    String.raw`#!/bin/sh
-set -eu
-if [ "${'$'}{1:-}" = "--version" ]; then printf 'claude 1.0.0\n'; exit 0; fi
-if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
-  printf '%s\n' '${REVIEWER_CAPABILITIES.claude}'
-  exit 0
-fi
-payload=$(cat)
-dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+    String.raw`${claudeReviewerShellPrelude()}
 record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
 if [ -n "$record" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved fixture","findings":[],"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$record"
+  printf '{"schema_version":1,"dispatch_id":"%s","evidence_records":{"schema_version":1,"records":[]},"reviewer_agent":"claude","verdict":"approve","summary":"approved fixture","findings":[],"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$record"
 else
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved fixture","findings":[]}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","evidence_records":{"schema_version":1,"records":[]},"reviewer_agent":"claude","verdict":"approve","summary":"approved fixture","findings":[]}\n' "$dispatch_id"
 fi
 `,
     { mode: 0o755 },
@@ -317,7 +309,7 @@ async function featureFixture(
   writeFileSync(
     nodePath.join(root, '.safeword', 'config.json'),
     `${JSON.stringify({
-      crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'opus' }] },
+      crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'claude-opus-5' }] },
       ...(designApprovalGate && { designApprovalGate: true }),
     })}\n`,
   );

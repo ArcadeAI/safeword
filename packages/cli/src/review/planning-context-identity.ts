@@ -12,6 +12,11 @@ import { parsePersonas, resolvePersonaCodes } from '../utils/personas.js';
 import { parseAffectedSurfaceReferences, surfaceSlug } from '../utils/scenario-coverage.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 import type { ReviewPacket } from './contract.js';
+import {
+  EVIDENCE_RECORD_FIELDS,
+  isPlanEvidenceRecord,
+  type PlanEvidenceRecordV1,
+} from './evidence-record.js';
 import { ReviewPacketError } from './packet-error.js';
 import { PlanningContextError } from './planning-context-error.js';
 import type { PlanningReviewIdentity } from './planning-role-context.js';
@@ -425,6 +430,49 @@ export function planningEvidenceReferences(content: string): string[] {
     for (const child of section) visit(child);
   }
   return references;
+}
+
+function parsePlanEvidenceRecord(node: MarkdownNode | undefined): PlanEvidenceRecordV1 {
+  if (node?.type !== 'code' || node.lang !== 'json')
+    throw new ReviewPacketError(
+      'PlanEvidenceRecordV1 requires an immediately following JSON block.',
+    );
+  let candidate: unknown;
+  try {
+    candidate = JSON.parse(node.value ?? '') as unknown;
+  } catch {
+    throw new ReviewPacketError('PlanEvidenceRecordV1 contains invalid JSON.');
+  }
+  if (!isPlanEvidenceRecord(candidate)) {
+    const record =
+      candidate !== null && typeof candidate === 'object'
+        ? (candidate as Record<string, unknown>)
+        : {};
+    const missing = EVIDENCE_RECORD_FIELDS.filter(
+      field => typeof record[field] !== 'string' || record[field].trim() === '',
+    );
+    throw new ReviewPacketError(
+      `PlanEvidenceRecordV1 is invalid; ${
+        missing.length > 0
+          ? `missing nonblank fields: ${missing.join(', ')}`
+          : 'requires schema_version 1 and exactly the declared evidence fields'
+      }.`,
+    );
+  }
+  return candidate;
+}
+
+export function planningEvidenceRecords(content: string): PlanEvidenceRecordV1[] {
+  const nodes = parseMarkdown(content);
+  const records: PlanEvidenceRecordV1[] = [];
+  let inDecisions = false;
+  for (const [index, node] of nodes.entries()) {
+    if (node.type !== 'heading') continue;
+    if ((node.depth ?? 0) <= 2) inDecisions = node.depth === 2 && headingText(node) === 'Decisions';
+    if (!inDecisions || headingText(node) !== 'PlanEvidenceRecordV1') continue;
+    records.push(parsePlanEvidenceRecord(nodes[index + 1]));
+  }
+  return records;
 }
 
 function gherkinIdentity(value: unknown): unknown {
