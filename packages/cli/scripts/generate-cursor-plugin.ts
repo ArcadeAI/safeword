@@ -3,7 +3,7 @@ import nodePath from 'node:path';
 import { parseArgs } from 'node:util';
 
 import rootPackage from '../../../package.json' with { type: 'json' };
-import { cursorPluginBindings } from '../src/cursor-plugin/bindings.js';
+import { cursorPluginHookManifest } from '../src/cursor-plugin/bindings.js';
 import { generateOwnedPathsModule } from '../src/owned-paths.js';
 import { CURSOR_PLUGIN_LAYOUT, SAFEWORD_SCHEMA } from '../src/schema.js';
 import { VERSION } from '../src/version.js';
@@ -16,14 +16,6 @@ if (!values.output) throw new Error('Use --output <fresh plugin directory>');
 await publishFreshDirectory(nodePath.resolve(values.output), async output => {
   for (const relative of ['.cursor-plugin', 'hooks', 'runtime'])
     mkdirSync(nodePath.join(output, relative), { recursive: true });
-  const hooks: Record<string, object[]> = {};
-  for (const binding of cursorPluginBindings()) {
-    const eventHooks = (hooks[binding.event] ??= []);
-    eventHooks.push({
-      ...binding.configuration,
-      command: `bun "\${CURSOR_PLUGIN_ROOT}"/${CURSOR_PLUGIN_LAYOUT.dispatcher} ${binding.id}`,
-    });
-  }
   const writeJson = (relative: string, value: unknown): void => {
     writeFileSync(nodePath.join(output, relative), `${JSON.stringify(value, undefined, 2)}\n`);
   };
@@ -32,7 +24,7 @@ await publishFreshDirectory(nodePath.resolve(values.output), async output => {
     version: VERSION,
     hooks: `./${CURSOR_PLUGIN_LAYOUT.hooks}`,
   });
-  writeJson(CURSOR_PLUGIN_LAYOUT.hooks, { version: 1, hooks });
+  writeFileSync(nodePath.join(output, CURSOR_PLUGIN_LAYOUT.hooks), cursorPluginHookManifest());
   writeJson('package.json', {
     name: 'safeword-cursor-plugin',
     version: VERSION,

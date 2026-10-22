@@ -472,3 +472,12 @@ Direct comparison to tracked plugin/runtime/event-groups.json is byte-identical.
 All existing Claude catalogue tests pass (14), with lint/types green. This
 small protected refactor prepares source discovery without importing esbuild
 from the build catalogue into the runtime registry.
+
+### Expose the existing pure Cursor native manifest producer
+
+Moved native hook-manifest assembly unchanged from generate-cursor-plugin.ts
+into cursorPluginHookManifest beside cursorPluginBindings. The generator uses
+that same pure function. Actual generated before/after packages under owned
+/tmp/safeword-cursor-manifest-extraction.FZkAw2 are byte-identical for EVERY file,
+not merely the hooks JSON. All 12 existing relocation/real-dispatch tests pass;
+lint and CLI types pass. No template or public behavior changed.

@@ -1,4 +1,4 @@
-import { SAFEWORD_SCHEMA } from '../schema.js';
+import { CURSOR_PLUGIN_LAYOUT, SAFEWORD_SCHEMA } from '../schema.js';
 import { CURSOR_HOOKS } from '../templates/config.js';
 
 /** Projection mechanics only: existing declarations own events and shared policy. */
@@ -22,4 +22,16 @@ export function cursorPluginBindings() {
       };
     }),
   );
+}
+
+export function cursorPluginHookManifest(): string {
+  const hooks: Record<string, object[]> = {};
+  for (const binding of cursorPluginBindings()) {
+    const eventHooks = (hooks[binding.event] ??= []);
+    eventHooks.push({
+      ...binding.configuration,
+      command: `bun "\${CURSOR_PLUGIN_ROOT}"/${CURSOR_PLUGIN_LAYOUT.dispatcher} ${binding.id}`,
+    });
+  }
+  return `${JSON.stringify({ version: 1, hooks }, undefined, 2)}\n`;
 }
