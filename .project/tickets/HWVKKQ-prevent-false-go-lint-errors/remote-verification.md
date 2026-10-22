@@ -1,5 +1,29 @@
 # Remote verification and refactor follow-up
 
+## Full refactor verification
+
+Verified revision: beac76fc375634b41b1ca0e9a6cf0acb8d345435.
+Current run: https://github.com/ArcadeAI/safeword/actions/runs/39695922147
+Result: SUCCESS across every required job; deployment jobs skipped by policy.
+
+Both Node 22.23.2 and 24.18.1 passed 11,645 CLI tests with 10 explicit skips,
+one physical-install proof, 153 collector tests and 83 release tests. Relay
+passed 198 with one skip on Node 22 and 199 on Node 24. Acceptance passed all
+601 scenarios and 11,821 steps, followed by 51 proof-tag tests. Both Go versions
+passed 49 focused tests; modern Go also passed 12 installed-hook tests with
+shuffle seed 4733. Static, generated, parity, contract, OpenCode conformance and
+configured dependency-policy checks all passed. remote-result.json is the
+machine receipt. Later commits contain ticket evidence only.
+
+Four source refactors were isolated and committed: config search-order caching,
+caller-directory naming, capability-predicate naming and helper transport/JSON
+validation extraction. Added proof covers format precedence, malformed helper
+results, legacy YAML scalar policy, and formatter-before-linter ordering.
+Both independent Claude/Opus passes approved without errors. See the complete
+ledger and review notes for declined abstractions and nonblocking limits.
+
+## Previous audit-fix verification
+
 Verified revision: 536dd1fe7aaf2eb660f7fac108cef396fe1b54ed. Changes after the
 earlier verified e4a3b079997efa91df1fad43d27e3026c7d5e258 add stronger regression
 tests, isolated installed-hook fixtures, supporting CI coverage and evidence.

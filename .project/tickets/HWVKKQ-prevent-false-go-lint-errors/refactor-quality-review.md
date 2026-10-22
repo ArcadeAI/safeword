@@ -148,3 +148,36 @@ Follow-up suggestions answered:
 **Verdict:** APPROVE. Critical issues: none. Currency notes and nonblocking
 limitations are retained above. **Next:** finish the full remote CI workflow,
 record its current-source evidence, then commit the review and verification notes.
+
+## Review scorecard
+
+**Currency:** NOTE — pinned APIs verified; optional patch/minor upgrades named above.
+**Sources:** PASS — primary source links above were fetched this session;
+the v2.0 gocritic correction was independently fetched after the follow-up.
+**Correct:** PASS — both independent passes found no concrete release-blocking defect;
+49 focused cases pass with each supported linter. Full CI remains the final gate.
+**Elegant:** PASS — configuration, execution and host ownership remain local and explicit.
+**No-bloat:** PASS — four bounded refactors; larger abstractions declined with reasons.
+**Wiring:** PASS — lifecycle.test.ts uses the real source hook and CLI with a fake
+executable only; lint-go-context.test.ts exercises the real Go/linter boundary;
+codex-hook.test.ts and invisible-extension.test.ts protect packaged host entry points.
+No live editor session is claimed.
+**Verdict:** APPROVE. **Critical issues:** None.
+**Suggested improvements:** Applied and retained suggestions are enumerated above.
+**Provenance:** Verified primary sources above; findings tied to local source and
+observed process/test results. Neither reviewer approval nor direct probes substitute
+for the still-running complete remote workflow.
+**Next:** Preserve the complete CI result for beac76fc375634b41b1ca0e9a6cf0acb8d345435.
+
+## Final objective verification
+
+Full CI run 39695922147 completed SUCCESS at the reviewed source/test revision
+beac76fc375634b41b1ca0e9a6cf0acb8d345435. Both Node lanes passed 11,645 CLI
+tests and 83 release tests; 601 acceptance scenarios, 51 proof-tag tests,
+49 tests per Go version and 12 shuffled installed-hook tests passed. Every
+static, parity, generated, contract, conformance and configured dependency-policy
+gate passed. This supersedes the pending-CI statements in the review history
+above. Machine result: remote-result.json. Later changes are evidence only.
+
+**Verdict:** APPROVE. **Critical issues:** None. **Next:** Commit and push
+the final evidence; retain the documented optional limits without widening scope.

@@ -96,3 +96,14 @@ are explicit; CI must provision tools and fail rather than skip the proof lane.
   51 proof-tag tests, 83 release tests per lane, 37 tests per Go version and
   12 shuffled installed-hook tests. Local timeout failures did not reproduce.
   Audit findings are fixed; evidence limitations remain explicit. No merge or release.
+- 2026-10-21 Completed the full refactor ledger: protected config precedence and
+  helper protocol, cached filename precedence, clarified caller/capability names,
+  and isolated helper transport validation. Each source refactor was exercised
+  and committed separately. Applied independent-review suggestions for native
+  legacy-YAML policy and formatter-before-linter proof. Both Claude/Opus passes
+  approved without errors. Final remote run 39695922147 passed at beac76fc3:
+  11,645 CLI tests per Node lane, 601 scenarios, 51 proof-tag tests, 83 release
+  tests per lane, 49 focused tests per Go version and 12 shuffled installed-hook
+  tests. All static and configured policy checks pass. Larger abstractions and
+  remaining nonblocking limits are explicit in the ledger/review notes.
+  No PR, merge, release or ticket closure.

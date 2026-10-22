@@ -1,5 +1,38 @@
 # Verification
 
+## Full refactor and quality review (2026-10-21)
+
+Final source/test revision: beac76fc375634b41b1ca0e9a6cf0acb8d345435.
+[Remote CI run 39695922147](https://github.com/ArcadeAI/safeword/actions/runs/39695922147)
+is the current-source verification; the older results below are historical.
+Complete workflow result: **SUCCESS**. Both Node 22.23.2 and 24.18.1 passed
+11,645 CLI tests (10 explicit skips), physical-install proof and 83 release
+tests. Relay passed 198 plus one skip on Node 22 and 199 on Node 24; collector
+passed 153 in each lane. Acceptance passed 601 scenarios and 11,821 steps;
+all 51 proof-tag tests passed. All lint, format, types, architecture, generated,
+parity, contract, conformance and configured dependency-policy gates passed.
+Deployment jobs were skipped by their existing policy. Machine receipt:
+remote-result.json. Subsequent changes are ticket evidence only.
+
+Both remote Go jobs passed all 49 focused tests. The current-linter job also
+passed all 12 installed-hook golden-path cases with shuffle seed 4733.
+Local 49-case runs passed with both pinned linter/Go pairs. ESLint, TypeScript,
+parity and all five generated surfaces passed; lifecycle behavior result hashes
+were unchanged after regeneration. The post-refactor diff audit found no
+violations across 539 modules and 949 dependencies.
+
+Four source refactors were independently tested and committed: immutable
+config-precedence caching, caller-directory naming, capability-predicate naming,
+and helper transport/validation extraction. Eight characterization cases and
+four legacy-YAML policy comparisons strengthen the existing regression suites;
+the process trace now proves formatting precedes exactly one package lint.
+
+Independent Claude/Opus reviews approved both the source and updated tests with
+no errors. See refactor-quality-review.md and the two machine receipts for
+primary-source research, answered findings and retained nonblocking limits.
+The scout ledger records each resolved candidate and declined abstraction.
+No dependency change, merge, release or ticket closure is included.
+
 ## Test-quality follow-up (2026-10-21)
 
 Audit-fix commit 536dd1fe7aaf2eb660f7fac108cef396fe1b54ed passed every job in
@@ -37,19 +70,19 @@ preceded implementation. No new Gherkin scenarios were added.
 
 ## Final remote verification
 
-Final remote result: **SUCCESS** for 536dd1fe7aaf2eb660f7fac108cef396fe1b54ed.
-Run: https://github.com/ArcadeAI/safeword/actions/runs/39686478082
+Final remote result: **SUCCESS** for beac76fc375634b41b1ca0e9a6cf0acb8d345435.
+Run: https://github.com/ArcadeAI/safeword/actions/runs/39695922147
 Machine result: remote-result.json. Audit/refactor detail: remote-verification.md.
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 11633/11633 CLI tests pass on both Node 22.23.2 and 24.18.1, with 10 explicit skips per lane. Relay and collector suites pass; both physical-install proofs pass; 83/83 release tests pass per lane. Both Go compatibility lanes pass 37/37 tests; 12/12 installed-hook golden-path tests also pass in shuffled order.
+**Test Suite:** ✓ 11645/11645 CLI tests pass on both Node 22.23.2 and 24.18.1, with 10 explicit skips per lane. Relay and collector suites pass; both physical-install proofs pass; 83/83 release tests pass per lane. Both Go compatibility lanes pass 49/49 tests; 12/12 installed-hook golden-path tests also pass in shuffled order.
 **Gherkin:** ✅ Acceptance lane passes — 601/601 scenarios, 11821/11821 steps, and 51/51 proof-tag tests.
 **Build:** ✅ Success — all resolved project build lanes passed.
 **Lint:** ✅ Clean — remote ESLint, Gherkin lint, formatting, Shellcheck and generated-plugin checks pass.
 **Typecheck:** ✅ Clean — remote typechecks pass after the final source changes.
 **Scenarios:** ⏭️ Skipped — this bug-investigated task uses regression tests and a manual proof matrix, with no separate scenario artifact.
-**Refactor:** ✅ Completed — 731e56450 extracts YAML parsing; 258accff3 names stream character limits. Each was independently tested and committed. 536dd1fe7 isolates installed-hook test fixtures and replaces ineffective assertions. The scout ledger records declined extractions.
+**Refactor:** ✅ Completed — the full follow-up adds four independently exercised source refactors (333fd1623, 25d01284c, cc6dbc870, a3c8fdc70) and stronger regression proof at beac76fc3. Earlier 731e56450 extracts YAML parsing; 258accff3 names stream character limits. The scout ledger records declined extractions; both independent follow-up reviews approve with no errors.
 **PR Scope:** ✅ Diff matches ticket scope — Go package loading, configuration preservation, feedback, host wiring, regression proof, generated carriers and directly affected documentation only.
 **Dep Drift:** ✅ Clean — no dependency manifests or lockfiles changed; existing YAML/TOML runtime dependencies are documented in ARCHITECTURE.md.
 **Parent Epic:** N/A

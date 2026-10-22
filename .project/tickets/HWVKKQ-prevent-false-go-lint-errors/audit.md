@@ -74,3 +74,34 @@ checks. The local timeout cases did not reproduce remotely.
 
 Audit passed with retained nonblocking evidence limits in review-notes.md and
 verify.md. No actionable audit findings remain unresolved in this diff.
+
+## Full refactor audit (2026-10-21)
+
+Completed the two-scout ledger in dependency order: protected config precedence
+and helper responses, cached immutable filename precedence, clarified caller
+directory and capability names, and extracted helper invocation/validation.
+Each source change was independently exercised and committed. Declined larger
+abstractions are enumerated with reasons in refactor-ledger.md.
+
+The post-refactor code, learning, principle-trace and domain-doc audit blocks
+all exited zero. Config drift remains Healthy, Changed: no. Dependency Cruiser
+found no violations across 539 modules and 949 dependencies. No dependency
+manifest, lockfile, principle, persona or surface definition changed.
+
+Two independent Claude/Opus passes approved with no errors. The second pass
+includes the added native legacy-YAML comparisons and explicit command-order
+proof. All 49 focused tests passed locally with each pinned linter version;
+ESLint and TypeScript passed. Generated mirrors and lifecycle fixtures were
+regenerated and verified; behavior result hashes were unchanged.
+
+Remaining warnings are answered in refactor-quality-review.md and preserved
+in both machine receipts. A v2.0 gocritic warning was refuted by upstream source;
+plain warning-only stdout, mixed stdout report formats, temporary-file residue,
+parser range and version-probe overhead remain explicit nonblocking limits.
+No new abstraction or behavior change was added to chase optional findings.
+
+Final remote workflow: 39695922147 at beac76fc375634b41b1ca0e9a6cf0acb8d345435.
+The complete workflow passed: 11,645 CLI tests per Node lane, 601 acceptance
+scenarios, 51 proof-tag tests, 83 release tests per lane, 49 tests per Go version
+and 12 shuffled installed-hook tests. All static, parity, contract, conformance
+and configured dependency-policy checks passed. No blocking findings remain.
