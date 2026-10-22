@@ -14,6 +14,10 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import {
+  sessionBootstrap,
+  withCodexAuthority,
+} from '../../templates/hooks/lib/safeword-context.js';
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
@@ -288,15 +292,11 @@ function readPackagedSafewordInstructions(): string | undefined {
   if (!instructionsPath) return undefined;
   if (!readFileSync(instructionsPath, 'utf8').trim()) return undefined;
 
-  return [
-    'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.',
-    'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
-    '',
-    'Safeword session bootstrap:',
-    'Before non-trivial work, read the packaged Safeword handbook and the applicable guide in `.safeword/guides/`.',
-    'Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).',
-    'Follow the active Safeword workflow and its gates.',
-  ].join('\n');
+  return (
+    withCodexAuthority(
+      sessionBootstrap('the packaged Safeword handbook', 'the packaged Safeword guides'),
+    ) ?? undefined
+  );
 }
 
 function findPackagedTemplate(relativePath: string): string | undefined {

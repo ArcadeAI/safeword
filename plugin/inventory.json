@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "9147b024f13347964f68cd793438628e86b366dc7beb9ea74cee25489a109eea"
+      "sha256": "f2ee6c74130ac701860c2dd2c2f834937e7d07525f22c7b209aaf08167dc11fc"
     },
     {
       "path": "runtime/dispatch.js",
@@ -431,7 +431,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
-      "sha256": "ed4f812e77e08061b716efaa3505e4a89cf48e4a2660b31d3e9c9166e28337fd"
+      "sha256": "1b1e6c37425d32e72804a55d6316c14e9b4ac3b3fb88f2acc8dd7d6e2d59d593"
     },
     {
       "path": "runtime/hooks/lib/scenario-format.ts",
@@ -1407,7 +1407,7 @@
     },
     {
       "path": "templates/hooks/lib/safeword-context.ts",
-      "sha256": "5b75108b800dfde5e4930477e713fb42296c1e061ef7dd59af3d48aa39f2deec"
+      "sha256": "9068d3dcff339e704b1211779faee10dee789178df482d972d7e436603c8ee9c"
     },
     {
       "path": "templates/hooks/lib/scenario-format.ts",

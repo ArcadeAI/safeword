@@ -23,7 +23,7 @@ const CODEX_AUTHORITY = [
 // Session-start hooks run repeatedly and their output has a small host-controlled
 // context budget. Keep this durable pointer compact; the handbook stays the source
 // of truth and is read when an agent begins non-trivial work.
-function sessionBootstrap(handbook: string, guides: string): string {
+export function sessionBootstrap(handbook: string, guides: string): string {
   return [
     'Safeword session bootstrap:',
     `Before non-trivial work, read ${handbook} and the applicable guide in ${guides}.`,

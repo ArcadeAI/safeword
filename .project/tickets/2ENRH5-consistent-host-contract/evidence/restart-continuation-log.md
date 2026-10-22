@@ -522,3 +522,14 @@ still part of unfinished full contract work. Cursor installation proof now
 deletes generator-produced destination commands before actual installation.
 Real OpenCode2.0.32 CLI/TUI command and1.18.23 CLI/TUI guide/helper controls pass
 on the current component. No full scenario or host-schema/status claim advanced.
+
+### Share Codex startup fallback text with the canonical context owner
+
+Actual packaged fallback failed PACKAGED_BOOTSTRAP_RESOURCE_DRIFT. Independent
+executable RED73bd59aa-1b37-4de3-b6b6-63f03067ff0c approved before production.
+Fallback now calls existing sessionBootstrap/withCodexAuthority rather than
+owning another paragraph that incorrectly names project guides. Existing
+packaged handbook validation remains. Evidence:bootstrap-owner-green.md.
+All2files/47tests, CLI types, targeted lint, parity and all5 generated surfaces
+pass; lifecycle result hashes unchanged. Independent quality reviewbaacfd30-
+5ff7-48b8-b5e7-97c80c6919b4 approved. Full scenario remains incomplete.

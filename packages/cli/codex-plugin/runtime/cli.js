@@ -86783,6 +86783,30 @@ var init_boundary = __esm(() => {
   AUDIT_RELATIVE_PATH = nodePath157.join(".safeword", "boundary-audit.jsonl");
 });
 
+// templates/hooks/lib/safeword-context.ts
+function sessionBootstrap(handbook, guides) {
+  return [
+    "Safeword session bootstrap:",
+    `Before non-trivial work, read ${handbook} and the applicable guide in ${guides}.`,
+    "Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).",
+    "Follow the active Safeword workflow and its gates."
+  ].join(`
+`);
+}
+function withCodexAuthority(context) {
+  return context === null ? null : `${CODEX_AUTHORITY}
+
+${context}`;
+}
+var CODEX_AUTHORITY;
+var init_safeword_context = __esm(() => {
+  CODEX_AUTHORITY = [
+    "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and the applicable Safeword guides provide the current workflows.",
+    "These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`."
+  ].join(`
+`);
+});
+
 // src/commands/codex-hook.ts
 var exports_codex_hook = {};
 __export(exports_codex_hook, {
@@ -86965,16 +86989,7 @@ function readPackagedSafewordInstructions() {
     return;
   if (!readFileSync101(instructionsPath, "utf8").trim())
     return;
-  return [
-    "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
-    "These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.",
-    "",
-    "Safeword session bootstrap:",
-    "Before non-trivial work, read the packaged Safeword handbook and the applicable guide in `.safeword/guides/`.",
-    "Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).",
-    "Follow the active Safeword workflow and its gates."
-  ].join(`
-`);
+  return withCodexAuthority(sessionBootstrap("the packaged Safeword handbook", "the packaged Safeword guides")) ?? undefined;
 }
 function findPackagedTemplate(relativePath) {
   return TEMPLATE_DIRECTORIES.map((directory) => nodePath158.join(directory, relativePath)).find((candidate) => existsSync76(candidate));
@@ -87388,6 +87403,7 @@ async function codexHook(event, options = {}) {
 }
 var EXIT_CODE_DENY_MODE = "exit-code", PRE_TOOL_QUALITY_HOOK_PATH = "codex/pre-tool-quality.ts", MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE2 = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", PACKAGED_RECORD_SKILL_INVOCATION = "project record-skill-invocation", PACKAGED_WRITE_REVIEW_STAMP = "project runtime write-review-stamp", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN3, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE = 3, POST_TOOL_CONTEXT_HOOKS, CODEX_HOOK_RUNNERS;
 var init_codex_hook = __esm(() => {
+  init_safeword_context();
   init_legacy_authority();
   init_profile_proof();
   init_project_directory();
