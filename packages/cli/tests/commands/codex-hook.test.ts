@@ -584,6 +584,11 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain('Safeword session bootstrap');
     expect(result.stdout).toContain('the packaged Safeword handbook');
+    expect(
+      result.stdout,
+      'PACKAGED_BOOTSTRAP_RESOURCE_DRIFT: fallback must resolve packaged guides',
+    ).toContain('the packaged Safeword guides');
+    expect(result.stdout).not.toContain('.safeword/guides/');
     expect(result.stdout).not.toContain('SAFEWORD Agent Instructions');
     expect(result.stdout.length).toBeLessThanOrEqual(1000);
   });
