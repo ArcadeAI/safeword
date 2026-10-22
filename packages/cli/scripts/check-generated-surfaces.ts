@@ -22,11 +22,11 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import {
-  CURSOR_COMMAND_WRAPPERS,
   CURSOR_RULE_WRAPPERS,
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
 } from '../src/cursor-wrappers.js';
+import { readCanonicalCommandWrappers } from '../src/host-contract/catalogue.js';
 import { LIFECYCLE_FIXTURE_ROOT, lifecycleFixtureSurface } from './lib/lifecycle-fixtures.js';
 
 const execFileAsync = promisify(execFile);
@@ -109,7 +109,7 @@ function cursorWrapperExpectations(): readonly {
       paths: wrapperDestinations(`.cursor/rules/${wrapper.name}.mdc`),
       content: renderCursorRuleWrapper({ wrapper }),
     })),
-    ...CURSOR_COMMAND_WRAPPERS.map(wrapper => ({
+    ...readCanonicalCommandWrappers(path.join(cliRoot, 'templates')).map(wrapper => ({
       paths: wrapperDestinations(`.cursor/commands/${wrapper.name}.md`),
       content: renderCursorCommandWrapper({ wrapper }),
     })),

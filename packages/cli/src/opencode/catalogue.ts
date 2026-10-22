@@ -1,8 +1,11 @@
 import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { CURSOR_COMMAND_WRAPPERS, type CursorCommandWrapper } from '../cursor-wrappers.js';
-import { generatePluginAssets } from '../host-contract/catalogue.js';
+import {
+  type CanonicalCommandWrapper,
+  generatePluginAssets,
+  readCanonicalCommandWrappers,
+} from '../host-contract/catalogue.js';
 import { VERSION } from '../version.js';
 import { openCodeWorkflowName } from './names.js';
 
@@ -25,7 +28,7 @@ export const SAFEWORD_SUBAGENTS: readonly SafewordSubagent[] = [
   },
 ] as const;
 
-export function openCodeCommandWorkflow(command: CursorCommandWrapper): string {
+export function openCodeCommandWorkflow(command: CanonicalCommandWrapper): string {
   const [name] = command.skillPath.split('/', 1);
   if (name === undefined) throw new Error(`OpenCode command ${command.name} has no skill path`);
   return name;
@@ -33,7 +36,7 @@ export function openCodeCommandWorkflow(command: CursorCommandWrapper): string {
 
 export function validateOpenCodeCatalogueReferences(
   knownSkills: ReadonlySet<string>,
-  commands: readonly CursorCommandWrapper[],
+  commands: readonly CanonicalCommandWrapper[],
   agents: readonly SafewordSubagent[],
 ): void {
   for (const reference of [
@@ -46,7 +49,7 @@ export function validateOpenCodeCatalogueReferences(
   }
 }
 
-export function renderOpenCodeCommand(command: CursorCommandWrapper): string {
+export function renderOpenCodeCommand(command: CanonicalCommandWrapper): string {
   return `---
 description: ${JSON.stringify(command.description)}
 ---
@@ -96,7 +99,11 @@ export function generateOpenCodeCatalogueAssets(
     .filter(entry => entry.isDirectory())
     .map(entry => entry.name);
   const knownSkills = new Set(skillNames);
-  validateOpenCodeCatalogueReferences(knownSkills, CURSOR_COMMAND_WRAPPERS, SAFEWORD_SUBAGENTS);
+  const commandWrappers = readCanonicalCommandWrappers(
+    templatesRoot,
+    name => `/${openCodeWorkflowName(name)}`,
+  );
+  validateOpenCodeCatalogueReferences(knownSkills, commandWrappers, SAFEWORD_SUBAGENTS);
   const skills = generatePluginAssets(skillsRoot, VERSION, {
     workflowInvocation: name => `/${openCodeWorkflowName(name)}`,
     runtimeCommand: `bunx --bun safeword@${VERSION}`,
@@ -115,7 +122,7 @@ export function generateOpenCodeCatalogueAssets(
       content,
     };
   });
-  const commands = CURSOR_COMMAND_WRAPPERS.map(command => ({
+  const commands = commandWrappers.map(command => ({
     relativePath: nodePath.join('commands', `${openCodeWorkflowName(command.name)}.md`),
     content: renderOpenCodeCommand(command),
   }));

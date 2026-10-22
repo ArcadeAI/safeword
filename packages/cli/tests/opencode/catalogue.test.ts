@@ -4,7 +4,7 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createResult } from '../../src/cli-protocol/result.js';
-import { CURSOR_COMMAND_WRAPPERS } from '../../src/cursor-wrappers.js';
+import { readCanonicalCommandWrappers } from '../../src/host-contract/catalogue.js';
 import { installLifecycle } from '../../src/lifecycle/commands.js';
 import {
   generateOpenCodeCatalogueAssets,
@@ -107,9 +107,11 @@ describe('OpenCode profile catalogue', () => {
         .filter(name => name.endsWith('.md'))
         .map(name => name.slice(0, -3))
         .toSorted((left, right) => left.localeCompare(right));
-    const commandNames = CURSOR_COMMAND_WRAPPERS.map(
-      wrapper => `safeword-${wrapper.name}`,
-    ).toSorted((left, right) => left.localeCompare(right));
+    const commandNames = readCanonicalCommandWrappers(
+      nodePath.resolve(import.meta.dirname, '../../templates'),
+    )
+      .map(wrapper => `safeword-${wrapper.name}`)
+      .toSorted((left, right) => left.localeCompare(right));
     const skillNames = readdirSync(
       nodePath.resolve(import.meta.dirname, '../../templates/skills'),
       { withFileTypes: true },

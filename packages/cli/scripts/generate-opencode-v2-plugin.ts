@@ -4,9 +4,9 @@ import { parseArgs } from 'node:util';
 
 import rootPackage from '../../../package.json' with { type: 'json' };
 import sdkPackage from '../../opencode-v2-plugin/package.json' with { type: 'json' };
-import { CURSOR_COMMAND_WRAPPERS } from '../src/cursor-wrappers.js';
 import {
   type PackagedCommandContract,
+  readCanonicalCommandWrappers,
   readPackagedSkillContracts,
 } from '../src/host-contract/catalogue.js';
 import { writePortableCoreCatalogue } from '../src/host-contract/portable-core.js';
@@ -15,6 +15,7 @@ import {
   openCodeCommandWorkflow,
   validateOpenCodeCatalogueReferences,
 } from '../src/opencode/catalogue.js';
+import { openCodeWorkflowName } from '../src/opencode/names.js';
 import { generateOwnedPathsModule } from '../src/owned-paths.js';
 import { OPENCODE_V2_PLUGIN_LAYOUT as layout, SAFEWORD_SCHEMA } from '../src/schema.js';
 import { VERSION } from '../src/version.js';
@@ -30,8 +31,12 @@ await publishFreshDirectory(nodePath.resolve(values.output), async output => {
   const knownSkills = new Set(
     readPackagedSkillContracts(nodePath.join(output, layout.skills)).map(skill => skill.name),
   );
-  validateOpenCodeCatalogueReferences(knownSkills, CURSOR_COMMAND_WRAPPERS, []);
-  const commands: PackagedCommandContract[] = CURSOR_COMMAND_WRAPPERS.map(command => ({
+  const commandWrappers = readCanonicalCommandWrappers(
+    nodePath.join(packageRoot, 'templates'),
+    name => `/${openCodeWorkflowName(name)}`,
+  );
+  validateOpenCodeCatalogueReferences(knownSkills, commandWrappers, []);
+  const commands: PackagedCommandContract[] = commandWrappers.map(command => ({
     name: command.name,
     description: command.description,
     workflow: openCodeCommandWorkflow(command),

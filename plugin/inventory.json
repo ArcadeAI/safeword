@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "6631d620d8a7314a39bb96926679f911d21a48026830c0306f50f440188e4b33"
+      "sha256": "9147b024f13347964f68cd793438628e86b366dc7beb9ea74cee25489a109eea"
     },
     {
       "path": "runtime/dispatch.js",
@@ -799,75 +799,75 @@
     },
     {
       "path": "templates/commands/audit.md",
-      "sha256": "83ad7fee9ee833671d30ca86dc19f2912134f296345d46c7032e9d4b56558766"
+      "sha256": "e994a27cec032743b6de3ed190e17f27cf7af2ec4f63f996479188d33ad78c51"
     },
     {
       "path": "templates/commands/bdd.md",
-      "sha256": "46e9717b59d9bd4ed3ed4073f4e25d08fa2bd495eab5483d87ff380777afc961"
+      "sha256": "3dfdcaf103fe2ce483f15bf821cfe0f8c30eb4dd1f5f00aed73aef3fc73798ab"
     },
     {
       "path": "templates/commands/cleanup-zombies.md",
-      "sha256": "0aff1ac81357503c2c8050aec40bddbc869439ff3fa4e57ac9070a7f9cd7f59f"
+      "sha256": "4476feb282ed67445f3e60aa510b5ea14dddc4200f36f122af9d46749c62c063"
     },
     {
       "path": "templates/commands/closeout.md",
-      "sha256": "b6f5f4b245f5a85b1aa0b8d68a0b0d1a2c6e2216d84aebbbd570c655c62003fb"
+      "sha256": "70b4eebb3c26825eec39253df3ee1e877b08e1bceb4a8e421bd5568bf3a67956"
     },
     {
       "path": "templates/commands/debug.md",
-      "sha256": "8715f39ad7caeda1286f5db1be442d0b38f8491c8157707e54f478038543c641"
+      "sha256": "24c007c5539582d35ce9ed0f8fdbbe0619e9d077eb46d25f19b9e0d064f668b4"
     },
     {
       "path": "templates/commands/demand-research.md",
-      "sha256": "bb810491f814641de3e5be0c248338d4539eba7ec95f32012e79d9e75219b8f5"
+      "sha256": "a875863fa6a21e2798f6e918d776e48049b8bc6f658d080f3f705eebcbcd25bb"
     },
     {
       "path": "templates/commands/explain.md",
-      "sha256": "646d05de81cbc686b8d76b33135f8f7f5ea3be4f606544eea9b6231a9746104e"
+      "sha256": "cb0e5c4fffaceb08f956b8da2728b5540b1fca1504920f3863aa3264adf6767d"
     },
     {
       "path": "templates/commands/finish-review.md",
-      "sha256": "86346e1c7ffc4124b583e598b81cdca001caee0484bbb55f7e2a1162f142544d"
+      "sha256": "b4db8a33410334f507a4315dce67ccdaf27e9e0f6d4548785415dc44aa2c52c5"
     },
     {
       "path": "templates/commands/lint.md",
-      "sha256": "46ef38088e0dff7b982498c127966d775ee3a1fc1ef66af34613b727d4efb36c"
+      "sha256": "33c81a9f1d708b022203f9cdac6b206a397c0308a2822ed58fc56e55569032d6"
     },
     {
       "path": "templates/commands/pr-readiness.md",
-      "sha256": "b15836e47f6c2e5a098880d2f007a71c289d2e51d8eadbc031f7db7d85f4fbaf"
+      "sha256": "0b19479b699682bd117a907d608aac4adcb3ec9f7cd711ed699f290c299128c1"
     },
     {
       "path": "templates/commands/quality-review.md",
-      "sha256": "591dbd06775782bd2f26bc27ef59eaa2c6eb08bc668f6643a535138f2cef18ae"
+      "sha256": "f4cd69616eea1ac1ab8ea8072a4d15cf4b71fc3d25d9c042ce408030119645c3"
     },
     {
       "path": "templates/commands/refactor.md",
-      "sha256": "d730915a54b80fd9c5485a13516c0369f6b359546d12e44a98eecf4c31a89e9f"
+      "sha256": "fa2c5bab298da78a12be0a1a29bbc47ec6eed37a0d15e943842ec106dc8f459e"
     },
     {
       "path": "templates/commands/retro.md",
-      "sha256": "e5e5df896a0efe6713ff6d4f07d90a76a8a2b5004399f7c3e4e26316266453a3"
+      "sha256": "c321c845a51ad75616cbe02a656474ca8b197f31a91c52f879cce905f17e5232"
     },
     {
       "path": "templates/commands/review-spec.md",
-      "sha256": "424357ba49721ba858ac19a238269e505ea406a83f0f4bad040967093c92cf29"
+      "sha256": "b406bf31ad46f21c54bdd8f55f6e7e884b849f58f9072136fc94c7af9266cc83"
     },
     {
       "path": "templates/commands/self-review.md",
-      "sha256": "812036e79d635378ebffc7e9a3df3024b6532d357ed7976fe648ecd49c4ee23d"
+      "sha256": "37fe78a2a48ef92683a66737856d4e831e0062847df41aef693e75341d80dacd"
     },
     {
       "path": "templates/commands/spike.md",
-      "sha256": "75c356cb36f16ec60a9e0766dd356e881544aafb950b4caf63342757cfffe6ea"
+      "sha256": "eca6e9c40664abf320afbc965b69c57e970e331ec03da9355bf6ca06d9b3dc37"
     },
     {
       "path": "templates/commands/testing.md",
-      "sha256": "33fd23d3c8447245c62d9f639583377c1f14fb24dbf9ef2ccdb5b752ef0afa70"
+      "sha256": "b57df9e6257d9621008194375bf253ed9f24c063dbc76d801ec163a5080e7596"
     },
     {
       "path": "templates/commands/verify.md",
-      "sha256": "6c013a15ebc58e7fa2bf01c51b126b4b67bc448f4591f2ff6e0ae1a1df6c3105"
+      "sha256": "726352ad689767c63c70b54e7ce09576a7d87c4a8687651b4499046f1fa7f861"
     },
     {
       "path": "templates/cucumber/cucumber.mjs",

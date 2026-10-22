@@ -14,12 +14,12 @@ import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
 import {
-  CURSOR_COMMAND_WRAPPERS,
   CURSOR_RULE_WRAPPERS,
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
   SKILL_CURSOR_PAIRS,
 } from '../src/cursor-wrappers.js';
+import { readCanonicalCommandWrappers } from '../src/host-contract/catalogue.js';
 import { ESLINT_PACKAGE, JITI_PACKAGE } from '../src/packs/typescript/files.js';
 import { SETTINGS_HOOKS } from '../src/templates/config.js';
 
@@ -643,7 +643,8 @@ describe('Schema - Single Source of Truth', () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 
-      for (const wrapper of CURSOR_COMMAND_WRAPPERS) {
+      const wrappers = readCanonicalCommandWrappers(templatesDirectory);
+      for (const wrapper of wrappers) {
         const installedPath = `.cursor/commands/${wrapper.name}.md`;
         const templatePath = `commands/${wrapper.name}.md`;
         const expected = renderCursorCommandWrapper({ wrapper });
@@ -657,11 +658,18 @@ describe('Schema - Single Source of Truth', () => {
     });
 
     it('keeps Cursor audit registered as a generated command wrapper (#597)', () => {
-      const wrapper = CURSOR_COMMAND_WRAPPERS.find(entry => entry.name === 'audit');
+      const wrapper = readCanonicalCommandWrappers(templatesDirectory).find(
+        entry => entry.name === 'audit',
+      );
+      const source = readFileSync(
+        nodePath.join(templatesDirectory, 'skills/audit/SKILL.md'),
+        'utf8',
+      );
+      const metadata = YAML.parse(source.split('---', 2)[1] ?? '') as { description: string };
 
       expect(wrapper, 'audit must be generated from wrapper metadata').toEqual({
         name: 'audit',
-        description: 'Run comprehensive code audit for architecture, dead code, and test quality',
+        description: metadata.description,
         skillPath: 'audit/SKILL.md',
       });
     });

@@ -1,8 +1,8 @@
-export interface CursorCommandWrapper {
-  readonly name: string;
-  readonly description: string;
-  readonly skillPath: string;
-}
+import { stringify } from 'yaml';
+
+import type { CanonicalCommandWrapper } from './host-contract/catalogue.js';
+
+export type CursorCommandWrapper = CanonicalCommandWrapper;
 
 export interface CursorRuleWrapper {
   readonly name: string;
@@ -37,83 +37,11 @@ const CURSOR_ACTION_SKILLS = [
   'spike',
 ] as const;
 
-// Shared verbatim by a skill's command wrapper and its rule wrapper.
 const DEBUG_DESCRIPTION =
   "Finds the real cause of a bug, in four steps, before you touch a fix. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').";
 
 const REFACTOR_DESCRIPTION =
   "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change → test → commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.";
-
-export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
-  {
-    name: 'pr-readiness',
-    description:
-      'Prepare a pull request for human review and decide whether it may leave Draft. Use when creating or rewriting a PR description, marking a PR ready, responding to review, or checking mergeability.',
-    skillPath: 'pr-readiness/SKILL.md',
-  },
-  {
-    name: 'bdd',
-    description:
-      "BDD orchestrator for feature-level work. Use when user says 'add', 'implement', 'build', 'feature', 'iteration', 'story', 'phase', 'resume', 'continue', or references a ticket/iteration/story. Also use when work touches 3+ files with new state/flows, or when user runs /bdd. Do NOT use for bug fixes, typos, config changes, or 1-2 file tasks.",
-    skillPath: 'bdd/SKILL.md',
-  },
-  {
-    name: 'debug',
-    description: DEBUG_DESCRIPTION,
-    skillPath: 'debug/SKILL.md',
-  },
-  {
-    name: 'demand-research',
-    description:
-      'Tests whether a proposed product bet has credible demand. Use when Why now depends on an unresolved, decision-critical demand claim or when the user explicitly asks for demand research. Do NOT use for child features, mandated work, parity work, or when a cheaper experiment can answer the question first.',
-    skillPath: 'demand-research/SKILL.md',
-  },
-  {
-    name: 'quality-review',
-    description:
-      "Deep code review with web research. Use when the user says 'double check against latest', 'verify versions', or 'check security'. Adds live research on top of the automatic quality hook — confirms you're using current library versions and APIs, not stale ones.",
-    skillPath: 'quality-review/SKILL.md',
-  },
-  {
-    name: 'finish-review',
-    description:
-      "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
-    skillPath: 'finish-review/SKILL.md',
-  },
-  {
-    name: 'audit',
-    description: 'Run comprehensive code audit for architecture, dead code, and test quality',
-    skillPath: 'audit/SKILL.md',
-  },
-  {
-    name: 'closeout',
-    description:
-      "Close a completed local delivery safely after verification. Use when wrapping up a finished coding session: merging only when you've been explicitly told to merge, running the retro, and cleaning up the exact merged branch and worktree.",
-    skillPath: 'closeout/SKILL.md',
-  },
-  {
-    name: 'refactor',
-    description: REFACTOR_DESCRIPTION,
-    skillPath: 'refactor/SKILL.md',
-  },
-  {
-    name: 'retro',
-    description:
-      'Run a safeword retrospective on the current session on demand — mine the transcript for friction (bugs / rough edges / gaps) and submit it through the outbound safety check before filing upstream. Use when the user says "run a retro", "/retro", or wants to capture friction before the session ends.',
-    skillPath: 'retro/SKILL.md',
-  },
-  {
-    name: 'spike',
-    description:
-      'Run a quick, throwaway experiment to answer one open technical question before committing to the real build. Only runs when you ask for it directly.',
-    skillPath: 'spike/SKILL.md',
-  },
-  {
-    name: 'testing',
-    description: 'How to write good tests — quality knowledge for any testing context',
-    skillPath: 'testing/SKILL.md',
-  },
-] as const;
 
 export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
   {
@@ -346,9 +274,13 @@ export function renderCursorCommandWrapper({
 }: {
   readonly wrapper: CursorCommandWrapper;
 }): string {
-  return `${renderFrontmatter({
-    fields: [{ key: 'description', value: wrapper.description }],
-  })}
+  const metadata = stringify(
+    { description: wrapper.description },
+    { defaultStringType: 'BLOCK_LITERAL', defaultKeyType: 'PLAIN', lineWidth: 0 },
+  ).trimEnd();
+  return `---
+${metadata}
+---
 
 Read and follow the instructions in .safeword/skills/${wrapper.skillPath}
 `;

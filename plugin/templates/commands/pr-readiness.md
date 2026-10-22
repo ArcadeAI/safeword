@@ -1,5 +1,6 @@
 ---
-description: Prepare a pull request for human review and decide whether it may leave Draft. Use when creating or rewriting a PR description, marking a PR ready, responding to review, or checking mergeability.
+description: |-
+  Prepare a pull request for human review and decide whether it may leave Draft. Use when creating or rewriting a PR description, marking a PR ready, responding to review, or checking whether a change is mergeable. Keeps incomplete evidence Draft. Do NOT use as a substitute for human approval or repository merge policy.
 ---
 
 Read and follow the instructions in .safeword/skills/pr-readiness/SKILL.md

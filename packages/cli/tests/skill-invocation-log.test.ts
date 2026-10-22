@@ -30,11 +30,18 @@ const skillForms: [string, string][] = [
   ['audit-skill', auditSkill],
 ];
 
-const selfReviewForms: [string, string][] = [
+const selfReviewCommands: [string, string][] = [
   [
     'template self-review command',
     readFileSync(nodePath.join(templatesDirectory, 'commands/self-review.md'), 'utf8'),
   ],
+  [
+    'dogfood cursor self-review command',
+    readFileSync(nodePath.join(repoRoot, '.cursor/commands/self-review.md'), 'utf8'),
+  ],
+];
+
+const selfReviewForms: [string, string][] = [
   [
     'template self-review skill',
     readFileSync(nodePath.join(templatesDirectory, 'skills/self-review/SKILL.md'), 'utf8'),
@@ -42,10 +49,6 @@ const selfReviewForms: [string, string][] = [
   [
     'dogfood claude self-review skill',
     readFileSync(nodePath.join(repoRoot, '.claude/skills/self-review/SKILL.md'), 'utf8'),
-  ],
-  [
-    'dogfood cursor self-review command',
-    readFileSync(nodePath.join(repoRoot, '.cursor/commands/self-review.md'), 'utf8'),
   ],
 ];
 
@@ -262,6 +265,21 @@ describe('audit drift check resolves the local safeword CLI, not @latest (#264)'
 });
 
 describe('self-review stamp fallback surfaces (K2ZP40)', () => {
+  it.each(selfReviewCommands)(
+    '%s delegates to the skill that owns the stamp fallback',
+    (_name, content) => {
+      const body = content.split('---', 3)[2];
+      expect(body?.trim()).toBe(
+        'Read and follow the instructions in .safeword/skills/self-review/SKILL.md',
+      );
+      expect(
+        readFileSync(nodePath.join(repoRoot, '.safeword/skills/self-review/SKILL.md'), 'utf8'),
+      ).toBe(
+        readFileSync(nodePath.join(templatesDirectory, 'skills/self-review/SKILL.md'), 'utf8'),
+      );
+    },
+  );
+
   it.each(selfReviewForms)(
     '%s documents a manual write-review-stamp fallback for non-Claude render contexts',
     (_name, content) => {

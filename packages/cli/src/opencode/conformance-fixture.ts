@@ -14,7 +14,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { CURSOR_COMMAND_WRAPPERS } from '../cursor-wrappers.js';
+import { readCanonicalCommandWrappers } from '../host-contract/catalogue.js';
 import { getTemplatesDirectory } from '../utils/fs.js';
 import { renderOpenCodeAgent, renderOpenCodeCommand, SAFEWORD_SUBAGENTS } from './catalogue.js';
 import { type OpenCodeIdentityV1 } from './identity.js';
@@ -64,7 +64,9 @@ function prepareCatalogueFixture(
 ): string {
   const project = nodePath.join(root, 'project');
   const config = nodePath.join(root, 'config');
-  const command = CURSOR_COMMAND_WRAPPERS.find(candidate => candidate.name === 'bdd');
+  const command = readCanonicalCommandWrappers(getTemplatesDirectory()).find(
+    candidate => candidate.name === 'bdd',
+  );
   const agent = SAFEWORD_SUBAGENTS.find(candidate => candidate.name === 'safeword-reviewer');
   if (command === undefined || agent === undefined) {
     throw new Error('Safeword OpenCode catalogue fixture is incomplete');

@@ -17,7 +17,7 @@ import {
   assertCodexPluginCatalogue,
   generateCodexPluginAssets,
 } from '../src/codex-plugin/catalogue.js';
-import { CURSOR_COMMAND_WRAPPERS } from '../src/cursor-wrappers.js';
+import { readCanonicalCommandWrappers } from '../src/host-contract/catalogue.js';
 import { runParity } from '../src/parity.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
 import { VERSION as cliVersion } from '../src/version.js';
@@ -242,7 +242,9 @@ describe('closeout host entry points (93C14D TBU1.R4)', () => {
   );
 
   it('derives Claude, Cursor, and Codex entry points from production catalogues', () => {
-    const cursor = CURSOR_COMMAND_WRAPPERS.find(wrapper => wrapper.name === 'closeout');
+    const cursor = readCanonicalCommandWrappers(
+      nodePath.join(repoRoot, 'packages/cli/templates'),
+    ).find(wrapper => wrapper.name === 'closeout');
     expect(cursor?.skillPath).toBe('closeout/SKILL.md');
     expect(SAFEWORD_SCHEMA.ownedFiles['.claude/skills/closeout/SKILL.md']).toBeDefined();
     expect(SAFEWORD_SCHEMA.ownedFiles['.cursor/commands/closeout.md']?.template).toBe(

@@ -2,11 +2,11 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import {
-  CURSOR_COMMAND_WRAPPERS,
   CURSOR_RULE_WRAPPERS,
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
 } from '../src/cursor-wrappers.js';
+import { readCanonicalCommandWrappers } from '../src/host-contract/catalogue.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
 const cliRoot = path.resolve(import.meta.dirname, '..');
@@ -44,7 +44,8 @@ for (const wrapper of CURSOR_RULE_WRAPPERS) {
   });
 }
 
-for (const wrapper of CURSOR_COMMAND_WRAPPERS) {
+const commandWrappers = readCanonicalCommandWrappers(path.join(cliRoot, 'templates'));
+for (const wrapper of commandWrappers) {
   writeGeneratedFile({
     relativePath: `.cursor/commands/${wrapper.name}.md`,
     content: renderCursorCommandWrapper({ wrapper }),

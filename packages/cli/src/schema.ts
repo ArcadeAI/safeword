@@ -28,7 +28,7 @@ export type {
   ManagedFileDefinition,
   ProjectContext,
 } from './packs/types.js';
-import { CURSOR_COMMAND_WRAPPERS, CURSOR_RULE_WRAPPERS } from './cursor-wrappers.js';
+import { CURSOR_RULE_WRAPPERS } from './cursor-wrappers.js';
 import {
   dirGlobExcludeMerge,
   durableNamespaceDirectories,
@@ -260,10 +260,26 @@ const CURSOR_RULE_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.f
 );
 
 const CURSOR_COMMAND_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
-  CURSOR_COMMAND_WRAPPERS.map(wrapper => [
-    `.cursor/commands/${wrapper.name}.md`,
-    { template: `commands/${wrapper.name}.md` },
-  ]),
+  [
+    'pr-readiness',
+    'bdd',
+    'debug',
+    'demand-research',
+    'quality-review',
+    'finish-review',
+    'audit',
+    'closeout',
+    'refactor',
+    'retro',
+    'spike',
+    'testing',
+    'explain',
+    'verify',
+    'self-review',
+    'review-spec',
+    'cleanup-zombies',
+    'lint',
+  ].map(name => [`.cursor/commands/${name}.md`, { template: `commands/${name}.md` }]),
 );
 
 const CURSOR_SHARED_SKILL_FILES = [
@@ -1322,14 +1338,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Cursor commands (Cursor needs explicit commands for all action capabilities)
     ...CURSOR_COMMAND_WRAPPER_OWNED_FILES,
-    '.cursor/commands/explain.md': { template: 'commands/explain.md' },
-    '.cursor/commands/verify.md': { template: 'commands/verify.md' },
-    '.cursor/commands/self-review.md': { template: 'commands/self-review.md' },
-    '.cursor/commands/review-spec.md': { template: 'commands/review-spec.md' },
-    '.cursor/commands/cleanup-zombies.md': {
-      template: 'commands/cleanup-zombies.md',
-    },
-    '.cursor/commands/lint.md': { template: 'commands/lint.md' },
 
     // Cursor hooks adapters - TypeScript with Bun runtime
     '.safeword/hooks/cursor/after-file-edit.ts': {

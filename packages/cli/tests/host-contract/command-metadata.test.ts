@@ -92,8 +92,11 @@ describe('canonical command purpose reaches actual delivery', () => {
         commandNames = commands.map(command => command.name);
       } else {
         const agent = delivery === 'opencode-v1' ? 'opencode' : 'cursor';
-        if (agent === 'cursor')
+        if (agent === 'cursor') {
           run(directory, ['packages/cli/scripts/generate-cursor-wrappers.ts'], {});
+          // Generation also writes dogfood wrappers; installation must recreate them itself.
+          rmSync(nodePath.join(directory, '.cursor/commands'), { recursive: true });
+        }
         run(
           directory,
           [

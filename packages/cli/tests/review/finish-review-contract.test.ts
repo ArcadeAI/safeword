@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest';
 
 import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
 import {
-  CURSOR_COMMAND_WRAPPERS,
   CURSOR_RULE_WRAPPERS,
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
 } from '../../src/cursor-wrappers.js';
+import { readCanonicalCommandWrappers } from '../../src/host-contract/catalogue.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { VERSION } from '../../src/version.js';
 
@@ -150,7 +150,7 @@ describe('job-bound host review continuation contract', () => {
       readFileSync(nodePath.join(templates, 'cursor/rules/safeword-finish-review.mdc'), 'utf8'),
     ).toBe(renderCursorRuleWrapper({ wrapper: cursor }));
     const cursorCommand = required(
-      CURSOR_COMMAND_WRAPPERS.find(command => command.name === 'finish-review'),
+      readCanonicalCommandWrappers(templates).find(command => command.name === 'finish-review'),
       'missing finish-review Cursor command',
     );
     expect(cursorCommand).toBeDefined();

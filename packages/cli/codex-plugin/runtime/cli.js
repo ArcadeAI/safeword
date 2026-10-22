@@ -15601,8 +15601,9 @@ function cursorRuleSkillPairs() {
   }
   return [...skillRules].map(([skill, cursorRules]) => ({ skill, cursorRules }));
 }
-var CURSOR_ACTION_SKILLS, DEBUG_DESCRIPTION = "Finds the real cause of a bug, in four steps, before you touch a fix. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').", REFACTOR_DESCRIPTION = "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change \u2192 test \u2192 commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.", CURSOR_COMMAND_WRAPPERS, CURSOR_RULE_WRAPPERS, SKILL_CURSOR_PAIRS;
+var import_yaml3, CURSOR_ACTION_SKILLS, DEBUG_DESCRIPTION = "Finds the real cause of a bug, in four steps, before you touch a fix. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').", REFACTOR_DESCRIPTION = "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change \u2192 test \u2192 commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.", CURSOR_RULE_WRAPPERS, SKILL_CURSOR_PAIRS;
 var init_cursor_wrappers = __esm(() => {
+  import_yaml3 = __toESM(require_dist(), 1);
   CURSOR_ACTION_SKILLS = [
     "lint",
     "verify",
@@ -15614,68 +15615,6 @@ var init_cursor_wrappers = __esm(() => {
     "review-spec",
     "retro",
     "spike"
-  ];
-  CURSOR_COMMAND_WRAPPERS = [
-    {
-      name: "pr-readiness",
-      description: "Prepare a pull request for human review and decide whether it may leave Draft. Use when creating or rewriting a PR description, marking a PR ready, responding to review, or checking mergeability.",
-      skillPath: "pr-readiness/SKILL.md"
-    },
-    {
-      name: "bdd",
-      description: "BDD orchestrator for feature-level work. Use when user says 'add', 'implement', 'build', 'feature', 'iteration', 'story', 'phase', 'resume', 'continue', or references a ticket/iteration/story. Also use when work touches 3+ files with new state/flows, or when user runs /bdd. Do NOT use for bug fixes, typos, config changes, or 1-2 file tasks.",
-      skillPath: "bdd/SKILL.md"
-    },
-    {
-      name: "debug",
-      description: DEBUG_DESCRIPTION,
-      skillPath: "debug/SKILL.md"
-    },
-    {
-      name: "demand-research",
-      description: "Tests whether a proposed product bet has credible demand. Use when Why now depends on an unresolved, decision-critical demand claim or when the user explicitly asks for demand research. Do NOT use for child features, mandated work, parity work, or when a cheaper experiment can answer the question first.",
-      skillPath: "demand-research/SKILL.md"
-    },
-    {
-      name: "quality-review",
-      description: "Deep code review with web research. Use when the user says 'double check against latest', 'verify versions', or 'check security'. Adds live research on top of the automatic quality hook \u2014 confirms you're using current library versions and APIs, not stale ones.",
-      skillPath: "quality-review/SKILL.md"
-    },
-    {
-      name: "finish-review",
-      description: "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
-      skillPath: "finish-review/SKILL.md"
-    },
-    {
-      name: "audit",
-      description: "Run comprehensive code audit for architecture, dead code, and test quality",
-      skillPath: "audit/SKILL.md"
-    },
-    {
-      name: "closeout",
-      description: "Close a completed local delivery safely after verification. Use when wrapping up a finished coding session: merging only when you've been explicitly told to merge, running the retro, and cleaning up the exact merged branch and worktree.",
-      skillPath: "closeout/SKILL.md"
-    },
-    {
-      name: "refactor",
-      description: REFACTOR_DESCRIPTION,
-      skillPath: "refactor/SKILL.md"
-    },
-    {
-      name: "retro",
-      description: 'Run a safeword retrospective on the current session on demand \u2014 mine the transcript for friction (bugs / rough edges / gaps) and submit it through the outbound safety check before filing upstream. Use when the user says "run a retro", "/retro", or wants to capture friction before the session ends.',
-      skillPath: "retro/SKILL.md"
-    },
-    {
-      name: "spike",
-      description: "Run a quick, throwaway experiment to answer one open technical question before committing to the real build. Only runs when you ask for it directly.",
-      skillPath: "spike/SKILL.md"
-    },
-    {
-      name: "testing",
-      description: "How to write good tests \u2014 quality knowledge for any testing context",
-      skillPath: "testing/SKILL.md"
-    }
   ];
   CURSOR_RULE_WRAPPERS = [
     {
@@ -16202,10 +16141,26 @@ var init_schema = __esm(() => {
     `.cursor/rules/${wrapper.name}.mdc`,
     { template: `cursor/rules/${wrapper.name}.mdc` }
   ]));
-  CURSOR_COMMAND_WRAPPER_OWNED_FILES = Object.fromEntries(CURSOR_COMMAND_WRAPPERS.map((wrapper) => [
-    `.cursor/commands/${wrapper.name}.md`,
-    { template: `commands/${wrapper.name}.md` }
-  ]));
+  CURSOR_COMMAND_WRAPPER_OWNED_FILES = Object.fromEntries([
+    "pr-readiness",
+    "bdd",
+    "debug",
+    "demand-research",
+    "quality-review",
+    "finish-review",
+    "audit",
+    "closeout",
+    "refactor",
+    "retro",
+    "spike",
+    "testing",
+    "explain",
+    "verify",
+    "self-review",
+    "review-spec",
+    "cleanup-zombies",
+    "lint"
+  ].map((name) => [`.cursor/commands/${name}.md`, { template: `commands/${name}.md` }]));
   CURSOR_SHARED_SKILL_FILES = [
     "audit/SKILL.md",
     "bdd/SKILL.md",
@@ -16890,14 +16845,6 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       },
       ...CURSOR_RULE_WRAPPER_OWNED_FILES,
       ...CURSOR_COMMAND_WRAPPER_OWNED_FILES,
-      ".cursor/commands/explain.md": { template: "commands/explain.md" },
-      ".cursor/commands/verify.md": { template: "commands/verify.md" },
-      ".cursor/commands/self-review.md": { template: "commands/self-review.md" },
-      ".cursor/commands/review-spec.md": { template: "commands/review-spec.md" },
-      ".cursor/commands/cleanup-zombies.md": {
-        template: "commands/cleanup-zombies.md"
-      },
-      ".cursor/commands/lint.md": { template: "commands/lint.md" },
       ".safeword/hooks/cursor/after-file-edit.ts": {
         template: "hooks/cursor/after-file-edit.ts"
       },
@@ -36936,7 +36883,7 @@ function parseTicketMetadata(content) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u.exec(content);
   if (match === null)
     throw new Error("Planning context ticket has no YAML metadata.");
-  const document2 = import_yaml3.parseDocument(match[1] ?? "", { uniqueKeys: true });
+  const document2 = import_yaml4.parseDocument(match[1] ?? "", { uniqueKeys: true });
   if (document2.errors.length > 0)
     throw new Error("Planning context ticket has invalid YAML metadata.");
   const value = document2.toJS();
@@ -36954,16 +36901,16 @@ function opaqueTicketIdentifiers(document2) {
   const identifiers = {};
   for (const field of ["id", "parent"]) {
     const node = document2.get(field, true);
-    const scalar = import_yaml3.isAlias(node) ? node.resolve(document2) : node;
-    if (import_yaml3.isScalar(scalar) && typeof scalar.value === "number" && scalar.source !== undefined) {
+    const scalar = import_yaml4.isAlias(node) ? node.resolve(document2) : node;
+    if (import_yaml4.isScalar(scalar) && typeof scalar.value === "number" && scalar.source !== undefined) {
       identifiers[field] = scalar.source;
     }
   }
   return identifiers;
 }
-var import_yaml3;
+var import_yaml4;
 var init_ticket_metadata = __esm(() => {
-  import_yaml3 = __toESM(require_dist(), 1);
+  import_yaml4 = __toESM(require_dist(), 1);
 });
 
 // src/review/execution-plan-rubric.ts
@@ -71852,7 +71799,7 @@ function readFrontmatter(content) {
     return;
   return {
     body: content.slice(frontmatter[0].length),
-    metadata: import_yaml4.parse(frontmatter.groups.metadata)
+    metadata: import_yaml5.parse(frontmatter.groups.metadata)
   };
 }
 function parseSkill(content, skill) {
@@ -71875,6 +71822,37 @@ function parseSkill(content, skill) {
     body: frontmatter.body,
     description: metadata2.description
   };
+}
+function readPackagedSkillContracts(skillsDirectory) {
+  return markdownFiles(skillsDirectory).filter((relativePath) => nodePath94.basename(relativePath) === "SKILL.md").map((relativePath) => {
+    const { skill } = canonicalSkillPath(relativePath);
+    const content = readFileSync64(nodePath94.join(skillsDirectory, relativePath), "utf8");
+    const parsed2 = parseSkill(content, skill);
+    return {
+      name: skill,
+      description: parsed2.description,
+      relativePath,
+      bodyOffset: content.length - parsed2.body.length
+    };
+  });
+}
+function readCanonicalCommandWrappers(templatesDirectory, workflowInvocation) {
+  const skills = new Map(readPackagedSkillContracts(nodePath94.join(templatesDirectory, "skills")).map((skill) => [
+    skill.name,
+    skill
+  ]));
+  const knownSkills = new Set(skills.keys());
+  return readdirSync26(nodePath94.join(templatesDirectory, "commands"), { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(".md")).map((entry) => {
+    const name = nodePath94.basename(entry.name, ".md");
+    const skill = skills.get(name);
+    if (!skill)
+      throw new Error(`Canonical command ${name} references an unknown workflow`);
+    return {
+      name,
+      description: workflowInvocation ? adaptWorkflowInvocations(skill.description, knownSkills, workflowInvocation) : skill.description,
+      skillPath: `${name}/SKILL.md`
+    };
+  }).toSorted((left, right) => left.name.localeCompare(right.name));
 }
 function isAsciiLowercase(character) {
   return character >= "a" && character <= "z";
@@ -72133,7 +72111,7 @@ function generatePluginAssets(canonicalSkillsDirectory, version2, projection) {
     return {
       relativePath: nodePath94.join("skills", skill, "SKILL.md"),
       content: `---
-${import_yaml4.stringify({
+${import_yaml5.stringify({
         name: skill,
         description: projection ? adaptWorkflowInvocations(description, knownSkillNames, projection.workflowInvocation) : adaptCodexWorkflowInvocations(description, knownSkillNames)
       }).trimEnd()}
@@ -72148,10 +72126,10 @@ ${adaptSkillBody(body, skill, knownSkillNames, referenceNames, { version: versio
   }));
   return [...skillAssets, ...referenceAssets];
 }
-var import_yaml4, CODEX_MARKETPLACE_NAME = "safeword", CODEX_PLUGIN_NAME = "safeword", PACKAGED_SKILL_REFERENCES, FRONTMATTER, SUPPORTED_SOURCE_METADATA, SCRIPT_REWRITES, NAMESPACE_ROOT_INVOCATION_PREFIX = 'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"', NAMESPACE_ROOT_KEY, NAMESPACE_ROOT_BASENAME, TRAILING_OPERAND;
+var import_yaml5, CODEX_MARKETPLACE_NAME = "safeword", CODEX_PLUGIN_NAME = "safeword", PACKAGED_SKILL_REFERENCES, FRONTMATTER, SUPPORTED_SOURCE_METADATA, SCRIPT_REWRITES, NAMESPACE_ROOT_INVOCATION_PREFIX = 'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"', NAMESPACE_ROOT_KEY, NAMESPACE_ROOT_BASENAME, TRAILING_OPERAND;
 var init_catalogue = __esm(() => {
   init_plugin_runtime_authority();
-  import_yaml4 = __toESM(require_dist(), 1);
+  import_yaml5 = __toESM(require_dist(), 1);
   PACKAGED_SKILL_REFERENCES = [
     { skill: "bdd", filename: "adr-template.md" },
     { skill: "bdd", filename: "execution-plan-template.md" },
@@ -72274,7 +72252,8 @@ function generateOpenCodeCatalogueAssets(templatesRoot) {
   const skillsRoot = nodePath95.join(templatesRoot, "skills");
   const skillNames = readdirSync27(skillsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
   const knownSkills = new Set(skillNames);
-  validateOpenCodeCatalogueReferences(knownSkills, CURSOR_COMMAND_WRAPPERS, SAFEWORD_SUBAGENTS);
+  const commandWrappers = readCanonicalCommandWrappers(templatesRoot, (name) => `/${openCodeWorkflowName(name)}`);
+  validateOpenCodeCatalogueReferences(knownSkills, commandWrappers, SAFEWORD_SUBAGENTS);
   const skills = generatePluginAssets(skillsRoot, VERSION, {
     workflowInvocation: (name) => `/${openCodeWorkflowName(name)}`,
     runtimeCommand: `bunx --bun safeword@${VERSION}`,
@@ -72295,7 +72274,7 @@ function generateOpenCodeCatalogueAssets(templatesRoot) {
       content
     };
   });
-  const commands = CURSOR_COMMAND_WRAPPERS.map((command) => ({
+  const commands = commandWrappers.map((command) => ({
     relativePath: nodePath95.join("commands", `${openCodeWorkflowName(command.name)}.md`),
     content: renderOpenCodeCommand(command)
   }));
@@ -72307,7 +72286,6 @@ function generateOpenCodeCatalogueAssets(templatesRoot) {
 }
 var SAFEWORD_SUBAGENTS;
 var init_catalogue2 = __esm(() => {
-  init_cursor_wrappers();
   init_catalogue();
   init_version();
   SAFEWORD_SUBAGENTS = [
@@ -73350,7 +73328,7 @@ function skillBody(content) {
 function prepareCatalogueFixture(root, profile, fault) {
   const project = nodePath102.join(root, "project");
   const config = nodePath102.join(root, "config");
-  const command = CURSOR_COMMAND_WRAPPERS.find((candidate) => candidate.name === "bdd");
+  const command = readCanonicalCommandWrappers(getTemplatesDirectory()).find((candidate) => candidate.name === "bdd");
   const agent = SAFEWORD_SUBAGENTS.find((candidate) => candidate.name === "safeword-reviewer");
   if (command === undefined || agent === undefined) {
     throw new Error("Safeword OpenCode catalogue fixture is incomplete");
@@ -73655,7 +73633,7 @@ async function proveOpenCodeSkillInvocation(executable, environment, profile) {
 }
 var OPENCODE_EXPECTED_DISCOVERY;
 var init_conformance_fixture = __esm(() => {
-  init_cursor_wrappers();
+  init_catalogue();
   init_fs();
   init_catalogue2();
   init_profile2();
@@ -79321,7 +79299,7 @@ function secretViolations(workflow) {
 function evaluateRemoteTestWorkflow(source) {
   let workflow;
   try {
-    const document2 = import_yaml5.parseDocument(source, { uniqueKeys: true });
+    const document2 = import_yaml6.parseDocument(source, { uniqueKeys: true });
     workflow = document2.errors.length === 0 ? mapping(document2.toJS()) : undefined;
   } catch {
     workflow = undefined;
@@ -79342,9 +79320,9 @@ function evaluateRemoteTestWorkflow(source) {
   const uniqueViolations = [...new Set(violations)];
   return { accepted: uniqueViolations.length === 0, violations: uniqueViolations };
 }
-var import_yaml5, FULL_SHA, CHECKOUT = "actions/checkout", CHECKOUT_ACTION = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0", SETUP_NODE_ACTION = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020", SETUP_BUN_ACTION = "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6", SETUP_UV_ACTION = "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7", INPUT_SHA = "${{ inputs.target_sha }}", INPUT_LANE = "${{ inputs.lane }}", RESULT_FILE = "safeword-remote-test-result.json", UPLOAD_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", VALIDATE_COMMAND, VERIFY_COMMAND, TEST_COMMAND, REPORT_COMMAND_SHA256 = "b1cba179d7c3921553cb748e1c1759e2711f7aeef977317ec71515c6bd3608c9", STEP_SHAPES;
+var import_yaml6, FULL_SHA, CHECKOUT = "actions/checkout", CHECKOUT_ACTION = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0", SETUP_NODE_ACTION = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020", SETUP_BUN_ACTION = "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6", SETUP_UV_ACTION = "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7", INPUT_SHA = "${{ inputs.target_sha }}", INPUT_LANE = "${{ inputs.lane }}", RESULT_FILE = "safeword-remote-test-result.json", UPLOAD_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", VALIDATE_COMMAND, VERIFY_COMMAND, TEST_COMMAND, REPORT_COMMAND_SHA256 = "b1cba179d7c3921553cb748e1c1759e2711f7aeef977317ec71515c6bd3608c9", STEP_SHAPES;
 var init_remote_workflow_contract = __esm(() => {
-  import_yaml5 = __toESM(require_dist(), 1);
+  import_yaml6 = __toESM(require_dist(), 1);
   FULL_SHA = /^[0-9a-f]{40}$/u;
   VALIDATE_COMMAND = `[[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
 ` + `[[ "$LANE" == "done" || "$LANE" == "full" ]] || exit 1
@@ -83278,7 +83256,7 @@ function addDisposition(content, request, kind, finding2, boundaryDigest) {
   const match = /^(---\r?\n)([\s\S]*?)(\r?\n---(?:\r?\n|$))/u.exec(content);
   if (match === null)
     throw new Error("The ticket has no valid frontmatter.");
-  const document2 = import_yaml6.parseDocument(match[2] ?? "", { uniqueKeys: true });
+  const document2 = import_yaml7.parseDocument(match[2] ?? "", { uniqueKeys: true });
   if (document2.errors.length > 0)
     throw new Error("The ticket has invalid frontmatter.");
   const metadata2 = document2.toJS();
@@ -83472,7 +83450,7 @@ async function recordReviewDisposition(request) {
     return pending(request, kind, selected);
   return writeDisposition(request, ticketPath, kind, selected, before, boundaryDigest);
 }
-var import_yaml6, command = "ticket record-review-disposition";
+var import_yaml7, command = "ticket record-review-disposition";
 var init_review_disposition = __esm(() => {
   init_result();
   init_coordinator();
@@ -83481,7 +83459,7 @@ var init_review_disposition = __esm(() => {
   init_planning_accepted_boundary();
   init_product_plan_contract();
   init_ticket_metadata();
-  import_yaml6 = __toESM(require_dist(), 1);
+  import_yaml7 = __toESM(require_dist(), 1);
 });
 
 // src/commands/planning-contract-check.ts
