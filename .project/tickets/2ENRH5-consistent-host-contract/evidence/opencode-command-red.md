@@ -24,6 +24,10 @@ unavailable. Successful invocation waits through the actual native session wait
 API and reads native messages through the CLI. The driver kills only its owned
 server at teardown. It never changes a shared profile/service or supplies a
 permission decision.
+The idle barrier is also called successfully on the new idle session as a
+Given prerequisite, so a missing wait API cannot first appear as a GREEN-side
+harness failure. The final barrier-check run still exits 2 at the intended
+missing command in both runtimes, log /tmp/safeword-opencode-command-barrier-check.log.
 
 The real TUI submits /safeword-bdd plus the nonce through its normal prompt path.
 Its independent prompt observer must see that exact submission when no workflow

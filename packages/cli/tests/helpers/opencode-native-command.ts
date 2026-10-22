@@ -74,6 +74,8 @@ export async function runOpenCodeCommand(input: OpenCodeTurnInput) {
     writeFileSync(nodePath.join(input.directory, 'native-command-session.json'), created.stdout);
     const session = (JSON.parse(created.stdout) as { data: { id: string } }).data;
     assert.ok(session.id);
+    // Prove the same native idle barrier is callable before exercising the command.
+    await api('experimental.session.wait', ['--param', `sessionID=${session.id}`]);
     let missing = false;
     try {
       const invoked = await api('session.command', [
