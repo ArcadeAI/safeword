@@ -112,3 +112,81 @@ The other native proof fixtures must now use the real profile enrollment writer
 instead of the removed projectDirectory activation option. No full outline or
 whole-ticket GREEN is claimed. Continue PR 2 registration failure and command
 resource proof, then remaining full-inventory and admission/lifecycle slices.
+
+
+## Resolve actual V2 catalogue transform ordering
+
+Investigation plan before selecting the remaining registration mechanism:
+SDK transform ordering/lifetime (when do built-in file transforms run?);
+public prompt and event boundaries (which completes before the first resource
+invocation?); ownership and coexistence (can only proved V1 entries be replaced
+without changing files?); concurrency (can one bounded registration satisfy
+parent/child starts?). Compare late event subscription, first-prompt ordered
+registration, and configuration-source suppression. Reject source suppression
+if it changes unrelated/user discovery. No private host API or database edit.
+
+Actual native diagnostic snapshot shows the Safeword transform's editor contains
+its ten preceding canonical skills and no V1 explain entry. Version-matched
+core/plugin/supervisor.ts activates user packages before internal post plugins;
+core/plugin/internal.ts places ConfigSkillPlugin in post; its skill transform
+then adds profile files. State transforms replay in registration order. Thus
+removing a legacy entry during initial setup cannot suppress a later file entry.
+Owned diagnostic package native-v2-registration-observe and
+skill-editor-observations.jsonl are isolated; they are not admission evidence.
+
+
+Ordering decision: prefer one first-prompt registration move over an asynchronous
+plugin.updated event subscriber. The event is simpler to subscribe to, but its
+consumer is not awaited by prompt admission, introducing a first-call race.
+Suppressing profile discovery would affect unrelated user resources and is
+rejected. Exact 2.0.32 session/prompt.ts awaits plugin activation, then the public
+prompt hook, before resolving selected skills; the public Promise adapter keeps
+registration scope. Register initial resources for discovery, then dispose that
+registration and append its replacement once at first prompt, using one shared
+Promise for concurrent prompts. Each transform checks actual existing names,
+proven V1 path/digest ownership, and removes only those effective entries.
+
+Premortem: a future host reorders prompt admission or file transforms; exact
+native source/provenance controls must fail before that version is admitted.
+Sources: v2.0.32 packages/core/src/{state.ts,plugin/supervisor.ts,plugin/internal.ts,
+config/plugin/skill.ts,session/prompt.ts} and packages/plugin/src/promise/adapter.ts.
+This is a reversible adapter mechanism within the accepted native coexistence
+contract; it neither changes shared behavior nor certifies pre-prompt UI content.
+
+
+## Native optional resource failure isolated
+
+Executable RED 4a739f32-541a-4e73-8174-962f488f474a (Claude/opus) approved the
+CLI/TUI schema-rejection failure after exact Skill.Info.description cause output
+and candidate-resource provenance were added. Production now isolates skill
+errors inside the native transform, preserving the shared guard and unrelated
+skills. Effective V1 same-name entries are replaced only when their actual
+paths/current hashes match the existing identity inventory; no file is removed.
+
+Actual CLI/TUI optional probes pass against native-v2-registration-green-4:
+malformed explain unavailable, no old fallback, healthy cleanup-zombies loaded
+from candidate, guard active with a status-2 shared dispatch tied to the native
+session. Roots rwZqLF / 2RwoT4, log
+/tmp/safeword-opencode-registration-green-3.log. Native group regression passes
+6 scenarios / 24 steps in 66.466s and all 4 worker cases, report
+safeword-host-contract-proof-M5S9FU. Coexistence also passes CLI/TUI with V1
+files/config unchanged (m3xdBP / i7QNWA). Focused regressions: 3 files / 32 tests.
+All five generated surfaces current; SDK typecheck and targeted source lint pass.
+The required native-opencode runner now also executes the registration probe,
+but intentionally remains incomplete for command/V1 resource and status cases.
+
+Quality 0682739b-c71f-497e-a873-78a8caf9722f (Claude/opus) approves the component.
+Advisory findings are bounded: whole-inventory JSON/required worker corruption
+remains fatal rather than pretending required guarantees survive; this component
+only isolates individual skill rejection. Public status/admission must expose
+such unavailable required guarantees. Promise-level backend/teardown failures,
+pre-prompt UI ordering and symlink/modified-ownership native controls still need
+their applicable lifecycle/ownership proofs. Do not invent broad exception
+suppression or retry machinery. bodyOffset uses JS content.length in the shared
+writer and JS slice in the reader, so its UTF-16 units agree; no encoding fix is
+needed. Unknown/modified-collision mechanics are code-reviewed but not yet
+certified by a separate native collision control. No whole scenario is complete.
+
+Full root lint (ESLint, Gherkin lint and CLI typecheck) completed successfully;
+log /tmp/safeword-opencode-registration-root-lint.log. Source formatting and
+git diff checks also pass. Full per-slice suite remains pending.

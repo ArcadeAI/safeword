@@ -12,6 +12,7 @@ import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
+import { OPENCODE_PROFILE_LAYOUT } from '../schema.js';
 import { acquireProfileLock, releaseProfileLock } from '../utils/profile-lock.js';
 import { VERSION } from '../version.js';
 import { generateOpenCodeCatalogueAssets, type OpenCodeCatalogueAsset } from './catalogue.js';
@@ -81,7 +82,7 @@ export function openCodeProfilePaths(root: string): OpenCodeProfilePaths {
   const safeword = nodePath.join(root, 'safeword');
   return {
     plugin: nodePath.join(root, 'plugins', 'safeword.js'),
-    identity: nodePath.join(safeword, 'identity-v1.json'),
+    identity: nodePath.join(root, OPENCODE_PROFILE_LAYOUT.identity),
     dispatcher: nodePath.join(safeword, 'dispatcher.mjs'),
     safeword,
     activation: nodePath.join(safeword, 'activation-v1'),

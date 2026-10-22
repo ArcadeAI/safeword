@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { Plugin, Skill } from '@opencode/plugin';
+import type { SkillEditor } from '@opencode/plugin/promise/skill';
 import * as Tool from '@opencode/plugin/promise/tool';
 
 import type { PackagedSkillContract } from '../../cli/src/host-contract/catalogue.js';
@@ -14,6 +15,7 @@ import { readOpenCodeV2Enrollment } from '../../cli/src/opencode/v2-enrollment.j
 import type { OPENCODE_V2_PLUGIN_LAYOUT } from '../../cli/src/schema.js';
 import { hasSafewordProjectMarker } from '../../cli/src/utils/configured-paths.js';
 import { canonicalDirectory } from '../../cli/src/utils/fs.js';
+import { readLegacyOwnership } from './legacy-ownership.js';
 
 // The generator injects paths from the schema without bundling the entire schema into the SDK entry.
 declare const __SAFEWORD_OPENCODE_LAYOUT__: typeof OPENCODE_V2_PLUGIN_LAYOUT;
@@ -25,22 +27,51 @@ function readPackagedText(relativePath: string): string {
   return readFileSync(nodePath.join(packageRoot, relativePath), 'utf8');
 }
 
-async function registerSkills(context: Plugin.Context): Promise<void> {
-  const catalogue = JSON.parse(readPackagedText(layout.catalogue)) as PackagedSkillContract[];
-  const skills = catalogue.map(entry => {
+function registerSkill(
+  editor: SkillEditor,
+  entry: PackagedSkillContract,
+  isOwnedLegacy: (path: string) => boolean,
+): void {
+  const name = openCodeWorkflowName(entry.name);
+  try {
+    const id = Skill.ID.make(name);
     const relativePath = nodePath.join(layout.skills, entry.relativePath);
-    const name = openCodeWorkflowName(entry.name);
     const path = Skill.Info.fields.path.make(nodePath.join(packageRoot, relativePath));
-    return Skill.Info.make({
-      id: Skill.ID.make(name),
-      name: Skill.Name.make(name),
-      description: entry.description,
-      path,
-      content: readPackagedText(relativePath).slice(entry.bodyOffset),
-    });
-  });
-  await context.skill.transform(editor => {
-    for (const skill of skills) editor.add(skill);
+    const existing = editor.list().filter(skill => String(skill.name) === name);
+    if (existing.some(skill => String(skill.path) !== path && !isOwnedLegacy(String(skill.path))))
+      throw new Error('An existing skill has unproved ownership; Safeword preserved it.');
+    for (const skill of existing) if (String(skill.path) !== path) editor.remove(String(skill.id));
+    editor.add(
+      Skill.Info.make({
+        id,
+        name: Skill.Name.make(name),
+        description: entry.description,
+        path,
+        content: readPackagedText(relativePath).slice(entry.bodyOffset),
+      }),
+    );
+  } catch (error) {
+    console.error(`Safeword skill ${name} unavailable:`, error);
+    return;
+  }
+}
+
+async function registerSkills(context: Plugin.Context, profile: string): Promise<void> {
+  const catalogue = JSON.parse(readPackagedText(layout.catalogue)) as PackagedSkillContract[];
+  const isOwnedLegacy = readLegacyOwnership(profile, layout.legacyIdentity);
+  const apply = (editor: SkillEditor) => {
+    for (const entry of catalogue) registerSkill(editor, entry, isOwnedLegacy);
+  };
+  const initial = await context.skill.transform(apply);
+  let ready: Promise<void> | undefined;
+  // File discovery is a post plugin in this SDK. Prompt admission waits for all
+  // activation, so append our replacement after discovery before any skill use.
+  await context.session.hook('prompt', () => {
+    ready ??= (async () => {
+      await initial.dispose();
+      await context.skill.transform(apply);
+    })();
+    return ready;
   });
 }
 
@@ -146,6 +177,6 @@ export default Plugin.define({
       });
     });
     await registerWorkerRestrictions(context);
-    await registerSkills(context);
+    await registerSkills(context, profile);
   },
 });

@@ -152,14 +152,14 @@ function nativeResult(
   return 0;
 }
 
-function nativeOpenCodeWorkers(repoRoot: string): number {
+function nativeOpenCodeProbe(repoRoot: string, script: string): number {
   const workers = spawnSync(
     process.execPath,
-    [nodePath.join(repoRoot, 'packages/cli/scripts/probe-opencode-v2-workers.ts')],
+    [nodePath.join(repoRoot, 'packages/cli/scripts', script)],
     { cwd: repoRoot, env: process.env, stdio: 'inherit', timeout: 180_000 },
   );
   if (workers.error || workers.signal || (workers.status !== 0 && workers.status !== 2)) {
-    console.error('HOST_CONTRACT_PROOF_UNAVAILABLE: native OpenCode worker probe did not complete');
+    console.error(`HOST_CONTRACT_PROOF_UNAVAILABLE: native OpenCode ${script} did not complete`);
     return 3;
   }
   return workers.status === 2 ? 2 : 0;
@@ -197,10 +197,12 @@ function nativeGroupResult(
       host: 'OpenCode V2',
     });
     if (result !== 0) return result;
-    const workers = nativeOpenCodeWorkers(repoRoot);
+    const workers = nativeOpenCodeProbe(repoRoot, 'probe-opencode-v2-workers.ts');
     if (workers !== 0) return workers;
+    const registration = nativeOpenCodeProbe(repoRoot, 'probe-opencode-registration.ts');
+    if (registration !== 0) return registration;
     console.error(
-      'HOST_CONTRACT_PROOF_INCOMPLETE: OpenCode catalogue and remaining runtime cases are required',
+      'HOST_CONTRACT_PROOF_INCOMPLETE: required registration/status, native command and V1 resource cases remain',
     );
     return 3;
   }

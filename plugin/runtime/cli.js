@@ -16123,7 +16123,7 @@ function schemaForSharedAgentRuntime(schema, needed) {
     return schema;
   return filterSchemaPaths(schema, (path3) => !isSharedAgentRuntimePath(path3));
 }
-var PLANNING_DATA_GUIDE_PATH = ".safeword/guides/data-architecture-guide.md", PORTABLE_PLUGIN_LAYOUT, OPENCODE_V2_PLUGIN_LAYOUT, PROJECT_MUTATION_LOCK = ".safeword/project-mutation.lock", PLANNING_CONTRACT_TEMPLATE_PATHS, MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, SAFEWORD_TRANSIENT_ROOT_ENTRIES, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", TERMINAL_HANDOFF_CONTRACT_MARKERS, SAFEWORD_SCHEMA, ALL_SCHEMA_PATH_COLLECTIONS, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
+var PLANNING_DATA_GUIDE_PATH = ".safeword/guides/data-architecture-guide.md", PORTABLE_PLUGIN_LAYOUT, OPENCODE_PROFILE_LAYOUT, OPENCODE_V2_PLUGIN_LAYOUT, PROJECT_MUTATION_LOCK = ".safeword/project-mutation.lock", PLANNING_CONTRACT_TEMPLATE_PATHS, MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, SAFEWORD_TRANSIENT_ROOT_ENTRIES, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", TERMINAL_HANDOFF_CONTRACT_MARKERS, SAFEWORD_SCHEMA, ALL_SCHEMA_PATH_COLLECTIONS, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
 var init_schema = __esm(() => {
   init_historical_ownership();
   init_inventory();
@@ -16146,6 +16146,9 @@ var init_schema = __esm(() => {
     runtime: "runtime/cli.js",
     templates: "templates"
   };
+  OPENCODE_PROFILE_LAYOUT = {
+    identity: "safeword/identity-v1.json"
+  };
   OPENCODE_V2_PLUGIN_LAYOUT = {
     directory: "opencode-v2-plugin",
     manifest: "package.json",
@@ -16153,6 +16156,7 @@ var init_schema = __esm(() => {
     dispatcher: "runtime/dispatch.js",
     workers: "workers.json",
     enrollments: "safeword/enrollment-v2",
+    legacyIdentity: OPENCODE_PROFILE_LAYOUT.identity,
     skills: PORTABLE_PLUGIN_LAYOUT.skills,
     catalogue: PORTABLE_PLUGIN_LAYOUT.catalogue,
     runtime: PORTABLE_PLUGIN_LAYOUT.runtime,
@@ -72644,7 +72648,7 @@ function openCodeProfilePaths(root) {
   const safeword = nodePath101.join(root, "safeword");
   return {
     plugin: nodePath101.join(root, "plugins", "safeword.js"),
-    identity: nodePath101.join(safeword, "identity-v1.json"),
+    identity: nodePath101.join(root, OPENCODE_PROFILE_LAYOUT.identity),
     dispatcher: nodePath101.join(safeword, "dispatcher.mjs"),
     safeword,
     activation: nodePath101.join(safeword, "activation-v1"),
@@ -73226,6 +73230,7 @@ var PROFILE_LOCK_WAIT_MS = 500, PROFILE_LOCK_RETRY_MS = 10, PROFILE_LOCK_SLEEP, 
 var init_profile2 = __esm(() => {
   init_result();
   init_durable_write();
+  init_schema();
   init_profile_lock();
   init_version();
   init_catalogue3();

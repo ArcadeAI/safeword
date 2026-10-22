@@ -73,6 +73,11 @@ export const CURSOR_PLUGIN_LAYOUT = {
   templates: 'templates',
 } as const;
 
+/** Shared profile identity used by the existing writer and native coexistence reader. */
+export const OPENCODE_PROFILE_LAYOUT = {
+  identity: 'safeword/identity-v1.json',
+} as const;
+
 /** Isolated native SDK carrier; content and policy remain in the portable core. */
 export const OPENCODE_V2_PLUGIN_LAYOUT = {
   directory: 'opencode-v2-plugin',
@@ -81,6 +86,7 @@ export const OPENCODE_V2_PLUGIN_LAYOUT = {
   dispatcher: 'runtime/dispatch.js',
   workers: 'workers.json',
   enrollments: 'safeword/enrollment-v2',
+  legacyIdentity: OPENCODE_PROFILE_LAYOUT.identity,
   skills: PORTABLE_PLUGIN_LAYOUT.skills,
   catalogue: PORTABLE_PLUGIN_LAYOUT.catalogue,
   runtime: PORTABLE_PLUGIN_LAYOUT.runtime,
