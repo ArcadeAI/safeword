@@ -27,6 +27,7 @@ export interface NativeCatalogueProbe {
 export async function createNativeCatalogueProbe(
   directory: string,
   generateCarrier?: (output: string) => Promise<unknown>,
+  skill = 'explain',
 ): Promise<NativeCatalogueProbe> {
   const packageRoot = nodePath.join(directory, 'candidate');
   const canonicalRoot = nodePath.join(directory, 'canonical');
@@ -38,12 +39,12 @@ export async function createNativeCatalogueProbe(
   };
   const cliRoot = nodePath.resolve(import.meta.dirname, '../..');
   cpSync(nodePath.join(cliRoot, 'templates'), canonicalRoot, { recursive: true });
-  const skillDirectory = nodePath.join(canonicalRoot, 'skills', 'explain');
+  const skillDirectory = nodePath.join(canonicalRoot, 'skills', skill);
   writeFileSync(
     nodePath.join(skillDirectory, 'SKILL.md'),
     [
       '---',
-      'name: explain',
+      `name: ${skill}`,
       `description: ${NATIVE_CATALOGUE_PROBE_DESCRIPTION}`,
       '---',
       '',
@@ -136,7 +137,7 @@ export async function createNativeCatalogueProbe(
     );
     writeCodexPluginCatalogue(nodePath.join(canonicalRoot, 'skills'), packageRoot, VERSION);
     const renderedWorkflow = readFileSync(
-      nodePath.join(packageRoot, 'skills/explain/SKILL.md'),
+      nodePath.join(packageRoot, 'skills', skill, 'SKILL.md'),
       'utf8',
     );
     assert.ok(renderedWorkflow.includes('project runtime audit-principle-trace'));

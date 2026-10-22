@@ -4,6 +4,7 @@ import { writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import nodePath from 'node:path';
 
+import { runOpenCodeCommand } from './opencode-native-command.js';
 export interface ModelMessage {
   role: string;
   content?: unknown;
@@ -130,7 +131,7 @@ export function openCodeModelFixture(command: string, directory: string) {
 }
 
 /** Run either the real CLI or real TUI, preserving terminal bytes for diagnosis. */
-export async function runOpenCodeTurn(input: {
+export interface OpenCodeTurnInput {
   binary: string;
   version: string;
   runtime: 'CLI' | 'TUI';
@@ -139,8 +140,12 @@ export async function runOpenCodeTurn(input: {
   finish: string;
   directory: string;
   prompt?: string;
-}): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  command?: string;
+}
+
+function nativeArguments(input: OpenCodeTurnInput): string[] {
   const v2 = input.version.startsWith('2.');
+  const prompt = input.command ? `/${input.command} ${input.prompt ?? ''}` : input.prompt;
   const args =
     input.runtime === 'CLI'
       ? [
@@ -150,10 +155,18 @@ export async function runOpenCodeTurn(input: {
           'json',
           '--model',
           'fixture/model',
-          input.prompt ?? 'Perform the isolated native write.',
+          prompt ?? 'Perform the isolated native write.',
         ]
-      : ['--auto', '--prompt', input.prompt ?? 'Perform the isolated native write.'];
+      : ['--auto', '--prompt', prompt ?? 'Perform the isolated native write.'];
   if (v2) args.splice(input.runtime === 'CLI' ? 1 : 0, 0, '--standalone');
+  return args;
+}
+
+export async function runOpenCodeTurn(
+  input: OpenCodeTurnInput,
+): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  if (input.command && input.runtime === 'CLI') return runOpenCodeCommand(input);
+  const args = nativeArguments(input);
   const pty = nodePath.resolve(import.meta.dirname, '../fixtures/host-contract/native-pty.py');
   const executable = input.runtime === 'TUI' ? 'python3' : input.binary;
   const argv = input.runtime === 'TUI' ? [pty, input.binary, ...args] : args;
