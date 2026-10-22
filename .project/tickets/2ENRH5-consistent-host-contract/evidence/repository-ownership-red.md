@@ -47,3 +47,12 @@ compiler and do not upgrade it for this task. Premortem: a renamed predicate or
 new route evades a narrow known-name guard; complete facet/disposition discovery
 and adapter-owner constraints are still mandatory before actual-repository
 completion can pass.
+
+After the first approved RED, reviewer warnings strengthened the future GREEN:
+output must identify the actual adapter authoring path as well as the stable
+owner ID. The retained fixture now includes the original whole intake gate,
+not just an unused predicate; when restoration is needed it is wired back into
+runEnrolledPreToolUse's actual target-path decision route. The Given requires
+that reachable call. Required-check CI wiring and positive full-consolidation
+controls remain mandatory later tasks, not claims from this first negative
+component. These support changes require a fresh independent RED before code.

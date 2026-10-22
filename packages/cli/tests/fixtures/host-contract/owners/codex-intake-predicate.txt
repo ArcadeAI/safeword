@@ -29,3 +29,36 @@ function missingIntakeFields(ticketContent: string): string[] {
   return REQUIRED_INTAKE_FIELDS.filter(field => !frontmatterHasField(body, field));
 }
 
+function testDefinitionsTicketFolder(
+  projectDirectory: string,
+  targetPath: string,
+): string | undefined {
+  const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
+  const absoluteTarget = nodePath.resolve(projectDirectory, targetPath);
+  const normalized = nodePath.relative(ticketsDirectory, absoluteTarget).replaceAll('\\', '/');
+  const match = /^([^/]+)\/test-definitions\.md$/u.exec(normalized);
+  return match?.[1];
+}
+
+function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: string): boolean {
+  const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
+  if (!ticketFolder) return false;
+
+  const ticketPath = nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    'tickets',
+    ticketFolder,
+    'ticket.md',
+  );
+  const ticketContent = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
+  const missing = missingIntakeFields(ticketContent);
+  if (missing.length === 0) return false;
+
+  deny(
+    `Cannot create test-definitions.md for ${ticketFolder} until ticket.md declares ${missing.join(
+      ', ',
+    )}.`,
+  );
+  return true;
+}
+

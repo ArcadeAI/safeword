@@ -31,12 +31,21 @@ describe('required repository boundary for shared policy ownership', () => {
         'utf8',
       );
       adapter += `\n${retired}`;
+      const start = adapter.indexOf('function runEnrolledPreToolUse(');
+      const anchor = '  if (!input) return;';
+      const insertion = adapter.indexOf(anchor, start) + anchor.length;
+      expect(start).toBeGreaterThan(-1);
+      expect(insertion).toBeGreaterThan(start);
+      adapter = `${adapter.slice(0, insertion)}\n  for (const targetPath of extractTargetPaths(input)) {\n    if (maybeDenyTestDefinitionsWrite(projectDirectory, targetPath)) return;\n  }${adapter.slice(insertion)}`;
       writeFileSync(adapterPath, adapter);
     }
     const shared = fixtureSource(directory, 'packages/cli/templates/hooks/pre-tool-quality.ts');
     // Both real implementations exist before the check. This is not a missing-import RED.
     expect(adapter).toContain('function missingIntakeFields(');
     expect(adapter).toContain('runEnrolledPreToolUse(');
+    expect(adapter).toContain(
+      'if (maybeDenyTestDefinitionsWrite(projectDirectory, targetPath)) return;',
+    );
     expect(shared).toContain('test-definitions.md');
     const result = runContractRepoCheck(directory);
     expect(
@@ -44,5 +53,6 @@ describe('required repository boundary for shared policy ownership', () => {
       `COMPETING_HOST_CONTRACT_OWNER: ${result.entrypoint} accepted parallel codex.intake.required-fields\n${result.output}`,
     ).toBe(2);
     expect(result.output).toContain('codex.intake.required-fields');
+    expect(result.output).toContain('packages/cli/src/commands/codex-hook.ts');
   }, 60_000);
 });
