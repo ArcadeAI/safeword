@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/name-replacements -- Accepted execution-plan proof filename. */
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -11,12 +11,72 @@ import {
 } from '../helpers/contract-repo-fixture.js';
 
 const fixtures: string[] = [];
+const intendedSources = JSON.parse(
+  readFileSync(
+    nodePath.resolve(import.meta.dirname, '../fixtures/host-contract/intended-sources.json'),
+    'utf8',
+  ),
+) as { baseline: string; paths: string[] };
 afterEach(() => {
   for (const directory of fixtures.splice(0))
     rmSync(nodePath.dirname(directory), { recursive: true, force: true });
 });
 
 describe('required repository boundary for shared policy ownership', () => {
+  it('reports every intended shipped source from the independently frozen baseline', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const result = runContractRepoCheck(directory);
+    const report = JSON.parse(result.output.trim()) as {
+      data: { source_inventory?: { path: string }[] };
+    };
+    expect(
+      report.data.source_inventory,
+      'HOST_CONTRACT_SOURCE_INVENTORY_MISSING: the real check must expose every shipped source',
+    ).toBeDefined();
+    expect(
+      report.data.source_inventory
+        ?.map(entry => entry.path)
+        .toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(intendedSources.paths.toSorted((left, right) => left.localeCompare(right)));
+  }, 60_000);
+
+  it.each([
+    ['skill', 'skills/unaccounted-contract/SKILL.md'],
+    ['guide', 'guides/unaccounted-contract.md'],
+    ['native command wrapper', 'commands/unaccounted-contract.md'],
+    ['helper-agent entrypoint', 'agents/unaccounted-contract.md'],
+  ])(
+    'names an unaccounted %s through the real check',
+    (_kind, sourcePath) => {
+      const directory = createContractRepoFixture();
+      fixtures.push(directory);
+      const relativePath = `packages/cli/templates/${sourcePath}`;
+      const target = nodePath.join(directory, relativePath);
+      mkdirSync(nodePath.dirname(target), { recursive: true });
+      writeFileSync(
+        target,
+        '---\nname: unaccounted-contract\ndescription: An unaccounted canonical component.\n---\n\nFollow this canonical workflow.\n',
+      );
+      const result = runContractRepoCheck(directory);
+      expect(result.status).toBe(2);
+      const report = JSON.parse(result.output.trim()) as {
+        findings: { code: string; severity: string; metadata?: { path?: string } }[];
+      };
+      expect(
+        report.findings,
+        `UNACCOUNTED_HOST_CONTRACT_SOURCE: ${relativePath} must be named independently of other failures`,
+      ).toContainEqual(
+        expect.objectContaining({
+          code: 'UNACCOUNTED_HOST_CONTRACT_SOURCE',
+          severity: 'error',
+          metadata: expect.objectContaining({ path: relativePath }),
+        }),
+      );
+    },
+    60_000,
+  );
+
   it('rejects an interface that leaves the independent Codex intake predicate in place', () => {
     const directory = createContractRepoFixture();
     fixtures.push(directory);
