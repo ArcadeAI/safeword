@@ -16,7 +16,7 @@ const intendedSources = JSON.parse(
     nodePath.resolve(import.meta.dirname, '../fixtures/host-contract/intended-sources.json'),
     'utf8',
   ),
-) as { baseline: string; paths: string[] };
+) as { baseline: string; paths: string[]; additions: string[] };
 afterEach(() => {
   for (const directory of fixtures.splice(0))
     rmSync(nodePath.dirname(directory), { recursive: true, force: true });

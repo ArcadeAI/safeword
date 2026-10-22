@@ -37,3 +37,11 @@ bytes must clear those same findings through the same real subprocess. These
 controls discriminate blanket error reporting and verify executable configuration
 semantics rather than inferring them from substrings. Refresh the executable
 RED receipt against these changed proof/support bytes before implementation.
+
+The new shared data module is itself a shipped canonical source, so the
+independent source-population oracle records it as an explicit addition while
+retaining the immutable 258 baseline paths. This routine intended-footprint
+change is made before production and included in this final RED packet. The
+selected handler test does not assert the future source population before the
+module exists; its actual handler finding remains the attested missing behavior.
+The full boundary suite must pass with the registered module at GREEN.

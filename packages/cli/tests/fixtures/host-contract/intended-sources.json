@@ -259,5 +259,6 @@
     "packages/cli/templates/workflows/pr-review-worker.yml",
     "packages/cli/templates/workflows/pr-review.yml",
     "packages/cli/templates/workflows/remote-tests.yml"
-  ]
+  ],
+  "additions": ["packages/cli/templates/hooks/lib/behavior-contract.ts"]
 }
