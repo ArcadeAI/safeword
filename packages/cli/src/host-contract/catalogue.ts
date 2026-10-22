@@ -24,6 +24,12 @@ export interface PackagedCommandContract {
   readonly workflow: string;
 }
 
+export interface CanonicalCommandWrapper {
+  readonly name: string;
+  readonly description: string;
+  readonly skillPath: string;
+}
+
 export interface CatalogueProjection {
   readonly workflowInvocation: (name: string) => string;
   readonly runtimeCommand: string;
@@ -142,6 +148,35 @@ export function readPackagedSkillContracts(skillsDirectory: string): PackagedSki
         bodyOffset: content.length - parsed.body.length,
       };
     });
+}
+
+/** Command identities are canonical source entrypoints; skills own their purpose and procedure. */
+export function readCanonicalCommandWrappers(
+  templatesDirectory: string,
+  workflowInvocation?: (name: string) => string,
+): CanonicalCommandWrapper[] {
+  const skills = new Map(
+    readPackagedSkillContracts(nodePath.join(templatesDirectory, 'skills')).map(skill => [
+      skill.name,
+      skill,
+    ]),
+  );
+  const knownSkills = new Set(skills.keys());
+  return readdirSync(nodePath.join(templatesDirectory, 'commands'), { withFileTypes: true })
+    .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+    .map(entry => {
+      const name = nodePath.basename(entry.name, '.md');
+      const skill = skills.get(name);
+      if (!skill) throw new Error(`Canonical command ${name} references an unknown workflow`);
+      return {
+        name,
+        description: workflowInvocation
+          ? adaptWorkflowInvocations(skill.description, knownSkills, workflowInvocation)
+          : skill.description,
+        skillPath: `${name}/SKILL.md`,
+      };
+    })
+    .toSorted((left, right) => left.name.localeCompare(right.name));
 }
 
 function isAsciiLowercase(character: string): boolean {
