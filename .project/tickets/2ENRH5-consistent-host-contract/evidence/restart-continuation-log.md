@@ -481,3 +481,27 @@ that same pure function. Actual generated before/after packages under owned
 /tmp/safeword-cursor-manifest-extraction.FZkAw2 are byte-identical for EVERY file,
 not merely the hooks JSON. All 12 existing relocation/real-dispatch tests pass;
 lint and CLI types pass. No template or public behavior changed.
+
+### Include native Claude groups and Cursor extension in source coverage
+
+Current executable RED 703b0efa-7a52-4f50-9189-284fd1f9125a approved before
+implementation. Registry declarations consume the same pure Claude manifest/
+event-group and Cursor manifest producers as generation. The repository reader
+understands the actual native groups envelope without expanding a second event
+list. Actual source inventory now contains 107 registrations: project43, native
+Claude24 plus13 dispatch-group subhandlers, native Cursor8, Codex5, OpenCodeV1six
+and V2eight. This includes Setup and nested dispatcher entries, not only common
+lifecycle categories.
+
+All 4 files /43 focused tests pass. In owned source mutations, adding a canonical
+Claude SessionStart hook changes the group count10→11 while the native manifest
+dispatcher remains1; adding a canonical Cursor hook changes native count2→3.
+Byte restoration restores all original counts. This is source projection proof,
+not runtime activation or full coverage/admission. Types/lint pass. Dependency
+validation reports0errors (5 existing orphan warnings), with no new cycle.
+
+The data still has only the first4 shared bindings and reports incomplete/
+admission-ineligible; remaining native transports, shared policy owners,
+guarantee/alternative semantics and all runtime-lane dispositions must be
+validated before healthy coverage. Required CI wiring is still not claimed.
+Logs /tmp/safeword-native-package-inventory-{red,green,types,dependencies,generated}.log.

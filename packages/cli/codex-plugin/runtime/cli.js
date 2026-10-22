@@ -16123,7 +16123,7 @@ function schemaForSharedAgentRuntime(schema, needed) {
     return schema;
   return filterSchemaPaths(schema, (path3) => !isSharedAgentRuntimePath(path3));
 }
-var PLANNING_DATA_GUIDE_PATH = ".safeword/guides/data-architecture-guide.md", PORTABLE_PLUGIN_LAYOUT, OPENCODE_PROFILE_LAYOUT, OPENCODE_V2_PLUGIN_LAYOUT, PROJECT_MUTATION_LOCK = ".safeword/project-mutation.lock", PLANNING_CONTRACT_TEMPLATE_PATHS, MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, SAFEWORD_TRANSIENT_ROOT_ENTRIES, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", TERMINAL_HANDOFF_CONTRACT_MARKERS, SAFEWORD_SCHEMA, ALL_SCHEMA_PATH_COLLECTIONS, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
+var PLANNING_DATA_GUIDE_PATH = ".safeword/guides/data-architecture-guide.md", PORTABLE_PLUGIN_LAYOUT, CURSOR_PLUGIN_LAYOUT, OPENCODE_PROFILE_LAYOUT, OPENCODE_V2_PLUGIN_LAYOUT, PROJECT_MUTATION_LOCK = ".safeword/project-mutation.lock", PLANNING_CONTRACT_TEMPLATE_PATHS, MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, SAFEWORD_TRANSIENT_ROOT_ENTRIES, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", TERMINAL_HANDOFF_CONTRACT_MARKERS, SAFEWORD_SCHEMA, ALL_SCHEMA_PATH_COLLECTIONS, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
 var init_schema = __esm(() => {
   init_historical_ownership();
   init_inventory();
@@ -16143,6 +16143,14 @@ var init_schema = __esm(() => {
     manifestSchema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
     skills: "skills",
     catalogue: "catalogue.json",
+    runtime: "runtime/cli.js",
+    templates: "templates"
+  };
+  CURSOR_PLUGIN_LAYOUT = {
+    directory: "cursor-plugin",
+    manifest: ".cursor-plugin/plugin.json",
+    hooks: "hooks/hooks.json",
+    dispatcher: "runtime/dispatch.js",
     runtime: "runtime/cli.js",
     templates: "templates"
   };
@@ -70317,6 +70325,118 @@ var init_health = __esm(() => {
   ];
 });
 
+// src/claude-plugin/hook-manifest.ts
+import { createHash as createHash35 } from "crypto";
+function pluginEventGroupEvents() {
+  return [...EVENT_GROUP_EVENTS];
+}
+function adaptHookValue(value) {
+  if (typeof value === "string") {
+    return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
+  }
+  if (Array.isArray(value))
+    return value.map((child) => adaptHookValue(child));
+  if (typeof value !== "object" || value === null)
+    return value;
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, adaptHookValue(child)]));
+}
+function wrapHookCommands(value, event) {
+  if (Array.isArray(value))
+    return value.map((child) => wrapHookCommands(child, event));
+  if (typeof value !== "object" || value === null)
+    return value;
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+    key,
+    key === "command" && typeof child === "string" ? `${PLUGIN_DISPATCH} ${event} -- ${child}` : wrapHookCommands(child, event)
+  ]));
+}
+function pluginSessionStartEntries(adapted) {
+  return Array.isArray(adapted.SessionStart) ? adapted.SessionStart.filter((entry) => !JSON.stringify(entry).includes("session-auto-upgrade.ts")) : [];
+}
+function pluginEventGroups() {
+  const adapted = adaptHookValue(SETTINGS_HOOKS);
+  const groups = Object.fromEntries(pluginEventGroupEvents().map((event) => [
+    event,
+    event === "SessionStart" ? pluginSessionStartEntries(adapted) : adapted[event] ?? []
+  ]));
+  return `${JSON.stringify({ schema_version: 1, groups }, undefined, 2)}
+`;
+}
+function pluginHookEntries(event, entries) {
+  if (EVENT_GROUP_EVENTS.has(event)) {
+    return [
+      {
+        hooks: [
+          {
+            type: "command",
+            command: `${PLUGIN_DISPATCH} ${event} --event-group`
+          }
+        ]
+      }
+    ];
+  }
+  return wrapHookCommands(entries, event);
+}
+function pluginHooks() {
+  const adapted = adaptHookValue(SETTINGS_HOOKS);
+  const withSetup = {
+    ...adapted,
+    Setup: [{ matcher: "init", hooks: [{ type: "command", command: "true" }] }]
+  };
+  return Object.fromEntries(Object.entries(withSetup).map(([event, entries]) => [event, pluginHookEntries(event, entries)]));
+}
+function pluginHookManifest() {
+  const hooks = pluginHooks();
+  return `${JSON.stringify({ hooks }, undefined, 2)}
+`;
+}
+function currentClaudePluginHookManifestSha256() {
+  return createHash35("sha256").update(pluginHookManifest()).digest("hex");
+}
+var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun --no-env-file --cwd "${CLAUDE_PLUGIN_ROOT}" "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js', EVENT_GROUP_EVENTS;
+var init_hook_manifest = __esm(() => {
+  init_config();
+  EVENT_GROUP_EVENTS = new Set(["SessionStart", "UserPromptSubmit"]);
+});
+
+// src/cursor-plugin/bindings.ts
+function cursorPluginBindings() {
+  return Object.entries(CURSOR_HOOKS).flatMap(([event, hooks]) => hooks.map((hook2, index) => {
+    const match = /^bun \.\/\.safeword\/hooks\/([\w/-]+\.ts)(.*)$/u.exec(hook2.command);
+    if (!match?.[1])
+      throw new Error(`Unrecognized canonical Cursor command: ${hook2.command}`);
+    const template = SAFEWORD_SCHEMA.ownedFiles[`.safeword/hooks/${match[1]}`]?.template;
+    if (template !== `hooks/${match[1]}`)
+      throw new Error(`Unregistered Cursor hook: ${match[1]}`);
+    const tail = match[2]?.trim() ?? "";
+    if (tail && !/^[-\w= ]+$/u.test(tail))
+      throw new Error(`Unsupported Cursor hook arguments: ${tail}`);
+    return {
+      id: `${event}:${index}`,
+      event,
+      path: match[1],
+      args: tail ? tail.split(/ +/u) : [],
+      configuration: hook2
+    };
+  }));
+}
+function cursorPluginHookManifest() {
+  const hooks = {};
+  for (const binding of cursorPluginBindings()) {
+    const eventHooks = hooks[binding.event] ??= [];
+    eventHooks.push({
+      ...binding.configuration,
+      command: `bun "\${CURSOR_PLUGIN_ROOT}"/${CURSOR_PLUGIN_LAYOUT.dispatcher} ${binding.id}`
+    });
+  }
+  return `${JSON.stringify({ version: 1, hooks }, undefined, 2)}
+`;
+}
+var init_bindings = __esm(() => {
+  init_schema();
+  init_config();
+});
+
 // src/host-contract/handlers.ts
 function configuredCommandHandlers(host, config) {
   return Object.entries(config).flatMap(([event, groups]) => groups.flatMap((group) => (group.hooks ?? [group]).map((hook2) => {
@@ -70613,7 +70733,7 @@ __export(exports_profile, {
   claudeInstallRequiresMutation: () => claudeInstallRequiresMutation
 });
 import { spawnSync as spawnSync14 } from "child_process";
-import { createHash as createHash35 } from "crypto";
+import { createHash as createHash36 } from "crypto";
 import {
   closeSync as closeSync10,
   cpSync as cpSync2,
@@ -71156,7 +71276,7 @@ function convergePlugin(cwd, scope, effects) {
   }
 }
 function fileSha256(path8) {
-  return createHash35("sha256").update(readFileSync62(path8)).digest("hex");
+  return createHash36("sha256").update(readFileSync62(path8)).digest("hex");
 }
 function assertInstalledAsset(installPath, asset) {
   if (typeof asset.path !== "string" || nodePath92.isAbsolute(asset.path) || asset.path.split(/[\\/]/u).includes("..") || typeof asset.sha256 !== "string") {
@@ -71168,7 +71288,7 @@ function assertInstalledAsset(installPath, asset) {
   }
 }
 function assertInstalledIdentity(identity2, inventory, inventoryContent) {
-  if (identity2.schema_version !== 1 || identity2.plugin_version !== VERSION || identity2.inventory_sha256 !== createHash35("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
+  if (identity2.schema_version !== 1 || identity2.plugin_version !== VERSION || identity2.inventory_sha256 !== createHash36("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
     throw new TypeError("installed identity or inventory is inconsistent");
   }
 }
@@ -71464,65 +71584,6 @@ var init_profile = __esm(() => {
       nextAction: "safeword claude status"
     }
   };
-});
-
-// src/claude-plugin/hook-manifest.ts
-import { createHash as createHash36 } from "crypto";
-function adaptHookValue(value) {
-  if (typeof value === "string") {
-    return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
-  }
-  if (Array.isArray(value))
-    return value.map((child) => adaptHookValue(child));
-  if (typeof value !== "object" || value === null)
-    return value;
-  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, adaptHookValue(child)]));
-}
-function wrapHookCommands(value, event) {
-  if (Array.isArray(value))
-    return value.map((child) => wrapHookCommands(child, event));
-  if (typeof value !== "object" || value === null)
-    return value;
-  return Object.fromEntries(Object.entries(value).map(([key, child]) => [
-    key,
-    key === "command" && typeof child === "string" ? `${PLUGIN_DISPATCH} ${event} -- ${child}` : wrapHookCommands(child, event)
-  ]));
-}
-function pluginHookEntries(event, entries) {
-  if (EVENT_GROUP_EVENTS.has(event)) {
-    return [
-      {
-        hooks: [
-          {
-            type: "command",
-            command: `${PLUGIN_DISPATCH} ${event} --event-group`
-          }
-        ]
-      }
-    ];
-  }
-  return wrapHookCommands(entries, event);
-}
-function pluginHooks() {
-  const adapted = adaptHookValue(SETTINGS_HOOKS);
-  const withSetup = {
-    ...adapted,
-    Setup: [{ matcher: "init", hooks: [{ type: "command", command: "true" }] }]
-  };
-  return Object.fromEntries(Object.entries(withSetup).map(([event, entries]) => [event, pluginHookEntries(event, entries)]));
-}
-function pluginHookManifest() {
-  const hooks = pluginHooks();
-  return `${JSON.stringify({ hooks }, undefined, 2)}
-`;
-}
-function currentClaudePluginHookManifestSha256() {
-  return createHash36("sha256").update(pluginHookManifest()).digest("hex");
-}
-var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun --no-env-file --cwd "${CLAUDE_PLUGIN_ROOT}" "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js', EVENT_GROUP_EVENTS;
-var init_hook_manifest = __esm(() => {
-  init_config();
-  EVENT_GROUP_EVENTS = new Set(["SessionStart", "UserPromptSubmit"]);
 });
 
 // src/claude-plugin/status.ts
@@ -74028,7 +74089,9 @@ function openCodeEffects(context) {
 }
 var LIFECYCLE_EVENTS, ADAPTER_KEYS, LIFECYCLE_STRENGTHS, EMPTY_EFFECTS3, FULL_HOOK_CAPABILITIES, claude, codex, opencode, cursor, PRODUCTION_INTEGRATIONS;
 var init_integrations = __esm(() => {
+  init_hook_manifest();
   init_result();
+  init_bindings();
   init_plugin();
   init_config();
   LIFECYCLE_EVENTS = [
@@ -74075,6 +74138,20 @@ var init_integrations = __esm(() => {
   claude = defineIntegrationAdapter({
     id: "claude",
     configuredHandlers: () => configuredCommandHandlers("claude", SETTINGS_HOOKS),
+    nativeHandlerSources: [
+      {
+        family: "claude-native",
+        source: "packages/cli/src/claude-plugin/hook-manifest.ts",
+        format: "command-manifest",
+        generate: pluginHookManifest
+      },
+      {
+        family: "claude-native-event-groups",
+        source: "packages/cli/src/claude-plugin/hook-manifest.ts",
+        format: "group-manifest",
+        generate: pluginEventGroups
+      }
+    ],
     defaultSelected: true,
     project: { owned: ["claude"], shared: ["skills"] },
     profile: {
@@ -74226,6 +74303,14 @@ var init_integrations = __esm(() => {
   cursor = defineIntegrationAdapter({
     id: "cursor",
     configuredHandlers: () => configuredCommandHandlers("cursor", CURSOR_HOOKS),
+    nativeHandlerSources: [
+      {
+        family: "cursor-native",
+        source: "packages/cli/src/cursor-plugin/bindings.ts",
+        format: "command-manifest",
+        generate: cursorPluginHookManifest
+      }
+    ],
     defaultSelected: false,
     project: { owned: ["cursor"], shared: ["skills"] },
     profile: { available: false },

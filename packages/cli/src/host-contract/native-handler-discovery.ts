@@ -95,11 +95,14 @@ export function discoverNativeHandlers(
   source: NativeHandlerSource,
 ): HostHandlerRegistration[] {
   const content = source.generate?.() ?? readFileSync(nodePath.join(root, source.source), 'utf8');
-  if (source.format === 'command-manifest') {
+  if (source.format === 'command-manifest' || source.format === 'group-manifest') {
     const manifest = JSON.parse(content) as {
-      hooks: Parameters<typeof configuredCommandHandlers>[1];
+      hooks?: Parameters<typeof configuredCommandHandlers>[1];
+      groups?: Parameters<typeof configuredCommandHandlers>[1];
     };
-    return configuredCommandHandlers(host, manifest.hooks).map(handler => ({
+    const config = source.format === 'group-manifest' ? manifest.groups : manifest.hooks;
+    if (config === undefined) throw new Error(`Missing native handler groups in ${source.source}`);
+    return configuredCommandHandlers(host, config).map(handler => ({
       ...handler,
       handler_path: source.source,
       source_family: source.family,

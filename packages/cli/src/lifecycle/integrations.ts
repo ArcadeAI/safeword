@@ -1,4 +1,6 @@
+import { pluginEventGroups, pluginHookManifest } from '../claude-plugin/hook-manifest.js';
 import { type CliResult, createResult, type Effects } from '../cli-protocol/result.js';
+import { cursorPluginHookManifest } from '../cursor-plugin/bindings.js';
 import { configuredCommandHandlers } from '../host-contract/handlers.js';
 import { generateOpenCodeProfilePlugin } from '../opencode/plugin.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from '../templates/config.js';
@@ -17,7 +19,7 @@ export interface HostHandlerRegistration {
 export interface NativeHandlerSource {
   readonly family: string;
   readonly source: string;
-  readonly format: 'command-manifest' | 'callback-object' | 'sdk-source';
+  readonly format: 'command-manifest' | 'group-manifest' | 'callback-object' | 'sdk-source';
   readonly generate?: () => string;
 }
 
@@ -326,6 +328,20 @@ const FULL_HOOK_CAPABILITIES: LifecycleCapabilities = {
 const claude = defineIntegrationAdapter({
   id: 'claude',
   configuredHandlers: () => configuredCommandHandlers('claude', SETTINGS_HOOKS),
+  nativeHandlerSources: [
+    {
+      family: 'claude-native',
+      source: 'packages/cli/src/claude-plugin/hook-manifest.ts',
+      format: 'command-manifest',
+      generate: pluginHookManifest,
+    },
+    {
+      family: 'claude-native-event-groups',
+      source: 'packages/cli/src/claude-plugin/hook-manifest.ts',
+      format: 'group-manifest',
+      generate: pluginEventGroups,
+    },
+  ],
   defaultSelected: true,
   project: { owned: ['claude'], shared: ['skills'] },
   profile: {
@@ -567,6 +583,14 @@ const opencode = defineIntegrationAdapter({
 const cursor = defineIntegrationAdapter({
   id: 'cursor',
   configuredHandlers: () => configuredCommandHandlers('cursor', CURSOR_HOOKS),
+  nativeHandlerSources: [
+    {
+      family: 'cursor-native',
+      source: 'packages/cli/src/cursor-plugin/bindings.ts',
+      format: 'command-manifest',
+      generate: cursorPluginHookManifest,
+    },
+  ],
   defaultSelected: false,
   project: { owned: ['cursor'], shared: ['skills'] },
   profile: { available: false },
