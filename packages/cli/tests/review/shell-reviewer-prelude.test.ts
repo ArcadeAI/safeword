@@ -23,3 +23,31 @@ it.each([
   expect(child.stdout).toBe(output);
   expect(child.stderr).toBe('');
 });
+
+it.each(['first-dispatch', 'different-dispatch'])(
+  'echoes the payload dispatch ID %s',
+  dispatchId => {
+    const executable = nodePath.join(installReviewer(), 'claude');
+    const child = spawnSync(executable, [], {
+      encoding: 'utf8',
+      input: JSON.stringify({ kind: 'quality-review', dispatch_id: dispatchId }),
+      env: {
+        ...process.env,
+        SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: '',
+        SAFEWORD_REVIEW_FAKE_VERDICT: '',
+        SAFEWORD_REVIEW_FAKE_FINDING: '',
+      },
+      timeout: 5000,
+    });
+    expect(child.status, child.stderr).toBe(0);
+    expect(child.stderr).toBe('');
+    expect(JSON.parse(child.stdout)).toEqual({
+      schema_version: 1,
+      dispatch_id: dispatchId,
+      reviewer_agent: 'claude',
+      verdict: 'approve',
+      summary: 'approved',
+      findings: [],
+    });
+  },
+);
