@@ -108,20 +108,38 @@ function collectTemplateFiles(directory: string, prefix = ''): string[] {
   return files;
 }
 
-/** template → schema: every template file must be referenced by an
- * ownedFiles/managedFiles `template:` value, else it ships but is never
- * deployed/reconciled (the spec-template.md gap, ticket 04NKDR). */
-function checkOrphanTemplates(templatesDirectory: string, schema: ParitySchema): ParityFailure[] {
-  const referenced = new Set<string>(
-    [...Object.values(schema.ownedFiles), ...Object.values(schema.managedFiles ?? {})]
-      .map(definition => definition.template)
-      .filter((template): template is string => template !== undefined),
-  );
+export interface TemplateSource {
+  readonly template: string;
+  readonly destinations: readonly string[];
+}
+
+/** Actual canonical files joined with the existing installation authority. */
+export function discoverTemplateSources(
+  templatesDirectory: string,
+  schema: Pick<ParitySchema, 'ownedFiles' | 'managedFiles'>,
+): TemplateSource[] {
+  const destinations = new Map<string, string[]>();
+  for (const [path, definition] of [
+    ...Object.entries(schema.ownedFiles),
+    ...Object.entries(schema.managedFiles ?? {}),
+  ]) {
+    if (definition.template === undefined) continue;
+    const paths = destinations.get(definition.template) ?? [];
+    paths.push(path);
+    destinations.set(definition.template, paths);
+  }
   return collectTemplateFiles(templatesDirectory)
-    .filter(file => !referenced.has(file))
-    .map(file => ({
+    .toSorted((left, right) => left.localeCompare(right))
+    .map(template => ({ template, destinations: destinations.get(template) ?? [] }));
+}
+
+/** Unregistered sources ship but cannot be deployed/reconciled (ticket 04NKDR). */
+function checkOrphanTemplates(templatesDirectory: string, schema: ParitySchema): ParityFailure[] {
+  return discoverTemplateSources(templatesDirectory, schema)
+    .filter(source => source.destinations.length === 0)
+    .map(source => ({
       kind: 'orphan-template' as const,
-      message: `[TEMPLATE] Unregistered template (no ownedFiles/managedFiles entry): ${file}`,
+      message: `[TEMPLATE] Unregistered template (no ownedFiles/managedFiles entry): ${source.template}`,
     }));
 }
 

@@ -307,3 +307,22 @@ fallback guide wording; both remain concrete follow-up work, not claims of
 complete source ownership or universal namespace coverage. Exact Claude 2.1.170
 authentication still waits on the user's locked Mac/1Password approval; no
 credentials were copied and no global profile was changed.
+
+### Canonical registration inventory through the existing schema
+
+Frozen 258 source paths from the accepted baseline as an independent test oracle.
+Four source-kind controls execute the real repository checker in disposable
+copies, require named errors for unregistered sources, then append real schema
+registrations and require the same check to clear them. Fresh strengthened RED
+review f455f2fd-3472-49be-9e88-035786611f8d approved before implementation.
+Shared discoverTemplateSources now supplies both parity's orphan scan and the
+contract check, preserving one installation authority. All 2 files /35 tests
+pass including every register/clear subprocess; targeted lint/types pass.
+Quality review dd6741ab-a5c3-4ccb-95e5-29e8fb6f24f3 approves the narrow component.
+
+Incomplete/admission-ineligible flags remain explicit. Full source graph must
+still account for underscore includes and configured handlers/lane facets.
+Review also notes the fixture helper must accept a valid action_required envelope
+(exit3) once all current competing owners are gone, while still rejecting failed
+unavailable envelopes; currently its clean controls exit2 for retained owners.
+Do not infer complete inventory or healthy admission from this component.
