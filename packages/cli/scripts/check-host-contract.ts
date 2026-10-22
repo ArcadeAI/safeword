@@ -1,13 +1,18 @@
 import nodePath from 'node:path';
 
 import { createResult, renderJsonResult } from '../src/cli-protocol/result.js';
+import { unclassifiedHandlerFindings } from '../src/host-contract/handlers.js';
 import { findCompetingHostContractOwners } from '../src/host-contract/source-ownership.js';
+import { PRODUCTION_INTEGRATIONS } from '../src/lifecycle/integrations.js';
 import { discoverTemplateSources } from '../src/parity.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
+import { SHARED_BEHAVIOR_BINDINGS } from '../templates/hooks/lib/behavior-contract.js';
 
 const root = nodePath.resolve(import.meta.dirname, '../../..');
 try {
   const findings = findCompetingHostContractOwners(root);
+  const handlers = PRODUCTION_INTEGRATIONS.flatMap(adapter => adapter.configuredHandlers?.() ?? []);
+  findings.push(...unclassifiedHandlerFindings(handlers, SHARED_BEHAVIOR_BINDINGS));
   const sourceInventory = discoverTemplateSources(
     nodePath.join(root, 'packages/cli/templates'),
     SAFEWORD_SCHEMA,
@@ -39,6 +44,11 @@ try {
       command: 'host-contract check',
       scope: 'retained-source-owners',
       source_inventory: sourceInventory,
+      handler_inventory: handlers,
+      behavior_bindings: SHARED_BEHAVIOR_BINDINGS,
+      missing_handler_inventory: PRODUCTION_INTEGRATIONS.filter(
+        adapter => !adapter.configuredHandlers,
+      ).map(adapter => adapter.id),
       inventory_complete: false,
       admission_eligible: false,
     },

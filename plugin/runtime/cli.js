@@ -16510,6 +16510,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/lib/ticket-close.ts": { template: "hooks/lib/ticket-close.ts" },
       ".safeword/hooks/lib/jsonl-spool.ts": { template: "hooks/lib/jsonl-spool.ts" },
       ".safeword/hooks/lib/namespace-root.ts": { template: "hooks/lib/namespace-root.ts" },
+      ".safeword/hooks/lib/behavior-contract.ts": { template: "hooks/lib/behavior-contract.ts" },
       ".safeword/hooks/lib/drain-retro-spool.ts": { template: "hooks/lib/drain-retro-spool.ts" },
       ".safeword/hooks/lib/retro-draft-spool.ts": { template: "hooks/lib/retro-draft-spool.ts" },
       ".safeword/hooks/lib/retro-debug.ts": { template: "hooks/lib/retro-debug.ts" },
@@ -70316,6 +70317,25 @@ var init_health = __esm(() => {
   ];
 });
 
+// src/host-contract/handlers.ts
+function configuredCommandHandlers(host, config) {
+  return Object.entries(config).flatMap(([event, groups]) => groups.flatMap((group) => (group.hooks ?? [group]).map((hook2) => {
+    if (hook2.command === undefined)
+      throw new Error(`Missing ${host} ${event} hook command`);
+    const mode = hook2.async ? "background" : "synchronous";
+    const execution = hook2.asyncRewake ? "async-rewake" : mode;
+    return {
+      host,
+      event,
+      command: hook2.command,
+      handler_path: /\.safeword\/(?<path>hooks\/[\w./-]+)/u.exec(hook2.command)?.groups?.path ?? "<inline>",
+      interpreter: hook2.command.split(/\s+/u, 1)[0] ?? "",
+      execution,
+      configuration: { group, hook: hook2 }
+    };
+  })));
+}
+
 // src/claude-plugin/profile.ts
 var exports_profile = {};
 __export(exports_profile, {
@@ -73852,6 +73872,8 @@ function validateAdapterShape(adapter) {
   if (unexpectedKey !== undefined) {
     invalidAdapter(adapter.id, `unsupported operation or declaration ${unexpectedKey}`);
   }
+  if (adapter.configuredHandlers !== undefined && typeof adapter.configuredHandlers !== "function")
+    invalidAdapter(adapter.id, "configured handlers must be a discovery function");
 }
 function validateProfile(adapter) {
   if (typeof adapter.profile?.available !== "boolean") {
@@ -74007,6 +74029,7 @@ function openCodeEffects(context) {
 var LIFECYCLE_EVENTS, ADAPTER_KEYS, LIFECYCLE_STRENGTHS, EMPTY_EFFECTS3, FULL_HOOK_CAPABILITIES, claude, codex, opencode, cursor, PRODUCTION_INTEGRATIONS;
 var init_integrations = __esm(() => {
   init_result();
+  init_config();
   LIFECYCLE_EVENTS = [
     "session_start",
     "prompt_submit",
@@ -74018,6 +74041,7 @@ var init_integrations = __esm(() => {
     "id",
     "defaultSelected",
     "exposeStatusData",
+    "configuredHandlers",
     "project",
     "profile",
     "capabilities",
@@ -74048,6 +74072,7 @@ var init_integrations = __esm(() => {
   };
   claude = defineIntegrationAdapter({
     id: "claude",
+    configuredHandlers: () => configuredCommandHandlers("claude", SETTINGS_HOOKS),
     defaultSelected: true,
     project: { owned: ["claude"], shared: ["skills"] },
     profile: {
@@ -74178,6 +74203,7 @@ var init_integrations = __esm(() => {
   });
   cursor = defineIntegrationAdapter({
     id: "cursor",
+    configuredHandlers: () => configuredCommandHandlers("cursor", CURSOR_HOOKS),
     defaultSelected: false,
     project: { owned: ["cursor"], shared: ["skills"] },
     profile: { available: false },

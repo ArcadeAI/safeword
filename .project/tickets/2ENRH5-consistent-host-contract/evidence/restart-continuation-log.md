@@ -396,3 +396,40 @@ Premortem: the binding module becomes another opaque hand-maintained inventory;
 require exact-set discovery plus independent intended facets and mutation/repair
 controls before declaring completeness. Next: make the real checker expose
 unclassified session-end, async/rewake and shell registrations before adding data.
+
+### Discover actual configured handlers and classify the first extra facets
+
+Final current-footprint executable RED review
+89b79459-512a-4bf3-b79d-358e881e2689 approved before production. Earlier passes
+strengthened positive/repair controls and fixed the independent oracle's explicit
+new-source addition before implementation; no stale receipt was used.
+
+The existing integration registry now exposes optional configuredHandlers
+discovery. Claude/Cursor adapters walk their actual full configuration objects,
+not the five-event projection. Every emitted row retains native event, command,
+interpreter, sync/background/rewake mode and the complete original group/hook
+configuration. This discovers 43 registrations. The shared pure binding data
+module starts with the four tested session-end, async/rewake, background Stop
+and shell behaviors; it contains no host list or policy implementation.
+The real checker joins discovered paths with these canonical owner references.
+
+All 3 files /53 focused tests pass, including actual omission and exact-byte
+restoration of the binding array and native configuration fields. CLI types
+and targeted source lint pass. This is still partial: 39 configured registrations
+remain unclassified; Codex/OpenCode handler discovery and semantic guarantee/
+trigger/alternative validation remain unfinished. Output names those gaps,
+retains inventory_complete=false and admission_eligible=false, and exits2.
+No whole scenario or full inventory is marked complete.
+
+The added managed contract source intentionally changes Cursor install/uninstall
+result digests. Inspected normalized actual lifecycle results, using a temporary
+copy of the existing fixture test with output instrumentation and a process-only
+comparison that removes just the new schema registration. The ONLY result
+differences are create/remove of .safeword/hooks/lib/behavior-contract.ts; no
+other field or effect changes. Diagnostic copy was removed in finally; this is
+explanatory evidence, not primary proof or a weakened fixture assertion.
+/tmp/safeword-binding-effects-diff.log retains the exact diff. Fixture update
+initially rejected these changed result hashes as designed; retain the inspected
+changes with this explanation. Generated verification and parity follow normal
+commands. The Mac was rechecked once and remains locked; scoped Claude1Password
+request is still pending, with no credential copy or global profile changes.

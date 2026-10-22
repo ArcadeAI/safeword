@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "6ed022471cc71b7eec1f221c63eab664f9041d484450a9322a7041c12d3c515f"
+      "sha256": "5689d8232a0e70b50f4a9266803da9ca88b8e7d3d050beb3db9c0528fd3d59dc"
     },
     {
       "path": "runtime/dispatch.js",
@@ -200,6 +200,10 @@
     {
       "path": "runtime/hooks/lib/bash-ledger-writes.ts",
       "sha256": "1d31c735a8902f02d73f77f92d1b1eac36a468fec30be09aa5c23e4b71628bbc"
+    },
+    {
+      "path": "runtime/hooks/lib/behavior-contract.ts",
+      "sha256": "62332240bbecbbd1174257700bce6b1d987f26cbe8028164859830c8bb9780d3"
     },
     {
       "path": "runtime/hooks/lib/blocked-on-gate.ts",
@@ -1176,6 +1180,10 @@
     {
       "path": "templates/hooks/lib/bash-ledger-writes.ts",
       "sha256": "1d31c735a8902f02d73f77f92d1b1eac36a468fec30be09aa5c23e4b71628bbc"
+    },
+    {
+      "path": "templates/hooks/lib/behavior-contract.ts",
+      "sha256": "62332240bbecbbd1174257700bce6b1d987f26cbe8028164859830c8bb9780d3"
     },
     {
       "path": "templates/hooks/lib/blocked-on-gate.ts",

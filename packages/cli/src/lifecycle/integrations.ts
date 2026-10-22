@@ -1,4 +1,16 @@
 import { type CliResult, createResult, type Effects } from '../cli-protocol/result.js';
+import { configuredCommandHandlers } from '../host-contract/handlers.js';
+import { CURSOR_HOOKS, SETTINGS_HOOKS } from '../templates/config.js';
+
+export interface HostHandlerRegistration {
+  readonly host: string;
+  readonly event: string;
+  readonly command: string;
+  readonly handler_path: string;
+  readonly interpreter: string;
+  readonly execution: 'synchronous' | 'async-rewake' | 'background';
+  readonly configuration: object;
+}
 
 export const LIFECYCLE_EVENTS = [
   'session_start',
@@ -48,6 +60,7 @@ export interface IntegrationAdapter {
   readonly id: string;
   readonly defaultSelected: boolean;
   readonly exposeStatusData?: boolean;
+  readonly configuredHandlers?: () => readonly HostHandlerRegistration[];
   readonly project: {
     readonly owned: readonly string[];
     readonly shared: readonly string[];
@@ -66,6 +79,7 @@ const ADAPTER_KEYS = new Set([
   'id',
   'defaultSelected',
   'exposeStatusData',
+  'configuredHandlers',
   'project',
   'profile',
   'capabilities',
@@ -161,6 +175,8 @@ function validateAdapterShape(adapter: IntegrationAdapter): void {
   if (unexpectedKey !== undefined) {
     invalidAdapter(adapter.id, `unsupported operation or declaration ${unexpectedKey}`);
   }
+  if (adapter.configuredHandlers !== undefined && typeof adapter.configuredHandlers !== 'function')
+    invalidAdapter(adapter.id, 'configured handlers must be a discovery function');
 }
 
 function validateProfile(adapter: IntegrationAdapter): void {
@@ -298,6 +314,7 @@ const FULL_HOOK_CAPABILITIES: LifecycleCapabilities = {
 
 const claude = defineIntegrationAdapter({
   id: 'claude',
+  configuredHandlers: () => configuredCommandHandlers('claude', SETTINGS_HOOKS),
   defaultSelected: true,
   project: { owned: ['claude'], shared: ['skills'] },
   profile: {
@@ -518,6 +535,7 @@ const opencode = defineIntegrationAdapter({
 
 const cursor = defineIntegrationAdapter({
   id: 'cursor',
+  configuredHandlers: () => configuredCommandHandlers('cursor', CURSOR_HOOKS),
   defaultSelected: false,
   project: { owned: ['cursor'], shared: ['skills'] },
   profile: { available: false },
