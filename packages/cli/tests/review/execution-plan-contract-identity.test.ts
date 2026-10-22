@@ -323,6 +323,26 @@ function runInstalledReview(state: InstalledContractState) {
 
 describe('Execution Plan review-contract identity', () => {
   it.each(['stale-reviewer', 'stale-slicing-contract'] as const)(
+    'names the phase and repair action for %s',
+    state => {
+      const result = runInstalledReview(state);
+      const output = JSON.parse(result.stdout) as {
+        errors?: { message: string }[];
+        findings?: { message: string }[];
+      };
+
+      expect(result.status).not.toBe(0);
+      expect(
+        [...(output.errors ?? []), ...(output.findings ?? [])].some(
+          entry =>
+            entry.message.includes('plan-execution') &&
+            entry.message.includes('Reinstall or reconcile'),
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it.each(['stale-reviewer', 'stale-slicing-contract'] as const)(
     'refuses %s before dispatching its plan to a reviewer',
     state => {
       const result = runInstalledReview(state);
@@ -420,6 +440,7 @@ describe('Execution Plan review-contract identity', () => {
     const result = runInstalledReview('canonical');
 
     expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(result.reviewerDispatched).toBe(true);
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'healthy',
       data: { status: 'approved', review_kind: 'plan-execution' },
