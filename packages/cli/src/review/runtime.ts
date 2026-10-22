@@ -306,16 +306,27 @@ const EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
   ],
 } as const;
 
+function isPlanningReview(
+  kind: ReviewKind,
+  planningPhase?: ReviewPacket['planning_phase'],
+): boolean {
+  return (
+    planningPhase === 'product-plan' ||
+    kind === 'scenario-gate' ||
+    kind === 'plan-implementation' ||
+    kind === 'plan-execution'
+  );
+}
+
 /** Select the provider contract while preserving the non-planning schema. */
 export function reviewOutputSchema(
   kind: ReviewKind,
   planningPhase?: ReviewPacket['planning_phase'],
   dispatchId?: string,
 ): string {
-  const planningSchema =
-    planningPhase === 'product-plan' || kind === 'scenario-gate' || kind === 'plan-implementation'
-      ? PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE
-      : REVIEW_OUTPUT_SCHEMA_SHAPE;
+  const planningSchema = isPlanningReview(kind, planningPhase)
+    ? PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE
+    : REVIEW_OUTPUT_SCHEMA_SHAPE;
   const schema =
     kind === 'plan-execution' ? EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE : planningSchema;
   return JSON.stringify(
@@ -393,10 +404,7 @@ function baseReviewerArguments(
   if (reviewer !== 'claude') return base;
   const schemaIndex = base.indexOf('--json-schema') + 1;
   base[schemaIndex] = reviewOutputSchema(kind, planningPhase, dispatchId);
-  if (
-    planningPhase === 'product-plan' ||
-    ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(kind)
-  ) {
+  if (isPlanningReview(kind, planningPhase)) {
     base[base.indexOf('--output-format') + 1] = 'stream-json';
     base.push('--verbose');
   }
@@ -737,13 +745,7 @@ export function hasRequiredPlanningEvidence(
   kind: ReviewKind,
   planningPhase?: ReviewPacket['planning_phase'],
 ): boolean {
-  if (
-    kind !== 'plan-execution' &&
-    kind !== 'plan-implementation' &&
-    kind !== 'scenario-gate' &&
-    planningPhase !== 'product-plan'
-  )
-    return true;
+  if (!isPlanningReview(kind, planningPhase)) return true;
   return isRecord(output) && hasValidEvidenceRecords(output.evidence_records);
 }
 
@@ -1839,8 +1841,7 @@ async function runCandidate(
 ): Promise<ReviewerExecution> {
   if (
     attempt.reviewer === 'codex' &&
-    (attempt.packet.planning_phase === 'product-plan' ||
-      ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(attempt.packet.kind))
+    isPlanningReview(attempt.packet.kind, attempt.packet.planning_phase)
   ) {
     const appServer = await supportsReviewContract(
       'codex',

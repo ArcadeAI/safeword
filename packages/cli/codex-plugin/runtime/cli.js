@@ -57317,8 +57317,11 @@ import {
 } from "fs";
 import { homedir as homedir6, tmpdir as tmpdir5 } from "os";
 import nodePath62 from "path";
+function isPlanningReview(kind, planningPhase) {
+  return planningPhase === "product-plan" || kind === "scenario-gate" || kind === "plan-implementation" || kind === "plan-execution";
+}
 function reviewOutputSchema(kind, planningPhase, dispatchId) {
-  const planningSchema = planningPhase === "product-plan" || kind === "scenario-gate" || kind === "plan-implementation" ? PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE : REVIEW_OUTPUT_SCHEMA_SHAPE;
+  const planningSchema = isPlanningReview(kind, planningPhase) ? PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE : REVIEW_OUTPUT_SCHEMA_SHAPE;
   const schema = kind === "plan-execution" ? EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE : planningSchema;
   return JSON.stringify(dispatchId === undefined ? schema : {
     ...schema,
@@ -57343,7 +57346,7 @@ function baseReviewerArguments(reviewer, kind, planningPhase, dispatchId) {
     return base;
   const schemaIndex = base.indexOf("--json-schema") + 1;
   base[schemaIndex] = reviewOutputSchema(kind, planningPhase, dispatchId);
-  if (planningPhase === "product-plan" || ["scenario-gate", "plan-implementation", "plan-execution"].includes(kind)) {
+  if (isPlanningReview(kind, planningPhase)) {
     base[base.indexOf("--output-format") + 1] = "stream-json";
     base.push("--verbose");
   }
@@ -57492,7 +57495,7 @@ function hasValidReviewerOutputBody(value, kind) {
   return reviewerVerdictMatchesFindings(value.verdict, value.findings);
 }
 function hasRequiredPlanningEvidence(output, kind, planningPhase) {
-  if (kind !== "plan-execution" && kind !== "plan-implementation" && kind !== "scenario-gate" && planningPhase !== "product-plan")
+  if (!isPlanningReview(kind, planningPhase))
     return true;
   return isRecord8(output) && hasValidEvidenceRecords(output.evidence_records);
 }
@@ -58223,7 +58226,7 @@ async function runCodexAppServerCandidate(executable, attempt, timeoutMs) {
   }
 }
 async function runCandidate(executable, attempt, timeoutMs) {
-  if (attempt.reviewer === "codex" && (attempt.packet.planning_phase === "product-plan" || ["scenario-gate", "plan-implementation", "plan-execution"].includes(attempt.packet.kind))) {
+  if (attempt.reviewer === "codex" && isPlanningReview(attempt.packet.kind, attempt.packet.planning_phase)) {
     const appServer = await supportsReviewContract("codex", executable, attempt.cwd, Math.min(5000, timeoutMs), { arguments: ["app-server", "--help"], required: ["--stdio", "--config"] });
     if (appServer.kind === "supported") {
       try {
@@ -58832,7 +58835,7 @@ function independentReviewResult(input) {
 }
 function withPlanningAuthorCapability(input, result) {
   const authorModel = process.env[AUTHOR_MODEL_ENV];
-  if (!(input.planning ?? isPlanningReview(input.kind)) || input.author === "claude" && authorModel !== undefined && authorModel.trim() !== "")
+  if (!(input.planning ?? isPlanningReview2(input.kind)) || input.author === "claude" && authorModel !== undefined && authorModel.trim() !== "")
     return result;
   return {
     ...result,
@@ -58908,7 +58911,7 @@ async function executeReview(reviewer, prepared, model, runDeadline, retainPrepa
     const execution = await runHeadlessReviewerWithProvenance(reviewer, prepared.packet, prepared.workspace, prepared.sourceRoot, {
       model,
       runDeadline,
-      ...(prepared.packet.planning_phase !== undefined || isPlanningReview(prepared.packet.kind)) && reviewer !== "opencode" && {
+      ...(prepared.packet.planning_phase !== undefined || isPlanningReview2(prepared.packet.kind)) && reviewer !== "opencode" && {
         effort: reviewer === "codex" ? PACKAGED_CAPABILITY_SETTINGS.codex_reasoning : PACKAGED_CAPABILITY_SETTINGS.claude_effort
       }
     });
@@ -59078,7 +59081,7 @@ function degradedIndependenceMessage(author, evidence) {
   const detail = failures === "" ? "" : ` ${failures}`;
   return `This review was not independent: ${agentName(author)} checked its own work${suffix}.${detail}`;
 }
-function isPlanningReview(kind) {
+function isPlanningReview2(kind) {
   return ["scenario-gate", "plan-implementation", "plan-execution"].includes(kind);
 }
 function rankedFallbackFinding(planning, author, reviewer, evidence) {
@@ -59709,7 +59712,7 @@ function degradedFallbackNetworkEffects(input, fallback) {
   });
 }
 function fallbackAssurance(kind, reviewer, input) {
-  if (isPlanningReview(kind)) {
+  if (isPlanningReview2(kind)) {
     return {
       independence: "reduced",
       finding: {
@@ -60214,7 +60217,7 @@ function policyOffResult(input, author) {
   });
 }
 function isPlanningReviewRequest(input) {
-  if (isPlanningReview(input.kind))
+  if (isPlanningReview2(input.kind))
     return true;
   if (input.kind !== "quality-review" || input.targets.length !== 1 || nodePath63.basename(input.targets[0] ?? "") !== "spec.md")
     return false;
@@ -60256,13 +60259,13 @@ function selectRankedReview(input, author, configured) {
     return;
   return {
     routes,
-    planning: isPlanningReview(input.kind) || productPlan,
+    planning: isPlanningReview2(input.kind) || productPlan,
     ...productPlan && { prepared: productPacket }
   };
 }
 function rankedReviewRoutes(input, author, configured, productPlan) {
   if (input.kind !== "plan-execution")
-    return isPlanningReview(input.kind) || productPlan ? configured ?? builtInReviewRoutes(input.cwd, author) : configured;
+    return isPlanningReview2(input.kind) || productPlan ? configured ?? builtInReviewRoutes(input.cwd, author) : configured;
   return filterExecutionPlanRoutes(input.kind, configured ?? builtInReviewRoutes(input.cwd, author, input.kind));
 }
 async function runReview(input) {
