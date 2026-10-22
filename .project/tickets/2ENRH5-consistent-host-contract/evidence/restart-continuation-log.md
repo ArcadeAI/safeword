@@ -533,3 +533,14 @@ packaged handbook validation remains. Evidence:bootstrap-owner-green.md.
 All2files/47tests, CLI types, targeted lint, parity and all5 generated surfaces
 pass; lifecycle result hashes unchanged. Independent quality reviewbaacfd30-
 5ff7-48b8-b5e7-97c80c6919b4 approved. Full scenario remains incomplete.
+
+### Required native proof blocked on desktop authentication
+
+Rechecked exact isolated Claude auth:none. Existing scoped op process18965 is
+still pending, with no authenticated READY result. Computer-use tool again
+reports locked Mac and failed automatic unlock. Figure-it-out authentication,
+secret handling and proof-fidelity investigation recorded in native-auth-blocker.md.
+Newer/global-profile and simulated substitutes cannot clear the accepted native
+cases. Next dependency is manual Mac/1Password unlock, followed by actual exact
+Claude controls and Cursor IDE controls. Feature stays in implement; no scenario
+or admission claim is advanced. Production checkpoint:a6c7b225d.
