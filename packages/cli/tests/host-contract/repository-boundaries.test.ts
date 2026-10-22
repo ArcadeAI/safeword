@@ -122,7 +122,11 @@ describe('required repository boundary for shared policy ownership', () => {
       report.data.source_inventory
         ?.map(entry => entry.path)
         .toSorted((left, right) => left.localeCompare(right)),
-    ).toEqual(intendedSources.paths.toSorted((left, right) => left.localeCompare(right)));
+    ).toEqual(
+      [...intendedSources.paths, ...intendedSources.additions].toSorted((left, right) =>
+        left.localeCompare(right),
+      ),
+    );
   }, 60_000);
 
   it.each([
