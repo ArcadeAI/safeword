@@ -1306,6 +1306,286 @@
       "path": "verify-audit-final-summary.json.gz",
       "uncompressed_bytes": 1634,
       "sha256_uncompressed": "fd7a805eebee868001ac33fae53cb5b27462ac8f516d2fe8c2d0b5ec8df6aff1"
+    },
+    {
+      "path": "refactor-protect.log.gz",
+      "uncompressed_bytes": 22168,
+      "sha256_uncompressed": "b97c531f71796d0c967834118a899639f9a0a3bec487459910de34b8cc25c092"
+    },
+    {
+      "path": "refactor-r1.log.gz",
+      "uncompressed_bytes": 22059,
+      "sha256_uncompressed": "2da077fbcd5d7cf54cd7b5d0f22f07228a34e8769dfd547977f0be91bdf81cdd"
+    },
+    {
+      "path": "refactor-r2.log.gz",
+      "uncompressed_bytes": 21990,
+      "sha256_uncompressed": "bd2c57f4379cb10c0a61f4c869fe0f6aaeadf7d3a800ea06750ef78976f9265e"
+    },
+    {
+      "path": "refactor-r3.log.gz",
+      "uncompressed_bytes": 21984,
+      "sha256_uncompressed": "92cf255da58456860dd78523958d751b7aa0044d2b03bd00d510aa551cbbdfaf"
+    },
+    {
+      "path": "refactor-r4.log.gz",
+      "uncompressed_bytes": 21983,
+      "sha256_uncompressed": "3f6ecab7960ccc0bc7d096e8e58549adf6a57cf675bc04545346bca807ef7bfa"
+    },
+    {
+      "path": "refactor-shell-protect.log.gz",
+      "uncompressed_bytes": 21974,
+      "sha256_uncompressed": "c150b8b61c97916c7ae1fc046aa7df407ebf224aa5b1fce9c70672e22c89ccdd"
+    },
+    {
+      "path": "refactor-r5a.log.gz",
+      "uncompressed_bytes": 22141,
+      "sha256_uncompressed": "addfeb863cac599a875d20a2ebf49d5e9acdaa5a489aff050707d796edd7c2a2"
+    },
+    {
+      "path": "refactor-r5b.log.gz",
+      "uncompressed_bytes": 22148,
+      "sha256_uncompressed": "e46d890598d897fd687b52baeddd1729182b04f66bac0734250a1ada2e71c0b1"
+    },
+    {
+      "path": "refactor-r5c.log.gz",
+      "uncompressed_bytes": 21962,
+      "sha256_uncompressed": "e212f5977e454b8b9d287c683f2aa6e01f372afeea186fb10cfa6e84764be11c"
+    },
+    {
+      "path": "refactor-final-focused.log.gz",
+      "uncompressed_bytes": 22212,
+      "sha256_uncompressed": "2a4a33a4e252e8f8f576a40ef88e5941e7bf5f22860a7ca47ec75503ad2ad1ff"
+    },
+    {
+      "path": "refactor-followup-protect.log.gz",
+      "uncompressed_bytes": 22018,
+      "sha256_uncompressed": "40d0a6b0904433e43e8b79e5adf039033485e217e5464f90413b75aca7cc9ee2"
+    },
+    {
+      "path": "refactor-final-after-review.log.gz",
+      "uncompressed_bytes": 22212,
+      "sha256_uncompressed": "f1305ed008bee4bb6dc8f4826c2f29605c71bd1d0b765140589fe1c3f51f5f4f"
+    },
+    {
+      "path": "refactor-regressions.log.gz",
+      "uncompressed_bytes": 60258,
+      "sha256_uncompressed": "25df1c9ba2d8a2ff8b0eec274ab5979941940a134d38abfaddc12f2e6dbc5391"
+    },
+    {
+      "path": "refactor-regressions-corrected.log.gz",
+      "uncompressed_bytes": 60280,
+      "sha256_uncompressed": "4c4d7f3bb54a0ca6c531cc52e8c262d5665531f61c481f3ce8aea2e8e0d9fc29"
+    },
+    {
+      "path": "refactor-failure-comparison.json.gz",
+      "uncompressed_bytes": 4793,
+      "sha256_uncompressed": "ba462d8f4a08c4d8f643f9cada6a54b9dfbbed485403a4a98d79cdf12bc87c0e"
+    },
+    {
+      "path": "refactor-smoke.log.gz",
+      "uncompressed_bytes": 23274,
+      "sha256_uncompressed": "75606659cad9b5277d39eca60ef6f9e850f87e7aa5a17e3635555b04a7482e90"
+    },
+    {
+      "path": "refactor-bdd.log.gz",
+      "uncompressed_bytes": 347,
+      "sha256_uncompressed": "2b221b383013aee36d319963403463b6c15b0a3f222d12b1505f9c62de0a5ea7"
+    },
+    {
+      "path": "refactor-eslint.log.gz",
+      "uncompressed_bytes": 0,
+      "sha256_uncompressed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "refactor-final-typecheck.log.gz",
+      "uncompressed_bytes": 15,
+      "sha256_uncompressed": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+    },
+    {
+      "path": "refactor-delivery-generated.log.gz",
+      "uncompressed_bytes": 34,
+      "sha256_uncompressed": "b14948a65d3e1915acfab0f60e2cc2b2b827aa96bfcf7e1d505dbd53eaf51a00"
+    },
+    {
+      "path": "refactor-delivery-parity.log.gz",
+      "uncompressed_bytes": 110,
+      "sha256_uncompressed": "65107e673c739342f5b1fea27450dfeac02286ae9bbb9b47e5ca601f16ac0f4d"
+    },
+    {
+      "path": "refactor-final-parity.log.gz",
+      "uncompressed_bytes": 63,
+      "sha256_uncompressed": "fe79c88c1a40c48b4a357d89b7638e471dbefe48036c0a4b4c2ba01d3e572739"
+    },
+    {
+      "path": "refactor-final-audit.log.gz",
+      "uncompressed_bytes": 44184,
+      "sha256_uncompressed": "9ed206db5560f77d1c27010b27589a7f482153ff80d795ed0e3d492e26b09297"
+    },
+    {
+      "path": "refactor-final-learnings.log.gz",
+      "uncompressed_bytes": 0,
+      "sha256_uncompressed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "refactor-final-principles.log.gz",
+      "uncompressed_bytes": 0,
+      "sha256_uncompressed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "refactor-final-domain.log.gz",
+      "uncompressed_bytes": 0,
+      "sha256_uncompressed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "refactor-security.json.gz",
+      "uncompressed_bytes": 2285,
+      "sha256_uncompressed": "845b066f8269eed0c523bbbe5976fbbdde7ec78b0f442207cd2aab5654c4e24a"
+    },
+    {
+      "path": "refactor-review-start.json.gz",
+      "uncompressed_bytes": 738,
+      "sha256_uncompressed": "c92c60e17bcf24b71b32c495aa4533924a433fdad1e612682d362eac9fcb0842"
+    },
+    {
+      "path": "refactor-review-status-5.json.gz",
+      "uncompressed_bytes": 8531,
+      "sha256_uncompressed": "af5d78ef0275db3567188e9b4214f5d3d222eb2ae408ae5ede1bd469c5336fe1"
+    },
+    {
+      "path": "refactor-followup-review-start.json.gz",
+      "uncompressed_bytes": 738,
+      "sha256_uncompressed": "fb2ef4384e068dd3845c2f6e6ab50f262c2b6a4429b8e6c01dfa45b366146696"
+    },
+    {
+      "path": "refactor-followup-review-status-2.json.gz",
+      "uncompressed_bytes": 9894,
+      "sha256_uncompressed": "5088e38e40c246de1f17a38d6b7fce58cb11d924b2dee06dbcf670ad393b711d"
+    },
+    {
+      "path": "refactor-schemas-before.json.gz",
+      "uncompressed_bytes": 122680,
+      "sha256_uncompressed": "1ef76c24602838cddc7e6aaf2ec175fcd00a4e6f246bbe5c436c6d50919b673c"
+    },
+    {
+      "path": "refactor-schemas-r1.json.gz",
+      "uncompressed_bytes": 122680,
+      "sha256_uncompressed": "1ef76c24602838cddc7e6aaf2ec175fcd00a4e6f246bbe5c436c6d50919b673c"
+    },
+    {
+      "path": "refactor-shell-before.json.gz",
+      "uncompressed_bytes": 7263,
+      "sha256_uncompressed": "b255120302b0ac97960495123cde53050f4201800c44c741b46cdfe6625d0cc7"
+    },
+    {
+      "path": "refactor-shell-r5c.json.gz",
+      "uncompressed_bytes": 7263,
+      "sha256_uncompressed": "b255120302b0ac97960495123cde53050f4201800c44c741b46cdfe6625d0cc7"
+    },
+    {
+      "path": "refactor-preservation.json.gz",
+      "uncompressed_bytes": 1220,
+      "sha256_uncompressed": "15b56b54afeeb28fc806846e2b58df0e17d0ca6d8aec23ba256a24f4225f223b"
+    },
+    {
+      "path": "refactor-official-preview.json.gz",
+      "uncompressed_bytes": 1395,
+      "sha256_uncompressed": "1ea5d8940d4e471a88f6a5b94ae97e19a210fc8cffeb19a56d3cd9bd9073399e"
+    },
+    {
+      "path": "refactor-official-apply.json.gz",
+      "uncompressed_bytes": 2163,
+      "sha256_uncompressed": "80770b7ba2f5ee0e2fe1c00cedb649e34b13253d5d37f107c8c14ff491f969b2"
+    },
+    {
+      "path": "refactor-final-candidate-preview.json.gz",
+      "uncompressed_bytes": 1395,
+      "sha256_uncompressed": "556c3bc6dfcf05ce4723e8a0a0485106b0da0c1a107706adf4d9bf16686004bc"
+    },
+    {
+      "path": "refactor-final-candidate-apply.json.gz",
+      "uncompressed_bytes": 2163,
+      "sha256_uncompressed": "80770b7ba2f5ee0e2fe1c00cedb649e34b13253d5d37f107c8c14ff491f969b2"
+    },
+    {
+      "path": "refactor-followup-official-apply.json.gz",
+      "uncompressed_bytes": 2163,
+      "sha256_uncompressed": "80770b7ba2f5ee0e2fe1c00cedb649e34b13253d5d37f107c8c14ff491f969b2"
+    },
+    {
+      "path": "refactor-quality-knowledge.json.gz",
+      "uncompressed_bytes": 34354,
+      "sha256_uncompressed": "51a1d190ee97ccb5d35dcec94f72e8dbc8cbd0008f63f82660d093ee9bed5643"
+    },
+    {
+      "path": "refactor-followup-knowledge.json.gz",
+      "uncompressed_bytes": 34354,
+      "sha256_uncompressed": "51a1d190ee97ccb5d35dcec94f72e8dbc8cbd0008f63f82660d093ee9bed5643"
+    },
+    {
+      "path": "refactor-base-ci-node22.log.gz",
+      "uncompressed_bytes": 708953,
+      "sha256_uncompressed": "05e5b9fb69dd85c6294456503e71255d5ae45b415a1eacc1f9c8939957555b9f"
+    },
+    {
+      "path": "refactor-base-ci-node24.log.gz",
+      "uncompressed_bytes": 735226,
+      "sha256_uncompressed": "fcf14c776a7742ca595951171f3ff6155c9df26553b2145dd1cc3e2935cfc74a"
+    },
+    {
+      "path": "refactor-source-ci-latest.json.gz",
+      "uncompressed_bytes": 20139,
+      "sha256_uncompressed": "5a9a671349bec308d5c23187fe19a488e90b10136898ce73f6e5f315e5d77b7e"
+    },
+    {
+      "path": "refactor-ci-opencode.log.gz",
+      "uncompressed_bytes": 99,
+      "sha256_uncompressed": "8b6407b2fdbca54bf3d53fb93e79a3560dbe59567fa5044cfee4bed1b5b6e467"
+    },
+    {
+      "path": "refactor-ci-opencode-corrected.log.gz",
+      "uncompressed_bytes": 119198,
+      "sha256_uncompressed": "85f9fedda76d78a7fc6b0f1bce444179598f68a12974c52728cdb690e8e7cab9"
+    },
+    {
+      "path": "refactor-ci-dependency.log.gz",
+      "uncompressed_bytes": 99,
+      "sha256_uncompressed": "8b6407b2fdbca54bf3d53fb93e79a3560dbe59567fa5044cfee4bed1b5b6e467"
+    },
+    {
+      "path": "refactor-ci-dependency-corrected.log.gz",
+      "uncompressed_bytes": 15914,
+      "sha256_uncompressed": "a883e0c8e314d0656a137c7ea1069e827dd8ec37490fcf583c32cbdecd305f46"
+    },
+    {
+      "path": "refactor-commits.txt.gz",
+      "uncompressed_bytes": 818,
+      "sha256_uncompressed": "23b2cd124a3e1d6e63302a1ec16dc1ed0cbc341897defb6b4166cfeb7cfba820"
+    },
+    {
+      "path": "refactor-source-push.log.gz",
+      "uncompressed_bytes": 126,
+      "sha256_uncompressed": "a50c4f02cc4ad62be5af746569e8431fb020a3c2657495de5a996f7c892f5a4b"
+    },
+    {
+      "path": "refactor-reviewed.diff.gz",
+      "uncompressed_bytes": 36091,
+      "sha256_uncompressed": "92c49a12f29d1559789d995b627e71fee3194e04235f5f50bbf2431b31a219d9"
+    },
+    {
+      "path": "refactor-review-context.md.gz",
+      "uncompressed_bytes": 3711,
+      "sha256_uncompressed": "41bff423c35ce5659493d0120e885a8770ffb5fa25d3817b6de92cef65122a88"
+    },
+    {
+      "path": "refactor-followup-review-context.md.gz",
+      "uncompressed_bytes": 2420,
+      "sha256_uncompressed": "1b9631cc55f5bf79926e4e133e852997ef22712e82ff3753aec721545675730d"
+    },
+    {
+      "path": "refactor-final-prelude-test.ts.gz",
+      "uncompressed_bytes": 1837,
+      "sha256_uncompressed": "6afab2febe01ad6e1de860eb50f91820bac544f002921db8948d975c38e314e1"
     }
   ]
 }

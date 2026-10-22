@@ -224,3 +224,16 @@ fixture compatibility repair, their focused and mutation evidence, and separate
 full acceptance results. Earlier results above remain historical observations,
 not overwritten or promoted to current proof. Qualification and Draft blockers
 remain open.
+
+
+## 2026-10-22 UTC — scoped refactor, then quality review
+
+The user requested a full refactor followed by quality review. The complete authored-delta scout and serial disposition ledger is in [refactor-5139.md](refactor-5139.md). Seven scoped refactor steps and two characterization-test commits preserve existing runtime/fixture behavior; production code ends at `af9e164c1`, final test-only follow-up at `c228c4356`. No #5857 recovery, corpus, admission or qualification policy work is added.
+
+Final protection: 211 pass / 2 existing skips across six files; smoke: 2,220 pass across 106 files; focused BDD: 4 scenarios / 88 steps pass; package typecheck, changed-file lint, all five generated surfaces and 277 parity pairs / 11 contracts pass. The exact five-file baseline failure set remains 86 pass / 16 fail: fourteen coding-authorization tests and two journeys stop at unqualified Execution admission. An initial command matched only three files due to two incorrect file filters; its 47 pass / 16 fail result is archived separately and is not five-file proof. Script-path, preservation-path and terminal-escape log-read failures are retained with corrected attempts.
+
+Claude job `97c24f49-f80a-4daf-9098-aea74194915e` independently approves the committed refactor; job `37774c8c-24fd-425b-ab92-2318cf069945` independently approves the final test-only payload coverage. Both report actual reviewer Claude / `claude-opus-5`, cross-agent independence. All warnings are applied or answered in the linked record. No code changes follow these reviews; evidence packaging alone follows.
+
+The latest completed full remote baseline at `d6f84af0a` retains 11,679 passes / 40 failures / 10 skips per Node22/24, separate from the earlier 73-failure run. Refactor-head CI 39716002672 has a dependency-audit HTTP 503 and one failed OpenCode positive conformance test (8 pass); cause is unresolved because stdout was not retained in the assertion. Node jobs remain pending in the archived snapshot. New delivery-head CI must not be represented as green. Local unrestricted audit retains 7 advisories (2 high, 2 moderate, 3 low); current Node security guidance also places the pin behind 24.22.1. No upgrade is made within this surgical scope.
+
+Original historical RED absence, GREEN/REFACTOR SHA collision, six failures, 585 unfinished checks, 33 deferrals, 54-scenario ledger and 38/63 Codex collection remain unchanged. Shared official runtime, live oracle, original verify.md/test definitions and root feature are byte-identical to the prior delivery. Ticket/parent remain open; PR #6031 stays Draft, unmerged and unpromoted. No unchanged paid qualification is repeated.
