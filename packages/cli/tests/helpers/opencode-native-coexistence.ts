@@ -194,6 +194,8 @@ export async function proveOpenCodeCoexistence(
       line =>
         JSON.parse(line) as {
           tool?: string;
+          input?: { command?: string };
+          session_id?: string;
           plugins?: { source: { type: string; path?: string }; state: { status: string } }[];
         },
     );
@@ -210,6 +212,10 @@ export async function proveOpenCodeCoexistence(
     ),
     'HOST_CONTRACT_PROOF_UNAVAILABLE: candidate not active in native host',
   );
+  const enrolled = attempts.filter(row => row.input?.command === `printf enrolled > ${relative}`);
+  const foreign = attempts.filter(row => row.input?.command === `printf attempted > ${relative}`);
+  assert.equal(enrolled.length, 1);
+  assert.equal(foreign.length, 1);
   writeFileSync(
     nodePath.join(directory, 'coexistence-outcomes.json'),
     JSON.stringify(outcomes, undefined, 2),
@@ -219,7 +225,31 @@ export async function proveOpenCodeCoexistence(
     assert.equal(outcome.written, false, 'V1_GUARD_LOST_DURING_V2_ENROLLMENT');
     assert.match(outcome.results, /Safeword denied|Shell commands can't change/u);
   }
-  assert.equal(outcomes[0]?.written, false, 'V2_ENROLLED_GUARD_MISSING');
+  assert.ok(outcomes[0]);
+  assert.equal(outcomes[0].written, false, 'V2_ENROLLED_GUARD_MISSING');
   assert.match(firstResults, /Safeword denied|Shell commands can't change/u);
+  const dispatches = readFileSync(nodePath.join(directory, 'runtime-observations.jsonl'), 'utf8')
+    .trim()
+    .split('\n')
+    .map(
+      line =>
+        JSON.parse(line) as {
+          status: number;
+          input: {
+            cwd: string;
+            session_id: string;
+            tool_name: string;
+            tool_input: { command: string };
+          };
+        },
+    );
+  assert.equal(dispatches.length, 1, 'V2_FOREIGN_PROJECT_DISPATCHED');
+  const dispatch = dispatches[0];
+  assert.ok(dispatch);
+  assert.equal(dispatch.status, 2);
+  assert.equal(dispatch.input.cwd, project);
+  assert.equal(dispatch.input.session_id, enrolled[0]?.session_id);
+  assert.equal(dispatch.input.tool_name, 'Bash');
+  assert.equal(dispatch.input.tool_input.command, `printf enrolled > ${relative}`);
   console.log(`OpenCode ${runtime} profile coexistence passed: ${directory}`);
 }

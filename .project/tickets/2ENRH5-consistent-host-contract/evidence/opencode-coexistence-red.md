@@ -2,6 +2,10 @@
 
 This is a component proof for the accepted mixed-host ownership scenario and
 PR 2 task 3, not completion of the full scenario or native admission.
+The bound ledger heading is Scenario: Upgrading a mixed-host project preserves
+authored work; the execution-plan proof row is coexistence. Public CLI cutover
+belongs to PR 4. The direct lifecycle controller boundary here cannot certify
+that later CLI transition or mark the full scenario complete.
 
 The proof installs the actual current V1 profile and an isolated generated V2
 candidate. A shared user JSONC config declares a singular V1 marker plugin and
@@ -19,6 +23,11 @@ in V2 and must run in V1. JSONC comments, all user configuration values, V1
 module bytes and retained skills/commands/agents must survive unchanged. Only
 the test server URL changes between runs. The generated V2 package must remain
 byte-identical and actual native observations must show its active registration.
+Both V2 attempts are uniquely identified by their different commands. GREEN
+additionally requires exactly one actual candidate shared-runtime dispatch,
+status 2, canonical selected checkout, normalized Bash command and the same
+native session ID as the enrolled attempt. No dispatch may come from the second
+checkout. This prevents an adapter-local fake denial from satisfying GREEN.
 
 The intended RED is V2_ENROLLED_GUARD_MISSING after all these controls: the
 requested selected checkout remains unprotected because no profile-local
