@@ -539,8 +539,8 @@ safeword install (src/lifecycle/commands.ts)
 | Package                                           | Purpose                                                                                    |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `commander`                                       | CLI argument parsing                                                                       |
-| `yaml`                                            | YAML config parsing (failsafe mode)                                                        |
-| `smol-toml`                                       | TOML parse/validate for Codex config migration (`migrate-codex-plugin.ts`)                 |
+| `yaml`                                            | YAML config parsing, including merge-aware Go lint configuration normalization             |
+| `smol-toml`                                       | TOML parsing for Codex config migration and Go lint configuration normalization            |
 | `jsonc-parser`                                    | Source-range edits that preserve unrelated Claude settings comments and formatting         |
 | `@secretlint/core`                                | Retro egress: in-process secret detection over a raw string (returns spans)                |
 | `@secretlint/secretlint-rule-preset-recommend`    | Retro egress: maintained provider-key rule-packs (28 formats) layered over the regex floor |
@@ -658,7 +658,7 @@ Published files: `dist/` + `schemas/` + `templates/` (bundled for setup converge
 ### Settled Decisions (2025-12)
 
 - **Graceful Linter Fallback:** Skip linter silently if not installed (`.nothrow().quiet()`). Hook should never block Claude's workflow. (`lint.ts`)
-- **TOML Parsing — line-based for detection, `smol-toml` for Codex config:** pyproject.toml detection uses line-based extraction; it only needs `[tool.poetry]`/`[tool.uv]` and pulls in no TOML parser (`project-detector.ts`). Codex plugin migration is the one exception — it uses `smol-toml` to validate config parseability before its line-based hook surgery (`migrate-codex-plugin.ts`).
+- **TOML Parsing — line-based for detection, `smol-toml` for configuration changes:** pyproject.toml detection uses line-based extraction; it only needs `[tool.poetry]`/`[tool.uv]` and pulls in no TOML parser (`project-detector.ts`). Codex plugin migration uses `smol-toml` to validate config parseability before its line-based hook surgery (`migrate-codex-plugin.ts`). The bundled Go lint executor also uses it to preserve TOML policies while normalizing their path context.
 - **Ruff in Hook, mypy in Command Only:** Ruff is ms/file (safe for hooks); mypy is seconds/project (only runs via `/lint` command).
 
 **Linter crash resilience:** `captureRemainingErrors()` reads stderr when stdout is empty on non-zero exit. This distinguishes "linter found no issues" from "linter crashed" (e.g., golangci-lint Go version mismatch). Crashes surface as warnings via the existing `warnings` array, not as lint errors. This prevents silent failures where a broken linter reports success.
@@ -1474,6 +1474,38 @@ extension to [Deterministic Readiness Evidence Status](#deterministic-readiness-
 | Trade-off      | The hook owns path/config parsing and executable lookup instead of delegating to package runners. Unsupported formatters remain on the existing no-Prettier path until a dedicated adapter and scenarios are added.                                                                                                                                                                                                               |
 | Alternatives   | Root-wide formatter detection: rejected because it crosses workspace boundaries. Generic package-manager invocation: rejected because it can download or select a global binary. Shell commands: rejected because filenames are operands, not code.                                                                                                                                                                               |
 | Implementation | `packages/cli/templates/hooks/lib/host-toolchain.ts` and the shared `lintFile` entry point; ticket 13E3EN.                                                                                                                                                                                                                                                                                                                        |
+
+### Go lint package loading preserves configuration context
+
+**Status:** Accepted
+**Date:** 2026-10-21
+
+Go post-edit lint loads the complete, nonrecursive package from the edited file's
+canonical directory. A single-file package omits sibling declarations, and a
+repository-root loader loses nested-module imports (#4733, #5105, #5427).
+
+The shared hook calls the internal `hook go-lint` CLI action through the existing
+pinned CLI resolver using the call-time project root. The executor resolves the
+original configuration's base before changing directories, materializes a
+short-lived `cfg`-mode copy at that base, and anchors documented resource paths
+to their original locations. YAML/TOML parsing uses existing bundled libraries;
+customer config files remain untouched. This separates Go package loading from
+configuration path policy without imposing a new mode on customer files.
+
+Only the edited file is formatted. Package lint is check-only, and feedback names
+the package and actual source paths, retains infrastructure warnings, and admits
+that findings may predate the edit. No recursive module scan or diagnostic filter
+can hide a genuine typecheck failure.
+
+The compatibility cost is an ephemeral config file and removal of Go linter
+autofixes. Cleanup runs on ordinary completion and handled termination signals;
+abrupt termination can leave a recognizable orphan. An unresolvable original
+module base or unwritable base produces a warning instead of changed-policy lint.
+Arbitrary third-party plugin filesystem operations are not virtualized.
+
+Implementation and proof: [prevent-false-go-lint-errors](.project/tickets/HWVKKQ-prevent-false-go-lint-errors/ticket.md),
+`src/commands/go-lint.ts`, `src/go-lint/`, shared lint hooks, and real package/config
+fixtures with the oldest supported v2 and current linter in the CI matrix.
 
 ## References
 

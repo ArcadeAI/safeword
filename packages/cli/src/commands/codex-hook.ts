@@ -824,6 +824,14 @@ function postToolLintInputs(
   );
 }
 
+function boundedLintWarning(output: string): string {
+  const bytes = Buffer.from(output);
+  const limit = 16 * 1024;
+  if (bytes.length <= limit) return output;
+  const notice = '\n[Additional lint output truncated; these are not all findings.]';
+  return `${bytes.subarray(0, limit - Buffer.byteLength(notice) - 3).toString('utf8')}${notice}`;
+}
+
 function collectPostToolLintContexts(lintInputs: string[], projectDirectory: string): string[] {
   const contexts: string[] = [];
   for (const lintInput of lintInputs) {
@@ -831,7 +839,7 @@ function collectPostToolLintContexts(lintInputs: string[], projectDirectory: str
     const context = packagedAdditionalContext(lintResult, 'PostToolUse');
     const output = lintResult.stdout.trim();
     if (context) contexts.push(context);
-    else if (output) contexts.push(output);
+    else if (output) contexts.push(boundedLintWarning(output));
   }
   return contexts;
 }

@@ -1,0 +1,4 @@
+PASS same-package-test
+PASS nested-internal-import
+PASS workspace-and-unrelated-package
+3/3 final source-hook checks passed

@@ -636,6 +636,10 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
     Promise.resolve(
       createResult({ state: 'healthy', data: { command: 'boundary', internal: true } }),
     ),
+  'hook go-lint': () =>
+    Promise.resolve(
+      createResult({ state: 'healthy', data: { command: 'hook go-lint', internal: true } }),
+    ),
   'hook codex': () =>
     Promise.resolve(
       createResult({ state: 'healthy', data: { command: 'hook codex', internal: true } }),

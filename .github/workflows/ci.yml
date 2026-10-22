@@ -121,6 +121,42 @@ jobs:
           --ignore GHSA-vfj7-8cjw-p6xm
           --ignore GHSA-ch52-4w7c-c8xp
 
+  go-lint-context:
+    name: Go lint context (${{ matrix.linter }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - linter: '2.0.0'
+            go: '1.24.x'
+          - linter: '2.13.2'
+            go: '1.25.x'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v4
+        with:
+          install_args: 'bun node'
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: Provision the selected linter
+        run: |
+          curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b "$RUNNER_TEMP/go-lint-bin" "v${{ matrix.linter }}"
+          printf 'SAFEWORD_GO_LINT_BIN=%s/golangci-lint\n' "$RUNNER_TEMP/go-lint-bin" >> "$GITHUB_ENV"
+          printf 'SAFEWORD_GO_TEST_GO=%s\n' "$(command -v go)" >> "$GITHUB_ENV"
+      - name: Install repository dependencies
+        run: scripts/dev bun install --frozen-lockfile
+      - name: Verify real Go package loading and configuration compatibility
+        env:
+          SAFEWORD_REQUIRE_GO_LINT: '1'
+        run: scripts/dev bun run --cwd packages/cli test tests/hooks/lint-go-context.test.ts tests/go-lint/config.test.ts tests/go-lint/lifecycle.test.ts
+      - name: Verify installed Go hooks with shuffled fixture order
+        if: matrix.linter == '2.13.2'
+        run: PATH="$RUNNER_TEMP/go-lint-bin:$PATH" scripts/dev bun run --cwd packages/cli test tests/integration/golang-golden-path.test.ts --sequence.shuffle --sequence.seed 4733
+
   test:
     name: test (node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
@@ -176,7 +212,7 @@ jobs:
 
       # Pre-built binary (~3s) instead of go install (~55s compile from source)
       - name: Install golangci-lint v2
-        run: curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.10.1
+        run: curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v2.10.1
 
       - name: Install Python tools
         run: |

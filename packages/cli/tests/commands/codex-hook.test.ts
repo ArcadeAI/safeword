@@ -846,6 +846,63 @@ command = "npx --yes safeword hook codex pre-tool-use"
     expectBiomeChecked(log, 'source.ts');
   });
 
+  it.each([
+    { warningOnly: false, warning: 'formatter unavailable' },
+    { warningOnly: true, warning: `warning-only ${'x'.repeat(25_000)}` },
+  ])(
+    'retains bounded Go feedback through the Codex boundary (warningOnly=$warningOnly)',
+    scenario => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-go-context-'));
+      directories.push(projectDirectory);
+      markSafewordProject(projectDirectory, { selfReport: { capture: false } });
+      writeFileSync(nodePath.join(projectDirectory, '.safeword/.golangci.yml'), 'version: "2"\n');
+      const packageDirectory = nodePath.join(projectDirectory, 'pkg');
+      mkdirSync(packageDirectory);
+      const sourceFile = nodePath.join(packageDirectory, 'value.go');
+      writeFileSync(sourceFile, 'package value\n');
+      const bin = nodePath.join(projectDirectory, 'bin');
+      mkdirSync(bin);
+      const executable = nodePath.join(bin, 'golangci-lint');
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+case "$1" in
+version) echo 2.13.2 ;;
+fmt) printf '%s' "$GO_LINT_WARNING" >&2; exit 2 ;;
+run) if [ "$GO_LINT_WARNING_ONLY" = 1 ]; then exit 0; fi; echo 'sample package issue (govet)'; exit 1 ;;
+esac
+`,
+      );
+      chmodSync(executable, 0o755);
+      const result = runCodexHook(
+        projectDirectory,
+        'post-tool-use',
+        {
+          hook_event_name: 'PostToolUse',
+          tool_name: 'Write',
+          tool_input: { file_path: sourceFile },
+        },
+        {
+          PATH: [bin, process.env.PATH].join(nodePath.delimiter),
+          GO_LINT_WARNING: scenario.warning,
+          GO_LINT_WARNING_ONLY: scenario.warningOnly ? '1' : '0',
+        },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toContain(scenario.warning.slice(0, 100));
+      const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext as string;
+      expect(Buffer.byteLength(context)).toBeLessThanOrEqual(16 * 1024);
+      if (scenario.warningOnly) {
+        expect(context).toContain('truncated');
+        expect(context).toContain('not all findings');
+      } else {
+        expect(context).toContain('Go lint findings for package');
+        expect(context).toContain('sample package issue');
+      }
+      expect(result.stdout).not.toContain('after auto-fix');
+    },
+  );
+
   it('warns through the packaged Codex hook when an edited-file symlink escapes the project', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-host-escape-'));
     const outside = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-host-escape-outside-'));
