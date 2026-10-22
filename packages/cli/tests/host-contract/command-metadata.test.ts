@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -60,9 +60,13 @@ describe('canonical command purpose reaches actual delivery', () => {
       const marker = `Canonical command purpose ${randomUUID()}`;
       const sourcePath = nodePath.join(directory, 'packages/cli/templates/skills/bdd/SKILL.md');
       changeCanonicalDescription(sourcePath, marker);
+      const expectedNames = readdirSync(nodePath.join(directory, 'packages/cli/templates/commands'))
+        .filter(name => name.endsWith('.md'))
+        .map(name => nodePath.basename(name, '.md'));
 
       let workflowPath: string;
       let commandDescription: string;
+      let commandNames: string[];
       if (delivery === 'opencode-v2') {
         const output = nodePath.join(parent, 'native-v2');
         run(
@@ -75,6 +79,7 @@ describe('canonical command purpose reaches actual delivery', () => {
           readFileSync(nodePath.join(output, 'commands.json'), 'utf8'),
         ) as { name: string; description: string }[];
         commandDescription = commands.find(command => command.name === 'bdd')?.description ?? '';
+        commandNames = commands.map(command => command.name);
       } else {
         const agent = delivery === 'opencode-v1' ? 'opencode' : 'cursor';
         if (agent === 'cursor')
@@ -106,6 +111,13 @@ describe('canonical command purpose reaches actual delivery', () => {
             ? nodePath.join(profile, 'skills/safeword-bdd/SKILL.md')
             : nodePath.join(directory, '.safeword/skills/bdd/SKILL.md');
         commandDescription = readFileSync(commandPath, 'utf8');
+        const commandDirectory =
+          agent === 'opencode'
+            ? nodePath.join(profile, 'commands')
+            : nodePath.join(directory, '.cursor/commands');
+        commandNames = readdirSync(commandDirectory)
+          .filter(name => name.endsWith('.md'))
+          .map(name => nodePath.basename(name, '.md').replace(/^safeword-/u, ''));
       }
       // Confirms this delivery loaded the changed canonical root before checking the stale purpose.
       expect(readFileSync(workflowPath, 'utf8')).toContain(marker);
@@ -113,6 +125,9 @@ describe('canonical command purpose reaches actual delivery', () => {
         commandDescription,
         `COMMAND_METADATA_OWNER_DRIFT: ${delivery} still authors a separate purpose`,
       ).toContain(marker);
+      expect(commandNames.toSorted((left, right) => left.localeCompare(right))).toEqual(
+        expectedNames.toSorted((left, right) => left.localeCompare(right)),
+      );
     },
     90_000,
   );

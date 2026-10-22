@@ -29,3 +29,12 @@ renderers should translate reference/format only. A module-load filesystem read
 or global default metadata root would break synthetic root variation and
 minimal runtime carriers; keep metadata reads explicit at generation/install.
 No production metadata consolidation has been implemented before this review.
+
+The final GREEN also requires each actual delivery's public command names to
+match the independently discovered canonical command source population (18
+current template entrypoints). The current OpenCode table covers only12; the
+shared contract must not preserve that incomplete host-private subset or hide
+canonical wrappers. Cursor's existing18 references remain available. This is
+accepted full-content graph/parity work, not new workflow behavior. The initial
+RED still fails first at the stale purpose after all actors loaded the marker;
+exact command population becomes an additional discriminating GREEN condition.
