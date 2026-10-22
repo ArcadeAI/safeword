@@ -114,7 +114,60 @@ function catalogueOwners(root: string): Finding[] {
   return file.statements.flatMap(statement => importOwners(file, statement));
 }
 
+function isAuthoredDescription(
+  value: ts.Expression | undefined,
+  strings: ReadonlySet<string>,
+): value is ts.Expression {
+  return (
+    value !== undefined &&
+    (ts.isStringLiteral(value) || (ts.isIdentifier(value) && strings.has(value.text)))
+  );
+}
+
+function cursorWorkflowPurposeOwners(root: string): Finding[] {
+  const path = 'packages/cli/src/cursor-wrappers.ts';
+  const file = source(root, path);
+  const strings = new Set<string>();
+  function collect(node: ts.Node): void {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      ts.isStringLiteral(initializerValue(node.initializer))
+    )
+      strings.add(node.name.text);
+    ts.forEachChild(node, collect);
+  }
+  collect(file);
+  const findings: Finding[] = [];
+  function visit(node: ts.Node): void {
+    if (ts.isObjectLiteralExpression(node)) {
+      const properties = new Map(
+        node.properties.flatMap(property =>
+          ts.isPropertyAssignment(property) &&
+          (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))
+            ? [[property.name.text, initializerValue(property.initializer)] as const]
+            : [],
+        ),
+      );
+      const reference = properties.get('referencePath');
+      const description = properties.get('description');
+      const skill =
+        reference && ts.isStringLiteral(reference)
+          ? /^\.safeword\/skills\/(?<skill>[\w-]+)\/SKILL\.md$/u.exec(reference.text)?.groups?.skill
+          : undefined;
+      if (skill && isAuthoredDescription(description, strings)) {
+        const line = file.getLineAndCharacterOfPosition(description.getStart()).line + 1;
+        findings.push(competingOwner(`cursor.rule.${skill}.purpose`, path, skill, line));
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  return findings;
+}
+
 /** Source facts only; no host decision or caller-authored maintenance-savings claim. */
 export function findCompetingHostContractOwners(root: string): Finding[] {
-  return [...intakeOwners(root), ...catalogueOwners(root)];
+  return [...intakeOwners(root), ...catalogueOwners(root), ...cursorWorkflowPurposeOwners(root)];
 }

@@ -23,6 +23,46 @@ afterEach(() => {
 });
 
 describe('required repository boundary for shared policy ownership', () => {
+  it('rejects an independently authored Cursor workflow purpose and clears after restoration', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const path = 'packages/cli/src/cursor-wrappers.ts';
+    const original = fixtureSource(directory, path);
+    writeFileSync(
+      nodePath.join(directory, path),
+      `${original}
+const retiredCursorWorkflowPurpose = {
+  name: 'safeword-debugging',
+  description: 'Finds the real cause of a bug, in four steps, before you touch a fix.',
+  referencePath: '.safeword/skills/debug/SKILL.md',
+  skill: 'debug',
+};
+`,
+    );
+    const result = runContractRepoCheck(directory);
+    const findings = (
+      JSON.parse(result.output.trim()) as {
+        findings: { code: string; metadata?: { owner_id?: string; path?: string } }[];
+      }
+    ).findings;
+    expect(
+      findings.some(
+        finding =>
+          finding.code === 'COMPETING_HOST_CONTRACT_OWNER' &&
+          finding.metadata?.owner_id === 'cursor.rule.debug.purpose' &&
+          finding.metadata.path === path,
+      ),
+      `CURSOR_RULE_PURPOSE_OWNER_UNDETECTED: ${result.output}`,
+    ).toBe(true);
+    writeFileSync(nodePath.join(directory, path), original);
+    const repaired = JSON.parse(runContractRepoCheck(directory).output.trim()) as {
+      findings: { metadata?: { owner_id?: string } }[];
+    };
+    expect(
+      repaired.findings.filter(finding => finding.metadata?.owner_id?.startsWith('cursor.rule.')),
+    ).toEqual([]);
+  });
+
   it('discovers native Claude dispatch groups and native Cursor package hooks', () => {
     const directory = createContractRepoFixture();
     fixtures.push(directory);

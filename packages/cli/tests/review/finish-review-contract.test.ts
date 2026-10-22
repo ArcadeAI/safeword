@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
 import {
-  CURSOR_RULE_WRAPPERS,
+  readCursorRuleWrappers,
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
 } from '../../src/cursor-wrappers.js';
@@ -143,7 +143,9 @@ describe('job-bound host review continuation contract', () => {
       ),
     );
 
-    const cursor = CURSOR_RULE_WRAPPERS.find(rule => rule.name === 'safeword-finish-review');
+    const cursor = readCursorRuleWrappers(templates).find(
+      rule => rule.name === 'safeword-finish-review',
+    );
     expect(cursor).toBeDefined();
     if (cursor === undefined) throw new Error('missing safeword-finish-review Cursor rule');
     expect(

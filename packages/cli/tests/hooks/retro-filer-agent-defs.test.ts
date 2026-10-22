@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
 
 import { FILER_AGENT_NAME } from '../../templates/hooks/lib/retro-filing-gate.js';
 
@@ -162,15 +163,20 @@ describe('canonical spool dedupe contract (#1031)', () => {
   });
 
   it('pairs the Claude fallback skill with the generated Cursor rule', async () => {
-    const { CURSOR_RULE_WRAPPERS, renderCursorRuleWrapper } =
+    const { readCursorRuleWrappers, renderCursorRuleWrapper } =
       await import('../../src/cursor-wrappers.js');
-    const wrapper = CURSOR_RULE_WRAPPERS.find(entry => entry.name === 'safeword-retro-filer');
+    const wrapper = readCursorRuleWrappers(nodePath.dirname(SKILLS_DIR)).find(
+      entry => entry.name === 'safeword-retro-filer',
+    );
+    const canonical = parse(
+      readFileSync(nodePath.join(SKILLS_DIR, 'retro-filer/SKILL.md'), 'utf8').split('---', 2)[1] ??
+        '',
+    ) as { description: string };
     const expected = renderCursorRuleWrapper({
       wrapper: {
         name: 'safeword-retro-filer',
         alwaysApply: false,
-        description:
-          "Files Safeword's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safeword Stop continuation or authenticated closeout cleanup guard output names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+        description: canonical.description,
         referencePath: '.safeword/skills/retro-filer/SKILL.md',
         skill: 'retro-filer',
       },
@@ -179,8 +185,7 @@ describe('canonical spool dedupe contract (#1031)', () => {
     expect(wrapper).toEqual({
       name: 'safeword-retro-filer',
       alwaysApply: false,
-      description:
-        "Files Safeword's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safeword Stop continuation or authenticated closeout cleanup guard output names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+      description: canonical.description,
       referencePath: '.safeword/skills/retro-filer/SKILL.md',
       skill: 'retro-filer',
     });

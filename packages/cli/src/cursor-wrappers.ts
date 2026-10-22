@@ -1,6 +1,9 @@
 import { stringify } from 'yaml';
 
-import type { CanonicalCommandWrapper } from './host-contract/catalogue.js';
+import {
+  type CanonicalCommandWrapper,
+  readPackagedSkillContracts,
+} from './host-contract/catalogue.js';
 
 export type CursorCommandWrapper = CanonicalCommandWrapper;
 
@@ -37,12 +40,6 @@ const CURSOR_ACTION_SKILLS = [
   'spike',
 ] as const;
 
-const DEBUG_DESCRIPTION =
-  "Finds the real cause of a bug, in four steps, before you touch a fix. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').";
-
-const REFACTOR_DESCRIPTION =
-  "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change → test → commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.";
-
 export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
   {
     name: 'safeword-core',
@@ -52,94 +49,72 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
   {
     name: 'safeword-brainstorming',
     alwaysApply: false,
-    description:
-      "Collaborative brainstorming and rubber-ducking — divergence-first thinking partner. Use when the user wants to explore options, weigh approaches, or think through uncertainty before committing to a direction ('brainstorm', 'rubber duck', 'help me think', 'explore options', 'what are the tradeoffs').",
     referencePath: '.safeword/skills/brainstorm/SKILL.md',
     skill: 'brainstorm',
   },
   {
     name: 'safeword-debugging',
     alwaysApply: false,
-    description: DEBUG_DESCRIPTION,
     referencePath: '.safeword/skills/debug/SKILL.md',
     skill: 'debug',
   },
   {
     name: 'safeword-demand-research',
     alwaysApply: false,
-    description:
-      'Tests whether a proposed product bet has credible demand. Use when Why now depends on an unresolved, decision-critical demand claim or when the user explicitly asks for demand research. Do NOT use for child features, mandated work, parity work, or when a cheaper experiment can answer the question first.',
     referencePath: '.safeword/skills/demand-research/SKILL.md',
     skill: 'demand-research',
   },
   {
     name: 'safeword-elicitation',
     alwaysApply: false,
-    description:
-      "Extract tacit knowledge through non-obvious microquestions — things only the user knows that can't be found in code, docs, or research. Use when about to guess at intent, context, or constraints, or when user says 'ask me', 'what do you need to know', 'what's missing'. Skips questions answerable by reading the codebase or searching the web.",
     referencePath: '.safeword/skills/elicit/SKILL.md',
     skill: 'elicit',
   },
   {
     name: 'safeword-figure-it-out',
     alwaysApply: false,
-    description:
-      'Explore and debate options with fresh documentation and research before committing. Use when facing a real decision with multiple plausible approaches — library/framework choice, architecture call, API or schema design, algorithm selection. Looks up current docs and recent research, weighs options on correctness and elegance, and resists bloat.',
     referencePath: '.safeword/skills/figure-it-out/SKILL.md',
     skill: 'figure-it-out',
   },
   {
     name: 'safeword-finish-review',
     alwaysApply: false,
-    description:
-      "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
     referencePath: '.safeword/skills/finish-review/SKILL.md',
     skill: 'finish-review',
   },
   {
     name: 'safeword-pr-readiness',
     alwaysApply: false,
-    description:
-      'Prepare a pull request for human review and decide whether it may leave Draft. Use when creating or rewriting a PR description, marking a PR ready, responding to review, or checking mergeability.',
     referencePath: '.safeword/skills/pr-readiness/SKILL.md',
     skill: 'pr-readiness',
   },
   {
     name: 'safeword-quality-reviewing',
     alwaysApply: false,
-    description:
-      "Deep quality review of any work-product — code, docs, specs, plans, decisions — with web research. Use when explicitly verifying against latest docs ('double check against latest', 'verify versions', 'check security'), pressure-testing correctness and elegance, or needing deeper analysis beyond the automatic hook. Fetches current sources, checks versions and claims, and weighs alternatives.",
     referencePath: '.safeword/skills/quality-review/SKILL.md',
     skill: 'quality-review',
   },
   {
     name: 'safeword-refactoring',
     alwaysApply: false,
-    description: REFACTOR_DESCRIPTION,
     referencePath: '.safeword/skills/refactor/SKILL.md',
     skill: 'refactor',
   },
   {
     name: 'safeword-tdd-review',
     alwaysApply: false,
-    description:
-      "Step-aware quality review at TDD phase boundaries — review test quality after RED, implementation correctness after GREEN, completed scenario after REFACTOR. Use when user says 'review my test', 'review my implementation', 'is this GREEN solid?', or just finished a TDD step. (Note: Claude Code triggers this automatically via the phase-tracking hook; Cursor users must invoke explicitly.)",
     referencePath: '.safeword/skills/tdd-review/SKILL.md',
     skill: 'tdd-review',
   },
   {
     name: 'safeword-testing',
     alwaysApply: false,
-    description:
-      "How to write good tests. Use when writing tests in any context — 'write tests', 'add tests', 'test this', 'need tests for', 'improve coverage'. Also consult when writing tests during BDD or debugging. Core knowledge for test quality across all workflows.",
     referencePath: '.safeword/skills/testing/SKILL.md',
     skill: 'testing',
   },
   {
     name: 'safeword-ticket-system',
     alwaysApply: false,
-    description:
-      'Ticket system and work logs for context anchoring during complex work. Use when creating tickets, managing work logs, referencing ticket IDs, or when work needs context anchoring (multi-step tasks, debugging, investigation).',
     globs: ['.project/tickets/**', '.safeword-project/tickets/**', '.safeword/logs/**'],
     referencePath: '.safeword/skills/ticket-system/SKILL.md',
     skill: 'ticket-system',
@@ -147,8 +122,6 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
   {
     name: 'safeword-retro-filer',
     alwaysApply: false,
-    description:
-      "Files Safeword's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safeword Stop continuation or authenticated closeout cleanup guard output names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
     referencePath: '.safeword/skills/retro-filer/SKILL.md',
     skill: 'retro-filer',
   },
@@ -156,8 +129,6 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'bdd-core',
     alwaysApply: false,
     frontmatterOrder: 'description-first',
-    description:
-      "USE WHEN starting feature work, running /bdd, resuming a BDD ticket, or user says 'add', 'implement', 'build', 'feature', 'resume', 'continue'. Orchestrates BDD phases.",
     referencePath: '.safeword/skills/bdd/SKILL.md',
     skill: 'bdd',
   },
@@ -234,6 +205,20 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
   },
 ] as const;
 
+/** Canonical skills own workflow purpose; this table owns only Cursor discovery mechanics. */
+export function readCursorRuleWrappers(templatesDirectory: string): CursorRuleWrapper[] {
+  const skills = new Map(
+    readPackagedSkillContracts(`${templatesDirectory}/skills`).map(skill => [skill.name, skill]),
+  );
+  return CURSOR_RULE_WRAPPERS.map(wrapper => {
+    if (!wrapper.skill || !wrapper.referencePath.endsWith('/SKILL.md')) return wrapper;
+    const skill = skills.get(wrapper.skill);
+    if (!skill)
+      throw new Error(`Cursor rule ${wrapper.name} references an unknown canonical workflow`);
+    return { ...wrapper, description: skill.description };
+  });
+}
+
 function cursorRuleSkillPairs(): SkillCursorPair[] {
   const skillRules = new Map<string, string[]>();
 
@@ -258,15 +243,12 @@ export const SKILL_CURSOR_PAIRS: readonly SkillCursorPair[] = [
 ];
 
 function renderFrontmatter({ fields }: { readonly fields: readonly FrontmatterField[] }): string {
-  const lines = fields.flatMap(field => {
-    if (Array.isArray(field.value)) {
-      return [`${field.key}:`, ...field.value.map(item => `  - ${item}`)];
-    }
-
-    return [`${field.key}: ${field.value}`];
-  });
-
-  return `---\n${lines.join('\n')}\n---`;
+  const metadata = stringify(Object.fromEntries(fields.map(field => [field.key, field.value])), {
+    defaultStringType: 'BLOCK_LITERAL',
+    defaultKeyType: 'PLAIN',
+    lineWidth: 0,
+  }).trimEnd();
+  return `---\n${metadata}\n---`;
 }
 
 export function renderCursorCommandWrapper({

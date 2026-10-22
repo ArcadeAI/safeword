@@ -15,6 +15,7 @@ import YAML from 'yaml';
 
 import {
   CURSOR_RULE_WRAPPERS,
+  readCursorRuleWrappers,
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
   SKILL_CURSOR_PAIRS,
@@ -678,7 +679,7 @@ describe('Schema - Single Source of Truth', () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 
-      for (const wrapper of CURSOR_RULE_WRAPPERS) {
+      for (const wrapper of readCursorRuleWrappers(templatesDirectory)) {
         const installedPath = `.cursor/rules/${wrapper.name}.mdc`;
         const templatePath = `cursor/rules/${wrapper.name}.mdc`;
         const expected = renderCursorRuleWrapper({ wrapper });

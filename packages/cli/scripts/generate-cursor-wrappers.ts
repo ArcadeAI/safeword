@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import {
-  CURSOR_RULE_WRAPPERS,
+  readCursorRuleWrappers,
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
 } from '../src/cursor-wrappers.js';
@@ -37,7 +37,8 @@ function writeGeneratedFile({
   }
 }
 
-for (const wrapper of CURSOR_RULE_WRAPPERS) {
+const ruleWrappers = readCursorRuleWrappers(path.join(cliRoot, 'templates'));
+for (const wrapper of ruleWrappers) {
   writeGeneratedFile({
     relativePath: `.cursor/rules/${wrapper.name}.mdc`,
     content: renderCursorRuleWrapper({ wrapper }),

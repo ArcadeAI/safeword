@@ -22,7 +22,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import {
-  CURSOR_RULE_WRAPPERS,
+  readCursorRuleWrappers,
   renderCursorCommandWrapper,
   renderCursorRuleWrapper,
 } from '../src/cursor-wrappers.js';
@@ -105,7 +105,7 @@ function cursorWrapperExpectations(): readonly {
   readonly content: string;
 }[] {
   return [
-    ...CURSOR_RULE_WRAPPERS.map(wrapper => ({
+    ...readCursorRuleWrappers(path.join(cliRoot, 'templates')).map(wrapper => ({
       paths: wrapperDestinations(`.cursor/rules/${wrapper.name}.mdc`),
       content: renderCursorRuleWrapper({ wrapper }),
     })),

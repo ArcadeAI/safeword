@@ -1,5 +1,6 @@
 ---
-description: USE WHEN in BDD implement phase. RED/GREEN TDD cycle; run /refactor after GREEN.
+description: |-
+  USE WHEN in BDD implement phase. RED/GREEN TDD cycle; run /refactor after GREEN.
 alwaysApply: false
 ---
 

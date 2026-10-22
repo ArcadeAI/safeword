@@ -600,3 +600,41 @@ byte-for-byte. Evidence:claude-native-four-cases.md, native reportIP7v8K.
 Seventeen population tests, lint and types pass. Independent review
  ee49914d-f196-4713-960e-ea37c4f47677 approved with scoped warnings. No full feature,
 source-ownership completeness, public admission or current OpenCode refresh claim.
+
+### Current OpenCode refresh succeeds for implemented controls
+
+Fresh exact V1 CLI allowed-write diagnostic passed without source/config repairs:
+opencode-native-qB91hO, /tmp/safeword-opencode-v1-bounded-recheck.log. Prior startup
+hang's cause remains unknown; an upstream issue is only a lead, not a diagnosis.
+The fresh diagnostic was bounded to its own created process group, but completed
+normally without termination. No stale or foreign locks were removed.
+
+Full native-opencode refresh then passed implemented V1 CLI/TUI allow/deny
+preflight, V2 CLI/TUI feature controls, fresh-worker/forbidden-action controls,
+optional/required adapter-registration controls, native commands and V1 packaged
+guide/helper controls. Log:/tmp/safeword-opencode-after-claude-unblock-native.log.
+Runner still exits3/HOST_CONTRACT_PROOF_INCOMPLETE because required actual
+host-schema rejection/status and complete population remain missing. Required
+adapter rejection is not a substitute for host-schema rejection. This refresh
+renews those component observations only; it does not complete PR2 or admission.
+
+### Remove fourteen Cursor workflow-purpose owners
+
+Actual installed Cursor rules retained stale descriptions after canonical skills
+changed. The standalone install test remains supporting proof, not all-host
+loading evidence. Extended accepted repository-boundaries primary proof catches
+an independently authored purpose through the real required-check subprocess.
+Independent attested executable RED0dbf5a24-f396-4220-ade5-ed4e7c14087e approved
+before production. Canonical skill descriptions now feed resolved rule metadata
+through an explicit source root; names/globs/references stay native mechanics.
+Required generation check reads the same canonical source. Source ownership
+rejects literal/literal-constant SKILL.md purpose copies. BDD phase-guide purposes
+remain unfinished graph work, and detector is not universal dataflow analysis.
+
+Seven targeted files/933 tests, types, lint, 278 parity pairs/11 contracts and all
+five generated surfaces pass. Lifecycle result hashes unchanged; Cursor tree
+hashes move for regenerated descriptions. Independent quality reviewee36b52c-
+3bba-4096-9c32-8cecacf4618c approved with scoped warnings. Current exact Codex
+native group also passes5scenarios/19steps, reportMEkPH3 after updating only its
+owned stale cache with unchanged registration identities. See
+cursor-rule-purpose-green.md. No full feature, propagation or admission claim.

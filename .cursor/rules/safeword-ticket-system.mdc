@@ -1,10 +1,14 @@
 ---
 alwaysApply: false
-description: Ticket system and work logs for context anchoring during complex work. Use when creating tickets, managing work logs, referencing ticket IDs, or when work needs context anchoring (multi-step tasks, debugging, investigation).
+description: |-
+  Ticket system and work logs for context anchoring. Use when creating tickets, managing work logs, or anchoring context across multi-step tasks or sessions. Do NOT use for simple patches or single-step tasks.
 globs:
-  - .project/tickets/**
-  - .safeword-project/tickets/**
-  - .safeword/logs/**
+  - |-
+    .project/tickets/**
+  - |-
+    .safeword-project/tickets/**
+  - |-
+    .safeword/logs/**
 ---
 
 @.safeword/skills/ticket-system/SKILL.md

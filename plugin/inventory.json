@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f2ee6c74130ac701860c2dd2c2f834937e7d07525f22c7b209aaf08167dc11fc"
+      "sha256": "e5c4884aad7597402440107873f8c8f01b141a6315c5450e13640d4dd3c9808e"
     },
     {
       "path": "runtime/dispatch.js",
@@ -887,43 +887,43 @@
     },
     {
       "path": "templates/cursor/rules/bdd-core.mdc",
-      "sha256": "1bce1d0e5d2025c4503c0e66d5102cb92fd4a6f366969163d6a28b7482d3a6ce"
+      "sha256": "4fa3f1dd3041d3337d1ddb3b2f6b6bcaf83985057857810f42a68612bccb7138"
     },
     {
       "path": "templates/cursor/rules/bdd-discovery.mdc",
-      "sha256": "3bb3a5b82cb3f99ad3c40e9782f0bab2ed78555d5a2236a94971f88cbdd841c0"
+      "sha256": "4a760c3935dcc4f57bfa3c1d3d3cadbd59f2b66ebc1088829548b19b2fe59c45"
     },
     {
       "path": "templates/cursor/rules/bdd-done.mdc",
-      "sha256": "eaefcee8e4a93e482f0e617355a1058bc9a94cc6ba9dbabb11f111c0e4d4b39b"
+      "sha256": "ba5f429e5d2f66000f1a9cd8de53e83b13d971abc50b49992d5a4fea9925f3e9"
     },
     {
       "path": "templates/cursor/rules/bdd-plan-execution.mdc",
-      "sha256": "1bd36eab33947afea300bd7a4b5783e8cc21ae0fcc6109a3388eaa6d1f19573c"
+      "sha256": "7117d6e87a58d00f89746ca4bbb8a98db75990b9bafac8c57bde78e388895d0c"
     },
     {
       "path": "templates/cursor/rules/bdd-plan-implementation.mdc",
-      "sha256": "06d1a61efecfef7dece755a987a09a12e6fd1627b2fd1a3474d968c06ba28a82"
+      "sha256": "ce40b875982db5fe30f7c1cd591ae6f885a4baa4bee77f06224126192d2dcba6"
     },
     {
       "path": "templates/cursor/rules/bdd-scenarios.mdc",
-      "sha256": "5a4aca7019436f33b273e4ac49d6338405dd1c18397cb963c32ed22f8b410fb7"
+      "sha256": "a617811ea405660e4ea956135bfa5886ea1c326bb47946fcb0e17d4f3899d3e2"
     },
     {
       "path": "templates/cursor/rules/bdd-splitting.mdc",
-      "sha256": "ec5f233ce2fdb487beb40dea7d58bce0f6c3cbc7cfa7bbe59c7a2ffc0386209d"
+      "sha256": "52a892c7f467312c85c0e911cdaff01ca1a4c2f659115d294d4c25fa5d7c375a"
     },
     {
       "path": "templates/cursor/rules/bdd-tdd.mdc",
-      "sha256": "42d97e177ec8c8ec715af61b46272de441b71c82c4f7b8522d8a8a3b61f0267f"
+      "sha256": "2970d4f1eaab7575fba5bce226fa76e1cd0a5e186f1f8c299d2aadd16312cc05"
     },
     {
       "path": "templates/cursor/rules/bdd-verify.mdc",
-      "sha256": "26fcc0c4e43e8d54ffafda5a58ae8ea5835bce9f5bf084f88ea42d43d82e5af8"
+      "sha256": "58556086e883492e2d060cd771f0494a4491e196c5dad63705d462c916094c8f"
     },
     {
       "path": "templates/cursor/rules/safeword-brainstorming.mdc",
-      "sha256": "4dde4ceee86a98709c53eb4ef002024774896850b95450469d0411fb4e75d156"
+      "sha256": "8f3e0bb96a040255334280788d24ed05a0ccc25fbff7727b987224c78645f55d"
     },
     {
       "path": "templates/cursor/rules/safeword-core.mdc",
@@ -931,51 +931,51 @@
     },
     {
       "path": "templates/cursor/rules/safeword-debugging.mdc",
-      "sha256": "2f887eba58c360d72a5ea97c46af0b37c1b43e10f3625028855bbc60beaa581a"
+      "sha256": "a2dc707e05dd313a1f03f31f18f8792cd2f9c334c10e46efd041974815122522"
     },
     {
       "path": "templates/cursor/rules/safeword-demand-research.mdc",
-      "sha256": "abce241c01da69fd5b78bdafd78a7c9170536cbc46bcf10fd8f18821ffc1d8c0"
+      "sha256": "ab42ae686ab4d2e9e53ea3523343877e06471fbfbab51b7245da536236645113"
     },
     {
       "path": "templates/cursor/rules/safeword-elicitation.mdc",
-      "sha256": "51492f166c9922a1f0748711b3308adeac488d4a354e317efd925d04d88f8c6c"
+      "sha256": "9d03415cf04eb74b4b33d83c3580a71da24154a90ca92277a219aa796406dc87"
     },
     {
       "path": "templates/cursor/rules/safeword-figure-it-out.mdc",
-      "sha256": "62a536ae19fb94017d9f153638d25d17caccf826d4052d3bc007d950908aa0a4"
+      "sha256": "059e31cd4ad6b093665138794de09ec8bd92b5fda084f7da760f976d2f5c7672"
     },
     {
       "path": "templates/cursor/rules/safeword-finish-review.mdc",
-      "sha256": "4ac9314ab9f2cbe5bce0bbe2821821eb38c09334971b1f304cc14f119281a507"
+      "sha256": "7b2bc1ad8301d2d5b6c335c0cdc0422a46f498388f7039ff25adcdd38b4e6f8b"
     },
     {
       "path": "templates/cursor/rules/safeword-pr-readiness.mdc",
-      "sha256": "511255ea85c657b11ec68336fbf606998bc3979987168d62ef2a4972f90e2078"
+      "sha256": "d251850cca755bdf7cf385c377a818c7e5b899072be0f832afb5b2de57997ce3"
     },
     {
       "path": "templates/cursor/rules/safeword-quality-reviewing.mdc",
-      "sha256": "f04bcd34bf6392b9b1d8aeea123d4367ef854ce62f3aa2ad0f6d51a989c151b9"
+      "sha256": "537fe05ca273059a57c0b55dbb6cc60e884aceb0e097b7f01727678fcbb2395c"
     },
     {
       "path": "templates/cursor/rules/safeword-refactoring.mdc",
-      "sha256": "88dfc65a549d189ea05ad5f5439218413ca01027a8ce4787a224401c4f44cfd4"
+      "sha256": "27f2ebad30c3be63e286b71e48d91ad4b7e231a3a41b742b4f1a8808aa68a2d6"
     },
     {
       "path": "templates/cursor/rules/safeword-retro-filer.mdc",
-      "sha256": "5cc9f7d7383b03f803ff9f6b30d7239bad1cfc9132ebb2192949ab9b849d8a88"
+      "sha256": "cacb983f08302b6597e91694d389f89c6920cea892d724757b36d372cefdc787"
     },
     {
       "path": "templates/cursor/rules/safeword-tdd-review.mdc",
-      "sha256": "33ea7a01be37cb1f03ad1872e254adc03f68f0722236354535a9125fb9d7062b"
+      "sha256": "8e3ab1d12ea41563f7fbf4e8a1c10bc3e19bd80ee2ea081a04d9895111e866f3"
     },
     {
       "path": "templates/cursor/rules/safeword-testing.mdc",
-      "sha256": "014d381c6e1e732d49138e4f4ac29868d00b3a11c7b5c5ca4701b4eeecafd161"
+      "sha256": "776cef67c0df799dd00be8828e92c33975ead97113df0bb8abe262133af5b644"
     },
     {
       "path": "templates/cursor/rules/safeword-ticket-system.mdc",
-      "sha256": "f401cdb20cd32244b5622043d5574bce707ca8e4399f7e2857cb7e9a50330d61"
+      "sha256": "9291a9a9d17760ee56143e44bb131aace2acde527077ae71ce64830e2ffc2521"
     },
     {
       "path": "templates/doc-templates/adr-template.md",
