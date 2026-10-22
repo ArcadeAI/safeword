@@ -324,15 +324,25 @@ export class OpenCodeNativeWriteActor {
       directory: string;
       project: string;
       candidate: string;
-    }) => Promise<Awaited<ReturnType<typeof openCodeScriptedModelFixture>> & { prompt?: string }>,
+      profile: string;
+      environment: NodeJS.ProcessEnv;
+    }) => Promise<
+      Awaited<ReturnType<typeof openCodeScriptedModelFixture>> & {
+        prompt?: string;
+        beforeTurn?: () => void;
+      }
+    >,
   ): Promise<void> {
     const model = await factory({
       directory: this.root,
       project: this.project,
       candidate: this.candidate,
+      profile: this.profile,
+      environment: this.environment(),
     });
     try {
       this.configureModel(model.url);
+      model.beforeTurn?.();
       await runOpenCodeTurn({
         binary: this.binary,
         version: this.version,
