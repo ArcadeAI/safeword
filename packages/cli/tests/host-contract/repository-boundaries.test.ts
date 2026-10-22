@@ -23,6 +23,62 @@ afterEach(() => {
 });
 
 describe('required repository boundary for shared policy ownership', () => {
+  it('discovers native Claude dispatch groups and native Cursor package hooks', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const result = runContractRepoCheck(directory);
+    type Report = { data: { handler_inventory: { source_family?: string; event: string }[] } };
+    const report = JSON.parse(result.output.trim()) as Report;
+    const counts = (value: Report, family: string) => {
+      const total: Record<string, number> = {};
+      for (const entry of value.data.handler_inventory) {
+        if (entry.source_family === family) total[entry.event] = (total[entry.event] ?? 0) + 1;
+      }
+      return total;
+    };
+    const expected: Record<string, Record<string, number>> = {
+      'claude-native': {
+        SessionStart: 1,
+        UserPromptSubmit: 1,
+        Stop: 5,
+        PreToolUse: 8,
+        PostToolUse: 7,
+        SessionEnd: 1,
+        Setup: 1,
+      },
+      'claude-native-event-groups': { SessionStart: 10, UserPromptSubmit: 3 },
+      'cursor-native': {
+        sessionStart: 2,
+        preToolUse: 1,
+        beforeShellExecution: 1,
+        afterFileEdit: 1,
+        postToolUse: 2,
+        stop: 1,
+      },
+    };
+    for (const [family, events] of Object.entries(expected))
+      expect(counts(report, family), `NATIVE_PACKAGE_HANDLER_INVENTORY_MISSING: ${family}`).toEqual(
+        events,
+      );
+    const configPath = 'packages/cli/src/templates/config.ts';
+    const original = fixtureSource(directory, configPath);
+    writeFileSync(
+      nodePath.join(directory, configPath),
+      `${original}
+SETTINGS_HOOKS.SessionStart.push({ hooks: [{ type: 'command', command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/session-version.ts' }] });
+CURSOR_HOOKS.sessionStart.push({ command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' });
+`,
+    );
+    const changed = JSON.parse(runContractRepoCheck(directory).output.trim()) as Report;
+    expect(counts(changed, 'claude-native').SessionStart).toBe(1);
+    expect(counts(changed, 'claude-native-event-groups').SessionStart).toBe(11);
+    expect(counts(changed, 'cursor-native').sessionStart).toBe(3);
+    writeFileSync(nodePath.join(directory, configPath), original);
+    const repaired = JSON.parse(runContractRepoCheck(directory).output.trim()) as Report;
+    for (const [family, events] of Object.entries(expected))
+      expect(counts(repaired, family)).toEqual(events);
+  }, 60_000);
+
   it('discovers Codex and both OpenCode native registration families', () => {
     const directory = createContractRepoFixture();
     fixtures.push(directory);
