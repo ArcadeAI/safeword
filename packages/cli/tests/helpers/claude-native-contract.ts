@@ -27,6 +27,8 @@ interface HookObservation {
   args: string[];
   input: {
     session_id: string;
+    stop_hook_active?: boolean;
+    cwd?: string;
     tool_use_id?: string;
     tool_name?: string;
     tool_input?: { file_path?: string };
@@ -41,13 +43,16 @@ const execute = promisify(execFile);
 export interface ClaudeNativeEvent {
   type: string;
   subtype?: string;
+  session_id?: string;
   is_error?: boolean;
   plugins?: { name: string; path: string }[];
   message?: {
     content?: {
       type: string;
       name?: string;
-      input?: { file_path?: string };
+      id?: string;
+      text?: string;
+      input?: { file_path?: string; skill?: string; command?: string };
       tool_use_id?: string;
       is_error?: boolean;
       content?: string;
@@ -105,6 +110,28 @@ export class ClaudeNativeContractActor {
     execFileSync('git', ['init', '--quiet', this.project]);
   }
 
+  private assertTurn(capture: string, allowTurnLimit = false): void {
+    const events = this.events(capture);
+    const loaded = events
+      .find(row => row.type === 'system' && row.subtype === 'init')
+      ?.plugins?.find(row => row.name === 'safeword');
+    assert.ok(loaded, 'HOST_CONTRACT_PROOF_UNAVAILABLE: native session did not load Safeword');
+    assert.equal(realpathSync(loaded.path), realpathSync(this.fixture.runtimePath));
+    const final = events.at(-1);
+    assert.ok(final, 'HOST_CONTRACT_PROOF_UNAVAILABLE: native Claude returned no events');
+    assert.equal(
+      final?.type,
+      'result',
+      'HOST_CONTRACT_PROOF_UNAVAILABLE: native turn did not finish',
+    );
+    if (allowTurnLimit && final.subtype === 'error_max_turns') return;
+    assert.equal(
+      final.is_error,
+      false,
+      'HOST_CONTRACT_PROOF_UNAVAILABLE: native Claude returned an error',
+    );
+  }
+
   async prepare(
     expectedPackage = nodePath.resolve(import.meta.dirname, '../../../../plugin'),
   ): Promise<void> {
@@ -129,7 +156,12 @@ export class ClaudeNativeContractActor {
     console.log(`Claude 2.1.170 native evidence: ${this.directory}`);
   }
 
-  async turn(prompt: string, tools: string, capture: string): Promise<void> {
+  async turn(
+    prompt: string,
+    tools: string,
+    capture: string,
+    options: { sessionId?: string; maxTurns?: number; allowTurnLimit?: boolean } = {},
+  ): Promise<void> {
     const pending = execute(
       this.fixture.binary,
       [
@@ -140,7 +172,8 @@ export class ClaudeNativeContractActor {
         '--verbose',
         '--dangerously-skip-permissions',
         '--max-turns',
-        '8',
+        String(options.maxTurns ?? 8),
+        ...(options.sessionId ? ['--session-id', options.sessionId] : []),
         '--tools',
         tools,
       ],
@@ -162,28 +195,13 @@ export class ClaudeNativeContractActor {
           output.stderr ?? error.message,
         );
       }
-      throw error;
+      if (!options.allowTurnLimit) throw error;
+      const output = error as { stdout: string; stderr: string };
+      result = { stdout: output.stdout, stderr: output.stderr };
     }
     writeFileSync(nodePath.join(this.directory, `${capture}-events.jsonl`), result.stdout);
     writeFileSync(nodePath.join(this.directory, `${capture}-stderr.log`), result.stderr);
-    const events = this.events(capture);
-    const loaded = events
-      .find(row => row.type === 'system' && row.subtype === 'init')
-      ?.plugins?.find(row => row.name === 'safeword');
-    assert.ok(loaded, 'HOST_CONTRACT_PROOF_UNAVAILABLE: native session did not load Safeword');
-    assert.equal(realpathSync(loaded.path), realpathSync(this.fixture.runtimePath));
-    const final = events.at(-1);
-    assert.ok(final, 'HOST_CONTRACT_PROOF_UNAVAILABLE: native Claude returned no events');
-    assert.equal(
-      final?.type,
-      'result',
-      'HOST_CONTRACT_PROOF_UNAVAILABLE: native turn did not finish',
-    );
-    assert.equal(
-      final.is_error,
-      false,
-      'HOST_CONTRACT_PROOF_UNAVAILABLE: native Claude returned an error',
-    );
+    this.assertTurn(capture, options.allowTurnLimit);
   }
 
   events(capture: string): ClaudeNativeEvent[] {
