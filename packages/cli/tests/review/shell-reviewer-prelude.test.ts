@@ -16,7 +16,7 @@ it.each([
     args: ['--model', 'fixture-model', '--help'],
     output: `${REVIEWER_CAPABILITIES.claude}\n`,
   },
-])('answers the $label probe before reading reviewer input', ({ args, output }) => {
+])('returns the expected $label metadata', ({ args, output }) => {
   const executable = nodePath.join(installReviewer(), 'claude');
   const child = spawnSync(executable, args, { encoding: 'utf8', input: '' });
   expect(child.status, child.stderr).toBe(0);

@@ -19,7 +19,7 @@ import {
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
 import { runCli } from '../helpers.js';
-import { createTrustedReviewerDirectory, REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import { claudeReviewerShellPrelude, createTrustedReviewerDirectory } from '../review-fixtures.js';
 
 type PlanningReviewKind = 'scenario-gate' | 'plan-implementation' | 'plan-execution';
 
@@ -116,15 +116,7 @@ export function installReviewer(): string {
   const executable = nodePath.join(bin, 'claude');
   writeFileSync(
     executable,
-    String.raw`#!/bin/sh
-set -eu
-if [ "${'$'}{1:-}" = "--version" ]; then printf 'claude 1.0.0\n'; exit 0; fi
-if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
-  printf '%s\n' '${REVIEWER_CAPABILITIES.claude}'
-  exit 0
-fi
-payload=$(cat)
-dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+    String.raw`${claudeReviewerShellPrelude()}
 record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
 verdict=$(printenv SAFEWORD_REVIEW_FAKE_VERDICT || true)
 finding=$(printenv SAFEWORD_REVIEW_FAKE_FINDING || true)
