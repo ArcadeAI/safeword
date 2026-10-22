@@ -36,6 +36,24 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
+function configureRetainedHarness(
+  retained: string,
+  destination: string | undefined,
+  replayPath?: string,
+): void {
+  const environment = Object.entries({
+    SAFEWORD_RUN_EXECUTION_PLAN_LIVE: '1',
+    SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER: 'claude',
+    SAFEWORD_EXECUTION_PLAN_LIVE_MODEL: 'claude-opus-5',
+    SAFEWORD_EXECUTION_PLAN_RETAINED_RESULTS_PATH: retained,
+    SAFEWORD_EXECUTION_PLAN_RESULTS_PATH: destination,
+    SAFEWORD_EXECUTION_PLAN_ACCEPTANCE: '0',
+    SAFEWORD_EXECUTION_PLAN_LIVE_CLI: '0',
+  });
+  for (const [key, value] of environment) vi.stubEnv(key, value);
+  vi.stubEnv('SAFEWORD_EXECUTION_PLAN_REPLAY_PATH', replayPath);
+}
+
 it.each([false, true])(
   'checks retained output against the current oracle before replacing evidence (matches: %s)',
   async matchesOracle => {
@@ -79,17 +97,7 @@ it.each([false, true])(
     );
     writeExecutionCheckpoint(destination, [], [], { sentinel: 'must not be overwritten' });
     const original = readFileSync(`${destination}.metadata.json`, 'utf8');
-    const environment = Object.entries({
-      SAFEWORD_RUN_EXECUTION_PLAN_LIVE: '1',
-      SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER: 'claude',
-      SAFEWORD_EXECUTION_PLAN_LIVE_MODEL: 'claude-opus-5',
-      SAFEWORD_EXECUTION_PLAN_RETAINED_RESULTS_PATH: retained,
-      SAFEWORD_EXECUTION_PLAN_RESULTS_PATH: destination,
-      SAFEWORD_EXECUTION_PLAN_ACCEPTANCE: '0',
-      SAFEWORD_EXECUTION_PLAN_LIVE_CLI: '0',
-    });
-    for (const [key, value] of environment) vi.stubEnv(key, value);
-    vi.stubEnv('SAFEWORD_EXECUTION_PLAN_REPLAY_PATH', undefined);
+    configureRetainedHarness(retained, destination);
     await import('../smoke/execution-plan.live.test.js');
     expect(harness.setup).toHaveLength(1);
     if (matchesOracle) {
@@ -177,18 +185,9 @@ it.each(['same', 'normalized alias', 'symlink alias', 'sidecar overlap', 'combin
       'sidecar overlap': `${retained}.outputs.json`,
       'combined replay': nodePath.join(root, 'destination.json'),
     }[kind];
-    const environment = Object.entries({
-      SAFEWORD_RUN_EXECUTION_PLAN_LIVE: '1',
-      SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER: 'claude',
-      SAFEWORD_EXECUTION_PLAN_LIVE_MODEL: 'claude-opus-5',
-      SAFEWORD_EXECUTION_PLAN_RETAINED_RESULTS_PATH: retained,
-      SAFEWORD_EXECUTION_PLAN_RESULTS_PATH: destination,
-      SAFEWORD_EXECUTION_PLAN_ACCEPTANCE: '0',
-      SAFEWORD_EXECUTION_PLAN_LIVE_CLI: '0',
-    });
-    for (const [key, value] of environment) vi.stubEnv(key, value);
-    vi.stubEnv(
-      'SAFEWORD_EXECUTION_PLAN_REPLAY_PATH',
+    configureRetainedHarness(
+      retained,
+      destination,
       kind === 'combined replay' ? `${retained}.outputs.json` : undefined,
     );
     await expect(async () => {
