@@ -10,6 +10,13 @@ export interface GeneratedPluginAsset {
   content: string;
 }
 
+export interface PackagedSkillContract {
+  readonly name: string;
+  readonly description: string;
+  readonly relativePath: string;
+  readonly bodyOffset: number;
+}
+
 export interface CatalogueProjection {
   readonly workflowInvocation: (name: string) => string;
   readonly runtimeCommand: string;
@@ -111,6 +118,23 @@ function parseSkill(content: string, skill: string): { body: string; description
     body: frontmatter.body,
     description: metadata.description,
   };
+}
+
+/** Index the actual rendered bytes; SDK consumers keep one copy of each workflow body. */
+export function readPackagedSkillContracts(skillsDirectory: string): PackagedSkillContract[] {
+  return markdownFiles(skillsDirectory)
+    .filter(relativePath => nodePath.basename(relativePath) === 'SKILL.md')
+    .map(relativePath => {
+      const { skill } = canonicalSkillPath(relativePath);
+      const content = readFileSync(nodePath.join(skillsDirectory, relativePath), 'utf8');
+      const parsed = parseSkill(content, skill);
+      return {
+        name: skill,
+        description: parsed.description,
+        relativePath,
+        bodyOffset: content.length - parsed.body.length,
+      };
+    });
 }
 
 function isAsciiLowercase(character: string): boolean {

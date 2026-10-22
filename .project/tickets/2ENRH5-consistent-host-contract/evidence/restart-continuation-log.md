@@ -43,3 +43,35 @@ isolated SDK typecheck, all five generated surfaces and parity pass. Lifecycle
 origin-main and population regressions are queued behind another worktree's
 Vitest owner; no duplicate test process was started. All whole-feature ledger
 outlines remain unchecked. Continue PR 2 catalogue/registration/coexistence work.
+
+## Native V2 catalogue registration
+
+Fresh executable RED `30954fc4-4105-4399-9033-0ba8213551b0` approves the strengthened
+native skill/resource boundary; quality review
+`2ef70a46-d39f-43d8-b223-26b7adfa481b` approves the resource-registration slice.
+Current SDK carrier native-v2-catalogue-green-1 passes 6/6 native V2 scenarios,
+all four worker checks and four V1 controls. The model follows actual host-returned
+content/base paths. Shared public naming now serves both V1 and V2. The private
+metadata index refreshes from the same canonical render and adds no body copy.
+
+Clarification from review: packages still retain raw templates/skills as part of
+the complete bundled CLI template tree, alongside the active projected skills.
+Only the latter are registered by this SDK. Do not claim the package contains
+one physical workflow copy; current template lookup/install/reconciliation uses
+the raw tree. PR 3's accepted closure/ownership work must determine which copies
+are necessary before removing any. Other non-blocking review notes about local
+runtime guidance in references, name handoffs and Codex-specific metadata budget
+coupling remain within that ownership migration. V1's Codex-module import is a
+re-export compatibility facade, not a second implementation; typechecking fails
+rather than silently dropping the shared owner if the export disappears.
+
+Current-source native regressions also pass: Codex 5 scenarios / 19 steps in
+63.657s (report safeword-host-contract-proof-sMnm0E); pinned Cursor CLI
+2026.09.28-64d2043 passes 3 / 12 in 54.626s (report
+safeword-host-contract-proof-N62q2r). The newer normal Cursor CLI launcher remains
+unchanged; tests used the retained absolute pinned executable. The disposable
+Codex marketplace/cache was refreshed through native plugin add with byte-identical
+hook/plugin definitions; no global/shared profile changed. Four focused files /
+19 tests, full root lint, CLI/SDK typechecks and all five generated surfaces pass.
+No whole-feature ledger outline, native group admission or customer activation is
+claimed. Continue PR 2 coexistence and required/optional rejection controls.

@@ -3,7 +3,7 @@ import nodePath from 'node:path';
 
 import packageMetadata from '../../package.json' with { type: 'json' };
 import { PORTABLE_PLUGIN_LAYOUT } from '../schema.js';
-import { writePluginCatalogue } from './catalogue.js';
+import { readPackagedSkillContracts, writePluginCatalogue } from './catalogue.js';
 import { writePortableManifest } from './delivery.js';
 
 /** Render one content graph; callers bundle the standalone runtime before registration. */
@@ -29,6 +29,13 @@ export function writePortableCoreCatalogue(
         'Canonical workflow names refer to the skills in this same package; use the host skill mechanism or read the matching packaged SKILL.md.',
       ].join('\n'),
     },
+  );
+  const catalogue = readPackagedSkillContracts(
+    nodePath.join(outputDirectory, PORTABLE_PLUGIN_LAYOUT.skills),
+  );
+  writeFileSync(
+    nodePath.join(outputDirectory, PORTABLE_PLUGIN_LAYOUT.catalogue),
+    `${JSON.stringify(catalogue, undefined, 2)}\n`,
   );
   cpSync(templatesDirectory, nodePath.join(outputDirectory, PORTABLE_PLUGIN_LAYOUT.templates), {
     recursive: true,

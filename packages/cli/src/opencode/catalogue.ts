@@ -7,6 +7,7 @@ import {
 } from '../codex-plugin/catalogue.js';
 import { CURSOR_COMMAND_WRAPPERS, type CursorCommandWrapper } from '../cursor-wrappers.js';
 import { VERSION } from '../version.js';
+import { openCodeWorkflowName } from './names.js';
 
 export interface SafewordSubagent {
   readonly name: string;
@@ -53,7 +54,7 @@ export function renderOpenCodeCommand(command: CursorCommandWrapper): string {
 description: ${JSON.stringify(command.description)}
 ---
 
-Load and follow the \`safeword-${skillName(command)}\` skill completely. Pass \`$ARGUMENTS\` as the user's arguments.
+Load and follow the \`${openCodeWorkflowName(skillName(command))}\` skill completely. Pass \`$ARGUMENTS\` as the user's arguments.
 `;
 }
 
@@ -63,7 +64,7 @@ description: ${JSON.stringify(agent.description)}
 mode: subagent
 ---
 
-Load and follow the \`safeword-${agent.skill}\` skill completely.
+Load and follow the \`${openCodeWorkflowName(agent.skill)}\` skill completely.
 `;
 }
 
@@ -73,7 +74,8 @@ export interface OpenCodeCatalogueAsset {
 }
 
 function renderOpenCodeSkill(name: string, content: string, skillEntry: boolean): string {
-  if (!skillEntry) return content.replaceAll(`$safeword:${name}`, () => `/safeword-${name}`);
+  if (!skillEntry)
+    return content.replaceAll(`$safeword:${name}`, () => `/${openCodeWorkflowName(name)}`);
   const expected = `name: ${name}`;
   const nameFields = content
     .matchAll(/^name: [a-z][a-z0-9-]*$/gmu)
@@ -82,8 +84,11 @@ function renderOpenCodeSkill(name: string, content: string, skillEntry: boolean)
   if (nameFields.length !== 1 || nameFields[0] !== expected) {
     throw new Error(`Generated OpenCode skill ${name} has an invalid name field`);
   }
-  const renamed = content.replace(/^name: [a-z][a-z0-9-]*$/mu, () => `name: safeword-${name}`);
-  return renamed.replaceAll(`$safeword:${name}`, () => `/safeword-${name}`);
+  const renamed = content.replace(
+    /^name: [a-z][a-z0-9-]*$/mu,
+    () => `name: ${openCodeWorkflowName(name)}`,
+  );
+  return renamed.replaceAll(`$safeword:${name}`, () => `/${openCodeWorkflowName(name)}`);
 }
 
 export function generateOpenCodeCatalogueAssets(
@@ -105,12 +110,12 @@ export function generateOpenCodeCatalogueAssets(
     for (const skill of skillNames) content = renderOpenCodeSkill(skill, content, false);
     if (skillEntry) content = renderOpenCodeSkill(name, content, true);
     return {
-      relativePath: nodePath.join('skills', `safeword-${name}`, ...suffix),
+      relativePath: nodePath.join('skills', openCodeWorkflowName(name), ...suffix),
       content,
     };
   });
   const commands = CURSOR_COMMAND_WRAPPERS.map(command => ({
-    relativePath: nodePath.join('commands', `safeword-${command.name}.md`),
+    relativePath: nodePath.join('commands', `${openCodeWorkflowName(command.name)}.md`),
     content: renderOpenCodeCommand(command),
   }));
   const agents = SAFEWORD_SUBAGENTS.map(agent => ({

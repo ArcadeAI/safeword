@@ -2,11 +2,13 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { Plugin } from '@opencode/plugin';
+import { Plugin, Skill } from '@opencode/plugin';
 import * as Tool from '@opencode/plugin/promise/tool';
 
+import type { PackagedSkillContract } from '../../cli/src/host-contract/catalogue.js';
 import type { WorkerContract } from '../../cli/src/host-contract/workers.js';
 import { workerInvocationHeader } from '../../cli/src/host-contract/workers.js';
+import { openCodeWorkflowName } from '../../cli/src/opencode/names.js';
 import type { OPENCODE_V2_PLUGIN_LAYOUT } from '../../cli/src/schema.js';
 import { hasSafewordProjectMarker } from '../../cli/src/utils/configured-paths.js';
 import { canonicalDirectory } from '../../cli/src/utils/fs.js';
@@ -16,11 +18,32 @@ declare const __SAFEWORD_OPENCODE_LAYOUT__: typeof OPENCODE_V2_PLUGIN_LAYOUT;
 const layout = __SAFEWORD_OPENCODE_LAYOUT__;
 const packageRoot = import.meta.dirname;
 
+function readPackagedText(relativePath: string): string {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- schema-owned resources in this bundle
+  return readFileSync(nodePath.join(packageRoot, relativePath), 'utf8');
+}
+
+async function registerSkills(context: Plugin.Context): Promise<void> {
+  const catalogue = JSON.parse(readPackagedText(layout.catalogue)) as PackagedSkillContract[];
+  const skills = catalogue.map(entry => {
+    const relativePath = nodePath.join(layout.skills, entry.relativePath);
+    const name = openCodeWorkflowName(entry.name);
+    const path = Skill.Info.fields.path.make(nodePath.join(packageRoot, relativePath));
+    return Skill.Info.make({
+      id: Skill.ID.make(name),
+      name: Skill.Name.make(name),
+      description: entry.description,
+      path,
+      content: readPackagedText(relativePath).slice(entry.bodyOffset),
+    });
+  });
+  await context.skill.transform(editor => {
+    for (const skill of skills) editor.add(skill);
+  });
+}
+
 async function registerWorkerRestrictions(context: Plugin.Context): Promise<void> {
-  const workers = JSON.parse(
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- schema-owned resource in this bundle
-    readFileSync(nodePath.join(packageRoot, layout.workers), 'utf8'),
-  ) as WorkerContract[];
+  const workers = JSON.parse(readPackagedText(layout.workers)) as WorkerContract[];
   const nativeTools = new Map([['Read', 'read']]);
   const masks = new Map(
     workers
@@ -111,5 +134,6 @@ export default Plugin.define({
       });
     });
     await registerWorkerRestrictions(context);
+    await registerSkills(context);
   },
 });

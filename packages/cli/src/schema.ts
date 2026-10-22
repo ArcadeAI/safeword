@@ -58,6 +58,7 @@ export const PORTABLE_PLUGIN_LAYOUT = {
   manifest: 'plugin.json',
   manifestSchema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
   skills: 'skills',
+  catalogue: 'catalogue.json',
   runtime: 'runtime/cli.js',
   templates: 'templates',
 } as const;
@@ -79,6 +80,8 @@ export const OPENCODE_V2_PLUGIN_LAYOUT = {
   entry: 'index.js',
   dispatcher: 'runtime/dispatch.js',
   workers: 'workers.json',
+  skills: PORTABLE_PLUGIN_LAYOUT.skills,
+  catalogue: PORTABLE_PLUGIN_LAYOUT.catalogue,
   runtime: PORTABLE_PLUGIN_LAYOUT.runtime,
   templates: PORTABLE_PLUGIN_LAYOUT.templates,
 } as const;
