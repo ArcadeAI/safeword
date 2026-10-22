@@ -20,6 +20,19 @@ function checkpointIdentity() {
   };
 }
 
+function passingResult(caseId: string) {
+  return { case_id: caseId, reviewer: 'claude', model: 'claude-opus-5', passed: true };
+}
+
+function headlessObservation(caseId: string) {
+  return {
+    case_id: caseId,
+    dispatch_mode: 'headless',
+    output: { verdict: 'approve' },
+    confirmed_model: { provider: 'anthropic', model: 'claude-opus-5' },
+  };
+}
+
 it.each([
   {
     label: 'missing confirmation',
@@ -47,13 +60,8 @@ it.each([
   const root = mkdtempSync(nodePath.join(tmpdir(), 'execution-provenance-'));
   const path = nodePath.join(root, 'results.json');
   const identity = checkpointIdentity();
-  const result = { case_id: 'completed', reviewer: 'claude', model: 'claude-opus-5', passed: true };
-  const output = {
-    case_id: 'completed',
-    dispatch_mode: 'headless',
-    output: { verdict: 'approve' },
-    confirmed_model: { provider: 'anthropic', model: 'claude-opus-5' },
-  };
+  const result = passingResult('completed');
+  const output = headlessObservation('completed');
   try {
     writeExecutionCheckpoint(path, [result], [output], identity);
     expect(readExecutionCheckpoint(path, identity, ['completed']).results).toEqual([result]);
@@ -71,9 +79,7 @@ it('retains completed raw observations when the worker is killed before teardown
     import.meta.dirname,
     '../fixtures/execution-plan-live-checkpoint.ts',
   );
-  const results = [
-    { case_id: 'completed', reviewer: 'claude', model: 'claude-opus-5', passed: true },
-  ];
+  const results = [passingResult('completed')];
   const outputs = [{ case_id: 'completed', output: { verdict: 'approve' } }];
   const metadata = { schema_version: 1, contract_sha256: 'contract', corpus_sha256: 'corpus' };
   try {
@@ -102,29 +108,22 @@ it.each(['metadata', 'results'])('refuses mixed generations after a %s write fai
   const root = mkdtempSync(nodePath.join(tmpdir(), 'execution-interrupted-write-'));
   const path = nodePath.join(root, 'results.json');
   const identity = checkpointIdentity();
-  const result = (case_id: string) => ({
-    case_id,
-    reviewer: 'claude',
-    model: 'claude-opus-5',
-    passed: true,
-  });
-  const output = (case_id: string) => ({
-    case_id,
-    dispatch_mode: 'headless',
-    output: { verdict: 'approve' },
-    confirmed_model: { provider: 'anthropic', model: 'claude-opus-5' },
-  });
   try {
-    writeExecutionCheckpoint(path, [result('old')], [output('old')], identity);
+    writeExecutionCheckpoint(path, [passingResult('old')], [headlessObservation('old')], identity);
     expect(readExecutionCheckpoint(path, identity, ['old', 'new']).results).toEqual([
-      result('old'),
+      passingResult('old'),
     ]);
     const original = readFileSync(path, 'utf8');
     // Force an actual filesystem failure after raw outputs have been replaced.
     const target = stage === 'metadata' ? `${path}.metadata.json` : path;
     mkdirSync(`${target}.${process.pid}.tmp`);
     expect(() => {
-      writeExecutionCheckpoint(path, [result('new')], [output('new')], identity);
+      writeExecutionCheckpoint(
+        path,
+        [passingResult('new')],
+        [headlessObservation('new')],
+        identity,
+      );
     }).toThrow();
     expect(readFileSync(path, 'utf8')).toBe(original);
     expect(() => readExecutionCheckpoint(path, identity, ['old', 'new'])).toThrow(
@@ -198,24 +197,9 @@ it.each([
     );
     const metadata = checkpointIdentity();
     const expected = { ...metadata, ...overrides };
-    writeFileSync(
-      path,
-      JSON.stringify([
-        { case_id: 'completed', reviewer: 'claude', model: 'claude-opus-5', passed: true },
-      ]),
-    );
+    writeFileSync(path, JSON.stringify([passingResult('completed')]));
     writeFileSync(`${path}.metadata.json`, JSON.stringify(metadata));
-    writeFileSync(
-      `${path}.outputs.json`,
-      JSON.stringify([
-        {
-          case_id: 'completed',
-          dispatch_mode: 'headless',
-          output: { verdict: 'approve' },
-          confirmed_model: { provider: 'anthropic', model: 'claude-opus-5' },
-        },
-      ]),
-    );
+    writeFileSync(`${path}.outputs.json`, JSON.stringify([headlessObservation('completed')]));
     try {
       const child = spawnSync(
         'bun',
