@@ -33011,12 +33011,12 @@ var EXECUTION_PLAN_ADMISSION_EVIDENCE;
 var init_execution_plan_admission_generated = __esm(() => {
   EXECUTION_PLAN_ADMISSION_EVIDENCE = {
     schema_version: 1,
-    contract_sha256: "4cc38db52651b7073d8677ff89b94d896ba0b2321125d8eaef31c6152543e533",
+    contract_sha256: "0007a2f66fdc391067505a162be398fd6e51c4812b7ba0fef852fb35e854c62b",
     corpus_sha256: "833df049ac3d3cbe119fac7f8ecf43c614e1cf6c4d64b97c4f0781e4ee8f6309",
     identities: [
       {
         reviewer: "claude",
-        model: "opus",
+        model: "claude-opus-5",
         case_ids: [
           "one-coherent-change",
           "several-ordered-changes",
