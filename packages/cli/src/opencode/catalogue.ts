@@ -1,11 +1,8 @@
 import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import {
-  adaptNativeRuntimeInvocations,
-  generateCodexPluginAssets,
-} from '../codex-plugin/catalogue.js';
 import { CURSOR_COMMAND_WRAPPERS, type CursorCommandWrapper } from '../cursor-wrappers.js';
+import { generatePluginAssets } from '../host-contract/catalogue.js';
 import { VERSION } from '../version.js';
 import { openCodeWorkflowName } from './names.js';
 
@@ -100,12 +97,16 @@ export function generateOpenCodeCatalogueAssets(
     .map(entry => entry.name);
   const knownSkills = new Set(skillNames);
   validateOpenCodeCatalogueReferences(knownSkills, CURSOR_COMMAND_WRAPPERS, SAFEWORD_SUBAGENTS);
-  const skills = generateCodexPluginAssets(skillsRoot, VERSION).map(asset => {
+  const skills = generatePluginAssets(skillsRoot, VERSION, {
+    workflowInvocation: name => `/${openCodeWorkflowName(name)}`,
+    runtimeCommand: `bunx --bun safeword@${VERSION}`,
+    introduction: '',
+  }).map(asset => {
     const [, name, ...suffix] = asset.relativePath.split(nodePath.sep);
     if (name === undefined || !knownSkills.has(name)) {
       throw new Error(`Generated native skill has an unexpected path: ${asset.relativePath}`);
     }
-    let content = adaptNativeRuntimeInvocations(asset.content, VERSION);
+    let content = asset.content;
     const skillEntry = nodePath.basename(asset.relativePath) === 'SKILL.md';
     for (const skill of skillNames) content = renderOpenCodeSkill(skill, content, false);
     if (skillEntry) content = renderOpenCodeSkill(name, content, true);

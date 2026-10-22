@@ -326,3 +326,21 @@ Review also notes the fixture helper must accept a valid action_required envelop
 (exit3) once all current competing owners are gone, while still rejecting failed
 unavailable envelopes; currently its clean controls exit2 for retained owners.
 Do not infer complete inventory or healthy admission from this component.
+
+### Remove OpenCode's Codex renderer dependency
+
+OpenCode now calls generatePluginAssets directly with its own mechanical
+workflow/runtime projection. Its existing native-name translation remains;
+no Codex cache paths are rendered and then repaired. Shared renderer treats
+an empty introduction as absent. The whole generated V1 catalogue is byte
+identical before/after (captured JSON comparison), and existing OpenCode,
+Codex catalogue and repository controls pass: 3 files /18 tests. Lint/types
+pass and all five generated surfaces regenerate normally. The first attempted
+refactor removed the explicit canonical-name translation too early; a byte
+comparison caught four changed resources, so it was reverted before the smaller
+refactor. No policy or public output change was accepted.
+
+The real repository check now reports only the remaining OpenCode-to-Cursor
+command authority, plus explicit incomplete inventory. No healthy/full-consolidation
+claim is made. Byte-control files: /tmp/safeword-opencode-{before,after}-direct-projection.json.
+Focused test log: /tmp/safeword-opencode-direct-projection-tests.log.

@@ -505,7 +505,9 @@ function adaptSkillBody(
     context.version,
     context.projection,
   );
-  return context.projection ? `${context.projection.introduction}\n\n${rendered}` : rendered;
+  return context.projection?.introduction
+    ? `${context.projection.introduction}\n\n${rendered}`
+    : rendered;
 }
 
 function tableCells(line: string): string[] {

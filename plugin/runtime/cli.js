@@ -71586,11 +71586,6 @@ function adaptRuntimeInvocations(markdown, cli) {
   }
   return adapted;
 }
-function adaptNativeRuntimeInvocations(markdown, version2) {
-  const cli = `bunx --bun safeword@${version2}`;
-  const withoutCodexCachePaths = markdown.split(codexBundledCliCommand(version2)).join(cli);
-  return adaptNamespaceRootInvocations(adaptRuntimeInvocations(withoutCodexCachePaths, cli), cli);
-}
 function adaptCodexNativeRuntimeInvocations(markdown, version2) {
   const cli = codexBundledCliCommand(version2);
   return adaptNamespaceRootInvocations(adaptRuntimeInvocations(markdown, cli), cli);
@@ -71687,7 +71682,7 @@ function adaptSkillBody(body, skill, knownSkillNames, referenceNames, context) {
   adapted = adaptPackagedTemplatePaths(adapted, referenceNames);
   adapted = adaptReferenceLinks(adapted, referenceNames);
   const rendered = adaptWorkflowMarkdown(adapted, knownSkillNames, context.version, context.projection);
-  return context.projection ? `${context.projection.introduction}
+  return context.projection?.introduction ? `${context.projection.introduction}
 
 ${rendered}` : rendered;
 }
@@ -71805,9 +71800,6 @@ ${adaptSkillBody(body, skill, knownSkillNames, referenceNames, { version: versio
   }));
   return [...skillAssets, ...referenceAssets];
 }
-function generateCodexPluginAssets(canonicalSkillsDirectory, version2) {
-  return generatePluginAssets(canonicalSkillsDirectory, version2);
-}
 var import_yaml4, CODEX_MARKETPLACE_NAME = "safeword", CODEX_PLUGIN_NAME = "safeword", PACKAGED_SKILL_REFERENCES, FRONTMATTER, SUPPORTED_SOURCE_METADATA, SCRIPT_REWRITES, NAMESPACE_ROOT_INVOCATION_PREFIX = 'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"', NAMESPACE_ROOT_KEY, NAMESPACE_ROOT_BASENAME, TRAILING_OPERAND;
 var init_catalogue = __esm(() => {
   init_plugin_runtime_authority();
@@ -71878,11 +71870,6 @@ var init_catalogue = __esm(() => {
   TRAILING_OPERAND = /^ (?!\d?[<>]|[|&#])\S/u;
 });
 
-// src/codex-plugin/catalogue.ts
-var init_catalogue2 = __esm(() => {
-  init_catalogue();
-});
-
 // src/opencode/names.ts
 function openCodeWorkflowName(name) {
   return `safeword-${name}`;
@@ -71940,12 +71927,16 @@ function generateOpenCodeCatalogueAssets(templatesRoot) {
   const skillNames = readdirSync27(skillsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
   const knownSkills = new Set(skillNames);
   validateOpenCodeCatalogueReferences(knownSkills, CURSOR_COMMAND_WRAPPERS, SAFEWORD_SUBAGENTS);
-  const skills = generateCodexPluginAssets(skillsRoot, VERSION).map((asset) => {
+  const skills = generatePluginAssets(skillsRoot, VERSION, {
+    workflowInvocation: (name) => `/${openCodeWorkflowName(name)}`,
+    runtimeCommand: `bunx --bun safeword@${VERSION}`,
+    introduction: ""
+  }).map((asset) => {
     const [, name, ...suffix] = asset.relativePath.split(nodePath95.sep);
     if (name === undefined || !knownSkills.has(name)) {
       throw new Error(`Generated native skill has an unexpected path: ${asset.relativePath}`);
     }
-    let content = adaptNativeRuntimeInvocations(asset.content, VERSION);
+    let content = asset.content;
     const skillEntry = nodePath95.basename(asset.relativePath) === "SKILL.md";
     for (const skill of skillNames)
       content = renderOpenCodeSkill(skill, content, false);
@@ -71967,9 +71958,9 @@ function generateOpenCodeCatalogueAssets(templatesRoot) {
   return [...skills, ...commands, ...agents].toSorted((left, right) => left.relativePath.localeCompare(right.relativePath));
 }
 var SAFEWORD_SUBAGENTS;
-var init_catalogue3 = __esm(() => {
-  init_catalogue2();
+var init_catalogue2 = __esm(() => {
   init_cursor_wrappers();
+  init_catalogue();
   init_version();
   SAFEWORD_SUBAGENTS = [
     {
@@ -73234,7 +73225,7 @@ var init_profile2 = __esm(() => {
   init_schema();
   init_profile_lock();
   init_version();
-  init_catalogue3();
+  init_catalogue2();
   init_evidence();
   init_identity();
   init_plugin();
@@ -73585,7 +73576,7 @@ var OPENCODE_EXPECTED_DISCOVERY;
 var init_conformance_fixture = __esm(() => {
   init_cursor_wrappers();
   init_fs();
-  init_catalogue3();
+  init_catalogue2();
   init_profile2();
   OPENCODE_EXPECTED_DISCOVERY = {
     command: "bdd",
