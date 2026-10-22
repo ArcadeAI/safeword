@@ -15,8 +15,12 @@ then the scripted model asks the actual skill tool for the broken explain skill,
 an unrelated cleanup-zombies skill, and finally the actual shell write. It
 supplies no policy decision. Every actual call/result must be observed. The
 independent native observer records the exact candidate's native plugin state,
-and source/candidate bytes must match. A failed setup must identify description
-schema validation; missing imports, SDKs, attempts or results are unavailable.
+and source/candidate bytes must match. A failed setup must identify native schema
+validation, Skill.Info and the exact description issue path before the sentinel
+assertion; missing imports, SDKs, attempts or results are unavailable. The
+attested output prints this validated native failure state separately for each
+runtime, addressing the cause-visibility warning in review
+87c47228-b075-4ada-ad00-009be244bead before final approval.
 
 The intended RED is V2_OPTIONAL_FAILURE_HIDES_GUARD at the final protected-write
 assertion. Author run /tmp/safeword-opencode-optional-registration-red-final.log
@@ -27,7 +31,12 @@ native SDK tears down the earlier guard registration when setup throws.
 GREEN additionally requires the native candidate active, explain rejected by
 the actual skill tool, cleanup-zombies content returned successfully, and one
 shared status-2 guard dispatch tied to the canonical checkout, exact command and
-native session. Disabling all resources or faking denial locally cannot pass.
+native session. The healthy resource must report its candidate package base
+directory, rather than the retained V1 profile copy. Retained V1 resources are
+deliberate: GREEN must not inherit the rejected explain skill from that older
+effective catalogue. V1 files themselves remain untouched. Disabling all native
+resources, preserving a stale fallback for the rejected skill, or faking denial
+locally cannot pass.
 Production error isolation has not been implemented before this review.
 
 The shared actor's Given now uses real profile-local enrollment rather than

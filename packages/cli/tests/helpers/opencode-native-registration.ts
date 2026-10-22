@@ -94,12 +94,19 @@ export async function proveOpenCodeOptionalRegistration(
     JSON.stringify({ registration, results }, undefined, 2),
   );
   // A load error must originate in native schema validation, never a missing SDK/import.
-  if (registration.state.status !== 'active')
-    assert.match(
-      JSON.stringify(registration.state),
-      /description|Expected string/u,
-      'HOST_CONTRACT_PROOF_UNAVAILABLE: unrelated candidate loading error',
+  if (registration.state.status !== 'active') {
+    const cause = String(registration.state.error);
+    assert.match(cause, /Schema validation failed/u);
+    assert.match(cause, /"identifier":"Skill.Info"/u);
+    assert.match(cause, /"path":\["description"\]/u);
+    console.log(
+      JSON.stringify({
+        runtime,
+        native_plugin_state: registration.state.status,
+        rejected_schema: 'Skill.Info.description',
+      }),
     );
+  }
   assert.equal(
     existsSync(nodePath.join(project, relative)),
     false,
@@ -109,6 +116,12 @@ export async function proveOpenCodeOptionalRegistration(
   assert.equal(registration.state.status, 'active', 'V2_OPTIONAL_FAILURE_HIDES_GUARD');
   assert.match(String(actualResults[0]?.content), /Unable to load skill safeword-explain/u);
   assert.match(String(actualResults[1]?.content), /skill_content[\s\S]*cleanup-zombies/u);
+  assert.ok(
+    String(actualResults[1]?.content).includes(
+      `Base directory for this skill: ${candidate}/skills/cleanup-zombies`,
+    ),
+    'NATIVE_REGISTRATION_RESOURCE_ORIGIN_MISMATCH',
+  );
   const dispatches = readFileSync(nodePath.join(directory, 'runtime-observations.jsonl'), 'utf8')
     .trim()
     .split('\n')
