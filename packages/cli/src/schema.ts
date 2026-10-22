@@ -80,11 +80,14 @@ export const OPENCODE_V2_PLUGIN_LAYOUT = {
   entry: 'index.js',
   dispatcher: 'runtime/dispatch.js',
   workers: 'workers.json',
+  enrollments: 'safeword/enrollment-v2',
   skills: PORTABLE_PLUGIN_LAYOUT.skills,
   catalogue: PORTABLE_PLUGIN_LAYOUT.catalogue,
   runtime: PORTABLE_PLUGIN_LAYOUT.runtime,
   templates: PORTABLE_PLUGIN_LAYOUT.templates,
 } as const;
+
+export const PROJECT_MUTATION_LOCK = '.safeword/project-mutation.lock';
 
 /** Closed planning-template classifier; registered templates stay literal for catalogue extraction. */
 export const PLANNING_CONTRACT_TEMPLATE_PATHS = {

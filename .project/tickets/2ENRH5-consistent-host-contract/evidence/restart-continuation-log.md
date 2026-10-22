@@ -75,3 +75,40 @@ hook/plugin definitions; no global/shared profile changed. Four focused files /
 19 tests, full root lint, CLI/SDK typechecks and all five generated surfaces pass.
 No whole-feature ledger outline, native group admission or customer activation is
 claimed. Continue PR 2 coexistence and required/optional rejection controls.
+
+
+## Profile-local OpenCode V2 enrollment
+
+Implemented PR 2 task 3's internal profile/controller component after executable
+RED approval 4fde1301-e395-4438-9c2c-333e875ff1b0 (Claude/opus, CLI and TUI,
+exit 2 in 33.8s). Earlier 5ffe5d52 rejected the wrong mixed-host-upgrade scenario
+binding; 60269166 rejected a transient V1 TUI configuration-load stall. Neither
+was used to authorize production changes. The final proof is bound to the
+actual denied-action rows. The shared runtime/session assertions requested by
+the reviewer were added before its final approved execution.
+
+Final generated package native-v2-enrollment-green-2 passes actual CLI and TUI
+coexistence. Both exact host versions share configuration and retain independent
+runtime databases: an actual V1 process cannot read V2's database schema. No host
+database migration is attempted. Final evidence roots opencode-native-xa5qTp and
+opencode-native-kbcqw8; log /tmp/safeword-opencode-coexistence-green-final.log.
+The selected V2 checkout receives one shared status-2 guard dispatch tied to its
+native session. The second checkout receives none, and V1 continues denying in
+both. User config/comments and V1 catalogue/module bytes are unchanged.
+
+Quality review 178e9146-d88b-4076-b30d-1a81ae618e91 (Claude/opus) approves the
+narrow component. Existing profile lock helper creates parent directories; no
+new lock subsystem is needed. Formatter corrected its export-spacing note.
+Hostname changes, subdirectory startup, dual config/symlink declarations, full
+mutation-tool coverage, recovery/status and native package admission remain
+explicit later lifecycle/registration proof obligations. The adapter is not
+customer-eligible yet, so these warnings do not weaken shipped protection.
+Avoid adding speculative recovery or independently owned policy here.
+
+Focused profile/host/population regressions: 3 files, 28 tests passed. CLI and
+SDK typechecks and source lint pass. All five generated surfaces were refreshed
+and their dry check passes. Full per-slice verification is still pending.
+The other native proof fixtures must now use the real profile enrollment writer
+instead of the removed projectDirectory activation option. No full outline or
+whole-ticket GREEN is claimed. Continue PR 2 registration failure and command
+resource proof, then remaining full-inventory and admission/lifecycle slices.

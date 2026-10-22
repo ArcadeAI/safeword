@@ -8,7 +8,9 @@ import * as Tool from '@opencode/plugin/promise/tool';
 import type { PackagedSkillContract } from '../../cli/src/host-contract/catalogue.js';
 import type { WorkerContract } from '../../cli/src/host-contract/workers.js';
 import { workerInvocationHeader } from '../../cli/src/host-contract/workers.js';
+import { resolveOpenCodeConfigRoot } from '../../cli/src/opencode/config-root.js';
 import { openCodeWorkflowName } from '../../cli/src/opencode/names.js';
+import { readOpenCodeV2Enrollment } from '../../cli/src/opencode/v2-enrollment.js';
 import type { OPENCODE_V2_PLUGIN_LAYOUT } from '../../cli/src/schema.js';
 import { hasSafewordProjectMarker } from '../../cli/src/utils/configured-paths.js';
 import { canonicalDirectory } from '../../cli/src/utils/fs.js';
@@ -117,11 +119,21 @@ function dispatch(project: string, envelope: object): Promise<void> {
 export default Plugin.define({
   id: 'safeword',
   async setup(context) {
-    const project = canonicalDirectory(context.options.projectDirectory);
+    const profile = canonicalDirectory(context.options.profileDirectory);
+    const activeProfile = canonicalDirectory(
+      resolveOpenCodeConfigRoot({
+        platform: process.platform === 'win32' ? 'windows' : 'unix',
+        env: process.env,
+      }),
+    );
+    const project = canonicalDirectory(context.location.directory);
     if (
       !project ||
-      project !== canonicalDirectory(context.location.directory) ||
-      !hasSafewordProjectMarker(project)
+      !profile ||
+      profile !== activeProfile ||
+      !hasSafewordProjectMarker(project) ||
+      !context.app.version.startsWith('2.') ||
+      !readOpenCodeV2Enrollment(profile, project, packageRoot, layout)
     )
       return;
     await context.tool.hook('execute.before', async event => {

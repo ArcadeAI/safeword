@@ -24,13 +24,11 @@ import {
 } from './evidence.js';
 import { type OpenCodeIdentityV1, parseOpenCodeIdentity } from './identity.js';
 import { generateOpenCodeProfilePlugin } from './plugin.js';
+import type { OpenCodeV2Selection } from './v2-enrollment.js';
+import { stageOpenCodeV2Profile } from './v2-profile.js';
 
+export { type PlatformEnvironment, resolveOpenCodeConfigRoot } from './config-root.js';
 export type { OpenCodeIdentityV1 } from './identity.js';
-
-export interface PlatformEnvironment {
-  readonly platform: 'unix' | 'windows';
-  readonly env: Readonly<Record<string, string | undefined>>;
-}
 
 export interface OpenCodeProfilePaths {
   readonly plugin: string;
@@ -79,32 +77,6 @@ export interface ObserveOpenCodeProfileInput {
   readonly projectDirectory?: string;
 }
 
-function usable(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed === undefined || trimmed.length === 0 || !nodePath.isAbsolute(trimmed)
-    ? undefined
-    : trimmed;
-}
-
-export function resolveOpenCodeConfigRoot(input: PlatformEnvironment): string | undefined {
-  const explicit = input.env.OPENCODE_CONFIG_DIR?.trim();
-  if (explicit !== undefined && explicit.length > 0 && !nodePath.isAbsolute(explicit)) {
-    return undefined;
-  }
-  const configured = usable(input.env.OPENCODE_CONFIG_DIR);
-  if (configured !== undefined) return configured;
-  const xdg = usable(input.env.XDG_CONFIG_HOME);
-  if (xdg !== undefined) return nodePath.join(xdg, 'opencode');
-  if (input.platform === 'windows') {
-    const userProfile = usable(input.env.USERPROFILE);
-    return userProfile === undefined
-      ? undefined
-      : nodePath.join(userProfile, '.config', 'opencode');
-  }
-  const home = usable(input.env.HOME);
-  return home === undefined ? undefined : nodePath.join(home, '.config', 'opencode');
-}
-
 export function openCodeProfilePaths(root: string): OpenCodeProfilePaths {
   const safeword = nodePath.join(root, 'safeword');
   return {
@@ -149,7 +121,12 @@ function packagedTemplatesRoot(): string | undefined {
   ].find(candidate => existsSync(nodePath.join(candidate, 'skills')));
 }
 
-export function installOpenCodeProfile(root: string): CliResult {
+export function installOpenCodeProfile(
+  root: string,
+  selection?: { readonly nativeV2: OpenCodeV2Selection },
+): CliResult {
+  if (selection)
+    return stageOpenCodeV2Profile(root, openCodeProfilePaths(root).lock, selection.nativeV2);
   const packagedPath = packagedDispatcherPath();
   if (packagedPath === undefined) {
     return actionRequired(
