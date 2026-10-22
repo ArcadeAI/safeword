@@ -1,6 +1,36 @@
 # Verification
 
-## Full refactor and quality review (2026-10-21)
+## Administrative merge preparation
+
+User authorized admin merge on 2026-10-21 PDT. PR #6041 links all three issues.
+Merged origin/main a3c216940 into the delivery at 83f099c6c, preserving upstream
+Claude asset-integrity changes and regenerating conflicting plugin metadata
+from source. All five generated surfaces pass. All 49 focused tests pass on the
+combined branch; the real hook walkthrough passed package tests, nested imports
+and go.work/unrelated-package cases on both linter versions. Final full CI must
+cover the closure commit before merge. Previous full remote proof is below.
+
+Independent source review 7991f5c9-e76e-4bdd-8903-e26f5f01927e approved with no
+errors. Full branch-wide phase-stamp coverage is deliberately skipped, not
+claimed: the coordinator rejects ARCHITECTURE.md above 262144 bytes, and upstream
+main's copy already exceeds that limit. The supported --skip escape records the
+reason in the invocation ledger. Source review, diff inspection and executable
+proof remain required; the final exact-head CI gate is retained.
+
+Review suggestions: custom run.issues-exit-code: 0 retains native/prior hook
+exit-code behavior; this delivery does not override that explicit customer policy.
+The internal hook command directly prints its JSON response; update notices
+belong to public command setup, and bundled helpers use the pinned executable.
+Malformed protocol output warns rather than reporting a clean lint. Existing
+plain-warning and temporary-file limits remain documented above/below. Deploy
+job dependencies are unchanged. No blocking finding remains.
+
+## Historical full refactor verification — beac76fc3
+
+Everything from this heading through the historical checklist below describes
+beac76fc3 or explicitly named older revisions. It is not exact-head approval
+for the merged branch or the pending closure commit. Current merge readiness
+is BLOCKED on full final-head CI, regardless of historical passing glyphs.
 
 Final source/test revision: beac76fc375634b41b1ca0e9a6cf0acb8d345435.
 [Remote CI run 39695922147](https://github.com/ArcadeAI/safeword/actions/runs/39695922147)
@@ -68,13 +98,13 @@ These are two targeted mutation checks, not an exhaustive mutation score. The
 new cases cover existing behavior; no claim is made that every added test
 preceded implementation. No new Gherkin scenarios were added.
 
-## Final remote verification
+## Historical remote verification — beac76fc3
 
 Final remote result: **SUCCESS** for beac76fc375634b41b1ca0e9a6cf0acb8d345435.
 Run: https://github.com/ArcadeAI/safeword/actions/runs/39695922147
 Machine result: remote-result.json. Audit/refactor detail: remote-verification.md.
 
-## Verify Checklist
+## Historical Verify Checklist — beac76fc3, not the pending closure head
 
 **Test Suite:** ✓ 11645/11645 CLI tests pass on both Node 22.23.2 and 24.18.1, with 10 explicit skips per lane. Relay and collector suites pass; both physical-install proofs pass; 83/83 release tests pass per lane. Both Go compatibility lanes pass 49/49 tests; 12/12 installed-hook golden-path tests also pass in shuffled order.
 **Gherkin:** ✅ Acceptance lane passes — 601/601 scenarios, 11821/11821 steps, and 51/51 proof-tag tests.
@@ -131,14 +161,22 @@ historical runs before the final compatibility correction.
 
 | Affected surface | Proof | Result |
 | --- | --- | --- |
-| Shared Go executor | Nine policy probes per version | 18/18 passed on final source |
-| Claude shared hook entry | Three package/module probes per version | 6/6 passed; no live client |
+| Shared Go executor | Nine policy probes per version | 18/18 passed before beac76fc3; historical source proof |
+| Claude shared hook entry | Three package/module probes per version | 6/6 passed before beac76fc3 and repeated during admin-merge preparation; no live client |
 | Codex packaged-hook boundary | Final full suite and parameterized warning-plus-findings / oversized-warning checks | Passes remotely on Node 22 and 24 |
 | Cursor after-file-edit boundary | Final lifecycle.test.ts launch/workspace check | Passes remotely; no new feedback delivery claimed |
 | Generated/dogfood copies | Final CI parity, plugin freshness, release and lifecycle tests | Passes remotely |
-| CI compatibility lane | Tool-required v2.0.0/Go 1.24 and v2.13.2/Go 1.25 matrix | 37/37 tests pass in each lane; 12/12 installed-hook tests also pass in the current-linter lane |
+| CI compatibility lane | Tool-required v2.0.0/Go 1.24 and v2.13.2/Go 1.25 matrix | 49/49 tests passed in each lane at beac76fc3; 12/12 installed-hook tests also passed in the current-linter lane |
 
 ## Completion state
 
-Remote verification is complete. Existing dependency advisories remain outside
-this fix. The ticket is not marked done; no merge or release was performed.
+Current PR #6041 is Draft and final-head CI is pending. Historical source
+verification at beac76fc3 is complete; it does not approve the merged head.
+Upstream main was merged into the delivery branch at 83f099c6c. No merge of this
+PR into main and no release has occurred. Existing dependency advisories remain
+outside this fix. Ticket closure and Ready promotion remain separate gates.
+
+Follow-up for the administrative review-size limitation: restore full branch-wide
+phase-stamp coverage by adding bounded changed-section review support or splitting
+the architecture narrative. This is outside the Go lint fix; no generated marker,
+limit change or unrelated document reduction was used to force admission.

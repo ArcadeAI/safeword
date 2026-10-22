@@ -2,9 +2,9 @@
 id: HWVKKQ
 slug: prevent-false-go-lint-errors
 type: task
-phase: implement
+phase: done
 subtype: bug-investigated
-status: in_progress
+status: done
 created: 2026-10-21T16:51:50.189Z
 last_modified: 2026-10-21T16:51:50.189Z
 ---
@@ -107,3 +107,12 @@ are explicit; CI must provision tools and fail rather than skip the proof lane.
   tests. All static and configured policy checks pass. Larger abstractions and
   remaining nonblocking limits are explicit in the ledger/review notes.
   No PR, merge, release or ticket closure.
+- 2026-10-21 PDT User authorized getting the delivery green and admin-merging.
+  Opened Draft PR #6041 and merged upstream main a3c216940 into this branch at
+  83f099c6c. Regenerated conflicting plugin metadata from both preserved source
+  changes; all generated checks pass. Combined-branch local tests pass 49/49,
+  TypeScript passes, and real hook walkthroughs pass 3/3 on each linter version.
+  Scoped independent review 7991f5c9 approved without errors. The full-branch
+  phase stamp uses the documented administrative skip because upstream
+  ARCHITECTURE.md exceeds the review tool's file-size limit; that limitation is
+  disclosed. Final-head CI remains mandatory before merging PR #6041 to main.
