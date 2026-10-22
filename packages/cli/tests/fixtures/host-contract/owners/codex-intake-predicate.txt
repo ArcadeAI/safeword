@@ -1,4 +1,5 @@
 const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
+const EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
 
 function frontmatterBody(content: string): string | undefined {
   const normalized = content.replaceAll('\r\n', '\n');
@@ -38,6 +39,27 @@ function testDefinitionsTicketFolder(
   const normalized = nodePath.relative(ticketsDirectory, absoluteTarget).replaceAll('\\', '/');
   const match = /^([^/]+)\/test-definitions\.md$/u.exec(normalized);
   return match?.[1];
+}
+
+function buildDenyOutput(reason: string): DenialOutput {
+  return {
+    systemMessage: EXPLAIN_HINT,
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      permissionDecision: 'deny',
+      permissionDecisionReason: `${reason}\n\n${EXPLAIN_HINT}`,
+    },
+  };
+}
+
+function deny(reason: string): void {
+  const output = buildDenyOutput(reason);
+  if (process.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
+    process.stderr.write(`${output.hookSpecificOutput.permissionDecisionReason}\n`);
+    process.exit(2);
+  }
+
+  process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
 function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: string): boolean {

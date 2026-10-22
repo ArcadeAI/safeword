@@ -56,3 +56,14 @@ runEnrolledPreToolUse's actual target-path decision route. The Given requires
 that reachable call. Required-check CI wiring and positive full-consolidation
 controls remain mandatory later tasks, not claims from this first negative
 component. These support changes require a fresh independent RED before code.
+
+The prototype's actual owner retirement also makes its now-unused local denial
+codec removable. The retained negative fixture therefore includes that original
+codec as well, keeping its restored decision route runnable. Repository fixtures
+now overlay changed tracked files and deletions in addition to current source,
+so current generated/dogfood mirrors are tested rather than stale archived
+copies when templates change. No production file is altered by this fixture.
+Before the next attestation, the production checker and retirement prototype
+are preserved outside the repository and the old producer baseline is restored;
+only the strengthened proof/supports are committed. This is a genuine new RED,
+not a rerun against an already-working checker.

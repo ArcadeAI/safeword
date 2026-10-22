@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -26,6 +34,33 @@ function run(program: string, args: string[], cwd: string) {
   return result;
 }
 
+function overlayTrackedFiles(checkout: string, paths: string, remove: boolean): void {
+  for (const relative of paths.split('\0')) {
+    if (relative === '') continue;
+    const target = nodePath.join(checkout, relative);
+    rmSync(target, { recursive: true, force: true });
+    if (!remove) {
+      mkdirSync(nodePath.dirname(target), { recursive: true });
+      cpSync(nodePath.join(repo, relative), target, { recursive: true });
+    }
+  }
+}
+
+function overlayTrackedChanges(checkout: string): void {
+  for (const [filter, remove] of [
+    ['D', true],
+    ['ACMT', false],
+  ] as const) {
+    const changed = run(
+      'git',
+      ['diff', '--no-renames', '--name-only', `--diff-filter=${filter}`, 'HEAD', '-z'],
+      repo,
+    );
+    assert.equal(changed.status, 0);
+    overlayTrackedFiles(checkout, changed.stdout, remove);
+  }
+}
+
 /** Real tracked repository plus current source under test, with no shared writes. */
 export function createContractRepoFixture(): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-contract-repository-'));
@@ -44,6 +79,7 @@ export function createContractRepoFixture(): string {
     cpSync(nodePath.join(repo, relative), nodePath.join(checkout, relative), {
       recursive: true,
     });
+  overlayTrackedChanges(checkout);
   for (const relative of ['node_modules', 'packages/cli/node_modules'])
     symlinkSync(nodePath.join(repo, relative), nodePath.join(checkout, relative), 'dir');
   return checkout;
