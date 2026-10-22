@@ -23,6 +23,88 @@ afterEach(() => {
 });
 
 describe('required repository boundary for shared policy ownership', () => {
+  it('discovers Codex and both OpenCode native registration families', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const result = runContractRepoCheck(directory);
+    const report = JSON.parse(result.output.trim()) as {
+      data: {
+        missing_handler_inventory: string[];
+        handler_inventory: { source_family?: string; event: string; configuration: object }[];
+      };
+    };
+    expect(
+      report.data.missing_handler_inventory,
+      'NATIVE_HANDLER_INVENTORY_MISSING: every production adapter must expose its actual registration sources',
+    ).toEqual([]);
+    const expected: Record<string, string[]> = {
+      'codex-native': ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop'],
+      'opencode-v1': [
+        'event',
+        'session.created',
+        'session.idle',
+        'chat.message',
+        'tool.execute.before',
+        'tool.execute.after',
+      ],
+      'opencode-v2': [
+        'plugin.setup',
+        'skill.transform',
+        'skill.transform',
+        'session.prompt',
+        'command.transform',
+        'session.prompt',
+        'session.context',
+        'tool.execute.before',
+      ],
+    };
+    for (const [family, events] of Object.entries(expected)) {
+      const actual = report.data.handler_inventory.filter(entry => entry.source_family === family);
+      expect(
+        actual.map(entry => entry.event).toSorted((left, right) => left.localeCompare(right)),
+        `NATIVE_HANDLER_INVENTORY_MISSING: ${family} must reflect every real registration, including repeated SDK hooks`,
+      ).toEqual(events.toSorted((left, right) => left.localeCompare(right)));
+    }
+    const manifestPath = 'packages/cli/codex-plugin/hooks.json';
+    const sdkPath = 'packages/opencode-v2-plugin/src/index.ts';
+    const manifestSource = fixtureSource(directory, manifestPath);
+    const sdkSource = fixtureSource(directory, sdkPath);
+    const manifest = JSON.parse(manifestSource) as { hooks: { Stop: unknown[] } };
+    manifest.hooks.Stop.push(structuredClone(manifest.hooks.Stop[0]));
+    writeFileSync(nodePath.join(directory, manifestPath), JSON.stringify(manifest));
+    const anchor = "    await context.tool.hook('execute.before', async event => {";
+    expect(sdkSource.split(anchor)).toHaveLength(2);
+    writeFileSync(
+      nodePath.join(directory, sdkPath),
+      sdkSource.replace(
+        anchor,
+        () => `    await context.tool.hook('execute.before', async () => {});\n${anchor}`,
+      ),
+    );
+    const changed = JSON.parse(runContractRepoCheck(directory).output.trim()) as typeof report;
+    for (const [family, event, count] of [
+      ['codex-native', 'Stop', 2],
+      ['opencode-v2', 'tool.execute.before', 2],
+    ] as const) {
+      expect(
+        changed.data.handler_inventory.filter(
+          entry => entry.source_family === family && entry.event === event,
+        ),
+      ).toHaveLength(count);
+    }
+    writeFileSync(nodePath.join(directory, manifestPath), manifestSource);
+    writeFileSync(nodePath.join(directory, sdkPath), sdkSource);
+    const repaired = JSON.parse(runContractRepoCheck(directory).output.trim()) as typeof report;
+    for (const [family, events] of Object.entries(expected)) {
+      expect(
+        repaired.data.handler_inventory
+          .filter(entry => entry.source_family === family)
+          .map(entry => entry.event)
+          .toSorted((left, right) => left.localeCompare(right)),
+      ).toEqual(events.toSorted((left, right) => left.localeCompare(right)));
+    }
+  }, 60_000);
+
   it('names unclassified session-end, asynchronous and shell handlers from actual configuration', () => {
     const directory = createContractRepoFixture();
     fixtures.push(directory);
