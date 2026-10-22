@@ -56252,7 +56252,7 @@ function contractForUse(kind, use) {
   }
   const contract = kind === "product-plan" ? assemblePlanContract(extractProductPlanReviewRubric(packagedPlanningAuthor(kind)), rubric) : packagedPlanContract(kind);
   if (contract.author.sha256 !== contract.reviewer.sha256)
-    throw new ReviewPacketError("The stale generated reviewer contract copy differs from the packaged canonical contract-byte identity.");
+    throw new ReviewPacketError(`The stale generated reviewer contract copy for ${kind} differs from the packaged canonical contract-byte identity. Reinstall or reconcile the intact Safeword distribution, then retry.`);
   return contract;
 }
 function upstreamPlanContract(planningTarget, kind, use) {

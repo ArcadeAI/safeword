@@ -803,7 +803,7 @@ function contractForUse(kind: PlanningPhase, use: PlanningContractUse): PlanCont
       : packagedPlanContract(kind);
   if (contract.author.sha256 !== contract.reviewer.sha256)
     throw new ReviewPacketError(
-      'The stale generated reviewer contract copy differs from the packaged canonical contract-byte identity.',
+      `The stale generated reviewer contract copy for ${kind} differs from the packaged canonical contract-byte identity. Reinstall or reconcile the intact Safeword distribution, then retry.`,
     );
   return contract;
 }
