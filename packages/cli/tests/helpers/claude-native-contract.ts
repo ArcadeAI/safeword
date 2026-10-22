@@ -38,6 +38,23 @@ interface HookObservation {
 
 const execute = promisify(execFile);
 
+export interface ClaudeNativeEvent {
+  type: string;
+  subtype?: string;
+  is_error?: boolean;
+  plugins?: { name: string; path: string }[];
+  message?: {
+    content?: {
+      type: string;
+      name?: string;
+      input?: { file_path?: string };
+      tool_use_id?: string;
+      is_error?: boolean;
+      content?: string;
+    }[];
+  };
+}
+
 /** Observe the installed native plugin; no supplied hook decision or model-tool replacement. */
 export class ClaudeNativeContractActor {
   private readonly environment: NodeJS.ProcessEnv;
@@ -88,13 +105,12 @@ export class ClaudeNativeContractActor {
     execFileSync('git', ['init', '--quiet', this.project]);
   }
 
-  async prepare(): Promise<void> {
+  async prepare(
+    expectedPackage = nodePath.resolve(import.meta.dirname, '../../../../plugin'),
+  ): Promise<void> {
     const version = await execute(this.fixture.binary, ['--version'], { encoding: 'utf8' });
     assert.equal(observeExactHostVersion('2.1.170', version.stdout).state, 'verified');
-    assertMatchingTree(
-      nodePath.resolve(import.meta.dirname, '../../../../plugin'),
-      this.fixture.installedPath,
-    );
+    assertMatchingTree(expectedPackage, this.fixture.installedPath);
     assertMatchingTree(this.fixture.installedPath, this.fixture.runtimePath);
     const listed = await execute(this.fixture.binary, ['plugin', 'list', '--json'], {
       env: this.environment,
@@ -150,18 +166,7 @@ export class ClaudeNativeContractActor {
     }
     writeFileSync(nodePath.join(this.directory, `${capture}-events.jsonl`), result.stdout);
     writeFileSync(nodePath.join(this.directory, `${capture}-stderr.log`), result.stderr);
-    const events = result.stdout
-      .trim()
-      .split('\n')
-      .map(
-        line =>
-          JSON.parse(line) as {
-            type: string;
-            subtype?: string;
-            is_error?: boolean;
-            plugins?: { name: string; path: string }[];
-          },
-      );
+    const events = this.events(capture);
     const loaded = events
       .find(row => row.type === 'system' && row.subtype === 'init')
       ?.plugins?.find(row => row.name === 'safeword');
@@ -181,12 +186,16 @@ export class ClaudeNativeContractActor {
     );
   }
 
+  events(capture: string): ClaudeNativeEvent[] {
+    return readFileSync(nodePath.join(this.directory, `${capture}-events.jsonl`), 'utf8')
+      .trim()
+      .split('\n')
+      .map(line => JSON.parse(line) as ClaudeNativeEvent);
+  }
+
   observations(): HookObservation[] {
     const path = nodePath.join(this.directory, 'hooks.jsonl');
-    assert.ok(
-      existsSync(path),
-      'HOST_CONTRACT_PROOF_UNAVAILABLE: no native plugin dispatch observed',
-    );
+    if (!existsSync(path)) return [];
     return readFileSync(path, 'utf8')
       .trim()
       .split('\n')
@@ -211,11 +220,31 @@ export class ClaudeNativeContractActor {
     const target = nodePath.join(ticket, 'test-definitions.md');
     const marker = `NATIVE_${randomUUID()}`;
     assert.equal(existsSync(target), false);
-    await this.turn(
-      `Authorized isolated hook test. Use Write exactly once to create ${target} containing exactly ${marker}. ` +
-        'Let native hooks govern this synthetic action; rejection is an expected result. Do not retry, bypass a hook, use other tools, repair files or do other work. Report the actual tool result and stop.',
-      'Write',
-      disposition,
+    try {
+      await this.turn(
+        `Authorized isolated hook test. Use Write exactly once to create ${target} containing exactly ${marker}. ` +
+          'Let native hooks govern this synthetic action; rejection is an expected result. Do not retry, bypass a hook, use other tools, repair files or do other work. Report the actual tool result and stop.',
+        'Write',
+        disposition,
+      );
+    } finally {
+      // A forbidden side effect remains a product failure even if the host later errors.
+      if (disposition === 'denied')
+        assert.equal(existsSync(target), false, 'DENIED_SIDE_EFFECT_OBSERVED');
+    }
+    const events = this.events(disposition);
+    const attempted = events
+      .flatMap(event => (event.type === 'assistant' ? (event.message?.content ?? []) : []))
+      .filter(
+        content =>
+          content.type === 'tool_use' &&
+          content.name === 'Write' &&
+          content.input?.file_path === target,
+      );
+    assert.equal(
+      attempted.length,
+      1,
+      'HOST_CONTRACT_PROOF_UNAVAILABLE: native model did not attempt exactly one Write',
     );
     const writes = this.observations().filter(
       row =>
@@ -227,13 +256,12 @@ export class ClaudeNativeContractActor {
     assert.equal(
       writes.length,
       1,
-      'HOST_CONTRACT_PROOF_UNAVAILABLE: expected one native pre-action guard',
+      'NATIVE_GUARD_DISPATCH_MISSING: expected one native pre-action guard for the attempted Write',
     );
     const guard = writes[0];
     assert.ok(guard);
+    assert.equal(guard.status, 0);
     if (disposition === 'denied') {
-      assert.equal(existsSync(target), false, 'DENIED_SIDE_EFFECT_OBSERVED');
-      assert.equal(guard.status, 0);
       const decision = JSON.parse(guard.stdout) as {
         hookSpecificOutput: {
           hookEventName: string;
@@ -249,26 +277,9 @@ export class ClaudeNativeContractActor {
       );
       assert.match(
         decision.hookSpecificOutput.permissionDecisionReason,
-        /scope.*out_of_scope.*done_when/u,
+        /\bscope\b.+\bout_of_scope\b.+\bdone_when\b/u,
       );
       assert.ok(guard.input.tool_use_id);
-      const events = readFileSync(nodePath.join(this.directory, 'denied-events.jsonl'), 'utf8')
-        .trim()
-        .split('\n')
-        .map(
-          line =>
-            JSON.parse(line) as {
-              type: string;
-              message?: {
-                content?: {
-                  type: string;
-                  tool_use_id?: string;
-                  is_error?: boolean;
-                  content?: string;
-                }[];
-              };
-            },
-        );
       const result = events
         .flatMap(event => (event.type === 'user' ? (event.message?.content ?? []) : []))
         .find(
@@ -281,9 +292,16 @@ export class ClaudeNativeContractActor {
         'NATIVE_GUARD_DISPATCH_MISSING: host did not reject the actual Write',
       );
       assert.ok(result);
-      assert.match(result.content ?? '', /scope.*out_of_scope.*done_when/u);
+      assert.match(result.content ?? '', /\bscope\b.+\bout_of_scope\b.+\bdone_when\b/u);
     } else {
-      assert.equal(guard.status, 0);
+      const decision = JSON.parse(guard.stdout.trim() || '{}') as {
+        hookSpecificOutput?: { permissionDecision?: string };
+      };
+      assert.ok(
+        decision.hookSpecificOutput?.permissionDecision === undefined ||
+          decision.hookSpecificOutput.permissionDecision === 'allow',
+        'NATIVE_GUARD_DISPATCH_MISSING: allowed control received a restrictive decision',
+      );
       assert.ok(existsSync(target), 'ALLOWED_SIDE_EFFECT_MISSING');
       assert.equal(readFileSync(target, 'utf8').trim(), marker, 'ALLOWED_SIDE_EFFECT_MISSING');
     }
