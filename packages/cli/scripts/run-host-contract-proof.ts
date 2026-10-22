@@ -8,7 +8,7 @@ import {
   codexCases,
   cursorCliCases,
   cursorIdeCases,
-  openCodeV2GuardCases,
+  openCodeV2Cases,
 } from '../tests/fixtures/host-contract/native-contract-cases.js';
 
 interface StepResult {
@@ -75,6 +75,13 @@ function isIntendedFailure(
   );
 }
 
+function expectedNativeFailures(required: { id: string; expectedFailure?: string }): string[] {
+  const failures = required.expectedFailure ? [required.expectedFailure] : [];
+  if (required.id.endsWith('-catalogue-helper')) failures.push('NATIVE_HELPER_ORIGIN_MISMATCH');
+  if (required.id.endsWith('-bounded-continuation')) failures.push('CONTINUATION_BOUND_EXCEEDED');
+  return failures;
+}
+
 function nativeResult(
   repoRoot: string,
   report: string,
@@ -107,9 +114,7 @@ function nativeResult(
     );
     const statuses = scenario.steps.map(step => step.result.status);
     console.log(`${host} ${runtime} ${scenario.name}: ${statuses.join(', ')}; report: ${report}`);
-    const failure = required.expectedFailure;
-    const failures = failure ? [failure] : [];
-    if (required.id.endsWith('-bounded-continuation')) failures.push('CONTINUATION_BOUND_EXCEEDED');
+    const failures = expectedNativeFailures(required);
     const observed = failures.find(code => isIntendedFailure(status, statuses, scenario, code));
     if (observed) intendedFailures.push(observed);
     else if (statuses.some(value => value !== 'passed')) unavailable = true;
@@ -187,7 +192,7 @@ function nativeGroupResult(
     });
   if (proof === 'native-opencode') {
     const result = nativeResult(repoRoot, report, scenarios, status, {
-      cases: openCodeV2GuardCases(),
+      cases: openCodeV2Cases(),
       runtime: 'CLI/TUI',
       host: 'OpenCode V2',
     });

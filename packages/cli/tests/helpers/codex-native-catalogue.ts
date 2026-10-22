@@ -17,25 +17,8 @@ import { parseShellWords } from '../../templates/hooks/lib/shell-segments.js';
 import type { CodexGuardFixture } from './codex-native-continuation.js';
 import { assertMatchingTree } from './codex-plugin-package.js';
 import { observeExactHostVersion } from './host-contract-version.js';
-import { observedHelperProgram } from './native-helper-command.js';
-
-/** Resolve only the declared packaged runtime and the installed workflow command. */
-export function catalogueHelperRuntime(
-  skill: string,
-  skillFile: string,
-  expectedRuntime: string,
-): string {
-  const link = /\[the bundled Safeword runtime\]\(([^)]+)\)/u.exec(skill)?.[1];
-  assert.ok(link, 'NATIVE_HELPER_ORIGIN_MISMATCH: no declared bundled runtime');
-  const runtime = nodePath.resolve(nodePath.dirname(skillFile), link);
-  assert.equal(runtime, expectedRuntime, 'NATIVE_HELPER_ORIGIN_MISMATCH: declared runtime changed');
-  const script = /```bash\n([\s\S]*?)```/u.exec(skill)?.[1];
-  assert.ok(script, 'NATIVE_HELPER_ORIGIN_MISMATCH: no workflow helper block');
-  const resolved = observedHelperProgram(`SAFEWORD_PLUGIN_RUNTIME="${runtime}"; ${script}`);
-  assert.equal(resolved, runtime, 'NATIVE_HELPER_ORIGIN_MISMATCH: broken workflow command');
-  return runtime;
-}
 import { createNativeCatalogueProbe, type NativeCatalogueProbe } from './native-catalogue-probe.js';
+import { catalogueHelperRuntime, observedHelperProgram } from './native-helper-command.js';
 
 const execute = promisify(execFile);
 

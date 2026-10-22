@@ -24,7 +24,10 @@ export interface NativeCatalogueProbe {
  * synthetic catalogue is rendered; the fixture never repairs its runtime.
  * This is a resource-binding proof; shipped manifest generation needs its own proof.
  */
-export async function createNativeCatalogueProbe(directory: string): Promise<NativeCatalogueProbe> {
+export async function createNativeCatalogueProbe(
+  directory: string,
+  generateCarrier?: (output: string) => Promise<unknown>,
+): Promise<NativeCatalogueProbe> {
   const packageRoot = nodePath.join(directory, 'candidate');
   const canonicalRoot = nodePath.join(directory, 'canonical');
   const nonce = randomUUID();
@@ -83,18 +86,22 @@ export async function createNativeCatalogueProbe(directory: string): Promise<Nat
   );
   const portableCoreModule = nodePath.join(cliRoot, 'src', 'host-contract', 'portable-core.ts');
   if (existsSync(portableCoreModule)) {
-    await command(
-      'bun',
-      [
-        nodePath.join(cliRoot, 'scripts/generate-codex-plugin.ts'),
-        '--portable-core',
-        '--version',
-        VERSION,
-        '--output',
-        packageRoot,
-      ],
-      { timeout: 120_000 },
-    );
+    if (generateCarrier) await generateCarrier(packageRoot);
+    else {
+      await command(
+        'bun',
+        [
+          nodePath.join(cliRoot, 'scripts/generate-codex-plugin.ts'),
+          '--portable-core',
+          '--version',
+          VERSION,
+          '--output',
+          packageRoot,
+        ],
+        { timeout: 120_000 },
+      );
+    }
+    const generatedManifest = readFileSync(nodePath.join(packageRoot, 'package.json'));
     const runtime = nodePath.join(packageRoot, 'runtime/cli.js');
     assert.ok(existsSync(runtime), 'Production portable generator omitted its runtime');
     const generatedRuntime = readFileSync(runtime);
@@ -109,6 +116,8 @@ export async function createNativeCatalogueProbe(directory: string): Promise<Nat
       throw new TypeError('Portable core module does not export its production catalogue writer');
     }
     await production.writePortableCoreCatalogue(canonicalRoot, packageRoot, VERSION);
+    // Preserve the carrier's generated native identity while varying canonical test content.
+    writeFileSync(nodePath.join(packageRoot, 'package.json'), generatedManifest);
     assert.deepEqual(readFileSync(runtime), generatedRuntime, 'Catalogue replaced the runtime');
   } else {
     // The current baseline exposes only the existing renderer. A minimal test

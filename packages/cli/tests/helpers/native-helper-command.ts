@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import nodePath from 'node:path';
 
 import {
@@ -64,4 +65,21 @@ export function observedHelperProgram(command: string): string | undefined {
     return helperProgram(words, bindings);
   }
   return undefined;
+}
+
+/** Resolve only the declared packaged runtime and the installed workflow command. */
+export function catalogueHelperRuntime(
+  skill: string,
+  skillFile: string,
+  expectedRuntime: string,
+): string {
+  const link = /\[the bundled Safeword runtime\]\(([^)]+)\)/u.exec(skill)?.[1];
+  assert.ok(link, 'NATIVE_HELPER_ORIGIN_MISMATCH: no declared bundled runtime');
+  const runtime = nodePath.resolve(nodePath.dirname(skillFile), link);
+  assert.equal(runtime, expectedRuntime, 'NATIVE_HELPER_ORIGIN_MISMATCH: declared runtime changed');
+  const script = /```bash\n([\s\S]*?)```/u.exec(skill)?.[1];
+  assert.ok(script, 'NATIVE_HELPER_ORIGIN_MISMATCH: no workflow helper block');
+  const resolved = observedHelperProgram(`SAFEWORD_PLUGIN_RUNTIME="${runtime}"; ${script}`);
+  assert.equal(resolved, runtime, 'NATIVE_HELPER_ORIGIN_MISMATCH: broken workflow command');
+  return runtime;
 }

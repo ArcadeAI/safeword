@@ -1,12 +1,13 @@
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { hostContractFeature, openCodeV2GuardCases } from './native-contract-cases.js';
+import { hostContractFeature, openCodeV2Cases } from './native-contract-cases.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../../..');
 export default {
-  paths: openCodeV2GuardCases().map(row => `${hostContractFeature}:${row.line}`),
+  paths: openCodeV2Cases().map(row => `${hostContractFeature}:${row.line}`),
   import: [
+    nodePath.join(repoRoot, 'steps/consistent-host-contract.steps.ts'),
     nodePath.join(repoRoot, 'steps/consistent-host-native-write.steps.ts'),
     nodePath.join(repoRoot, 'steps/consistent-host-opencode-controls.steps.ts'),
   ],

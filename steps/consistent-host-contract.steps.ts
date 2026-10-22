@@ -13,10 +13,15 @@ import './world.js';
 import { CursorCliCatalogueActor } from '../packages/cli/tests/helpers/cursor-cli-catalogue.js';
 import { CodexNativeCatalogueActor } from '../packages/cli/tests/helpers/codex-native-catalogue.js';
 import type { CodexGuardFixture } from '../packages/cli/tests/helpers/codex-native-continuation.js';
+import { OpenCodeNativeCatalogueActor } from '../packages/cli/tests/helpers/opencode-native-catalogue.js';
+import type { OpenCodeNativeFixture } from '../packages/cli/tests/helpers/opencode-native-write.js';
 
 interface HostContractWorld extends SafewordWorld {
   nativeCatalogue?:
-    CursorNativeCatalogueActor | CursorCliCatalogueActor | CodexNativeCatalogueActor;
+    | CursorNativeCatalogueActor
+    | CursorCliCatalogueActor
+    | CodexNativeCatalogueActor
+    | OpenCodeNativeCatalogueActor;
 }
 
 function actor(world: HostContractWorld): NonNullable<HostContractWorld['nativeCatalogue']> {
@@ -32,7 +37,16 @@ Given(
       cursorFixtureFile?: unknown;
       cursorCli?: string;
       codexGuardFixtureFile?: string;
+      opencodeFixtureFile?: string;
     };
+    if (host === 'OpenCode V2') {
+      assert.ok(parameters.opencodeFixtureFile);
+      this.nativeCatalogue = new OpenCodeNativeCatalogueActor(
+        JSON.parse(readFileSync(parameters.opencodeFixtureFile, 'utf8')) as OpenCodeNativeFixture,
+      );
+      await actor(this).prepare(host, version, runtime);
+      return;
+    }
     if (host === 'Codex') {
       assert.ok(parameters.codexGuardFixtureFile);
       this.nativeCatalogue = new CodexNativeCatalogueActor(

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { catalogueHelperRuntime } from '../helpers/codex-native-catalogue.js';
+import { catalogueHelperRuntime } from '../helpers/native-helper-command.js';
 
 const skillFile = '/fixture/candidate/skills/explain/SKILL.md';
 const runtime = '/fixture/candidate/runtime/cli.js';

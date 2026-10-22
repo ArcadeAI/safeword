@@ -10,35 +10,48 @@ export const hostContractFeature = nodePath.join(
   repoRoot,
   'features/consistent-host-contract.feature',
 );
-const identities: Record<string, { suffix: string; ideSuffix?: string; expectedFailure?: string }> =
-  {
-    'Portable package loading proves only its portable components': {
-      suffix: 'portable-components',
-      expectedFailure: 'CODEX_COMPATIBILITY_OVERLAY_FALLBACK',
-    },
-    'A denied action has no side effect': {
-      suffix: 'denied-write',
-      ideSuffix: 'native-denied-write',
-      expectedFailure: 'NATIVE_GUARD_DISPATCH_MISSING',
-    },
-    'An allowed action reaches the side-effect boundary': {
-      suffix: 'allowed-write',
-      ideSuffix: 'native-allowed-write',
-    },
-    'Native delivery exposes the contracted catalogue': {
-      suffix: 'catalogue-helper',
-      expectedFailure: 'NATIVE_HELPER_ORIGIN_MISMATCH',
-    },
-    'A supported completion guard actually continues the conversation': {
-      suffix: 'bounded-continuation',
-      expectedFailure: 'HOST_CONTINUATION_MISSING',
-    },
-  };
+interface NativeCaseIdentity {
+  suffix: string;
+  ideSuffix?: string;
+  expectedFailure?: string;
+  opencodeFailure?: string;
+}
+const identities: Record<string, NativeCaseIdentity> = {
+  'Portable package loading proves only its portable components': {
+    suffix: 'portable-components',
+    expectedFailure: 'CODEX_COMPATIBILITY_OVERLAY_FALLBACK',
+  },
+  'A denied action has no side effect': {
+    suffix: 'denied-write',
+    ideSuffix: 'native-denied-write',
+    expectedFailure: 'NATIVE_GUARD_DISPATCH_MISSING',
+    opencodeFailure: 'NATIVE_OPENCODE_V2_GUARD_MISSING',
+  },
+  'An allowed action reaches the side-effect boundary': {
+    suffix: 'allowed-write',
+    ideSuffix: 'native-allowed-write',
+  },
+  'Native delivery exposes the contracted catalogue': {
+    suffix: 'catalogue-helper',
+    expectedFailure: 'NATIVE_HELPER_ORIGIN_MISMATCH',
+    opencodeFailure: 'NATIVE_OPENCODE_V2_CATALOGUE_MISSING',
+  },
+  'A supported completion guard actually continues the conversation': {
+    suffix: 'bounded-continuation',
+    expectedFailure: 'HOST_CONTINUATION_MISSING',
+  },
+};
 const slug = (value: string): string =>
   value
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/gu, '-')
     .replaceAll(/^-|-$/gu, '');
+
+function expectedFailureForHost(host: string, identity: NativeCaseIdentity): string | undefined {
+  return host === 'OpenCode V2'
+    ? (identity.opencodeFailure ?? identity.expectedFailure)
+    : identity.expectedFailure;
+}
 
 /** Feature rows own coverage; this map preserves existing diagnostic IDs only. */
 function nativeCases(
@@ -90,8 +103,9 @@ function nativeCases(
         )
           return [];
         assert.ok(scenario.steps.length, `Empty contracted ${host} ${runtime} scenario`);
-        const identity: { suffix: string; ideSuffix?: string; expectedFailure?: string } =
-          identities[scenario.name] ?? { suffix: slug(scenario.name) };
+        const identity: NativeCaseIdentity = identities[scenario.name] ?? {
+          suffix: slug(scenario.name),
+        };
         const suffix =
           runtime === 'IDE' ? (identity.ideSuffix ?? identity.suffix) : identity.suffix;
         const qualifiers = Object.entries(values)
@@ -107,7 +121,7 @@ function nativeCases(
             runtime,
             line: row.location.line,
             stepCount: scenario.steps.length,
-            expectedFailure: identity.expectedFailure,
+            expectedFailure: expectedFailureForHost(host, identity),
           },
         ];
       });
@@ -137,10 +151,17 @@ export function codexCases(source = readFileSync(hostContractFeature, 'utf8')) {
 /** Initial denied-action component only; this cannot certify the full V2 group. */
 export function openCodeV2GuardCases(source = readFileSync(hostContractFeature, 'utf8')) {
   const cases = (['CLI', 'TUI'] as const).flatMap(runtime =>
-    nativeCases('OpenCode V2', runtime, source)
-      .filter(row => row.scenario === 'A denied action has no side effect')
-      .map(row => ({ ...row, expectedFailure: 'NATIVE_OPENCODE_V2_GUARD_MISSING' })),
+    nativeCases('OpenCode V2', runtime, source).filter(
+      row => row.scenario === 'A denied action has no side effect',
+    ),
   );
   assert.ok(cases.length, 'No contracted OpenCode V2 guard cases');
   return cases;
+}
+
+/** Every applicable V2 row, ordered as Cucumber executes the shared feature. */
+export function openCodeV2Cases(source = readFileSync(hostContractFeature, 'utf8')) {
+  return (['CLI', 'TUI'] as const)
+    .flatMap(runtime => nativeCases('OpenCode V2', runtime, source))
+    .toSorted((left, right) => left.line - right.line);
 }

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { openCodeV2GuardCases } from '../fixtures/host-contract/native-contract-cases.js';
+import {
+  openCodeV2Cases,
+  openCodeV2GuardCases,
+} from '../fixtures/host-contract/native-contract-cases.js';
 
 function feature(rows: string): string {
   return `Feature: Native guard component
@@ -15,6 +18,19 @@ ${rows}
 }
 
 describe('OpenCode V2 initial guard component population', () => {
+  it('derives guard, allowed contrast and catalogue rows in actual feature order', () => {
+    const cases = openCodeV2Cases();
+    expect(cases.map(row => row.line)).toEqual(
+      cases.map(row => row.line).toSorted((left, right) => left - right),
+    );
+    expect(
+      cases.filter(row => row.id.endsWith('-catalogue-helper')).map(row => row.runtime),
+    ).toEqual(['CLI', 'TUI']);
+    expect(cases.filter(row => row.id.endsWith('-allowed-write')).map(row => row.runtime)).toEqual([
+      'CLI',
+      'TUI',
+    ]);
+  });
   it('keeps the two actual runtime rows separate', () => {
     expect(openCodeV2GuardCases().map(row => row.id)).toEqual([
       'opencode-v2-2.0.32-cli-denied-write',
