@@ -20,9 +20,9 @@ import {
 } from '../../src/execution-plan/delivery-checklist.js';
 import { assertTestCliFresh, expectHookAllow, expectHookDeny, runCli } from '../helpers.js';
 import {
+  claudeReviewerShellPrelude,
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
-  REVIEWER_CAPABILITIES,
 } from '../review-fixtures.js';
 
 const CATEGORIES = [
@@ -191,15 +191,7 @@ function installContractCheckingReviewer(): string {
   const executable = nodePath.join(bin, 'claude');
   writeFileSync(
     executable,
-    String.raw`#!/bin/sh
-set -eu
-if [ "${'$'}{1:-}" = "--version" ]; then printf 'claude 1.0.0\n'; exit 0; fi
-if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
-  printf '%s\n' '${REVIEWER_CAPABILITIES.claude}'
-  exit 0
-fi
-payload=$(cat)
-dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+    String.raw`${claudeReviewerShellPrelude()}
 if ! printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
   printf '{"schema_version":1,"dispatch_id":"%s","evidence_records":{"schema_version":1,"records":[]},"reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[]}\n' "$dispatch_id"
   exit 0
