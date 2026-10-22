@@ -19,7 +19,7 @@ export async function proveOpenCodeCoexistence(
   runtime: 'CLI' | 'TUI',
 ): Promise<void> {
   const actor = new OpenCodeNativeWriteActor(fixture);
-  await actor.prepare('OpenCode V2', '2.0.32', runtime);
+  await actor.prepare('OpenCode V2', '2.0.32', runtime, 'deferred');
   let observed!: {
     directory: string;
     project: string;

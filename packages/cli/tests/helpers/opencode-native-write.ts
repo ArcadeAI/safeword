@@ -13,6 +13,7 @@ import {
 import nodePath from 'node:path';
 import { promisify } from 'node:util';
 
+import { installOpenCodeProfile } from '../../src/opencode/profile.js';
 import { assertMatchingTree } from './codex-plugin-package.js';
 import { observeExactHostVersion } from './host-contract-version.js';
 import type { openCodeScriptedModelFixture } from './opencode-native-driver.js';
@@ -136,14 +137,6 @@ export class OpenCodeNativeWriteActor {
         },
       },
     };
-    if (this.version === '2.0.32') {
-      // V2 normalizes the unchanged V1 provider config. Its observer never denies.
-      const plugins: (string | { package: string; options: { projectDirectory: string } })[] = [
-        nodePath.join(this.root, 'observer'),
-        { package: this.candidate, options: { projectDirectory: this.project } },
-      ];
-      config.plugins = plugins;
-    }
     const file = nodePath.join(this.project, 'opencode.json');
     assert.equal(
       existsSync(file),
@@ -250,7 +243,12 @@ export class OpenCodeNativeWriteActor {
     assert.equal(dispatch.input.session_id, native?.session_id);
   }
 
-  async prepare(host: string, version: string, runtime: string): Promise<void> {
+  async prepare(
+    host: string,
+    version: string,
+    runtime: string,
+    enrollment: 'automatic' | 'deferred' = 'automatic',
+  ): Promise<void> {
     assert.ok(runtime === 'CLI' || runtime === 'TUI');
     assert.equal(host, version === '1.18.23' ? 'OpenCode V1' : 'OpenCode V2');
     assert.ok(['1.18.23', '2.0.32'].includes(version));
@@ -302,6 +300,27 @@ export class OpenCodeNativeWriteActor {
       cpSync(source, this.candidate, { recursive: true });
       assertMatchingTree(source, this.candidate);
       this.prepareObserver();
+      if (enrollment === 'automatic') {
+        // Register the independent observer first; a denied action cannot reach a
+        // later execute.before observer. The real controller appends the candidate.
+        writeFileSync(
+          nodePath.join(this.profile, 'opencode.jsonc'),
+          JSON.stringify({
+            plugins: [nodePath.join(this.root, 'observer')],
+          }),
+        );
+        const selected = installOpenCodeProfile(this.profile, {
+          nativeV2: {
+            projectDirectory: this.project,
+            packageDirectory: this.candidate,
+            epoch: 'native-contract-probe',
+          },
+        });
+        assert.ok(
+          selected.state === 'changed' || selected.state === 'healthy',
+          'HOST_CONTRACT_PROOF_UNAVAILABLE: native checkout enrollment failed',
+        );
+      }
     }
     console.log(`OpenCode ${version} ${runtime} evidence: ${this.root}`);
   }
