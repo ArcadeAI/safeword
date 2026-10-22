@@ -433,3 +433,32 @@ initially rejected these changed result hashes as designed; retain the inspected
 changes with this explanation. Generated verification and parity follow normal
 commands. The Mac was rechecked once and remains locked; scoped Claude1Password
 request is still pending, with no credential copy or global profile changes.
+
+### Native registration source discovery
+
+Executable RED b7677401-a6ef-4c60-90a0-33e4c0ab1788 approved the supporting
+native-family component before implementation. The existing registry declares
+actual native source producers for Codex hooks.json, generated OpenCode V1
+callback source and the V2 SDK module. Repository-only TypeScript AST inspection
+reads those producers, including event-bus branches, plugin setup and repeated
+SDK hooks/transforms; there is no second event-name table in production.
+
+Actual current inventory has 62 registrations: prior43 command hooks plus
+Codex5, V1six native callback/dispatch facets and V2eight SDK setup/registration
+facets. The proof requires those exact independent multisets, then adds a real
+Codex Stop registration and a second valid V2 execute.before registration in
+owned fixture source. Both appear; exact source restoration restores original
+counts. All 2 files /16 tests pass, types and targeted lint pass. Source maps
+contain neither native-handler-discovery nor the TypeScript compiler; the AST
+reader is imported only by the repository check script.
+
+This remains a supporting source-discovery component. It does not prove all
+version/runtime lane dispositions, all source-language forms, shared owner
+classification or native runtime execution. The SDK scan currently recognizes
+typed context parameter names and hook/transform calls, and V1 returns arrow
+callbacks in its shipped source; future representation changes must retain
+coverage or produce an explicit diagnostic before complete inventory may pass.
+Current check still reports unclassified facets and incomplete/admission-ineligible
+state. Native exact-host receipts must be refreshed after the final payload.
+Logs: /tmp/safeword-native-handler-inventory-{red,green,types}.log; final source
+prototype report /tmp/safeword-native-handler-prototype.json.

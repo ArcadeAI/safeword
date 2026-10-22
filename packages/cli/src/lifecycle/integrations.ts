@@ -1,15 +1,24 @@
 import { type CliResult, createResult, type Effects } from '../cli-protocol/result.js';
 import { configuredCommandHandlers } from '../host-contract/handlers.js';
+import { generateOpenCodeProfilePlugin } from '../opencode/plugin.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from '../templates/config.js';
 
 export interface HostHandlerRegistration {
   readonly host: string;
   readonly event: string;
-  readonly command: string;
+  readonly command?: string;
   readonly handler_path: string;
-  readonly interpreter: string;
-  readonly execution: 'synchronous' | 'async-rewake' | 'background';
+  readonly interpreter?: string;
+  readonly execution: 'synchronous' | 'async-rewake' | 'background' | 'native-callback';
   readonly configuration: object;
+  readonly source_family?: string;
+}
+
+export interface NativeHandlerSource {
+  readonly family: string;
+  readonly source: string;
+  readonly format: 'command-manifest' | 'callback-object' | 'sdk-source';
+  readonly generate?: () => string;
 }
 
 export const LIFECYCLE_EVENTS = [
@@ -61,6 +70,7 @@ export interface IntegrationAdapter {
   readonly defaultSelected: boolean;
   readonly exposeStatusData?: boolean;
   readonly configuredHandlers?: () => readonly HostHandlerRegistration[];
+  readonly nativeHandlerSources?: readonly NativeHandlerSource[];
   readonly project: {
     readonly owned: readonly string[];
     readonly shared: readonly string[];
@@ -80,6 +90,7 @@ const ADAPTER_KEYS = new Set([
   'defaultSelected',
   'exposeStatusData',
   'configuredHandlers',
+  'nativeHandlerSources',
   'project',
   'profile',
   'capabilities',
@@ -354,6 +365,13 @@ const claude = defineIntegrationAdapter({
 
 const codex = defineIntegrationAdapter({
   id: 'codex',
+  nativeHandlerSources: [
+    {
+      family: 'codex-native',
+      source: 'packages/cli/codex-plugin/hooks.json',
+      format: 'command-manifest',
+    },
+  ],
   defaultSelected: true,
   project: { owned: ['codex'], shared: [] },
   profile: {
@@ -487,6 +505,19 @@ function openCodeEffects(context: LifecycleContext): Effects {
 
 const opencode = defineIntegrationAdapter({
   id: 'opencode',
+  nativeHandlerSources: [
+    {
+      family: 'opencode-v1',
+      source: 'packages/cli/src/opencode/plugin.ts',
+      format: 'callback-object',
+      generate: generateOpenCodeProfilePlugin,
+    },
+    {
+      family: 'opencode-v2',
+      source: 'packages/opencode-v2-plugin/src/index.ts',
+      format: 'sdk-source',
+    },
+  ],
   defaultSelected: false,
   exposeStatusData: true,
   project: { owned: [], shared: [] },
