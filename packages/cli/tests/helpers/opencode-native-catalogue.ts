@@ -95,7 +95,8 @@ export class OpenCodeNativeCatalogueActor {
     const results = request.messages?.filter(message => message.role === 'tool') ?? [];
     this.argumentObserved ||= JSON.stringify(request.messages).includes(this.argument);
     const text = request.messages
-      ?.flatMap(message => {
+      ?.filter(message => message.role === 'user')
+      .flatMap(message => {
         if (typeof message.content === 'string') return [message.content];
         if (!Array.isArray(message.content)) return [];
         return message.content.flatMap((part: { text?: unknown }) =>
@@ -121,7 +122,27 @@ export class OpenCodeNativeCatalogueActor {
     observations: { prompt?: { text?: string } }[],
     apiRegistration: string,
   ): void {
-    if (this.loadedWorkflow !== '' || existsSync(apiRegistration)) return;
+    if (existsSync(apiRegistration)) {
+      if (this.loadedWorkflow !== '') {
+        const result = JSON.parse(
+          readFileSync(nodePath.join(this.directory, 'native-command-result.json'), 'utf8'),
+        ) as { missing: boolean };
+        assert.equal(result.missing, false, 'NATIVE_COMMAND_DISPATCH_MISSING');
+      }
+      return;
+    }
+    if (this.loadedWorkflow !== '') {
+      assert.ok(
+        observations.some(row => row.prompt?.text === this.argument),
+        'NATIVE_COMMAND_DISPATCH_MISSING',
+      );
+      assert.equal(
+        observations.some(row => row.prompt?.text === `/safeword-bdd ${this.argument}`),
+        false,
+        'NATIVE_COMMAND_DISPATCH_MISSING',
+      );
+      return;
+    }
     assert.ok(
       observations.some(row => row.prompt?.text === `/safeword-bdd ${this.argument}`),
       'HOST_CONTRACT_PROOF_UNAVAILABLE: native TUI command submission was not observed',

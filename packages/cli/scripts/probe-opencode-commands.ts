@@ -18,7 +18,9 @@ async function run(runtime: 'CLI' | 'TUI'): Promise<number> {
   } catch (error) {
     console.error(error);
     return error instanceof Error &&
-      /NATIVE_OPENCODE_V2_COMMAND_MISSING|NATIVE_HELPER_ORIGIN_MISMATCH/u.test(error.message)
+      /NATIVE_OPENCODE_V2_COMMAND_MISSING|NATIVE_HELPER_ORIGIN_MISMATCH|NATIVE_COMMAND_(?:ARGUMENT|DISPATCH)_MISSING/u.test(
+        error.message,
+      )
       ? 2
       : 3;
   }

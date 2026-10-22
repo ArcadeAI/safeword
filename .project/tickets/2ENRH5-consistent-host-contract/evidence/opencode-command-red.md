@@ -33,11 +33,18 @@ The real TUI submits /safeword-bdd plus the nonce through its normal prompt path
 Its independent prompt observer must see that exact submission when no workflow
 loads. Both paths require an active exact candidate and matching package bytes
 before the product assertion. The selected workflow's canonical content must
-reach the actual model context; the scripted model derives guide/helper commands
+reach the actual user-role model context; the scripted model derives guide/helper commands
 only from that received content and its native base directory. It supplies no
 workflow body, resource path repair or canned helper output. GREEN requires the
 argument nonce preserved, canonical guide content, actual helper marker and its
 filesystem result identifying the candidate runtime/template.
+After review c38d3d95-b001-4da2-b152-2836205012a9, GREEN also requires native
+command resolution: CLI's actual command call must not have been rejected, and
+TUI's native prompt observer must see the expanded argument rather than the raw
+slash text. Merely injecting workflow instructions into a system message or
+passing an unknown slash command as ordinary text cannot pass. The following
+independent execution must attest these strengthened, formatted sources before
+production command registration begins.
 
 The test terminal has an explicit 160-column geometry using Python's public
 termios.tcsetwinsize on the real PTY. The former implicit 80-column terminal
