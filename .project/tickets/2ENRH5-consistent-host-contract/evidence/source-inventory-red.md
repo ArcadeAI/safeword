@@ -28,3 +28,12 @@ schema references. Reuse that authority rather than introducing a second
 registration catalogue. The independent baseline oracle must remain a test-only
 source-population check; it must never drive production discovery. Later full
 facet/handler/lane controls remain required by the accepted execution plan.
+
+Independent review approved the first RED and noted that broad over-reporting
+could pass the negative-only controls. Before any production change, strengthen
+the primary proof: the unchanged baseline must have no unaccounted-source error,
+and each mutated file is then registered through the actual SAFEWORD_SCHEMA
+module in its owned fixture. Running the same real check again must clear all
+unaccounted-source findings while retaining the newly registered source in its
+inventory. Unrelated competing-owner errors may still remain. This refresh
+requires a new executable RED review; no previous receipt covers changed proof.

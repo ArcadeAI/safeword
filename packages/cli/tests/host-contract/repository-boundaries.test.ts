@@ -29,7 +29,11 @@ describe('required repository boundary for shared policy ownership', () => {
     const result = runContractRepoCheck(directory);
     const report = JSON.parse(result.output.trim()) as {
       data: { source_inventory?: { path: string }[] };
+      findings: { code: string }[];
     };
+    expect(report.findings.map(finding => finding.code)).not.toContain(
+      'UNACCOUNTED_HOST_CONTRACT_SOURCE',
+    );
     expect(
       report.data.source_inventory,
       'HOST_CONTRACT_SOURCE_INVENTORY_MISSING: the real check must expose every shipped source',
@@ -72,6 +76,23 @@ describe('required repository boundary for shared policy ownership', () => {
           severity: 'error',
           metadata: expect.objectContaining({ path: relativePath }),
         }),
+      );
+      // Register through the actual authority, then require the same check to clear it.
+      const schemaPath = 'packages/cli/src/schema.ts';
+      writeFileSync(
+        nodePath.join(directory, schemaPath),
+        `${fixtureSource(directory, schemaPath)}\nSAFEWORD_SCHEMA.ownedFiles['.safeword/contract-test/${sourcePath}'] = { template: ${JSON.stringify(sourcePath)} };\n`,
+      );
+      const repaired = runContractRepoCheck(directory);
+      const repairedReport = JSON.parse(repaired.output.trim()) as {
+        data: { source_inventory: { path: string }[] };
+        findings: { code: string }[];
+      };
+      expect(repairedReport.findings.map(finding => finding.code)).not.toContain(
+        'UNACCOUNTED_HOST_CONTRACT_SOURCE',
+      );
+      expect(repairedReport.data.source_inventory).toContainEqual(
+        expect.objectContaining({ path: relativePath }),
       );
     },
     60_000,
