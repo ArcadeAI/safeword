@@ -1,11 +1,16 @@
 # OpenCode profile and checkout coexistence
 
-This is a component proof for the accepted mixed-host ownership scenario and
-PR 2 task 3, not completion of the full scenario or native admission.
-The bound ledger heading is Scenario: Upgrading a mixed-host project preserves
-authored work; the execution-plan proof row is coexistence. Public CLI cutover
-belongs to PR 4. The direct lifecycle controller boundary here cannot certify
-that later CLI transition or mark the full scenario complete.
+This is a component proof for PR 2 task 3, not completion of a full outline or
+native admission. Its ledger binding is Scenario: A denied action has no side
+effect, specifically the native OpenCode V2 CLI/TUI rows. Profile setup through
+the lifecycle controller is Given; the actor-facing When is the real native
+shell attempt; the Then is absence of its protected write through shared policy.
+The execution-plan proof row is coexistence. Public CLI migration belongs to
+PR 4; this proof cannot certify that transition or its mixed-host-upgrade scenario.
+Review 5ffe5d52-e7b9-4a90-a9ea-69d669d7194d correctly rejected the earlier
+mixed-host-upgrade binding because its Then concerns ownership migration, not a
+protected native write. No production enrollment code was implemented from that
+receipt. Rebinding does not alter the approved feature or its claimed behaviors.
 
 The proof installs the actual current V1 profile and an isolated generated V2
 candidate. A shared user JSONC config declares a singular V1 marker plugin and
@@ -28,6 +33,9 @@ additionally requires exactly one actual candidate shared-runtime dispatch,
 status 2, canonical selected checkout, normalized Bash command and the same
 native session ID as the enrolled attempt. No dispatch may come from the second
 checkout. This prevents an adapter-local fake denial from satisfying GREEN.
+The unenrolled V2 checkout's unguarded control is deliberate: the accepted plan
+requires this package to register nothing there. It is not a claim of healthy
+V2 protection, and its unchanged V1 delivery remains proved separately.
 
 The intended RED is V2_ENROLLED_GUARD_MISSING after all these controls: the
 requested selected checkout remains unprotected because no profile-local

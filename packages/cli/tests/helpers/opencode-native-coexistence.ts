@@ -110,6 +110,7 @@ export async function proveOpenCodeCoexistence(
       results: firstResults,
     },
   ];
+  let v1Loads = 0;
   // A profile-wide package declaration must not enroll the second checkout.
   for (const [version, location] of [
     ['2.0.32', second],
@@ -163,6 +164,11 @@ export async function proveOpenCodeCoexistence(
           false,
           'V1_PLUGIN_EXECUTED_IN_V2',
         );
+      else {
+        v1Loads++;
+        const marker = readFileSync(nodePath.join(directory, 'v1-hook-marker'), 'utf8');
+        assert.equal(marker.trim().split('\n').length, v1Loads);
+      }
     } finally {
       model.close();
     }
