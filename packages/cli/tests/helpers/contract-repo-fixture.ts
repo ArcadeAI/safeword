@@ -85,6 +85,12 @@ export function createContractRepoFixture(): string {
   return checkout;
 }
 
+function validIncompleteReport(status: number | null, stdout: string): boolean {
+  if (status !== 3) return false;
+  const report = JSON.parse(stdout) as { state?: string; errors?: unknown[] };
+  return report.state === 'action_required' && report.errors?.length === 0;
+}
+
 /** Use today's required repository check until its contract-aware successor exists. */
 export function runContractRepoCheck(directory: string) {
   const entrypoint = 'packages/cli/scripts/check-host-contract.ts';
@@ -96,7 +102,9 @@ export function runContractRepoCheck(directory: string) {
   );
   const output = `${result.stdout}\n${result.stderr}`;
   assert.ok(
-    result.status === 0 || result.status === (candidate ? 2 : 1),
+    result.status === 0 ||
+      result.status === (candidate ? 2 : 1) ||
+      (candidate && validIncompleteReport(result.status, result.stdout)),
     `HOST_CONTRACT_PROOF_UNAVAILABLE: repository checker failed outside its result boundary\n${output}`,
   );
   return {

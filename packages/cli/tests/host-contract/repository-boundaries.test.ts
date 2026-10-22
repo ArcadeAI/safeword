@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/name-replacements -- Accepted execution-plan proof filename. */
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -23,6 +23,46 @@ afterEach(() => {
 });
 
 describe('required repository boundary for shared policy ownership', () => {
+  it('names unclassified session-end, asynchronous and shell handlers from actual configuration', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const handlers = [
+      'hooks/session-cleanup-quality.ts',
+      'hooks/session-auto-upgrade.ts',
+      'hooks/stop-retro.ts',
+      'hooks/pre-tool-git-bare-fix.sh',
+    ];
+    const bindingsPath = 'packages/cli/templates/hooks/lib/behavior-contract.ts';
+    if (existsSync(nodePath.join(directory, bindingsPath))) {
+      writeFileSync(
+        nodePath.join(directory, bindingsPath),
+        `${fixtureSource(directory, bindingsPath)}\nfor (let index = SHARED_BEHAVIOR_BINDINGS.length - 1; index >= 0; index -= 1) {\n  if (${JSON.stringify(handlers)}.includes(SHARED_BEHAVIOR_BINDINGS[index].owner)) SHARED_BEHAVIOR_BINDINGS.splice(index, 1);\n}\n`,
+      );
+    }
+    const configured = fixtureSource(directory, 'packages/cli/src/templates/config.ts');
+    expect(configured).toContain('SessionEnd:');
+    expect(configured).toContain('asyncRewakeHook(');
+    expect(configured).toContain('asyncHook(');
+    for (const handler of handlers) expect(configured).toContain(handler.slice('hooks/'.length));
+    const result = runContractRepoCheck(directory);
+    expect(result.status).toBe(2);
+    const report = JSON.parse(result.output.trim()) as {
+      findings: { code: string; severity: string; metadata?: { handler_path?: string } }[];
+    };
+    for (const handler of handlers) {
+      expect(
+        report.findings,
+        `UNCLASSIFIED_HOST_CONTRACT_HANDLER: ${handler} was configured but not classified`,
+      ).toContainEqual(
+        expect.objectContaining({
+          code: 'UNCLASSIFIED_HOST_CONTRACT_HANDLER',
+          severity: 'error',
+          metadata: expect.objectContaining({ handler_path: handler }),
+        }),
+      );
+    }
+  }, 60_000);
+
   it('reports every intended shipped source from the independently frozen baseline', () => {
     const directory = createContractRepoFixture();
     fixtures.push(directory);

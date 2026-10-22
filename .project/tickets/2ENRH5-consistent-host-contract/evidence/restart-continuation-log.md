@@ -363,3 +363,36 @@ No structural refactor needed for this small shared comparison. All five
 generated surfaces regenerate and verify; lifecycle fixture result hashes stay
 unchanged. Logs /tmp/safeword-namespace-alias-{red,green,generated}.log.
 Next: continue the full configured-handler and lane contract inventory.
+
+### Full binding inventory: implementation decision investigation
+
+Frame: locate shared behavior binding data without another per-host catalogue
+or runtime. Investigation domains: existing source ownership/import graph,
+standalone-hook packaging and module execution, and full configuration discovery
+versus hand-maintained event subsets. Questions: can consumers read shared data
+without executing gates; where are actual handler registrations; can shell and
+asynchronous routes remain visible; and what would become a second authority?
+
+Options weighed: annotate every policy source with parsed metadata comments;
+put semantics into each schema path registration; or use a small typed shared
+data module beside the existing hook libraries and consume it from the existing
+registry/check/generators. Comments avoid imports but add a custom metadata
+language and duplicate parser rules for shell/TypeScript. Schema-local semantics
+keep paths central but conflate deployment paths and policy meaning. Prefer
+typed data beside shared hook owners: it contains IDs/owner references/triggers/
+guarantees only, no workflow bodies or per-host list. Schema remains the managed
+path authority; registry owns actual event translations and runtime lanes.
+
+Verified current evidence: CLI already imports pure shared template libraries
+(done-gate, hierarchy, namespace-root); configuration exports actual full Claude
+and Cursor handler objects; OpenCode's V1 generated callback body and V2 SDK
+registration calls expose their own distinct handlers. Directly importing an
+executable hook would run top-level input/exit logic, so do not do that. Use
+actual configuration/registration discovery rather than the common five-event
+projection. Installed TypeScript5.9.3 supports AST source analysis; primary
+Compiler API documentation fetched this pass explicitly covers versions below7.
+Source: https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API.
+Premortem: the binding module becomes another opaque hand-maintained inventory;
+require exact-set discovery plus independent intended facets and mutation/repair
+controls before declaring completeness. Next: make the real checker expose
+unclassified session-end, async/rewake and shell registrations before adding data.
