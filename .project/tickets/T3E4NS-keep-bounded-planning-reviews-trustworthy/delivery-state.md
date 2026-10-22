@@ -15,10 +15,15 @@ scenario review; this record is not verify.md and grants no completion receipt.
 - Scenario reviews 3d0b3be9 and e810b258 requested changes with reduced assurance
   because the host supplied no verified exact author model. Their actual output
   and all findings remain archived. Current scenario/proof-map corrections are
-  documented; no approving current scenario stamp is claimed.
+  documented; those requested-changes results are not approvals.
 - Review 20a4a645 was started before the last proof-map correction; its source
   became stale. The supported cancel command returned REVIEW_STALE. No current
   approval is claimed or stamp written from that attempt.
+- Final current scenario review dfa72a54-7137-499b-b02c-b91c2b051cab approved
+  all 14 projected scenario blocks with reduced assurance, actual reviewer Claude,
+  reported model opus. The authenticated scenario-gate stamp records exactly
+  that reduced provenance. It is not independent planning coverage or a RED,
+  implementation, verification, ticket-closure or Ready receipt.
 - The existing 447 evidence artifacts all validate and match their committed
   bytes at 6fec2f193. The failed Codex matrix still has 63 observations: 38 pass,
   25 fail. The original 5F5ZZA ticket, ledger and evidence are unchanged.
@@ -63,6 +68,30 @@ completion mechanism. The recommendation that a ticket split alone would unblock
 the merge was incomplete. All 42 scenario steps and the cross-scenario step stay
 unchecked; no missing RED, skipped behavior, completion receipt or done status is
 manufactured to make Ready promotion pass.
+
+## Final review warnings and limits
+
+- R5's launch marker belongs to an inline test script. It proves that invalid
+  identity cannot pass the reader, not production harness pre-egress ordering.
+  No stronger product-boundary claim is credited by this delivery projection.
+- The SIGKILL fixture proves exact saved result/output bytes survive termination;
+  its minimal fixture does not prove those bytes qualify as retained headless
+  evidence. Current real retained-reader/oracle replay evidence is separate.
+- The primary R3 outline observes Implementation currency only; the mapped
+  upstream-context test separately supplies dependent Execution staling. They
+  are not collapsed into a new live-host proof.
+- The R4 positive qualified explicit-selector case exists in the mapped route
+  matrix; known-weaker coverage remains classifier-level and not a newly proved
+  live preflight. Neither the alias nor unqualified selector gains admission.
+- R1's delivered prompt wording is the proof boundary. Universal semantic
+  correctness is not claimed from text assertions or these scenario mappings.
+- R8's expected version is the package version. Claude's generated template-root
+  check and Codex's standalone-runtime check remain distinct named proofs grouped
+  under one distribution obligation; native enrollment is still unproven.
+
+These are accepted proof limits for the bounded projection, not cleared
+whole-feature acceptance obligations. Future stronger tests remain separate;
+no fake RED is introduced merely to silence a warning or close this ticket.
 
 ## Available next boundary
 

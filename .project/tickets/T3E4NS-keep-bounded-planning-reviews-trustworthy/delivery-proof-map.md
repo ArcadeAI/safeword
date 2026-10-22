@@ -71,6 +71,19 @@ The two public preflight selectors are correctly described as unknown/unqualifie
 known-weaker classification remains named lower-level capability-catalogue proof,
 not a newly claimed live weaker-route qualification.
 
+Review d49db9e8-d5c4-4b46-bbf8-5a653e6f28ae requested a concrete R7 correction:
+the dispatch tests append reviewer-only text; they do not remove startability.
+The row now says exactly that. Its warnings led to a narrower R3 title, an
+explicit Cursor tag, no inherited CLI tag on the internal R5 helper, a precise
+R8 generated/checked-in distinction and the actual architecture-check meaning of
+the documentation proof. Known-weaker lower-level tests are
+`packages/cli/tests/review/capability-catalogue.test.ts`:
+`preserves a qualified weaker result and rejects conflicting records` and
+`distinguishes a proven weaker reviewer from missing identity or pair evidence`.
+These are classifier tests, not live weaker-route qualification. The two native
+distribution outcomes remain grouped as one delivery consistency check, with a
+distinct executable proof per actor; no parity or live-host authority is inferred.
+
 ## Closure feasibility
 
 The installed executable-RED gate reports EXECUTABLE_RED_GATE_BLOCKED for the

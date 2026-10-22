@@ -27,7 +27,7 @@ no annotation here supplies missing historical proof to another ticket.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Installed rule edits invalidate only their dependent reviews
+### Scenario: Installed rule edits preserve unrelated Implementation review currency
 
 - [ ] RED
 - [ ] GREEN

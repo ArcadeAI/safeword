@@ -37,7 +37,7 @@
       "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
       "names missing source limits after a complete owned plan can prepare for dispatch"
     ],
-    "Installed rule edits invalidate only their dependent reviews": [
+    "Installed rule edits preserve unrelated Implementation review currency": [
       [
         "packages/cli/tests/integration/installed-planning-copy-admission.test.ts",
         "reconstructs installed rule currency after %s (editorial: %s)"

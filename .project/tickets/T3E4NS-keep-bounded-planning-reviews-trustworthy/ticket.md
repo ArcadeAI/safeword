@@ -4,6 +4,9 @@ slug: keep-bounded-planning-reviews-trustworthy
 type: feature
 phase: scenario-gate
 status: in_progress
+phase_skips:
+  - "intake: first committed after the user-approved late delivery split; intake artifacts were actually reviewed in e4d3c371 and stamped before the local transition, rather than claimed as historical implementation planning"
+  - "define-behavior: first committed after authoring the bounded proof projection; the supported skip stamp explicitly deferred independent scenario judgment to scenario-gate, which remains unfinished"
 phase_anchors:
   - define-behavior: .project/tickets/T3E4NS-keep-bounded-planning-reviews-trustworthy/spec.md
   - scenario-gate: features/keep-bounded-planning-reviews-trustworthy.feature

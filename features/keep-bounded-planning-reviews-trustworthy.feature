@@ -1,9 +1,9 @@
 # Delivery projection for T3E4NS, not replacement acceptance for 5F5ZZA.
 # Proofs exercise existing installed CLI, provider and retention boundaries.
-@proof.vitest @surface.safeword-cli
+@proof.vitest
 Feature: Keep bounded planning reviews trustworthy for plan authors
 
-  @plan-implementability.TBU4.T3E4NS.R1
+  @plan-implementability.TBU4.T3E4NS.R1 @surface.safeword-cli
   Rule: plan-implementability.TBU4.T3E4NS.R1 — Review instructions preserve accepted authority and persona outcomes
 
     Scenario: Phase contracts ask the bounded scope and persona questions
@@ -12,7 +12,7 @@ Feature: Keep bounded planning reviews trustworthy for plan authors
       Then omissions and overreach are checked against accepted authority
       And Product outcomes and epistemic status are explicit while guidance remains advisory
 
-  @plan-implementability.TBU4.T3E4NS.R2
+  @plan-implementability.TBU4.T3E4NS.R2 @surface.safeword-cli
   Rule: plan-implementability.TBU4.T3E4NS.R2 — Declared planning evidence keeps its source and reuse limits
 
     Scenario Outline: Reviewer evidence survives validated output without inventing missing limits
@@ -32,10 +32,10 @@ Feature: Keep bounded planning reviews trustworthy for plan authors
       When its security limit is removed
       Then preparation refuses with the missing field named
 
-  @plan-implementability.TBU4.T3E4NS.R3
+  @plan-implementability.TBU4.T3E4NS.R3 @surface.safeword-cli @surface.cursor
   Rule: plan-implementability.TBU4.T3E4NS.R3 — Review currency and permission to use a copy remain separate
 
-    Scenario Outline: Installed rule edits invalidate only their dependent reviews
+    Scenario Outline: Installed rule edits preserve unrelated Implementation review currency
       Given an approved Implementation review from a trusted installed distribution
       When <region> changes
       Then the Implementation review is <currency>
@@ -47,7 +47,7 @@ Feature: Keep bounded planning reviews trustworthy for plan authors
         | unrelated canonical Execution rules | approved | succeeds with unchanged Implementation bytes |
         | prose outside the canonical Implementation region | approved | refuses because whole-copy integrity fails |
 
-  @plan-implementability.TBU4.T3E4NS.R4
+  @plan-implementability.TBU4.T3E4NS.R4 @surface.safeword-cli
   Rule: plan-implementability.TBU4.T3E4NS.R4 — Fallback requires a real independent attempt
 
     Scenario Outline: Refused selectors cannot manufacture permission for fallback
@@ -108,7 +108,7 @@ Feature: Keep bounded planning reviews trustworthy for plan authors
         | CLI dispatch mode | headless |
         | replay dispatch mode | headless |
 
-  @plan-implementability.TBU4.T3E4NS.R6
+  @plan-implementability.TBU4.T3E4NS.R6 @surface.safeword-cli
   Rule: plan-implementability.TBU4.T3E4NS.R6 — Admission follows current exact-model passing observations
 
     Scenario Outline: Qualification evidence refuses incomplete or failed matrices
@@ -133,7 +133,7 @@ Feature: Keep bounded planning reviews trustworthy for plan authors
         | a different exact model | the requested explicit route is absent |
         | mismatched contract or corpus digests | no route is retained |
 
-  @plan-implementability.TBU4.T3E4NS.R7
+  @plan-implementability.TBU4.T3E4NS.R7 @surface.safeword-cli
   Rule: plan-implementability.TBU4.T3E4NS.R7 — Copy corruption refuses before reviewer dispatch
 
     Scenario Outline: Corrupt reviewer copies refuse and the canonical pair dispatches
@@ -144,20 +144,20 @@ Feature: Keep bounded planning reviews trustworthy for plan authors
       Examples:
         | copy_state | result |
         | canonical | the plan actually reaches the reviewer |
-        | stale canonical startability | no plan is sent and the phase and reconciliation action are named |
+        | appended reviewer-only text | no plan is sent and the phase and reconciliation action are named |
         | stale canonical slicing | no plan is sent and the phase and reconciliation action are named |
 
-  @plan-implementability.TBU4.T3E4NS.R8
+  @plan-implementability.TBU4.T3E4NS.R8 @surface.safeword-cli
   Rule: plan-implementability.TBU4.T3E4NS.R8 — Delivered guidance keeps bounded approval meanings
 
     Scenario: Public documentation describes reduced assurance and its limits
-      Given the delivered public overview and planning configuration documentation
+      Given the delivered public overview and Implementation Planning skill guidance
       When their fallback and approval descriptions are checked
-      Then reduced assurance remains explicit and planning approval grants no later authority
+      Then reduced assurance remains explicit and planning approval does not clear the later independent architecture check
 
     @surface.claude-code @surface.openai-codex
     Scenario: Native generated distributions carry their canonical template roots
-      Given the checked-in Claude and Codex native distributions
+      Given generated Claude assets and the checked-in Codex native distribution
       When their templates and bundled runtime are checked
       Then the Claude bundle contains its canonical template root
       And the Codex bundled CLI executes without project dependencies and reports that version
