@@ -46,6 +46,17 @@ passing an unknown slash command as ordinary text cannot pass. The following
 independent execution must attest these strengthened, formatted sources before
 production command registration begins.
 
+The prototype exposed a harness-only readback mismatch: the SDK facade calls
+message.list, while the exact CLI OpenAPI operation is session.message.list.
+The driver now proves that operation on the initial idle session too, and GREEN
+requires workflow, guide, helper and argument markers in the actual native CLI
+message projection as well as native model/tool/filesystem observations. The
+uncommitted production prototype was preserved separately and fully restored to
+the no-command baseline before this fresh executable RED review. Its author
+rerun again exits 2 for both missing native commands:
+/tmp/safeword-opencode-command-restored-red.log. No failed readback was treated
+as product RED or GREEN.
+
 The test terminal has an explicit 160-column geometry using Python's public
 termios.tcsetwinsize on the real PTY. The former implicit 80-column terminal
 clipped the end marker horizontally after a long slash-command input and caused

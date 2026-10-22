@@ -76,6 +76,7 @@ export async function runOpenCodeCommand(input: OpenCodeTurnInput) {
     assert.ok(session.id);
     // Prove the same native idle barrier is callable before exercising the command.
     await api('experimental.session.wait', ['--param', `sessionID=${session.id}`]);
+    await api('session.message.list', ['--param', `sessionID=${session.id}`]);
     let missing = false;
     try {
       const invoked = await api('session.command', [
@@ -104,7 +105,7 @@ export async function runOpenCodeCommand(input: OpenCodeTurnInput) {
     );
     if (!missing) {
       await api('experimental.session.wait', ['--param', `sessionID=${session.id}`]);
-      const messages = await api('message.list', ['--param', `sessionID=${session.id}`]);
+      const messages = await api('session.message.list', ['--param', `sessionID=${session.id}`]);
       writeFileSync(
         nodePath.join(input.directory, 'native-command-messages.json'),
         messages.stdout,

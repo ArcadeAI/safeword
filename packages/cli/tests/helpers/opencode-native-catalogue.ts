@@ -149,6 +149,23 @@ export class OpenCodeNativeCatalogueActor {
     );
   }
 
+  private assertCommandOutput(probe: NativeCatalogueProbe): void {
+    const messages = nodePath.join(this.directory, 'native-command-messages.json');
+    if (existsSync(messages)) {
+      const visible = readFileSync(messages, 'utf8');
+      for (const marker of [
+        probe.workflowMarker,
+        probe.guideMarker,
+        probe.helperMarker,
+        this.argument,
+      ])
+        assert.ok(
+          visible.includes(marker),
+          'NATIVE_HELPER_ORIGIN_MISMATCH: native CLI message result omitted canonical command output',
+        );
+    }
+  }
+
   async prepare(host: string, version: string, runtime: string): Promise<void> {
     this.probe = await createNativeCatalogueProbe(
       this.source,
@@ -313,6 +330,7 @@ export class OpenCodeNativeCatalogueActor {
       result.includes(this.probe.helperMarker),
       'NATIVE_HELPER_ORIGIN_MISMATCH: native helper returned no marker',
     );
+    this.assertCommandOutput(this.probe);
     const receiptFile = nodePath.join(this.project, '.host-contract/native-helper.json');
     assert.ok(
       existsSync(receiptFile),
