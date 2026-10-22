@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -42,22 +42,32 @@ function changeCanonicalDescription(sourcePath: string, marker: string): void {
   writeFileSync(sourcePath, `---\n${stringify(metadata)}---\n${match.groups.body ?? ''}`);
 }
 
+function readCommandDescription(commandPath: string): string {
+  const content = readFileSync(commandPath, 'utf8');
+  const match = /^---\r?\n(?<metadata>[\s\S]*?)\r?\n---/u.exec(content);
+  if (!match?.groups) throw new Error('COMMAND_METADATA_OUTPUT_MALFORMED: no frontmatter');
+  const metadata = parse(match.groups.metadata ?? '') as Record<string, unknown>;
+  if (typeof metadata.description !== 'string')
+    throw new Error('COMMAND_METADATA_OUTPUT_MALFORMED: description is not a string');
+  return metadata.description;
+}
+
 describe('canonical command purpose reaches actual delivery', () => {
   it.each(['opencode-v1', 'opencode-v2', 'cursor-legacy'] as const)(
     'derives %s command metadata from the canonical skill',
     delivery => {
       const directory = createContractRepoFixture();
       fixtures.push(directory);
-      // Source CLI installation uses the current built candidate dispatcher without writing it.
-      symlinkSync(
+      // Every actor gets an owned copy of the current built candidate dispatcher.
+      cpSync(
         nodePath.resolve(import.meta.dirname, '../../dist'),
         nodePath.join(directory, 'packages/cli/dist'),
-        'dir',
+        { recursive: true },
       );
       const parent = nodePath.dirname(directory);
       const profile = nodePath.join(parent, 'profile');
       mkdirSync(profile);
-      const marker = `Canonical command purpose ${randomUUID()}`;
+      const marker = `Canonical command purpose: ${randomUUID()}`;
       const sourcePath = nodePath.join(directory, 'packages/cli/templates/skills/bdd/SKILL.md');
       changeCanonicalDescription(sourcePath, marker);
       const expectedNames = readdirSync(nodePath.join(directory, 'packages/cli/templates/commands'))
@@ -110,7 +120,7 @@ describe('canonical command purpose reaches actual delivery', () => {
           agent === 'opencode'
             ? nodePath.join(profile, 'skills/safeword-bdd/SKILL.md')
             : nodePath.join(directory, '.safeword/skills/bdd/SKILL.md');
-        commandDescription = readFileSync(commandPath, 'utf8');
+        commandDescription = readCommandDescription(commandPath);
         const commandDirectory =
           agent === 'opencode'
             ? nodePath.join(profile, 'commands')
@@ -124,7 +134,7 @@ describe('canonical command purpose reaches actual delivery', () => {
       expect(
         commandDescription,
         `COMMAND_METADATA_OWNER_DRIFT: ${delivery} still authors a separate purpose`,
-      ).toContain(marker);
+      ).toBe(marker);
       expect(commandNames.toSorted((left, right) => left.localeCompare(right))).toEqual(
         expectedNames.toSorted((left, right) => left.localeCompare(right)),
       );

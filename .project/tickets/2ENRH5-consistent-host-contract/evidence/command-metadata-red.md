@@ -38,3 +38,12 @@ canonical wrappers. Cursor's existing18 references remain available. This is
 accepted full-content graph/parity work, not new workflow behavior. The initial
 RED still fails first at the stale purpose after all actors loaded the marker;
 exact command population becomes an additional discriminating GREEN condition.
+
+Review approved the initial RED with warnings. Before any production edit,
+tighten GREEN: parse the actual V1/Cursor command frontmatter and require its
+description field to equal the canonical marker, matching V2's JSON-field
+assertion. The marker includes a normal colon-space so output must remain
+valid frontmatter. Inlining marker text elsewhere cannot pass. Each fixture
+now owns a copy of the built dispatcher (dependency links remain); installation
+and generation cannot write through a dist link into the author's build.
+Refresh executable RED against these proof bytes before implementation.
