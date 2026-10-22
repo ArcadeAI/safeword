@@ -85,6 +85,7 @@ export const OPENCODE_V2_PLUGIN_LAYOUT = {
   entry: 'index.js',
   dispatcher: 'runtime/dispatch.js',
   workers: 'workers.json',
+  commands: 'commands.json',
   enrollments: 'safeword/enrollment-v2',
   legacyIdentity: OPENCODE_PROFILE_LAYOUT.identity,
   skills: PORTABLE_PLUGIN_LAYOUT.skills,

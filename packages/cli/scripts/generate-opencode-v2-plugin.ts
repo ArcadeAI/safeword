@@ -4,8 +4,17 @@ import { parseArgs } from 'node:util';
 
 import rootPackage from '../../../package.json' with { type: 'json' };
 import sdkPackage from '../../opencode-v2-plugin/package.json' with { type: 'json' };
+import { CURSOR_COMMAND_WRAPPERS } from '../src/cursor-wrappers.js';
+import {
+  type PackagedCommandContract,
+  readPackagedSkillContracts,
+} from '../src/host-contract/catalogue.js';
 import { writePortableCoreCatalogue } from '../src/host-contract/portable-core.js';
 import { readWorkerContracts } from '../src/host-contract/workers.js';
+import {
+  openCodeCommandWorkflow,
+  validateOpenCodeCatalogueReferences,
+} from '../src/opencode/catalogue.js';
 import { generateOwnedPathsModule } from '../src/owned-paths.js';
 import { OPENCODE_V2_PLUGIN_LAYOUT as layout, SAFEWORD_SCHEMA } from '../src/schema.js';
 import { VERSION } from '../src/version.js';
@@ -18,6 +27,19 @@ if (!values.output) throw new Error('Use --output <fresh plugin directory>');
 await publishFreshDirectory(nodePath.resolve(values.output), async output => {
   writePortableCoreCatalogue(nodePath.join(packageRoot, 'templates'), output, VERSION);
   const workers = readWorkerContracts(nodePath.join(packageRoot, 'templates'));
+  const knownSkills = new Set(
+    readPackagedSkillContracts(nodePath.join(output, layout.skills)).map(skill => skill.name),
+  );
+  validateOpenCodeCatalogueReferences(knownSkills, CURSOR_COMMAND_WRAPPERS, []);
+  const commands: PackagedCommandContract[] = CURSOR_COMMAND_WRAPPERS.map(command => ({
+    name: command.name,
+    description: command.description,
+    workflow: openCodeCommandWorkflow(command),
+  }));
+  writeFileSync(
+    nodePath.join(output, layout.commands),
+    `${JSON.stringify(commands, undefined, 2)}\n`,
+  );
   writeFileSync(
     nodePath.join(output, layout.workers),
     `${JSON.stringify(workers, undefined, 2)}\n`,

@@ -28,7 +28,7 @@ export const SAFEWORD_SUBAGENTS: readonly SafewordSubagent[] = [
   },
 ] as const;
 
-function skillName(command: CursorCommandWrapper): string {
+export function openCodeCommandWorkflow(command: CursorCommandWrapper): string {
   const [name] = command.skillPath.split('/', 1);
   if (name === undefined) throw new Error(`OpenCode command ${command.name} has no skill path`);
   return name;
@@ -40,7 +40,7 @@ export function validateOpenCodeCatalogueReferences(
   agents: readonly SafewordSubagent[],
 ): void {
   for (const reference of [
-    ...commands.map(command => skillName(command)),
+    ...commands.map(command => openCodeCommandWorkflow(command)),
     ...agents.map(agent => agent.skill),
   ]) {
     if (!knownSkills.has(reference)) {
@@ -54,7 +54,7 @@ export function renderOpenCodeCommand(command: CursorCommandWrapper): string {
 description: ${JSON.stringify(command.description)}
 ---
 
-Load and follow the \`${openCodeWorkflowName(skillName(command))}\` skill completely. Pass \`$ARGUMENTS\` as the user's arguments.
+Load and follow the \`${openCodeWorkflowName(openCodeCommandWorkflow(command))}\` skill completely. Pass \`$ARGUMENTS\` as the user's arguments.
 `;
 }
 

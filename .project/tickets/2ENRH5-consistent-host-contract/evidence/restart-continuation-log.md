@@ -190,3 +190,90 @@ certified by a separate native collision control. No whole scenario is complete.
 Full root lint (ESLint, Gherkin lint and CLI typecheck) completed successfully;
 log /tmp/safeword-opencode-registration-root-lint.log. Source formatting and
 git diff checks also pass. Full per-slice suite remains pending.
+
+### Native V2 command projection and TUI readiness
+
+Commands are now projected from the existing command declarations and validated
+against the packaged skill index. Native executors preserve the original prompt
+fields and attach the canonical target skill. No independent command body was
+introduced. Quality review 1af44ba4-8ad2-4fad-9282-e17de4bcfab7 approved this narrow
+component. Command collision/retained V1 wrapper precedence and unavailable
+target diagnostics remain uncertified and must block customer admission.
+
+The combined regression exposed TUI startup `--prompt` racing frontend command
+catalogue loading. A fixture-only no-op command now establishes readiness from
+its visibly rendered autocomplete description before the tested command is
+pasted, visibly rendered and submitted. It is never executed. The strengthened
+proof passes the prototype, then fails both actual runtimes for the intended
+missing command against the restored production baseline. Fresh executable RED
+f9fda627-a3e1-4126-b1ac-f72a467fc0c3 independently approved both failures with no
+timeout/signal. The source prototype was reapplied only after that approval.
+
+V1 helper investigation: choose between an isolated local package registry,
+installing a local tarball in the test project, or changing production helper
+binding. Research domains are Bun's exact versioned executable resolution,
+packed runtime/template provenance, and test isolation/production V1 preservation.
+Current Bun docs and source show version-qualified bunx bypasses local binaries;
+a local node_modules install alone cannot prove the shipped version-qualified
+invocation. Production V1 binding changes would exceed this slice's explicit
+preservation boundary. Investigate a loopback test registry serving the actual
+candidate tarball, with isolated Bun cache and no published package substitution.
+Sources: https://bun.sh/docs/pm/bunx and https://bun.sh/docs/pm/scopes-registries.
+Premortem: dependencies or shared cache could select unrelated bytes; require
+observed candidate origin and exact template/runtime markers, preserving the
+existing marker-based assertion rather than claiming command success alone.
+
+### Retained V1 resources and required worker rejection
+
+A zero-dependency loopback test registry resolves the V1 proof uncertainty:
+real Bun 1.3.14 fetches the actual generated portable runtime/template tarball
+into an owned temporary bunx cache. The server is closed before the host turn;
+V1's unchanged production bunx invocation executes that candidate. Actual CLI
+and TUI skill/read/bash calls pass workflow, guide and helper markers with the
+helper artifact tied to exact installed runtime/template paths. Initial roots
+CfxVAe/qn97Vt; strengthened read-result checks pass cLQicT/gH1TGD, then
+R1akJA/6pSFpx in the current combined run. Candidate runtime bytes and full
+installed templates tree are compared. This is resource-binding carrier
+proof, not npm release manifest/admission evidence.
+
+Required worker restriction control also passes: safeword-reviewer's unknown
+native tool causes the existing adapter setup to throw and actual plugin.list
+reports the candidate unavailable with the exact cause; an ordinary native
+control action still runs. This is not the separate required host-schema
+rejection/status scenario. A disposable malformed command-description experiment
+showed that a number description does not itself make native package setup
+non-active; do not call it a required-schema RED. That scenario needs the shared
+required/optional classification and truthful status reader still in scope.
+Consequently the native-opencode runner remains incomplete (3) after all wired
+controls pass, explicitly naming that gap and full case-population work.
+The transient runner variant returning zero is superseded; no admission or
+ledger completion was recorded from it.
+
+Quality review of resource controls approved the narrow component, with warnings
+addressed by exact worker selection, path-boundary matching and requiring the
+guide/helper markers on their own actual tool results. Follow-up review/context
+also covers the truthful incomplete-group diagnostic. No full scenario is done.
+
+Full root test run: relay/collector passed; CLI had 727 files / 11,689 tests pass,
+one integration failure and the existing skips (729 files / 11,706 tests total,
+911.57 seconds). The failure was default Cucumber discovering the OpenCode-only
+BeforeAll in steps/**/*.ts, requiring a host fixture for unrelated scenarios.
+Moved that hook outside the shared scan and retained explicit native config
+import. Exact same installed-CLI scenario command now passes 5 scenarios /235
+steps. A focused Vitest rerun including that integration is queued behind
+another worktree's test lock; never remove its lock or spawn a second runner.
+Generated check passes all 5 surfaces, parity passes 277 pairs /11 contracts.
+
+Final component follow-up quality review
+03472aee-1561-4a21-b65c-0402ed74ced5 approves the narrowed claim and strengthened
+controls. The first follow-up review was stale after type-narrowing/import
+formatting changes; it was not used. The repaired default-lane integration and
+focused OpenCode coverage/catalogue rerun passes 3 files /10 tests after the
+full suite's single failure was fixed. Root build, CLI/SDK types, root lint,
+generated-surface check and parity check pass. Current native combined run
+passes all wired controls and deliberately ends incomplete for required schema
+rejection/status and complete case-population proof. Do not mark PR 2 or the
+feature complete from this component commit. Build log:
+/tmp/safeword-host-contract-build-current.log; focused regression log:
+/tmp/safeword-host-contract-repaired-regressions.log; native log:
+/tmp/safeword-opencode-native-current.log.

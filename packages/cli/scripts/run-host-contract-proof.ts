@@ -140,6 +140,7 @@ function nativeResult(
     JSON.stringify(
       {
         purpose: 'diagnostic-only',
+        scope: 'feature-rows-only',
         admission_eligible: false,
         case_ids: cases.map(row => row.id),
         report,
@@ -148,7 +149,7 @@ function nativeResult(
       2,
     ),
   );
-  console.log(`${host} ${runtime} required cases passed: ${cases.map(row => row.id).join(', ')}`);
+  console.log(`${host} ${runtime} feature cases passed: ${cases.map(row => row.id).join(', ')}`);
   return 0;
 }
 
@@ -197,12 +198,18 @@ function nativeGroupResult(
       host: 'OpenCode V2',
     });
     if (result !== 0) return result;
-    const workers = nativeOpenCodeProbe(repoRoot, 'probe-opencode-v2-workers.ts');
-    if (workers !== 0) return workers;
-    const registration = nativeOpenCodeProbe(repoRoot, 'probe-opencode-registration.ts');
-    if (registration !== 0) return registration;
+    for (const script of [
+      'probe-opencode-v2-workers.ts',
+      'probe-opencode-registration.ts',
+      'probe-opencode-required-registration.ts',
+      'probe-opencode-commands.ts',
+      'probe-opencode-v1-catalogue.ts',
+    ]) {
+      const supplement = nativeOpenCodeProbe(repoRoot, script);
+      if (supplement !== 0) return supplement;
+    }
     console.error(
-      'HOST_CONTRACT_PROOF_INCOMPLETE: required registration/status, native command and V1 resource cases remain',
+      'HOST_CONTRACT_PROOF_INCOMPLETE: required host-schema rejection/status and complete case population remain',
     );
     return 3;
   }

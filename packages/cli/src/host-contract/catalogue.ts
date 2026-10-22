@@ -17,6 +17,13 @@ export interface PackagedSkillContract {
   readonly bodyOffset: number;
 }
 
+/** Generated command references; workflow bodies remain in the shared skill graph. */
+export interface PackagedCommandContract {
+  readonly name: string;
+  readonly description: string;
+  readonly workflow: string;
+}
+
 export interface CatalogueProjection {
   readonly workflowInvocation: (name: string) => string;
   readonly runtimeCommand: string;

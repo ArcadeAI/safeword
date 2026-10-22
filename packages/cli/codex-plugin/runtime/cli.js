@@ -16155,6 +16155,7 @@ var init_schema = __esm(() => {
     entry: "index.js",
     dispatcher: "runtime/dispatch.js",
     workers: "workers.json",
+    commands: "commands.json",
     enrollments: "safeword/enrollment-v2",
     legacyIdentity: OPENCODE_PROFILE_LAYOUT.identity,
     skills: PORTABLE_PLUGIN_LAYOUT.skills,
@@ -71890,7 +71891,7 @@ function openCodeWorkflowName(name) {
 // src/opencode/catalogue.ts
 import { readdirSync as readdirSync27 } from "fs";
 import nodePath95 from "path";
-function skillName(command) {
+function openCodeCommandWorkflow(command) {
   const [name] = command.skillPath.split("/", 1);
   if (name === undefined)
     throw new Error(`OpenCode command ${command.name} has no skill path`);
@@ -71898,7 +71899,7 @@ function skillName(command) {
 }
 function validateOpenCodeCatalogueReferences(knownSkills, commands, agents) {
   for (const reference of [
-    ...commands.map((command) => skillName(command)),
+    ...commands.map((command) => openCodeCommandWorkflow(command)),
     ...agents.map((agent) => agent.skill)
   ]) {
     if (!knownSkills.has(reference)) {
@@ -71911,7 +71912,7 @@ function renderOpenCodeCommand(command) {
 description: ${JSON.stringify(command.description)}
 ---
 
-Load and follow the \`${openCodeWorkflowName(skillName(command))}\` skill completely. Pass \`$ARGUMENTS\` as the user's arguments.
+Load and follow the \`${openCodeWorkflowName(openCodeCommandWorkflow(command))}\` skill completely. Pass \`$ARGUMENTS\` as the user's arguments.
 `;
 }
 function renderOpenCodeAgent(agent) {
@@ -85140,33 +85141,33 @@ import { appendFileSync as appendFileSync5 } from "fs";
 import nodePath147 from "path";
 import process21 from "process";
 function resolveProofSessionKey(input) {
-  const { projectDirectory, skillName: skillName2, explicitSessionId } = input;
+  const { projectDirectory, skillName, explicitSessionId } = input;
   if (explicitSessionId !== undefined && explicitSessionId.trim().length > 0) {
     return explicitSessionId.trim();
   }
   if (process21.env.CLAUDE_SESSION_ID || process21.env.CLAUDE_CODE_SESSION_ID) {
     return resolveRunIdentity({}, { runtime: "claude", env: process21.env }).sessionKey ?? undefined;
   }
-  const codexSessionKey = readFreshCodexRunIdentity({ projectDirectory, skillName: skillName2 });
+  const codexSessionKey = readFreshCodexRunIdentity({ projectDirectory, skillName });
   if (codexSessionKey !== undefined) {
     return codexSessionKey;
   }
-  const cursorSessionKey = readFreshCursorRunIdentity({ projectDirectory, skillName: skillName2 });
+  const cursorSessionKey = readFreshCursorRunIdentity({ projectDirectory, skillName });
   if (cursorSessionKey !== undefined) {
     return cursorSessionKey;
   }
   return resolveRunIdentity({}, { env: process21.env }).sessionKey ?? undefined;
 }
-function recordSkillInvocation(projectDirectory, skillName2, sessionId) {
-  if (!SKILL_NAME_PATTERN.test(skillName2)) {
-    throw new Error(`Invalid skill name "${skillName2}"`);
+function recordSkillInvocation(projectDirectory, skillName, sessionId) {
+  if (!SKILL_NAME_PATTERN.test(skillName)) {
+    throw new Error(`Invalid skill name "${skillName}"`);
   }
   if (!hasSafewordProjectMarker2(projectDirectory)) {
     throw new Error("No invocation proof was recorded because this repository is not enrolled.");
   }
   const proofSessionKey = resolveProofSessionKey({
     projectDirectory,
-    skillName: skillName2,
+    skillName,
     explicitSessionId: sessionId
   });
   if (proofSessionKey === undefined) {
@@ -85174,7 +85175,7 @@ function recordSkillInvocation(projectDirectory, skillName2, sessionId) {
   }
   const namespaceRoot = resolveNamespaceRoot2(projectDirectory);
   ensureTransientStateIgnore(projectDirectory, SKILL_INVOCATIONS_LOG);
-  appendFileSync5(nodePath147.join(namespaceRoot, SKILL_INVOCATIONS_LOG), `${new Date().toISOString()} ${proofSessionKey} ${skillName2}
+  appendFileSync5(nodePath147.join(namespaceRoot, SKILL_INVOCATIONS_LOG), `${new Date().toISOString()} ${proofSessionKey} ${skillName}
 `, "utf8");
   return true;
 }
@@ -85194,8 +85195,8 @@ var exports_record_skill_invocation = {};
 __export(exports_record_skill_invocation, {
   runRecordSkillInvocation: () => runRecordSkillInvocation
 });
-function runRecordSkillInvocation(cwd, skillName2, sessionId) {
-  if (skillName2 === undefined || !SKILL_NAME_PATTERN2.test(skillName2)) {
+function runRecordSkillInvocation(cwd, skillName, sessionId) {
+  if (skillName === undefined || !SKILL_NAME_PATTERN2.test(skillName)) {
     return Promise.resolve(createResult({
       state: "failed",
       errors: [
@@ -85219,7 +85220,7 @@ function runRecordSkillInvocation(cwd, skillName2, sessionId) {
       ]
     }));
   }
-  if (!recordSkillInvocation(cwd, skillName2, sessionId)) {
+  if (!recordSkillInvocation(cwd, skillName, sessionId)) {
     return Promise.resolve(createResult({
       state: "healthy",
       findings: [
@@ -85234,9 +85235,9 @@ function runRecordSkillInvocation(cwd, skillName2, sessionId) {
   return Promise.resolve(createResult({
     state: "changed",
     changed: true,
-    presentation: { kind: "raw", body: `[skill-invocation-log] ${skillName2} \u2713
+    presentation: { kind: "raw", body: `[skill-invocation-log] ${skillName} \u2713
 ` },
-    data: { command: "project record-skill-invocation", skill: skillName2 }
+    data: { command: "project record-skill-invocation", skill: skillName }
   }));
 }
 var SKILL_NAME_PATTERN2;
@@ -86809,8 +86810,8 @@ function parseRecordSkillInvocationCommand(command3) {
   if (!projectArgument)
     return;
   const skillArgument = readShellArgument(command3, projectArgument.nextIndex);
-  const skillName2 = skillArgument?.value;
-  return skillName2 && SKILL_NAME_PATTERN3.test(skillName2) ? skillName2 : undefined;
+  const skillName = skillArgument?.value;
+  return skillName && SKILL_NAME_PATTERN3.test(skillName) ? skillName : undefined;
 }
 function commandInvokesWriteReviewStamp(command3) {
   const normalized = command3.replaceAll("\\", "/");
@@ -86820,13 +86821,13 @@ function writeCodexIdentityCache(input) {
   if (!hasSafewordProjectMarker(input.projectDirectory))
     return;
   const sessionId = input.sessionId?.trim();
-  const skillName2 = input.skillName?.trim();
-  if (!sessionId || !skillName2)
+  const skillName = input.skillName?.trim();
+  if (!sessionId || !skillName)
     return;
   try {
     const cachePath = nodePath158.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
     mkdirSync31(nodePath158.dirname(cachePath), { recursive: true });
-    writeFileSync39(cachePath, JSON.stringify({ id: sessionId, skillName: skillName2, recordedAt: new Date().toISOString() }), "utf8");
+    writeFileSync39(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
 function rememberCodexRunIdentity(input) {

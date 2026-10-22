@@ -9,7 +9,7 @@ export default {
   import: [
     nodePath.join(repoRoot, 'steps/consistent-host-contract.steps.ts'),
     nodePath.join(repoRoot, 'steps/consistent-host-native-write.steps.ts'),
-    nodePath.join(repoRoot, 'steps/consistent-host-opencode-controls.steps.ts'),
+    nodePath.join(import.meta.dirname, 'opencode-controls.ts'),
   ],
   worldParameters: { opencodeFixtureFile: process.env.SAFEWORD_OPENCODE_TEST_CONFIG },
 };

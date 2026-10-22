@@ -6,7 +6,10 @@ import { Plugin, Skill } from '@opencode/plugin';
 import type { SkillEditor } from '@opencode/plugin/promise/skill';
 import * as Tool from '@opencode/plugin/promise/tool';
 
-import type { PackagedSkillContract } from '../../cli/src/host-contract/catalogue.js';
+import type {
+  PackagedCommandContract,
+  PackagedSkillContract,
+} from '../../cli/src/host-contract/catalogue.js';
 import type { WorkerContract } from '../../cli/src/host-contract/workers.js';
 import { workerInvocationHeader } from '../../cli/src/host-contract/workers.js';
 import { resolveOpenCodeConfigRoot } from '../../cli/src/opencode/config-root.js';
@@ -72,6 +75,30 @@ async function registerSkills(context: Plugin.Context, profile: string): Promise
       await context.skill.transform(apply);
     })();
     return ready;
+  });
+}
+
+async function registerCommands(context: Plugin.Context): Promise<void> {
+  const commands = JSON.parse(readPackagedText(layout.commands)) as PackagedCommandContract[];
+  await context.command.transform(editor => {
+    for (const command of commands)
+      editor.add({
+        name: openCodeWorkflowName(command.name),
+        description: command.description,
+        async execute({ sessionID, prompt, delivery }) {
+          await context.session.prompt({
+            text: prompt.text,
+            files: prompt.files,
+            agents: prompt.agents,
+            sessionID,
+            delivery,
+            skills: [
+              ...(prompt.skills ?? []),
+              { id: Skill.ID.make(openCodeWorkflowName(command.workflow)) },
+            ],
+          });
+        },
+      });
   });
 }
 
@@ -178,5 +205,6 @@ export default Plugin.define({
     });
     await registerWorkerRestrictions(context);
     await registerSkills(context, profile);
+    await registerCommands(context);
   },
 });

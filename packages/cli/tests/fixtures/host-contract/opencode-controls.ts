@@ -4,9 +4,9 @@ import { readFileSync } from 'node:fs';
 import { BeforeAll } from '@cucumber/cucumber';
 
 import {
-  OpenCodeNativeWriteActor,
   type OpenCodeNativeFixture,
-} from '../packages/cli/tests/helpers/opencode-native-write.js';
+  OpenCodeNativeWriteActor,
+} from '../../helpers/opencode-native-write.js';
 
 // Imported only by the OpenCode guard component. Other hosts are never probed.
 BeforeAll({ timeout: 600_000 }, async () => {

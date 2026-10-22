@@ -351,6 +351,7 @@ export class OpenCodeNativeWriteActor {
         prompt?: string;
         command?: string;
         beforeTurn?: () => void;
+        environment?: NodeJS.ProcessEnv;
       }
     >,
   ): Promise<void> {
@@ -369,7 +370,7 @@ export class OpenCodeNativeWriteActor {
         version: this.version,
         runtime: this.runtime,
         project: this.project,
-        environment: this.environment(),
+        environment: { ...this.environment(), ...model.environment },
         finish: model.finish,
         directory: this.root,
         prompt: model.prompt,
