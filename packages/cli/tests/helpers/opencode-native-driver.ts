@@ -146,6 +146,9 @@ export interface OpenCodeTurnInput {
 function nativeArguments(input: OpenCodeTurnInput): string[] {
   const v2 = input.version.startsWith('2.');
   const prompt = input.command ? `/${input.command} ${input.prompt ?? ''}` : input.prompt;
+  const tuiArguments = input.command
+    ? ['--auto']
+    : ['--auto', '--prompt', prompt ?? 'Perform the isolated native write.'];
   const args =
     input.runtime === 'CLI'
       ? [
@@ -157,9 +160,30 @@ function nativeArguments(input: OpenCodeTurnInput): string[] {
           'fixture/model',
           prompt ?? 'Perform the isolated native write.',
         ]
-      : ['--auto', '--prompt', prompt ?? 'Perform the isolated native write.'];
+      : tuiArguments;
   if (v2) args.splice(input.runtime === 'CLI' ? 1 : 0, 0, '--standalone');
   return args;
+}
+
+/** Wait for a rendered native catalogue before submitting the tested slash command. */
+function nativeCommandInput(input: OpenCodeTurnInput, write: (text: string) => void) {
+  if (input.runtime !== 'TUI' || !input.command) return () => {};
+  let state: 'input' | 'catalogue' | 'typed' | 'submitted' = 'input';
+  const control = '/safeword-driver-ready';
+  return (output: string) => {
+    if (state === 'input' && output.includes('Ask anything')) {
+      state = 'catalogue';
+      write(control);
+    } else if (state === 'catalogue' && output.includes('SAFEWORD_COMMANDS_READY')) {
+      state = 'typed';
+      write(
+        `${'\u{7F}'.repeat(control.length)}\u{1B}[200~/${input.command} ${input.prompt ?? ''}\u{1B}[201~`,
+      );
+    } else if (state === 'typed' && input.prompt && output.includes(input.prompt)) {
+      state = 'submitted';
+      write('\r');
+    }
+  };
 }
 
 export async function runOpenCodeTurn(
@@ -179,10 +203,12 @@ export async function runOpenCodeTurn(
   let stdout = '';
   let stderr = '';
   let exiting = false;
+  const commandInput = nativeCommandInput(input, text => child.stdin.write(text));
   child.stdout.setEncoding('utf8');
   child.stderr.setEncoding('utf8');
   child.stdout.on('data', (chunk: string) => {
     stdout += chunk;
+    commandInput(stdout);
     if (input.runtime === 'TUI' && !exiting && stdout.includes(input.finish)) {
       exiting = true;
       child.stdin.write('\u{3}\u{3}');

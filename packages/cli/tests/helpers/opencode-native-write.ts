@@ -106,6 +106,7 @@ export class OpenCodeNativeWriteActor {
         'import { appendFileSync } from "node:fs";',
         'export default Plugin.define({id: "safeword-native-observer", async setup(ctx) {',
         String.raw`appendFileSync(${log}, JSON.stringify({setup:true, version:ctx.app.version})+"\n");`,
+        'await ctx.command.transform(editor => { editor.add({name:"safeword-driver-ready", description:"SAFEWORD_COMMANDS_READY", async execute() {}}); });',
         String.raw`await ctx.session.hook("prompt", async event => { appendFileSync(${log}, JSON.stringify({prompt:event.prompt,session:await ctx.session.get({sessionID:event.sessionID}),plugins:(await ctx.plugin.list()).data})+"\n"); });`,
         String.raw`await ctx.tool.hook("execute.before", async event => { const plugins = await ctx.plugin.list(); appendFileSync(${log}, JSON.stringify({tool:event.tool,input:event.input,session_id:event.sessionID,plugins:plugins.data})+"\n"); });`,
         '}});',

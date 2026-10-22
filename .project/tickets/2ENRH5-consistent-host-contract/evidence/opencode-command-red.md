@@ -74,3 +74,15 @@ Primary sources verified against the pinned target:
 [TUI command submission](https://github.com/anomalyco/opencode/blob/v2.0.32/packages/tui/src/component/prompt/index.tsx),
 [SDK command transforms](https://github.com/anomalyco/opencode/blob/v2.0.32/services/www/src/docs/content/build/plugins/index.mdx),
 [PTY geometry API](https://docs.python.org/3.12/library/termios.html#termios.tcsetwinsize).
+
+The combined native regression exposed a startup-prompt race: TUI `--prompt`
+can submit before its frontend command catalogue is populated. The driver now
+starts the command TUI interactively, waits for the real input placeholder,
+types an independent observer-only readiness command without executing it,
+and waits until that command's unique description is rendered in native
+autocomplete. It then erases that text, pastes the actual tested command and
+argument, waits for its argument to render, and presses Enter. The readiness
+command cannot supply workflow content, permissions or the tested command.
+There are no timing sleeps or product outcome substitutions. The same driver
+passes the working prototype (ready-green-2.log); production command sources
+were restored again before the fresh missing-command run and review.
