@@ -56245,15 +56245,15 @@ function contractForUse(kind, use) {
       "plan-implementation": extractPlanReviewRubric,
       "plan-execution": extractExecutionPlanReviewRubric
     }[kind];
-    const contract = assemblePlanContract(extract(source), rubric);
-    if (contract.author.sha256 !== contract.reviewer.sha256)
+    const contract2 = assemblePlanContract(extract(source), rubric);
+    if (contract2.author.sha256 !== contract2.reviewer.sha256)
       throw new ReviewPacketError("The current canonical planning contract differs from the reviewed contract.");
-    return contract;
+    return contract2;
   }
-  if (kind === "product-plan") {
-    return assemblePlanContract(extractProductPlanReviewRubric(packagedPlanningAuthor(kind)), rubric);
-  }
-  return packagedPlanContract(kind);
+  const contract = kind === "product-plan" ? assemblePlanContract(extractProductPlanReviewRubric(packagedPlanningAuthor(kind)), rubric) : packagedPlanContract(kind);
+  if (contract.author.sha256 !== contract.reviewer.sha256)
+    throw new ReviewPacketError("The stale generated reviewer contract copy differs from the packaged canonical contract-byte identity.");
+  return contract;
 }
 function upstreamPlanContract(planningTarget, kind, use) {
   if (!planningTarget || kind !== "plan-execution")

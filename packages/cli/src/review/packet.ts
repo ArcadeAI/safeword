@@ -797,13 +797,15 @@ function contractForUse(kind: PlanningPhase, use: PlanningContractUse): PlanCont
       );
     return contract;
   }
-  if (kind === 'product-plan') {
-    return assemblePlanContract(
-      extractProductPlanReviewRubric(packagedPlanningAuthor(kind)),
-      rubric,
+  const contract =
+    kind === 'product-plan'
+      ? assemblePlanContract(extractProductPlanReviewRubric(packagedPlanningAuthor(kind)), rubric)
+      : packagedPlanContract(kind);
+  if (contract.author.sha256 !== contract.reviewer.sha256)
+    throw new ReviewPacketError(
+      'The stale generated reviewer contract copy differs from the packaged canonical contract-byte identity.',
     );
-  }
-  return packagedPlanContract(kind);
+  return contract;
 }
 
 function upstreamPlanContract(
