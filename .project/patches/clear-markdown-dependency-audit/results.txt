@@ -1,0 +1,99 @@
+[
+  {
+    "stage": "frozen-install",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "install",
+      "--frozen-lockfile"
+    ],
+    "exit": 0,
+    "seconds": 3.62
+  },
+  {
+    "stage": "audit",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "audit",
+      "--audit-level",
+      "high",
+      "--ignore",
+      "GHSA-vfj7-8cjw-p6xm",
+      "--ignore",
+      "GHSA-ch52-4w7c-c8xp"
+    ],
+    "exit": 0,
+    "seconds": 0.351
+  },
+  {
+    "stage": "targeted",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "--cwd",
+      "packages/cli",
+      "test",
+      "tests/markdown-suppression-gate.test.ts",
+      "tests/review/planning-markdown-semantics.test.ts",
+      "src/utils/markdown-sections.test.ts"
+    ],
+    "exit": 0,
+    "seconds": 4.796
+  },
+  {
+    "stage": "smoke",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "test:smoke:fast"
+    ],
+    "exit": 0,
+    "seconds": 49.725
+  },
+  {
+    "stage": "markdown",
+    "command": [
+      "scripts/dev",
+      "node_modules/.bin/markdownlint-cli2",
+      "README.md",
+      "ARCHITECTURE.md",
+      "packages/cli/templates/SAFEWORD.md"
+    ],
+    "exit": 0,
+    "seconds": 0.313
+  },
+  {
+    "stage": "lint",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "run",
+      "lint"
+    ],
+    "exit": 0,
+    "seconds": 94.55
+  },
+  {
+    "stage": "generated",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "packages/cli/scripts/check-generated-surfaces.ts"
+    ],
+    "exit": 0,
+    "seconds": 10.13
+  },
+  {
+    "stage": "parity",
+    "command": [
+      "scripts/dev",
+      "bun",
+      "scripts/parity-check.ts"
+    ],
+    "exit": 0,
+    "seconds": 0.096
+  }
+]
