@@ -1,3 +1,8 @@
+---
+description: |-
+  USE WHEN in BDD plan-execution phase. Turn the accepted Implementation Plan into startable work and review before coding.
+---
+
 # Execution Planning
 
 **Entry:** the Implementation Plan is approved and the ticket is at

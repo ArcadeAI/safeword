@@ -1,3 +1,8 @@
+---
+description: |-
+  USE WHEN in BDD implement phase. RED/GREEN TDD cycle; run /refactor after GREEN.
+---
+
 # Implement: Outside-in TDD
 
 **Entry:** Agent enters `implement` only after the current `execution-plan.md` passes its

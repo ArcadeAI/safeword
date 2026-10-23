@@ -28,19 +28,19 @@ If a template isn't in schema.ts, it doesn't exist to the installer.
 
 ## Template → Schema Mapping
 
-| Template Location                                            | How it's registered                                                                                                                                                 | Install Location                                                    |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `skills/{name}/SKILL.md` (+ sibling `.md` files)             | `ownedFiles` entry, plus `CURSOR_SHARED_SKILL_FILES` in schema.ts for the Cursor copy                                                                               | `.claude/skills/{name}/…` and `.safeword/skills/{name}/…`           |
-| `cursor/rules/{name}.mdc`                                    | **Generated** from `CURSOR_RULE_WRAPPERS` in `src/cursor-wrappers.ts`; registered automatically                                                                     | `.cursor/rules/{name}.mdc`                                          |
-| `commands/{name}.md`                                         | Mostly **generated** from `CURSOR_COMMAND_WRAPPERS` (auto-registered); a few hand-authored ones (`explain`, `verify`, `lint`, …) have explicit `ownedFiles` entries | `.cursor/commands/{name}.md` (Cursor only)                          |
-| `guides/{name}.md`                                           | `ownedFiles`                                                                                                                                                        | `.safeword/guides/{name}.md`                                        |
-| `doc-templates/{name}.md`                                    | `ownedFiles`                                                                                                                                                        | `.safeword/templates/{name}.md`                                     |
-| `spec-template.md`, `child-spec-template.md`                 | `ownedFiles`                                                                                                                                                        | `.safeword/templates/{name}.md`                                     |
-| `principles-`/`personas-`/`glossary-`/`surfaces-template.md` | `managedFiles` (project-owned once edited)                                                                                                                          | `<namespace-root>/{name}.md`                                        |
-| `hooks/{name}.ts`, `hooks/lib/`, `hooks/cursor/`             | `ownedFiles`                                                                                                                                                        | `.safeword/hooks/…`                                                 |
-| `hooks/codex/{name}.ts`                                      | Bundled into the Codex plugin runtime (no project install)                                                                                                          | Codex plugin cache                                                  |
-| `agents/{name}.md`                                           | `ownedFiles`                                                                                                                                                        | `.claude/agents/` and `.cursor/agents/`                             |
-| `scripts/{name}`, `prompts/{name}.md`, `statusline/`         | `ownedFiles`                                                                                                                                                        | `.safeword/scripts/`, `.safeword/prompts/`, `.safeword/statusline/` |
+| Template Location                                            | How it's registered                                                                                                                    | Install Location                                                    |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `skills/{name}/SKILL.md` (+ sibling `.md` files)             | `ownedFiles` entry, plus `CURSOR_SHARED_SKILL_FILES` in schema.ts for the Cursor copy                                                  | `.claude/skills/{name}/…` and `.safeword/skills/{name}/…`           |
+| `cursor/rules/{name}.mdc`                                    | **Generated** from canonical workflow purpose plus `CURSOR_RULE_WRAPPERS` discovery mechanics; registered automatically                | `.cursor/rules/{name}.mdc`                                          |
+| `commands/{name}.md`                                         | Command identity files; descriptions/procedures derive from canonical skills; names registered in `CURSOR_COMMAND_WRAPPER_OWNED_FILES` | `.cursor/commands/{name}.md` (Cursor only)                          |
+| `guides/{name}.md`                                           | `ownedFiles`                                                                                                                           | `.safeword/guides/{name}.md`                                        |
+| `doc-templates/{name}.md`                                    | `ownedFiles`                                                                                                                           | `.safeword/templates/{name}.md`                                     |
+| `spec-template.md`, `child-spec-template.md`                 | `ownedFiles`                                                                                                                           | `.safeword/templates/{name}.md`                                     |
+| `principles-`/`personas-`/`glossary-`/`surfaces-template.md` | `managedFiles` (project-owned once edited)                                                                                             | `<namespace-root>/{name}.md`                                        |
+| `hooks/{name}.ts`, `hooks/lib/`, `hooks/cursor/`             | `ownedFiles`                                                                                                                           | `.safeword/hooks/…`                                                 |
+| `hooks/codex/{name}.ts`                                      | Bundled into the Codex plugin runtime (no project install)                                                                             | Codex plugin cache                                                  |
+| `agents/{name}.md`                                           | `ownedFiles`                                                                                                                           | `.claude/agents/` and `.cursor/agents/`                             |
+| `scripts/{name}`, `prompts/{name}.md`, `statusline/`         | `ownedFiles`                                                                                                                           | `.safeword/scripts/`, `.safeword/prompts/`, `.safeword/statusline/` |
 
 Claude gets no `.claude/commands/` — skills create their own slash commands, and the old `.claude/commands/*.md` paths now live in `deprecatedFiles`.
 
@@ -58,7 +58,7 @@ Claude gets no `.claude/commands/` — skills create their own slash commands, a
 '{name}/SKILL.md',
 ```
 
-Then expose it to Cursor through `src/cursor-wrappers.ts`: a `CURSOR_RULE_WRAPPERS` entry (model-invocable skill) or a `CURSOR_COMMAND_WRAPPERS` entry (action skill), plus its `SKILL_CURSOR_PAIRS` entry. Run `bun run generate:cursor-wrappers` from `packages/cli` — never hand-write the `.mdc` or command wrapper. The Claude and Codex plugins pick the skill up from `templates/skills/` when regenerated (see Generated Surfaces). See `.project/learnings/adding-a-skill-checklist.md`.
+For Cursor discovery mechanics and derived skill pairs, follow the [Skill Authoring Guide](./skill-authoring-guide.md#schema-registration-critical). Descriptions belong beside the canonical skill/reference, never in the Cursor adapter. For command identity registration, use the [Command Authoring Guide](./command-authoring-guide.md#schema-registration-safeword-specific). Regenerate wrappers and plugins from the canonical sources; generated files are not separate authoring surfaces. See `.project/learnings/adding-a-skill-checklist.md`.
 
 ### 2. Guides
 
@@ -94,7 +94,7 @@ Wiring the hook to an event is separate — see the [Hooks Authoring Guide](./ho
 
 ## Generated Surfaces
 
-A template edit invalidates four generated surfaces: the Cursor wrappers, the Claude historical catalogue, the Claude plugin (`plugin/`), and the Codex plugin (`packages/cli/codex-plugin/`). Regenerate them all in the safe order with:
+A template edit invalidates five generated surfaces: the Cursor wrappers, the Claude historical catalogue, the Claude plugin (`plugin/`), the Codex plugin (`packages/cli/codex-plugin/`), and lifecycle origin-main fixtures. Regenerate them all in the safe order with:
 
 ```bash
 bun packages/cli/scripts/check-generated-surfaces.ts --fix # or: bun run fix:generated-surfaces (from packages/cli)
@@ -150,7 +150,7 @@ Before committing new template files:
 
 - [ ] Template file created in `packages/cli/templates/`
 - [ ] Schema entry added to `packages/cli/src/schema.ts`
-- [ ] For skills: `CURSOR_SHARED_SKILL_FILES` + Cursor wrapper + `SKILL_CURSOR_PAIRS` entry, then `bun run generate:cursor-wrappers`
+- [ ] For skills: `CURSOR_SHARED_SKILL_FILES` + Cursor discovery mechanics/action classification; verify the derived `SKILL_CURSOR_PAIRS` mapping, then `bun run generate:cursor-wrappers`
 - [ ] Generated surfaces current: `bun packages/cli/scripts/check-generated-surfaces.ts`
 - [ ] Dogfood copy synced and `bun scripts/parity-check.ts` passes
 - [ ] Schema tests pass: `bun run test tests/schema.test.ts`
@@ -159,14 +159,14 @@ Before committing new template files:
 
 ## Common Mistakes
 
-| Mistake                               | Symptom                               | Fix                                                           |
-| ------------------------------------- | ------------------------------------- | ------------------------------------------------------------- |
-| Template without schema entry         | File not installed                    | Add to `ownedFiles`                                           |
-| Hand-edited `.mdc` or command wrapper | Overwritten / drift failure           | Edit `src/cursor-wrappers.ts`, run `generate:cursor-wrappers` |
-| Skill without Cursor wrapper          | Parity test fails                     | Add a rule or command wrapper + `SKILL_CURSOR_PAIRS` entry    |
-| Plugins not regenerated               | Long, unrelated-looking test failures | `check-generated-surfaces.ts --fix`                           |
-| Renamed file without deprecation      | Old file persists after upgrade       | Add to `deprecatedFiles`                                      |
-| Renamed directory without cleanup     | Old directory persists                | Add to `deprecatedDirs`                                       |
+| Mistake                               | Symptom                               | Fix                                                                             |
+| ------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------- |
+| Template without schema entry         | File not installed                    | Add to `ownedFiles`                                                             |
+| Hand-edited `.mdc` or command wrapper | Overwritten / drift failure           | Edit `src/cursor-wrappers.ts`, run `generate:cursor-wrappers`                   |
+| Skill without Cursor wrapper          | Parity test fails                     | Declare rule mechanics or an action entrypoint; pairs are derived automatically |
+| Plugins not regenerated               | Long, unrelated-looking test failures | `check-generated-surfaces.ts --fix`                                             |
+| Renamed file without deprecation      | Old file persists after upgrade       | Add to `deprecatedFiles`                                                        |
+| Renamed directory without cleanup     | Old directory persists                | Add to `deprecatedDirs`                                                         |
 
 ---
 

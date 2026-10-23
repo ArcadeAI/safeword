@@ -48,11 +48,12 @@ function run(directory: string, args: string[]): void {
 }
 describe('canonical workflow purpose reaches installed Cursor rules', () => {
   it.each([
-    ['debug', 'safeword-debugging'],
-    ['bdd', 'bdd-core'],
+    ['debug', 'SKILL.md', 'safeword-debugging'],
+    ['bdd', 'SKILL.md', 'bdd-core'],
+    ['bdd', 'DISCOVERY.md', 'bdd-discovery'],
   ])(
     'derives the %s rule purpose from its canonical workflow',
-    (skill, rule) => {
+    (skill, filename, rule) => {
       const directory = createContractRepoFixture();
       fixtures.push(directory);
       cpSync(
@@ -60,8 +61,11 @@ describe('canonical workflow purpose reaches installed Cursor rules', () => {
         nodePath.join(directory, 'packages/cli/dist'),
         { recursive: true },
       );
-      const source = nodePath.join(directory, `packages/cli/templates/skills/${skill}/SKILL.md`);
-      const original = metadata(source);
+      const source = nodePath.join(directory, `packages/cli/templates/skills/${skill}/${filename}`);
+      const content = readFileSync(source, 'utf8');
+      const original = content.startsWith('---\n')
+        ? metadata(source)
+        : { frontmatter: {} as Record<string, unknown>, body: content };
       const marker = `Canonical rule purpose: ${randomUUID()}`;
       original.frontmatter.description = marker;
       writeFileSync(source, `---\n${stringify(original.frontmatter)}---\n${original.body}`);
@@ -78,14 +82,14 @@ describe('canonical workflow purpose reaches installed Cursor rules', () => {
         '--json',
       ]);
       expect(
-        readFileSync(nodePath.join(directory, `.safeword/skills/${skill}/SKILL.md`), 'utf8'),
+        readFileSync(nodePath.join(directory, `.safeword/skills/${skill}/${filename}`), 'utf8'),
       ).toContain(marker);
       const installed = metadata(nodePath.join(directory, `.cursor/rules/${rule}.mdc`));
       expect(
         installed.frontmatter.description,
         'RULE_METADATA_OWNER_DRIFT: Cursor rule still authors a separate workflow purpose',
       ).toBe(marker);
-      expect(installed.body.trim()).toBe(`@.safeword/skills/${skill}/SKILL.md`);
+      expect(installed.body.trim()).toBe(`@.safeword/skills/${skill}/${filename}`);
     },
     90_000,
   );

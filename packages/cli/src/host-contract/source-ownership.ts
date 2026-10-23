@@ -154,11 +154,20 @@ function cursorWorkflowPurposeOwners(root: string): Finding[] {
       const description = properties.get('description');
       const skill =
         reference && ts.isStringLiteral(reference)
-          ? /^\.safeword\/skills\/(?<skill>[\w-]+)\/SKILL\.md$/u.exec(reference.text)?.groups?.skill
+          ? /^\.safeword\/skills\/(?<skill>[\w-]+)\/(?<file>[\w-]+)\.md$/u.exec(reference.text)
+              ?.groups
           : undefined;
       if (skill && isAuthoredDescription(description, strings)) {
         const line = file.getLineAndCharacterOfPosition(description.getStart()).line + 1;
-        findings.push(competingOwner(`cursor.rule.${skill}.purpose`, path, skill, line));
+        const suffix = skill.file === 'SKILL' ? '' : `.${skill.file}`;
+        findings.push(
+          competingOwner(
+            `cursor.rule.${skill.skill}${suffix}.purpose`,
+            path,
+            `${skill.skill}/${skill.file}`,
+            line,
+          ),
+        );
       }
     }
     ts.forEachChild(node, visit);

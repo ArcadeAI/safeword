@@ -23,6 +23,45 @@ afterEach(() => {
 });
 
 describe('required repository boundary for shared policy ownership', () => {
+  it('rejects an independently authored Cursor phase-guide purpose and clears after restoration', () => {
+    const directory = createContractRepoFixture();
+    fixtures.push(directory);
+    const path = 'packages/cli/src/cursor-wrappers.ts';
+    const original = fixtureSource(directory, path);
+    writeFileSync(
+      nodePath.join(directory, path),
+      `${original}
+const retiredCursorPhasePurpose = {
+  name: 'bdd-discovery',
+  description: 'USE WHEN in BDD intake phase OR ticket has phase:intake. Guides discovery and context gathering for features.',
+  referencePath: '.safeword/skills/bdd/DISCOVERY.md',
+  skill: 'bdd',
+};
+`,
+    );
+    const findings = (
+      JSON.parse(runContractRepoCheck(directory).output.trim()) as {
+        findings: { code: string; metadata?: { owner_id?: string; path?: string } }[];
+      }
+    ).findings;
+    expect(
+      findings.some(
+        finding =>
+          finding.code === 'COMPETING_HOST_CONTRACT_OWNER' &&
+          finding.metadata?.owner_id === 'cursor.rule.bdd.DISCOVERY.purpose' &&
+          finding.metadata.path === path,
+      ),
+      'CURSOR_PHASE_PURPOSE_OWNER_UNDETECTED',
+    ).toBe(true);
+    writeFileSync(nodePath.join(directory, path), original);
+    const repaired = JSON.parse(runContractRepoCheck(directory).output.trim()) as {
+      findings: { metadata?: { owner_id?: string } }[];
+    };
+    expect(
+      repaired.findings.filter(finding => finding.metadata?.owner_id?.startsWith('cursor.rule.')),
+    ).toEqual([]);
+  });
+
   it('rejects an independently authored Cursor workflow purpose and clears after restoration', () => {
     const directory = createContractRepoFixture();
     fixtures.push(directory);

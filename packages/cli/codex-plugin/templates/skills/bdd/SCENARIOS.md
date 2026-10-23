@@ -1,3 +1,8 @@
+---
+description: |-
+  USE WHEN in BDD define-behavior or scenario-gate phase. Guides Given/When/Then scenario creation and validation.
+---
+
 # Define Behavior & Scenario Gate
 
 ## Define Behavior

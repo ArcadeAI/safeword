@@ -10,23 +10,23 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '02c6353beb320c6370788c7845ec193ec08532f05ed6f6174585aa8a68456470',
       '.claude/skills/bdd/DISCOVERY.md':
-        '981a3fb25926b8c298b1d5da3dac26d63f6c567406b4017abaa0d07f4e67dc87',
+        'bbcbecce42419069f0728c3f66553ab7fe54775c069d4692d995c0b8d2fa5290',
       '.claude/skills/bdd/DONE.md':
-        'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
+        'bef2813c257d1584c3e2f9d5a9545a6d52ac04f3705faef889d33bc550fa7786',
       '.claude/skills/bdd/PLAN_EXECUTION.md':
-        '6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53',
+        '2021ff58295ee2309e40fb67c010027d7ed5b35a3422d57c761c22358804881b',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        '20f3b84735cc759680da9d94cbae6802cc95c9e6a16400ef9068b8b99b6900f8',
+        '008145b9bc30173d74149c3a41ee7b408b39f17f00b3eb567199a83b38530cf9',
       '.claude/skills/bdd/SCENARIOS.md':
-        '1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb',
+        '9e5d02a833217e1d4f5c3e934917e03f46e0911e93c277d0805569484eaea502',
       '.claude/skills/bdd/SKILL.md':
         '898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90',
       '.claude/skills/bdd/SPLITTING.md':
-        'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
+        'd8de1728e98aa503fdaaab8d66a4cba2b5df5893fb09d115c524f4fc5e45e772',
       '.claude/skills/bdd/TDD.md':
-        'db5fa9697dc4c3c7c65f539587150b2ee8c484d1d6f78a94fb0551b3db270cfb',
+        '39125a1109fff21caac126a690add14d241dbbb7a57fc8cc2a2b9d7300056462',
       '.claude/skills/bdd/VERIFY.md':
-        '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
+        'b49bc5196cf91a0b3c89ebff49106230bb2bdd5a62a8b8f10a3479f35747119e',
       '.claude/skills/brainstorm/SKILL.md':
         'fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e',
       '.claude/skills/cleanup-zombies/SKILL.md':

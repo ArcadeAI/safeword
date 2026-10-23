@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "e5c4884aad7597402440107873f8c8f01b141a6315c5450e13640d4dd3c9808e"
+      "sha256": "531dbd20d6689dc682dcfc76b4fed30cb4a4972afc73a2317f317c91cf9acd4c"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "cd26d3b90fcf31de2e7bb13af0df08eef5cf746be5cbf10890f66d292119acfc"
+      "sha256": "5cd5bc04537c7057c11016f532b33f10b1c581e73eaa0310c006d016c4184406"
     },
     {
       "path": "runtime/event-groups.json",
@@ -651,23 +651,23 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "4284da78228ccfbf2296cf03f9393b48d3e3727ba0df0e353d506e6a60a857d1"
+      "sha256": "2b186cc5d04aa8d2bc3124521cfadd3b90e49d6eaf6c3dbddf4f504aca8cfc20"
     },
     {
       "path": "skills/bdd/DONE.md",
-      "sha256": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60"
+      "sha256": "bef2813c257d1584c3e2f9d5a9545a6d52ac04f3705faef889d33bc550fa7786"
     },
     {
       "path": "skills/bdd/PLAN_EXECUTION.md",
-      "sha256": "277a6029ec4017089facf0698a436fb2c642d7205316a0e716303acc661b1cd3"
+      "sha256": "18e9f90b5ff58329abf7078009c66ba4b0c3dc4fe764319e463f2430f61e3464"
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "a2722213a1ede23b118a9156ab3d4044a8ab4f6b61104e4509e33934804a95d8"
+      "sha256": "430ca910d0b3d41ed7df91809a88a9c5395d1f31333592d9b831eabb89e0f1e5"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb"
+      "sha256": "9e5d02a833217e1d4f5c3e934917e03f46e0911e93c277d0805569484eaea502"
     },
     {
       "path": "skills/bdd/SKILL.md",
@@ -675,15 +675,15 @@
     },
     {
       "path": "skills/bdd/SPLITTING.md",
-      "sha256": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708"
+      "sha256": "d8de1728e98aa503fdaaab8d66a4cba2b5df5893fb09d115c524f4fc5e45e772"
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "2a7abf93128b0ee32a53d027cc7d81d59ab5acd17576b9a3484420d1d224abf1"
+      "sha256": "00f250d9c2bceac90e3e599f07ec0946eb5c20e9e206a73936bdc8426e41ea6e"
     },
     {
       "path": "skills/bdd/VERIFY.md",
-      "sha256": "48743e3f2895dc642884c3f963ffcd26ac0087f630e46bb423ed1c699f0ce4b1"
+      "sha256": "e71b853df036f1883b656a415f8bf5a44b243d7fd9d6c752533fce36c69b6d17"
     },
     {
       "path": "skills/brainstorm/SKILL.md",
@@ -1659,23 +1659,23 @@
     },
     {
       "path": "templates/skills/bdd/DISCOVERY.md",
-      "sha256": "981a3fb25926b8c298b1d5da3dac26d63f6c567406b4017abaa0d07f4e67dc87"
+      "sha256": "bbcbecce42419069f0728c3f66553ab7fe54775c069d4692d995c0b8d2fa5290"
     },
     {
       "path": "templates/skills/bdd/DONE.md",
-      "sha256": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60"
+      "sha256": "bef2813c257d1584c3e2f9d5a9545a6d52ac04f3705faef889d33bc550fa7786"
     },
     {
       "path": "templates/skills/bdd/PLAN_EXECUTION.md",
-      "sha256": "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53"
+      "sha256": "2021ff58295ee2309e40fb67c010027d7ed5b35a3422d57c761c22358804881b"
     },
     {
       "path": "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "20f3b84735cc759680da9d94cbae6802cc95c9e6a16400ef9068b8b99b6900f8"
+      "sha256": "008145b9bc30173d74149c3a41ee7b408b39f17f00b3eb567199a83b38530cf9"
     },
     {
       "path": "templates/skills/bdd/SCENARIOS.md",
-      "sha256": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb"
+      "sha256": "9e5d02a833217e1d4f5c3e934917e03f46e0911e93c277d0805569484eaea502"
     },
     {
       "path": "templates/skills/bdd/SKILL.md",
@@ -1683,15 +1683,15 @@
     },
     {
       "path": "templates/skills/bdd/SPLITTING.md",
-      "sha256": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708"
+      "sha256": "d8de1728e98aa503fdaaab8d66a4cba2b5df5893fb09d115c524f4fc5e45e772"
     },
     {
       "path": "templates/skills/bdd/TDD.md",
-      "sha256": "db5fa9697dc4c3c7c65f539587150b2ee8c484d1d6f78a94fb0551b3db270cfb"
+      "sha256": "39125a1109fff21caac126a690add14d241dbbb7a57fc8cc2a2b9d7300056462"
     },
     {
       "path": "templates/skills/bdd/VERIFY.md",
-      "sha256": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31"
+      "sha256": "b49bc5196cf91a0b3c89ebff49106230bb2bdd5a62a8b8f10a3479f35747119e"
     },
     {
       "path": "templates/skills/brainstorm/SKILL.md",

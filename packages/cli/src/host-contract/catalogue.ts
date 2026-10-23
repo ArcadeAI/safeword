@@ -133,6 +133,18 @@ function parseSkill(content: string, skill: string): { body: string; description
   };
 }
 
+/** Referenced workflow guides own their discovery purpose beside their procedure. */
+export function readCanonicalWorkflowPurpose(path: string): string {
+  const metadata = readFrontmatter(readFileSync(path, 'utf8'))?.metadata;
+  if (
+    !isCanonicalSkillMetadata(metadata) ||
+    typeof metadata.description !== 'string' ||
+    !metadata.description.trim()
+  )
+    throw new Error(`Canonical workflow reference has no description: ${path}`);
+  return metadata.description;
+}
+
 /** Index the actual rendered bytes; SDK consumers keep one copy of each workflow body. */
 export function readPackagedSkillContracts(skillsDirectory: string): PackagedSkillContract[] {
   return markdownFiles(skillsDirectory)

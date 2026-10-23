@@ -2,6 +2,7 @@ import { stringify } from 'yaml';
 
 import {
   type CanonicalCommandWrapper,
+  readCanonicalWorkflowPurpose,
   readPackagedSkillContracts,
 } from './host-contract/catalogue.js';
 
@@ -136,8 +137,6 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'bdd-discovery',
     alwaysApply: false,
     frontmatterOrder: 'description-first',
-    description:
-      'USE WHEN in BDD intake phase OR ticket has phase:intake. Guides discovery and context gathering for features.',
     referencePath: '.safeword/skills/bdd/DISCOVERY.md',
     skill: 'bdd',
   },
@@ -145,8 +144,6 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'bdd-scenarios',
     alwaysApply: false,
     frontmatterOrder: 'description-first',
-    description:
-      'USE WHEN in BDD define-behavior or scenario-gate phase. Guides Given/When/Then scenario creation and validation.',
     referencePath: '.safeword/skills/bdd/SCENARIOS.md',
     skill: 'bdd',
   },
@@ -154,8 +151,6 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'bdd-plan-implementation',
     alwaysApply: false,
     frontmatterOrder: 'description-first',
-    description:
-      'USE WHEN in BDD plan-implementation phase. Author impl-plan.md, run figure-it-out on load-bearing choices, ADR lifecycle, review before implement.',
     referencePath: '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md',
     skill: 'bdd',
   },
@@ -163,8 +158,6 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'bdd-plan-execution',
     alwaysApply: false,
     frontmatterOrder: 'description-first',
-    description:
-      'USE WHEN in BDD plan-execution phase. Turn the accepted Implementation Plan into startable work and review before coding.',
     referencePath: '.safeword/skills/bdd/PLAN_EXECUTION.md',
     skill: 'bdd',
   },
@@ -172,7 +165,6 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'bdd-tdd',
     alwaysApply: false,
     frontmatterOrder: 'description-first',
-    description: 'USE WHEN in BDD implement phase. RED/GREEN TDD cycle; run /refactor after GREEN.',
     referencePath: '.safeword/skills/bdd/TDD.md',
     skill: 'bdd',
   },
@@ -180,8 +172,6 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'bdd-verify',
     alwaysApply: false,
     frontmatterOrder: 'description-first',
-    description:
-      'USE WHEN in BDD verify phase OR all scenarios marked [x]. Evidence gate — cross-scenario refactor, then /verify and /audit.',
     referencePath: '.safeword/skills/bdd/VERIFY.md',
     skill: 'bdd',
   },
@@ -189,8 +179,6 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'bdd-done',
     alwaysApply: false,
     frontmatterOrder: 'description-first',
-    description:
-      'USE WHEN in BDD done phase (verify.md exists). Close the ticket — verification already happened in verify.',
     referencePath: '.safeword/skills/bdd/DONE.md',
     skill: 'bdd',
   },
@@ -198,24 +186,27 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'bdd-splitting',
     alwaysApply: false,
     frontmatterOrder: 'description-first',
-    description:
-      'USE WHEN BDD thresholds exceeded (2+ stories, >15 scenarios, >20 tasks). Split protocol and examples.',
     referencePath: '.safeword/skills/bdd/SPLITTING.md',
     skill: 'bdd',
   },
 ] as const;
 
-/** Canonical skills own workflow purpose; this table owns only Cursor discovery mechanics. */
+/** Canonical workflow files own purpose; this table owns only Cursor discovery mechanics. */
 export function readCursorRuleWrappers(templatesDirectory: string): CursorRuleWrapper[] {
   const skills = new Map(
     readPackagedSkillContracts(`${templatesDirectory}/skills`).map(skill => [skill.name, skill]),
   );
   return CURSOR_RULE_WRAPPERS.map(wrapper => {
-    if (!wrapper.skill || !wrapper.referencePath.endsWith('/SKILL.md')) return wrapper;
+    if (!wrapper.skill) return wrapper;
     const skill = skills.get(wrapper.skill);
     if (!skill)
       throw new Error(`Cursor rule ${wrapper.name} references an unknown canonical workflow`);
-    return { ...wrapper, description: skill.description };
+    const description = wrapper.referencePath.endsWith('/SKILL.md')
+      ? skill.description
+      : readCanonicalWorkflowPurpose(
+          `${templatesDirectory}/${wrapper.referencePath.replace(/^\.safeword\//u, '')}`,
+        );
+    return { ...wrapper, description };
   });
 }
 

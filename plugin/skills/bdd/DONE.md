@@ -1,3 +1,8 @@
+---
+description: |-
+  USE WHEN in BDD done phase (verify.md exists). Close the ticket — verification already happened in verify.
+---
+
 # Done: Close Ticket
 
 **Entry:** verify.md exists in ticket folder (written by /verify in the verify phase).

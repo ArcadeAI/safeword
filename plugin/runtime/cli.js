@@ -3607,15 +3607,15 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/agents/safeword-retro-filer.md": "008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904",
         ".claude/agents/safeword-reviewer.md": "54f2b47dec3639b711b7c2557b017c452b4667aa7092296a01328c7b5668efaf",
         ".claude/skills/audit/SKILL.md": "02c6353beb320c6370788c7845ec193ec08532f05ed6f6174585aa8a68456470",
-        ".claude/skills/bdd/DISCOVERY.md": "981a3fb25926b8c298b1d5da3dac26d63f6c567406b4017abaa0d07f4e67dc87",
-        ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_EXECUTION.md": "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "20f3b84735cc759680da9d94cbae6802cc95c9e6a16400ef9068b8b99b6900f8",
-        ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
+        ".claude/skills/bdd/DISCOVERY.md": "bbcbecce42419069f0728c3f66553ab7fe54775c069d4692d995c0b8d2fa5290",
+        ".claude/skills/bdd/DONE.md": "bef2813c257d1584c3e2f9d5a9545a6d52ac04f3705faef889d33bc550fa7786",
+        ".claude/skills/bdd/PLAN_EXECUTION.md": "2021ff58295ee2309e40fb67c010027d7ed5b35a3422d57c761c22358804881b",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "008145b9bc30173d74149c3a41ee7b408b39f17f00b3eb567199a83b38530cf9",
+        ".claude/skills/bdd/SCENARIOS.md": "9e5d02a833217e1d4f5c3e934917e03f46e0911e93c277d0805569484eaea502",
         ".claude/skills/bdd/SKILL.md": "898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90",
-        ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "db5fa9697dc4c3c7c65f539587150b2ee8c484d1d6f78a94fb0551b3db270cfb",
-        ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
+        ".claude/skills/bdd/SPLITTING.md": "d8de1728e98aa503fdaaab8d66a4cba2b5df5893fb09d115c524f4fc5e45e772",
+        ".claude/skills/bdd/TDD.md": "39125a1109fff21caac126a690add14d241dbbb7a57fc8cc2a2b9d7300056462",
+        ".claude/skills/bdd/VERIFY.md": "b49bc5196cf91a0b3c89ebff49106230bb2bdd5a62a8b8f10a3479f35747119e",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
         ".claude/skills/closeout/SKILL.md": "1fcbf06b7acf0e549cad4b964fbde3e4dc31feb601e75516041ec211c1bcb66a",
@@ -16144,7 +16144,6 @@ var init_cursor_wrappers = __esm(() => {
       name: "bdd-discovery",
       alwaysApply: false,
       frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD intake phase OR ticket has phase:intake. Guides discovery and context gathering for features.",
       referencePath: ".safeword/skills/bdd/DISCOVERY.md",
       skill: "bdd"
     },
@@ -16152,7 +16151,6 @@ var init_cursor_wrappers = __esm(() => {
       name: "bdd-scenarios",
       alwaysApply: false,
       frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD define-behavior or scenario-gate phase. Guides Given/When/Then scenario creation and validation.",
       referencePath: ".safeword/skills/bdd/SCENARIOS.md",
       skill: "bdd"
     },
@@ -16160,7 +16158,6 @@ var init_cursor_wrappers = __esm(() => {
       name: "bdd-plan-implementation",
       alwaysApply: false,
       frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD plan-implementation phase. Author impl-plan.md, run figure-it-out on load-bearing choices, ADR lifecycle, review before implement.",
       referencePath: ".safeword/skills/bdd/PLAN_IMPLEMENTATION.md",
       skill: "bdd"
     },
@@ -16168,7 +16165,6 @@ var init_cursor_wrappers = __esm(() => {
       name: "bdd-plan-execution",
       alwaysApply: false,
       frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD plan-execution phase. Turn the accepted Implementation Plan into startable work and review before coding.",
       referencePath: ".safeword/skills/bdd/PLAN_EXECUTION.md",
       skill: "bdd"
     },
@@ -16176,7 +16172,6 @@ var init_cursor_wrappers = __esm(() => {
       name: "bdd-tdd",
       alwaysApply: false,
       frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD implement phase. RED/GREEN TDD cycle; run /refactor after GREEN.",
       referencePath: ".safeword/skills/bdd/TDD.md",
       skill: "bdd"
     },
@@ -16184,7 +16179,6 @@ var init_cursor_wrappers = __esm(() => {
       name: "bdd-verify",
       alwaysApply: false,
       frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD verify phase OR all scenarios marked [x]. Evidence gate \u2014 cross-scenario refactor, then /verify and /audit.",
       referencePath: ".safeword/skills/bdd/VERIFY.md",
       skill: "bdd"
     },
@@ -16192,7 +16186,6 @@ var init_cursor_wrappers = __esm(() => {
       name: "bdd-done",
       alwaysApply: false,
       frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD done phase (verify.md exists). Close the ticket \u2014 verification already happened in verify.",
       referencePath: ".safeword/skills/bdd/DONE.md",
       skill: "bdd"
     },
@@ -16200,7 +16193,6 @@ var init_cursor_wrappers = __esm(() => {
       name: "bdd-splitting",
       alwaysApply: false,
       frontmatterOrder: "description-first",
-      description: "USE WHEN BDD thresholds exceeded (2+ stories, >15 scenarios, >20 tasks). Split protocol and examples.",
       referencePath: ".safeword/skills/bdd/SPLITTING.md",
       skill: "bdd"
     }
@@ -37219,15 +37211,15 @@ var init_contracts_generated = __esm(() => {
   PLANNING_AUTHOR_COPIES = {
     "product-plan": {
       relativePath: "templates/skills/bdd/DISCOVERY.md",
-      sha256: "981a3fb25926b8c298b1d5da3dac26d63f6c567406b4017abaa0d07f4e67dc87"
+      sha256: "bbcbecce42419069f0728c3f66553ab7fe54775c069d4692d995c0b8d2fa5290"
     },
     "plan-implementation": {
       relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      sha256: "20f3b84735cc759680da9d94cbae6802cc95c9e6a16400ef9068b8b99b6900f8"
+      sha256: "008145b9bc30173d74149c3a41ee7b408b39f17f00b3eb567199a83b38530cf9"
     },
     "plan-execution": {
       relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
-      sha256: "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53"
+      sha256: "2021ff58295ee2309e40fb67c010027d7ed5b35a3422d57c761c22358804881b"
     }
   };
 });
@@ -37257,7 +37249,7 @@ function readPlanningAuthor(root, phase, identity) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "4284da78228ccfbf2296cf03f9393b48d3e3727ba0df0e353d506e6a60a857d1" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "a2722213a1ede23b118a9156ab3d4044a8ab4f6b61104e4509e33934804a95d8" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "277a6029ec4017089facf0698a436fb2c642d7205316a0e716303acc661b1cd3" } };
+  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "2b186cc5d04aa8d2bc3124521cfadd3b90e49d6eaf6c3dbddf4f504aca8cfc20" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "430ca910d0b3d41ed7df91809a88a9c5395d1f31333592d9b831eabb89e0f1e5" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "18e9f90b5ff58329abf7078009c66ba4b0c3dc4fe764319e463f2430f61e3464" } };
   return readPlanningAuthor(packageRoot(), phase, copies[phase]);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {

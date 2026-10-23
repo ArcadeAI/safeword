@@ -672,3 +672,22 @@ write, bounded continuation and canonical catalogue/guide/helper. Log:
 /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-8oNyo3/cucumber.json.
 This renews the current native IDE component only; it does not cover legacy3.8.23,
 other runtime/delivery lanes, full propagation or final feature admission.
+
+### Canonical BDD phase guides own all remaining Cursor purpose text
+
+Moved the exact eight phase descriptions into canonical guide frontmatter;
+procedure bodies remain byte-for-byte equal. Cursor now authors only discovery
+mechanics, sourcing SKILL.md purposes and phase-guide purposes from the common
+canonical metadata reader. Generalized the existing required owner check to
+reference-guide purpose copies. Attested executable RED7a3db88d-45fa-4f4f-95c4-
+1c08179b1d6b approved before production; repository mutation/restoration and
+actual guide-to-installed-rule propagation controls pass. All22 Cursor purpose
+copies (14 skill +8 phase guide) have now been removed from the adapter.
+
+Updated stale maintainer directions to the removed command table and handwritten
+derived-pair entries. Eight targeted files/942 tests, types/lint, parity278pairs/
+11contracts and all5 generated surfaces pass. All lifecycle result hashes stay
+unchanged; only Cursor install/check/upgrade tree hashes move. Quality
+review206a1013-6072-4c93-b708-ad19e2f3ad54 and narrow docs re-review8a32d2c0-1698-
+4995-a565-473195819bf3 approved. Evidence:cursor-phase-purpose-green.md. Full
+content/handler contracts, declaration admission and propagation remain open.

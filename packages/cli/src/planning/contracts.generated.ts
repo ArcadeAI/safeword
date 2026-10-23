@@ -41,14 +41,14 @@ export const PLANNING_CONTRACTS = {
 export const PLANNING_AUTHOR_COPIES = {
   "product-plan": {
     "relativePath": "templates/skills/bdd/DISCOVERY.md",
-    "sha256": "981a3fb25926b8c298b1d5da3dac26d63f6c567406b4017abaa0d07f4e67dc87"
+    "sha256": "bbcbecce42419069f0728c3f66553ab7fe54775c069d4692d995c0b8d2fa5290"
   },
   "plan-implementation": {
     "relativePath": "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-    "sha256": "20f3b84735cc759680da9d94cbae6802cc95c9e6a16400ef9068b8b99b6900f8"
+    "sha256": "008145b9bc30173d74149c3a41ee7b408b39f17f00b3eb567199a83b38530cf9"
   },
   "plan-execution": {
     "relativePath": "templates/skills/bdd/PLAN_EXECUTION.md",
-    "sha256": "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53"
+    "sha256": "2021ff58295ee2309e40fb67c010027d7ed5b35a3422d57c761c22358804881b"
   }
 } as const satisfies Record<PlanningPhase, PlanningAuthorCopyIdentity>;
