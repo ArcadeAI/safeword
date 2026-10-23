@@ -657,3 +657,18 @@ Log:/tmp/safeword-opencode-current-with-host-schema-native.log. Lint/types pass;
 quality review34b3d408-84bd-43f6-b71c-fa3acaf2e348 approved. Source investigation,
 proof limits and native roots:opencode-host-schema-proof.md. No ticket/PR2/admission
 completion claim advanced.
+
+### Cursor IDE refresh passes after computer recovery
+
+Previous interrupted IDE refresh produced partial output only and no final
+conformance result. Verified no old required runner/Cucumber process remained
+before retrying after the user reported the computer recovered. Same exact
+Cursor3.24.18 owned app/profile and current generated payload; no source change,
+permission bypass, profile substitution or assertion weakening.
+
+Required native-cursor group passed all4scenarios/16steps: denied write, allowed
+write, bounded continuation and canonical catalogue/guide/helper. Log:
+/tmp/safeword-cursor-ide-after-computer-recovery-native.log. Report:
+/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-host-contract-proof-8oNyo3/cucumber.json.
+This renews the current native IDE component only; it does not cover legacy3.8.23,
+other runtime/delivery lanes, full propagation or final feature admission.
