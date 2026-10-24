@@ -1,0 +1,28 @@
+✖ real profile produces complete verifiable evidence (103765.901292ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 103909.396
+
+✖ failing tests:
+
+test at packages/cli/tests/integration/bounded-observation.node.ts:1:234
+✖ real profile produces complete verifiable evidence (103765.901292ms)
+  AssertionError [ERR_ASSERTION]: Observation must retain inspectable resolved tool identities; emitted fields: schema_version, purpose, authority, ticket, root, attempt_id, candidate_commit, profile_sha256, runtime_sha256, inputs, command, clone, started_at, status, finished_at, report_path, report_sha256, artifacts, case_results
+      at expectCompleteObservation (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/fixtures/bounded-observation.ts:270:10)
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation.node.ts:18:5)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

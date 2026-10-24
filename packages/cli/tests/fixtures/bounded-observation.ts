@@ -60,6 +60,8 @@ export interface ObserverOutput {
     current?: boolean;
     profile_sha256: string;
     runtime_sha256: string;
+    tools: Record<string, { path: string; sha256: string; version?: string }>;
+    execution_environment: Record<string, string>;
     command: { public_argv: string[]; runner_argv: string[] };
     inputs: Record<string, string>;
     case_results: {
@@ -265,6 +267,7 @@ export function expectCompleteObservation(
   assert.match(data.attempt_id, /^[\da-f-]{36}$/u);
   assert.match(data.profile_sha256, /^[\da-f]{64}$/u);
   assert.match(data.runtime_sha256, /^[\da-f]{64}$/u);
+  expectResolvedTools(data);
   assert.deepEqual(data.command.public_argv, ['proof', 'observe-bounded-delivery']);
   assert.deepEqual(data.command.runner_argv, [
     'bun',
@@ -325,4 +328,22 @@ export function expectCompleteObservation(
     assert.equal(results.length, 1, `Exact-once raw result: ${required.full_name}`);
     assert.equal(results[0]?.status, 'passed');
   }
+}
+
+function expectResolvedTools(data: NonNullable<ObserverOutput['data']>): void {
+  assert.ok(
+    data.tools,
+    `Observation must retain inspectable resolved tool identities; emitted fields: ${Object.keys(data).join(', ')}`,
+  );
+  for (const name of ['node', 'bun', 'git', 'codex', 'mise', 'tar']) {
+    const tool = data.tools[name];
+    assert.ok(tool, `Retain the actual ${name} identity`);
+    assert.equal(nodePath.isAbsolute(tool.path), true);
+    assert.equal(sha256(readFileSync(tool.path)), tool.sha256, `Actual ${name} executable bytes`);
+  }
+  assert.equal(data.tools.node?.version, 'v24.18.1');
+  assert.equal(data.tools.bun?.version, '1.3.14');
+  assert.equal(data.execution_environment.LANG, 'C');
+  assert.equal(data.execution_environment.TZ, 'UTC');
+  assert.equal(data.execution_environment.GIT_CONFIG_GLOBAL, '/dev/null');
 }
