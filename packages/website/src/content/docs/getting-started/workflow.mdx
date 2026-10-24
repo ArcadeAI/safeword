@@ -119,7 +119,7 @@ Safeword runs hooks every turn to track which phase the agent is in. These gates
 This maintenance command supports the Safeword repository's fixed T3E4NS
 contract: 37 cases and 46 distinct required assertion results. Run it from a
 clean committed Safeword checkout with the pinned Node/Bun toolchain, installed
-lockfile dependencies and local Git, Codex and shell tools available.
+lockfile dependencies and local Git, Codex, mise, tar and shell tools available.
 
 ```bash
 safeword proof observe-bounded-delivery --json --no-input --offline
@@ -148,8 +148,14 @@ For dirty inputs, commit or clean the named files. For changed assertion source,
 observe the new committed candidate. Changed accepted scope or mapping needs a
 reviewed shipped-contract update. Preserve corrupt or interrupted attempts and
 correct the named problem before a new observation. Bookkeeping-only Work Log,
-status and named non-input audit updates need no rerun. Loaded execution inputs
-remain bound.
+status and named non-input audit updates need no rerun while the shipped reader
+code and configuration identity matches. With changed reader code or configuration,
+the observer conservatively binds those files in full. New committed assertion
+bodies remain observable; this fallback does not prohibit source changes.
+
+Runtime refusals use `BOUNDED_OBSERVATION_REFUSED`. Read `errors[].message` for
+the corrective prerequisite before retrying `next_actions[].command`. Invalid
+arguments use `CLI_ARGUMENT_INVALID`.
 
 Safeword invokes no registry install, model request or qualification route during
 observation. The lane uses local Codex plugin-packaging commands in disposable

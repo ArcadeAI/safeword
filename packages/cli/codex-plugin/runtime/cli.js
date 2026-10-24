@@ -17636,6 +17636,15 @@ var init_markdown_sections = __esm(() => {
   HEADING_WHITESPACE = /^\s/;
 });
 
+// src/bounded-observation/audit-readers.json
+var audit_readers_default;
+var init_audit_readers = __esm(() => {
+  audit_readers_default = {
+    schema_version: 1,
+    source_sha256: "f51d6ffb3e90da646d12b3772f38308c4cee1494c37fc7b44d3fb3ccc92d4253"
+  };
+});
+
 // ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
 function createScanner(text, ignoreTrivia = false) {
   const len = text.length;
@@ -19134,6 +19143,18 @@ import {
   realpathSync
 } from "fs";
 import nodePath6 from "path";
+function auditReaderIdentity(root) {
+  const paths = git(root, ["ls-files", "-z"]).split("\x00").filter(Boolean);
+  const readers = paths.filter((path2) => path2 !== readerPolicy && !/^(?:\.project\/|plugin\/|packages\/cli\/codex-plugin\/)/u.test(path2) && /\.(?:[cm]?[jt]sx?|jsonc?|ya?ml|toml|sh|feature|lockb?)$/u.test(path2));
+  const identities = readers.map((path2) => {
+    const absolute = nodePath6.join(root, path2);
+    return [path2, digest(readFileSync5(absolute)), lstatSync2(absolute).mode & 73];
+  });
+  return digest(canonical(identities));
+}
+function permitsAuditProjection(root) {
+  return audit_readers_default.schema_version === 1 && auditReaderIdentity(root) === audit_readers_default.source_sha256;
+}
 function git(root, argv) {
   return execFileSync("git", ["-c", "core.hooksPath=/dev/null", ...argv], {
     cwd: root,
@@ -19184,27 +19205,31 @@ function isLogBoundary(heading) {
 }
 function sourceIdentity(root) {
   const paths = git(root, ["ls-files", "-z"]).split("\x00").filter(Boolean);
+  const projectAudit = permitsAuditProjection(root);
   const inputs = {};
   for (const path2 of paths) {
-    if (path2 === auditSummary)
+    if (path2 === auditSummary && projectAudit)
       continue;
     const absolute = nodePath6.join(root, path2);
     const info2 = lstatSync2(absolute);
     if (!info2.isFile())
       throw new Error(`Unsupported tracked input ${path2}; use regular committed files`);
-    inputs[`file:${path2}`] = projectedFile(path2, readFileSync5(absolute));
+    const bytes = readFileSync5(absolute);
+    inputs[`file:${path2}`] = projectAudit ? projectedFile(path2, bytes) : digest(bytes);
     inputs[`mode:${path2}`] = digest(String((info2.mode & 64) !== 0));
   }
+  inputs["source:audit-projection"] = digest(String(projectAudit));
   inputs["source:tracked"] = digest(canonical(inputs));
   return inputs;
 }
 function requireCleanInputs(root) {
+  const projectAudit = permitsAuditProjection(root);
   const tracked = git(root, ["diff", "HEAD", "--name-only", "-z"]).split("\x00").filter(Boolean);
   for (const path2 of tracked) {
-    if (path2 === auditSummary)
+    if (path2 === auditSummary && projectAudit)
       continue;
     const current = nodePath6.join(root, path2);
-    if (!auditTickets.has(path2) || !existsSync4(current)) {
+    if (!projectAudit || !auditTickets.has(path2) || !existsSync4(current)) {
       throw new Error(`Uncommitted input ${path2}; commit or clean the candidate and rerun`);
     }
     const committed = Buffer.from(git(root, ["show", `HEAD:${path2}`]));
@@ -19212,7 +19237,7 @@ function requireCleanInputs(root) {
       throw new Error(`Uncommitted semantic input ${path2}; commit or clean the candidate and rerun`);
     }
   }
-  const unexpected = git(root, ["ls-files", "--others", "--exclude-standard", "-z"]).split("\x00").filter((path2) => path2 !== "" && path2 !== auditSummary);
+  const unexpected = git(root, ["ls-files", "--others", "--exclude-standard", "-z"]).split("\x00").filter((path2) => path2 !== "" && !(projectAudit && path2 === auditSummary));
   if (unexpected.length > 0)
     throw new Error(`Uncommitted input ${unexpected[0]}; commit or clean the candidate and rerun`);
   if (git(root, ["rev-parse", "--is-shallow-repository"]).trim() !== "false") {
@@ -19280,10 +19305,11 @@ function dependencyIdentity(root) {
   requireLockedDependencies(root, manifests, roots);
   return identities;
 }
-var auditSummary = ".project/tickets/PPHQN5-observe-bounded-delivery-proof/evidence/observer-audit-summary.md", auditTickets, auditFields;
+var auditSummary = ".project/tickets/PPHQN5-observe-bounded-delivery-proof/evidence/observer-audit-summary.md", auditTickets, auditFields, readerPolicy = "packages/cli/src/bounded-observation/audit-readers.json";
 var init_identity = __esm(() => {
   init_markdown_sections();
   init_ticket_metadata();
+  init_audit_readers();
   init_contract();
   init_dependencies();
   auditTickets = new Set([

@@ -2,14 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import {
-  appendFileSync,
-  mkdirSync,
-  readFileSync,
-  realpathSync,
-  renameSync,
-  writeFileSync,
-} from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import nodePath from 'node:path';
 import { test } from 'node:test';
@@ -22,6 +15,7 @@ import {
   type ObserverOutput,
   observerRepo,
 } from '../fixtures/bounded-observation.js';
+import { attemptBytes } from '../fixtures/bounded-observation-lifecycle.js';
 
 function request(
   candidate: ObserverCandidate,
@@ -140,16 +134,25 @@ void test(
       assert.equal(stale.output.data?.current, false);
       writeFileSync(dependency, original);
       verifyCurrent(candidate, entry, 'node', id);
-      renameSync(entry, `${entry}.withdrawn`);
-      const withdrawn = spawnSync('node', [entry, 'proof', 'observe-bounded-delivery'], {
-        cwd: candidate.root,
-        env: candidate.environment,
-        encoding: 'utf8',
+      const beforeWithdrawal = attemptBytes(result);
+      const previousReader = nodePath.join(host.directory, 'previous-main-cli.js');
+      const previousBytes = execFileSync('git', ['show', 'origin/main:plugin/runtime/cli.js'], {
+        cwd: observerRepo,
+        maxBuffer: 32 * 1024 * 1024,
       });
-      assert.notEqual(withdrawn.status, 0);
+      writeFileSync(previousReader, previousBytes);
+      for (const operands of [['observe-bounded-delivery'], ['verify-bounded-delivery', id]]) {
+        const withdrawn = request(candidate, previousReader, 'bun', operands);
+        assert.notEqual(withdrawn.exitCode, 0);
+        assert.ok(withdrawn.output.errors?.some(error => error.code === 'CLI_ARGUMENT_INVALID'));
+        assert.deepEqual(
+          attemptBytes(result),
+          beforeWithdrawal,
+          'A reader without the commands must preserve all retained attempt bytes',
+        );
+      }
       assert.deepEqual(readFileSync(terminalPath), terminal);
       assert.deepEqual(readFileSync(data.report_path), report);
-      renameSync(`${entry}.withdrawn`, entry);
       verifyCurrent(candidate, entry, 'node', id);
     } finally {
       host.dispose();

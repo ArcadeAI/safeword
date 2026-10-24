@@ -11,6 +11,7 @@ import nodePath from 'node:path';
 
 import { computeSkipMask, parseHeading } from '../utils/markdown-sections.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
+import auditReaders from './audit-readers.json' with { type: 'json' };
 import { canonical, compareText, digest } from './contract.js';
 import { requireLockedDependencies } from './dependencies.js';
 
@@ -21,6 +22,29 @@ const auditTickets = new Set([
   '.project/tickets/PPHQN5-observe-bounded-delivery-proof/ticket.md',
 ]);
 const auditFields = new Set(['phase', 'status', 'created', 'last_modified']);
+const readerPolicy = 'packages/cli/src/bounded-observation/audit-readers.json';
+
+/** Unknown reader code still executes, but gets full-byte input binding. */
+export function auditReaderIdentity(root: string): string {
+  const paths = git(root, ['ls-files', '-z']).split('\0').filter(Boolean);
+  const readers = paths.filter(
+    path =>
+      path !== readerPolicy &&
+      !/^(?:\.project\/|plugin\/|packages\/cli\/codex-plugin\/)/u.test(path) &&
+      /\.(?:[cm]?[jt]sx?|jsonc?|ya?ml|toml|sh|feature|lockb?)$/u.test(path),
+  );
+  const identities = readers.map(path => {
+    const absolute = nodePath.join(root, path);
+    return [path, digest(readFileSync(absolute)), lstatSync(absolute).mode & 0o111];
+  });
+  return digest(canonical(identities));
+}
+
+function permitsAuditProjection(root: string): boolean {
+  return (
+    auditReaders.schema_version === 1 && auditReaderIdentity(root) === auditReaders.source_sha256
+  );
+}
 
 export function git(root: string, argv: string[]): string {
   return execFileSync('git', ['-c', 'core.hooksPath=/dev/null', ...argv], {
@@ -71,26 +95,30 @@ function isLogBoundary(heading: ReturnType<typeof parseHeading>): boolean {
 
 export function sourceIdentity(root: string): Record<string, string> {
   const paths = git(root, ['ls-files', '-z']).split('\0').filter(Boolean);
+  const projectAudit = permitsAuditProjection(root);
   const inputs: Record<string, string> = {};
   for (const path of paths) {
-    if (path === auditSummary) continue;
+    if (path === auditSummary && projectAudit) continue;
     const absolute = nodePath.join(root, path);
     const info = lstatSync(absolute);
     if (!info.isFile())
       throw new Error(`Unsupported tracked input ${path}; use regular committed files`);
-    inputs[`file:${path}`] = projectedFile(path, readFileSync(absolute));
+    const bytes = readFileSync(absolute);
+    inputs[`file:${path}`] = projectAudit ? projectedFile(path, bytes) : digest(bytes);
     inputs[`mode:${path}`] = digest(String((info.mode & 0o100) !== 0));
   }
+  inputs['source:audit-projection'] = digest(String(projectAudit));
   inputs['source:tracked'] = digest(canonical(inputs));
   return inputs;
 }
 
 export function requireCleanInputs(root: string): void {
+  const projectAudit = permitsAuditProjection(root);
   const tracked = git(root, ['diff', 'HEAD', '--name-only', '-z']).split('\0').filter(Boolean);
   for (const path of tracked) {
-    if (path === auditSummary) continue;
+    if (path === auditSummary && projectAudit) continue;
     const current = nodePath.join(root, path);
-    if (!auditTickets.has(path) || !existsSync(current)) {
+    if (!projectAudit || !auditTickets.has(path) || !existsSync(current)) {
       throw new Error(`Uncommitted input ${path}; commit or clean the candidate and rerun`);
     }
     const committed = Buffer.from(git(root, ['show', `HEAD:${path}`]));
@@ -102,7 +130,7 @@ export function requireCleanInputs(root: string): void {
   }
   const unexpected = git(root, ['ls-files', '--others', '--exclude-standard', '-z'])
     .split('\0')
-    .filter(path => path !== '' && path !== auditSummary);
+    .filter(path => path !== '' && !(projectAudit && path === auditSummary));
   if (unexpected.length > 0)
     throw new Error(`Uncommitted input ${unexpected[0]}; commit or clean the candidate and rerun`);
   if (git(root, ['rev-parse', '--is-shallow-repository']).trim() !== 'false') {
