@@ -91,10 +91,10 @@ When(
   'the fixed-lane observation succeeds through the Safeword CLI',
   function (this: ObserverWorld) {
     assert.ok(this.observerCandidate);
-    this.observerResult =
-      this.observerDistribution === undefined
-        ? runObserverCli(this.observerCandidate, ['proof', 'observe-bounded-delivery'])
-        : runUnmappedDistribution(this.observerDistribution);
+    this.observerResult = runObserverCli(this.observerCandidate, [
+      'proof',
+      'observe-bounded-delivery',
+    ]);
     expectCompleteObservation(this.observerResult, this.observerCandidate);
   },
 );
@@ -315,10 +315,10 @@ When(
   'the maintainer requests a local observation through the Safeword CLI',
   function (this: ObserverWorld) {
     assert.ok(this.observerCandidate);
-    this.observerResult = runObserverCli(this.observerCandidate, [
-      'proof',
-      'observe-bounded-delivery',
-    ]);
+    this.observerResult =
+      this.observerDistribution === undefined
+        ? runObserverCli(this.observerCandidate, ['proof', 'observe-bounded-delivery'])
+        : runUnmappedDistribution(this.observerDistribution);
   },
 );
 

@@ -1,0 +1,28 @@
+✖ unmapped shipped case is named before execution (20317.127208ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20469.89725
+
+✖ failing tests:
+
+test at packages/cli/tests/integration/bounded-observation-profile.node.ts:1:165
+✖ unmapped shipped case is named before execution (20317.127208ms)
+  AssertionError [ERR_ASSERTION]: Unmapped-case refusal must name the exact case identity: Unsupported or unmapped delivery case; review a complete shipped mapping
+      at expectNamedUnmappedCase (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/fixtures/bounded-observation-profile.ts:83:10)
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-profile.node.ts:14:5)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
