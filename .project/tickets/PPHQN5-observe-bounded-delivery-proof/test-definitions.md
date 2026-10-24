@@ -46,7 +46,7 @@ the JSON Cucumber control separately checks that execution never starts.
 
 - [x] RED 4e8207dc7
 - [x] GREEN dfc49fb24
-- [ ] REFACTOR
+- [x] REFACTOR skip: the independent case census and named unsupported-case diagnostic need no additional abstraction; the built-artifact control and bound Cucumber case passed
 
 ### Scenario: A required assertion without a passing result prevents success
 
