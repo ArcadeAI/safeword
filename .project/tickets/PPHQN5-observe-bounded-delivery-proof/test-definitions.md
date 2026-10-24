@@ -22,7 +22,7 @@ Other scenarios remain open; no final actual-checkout proof is claimed.
 
 ### Scenario: Uncommitted execution inputs prevent observation
 
-- [ ] RED
+- [x] RED 1be7378a6
 - [ ] GREEN
 - [ ] REFACTOR
 
