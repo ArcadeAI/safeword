@@ -1,0 +1,555 @@
+{
+  "schema_version": 1,
+  "purpose": "bounded-delivery-observation:v1",
+  "ticket": "T3E4NS",
+  "feature": "features/keep-bounded-planning-reviews-trustworthy.feature",
+  "ticket_path": ".project/tickets/T3E4NS-keep-bounded-planning-reviews-trustworthy/ticket.md",
+  "semantic_ticket": {
+    "id": "T3E4NS",
+    "slug": "keep-bounded-planning-reviews-trustworthy",
+    "type": "feature",
+    "phase_anchors": [
+      {
+        "define-behavior": ".project/tickets/T3E4NS-keep-bounded-planning-reviews-trustworthy/spec.md"
+      },
+      {
+        "scenario-gate": "features/keep-bounded-planning-reviews-trustworthy.feature"
+      }
+    ],
+    "scope": [
+      "own the entire bounded PR 6031 contribution over main rather than historical feature completion",
+      "judge accepted scope and persona outcomes and retain typed source-version and reuse-limit evidence",
+      "separate bounded installed-rule currency from whole-copy dispatch integrity",
+      "refuse unqualified explicit selectors and require an actual failed independent attempt before fallback",
+      "retain and revalidate headless conformance observations and qualify only complete current exact-model matrices",
+      "include required fixtures, test-quality improvements, refactors, documentation, generated surfaces and copy-dispatch CI repairs"
+    ],
+    "out_of_scope": [
+      "closing 5F5ZZA or 82T411 or repairing historical RED, SHA collisions, failures or deferred proofs",
+      "PR 5857 recovery and issue 5486 isolation implementation",
+      "new native private-context, cloud or OpenCode qualification",
+      "qualifying failed Codex observations or repeating unchanged paid qualification",
+      "modifying shared profiles, dependency pins or repository admission and audit policy"
+    ],
+    "done_when": [
+      "the entire PR contribution maps to named observable scenarios and executed proof with known limits recorded",
+      "scope-persona contracts and typed evidence pass delivery and integration tests",
+      "installed currency, copy integrity, qualification and fallback boundaries pass paired positive and negative controls",
+      "retained checkpoint provenance and current Claude admission are verified without crediting failed Codex observations",
+      "current-head CI, acceptance, release, lint, types, generation and independent review pass",
+      "the real CLI walkthrough and full-diff scope audit are recorded with their exact assurance limits"
+    ],
+    "product_plan_contract": "v1",
+    "parent": "82T411",
+    "parent_job": "plan-implementability.TBU4",
+    "milestone": "M2",
+    "parent_contract_digest": "3ab3e75d9cc532c5442464a5a9ffd9eb0fb8387457150414bf8cb5151c4fc7cf"
+  },
+  "registration": {
+    "Phase contracts ask the bounded scope and persona questions": [
+      [
+        "packages/cli/tests/integration/planning-scope-review.test.ts",
+        "asks every phase to check both omissions and overreach against accepted authority"
+      ],
+      [
+        "packages/cli/tests/integration/planning-scope-review.test.ts",
+        "makes persona outcomes and epistemic status Product approval questions"
+      ],
+      [
+        "packages/cli/tests/integration/planning-scope-review.test.ts",
+        "treats external guidance as candidate decisions within the accepted boundary"
+      ]
+    ],
+    "Reviewer evidence survives validated output without inventing missing limits": [
+      [
+        "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+        "retains declared source and reuse limits in a versioned reviewer result"
+      ],
+      [
+        "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+        "refuses undeclared evidence fields rather than silently discarding them"
+      ],
+      [
+        "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+        "rejects an empty license identifier instead of silently dropping its limit"
+      ],
+      [
+        "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+        "refuses a new planning verdict that omits evidence records"
+      ]
+    ],
+    "A malformed plan record refuses after the complete plan succeeds": [
+      "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+      "names missing source limits after a complete owned plan can prepare for dispatch"
+    ],
+    "Installed rule edits preserve unrelated Implementation review currency": [
+      [
+        "packages/cli/tests/integration/installed-planning-copy-admission.test.ts",
+        "reconstructs installed rule currency after %s (editorial: %s)"
+      ],
+      [
+        "packages/cli/tests/integration/execution-upstream-planning-context.test.ts",
+        "stales only dependent approvals after canonical $phase contract bytes change"
+      ]
+    ],
+    "Refused selectors cannot manufacture permission for fallback": [
+      "packages/cli/tests/integration/planning-review-route-order.test.ts",
+      "blocks explicit %s without launching any route when no independent attempt exists"
+    ],
+    "A failed independent attempt precedes eligible fallback": [
+      "packages/cli/tests/integration/planning-review-route-order.test.ts",
+      "tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, author model is %s, and model is confirmed %s"
+    ],
+    "Completed observations survive termination": [
+      [
+        "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+        "retains completed raw observations when the worker is killed before teardown"
+      ]
+    ],
+    "Corrupt or unconfirmed retained output refuses": [
+      [
+        "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+        "rejects retained passing evidence with $label"
+      ]
+    ],
+    "Retained reuse checks current identity before any reviewer launch": [
+      [
+        "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+        "checks retained metadata before any reviewer launch ($label)"
+      ]
+    ],
+    "Qualification evidence refuses incomplete or failed matrices": [
+      [
+        "packages/cli/tests/review/execution-plan-conformance.test.ts",
+        "writes evidence only after every case passes for each exact identity"
+      ],
+      [
+        "packages/cli/tests/review/execution-plan-conformance.test.ts",
+        "refuses to write evidence from %s"
+      ]
+    ],
+    "Route admission binds exact identity and current input bytes": [
+      [
+        "packages/cli/tests/review/execution-plan-conformance.test.ts",
+        "admits exact models and explicit runtime defaults without conflating them"
+      ],
+      [
+        "packages/cli/tests/review/execution-plan-conformance.test.ts",
+        "preserves admitted degraded labeling and deterministically exhausts an empty set"
+      ],
+      [
+        "packages/cli/tests/review/execution-plan-conformance.test.ts",
+        "rejects evidence bound to any other contract or fixture corpus bytes"
+      ]
+    ],
+    "Corrupt reviewer copies refuse and the canonical pair dispatches": [
+      [
+        "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+        "refuses %s before dispatching its plan to a reviewer"
+      ],
+      [
+        "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+        "names the phase and repair action for %s"
+      ],
+      [
+        "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+        "allows the packaged canonical pair through the installed CLI"
+      ]
+    ],
+    "Native generated distributions carry their canonical template roots": [
+      [
+        "packages/cli/tests/claude-plugin/catalogue.test.ts",
+        "packages the canonical template root consumed by the standalone CLI"
+      ],
+      [
+        "packages/cli/tests/codex-plugin-version.test.ts",
+        "executes the bundled CLI without project dependencies or a populated package cache"
+      ]
+    ],
+    "Public documentation describes reduced assurance and its limits": [
+      [
+        "packages/cli/tests/integration/planning-documentation.test.ts",
+        "describes reduced fallback honestly in the public overview"
+      ],
+      [
+        "packages/cli/tests/integration/planning-documentation.test.ts",
+        "distinguishes planning approval from the later independent architecture gate"
+      ]
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "03ff74d76376e79f03706c74c0a60da0b830207a5365eac62d81c6c1eda4961d",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-scope-review.test.ts",
+          "full_name": "planning scope review contract asks every phase to check both omissions and overreach against accepted authority"
+        },
+        {
+          "file": "packages/cli/tests/integration/planning-scope-review.test.ts",
+          "full_name": "planning scope review contract makes persona outcomes and epistemic status Product approval questions"
+        },
+        {
+          "file": "packages/cli/tests/integration/planning-scope-review.test.ts",
+          "full_name": "planning scope review contract treats external guidance as candidate decisions within the accepted boundary"
+        }
+      ]
+    },
+    {
+      "case_id": "81021d29e42dbc17f676c392882b48e9ee7138cfcd1217634c15a9385656912c",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "full_name": "planning review evidence boundary retains declared source and reuse limits in a versioned reviewer result"
+        }
+      ]
+    },
+    {
+      "case_id": "e2c16c3e3a94534e0916965488a7fb18e8911e438706ea05aaa6e0350b28fa5a",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "full_name": "planning review evidence boundary refuses a new planning verdict that omits evidence records"
+        }
+      ]
+    },
+    {
+      "case_id": "33d50a54db46105f2823f877aaa202860c862b2f58fcd239addb57be5eab57da",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "full_name": "planning review evidence boundary rejects an empty license identifier instead of silently dropping its limit"
+        }
+      ]
+    },
+    {
+      "case_id": "e6c1f10c0ef4faa475b2e545ca9403f2932484233fdeb6413688ae133f5c4641",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "full_name": "planning review evidence boundary refuses undeclared evidence fields rather than silently discarding them"
+        }
+      ]
+    },
+    {
+      "case_id": "2f86283e5b6d92639eceabfa7a2be36b410afd907a411a8d73e6d2426f330cd0",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "full_name": "names missing source limits after a complete owned plan can prepare for dispatch"
+        }
+      ]
+    },
+    {
+      "case_id": "9f40e1dd99d48b4747b0bdadb4030ac6510563267932bc96604bc38b05acac43",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/installed-planning-copy-admission.test.ts",
+          "full_name": "reconstructs installed rule currency after PLAN_IMPLEMENTATION.md (editorial: false)"
+        }
+      ]
+    },
+    {
+      "case_id": "89c0627f79d45cf6aadb202bd73166a8cedee2ea2258900a9430b22edbdce6ac",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/installed-planning-copy-admission.test.ts",
+          "full_name": "reconstructs installed rule currency after PLAN_EXECUTION.md (editorial: false)"
+        }
+      ]
+    },
+    {
+      "case_id": "be1c7809133b146944b4c1b08fd82afadb99960fe56b3428d26e20489ee15a5b",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/installed-planning-copy-admission.test.ts",
+          "full_name": "reconstructs installed rule currency after PLAN_IMPLEMENTATION.md (editorial: true)"
+        }
+      ]
+    },
+    {
+      "case_id": "9a53895e13a245adb6452fa78acf6345c275afad02b03c35197f63d743d8e782",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "full_name": "blocks explicit unqualified-model without launching any route when no independent attempt exists"
+        }
+      ]
+    },
+    {
+      "case_id": "a0ea4c948e11b8e65576f08d84336d76956626143a6f76013c498f2cd8f6aa25",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "full_name": "blocks explicit gpt-6-luna without launching any route when no independent attempt exists"
+        }
+      ]
+    },
+    {
+      "case_id": "bf2db0a29157821bc81436d3417f42e9c6c8e621699b4d4bbff4efff9bbf7ea7",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "full_name": "tries the independent reviewer before fallback when claude precedes codex, codex failure is false, author model is absent, and model is confirmed false"
+        },
+        {
+          "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "full_name": "tries the independent reviewer before fallback when codex precedes claude, codex failure is false, author model is absent, and model is confirmed false"
+        }
+      ]
+    },
+    {
+      "case_id": "56a38005e7c51a1c8c1e572b01a589b45ff368d45a58daf044ebcb90f805763f",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "full_name": "tries the independent reviewer before fallback when claude precedes codex, codex failure is true, author model is absent, and model is confirmed false"
+        },
+        {
+          "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "full_name": "tries the independent reviewer before fallback when codex precedes claude, codex failure is true, author model is absent, and model is confirmed false"
+        }
+      ]
+    },
+    {
+      "case_id": "252a72f4c78b63c513ff734bc4e812aaebb44287d6d74d3351e26848ac48b54c",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "retains completed raw observations when the worker is killed before teardown"
+        }
+      ]
+    },
+    {
+      "case_id": "5d3ebf9dc17db0b586dd63405b5be1ed967918fab5e602548260be4c1069c8f8",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "checks retained metadata before any reviewer launch (matching)"
+        }
+      ]
+    },
+    {
+      "case_id": "395c93781f31cdc19f9d13723ffb94230f09932d6da44e03e737bc79ec509c4c",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "checks retained metadata before any reviewer launch (changed contract)"
+        }
+      ]
+    },
+    {
+      "case_id": "e0ab3b9cf30ec23190479b9767634fbc9623a34544f09b31996aae51de9c1476",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "checks retained metadata before any reviewer launch (acceptance)"
+        }
+      ]
+    },
+    {
+      "case_id": "407bbdbf7142aa9c1a1757c5dcecd1773c5be5df176a7fbdf8e0b78c91a61f16",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "checks retained metadata before any reviewer launch (CLI)"
+        }
+      ]
+    },
+    {
+      "case_id": "5b868c70a98cc8406d673caa2e96a1a901563e919823014e5168d700cc0554e1",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "checks retained metadata before any reviewer launch (runtime default)"
+        }
+      ]
+    },
+    {
+      "case_id": "773571487800f6fd60b823c1ee45fd32aaf764da2e8bb6a40c74e048c9d33680",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "checks retained metadata before any reviewer launch (replay)"
+        }
+      ]
+    },
+    {
+      "case_id": "8876dcefcb5a30a90de4608dc9e119aa6cd1355a86f3693c0af2fdac13e2db69",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "rejects retained passing evidence with missing confirmation"
+        }
+      ]
+    },
+    {
+      "case_id": "2e1b9e7d89036155c58c731228b4962d9b4e32f3d6254425448af0e505454221",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "rejects retained passing evidence with wrong model"
+        }
+      ]
+    },
+    {
+      "case_id": "e99f6976e85527ddf282b81ef27d1c8e768628755376b06da84cbdc51f73e2ca",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "rejects retained passing evidence with wrong provider"
+        }
+      ]
+    },
+    {
+      "case_id": "58a97abb238e0b214b542a5c3c77ccf55f56a2e4279a84fd94ceb8bcda5ebbfa",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "rejects retained passing evidence with unpaired output"
+        }
+      ]
+    },
+    {
+      "case_id": "362359437482bd618d53f9949d79b0381f8c191aea6c5f69773e64bfb7d3abd6",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "rejects retained passing evidence with CLI output"
+        }
+      ]
+    },
+    {
+      "case_id": "b351af6565279756270be7d26c05ea9062191acb0225a50ab013f8f797c5a463",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "rejects retained passing evidence with replayed output"
+        }
+      ]
+    },
+    {
+      "case_id": "530bae49b35e94fa8d72886487415472fa895d0f878b715720ff2222e7d98f23",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "full_name": "Execution Plan semantic conformance admission writes evidence only after every case passes for each exact identity"
+        }
+      ]
+    },
+    {
+      "case_id": "7b8c3f07d02dbbde91c0f2cbc1befc10fb0ec8e572a7175a057cf03f1fa42cef",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "full_name": "Execution Plan semantic conformance admission refuses to write evidence from a missing case"
+        }
+      ]
+    },
+    {
+      "case_id": "cc3c2607fbbfe01bfb1ac3acb7d8b684515eb8d1fb49edbeb1fccb246ea6f06b",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "full_name": "Execution Plan semantic conformance admission refuses to write evidence from a failing case"
+        }
+      ]
+    },
+    {
+      "case_id": "dcdb57396e74f3995f4d8d6de6e2792634348972b7c60ec81db2ded97b57bf7c",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "full_name": "Execution Plan semantic conformance admission admits exact models and explicit runtime defaults without conflating them"
+        }
+      ]
+    },
+    {
+      "case_id": "c1dc4b6ff6d5317be161ba6de074d24a91254861a2612e25092cc5dec1813732",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "full_name": "Execution Plan semantic conformance admission admits exact models and explicit runtime defaults without conflating them"
+        }
+      ]
+    },
+    {
+      "case_id": "db885d32aea332f005a5fb1926cfd893a6ec2835f61cd7441e1f0f3dd80c6a8a",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "full_name": "Execution Plan semantic conformance admission rejects evidence bound to any other contract or fixture corpus bytes"
+        }
+      ]
+    },
+    {
+      "case_id": "667b226e0cc0365cc857a8cc245f20cdd3df5311c0bfcd270a5d8af88975aa06",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity allows the packaged canonical pair through the installed CLI"
+        }
+      ]
+    },
+    {
+      "case_id": "f3a9ce0ca774c467af3eb5d65bbe53c3c6ef19c32aebbaea38cfbb063aa278aa",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity blocks stale-reviewer through the installed CLI with the failed copy named"
+        },
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity refuses stale-reviewer before dispatching its plan to a reviewer"
+        },
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity names the phase and repair action for stale-reviewer"
+        }
+      ]
+    },
+    {
+      "case_id": "50335a21e51a3e7c939b13c584b49d98cda0359fb7c3e1034b91483d2227260b",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity blocks stale-slicing-contract through the installed CLI with the failed copy named"
+        },
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity refuses stale-slicing-contract before dispatching its plan to a reviewer"
+        },
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity names the phase and repair action for stale-slicing-contract"
+        }
+      ]
+    },
+    {
+      "case_id": "fc578f9c261ce5933a969f6cf4241c2b33dacb7af312e88804b10e9ddd524f24",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-documentation.test.ts",
+          "full_name": "planning fallback documentation describes reduced fallback honestly in the public overview"
+        },
+        {
+          "file": "packages/cli/tests/integration/planning-documentation.test.ts",
+          "full_name": "planning fallback documentation distinguishes planning approval from the later independent architecture gate"
+        }
+      ]
+    },
+    {
+      "case_id": "331386a4d8e5ddc36a5aee7bf5bb997cff0d29bcf474d209efcf3f35164d9721",
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/claude-plugin/catalogue.test.ts",
+          "full_name": "Claude plugin catalogue generation packages the canonical template root consumed by the standalone CLI"
+        },
+        {
+          "file": "packages/cli/tests/codex-plugin-version.test.ts",
+          "full_name": "Codex plugin release contract executes the bundled CLI without project dependencies or a populated package cache"
+        }
+      ]
+    }
+  ]
+}

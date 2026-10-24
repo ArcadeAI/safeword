@@ -1,5 +1,6 @@
 import { AGENT_SELECTION_DESCRIPTION } from './agent-selection.js';
 import type { CommandHandler } from './handler.js';
+import { boundedObservationHandler, boundedVerificationHandler } from './proof-handlers.js';
 import { publicHandler } from './public-handlers.js';
 import { type CliResult, createResult } from './result.js';
 
@@ -191,6 +192,27 @@ function planConfirmationOptions(descriptions: {
 }
 
 const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
+  command(
+    'proof observe-bounded-delivery',
+    'Observe the fixed T3E4NS local proof lane without completion authority',
+    'mutate',
+    {
+      handler: boundedObservationHandler,
+    },
+  ),
+  command(
+    'proof verify-bounded-delivery',
+    'Verify retained fixed-lane evidence against current inputs',
+    'observe',
+    {
+      syntax: 'verify-bounded-delivery <attempt-id>',
+      handler: boundedVerificationHandler,
+      fixture: {
+        argv: ['proof', 'verify-bounded-delivery', '00000000-0000-4000-8000-000000000000'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('status', 'Report project health and the next action', 'observe', {
     networkPolicy: 'declared',
     commandOptions: [agentSelectionOption()],
@@ -1188,6 +1210,7 @@ export const publicCommands = commandCatalog.filter(
 );
 
 export const commandFamilies = [
+  { route: 'proof', description: 'Observe fixed local delivery proof', visibility: 'public' },
   { route: 'project', description: 'Manage project-local Safeword state', visibility: 'public' },
   {
     route: 'project test-execution',
