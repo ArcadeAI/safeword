@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -351,6 +352,18 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
       `branch_review_exit_id: ${firstReview.data?.review_id}`,
     );
     expectMarkerRemovalBlocked(host, project, ticketPath, String(firstReview.data?.review_id));
+    const markedTicket = readFileSync(ticketPath, 'utf8');
+    writeFileSync(
+      ticketPath,
+      markedTicket
+        .replace(/^branch_review_exit_id:[^\n]*\n/mu, '')
+        .replace('phase: implement', 'phase: verify'),
+    );
+    const droppedMarker = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+      cwd: project,
+    });
+    expect(JSON.parse(droppedMarker.stdout).data?.may_advance).toBe(false);
+    writeFileSync(ticketPath, markedTicket);
     const assertLocalHostsBlock = (from: 'implement' | 'verify', to: 'verify' | 'done') => {
       const edit = {
         file_path: ticketPath,
@@ -490,7 +503,11 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
 
     git(project, 'reset', '--hard', 'main');
     git(project, 'clean', '-fd');
+    const recordDirectory = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');
+    const archivedRecords = `${recordDirectory}.legacy-fixture`;
+    renameSync(recordDirectory, archivedRecords);
     await expectLegacyVerificationUncovered(project, ticketPath);
+    renameSync(archivedRecords, recordDirectory);
     const noChanges = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project, env });
     expect(JSON.parse(noChanges.stdout).data?.coverage).toBe('none');
     expectHookDeny(attemptExit(), 'No branch changes were reviewed');

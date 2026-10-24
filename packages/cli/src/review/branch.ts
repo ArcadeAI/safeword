@@ -743,7 +743,8 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
     ticket === undefined
       ? undefined
       : readFrontmatterScalar(readFileSync(ticket, 'utf8'), 'branch_review_exit_id');
-  if (phase === 'verify' && marker === undefined) {
+  const record = latestRecord(cwd, ticketId);
+  if (phase === 'verify' && marker === undefined && record === undefined) {
     return createResult({
       state: 'healthy',
       findings: [
@@ -764,7 +765,6 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
       },
     });
   }
-  const record = latestRecord(cwd, ticketId);
   if (record === undefined || marker !== record.id) {
     return createResult({
       state: 'action_required',
