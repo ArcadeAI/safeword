@@ -29,6 +29,7 @@ interface OmittedPath {
 }
 
 class InvalidIntegrationReference extends Error {}
+class IntegrationFetchFailure extends Error {}
 
 interface BranchRecord {
   readonly schema_version: 1;
@@ -140,7 +141,12 @@ function integrationReference(cwd: string): { remote: string; branch: string; re
 }
 
 function remoteDefaultBranch(cwd: string, remote: string): string {
-  const head = gitText(cwd, ['ls-remote', '--symref', remote, 'HEAD']);
+  let head: string;
+  try {
+    head = gitText(cwd, ['ls-remote', '--symref', remote, 'HEAD']);
+  } catch {
+    throw new IntegrationFetchFailure('The integration remote could not be reached');
+  }
   const prefix = 'ref: refs/heads/';
   const suffix = '\tHEAD';
   const line = head
@@ -261,6 +267,24 @@ function noCoverage(ticketId: string, reason: string): CliResult {
       omitted_paths: [],
       next_action:
         'Retry the branch review after fixing the Git or ticket problem, or record a reasoned skip.',
+    },
+  });
+}
+
+function fetchRequired(ticketId: string, reason: string): CliResult {
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: 'BRANCH_REVIEW_FETCH_REQUIRED',
+        message: `No branch work was reviewed: ${reason}. Fetch the integration branch and rerun review.`,
+        severity: 'warning',
+      },
+    ],
+    data: {
+      command: 'review branch',
+      ticket_id: ticketId,
+      next_action: 'Fetch the integration branch and rerun review.',
     },
   });
 }
@@ -855,12 +879,7 @@ export async function reviewBranch(
     );
   }
   if (offline)
-    return unavailableReview(
-      cwd,
-      ticketId,
-      ticket,
-      'Fetching the integration branch requires network access',
-    );
+    return fetchRequired(ticketId, 'Fetching the integration branch requires network access');
   const ticketDirectory = nodePath
     .relative(cwd, nodePath.dirname(ticket))
     .split(nodePath.sep)
@@ -872,13 +891,22 @@ export async function reviewBranch(
   let inventory: ChangedPath[];
   try {
     const integration = integrationReference(cwd);
-    git(cwd, ['fetch', integration.remote, `+refs/heads/${integration.branch}:${integration.ref}`]);
+    try {
+      git(cwd, [
+        'fetch',
+        integration.remote,
+        `+refs/heads/${integration.branch}:${integration.ref}`,
+      ]);
+    } catch {
+      throw new IntegrationFetchFailure('The integration branch could not be fetched');
+    }
     fetchedAt = new Date().toISOString();
     ref = integration.ref;
     base = gitText(cwd, ['merge-base', ref, 'HEAD']);
     head = gitText(cwd, ['rev-parse', 'HEAD']);
     inventory = changedPaths(cwd, base);
   } catch (error) {
+    if (error instanceof IntegrationFetchFailure) return fetchRequired(ticketId, error.message);
     if (error instanceof InvalidIntegrationReference) {
       return createResult({
         state: 'action_required',

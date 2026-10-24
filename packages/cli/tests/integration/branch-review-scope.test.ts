@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -21,6 +29,7 @@ function git(cwd: string, ...args: string[]): string {
 type BranchReport = {
   errors?: { message: string }[];
   data?: {
+    review_id?: string;
     base?: string;
     head?: string;
     reviewed_paths?: string[];
@@ -113,6 +122,26 @@ it('reviews both authored files from the integration merge base against the tick
   expect(reviewerPacket).toContain('export const result = 2;');
   expect(reviewerPacket).not.toContain('upstream.ts');
   expect(reviewerPacket).not.toContain('export const unrelated = true;');
+
+  const ticketBeforeOffline = readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8');
+  const jobs = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');
+  const jobsBeforeOffline = readdirSync(jobs);
+  const offline = await runCli(['review', 'branch', 'ABC123', '--offline', '--json'], {
+    cwd: project,
+  });
+  const offlineReport = JSON.parse(offline.stdout) as BranchReport;
+  expect(offline.exitCode).toBe(2);
+  expect(offlineReport.data?.review_id).toBeUndefined();
+  expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toBe(ticketBeforeOffline);
+  expect(readdirSync(jobs)).toEqual(jobsBeforeOffline);
+
+  git(project, 'remote', 'set-url', 'origin', nodePath.join(root, 'missing-remote.git'));
+  const failedFetch = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project });
+  const failedReport = JSON.parse(failedFetch.stdout) as BranchReport;
+  expect(failedFetch.exitCode).toBe(2);
+  expect(failedReport.data?.review_id).toBeUndefined();
+  expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toBe(ticketBeforeOffline);
+  expect(readdirSync(jobs)).toEqual(jobsBeforeOffline);
 });
 
 it('says no branch work was reviewed when the integration base is unavailable', async () => {
