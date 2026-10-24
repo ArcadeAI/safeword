@@ -14,6 +14,7 @@ import nodePath from 'node:path';
 
 import { afterEach, expect, it } from 'vitest';
 
+import { branchReviewCompletionProblem } from '../../templates/hooks/lib/safeword-cli.js';
 import { expectHookAllow, expectHookDeny, runCli, testCliPath, TIMEOUT_QUICK } from '../helpers.js';
 import { claudeReviewerShellPrelude, createTrustedReviewerDirectory } from '../review-fixtures.js';
 
@@ -118,7 +119,7 @@ async function expectMissingRecordRecovery(
   ticketPath: string,
   reviewId: string,
   env: NodeJS.ProcessEnv,
-  attemptExit: () => ReturnType<typeof spawnSync>,
+  attemptExit: () => Parameters<typeof expectHookDeny>[0],
 ): Promise<void> {
   const directory = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');
   const savedRecord = readdirSync(directory).find(name => name.endsWith(`${reviewId}.json`));
@@ -310,6 +311,16 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
       SAFEWORD_AGENT_RUNTIME: 'codex',
       SAFEWORD_NO_UPDATE_CHECK: '1',
     };
+    const completionProblem = () => {
+      const previous = process.env.SAFEWORD_PLUGIN_CLI;
+      process.env.SAFEWORD_PLUGIN_CLI = testCliPath;
+      try {
+        return branchReviewCompletionProblem(project, 'ABC123-review-branch');
+      } finally {
+        if (previous === undefined) delete process.env.SAFEWORD_PLUGIN_CLI;
+        else process.env.SAFEWORD_PLUGIN_CLI = previous;
+      }
+    };
     const ticketPath = nodePath.join(ticket, 'ticket.md');
     const attemptExit = (from = 'implement', to = 'verify') => {
       const hookEnvironment: NodeJS.ProcessEnv = {
@@ -483,10 +494,12 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
       'complete',
     );
     expectHookAllow(attemptExit('verify', 'done'));
+    expect(completionProblem()).toBeUndefined();
     git(project, 'commit', '--allow-empty', '-m', 'same reviewed correction');
     expectHookAllow(attemptExit('verify', 'done'));
     writeFileSync(auditSource, 'export const audit = 2;\n');
     expectHookDeny(attemptExit('verify', 'done'), 'stale');
+    expect(completionProblem()).toContain('stale');
     writeFileSync(auditSource, 'export const audit = 1;\n');
     expectHookAllow(attemptExit('verify', 'done'));
     writeFileSync(

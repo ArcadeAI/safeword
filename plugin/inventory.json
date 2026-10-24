@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "81be4a65ff5948e60cdb7f61368fbf49712a9605489ea6ae0e60e66b4a7c47f8"
+      "sha256": "1672ef764bb0bdfcff60a66214b5f849de9cc91436a75a7be0f937d0867adf40"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "0018dfe7c6411b3bcbb7fcefeba9301157c6bc138f5c2a3ce1044b745f62c819"
+      "sha256": "d942bae7fcb32c05ee49fd2c969a5584d6fb9271be057a7379a50fe4439c33b1"
     },
     {
       "path": "runtime/event-groups.json",
@@ -423,7 +423,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-cli.ts",
-      "sha256": "09a9b1adacd39fa442f97f9f39b08fce1287eac2d61dde35680f6eb45d51bbc3"
+      "sha256": "81fc03b70f4c69d7d396d74204f8ee943f7c4b391df5523ec4a684386a42d976"
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
@@ -523,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "b008387ac9c3d2dc73bebb1142f1f08ff79f975cfec87bc4bc4e701a23801a3f"
+      "sha256": "fa254f39f455f2e6e8f453ea9d539d520c488300e568a7fcacdee9ddfb0615ff"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -619,7 +619,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "dcf91e0e562587d1373b745edcaf49680d2a170f2daf7b9acac4da36bafafb39"
+      "sha256": "1b20b04c817a9f45c81cfd344df59ae7b337aae9528f2f7e677d31681efe880e"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -1139,7 +1139,7 @@
     },
     {
       "path": "templates/hooks/codex/stop.ts",
-      "sha256": "e98d3c6834149be7091cc2df6dfdbd851d4090e7957fac0a0036c14a4a3d9f31"
+      "sha256": "f93f90f48bfa2aee024cae5ff3420c18b19d62bc9e85143db1226013f4927077"
     },
     {
       "path": "templates/hooks/cursor/after-file-edit.ts",
@@ -1419,7 +1419,7 @@
     },
     {
       "path": "templates/hooks/lib/safeword-cli.ts",
-      "sha256": "09a9b1adacd39fa442f97f9f39b08fce1287eac2d61dde35680f6eb45d51bbc3"
+      "sha256": "81fc03b70f4c69d7d396d74204f8ee943f7c4b391df5523ec4a684386a42d976"
     },
     {
       "path": "templates/hooks/lib/safeword-context.ts",
@@ -1519,7 +1519,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "7203b8cb97b2cb963f0dfee8552240f51a51e02e6bfdec40fcc12aa351c895d9"
+      "sha256": "30803d5dae113766d637b8802beb9e83b901d179fc0ca76e62f1f31c57c3399b"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1615,7 +1615,7 @@
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "d0bfeac753eb4a2a7f1cc89f8e0f9592546ef52cb9cb923845880e387dfd7274"
+      "sha256": "6c46ae902ef1882c6ef392bc9fabb50a3d6299a12fc496c596d14b20015d82a2"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",

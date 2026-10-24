@@ -275,6 +275,43 @@ export function askTrustedSafeword<T>(
   return { kind: 'unanswered', tried };
 }
 
+/** Recheck the signed branch result immediately before a feature is marked done. */
+export function branchReviewCompletionProblem(
+  projectDirectory: string,
+  ticketFolder: string,
+): string | undefined {
+  const ticketId = ticketFolder.split('-')[0];
+  if (!ticketId || !/^[A-Za-z0-9]+$/u.test(ticketId))
+    return 'The active ticket has no valid ID for branch review.';
+  const answer = askTrustedSafeword(
+    projectDirectory,
+    ['review', 'branch-check', ticketId, 'verify'],
+    run => {
+      try {
+        const result = JSON.parse(run.stdout) as {
+          data?: { command?: unknown; ticket_id?: unknown; phase?: unknown; may_advance?: unknown };
+          findings?: Array<{ message?: unknown }>;
+        };
+        if (
+          result.data?.command !== 'review branch-check' ||
+          result.data.ticket_id !== ticketId ||
+          result.data.phase !== 'verify' ||
+          typeof result.data.may_advance !== 'boolean'
+        )
+          return undefined;
+        return run.status === 0 && result.data.may_advance
+          ? { problem: undefined }
+          : { problem: String(result.findings?.[0]?.message ?? 'The branch review is stale.') };
+      } catch {
+        return undefined;
+      }
+    },
+  );
+  return answer.kind === 'answered'
+    ? answer.value.problem
+    : 'The trusted branch-review checker could not confirm a current review.';
+}
+
 /** A package.json's name and version, or an empty record when it is missing or malformed. */
 function readManifest(path: string): { name?: unknown; version?: unknown } {
   try {

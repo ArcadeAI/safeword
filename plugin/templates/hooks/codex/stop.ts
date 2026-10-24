@@ -19,7 +19,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { safewordCli } from '../lib/safeword-cli.ts';
+import { branchReviewCompletionProblem, safewordCli } from '../lib/safeword-cli.ts';
 import process from 'node:process';
 
 import { getActiveTicket } from '../lib/active-ticket.ts';
@@ -133,6 +133,13 @@ function completeSessionDoneTicket(
       blockReason: verdict.reason ?? 'Done evidence could not be verified.',
       architectureAdvisory: null,
     };
+  }
+
+  if (ticket.type === 'feature') {
+    const problem = branchReviewCompletionProblem(projectDirectory, ticket.folder);
+    if (problem !== undefined) {
+      return { completed: false, blockReason: problem, architectureAdvisory: null };
+    }
   }
 
   updateTicketStatus(ticketDirectory, 'done', 'done');

@@ -1236,9 +1236,11 @@ if (isCanonicalTicketEdit) {
 if (isCanonicalTicketEdit) {
   const context = canonicalTicketEditContext();
   const exitedPhase = detectPhaseAdvance(context.priorContent, context.proposedContent);
+  const featureImplementationExit =
+    exitedPhase === 'implement' && phaseTransitionContext().proposedType === 'feature';
   // Phase first, then the flag: selective enforcement needs to know WHICH exit this
   // is before it can decide whether the gate applies to it.
-  if (exitedPhase !== undefined && reviewGateAppliesTo(exitedPhase)) {
+  if (exitedPhase !== undefined && !featureImplementationExit && reviewGateAppliesTo(exitedPhase)) {
     const ticketDirectory = nodePath.dirname(editedFile);
     const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
     const stamps = readReviewStamps(phaseScope);

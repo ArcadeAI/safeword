@@ -60,6 +60,7 @@ import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { architectureDocumentNudgeForProject } from './lib/architecture-document-nudge.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
+import { branchReviewCompletionProblem } from './lib/safeword-cli.ts';
 
 installCrashCapture('stop-quality');
 
@@ -980,6 +981,10 @@ if (currentPhase === 'done') {
 
   // Evidence passed — mark current ticket done and navigate hierarchy
   if (ticketInfo.folder) {
+    if (isFeature) {
+      const problem = branchReviewCompletionProblem(projectDir, ticketInfo.folder);
+      if (problem !== undefined) hardBlockDone(problem);
+    }
     const currentTicketDirectory = `${ticketsDir}/${ticketInfo.folder}`;
     updateTicketStatus(currentTicketDirectory, 'done', 'done');
 

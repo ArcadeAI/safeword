@@ -3652,7 +3652,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "7203b8cb97b2cb963f0dfee8552240f51a51e02e6bfdec40fcc12aa351c895d9",
+        ".safeword/hooks/pre-tool-quality.ts": "30803d5dae113766d637b8802beb9e83b901d179fc0ca76e62f1f31c57c3399b",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -3669,7 +3669,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
-        ".safeword/hooks/stop-quality.ts": "d0bfeac753eb4a2a7f1cc89f8e0f9592546ef52cb9cb923845880e387dfd7274",
+        ".safeword/hooks/stop-quality.ts": "6c46ae902ef1882c6ef392bc9fabb50a3d6299a12fc496c596d14b20015d82a2",
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "ecdb55e277a4188e5daf1c9a9de3f5e28bed724a14064e374eb4db10a9d0921e",
@@ -85088,6 +85088,10 @@ function integrationReference(cwd) {
     const match = /^refs\/remotes\/([^/]+)\/(.+)$/u.exec(configured);
     if (match?.[1] === undefined || match[2] === undefined)
       throw new Error("branchReview.integrationRef must name a remote-tracking ref");
+    const currentBranch = gitText(cwd, ["branch", "--show-current"]);
+    if (match[2] === currentBranch && match[2] !== remoteDefaultBranch(cwd, match[1])) {
+      throw new InvalidIntegrationReference("The configured integration ref names the current topic branch; choose the remote default integration branch instead.");
+    }
     return { remote: match[1], branch: match[2], ref: configured };
   }
   const remotes = gitText(cwd, ["remote"]).split(`
@@ -85099,7 +85103,16 @@ function integrationReference(cwd) {
     remote = remotes[0];
   if (remote === undefined)
     throw new Error("Cannot choose an integration remote");
-  const head = gitText(cwd, ["ls-remote", "--symref", remote, "HEAD"]);
+  const branch = remoteDefaultBranch(cwd, remote);
+  return { remote, branch, ref: `refs/remotes/${remote}/${branch}` };
+}
+function remoteDefaultBranch(cwd, remote) {
+  let head;
+  try {
+    head = gitText(cwd, ["ls-remote", "--symref", remote, "HEAD"]);
+  } catch {
+    throw new IntegrationFetchFailure("The integration remote could not be reached");
+  }
   const prefix = "ref: refs/heads/";
   const suffix = "\tHEAD";
   const line = head.split(`
@@ -85107,7 +85120,7 @@ function integrationReference(cwd) {
   const branch = line?.slice(prefix.length, -suffix.length);
   if (branch === undefined || branch === "")
     throw new Error("Remote default branch is unavailable");
-  return { remote, branch, ref: `refs/remotes/${remote}/${branch}` };
+  return branch;
 }
 function changedPaths(cwd, base) {
   const entries = git8(cwd, ["diff", "--name-status", "-z", "--find-renames", base, "HEAD"]).toString("utf8").split("\x00");
@@ -85179,7 +85192,13 @@ function unavailableReason(cwd, item) {
 function noCoverage(ticketId, reason) {
   return createResult({
     state: "action_required",
-    findings: [{ code: "BRANCH_REVIEW_UNAVAILABLE", message: reason, severity: "warning" }],
+    findings: [
+      {
+        code: "BRANCH_REVIEW_UNAVAILABLE",
+        message: `No branch work was reviewed: ${reason}`,
+        severity: "warning"
+      }
+    ],
     data: {
       command: "review branch",
       ticket_id: ticketId,
@@ -85189,6 +85208,23 @@ function noCoverage(ticketId, reason) {
       dirty_paths: [],
       omitted_paths: [],
       next_action: "Retry the branch review after fixing the Git or ticket problem, or record a reasoned skip."
+    }
+  });
+}
+function fetchRequired(ticketId, reason) {
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: "BRANCH_REVIEW_FETCH_REQUIRED",
+        message: `No branch work was reviewed: ${reason}. Fetch the integration branch and rerun review.`,
+        severity: "warning"
+      }
+    ],
+    data: {
+      command: "review branch",
+      ticket_id: ticketId,
+      next_action: "Fetch the integration branch and rerun review."
     }
   });
 }
@@ -85217,7 +85253,13 @@ function unavailableReview(cwd, ticketId, ticket, reason) {
     recordTicketReview(ticket, record3.id);
     return createResult({
       state: "action_required",
-      findings: [{ code: "BRANCH_REVIEW_UNAVAILABLE", message: reason, severity: "warning" }],
+      findings: [
+        {
+          code: "BRANCH_REVIEW_UNAVAILABLE",
+          message: `No branch work was reviewed: ${reason}`,
+          severity: "warning"
+        }
+      ],
       data: {
         command: "review branch",
         ticket_id: ticketId,
@@ -85548,7 +85590,8 @@ function checkBranchReview(cwd, ticketId, phase) {
   }
   const ticket = ticketPath(cwd, ticketId);
   const marker = ticket === undefined ? undefined : readFrontmatterScalar(readFileSync92(ticket, "utf8"), "branch_review_exit_id");
-  if (phase === "verify" && marker === undefined) {
+  const record3 = latestRecord(cwd, ticketId);
+  if (phase === "verify" && marker === undefined && record3 === undefined) {
     return createResult({
       state: "healthy",
       findings: [
@@ -85569,7 +85612,6 @@ function checkBranchReview(cwd, ticketId, phase) {
       }
     });
   }
-  const record3 = latestRecord(cwd, ticketId);
   if (record3 === undefined || marker !== record3.id) {
     return createResult({
       state: "action_required",
@@ -85612,8 +85654,8 @@ function checkBranchReview(cwd, ticketId, phase) {
     }
   });
 }
-function coverageFor(omitted, dirty, completedPasses) {
-  if (completedPasses === 0)
+function coverageFor(omitted, dirty, reviewedPaths) {
+  if (reviewedPaths === 0)
     return "none";
   return omitted.length === 0 && dirty.length === 0 ? "complete" : "partial";
 }
@@ -85654,7 +85696,7 @@ async function reviewBranch(cwd, ticketId, offline) {
     return noCoverage(ticketId, "Branch review requires a feature ticket in implementation or verification");
   }
   if (offline)
-    return unavailableReview(cwd, ticketId, ticket, "Fetching the integration branch requires network access");
+    return fetchRequired(ticketId, "Fetching the integration branch requires network access");
   const ticketDirectory = nodePath140.relative(cwd, nodePath140.dirname(ticket)).split(nodePath140.sep).join("/");
   let base;
   let head;
@@ -85663,13 +85705,36 @@ async function reviewBranch(cwd, ticketId, offline) {
   let inventory;
   try {
     const integration = integrationReference(cwd);
-    git8(cwd, ["fetch", integration.remote, `+refs/heads/${integration.branch}:${integration.ref}`]);
+    try {
+      git8(cwd, [
+        "fetch",
+        integration.remote,
+        `+refs/heads/${integration.branch}:${integration.ref}`
+      ]);
+    } catch {
+      throw new IntegrationFetchFailure("The integration branch could not be fetched");
+    }
     fetchedAt = new Date().toISOString();
     ref = integration.ref;
     base = gitText(cwd, ["merge-base", ref, "HEAD"]);
     head = gitText(cwd, ["rev-parse", "HEAD"]);
     inventory = changedPaths(cwd, base);
   } catch (error2) {
+    if (error2 instanceof IntegrationFetchFailure)
+      return fetchRequired(ticketId, error2.message);
+    if (error2 instanceof InvalidIntegrationReference) {
+      return createResult({
+        state: "action_required",
+        findings: [
+          { code: "BRANCH_REVIEW_INVALID_SCOPE", message: error2.message, severity: "error" }
+        ],
+        data: {
+          command: "review branch",
+          ticket_id: ticketId,
+          next_action: "Configure the remote default integration branch, then review again."
+        }
+      });
+    }
     return unavailableReview(cwd, ticketId, ticket, error2 instanceof Error ? error2.message : "Git inventory failed");
   }
   const omitted = [];
@@ -85733,7 +85798,7 @@ async function reviewBranch(cwd, ticketId, offline) {
       });
     }
   }
-  const coverage = coverageFor(omitted, dirtyPaths, passes.length);
+  const coverage = coverageFor(omitted, dirtyPaths, reviewed.length);
   const freshness = gitText(cwd, ["rev-parse", "HEAD"]) === head && branchSnapshots(cwd, base, ticketDirectory).exit === snapshots.exit ? "current" : "stale";
   const record3 = saveRecord(cwd, {
     schema_version: 1,
@@ -85773,11 +85838,16 @@ async function reviewBranch(cwd, ticketId, offline) {
     }
   });
 }
+var InvalidIntegrationReference, IntegrationFetchFailure;
 var init_branch = __esm(() => {
   init_result();
   init_configured_paths();
   init_coordinator();
   init_job();
+  InvalidIntegrationReference = class InvalidIntegrationReference extends Error {
+  };
+  IntegrationFetchFailure = class IntegrationFetchFailure extends Error {
+  };
 });
 
 // src/commands/review-knowledge.ts
