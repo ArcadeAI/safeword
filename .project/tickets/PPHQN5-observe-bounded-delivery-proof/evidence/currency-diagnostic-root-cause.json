@@ -1,0 +1,11 @@
+{
+  "unchanged_raw_ticket": true,
+  "first_changed_key": "file:.project/tickets/PPHQN5-observe-bounded-delivery-proof/ticket.md",
+  "assertion_source_changed": true,
+  "projection_changed": true,
+  "changed_file_keys": [
+    "file:.project/tickets/PPHQN5-observe-bounded-delivery-proof/ticket.md",
+    "file:.project/tickets/T3E4NS-keep-bounded-planning-reviews-trustworthy/ticket.md",
+    "file:packages/cli/tests/integration/planning-scope-review.test.ts"
+  ]
+}
