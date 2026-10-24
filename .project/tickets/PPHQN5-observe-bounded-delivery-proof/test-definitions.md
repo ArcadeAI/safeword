@@ -22,6 +22,10 @@ Other scenarios remain open; no final actual-checkout proof is claimed.
 
 ### Scenario: Uncommitted execution inputs prevent observation
 
+The accepted CLI surface and recovery plan require one concrete fixed observation
+request after commit-or-clean instructions. The human proof checks that action;
+the JSON Cucumber control separately checks that execution never starts.
+
 - [x] RED 1be7378a6
 - [ ] GREEN
 - [ ] REFACTOR

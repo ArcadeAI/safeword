@@ -17,3 +17,10 @@ The intended RED literal is:
 This is a real human-rendering omission in the accepted recovery behavior,
 alongside the already-passing JSON dirty-input control. It adds no scenario,
 caller option, closing authority or historical RED credit.
+
+Cross-agent review 88816ba2 approved this RED with warnings. The strengthened
+proof additionally requires exactly one observation command, no refused-attempt
+verification command as recovery, and exactly one copy of the changed-input
+diagnostic. The ledger now records the accepted plan-to-scenario recovery trace.
+Its JSON counterpart remains the no-execution control. Refresh the receipt for
+this changed primary proof before GREEN.

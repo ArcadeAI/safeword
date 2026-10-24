@@ -39,6 +39,9 @@ void test(
         message.includes('safeword proof observe-bounded-delivery'),
         `Human refusal must name the fixed observation recovery command: ${message}`,
       );
+      assert.equal(message.split('safeword proof observe-bounded-delivery').length - 1, 1);
+      assert.equal(message.includes('safeword proof verify-bounded-delivery'), false);
+      assert.equal(message.split('Uncommitted input packages/cli/vitest.base.ts').length - 1, 1);
     } finally {
       candidate.dispose();
     }
