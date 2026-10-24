@@ -34,3 +34,26 @@ make this ordering correction, rerun the freshness examples and ordinary
 verification, and perform the final clean-checkout pilot. This note is an
 investigation within the active feature; it does not reclassify that feature as
 a separate bug ticket or alter its reviewed scope.
+
+## First trusted execution attempt
+
+Review f96c659c timed out after 600 seconds in the normal shared queue, with no
+stdout/stderr and no matched failure signal. It was rejected and earns no RED
+credit. Both its owned proof parent and observer child exited; the other chat's
+already-running full suite was not interrupted. The configured review maximum
+is 600 seconds, so the suggested larger review timeout is unavailable without
+changing a shared boundary. Wait for the queue to become idle instead.
+
+The review also questioned the literal naming the unchanged observer ticket.
+That path was the actual defective diagnostic, not the intended assertion or
+an arrangement mutation. The raw-byte negative control above proves this.
+For the retry, use the failing assertion's `Changed input file:packages` prefix
+as the expected stdout signal and include this investigation and its raw-byte
+comparison as context. The primary assertion remains unchanged and still
+requires the exact controlled assertion-source path.
+
+Synchronous-step timeout and author-snapshot concerns remain non-blocking
+warnings. The complete 17-case run reached every case without a step timeout;
+the owned snapshot checks exact copied/committed files and actual assertion
+sources. The final pilot still requires the actual checkout to be clean and
+committed. No author transcript or this note substitutes for trusted execution.
