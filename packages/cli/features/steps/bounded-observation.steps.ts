@@ -26,6 +26,12 @@ import {
   createRequiredOutcomeCandidate,
   expectNamedRequiredRecovery,
 } from '../../tests/fixtures/bounded-observation-failures.js';
+import {
+  createUnmappedDistribution,
+  expectNamedUnmappedCase,
+  runUnmappedDistribution,
+  type UnmappedDistribution,
+} from '../../tests/fixtures/bounded-observation-profile.js';
 
 interface ObserverWorld {
   observerCandidate?: ObserverCandidate;
@@ -33,7 +39,25 @@ interface ObserverWorld {
   observerRetained?: RetainedObserverProof;
   observerBefore?: string;
   observerAlteredReport?: Buffer;
+  observerDistribution?: UnmappedDistribution;
 }
+
+Given(
+  'one of the 37 bounded delivery cases has no declared assertion mapping',
+  function (this: ObserverWorld) {
+    this.observerDistribution = createUnmappedDistribution();
+    this.observerCandidate = this.observerDistribution.candidate;
+  },
+);
+
+Then(
+  'the result names the unmapped case and asks for a reviewed complete mapping',
+  function (this: ObserverWorld) {
+    assert.ok(this.observerDistribution);
+    assert.ok(this.observerResult);
+    expectNamedUnmappedCase(this.observerDistribution, this.observerResult);
+  },
+);
 
 Given(
   'the original ledgers, receipts and all 33 deferred case identities are recorded',
@@ -67,10 +91,10 @@ When(
   'the fixed-lane observation succeeds through the Safeword CLI',
   function (this: ObserverWorld) {
     assert.ok(this.observerCandidate);
-    this.observerResult = runObserverCli(this.observerCandidate, [
-      'proof',
-      'observe-bounded-delivery',
-    ]);
+    this.observerResult =
+      this.observerDistribution === undefined
+        ? runObserverCli(this.observerCandidate, ['proof', 'observe-bounded-delivery'])
+        : runUnmappedDistribution(this.observerDistribution);
     expectCompleteObservation(this.observerResult, this.observerCandidate);
   },
 );

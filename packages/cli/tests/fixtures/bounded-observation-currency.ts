@@ -44,7 +44,7 @@ export function candidateBytes(candidate: ObserverCandidate, paths: string[] = [
   return hash.digest('hex');
 }
 
-function commitChangedInput(candidate: ObserverCandidate): void {
+export function commitChangedInput(candidate: ObserverCandidate): void {
   candidateGit(candidate, ['add', '--all']);
   candidateGit(candidate, [
     '-c',
