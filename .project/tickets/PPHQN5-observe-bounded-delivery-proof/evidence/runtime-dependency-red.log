@@ -1,0 +1,25 @@
+✖ external runtime dependency bytes participate in runtime identity (42819.570541ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 43044.596209
+
+✖ failing tests:
+
+test at packages/cli/tests/integration/bounded-observation-runtime.node.ts:1:301
+✖ external runtime dependency bytes participate in runtime identity (42819.570541ms)
+  AssertionError [ERR_ASSERTION]: Runtime identity must bind external dependency bytes
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-runtime.node.ts:23:12)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '5a937c8ea85d52dde080e641ff2d8f62a4d7dd9a98936cead7c8fcf3c8e5736e',
+    expected: '5a937c8ea85d52dde080e641ff2d8f62a4d7dd9a98936cead7c8fcf3c8e5736e',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
