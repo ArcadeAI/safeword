@@ -18,6 +18,29 @@ function git(cwd: string, ...args: string[]): string {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 }
 
+type BranchReport = {
+  errors?: { message: string }[];
+  data?: {
+    base?: string;
+    head?: string;
+    reviewed_paths?: string[];
+    omitted_paths?: string[];
+    coverage?: string;
+    freshness?: string;
+  };
+};
+
+function expectCompleteScope(report: BranchReport, project: string): void {
+  expect(report.data?.base).toBe(git(project, 'merge-base', 'origin/main', 'HEAD'));
+  expect(report.data?.head).toBe(git(project, 'rev-parse', 'HEAD'));
+  expect(report.data?.reviewed_paths?.toSorted((left, right) => left.localeCompare(right))).toEqual(
+    ['caller.ts', 'source.ts'],
+  );
+  expect(report.data?.coverage).toBe('complete');
+  expect(report.data?.freshness).toBe('current');
+  expect(report.data?.omitted_paths).toEqual([]);
+}
+
 it('reviews both authored files from the integration merge base against the ticket', async () => {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-branch-scope-'));
   roots.push(root);
@@ -79,19 +102,15 @@ it('reviews both authored files from the integration merge base against the tick
       SAFEWORD_REVIEW_LOG: nodePath.join(root, 'review-packet.json'),
     },
   });
-  const report = JSON.parse(result.stdout) as {
-    errors?: { message: string }[];
-    data?: { base?: string; head?: string; reviewed_paths?: string[]; coverage?: string };
-  };
+  const report = JSON.parse(result.stdout) as BranchReport;
   expect(result.exitCode, report.errors?.[0]?.message).toBe(0);
-  expect(report.data?.base).toBe(git(project, 'merge-base', 'origin/main', 'HEAD'));
-  expect(report.data?.head).toBe(git(project, 'rev-parse', 'HEAD'));
-  expect(report.data?.reviewed_paths?.toSorted((left, right) => left.localeCompare(right))).toEqual(
-    ['caller.ts', 'source.ts'],
-  );
-  expect(report.data?.coverage).toBe('complete');
+  expectCompleteScope(report, project);
   const reviewerPacket = readFileSync(nodePath.join(root, 'review-packet.json'), 'utf8');
   expect(reviewerPacket).toContain('Both files must be reviewed together.');
   expect(reviewerPacket).toContain('source.ts');
   expect(reviewerPacket).toContain('caller.ts');
+  expect(reviewerPacket).toContain('export const value = 1;');
+  expect(reviewerPacket).toContain('export const result = 2;');
+  expect(reviewerPacket).not.toContain('upstream.ts');
+  expect(reviewerPacket).not.toContain('export const unrelated = true;');
 });
