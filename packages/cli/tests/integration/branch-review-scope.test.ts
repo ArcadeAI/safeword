@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -57,7 +57,7 @@ it('reviews both authored files from the integration merge base against the tick
   mkdirSync(reviewerBin);
   writeFileSync(
     nodePath.join(reviewerBin, 'claude'),
-    `${claudeReviewerShellPrelude()}\n+printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Reviewed both files against the ticket","findings":[]}\\n' "$dispatch_id"\n`,
+    `${claudeReviewerShellPrelude()}\nprintf '%s' "$payload" > "$SAFEWORD_REVIEW_LOG"\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Reviewed both files against the ticket","findings":[]}\\n' "$dispatch_id"\n`,
     { mode: 0o755 },
   );
 
@@ -67,15 +67,22 @@ it('reviews both authored files from the integration merge base against the tick
       PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
       SAFEWORD_AGENT_RUNTIME: 'codex',
       SAFEWORD_NO_UPDATE_CHECK: '1',
+      SAFEWORD_REVIEW_LOG: nodePath.join(root, 'review-packet.json'),
     },
   });
   const report = JSON.parse(result.stdout) as {
+    errors?: { message: string }[];
     data?: { base?: string; head?: string; reviewed_paths?: string[]; coverage?: string };
   };
+  expect(result.exitCode, report.errors?.[0]?.message).toBe(0);
   expect(report.data?.base).toBe(git(project, 'merge-base', 'origin/main', 'HEAD'));
   expect(report.data?.head).toBe(git(project, 'rev-parse', 'HEAD'));
   expect(report.data?.reviewed_paths?.toSorted((left, right) => left.localeCompare(right))).toEqual(
     ['caller.ts', 'source.ts'],
   );
   expect(report.data?.coverage).toBe('complete');
+  const reviewerPacket = readFileSync(nodePath.join(root, 'review-packet.json'), 'utf8');
+  expect(reviewerPacket).toContain('Both files must be reviewed together.');
+  expect(reviewerPacket).toContain('source.ts');
+  expect(reviewerPacket).toContain('caller.ts');
 });
