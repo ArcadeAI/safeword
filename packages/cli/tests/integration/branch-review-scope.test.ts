@@ -33,7 +33,7 @@ type BranchReport = {
     base?: string;
     head?: string;
     reviewed_paths?: string[];
-    omitted_paths?: string[];
+    omitted_paths?: { path: string; reason: string }[];
     coverage?: string;
     freshness?: string;
   };
@@ -179,6 +179,32 @@ it('says no branch work was reviewed when the integration base is unavailable', 
   expect(report.data?.coverage).toBe('none');
   expect(report.data?.reviewed_paths).toEqual([]);
   expect(report.findings?.[0]?.message).toContain('No branch work was reviewed');
+
+  git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/main');
+  git(project, 'reset', '--hard', 'main');
+  writeFileSync(nodePath.join(project, 'source.ts'), 'export const dirty = true;\n');
+  const reviewerBin = nodePath.join(createTrustedReviewerDirectory('branch-dirty-'), 'bin');
+  mkdirSync(reviewerBin);
+  writeFileSync(
+    nodePath.join(reviewerBin, 'claude'),
+    `${claudeReviewerShellPrelude()}\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Saw the dirty file","findings":[]}\\n' "$dispatch_id"\n`,
+    { mode: 0o755 },
+  );
+  const dirty = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env: {
+      PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    },
+  });
+  const dirtyReport = JSON.parse(dirty.stdout) as BranchReport;
+  expect(dirtyReport.data?.coverage).toBe('none');
+  expect(dirtyReport.data?.reviewed_paths).toEqual([]);
+  expect(dirtyReport.data?.omitted_paths).toContainEqual({
+    path: 'source.ts',
+    reason: 'uncommitted work; commit and review again for complete coverage',
+  });
 });
 
 it('refuses a topic branch as configured integration scope', async () => {

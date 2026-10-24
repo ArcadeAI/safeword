@@ -817,9 +817,9 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
 function coverageFor(
   omitted: readonly OmittedPath[],
   dirty: readonly string[],
-  completedPasses: number,
+  reviewedPaths: number,
 ): BranchRecord['coverage'] {
-  if (completedPasses === 0) return 'none';
+  if (reviewedPaths === 0) return 'none';
   return omitted.length === 0 && dirty.length === 0 ? 'complete' : 'partial';
 }
 
@@ -999,7 +999,7 @@ export async function reviewBranch(
       });
     }
   }
-  const coverage = coverageFor(omitted, dirtyPaths, passes.length);
+  const coverage = coverageFor(omitted, dirtyPaths, reviewed.length);
   const freshness =
     gitText(cwd, ['rev-parse', 'HEAD']) === head &&
     branchSnapshots(cwd, base, ticketDirectory).exit === snapshots.exit
