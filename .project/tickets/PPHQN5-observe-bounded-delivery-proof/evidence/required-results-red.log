@@ -1,0 +1,28 @@
+✖ required assertion outcomes retain named recovery (94118.817542ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 94257.62725
+
+✖ failing tests:
+
+test at packages/cli/tests/integration/bounded-observation-failures.node.ts:1:213
+✖ required assertion outcomes retain named recovery (94118.817542ms)
+  AssertionError [ERR_ASSERTION]: Required-result refusal must name the exact assertion: Fixed runner failed (exit 1, signal null); repair the lane and rerun
+      at expectNamedRequiredRecovery (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/fixtures/bounded-observation-failures.ts:89:10)
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-failures.node.ts:15:7)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

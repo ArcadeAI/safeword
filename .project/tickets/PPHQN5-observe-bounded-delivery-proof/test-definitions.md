@@ -46,7 +46,7 @@ Other scenarios remain open; no final actual-checkout proof is claimed.
 
 ### Scenario: A required assertion without a passing result prevents success
 
-- [ ] RED
+- [x] RED 561cdb715
 - [ ] GREEN
 - [ ] REFACTOR
 
