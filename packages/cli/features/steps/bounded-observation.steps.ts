@@ -11,11 +11,41 @@ import {
   runObserverCli,
   runSubstitutedCommand,
 } from '../../tests/fixtures/bounded-observation.js';
+import {
+  createRequiredOutcomeCandidate,
+  expectNamedRequiredRecovery,
+} from '../../tests/fixtures/bounded-observation-failures.js';
 
 interface ObserverWorld {
   observerCandidate?: ObserverCandidate;
   observerResult?: ObserverCommand;
 }
+
+Given(
+  /^a bound candidate whose fixed proof lane reports a required assertion as (absent from the report|skipped|failed)$/u,
+  function (this: ObserverWorld, result: string) {
+    const normalized = result === 'absent from the report' ? 'absent' : result;
+    const outcome = (['absent', 'skipped', 'failed'] as const).find(item => item === normalized);
+    assert.ok(outcome !== undefined);
+    this.observerCandidate = createRequiredOutcomeCandidate(outcome);
+  },
+);
+
+Then('no successful observation is issued', function (this: ObserverWorld) {
+  assert.ok(this.observerResult);
+  assert.notEqual(this.observerResult.exitCode, 0, this.observerResult.stdout);
+  assert.equal(this.observerResult.output.ok, false);
+  assert.notEqual(this.observerResult.output.data?.status, 'observed');
+});
+
+Then(
+  'the result names that assertion and the corrective rerun action',
+  function (this: ObserverWorld) {
+    assert.ok(this.observerCandidate);
+    assert.ok(this.observerResult);
+    expectNamedRequiredRecovery(this.observerCandidate, this.observerResult);
+  },
+);
 
 Given(
   'a clean bound candidate whose fixed lane has passing required assertions for all 37 delivery cases',
