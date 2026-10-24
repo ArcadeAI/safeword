@@ -238,6 +238,8 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   });
   expect(JSON.parse(staleGate.stdout).data?.may_advance).toBe(false);
   writeFileSync(nodePath.join(project, 'source.ts'), 'export const allowed = true;\n');
+  git(project, 'add', 'source.ts', 'caller.ts', '.project/tickets/ABC123-review-branch/spec.md');
+  git(project, 'commit', '-m', 'save authored access work');
 
   writeFileSync(nodePath.join(project, '.env'), 'PRIVATE_TOKEN=must-stay-local\n');
   const dirty = await runCli(['review', 'branch', 'ABC123', '--json'], {
@@ -251,13 +253,13 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   });
   const dirtyReport = JSON.parse(dirty.stdout);
   expect(dirtyReport.data?.freshness).toBe('current');
-  expect(dirtyReport.data?.coverage).toBe('none');
+  expect(dirtyReport.data?.coverage).toBe('partial');
   expect(dirtyReport.data?.dirty_paths).toContain('.env');
   expect(dirtyReport.data?.omitted_paths).toContainEqual({
     path: '.env',
     reason: 'sensitive path; content withheld from reviewer',
   });
-  expect(dirtyReport.data?.next_action).toContain('reasoned skip');
+  expect(dirtyReport.data?.next_action).toContain('acknowledge');
   expect(readFileSync(nodePath.join(root, 'passes.log.5'), 'utf8')).not.toContain(
     'must-stay-local',
   );

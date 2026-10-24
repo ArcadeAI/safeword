@@ -81989,6 +81989,7 @@ var init_principle_trace = __esm(() => {
 // templates/hooks/lib/safeword-cli.ts
 var TRUSTED_PATH_SETTINGS, TRUSTED_ENVIRONMENT;
 var init_safeword_cli = __esm(() => {
+  init_namespace_root2();
   TRUSTED_PATH_SETTINGS = [
     "HOME",
     "USERPROFILE",

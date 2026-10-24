@@ -56,7 +56,7 @@ function branchFinding(
     affected_behavior: behavior.trim(),
     related_paths: related,
     consequence: consequence.trim(),
-    priority: { error: 'high', warning: 'medium', info: 'low' }[finding.severity],
+    priority: ({ error: 'high', warning: 'medium', info: 'low' } as const)[finding.severity],
     severity: finding.severity,
     message: finding.message,
   };

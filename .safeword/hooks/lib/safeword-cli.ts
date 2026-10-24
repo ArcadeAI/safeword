@@ -16,9 +16,11 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
+
+import { resolveNamespaceRoot } from './namespace-root.js';
 
 export interface SafewordCli {
   command: string;
@@ -283,6 +285,21 @@ export function branchReviewCompletionProblem(
   const ticketId = ticketFolder.split('-')[0];
   if (!ticketId || !/^[A-Za-z0-9]+$/u.test(ticketId))
     return 'The active ticket has no valid ID for branch review.';
+  // A feature already in verification before branch reviews existed has no
+  // marker or local job. Its prior completion route remains available.
+  try {
+    const ticket = nodePath.join(
+      resolveNamespaceRoot(projectDirectory),
+      'tickets',
+      ticketFolder,
+      'ticket.md',
+    );
+    const jobs = nodePath.join(projectDirectory, '.safeword', 'state', 'reviews', 'branch');
+    const hasMarker = /^branch_review_exit_id:/mu.test(readFileSync(ticket, 'utf8'));
+    if (!hasMarker && (!existsSync(jobs) || readdirSync(jobs).length === 0)) return undefined;
+  } catch {
+    // Unreadable local state still needs the trusted checker.
+  }
   const answer = askTrustedSafeword(
     projectDirectory,
     ['review', 'branch-check', ticketId, 'verify'],
