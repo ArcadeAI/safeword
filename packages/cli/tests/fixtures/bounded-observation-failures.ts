@@ -90,6 +90,13 @@ export function expectNamedRequiredRecovery(
     message.includes(controlledAssertion.fullName),
     `Required-result refusal must name the exact assertion: ${message}`,
   );
+  assert.equal(
+    message.includes(
+      'planning scope review contract makes persona outcomes and epistemic status Product approval questions',
+    ),
+    false,
+    'A passing required assertion must not be named as the problem',
+  );
   assert.match(message, /repair|correct/iu);
   assert.match(message, /rerun/iu);
   assert.ok(

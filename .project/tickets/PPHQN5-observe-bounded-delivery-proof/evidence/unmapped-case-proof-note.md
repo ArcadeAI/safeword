@@ -18,3 +18,10 @@ message and checks execution-only authority, the reviewed complete-mapping
 recovery and absence of execution/preparation. This is the accepted unmapped-case
 scenario and shipped-profile matrix, not permission for caller-selected maps.
 No historical record, delivery test or deferred case is edited.
+
+Cross-agent review 0ae429b2 approved the original RED with two useful warnings.
+The refined proof now excludes all 36 still-mapped identities from the refusal,
+so a census dump cannot satisfy the missing-case check. It also executes the
+complete-mapping recovery, report-absence and retained-diagnostic checks before
+the intended failing assertion. The changed proof needs a fresh receipt before
+GREEN; the earlier receipt is retained as history.

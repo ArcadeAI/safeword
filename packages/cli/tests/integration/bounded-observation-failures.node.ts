@@ -8,8 +8,8 @@ import {
   expectNamedRequiredRecovery,
 } from '../fixtures/bounded-observation-failures.js';
 
-void test('required assertion outcomes retain named recovery', { timeout: 900_000 }, () => {
-  for (const outcome of ['absent', 'skipped', 'failed'] as const) {
+for (const outcome of ['absent', 'skipped', 'failed'] as const) {
+  void test(`required assertion ${outcome} retains named recovery`, { timeout: 240_000 }, () => {
     const candidate = createRequiredOutcomeCandidate(outcome);
     try {
       expectNamedRequiredRecovery(
@@ -19,5 +19,5 @@ void test('required assertion outcomes retain named recovery', { timeout: 900_00
     } finally {
       candidate.dispose();
     }
-  }
-});
+  });
+}

@@ -28,3 +28,11 @@ The wrong-reason run receives no RED credit. Its raw log is retained compressed.
 
 This evidence belongs only to PPHQN5. Historical RED, all original unfinished
 checks and all 33 deferred case identities and owners remain unchanged.
+
+Cross-agent review 54221d33 approved the initial RED with useful warnings.
+The refined primary proof registers three independent Node tests under the same
+serial command, so each outline outcome executes even when another fails.
+The naming check also excludes a different required assertion that still passes;
+a blanket list of required names cannot satisfy it. Each test has a 240-second
+bound inside the coordinator's 600-second whole-command limit. The refined
+proof requires a fresh receipt; the first receipt remains historical evidence.

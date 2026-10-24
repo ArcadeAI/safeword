@@ -15,6 +15,7 @@ export interface UnmappedDistribution {
   candidate: ObserverCandidate;
   entry: string;
   missingCase: string;
+  mappedCases: string[];
 }
 
 /** Build a disposable distribution with a missing shipped row; leave project census intact. */
@@ -43,7 +44,12 @@ export function createUnmappedDistribution(): UnmappedDistribution {
     );
     assert.equal(built.error, undefined);
     assert.equal(built.status, 0, built.stdout + built.stderr);
-    return { candidate, entry, missingCase: missing.case_id };
+    return {
+      candidate,
+      entry,
+      missingCase: missing.case_id,
+      mappedCases: profile.cases.map(row => row.case_id),
+    };
   } catch (error) {
     candidate.dispose();
     throw error;
@@ -80,18 +86,24 @@ export function expectNamedUnmappedCase(
   assert.equal(result.output.data?.status, 'refused');
   assert.equal(result.output.data.authority, 'execution-only');
   const message = result.output.errors?.map(error => error.message).join('\n') ?? '';
-  assert.ok(
-    message.includes(distribution.missingCase),
-    `Unmapped-case refusal must name the exact case identity: ${message}`,
-  );
   assert.match(message, /review.*complete.*mapping/iu);
   assert.equal(existsSync(result.output.data.report_path), false);
   const diagnosticPath = nodePath.join(
     nodePath.dirname(result.output.data.report_path),
     'diagnostic.log',
   );
+  assert.ok(existsSync(diagnosticPath), 'Retain the preflight refusal diagnostic');
   assert.equal(
     readFileSync(diagnosticPath, 'utf8').includes('preparing an independent committed clone'),
     false,
+  );
+  assert.ok(
+    message.includes(distribution.missingCase),
+    `Unmapped-case refusal must name the exact case identity: ${message}`,
+  );
+  assert.equal(
+    distribution.mappedCases.some(id => message.includes(id)),
+    false,
+    'Name the unmapped case without dumping already-mapped identities',
   );
 }
