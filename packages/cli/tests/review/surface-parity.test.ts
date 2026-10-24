@@ -563,6 +563,11 @@ exit ${status}`,
     const stampCommands = reviewStampCommands(content);
     expect(stampCommands, relativePath).not.toHaveLength(0);
     for (const stamp of stampCommands) {
+      if (stamp.includes('--skip')) {
+        expect(stamp, relativePath).toContain('--review-id');
+        expect(stamp, relativePath).toContain('--phase');
+        continue;
+      }
       for (const flag of [
         '--review-id',
         '--independence',
