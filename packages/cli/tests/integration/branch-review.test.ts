@@ -56,6 +56,7 @@ it('accounts for every changed path when a later bounded review pass fails', asy
     writeFileSync(nodePath.join(project, `change-${index}.txt`), `${index}\n`);
   }
   writeFileSync(nodePath.join(project, 'generated.out'), 'generated output\n');
+  writeFileSync(nodePath.join(project, '.env'), 'PRIVATE_TOKEN=committed-secret-sentinel\n');
   git(project, 'add', '.');
   git(project, 'commit', '-m', 'feature');
   git(project, 'push', '-u', 'origin', 'topic');
@@ -129,6 +130,10 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     path: 'generated.out',
     reason: 'marked as generated',
   });
+  expect(report.data?.omitted_paths).toContainEqual({
+    path: '.env',
+    reason: 'sensitive path; content withheld from reviewer',
+  });
   expect(readFileSync(nodePath.join(root, 'passes.log'), 'utf8').trim().split('\n')).toHaveLength(
     2,
   );
@@ -140,12 +145,18 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     ].toSorted((left, right) => left.localeCompare(right));
   expect(packetPaths(1).length).toBeGreaterThan(0);
   expect(packetPaths(2).length).toBeGreaterThan(0);
+  expect(readFileSync(nodePath.join(root, 'passes.log.1'), 'utf8')).not.toContain(
+    'committed-secret-sentinel',
+  );
+  expect(readFileSync(nodePath.join(root, 'passes.log.2'), 'utf8')).not.toContain(
+    'committed-secret-sentinel',
+  );
   expect(sorted(report.data?.reviewed_paths ?? [])).toEqual(packetPaths(1));
   expect(
     sorted(
       (report.data?.omitted_paths ?? [])
         .map(entry => entry.path)
-        .filter(path => path !== 'generated.out'),
+        .filter(path => path !== 'generated.out' && path !== '.env'),
     ),
   ).toEqual(packetPaths(2));
 
