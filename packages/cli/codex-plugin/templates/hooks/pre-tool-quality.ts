@@ -406,6 +406,61 @@ function executableRedGateDenial(scenario: string, ledger: string): string | und
   }
 }
 
+function branchReviewGateDecision(
+  ticketId: string,
+  phase: 'implement' | 'verify',
+): {
+  denial?: string;
+  disclosure?: string;
+  coverage?: string;
+  freshness?: string;
+} {
+  const answer = askTrustedSafeword(
+    projectDirectory,
+    ['review', 'branch-check', ticketId, phase],
+    run => {
+      try {
+        const result = JSON.parse(run.stdout) as {
+          data?: {
+            command?: unknown;
+            ticket_id?: unknown;
+            phase?: unknown;
+            may_advance?: unknown;
+            disclosure?: unknown;
+            coverage?: unknown;
+            freshness?: unknown;
+          };
+          findings?: Array<{ message?: unknown }>;
+        };
+        if (
+          result.data?.command !== 'review branch-check' ||
+          result.data.ticket_id !== ticketId ||
+          result.data.phase !== phase ||
+          typeof result.data.may_advance !== 'boolean'
+        )
+          return undefined;
+        return run.status === 0 && result.data.may_advance
+          ? {
+              disclosure:
+                typeof result.data.disclosure === 'string' ? result.data.disclosure : undefined,
+            }
+          : {
+              denial: String(
+                result.findings?.[0]?.message ?? 'The branch review is missing or stale.',
+              ),
+              coverage: typeof result.data.coverage === 'string' ? result.data.coverage : undefined,
+              freshness:
+                typeof result.data.freshness === 'string' ? result.data.freshness : undefined,
+            };
+      } catch {
+        return undefined;
+      }
+    },
+  );
+  if (answer.kind === 'answered') return answer.value;
+  return { denial: 'The trusted branch-review checker could not confirm a current review.' };
+}
+
 function separateEvidenceMode(
   ledgerContent: string,
   scenario: string,
@@ -929,6 +984,18 @@ function canonicalTicketEditContext(): CanonicalTicketEditContext {
   return cachedCanonicalTicketEditContext;
 }
 
+if (isCanonicalTicketEdit) {
+  const context = canonicalTicketEditContext();
+  const priorMarker = frontmatterScalar(context.priorMeta, 'branch_review_exit_id');
+  const proposedMarker = frontmatterScalar(context.proposedMeta, 'branch_review_exit_id');
+  if (priorMarker !== proposedMarker) {
+    deny(
+      'The branch review marker cannot be changed by editing the ticket.',
+      'Run `safeword review branch <ticket-id>` to record a new signed review.',
+    );
+  }
+}
+
 // A new feature's activation signals may be uncommitted, so Git history cannot
 // preserve provenance yet. Keep at least one current signal alive across edits:
 // the normal transition gates then require the complete three-signal contract.
@@ -1211,6 +1278,66 @@ if (isCanonicalTicketEdit) {
     }
   }
 }
+// ---------------------------------------------------------------------------
+// A feature branch review is a separate claim from the generic phase review.
+// Ask the trusted CLI at the two existing ticket-write boundaries; this hook
+// never fetches or invokes a reviewer.
+if (isCanonicalTicketEdit) {
+  const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
+  const phase =
+    priorPhase === 'implement' && proposedPhase === 'verify'
+      ? 'implement'
+      : priorPhase === 'verify' && proposedPhase === 'done'
+        ? 'verify'
+        : undefined;
+  if (proposedType === 'feature' && phase !== undefined) {
+    const ticketId = frontmatterScalar(canonicalTicketEditContext().proposedMeta, 'id');
+    if (ticketId === undefined) deny('Branch review cannot identify the ticket.');
+    const decision = branchReviewGateDecision(ticketId, phase);
+    if (decision.denial !== undefined) {
+      const phaseScope = reviewScope(
+        nodePath.basename(nodePath.dirname(editedFile)),
+        'phase',
+        phase,
+      );
+      const reasonedSkip =
+        decision.coverage === 'none' && decision.freshness === 'current'
+          ? readReviewStamps(phaseScope).find(
+              stamp =>
+                stamp.scope === phaseScope &&
+                stamp.skipReason !== undefined &&
+                isValidSkipReason(stamp.skipReason),
+            )
+          : undefined;
+      if (reasonedSkip !== undefined) {
+        console.log(
+          JSON.stringify({
+            hookSpecificOutput: {
+              hookEventName: 'PreToolUse',
+              additionalContext: `Branch review covered no changes. Reasoned skip: ${reasonedSkip.skipReason}`,
+            },
+          }),
+        );
+      } else {
+        deny(
+          `Branch review is stale or incomplete: ${decision.denial}`,
+          'Run `safeword review branch <ticket-id>` and retry the phase change.',
+        );
+      }
+    }
+    if (decision.disclosure !== undefined) {
+      console.log(
+        JSON.stringify({
+          hookSpecificOutput: {
+            hookEventName: 'PreToolUse',
+            additionalContext: decision.disclosure,
+          },
+        }),
+      );
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // blocked_on hard gate (ticket MBGQ89) — ALWAYS-ON. On a ticket.md edit that
 // advances phase out of intake, deny while any same-repo blocked_on target is
