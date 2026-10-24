@@ -5,9 +5,11 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 import {
   createObserverCandidate,
   expectCompleteObservation,
+  expectFixedRequestRefusal,
   type ObserverCandidate,
   type ObserverCommand,
   runObserverCli,
+  runSubstitutedCommand,
 } from '../../tests/fixtures/bounded-observation.js';
 
 interface ObserverWorld {
@@ -63,3 +65,33 @@ Then(
 After(function (this: ObserverWorld) {
   this.observerCandidate?.dispose();
 });
+
+Given(
+  'a request that substitutes a command for the fixed proof lane',
+  function (this: ObserverWorld) {
+    this.observerCandidate = createObserverCandidate();
+  },
+);
+
+When(
+  'the maintainer submits the observation request through the Safeword CLI',
+  function (this: ObserverWorld) {
+    assert.ok(this.observerCandidate);
+    this.observerResult = runSubstitutedCommand(this.observerCandidate);
+  },
+);
+
+Then('execution is refused before that command runs', function (this: ObserverWorld) {
+  assert.ok(this.observerCandidate);
+  assert.ok(this.observerResult);
+  expectFixedRequestRefusal(this.observerResult, this.observerCandidate);
+});
+
+Then(
+  'the result names the unsupported override and the fixed request to use',
+  function (this: ObserverWorld) {
+    assert.ok(this.observerCandidate);
+    assert.ok(this.observerResult);
+    expectFixedRequestRefusal(this.observerResult, this.observerCandidate);
+  },
+);

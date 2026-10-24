@@ -49,6 +49,7 @@ export const expectedObserverFiles = [
 export interface ObserverOutput {
   ok: boolean;
   errors?: { code: string; message: string }[];
+  next_actions?: { command: string; mutates: boolean; requires_human: boolean }[];
   data?: {
     status: string;
     purpose: string;
@@ -204,6 +205,44 @@ export function runObserverCli(candidate: ObserverCandidate, operands: string[])
     stderr: child.stderr,
     output: JSON.parse(child.stdout) as ObserverOutput,
   };
+}
+
+export function runSubstitutedCommand(candidate: ObserverCandidate): ObserverCommand {
+  const marker = nodePath.join(candidate.directory, 'caller-command-ran');
+  return runObserverCli(candidate, [
+    'proof',
+    'observe-bounded-delivery',
+    '--command',
+    `touch ${marker}`,
+  ]);
+}
+
+export function expectFixedRequestRefusal(
+  result: ObserverCommand,
+  candidate: ObserverCandidate,
+): void {
+  assert.notEqual(result.exitCode, 0, result.stdout);
+  assert.ok(
+    result.output.errors?.some(
+      error => error.code === 'CLI_ARGUMENT_INVALID' && error.message.includes('--command'),
+    ),
+  );
+  assert.equal(
+    existsSync(nodePath.join(candidate.directory, 'caller-command-ran')),
+    false,
+    'A caller-selected command must never run',
+  );
+  assert.equal(
+    result.output.data?.authority,
+    'execution-only',
+    `Unsupported overrides need execution-only fixed-request recovery: ${result.stdout}`,
+  );
+  assert.equal(result.output.data.purpose, 'bounded-delivery-observation:v1');
+  assert.ok(
+    result.output.next_actions?.some(
+      action => action.command === 'safeword proof observe-bounded-delivery',
+    ),
+  );
 }
 
 export function expectCompleteObservation(
