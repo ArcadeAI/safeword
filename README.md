@@ -568,6 +568,10 @@ against current inputs. This produces execution evidence only: historical RED,
 See the [maintainer workflow](packages/website/src/content/docs/getting-started/workflow.mdx)
 for prerequisites, private retention and recovery.
 
+For an unreleased source checkout, use `scripts/dev bun packages/cli/src/cli.ts`
+in place of `safeword` in both commands. This runs the checkout's implementation
+without replacing an installed plugin or shared runtime.
+
 ### Publishing (maintainers)
 
 Normal releases are CI-driven: merge the version bump, create the annotated

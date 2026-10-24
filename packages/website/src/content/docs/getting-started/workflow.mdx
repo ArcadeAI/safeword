@@ -126,6 +126,10 @@ safeword proof observe-bounded-delivery --json --no-input --offline
 safeword proof verify-bounded-delivery ATTEMPT_ID --json --no-input --offline
 ```
 
+For an unreleased checkout, replace `safeword` with
+`scripts/dev bun packages/cli/src/cli.ts` in both commands. Run from the repository
+root; no installed plugin or shared runtime replacement is required.
+
 Replace `ATTEMPT_ID` with the first command's returned `attempt_id`. Observation
 runs the fixed local lane in an isolated committed clone, retains the complete
 report and binds source, runtime, profile, tools and dependencies. Verification

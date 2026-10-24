@@ -35,7 +35,7 @@ no scenario completion or final actual-checkout proof is claimed.
 ### Scenario: Complete fixed-lane execution produces verifiable current evidence
 
 - [x] RED 9dec94696
-- [ ] GREEN
+- [x] GREEN 92f4d17e1
 - [ ] REFACTOR
 
 ### Scenario: An unmapped delivery case prevents execution
