@@ -81,8 +81,8 @@ export function expectNamedRequiredRecovery(
   candidate: ObserverCandidate,
   result: ObserverCommand,
 ): void {
-  assert.notEqual(result.exitCode, 0, result.stdout);
-  assert.equal(result.output.ok, false, result.stdout);
+  const summary = JSON.stringify({ exitCode: result.exitCode, errors: result.output.errors });
+  assert.equal(result.exitCode, 2, summary);
   assert.equal(result.output.data?.status, 'refused', result.stdout);
   assert.equal(result.output.data.authority, 'execution-only');
   const message = result.output.errors?.map(error => error.message).join('\n') ?? '';
