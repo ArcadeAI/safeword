@@ -395,7 +395,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     }
   };
   const ticketPath = nodePath.join(ticket, 'ticket.md');
-  const attemptExit = (from = 'implement', to = 'verify') => {
+  const attemptEdit = (oldString: string, newString: string) => {
     const hookEnvironment: NodeJS.ProcessEnv = {
       ...process.env,
       CLAUDE_PROJECT_DIR: project,
@@ -415,12 +415,25 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
         tool_name: 'Edit',
         tool_input: {
           file_path: ticketPath,
-          old_string: `phase: ${from}`,
-          new_string: `phase: ${to}`,
+          old_string: oldString,
+          new_string: newString,
         },
       }),
     });
   };
+  const attemptExit = (from = 'implement', to = 'verify') =>
+    attemptEdit(`phase: ${from}`, `phase: ${to}`);
+  expectHookDeny(attemptEdit('type: feature', 'type: task'), 'bypass');
+  const beforeSkip = readFileSync(ticketPath, 'utf8');
+  writeFileSync(
+    ticketPath,
+    beforeSkip.replace(
+      'phase: implement',
+      'phase: implement\nphase_skips:\n  - verify: Review at implementation exit before closing.',
+    ),
+  );
+  expectHookDeny(attemptExit('implement', 'done'), 'No current branch review');
+  writeFileSync(ticketPath, beforeSkip);
   writeFileSync(
     nodePath.join(project, '.project', 'skill-invocations.log'),
     'review:ABC123-review-branch:phase@implement skip:No reviewable changes.\n',

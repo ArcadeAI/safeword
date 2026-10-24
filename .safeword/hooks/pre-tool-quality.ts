@@ -1323,13 +1323,22 @@ if (isCanonicalTicketEdit) {
 let branchDisclosure: string | undefined;
 if (isCanonicalTicketEdit) {
   const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
-  const phase =
-    priorPhase === 'implement' && proposedPhase === 'verify'
-      ? 'implement'
-      : priorPhase === 'verify' && proposedPhase === 'done'
-        ? 'verify'
-        : undefined;
-  if (proposedType === 'feature' && phase !== undefined) {
+  const priorType = frontmatterScalar(canonicalTicketEditContext().priorMeta, 'type');
+  if (
+    priorType === 'feature' &&
+    proposedType !== 'feature' &&
+    (priorPhase === 'implement' || priorPhase === 'verify')
+  )
+    deny(
+      'Changing an in-progress feature to another type would bypass its branch review.',
+      'Move the feature back to intake before reclassifying it, or finish the branch review.',
+    );
+  const phases: ('implement' | 'verify')[] = [];
+  if (priorPhase === 'implement' && (proposedPhase === 'verify' || proposedPhase === 'done'))
+    phases.push('implement');
+  if (proposedPhase === 'done' && (priorPhase === 'implement' || priorPhase === 'verify'))
+    phases.push('verify');
+  if (proposedType === 'feature' && phases.length > 0) {
     const ticketEdit = canonicalTicketEditContext();
     if (
       ticketGoalsForBranchReview(ticketEdit.priorContent) !==
@@ -1341,15 +1350,17 @@ if (isCanonicalTicketEdit) {
       );
     const ticketId = frontmatterScalar(canonicalTicketEditContext().proposedMeta, 'id');
     if (ticketId === undefined) deny('Branch review cannot identify the ticket.');
-    const decision = branchReviewGateDecision(ticketId, phase);
-    if (decision.denial !== undefined) {
-      const remedy =
-        decision.skipEligible && decision.reviewId !== undefined
-          ? `Record a substantive reasoned skip for this coverage-none result: \`bun .safeword/hooks/write-review-stamp.ts --ticket ${nodePath.basename(nodePath.dirname(editedFile))} --phase ${phase} --review-id ${decision.reviewId} --skip "<reason>"\`, then retry the phase change.`
-          : 'Run `safeword review branch <ticket-id>` and retry the phase change.';
-      deny(`Branch review is stale or incomplete: ${decision.denial}`, remedy);
+    for (const phase of phases) {
+      const decision = branchReviewGateDecision(ticketId, phase);
+      if (decision.denial !== undefined) {
+        const remedy =
+          decision.skipEligible && decision.reviewId !== undefined
+            ? `Record a substantive reasoned skip for this coverage-none result: \`bun .safeword/hooks/write-review-stamp.ts --ticket ${nodePath.basename(nodePath.dirname(editedFile))} --phase ${phase} --review-id ${decision.reviewId} --skip "<reason>"\`, then retry the phase change.`
+            : 'Run `safeword review branch <ticket-id>` and retry the phase change.';
+        deny(`Branch review is stale or incomplete: ${decision.denial}`, remedy);
+      }
+      branchDisclosure = decision.disclosure ?? branchDisclosure;
     }
-    branchDisclosure = decision.disclosure;
   }
 }
 
