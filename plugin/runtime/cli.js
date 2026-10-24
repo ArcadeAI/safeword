@@ -17460,7 +17460,15 @@ function validateCandidateContract(root) {
   })));
   const expected = profile_default.cases.map((row) => row.case_id);
   if (new Set(cases).size !== cases.length || cases.length !== 37 || canonical(cases.toSorted((left, right) => left.localeCompare(right))) !== canonical(expected.toSorted((left, right) => left.localeCompare(right)))) {
-    throw new Error("Unsupported or unmapped delivery case; review a complete shipped mapping");
+    const actualIds = new Set(cases);
+    const expectedIds = new Set(expected);
+    const mismatches = [
+      ...cases.filter((id) => !expectedIds.has(id)),
+      ...expected.filter((id) => !actualIds.has(id)),
+      ...cases.filter((id, index) => cases.indexOf(id) !== index)
+    ];
+    const identities = [...new Set(mismatches)].join(", ") || "unsupported case census";
+    throw new Error(`Unsupported or unmapped delivery case: ${identities}; review a complete shipped mapping`);
   }
   for (const row of profile_default.cases) {
     if (row.required_assertions.length === 0)
@@ -17477,22 +17485,28 @@ function validateCandidateContract(root) {
     throw new Error("Changed delivery registration; review the complete fixed shipped mapping");
   }
 }
-function gradeReport(bytes, clone) {
-  const report = JSON.parse(bytes.toString("utf8"));
-  if (report.success !== true || report.numFailedTests !== 0 || report.numFailedTestSuites !== 0 || report.numRuntimeErrorTestSuites !== undefined && report.numRuntimeErrorTestSuites !== 0 || !Array.isArray(report.testResults) || report.unhandledErrors !== undefined && canonical(report.unhandledErrors) !== "[]") {
-    throw new Error("Incomplete or unsuccessful runner report; repair the fixed lane and rerun");
-  }
-  const files = report.testResults;
+function observedStatuses(matches) {
+  return matches.length === 0 ? "absent" : matches.map((match) => match.status).join(", ");
+}
+function validateReportedFiles(files) {
   for (const file of files) {
-    if (typeof file.name !== "string" || !Array.isArray(file.assertionResults) || file.status === "failed") {
-      throw new Error("Malformed or failed test suite in full report");
+    if (typeof file.name !== "string" || !Array.isArray(file.assertionResults)) {
+      throw new TypeError("Malformed or failed test suite in full report");
     }
     for (const assertion of file.assertionResults) {
-      if (typeof assertion.fullName !== "string" || typeof assertion.status !== "string" || assertion.status === "failed") {
-        throw new Error("Malformed or failed assertion in full report");
+      if (typeof assertion.fullName !== "string" || typeof assertion.status !== "string") {
+        throw new TypeError("Malformed or failed assertion in full report");
       }
     }
   }
+}
+function gradeReport(bytes, clone) {
+  const report = JSON.parse(bytes.toString("utf8"));
+  if (!Array.isArray(report.testResults)) {
+    throw new TypeError("Incomplete or unsuccessful runner report; repair the fixed lane and rerun");
+  }
+  const files = report.testResults;
+  validateReportedFiles(files);
   const results = new Map;
   const actualFiles = files.map((file) => nodePath4.resolve(file.name)).toSorted((left, right) => left.localeCompare(right));
   const expectedFiles = fixedFiles.map((file) => nodePath4.join(clone, "packages/cli", file)).toSorted((left, right) => left.localeCompare(right));
@@ -17505,17 +17519,21 @@ function gradeReport(bytes, clone) {
       results.set(key, [...results.get(key) ?? [], assertion]);
     }
   }
-  return profile_default.cases.map((row) => ({
+  const cases = profile_default.cases.map((row) => ({
     case_id: row.case_id,
     assertions: row.required_assertions.map((required) => {
       const key = `${nodePath4.join(clone, required.file)}\x00${required.full_name}`;
       const matches = results.get(key) ?? [];
       if (matches.length !== 1 || matches[0]?.status !== "passed") {
-        throw new Error(`Required assertion lacks an exact-once passing result: ${required.file}: ${required.full_name}; repair and rerun`);
+        throw new Error(`Required assertion lacks an exact-once passing result (${observedStatuses(matches)}): ${required.file}: ${required.full_name}; repair and rerun`);
       }
       return { ...required, status: "passed" };
     })
   }));
+  if (report.success !== true || report.numFailedTests !== 0 || report.numFailedTestSuites !== 0 || report.numRuntimeErrorTestSuites !== undefined && report.numRuntimeErrorTestSuites !== 0 || report.unhandledErrors !== undefined && canonical(report.unhandledErrors) !== "[]" || files.some((file) => file.status === "failed" || file.assertionResults.some((assertion) => assertion.status === "failed"))) {
+    throw new Error("Incomplete or unsuccessful runner report; repair the fixed lane and rerun");
+  }
+  return cases;
 }
 var purpose = "bounded-delivery-observation:v1", fixedFiles, profileSha256;
 var init_contract = __esm(() => {
@@ -18225,6 +18243,17 @@ function signalOwnedTree(child, signal) {
   }
   child.kill(signal);
 }
+function retainedReportProblem(directory, cwd) {
+  const report = nodePath9.join(directory, "report.json");
+  if (!existsSync6(report))
+    return "";
+  try {
+    gradeReport(readFileSync7(report), nodePath9.resolve(cwd, "../.."));
+    return "";
+  } catch (error2) {
+    return `; ${errorText(error2)}`;
+  }
+}
 function runFixedLane(executable, argv, cwd, environment, directory) {
   const stdout = openSync3(nodePath9.join(directory, "stdout.log"), "wx", 384);
   const stderr = openSync3(nodePath9.join(directory, "stderr.log"), "wx", 384);
@@ -18276,7 +18305,7 @@ function runFixedLane(executable, argv, cwd, environment, directory) {
         return;
       }
       if (interrupted || code !== 0 || signal !== null) {
-        reject(new Error(`Fixed runner ${interrupted ? "interrupted or timed out" : "failed"} (exit ${code}, signal ${signal}); repair the lane and rerun`));
+        reject(new Error(`Fixed runner ${interrupted ? "interrupted or timed out" : "failed"} (exit ${code}, signal ${signal}); repair the lane and rerun${retainedReportProblem(directory, cwd)}`));
       } else
         resolve();
     });

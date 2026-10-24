@@ -74,7 +74,17 @@ export function validateCandidateContract(root: string): void {
     canonical(cases.toSorted((left, right) => left.localeCompare(right))) !==
       canonical(expected.toSorted((left, right) => left.localeCompare(right)))
   ) {
-    throw new Error('Unsupported or unmapped delivery case; review a complete shipped mapping');
+    const actualIds = new Set(cases);
+    const expectedIds = new Set(expected);
+    const mismatches = [
+      ...cases.filter(id => !expectedIds.has(id)),
+      ...expected.filter(id => !actualIds.has(id)),
+      ...cases.filter((id, index) => cases.indexOf(id) !== index),
+    ];
+    const identities = [...new Set(mismatches)].join(', ') || 'unsupported case census';
+    throw new Error(
+      `Unsupported or unmapped delivery case: ${identities}; review a complete shipped mapping`,
+    );
   }
   for (const row of profile.cases) {
     if (row.required_assertions.length === 0) throw new Error(`Unmapped case ${row.case_id}`);
@@ -111,6 +121,23 @@ interface FileResult {
   assertionResults: AssertionResult[];
 }
 
+function observedStatuses(matches: AssertionResult[]): string {
+  return matches.length === 0 ? 'absent' : matches.map(match => match.status).join(', ');
+}
+
+function validateReportedFiles(files: FileResult[]): void {
+  for (const file of files) {
+    if (typeof file.name !== 'string' || !Array.isArray(file.assertionResults)) {
+      throw new TypeError('Malformed or failed test suite in full report');
+    }
+    for (const assertion of file.assertionResults) {
+      if (typeof assertion.fullName !== 'string' || typeof assertion.status !== 'string') {
+        throw new TypeError('Malformed or failed assertion in full report');
+      }
+    }
+  }
+}
+
 /** A passing file or aggregate total cannot stand in for a named required result. */
 // eslint-disable-next-line complexity -- Fail-closed checks for the fixed Vitest JSON schema.
 export function gradeReport(
@@ -128,35 +155,13 @@ export function gradeReport(
     unhandledErrors?: unknown;
     testResults?: unknown;
   };
-  if (
-    report.success !== true ||
-    report.numFailedTests !== 0 ||
-    report.numFailedTestSuites !== 0 ||
-    (report.numRuntimeErrorTestSuites !== undefined && report.numRuntimeErrorTestSuites !== 0) ||
-    !Array.isArray(report.testResults) ||
-    (report.unhandledErrors !== undefined && canonical(report.unhandledErrors) !== '[]')
-  ) {
-    throw new Error('Incomplete or unsuccessful runner report; repair the fixed lane and rerun');
+  if (!Array.isArray(report.testResults)) {
+    throw new TypeError(
+      'Incomplete or unsuccessful runner report; repair the fixed lane and rerun',
+    );
   }
   const files = report.testResults as FileResult[];
-  for (const file of files) {
-    if (
-      typeof file.name !== 'string' ||
-      !Array.isArray(file.assertionResults) ||
-      file.status === 'failed'
-    ) {
-      throw new Error('Malformed or failed test suite in full report');
-    }
-    for (const assertion of file.assertionResults) {
-      if (
-        typeof assertion.fullName !== 'string' ||
-        typeof assertion.status !== 'string' ||
-        assertion.status === 'failed'
-      ) {
-        throw new Error('Malformed or failed assertion in full report');
-      }
-    }
-  }
+  validateReportedFiles(files);
   const results = new Map<string, AssertionResult[]>();
   const actualFiles = files
     .map(file => nodePath.resolve(file.name))
@@ -175,19 +180,34 @@ export function gradeReport(
       results.set(key, [...(results.get(key) ?? []), assertion]);
     }
   }
-  return profile.cases.map(row => ({
+  const cases = profile.cases.map(row => ({
     case_id: row.case_id,
     assertions: row.required_assertions.map(required => {
       const key = `${nodePath.join(clone, required.file)}\0${required.full_name}`;
       const matches = results.get(key) ?? [];
       if (matches.length !== 1 || matches[0]?.status !== 'passed') {
         throw new Error(
-          `Required assertion lacks an exact-once passing result: ${required.file}: ${required.full_name}; repair and rerun`,
+          `Required assertion lacks an exact-once passing result (${observedStatuses(matches)}): ${required.file}: ${required.full_name}; repair and rerun`,
         );
       }
       return { ...required, status: 'passed' };
     }),
   }));
+  if (
+    report.success !== true ||
+    report.numFailedTests !== 0 ||
+    report.numFailedTestSuites !== 0 ||
+    (report.numRuntimeErrorTestSuites !== undefined && report.numRuntimeErrorTestSuites !== 0) ||
+    (report.unhandledErrors !== undefined && canonical(report.unhandledErrors) !== '[]') ||
+    files.some(
+      file =>
+        file.status === 'failed' ||
+        file.assertionResults.some(assertion => assertion.status === 'failed'),
+    )
+  ) {
+    throw new Error('Incomplete or unsuccessful runner report; repair the fixed lane and rerun');
+  }
+  return cases;
 }
 
 export { default as observationProfile } from './profile.json';

@@ -109,6 +109,17 @@ function signalOwnedTree(child: ChildProcess, signal: NodeJS.Signals): void {
   child.kill(signal);
 }
 
+function retainedReportProblem(directory: string, cwd: string): string {
+  const report = nodePath.join(directory, 'report.json');
+  if (!existsSync(report)) return '';
+  try {
+    gradeReport(readFileSync(report), nodePath.resolve(cwd, '../..'));
+    return '';
+  } catch (error) {
+    return `; ${errorText(error)}`;
+  }
+}
+
 function runFixedLane(
   executable: string,
   argv: string[],
@@ -167,7 +178,7 @@ function runFixedLane(
       if (interrupted || code !== 0 || signal !== null) {
         reject(
           new Error(
-            `Fixed runner ${interrupted ? 'interrupted or timed out' : 'failed'} (exit ${code}, signal ${signal}); repair the lane and rerun`,
+            `Fixed runner ${interrupted ? 'interrupted or timed out' : 'failed'} (exit ${code}, signal ${signal}); repair the lane and rerun${retainedReportProblem(directory, cwd)}`,
           ),
         );
       } else resolve();
