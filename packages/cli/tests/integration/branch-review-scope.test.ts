@@ -52,6 +52,15 @@ it('reviews both authored files from the integration merge base against the tick
   writeFileSync(nodePath.join(project, 'caller.ts'), 'export const result = 2;\n');
   git(project, 'add', 'caller.ts');
   git(project, 'commit', '-m', 'add caller');
+  git(project, 'checkout', 'main');
+  writeFileSync(nodePath.join(project, 'upstream.ts'), 'export const unrelated = true;\n');
+  git(project, 'add', 'upstream.ts');
+  git(project, 'commit', '-m', 'advance integration branch');
+  git(project, 'push', 'origin', 'main');
+  git(project, 'checkout', 'topic');
+  expect(git(project, 'merge-base', 'origin/main', 'HEAD')).not.toBe(
+    git(project, 'rev-parse', 'origin/main'),
+  );
 
   const reviewerBin = nodePath.join(createTrustedReviewerDirectory('branch-scope-'), 'bin');
   mkdirSync(reviewerBin);
