@@ -313,7 +313,12 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   });
   const boundedReport = JSON.parse(bounded.stdout);
   expect(boundedReport.data?.coverage).toBe('complete');
-  expect(boundedReport.data?.review_passes).toHaveLength(2);
+  expect(boundedReport.data?.review_passes?.length).toBeGreaterThan(1);
+  expect(
+    boundedReport.data?.review_passes?.every(
+      (pass: { status: string }) => pass.status === 'approved',
+    ),
+  ).toBe(true);
 
   writeFileSync(
     reviewer,

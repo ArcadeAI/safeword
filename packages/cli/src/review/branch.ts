@@ -379,24 +379,6 @@ function noCoverage(ticketId: string, reason: string): CliResult {
   });
 }
 
-function fetchRequired(ticketId: string, reason: string): CliResult {
-  return createResult({
-    state: 'action_required',
-    findings: [
-      {
-        code: 'BRANCH_REVIEW_FETCH_REQUIRED',
-        message: `No branch work was reviewed: ${reason}. Fetch the integration branch and rerun review.`,
-        severity: 'warning',
-      },
-    ],
-    data: {
-      command: 'review branch',
-      ticket_id: ticketId,
-      next_action: 'Fetch the integration branch and rerun review.',
-    },
-  });
-}
-
 function unavailableReview(
   cwd: string,
   ticketId: string,
@@ -422,7 +404,7 @@ function unavailableReview(
       integration_ref: '',
       base: '',
       head,
-      fetched_at: new Date().toISOString(),
+      fetched_at: '',
       coverage: 'none',
       reviewed_paths: [],
       dirty_paths: [],
@@ -1013,10 +995,14 @@ function supersededRequestedFindings(cwd: string, record: BranchRecord): string[
 
 function noneDisclosure(cwd: string, record: BranchRecord, reason: string): string {
   const omitted = record.omitted_paths.map(item => `${item.path} (${item.reason})`).join(', ');
+  const omittedDescription =
+    record.base === '' && record.unavailable_reason
+      ? 'exact branch path list unavailable without an integration base'
+      : omitted || 'none';
   const earlier = supersededRequestedFindings(cwd, record);
   const earlierNote =
     earlier.length > 0 ? `. Earlier requested changes: ${earlier.join('; ')}` : '';
-  return `No branch changes were reviewed (coverage none). Omitted: ${omitted || 'none'}. Reasoned skip: ${reason}${earlierNote}`;
+  return `No branch changes were reviewed (coverage none). Omitted: ${omittedDescription}. Reasoned skip: ${reason}${earlierNote}`;
 }
 
 function legacyUncoveredResult(ticketId: string, phase: string): CliResult {
@@ -1055,7 +1041,7 @@ function mayAdvanceBranchReview(
   );
 }
 
-// eslint-disable-next-line complexity -- The gate separates current, reviewed, acknowledged, and disclosed evidence.
+// eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- The gate separates current, reviewed, acknowledged, and disclosed evidence.
 export function checkBranchReview(cwd: string, ticketId: string, phase: string): CliResult {
   if (phase !== 'implement' && phase !== 'verify') {
     return noCoverage(ticketId, 'Branch review can only check implementation exit or completion');
@@ -1124,7 +1110,7 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
       skip_eligible: skipEligible,
       omitted_paths: record.omitted_paths,
       branch_findings: record.branch_findings ?? [],
-      fetched_at: record.fetched_at,
+      ...(record.fetched_at && { fetched_at: record.fetched_at }),
       ...(disclosed && { disclosure: acknowledgement.disclosure }),
       ...(skipReason !== undefined && { disclosure: noneDisclosure(cwd, record, skipReason) }),
     },
@@ -1196,7 +1182,12 @@ export async function reviewBranch(
     );
   }
   if (offline)
-    return fetchRequired(ticketId, 'Fetching the integration branch requires network access');
+    return unavailableReview(
+      cwd,
+      ticketId,
+      ticket,
+      'The integration branch was not fetched offline',
+    );
   const ticketDirectory = nodePath
     .relative(cwd, nodePath.dirname(ticket))
     .split(nodePath.sep)
@@ -1215,7 +1206,8 @@ export async function reviewBranch(
     head = gitText(cwd, ['rev-parse', 'HEAD']);
     inventory = projectedInventory(cwd, base, ticketDirectory);
   } catch (error) {
-    if (error instanceof IntegrationFetchFailure) return fetchRequired(ticketId, error.message);
+    if (error instanceof IntegrationFetchFailure)
+      return unavailableReview(cwd, ticketId, ticket, error.message);
     if (error instanceof InvalidIntegrationReference) {
       return createResult({
         state: 'action_required',

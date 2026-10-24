@@ -36,6 +36,8 @@ type BranchReport = {
     omitted_paths?: { path: string; reason: string }[];
     coverage?: string;
     freshness?: string;
+    skip_eligible?: boolean;
+    fetched_at?: string;
   };
 };
 
@@ -195,7 +197,6 @@ it('reviews both authored files from the integration merge base against the tick
   expect(readFileSync(ticketPath, 'utf8')).toContain(`branch_review_exit_id: ${replacementId}`);
   expect(readFileSync(ticketPath, 'utf8')).not.toContain(String(originalMarker));
 
-  const ticketBeforeOffline = readFileSync(ticketPath, 'utf8');
   const jobs = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');
   const jobsBeforeOffline = readdirSync(jobs);
   const offline = await runCli(['review', 'branch', 'ABC123', '--offline', '--json'], {
@@ -203,17 +204,71 @@ it('reviews both authored files from the integration merge base against the tick
   });
   const offlineReport = JSON.parse(offline.stdout) as BranchReport;
   expect(offline.exitCode).toBe(2);
-  expect(offlineReport.data?.review_id).toBeUndefined();
-  expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toBe(ticketBeforeOffline);
-  expect(readdirSync(jobs)).toEqual(jobsBeforeOffline);
+  expect(offlineReport.data?.coverage).toBe('none');
+  expect(offlineReport.data?.reviewed_paths).toEqual([]);
+  expect(offlineReport.data?.review_id).toBeTruthy();
+  expect(readFileSync(ticketPath, 'utf8')).toContain(
+    `branch_review_exit_id: ${offlineReport.data?.review_id}`,
+  );
+  expect(readdirSync(jobs)).toHaveLength(jobsBeforeOffline.length + 1);
+  const offlineDecision = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+    cwd: project,
+  });
+  const offlineCheck = JSON.parse(offlineDecision.stdout) as BranchReport;
+  expect(offlineCheck.data?.skip_eligible).toBe(true);
+  expect(offlineCheck.data?.fetched_at).toBeUndefined();
 
   git(project, 'remote', 'set-url', 'origin', nodePath.join(root, 'missing-remote.git'));
   const failedFetch = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project });
   const failedReport = JSON.parse(failedFetch.stdout) as BranchReport;
   expect(failedFetch.exitCode).toBe(2);
-  expect(failedReport.data?.review_id).toBeUndefined();
-  expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toBe(ticketBeforeOffline);
-  expect(readdirSync(jobs)).toEqual(jobsBeforeOffline);
+  expect(failedReport.data?.coverage).toBe('none');
+  expect(failedReport.data?.reviewed_paths).toEqual([]);
+  expect(failedReport.data?.review_id).toBeTruthy();
+  expect(failedReport.data?.review_id).not.toBe(offlineReport.data?.review_id);
+  expect(readFileSync(ticketPath, 'utf8')).toContain(
+    `branch_review_exit_id: ${failedReport.data?.review_id}`,
+  );
+  const failedDecision = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+    cwd: project,
+  });
+  const failedCheck = JSON.parse(failedDecision.stdout) as BranchReport;
+  expect(failedCheck.data?.skip_eligible).toBe(true);
+  expect(failedCheck.data?.fetched_at).toBeUndefined();
+});
+
+it('seals no-coverage evidence when a local repository has no remote', async () => {
+  const project = mkdtempSync(nodePath.join(tmpdir(), 'safeword-local-only-'));
+  roots.push(project);
+  git(project, 'init', '-b', 'main');
+  git(project, 'config', 'user.name', 'Test Builder');
+  git(project, 'config', 'user.email', 'builder@example.test');
+  const ticket = nodePath.join(project, '.project', 'tickets', 'ABC123-review-branch');
+  mkdirSync(ticket, { recursive: true });
+  const ticketPath = nodePath.join(ticket, 'ticket.md');
+  writeFileSync(
+    ticketPath,
+    '---\nid: ABC123\ntype: feature\nphase: implement\n---\n# Review branch\n',
+  );
+  writeFileSync(nodePath.join(project, 'source.ts'), 'export const value = 1;\n');
+  git(project, 'add', '.');
+  git(project, 'commit', '-m', 'feature');
+
+  const result = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project });
+  const report = JSON.parse(result.stdout) as BranchReport;
+  expect(result.exitCode).toBe(2);
+  expect(report.data?.coverage).toBe('none');
+  expect(report.data?.reviewed_paths).toEqual([]);
+  expect(report.data?.review_id).toBeTruthy();
+  expect(readFileSync(ticketPath, 'utf8')).toContain(
+    `branch_review_exit_id: ${report.data?.review_id}`,
+  );
+  const decision = await runCli(['review', 'branch-check', 'ABC123', 'implement', '--json'], {
+    cwd: project,
+  });
+  const check = JSON.parse(decision.stdout) as BranchReport;
+  expect(check.data?.skip_eligible).toBe(true);
+  expect(check.data?.fetched_at).toBeUndefined();
 });
 
 // eslint-disable-next-line complexity -- One Git fixture covers unavailable base and dirty-only coverage outcomes.

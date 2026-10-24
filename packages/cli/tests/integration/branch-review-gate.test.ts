@@ -762,7 +762,9 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     nodePath.join(project, '.project', 'skill-invocations.log'),
     `review:ABC123-review-branch:phase@implement review-id:${unavailableId} skip:No integration base can be reached for this review.\n`,
   );
-  expect(attemptExit().stdout).toContain('No branch changes were reviewed');
+  const unavailableExit = attemptExit();
+  expect(unavailableExit.stdout).toContain('No branch changes were reviewed');
+  expect(unavailableExit.stdout).toContain('exact branch path list unavailable');
   writeFileSync(nodePath.join(project, 'new-work.txt'), 'new work after empty review\n');
   expectHookDeny(attemptExit(), 'stale');
   return {

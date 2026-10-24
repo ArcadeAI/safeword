@@ -85291,23 +85291,6 @@ function noCoverage(ticketId, reason) {
     }
   });
 }
-function fetchRequired(ticketId, reason) {
-  return createResult({
-    state: "action_required",
-    findings: [
-      {
-        code: "BRANCH_REVIEW_FETCH_REQUIRED",
-        message: `No branch work was reviewed: ${reason}. Fetch the integration branch and rerun review.`,
-        severity: "warning"
-      }
-    ],
-    data: {
-      command: "review branch",
-      ticket_id: ticketId,
-      next_action: "Fetch the integration branch and rerun review."
-    }
-  });
-}
 function unavailableReview(cwd, ticketId, ticket, reason) {
   try {
     const head = gitText(cwd, ["rev-parse", "HEAD"]);
@@ -85322,7 +85305,7 @@ function unavailableReview(cwd, ticketId, ticket, reason) {
       integration_ref: "",
       base: "",
       head,
-      fetched_at: new Date().toISOString(),
+      fetched_at: "",
       coverage: "none",
       reviewed_paths: [],
       dirty_paths: [],
@@ -85807,9 +85790,10 @@ function supersededRequestedFindings(cwd, record3) {
 }
 function noneDisclosure(cwd, record3, reason) {
   const omitted = record3.omitted_paths.map((item) => `${item.path} (${item.reason})`).join(", ");
+  const omittedDescription = record3.base === "" && record3.unavailable_reason ? "exact branch path list unavailable without an integration base" : omitted || "none";
   const earlier = supersededRequestedFindings(cwd, record3);
   const earlierNote = earlier.length > 0 ? `. Earlier requested changes: ${earlier.join("; ")}` : "";
-  return `No branch changes were reviewed (coverage none). Omitted: ${omitted || "none"}. Reasoned skip: ${reason}${earlierNote}`;
+  return `No branch changes were reviewed (coverage none). Omitted: ${omittedDescription}. Reasoned skip: ${reason}${earlierNote}`;
 }
 function legacyUncoveredResult(ticketId, phase) {
   return createResult({
@@ -85889,7 +85873,7 @@ function checkBranchReview(cwd, ticketId, phase) {
       skip_eligible: skipEligible,
       omitted_paths: record3.omitted_paths,
       branch_findings: record3.branch_findings ?? [],
-      fetched_at: record3.fetched_at,
+      ...record3.fetched_at && { fetched_at: record3.fetched_at },
       ...disclosed && { disclosure: acknowledgement.disclosure },
       ...skipReason !== undefined && { disclosure: noneDisclosure(cwd, record3, skipReason) }
     }
@@ -85937,7 +85921,7 @@ async function reviewBranch(cwd, ticketId, offline) {
     return noCoverage(ticketId, "Branch review requires a feature ticket in implementation or verification");
   }
   if (offline)
-    return fetchRequired(ticketId, "Fetching the integration branch requires network access");
+    return unavailableReview(cwd, ticketId, ticket, "The integration branch was not fetched offline");
   const ticketDirectory = nodePath140.relative(cwd, nodePath140.dirname(ticket)).split(nodePath140.sep).join("/");
   let base;
   let head;
@@ -85954,7 +85938,7 @@ async function reviewBranch(cwd, ticketId, offline) {
     inventory = projectedInventory(cwd, base, ticketDirectory);
   } catch (error2) {
     if (error2 instanceof IntegrationFetchFailure)
-      return fetchRequired(ticketId, error2.message);
+      return unavailableReview(cwd, ticketId, ticket, error2.message);
     if (error2 instanceof InvalidIntegrationReference) {
       return createResult({
         state: "action_required",
