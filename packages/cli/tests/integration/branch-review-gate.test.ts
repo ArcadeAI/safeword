@@ -39,6 +39,71 @@ function expectCurrentBranchCheck(stdout: string): void {
   expect(decision.data?.freshness).toBe('current');
 }
 
+function expectMarkerRemovalBlocked(
+  host: string,
+  project: string,
+  ticketPath: string,
+  reviewId: string,
+): void {
+  const markerText = `branch_review_exit_id: ${reviewId}\n`;
+  let selectedHook: string;
+  switch (host) {
+    case 'OpenAI Codex': {
+      selectedHook = codexHookPath;
+      break;
+    }
+    case 'Cursor': {
+      selectedHook = cursorHookPath;
+      break;
+    }
+    case 'OpenCode CLI': {
+      selectedHook = openCodeDispatcherPath;
+      break;
+    }
+    default: {
+      selectedHook = hookPath;
+    }
+  }
+  const toolInput =
+    host === 'Cursor'
+      ? {
+          conversation_id: 'branch-marker',
+          workspace_roots: [project],
+          tool_name: 'Write',
+          tool_input: {
+            file_path: ticketPath,
+            content: readFileSync(ticketPath, 'utf8').replace(markerText, ''),
+          },
+        }
+      : {
+          session_id: 'branch-marker',
+          hook_event_name: 'PreToolUse',
+          tool_name: 'Edit',
+          tool_input: { file_path: ticketPath, old_string: markerText, new_string: '' },
+        };
+  const result = spawnSync('bun', [selectedHook], {
+    cwd: project,
+    encoding: 'utf8',
+    timeout: 20_000,
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: project,
+      SAFEWORD_PLUGIN_CLI: testCliPath,
+      SAFEWORD_AGENT_RUNTIME: 'claude',
+    },
+    input: JSON.stringify(toolInput),
+  });
+  if (host === 'OpenCode CLI') {
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('review marker');
+  } else if (host === 'Cursor') {
+    expect(result.stdout).toContain('review marker');
+    expect(JSON.parse(result.stdout).permission).toBe('deny');
+  } else {
+    expectHookDeny(result, 'review marker');
+  }
+}
+
 it('keeps a saved review current after verification checklist progress', async () => {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-branch-bookkeeping-'));
   roots.push(root);
@@ -203,7 +268,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
         cwd: project,
         encoding: 'utf8',
         env: hookEnvironment,
-        timeout: TIMEOUT_QUICK,
+        timeout: 20_000,
         input: JSON.stringify({
           session_id: 'branch-review-gate',
           hook_event_name: 'PreToolUse',
@@ -230,28 +295,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     expect(readFileSync(ticketPath, 'utf8')).toContain(
       `branch_review_exit_id: ${firstReview.data?.review_id}`,
     );
-    const markerRemoval = spawnSync('bun', [hookPath], {
-      cwd: project,
-      encoding: 'utf8',
-      timeout: TIMEOUT_QUICK,
-      env: {
-        ...process.env,
-        CLAUDE_PROJECT_DIR: project,
-        SAFEWORD_PLUGIN_CLI: testCliPath,
-        SAFEWORD_AGENT_RUNTIME: 'claude',
-      },
-      input: JSON.stringify({
-        session_id: 'branch-marker',
-        hook_event_name: 'PreToolUse',
-        tool_name: 'Edit',
-        tool_input: {
-          file_path: ticketPath,
-          old_string: `branch_review_exit_id: ${firstReview.data?.review_id}\n`,
-          new_string: '',
-        },
-      }),
-    });
-    expectHookDeny(markerRemoval, 'review marker');
+    expectMarkerRemovalBlocked(host, project, ticketPath, String(firstReview.data?.review_id));
     const assertLocalHostsBlock = (from: 'implement' | 'verify', to: 'verify' | 'done') => {
       const edit = {
         file_path: ticketPath,
@@ -274,7 +318,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
           cwd: project,
           encoding: 'utf8',
           env: hookEnvironment,
-          timeout: TIMEOUT_QUICK,
+          timeout: 20_000,
           input: JSON.stringify({
             session_id: 'branch-codex',
             tool_name: 'Edit',
@@ -289,7 +333,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
           cwd: project,
           encoding: 'utf8',
           env: hookEnvironment,
-          timeout: TIMEOUT_QUICK,
+          timeout: 20_000,
           input: JSON.stringify({
             conversation_id: 'branch-cursor',
             workspace_roots: [project],
@@ -310,7 +354,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
         cwd: project,
         encoding: 'utf8',
         env: hookEnvironment,
-        timeout: TIMEOUT_QUICK,
+        timeout: 20_000,
         input: JSON.stringify({
           hook_event_name: 'PreToolUse',
           session_id: 'branch-opencode',
@@ -323,6 +367,9 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     };
     const current = attemptExit();
     expectHookAllow(current);
+    writeFileSync(nodePath.join(project, 'change.txt'), 'uncommitted correction\n');
+    assertLocalHostsBlock('implement', 'verify');
+    writeFileSync(nodePath.join(project, 'change.txt'), 'reviewed content\n');
     writeFileSync(
       ledgerPath,
       ledger
