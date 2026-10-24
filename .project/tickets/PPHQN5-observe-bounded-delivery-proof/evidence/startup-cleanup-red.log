@@ -1,0 +1,92 @@
+✖ packages/cli/src/cli.ts: failed candidate startup cleans its owned work directory (268.175958ms)
+✔ packages/cli/src/cli.ts: missing evidence refuses without creating observer state (72.1885ms)
+✔ packages/cli/src/cli.ts: wrong repository refusal is complete JSON without stderr (212.527792ms)
+✖ plugin/runtime/cli.js: failed candidate startup cleans its owned work directory (249.649625ms)
+✔ plugin/runtime/cli.js: missing evidence refuses without creating observer state (74.994ms)
+✔ plugin/runtime/cli.js: wrong repository refusal is complete JSON without stderr (216.869125ms)
+✖ packages/cli/codex-plugin/runtime/cli.js: failed candidate startup cleans its owned work directory (425.140291ms)
+✔ packages/cli/codex-plugin/runtime/cli.js: missing evidence refuses without creating observer state (90.410334ms)
+✔ packages/cli/codex-plugin/runtime/cli.js: wrong repository refusal is complete JSON without stderr (304.3895ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 6
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2053.214459
+
+✖ failing tests:
+
+test at packages/cli/tests/integration/bounded-observation-distribution.node.ts:1:436
+✖ packages/cli/src/cli.ts: failed candidate startup cleans its owned work directory (268.175958ms)
+  AssertionError [ERR_ASSERTION]: Failed prerequisite must clean its owned work directory
+  + actual - expected
+  
+  + [
+  +   'safeword-bounded-D39Va0'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-distribution.node.ts:55:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'safeword-bounded-D39Va0' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/cli/tests/integration/bounded-observation-distribution.node.ts:1:436
+✖ plugin/runtime/cli.js: failed candidate startup cleans its owned work directory (249.649625ms)
+  AssertionError [ERR_ASSERTION]: Failed prerequisite must clean its owned work directory
+  + actual - expected
+  
+  + [
+  +   'safeword-bounded-t1Mgfd'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-distribution.node.ts:55:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'safeword-bounded-t1Mgfd' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/cli/tests/integration/bounded-observation-distribution.node.ts:1:436
+✖ packages/cli/codex-plugin/runtime/cli.js: failed candidate startup cleans its owned work directory (425.140291ms)
+  AssertionError [ERR_ASSERTION]: Failed prerequisite must clean its owned work directory
+  + actual - expected
+  
+  + [
+  +   'safeword-bounded-wRM3YY'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-distribution.node.ts:55:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'safeword-bounded-wRM3YY' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

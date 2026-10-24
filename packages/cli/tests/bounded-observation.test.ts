@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import {
   existsSync,
   lstatSync,
@@ -20,7 +21,8 @@ import {
   observationProfile,
 } from '../src/bounded-observation/contract.js';
 import { projectedFile } from '../src/bounded-observation/identity.js';
-import { openStore } from '../src/bounded-observation/store.js';
+import { verifyBoundedDelivery } from '../src/bounded-observation/index.js';
+import { openStore, reserveAttempt } from '../src/bounded-observation/store.js';
 
 const clone = '/committed-candidate';
 interface ReportFile {
@@ -98,8 +100,13 @@ describe('fixed bounded-observation result reconciliation', () => {
   });
   it('does not credit a same-named result in another file', () => {
     const value = report();
-    firstRequired(value).name += '.foreign';
-    expect(() => gradeReport(bytes(value), clone)).toThrow();
+    const owner = firstRequired(value);
+    const required = owner.assertionResults.shift();
+    const foreign = value.testResults.find(file => file !== owner);
+    if (required === undefined || foreign === undefined)
+      throw new Error('Required fixture is empty');
+    foreign.assertionResults.push(required);
+    expect(() => gradeReport(bytes(value), clone)).toThrow('exact-once');
   });
   it('requires the supporting fixed files as well as the required assertion subset', () => {
     const value = report();
@@ -108,8 +115,10 @@ describe('fixed bounded-observation result reconciliation', () => {
   });
   it('refuses a failed suite even when every required assertion passed', () => {
     const value = report();
-    value.testResults.push({ name: '/unexpected', status: 'failed', assertionResults: [] });
-    expect(() => gradeReport(bytes(value), clone)).toThrow();
+    const file = value.testResults[0];
+    if (file === undefined) throw new Error('Fixed fixture file is absent');
+    file.status = 'failed';
+    expect(() => gradeReport(bytes(value), clone)).toThrow('unsuccessful');
   });
   it('refuses unhandled runner errors despite passing assertions', () => {
     const value = report();
@@ -162,6 +171,26 @@ describe('bounded semantic source projection', () => {
       projectedFile(path, Buffer.from(initial)),
     );
   });
+  it('binds a top-level section following the Work Log', () => {
+    const changed = Buffer.from(`${initial}\n# Accepted scope revision\nexpanded\n`);
+    expect(projectedFile(path, changed)).not.toBe(projectedFile(path, Buffer.from(initial)));
+  });
+  it('does not turn a fenced Work Log example into an audit exemption', () => {
+    const before = initial.replace(
+      '## Work Log',
+      '```markdown\n## Work Log\nexample\n```\n\n## Work Log',
+    );
+    const changed = before.replace('example', 'changed example');
+    expect(projectedFile(path, Buffer.from(changed))).not.toBe(
+      projectedFile(path, Buffer.from(before)),
+    );
+  });
+  it.each([
+    initial.replace('scope: [bounded]', 'scope: [bounded]\nscope: [other]'),
+    initial.replace('scope: [bounded]', 'scope: [broken'),
+  ])('refuses malformed or duplicate frontmatter %#', value => {
+    expect(() => projectedFile(path, Buffer.from(value))).toThrow('invalid YAML metadata');
+  });
   it('does not exempt an arbitrary loaded source file', () => {
     expect(
       projectedFile('packages/cli/src/input.ts', Buffer.from(`${initial}- changed\n`)),
@@ -170,6 +199,9 @@ describe('bounded semantic source projection', () => {
   it('canonicalizes object keys while preserving array order', () => {
     expect(canonical({ z: 1, a: [2, 1] })).toBe(canonical({ a: [2, 1], z: 1 }));
     expect(canonical([2, 1])).not.toBe(canonical([1, 2]));
+  });
+  it('orders canonical object keys by code unit rather than locale', () => {
+    expect(canonical({ _: 2, A: 1, a: 3 })).toBe('{"A":1,"_":2,"a":3}');
   });
 });
 
@@ -195,6 +227,13 @@ describe('private observer store boundary', () => {
     const { root, state } = roots();
     expect(() => openStore(root, false)).toThrow();
     expect(readdirSync(state)).toEqual([]);
+  });
+  it('names an attempt without START as incomplete without rewriting it', () => {
+    const { root } = roots();
+    execFileSync('git', ['init', '--quiet'], { cwd: root });
+    const { id, directory } = reserveAttempt(openStore(root, true));
+    expect(() => verifyBoundedDelivery(root, id)).toThrow('incomplete');
+    expect(readdirSync(directory)).toEqual([]);
   });
   it('keeps newly allocated observer state private', () => {
     const { root } = roots();

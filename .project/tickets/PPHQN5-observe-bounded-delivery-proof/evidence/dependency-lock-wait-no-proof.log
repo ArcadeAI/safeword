@@ -1,0 +1,5 @@
+$ node scripts/run-vitest-with-build-lock.mjs tests/bounded-observation-dependencies.test.ts
+Waiting for safeword package test lock (1s elapsed; owner PID 42385; checkout /Users/alex/.codex/worktrees/ffcf/safeword).
+Waiting for safeword package test lock (31s elapsed; owner PID 42385; checkout /Users/alex/.codex/worktrees/ffcf/safeword).
+Safeword package test lock busy: could not acquire /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-locks/safeword-package-test.lock after waiting 1m 0s; no test was started. The active owner is PID 42385 in /Users/alex/.codex/worktrees/ffcf/safeword. A transition may be blocked at /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-locks/safeword-package-test.lock.transition. Re-run after it finishes, set SAFEWORD_TEST_LOCK_MAX_WAIT_MS to a larger positive millisecond value, or remove either directory only if you are sure no package test is running.
+error: script "test" exited with code 75
