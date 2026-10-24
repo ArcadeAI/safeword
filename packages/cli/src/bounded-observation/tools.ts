@@ -310,9 +310,8 @@ function runtimeInstallation(packageRoot: string): Record<string, string> {
     if (parent === directory) break;
     directory = parent;
   }
-  const search = createRequire(nodePath.join(packageRoot, 'package.json')).resolve.paths(
-    'commander',
-  );
+  const search =
+    createRequire(nodePath.join(packageRoot, 'package.json')).resolve.paths('commander') ?? [];
   const identities: Record<string, string> = {};
   for (const path of search) {
     if (!existsSync(path)) continue;

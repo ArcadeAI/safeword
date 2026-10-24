@@ -19688,7 +19688,7 @@ function runtimeInstallation(packageRoot) {
       break;
     directory = parent;
   }
-  const search = createRequire2(nodePath9.join(packageRoot, "package.json")).resolve.paths("commander");
+  const search = createRequire2(nodePath9.join(packageRoot, "package.json")).resolve.paths("commander") ?? [];
   const identities = {};
   for (const path2 of search) {
     if (!existsSync6(path2))
