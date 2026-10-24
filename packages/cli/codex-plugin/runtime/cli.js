@@ -19066,11 +19066,50 @@ function inspectModules(directory, allowed) {
     }
   }
 }
+function installedResolution(root, workspace, name) {
+  let directory = nodePath5.resolve(root, workspace);
+  while (true) {
+    const path2 = nodePath5.join(directory, "node_modules", name, "package.json");
+    if (existsSync3(path2))
+      return manifest(path2);
+    if (directory === root)
+      return;
+    directory = nodePath5.dirname(directory);
+  }
+}
+function lockedResolution(lock, workspaceName, name) {
+  const packages = fields(lock.packages);
+  const row = packages[`${workspaceName}/${name}`] ?? packages[name];
+  if (!Array.isArray(row) || typeof row[0] !== "string")
+    throw new Error(`Unsupported bun.lock resolution for ${name}; restore the frozen installation`);
+  const identity = row[0];
+  const separator = "@workspace:";
+  if (!identity.includes(separator))
+    return identity;
+  const workspace = fields(fields(lock.workspaces)[identity.split(separator)[1] ?? ""]);
+  return `${String(workspace.name)}@${String(workspace.version)}`;
+}
+function requireWorkspaceResolution(root, path2, lock) {
+  const actual = manifest(nodePath5.join(root, path2));
+  const dependencies = {
+    ...fields(actual.dependencies ?? {}),
+    ...fields(actual.devDependencies ?? {})
+  };
+  for (const name of Object.keys(dependencies)) {
+    const installed = installedResolution(root, nodePath5.dirname(path2), name);
+    const identity = installed === undefined ? "missing" : `${String(installed.name)}@${String(installed.version)}`;
+    const expected = lockedResolution(lock, String(actual.name), name);
+    if (identity !== expected)
+      throw new Error(`Installed dependency ${name} resolves to ${identity}, expected ${expected}; restore the frozen installation`);
+  }
+}
 function requireLockedDependencies(root, manifests, roots) {
   const lock = readLock(root);
   const allowed = allowedPackages(root, manifests, lock);
   for (const relative of roots)
     inspectModules(nodePath5.join(root, relative), allowed);
+  for (const path2 of manifests)
+    requireWorkspaceResolution(root, path2, lock);
 }
 var declarations;
 var init_dependencies = __esm(() => {

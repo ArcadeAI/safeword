@@ -107,6 +107,48 @@ function inspectModules(directory: string, allowed: Set<string>): void {
   }
 }
 
+function installedResolution(root: string, workspace: string, name: string): Fields | undefined {
+  let directory = nodePath.resolve(root, workspace);
+  while (true) {
+    const path = nodePath.join(directory, 'node_modules', name, 'package.json');
+    if (existsSync(path)) return manifest(path);
+    if (directory === root) return undefined;
+    directory = nodePath.dirname(directory);
+  }
+}
+
+function lockedResolution(lock: Fields, workspaceName: string, name: string): string {
+  const packages = fields(lock.packages);
+  const row = packages[`${workspaceName}/${name}`] ?? packages[name];
+  if (!Array.isArray(row) || typeof row[0] !== 'string')
+    throw new Error(`Unsupported bun.lock resolution for ${name}; restore the frozen installation`);
+  const identity: string = row[0];
+  const separator = '@workspace:';
+  if (!identity.includes(separator)) return identity;
+  const workspace = fields(fields(lock.workspaces)[identity.split(separator)[1] ?? '']);
+  return `${String(workspace.name)}@${String(workspace.version)}`;
+}
+
+function requireWorkspaceResolution(root: string, path: string, lock: Fields): void {
+  const actual = manifest(nodePath.join(root, path));
+  const dependencies = {
+    ...fields(actual.dependencies ?? {}),
+    ...fields(actual.devDependencies ?? {}),
+  };
+  for (const name of Object.keys(dependencies)) {
+    const installed = installedResolution(root, nodePath.dirname(path), name);
+    const identity =
+      installed === undefined
+        ? 'missing'
+        : `${String(installed.name)}@${String(installed.version)}`;
+    const expected = lockedResolution(lock, String(actual.name), name);
+    if (identity !== expected)
+      throw new Error(
+        `Installed dependency ${name} resolves to ${identity}, expected ${expected}; restore the frozen installation`,
+      );
+  }
+}
+
 /** Check prerequisites without installing, fetching, or rewriting the candidate. */
 export function requireLockedDependencies(
   root: string,
@@ -116,4 +158,5 @@ export function requireLockedDependencies(
   const lock = readLock(root);
   const allowed = allowedPackages(root, manifests, lock);
   for (const relative of roots) inspectModules(nodePath.join(root, relative), allowed);
+  for (const path of manifests) requireWorkspaceResolution(root, path, lock);
 }
