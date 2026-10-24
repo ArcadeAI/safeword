@@ -246,10 +246,20 @@ it('keeps a saved review current after verification checklist progress', async (
   expect(JSON.parse(changedGoal.stdout).data?.freshness).toBe('stale');
 });
 
-it.each(['Claude Code', 'OpenAI Codex', 'Cursor', 'OpenCode CLI'])(
+it.each([
+  'Claude Code / committed',
+  'Claude Code / left uncommitted',
+  'OpenAI Codex / committed',
+  'OpenAI Codex / left uncommitted',
+  'Cursor / committed',
+  'Cursor / left uncommitted',
+  'OpenCode CLI / committed',
+  'OpenCode CLI / left uncommitted',
+])(
   'accepts the reviewed snapshot and refuses later authored changes in %s',
   // eslint-disable-next-line complexity -- One fixture follows the same ticket through review, edits, verification, and recovery.
-  async host => {
+  async hostCase => {
+    const host = hostCase.split(' / ', 2)[0] ?? '';
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-branch-gate-'));
     roots.push(root);
     const remote = nodePath.join(root, 'remote.git');

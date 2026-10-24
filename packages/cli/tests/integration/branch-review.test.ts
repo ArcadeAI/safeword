@@ -194,7 +194,15 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     },
   });
   const focusedReport = JSON.parse(focused.stdout);
-  expect(focusedReport.data?.coverage, focused.stdout).toBe('partial');
+  expect(focusedReport.data?.coverage, focused.stdout).toBe('none');
+  expect(focusedReport.data?.reviewed_paths).toEqual([]);
+  const typedFinding = expect.objectContaining({
+    affected_behavior: expect.stringContaining('access scenario'),
+    related_paths: expect.arrayContaining(['source.ts', 'caller.ts']),
+    consequence: expect.stringContaining('bypass the check'),
+    priority: 'high',
+  });
+  expect(focusedReport.data?.branch_findings).toEqual(expect.arrayContaining([typedFinding]));
   expect(focusedReport.data?.omitted_paths).toContainEqual({
     path: 'source.ts',
     reason: 'uncommitted work; commit and review again for complete coverage',
@@ -206,6 +214,8 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   });
   expect(focusedReport.findings).toEqual(expect.arrayContaining([matchingFinding]));
   expect(readFileSync(nodePath.join(root, 'passes.log.3'), 'utf8')).toContain('spec.md');
+  expect(readFileSync(nodePath.join(root, 'passes.log.3'), 'utf8')).toContain('source.ts');
+  expect(readFileSync(nodePath.join(root, 'passes.log.3'), 'utf8')).toContain('caller.ts');
   const findingGate = await runCli(['review', 'branch-check', 'ABC123', 'implement', '--json'], {
     cwd: project,
   });
@@ -241,13 +251,13 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   });
   const dirtyReport = JSON.parse(dirty.stdout);
   expect(dirtyReport.data?.freshness).toBe('current');
-  expect(dirtyReport.data?.coverage).toBe('partial');
+  expect(dirtyReport.data?.coverage).toBe('none');
   expect(dirtyReport.data?.dirty_paths).toContain('.env');
   expect(dirtyReport.data?.omitted_paths).toContainEqual({
     path: '.env',
     reason: 'sensitive path; content withheld from reviewer',
   });
-  expect(dirtyReport.data?.next_action).toContain('acknowledge');
+  expect(dirtyReport.data?.next_action).toContain('reasoned skip');
   expect(readFileSync(nodePath.join(root, 'passes.log.5'), 'utf8')).not.toContain(
     'must-stay-local',
   );
@@ -298,4 +308,42 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   const boundedReport = JSON.parse(bounded.stdout);
   expect(boundedReport.data?.coverage).toBe('complete');
   expect(boundedReport.data?.review_passes).toHaveLength(2);
+
+  writeFileSync(
+    reviewer,
+    `#!/bin/sh
+set -eu
+if [ "\${1:-}" = '--version' ]; then printf 'claude 1.0.0\\n'; exit 0; fi
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  printf '%s\\n' '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools --model'
+  exit 0
+fi
+payload=$(cat)
+dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')
+printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"Change needed","findings":[{"severity":"error","message":"Unattributed problem"}]}\\n' "$dispatch_id"
+`,
+    { mode: 0o755 },
+  );
+  const malformed = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env: {
+      PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+    },
+  });
+  const malformedReport = JSON.parse(malformed.stdout);
+  expect(malformedReport.data?.coverage).toBe('none');
+  expect(malformedReport.data?.reviewed_paths).toEqual([]);
+  expect(malformedReport.data?.branch_findings).toEqual([]);
+  expect(malformedReport.data?.omitted_paths).toContainEqual({
+    path: 'large-0.txt',
+    reason: 'review finding lacks behavior, related files, or consequence',
+  });
+  expect(malformedReport.findings).toEqual(
+    expect.arrayContaining([expect.objectContaining({ message: 'Unattributed problem' })]),
+  );
+  const blockedSkip = await runCli(['review', 'branch-check', 'ABC123', 'implement', '--json'], {
+    cwd: project,
+  });
+  expect(JSON.parse(blockedSkip.stdout).data?.skip_eligible).toBe(false);
 });

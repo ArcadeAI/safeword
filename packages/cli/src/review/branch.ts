@@ -28,6 +28,40 @@ interface OmittedPath {
   readonly reason: string;
 }
 
+interface BranchFinding {
+  readonly affected_behavior: string;
+  readonly related_paths: readonly string[];
+  readonly consequence: string;
+  readonly priority: 'high' | 'medium' | 'low';
+  readonly severity: 'error' | 'warning' | 'info';
+  readonly message: string;
+}
+
+// eslint-disable-next-line complexity -- A finding is credited only after all message parts and pass paths are checked.
+function branchFinding(
+  finding: CliResult['findings'][number],
+  paths: readonly string[],
+): BranchFinding | undefined {
+  const structured = /^Behavior: (.+?); Paths: (.+?); Consequence: (.+)$/u.exec(finding.message);
+  const legacy = /^(.+?) across (.+?): (.+)$/u.exec(finding.message);
+  const behavior = structured?.[1] ?? legacy?.[1];
+  const pathList = structured?.[2] ?? legacy?.[2];
+  const consequence = structured?.[3] ?? legacy?.[3];
+  if (!behavior?.trim() || !pathList?.trim() || !consequence?.trim()) return undefined;
+  const pathText = structured ? pathList : pathList.replaceAll(' and ', ', ');
+  const namedPaths = new Set(pathText.split(',').map(item => item.trim()));
+  const related = paths.filter(path => namedPaths.has(path));
+  if (related.length === 0) return undefined;
+  return {
+    affected_behavior: behavior.trim(),
+    related_paths: related,
+    consequence: consequence.trim(),
+    priority: { error: 'high', warning: 'medium', info: 'low' }[finding.severity],
+    severity: finding.severity,
+    message: finding.message,
+  };
+}
+
 class InvalidIntegrationReference extends Error {}
 class IntegrationFetchFailure extends Error {}
 
@@ -36,6 +70,8 @@ interface BranchRecord {
   readonly id: string;
   readonly order: number;
   readonly ticket_id: string;
+  readonly review_phase?: 'implement' | 'verify';
+  readonly scope_identity?: string;
   readonly integration_ref: string;
   readonly base: string;
   readonly head: string;
@@ -50,6 +86,7 @@ interface BranchRecord {
     status: 'approved' | 'changes_requested';
     findings: readonly CliResult['findings'][number][];
   }[];
+  readonly branch_findings?: readonly BranchFinding[];
   readonly exit_snapshot: string;
   readonly content_snapshot: string;
   readonly unavailable_reason?: string;
@@ -306,6 +343,11 @@ function unavailableReview(
       schema_version: 1,
       id: randomUUID(),
       ticket_id: ticketId,
+      review_phase:
+        readFrontmatterScalar(readFileSync(ticket, 'utf8'), 'phase') === 'verify'
+          ? 'verify'
+          : 'implement',
+      scope_identity: scopeIdentity(cwd, ''),
       integration_ref: '',
       base: '',
       head,
@@ -349,6 +391,33 @@ function unavailableReview(
 
 function branchRecordsDirectory(cwd: string): string {
   return nodePath.join(cwd, '.safeword', 'state', 'reviews', 'branch');
+}
+
+// eslint-disable-next-line complexity -- Configuration and local remote HEAD each have independent failure handling.
+function scopeIdentity(cwd: string, ref: string): string {
+  const path = nodePath.join(cwd, '.safeword', 'config.json');
+  let configured: unknown;
+  if (existsSync(path)) {
+    try {
+      const config: unknown = JSON.parse(readFileSync(path, 'utf8'));
+      if (typeof config === 'object' && config !== null && !Array.isArray(config)) {
+        configured = (config as { branchReview?: { integrationRef?: unknown } }).branchReview
+          ?.integrationRef;
+      }
+    } catch {
+      configured = '<invalid configuration>';
+    }
+  }
+  const remote = /^refs\/remotes\/([^/]+)\//u.exec(ref)?.[1];
+  let remoteHead = '';
+  if (configured === undefined && remote !== undefined) {
+    try {
+      remoteHead = gitText(cwd, ['symbolic-ref', `refs/remotes/${remote}/HEAD`]);
+    } catch {
+      remoteHead = '<unavailable locally>';
+    }
+  }
+  return digest({ configured, remoteHead });
 }
 
 function digest(value: unknown): string {
@@ -442,12 +511,12 @@ function baseBytes(cwd: string, base: string, path: string): Buffer | undefined 
   }
 }
 
-function branchSnapshots(
+function projectedInventory(
   cwd: string,
   base: string,
   ticketDirectory: string,
-): { exit: string; content: string } {
-  const entries = changedPaths(cwd, base).flatMap(item => {
+): (ChangedPath & { projected: string })[] {
+  return changedPaths(cwd, base).flatMap(item => {
     const path = item.path;
     let current: Buffer | undefined;
     try {
@@ -466,6 +535,14 @@ function branchSnapshots(
       projected === committed ? item.status.replaceAll(/\+dirty:[^+]+/gu, '') : item.status;
     return [{ path, status, projected }];
   });
+}
+
+function branchSnapshots(
+  cwd: string,
+  base: string,
+  ticketDirectory: string,
+): { exit: string; content: string } {
+  const entries = projectedInventory(cwd, base, ticketDirectory);
   return {
     exit: digest(entries),
     content: digest(entries.map(({ path, projected }) => ({ path, projected }))),
@@ -666,6 +743,7 @@ export function acknowledgeBranchReview(
   });
 }
 
+// eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Freshness handles three signed baselines with distinct Git rules.
 function reviewIsCurrent(cwd: string, record: BranchRecord, phase: string): boolean {
   try {
     const ticket = ticketPath(cwd, record.ticket_id);
@@ -674,15 +752,29 @@ function reviewIsCurrent(cwd: string, record: BranchRecord, phase: string): bool
       .relative(cwd, nodePath.dirname(ticket))
       .split(nodePath.sep)
       .join('/');
+    if (
+      record.scope_identity !== undefined &&
+      scopeIdentity(cwd, record.integration_ref) !== record.scope_identity
+    )
+      return false;
     if (record.unavailable_reason !== undefined) {
-      return (
-        gitText(cwd, ['rev-parse', 'HEAD']) === record.head &&
-        branchSnapshots(cwd, 'HEAD', ticketDirectory).exit === record.exit_snapshot
+      if (phase !== 'verify' && gitText(cwd, ['rev-parse', 'HEAD']) !== record.head) return false;
+      const snapshots = branchSnapshots(
+        cwd,
+        phase === 'verify' ? record.head : 'HEAD',
+        ticketDirectory,
       );
+      return phase === 'verify'
+        ? snapshots.content === record.content_snapshot
+        : snapshots.exit === record.exit_snapshot;
     }
     const currentBase = gitText(cwd, ['merge-base', record.integration_ref, 'HEAD']);
+    if (currentBase !== record.base) {
+      if (phase !== 'verify') return false;
+      git(cwd, ['merge-base', '--is-ancestor', record.head, record.integration_ref]);
+      return branchSnapshots(cwd, record.base, ticketDirectory).content === record.content_snapshot;
+    }
     const snapshots = branchSnapshots(cwd, currentBase, ticketDirectory);
-    if (currentBase !== record.base) return false;
     if (phase === 'verify') return snapshots.content === record.content_snapshot;
     return (
       gitText(cwd, ['rev-parse', 'HEAD']) === record.head && snapshots.exit === record.exit_snapshot
@@ -794,11 +886,21 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
     workLogContains(readFileSync(ticket, 'utf8'), acknowledgement.disclosure);
   const findingsResolved = record.review_passes.every(pass => pass.status === 'approved');
   const mayAdvance = fresh && findingsResolved && (record.coverage === 'complete' || disclosed);
+  const skipEligible =
+    fresh &&
+    findingsResolved &&
+    record.coverage === 'none' &&
+    (phase === 'implement' ||
+      record.review_phase === 'implement' ||
+      record.unavailable_reason !== undefined);
   return createResult({
     state: mayAdvance ? 'healthy' : 'action_required',
     findings: mayAdvance
       ? []
-      : [branchGateProblem(record, fresh, findingsResolved, acknowledgement !== undefined)],
+      : [
+          branchGateProblem(record, fresh, findingsResolved, acknowledgement !== undefined),
+          ...record.review_passes.flatMap(pass => pass.findings),
+        ],
     data: {
       command: 'review branch-check',
       ticket_id: ticketId,
@@ -807,7 +909,9 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
       coverage: record.coverage,
       freshness: fresh ? 'current' : 'stale',
       may_advance: mayAdvance,
+      skip_eligible: skipEligible,
       omitted_paths: record.omitted_paths,
+      branch_findings: record.branch_findings ?? [],
       fetched_at: record.fetched_at,
       ...(disclosed && { disclosure: acknowledgement.disclosure }),
     },
@@ -904,7 +1008,7 @@ export async function reviewBranch(
     ref = integration.ref;
     base = gitText(cwd, ['merge-base', ref, 'HEAD']);
     head = gitText(cwd, ['rev-parse', 'HEAD']);
-    inventory = changedPaths(cwd, base);
+    inventory = projectedInventory(cwd, base, ticketDirectory);
   } catch (error) {
     if (error instanceof IntegrationFetchFailure) return fetchRequired(ticketId, error.message);
     if (error instanceof InvalidIntegrationReference) {
@@ -952,6 +1056,7 @@ export async function reviewBranch(
     .map(item => item.path);
   const snapshots = branchSnapshots(cwd, base, ticketDirectory);
   const findings: CliResult['findings'][number][] = [];
+  const branchFindings: BranchFinding[] = [];
   const passes: {
     paths: string[];
     reviewer: string;
@@ -964,7 +1069,7 @@ export async function reviewBranch(
     try {
       result = await runReview({
         cwd,
-        kind: 'quality-review',
+        kind: 'branch-review',
         targets: pass,
         context: context.filter(path => !pass.includes(path)),
       });
@@ -977,6 +1082,27 @@ export async function reviewBranch(
       (data?.status === 'approved' || data?.status === 'changes_requested') &&
       typeof data.actual_reviewer === 'string'
     ) {
+      const reviewerFindings = result.findings.filter(
+        finding => finding.code === 'REVIEWER_FINDING',
+      );
+      const typed = reviewerFindings.map(finding => branchFinding(finding, pass));
+      if (typed.includes(undefined)) {
+        findings.push(...result.findings);
+        omitted.push(
+          ...pass.map(path => ({
+            path,
+            reason: 'review finding lacks behavior, related files, or consequence',
+          })),
+        );
+        passes.push({
+          paths: pass,
+          reviewer: data.actual_reviewer,
+          status: data.status,
+          findings: result.findings,
+        });
+        continue;
+      }
+      branchFindings.push(...(typed as BranchFinding[]));
       reviewed.push(...pass.filter(path => !dirtyPaths.includes(path)));
       findings.push(...result.findings);
       passes.push({
@@ -1000,6 +1126,11 @@ export async function reviewBranch(
     }
   }
   const coverage = coverageFor(omitted, dirtyPaths, reviewed.length);
+  branchFindings.sort(
+    (left, right) =>
+      ({ high: 0, medium: 1, low: 2 })[left.priority] -
+      { high: 0, medium: 1, low: 2 }[right.priority],
+  );
   const freshness =
     gitText(cwd, ['rev-parse', 'HEAD']) === head &&
     branchSnapshots(cwd, base, ticketDirectory).exit === snapshots.exit
@@ -1009,6 +1140,9 @@ export async function reviewBranch(
     schema_version: 1,
     id: randomUUID(),
     ticket_id: ticketId,
+    review_phase:
+      readFrontmatterScalar(ticketContent, 'phase') === 'verify' ? 'verify' : 'implement',
+    scope_identity: scopeIdentity(cwd, ref),
     integration_ref: ref,
     base,
     head,
@@ -1018,10 +1152,12 @@ export async function reviewBranch(
     dirty_paths: dirtyPaths,
     omitted_paths: omitted,
     review_passes: passes,
+    branch_findings: branchFindings,
     exit_snapshot: snapshots.exit,
     content_snapshot: snapshots.content,
   });
-  recordTicketReview(ticket, record.id);
+  if (record.coverage !== 'none' || record.review_phase !== 'verify')
+    recordTicketReview(ticket, record.id);
   return createResult({
     state:
       freshness === 'current' &&
@@ -1044,7 +1180,10 @@ export async function reviewBranch(
       dirty_paths: dirtyPaths,
       omitted_paths: omitted,
       review_passes: passes,
-      next_action: nextActionFor(coverage),
+      branch_findings: branchFindings,
+      next_action: passes.some(pass => pass.status === 'changes_requested')
+        ? 'Fix the review findings and review the branch again.'
+        : nextActionFor(coverage),
     },
   });
 }

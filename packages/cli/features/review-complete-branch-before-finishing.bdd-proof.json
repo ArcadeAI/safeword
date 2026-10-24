@@ -1,0 +1,81 @@
+{
+  "feature": "packages/cli/features/review-complete-branch-before-finishing.feature",
+  "scenarios": {
+    "A multi-file feature is reviewed from the integration merge base": [
+      "packages/cli/tests/integration/branch-review-scope.test.ts",
+      "reviews both authored files from the integration merge base against the ticket"
+    ],
+    "A caller cannot shrink the branch by naming a later base": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "accounts for every changed path when a later bounded review pass fails"
+    ],
+    "A cross-file behavior gap is explained": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "accounts for every changed path when a later bounded review pass fails"
+    ],
+    "A code fix during verification cannot inherit the earlier review": [
+      "packages/cli/tests/integration/branch-review-gate.test.ts",
+      "accepts the reviewed snapshot and refuses later authored changes in %s"
+    ],
+    "Routine ticket records do not restart branch review": [
+      "packages/cli/tests/integration/branch-review-gate.test.ts",
+      "keeps a saved review current after verification checklist progress"
+    ],
+    "Changed ticket goals require a fresh review": [
+      "packages/cli/tests/integration/branch-review-gate.test.ts",
+      "accepts the reviewed snapshot and refuses later authored changes in %s"
+    ],
+    "A current complete review lets implementation finish": [
+      "packages/cli/tests/integration/branch-review-gate.test.ts",
+      "accepts the reviewed snapshot and refuses later authored changes in %s"
+    ],
+    "Each supported local host refuses changed work at implementation exit": [
+      "packages/cli/tests/integration/branch-review-gate.test.ts",
+      "accepts the reviewed snapshot and refuses later authored changes in %s"
+    ],
+    "A partial review can continue with clear disclosure": [
+      "packages/cli/tests/integration/branch-review-ack.test.ts",
+      "requires an authenticated acknowledgement and the exact omission disclosure"
+    ],
+    "A partial review cannot advance without acknowledgement": [
+      "packages/cli/tests/integration/branch-review-ack.test.ts",
+      "requires an authenticated acknowledgement and the exact omission disclosure"
+    ],
+    "No branch changes cannot pass as a completed review": [
+      "packages/cli/tests/integration/branch-review-gate.test.ts",
+      "accepts the reviewed snapshot and refuses later authored changes in %s"
+    ],
+    "A skipped generated path cannot count as complete coverage": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "accounts for every changed path when a later bounded review pass fails"
+    ],
+    "Sensitive file content stays out of the reviewer packet": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "accounts for every changed path when a later bounded review pass fails"
+    ],
+    "A builder sees the next action for a partial review": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "accounts for every changed path when a later bounded review pass fails"
+    ],
+    "Missing integration base cannot claim a completed review": [
+      "packages/cli/tests/integration/branch-review-scope.test.ts",
+      "says no branch work was reviewed when the integration base is unavailable"
+    ],
+    "A dirty branch is current but only partially covered": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "accounts for every changed path when a later bounded review pass fails"
+    ],
+    "A failed later review pass leaves its paths omitted": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "accounts for every changed path when a later bounded review pass fails"
+    ],
+    "Stale review still shows its missing evidence": [
+      "packages/cli/tests/integration/branch-review-ack.test.ts",
+      "requires an authenticated acknowledgement and the exact omission disclosure"
+    ],
+    "A configured topic branch cannot hide earlier work": [
+      "packages/cli/tests/integration/branch-review-scope.test.ts",
+      "refuses a topic branch as configured integration scope"
+    ]
+  }
+}

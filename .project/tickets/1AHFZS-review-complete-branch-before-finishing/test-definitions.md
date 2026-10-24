@@ -18,6 +18,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A configured topic branch cannot hide earlier work
+
+- [x] RED 9045af6b6
+- [x] GREEN 9a18e9342
+- [ ] REFACTOR
+
 ## Rule: branch-review.TBU1.R2 — Findings are prioritized and actionable across files
 
 ### Scenario: A cross-file behavior gap is explained

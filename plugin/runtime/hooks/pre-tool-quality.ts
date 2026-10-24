@@ -414,6 +414,7 @@ function branchReviewGateDecision(
   disclosure?: string;
   coverage?: string;
   freshness?: string;
+  skipEligible?: boolean;
 } {
   const answer = askTrustedSafeword(
     projectDirectory,
@@ -429,6 +430,7 @@ function branchReviewGateDecision(
             disclosure?: unknown;
             coverage?: unknown;
             freshness?: unknown;
+            skip_eligible?: unknown;
           };
           findings?: Array<{ message?: unknown }>;
         };
@@ -451,6 +453,7 @@ function branchReviewGateDecision(
               coverage: typeof result.data.coverage === 'string' ? result.data.coverage : undefined,
               freshness:
                 typeof result.data.freshness === 'string' ? result.data.freshness : undefined,
+              skipEligible: result.data.skip_eligible === true,
             };
       } catch {
         return undefined;
@@ -1303,7 +1306,9 @@ if (isCanonicalTicketEdit) {
         phase,
       );
       const reasonedSkip =
-        decision.coverage === 'none' && decision.freshness === 'current'
+        decision.coverage === 'none' &&
+        decision.freshness === 'current' &&
+        decision.skipEligible === true
           ? readReviewStamps(phaseScope).find(
               stamp =>
                 stamp.scope === phaseScope &&

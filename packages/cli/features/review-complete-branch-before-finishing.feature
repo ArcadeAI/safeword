@@ -1,3 +1,4 @@
+@proof.vitest
 Feature: Review complete branch changes before builders finish
 
   @branch-review.TBU1.R1
@@ -6,17 +7,27 @@ Feature: Review complete branch changes before builders finish
     @demo @surface.safeword-cli
     Scenario: A multi-file feature is reviewed from the integration merge base
       Given a clean BDD branch changes only eligible authored files across several commits
+      And the integration branch has advanced with unrelated changes since the branch point
       And the ticket describes behavior those files must deliver
       When the builder runs the shared Safeword branch-review command
       Then the result names the computed merge-base revision and reviewed head revision
       And every committed path is accounted for against the ticket behavior
+      And upstream-only paths are not reported as reviewed or omitted ticket work
+      And each reviewer packet includes the ticket's accepted goals and scenarios
       And the result reports current freshness and complete coverage
 
     @rejection
     Scenario: A caller cannot shrink the branch by naming a later base
       Given a BDD branch has relevant changes before its latest commit
       When the builder requests a review with a later base
-      Then the review still inventories changes from the integration merge base
+      Then the command refuses that request without claiming completed coverage
+
+    @rejection
+    Scenario: A configured topic branch cannot hide earlier work
+      Given the project configures the current topic branch as its integration ref
+      And the branch has authored changes before its latest push
+      When the builder reviews the branch
+      Then the command refuses the topic ref without saving a review result
 
   @branch-review.TBU1.R2
   Rule: branch-review.TBU1.R2 — Findings are prioritized and actionable across files
@@ -25,7 +36,8 @@ Feature: Review complete branch changes before builders finish
     Scenario: A cross-file behavior gap is explained
       Given a branch changes two files that together violate a ticket scenario
       When the builder reviews the branch
-      Then the finding names the affected behavior, relevant files, consequence, and priority
+      Then both changed files and the violated ticket scenario appear in one review pass
+      And a returned finding names the affected behavior, relevant files, consequence, and priority
 
   @branch-review.TBU1.R3
   Rule: branch-review.TBU1.R3 — Later changes to reviewed work need a fresh review
@@ -63,16 +75,20 @@ Feature: Review complete branch changes before builders finish
     Scenario Outline: Each supported local host refuses changed work at implementation exit
       Given a BDD ticket is at implementation exit in <host>
       And a saved review covers an earlier branch snapshot
-      And an authored file has a nonignored uncommitted edit since that clean review
+      And an authored code fix was <change> after that clean review
       When the builder tries to leave implementation
       Then <host> keeps the ticket in implementation and names the stale review
 
       Examples:
-        | host |
-        | Claude Code |
-        | OpenAI Codex |
-        | Cursor |
-        | OpenCode CLI |
+        | host | change |
+        | Claude Code | committed |
+        | Claude Code | left uncommitted |
+        | OpenAI Codex | committed |
+        | OpenAI Codex | left uncommitted |
+        | Cursor | committed |
+        | Cursor | left uncommitted |
+        | OpenCode CLI | committed |
+        | OpenCode CLI | left uncommitted |
 
     Scenario: A partial review can continue with clear disclosure
       Given a current review names an omitted changed path and its reason

@@ -38,6 +38,12 @@ last_modified: 2026-10-23T00:00:00.000Z
 
 ## Work Log
 
+- 2026-10-23 Scenario repair review: Claude reviewed all nineteen exact scenarios under receipt f28486d9-badc-4255-969a-62c19d49c8a7 and approved with no blocking findings. The builder's earlier approval covered fifteen examples; four later examples stay inside the same approved Rules and out-of-scope line, and the builder asked us to proceed until done. No new product-scope decision was made.
+
+- 2026-10-23 Scenario repair: Executable RED review showed the accepted later-base example described an inventory response while the approved CLI design rejects that request. Reworded that example to assert refusal and added one example for a project integration ref pointing at its own topic branch. This is the same branch-narrowing rule, now with two distinct input paths; nineteen scenarios await fresh review.
+
+- 2026-10-23 Scenario accounting: The original fifteen user-approved examples remain. Subsequent review added three examples inside the same accepted rules; the current feature file has eighteen scenarios. The Vitest proof-routing tag changes test selection only.
+
 - 2026-10-23 Replay: A fresh independent scenario review found two promised behaviors without discriminating examples: ticket-goal changes must stale a saved review, and a missing integration base must not claim coverage. Returned to scenario-gate and added those two examples within the existing scope.
 
 - 2026-10-02T05:17:41.443Z Started: Created ticket 1AHFZS

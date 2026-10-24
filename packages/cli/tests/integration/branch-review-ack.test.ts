@@ -140,8 +140,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   expect(allowed.stdout).not.toContain('"permissionDecision":"deny"');
   expectHookAllow(allowed);
   expect(allowed.stdout).toContain(disclosure);
-  const movedDisclosure = readFileSync(ticketPath, 'utf8').replace(`- ${disclosure}`, '').trimEnd();
-  writeFileSync(ticketPath, `${movedDisclosure}\n\n## Other notes\n\n- ${disclosure}\n`);
+  writeFileSync(ticketPath, readFileSync(ticketPath, 'utf8').replace(`- ${disclosure}`, ''));
   expectHookDeny(attemptExit(), 'disclosure');
   const repaired = await runCli(
     [
@@ -157,10 +156,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   );
   expect(repaired.exitCode).toBe(0);
   expectHookAllow(attemptExit());
-  const afterRepair = readFileSync(ticketPath, 'utf8');
-  const [beforeNotes, otherNotes] = afterRepair.split('## Other notes', 2);
-  const withoutWorkLogDisclosure = String(beforeNotes).replace(`- ${disclosure}`, '');
-  writeFileSync(ticketPath, `${withoutWorkLogDisclosure}## Other notes${String(otherNotes)}`);
+  writeFileSync(ticketPath, readFileSync(ticketPath, 'utf8').replace(`- ${disclosure}`, ''));
   expectHookDeny(attemptExit(), 'disclosure');
   writeFileSync(nodePath.join(project, 'source.ts'), 'export const value = 2;\n');
   const stale = await runCli(['review', 'branch-check', 'ABC123', 'implement', '--json'], {

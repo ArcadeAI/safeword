@@ -2,7 +2,7 @@
 
 | Dimension | Representative partitions and boundaries | Rules |
 | --- | --- | --- |
-| Branch scope | Committed add/modify/delete/rename; no changed paths; missing merge base; already-merged work; nonignored staged, unstaged, or untracked work | TBU1.R1, TBU1.R4, NTB1.R3 |
+| Branch scope | Committed add/modify/delete/rename; caller-supplied later base; configured ref naming the current topic branch; no changed paths; missing merge base; already-merged work; nonignored staged, unstaged, or untracked work | TBU1.R1, TBU1.R4, NTB1.R3 |
 | Evidence | Small authored change; multiple bounded passes; generated output; oversized or unreadable change; sensitive content withheld; failed pass | TBU1.R1, NTB1.R2, NTB1.R3 |
 | Ticket context | Accepted goals and scenarios available; goals change after review; routine Work Log or phase edit | TBU1.R2, TBU1.R3 |
 | Findings | Cross-file behavior gap; no actionable finding; priority and consequence | TBU1.R2, NTB1.R2 |

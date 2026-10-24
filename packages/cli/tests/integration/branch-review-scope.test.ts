@@ -50,6 +50,7 @@ function expectCompleteScope(report: BranchReport, project: string): void {
   expect(report.data?.omitted_paths).toEqual([]);
 }
 
+// eslint-disable-next-line complexity -- One Git fixture checks scope, upstream movement, and saved review freshness.
 it('reviews both authored files from the integration merge base against the ticket', async () => {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-branch-scope-'));
   roots.push(root);
@@ -65,13 +66,19 @@ it('reviews both authored files from the integration merge base against the tick
   mkdirSync(ticket, { recursive: true });
   writeFileSync(
     nodePath.join(ticket, 'ticket.md'),
-    '---\nid: ABC123\ntype: feature\nphase: implement\n---\n# Review branch\n\n## Work Log\n',
+    '---\nid: ABC123\ntype: feature\nphase: implement\nphase_anchors:\n  - scenario-gate: features/access.feature\n---\n# Review branch\n\n## Work Log\n',
+  );
+  mkdirSync(nodePath.join(project, 'features'));
+  writeFileSync(
+    nodePath.join(project, 'features', 'access.feature'),
+    'Feature: Access\n  Scenario: Both files preserve access\n    Then callers cannot bypass the check\n',
   );
   writeFileSync(
     nodePath.join(ticket, 'spec.md'),
     '# Rule\nBoth files must be reviewed together.\n',
   );
   writeFileSync(nodePath.join(project, 'seed.txt'), 'base\n');
+  writeFileSync(nodePath.join(project, '.gitignore'), '.safeword/state/\n.safeword/config.json\n');
   git(project, 'add', '.');
   git(project, 'commit', '-m', 'seed');
   git(project, 'push', '-u', 'origin', 'main');
@@ -116,6 +123,7 @@ it('reviews both authored files from the integration merge base against the tick
   expectCompleteScope(report, project);
   const reviewerPacket = readFileSync(nodePath.join(root, 'review-packet.json'), 'utf8');
   expect(reviewerPacket).toContain('Both files must be reviewed together.');
+  expect(reviewerPacket).toContain('Both files preserve access');
   expect(reviewerPacket).toContain('source.ts');
   expect(reviewerPacket).toContain('caller.ts');
   expect(reviewerPacket).toContain('export const value = 1;');
@@ -123,7 +131,55 @@ it('reviews both authored files from the integration merge base against the tick
   expect(reviewerPacket).not.toContain('upstream.ts');
   expect(reviewerPacket).not.toContain('export const unrelated = true;');
 
-  const ticketBeforeOffline = readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8');
+  mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+  const configPath = nodePath.join(project, '.safeword', 'config.json');
+  writeFileSync(configPath, '{"branchReview":{"integrationRef":"refs/remotes/origin/topic"}}\n');
+  const changedConfig = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+    cwd: project,
+  });
+  expect(JSON.parse(changedConfig.stdout).data?.freshness).toBe('stale');
+  rmSync(configPath);
+
+  git(project, 'push', '-u', 'origin', 'topic');
+  const integrator = nodePath.join(root, 'integrator');
+  git(root, 'clone', remote, integrator);
+  git(integrator, 'config', 'user.name', 'Integration Builder');
+  git(integrator, 'config', 'user.email', 'integrator@example.test');
+  git(integrator, 'merge', '--no-ff', 'origin/topic', '-m', 'merge reviewed topic');
+  git(integrator, 'push', 'origin', 'main');
+  git(project, 'fetch', 'origin', 'main');
+  const afterMerge = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+    cwd: project,
+  });
+  expect(JSON.parse(afterMerge.stdout).data?.freshness).toBe('current');
+  writeFileSync(nodePath.join(project, 'source.ts'), 'export const value = 2;\n');
+  const afterEdit = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+    cwd: project,
+  });
+  expect(JSON.parse(afterEdit.stdout).data?.freshness).toBe('stale');
+  writeFileSync(nodePath.join(project, 'source.ts'), 'export const value = 1;\n');
+
+  const ticketPath = nodePath.join(ticket, 'ticket.md');
+  writeFileSync(
+    ticketPath,
+    readFileSync(ticketPath, 'utf8').replace('phase: implement', 'phase: verify'),
+  );
+  const originalMarker = /^branch_review_exit_id:[^\n]*$/mu.exec(
+    readFileSync(ticketPath, 'utf8'),
+  )?.[0];
+  const emptyReplacement = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env: {
+      PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+      SAFEWORD_REVIEW_LOG: nodePath.join(root, 'review-packet.json'),
+    },
+  });
+  expect(JSON.parse(emptyReplacement.stdout).data?.coverage).toBe('none');
+  expect(readFileSync(ticketPath, 'utf8')).toContain(String(originalMarker));
+
+  const ticketBeforeOffline = readFileSync(ticketPath, 'utf8');
   const jobs = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');
   const jobsBeforeOffline = readdirSync(jobs);
   const offline = await runCli(['review', 'branch', 'ABC123', '--offline', '--json'], {
@@ -144,6 +200,7 @@ it('reviews both authored files from the integration merge base against the tick
   expect(readdirSync(jobs)).toEqual(jobsBeforeOffline);
 });
 
+// eslint-disable-next-line complexity -- One Git fixture covers unavailable base and dirty-only coverage outcomes.
 it('says no branch work was reviewed when the integration base is unavailable', async () => {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-missing-base-'));
   roots.push(root);
@@ -180,6 +237,28 @@ it('says no branch work was reviewed when the integration base is unavailable', 
   expect(report.data?.reviewed_paths).toEqual([]);
   expect(report.findings?.[0]?.message).toContain('No branch work was reviewed');
 
+  const ticketPath = nodePath.join(ticket, 'ticket.md');
+  writeFileSync(
+    ticketPath,
+    readFileSync(ticketPath, 'utf8').replace('phase: implement', 'phase: verify'),
+  );
+  git(project, 'commit', '-am', 'record verification phase');
+  const routineCheck = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+    cwd: project,
+  });
+  expect(JSON.parse(routineCheck.stdout).data?.freshness).toBe('current');
+  writeFileSync(nodePath.join(project, 'source.ts'), 'export const value = 2;\n');
+  const authoredCheck = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+    cwd: project,
+  });
+  expect(JSON.parse(authoredCheck.stdout).data?.freshness).toBe('stale');
+  const refreshed = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project });
+  expect(JSON.parse(refreshed.stdout).data?.coverage).toBe('none');
+  const refreshedCheck = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+    cwd: project,
+  });
+  expect(JSON.parse(refreshedCheck.stdout).data?.skip_eligible).toBe(true);
+
   git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/main');
   git(project, 'reset', '--hard', 'main');
   writeFileSync(nodePath.join(project, 'source.ts'), 'export const dirty = true;\n');
@@ -187,7 +266,7 @@ it('says no branch work was reviewed when the integration base is unavailable', 
   mkdirSync(reviewerBin);
   writeFileSync(
     nodePath.join(reviewerBin, 'claude'),
-    `${claudeReviewerShellPrelude()}\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Saw the dirty file","findings":[]}\\n' "$dispatch_id"\n`,
+    `${claudeReviewerShellPrelude()}\nif [ "\${SAFEWORD_REVIEW_FAKE_FINDING:-}" = '1' ]; then\n  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"The behavior fails","findings":[{"severity":"error","message":"The current file breaks the ticket rule."}]}\\n' "$dispatch_id"\n  exit 0\nfi\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Saw the dirty file","findings":[]}\\n' "$dispatch_id"\n`,
     { mode: 0o755 },
   );
   const dirty = await runCli(['review', 'branch', 'ABC123', '--json'], {
@@ -205,6 +284,28 @@ it('says no branch work was reviewed when the integration base is unavailable', 
     path: 'source.ts',
     reason: 'uncommitted work; commit and review again for complete coverage',
   });
+  const changesRequested = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env: {
+      PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+      SAFEWORD_REVIEW_FAKE_FINDING: '1',
+    },
+  });
+  expect(JSON.parse(changesRequested.stdout).data?.coverage).toBe('none');
+  const skipCheck = await runCli(['review', 'branch-check', 'ABC123', 'implement', '--json'], {
+    cwd: project,
+  });
+  const skipReport = JSON.parse(skipCheck.stdout) as {
+    data?: { skip_eligible?: boolean };
+    findings?: { message: string }[];
+  };
+  expect(skipReport.data?.skip_eligible).toBe(false);
+  expect(skipReport.findings?.[0]?.message).toContain('requested changes');
+  expect(skipReport.findings?.map(finding => finding.message)).toContain(
+    'The current file breaks the ticket rule.',
+  );
 });
 
 it('refuses a topic branch as configured integration scope', async () => {
