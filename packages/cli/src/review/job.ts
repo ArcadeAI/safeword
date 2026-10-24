@@ -180,6 +180,27 @@ export function validRetrospectiveCloseTag(cwd: string, content: string, tag: st
   }
 }
 
+/** Authenticate local branch-review evidence with the coordinator's existing key. */
+export function branchReviewIntegrity(cwd: string, content: string): string {
+  return createHmac('sha256', readOrCreateIntegrityKey())
+    .update(realpathSync.native(cwd))
+    .update('\0branch-review-v1\0')
+    .update(content)
+    .digest('hex');
+}
+
+export function validBranchReviewIntegrity(cwd: string, content: string, tag: string): boolean {
+  if (!/^[a-f\d]{64}$/u.test(tag)) return false;
+  try {
+    return timingSafeEqual(
+      Buffer.from(tag, 'hex'),
+      Buffer.from(branchReviewIntegrity(cwd, content), 'hex'),
+    );
+  } catch {
+    return false;
+  }
+}
+
 interface LedgerFingerprintContext {
   readonly context: readonly string[];
   readonly missing: boolean;

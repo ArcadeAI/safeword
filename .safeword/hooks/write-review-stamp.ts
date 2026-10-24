@@ -361,7 +361,7 @@ function resolveScope(ticketFolder: string): {
 
 const { scope, label, claim } = resolveScope(resolveTicketFolder());
 
-if (reviewId !== undefined) {
+if (reviewId !== undefined && skipReason === undefined) {
   const receipt = readReviewReceipt(reviewId, projectDirectory);
   if (receipt === undefined)
     fail(

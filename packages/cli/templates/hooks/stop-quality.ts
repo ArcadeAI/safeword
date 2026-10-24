@@ -60,6 +60,7 @@ import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { architectureDocumentNudgeForProject } from './lib/architecture-document-nudge.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
+import { branchReviewCompletionProblem } from './lib/safeword-cli.ts';
 
 installCrashCapture('stop-quality');
 
@@ -965,6 +966,15 @@ if (currentPhase === 'done') {
         `TDD annotation ledger validation failed in test-definitions.md:\n${validation.errors.map(e => `  - ${e}`).join('\n')}`,
       );
     }
+  }
+
+  if (isFeature && ticketInfo.folder) {
+    const problem = branchReviewCompletionProblem(
+      projectDir,
+      ticketInfo.folder,
+      `${ticketsDir}/${ticketInfo.folder}/ticket.md`,
+    );
+    if (problem !== undefined) hardBlockDone(problem);
   }
 
   // Every done-gate check passed. Settle an owed close before the navigation

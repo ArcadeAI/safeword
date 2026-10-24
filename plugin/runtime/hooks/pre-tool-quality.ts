@@ -406,6 +406,68 @@ function executableRedGateDenial(scenario: string, ledger: string): string | und
   }
 }
 
+function branchReviewGateDecision(
+  ticketId: string,
+  phase: 'implement' | 'verify',
+): {
+  denial?: string;
+  disclosure?: string;
+  coverage?: string;
+  freshness?: string;
+  skipEligible?: boolean;
+  reviewId?: string;
+} {
+  const answer = askTrustedSafeword(
+    projectDirectory,
+    ['review', 'branch-check', ticketId, phase],
+    run => {
+      try {
+        const result = JSON.parse(run.stdout) as {
+          data?: {
+            command?: unknown;
+            ticket_id?: unknown;
+            phase?: unknown;
+            may_advance?: unknown;
+            disclosure?: unknown;
+            coverage?: unknown;
+            freshness?: unknown;
+            skip_eligible?: unknown;
+            review_id?: unknown;
+          };
+          findings?: Array<{ message?: unknown }>;
+        };
+        if (
+          result.data?.command !== 'review branch-check' ||
+          result.data.ticket_id !== ticketId ||
+          result.data.phase !== phase ||
+          typeof result.data.may_advance !== 'boolean'
+        )
+          return undefined;
+        return run.status === 0 && result.data.may_advance
+          ? {
+              disclosure:
+                typeof result.data.disclosure === 'string' ? result.data.disclosure : undefined,
+            }
+          : {
+              denial: String(
+                result.findings?.[0]?.message ?? 'The branch review is missing or stale.',
+              ),
+              coverage: typeof result.data.coverage === 'string' ? result.data.coverage : undefined,
+              freshness:
+                typeof result.data.freshness === 'string' ? result.data.freshness : undefined,
+              skipEligible: result.data.skip_eligible === true,
+              reviewId:
+                typeof result.data.review_id === 'string' ? result.data.review_id : undefined,
+            };
+      } catch {
+        return undefined;
+      }
+    },
+  );
+  if (answer.kind === 'answered') return answer.value;
+  return { denial: 'The trusted branch-review checker could not confirm a current review.' };
+}
+
 function separateEvidenceMode(
   ledgerContent: string,
   scenario: string,
@@ -929,6 +991,45 @@ function canonicalTicketEditContext(): CanonicalTicketEditContext {
   return cachedCanonicalTicketEditContext;
 }
 
+function ticketGoalsForBranchReview(content: string): string {
+  const frontmatter = /^---\r?\n[\s\S]*?\r?\n---(?=\r?\n|$)/u.exec(content)?.[0];
+  let inAnchors = false;
+  const withoutBookkeeping = frontmatter
+    ? frontmatter
+        .split('\n')
+        .filter(line => {
+          if (/^phase_anchors:\r?$/u.test(line)) {
+            inAnchors = true;
+            return false;
+          }
+          if (inAnchors && /^[ \t]/u.test(line)) return false;
+          inAnchors = false;
+          return true;
+        })
+        .join('\n')
+        .replaceAll(/^(?:phase|status|last_modified|branch_review_exit_id):[^\n]*\n/gmu, '') +
+      content.slice(frontmatter.length)
+    : content;
+  const lines = withoutBookkeeping.split('\n');
+  const start = lines.findIndex(line => /^## Work Log\s*$/u.test(line));
+  if (start === -1) return `${withoutBookkeeping.trimEnd()}\n`;
+  let end = start + 1;
+  while (end < lines.length && !/^##\s+/u.test(lines[end] ?? '')) end += 1;
+  return `${[...lines.slice(0, start), ...lines.slice(end)].join('\n').trimEnd()}\n`;
+}
+
+if (isCanonicalTicketEdit) {
+  const context = canonicalTicketEditContext();
+  const priorMarker = frontmatterScalar(context.priorMeta, 'branch_review_exit_id');
+  const proposedMarker = frontmatterScalar(context.proposedMeta, 'branch_review_exit_id');
+  if (priorMarker !== proposedMarker) {
+    deny(
+      'The branch review marker cannot be changed by editing the ticket.',
+      'Run `safeword review branch <ticket-id>` to record a new signed review.',
+    );
+  }
+}
+
 // A new feature's activation signals may be uncommitted, so Git history cannot
 // preserve provenance yet. Keep at least one current signal alive across edits:
 // the normal transition gates then require the complete three-signal contract.
@@ -1169,9 +1270,13 @@ if (isCanonicalTicketEdit) {
 if (isCanonicalTicketEdit) {
   const context = canonicalTicketEditContext();
   const exitedPhase = detectPhaseAdvance(context.priorContent, context.proposedContent);
+  const featureImplementationExit =
+    exitedPhase === 'implement' &&
+    phaseTransitionContext().proposedPhase === 'verify' &&
+    phaseTransitionContext().proposedType === 'feature';
   // Phase first, then the flag: selective enforcement needs to know WHICH exit this
   // is before it can decide whether the gate applies to it.
-  if (exitedPhase !== undefined && reviewGateAppliesTo(exitedPhase)) {
+  if (exitedPhase !== undefined && !featureImplementationExit && reviewGateAppliesTo(exitedPhase)) {
     const ticketDirectory = nodePath.dirname(editedFile);
     const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
     const stamps = readReviewStamps(phaseScope);
@@ -1211,6 +1316,63 @@ if (isCanonicalTicketEdit) {
     }
   }
 }
+// ---------------------------------------------------------------------------
+// A feature branch review is a separate claim from the generic phase review.
+// Ask the trusted CLI at the two existing ticket-write boundaries; this hook
+// never fetches or invokes a reviewer.
+let branchDisclosure: string | undefined;
+if (isCanonicalTicketEdit) {
+  const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
+  const ticketEdit = canonicalTicketEditContext();
+  const priorType = frontmatterScalar(ticketEdit.priorMeta, 'type');
+  if (
+    priorType === 'feature' &&
+    proposedType !== 'feature' &&
+    (priorPhase === 'implement' || priorPhase === 'verify')
+  )
+    deny(
+      'Changing an in-progress feature to another type would bypass its branch review.',
+      'Move the feature back to intake before reclassifying it, or finish the branch review.',
+    );
+  const closingTicket =
+    frontmatterScalar(ticketEdit.priorMeta, 'status') !== 'done' &&
+    frontmatterScalar(ticketEdit.proposedMeta, 'status') === 'done';
+  const phases: ('implement' | 'verify')[] = [];
+  if (
+    priorPhase === 'implement' &&
+    (proposedPhase === 'verify' || proposedPhase === 'done' || closingTicket)
+  )
+    phases.push('implement');
+  if (
+    (proposedPhase === 'done' || closingTicket) &&
+    (priorPhase === 'implement' || priorPhase === 'verify')
+  )
+    phases.push('verify');
+  if (proposedType === 'feature' && phases.length > 0) {
+    if (
+      ticketGoalsForBranchReview(ticketEdit.priorContent) !==
+      ticketGoalsForBranchReview(ticketEdit.proposedContent)
+    )
+      deny(
+        'The phase change also changes ticket goals, so the saved branch review cannot cover the proposed ticket.',
+        'Save the goal change first, review the branch against it, then change only the phase.',
+      );
+    const ticketId = frontmatterScalar(canonicalTicketEditContext().proposedMeta, 'id');
+    if (ticketId === undefined) deny('Branch review cannot identify the ticket.');
+    for (const phase of phases) {
+      const decision = branchReviewGateDecision(ticketId, phase);
+      if (decision.denial !== undefined) {
+        const remedy =
+          decision.skipEligible && decision.reviewId !== undefined
+            ? `Record a substantive reasoned skip for this coverage-none result: \`bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --ticket ${nodePath.basename(nodePath.dirname(editedFile))} --phase ${phase} --review-id ${decision.reviewId} --skip "<reason>"\`, then retry the phase change.`
+            : 'Run `safeword review branch <ticket-id>` and retry the phase change.';
+        deny(`Branch review is stale or incomplete: ${decision.denial}`, remedy);
+      }
+      branchDisclosure = decision.disclosure ?? branchDisclosure;
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // blocked_on hard gate (ticket MBGQ89) — ALWAYS-ON. On a ticket.md edit that
 // advances phase out of intake, deny while any same-repo blocked_on target is
@@ -1389,6 +1551,12 @@ if (
 // (After artifact prerequisite check, which targets files in .safeword-project/)
 // Project-relative match, NOT a substring of the absolute path — see isMetaPath.
 if (isMetaPath(editedFile, canonicalProjectDirectory)) {
+  if (branchDisclosure !== undefined)
+    console.log(
+      JSON.stringify({
+        hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: branchDisclosure },
+      }),
+    );
   process.exit(0);
 }
 

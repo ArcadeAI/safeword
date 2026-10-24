@@ -425,6 +425,46 @@ async function codingAuthorizationHandler(invocation: CommandInvocation): Promis
   return evaluateCodingAuthorization(invocation.cwd, ticket);
 }
 
+async function branchReviewHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticketId = invocation.operands[0];
+  if (typeof ticketId !== 'string' || ticketId === '' || invocation.operands.length !== 1) {
+    return invalidOperand('review branch', 'Supply the active feature ticket id.');
+  }
+  const { reviewBranch } = await import('../review/branch.js');
+  return reviewBranch(invocation.cwd, ticketId, invocation.offline);
+}
+
+async function branchReviewCheckHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const [ticketId, phase] = invocation.operands;
+  if (
+    typeof ticketId !== 'string' ||
+    (phase !== 'implement' && phase !== 'verify') ||
+    invocation.operands.length !== 2
+  ) {
+    return invalidOperand(
+      'review branch-check',
+      'Supply a feature ticket id and implement or verify.',
+    );
+  }
+  const { checkBranchReview } = await import('../review/branch.js');
+  return checkBranchReview(invocation.cwd, ticketId, phase);
+}
+
+async function branchReviewAckHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const [ticketId, reviewId] = invocation.operands;
+  const reason = stringOption(invocation.options, 'reason');
+  if (
+    typeof ticketId !== 'string' ||
+    typeof reviewId !== 'string' ||
+    reason === undefined ||
+    invocation.operands.length !== 2
+  ) {
+    return invalidOperand('review branch-ack', 'Supply ticket id, review id, and --reason.');
+  }
+  const { acknowledgeBranchReview } = await import('../review/branch.js');
+  return acknowledgeBranchReview(invocation.cwd, ticketId, reviewId, reason);
+}
+
 async function recordDeliveryProofHandler(invocation: CommandInvocation): Promise<CliResult> {
   const [ticket, item, proof] = invocation.operands;
   if ([ticket, item, proof].some(value => typeof value !== 'string' || value === '')) {
@@ -612,6 +652,9 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket coding-authorization': codingAuthorizationHandler,
   'ticket record-delivery-proof': recordDeliveryProofHandler,
   'review run': reviewRunHandler,
+  'review branch': branchReviewHandler,
+  'review branch-check': branchReviewCheckHandler,
+  'review branch-ack': branchReviewAckHandler,
   'review gate executable-red': executableRedGateHandler,
   'review gate retrospective': retrospectiveGateHandler,
   'review attest retrospective': retrospectiveAttestHandler,

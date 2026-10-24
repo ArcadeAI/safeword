@@ -225,6 +225,17 @@ Each pass:
    invoking the coordinator; source checkouts do not guarantee a bare
    `safeword` on `PATH`:
 
+   For the whole-ticket pass at a BDD feature's implementation exit, use
+   `safeword review branch <ticket-id> --json` as this coordinator call. It
+   selects the merge-base branch changes and ticket context itself; do not
+   run the selected-target command as a second review for the same pass. If
+   coverage is partial, show each omitted path and use the command's
+   acknowledgement route only with a substantive agent reason. If coverage
+   is none, use `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" project runtime write-review-stamp -- --ticket <ticket-folder> --phase <implement-or-verify> --review-id <review-id> --skip "<substantive reason>"`; never claim a completed branch review.
+   During verification, repeat the branch command after authored work changes.
+
+   For other work-products, run the selected-target coordinator:
+
    ```bash
    SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.0/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
    ```
