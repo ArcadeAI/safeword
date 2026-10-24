@@ -8,6 +8,7 @@ import {
   readFileSync,
   realpathSync,
   symlinkSync,
+  unlinkSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
 import { release } from 'node:os';
@@ -209,6 +210,7 @@ export function executionToolDetails(
         ? details.path
         : nodePath.join(clone, relative);
   }
+  rebindExecutionTools(tools, metadata, environment);
   const probeEnvironment = {
     ...environment,
     HOME: probeHome,
@@ -224,6 +226,22 @@ export function executionToolDetails(
     Object.assign(details, probeToolVersion(tools, path, probeEnvironment, probeHome));
   }
   return metadata;
+}
+
+function rebindExecutionTools(
+  tools: Tools,
+  metadata: Record<string, ToolDetails>,
+  environment: NodeJS.ProcessEnv,
+): void {
+  const bin = environment.PATH?.split(nodePath.delimiter)[0];
+  if (!bin) throw new Error('Missing isolated tool directory');
+  for (const name of Object.keys(tools.paths)) {
+    const execution = metadata[name]?.execution_path;
+    if (execution === undefined) throw new Error(`Missing execution tool ${name}`);
+    const link = nodePath.join(bin, name);
+    unlinkSync(link);
+    symlinkSync(execution, link);
+  }
 }
 
 function probeToolVersion(

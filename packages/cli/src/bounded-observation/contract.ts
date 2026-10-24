@@ -30,11 +30,16 @@ export function digest(bytes: Buffer | string): string {
 }
 
 /** Deterministic authentication, independent of object insertion order. */
+export function compareText(left: string, right: string): number {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
+
 export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(item => canonical(item)).join(',')}]`;
   if (value !== null && typeof value === 'object') {
     return `{${Object.entries(value)
-      .toSorted(([left], [right]) => left.localeCompare(right))
+      .toSorted(([left], [right]) => compareText(left, right))
       .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`)
       .join(',')}}`;
   }
@@ -82,8 +87,8 @@ export function validateCandidateContract(root: string): void {
   if (
     new Set(cases).size !== cases.length ||
     cases.length !== 37 ||
-    canonical(cases.toSorted((left, right) => left.localeCompare(right))) !==
-      canonical(expected.toSorted((left, right) => left.localeCompare(right)))
+    canonical(cases.toSorted((left, right) => compareText(left, right))) !==
+      canonical(expected.toSorted((left, right) => compareText(left, right)))
   ) {
     const actualIds = new Set(cases);
     const expectedIds = new Set(expected);
@@ -176,10 +181,10 @@ export function gradeReport(
   const results = new Map<string, AssertionResult[]>();
   const actualFiles = files
     .map(file => nodePath.resolve(file.name))
-    .toSorted((left, right) => left.localeCompare(right));
+    .toSorted((left, right) => compareText(left, right));
   const expectedFiles = fixedFiles
     .map(file => nodePath.join(clone, 'packages/cli', file))
-    .toSorted((left, right) => left.localeCompare(right));
+    .toSorted((left, right) => compareText(left, right));
   if (canonical(actualFiles) !== canonical(expectedFiles)) {
     throw new Error(
       'Incomplete fixed file set in runner report; repair the complete lane and rerun',

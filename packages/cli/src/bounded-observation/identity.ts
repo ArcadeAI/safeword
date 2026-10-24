@@ -9,8 +9,10 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
+import { computeSkipMask, parseHeading } from '../utils/markdown-sections.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
-import { canonical, digest } from './contract.js';
+import { canonical, compareText, digest } from './contract.js';
+import { requireLockedDependencies } from './dependencies.js';
 
 const auditSummary =
   '.project/tickets/PPHQN5-observe-bounded-delivery-proof/evidence/observer-audit-summary.md';
@@ -49,15 +51,22 @@ export function projectedFile(path: string, bytes: Buffer): string {
   const lines = body.replaceAll('\r\n', '\n').split('\n');
   const retained: string[] = [];
   let inLog = false;
-  for (const line of lines) {
-    if (line.trim() === '## Work Log') {
+  const skip = computeSkipMask(lines);
+  for (const [index, line] of lines.entries()) {
+    const skipped = skip.at(index) === true;
+    const heading = skipped ? undefined : parseHeading(line);
+    if (heading?.level === 2 && heading.text === 'Work Log') {
       inLog = true;
       continue;
     }
-    if (inLog && line.startsWith('## ')) inLog = false;
+    if (inLog && isLogBoundary(heading)) inLog = false;
     if (!inLog) retained.push(line);
   }
   return digest(canonical({ metadata: bound, body: retained.join('\n').trim() }));
+}
+
+function isLogBoundary(heading: ReturnType<typeof parseHeading>): boolean {
+  return heading !== undefined && heading.level <= 2;
 }
 
 export function sourceIdentity(root: string): Record<string, string> {
@@ -140,7 +149,7 @@ export function treeIdentity(root: string, relative: string): string {
       }
       entries.push([path, `link:${link}`]);
     } else if (info.isDirectory()) {
-      const children = readdirSync(absolute).toSorted((left, right) => left.localeCompare(right));
+      const children = readdirSync(absolute).toSorted((left, right) => compareText(left, right));
       for (const child of children) {
         visit(nodePath.join(path, child));
       }
@@ -168,7 +177,13 @@ export function dependencyIdentity(root: string): Record<string, string> {
       'Installed dependencies are missing; run scripts/dev bun install --frozen-lockfile',
     );
   }
-  return Object.fromEntries(
-    dependencyRoots(root).map(path => [`dependency:${path}`, treeIdentity(root, path)]),
+  const roots = dependencyRoots(root);
+  const identities = Object.fromEntries(
+    roots.map(path => [`dependency:${path}`, treeIdentity(root, path)]),
   );
+  const manifests = git(root, ['ls-files', '-z'])
+    .split('\0')
+    .filter(path => path === 'package.json' || /^packages\/[^/]+\/package\.json$/u.test(path));
+  requireLockedDependencies(root, manifests, roots);
+  return identities;
 }

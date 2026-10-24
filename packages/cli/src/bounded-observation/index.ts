@@ -121,6 +121,8 @@ function retainedReportProblem(directory: string, cwd: string): string {
   }
 }
 
+class InterruptedRunnerError extends Error {}
+
 function runFixedLane(
   executable: string,
   argv: string[],
@@ -178,7 +180,7 @@ function runFixedLane(
       }
       if (interrupted || code !== 0 || signal !== null) {
         reject(
-          new Error(
+          new (interrupted ? InterruptedRunnerError : Error)(
             `Fixed runner ${interrupted ? 'interrupted or timed out' : 'failed'} (exit ${code}, signal ${signal}); repair the lane and rerun${retainedReportProblem(directory, cwd)}`,
           ),
         );
@@ -187,13 +189,28 @@ function runFixedLane(
   });
 }
 
+function cleanWork(work: string | undefined): void {
+  if (work !== undefined) rmSync(work, { recursive: true, force: true });
+}
+
+function requireCompleteAttempt(directory: string, id: string): void {
+  const complete = ['start.json', 'terminal.json'].every(name =>
+    existsSync(nodePath.join(directory, name)),
+  );
+  if (!complete)
+    throw new Error(
+      `Attempt ${id} is incomplete; liveness unknown. Retained diagnostics: ${directory}. Retry with a new observation`,
+    );
+}
+
 export async function observeBoundedDelivery(cwd: string): Promise<AttemptTerminal> {
   const root = canonicalRoot(cwd);
+  const candidateCommit = git(root, ['rev-parse', 'HEAD']).trim();
+  const runtimeSha256 = runtimeIdentity();
   const store = openStore(root, true);
   const { id, directory } = reserveAttempt(store);
   const workPrefix = nodePath.join(tmpdir(), 'safeword-bounded-');
-  const work = realpathSync(mkdtempSync(workPrefix));
-  const clone = nodePath.join(work, 'candidate');
+  let work: string | undefined;
   const report = nodePath.join(directory, 'report.json');
   const command = {
     public_argv: ['proof', 'observe-bounded-delivery'],
@@ -215,12 +232,12 @@ export async function observeBoundedDelivery(cwd: string): Promise<AttemptTermin
     ticket: deliveryTicket,
     root,
     attempt_id: id,
-    candidate_commit: git(root, ['rev-parse', 'HEAD']).trim(),
+    candidate_commit: candidateCommit,
     profile_sha256: profileSha256,
-    runtime_sha256: runtimeIdentity(),
+    runtime_sha256: runtimeSha256,
     inputs: {},
     command,
-    clone,
+    clone: '',
     started_at: new Date().toISOString(),
   };
   let published = false;
@@ -232,7 +249,9 @@ export async function observeBoundedDelivery(cwd: string): Promise<AttemptTermin
   let resolvedTools: Record<string, ToolDetails> = {};
   let executionEnvironment: NodeJS.ProcessEnv = {};
   try {
-    start = { ...start, inputs: currentInputs(root) };
+    work = realpathSync(mkdtempSync(workPrefix));
+    const clone = nodePath.join(work, 'candidate');
+    start = { ...start, clone, inputs: currentInputs(root) };
     publishRecord(store, directory, 'start', start);
     published = true;
     appendFileSync(diagnostic, 'Inputs bound; preparing an independent committed clone.\n');
@@ -325,7 +344,7 @@ export async function observeBoundedDelivery(cwd: string): Promise<AttemptTermin
     if (!published) publishRecord(store, directory, 'start', start);
     const terminal: AttemptTerminal = {
       ...start,
-      status: problem.includes('interrupted') ? 'interrupted' : 'refused',
+      status: error instanceof InterruptedRunnerError ? 'interrupted' : 'refused',
       tools: resolvedTools,
       execution_environment: executionEnvironment,
       finished_at: new Date().toISOString(),
@@ -339,7 +358,7 @@ export async function observeBoundedDelivery(cwd: string): Promise<AttemptTermin
     return terminal;
   } finally {
     process.umask(oldMask);
-    rmSync(work, { recursive: true, force: true });
+    cleanWork(work);
   }
 }
 
@@ -350,12 +369,8 @@ export function verifyBoundedDelivery(
   const root = canonicalRoot(cwd);
   const store = openStore(root, false);
   const directory = attemptPath(store, id);
+  requireCompleteAttempt(directory, id);
   const start = readRecord(store, directory, 'start', root, id);
-  if (!existsSync(nodePath.join(directory, 'terminal.json'))) {
-    throw new Error(
-      `Attempt ${id} is incomplete; liveness unknown. Retained diagnostics: ${directory}. Retry with a new observation`,
-    );
-  }
   const terminal = readRecord(store, directory, 'terminal', root, id) as AttemptTerminal;
   for (const [key, value] of Object.entries(start)) {
     if (canonical(value) !== canonical(terminal[key as keyof AttemptTerminal]))
