@@ -424,6 +424,13 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   const attemptExit = (from = 'implement', to = 'verify') =>
     attemptEdit(`phase: ${from}`, `phase: ${to}`);
   expectHookDeny(attemptEdit('type: feature', 'type: task'), 'bypass');
+  const beforeStatus = readFileSync(ticketPath, 'utf8');
+  writeFileSync(
+    ticketPath,
+    beforeStatus.replace('type: feature', 'type: feature\nstatus: in_progress'),
+  );
+  expectHookDeny(attemptEdit('status: in_progress', 'status: done'), 'No current branch review');
+  writeFileSync(ticketPath, beforeStatus);
   const beforeSkip = readFileSync(ticketPath, 'utf8');
   writeFileSync(
     ticketPath,

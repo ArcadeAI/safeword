@@ -1323,7 +1323,8 @@ if (isCanonicalTicketEdit) {
 let branchDisclosure: string | undefined;
 if (isCanonicalTicketEdit) {
   const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
-  const priorType = frontmatterScalar(canonicalTicketEditContext().priorMeta, 'type');
+  const ticketEdit = canonicalTicketEditContext();
+  const priorType = frontmatterScalar(ticketEdit.priorMeta, 'type');
   if (
     priorType === 'feature' &&
     proposedType !== 'feature' &&
@@ -1333,13 +1334,21 @@ if (isCanonicalTicketEdit) {
       'Changing an in-progress feature to another type would bypass its branch review.',
       'Move the feature back to intake before reclassifying it, or finish the branch review.',
     );
+  const closingTicket =
+    frontmatterScalar(ticketEdit.priorMeta, 'status') !== 'done' &&
+    frontmatterScalar(ticketEdit.proposedMeta, 'status') === 'done';
   const phases: ('implement' | 'verify')[] = [];
-  if (priorPhase === 'implement' && (proposedPhase === 'verify' || proposedPhase === 'done'))
+  if (
+    priorPhase === 'implement' &&
+    (proposedPhase === 'verify' || proposedPhase === 'done' || closingTicket)
+  )
     phases.push('implement');
-  if (proposedPhase === 'done' && (priorPhase === 'implement' || priorPhase === 'verify'))
+  if (
+    (proposedPhase === 'done' || closingTicket) &&
+    (priorPhase === 'implement' || priorPhase === 'verify')
+  )
     phases.push('verify');
   if (proposedType === 'feature' && phases.length > 0) {
-    const ticketEdit = canonicalTicketEditContext();
     if (
       ticketGoalsForBranchReview(ticketEdit.priorContent) !==
       ticketGoalsForBranchReview(ticketEdit.proposedContent)
