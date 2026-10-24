@@ -989,11 +989,22 @@ function canonicalTicketEditContext(): CanonicalTicketEditContext {
 
 function ticketGoalsForBranchReview(content: string): string {
   const frontmatter = /^---\r?\n[\s\S]*?\r?\n---(?=\r?\n|$)/u.exec(content)?.[0];
+  let inAnchors = false;
   const withoutBookkeeping = frontmatter
-    ? frontmatter.replaceAll(
-        /^(?:phase|status|last_modified|branch_review_exit_id):[^\n]*\n/gmu,
-        '',
-      ) + content.slice(frontmatter.length)
+    ? frontmatter
+        .split('\n')
+        .filter(line => {
+          if (/^phase_anchors:\r?$/u.test(line)) {
+            inAnchors = true;
+            return false;
+          }
+          if (inAnchors && /^[ \t]/u.test(line)) return false;
+          inAnchors = false;
+          return true;
+        })
+        .join('\n')
+        .replaceAll(/^(?:phase|status|last_modified|branch_review_exit_id):[^\n]*\n/gmu, '') +
+      content.slice(frontmatter.length)
     : content;
   const lines = withoutBookkeeping.split('\n');
   const start = lines.findIndex(line => /^## Work Log\s*$/u.test(line));

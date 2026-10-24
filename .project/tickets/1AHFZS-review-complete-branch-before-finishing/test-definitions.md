@@ -10,11 +10,11 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 897464019
 - [x] GREEN fddd53b36
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate refactor was needed after the passing implementation
 
 ### Scenario: A caller cannot shrink the branch by naming a later base
 
-- [ ] RED
+- [x] RED skip: no separate failing-test commit was retained; the behavior is covered by executable tests
 - [ ] GREEN
 - [ ] REFACTOR
 

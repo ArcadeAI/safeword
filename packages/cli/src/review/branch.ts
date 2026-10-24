@@ -545,8 +545,21 @@ function projectExecutionPlan(text: string): string {
 function withoutTicketMetadata(text: string): string {
   const frontmatter = /^---\r?\n[\s\S]*?\r?\n---(?=\r?\n|$)/u.exec(text)?.[0];
   if (!frontmatter) return text;
+  let inAnchors = false;
+  const withoutAnchors = frontmatter
+    .split('\n')
+    .filter(line => {
+      if (/^phase_anchors:\r?$/u.test(line)) {
+        inAnchors = true;
+        return false;
+      }
+      if (inAnchors && /^[ \t]/u.test(line)) return false;
+      inAnchors = false;
+      return true;
+    })
+    .join('\n');
   return (
-    frontmatter.replaceAll(
+    withoutAnchors.replaceAll(
       /^(?:phase|status|last_modified|branch_review_exit_id):[^\n]*\n/gmu,
       '',
     ) + text.slice(frontmatter.length)

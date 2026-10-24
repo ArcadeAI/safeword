@@ -24,6 +24,14 @@ const codexHookPath = nodePath.resolve(
   import.meta.dirname,
   '../../templates/hooks/codex/pre-tool-quality.ts',
 );
+const claudeStopHookPath = nodePath.resolve(
+  import.meta.dirname,
+  '../../templates/hooks/stop-quality.ts',
+);
+const codexStopHookPath = nodePath.resolve(
+  import.meta.dirname,
+  '../../templates/hooks/codex/stop.ts',
+);
 const cursorHookPath = nodePath.resolve(
   import.meta.dirname,
   '../../templates/hooks/cursor/pre-tool-quality.ts',
@@ -214,6 +222,42 @@ it('keeps a saved review current after verification checklist progress', async (
     runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], { cwd: project });
   const baseline = await checkReview();
   expectCurrentBranchCheck(baseline.stdout);
+  const ticketPath = nodePath.join(ticket, 'ticket.md');
+  writeFileSync(
+    ticketPath,
+    readFileSync(ticketPath, 'utf8').replace(
+      'phase: verify\n',
+      'phase: verify\nphase_anchors:\n  - verify: .project/tickets/ABC123-review-branch/verify.md\n',
+    ),
+  );
+  const afterAnchor = await checkReview();
+  expectCurrentBranchCheck(afterAnchor.stdout);
+  const anchorExit = spawnSync('bun', [hookPath], {
+    cwd: project,
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: project,
+      SAFEWORD_PLUGIN_CLI: testCliPath,
+      SAFEWORD_AGENT_RUNTIME: 'claude',
+    },
+    input: JSON.stringify({
+      session_id: 'branch-bookkeeping',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Write',
+      tool_input: {
+        file_path: ticketPath,
+        content: readFileSync(ticketPath, 'utf8')
+          .replace('phase: verify', 'phase: done')
+          .replace(
+            '  - verify: .project/tickets/ABC123-review-branch/verify.md',
+            '  - verify: .project/tickets/ABC123-review-branch/verify.md\n  - done: .project/tickets/ABC123-review-branch/verify.md',
+          ),
+      },
+    }),
+  });
+  expectHookAllow(anchorExit);
   const records = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');
   const saved = readdirSync(records).find(name => /^\d+-[a-f\d-]+\.json$/u.test(name));
   if (saved === undefined) throw new Error('branch review record is missing');
@@ -239,7 +283,6 @@ it('keeps a saved review current after verification checklist progress', async (
   git(project, 'commit', '-m', 'record verification progress');
   const check = await checkReview();
   expectCurrentBranchCheck(check.stdout);
-  const ticketPath = nodePath.join(ticket, 'ticket.md');
   const exit = spawnSync('bun', [hookPath], {
     cwd: project,
     encoding: 'utf8',
@@ -557,6 +600,100 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   );
   expectHookAllow(attemptExit('verify', 'done'));
   expect(completionProblem()).toBeUndefined();
+  let stopProof:
+    | {
+        claude: ReturnType<typeof spawnSync>;
+        codex: ReturnType<typeof spawnSync>;
+        owedAfter: string[];
+        claudeTicket: string;
+        codexTicket: string;
+      }
+    | undefined;
+  if (hostCase === 'Claude Code / committed') {
+    const savedTicket = readFileSync(ticketPath, 'utf8');
+    const savedSource = readFileSync(changePath, 'utf8');
+    const verifyPath = nodePath.join(ticket, 'verify.md');
+    const savedVerify = readFileSync(verifyPath, 'utf8');
+    const savedLedger = readFileSync(ledgerPath, 'utf8');
+    writeFileSync(ledgerPath, ledger.replaceAll('- [ ]', '- [x]').replace('- [x] VERIFIED\n', ''));
+    writeFileSync(
+      verifyPath,
+      '# Verification result\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
+    );
+    writeFileSync(
+      ticketPath,
+      savedTicket
+        .replace('type: feature', 'type: feature\nstatus: done')
+        .replace('phase: verify', 'phase: done'),
+    );
+    writeFileSync(changePath, 'unreviewed after phase exit\n');
+    const transcriptPath = nodePath.join(project, 'branch-stop-transcript.jsonl');
+    writeFileSync(
+      transcriptPath,
+      `${JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Edit' }] } })}\n`,
+    );
+    const claudeStatePath = nodePath.join(
+      project,
+      '.project',
+      'quality-state-branch-stop-claude.json',
+    );
+    writeFileSync(
+      claudeStatePath,
+      JSON.stringify({ activeTicket: 'ABC123', doneGateOwedTickets: ['ABC123'] }),
+    );
+    const stopEnvironment = {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: project,
+      SAFEWORD_PLUGIN_CLI: testCliPath,
+    };
+    const claude = spawnSync('bun', [claudeStopHookPath], {
+      cwd: project,
+      env: stopEnvironment,
+      encoding: 'utf8',
+      timeout: 20_000,
+      input: JSON.stringify({
+        session_id: 'branch-stop-claude',
+        transcript_path: transcriptPath,
+        stop_hook_active: true,
+      }),
+    });
+    const owedAfter = (
+      JSON.parse(readFileSync(claudeStatePath, 'utf8')) as { doneGateOwedTickets: string[] }
+    ).doneGateOwedTickets;
+    const claudeTicket = readFileSync(ticketPath, 'utf8');
+    writeFileSync(ticketPath, claudeTicket.replace('status: done', 'status: in_progress'));
+    const codexStatePath = nodePath.join(
+      project,
+      '.project',
+      'quality-state-codex-branch-stop-codex.json',
+    );
+    writeFileSync(
+      codexStatePath,
+      JSON.stringify({ activeTicket: 'ABC123', locSinceCommit: 0, lastCommitHash: '' }),
+    );
+    const codex = spawnSync('bun', [codexStopHookPath], {
+      cwd: project,
+      env: stopEnvironment,
+      encoding: 'utf8',
+      timeout: 20_000,
+      input: JSON.stringify({ session_id: 'branch-stop-codex', cwd: project }),
+    });
+    stopProof = {
+      claude,
+      codex,
+      owedAfter,
+      claudeTicket,
+      codexTicket: readFileSync(ticketPath, 'utf8'),
+    };
+    writeFileSync(ticketPath, savedTicket);
+    writeFileSync(changePath, savedSource);
+    writeFileSync(verifyPath, savedVerify);
+    writeFileSync(ledgerPath, savedLedger);
+    rmSync(transcriptPath);
+    rmSync(claudeStatePath);
+    rmSync(codexStatePath);
+    rmSync(nodePath.join(project, '.project', 'failure-counts.json'), { force: true });
+  }
   git(project, 'commit', '--allow-empty', '-m', 'same reviewed correction');
   expectHookAllow(attemptExit('verify', 'done'));
   writeFileSync(auditSource, 'export const audit = 2;\n');
@@ -628,7 +765,15 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   expect(attemptExit().stdout).toContain('No branch changes were reviewed');
   writeFileSync(nodePath.join(project, 'new-work.txt'), 'new work after empty review\n');
   expectHookDeny(attemptExit(), 'stale');
-  return { current, stale, changedGoalBlocked, emptyBlocked, skippedExit, noChangesReport };
+  return {
+    current,
+    stale,
+    changedGoalBlocked,
+    emptyBlocked,
+    skippedExit,
+    noChangesReport,
+    stopProof,
+  };
 }
 
 const gateProofs = new Map<string, ReturnType<typeof gatherGateProof>>();
@@ -667,6 +812,19 @@ it('rejects a verification code fix until it is reviewed again', async () => {
 it('rejects changed ticket goals until they are reviewed again', async () => {
   const proof = await gateProof('Claude Code / committed');
   expectHookDeny(proof.changedGoalBlocked, 'stale');
+});
+
+it('Claude Stop retains the owed done gate after authored work changes', async () => {
+  const proof = await gateProof('Claude Code / committed');
+  expect(proof.stopProof?.claude.stdout).toContain('stale');
+  expect(proof.stopProof?.owedAfter).toContain('ABC123');
+  expect(proof.stopProof?.claudeTicket).toContain('status: done');
+});
+
+it('Codex Stop refuses to complete after authored work changes', async () => {
+  const proof = await gateProof('Claude Code / committed');
+  expect(proof.stopProof?.codex.stdout).toContain('stale');
+  expect(proof.stopProof?.codexTicket).toContain('status: in_progress');
 });
 
 it('refuses an empty branch as a completed review but allows its reasoned skip', async () => {

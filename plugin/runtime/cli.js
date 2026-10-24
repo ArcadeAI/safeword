@@ -3652,7 +3652,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "158af1d1a402371dd48ac4a550c181aadbbc8b937b59df50ed6916ee662ce1ea",
+        ".safeword/hooks/pre-tool-quality.ts": "f991a95653324439e8e5c93749e4653767047574595c6397a91458d85b0b683c",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -85429,7 +85429,20 @@ function withoutTicketMetadata(text) {
   const frontmatter = /^---\r?\n[\s\S]*?\r?\n---(?=\r?\n|$)/u.exec(text)?.[0];
   if (!frontmatter)
     return text;
-  return frontmatter.replaceAll(/^(?:phase|status|last_modified|branch_review_exit_id):[^\n]*\n/gmu, "") + text.slice(frontmatter.length);
+  let inAnchors = false;
+  const withoutAnchors = frontmatter.split(`
+`).filter((line) => {
+    if (/^phase_anchors:\r?$/u.test(line)) {
+      inAnchors = true;
+      return false;
+    }
+    if (inAnchors && /^[ \t]/u.test(line))
+      return false;
+    inAnchors = false;
+    return true;
+  }).join(`
+`);
+  return withoutAnchors.replaceAll(/^(?:phase|status|last_modified|branch_review_exit_id):[^\n]*\n/gmu, "") + text.slice(frontmatter.length);
 }
 function projectedBytes(path8, bytes, ticketDirectory) {
   if (isRoutineRecord(path8, ticketDirectory))
