@@ -28,7 +28,7 @@ the JSON Cucumber control separately checks that execution never starts.
 
 - [x] RED 1be7378a6
 - [x] GREEN 6d93f43cc
-- [ ] REFACTOR
+- [x] REFACTOR skip: human refusal and fixed recovery remain feature-local; the real human control and 52 focused tests passed, with no further structural cleanup warranted; later identity and lock corrections require behavioral test edits in GREEN
 
 ### Scenario: A candidate change during execution prevents a successful observation
 
