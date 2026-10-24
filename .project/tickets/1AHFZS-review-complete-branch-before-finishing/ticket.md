@@ -2,7 +2,7 @@
 id: 1AHFZS
 slug: review-complete-branch-before-finishing
 type: feature
-phase: implement
+phase: scenario-gate
 status: in_progress
 phase_anchors:
   - define-behavior: .project/tickets/1AHFZS-review-complete-branch-before-finishing/spec.md
@@ -37,6 +37,8 @@ last_modified: 2026-10-23T00:00:00.000Z
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-10-23 Replay: A fresh independent scenario review found two promised behaviors without discriminating examples: ticket-goal changes must stale a saved review, and a missing integration base must not claim coverage. Returned to scenario-gate and added those two examples within the existing scope.
 
 - 2026-10-02T05:17:41.443Z Started: Created ticket 1AHFZS
 - 2026-10-02T05:19Z Found: BDD implementation exit already requests a whole-diff quality review, but the shared review packet only contains caller-selected bounded files. PR readiness separately requires current-head complete-diff author review. Drafted Product Bet and two builder jobs; awaiting the first BDD checkpoint.

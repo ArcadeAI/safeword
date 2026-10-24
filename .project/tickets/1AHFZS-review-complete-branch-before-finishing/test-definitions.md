@@ -40,6 +40,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Changed ticket goals require a fresh review
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: branch-review.TBU1.R4 — Implementation exit checks the saved review before advancing
 
 ### Scenario: A current complete review lets implementation finish
@@ -80,6 +86,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Sensitive file content stays out of the reviewer packet
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: branch-review.NTB1.R2 — The report tells a builder what to do next in plain language
 
 ### Scenario: A builder sees the next action for a partial review
@@ -89,6 +101,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ## Rule: branch-review.NTB1.R3 — Freshness and coverage are reported separately
+
+### Scenario: Missing integration base cannot claim a completed review
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: A dirty branch is current but only partially covered
 

@@ -5,11 +5,12 @@ Feature: Review complete branch changes before builders finish
 
     @demo @surface.safeword-cli
     Scenario: A multi-file feature is reviewed from the integration merge base
-      Given a BDD branch changes authored files across several commits
+      Given a clean BDD branch changes only eligible authored files across several commits
       And the ticket describes behavior those files must deliver
       When the builder runs the shared Safeword branch-review command
       Then the result names the computed merge-base revision and reviewed head revision
       And every committed path is accounted for against the ticket behavior
+      And the result reports current freshness and complete coverage
 
     @rejection
     Scenario: A caller cannot shrink the branch by naming a later base
@@ -38,9 +39,16 @@ Feature: Review complete branch changes before builders finish
 
     Scenario: Routine ticket records do not restart branch review
       Given a saved branch review covered the implementation at exit
-      And verification writes only phase, timestamp, Work Log, and evidence records
+      And verification commits only phase, timestamp, Work Log, and evidence records
       When the builder tries to finish the ticket
       Then the earlier review remains current for the reviewed work
+
+    @rejection
+    Scenario: Changed ticket goals require a fresh review
+      Given a saved branch review covered the implementation against the accepted ticket goals
+      And an accepted ticket goal changes after that review
+      When the builder tries to finish the ticket
+      Then the earlier review is stale and the changed goal needs review
 
   @branch-review.TBU1.R4
   Rule: branch-review.TBU1.R4 — Implementation exit checks the saved review before advancing
@@ -55,7 +63,7 @@ Feature: Review complete branch changes before builders finish
     Scenario Outline: Each supported local host refuses changed work at implementation exit
       Given a BDD ticket is at implementation exit in <host>
       And a saved review covers an earlier branch snapshot
-      And an authored file has changed since that review
+      And an authored file has a nonignored uncommitted edit since that clean review
       When the builder tries to leave implementation
       Then <host> keeps the ticket in implementation and names the stale review
 
@@ -95,6 +103,14 @@ Feature: Review complete branch changes before builders finish
       Then the report names the generated path as omitted with its reason
       And the coverage is partial rather than complete
 
+    @rejection
+    Scenario: Sensitive file content stays out of the reviewer packet
+      Given a branch commits an authored file and a credential-like file
+      When the builder reviews the branch
+      Then the credential-like path is named as omitted with its reason
+      And the reviewer packet does not contain its content
+      And coverage is partial
+
   @branch-review.NTB1.R2
   Rule: branch-review.NTB1.R2 — The report tells a builder what to do next in plain language
 
@@ -106,6 +122,12 @@ Feature: Review complete branch changes before builders finish
 
   @branch-review.NTB1.R3
   Rule: branch-review.NTB1.R3 — Freshness and coverage are reported separately
+
+    @rejection
+    Scenario: Missing integration base cannot claim a completed review
+      Given the integration base cannot be determined
+      When the builder reviews the branch
+      Then coverage is none and the result says no branch work was reviewed
 
     @rejection
     Scenario: A dirty branch is current but only partially covered
