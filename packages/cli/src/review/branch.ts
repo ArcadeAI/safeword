@@ -231,7 +231,13 @@ function unavailableReason(cwd: string, item: ChangedPath): string | undefined {
 function noCoverage(ticketId: string, reason: string): CliResult {
   return createResult({
     state: 'action_required',
-    findings: [{ code: 'BRANCH_REVIEW_UNAVAILABLE', message: reason, severity: 'warning' }],
+    findings: [
+      {
+        code: 'BRANCH_REVIEW_UNAVAILABLE',
+        message: `No branch work was reviewed: ${reason}`,
+        severity: 'warning',
+      },
+    ],
     data: {
       command: 'review branch',
       ticket_id: ticketId,
@@ -279,7 +285,13 @@ function unavailableReview(
     recordTicketReview(ticket, record.id);
     return createResult({
       state: 'action_required',
-      findings: [{ code: 'BRANCH_REVIEW_UNAVAILABLE', message: reason, severity: 'warning' }],
+      findings: [
+        {
+          code: 'BRANCH_REVIEW_UNAVAILABLE',
+          message: `No branch work was reviewed: ${reason}`,
+          severity: 'warning',
+        },
+      ],
       data: {
         command: 'review branch',
         ticket_id: ticketId,
