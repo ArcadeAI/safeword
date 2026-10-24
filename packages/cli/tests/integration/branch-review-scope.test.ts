@@ -114,3 +114,40 @@ it('reviews both authored files from the integration merge base against the tick
   expect(reviewerPacket).not.toContain('upstream.ts');
   expect(reviewerPacket).not.toContain('export const unrelated = true;');
 });
+
+it('says no branch work was reviewed when the integration base is unavailable', async () => {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-missing-base-'));
+  roots.push(root);
+  const remote = nodePath.join(root, 'remote.git');
+  const project = nodePath.join(root, 'project');
+  mkdirSync(project);
+  git(root, 'init', '--bare', remote);
+  git(project, 'init', '-b', 'main');
+  git(project, 'config', 'user.name', 'Test Builder');
+  git(project, 'config', 'user.email', 'builder@example.test');
+  git(project, 'remote', 'add', 'origin', remote);
+  const ticket = nodePath.join(project, '.project', 'tickets', 'ABC123-review-branch');
+  mkdirSync(ticket, { recursive: true });
+  writeFileSync(
+    nodePath.join(ticket, 'ticket.md'),
+    '---\nid: ABC123\ntype: feature\nphase: implement\n---\n# Review branch\n',
+  );
+  writeFileSync(nodePath.join(project, 'seed.txt'), 'base\n');
+  git(project, 'add', '.');
+  git(project, 'commit', '-m', 'seed');
+  git(project, 'push', '-u', 'origin', 'main');
+  git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/missing');
+  git(project, 'checkout', '-b', 'topic');
+  writeFileSync(nodePath.join(project, 'source.ts'), 'export const value = 1;\n');
+  git(project, 'add', '.');
+  git(project, 'commit', '-m', 'feature');
+
+  const result = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project });
+  const report = JSON.parse(result.stdout) as {
+    data?: { coverage?: string; reviewed_paths?: string[] };
+    findings?: { message?: string }[];
+  };
+  expect(report.data?.coverage).toBe('none');
+  expect(report.data?.reviewed_paths).toEqual([]);
+  expect(report.findings?.[0]?.message).toContain('No branch work was reviewed');
+});
