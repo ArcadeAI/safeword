@@ -550,7 +550,7 @@ bunx safeword@latest capabilities --json --no-input
 
 Beyond the lifecycle commands, the CLI groups its workflows under `project`
 (config, architecture, indexes, codify, tests, Gherkin lint), `ticket`,
-`tracker`, `review`, `retro`, `claude`, and `codex`, plus `conformance`
+`tracker`, `review`, `proof`, `retro`, `claude`, and `codex`, plus `conformance`
 for OpenCode. The [CLI reference](https://safeword.dev/reference/cli/) lists
 every command, and `--help` on any command shows its options.
 
@@ -559,6 +559,14 @@ Global `--json`, `--no-input`, `--cwd`, `--quiet`, `--offline`, and
 `upgrade`, `diff`, `reset`, `sync-config`, and related top-level names remain
 hidden compatibility aliases indefinitely. New documentation and automation use
 the canonical commands above.
+
+Safeword repository maintainers can run `safeword proof observe-bounded-delivery`
+on a clean committed checkout to observe the fixed T3E4NS proof lane, then use
+`safeword proof verify-bounded-delivery ATTEMPT_ID` to check retained evidence
+against current inputs. This produces execution evidence only: historical RED,
+33 deferrals, certification, qualification and closing authority stay unchanged.
+See the [maintainer workflow](packages/website/src/content/docs/getting-started/workflow.mdx)
+for prerequisites, private retention and recovery.
 
 ### Publishing (maintainers)
 

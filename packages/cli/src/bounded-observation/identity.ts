@@ -24,6 +24,7 @@ export function git(root: string, argv: string[]): string {
   return execFileSync('git', ['-c', 'core.hooksPath=/dev/null', ...argv], {
     cwd: root,
     encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
     maxBuffer: 32 * 1024 * 1024,
     env: {
       PATH: process.env.PATH,

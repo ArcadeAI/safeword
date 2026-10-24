@@ -106,6 +106,8 @@ describe('CLI command catalog', () => {
       )
       .map(definition => definition.name);
     expect(canonicalNames).toEqual([
+      'proof observe-bounded-delivery',
+      'proof verify-bounded-delivery',
       'status',
       'conformance',
       'install',

@@ -1,6 +1,25 @@
 import type { CommandInvocation } from './handler.js';
 import { type CliResult, createResult } from './result.js';
 
+export function boundedProofArgumentFailure(message: string): CliResult {
+  const command = 'safeword proof observe-bounded-delivery';
+  return createResult({
+    state: 'failed',
+    data: {
+      authority: 'execution-only',
+      purpose: 'bounded-delivery-observation:v1',
+      status: 'refused',
+      current: false,
+    },
+    errors: [{ code: 'CLI_ARGUMENT_INVALID', message, retryable: false }],
+    nextActions: [{ command, mutates: true, requiresHuman: false }],
+    presentation: {
+      kind: 'raw',
+      body: `Execution-only request refused. Use the fixed request: ${command}.`,
+    },
+  });
+}
+
 export async function boundedObservationHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeBoundedDelivery } = await import('../bounded-observation/index.js');
   try {

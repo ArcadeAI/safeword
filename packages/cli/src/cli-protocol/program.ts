@@ -9,12 +9,13 @@ import { VERSION } from '../version.js';
 import { commandFamilies, findCommandDefinition } from './catalog.js';
 import { addGlobalOptions, GLOBAL_OPTION_DEFINITIONS } from './execute.js';
 import { machineOutputRequested } from './machine-output.js';
+import { boundedProofArgumentFailure } from './proof-handlers.js';
 import {
   addDefinitionOptions,
   registerPublicCommandCatalog,
   type RuntimeInvocation,
 } from './register.js';
-import { createResult, renderJsonResult } from './result.js';
+import { type CliResult, createResult, renderJsonResult } from './result.js';
 
 function isCommanderError(value: unknown): value is CommanderError {
   if (value instanceof CommanderError) return true;
@@ -153,6 +154,29 @@ export function configureCliOutput(program: Command, config: OutputConfiguration
   for (const command of program.commands) configureCliOutput(command, config);
 }
 
+function isBoundedProofRequest(argv: readonly string[]): boolean {
+  const index = commandTokenIndex(argv);
+  if (index === undefined) return false;
+  return (
+    argv[index] === 'proof' &&
+    ['observe-bounded-delivery', 'verify-bounded-delivery'].includes(argv[index + 1] ?? '')
+  );
+}
+
+function argumentFailure(argv: readonly string[], message: string): CliResult {
+  if (isBoundedProofRequest(argv)) return boundedProofArgumentFailure(message);
+  return createResult({
+    state: 'failed',
+    errors: [{ code: 'CLI_ARGUMENT_INVALID', message, retryable: false }],
+  });
+}
+
+function reportBoundedProofArgumentFailure(argv: readonly string[], message: string): void {
+  if (!isBoundedProofRequest(argv)) return;
+  const result = boundedProofArgumentFailure(message);
+  process.stderr.write(`${result.presentation?.body ?? ''}\n`);
+}
+
 export async function runCli(argv: readonly string[]): Promise<void> {
   installCliCrashCapture();
   const normalized = normalizeCliArgv(argv);
@@ -170,19 +194,11 @@ export async function runCli(argv: readonly string[]): Promise<void> {
     if (isCommanderError(parseError) && parseError.exitCode === 0) {
       process.exitCode = 0;
     } else if (machineOutput && isCommanderError(parseError)) {
-      const result = createResult({
-        state: 'failed',
-        errors: [
-          {
-            code: 'CLI_ARGUMENT_INVALID',
-            message: parseError.message,
-            retryable: false,
-          },
-        ],
-      });
+      const result = argumentFailure(normalized.argv, parseError.message);
       process.stdout.write(`${renderJsonResult(result)}\n`);
       process.exitCode = 1;
     } else if (isCommanderError(parseError)) {
+      reportBoundedProofArgumentFailure(normalized.argv, parseError.message);
       process.exitCode = parseError.exitCode;
     } else {
       error(parseError instanceof Error ? parseError.message : String(parseError));

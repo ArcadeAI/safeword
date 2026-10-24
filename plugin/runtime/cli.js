@@ -17556,6 +17556,7 @@ function git(root, argv) {
   return execFileSync("git", ["-c", "core.hooksPath=/dev/null", ...argv], {
     cwd: root,
     encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
     maxBuffer: 32 * 1024 * 1024,
     env: {
       PATH: process.env.PATH,
@@ -91535,6 +91536,24 @@ init_agent_selection();
 
 // src/cli-protocol/proof-handlers.ts
 init_result();
+function boundedProofArgumentFailure(message) {
+  const command = "safeword proof observe-bounded-delivery";
+  return createResult({
+    state: "failed",
+    data: {
+      authority: "execution-only",
+      purpose: "bounded-delivery-observation:v1",
+      status: "refused",
+      current: false
+    },
+    errors: [{ code: "CLI_ARGUMENT_INVALID", message, retryable: false }],
+    nextActions: [{ command, mutates: true, requiresHuman: false }],
+    presentation: {
+      kind: "raw",
+      body: `Execution-only request refused. Use the fixed request: ${command}.`
+    }
+  });
+}
 async function boundedObservationHandler(invocation) {
   const { observeBoundedDelivery: observeBoundedDelivery2 } = await Promise.resolve().then(() => (init_bounded_observation(), exports_bounded_observation));
   try {
@@ -95805,6 +95824,27 @@ function configureCliOutput(program2, config) {
   for (const command3 of program2.commands)
     configureCliOutput(command3, config);
 }
+function isBoundedProofRequest(argv) {
+  const index = commandTokenIndex(argv);
+  if (index === undefined)
+    return false;
+  return argv[index] === "proof" && ["observe-bounded-delivery", "verify-bounded-delivery"].includes(argv[index + 1] ?? "");
+}
+function argumentFailure(argv, message) {
+  if (isBoundedProofRequest(argv))
+    return boundedProofArgumentFailure(message);
+  return createResult({
+    state: "failed",
+    errors: [{ code: "CLI_ARGUMENT_INVALID", message, retryable: false }]
+  });
+}
+function reportBoundedProofArgumentFailure(argv, message) {
+  if (!isBoundedProofRequest(argv))
+    return;
+  const result3 = boundedProofArgumentFailure(message);
+  process27.stderr.write(`${result3.presentation?.body ?? ""}
+`);
+}
 async function runCli(argv) {
   installCliCrashCapture();
   const normalized = normalizeCliArgv(argv);
@@ -95822,20 +95862,12 @@ async function runCli(argv) {
     if (isCommanderError(parseError) && parseError.exitCode === 0) {
       process27.exitCode = 0;
     } else if (machineOutput && isCommanderError(parseError)) {
-      const result3 = createResult({
-        state: "failed",
-        errors: [
-          {
-            code: "CLI_ARGUMENT_INVALID",
-            message: parseError.message,
-            retryable: false
-          }
-        ]
-      });
+      const result3 = argumentFailure(normalized.argv, parseError.message);
       process27.stdout.write(`${renderJsonResult(result3)}
 `);
       process27.exitCode = 1;
     } else if (isCommanderError(parseError)) {
+      reportBoundedProofArgumentFailure(normalized.argv, parseError.message);
       process27.exitCode = parseError.exitCode;
     } else {
       error(parseError instanceof Error ? parseError.message : String(parseError));

@@ -1,0 +1,11 @@
+✔ packages/cli/src/cli.ts: wrong repository refusal is complete JSON without stderr (183.837167ms)
+✔ plugin/runtime/cli.js: wrong repository refusal is complete JSON without stderr (191.419084ms)
+✔ packages/cli/codex-plugin/runtime/cli.js: wrong repository refusal is complete JSON without stderr (190.820042ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 618.197125

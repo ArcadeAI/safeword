@@ -114,6 +114,47 @@ Safeword runs hooks every turn to track which phase the agent is in. These gates
 
 </Aside>
 
+## Maintainer: bounded delivery observation
+
+This maintenance command supports the Safeword repository's fixed T3E4NS
+contract: 37 cases and 46 distinct required assertion results. Run it from a
+clean committed Safeword checkout with the pinned Node/Bun toolchain, installed
+lockfile dependencies and local Git, Codex and shell tools available.
+
+```bash
+safeword proof observe-bounded-delivery --json --no-input --offline
+safeword proof verify-bounded-delivery ATTEMPT_ID --json --no-input --offline
+```
+
+Replace `ATTEMPT_ID` with the first command's returned `attempt_id`. Observation
+runs the fixed local lane in an isolated committed clone, retains the complete
+report and binds source, runtime, profile, tools and dependencies. Verification
+is read-only. Complete passing execution grants no historical RED, semantic
+certification, ticket closure or host/model qualification; all 33 historical
+deferrals remain unchanged. These commands never update shared review gates.
+
+Attempts and their separate private authentication key live outside the checkout
+under `$XDG_STATE_HOME/safeword/bounded-observation`, or
+`~/.local/state/safeword/bounded-observation` by default. Keep that key private;
+losing or replacing it invalidates old authentication. Retries allocate new IDs
+and preserve earlier diagnostics. There is no automatic erasure, import or
+re-signing of old evidence.
+
+For dirty inputs, commit or clean the named files. For changed assertion source,
+observe the new committed candidate. Changed accepted scope or mapping needs a
+reviewed shipped-contract update. Preserve corrupt or interrupted attempts and
+correct the named problem before a new observation. Bookkeeping-only Work Log,
+status and named non-input audit updates need no rerun. Loaded execution inputs
+remain bound.
+
+Safeword invokes no registry install, model request or qualification route during
+observation. The lane uses local Codex plugin-packaging commands in disposable
+profiles. `--offline` covers Safeword's declared network operations; this is
+trusted local execution, with no OS network sandbox or third-party telemetry
+guarantee. Source-based observations identify actual test bodies and inputs;
+they do not establish that a same-named assertion still proves its intended
+meaning. Later independent semantic review owns that judgment.
+
 <footer class="docs-footer">
 
 [GitHub](https://github.com/ArcadeAI/safeword) · MIT License · © 2026
