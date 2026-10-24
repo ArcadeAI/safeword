@@ -70,11 +70,19 @@ function currentInputs(root: string): Record<string, string> {
 }
 
 function requireIdentical(before: Record<string, string>, after: Record<string, string>): void {
-  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  // Reader changes also change projected ticket hashes; name raw product changes first.
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].toSorted(
+    (left, right) => inputKeyPriority(left) - inputKeyPriority(right),
+  );
   for (const key of keys) {
     if (before[key] !== after[key])
       throw new Error(`Changed input ${key}; observe the new committed candidate`);
   }
+}
+
+function inputKeyPriority(key: string): number {
+  if (!key.startsWith('file:') && !key.startsWith('mode:')) return 2;
+  return key.slice(5).startsWith('.project/') ? 1 : 0;
 }
 
 function prepareRelay(

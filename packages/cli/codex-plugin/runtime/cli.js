@@ -17641,7 +17641,7 @@ var audit_readers_default;
 var init_audit_readers = __esm(() => {
   audit_readers_default = {
     schema_version: 1,
-    source_sha256: "0e866048d9354fcfd16dfa6c3c8606c8e8432d8b7bb1efa9ad74d8dda9dceadc"
+    source_sha256: "beab82a6fc3d7b8dab46114b77e6d796330ac69a0002d711c0701e411c8c3832"
   };
 });
 
@@ -19867,11 +19867,16 @@ function currentInputs(root) {
   };
 }
 function requireIdentical(before, after) {
-  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].toSorted((left, right) => inputKeyPriority(left) - inputKeyPriority(right));
   for (const key of keys) {
     if (before[key] !== after[key])
       throw new Error(`Changed input ${key}; observe the new committed candidate`);
   }
+}
+function inputKeyPriority(key) {
+  if (!key.startsWith("file:") && !key.startsWith("mode:"))
+    return 2;
+  return key.slice(5).startsWith(".project/") ? 1 : 0;
 }
 function prepareRelay(bun, clone, environment, diagnostic) {
   const prepared = spawnSync2(bun, ["run", "--cwd", "packages/retro-relay", "build"], {
