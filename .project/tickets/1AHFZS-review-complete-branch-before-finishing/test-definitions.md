@@ -36,7 +36,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Routine ticket records do not restart branch review
 
-- [ ] RED
+- [x] RED 996feb72f
 - [ ] GREEN
 - [ ] REFACTOR
 
