@@ -3652,7 +3652,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "76f595bfa25c87bf9665a09ed8652cf9ae5490e075b6f73c1388a7b580e75548",
+        ".safeword/hooks/pre-tool-quality.ts": "b270e9dda9dbcc7220047dff4a8ce3f239c74d43ea38f3d61c90a39f9090a45f",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -85104,26 +85104,45 @@ function recordTicketReview(ticket, reviewId) {
   writeFileSync36(temporary, updated, { mode: 384 });
   renameSync19(temporary, ticket);
 }
-function integrationReference(cwd) {
+function configuredIntegrationReference(cwd) {
   const configPath3 = nodePath140.join(cwd, ".safeword", "config.json");
-  let configured;
-  if (existsSync65(configPath3)) {
-    const raw = JSON.parse(readFileSync92(configPath3, "utf8"));
-    if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
-      configured = raw.branchReview?.integrationRef;
-    }
+  if (!existsSync65(configPath3))
+    return;
+  let raw;
+  try {
+    raw = JSON.parse(readFileSync92(configPath3, "utf8"));
+  } catch {
+    throw new InvalidIntegrationReference("Safeword config.json is not valid JSON");
   }
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+    throw new InvalidIntegrationReference("Safeword config.json must be an object");
+  const branchReview = raw.branchReview;
+  if (branchReview === undefined)
+    return;
+  if (typeof branchReview !== "object" || branchReview === null || Array.isArray(branchReview))
+    throw new InvalidIntegrationReference("branchReview configuration must be an object");
+  return branchReview.integrationRef;
+}
+function currentUpstream(cwd) {
+  try {
+    return gitText(cwd, ["rev-parse", "--symbolic-full-name", "@{upstream}"]);
+  } catch {
+    return;
+  }
+}
+function integrationReference(cwd) {
+  const configured = configuredIntegrationReference(cwd);
   if (configured !== undefined) {
     if (typeof configured !== "string")
-      throw new Error("Invalid branchReview.integrationRef");
+      throw new InvalidIntegrationReference("Invalid branchReview.integrationRef");
     const match = /^refs\/remotes\/([^/]+)\/(.+)$/u.exec(configured);
     if (match?.[1] === undefined || match[2] === undefined)
-      throw new Error("branchReview.integrationRef must name a remote-tracking ref");
+      throw new InvalidIntegrationReference("branchReview.integrationRef must name a remote-tracking ref");
     const currentBranch = gitText(cwd, ["branch", "--show-current"]);
-    if (match[2] === currentBranch && match[2] !== remoteDefaultBranch(cwd, match[1])) {
+    if ((match[2] === currentBranch || configured === currentUpstream(cwd)) && match[2] !== remoteDefaultBranch(cwd, match[1])) {
       throw new InvalidIntegrationReference("The configured integration ref names the current topic branch; choose the remote default integration branch instead.");
     }
-    return { remote: match[1], branch: match[2], ref: configured };
+    return { remote: match[1], branch: match[2], ref: configured, configured: true };
   }
   const remotes = gitText(cwd, ["remote"]).split(`
 `).filter(Boolean);
@@ -85135,7 +85154,29 @@ function integrationReference(cwd) {
   if (remote === undefined)
     throw new Error("Cannot choose an integration remote");
   const branch = remoteDefaultBranch(cwd, remote);
-  return { remote, branch, ref: `refs/remotes/${remote}/${branch}` };
+  return { remote, branch, ref: `refs/remotes/${remote}/${branch}`, configured: false };
+}
+function fetchIntegrationReference(cwd, integration) {
+  try {
+    git8(cwd, ["fetch", integration.remote, `+refs/heads/${integration.branch}:${integration.ref}`]);
+  } catch {
+    if (integration.configured) {
+      let available;
+      try {
+        available = gitText(cwd, [
+          "ls-remote",
+          "--heads",
+          integration.remote,
+          `refs/heads/${integration.branch}`
+        ]);
+      } catch {
+        available = undefined;
+      }
+      if (available === "")
+        throw new InvalidIntegrationReference("The configured integration ref does not exist on its remote");
+    }
+    throw new IntegrationFetchFailure("The integration branch could not be fetched");
+  }
 }
 function remoteDefaultBranch(cwd, remote) {
   let head;
@@ -85473,12 +85514,34 @@ function latestRecord(cwd, ticketId) {
     } catch {
       return;
     }
-    if (!validRecord(cwd, record3))
+    if (typeof record3 !== "object" || record3 === null)
       return;
-    if (record3.ticket_id === ticketId)
-      return record3;
+    if (typeof record3.ticket_id !== "string")
+      return;
+    if (record3.ticket_id !== ticketId)
+      continue;
+    return validRecord(cwd, record3) ? record3 : undefined;
   }
   return;
+}
+function hasPotentialTicketRecord(cwd, ticketId) {
+  const directory = branchRecordsDirectory(cwd);
+  if (!existsSync65(directory))
+    return false;
+  const files2 = readdirSync37(directory).filter((name) => /^\d+-[a-f\d-]+\.json$/u.test(name));
+  for (const file of files2) {
+    try {
+      const record3 = JSON.parse(readFileSync92(nodePath140.join(directory, file), "utf8"));
+      if (typeof record3 !== "object" || record3 === null)
+        return true;
+      const owner = record3.ticket_id;
+      if (typeof owner !== "string" || owner === ticketId)
+        return true;
+    } catch {
+      return true;
+    }
+  }
+  return false;
 }
 function acknowledgementPath(cwd, reviewId) {
   return nodePath140.join(branchRecordsDirectory(cwd), `${reviewId}.ack.json`);
@@ -85509,6 +85572,41 @@ function ticketContext(cwd, ticket, content) {
       const relative = nodePath140.relative(cwd, path8);
       return relative !== ".." && !relative.startsWith(`..${nodePath140.sep}`) && existsSync65(path8) && lstatSync29(path8).isFile();
     }).map((path8) => nodePath140.relative(cwd, path8)))
+  ];
+}
+function proofPaths(value) {
+  if (!Array.isArray(value))
+    return [];
+  if (typeof value[0] === "string")
+    return [value[0]];
+  return value.flatMap((item) => proofPaths(item));
+}
+function mappedProofPaths(cwd, manifest) {
+  let parsed2;
+  try {
+    parsed2 = JSON.parse(readFileSync92(nodePath140.join(cwd, manifest), "utf8"));
+  } catch {
+    return [];
+  }
+  if (typeof parsed2 !== "object" || parsed2 === null)
+    return [];
+  const scenarios = parsed2.scenarios;
+  if (typeof scenarios !== "object" || scenarios === null)
+    return [];
+  return Object.values(scenarios).flatMap((registration) => proofPaths(registration));
+}
+function isReviewableProofSource(cwd, path8) {
+  if (!path8.endsWith(".test.ts"))
+    return false;
+  const absolute2 = nodePath140.resolve(cwd, path8);
+  if (nodePath140.relative(cwd, absolute2).startsWith("..") || !existsSync65(absolute2))
+    return false;
+  return unavailableReason(cwd, { path: path8, status: "" }) === undefined;
+}
+function proofSourceContext(cwd, pass) {
+  const manifests = pass.filter((path8) => path8.endsWith(".bdd-proof.json"));
+  return [
+    ...new Set(manifests.flatMap((manifest) => mappedProofPaths(cwd, manifest)).filter((path8) => isReviewableProofSource(cwd, path8)))
   ];
 }
 function readAcknowledgement(cwd, record3) {
@@ -85726,7 +85824,7 @@ function checkBranchReview(cwd, ticketId, phase) {
   const ticket = ticketPath(cwd, ticketId);
   const marker = ticket === undefined ? undefined : readFrontmatterScalar(readFileSync92(ticket, "utf8"), "branch_review_exit_id");
   const record3 = latestRecord(cwd, ticketId);
-  if (phase === "verify" && marker === undefined && record3 === undefined) {
+  if (phase === "verify" && marker === undefined && record3 === undefined && !hasPotentialTicketRecord(cwd, ticketId)) {
     return legacyUncoveredResult(ticketId, phase);
   }
   if (record3 === undefined || marker !== record3.id) {
@@ -85830,15 +85928,7 @@ async function reviewBranch(cwd, ticketId, offline) {
   let inventory;
   try {
     const integration = integrationReference(cwd);
-    try {
-      git8(cwd, [
-        "fetch",
-        integration.remote,
-        `+refs/heads/${integration.branch}:${integration.ref}`
-      ]);
-    } catch {
-      throw new IntegrationFetchFailure("The integration branch could not be fetched");
-    }
+    fetchIntegrationReference(cwd, integration);
     fetchedAt = new Date().toISOString();
     ref = integration.ref;
     base = gitText(cwd, ["merge-base", ref, "HEAD"]);
@@ -85891,11 +85981,12 @@ async function reviewBranch(cwd, ticketId, offline) {
   for (const pass of reviewPasses(cwd, eligible, context)) {
     let result3;
     try {
+      const passContext = [...context, ...proofSourceContext(cwd, pass)];
       result3 = await runReview({
         cwd,
         kind: "branch-review",
         targets: pass,
-        context: context.filter((path8) => !pass.includes(path8))
+        context: [...new Set(passContext)].filter((path8) => !pass.includes(path8))
       });
     } catch {
       omitted.push(...pass.map((path8) => ({ path: path8, reason: "review packet could not be prepared" })));

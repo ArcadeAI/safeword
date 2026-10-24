@@ -373,3 +373,32 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   expect(JSON.parse(supersedingCheck.stdout).data?.may_advance).toBe(true);
   expect(JSON.parse(supersedingCheck.stdout).data?.disclosure).toContain('Unattributed problem');
 });
+
+it('refuses a caller-selected subset of branch files', async () => {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-branch-subset-'));
+  roots.push(root);
+  const project = nodePath.join(root, 'project');
+  mkdirSync(project);
+  git(project, 'init', '-b', 'main');
+  git(project, 'config', 'user.name', 'Test Builder');
+  git(project, 'config', 'user.email', 'builder@example.test');
+  const ticket = nodePath.join(project, '.project', 'tickets', 'ABC123-review-branch');
+  mkdirSync(ticket, { recursive: true });
+  writeFileSync(
+    nodePath.join(ticket, 'ticket.md'),
+    '---\nid: ABC123\ntype: feature\nphase: implement\n---\n# Review branch\n',
+  );
+  writeFileSync(nodePath.join(project, 'one.ts'), 'export const one = 1;\n');
+  writeFileSync(nodePath.join(project, 'two.ts'), 'export const two = 2;\n');
+  git(project, 'add', '.');
+  git(project, 'commit', '-m', 'feature');
+
+  const result = await runCli(['review', 'branch', 'ABC123', 'one.ts', '--json'], { cwd: project });
+  const report = JSON.parse(result.stdout);
+  expect(result.exitCode).toBe(1);
+  expect(report.data?.review_id).toBeUndefined();
+  expect(report.errors?.[0]?.message).toContain('too many arguments');
+  expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).not.toContain(
+    'branch_review_exit_id',
+  );
+});

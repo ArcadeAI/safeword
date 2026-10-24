@@ -214,6 +214,23 @@ it('keeps a saved review current after verification checklist progress', async (
     runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], { cwd: project });
   const baseline = await checkReview();
   expectCurrentBranchCheck(baseline.stdout);
+  const records = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');
+  const saved = readdirSync(records).find(name => /^\d+-[a-f\d-]+\.json$/u.test(name));
+  if (saved === undefined) throw new Error('branch review record is missing');
+  const otherTicket = JSON.parse(readFileSync(nodePath.join(records, saved), 'utf8'));
+  otherTicket.ticket_id = 'OTHER';
+  const damagedOther = nodePath.join(records, '999999999999-deadbeef.json');
+  writeFileSync(damagedOther, JSON.stringify(otherTicket));
+  const afterDamagedOther = await checkReview();
+  expectCurrentBranchCheck(afterDamagedOther.stdout);
+  rmSync(damagedOther);
+  const damagedSame = nodePath.join(records, '999999999999-deadbeef.json');
+  otherTicket.ticket_id = 'ABC123';
+  otherTicket.coverage = 'none';
+  writeFileSync(damagedSame, JSON.stringify(otherTicket));
+  const afterDamagedSame = await checkReview();
+  expect(JSON.parse(afterDamagedSame.stdout).data?.may_advance).toBe(false);
+  rmSync(damagedSame);
   writeFileSync(
     planPath,
     plan.replace('| open | missing | | |', '| done | real_boundary | | passed |'),

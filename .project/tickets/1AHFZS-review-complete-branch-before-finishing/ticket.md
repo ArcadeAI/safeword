@@ -3,7 +3,7 @@ branch_review_exit_id: 3eabfed2-3d5a-442f-be96-a70357fc6cb0
 id: 1AHFZS
 slug: review-complete-branch-before-finishing
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 phase_anchors:
   - define-behavior: .project/tickets/1AHFZS-review-complete-branch-before-finishing/spec.md
@@ -39,6 +39,10 @@ last_modified: 2026-10-23T00:00:00.000Z
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-10-24 Scenario review renewal: All twenty-two examples passed again under receipt 5c172d9b-975e-4b7b-8331-de265c8df17b after the spec stopped stating an in-progress review status.
+
+- 2026-10-24 Scenario review: All twenty-two examples, including rejection of caller-selected files, passed independent review under receipt fb719578-bf26-4f68-97c3-9fa7e5e9738f. The earlier pending note below is superseded; the spec now records stable behavior rather than an in-progress review status.
 
 - 2026-10-24 Scenario repair: Independent review found that an oversized authored file could be unaccounted for. Added a twenty-first example under the accepted incomplete-coverage rule; renewed review is pending.
 

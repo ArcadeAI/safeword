@@ -1253,7 +1253,9 @@ if (isCanonicalTicketEdit) {
   const context = canonicalTicketEditContext();
   const exitedPhase = detectPhaseAdvance(context.priorContent, context.proposedContent);
   const featureImplementationExit =
-    exitedPhase === 'implement' && phaseTransitionContext().proposedType === 'feature';
+    exitedPhase === 'implement' &&
+    phaseTransitionContext().proposedPhase === 'verify' &&
+    phaseTransitionContext().proposedType === 'feature';
   // Phase first, then the flag: selective enforcement needs to know WHICH exit this
   // is before it can decide whether the gate applies to it.
   if (exitedPhase !== undefined && !featureImplementationExit && reviewGateAppliesTo(exitedPhase)) {
@@ -1300,6 +1302,7 @@ if (isCanonicalTicketEdit) {
 // A feature branch review is a separate claim from the generic phase review.
 // Ask the trusted CLI at the two existing ticket-write boundaries; this hook
 // never fetches or invokes a reviewer.
+let branchDisclosure: string | undefined;
 if (isCanonicalTicketEdit) {
   const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
   const phase =
@@ -1327,16 +1330,7 @@ if (isCanonicalTicketEdit) {
         'Run `safeword review branch <ticket-id>` and retry the phase change.',
       );
     }
-    if (decision.disclosure !== undefined) {
-      console.log(
-        JSON.stringify({
-          hookSpecificOutput: {
-            hookEventName: 'PreToolUse',
-            additionalContext: decision.disclosure,
-          },
-        }),
-      );
-    }
+    branchDisclosure = decision.disclosure;
   }
 }
 
@@ -1518,6 +1512,12 @@ if (
 // (After artifact prerequisite check, which targets files in .safeword-project/)
 // Project-relative match, NOT a substring of the absolute path — see isMetaPath.
 if (isMetaPath(editedFile, canonicalProjectDirectory)) {
+  if (branchDisclosure !== undefined)
+    console.log(
+      JSON.stringify({
+        hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: branchDisclosure },
+      }),
+    );
   process.exit(0);
 }
 

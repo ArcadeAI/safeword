@@ -9,6 +9,10 @@
       "packages/cli/tests/integration/branch-review.test.ts",
       "accounts for every changed path when a later bounded review pass fails"
     ],
+    "A caller cannot shrink the branch by naming selected files": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "refuses a caller-selected subset of branch files"
+    ],
     "A cross-file behavior gap is explained": [
       "packages/cli/tests/integration/branch-review.test.ts",
       "accounts for every changed path when a later bounded review pass fails"

@@ -18,6 +18,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A caller cannot shrink the branch by naming selected files
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A configured topic branch cannot hide earlier work
 
 - [x] RED 9045af6b6

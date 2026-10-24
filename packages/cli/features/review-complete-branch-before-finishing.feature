@@ -23,6 +23,12 @@ Feature: Review complete branch changes before builders finish
       Then the command refuses that request without claiming completed coverage
 
     @rejection
+    Scenario: A caller cannot shrink the branch by naming selected files
+      Given a BDD branch changes several authored files
+      When the builder requests a branch review naming only one changed file
+      Then the command refuses that request without claiming completed coverage
+
+    @rejection
     Scenario: A configured topic branch cannot hide earlier work
       Given the project configures the current topic branch as its integration ref
       And the branch has authored changes before its latest push

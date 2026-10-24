@@ -149,30 +149,59 @@ function recordTicketReview(ticket: string, reviewId: string): void {
   renameSync(temporary, ticket);
 }
 
+function configuredIntegrationReference(cwd: string): unknown {
+  const configPath = nodePath.join(cwd, '.safeword', 'config.json');
+  if (!existsSync(configPath)) return undefined;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(configPath, 'utf8'));
+  } catch {
+    throw new InvalidIntegrationReference('Safeword config.json is not valid JSON');
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw))
+    throw new InvalidIntegrationReference('Safeword config.json must be an object');
+  const branchReview = (raw as { branchReview?: unknown }).branchReview;
+  if (branchReview === undefined) return undefined;
+  if (typeof branchReview !== 'object' || branchReview === null || Array.isArray(branchReview))
+    throw new InvalidIntegrationReference('branchReview configuration must be an object');
+  return (branchReview as { integrationRef?: unknown }).integrationRef;
+}
+
+function currentUpstream(cwd: string): string | undefined {
+  try {
+    return gitText(cwd, ['rev-parse', '--symbolic-full-name', '@{upstream}']);
+  } catch {
+    return undefined;
+  }
+}
+
 // Git and configuration each have independent failure cases; keep the choice in one place.
 // eslint-disable-next-line complexity -- Git config and remote discovery have separate failure branches.
-function integrationReference(cwd: string): { remote: string; branch: string; ref: string } {
-  const configPath = nodePath.join(cwd, '.safeword', 'config.json');
-  let configured: unknown;
-  if (existsSync(configPath)) {
-    const raw: unknown = JSON.parse(readFileSync(configPath, 'utf8'));
-    if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
-      configured = (raw as { branchReview?: { integrationRef?: unknown } }).branchReview
-        ?.integrationRef;
-    }
-  }
+function integrationReference(cwd: string): {
+  remote: string;
+  branch: string;
+  ref: string;
+  configured: boolean;
+} {
+  const configured = configuredIntegrationReference(cwd);
   if (configured !== undefined) {
-    if (typeof configured !== 'string') throw new Error('Invalid branchReview.integrationRef');
+    if (typeof configured !== 'string')
+      throw new InvalidIntegrationReference('Invalid branchReview.integrationRef');
     const match = /^refs\/remotes\/([^/]+)\/(.+)$/u.exec(configured);
     if (match?.[1] === undefined || match[2] === undefined)
-      throw new Error('branchReview.integrationRef must name a remote-tracking ref');
+      throw new InvalidIntegrationReference(
+        'branchReview.integrationRef must name a remote-tracking ref',
+      );
     const currentBranch = gitText(cwd, ['branch', '--show-current']);
-    if (match[2] === currentBranch && match[2] !== remoteDefaultBranch(cwd, match[1])) {
+    if (
+      (match[2] === currentBranch || configured === currentUpstream(cwd)) &&
+      match[2] !== remoteDefaultBranch(cwd, match[1])
+    ) {
       throw new InvalidIntegrationReference(
         'The configured integration ref names the current topic branch; choose the remote default integration branch instead.',
       );
     }
-    return { remote: match[1], branch: match[2], ref: configured };
+    return { remote: match[1], branch: match[2], ref: configured, configured: true };
   }
   const remotes = gitText(cwd, ['remote']).split('\n').filter(Boolean);
   let remote: string | undefined;
@@ -180,7 +209,35 @@ function integrationReference(cwd: string): { remote: string; branch: string; re
   else if (remotes.length === 1) remote = remotes[0];
   if (remote === undefined) throw new Error('Cannot choose an integration remote');
   const branch = remoteDefaultBranch(cwd, remote);
-  return { remote, branch, ref: `refs/remotes/${remote}/${branch}` };
+  return { remote, branch, ref: `refs/remotes/${remote}/${branch}`, configured: false };
+}
+
+function fetchIntegrationReference(
+  cwd: string,
+  integration: ReturnType<typeof integrationReference>,
+): void {
+  try {
+    git(cwd, ['fetch', integration.remote, `+refs/heads/${integration.branch}:${integration.ref}`]);
+  } catch {
+    if (integration.configured) {
+      let available: string | undefined;
+      try {
+        available = gitText(cwd, [
+          'ls-remote',
+          '--heads',
+          integration.remote,
+          `refs/heads/${integration.branch}`,
+        ]);
+      } catch {
+        available = undefined;
+      }
+      if (available === '')
+        throw new InvalidIntegrationReference(
+          'The configured integration ref does not exist on its remote',
+        );
+    }
+    throw new IntegrationFetchFailure('The integration branch could not be fetched');
+  }
 }
 
 function remoteDefaultBranch(cwd: string, remote: string): string {
@@ -601,10 +658,29 @@ function latestRecord(cwd: string, ticketId: string): BranchRecord | undefined {
     } catch {
       return undefined;
     }
-    if (!validRecord(cwd, record)) return undefined;
-    if (record.ticket_id === ticketId) return record;
+    if (typeof record !== 'object' || record === null) return undefined;
+    if (typeof record.ticket_id !== 'string') return undefined;
+    if (record.ticket_id !== ticketId) continue;
+    return validRecord(cwd, record) ? record : undefined;
   }
   return undefined;
+}
+
+function hasPotentialTicketRecord(cwd: string, ticketId: string): boolean {
+  const directory = branchRecordsDirectory(cwd);
+  if (!existsSync(directory)) return false;
+  const files = readdirSync(directory).filter(name => /^\d+-[a-f\d-]+\.json$/u.test(name));
+  for (const file of files) {
+    try {
+      const record: unknown = JSON.parse(readFileSync(nodePath.join(directory, file), 'utf8'));
+      if (typeof record !== 'object' || record === null) return true;
+      const owner = (record as { ticket_id?: unknown }).ticket_id;
+      if (typeof owner !== 'string' || owner === ticketId) return true;
+    } catch {
+      return true;
+    }
+  }
+  return false;
 }
 
 function acknowledgementPath(cwd: string, reviewId: string): string {
@@ -644,6 +720,43 @@ function ticketContext(cwd: string, ticket: string, content: string): string[] {
           );
         })
         .map(path => nodePath.relative(cwd, path)),
+    ),
+  ];
+}
+
+function proofPaths(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  if (typeof value[0] === 'string') return [value[0]];
+  return value.flatMap(item => proofPaths(item));
+}
+
+function mappedProofPaths(cwd: string, manifest: string): string[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(nodePath.join(cwd, manifest), 'utf8'));
+  } catch {
+    return [];
+  }
+  if (typeof parsed !== 'object' || parsed === null) return [];
+  const scenarios = (parsed as { scenarios?: unknown }).scenarios;
+  if (typeof scenarios !== 'object' || scenarios === null) return [];
+  return Object.values(scenarios).flatMap(registration => proofPaths(registration));
+}
+
+function isReviewableProofSource(cwd: string, path: string): boolean {
+  if (!path.endsWith('.test.ts')) return false;
+  const absolute = nodePath.resolve(cwd, path);
+  if (nodePath.relative(cwd, absolute).startsWith('..') || !existsSync(absolute)) return false;
+  return unavailableReason(cwd, { path, status: '' }) === undefined;
+}
+
+function proofSourceContext(cwd: string, pass: readonly string[]): string[] {
+  const manifests = pass.filter(path => path.endsWith('.bdd-proof.json'));
+  return [
+    ...new Set(
+      manifests
+        .flatMap(manifest => mappedProofPaths(cwd, manifest))
+        .filter(path => isReviewableProofSource(cwd, path)),
     ),
   ];
 }
@@ -931,7 +1044,12 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
       ? undefined
       : readFrontmatterScalar(readFileSync(ticket, 'utf8'), 'branch_review_exit_id');
   const record = latestRecord(cwd, ticketId);
-  if (phase === 'verify' && marker === undefined && record === undefined) {
+  if (
+    phase === 'verify' &&
+    marker === undefined &&
+    record === undefined &&
+    !hasPotentialTicketRecord(cwd, ticketId)
+  ) {
     return legacyUncoveredResult(ticketId, phase);
   }
   if (record === undefined || marker !== record.id) {
@@ -1074,15 +1192,7 @@ export async function reviewBranch(
   let inventory: ChangedPath[];
   try {
     const integration = integrationReference(cwd);
-    try {
-      git(cwd, [
-        'fetch',
-        integration.remote,
-        `+refs/heads/${integration.branch}:${integration.ref}`,
-      ]);
-    } catch {
-      throw new IntegrationFetchFailure('The integration branch could not be fetched');
-    }
+    fetchIntegrationReference(cwd, integration);
     fetchedAt = new Date().toISOString();
     ref = integration.ref;
     base = gitText(cwd, ['merge-base', ref, 'HEAD']);
@@ -1146,11 +1256,12 @@ export async function reviewBranch(
   for (const pass of reviewPasses(cwd, eligible, context)) {
     let result: CliResult;
     try {
+      const passContext = [...context, ...proofSourceContext(cwd, pass)];
       result = await runReview({
         cwd,
         kind: 'branch-review',
         targets: pass,
-        context: context.filter(path => !pass.includes(path)),
+        context: [...new Set(passContext)].filter(path => !pass.includes(path)),
       });
     } catch {
       omitted.push(...pass.map(path => ({ path, reason: 'review packet could not be prepared' })));

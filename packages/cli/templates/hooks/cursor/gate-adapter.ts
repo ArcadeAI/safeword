@@ -354,7 +354,12 @@ export function decideFromGate(result: ClaudeGateResult): CursorDecision {
   if (result.failed) {
     return toCursorDecision(GATE_UNAVAILABLE_REASON);
   }
-  return toCursorDecision(claudeDenialReason(result.stdout));
+  const denial = claudeDenialReason(result.stdout);
+  if (denial !== undefined) return toCursorDecision(denial);
+  const context = translatePostOutput(result.stdout).additional_context;
+  return typeof context === 'string'
+    ? { permission: 'allow', user_message: context, agent_message: context }
+    : { permission: 'allow' };
 }
 
 // The shell-specific decision lives in before-shell-execution.ts: it calls

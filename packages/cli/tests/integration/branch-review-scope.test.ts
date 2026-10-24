@@ -338,6 +338,7 @@ it('refuses a topic branch as configured integration scope', async () => {
   git(project, 'add', 'source.ts');
   git(project, 'commit', '-m', 'feature');
   git(project, 'push', '-u', 'origin', 'topic');
+  git(project, 'branch', '-m', 'fx');
   mkdirSync(nodePath.join(project, '.safeword'));
   writeFileSync(
     nodePath.join(project, '.safeword', 'config.json'),
@@ -354,4 +355,79 @@ it('refuses a topic branch as configured integration scope', async () => {
   expect(report.data?.review_id).toBeUndefined();
   expect(readFileSync(ticketPath, 'utf8')).not.toContain('branch_review_exit_id');
   expect(existsSync(nodePath.join(project, '.safeword', 'state', 'reviews', 'branch'))).toBe(false);
+
+  for (const invalid of [
+    '{',
+    '{"branchReview":42}',
+    '{"branchReview":{"integrationRef":42}}',
+    '{"branchReview":{"integrationRef":"HEAD~1"}}',
+    '{"branchReview":{"integrationRef":"refs/remotes/origin/missing"}}',
+  ]) {
+    writeFileSync(nodePath.join(project, '.safeword', 'config.json'), `${invalid}\n`);
+    const rejected = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project });
+    expect(rejected.exitCode, invalid).toBe(2);
+    expect(JSON.parse(rejected.stdout).data?.review_id, invalid).toBeUndefined();
+    expect(readFileSync(ticketPath, 'utf8'), invalid).not.toContain('branch_review_exit_id');
+    expect(existsSync(nodePath.join(project, '.safeword', 'state', 'reviews', 'branch'))).toBe(
+      false,
+    );
+  }
+});
+
+it('shows mapped test source with a changed proof manifest', async () => {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-proof-context-'));
+  roots.push(root);
+  const remote = nodePath.join(root, 'remote.git');
+  const project = nodePath.join(root, 'project');
+  mkdirSync(project);
+  git(root, 'init', '--bare', remote);
+  git(project, 'init', '-b', 'main');
+  git(project, 'config', 'user.name', 'Test Builder');
+  git(project, 'config', 'user.email', 'builder@example.test');
+  git(project, 'remote', 'add', 'origin', remote);
+  const ticket = nodePath.join(project, '.project', 'tickets', 'ABC123-review-branch');
+  mkdirSync(ticket, { recursive: true });
+  writeFileSync(
+    nodePath.join(ticket, 'ticket.md'),
+    '---\nid: ABC123\ntype: feature\nphase: implement\n---\n# Review branch\n',
+  );
+  mkdirSync(nodePath.join(project, 'tests'));
+  writeFileSync(
+    nodePath.join(project, 'tests', 'evidence.test.ts'),
+    'test("mapped proof", () => { expect("proof-sentinel").toBeDefined(); });\n',
+  );
+  writeFileSync(nodePath.join(project, '.gitignore'), '.safeword/state/\n');
+  git(project, 'add', '.');
+  git(project, 'commit', '-m', 'seed');
+  git(project, 'push', '-u', 'origin', 'main');
+  git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/main');
+  git(project, 'checkout', '-b', 'topic');
+  mkdirSync(nodePath.join(project, 'features'));
+  writeFileSync(
+    nodePath.join(project, 'features', 'access.bdd-proof.json'),
+    JSON.stringify({
+      scenarios: { 'Mapped behavior': ['tests/evidence.test.ts', 'mapped proof'] },
+    }),
+  );
+  writeFileSync(nodePath.join(project, 'source.ts'), 'export const access = true;\n');
+  git(project, 'add', '.');
+  git(project, 'commit', '-m', 'feature');
+  const reviewerBin = nodePath.join(createTrustedReviewerDirectory('branch-proof-'), 'bin');
+  mkdirSync(reviewerBin);
+  writeFileSync(
+    nodePath.join(reviewerBin, 'claude'),
+    `${claudeReviewerShellPrelude()}\nprintf '%s' "$payload" > "$SAFEWORD_REVIEW_LOG"\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Reviewed proof context","findings":[]}\\n' "$dispatch_id"\n`,
+    { mode: 0o755 },
+  );
+  const review = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env: {
+      PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+      SAFEWORD_REVIEW_LOG: nodePath.join(root, 'packet.json'),
+    },
+  });
+  expect(JSON.parse(review.stdout).data?.coverage).toBe('complete');
+  expect(readFileSync(nodePath.join(root, 'packet.json'), 'utf8')).toContain('proof-sentinel');
 });
