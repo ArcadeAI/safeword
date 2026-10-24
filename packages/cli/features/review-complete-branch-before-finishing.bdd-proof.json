@@ -7,7 +7,7 @@
     ],
     "A caller cannot shrink the branch by naming a later base": [
       "packages/cli/tests/integration/branch-review.test.ts",
-      "accounts for every changed path when a later bounded review pass fails"
+      "refuses a caller-supplied later branch base"
     ],
     "A caller cannot shrink the branch by naming selected files": [
       "packages/cli/tests/integration/branch-review.test.ts",
@@ -15,11 +15,11 @@
     ],
     "A cross-file behavior gap is explained": [
       "packages/cli/tests/integration/branch-review.test.ts",
-      "accounts for every changed path when a later bounded review pass fails"
+      "attributes a cross-file finding to behavior, paths, and consequence"
     ],
     "A code fix during verification cannot inherit the earlier review": [
       "packages/cli/tests/integration/branch-review-gate.test.ts",
-      "accepts the reviewed snapshot and refuses later authored changes in %s"
+      "rejects a verification code fix until it is reviewed again"
     ],
     "Routine ticket records do not restart branch review": [
       "packages/cli/tests/integration/branch-review-gate.test.ts",
@@ -27,39 +27,39 @@
     ],
     "Changed ticket goals require a fresh review": [
       "packages/cli/tests/integration/branch-review-gate.test.ts",
-      "accepts the reviewed snapshot and refuses later authored changes in %s"
+      "rejects changed ticket goals until they are reviewed again"
     ],
     "A current complete review lets implementation finish": [
       "packages/cli/tests/integration/branch-review-gate.test.ts",
-      "accepts the reviewed snapshot and refuses later authored changes in %s"
+      "lets a complete current review finish implementation"
     ],
     "Each supported local host refuses changed work at implementation exit": [
       "packages/cli/tests/integration/branch-review-gate.test.ts",
-      "accepts the reviewed snapshot and refuses later authored changes in %s"
+      "exercises branch review exit in %s"
     ],
     "A partial review can continue with clear disclosure": [
       "packages/cli/tests/integration/branch-review-ack.test.ts",
-      "requires an authenticated acknowledgement and the exact omission disclosure"
+      "allows an acknowledged partial review with exact disclosure"
     ],
     "A partial review cannot advance without acknowledgement": [
       "packages/cli/tests/integration/branch-review-ack.test.ts",
-      "requires an authenticated acknowledgement and the exact omission disclosure"
+      "refuses partial coverage before acknowledgement"
     ],
     "No branch changes cannot pass as a completed review": [
       "packages/cli/tests/integration/branch-review-gate.test.ts",
-      "accepts the reviewed snapshot and refuses later authored changes in %s"
+      "refuses an empty branch as a completed review but allows its reasoned skip"
     ],
     "A skipped generated path cannot count as complete coverage": [
       "packages/cli/tests/integration/branch-review.test.ts",
-      "accounts for every changed path when a later bounded review pass fails"
+      "names a skipped generated file as an omission"
     ],
     "Sensitive file content stays out of the reviewer packet": [
       "packages/cli/tests/integration/branch-review.test.ts",
-      "accounts for every changed path when a later bounded review pass fails"
+      "withholds a sensitive file from every review packet"
     ],
     "A builder sees the next action for a partial review": [
       "packages/cli/tests/integration/branch-review.test.ts",
-      "accounts for every changed path when a later bounded review pass fails"
+      "gives a builder the next action for partial coverage"
     ],
     "Missing integration base cannot claim a completed review": [
       "packages/cli/tests/integration/branch-review-scope.test.ts",
@@ -67,15 +67,15 @@
     ],
     "A dirty branch is current but only partially covered": [
       "packages/cli/tests/integration/branch-review.test.ts",
-      "accounts for every changed path when a later bounded review pass fails"
+      "keeps a dirty branch current but partially covered"
     ],
     "A failed later review pass leaves its paths omitted": [
       "packages/cli/tests/integration/branch-review.test.ts",
-      "accounts for every changed path when a later bounded review pass fails"
+      "omits paths from a failed later review pass"
     ],
     "Stale review still shows its missing evidence": [
       "packages/cli/tests/integration/branch-review-ack.test.ts",
-      "requires an authenticated acknowledgement and the exact omission disclosure"
+      "preserves omitted evidence when an acknowledged review becomes stale"
     ],
     "A configured topic branch cannot hide earlier work": [
       "packages/cli/tests/integration/branch-review-scope.test.ts",
@@ -83,11 +83,11 @@
     ],
     "Renamed, deleted, and force-added ignored paths remain in the inventory": [
       "packages/cli/tests/integration/branch-review.test.ts",
-      "accounts for every changed path when a later bounded review pass fails"
+      "inventories renamed, deleted, and force-added ignored paths"
     ],
     "An oversized authored file cannot count as completely reviewed": [
       "packages/cli/tests/integration/branch-review-ack.test.ts",
-      "requires an authenticated acknowledgement and the exact omission disclosure"
+      "marks an oversized authored file as omitted"
     ]
   }
 }
