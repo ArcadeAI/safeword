@@ -715,6 +715,44 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     },
   ),
+  command('review branch', 'Review the active feature branch against its ticket', 'mutate', {
+    networkPolicy: 'declared',
+    syntax: 'branch <ticketId>',
+    fixture: {
+      argv: ['review', 'branch', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command(
+    'review branch-check',
+    'Check a saved branch review before a ticket phase change',
+    'observe',
+    {
+      syntax: 'branch-check <ticketId> <implement|verify>',
+      fixture: {
+        argv: ['review', 'branch-check', 'fixture', 'implement'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command(
+    'review branch-ack',
+    'Record the agent decision and disclose exact omitted paths',
+    'mutate',
+    {
+      syntax: 'branch-ack <ticketId> <reviewId>',
+      commandOptions: [
+        {
+          flags: '--reason <text>',
+          description: 'Why the agent is continuing with partial coverage',
+        },
+      ],
+      fixture: {
+        argv: ['review', 'branch-ack', 'fixture', 'missing', '--reason', 'reviewed omission'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('review status', 'Collect a durable independent review', 'mutate', {
     syntax: 'status [review-id]',
     fixture: {
