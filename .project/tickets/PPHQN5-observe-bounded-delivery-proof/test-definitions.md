@@ -3,8 +3,8 @@
 Feature source: `features/observe-bounded-delivery-proof.feature`
 
 These are new observer obligations, not reconstructed history for T3E4NS.
-The demo retains its new RED evidence. GREEN and REFACTOR remain open;
-no scenario completion or final actual-checkout proof is claimed.
+The caller-override and complete-proof demo have new observer evidence.
+Other scenarios remain open; no final actual-checkout proof is claimed.
 
 ## Scenario ledger
 
@@ -36,7 +36,7 @@ no scenario completion or final actual-checkout proof is claimed.
 
 - [x] RED 9dec94696
 - [x] GREEN 92f4d17e1
-- [ ] REFACTOR
+- [x] REFACTOR skip: tool details and isolated version probes stay feature-local; 49 focused tests, three entrypoint checks and the ordinary suite passed, including 11804 CLI tests across 728 files, with no further structural change warranted
 
 ### Scenario: An unmapped delivery case prevents execution
 
