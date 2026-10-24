@@ -1,0 +1,30 @@
+✖ plugin/runtime/cli.js: complete shipped proof verifies through the same reader (164949.450084ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 165147.96425
+
+✖ failing tests:
+
+test at packages/cli/tests/integration/bounded-observation-packages.node.ts:1:1362
+✖ plugin/runtime/cli.js: complete shipped proof verifies through the same reader (164949.450084ms)
+  AssertionError [ERR_ASSERTION]: Changed external native package metadata must stale retained proof
+  
+  0 !== 2
+  
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-packages.node.ts:77:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

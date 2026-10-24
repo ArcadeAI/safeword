@@ -60,14 +60,30 @@ for (const relative of ['plugin/runtime/cli.js', 'packages/cli/codex-plugin/runt
     { timeout: 900_000 },
     () => {
       const candidate = createObserverCandidate();
+      const host = createObserverCandidate();
       try {
-        const entry = nodePath.join(candidate.root, relative);
+        const entry = nodePath.join(host.root, relative);
         const result = request(candidate, entry, 'bun', ['observe-bounded-delivery']);
         expectCompleteObservation(result, candidate);
         const id = result.output.data?.attempt_id;
         assert.ok(id);
         verifyCurrent(candidate, entry, 'bun', id);
+        const packageManifest = nodePath.resolve(nodePath.dirname(entry), '../package.json');
+        const original = readFileSync(packageManifest);
+        const metadata = JSON.parse(original.toString('utf8')) as Record<string, unknown>;
+        metadata.observer_currency_control = true;
+        writeFileSync(packageManifest, JSON.stringify(metadata));
+        const stale = request(candidate, entry, 'bun', ['verify-bounded-delivery', id]);
+        assert.equal(
+          stale.exitCode,
+          2,
+          'Changed external native package metadata must stale retained proof',
+        );
+        assert.equal(stale.output.data?.current, false);
+        writeFileSync(packageManifest, original);
+        verifyCurrent(candidate, entry, 'bun', id);
       } finally {
+        host.dispose();
         candidate.dispose();
       }
     },
@@ -108,6 +124,21 @@ function unpackNpm(host: ObserverCandidate): string {
   return nodePath.join(destination, 'package/dist/cli.js');
 }
 
+function unpackPreviousReader(host: ObserverCandidate): string {
+  const destination = nodePath.join(host.directory, 'previous-main');
+  mkdirSync(destination);
+  const bytes = execFileSync(
+    'git',
+    ['archive', '--format=tar', 'f211c4c30fdb40e7fc5f342eaf981143c750db7b', 'plugin'],
+    {
+      cwd: observerRepo,
+      maxBuffer: 32 * 1024 * 1024,
+    },
+  );
+  execFileSync('tar', ['-xf', '-', '-C', destination], { input: bytes, env: host.environment });
+  return nodePath.join(destination, 'plugin/runtime/cli.js');
+}
+
 void test(
   'unpacked npm proof binds its external runtime and survives command withdrawal',
   { timeout: 900_000 },
@@ -135,12 +166,7 @@ void test(
       writeFileSync(dependency, original);
       verifyCurrent(candidate, entry, 'node', id);
       const beforeWithdrawal = attemptBytes(result);
-      const previousReader = nodePath.join(host.directory, 'previous-main-cli.js');
-      const previousBytes = execFileSync('git', ['show', 'origin/main:plugin/runtime/cli.js'], {
-        cwd: observerRepo,
-        maxBuffer: 32 * 1024 * 1024,
-      });
-      writeFileSync(previousReader, previousBytes);
+      const previousReader = unpackPreviousReader(host);
       for (const operands of [['observe-bounded-delivery'], ['verify-bounded-delivery', id]]) {
         const withdrawn = request(candidate, previousReader, 'bun', operands);
         assert.notEqual(withdrawn.exitCode, 0);
