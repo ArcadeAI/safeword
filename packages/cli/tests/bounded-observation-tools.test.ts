@@ -38,7 +38,7 @@ it('executes the copied checkout tool at the path retained in its evidence', () 
     chmodSync(executable, 0o755);
   }
   const tools = toolInventory(root);
-  const environment = controlledEnvironment(tools, bin, home, scratch);
+  const environment = controlledEnvironment(tools, bin, home);
   const details = executionToolDetails(tools, root, clone, environment, probes);
   const actual = execFileSync(nodePath.join(bin, 'codex'), ['--version'], {
     env: environment,

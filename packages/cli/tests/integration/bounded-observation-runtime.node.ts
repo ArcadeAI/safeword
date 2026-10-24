@@ -21,7 +21,6 @@ void test('fixed runner preserves the host temporary root used by the shared tes
       { paths: {}, metadata: {}, identities: {} },
       bin,
       directory,
-      directory,
     );
     assert.equal(
       realpathSync(environment.TMPDIR ?? ''),

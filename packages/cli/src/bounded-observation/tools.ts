@@ -11,7 +11,7 @@ import {
   unlinkSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
-import { release } from 'node:os';
+import { release, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { canonical, digest, profileSha256 } from './contract.js';
@@ -115,9 +115,11 @@ export function toolInventory(root: string): Tools {
     details.version = version;
   }
   addCodexComponents(inventory);
+  const temporaryRoot = realpathSync(tmpdir());
   identities['environment:policy'] = digest(
     canonical({
-      version: 1,
+      version: 2,
+      temporary_root: temporaryRoot,
       platform: process.platform,
       arch: process.arch,
       os_release: release(),
@@ -324,12 +326,8 @@ function runtimeInstallation(packageRoot: string): Record<string, string> {
   return identities;
 }
 
-export function controlledEnvironment(
-  tools: Tools,
-  bin: string,
-  home: string,
-  temporary: string,
-): NodeJS.ProcessEnv {
+export function controlledEnvironment(tools: Tools, bin: string, home: string): NodeJS.ProcessEnv {
+  const temporary = realpathSync(tmpdir());
   for (const [name, path] of Object.entries(tools.paths))
     symlinkSync(path, nodePath.join(bin, name));
   return {

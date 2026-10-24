@@ -8,6 +8,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -343,6 +344,11 @@ function expectResolvedTools(data: NonNullable<ObserverOutput['data']>): void {
   }
   assert.equal(data.tools.node?.version, 'v24.18.1');
   assert.equal(data.tools.bun?.version, '1.3.14');
+  assert.equal(
+    realpathSync(data.execution_environment.TMPDIR ?? ''),
+    realpathSync(tmpdir()),
+    'Preserve the host shared-lock namespace',
+  );
   assert.equal(data.execution_environment.LANG, 'C');
   assert.equal(data.execution_environment.TZ, 'UTC');
   assert.equal(data.execution_environment.GIT_CONFIG_GLOBAL, '/dev/null');

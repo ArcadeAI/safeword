@@ -19474,7 +19474,7 @@ import {
   unlinkSync
 } from "fs";
 import { createRequire as createRequire2 } from "module";
-import { release } from "os";
+import { release, tmpdir } from "os";
 import nodePath9 from "path";
 function toolPath(tools, name) {
   const path2 = tools.paths[name];
@@ -19529,8 +19529,10 @@ function toolInventory(root) {
     details.version = version2;
   }
   addCodexComponents(inventory);
+  const temporaryRoot = realpathSync3(tmpdir());
   identities["environment:policy"] = digest(canonical({
-    version: 1,
+    version: 2,
+    temporary_root: temporaryRoot,
     platform: process.platform,
     arch: process.arch,
     os_release: release(),
@@ -19698,7 +19700,8 @@ function runtimeInstallation(packageRoot) {
   }
   return identities;
 }
-function controlledEnvironment(tools, bin, home, temporary) {
+function controlledEnvironment(tools, bin, home) {
+  const temporary = realpathSync3(tmpdir());
   for (const [name, path2] of Object.entries(tools.paths))
     symlinkSync(path2, nodePath9.join(bin, name));
   return {
@@ -19776,7 +19779,7 @@ import {
   rmSync as rmSync2,
   writeSync
 } from "fs";
-import { tmpdir } from "os";
+import { tmpdir as tmpdir2 } from "os";
 import nodePath10 from "path";
 function errorText(error2) {
   return error2 instanceof Error ? error2.message : String(error2);
@@ -19902,7 +19905,7 @@ async function observeBoundedDelivery(cwd) {
   const runtimeSha256 = runtimeIdentity();
   const store = openStore(root, true);
   const { id, directory } = reserveAttempt(store);
-  const workPrefix = nodePath10.join(tmpdir(), "safeword-bounded-");
+  const workPrefix = nodePath10.join(tmpdir2(), "safeword-bounded-");
   let work;
   const report = nodePath10.join(directory, "report.json");
   const command = {
@@ -19953,11 +19956,10 @@ async function observeBoundedDelivery(cwd) {
     const tools = toolInventory(root);
     const bin = nodePath10.join(work, "bin");
     const home = nodePath10.join(work, "home");
-    const temporary = nodePath10.join(work, "tmp");
     const probeHome = nodePath10.join(work, "version-probes");
-    for (const path2 of [bin, home, temporary, probeHome])
+    for (const path2 of [bin, home, probeHome])
       mkdirSync4(path2, { mode: 448 });
-    const environment = controlledEnvironment(tools, bin, home, temporary);
+    const environment = controlledEnvironment(tools, bin, home);
     environment.PATH = [
       bin,
       nodePath10.join(clone, "packages/cli/node_modules/.bin"),
@@ -22014,7 +22016,7 @@ import {
   rmSync as rmSync4,
   writeFileSync as writeFileSync5
 } from "fs";
-import { tmpdir as tmpdir2 } from "os";
+import { tmpdir as tmpdir3 } from "os";
 import nodePath20 from "path";
 import process4 from "process";
 function architectureMode(options) {
@@ -22130,7 +22132,7 @@ function architectureStage(cwd, reporter = defaultReporter) {
   });
 }
 function persistWorktreeRecoveryCopy(destination, content) {
-  const directory = mkdtempSync2(nodePath20.join(tmpdir2(), "safeword-architecture-recovery-"));
+  const directory = mkdtempSync2(nodePath20.join(tmpdir3(), "safeword-architecture-recovery-"));
   const path2 = nodePath20.join(directory, `${nodePath20.basename(destination)}.recovery`);
   try {
     writeFileSync5(path2, content, { mode: 384 });
@@ -22244,7 +22246,7 @@ function architectureIndexCheck(cwd) {
   }
 }
 function withGitIndexSnapshot(cwd, gitContext, useSnapshot) {
-  const snapshotDirectory = mkdtempSync2(nodePath20.join(tmpdir2(), "safeword-architecture-index-"));
+  const snapshotDirectory = mkdtempSync2(nodePath20.join(tmpdir3(), "safeword-architecture-index-"));
   const sourceIndexFile = process4.env[ARCHITECTURE_SOURCE_INDEX_ENV];
   const sourceIndexEnvironment = sourceIndexFile === undefined ? undefined : { ...process4.env, GIT_INDEX_FILE: sourceIndexFile };
   try {
@@ -22371,7 +22373,7 @@ function replaceArchitectureDocumentWith(destination, allowedRoot, writeTemporar
   const destinationDirectory = nodePath20.dirname(destination);
   assertPhysicalContainment(allowedRoot, destination);
   mkdirSync7(destinationDirectory, { recursive: true });
-  let temporaryDirectory = mkdtempSync2(nodePath20.join(tmpdir2(), "safeword-architecture-replacement-"));
+  let temporaryDirectory = mkdtempSync2(nodePath20.join(tmpdir3(), "safeword-architecture-replacement-"));
   if (lstatSync5(temporaryDirectory).dev !== lstatSync5(destinationDirectory).dev) {
     rmSync4(temporaryDirectory, { recursive: true, force: true });
     temporaryDirectory = mkdtempSync2(nodePath20.join(destinationDirectory, ".safeword-architecture-"));
@@ -42567,7 +42569,7 @@ import {
   statSync as statSync3,
   writeFileSync as writeFileSync10
 } from "fs";
-import { platform, tmpdir as tmpdir3 } from "os";
+import { platform, tmpdir as tmpdir4 } from "os";
 import nodePath48 from "path";
 import process9 from "process";
 function selectedLocalRetroCanary(override) {
@@ -42877,7 +42879,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
   const spawnClaude = dependencies.spawn ?? spawnClaudeExtractor;
   const spawnCodex = dependencies.spawn ?? spawnCodexExtractor;
   const spawnCursor = dependencies.spawn ?? spawnCursorExtractor;
-  const workDirectory = mkdtempSync5(nodePath48.join(tmpdir3(), "safeword-retro-"));
+  const workDirectory = mkdtempSync5(nodePath48.join(tmpdir4(), "safeword-retro-"));
   if (agent === "codex") {
     return async (transcript) => {
       const result = await runCodexHeadlessExtractionChecked2(transcript, {
@@ -47619,7 +47621,7 @@ import {
   statSync as statSync4,
   writeFileSync as writeFileSync12
 } from "fs";
-import { tmpdir as tmpdir4 } from "os";
+import { tmpdir as tmpdir5 } from "os";
 import nodePath61 from "path";
 function unavailable(message) {
   throw new ReviewPacketError(message, "REVIEW_LOCKFILE_DIFF_UNAVAILABLE");
@@ -47833,7 +47835,7 @@ function prepareLockfileDiff(request) {
   lockfileText(request.bytes, request.relative);
   const base = resolveBaseline(request.root, request.environment);
   const blob = baselineBlob(request, base);
-  const directory = mkdtempSync6(nodePath61.join(tmpdir4(), "safeword-lock-diff-"));
+  const directory = mkdtempSync6(nodePath61.join(tmpdir5(), "safeword-lock-diff-"));
   try {
     const { content, beforeBytes, isolatedGit } = capturePatch(request, directory, blob);
     const representation = {
@@ -57689,7 +57691,7 @@ import {
   rmSync as rmSync10,
   writeFileSync as writeFileSync13
 } from "fs";
-import { tmpdir as tmpdir5 } from "os";
+import { tmpdir as tmpdir6 } from "os";
 import nodePath68 from "path";
 function planningOverrides(cwd, role) {
   const configPath2 = nodePath68.join(cwd, ".safeword/config.json");
@@ -57912,7 +57914,7 @@ function generatedTargets(root, files) {
     const objects = realpathSync12(nodePath68.resolve(root, objectsPath));
     const repoPrefix = readRepoPrefix(root, env2);
     const repoPaths = files.map((file) => `${repoPrefix}${file.relative}`);
-    const isolatedGit = mkdtempSync7(nodePath68.join(tmpdir5(), "safeword-review-git-"));
+    const isolatedGit = mkdtempSync7(nodePath68.join(tmpdir6(), "safeword-review-git-"));
     try {
       const bare = nodePath68.join(isolatedGit, "bare");
       const emptyTemplate = nodePath68.join(isolatedGit, "template");
@@ -58410,7 +58412,7 @@ function validatePlanEvidence(kind, files) {
 function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution = {}) {
   const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot2 = realpathSync12(cwd);
-  const workspace = mkdtempSync7(nodePath68.join(tmpdir5(), "safeword-review-"));
+  const workspace = mkdtempSync7(nodePath68.join(tmpdir6(), "safeword-review-"));
   const tracked = [];
   const oversized = [];
   const captured2 = [];
@@ -59214,7 +59216,7 @@ import {
   symlinkSync as symlinkSync2,
   writeFileSync as writeFileSync14
 } from "fs";
-import { homedir as homedir7, tmpdir as tmpdir6 } from "os";
+import { homedir as homedir7, tmpdir as tmpdir7 } from "os";
 import nodePath69 from "path";
 function isPlanningReview(kind, planningPhase) {
   return planningPhase === "product-plan" || kind === "scenario-gate" || kind === "plan-implementation" || kind === "plan-execution";
@@ -59729,7 +59731,7 @@ async function inspectReviewRoute(reviewer, model, cwd, timeoutMs = 5000, skipCa
       inspectionUnavailable = true;
       break;
     }
-    const capability = await supportsReviewContract(reviewer, candidate, tmpdir6(), remaining, {
+    const capability = await supportsReviewContract(reviewer, candidate, tmpdir7(), remaining, {
       model
     });
     if (capability.kind === "failed") {
@@ -59739,7 +59741,7 @@ async function inspectReviewRoute(reviewer, model, cwd, timeoutMs = 5000, skipCa
     const compatible = compatibleRouteObservation(reviewer, model, skipCatalogue);
     if (compatible.kind === "completed")
       return compatible.observation;
-    return inspectOpenCodeCatalogue(candidate, compatible.model, tmpdir6(), deadline);
+    return inspectOpenCodeCatalogue(candidate, compatible.model, tmpdir7(), deadline);
   }
   return {
     installed: true,
@@ -59947,7 +59949,7 @@ async function stopReviewerOnce(child) {
   return groupIsStopped();
 }
 function isolatedCodexHome() {
-  const path7 = mkdtempSync8(nodePath69.join(tmpdir6(), "safeword-codex-review-"));
+  const path7 = mkdtempSync8(nodePath69.join(tmpdir7(), "safeword-codex-review-"));
   chmodSync4(path7, 448);
   const source = nodePath69.join(process.env.CODEX_HOME ?? nodePath69.join(homedir7(), ".codex"), "auth.json");
   try {
@@ -60290,7 +60292,7 @@ async function runHeadlessReviewerWithProvenance(reviewer, packet, cwd, untruste
   }
 }
 function writeContractFile(kind, planningPhase, dispatchId) {
-  const directory = mkdtempSync8(nodePath69.join(tmpdir6(), "safeword-review-contract-"));
+  const directory = mkdtempSync8(nodePath69.join(tmpdir7(), "safeword-review-contract-"));
   const path7 = nodePath69.join(directory, "review-result.schema.json");
   writeFileSync14(path7, reviewOutputSchema(kind, planningPhase, dispatchId), { mode: 384 });
   return {
@@ -64897,7 +64899,7 @@ import {
   symlinkSync as symlinkSync3,
   writeFileSync as writeFileSync16
 } from "fs";
-import { tmpdir as tmpdir7 } from "os";
+import { tmpdir as tmpdir8 } from "os";
 import nodePath73 from "path";
 function sha2566(bytes) {
   return createHash30("sha256").update(bytes).digest("hex");
@@ -65134,7 +65136,7 @@ function runRetrospectiveProof(projectRoot, request) {
     "--reporter=json",
     `--outputFile=${REPORT}`
   ];
-  const temporary = mkdtempSync9(nodePath73.join(tmpdir7(), "safeword-retrospective-proof-"));
+  const temporary = mkdtempSync9(nodePath73.join(tmpdir8(), "safeword-retrospective-proof-"));
   try {
     const passingCopy = nodePath73.join(temporary, "passing");
     const mutatedCopy = nodePath73.join(temporary, "mutated");
@@ -72447,10 +72449,10 @@ import {
   rmSync as rmSync14,
   statSync as statSync8
 } from "fs";
-import { tmpdir as tmpdir8 } from "os";
+import { tmpdir as tmpdir9 } from "os";
 import nodePath99 from "path";
 function runClaude(cwd, arguments_, effects) {
-  const outputDirectory = mkdtempSync10(nodePath99.join(tmpdir8(), "safeword-claude-output-"));
+  const outputDirectory = mkdtempSync10(nodePath99.join(tmpdir9(), "safeword-claude-output-"));
   const outputPath = nodePath99.join(outputDirectory, "stdout");
   const outputDescriptor = openSync12(outputPath, "w");
   let outputOpen = true;
@@ -72873,7 +72875,7 @@ function replaceStaleMarketplace(cwd, scope, effects) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude marketplace checkout is missing or outside the expected profile location.");
   }
   const installedPlugins = captureFile(nodePath99.join(configDirectory, "plugins/installed_plugins.json"));
-  const backupRoot = mkdtempSync10(nodePath99.join(tmpdir8(), "safeword-claude-marketplace-"));
+  const backupRoot = mkdtempSync10(nodePath99.join(tmpdir9(), "safeword-claude-marketplace-"));
   const checkoutBackup = nodePath99.join(backupRoot, MARKETPLACE_NAME);
   cpSync3(marketplacePath, checkoutBackup, { recursive: true, preserveTimestamps: true });
   let active = true;
@@ -75191,7 +75193,7 @@ import {
   writeFileSync as writeFileSync27
 } from "fs";
 import { createServer } from "http";
-import { tmpdir as tmpdir9 } from "os";
+import { tmpdir as tmpdir10 } from "os";
 import nodePath106 from "path";
 function skillBody(content) {
   const frontmatterEnd = content.indexOf(`
@@ -75400,7 +75402,7 @@ function fixtureEnvironment(root, environment) {
   };
 }
 function proveOpenCodeCatalogue(executable, environment, profile, fault) {
-  const root = mkdtempSync11(nodePath106.join(tmpdir9(), "safeword-opencode-conformance-"));
+  const root = mkdtempSync11(nodePath106.join(tmpdir10(), "safeword-opencode-conformance-"));
   try {
     const project = prepareCatalogueFixture(root, profile, fault);
     const isolatedEnvironment = fixtureEnvironment(root, environment);
@@ -75418,7 +75420,7 @@ function proveOpenCodeCatalogue(executable, environment, profile, fault) {
   }
 }
 async function executeSentinelFixture(executable, environment, profile, mode) {
-  const root = mkdtempSync11(nodePath106.join(tmpdir9(), "safeword-opencode-conformance-"));
+  const root = mkdtempSync11(nodePath106.join(tmpdir10(), "safeword-opencode-conformance-"));
   const project = prepareCatalogueFixture(root, profile);
   if (mode === "control")
     rmSync17(nodePath106.join(root, "config", "plugins", "safeword.js"));
@@ -75475,7 +75477,7 @@ async function proveOpenCodeControl(executable, environment, profile) {
   return execution.sentinelExists;
 }
 async function proveOpenCodeSkillInvocation(executable, environment, profile) {
-  const root = mkdtempSync11(nodePath106.join(tmpdir9(), "safeword-opencode-conformance-"));
+  const root = mkdtempSync11(nodePath106.join(tmpdir10(), "safeword-opencode-conformance-"));
   const project = prepareCatalogueFixture(root, profile);
   const exactArguments = `fixture-token=${randomUUID14()}`;
   const canonicalBody = skillBody(readFileSync72(nodePath106.join(project, ".claude", "skills", "bdd", "SKILL.md"), "utf8"));
@@ -89055,7 +89057,7 @@ import {
   rmSync as rmSync20,
   writeFileSync as writeFileSync41
 } from "fs";
-import { tmpdir as tmpdir10 } from "os";
+import { tmpdir as tmpdir11 } from "os";
 import nodePath162 from "path";
 import process26 from "process";
 async function readStdin() {
@@ -89341,7 +89343,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   let temporaryHookDirectory;
   try {
     if (relativePath === "session-codex-start.ts") {
-      temporaryHookDirectory = mkdtempSync12(nodePath162.join(tmpdir10(), "safeword-codex-hook-"));
+      temporaryHookDirectory = mkdtempSync12(nodePath162.join(tmpdir11(), "safeword-codex-hook-"));
       cpSync6(nodePath162.dirname(hookPath), temporaryHookDirectory, { recursive: true });
       writeFileSync41(nodePath162.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
       executableHookPath = nodePath162.join(temporaryHookDirectory, nodePath162.basename(hookPath));
@@ -89370,7 +89372,7 @@ function snapshotEmbeddedOpenCodePreToolHook(relativePath) {
   const embedded = embeddedOpenCodePreToolHooks();
   if (!embedded)
     return;
-  const directory = mkdtempSync12(nodePath162.join(tmpdir10(), `safeword-opencode-hook-snapshot-${process26.pid}-`));
+  const directory = mkdtempSync12(nodePath162.join(tmpdir11(), `safeword-opencode-hook-snapshot-${process26.pid}-`));
   const hooksDirectory = nodePath162.join(directory, "hooks");
   const codexDirectory = nodePath162.join(hooksDirectory, "codex");
   mkdirSync33(codexDirectory, { recursive: true });
@@ -89426,7 +89428,7 @@ function snapshotPackagedHook(relativePath) {
       error: new Error(`Safeword packaged hook is missing: ${relativePath}`)
     };
   }
-  const directory = mkdtempSync12(nodePath162.join(tmpdir10(), `safeword-codex-hook-snapshot-${process26.pid}-`));
+  const directory = mkdtempSync12(nodePath162.join(tmpdir11(), `safeword-codex-hook-snapshot-${process26.pid}-`));
   const stagingHooksDirectory = nodePath162.join(directory, "hooks-copying");
   const snapshotHooksDirectory = nodePath162.join(directory, "hooks");
   try {

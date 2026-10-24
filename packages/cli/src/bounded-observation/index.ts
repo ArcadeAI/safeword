@@ -258,10 +258,9 @@ export async function observeBoundedDelivery(cwd: string): Promise<AttemptTermin
     const tools = toolInventory(root);
     const bin = nodePath.join(work, 'bin');
     const home = nodePath.join(work, 'home');
-    const temporary = nodePath.join(work, 'tmp');
     const probeHome = nodePath.join(work, 'version-probes');
-    for (const path of [bin, home, temporary, probeHome]) mkdirSync(path, { mode: 0o700 });
-    const environment = controlledEnvironment(tools, bin, home, temporary);
+    for (const path of [bin, home, probeHome]) mkdirSync(path, { mode: 0o700 });
+    const environment = controlledEnvironment(tools, bin, home);
     environment.PATH = [
       bin,
       nodePath.join(clone, 'packages/cli/node_modules/.bin'),
