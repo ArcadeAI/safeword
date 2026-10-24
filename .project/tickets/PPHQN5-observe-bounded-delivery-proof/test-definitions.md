@@ -18,7 +18,7 @@ no scenario completion or final actual-checkout proof is claimed.
 
 - [x] RED d6c9231aa
 - [x] GREEN c9665017f
-- [ ] REFACTOR
+- [x] REFACTOR skip: parser refusal stays feature-local; 49 regression tests and three real entrypoint checks pass, with no additional structural change needed
 
 ### Scenario: Uncommitted execution inputs prevent observation
 
