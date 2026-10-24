@@ -5,6 +5,8 @@ import { execFileSync } from 'node:child_process';
 import {
   appendFileSync,
   chmodSync,
+  constants,
+  cpSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -18,9 +20,14 @@ import nodePath from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 
-import { auditReaderIdentity, sourceIdentity } from '../../src/bounded-observation/identity.js';
+import {
+  auditReaderIdentity,
+  sourceIdentity,
+  treeIdentity,
+} from '../../src/bounded-observation/identity.js';
 import { controlledEnvironment } from '../../src/bounded-observation/tools.js';
 import { createObserverCandidate, observerRepo } from '../fixtures/bounded-observation.js';
+import { commitChangedInput } from '../fixtures/bounded-observation-currency.js';
 
 void test('the shipped audit reader identity matches this reviewed source and configuration', () => {
   const path = nodePath.join(
@@ -51,37 +58,89 @@ void test('reader identity preserves Git executable semantics across a private c
       before,
       'Reader identity must normalize executable mode as Git does',
     );
+    chmodSync(reader, 0o644);
+    assert.notEqual(
+      auditReaderIdentity(directory),
+      before,
+      'Removing owner execution must change reader identity',
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test('private Node dependency copies preserve normalized execution identity', () => {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'bounded-private-dependency-copy-'));
+  try {
+    const source = nodePath.join(directory, 'source');
+    const copy = nodePath.join(directory, 'copy');
+    mkdirSync(source);
+    writeFileSync(nodePath.join(source, 'tool'), 'fixture');
+    chmodSync(nodePath.join(source, 'tool'), 0o755);
+    const previous = process.umask(0o077);
+    try {
+      cpSync(source, copy, { recursive: true, mode: constants.COPYFILE_FICLONE });
+    } finally {
+      process.umask(previous);
+    }
+    assert.equal(
+      treeIdentity(source, '.'),
+      treeIdentity(copy, '.'),
+      'Private copied dependencies must retain normalized execution identity',
+    );
+    chmodSync(nodePath.join(copy, 'tool'), 0o600);
+    assert.notEqual(
+      treeIdentity(source, '.'),
+      treeIdentity(copy, '.'),
+      'Removing owner execution must stale dependency identity',
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
 void test('a new reader cannot turn its execution input into an audit exemption', () => {
-  const prefix = nodePath.join(tmpdir(), 'bounded-loaded-audit-');
-  const directory = mkdtempSync(prefix);
+  const candidate = createObserverCandidate();
+  const directory = candidate.root;
   const audit =
     '.project/tickets/PPHQN5-observe-bounded-delivery-proof/evidence/observer-audit-summary.md';
   try {
-    mkdirSync(nodePath.join(directory, nodePath.dirname(audit)), { recursive: true });
-    writeFileSync(nodePath.join(directory, audit), 'safe');
-    const reader = nodePath.join(directory, 'reader.mjs');
+    const before = sourceIdentity(directory);
+    assert.equal(
+      Object.hasOwn(before, `file:${audit}`),
+      false,
+      'The pinned baseline must actually project audit output',
+    );
+    appendFileSync(nodePath.join(directory, audit), '\nAudit-only before the new reader.\n');
+    assert.equal(
+      sourceIdentity(directory)['source:tracked'],
+      before['source:tracked'],
+      'Audit-only edits must remain current before reader changes',
+    );
+    const reader = nodePath.join(directory, 'observer-input-reader');
+    const marker = '\nTEST_LOADED_AUDIT_INPUT\n';
     writeFileSync(
       reader,
-      `import {readFileSync} from 'node:fs'; process.stdout.write(readFileSync(${JSON.stringify(audit)}));\n`,
+      `import {readFileSync} from 'node:fs'; process.stdout.write(readFileSync(${JSON.stringify(audit)}, 'utf8').includes(${JSON.stringify(marker)}) ? 'changed' : 'original');\n`,
     );
-    execFileSync('git', ['init', '--quiet', '--template='], { cwd: directory });
-    execFileSync('git', ['add', '.'], { cwd: directory });
-    assert.equal(execFileSync('node', [reader], { cwd: directory, encoding: 'utf8' }), 'safe');
-    const before = sourceIdentity(directory);
-    writeFileSync(nodePath.join(directory, audit), 'changed');
+    chmodSync(reader, 0o755);
+    commitChangedInput(candidate);
+    assert.equal(execFileSync('node', [reader], { cwd: directory, encoding: 'utf8' }), 'original');
+    const withReader = sourceIdentity(directory);
+    assert.notEqual(
+      withReader['source:audit-projection'],
+      before['source:audit-projection'],
+      'New reader must disable audit exemptions',
+    );
+    appendFileSync(nodePath.join(directory, audit), marker);
     assert.equal(execFileSync('node', [reader], { cwd: directory, encoding: 'utf8' }), 'changed');
-    assert.notDeepEqual(
-      sourceIdentity(directory),
-      before,
+    assert.notEqual(
+      sourceIdentity(directory)['source:tracked'],
+      withReader['source:tracked'],
       'Audit filename must not exempt a new loaded input',
     );
   } finally {
-    rmSync(directory, { recursive: true, force: true });
+    candidate.dispose();
   }
 });
 
@@ -100,6 +159,16 @@ void test('fixed runner preserves the host temporary root used by the shared tes
       realpathSync(environment.TMPDIR ?? ''),
       realpathSync(tmpdir()),
       'Fixed runner must retain the existing shared-lock namespace',
+    );
+    assert.equal(
+      environment.SAFEWORD_TEST_LOCK_DIR,
+      undefined,
+      'The lock directory must never be overridden',
+    );
+    assert.equal(
+      environment.SAFEWORD_TEST_LOCK_MAX_WAIT_MS,
+      '600000',
+      'Fixed runner must wait for the normal lock within its operation budget',
     );
   } finally {
     rmSync(directory, { recursive: true, force: true });

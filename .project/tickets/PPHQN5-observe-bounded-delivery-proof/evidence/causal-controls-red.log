@@ -1,0 +1,75 @@
+✖ private Node dependency copies preserve normalized execution identity (4.777375ms)
+✖ a new reader cannot turn its execution input into an audit exemption (28581.999834ms)
+✖ fixed runner preserves the host temporary root used by the shared test lock (1.008708ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 28935.406
+
+✖ failing tests:
+
+test at packages/cli/tests/integration/bounded-observation-runtime.node.ts:1:1925
+✖ private Node dependency copies preserve normalized execution identity (4.777375ms)
+  AssertionError [ERR_ASSERTION]: Private copied dependencies must retain normalized execution identity
+  + actual - expected
+  
+  + 'b06a41ae6e69ce5780c788a9a10fd53e3ffffc11e242adbefaeadb6f1f64555f'
+  - '864ed5c5cc1cd7bbc35eb2747658e08250330adbe939be03577382438bcac759'
+  
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-runtime.node.ts:86:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'b06a41ae6e69ce5780c788a9a10fd53e3ffffc11e242adbefaeadb6f1f64555f',
+    expected: '864ed5c5cc1cd7bbc35eb2747658e08250330adbe939be03577382438bcac759',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/cli/tests/integration/bounded-observation-runtime.node.ts:1:2804
+✖ a new reader cannot turn its execution input into an audit exemption (28581.999834ms)
+  AssertionError [ERR_ASSERTION]: New reader must disable audit exemptions
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-runtime.node.ts:130:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b',
+    expected: 'b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/cli/tests/integration/bounded-observation-runtime.node.ts:2:636
+✖ fixed runner preserves the host temporary root used by the shared test lock (1.008708ms)
+  AssertionError [ERR_ASSERTION]: Fixed runner must wait for the normal lock within its operation budget
+  + actual - expected
+  
+  + undefined
+  - '600000'
+  
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-runtime.node.ts:168:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: '600000',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
