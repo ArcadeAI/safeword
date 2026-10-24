@@ -27,6 +27,17 @@ import {
   expectNamedRequiredRecovery,
 } from '../../tests/fixtures/bounded-observation-failures.js';
 import {
+  advancePausedCandidate,
+  attemptBytes,
+  disposePausedObservation,
+  expectPassingReportOnFailedRunner,
+  failedRunnerCandidate,
+  finishObservation,
+  type PausedObservation,
+  pauseObservation,
+  releaseObservation,
+} from '../../tests/fixtures/bounded-observation-lifecycle.js';
+import {
   createUnmappedDistribution,
   expectNamedUnmappedCase,
   runUnmappedDistribution,
@@ -40,7 +51,115 @@ interface ObserverWorld {
   observerBefore?: string;
   observerAlteredReport?: Buffer;
   observerDistribution?: UnmappedDistribution;
+  observerPaused?: PausedObservation;
+  observerInterrupted?: ObserverCommand;
+  observerInterruptedBytes?: Record<string, Buffer>;
 }
+
+Given(
+  'the fixed local CLI execution is paused after identifying its committed candidate and inputs',
+  { timeout: 900_000 },
+  async function (this: ObserverWorld) {
+    this.observerPaused = await pauseObservation();
+    this.observerCandidate = this.observerPaused.candidate;
+  },
+);
+
+When(
+  'the candidate advances to another commit before the run finishes',
+  { timeout: 900_000 },
+  async function (this: ObserverWorld) {
+    assert.ok(this.observerPaused);
+    advancePausedCandidate(this.observerPaused);
+    releaseObservation(this.observerPaused);
+    this.observerResult = await finishObservation(this.observerPaused);
+  },
+);
+
+Then(
+  'the result names the changed candidate and asks for a new run on a stable committed candidate',
+  function (this: ObserverWorld) {
+    assert.ok(this.observerResult);
+    const message = this.observerResult.output.errors?.map(error => error.message).join('\n') ?? '';
+    assert.match(message, /Candidate advanced during execution/u);
+    assert.match(message, /rerun on a stable committed candidate/u);
+  },
+);
+
+Given(
+  'a bound candidate whose fixed runner passes every required assertion but exits unsuccessfully',
+  function (this: ObserverWorld) {
+    this.observerCandidate = failedRunnerCandidate();
+  },
+);
+
+Then(
+  'the retained diagnostics name the runner failure and the corrective action',
+  function (this: ObserverWorld) {
+    assert.ok(this.observerResult);
+    expectPassingReportOnFailedRunner(this.observerResult);
+  },
+);
+
+Given(
+  'an interrupted fixed-lane attempt has a retained nonempty failure diagnostic',
+  { timeout: 900_000 },
+  async function (this: ObserverWorld) {
+    this.observerPaused = await pauseObservation();
+    this.observerCandidate = this.observerPaused.candidate;
+    assert.equal(this.observerPaused.child.kill('SIGTERM'), true);
+    this.observerInterrupted = await finishObservation(this.observerPaused);
+    assert.equal(this.observerInterrupted.exitCode, 2);
+    assert.equal(this.observerInterrupted.output.data?.status, 'interrupted');
+    this.observerInterruptedBytes = attemptBytes(this.observerInterrupted);
+    assert.ok(this.observerInterruptedBytes['diagnostic.log']?.length);
+    releaseObservation(this.observerPaused);
+  },
+);
+
+When(
+  'the maintainer retries the same clean committed candidate successfully through the Safeword CLI',
+  function (this: ObserverWorld) {
+    assert.ok(this.observerCandidate);
+    this.observerResult = runObserverCli(this.observerCandidate, [
+      'proof',
+      'observe-bounded-delivery',
+    ]);
+    expectCompleteObservation(this.observerResult, this.observerCandidate);
+  },
+);
+
+Then(
+  'the new successful observation is retained as a distinct attempt',
+  function (this: ObserverWorld) {
+    assert.ok(this.observerResult);
+    assert.ok(this.observerInterrupted);
+    assert.notEqual(
+      this.observerResult.output.data?.attempt_id,
+      this.observerInterrupted.output.data?.attempt_id,
+    );
+  },
+);
+
+Then(
+  'the same earlier interrupted attempt and its diagnostic remain readable byte-for-byte unchanged and do not verify as success',
+  function (this: ObserverWorld) {
+    assert.ok(this.observerCandidate);
+    assert.ok(this.observerInterrupted);
+    assert.ok(this.observerInterruptedBytes);
+    assert.deepEqual(attemptBytes(this.observerInterrupted), this.observerInterruptedBytes);
+    const id = this.observerInterrupted.output.data?.attempt_id;
+    assert.ok(id);
+    const verified = runObserverCli(this.observerCandidate, [
+      'proof',
+      'verify-bounded-delivery',
+      id,
+    ]);
+    assert.equal(verified.exitCode, 2);
+    assert.equal(verified.output.data?.current, false);
+    assert.deepEqual(attemptBytes(this.observerInterrupted), this.observerInterruptedBytes);
+  },
+);
 
 Given(
   'one of the 37 bounded delivery cases has no declared assertion mapping',
@@ -349,8 +468,12 @@ Then(
   },
 );
 
-After(function (this: ObserverWorld) {
-  this.observerCandidate?.dispose();
+After({ timeout: 900_000 }, async function (this: ObserverWorld) {
+  if (this.observerPaused === undefined) {
+    this.observerCandidate?.dispose();
+  } else {
+    await disposePausedObservation(this.observerPaused);
+  }
 });
 
 Given(
