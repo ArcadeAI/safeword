@@ -1,5 +1,13 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -104,6 +112,52 @@ function expectMarkerRemovalBlocked(
   }
 }
 
+async function expectMissingRecordRecovery(
+  project: string,
+  ticketPath: string,
+  reviewId: string,
+  env: NodeJS.ProcessEnv,
+  attemptExit: () => ReturnType<typeof spawnSync>,
+): Promise<void> {
+  const directory = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');
+  const savedRecord = readdirSync(directory).find(name => name.endsWith(`${reviewId}.json`));
+  if (savedRecord === undefined) throw new Error('sealed branch review record was not saved');
+  rmSync(nodePath.join(directory, savedRecord));
+  expectHookDeny(attemptExit(), 'No current branch review');
+  writeFileSync(
+    ticketPath,
+    readFileSync(ticketPath, 'utf8').replace('# Change the goal', '# Review branch'),
+  );
+  const replacement = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env,
+  });
+  expect(JSON.parse(replacement.stdout).data?.coverage).toBe('complete');
+  expectHookAllow(attemptExit());
+}
+
+async function expectLegacyVerificationUncovered(
+  project: string,
+  ticketPath: string,
+): Promise<void> {
+  writeFileSync(
+    ticketPath,
+    readFileSync(ticketPath, 'utf8').replace('phase: implement', 'phase: verify'),
+  );
+  const result = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+    cwd: project,
+  });
+  const report = JSON.parse(result.stdout) as {
+    data?: { legacy_uncovered?: boolean; may_advance?: boolean };
+  };
+  expect(report.data?.legacy_uncovered).toBe(true);
+  expect(report.data?.may_advance).toBe(true);
+  writeFileSync(
+    ticketPath,
+    readFileSync(ticketPath, 'utf8').replace('phase: verify', 'phase: implement'),
+  );
+}
+
 it('keeps a saved review current after verification checklist progress', async () => {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-branch-bookkeeping-'));
   roots.push(root);
@@ -192,6 +246,7 @@ it('keeps a saved review current after verification checklist progress', async (
 
 it.each(['Claude Code', 'OpenAI Codex', 'Cursor', 'OpenCode CLI'])(
   'accepts the reviewed snapshot and refuses later authored changes in %s',
+  // eslint-disable-next-line complexity -- One fixture follows the same ticket through review, edits, verification, and recovery.
   async host => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-branch-gate-'));
     roots.push(root);
@@ -428,8 +483,14 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     expectHookDeny(attemptExit('verify', 'done'), 'stale');
     assertLocalHostsBlock('verify', 'done');
 
+    const verificationReviewId = JSON.parse(verificationReview.stdout).data?.review_id as string;
+    await expectMissingRecordRecovery(project, ticketPath, verificationReviewId, env, () =>
+      attemptExit('verify', 'done'),
+    );
+
     git(project, 'reset', '--hard', 'main');
     git(project, 'clean', '-fd');
+    await expectLegacyVerificationUncovered(project, ticketPath);
     const noChanges = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project, env });
     expect(JSON.parse(noChanges.stdout).data?.coverage).toBe('none');
     expectHookDeny(attemptExit(), 'No branch changes were reviewed');
