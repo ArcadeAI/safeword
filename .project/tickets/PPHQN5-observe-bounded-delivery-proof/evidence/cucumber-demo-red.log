@@ -1,0 +1,20 @@
+
+Failed scenarios:
+  1) Complete fixed-lane execution produces verifiable current evidence # features/observe-bounded-delivery-proof.feature:38
+       Then the CLI returns a verifiable observation identifying its command, candidate, runtime, inputs and complete results # packages/cli/features/steps/bounded-observation.steps.ts:36
+           AssertionError [ERR_ASSERTION]: the public CLI cannot produce and verify a complete bounded observation: {"schema_version":1,"ok":false,"state":"failed","changed":false,"findings":[],"effects":{"files":[],"packages":[],"configuration":[],"network":[],"destructive":[]},"errors":[{"code":"CLI_ARGUMENT_INVALID","message":"error: too many arguments. Expected 0 arguments but got 2: proof, observe-bounded-delivery.","retryable":false}],"recovery":[],"next_actions":[]}
+           
+           
+           false !== true
+           
+               + expected - actual
+           
+               -false
+               +true
+           
+               at expectCompleteObservation (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/fixtures/bounded-observation.ts:213:10)
+               at World.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/features/steps/bounded-observation.steps.ts:41:5)
+
+1 scenario (1 failed)
+5 steps (3 passed, 1 skipped, 1 failed)
+0m 19.667s (0m 19.541s executing your code)

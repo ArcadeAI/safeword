@@ -1,0 +1,8 @@
+{
+  "authority": "static validation only",
+  "scenarioBlocks": 12,
+  "compiledCases": 17,
+  "rules": 5,
+  "ledgerNamesMatch": true,
+  "allEntriesUnchecked": true
+}

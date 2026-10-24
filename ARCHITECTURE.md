@@ -1507,6 +1507,44 @@ Implementation and proof: [prevent-false-go-lint-errors](.project/tickets/HWVKKQ
 `src/commands/go-lint.ts`, `src/go-lint/`, shared lint hooks, and real package/config
 fixtures with the oldest supported v2 and current linter in the CI matrix.
 
+### Bounded observation preserves completion authority
+
+**Status:** proposed
+**Date:** 2026-10-23
+**Supersedes:** none
+
+#### Context
+
+Already-delivered T3E4NS behavior has current passing characterization but lacks
+historical RED. Execution evidence must be recoverable without inventing that
+history or granting completion. The public evidence contract and retained data
+ownership constrain future consumers, so they need a durable record.
+
+#### Decision
+
+The proposed observer runs only a reviewed, shipped fixed contract in an isolated
+committed candidate and retains authenticated, root-bound attempts outside the
+checkout. Its verifier checks exact required assertion results and current source
+identity. Failed and interrupted attempts survive retry. Ticket semantics stay
+bound separately from harmless audit bookkeeping.
+
+Observation has execution-only authority. It cannot write historical ledgers,
+create RED, certify semantics, qualify reviewers, approve planning, close tickets
+or replace branch review. CKWE2D eligibility and all existing review/closing gates
+remain separate. Runtime-owned contracts beat caller-selected reports or commands;
+external append-only attempts beat checkout-local summaries that dirty retries.
+
+#### Consequences
+
+Future certification must assess this evidence independently. New contracts or
+schema versions require explicit review; unsupported mappings and changed inputs
+refuse instead of shrinking coverage. The local user/key/toolchain remain trusted;
+authentication is not protection against that owner deliberately forging evidence.
+Withdrawal removes command availability while preserving retained evidence.
+
+Feature decisions remain in the single [observer Implementation Plan](.project/tickets/PPHQN5-observe-bounded-delivery-proof/impl-plan.md).
+This proposal records design intent, not shipped behavior or plan approval.
+
 ## References
 
 - Language Pack Spec: `packages/cli/src/packs/LANGUAGE_PACK_SPEC.md`

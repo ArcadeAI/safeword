@@ -1,0 +1,19 @@
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/aa92/safeword/packages/retro-relay/tsup.config.ts
+CLI Target: node22
+CLI Cleaning output folder
+ESM Build start
+ESM dist/main.js               848.00 B
+ESM dist/index.js              3.30 KB
+ESM dist/chunk-XO4XPAFC.js     90.77 KB
+ESM dist/index.js.map          6.01 KB
+ESM dist/main.js.map           1.56 KB
+ESM dist/chunk-XO4XPAFC.js.map 170.09 KB
+ESM ⚡️ Build success in 12ms
+DTS Build start
+DTS ⚡️ Build success in 635ms
+DTS dist/main.d.ts  13.00 B
+DTS dist/index.d.ts 9.50 KB

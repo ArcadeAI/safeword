@@ -1,0 +1,12 @@
+{
+  "authority": "static author checks only; no scenario review or execution",
+  "scenarioBlocks": 12,
+  "compiledCases": 14,
+  "rules": 5,
+  "uncheckedRgr": 36,
+  "uncheckedCrossScenario": 1,
+  "ledgerNamesMatch": true,
+  "singleRuleLineage": true,
+  "cliSurface": true,
+  "oneDemo": true
+}

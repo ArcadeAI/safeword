@@ -1,0 +1,8 @@
+{
+  "purpose": "restored scenario census only; no runtime or completion evidence",
+  "source": "features/observe-bounded-delivery-proof.feature",
+  "sha256": "25a75ef3f829b78636d021f446cfb605046f7e4409074f85ca2e84c722b02696",
+  "blocks": 12,
+  "cases": 17,
+  "ledgerAligned": true
+}

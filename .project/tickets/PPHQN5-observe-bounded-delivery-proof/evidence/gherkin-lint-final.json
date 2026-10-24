@@ -1,0 +1,1 @@
+{"schema_version":1,"ok":true,"state":"healthy","changed":false,"findings":[],"effects":{"files":[],"packages":[],"configuration":[],"network":[],"destructive":[]},"errors":[],"recovery":[],"next_actions":[],"data":{"command":"project lint-gherkin","files":1,"arguments":["features/observe-bounded-delivery-proof.feature"]}}

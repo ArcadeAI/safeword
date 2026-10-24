@@ -1,0 +1,27 @@
+{
+  "purpose": "planning artifact integrity only; not an authenticated receipt",
+  "sha256": {
+    "evidence/current-proof-tests.json": "8daaf74a8ca28d8b35bc51afa6c5361fb27f8b69b5c790adc1e59314d295e050",
+    "evidence/current-proof-tests.log": "eea181742c4ac09a94133503eaa43644336c5a5cd25a5ae9724152d8809827bd",
+    "evidence/historical-case-census.md": "b7fbd72692f7691cba2325fe4f9667abc7e7e1c03567a1f549ba1b0b1ca6ebd9",
+    "evidence/plan-review-final.json": "38fe99aaf53811ac7bd3f2b50145a7fb5e5d30c660ccb3101e977789ff938483",
+    "evidence/plan-review-final.log": "44735926ec776ad0fc9e72427424fe9fc601d88db782631a01485c45440d74cb",
+    "evidence/plan-review.json": "9584d9641c468628ea8b6c3e3ff8d841656f86623dc0019e0bfcf3a4562bc030",
+    "evidence/plan-review.log": "0752c63367b6e17b091598b58ce17de90222a5ec42f42a5058251c895033abec",
+    "inventory.mjs": "9a9df1687497f341455c9775645ca03c98ff5ba320cb93a807d02ff55db387ee",
+    "proof-inventory.json": "cda086e5f225ef37aef4177b633f51599cafdf84eb1e40a99ee5c393b9ec8e4d",
+    "proof-map.md": "35d912018cd2b284d3a8be12aec85b43442d6a4593c5e53a5d389203a33b2167",
+    "recovery-plan.md": "ddb8deeb1fbf8d78b2a00903ba7f99a94d3a6790a58ba798c0d2f884e38bc708",
+    "review-responses.md": "a5c7de0f9fa7fa2d3c327dcc8759b0e26bc6872f0e91890d13fc495e71913725",
+    "ticket.md": "f034366701d84b94ca013452dd0abb29b19a65455d1baf2bd3bd5f167f833d28",
+    "verification.md": "f38b3075ec5e25d79dbd79234c3014f308e0b74f86a3938bcfc1a0a4723cd9a6"
+  },
+  "format_corrections": {
+    "proof-map.md": {
+      "reason": "Prevent a PR number at line start being reformatted into a Markdown heading",
+      "original_sha256": "b4e7f179fc6dc7f861df5693615c9bd62ac1b0ee6dc9d166f4735d058b7b0713",
+      "original_bytes": "evidence/proof-map.pre-format.md.gz",
+      "original_integrity": "evidence/integrity.pre-format.json.gz"
+    }
+  }
+}

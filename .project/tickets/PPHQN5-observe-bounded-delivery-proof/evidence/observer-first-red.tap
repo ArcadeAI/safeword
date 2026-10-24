@@ -1,0 +1,32 @@
+✖ real profile produces complete verifiable evidence (19112.658083ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19243.563417
+
+✖ failing tests:
+
+test at packages/cli/tests/integration/bounded-observation.node.ts:1:186
+✖ real profile produces complete verifiable evidence (19112.658083ms)
+  AssertionError [ERR_ASSERTION]: The public CLI cannot produce a complete bounded observation: {"schema_version":1,"ok":false,"state":"failed","changed":false,"findings":[],"effects":{"files":[],"packages":[],"configuration":[],"network":[],"destructive":[]},"errors":[{"code":"CLI_ARGUMENT_INVALID","message":"error: too many arguments. Expected 0 arguments but got 2: proof, observe-bounded-delivery.","retryable":false}],"recovery":[],"next_actions":[]}
+  
+  
+  false !== true
+  
+      at expectCompleteObservation (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/fixtures/bounded-observation.ts:197:10)
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation.node.ts:16:5)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

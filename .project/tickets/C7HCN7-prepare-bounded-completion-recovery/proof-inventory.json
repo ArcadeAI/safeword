@@ -1,0 +1,1021 @@
+{
+  "kind": "bounded-recovery-planning-inventory:v1",
+  "authority": "research-only; no observation, certification, RED, or completion authority",
+  "sourceRevision": "f211c4c30fdb40e7fc5f342eaf981143c750db7b",
+  "ticket": "T3E4NS",
+  "feature": "features/keep-bounded-planning-reviews-trustworthy.feature",
+  "totals": {
+    "scenarioBlocks": 14,
+    "compiledCases": 37,
+    "uncheckedRgrEntries": 42,
+    "uncheckedCrossScenarioEntries": 1,
+    "deferredHistoricalCases": 33
+  },
+  "identities": [
+    {
+      "path": "features/keep-plan-reviews-current-and-trustworthy.feature",
+      "sha256": "87fcef1e357a8d5801e5e27d470f7daceb9435c2b3ce2ed2082e35dd627a06cf"
+    },
+    {
+      "path": ".project/tickets/T3E4NS-keep-bounded-planning-reviews-trustworthy/ticket.md",
+      "sha256": "30e78e6ebd97fab1ed598131da03e797d83d58d64eb83ff25fb64cb746222b69"
+    },
+    {
+      "path": ".project/tickets/T3E4NS-keep-bounded-planning-reviews-trustworthy/spec.md",
+      "sha256": "e5b3f0e4ecbef5f26e36c5b647436dcfe3538ff72243c5ad935a211f63465a4b"
+    },
+    {
+      "path": ".project/tickets/T3E4NS-keep-bounded-planning-reviews-trustworthy/test-definitions.md",
+      "sha256": "9ee8cb32d8e15e778d57cf05e1626fbf604b4dcaaa00c22f51fe0d067fdd1be6"
+    },
+    {
+      "path": ".project/tickets/T3E4NS-keep-bounded-planning-reviews-trustworthy/delivery-state.md",
+      "sha256": "1ac2b18bec39957b6ed3145f7ccb02f849a75c1860f9c1e50865c443bc331555"
+    },
+    {
+      "path": "features/keep-bounded-planning-reviews-trustworthy.feature",
+      "sha256": "f6b65d3dffecfa750fd43a3425d446a8610ea81b3e47dcfe9f4fb5538fbdba73"
+    },
+    {
+      "path": "features/keep-bounded-planning-reviews-trustworthy.bdd-proof.json",
+      "sha256": "12ba637fb23c070ee38064e02ffe1ff2302fcd3c53633e691e673a6136c3eebf"
+    },
+    {
+      "path": ".project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/ticket.md",
+      "sha256": "740736daf7f4d817ba8729451d5ae4e044535ba303aa4db9bb52187e6d909c75"
+    },
+    {
+      "path": ".project/tickets/5F5ZZA-keep-plan-reviews-current-and-trustworthy/test-definitions.md",
+      "sha256": "a78e8a7d90dc2464be9784cbb301eb1d97ed245a873b038302d8518d8aec7c53"
+    },
+    {
+      "path": "packages/cli/tests/claude-plugin/catalogue.test.ts",
+      "sha256": "b71fc45f021e037d608f721a69b586993171608b8d43a3ff6caed0bb5471753a"
+    },
+    {
+      "path": "packages/cli/tests/codex-plugin-version.test.ts",
+      "sha256": "19aed9b4a841cc925c46ddef6559e4a4a024dbb410fc7fbd637619942958e107"
+    },
+    {
+      "path": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+      "sha256": "10aaa8cb5c33abafa9c5f90070f3701918c251926d31bec76e1420ce41385638"
+    },
+    {
+      "path": "packages/cli/tests/integration/execution-upstream-planning-context.test.ts",
+      "sha256": "fc8de1b2dad0ac67c81afaf24472a79d6795b7175223949f0ee1117c742c8087"
+    },
+    {
+      "path": "packages/cli/tests/integration/installed-planning-copy-admission.test.ts",
+      "sha256": "6afbc36da8eb6202821e8fa0cde7c473a948c52d42cba7d5717605a31bb89e20"
+    },
+    {
+      "path": "packages/cli/tests/integration/planning-documentation.test.ts",
+      "sha256": "30082de33044b2e18a0367237c7e48c2846ee06f5c7fbf0b9000ff86ac885af7"
+    },
+    {
+      "path": "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+      "sha256": "1042c4104766576df66d7422972db298b919f4aef7c816cc5119da5b418d9e8d"
+    },
+    {
+      "path": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+      "sha256": "8d2d63bb53c3a20f17bb245185e742b2be87b34c0c6258954d2c8af95ce4e214"
+    },
+    {
+      "path": "packages/cli/tests/integration/planning-scope-review.test.ts",
+      "sha256": "ec7bc14d18ec7f4c7d81c984691054ea392f4113aeca2144bc20e1b9b7dbb0e4"
+    },
+    {
+      "path": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "sha256": "01bae383fe71efc870a07f7f78e95056003e6c4054fce3afccdc4804f576bd81"
+    },
+    {
+      "path": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+      "sha256": "5f01625f4345e3e37035e991f7bf11a2a920c63c6688010e3e95aa2b91cd0075"
+    }
+  ],
+  "blocks": [
+    {
+      "name": "Phase contracts ask the bounded scope and persona questions",
+      "line": 9,
+      "cases": [
+        {
+          "name": "Phase contracts ask the bounded scope and persona questions",
+          "digest": "03ff74d76376e79f03706c74c0a60da0b830207a5365eac62d81c6c1eda4961d",
+          "steps": [
+            "the delivered Product, Implementation and Execution review contracts",
+            "their canonical review questions are inspected",
+            "omissions and overreach are checked against accepted authority",
+            "Product outcomes and epistemic status are explicit while guidance remains advisory"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/integration/planning-scope-review.test.ts",
+          "asks every phase to check both omissions and overreach against accepted authority"
+        ],
+        [
+          "packages/cli/tests/integration/planning-scope-review.test.ts",
+          "makes persona outcomes and epistemic status Product approval questions"
+        ],
+        [
+          "packages/cli/tests/integration/planning-scope-review.test.ts",
+          "treats external guidance as candidate decisions within the accepted boundary"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "Reviewer evidence survives validated output without inventing missing limits",
+      "line": 18,
+      "cases": [
+        {
+          "name": "Reviewer evidence survives validated output without inventing missing limits",
+          "digest": "81021d29e42dbc17f676c392882b48e9ee7138cfcd1217634c15a9385656912c",
+          "steps": [
+            "a new planning verdict with complete versioned source and reuse-limit records",
+            "the provider result is validated",
+            "every declared field survives unchanged"
+          ]
+        },
+        {
+          "name": "Reviewer evidence survives validated output without inventing missing limits",
+          "digest": "e2c16c3e3a94534e0916965488a7fb18e8911e438706ea05aaa6e0350b28fa5a",
+          "steps": [
+            "a new planning verdict with no required evidence wrapper",
+            "the provider result is validated",
+            "the verdict refuses"
+          ]
+        },
+        {
+          "name": "Reviewer evidence survives validated output without inventing missing limits",
+          "digest": "33d50a54db46105f2823f877aaa202860c862b2f58fcd239addb57be5eab57da",
+          "steps": [
+            "a new planning verdict with an empty license identifier",
+            "the provider result is validated",
+            "the verdict refuses rather than dropping the field"
+          ]
+        },
+        {
+          "name": "Reviewer evidence survives validated output without inventing missing limits",
+          "digest": "e6c1f10c0ef4faa475b2e545ca9403f2932484233fdeb6413688ae133f5c4641",
+          "steps": [
+            "a new planning verdict with an undeclared evidence field",
+            "the provider result is validated",
+            "the verdict refuses rather than dropping the field"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "retains declared source and reuse limits in a versioned reviewer result"
+        ],
+        [
+          "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "refuses undeclared evidence fields rather than silently discarding them"
+        ],
+        [
+          "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "rejects an empty license identifier instead of silently dropping its limit"
+        ],
+        [
+          "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "refuses a new planning verdict that omits evidence records"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "A malformed plan record refuses after the complete plan succeeds",
+      "line": 30,
+      "cases": [
+        {
+          "name": "A malformed plan record refuses after the complete plan succeeds",
+          "digest": "2f86283e5b6d92639eceabfa7a2be36b410afd907a411a8d73e6d2426f330cd0",
+          "steps": [
+            "an owned plan whose complete evidence record can prepare for review",
+            "its security limit is removed",
+            "preparation refuses with the missing field named"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "names missing source limits after a complete owned plan can prepare for dispatch"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "Installed rule edits preserve unrelated Implementation review currency",
+      "line": 38,
+      "cases": [
+        {
+          "name": "Installed rule edits preserve unrelated Implementation review currency",
+          "digest": "9f40e1dd99d48b4747b0bdadb4030ac6510563267932bc96604bc38b05acac43",
+          "steps": [
+            "an approved Implementation review from a trusted installed distribution",
+            "canonical Implementation rules changes",
+            "the Implementation review is stale",
+            "requesting that Implementation review refuses because whole-copy integrity fails"
+          ]
+        },
+        {
+          "name": "Installed rule edits preserve unrelated Implementation review currency",
+          "digest": "89c0627f79d45cf6aadb202bd73166a8cedee2ea2258900a9430b22edbdce6ac",
+          "steps": [
+            "an approved Implementation review from a trusted installed distribution",
+            "unrelated canonical Execution rules changes",
+            "the Implementation review is approved",
+            "requesting that Implementation review succeeds with unchanged Implementation bytes"
+          ]
+        },
+        {
+          "name": "Installed rule edits preserve unrelated Implementation review currency",
+          "digest": "be1c7809133b146944b4c1b08fd82afadb99960fe56b3428d26e20489ee15a5b",
+          "steps": [
+            "an approved Implementation review from a trusted installed distribution",
+            "prose outside the canonical Implementation region changes",
+            "the Implementation review is approved",
+            "requesting that Implementation review refuses because whole-copy integrity fails"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/integration/installed-planning-copy-admission.test.ts",
+          "reconstructs installed rule currency after %s (editorial: %s)"
+        ],
+        [
+          "packages/cli/tests/integration/execution-upstream-planning-context.test.ts",
+          "stales only dependent approvals after canonical $phase contract bytes change"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "Refused selectors cannot manufacture permission for fallback",
+      "line": 53,
+      "cases": [
+        {
+          "name": "Refused selectors cannot manufacture permission for fallback",
+          "digest": "9a53895e13a245adb6452fa78acf6345c275afad02b03c35197f63d743d8e782",
+          "steps": [
+            "a verified author and an unknown explicit reviewer selector unqualified-model",
+            "every independent candidate is refused before launch",
+            "the review is blocked and records that selector as skipped with a capability failure",
+            "neither the refused reviewer nor fallback receives a packet"
+          ]
+        },
+        {
+          "name": "Refused selectors cannot manufacture permission for fallback",
+          "digest": "a0ea4c948e11b8e65576f08d84336d76956626143a6f76013c498f2cd8f6aa25",
+          "steps": [
+            "a verified author and an unqualified named explicit reviewer selector gpt-6-luna",
+            "every independent candidate is refused before launch",
+            "the review is blocked and records that selector as skipped with a capability failure",
+            "neither the refused reviewer nor fallback receives a packet"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "blocks explicit %s without launching any route when no independent attempt exists"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "A failed independent attempt precedes eligible fallback",
+      "line": 64,
+      "cases": [
+        {
+          "name": "A failed independent attempt precedes eligible fallback",
+          "digest": "bf2db0a29157821bc81436d3417f42e9c6c8e621699b4d4bbff4efff9bbf7ea7",
+          "steps": [
+            "configured independent and fallback reviewers in either declaration order",
+            "the independent reviewer succeeds",
+            "independent review runs first",
+            "fallback never runs"
+          ]
+        },
+        {
+          "name": "A failed independent attempt precedes eligible fallback",
+          "digest": "56a38005e7c51a1c8c1e572b01a589b45ff368d45a58daf044ebcb90f805763f",
+          "steps": [
+            "configured independent and fallback reviewers in either declaration order",
+            "the independent reviewer actually fails with an eligible typed failure",
+            "independent review runs first",
+            "fallback follows that failure"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, author model is %s, and model is confirmed %s"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "Completed observations survive termination",
+      "line": 78,
+      "cases": [
+        {
+          "name": "Completed observations survive termination",
+          "digest": "252a72f4c78b63c513ff734bc4e812aaebb44287d6d74d3351e26848ac48b54c",
+          "steps": [
+            "a live worker has checkpointed paired headless results and raw observations",
+            "it is killed before teardown",
+            "the exact completed result and its paired raw observation remain readable"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "retains completed raw observations when the worker is killed before teardown"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "Retained reuse checks current identity before any reviewer launch",
+      "line": 83,
+      "cases": [
+        {
+          "name": "Retained reuse checks current identity before any reviewer launch",
+          "digest": "5d3ebf9dc17db0b586dd63405b5be1ed967918fab5e602548260be4c1069c8f8",
+          "steps": [
+            "valid paired completed headless observations and a requested identity with matching current contract, corpus and exact model",
+            "retained reuse preflight runs",
+            "the retained observation is readable and execution proceeds"
+          ]
+        },
+        {
+          "name": "Retained reuse checks current identity before any reviewer launch",
+          "digest": "395c93781f31cdc19f9d13723ffb94230f09932d6da44e03e737bc79ec509c4c",
+          "steps": [
+            "valid paired completed headless observations and a requested identity with a changed expected contract",
+            "retained reuse preflight runs",
+            "reuse refuses before launch"
+          ]
+        },
+        {
+          "name": "Retained reuse checks current identity before any reviewer launch",
+          "digest": "e0ab3b9cf30ec23190479b9767634fbc9623a34544f09b31996aae51de9c1476",
+          "steps": [
+            "valid paired completed headless observations and a requested identity with acceptance corpus markers in the request",
+            "retained reuse preflight runs",
+            "reuse refuses before launch"
+          ]
+        },
+        {
+          "name": "Retained reuse checks current identity before any reviewer launch",
+          "digest": "407bbdbf7142aa9c1a1757c5dcecd1773c5be5df176a7fbdf8e0b78c91a61f16",
+          "steps": [
+            "valid paired completed headless observations and a requested identity with public CLI dispatch markers in the request",
+            "retained reuse preflight runs",
+            "reuse refuses before launch"
+          ]
+        },
+        {
+          "name": "Retained reuse checks current identity before any reviewer launch",
+          "digest": "5b868c70a98cc8406d673caa2e96a1a901563e919823014e5168d700cc0554e1",
+          "steps": [
+            "valid paired completed headless observations and a requested identity with an omitted exact model",
+            "retained reuse preflight runs",
+            "reuse refuses before launch"
+          ]
+        },
+        {
+          "name": "Retained reuse checks current identity before any reviewer launch",
+          "digest": "773571487800f6fd60b823c1ee45fd32aaf764da2e8bb6a40c74e048c9d33680",
+          "steps": [
+            "valid paired completed headless observations and a requested identity with replay mode markers in the request",
+            "retained reuse preflight runs",
+            "reuse refuses before launch"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "checks retained metadata before any reviewer launch ($label)"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "Corrupt or unconfirmed retained output refuses",
+      "line": 97,
+      "cases": [
+        {
+          "name": "Corrupt or unconfirmed retained output refuses",
+          "digest": "8876dcefcb5a30a90de4608dc9e119aa6cd1355a86f3693c0af2fdac13e2db69",
+          "steps": [
+            "an otherwise valid retained checkpoint",
+            "its raw output has missing confirmation",
+            "reading the checkpoint refuses with exact model confirmation"
+          ]
+        },
+        {
+          "name": "Corrupt or unconfirmed retained output refuses",
+          "digest": "2e1b9e7d89036155c58c731228b4962d9b4e32f3d6254425448af0e505454221",
+          "steps": [
+            "an otherwise valid retained checkpoint",
+            "its raw output has wrong model",
+            "reading the checkpoint refuses with exact model confirmation"
+          ]
+        },
+        {
+          "name": "Corrupt or unconfirmed retained output refuses",
+          "digest": "e99f6976e85527ddf282b81ef27d1c8e768628755376b06da84cbdc51f73e2ca",
+          "steps": [
+            "an otherwise valid retained checkpoint",
+            "its raw output has wrong provider",
+            "reading the checkpoint refuses with exact model confirmation"
+          ]
+        },
+        {
+          "name": "Corrupt or unconfirmed retained output refuses",
+          "digest": "58a97abb238e0b214b542a5c3c77ccf55f56a2e4279a84fd94ceb8bcda5ebbfa",
+          "steps": [
+            "an otherwise valid retained checkpoint",
+            "its raw output has unpaired case identity",
+            "reading the checkpoint refuses with paired raw observation"
+          ]
+        },
+        {
+          "name": "Corrupt or unconfirmed retained output refuses",
+          "digest": "362359437482bd618d53f9949d79b0381f8c191aea6c5f69773e64bfb7d3abd6",
+          "steps": [
+            "an otherwise valid retained checkpoint",
+            "its raw output has CLI dispatch mode",
+            "reading the checkpoint refuses with headless"
+          ]
+        },
+        {
+          "name": "Corrupt or unconfirmed retained output refuses",
+          "digest": "b351af6565279756270be7d26c05ea9062191acb0225a50ab013f8f797c5a463",
+          "steps": [
+            "an otherwise valid retained checkpoint",
+            "its raw output has replay dispatch mode",
+            "reading the checkpoint refuses with headless"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "rejects retained passing evidence with $label"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "Qualification evidence refuses incomplete or failed matrices",
+      "line": 114,
+      "cases": [
+        {
+          "name": "Qualification evidence refuses incomplete or failed matrices",
+          "digest": "530bae49b35e94fa8d72886487415472fa895d0f878b715720ff2222e7d98f23",
+          "steps": [
+            "complete current passing conformance records for an exact reviewer identity",
+            "admission evidence is built",
+            "evidence records the exact identity and all case IDs"
+          ]
+        },
+        {
+          "name": "Qualification evidence refuses incomplete or failed matrices",
+          "digest": "7b8c3f07d02dbbde91c0f2cbc1befc10fb0ec8e572a7175a057cf03f1fa42cef",
+          "steps": [
+            "incomplete conformance records for an exact reviewer identity",
+            "admission evidence is built",
+            "admission evidence is refused"
+          ]
+        },
+        {
+          "name": "Qualification evidence refuses incomplete or failed matrices",
+          "digest": "cc3c2607fbbfe01bfb1ac3acb7d8b684515eb8d1fb49edbeb1fccb246ea6f06b",
+          "steps": [
+            "containing a failed observation conformance records for an exact reviewer identity",
+            "admission evidence is built",
+            "admission evidence is refused"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "writes evidence only after every case passes for each exact identity"
+        ],
+        [
+          "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "refuses to write evidence from %s"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "Route admission binds exact identity and current input bytes",
+      "line": 125,
+      "cases": [
+        {
+          "name": "Route admission binds exact identity and current input bytes",
+          "digest": "dcdb57396e74f3995f4d8d6de6e2792634348972b7c60ec81db2ded97b57bf7c",
+          "steps": [
+            "complete passing admission evidence with the matching exact model and current input digests",
+            "configured explicit model routes are filtered",
+            "the matching explicit route is retained"
+          ]
+        },
+        {
+          "name": "Route admission binds exact identity and current input bytes",
+          "digest": "c1dc4b6ff6d5317be161ba6de074d24a91254861a2612e25092cc5dec1813732",
+          "steps": [
+            "complete passing admission evidence with a different exact model",
+            "configured explicit model routes are filtered",
+            "the requested explicit route is absent"
+          ]
+        },
+        {
+          "name": "Route admission binds exact identity and current input bytes",
+          "digest": "db885d32aea332f005a5fb1926cfd893a6ec2835f61cd7441e1f0f3dd80c6a8a",
+          "steps": [
+            "complete passing admission evidence with mismatched contract or corpus digests",
+            "configured explicit model routes are filtered",
+            "no route is retained"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "admits exact models and explicit runtime defaults without conflating them"
+        ],
+        [
+          "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "preserves admitted degraded labeling and deterministically exhausts an empty set"
+        ],
+        [
+          "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "rejects evidence bound to any other contract or fixture corpus bytes"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "Corrupt reviewer copies refuse and the canonical pair dispatches",
+      "line": 139,
+      "cases": [
+        {
+          "name": "Corrupt reviewer copies refuse and the canonical pair dispatches",
+          "digest": "667b226e0cc0365cc857a8cc245f20cdd3df5311c0bfcd270a5d8af88975aa06",
+          "steps": [
+            "an installed canonical authoring copy and canonical reviewer copy",
+            "an Execution Plan review is requested through the installed CLI",
+            "the plan actually reaches the reviewer"
+          ]
+        },
+        {
+          "name": "Corrupt reviewer copies refuse and the canonical pair dispatches",
+          "digest": "f3a9ce0ca774c467af3eb5d65bbe53c3c6ef19c32aebbaea38cfbb063aa278aa",
+          "steps": [
+            "an installed canonical authoring copy and appended reviewer-only text reviewer copy",
+            "an Execution Plan review is requested through the installed CLI",
+            "no plan is sent and the phase and reconciliation action are named"
+          ]
+        },
+        {
+          "name": "Corrupt reviewer copies refuse and the canonical pair dispatches",
+          "digest": "50335a21e51a3e7c939b13c584b49d98cda0359fb7c3e1034b91483d2227260b",
+          "steps": [
+            "an installed canonical authoring copy and stale canonical slicing reviewer copy",
+            "an Execution Plan review is requested through the installed CLI",
+            "no plan is sent and the phase and reconciliation action are named"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "refuses %s before dispatching its plan to a reviewer"
+        ],
+        [
+          "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "names the phase and repair action for %s"
+        ],
+        [
+          "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "allows the packaged canonical pair through the installed CLI"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "Public documentation describes reduced assurance and its limits",
+      "line": 153,
+      "cases": [
+        {
+          "name": "Public documentation describes reduced assurance and its limits",
+          "digest": "fc578f9c261ce5933a969f6cf4241c2b33dacb7af312e88804b10e9ddd524f24",
+          "steps": [
+            "the delivered public overview and Implementation Planning skill guidance",
+            "their fallback and approval descriptions are checked",
+            "reduced assurance remains explicit and planning approval does not clear the later independent architecture check"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/integration/planning-documentation.test.ts",
+          "describes reduced fallback honestly in the public overview"
+        ],
+        [
+          "packages/cli/tests/integration/planning-documentation.test.ts",
+          "distinguishes planning approval from the later independent architecture gate"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    },
+    {
+      "name": "Native generated distributions carry their canonical template roots",
+      "line": 159,
+      "cases": [
+        {
+          "name": "Native generated distributions carry their canonical template roots",
+          "digest": "331386a4d8e5ddc36a5aee7bf5bb997cff0d29bcf474d209efcf3f35164d9721",
+          "steps": [
+            "generated Claude assets and the checked-in Codex native distribution",
+            "their templates and bundled runtime are checked",
+            "the Claude bundle contains its canonical template root",
+            "the Codex bundled CLI executes without project dependencies and reports that version"
+          ]
+        }
+      ],
+      "proofs": [
+        [
+          "packages/cli/tests/claude-plugin/catalogue.test.ts",
+          "packages the canonical template root consumed by the standalone CLI"
+        ],
+        [
+          "packages/cli/tests/codex-plugin-version.test.ts",
+          "executes the bundled CLI without project dependencies or a populated package cache"
+        ]
+      ],
+      "status": "mapped-not-certified"
+    }
+  ],
+  "historicalDeferrals": {
+    "source": {
+      "revision": "d593765c059a5d9ed975fbd1b9d4f1b55222fdca",
+      "path": "packages/cli/src/review/ledger-recovery-cases.json",
+      "sha256": "55d62ac1069f140a856b187dad82e14c67bae3a2948adcb523beae8ae1f6bc5e"
+    },
+    "status": "deferred-unverified",
+    "scope": "historical 5F5ZZA; not T3E4NS active cases",
+    "owners": {
+      "DRD65E": 1,
+      "FC33HK": 12,
+      "KKP2R3": 2,
+      "MCWV4B": 18
+    },
+    "cases": [
+      {
+        "name": "An unattempted independent route prevents exhausted-route approval",
+        "line": 174,
+        "digest": "e7299481d8b9406f16a9c6e1006df0121183e1cb39568576d1867527ddb48d81",
+        "deferred": true,
+        "owners": [
+          "DRD65E"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "A genuinely weaker reviewer cannot provide independent approval",
+        "line": 208,
+        "digest": "181068c9c5a5564f1b29f9839a82010a52221b58a3021676c799d0eeda91309c",
+        "deferred": true,
+        "owners": [
+          "KKP2R3"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "A genuinely weaker reviewer is excluded before independent launch",
+        "line": 214,
+        "digest": "b12277d29065eb421b6639c6088b597c1b6ba9a15b5aefd938166d4718bb13f8",
+        "deferred": true,
+        "owners": [
+          "KKP2R3"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "OpenCode CLI and TUI gates enforce the real review result",
+        "line": 256,
+        "digest": "eee991501f06d1c0730734ef8a7216380c13fdbd2e084c16bee3835d78f2d2c0",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "OpenCode CLI and TUI gates enforce the real review result",
+        "line": 257,
+        "digest": "1c856f93762f34b20b68720f50bb734a2ebb367bc16fa807127e51d2d9682b89",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "OpenCode CLI and TUI gates enforce the real review result",
+        "line": 258,
+        "digest": "80177f0db15143556dcfaf90fec50cee5c5049b223076950c6f6ed4dceb91387",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "OpenCode CLI and TUI gates enforce the real review result",
+        "line": 259,
+        "digest": "692e20e764b786d5e38e1b689b658481e5621528127cf7109538c21c3945d401",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "OpenCode CLI and TUI gates enforce the real review result",
+        "line": 260,
+        "digest": "ca148cb03c7e8450de87f06ecb660a5e55470768c9cdd04a6053ca96e743bd16",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "OpenCode CLI and TUI gates enforce the real review result",
+        "line": 261,
+        "digest": "0f4f9577b32957373da6401db774c3c31f183edcdc68d3c21093cdbbaf45ca04",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Cloud phase gates enforce the real review result",
+        "line": 271,
+        "digest": "13454fe29976b9591c908e914116fb5ddeea356f7f7def75d6ce9da136b15082",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Cloud phase gates enforce the real review result",
+        "line": 272,
+        "digest": "df24d4776fc80c388cb8037bf72e632a7989d642a9dcbe4eece9faa3f5544316",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Cloud phase gates enforce the real review result",
+        "line": 273,
+        "digest": "37cfb42a0c53fd668c19aa346900a5483ea536ed9db5d5e651fe7bed4b55dfd0",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Cloud phase gates enforce the real review result",
+        "line": 274,
+        "digest": "d9ba529653c23735460fdbf4b0d72ec45236ef5707b1e791cb702cf1649e0440",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Cloud phase gates enforce the real review result",
+        "line": 275,
+        "digest": "5164d87378c2977284550189940c0bb53aff833191dc5fdb1b57f0d319fcbd2d",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Cloud phase gates enforce the real review result",
+        "line": 276,
+        "digest": "539fbd633cc36a806dad5b3b928975248635243529102b8e74b2f685801e0517",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Retrieved instructions cannot change accepted scope",
+        "line": 289,
+        "digest": "72fa976b933e3c02e06b10d13955e1d41e02f1723539ac9230413383cc087cb8",
+        "deferred": true,
+        "owners": [
+          "FC33HK"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Retrieved instructions cannot change accepted scope",
+        "line": 290,
+        "digest": "bf3b2642983c3ba39cd4f6f2f1abd7421082a32e7394da36ceb80d951191f910",
+        "deferred": true,
+        "owners": [
+          "FC33HK"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Retrieved executable code remains untrusted evidence",
+        "line": 300,
+        "digest": "21733f08c9d6318524ef5993e3267731cd0b51549e74d3d3b4c8c270181f3f9d",
+        "deferred": true,
+        "owners": [
+          "FC33HK"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Retrieved executable code remains untrusted evidence",
+        "line": 301,
+        "digest": "02a392ac77da546f39fe9d0dbde4308da50f18f3983ebaac5d33a2d5a3b32f59",
+        "deferred": true,
+        "owners": [
+          "FC33HK"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Private-context requests do not prevent public evidence use",
+        "line": 311,
+        "digest": "052fa3c0535c89fe631f57e3512426d352f38657588887cc4e9a2cae070d58c8",
+        "deferred": true,
+        "owners": [
+          "FC33HK"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Private-context requests do not prevent public evidence use",
+        "line": 312,
+        "digest": "f350c7bdc4f1e6ca89a43dc68cb710593803c0f1979fe94281804104a29838ed",
+        "deferred": true,
+        "owners": [
+          "FC33HK"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Reusable evidence records declared reuse limits",
+        "line": 322,
+        "digest": "dddc7e849ee62363b0fe156495c9463d845e9146497aa3219950e439f2a7db57",
+        "deferred": true,
+        "owners": [
+          "FC33HK"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Reusable evidence records declared reuse limits",
+        "line": 323,
+        "digest": "e2c1c204be4633cabae7083508a6ecb06eef31a484c6cd39a401cc8ce92e0c91",
+        "deferred": true,
+        "owners": [
+          "FC33HK"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Evidence records do not invent absent limits",
+        "line": 333,
+        "digest": "c63779fb2cfba9993d988a36798466282a2c9c179a6b36cc16077d936716dd35",
+        "deferred": true,
+        "owners": [
+          "FC33HK"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Evidence records do not invent absent limits",
+        "line": 334,
+        "digest": "abdca4a5d11170d31efeea7779451ac00cc871612266b7c1276632fc92b87918",
+        "deferred": true,
+        "owners": [
+          "FC33HK"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Installed review dispatch preserves the retrieved-evidence trust boundary",
+        "line": 355,
+        "digest": "a10b9ac57090975a6d7bc5dbebaacabd12c3e94451a7cbc375aa43ffe3b0424f",
+        "deferred": true,
+        "owners": [
+          "FC33HK"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Installed review dispatch preserves the retrieved-evidence trust boundary",
+        "line": 356,
+        "digest": "620c820dd60c7898e4fa82b11a34042991912b7fa24c162ac930a0b56eea6175",
+        "deferred": true,
+        "owners": [
+          "FC33HK"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "OpenCode Desktop guidance cannot claim a gated approval",
+        "line": 368,
+        "digest": "046e0ae66b8fe6594f8f406d3982a391479526c1ce470d054e6f09f942e6e70b",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Generated OpenCode guidance identifies proven gated surfaces as enforced",
+        "line": 376,
+        "digest": "9b8df9b375f28b4a3918919045122e12b5b68c8beb521bbf668d69b77a23918e",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Installed phase gates enforce invalidated review receipts",
+        "line": 462,
+        "digest": "f592c532e791fa639e1404066a9331b343bce3d74aa9d293f2f2c52c621c0335",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Installed phase gates enforce invalidated review receipts",
+        "line": 463,
+        "digest": "616e93accaccbc686f23a58d836a58835bc40aa060e9595a2b924beec64cb8df",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Installed phase gates enforce invalidated review receipts",
+        "line": 464,
+        "digest": "c8e916f77a7f798b16aabd3d55769a50984d30a134aff4694a1935675db76d6e",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      },
+      {
+        "name": "Installed phase gates enforce invalidated review receipts",
+        "line": 465,
+        "digest": "1171ced01a6fd986643ae475d0bb1a1851598ea1583a878ed0a7d8440f88f516",
+        "deferred": true,
+        "owners": [
+          "MCWV4B"
+        ],
+        "stepDigests": []
+      }
+    ]
+  }
+}

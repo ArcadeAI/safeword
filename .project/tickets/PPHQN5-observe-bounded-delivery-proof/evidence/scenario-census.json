@@ -1,0 +1,21 @@
+{
+  "kind": "draft-behavior-census",
+  "authority": "parser result only; no execution or completion proof",
+  "rules": 5,
+  "scenarioBlocks": 12,
+  "compiledCases": 14,
+  "scenarios": [
+    "The observer runs the fixed proof set without changing the source checkout",
+    "A caller cannot substitute an execution command",
+    "Uncommitted execution inputs prevent observation",
+    "Complete fixed-lane execution produces verifiable current evidence",
+    "An unmapped delivery case prevents execution",
+    "A required assertion without a passing result prevents success",
+    "A failed runner cannot hide behind passing assertions",
+    "Altered report bytes cannot verify as observed proof",
+    "Retrying an interrupted attempt preserves the failed evidence",
+    "Changed proof inputs remove current success while retaining history",
+    "Writing an audit-only summary preserves current observation",
+    "Successful observation leaves historical and completion authority unchanged"
+  ]
+}

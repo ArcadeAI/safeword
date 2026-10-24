@@ -1,0 +1,1 @@
+{"schema_version":1,"ok":false,"state":"failed","changed":false,"findings":[],"effects":{"files":[],"packages":[],"configuration":[],"network":[],"destructive":[]},"errors":[{"code":"PLAN_APPROVAL_FAILED","message":"Ticket is in implement, not plan-implementation.","retryable":false}],"recovery":[],"next_actions":[],"data":{"command":"ticket approve-plan","ticket_id":"PPHQN5"}}
