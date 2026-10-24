@@ -19659,7 +19659,8 @@ function runtimeIdentity() {
     return digest(canonical({
       module: moduleDigest,
       source: treeIdentity(packageRoot, "src"),
-      package: packageDigest
+      package: packageDigest,
+      installation: runtimeInstallation(packageRoot)
     }));
   }
   if (nodePath9.basename(directory) === "dist") {
@@ -19669,10 +19670,33 @@ function runtimeIdentity() {
     return digest(canonical({
       module: moduleDigest,
       distribution: treeIdentity(packageRoot, "dist"),
-      package: packageDigest
+      package: packageDigest,
+      installation: runtimeInstallation(packageRoot)
     }));
   }
   return moduleDigest;
+}
+function runtimeInstallation(packageRoot) {
+  let directory = packageRoot;
+  while (true) {
+    if (existsSync6(nodePath9.join(directory, ".git"))) {
+      const root = canonicalRoot(directory);
+      return { ...sourceIdentity(root), ...dependencyIdentity(root) };
+    }
+    const parent = nodePath9.dirname(directory);
+    if (parent === directory)
+      break;
+    directory = parent;
+  }
+  const search = createRequire2(nodePath9.join(packageRoot, "package.json")).resolve.paths("commander");
+  const identities = {};
+  for (const path2 of search) {
+    if (!existsSync6(path2))
+      continue;
+    const real = realpathSync3(path2);
+    identities[`resolution:${path2}`] = treeIdentity(nodePath9.dirname(real), nodePath9.basename(real));
+  }
+  return identities;
 }
 function controlledEnvironment(tools, bin, home, temporary) {
   for (const [name, path2] of Object.entries(tools.paths))

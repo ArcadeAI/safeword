@@ -15,7 +15,7 @@ import { release } from 'node:os';
 import nodePath from 'node:path';
 
 import { canonical, digest, profileSha256 } from './contract.js';
-import { treeIdentity } from './identity.js';
+import { canonicalRoot, dependencyIdentity, sourceIdentity, treeIdentity } from './identity.js';
 
 const toolNames = [
   'node',
@@ -277,6 +277,7 @@ export function runtimeIdentity(): string {
         module: moduleDigest,
         source: treeIdentity(packageRoot, 'src'),
         package: packageDigest,
+        installation: runtimeInstallation(packageRoot),
       }),
     );
   }
@@ -289,11 +290,39 @@ export function runtimeIdentity(): string {
         module: moduleDigest,
         distribution: treeIdentity(packageRoot, 'dist'),
         package: packageDigest,
+        installation: runtimeInstallation(packageRoot),
       }),
     );
   }
   // Native plugin builds are a single bundled CLI, including the shipped profile.
   return moduleDigest;
+}
+
+/** Bind the runtime's own installation even when it lives outside the candidate checkout. */
+function runtimeInstallation(packageRoot: string): Record<string, string> {
+  let directory = packageRoot;
+  while (true) {
+    if (existsSync(nodePath.join(directory, '.git'))) {
+      const root = canonicalRoot(directory);
+      return { ...sourceIdentity(root), ...dependencyIdentity(root) };
+    }
+    const parent = nodePath.dirname(directory);
+    if (parent === directory) break;
+    directory = parent;
+  }
+  const search = createRequire(nodePath.join(packageRoot, 'package.json')).resolve.paths(
+    'commander',
+  );
+  const identities: Record<string, string> = {};
+  for (const path of search) {
+    if (!existsSync(path)) continue;
+    const real = realpathSync(path);
+    identities[`resolution:${path}`] = treeIdentity(
+      nodePath.dirname(real),
+      nodePath.basename(real),
+    );
+  }
+  return identities;
 }
 
 export function controlledEnvironment(
