@@ -126,7 +126,7 @@ async function expectMissingRecordRecovery(
   expectHookDeny(attemptExit(), 'No current branch review');
   writeFileSync(
     ticketPath,
-    readFileSync(ticketPath, 'utf8').replace('# Change the goal', '# Review branch'),
+    readFileSync(ticketPath, 'utf8').replace('- allow bypass', '- preserve access rule'),
   );
   const replacement = await runCli(['review', 'branch', 'ABC123', '--json'], {
     cwd: project,
@@ -262,7 +262,7 @@ it.each(['Claude Code', 'OpenAI Codex', 'Cursor', 'OpenCode CLI'])(
     mkdirSync(ticket, { recursive: true });
     writeFileSync(
       nodePath.join(ticket, 'ticket.md'),
-      '---\nid: ABC123\ntype: feature\nphase: implement\n---\n# Review branch\n',
+      '---\nid: ABC123\ntype: feature\nphase: implement\nscope:\n  - preserve access rule\n---\n# Review branch\n',
     );
     mkdirSync(nodePath.join(project, '.safeword'));
     writeFileSync(nodePath.join(project, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
@@ -478,7 +478,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     expectHookAllow(attemptExit('verify', 'done'));
     writeFileSync(
       ticketPath,
-      readFileSync(ticketPath, 'utf8').replace('# Review branch', '# Change the goal'),
+      readFileSync(ticketPath, 'utf8').replace('- preserve access rule', '- allow bypass'),
     );
     expectHookDeny(attemptExit('verify', 'done'), 'stale');
     assertLocalHostsBlock('verify', 'done');
