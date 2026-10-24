@@ -28,6 +28,8 @@ interface OmittedPath {
   readonly reason: string;
 }
 
+class InvalidIntegrationReference extends Error {}
+
 interface BranchRecord {
   readonly schema_version: 1;
   readonly id: string;
@@ -120,6 +122,12 @@ function integrationReference(cwd: string): { remote: string; branch: string; re
     const match = /^refs\/remotes\/([^/]+)\/(.+)$/u.exec(configured);
     if (match?.[1] === undefined || match[2] === undefined)
       throw new Error('branchReview.integrationRef must name a remote-tracking ref');
+    const currentBranch = gitText(cwd, ['branch', '--show-current']);
+    if (match[2] === currentBranch && match[2] !== remoteDefaultBranch(cwd, match[1])) {
+      throw new InvalidIntegrationReference(
+        'The configured integration ref names the current topic branch; choose the remote default integration branch instead.',
+      );
+    }
     return { remote: match[1], branch: match[2], ref: configured };
   }
   const remotes = gitText(cwd, ['remote']).split('\n').filter(Boolean);
@@ -127,6 +135,11 @@ function integrationReference(cwd: string): { remote: string; branch: string; re
   if (remotes.includes('origin')) remote = 'origin';
   else if (remotes.length === 1) remote = remotes[0];
   if (remote === undefined) throw new Error('Cannot choose an integration remote');
+  const branch = remoteDefaultBranch(cwd, remote);
+  return { remote, branch, ref: `refs/remotes/${remote}/${branch}` };
+}
+
+function remoteDefaultBranch(cwd: string, remote: string): string {
   const head = gitText(cwd, ['ls-remote', '--symref', remote, 'HEAD']);
   const prefix = 'ref: refs/heads/';
   const suffix = '\tHEAD';
@@ -136,7 +149,7 @@ function integrationReference(cwd: string): { remote: string; branch: string; re
   const branch = line?.slice(prefix.length, -suffix.length);
   if (branch === undefined || branch === '')
     throw new Error('Remote default branch is unavailable');
-  return { remote, branch, ref: `refs/remotes/${remote}/${branch}` };
+  return branch;
 }
 
 // NUL-delimited Git output includes extra path fields for renames.
@@ -866,6 +879,19 @@ export async function reviewBranch(
     head = gitText(cwd, ['rev-parse', 'HEAD']);
     inventory = changedPaths(cwd, base);
   } catch (error) {
+    if (error instanceof InvalidIntegrationReference) {
+      return createResult({
+        state: 'action_required',
+        findings: [
+          { code: 'BRANCH_REVIEW_INVALID_SCOPE', message: error.message, severity: 'error' },
+        ],
+        data: {
+          command: 'review branch',
+          ticket_id: ticketId,
+          next_action: 'Configure the remote default integration branch, then review again.',
+        },
+      });
+    }
     return unavailableReview(
       cwd,
       ticketId,
