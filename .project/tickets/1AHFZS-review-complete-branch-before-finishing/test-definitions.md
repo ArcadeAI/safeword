@@ -105,7 +105,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Missing integration base cannot claim a completed review
 
 - [x] RED 323b928e6
-- [ ] GREEN
+- [x] GREEN 688e5e689
 - [ ] REFACTOR
 
 ### Scenario: A dirty branch is current but only partially covered
