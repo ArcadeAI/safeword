@@ -1,3 +1,5 @@
+import nodePath from 'node:path';
+
 import type { CommandInvocation } from './handler.js';
 import { type CliResult, createResult } from './result.js';
 
@@ -25,6 +27,13 @@ export async function boundedObservationHandler(invocation: CommandInvocation): 
   try {
     const data = await observeBoundedDelivery(invocation.cwd);
     const observed = data.status === 'observed';
+    const nextCommand = observed
+      ? `safeword proof verify-bounded-delivery ${data.attempt_id}`
+      : 'safeword proof observe-bounded-delivery';
+    const explanation = observed
+      ? 'All required results passed. No historical RED, certification or completion authority.'
+      : 'Preserve this attempt. Correct the named problem before retrying.';
+    const evidence = observed ? data.report_path : nodePath.dirname(data.report_path);
     return createResult({
       state: observed ? 'healthy' : 'action_required',
       data,
@@ -39,13 +48,11 @@ export async function boundedObservationHandler(invocation: CommandInvocation): 
           ],
       presentation: {
         kind: 'raw',
-        body: `Execution-only ${data.status}: ${data.attempt_id}\n${data.problem ?? 'All required results passed. No historical RED, certification or completion authority.'}\nEvidence: ${data.report_path}\nVerify: safeword proof verify-bounded-delivery ${data.attempt_id}`,
+        body: `Execution-only ${data.status}: ${data.attempt_id}\n${explanation}\nEvidence: ${evidence}\nNext: ${nextCommand}`,
       },
       nextActions: [
         {
-          command: observed
-            ? `safeword proof verify-bounded-delivery ${data.attempt_id}`
-            : 'safeword proof observe-bounded-delivery',
+          command: nextCommand,
           mutates: !observed,
           requiresHuman: false,
         },

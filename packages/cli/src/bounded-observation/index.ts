@@ -19,6 +19,7 @@ import nodePath from 'node:path';
 
 import {
   canonical,
+  deliveryTicket,
   digest,
   fixedFiles,
   gradeReport,
@@ -211,7 +212,7 @@ export async function observeBoundedDelivery(cwd: string): Promise<AttemptTermin
     schema_version: 1,
     purpose,
     authority: 'execution-only',
-    ticket: 'T3E4NS',
+    ticket: deliveryTicket,
     root,
     attempt_id: id,
     candidate_commit: git(root, ['rev-parse', 'HEAD']).trim(),

@@ -9,6 +9,7 @@ import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 import profile from './profile.json';
 
 export const purpose = 'bounded-delivery-observation:v1';
+export const deliveryTicket = 'T3E4NS';
 export const fixedFiles = [
   'tests/bdd-proof-tags.test.ts',
   'tests/integration/planning-scope-review.test.ts',
@@ -54,7 +55,17 @@ function normalizeRegistration(value: unknown): unknown {
   );
 }
 
+function validateProfileMetadata(): void {
+  const expected = { schema_version: 1, purpose, ticket: deliveryTicket };
+  for (const [field, value] of Object.entries(expected)) {
+    if (profile[field as keyof typeof expected] !== value) {
+      throw new Error(`Unsupported shipped profile ${field}; restore the reviewed fixed contract`);
+    }
+  }
+}
+
 export function validateCandidateContract(root: string): void {
+  validateProfileMetadata();
   const nextId = IdGenerator.incrementing();
   const parser = new Parser(new AstBuilder(nextId), new GherkinClassicTokenMatcher());
   const feature = readFileSync(nodePath.join(root, profile.feature), 'utf8');

@@ -14,14 +14,14 @@ import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { writeDurableFileExclusive } from '../codex-plugin/durable-write.js';
-import { canonical, digest, profileSha256, purpose } from './contract.js';
+import { canonical, deliveryTicket, digest, profileSha256, purpose } from './contract.js';
 import type { ToolDetails } from './tools.js';
 
 export interface AttemptStart {
   schema_version: 1;
   purpose: typeof purpose;
   authority: 'execution-only';
-  ticket: 'T3E4NS';
+  ticket: typeof deliveryTicket;
   root: string;
   attempt_id: string;
   candidate_commit: string;
@@ -174,7 +174,7 @@ export function readRecord(
   const identity = {
     schema_version: 1,
     purpose,
-    ticket: 'T3E4NS',
+    ticket: deliveryTicket,
     root,
     attempt_id: id,
     profile_sha256: profileSha256,
