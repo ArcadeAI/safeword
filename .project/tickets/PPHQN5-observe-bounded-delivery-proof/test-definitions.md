@@ -51,7 +51,7 @@ the JSON Cucumber control separately checks that execution never starts.
 ### Scenario: A required assertion without a passing result prevents success
 
 - [x] RED 561cdb715
-- [ ] GREEN
+- [x] GREEN dfc49fb24
 - [ ] REFACTOR
 
 ### Scenario: A failed runner cannot hide behind passing assertions

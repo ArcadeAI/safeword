@@ -1,0 +1,11 @@
+✔ required assertion absent retains named recovery (96172.989916ms)
+✔ required assertion skipped retains named recovery (98625.2395ms)
+✔ required assertion failed retains named recovery (97610.84625ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 292462.004583

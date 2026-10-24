@@ -1,0 +1,40 @@
+{
+  "candidate_commit": "26d0a79c5d6b4e2a2587b264bf33e43ced63b525",
+  "observer_status": "refused",
+  "observer_problem": [
+    {
+      "code": "BOUNDED_OBSERVATION_REFUSED",
+      "message": "Fixed runner failed (exit 1, signal null); repair the lane and rerun; Required assertion lacks an exact-once passing result (skipped): packages/cli/tests/integration/planning-scope-review.test.ts: planning scope review contract asks every phase to check both omissions and overreach against accepted authority; repair and rerun",
+      "retryable": true
+    }
+  ],
+  "report_success": false,
+  "num_failed_tests": 1,
+  "controlled_result": [
+    {
+      "ancestorTitles": [
+        "planning scope review contract"
+      ],
+      "fullName": "planning scope review contract asks every phase to check both omissions and overreach against accepted authority",
+      "status": "skipped",
+      "title": "asks every phase to check both omissions and overreach against accepted authority",
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ],
+  "failed_suites": [
+    {
+      "name": "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-bounded-p93KQ7/candidate/packages/cli/tests/bdd-proof-tags.test.ts",
+      "failures": [
+        {
+          "name": "BDD proof provenance features/keep-bounded-planning-reviews-trustworthy.bdd-proof.json maps every scenario to a named executable proof",
+          "messages": [
+            "AssertionError: Phase contracts ask the bounded scope and persona questions -> packages/cli/tests/integration/planning-scope-review.test.ts must declare exactly one executable test named asks every phase to check both omissions and overreach against accepted authority; duplicate names must be made unique in the source: expected [] to have a length of 1 but got +0\n    at Proxy.<anonymous> (file:///private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-bounded-p93KQ7/candidate/node_modules/.bun/vitest@5.0.3+96f19a892d699f64/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2147:20)\n    at Proxy.<anonymous> (file:///private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-bounded-p93KQ7/candidate/node_modules/.bun/vitest@5.0.3+96f19a892d699f64/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-bounded-p93KQ7/candidate/node_modules/.bun/chai@6.2.2/node_modules/chai/index.js:1700:25)\n    at proofCoverageUnits (/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-bounded-p93KQ7/candidate/packages/cli/tests/bdd-proof-tags.test.ts:532:7)\n    at /private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-bounded-p93KQ7/candidate/packages/cli/tests/bdd-proof-tags.test.ts:559:45\n    at Array.reduce (<anonymous>)\n    at expectScenarioProofs (/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-bounded-p93KQ7/candidate/packages/cli/tests/bdd-proof-tags.test.ts:558:41)\n    at /private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-bounded-p93KQ7/candidate/packages/cli/tests/bdd-proof-tags.test.ts:753:7\n    at file:///private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-bounded-p93KQ7/candidate/node_modules/.bun/vitest@5.0.3+96f19a892d699f64/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2869:63\n    at file:///private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-bounded-p93KQ7/candidate/node_modules/.bun/vitest@5.0.3+96f19a892d699f64/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:1628:35"
+          ]
+        }
+      ]
+    }
+  ]
+}
