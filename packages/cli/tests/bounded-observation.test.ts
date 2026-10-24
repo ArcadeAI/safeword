@@ -1,6 +1,17 @@
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   canonical,
@@ -9,6 +20,7 @@ import {
   observationProfile,
 } from '../src/bounded-observation/contract.js';
 import { projectedFile } from '../src/bounded-observation/identity.js';
+import { openStore } from '../src/bounded-observation/store.js';
 
 const clone = '/committed-candidate';
 interface ReportFile {
@@ -158,5 +170,49 @@ describe('bounded semantic source projection', () => {
   it('canonicalizes object keys while preserving array order', () => {
     expect(canonical({ z: 1, a: [2, 1] })).toBe(canonical({ a: [2, 1], z: 1 }));
     expect(canonical([2, 1])).not.toBe(canonical([1, 2]));
+  });
+});
+
+describe('private observer store boundary', () => {
+  const temporary: string[] = [];
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    for (const directory of temporary.splice(0))
+      rmSync(directory, { recursive: true, force: true });
+  });
+  function roots(): { directory: string; root: string; state: string } {
+    const prefix = nodePath.join(tmpdir(), 'observer-store-test-');
+    const directory = realpathSync(mkdtempSync(prefix));
+    temporary.push(directory);
+    const root = nodePath.join(directory, 'checkout');
+    const state = nodePath.join(directory, 'state');
+    mkdirSync(root, { mode: 0o700 });
+    mkdirSync(state, { mode: 0o700 });
+    vi.stubEnv('XDG_STATE_HOME', state);
+    return { directory, root, state };
+  }
+  it('never creates a key or directory during verification', () => {
+    const { root, state } = roots();
+    expect(() => openStore(root, false)).toThrow();
+    expect(readdirSync(state)).toEqual([]);
+  });
+  it('keeps newly allocated observer state private', () => {
+    const { root } = roots();
+    const store = openStore(root, true);
+    expect(lstatSync(store.base).mode & 0o777).toBe(0o700);
+    expect(lstatSync(store.namespace).mode & 0o777).toBe(0o700);
+    expect(lstatSync(nodePath.join(store.base, 'observer.key')).mode & 0o777).toBe(0o600);
+    expect(store.key).toHaveLength(32);
+    expect(openStore(root, false).key).toEqual(store.key);
+  });
+  it('rejects an outside state alias whose resolved target lies inside the checkout', () => {
+    const { directory, root } = roots();
+    const inside = nodePath.join(root, 'inside-state');
+    mkdirSync(inside, { mode: 0o700 });
+    const alias = nodePath.join(directory, 'state-alias');
+    symlinkSync(inside, alias, 'dir');
+    vi.stubEnv('XDG_STATE_HOME', alias);
+    expect(() => openStore(root, true)).toThrow('outside');
+    expect(existsSync(nodePath.join(inside, 'safeword'))).toBe(false);
   });
 });
