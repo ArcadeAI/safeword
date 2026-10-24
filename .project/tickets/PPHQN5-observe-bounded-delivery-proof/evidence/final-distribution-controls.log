@@ -1,0 +1,17 @@
+✔ packages/cli/src/cli.ts: failed candidate startup cleans its owned work directory (436.344ms)
+✔ packages/cli/src/cli.ts: missing evidence refuses without creating observer state (131.614ms)
+✔ packages/cli/src/cli.ts: wrong repository refusal is complete JSON without stderr (961.670083ms)
+✔ plugin/runtime/cli.js: failed candidate startup cleans its owned work directory (950.904708ms)
+✔ plugin/runtime/cli.js: missing evidence refuses without creating observer state (242.980542ms)
+✔ plugin/runtime/cli.js: wrong repository refusal is complete JSON without stderr (729.0865ms)
+✔ packages/cli/codex-plugin/runtime/cli.js: failed candidate startup cleans its owned work directory (767.918625ms)
+✔ packages/cli/codex-plugin/runtime/cli.js: missing evidence refuses without creating observer state (164.526541ms)
+✔ packages/cli/codex-plugin/runtime/cli.js: wrong repository refusal is complete JSON without stderr (942.219125ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5532.747458

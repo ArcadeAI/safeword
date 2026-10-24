@@ -62,6 +62,15 @@ force ownership or permit concurrent Vitest. Snapshot fixtures force-add only
 their explicit copied source set before dependencies are copied, preserving
 originally tracked files that match ignore rules; they verify the committed set.
 
+Fresh review 56281a69 approved these changed sources and controls with independent
+Claude/opus coverage and no errors. Its warnings remain explicit limits: the
+audit-reader pin is reviewed policy rather than dynamic I/O tracing; generated
+bundles and project-authored data are trusted; duplicate Work Log headings can
+hide body text only through a trusted author's edit; broad source binding can
+make legitimate audit writes stale after an unreviewed source change. No new
+shared admission gate or dynamic tracing system is added to address those
+non-blocking suggestions. All ordinary source/data bytes remain bound.
+
 Unrelated skips are retained in the full raw report; required case_results never
 credit them. Parser errors use the existing exit-1 CLI contract; runtime proof
 refusals use exit 2. Missing eligibility before reservation creates no attempt.
@@ -76,3 +85,9 @@ The complete current packaged run, all 17 acceptance cases, final ordinary
 regression and actual committed-checkout pilot still need their final results.
 The R/G/R ledger remains honest; no checkbox is filled merely because a later
 binding already passes. Verification and audit are not ticket-closing authority.
+
+The current CLI-contract check was interrupted after its direct Vitest launch
+overlapped a packaged fixed-lane run. Only the owned CLI-contract process group
+was stopped; no other runner or lock was changed. That invocation earns no
+verification credit. The contract check must run serially after all observer
+parents finish. Its build prerequisite completed; no source input changed.
