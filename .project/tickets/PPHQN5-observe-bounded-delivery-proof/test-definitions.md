@@ -52,7 +52,7 @@ the JSON Cucumber control separately checks that execution never starts.
 
 - [x] RED 561cdb715
 - [x] GREEN dfc49fb24
-- [ ] REFACTOR
+- [x] REFACTOR skip: one grader and one named diagnostic cover absent, skipped and failed outcomes; all three actual CLI controls passed, and no further structural change is warranted
 
 ### Scenario: A failed runner cannot hide behind passing assertions
 
