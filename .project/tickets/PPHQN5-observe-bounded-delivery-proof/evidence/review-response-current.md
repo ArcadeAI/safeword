@@ -81,8 +81,8 @@ Execution trusts the local user, installed tools and dependency host. It does no
 claim detection of a hostile tool swap-and-restore, OS network isolation, package
 supply-chain certification or semantic adequacy of same-named assertions.
 
-The complete current packaged run, all 17 acceptance cases, final ordinary
-regression and actual committed-checkout pilot still need their final results.
+All 17 acceptance cases, final ordinary regression and the actual committed
+checkout pilot still need their final results.
 The R/G/R ledger remains honest; no checkbox is filled merely because a later
 binding already passes. Verification and audit are not ticket-closing authority.
 
@@ -91,3 +91,12 @@ overlapped a packaged fixed-lane run. Only the owned CLI-contract process group
 was stopped; no other runner or lock was changed. That invocation earns no
 verification credit. The contract check must run serially after all observer
 parents finish. Its build prerequisite completed; no source input changed.
+
+The settled packaged matrix subsequently passed all three cases: actual Claude
+and Codex bundles and unpacked npm distribution each produced exact 37-case /
+46-assertion proof and verified it. External native package metadata and npm
+runtime dependency changes refused currency; restoring bytes verified again.
+The complete pinned pre-feature artifact lacked both commands and left retained
+attempt bytes unchanged; the supported reader verified afterward. See
+final-packaged-surfaces.log. The 17-case lane, ordinary final regression and
+actual-checkout pilot remain open.

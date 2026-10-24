@@ -1,0 +1,16 @@
+npm notice
+npm notice New major version of npm available! 11.16.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+✔ plugin/runtime/cli.js: complete shipped proof verifies through the same reader (182835.091334ms)
+✔ packages/cli/codex-plugin/runtime/cli.js: complete shipped proof verifies through the same reader (248614.44325ms)
+✔ unpacked npm proof binds its external runtime and survives command withdrawal (223134.253125ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 654828.090417
