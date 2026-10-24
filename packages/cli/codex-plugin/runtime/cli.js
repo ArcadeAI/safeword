@@ -3614,7 +3614,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
         ".claude/skills/bdd/SKILL.md": "898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "51f4824ca072a09f51dfe29614557098f01bc9ce124d1940ccd83ee5fb3e6874",
+        ".claude/skills/bdd/TDD.md": "f7318a534e3cefb40821e3c294f5dd4139c699c723ae851720a153950e972fa5",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -3628,7 +3628,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/finish-review/SKILL.md": "707ba187ea4f8f77cf5523b1fa4cf75c7ef48458b358f63ab147901ad560546f",
         ".claude/skills/lint/SKILL.md": "f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14",
         ".claude/skills/pr-readiness/SKILL.md": "42fc32b8bef9a50d85c5d9ac81dcb3edab91f9d92c3e6bfe842fbabba2eed749",
-        ".claude/skills/quality-review/SKILL.md": "0da84381f9308e4092a2d1cbe8c45b7784047354d369254de1b794bb2bc93164",
+        ".claude/skills/quality-review/SKILL.md": "a8b6f6ec46e4733c66a3030162e1849cb31a887ab78b2c2437c48d06dec144ae",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "c437336466eedacbac427d85841e6137757a4d81864fefc9317569412c0ebc78",
         ".claude/skills/retro/SKILL.md": "da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb",
@@ -3652,7 +3652,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "f991a95653324439e8e5c93749e4653767047574595c6397a91458d85b0b683c",
+        ".safeword/hooks/pre-tool-quality.ts": "a98b4bc6e58d321e12fe3e513d706c97401059b5e880a7af04847b932cf1179c",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -85130,6 +85130,15 @@ function currentUpstream(cwd) {
     return;
   }
 }
+function isRemoteDefault(cwd, remote, branch) {
+  try {
+    return branch === remoteDefaultBranch(cwd, remote);
+  } catch (error2) {
+    if (error2 instanceof IntegrationFetchFailure)
+      throw error2;
+    return false;
+  }
+}
 function integrationReference(cwd) {
   const configured = configuredIntegrationReference(cwd);
   if (configured !== undefined) {
@@ -85139,9 +85148,8 @@ function integrationReference(cwd) {
     if (match?.[1] === undefined || match[2] === undefined)
       throw new InvalidIntegrationReference("branchReview.integrationRef must name a remote-tracking ref");
     const currentBranch = gitText(cwd, ["branch", "--show-current"]);
-    if ((match[2] === currentBranch || configured === currentUpstream(cwd)) && match[2] !== remoteDefaultBranch(cwd, match[1])) {
+    if ((match[2] === currentBranch || configured === currentUpstream(cwd)) && !isRemoteDefault(cwd, match[1], match[2]))
       throw new InvalidIntegrationReference("The configured integration ref names the current topic branch; choose the remote default integration branch instead.");
-    }
     return { remote: match[1], branch: match[2], ref: configured, configured: true };
   }
   const remotes = gitText(cwd, ["remote"]).split(`
@@ -85366,16 +85374,7 @@ function scopeIdentity(cwd, ref) {
       configured = "<invalid configuration>";
     }
   }
-  const remote = /^refs\/remotes\/([^/]+)\//u.exec(ref)?.[1];
-  let remoteHead = "";
-  if (configured === undefined && remote !== undefined) {
-    try {
-      remoteHead = gitText(cwd, ["symbolic-ref", `refs/remotes/${remote}/HEAD`]);
-    } catch {
-      remoteHead = "<unavailable locally>";
-    }
-  }
-  return digest8({ configured, remoteHead });
+  return digest8({ configured, ref });
 }
 function digest8(value) {
   return createHash52("sha256").update(JSON.stringify(value)).digest("hex");
@@ -85872,7 +85871,7 @@ function checkBranchReview(cwd, ticketId, phase) {
   const findingsResolved = record3.review_passes.every((pass) => pass.status === "approved");
   const skipReason = record3.coverage === "none" ? reasonedSkipFor(cwd, record3) : undefined;
   const mayAdvance = mayAdvanceBranchReview(record3, fresh, findingsResolved, disclosed, skipReason);
-  const skipEligible = fresh && findingsResolved && record3.coverage === "none" && (phase === "implement" || record3.review_phase === "implement" || record3.unavailable_reason !== undefined);
+  const skipEligible = fresh && findingsResolved && record3.coverage === "none";
   return createResult({
     state: mayAdvance ? "healthy" : "action_required",
     findings: mayAdvance ? [] : [

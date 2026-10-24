@@ -175,6 +175,15 @@ function currentUpstream(cwd: string): string | undefined {
   }
 }
 
+function isRemoteDefault(cwd: string, remote: string, branch: string): boolean {
+  try {
+    return branch === remoteDefaultBranch(cwd, remote);
+  } catch (error) {
+    if (error instanceof IntegrationFetchFailure) throw error;
+    return false;
+  }
+}
+
 // Git and configuration each have independent failure cases; keep the choice in one place.
 // eslint-disable-next-line complexity -- Git config and remote discovery have separate failure branches.
 function integrationReference(cwd: string): {
@@ -195,12 +204,11 @@ function integrationReference(cwd: string): {
     const currentBranch = gitText(cwd, ['branch', '--show-current']);
     if (
       (match[2] === currentBranch || configured === currentUpstream(cwd)) &&
-      match[2] !== remoteDefaultBranch(cwd, match[1])
-    ) {
+      !isRemoteDefault(cwd, match[1], match[2])
+    )
       throw new InvalidIntegrationReference(
         'The configured integration ref names the current topic branch; choose the remote default integration branch instead.',
       );
-    }
     return { remote: match[1], branch: match[2], ref: configured, configured: true };
   }
   const remotes = gitText(cwd, ['remote']).split('\n').filter(Boolean);
@@ -456,7 +464,6 @@ function branchRecordsDirectory(cwd: string): string {
   return nodePath.join(cwd, '.safeword', 'state', 'reviews', 'branch');
 }
 
-// eslint-disable-next-line complexity -- Configuration and local remote HEAD each have independent failure handling.
 function scopeIdentity(cwd: string, ref: string): string {
   const path = nodePath.join(cwd, '.safeword', 'config.json');
   let configured: unknown;
@@ -471,16 +478,7 @@ function scopeIdentity(cwd: string, ref: string): string {
       configured = '<invalid configuration>';
     }
   }
-  const remote = /^refs\/remotes\/([^/]+)\//u.exec(ref)?.[1];
-  let remoteHead = '';
-  if (configured === undefined && remote !== undefined) {
-    try {
-      remoteHead = gitText(cwd, ['symbolic-ref', `refs/remotes/${remote}/HEAD`]);
-    } catch {
-      remoteHead = '<unavailable locally>';
-    }
-  }
-  return digest({ configured, remoteHead });
+  return digest({ configured, ref });
 }
 
 function digest(value: unknown): string {
@@ -1106,13 +1104,7 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
   const findingsResolved = record.review_passes.every(pass => pass.status === 'approved');
   const skipReason = record.coverage === 'none' ? reasonedSkipFor(cwd, record) : undefined;
   const mayAdvance = mayAdvanceBranchReview(record, fresh, findingsResolved, disclosed, skipReason);
-  const skipEligible =
-    fresh &&
-    findingsResolved &&
-    record.coverage === 'none' &&
-    (phase === 'implement' ||
-      record.review_phase === 'implement' ||
-      record.unavailable_reason !== undefined);
+  const skipEligible = fresh && findingsResolved && record.coverage === 'none';
   return createResult({
     state: mayAdvance ? 'healthy' : 'action_required',
     findings: mayAdvance

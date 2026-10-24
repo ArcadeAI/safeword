@@ -831,5 +831,6 @@ it('refuses an empty branch as a completed review but allows its reasoned skip',
   const proof = await gateProof('Claude Code / committed');
   expect(proof.noChangesReport.data?.coverage).toBe('none');
   expectHookDeny(proof.emptyBlocked, 'No branch changes were reviewed');
+  expect(proof.emptyBlocked.stdout).toContain('--review-id');
   expectHookAllow(proof.skippedExit);
 });

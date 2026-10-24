@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "e99d5c2b145a77f3668eab4dcf66d03748667f6a82aa885d14dc3c70774d6bc2"
+      "sha256": "90bf2c4e6a85ec8d195021783d6b82090ce33e398bfba604b71a002ae8dea5ec"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "4f0c8f8d904e1a0d85a230f2b3874426d1f9b52f9665a5f6374d8d678e0651cc"
+      "sha256": "7e163c219c54c5d13ed76deb09da7e4229faca09d92d128f3d8324177a1e69d0"
     },
     {
       "path": "runtime/event-groups.json",
@@ -523,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "1b997929aeed5095c734ad48d5880f6f4166c54fcc50b63346ab4cd8f3a266b1"
+      "sha256": "447c34d0ac0a51f6cbe6aa96fbe1f0440c013aa2c734592204528a766894700e"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -677,7 +677,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "94d3126065d7413f48c86906e15fd9be78e914d19824522a18c3c7a8c553c65a"
+      "sha256": "439484a4df61bba7d8dd1d9de387a5bbb4c79d51e51ca918b4fa28d7c0a37957"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -744,8 +744,8 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "10125604314ff6d69ee7953c50b6be2fe10ab5314f37f1826924bbbbf0170b82",
-      "skill_sha256": "e4b90dc4f64c5199db815e04cd910e447a80e0dd29fbc782b53989dbf6c4802d"
+      "sha256": "9bd636b9437e76654f9ff2eaed6842255e3e06f6f96dd3f3e90d7885cc9a5f51",
+      "skill_sha256": "24abbcb67dade66faaa319ff0ec5549546909ad6cacbf4642f4c9436a76dff44"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -1519,7 +1519,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "f991a95653324439e8e5c93749e4653767047574595c6397a91458d85b0b683c"
+      "sha256": "a98b4bc6e58d321e12fe3e513d706c97401059b5e880a7af04847b932cf1179c"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1703,7 +1703,7 @@
     },
     {
       "path": "templates/skills/bdd/TDD.md",
-      "sha256": "51f4824ca072a09f51dfe29614557098f01bc9ce124d1940ccd83ee5fb3e6874"
+      "sha256": "f7318a534e3cefb40821e3c294f5dd4139c699c723ae851720a153950e972fa5"
     },
     {
       "path": "templates/skills/bdd/VERIFY.md",
@@ -1759,7 +1759,7 @@
     },
     {
       "path": "templates/skills/quality-review/SKILL.md",
-      "sha256": "0da84381f9308e4092a2d1cbe8c45b7784047354d369254de1b794bb2bc93164"
+      "sha256": "a8b6f6ec46e4733c66a3030162e1849cb31a887ab78b2c2437c48d06dec144ae"
     },
     {
       "path": "templates/skills/refactor/SKILL.md",

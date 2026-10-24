@@ -226,7 +226,7 @@ Each pass:
    run the selected-target command as a second review for the same pass. If
    coverage is partial, show each omitted path and use the command's
    acknowledgement route only with a substantive agent reason. If coverage
-   is none, use a reasoned skip and never claim a completed branch review.
+   is none, use `bun .safeword/hooks/write-review-stamp.ts --ticket <ticket-folder> --phase <implement-or-verify> --review-id <review-id> --skip "<substantive reason>"`; never claim a completed branch review.
    During verification, repeat the branch command after authored work changes.
 
    For other work-products, run the selected-target coordinator:

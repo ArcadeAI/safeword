@@ -415,6 +415,7 @@ function branchReviewGateDecision(
   coverage?: string;
   freshness?: string;
   skipEligible?: boolean;
+  reviewId?: string;
 } {
   const answer = askTrustedSafeword(
     projectDirectory,
@@ -431,6 +432,7 @@ function branchReviewGateDecision(
             coverage?: unknown;
             freshness?: unknown;
             skip_eligible?: unknown;
+            review_id?: unknown;
           };
           findings?: Array<{ message?: unknown }>;
         };
@@ -454,6 +456,8 @@ function branchReviewGateDecision(
               freshness:
                 typeof result.data.freshness === 'string' ? result.data.freshness : undefined,
               skipEligible: result.data.skip_eligible === true,
+              reviewId:
+                typeof result.data.review_id === 'string' ? result.data.review_id : undefined,
             };
       } catch {
         return undefined;
@@ -1339,10 +1343,11 @@ if (isCanonicalTicketEdit) {
     if (ticketId === undefined) deny('Branch review cannot identify the ticket.');
     const decision = branchReviewGateDecision(ticketId, phase);
     if (decision.denial !== undefined) {
-      deny(
-        `Branch review is stale or incomplete: ${decision.denial}`,
-        'Run `safeword review branch <ticket-id>` and retry the phase change.',
-      );
+      const remedy =
+        decision.skipEligible && decision.reviewId !== undefined
+          ? `Record a substantive reasoned skip for this coverage-none result: \`bun .safeword/hooks/write-review-stamp.ts --ticket ${nodePath.basename(nodePath.dirname(editedFile))} --phase ${phase} --review-id ${decision.reviewId} --skip "<reason>"\`, then retry the phase change.`
+          : 'Run `safeword review branch <ticket-id>` and retry the phase change.';
+      deny(`Branch review is stale or incomplete: ${decision.denial}`, remedy);
     }
     branchDisclosure = decision.disclosure;
   }

@@ -131,6 +131,16 @@ it('reviews both authored files from the integration merge base against the tick
   expect(reviewerPacket).not.toContain('upstream.ts');
   expect(reviewerPacket).not.toContain('export const unrelated = true;');
 
+  git(project, 'symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/topic');
+  const localHeadChange = await runCli(
+    ['review', 'branch-check', 'ABC123', 'implement', '--json'],
+    {
+      cwd: project,
+    },
+  );
+  expect(JSON.parse(localHeadChange.stdout).data?.freshness).toBe('current');
+  git(project, 'symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main');
+
   mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
   const configPath = nodePath.join(project, '.safeword', 'config.json');
   writeFileSync(configPath, '{"branchReview":{"integrationRef":"refs/remotes/origin/topic"}}\n');
@@ -177,6 +187,10 @@ it('reviews both authored files from the integration merge base against the tick
     },
   });
   expect(JSON.parse(emptyReplacement.stdout).data?.coverage).toBe('none');
+  const emptyCheck = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+    cwd: project,
+  });
+  expect(JSON.parse(emptyCheck.stdout).data?.skip_eligible).toBe(true);
   const replacementId = JSON.parse(emptyReplacement.stdout).data?.review_id;
   expect(readFileSync(ticketPath, 'utf8')).toContain(`branch_review_exit_id: ${replacementId}`);
   expect(readFileSync(ticketPath, 'utf8')).not.toContain(String(originalMarker));
@@ -355,6 +369,13 @@ it('refuses a topic branch as configured integration scope', async () => {
   expect(report.data?.review_id).toBeUndefined();
   expect(readFileSync(ticketPath, 'utf8')).not.toContain('branch_review_exit_id');
   expect(existsSync(nodePath.join(project, '.safeword', 'state', 'reviews', 'branch'))).toBe(false);
+
+  git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/missing');
+  const unknownDefault = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project });
+  expect(unknownDefault.exitCode).toBe(2);
+  expect(JSON.parse(unknownDefault.stdout).findings?.[0]?.message).toContain('topic branch');
+  expect(JSON.parse(unknownDefault.stdout).data?.review_id).toBeUndefined();
+  git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/main');
 
   for (const invalid of [
     '{',
