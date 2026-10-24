@@ -988,10 +988,13 @@ function canonicalTicketEditContext(): CanonicalTicketEditContext {
 }
 
 function ticketGoalsForBranchReview(content: string): string {
-  const withoutBookkeeping = content.replaceAll(
-    /^(?:phase|status|last_modified|branch_review_exit_id):[^\n]*\n/gmu,
-    '',
-  );
+  const frontmatter = /^---\r?\n[\s\S]*?\r?\n---(?=\r?\n|$)/u.exec(content)?.[0];
+  const withoutBookkeeping = frontmatter
+    ? frontmatter.replaceAll(
+        /^(?:phase|status|last_modified|branch_review_exit_id):[^\n]*\n/gmu,
+        '',
+      ) + content.slice(frontmatter.length)
+    : content;
   const lines = withoutBookkeeping.split('\n');
   const start = lines.findIndex(line => /^## Work Log\s*$/u.test(line));
   if (start === -1) return `${withoutBookkeeping.trimEnd()}\n`;

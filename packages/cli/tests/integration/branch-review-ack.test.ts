@@ -18,7 +18,7 @@ function git(cwd: string, ...args: string[]): string {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 }
 
-it('requires an authenticated acknowledgement and the exact omission disclosure', async () => {
+async function gatherAcknowledgementProof() {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-branch-ack-'));
   roots.push(root);
   const remote = nodePath.join(root, 'remote.git');
@@ -113,7 +113,8 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
       }),
     });
   };
-  expectHookDeny(attemptExit(), 'incomplete');
+  const beforeAcknowledgement = attemptExit();
+  expectHookDeny(beforeAcknowledgement, 'incomplete');
   const ack = await runCli(
     [
       'review',
@@ -175,4 +176,41 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     cwd: project,
   });
   expect(JSON.parse(changedBinary.stdout).data?.freshness).toBe('stale');
+  return { report, beforeAcknowledgement, allowed, disclosure, staleReport };
+}
+
+const acknowledgementProof = (() => {
+  let promise: ReturnType<typeof gatherAcknowledgementProof> | undefined;
+  return (): ReturnType<typeof gatherAcknowledgementProof> =>
+    (promise ??= gatherAcknowledgementProof());
+})();
+
+it('allows an acknowledged partial review with exact disclosure', async () => {
+  const proof = await acknowledgementProof();
+  expect(proof.report.data.coverage).toBe('partial');
+  expectHookAllow(proof.allowed);
+  expect(proof.allowed.stdout).toContain(proof.disclosure);
+});
+
+it('refuses partial coverage before acknowledgement', async () => {
+  const proof = await acknowledgementProof();
+  expectHookDeny(proof.beforeAcknowledgement, 'incomplete');
+});
+
+it('preserves omitted evidence when an acknowledged review becomes stale', async () => {
+  const proof = await acknowledgementProof();
+  expect(proof.staleReport.data?.freshness).toBe('stale');
+  expect(proof.staleReport.data?.omitted_paths).toContainEqual({
+    path: 'large-generated.txt',
+    reason: 'file exceeds reviewer packet limit',
+  });
+});
+
+it('marks an oversized authored file as omitted', async () => {
+  const proof = await acknowledgementProof();
+  expect(proof.report.data.omitted_paths).toContainEqual({
+    path: 'large-generated.txt',
+    reason: 'file exceeds reviewer packet limit',
+  });
+  expect(proof.report.data.coverage).toBe('partial');
 });

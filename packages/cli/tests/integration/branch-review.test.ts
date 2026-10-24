@@ -18,9 +18,9 @@ function git(cwd: string, ...args: string[]): string {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 }
 
-// One stateful Git fixture exercises the branch across commits, review outcomes, and dirty work.
-// eslint-disable-next-line complexity -- One stateful Git fixture covers successive review snapshots without duplicating setup.
-it('accounts for every changed path when a later bounded review pass fails', async () => {
+// One Git fixture captures successive review snapshots; each scenario asserts its own result.
+// eslint-disable-next-line complexity -- The fixture follows successive review snapshots without duplicating setup.
+async function gatherBranchProof() {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-branch-review-'));
   roots.push(root);
   const remote = nodePath.join(root, 'remote.git');
@@ -372,6 +372,87 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   );
   expect(JSON.parse(supersedingCheck.stdout).data?.may_advance).toBe(true);
   expect(JSON.parse(supersedingCheck.stdout).data?.disclosure).toContain('Unattributed problem');
+  return {
+    report,
+    focusedReport,
+    dirtyReport,
+    renamedReport,
+    narrowed: JSON.parse(narrowed.stdout),
+    passOne: readFileSync(nodePath.join(root, 'passes.log.1'), 'utf8'),
+    passTwo: readFileSync(nodePath.join(root, 'passes.log.2'), 'utf8'),
+  };
+}
+
+const branchProof = (() => {
+  let promise: ReturnType<typeof gatherBranchProof> | undefined;
+  return (): ReturnType<typeof gatherBranchProof> => (promise ??= gatherBranchProof());
+})();
+
+it('refuses a caller-supplied later branch base', async () => {
+  const proof = await branchProof();
+  expect(proof.narrowed.ok).toBe(false);
+});
+
+it('attributes a cross-file finding to behavior, paths, and consequence', async () => {
+  const proof = await branchProof();
+  const expectedFinding = expect.objectContaining({
+    affected_behavior: expect.stringContaining('access scenario'),
+    related_paths: expect.arrayContaining(['source.ts', 'caller.ts']),
+    consequence: expect.stringContaining('bypass the check'),
+  });
+  expect(proof.focusedReport.data?.branch_findings).toContainEqual(expectedFinding);
+});
+
+it('names a skipped generated file as an omission', async () => {
+  const proof = await branchProof();
+  expect(proof.report.data?.omitted_paths).toContainEqual({
+    path: 'generated.out',
+    reason: 'marked as generated',
+  });
+  expect(proof.report.data?.coverage).toBe('partial');
+});
+
+it('withholds a sensitive file from every review packet', async () => {
+  const proof = await branchProof();
+  expect(proof.report.data?.omitted_paths).toContainEqual({
+    path: '.env',
+    reason: 'sensitive path; content withheld from reviewer',
+  });
+  expect(proof.passOne).not.toContain('committed-secret-sentinel');
+  expect(proof.passTwo).not.toContain('committed-secret-sentinel');
+});
+
+it('gives a builder the next action for partial coverage', async () => {
+  const proof = await branchProof();
+  expect(proof.dirtyReport.data?.next_action).toContain('acknowledge');
+});
+
+it('keeps a dirty branch current but partially covered', async () => {
+  const proof = await branchProof();
+  expect(proof.dirtyReport.data?.freshness).toBe('current');
+  expect(proof.dirtyReport.data?.coverage).toBe('partial');
+  expect(proof.dirtyReport.data?.dirty_paths).toContain('.env');
+});
+
+it('omits paths from a failed later review pass', async () => {
+  const proof = await branchProof();
+  expect(proof.report.data?.reviewed_paths?.length).toBeGreaterThan(0);
+  expect(proof.report.data?.omitted_paths?.length).toBeGreaterThan(0);
+  expect(proof.report.data?.coverage).toBe('partial');
+});
+
+it('inventories renamed, deleted, and force-added ignored paths', async () => {
+  const proof = await branchProof();
+  expect(proof.renamedReport.data?.reviewed_paths).toContain('renamed-seed.txt');
+  expect(proof.renamedReport.data?.reviewed_paths).toContain('force-added.txt');
+  expect(proof.renamedReport.data?.omitted_paths).toContainEqual({
+    path: 'seed.txt',
+    reason: 'deleted or renamed source',
+  });
+  expect(proof.renamedReport.data?.omitted_paths).toContainEqual({
+    path: 'remove-me.txt',
+    reason: 'deleted or renamed source',
+  });
 });
 
 it('refuses a caller-selected subset of branch files', async () => {

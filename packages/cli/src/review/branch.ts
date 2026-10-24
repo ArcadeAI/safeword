@@ -542,6 +542,17 @@ function projectExecutionPlan(text: string): string {
     .join('\n');
 }
 
+function withoutTicketMetadata(text: string): string {
+  const frontmatter = /^---\r?\n[\s\S]*?\r?\n---(?=\r?\n|$)/u.exec(text)?.[0];
+  if (!frontmatter) return text;
+  return (
+    frontmatter.replaceAll(
+      /^(?:phase|status|last_modified|branch_review_exit_id):[^\n]*\n/gmu,
+      '',
+    ) + text.slice(frontmatter.length)
+  );
+}
+
 function projectedBytes(
   path: string,
   bytes: Buffer | undefined,
@@ -557,7 +568,7 @@ function projectedBytes(
   }
   let text = bytes.toString('utf8');
   if (isTicket) {
-    text = text.replaceAll(/^(?:phase|status|last_modified|branch_review_exit_id):[^\n]*\n/gmu, '');
+    text = withoutTicketMetadata(text);
     text = withoutWorkLog(text);
     text = `${text.trimEnd()}\n`;
   }

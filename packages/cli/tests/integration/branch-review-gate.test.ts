@@ -261,65 +261,64 @@ it('keeps a saved review current after verification checklist progress', async (
   writeFileSync(planPath, plan.replace('Review all authored paths', 'Review only source.ts'));
   const changedGoal = await checkReview();
   expect(JSON.parse(changedGoal.stdout).data?.freshness).toBe('stale');
+  writeFileSync(
+    planPath,
+    plan.replace('| open | missing | | |', '| done | real_boundary | | passed |'),
+  );
+  writeFileSync(
+    ticketPath,
+    readFileSync(ticketPath, 'utf8').replace('## Work Log', 'status: allow bypass\n\n## Work Log'),
+  );
+  const bodyGoal = await checkReview();
+  expect(JSON.parse(bodyGoal.stdout).data?.freshness).toBe('stale');
 });
 
-it.each([
-  'Claude Code / committed',
-  'Claude Code / left uncommitted',
-  'OpenAI Codex / committed',
-  'OpenAI Codex / left uncommitted',
-  'Cursor / committed',
-  'Cursor / left uncommitted',
-  'OpenCode CLI / committed',
-  'OpenCode CLI / left uncommitted',
-])(
-  'accepts the reviewed snapshot and refuses later authored changes in %s',
-  // eslint-disable-next-line complexity -- One fixture follows the same ticket through review, edits, verification, and recovery.
-  async hostCase => {
-    const host = hostCase.split(' / ', 2)[0] ?? '';
-    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-branch-gate-'));
-    roots.push(root);
-    const remote = nodePath.join(root, 'remote.git');
-    const project = nodePath.join(root, 'project');
-    mkdirSync(project);
-    git(root, 'init', '--bare', remote);
-    git(project, 'init', '-b', 'main');
-    git(project, 'config', 'user.name', 'Test Builder');
-    git(project, 'config', 'user.email', 'builder@example.test');
-    git(project, 'remote', 'add', 'origin', remote);
-    const ticket = nodePath.join(project, '.project', 'tickets', 'ABC123-review-branch');
-    mkdirSync(ticket, { recursive: true });
-    writeFileSync(
-      nodePath.join(ticket, 'ticket.md'),
-      '---\nid: ABC123\ntype: feature\nphase: implement\nscope:\n  - preserve access rule\n---\n# Review branch\n',
-    );
-    mkdirSync(nodePath.join(project, '.safeword'));
-    writeFileSync(nodePath.join(project, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
-    writeFileSync(nodePath.join(project, '.safeword', 'config.json'), '{"reviewGate":false}\n');
-    writeFileSync(nodePath.join(project, '.gitignore'), '.safeword/state/\n');
-    writeFileSync(nodePath.join(project, 'seed.txt'), 'seed\n');
-    git(project, 'add', '.');
-    git(project, 'commit', '-m', 'seed');
-    git(project, 'push', '-u', 'origin', 'main');
-    git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/main');
-    git(project, 'checkout', '-b', 'topic');
-    writeFileSync(nodePath.join(project, 'change.txt'), 'reviewed content\n');
-    const ledgerPath = nodePath.join(ticket, 'test-definitions.md');
-    const ledger =
-      '# Scenario proof\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n- [ ] cross-scenario\n- [ ] VERIFIED\n';
-    writeFileSync(ledgerPath, ledger);
-    const auditSource = nodePath.join(project, 'packages', 'app', 'src', 'audit', 'logger.ts');
-    mkdirSync(nodePath.dirname(auditSource), { recursive: true });
-    writeFileSync(auditSource, 'export const audit = 1;\n');
-    git(project, 'add', '.');
-    git(project, 'commit', '-m', 'feature');
+// eslint-disable-next-line complexity -- One fixture follows the same ticket through review, edits, verification, and recovery.
+async function gatherGateProof(hostCase: string) {
+  const host = hostCase.split(' / ', 2)[0] ?? '';
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-branch-gate-'));
+  roots.push(root);
+  const remote = nodePath.join(root, 'remote.git');
+  const project = nodePath.join(root, 'project');
+  mkdirSync(project);
+  git(root, 'init', '--bare', remote);
+  git(project, 'init', '-b', 'main');
+  git(project, 'config', 'user.name', 'Test Builder');
+  git(project, 'config', 'user.email', 'builder@example.test');
+  git(project, 'remote', 'add', 'origin', remote);
+  const ticket = nodePath.join(project, '.project', 'tickets', 'ABC123-review-branch');
+  mkdirSync(ticket, { recursive: true });
+  writeFileSync(
+    nodePath.join(ticket, 'ticket.md'),
+    '---\nid: ABC123\ntype: feature\nphase: implement\nscope:\n  - preserve access rule\n---\n# Review branch\n',
+  );
+  mkdirSync(nodePath.join(project, '.safeword'));
+  writeFileSync(nodePath.join(project, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
+  writeFileSync(nodePath.join(project, '.safeword', 'config.json'), '{"reviewGate":false}\n');
+  writeFileSync(nodePath.join(project, '.gitignore'), '.safeword/state/\n');
+  writeFileSync(nodePath.join(project, 'seed.txt'), 'seed\n');
+  git(project, 'add', '.');
+  git(project, 'commit', '-m', 'seed');
+  git(project, 'push', '-u', 'origin', 'main');
+  git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/main');
+  git(project, 'checkout', '-b', 'topic');
+  writeFileSync(nodePath.join(project, 'change.txt'), 'reviewed content\n');
+  const ledgerPath = nodePath.join(ticket, 'test-definitions.md');
+  const ledger =
+    '# Scenario proof\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n- [ ] cross-scenario\n- [ ] VERIFIED\n';
+  writeFileSync(ledgerPath, ledger);
+  const auditSource = nodePath.join(project, 'packages', 'app', 'src', 'audit', 'logger.ts');
+  mkdirSync(nodePath.dirname(auditSource), { recursive: true });
+  writeFileSync(auditSource, 'export const audit = 1;\n');
+  git(project, 'add', '.');
+  git(project, 'commit', '-m', 'feature');
 
-    const reviewerBin = nodePath.join(createTrustedReviewerDirectory('branch-gate-'), 'bin');
-    mkdirSync(reviewerBin);
-    const reviewer = nodePath.join(reviewerBin, 'claude');
-    writeFileSync(
-      reviewer,
-      `#!/bin/sh
+  const reviewerBin = nodePath.join(createTrustedReviewerDirectory('branch-gate-'), 'bin');
+  mkdirSync(reviewerBin);
+  const reviewer = nodePath.join(reviewerBin, 'claude');
+  writeFileSync(
+    reviewer,
+    `#!/bin/sh
 set -eu
 if [ "\${1:-}" = '--version' ]; then printf 'claude 1.0.0\\n'; exit 0; fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
@@ -330,291 +329,338 @@ payload=$(cat)
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')
 printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Reviewed branch change","findings":[]}\\n' "$dispatch_id"
 `,
-      { mode: 0o755 },
-    );
-    chmodSync(reviewer, 0o755);
-    const env = {
-      PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
-      SAFEWORD_AGENT_RUNTIME: 'codex',
-      SAFEWORD_NO_UPDATE_CHECK: '1',
+    { mode: 0o755 },
+  );
+  chmodSync(reviewer, 0o755);
+  const env = {
+    PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
+    SAFEWORD_AGENT_RUNTIME: 'codex',
+    SAFEWORD_NO_UPDATE_CHECK: '1',
+  };
+  const completionProblem = () => {
+    const previous = process.env.SAFEWORD_PLUGIN_CLI;
+    process.env.SAFEWORD_PLUGIN_CLI = testCliPath;
+    try {
+      return branchReviewCompletionProblem(
+        project,
+        'ABC123-review-branch',
+        nodePath.join(ticket, 'ticket.md'),
+      );
+    } finally {
+      if (previous === undefined) delete process.env.SAFEWORD_PLUGIN_CLI;
+      else process.env.SAFEWORD_PLUGIN_CLI = previous;
+    }
+  };
+  const ticketPath = nodePath.join(ticket, 'ticket.md');
+  const attemptExit = (from = 'implement', to = 'verify') => {
+    const hookEnvironment: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: project,
+      SAFEWORD_PLUGIN_CLI: testCliPath,
+      SAFEWORD_AGENT_RUNTIME: 'claude',
     };
-    const completionProblem = () => {
-      const previous = process.env.SAFEWORD_PLUGIN_CLI;
-      process.env.SAFEWORD_PLUGIN_CLI = testCliPath;
-      try {
-        return branchReviewCompletionProblem(
-          project,
-          'ABC123-review-branch',
-          nodePath.join(ticket, 'ticket.md'),
-        );
-      } finally {
-        if (previous === undefined) delete process.env.SAFEWORD_PLUGIN_CLI;
-        else process.env.SAFEWORD_PLUGIN_CLI = previous;
-      }
-    };
-    const ticketPath = nodePath.join(ticket, 'ticket.md');
-    const attemptExit = (from = 'implement', to = 'verify') => {
-      const hookEnvironment: NodeJS.ProcessEnv = {
-        ...process.env,
-        CLAUDE_PROJECT_DIR: project,
-        SAFEWORD_PLUGIN_CLI: testCliPath,
-        SAFEWORD_AGENT_RUNTIME: 'claude',
-      };
-      delete hookEnvironment.CODEX_HOME;
-      delete hookEnvironment.CLAUDE_PLUGIN_ROOT;
-      return spawnSync('bun', [hookPath], {
-        cwd: project,
-        encoding: 'utf8',
-        env: hookEnvironment,
-        timeout: 20_000,
-        input: JSON.stringify({
-          session_id: 'branch-review-gate',
-          hook_event_name: 'PreToolUse',
-          tool_name: 'Edit',
-          tool_input: {
-            file_path: ticketPath,
-            old_string: `phase: ${from}`,
-            new_string: `phase: ${to}`,
-          },
-        }),
-      });
-    };
-    writeFileSync(
-      nodePath.join(project, '.project', 'skill-invocations.log'),
-      'review:ABC123-review-branch:phase@implement skip:No reviewable changes.\n',
-    );
-    expectHookDeny(attemptExit(), 'No current branch review');
-    rmSync(nodePath.join(project, '.project', 'skill-invocations.log'));
-    const review = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project, env });
-    const firstReview = JSON.parse(review.stdout) as {
-      data?: { coverage?: string; review_id?: string };
-    };
-    expect(firstReview.data?.coverage).toBe('complete');
-    expect(readFileSync(ticketPath, 'utf8')).toContain(
-      `branch_review_exit_id: ${firstReview.data?.review_id}`,
-    );
-    expectMarkerRemovalBlocked(host, project, ticketPath, String(firstReview.data?.review_id));
-    const markedTicket = readFileSync(ticketPath, 'utf8');
-    writeFileSync(
-      ticketPath,
-      markedTicket
-        .replace(/^branch_review_exit_id:[^\n]*\n/mu, '')
-        .replace('phase: implement', 'phase: verify'),
-    );
-    const droppedMarker = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+    delete hookEnvironment.CODEX_HOME;
+    delete hookEnvironment.CLAUDE_PLUGIN_ROOT;
+    return spawnSync('bun', [hookPath], {
       cwd: project,
+      encoding: 'utf8',
+      env: hookEnvironment,
+      timeout: 20_000,
+      input: JSON.stringify({
+        session_id: 'branch-review-gate',
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Edit',
+        tool_input: {
+          file_path: ticketPath,
+          old_string: `phase: ${from}`,
+          new_string: `phase: ${to}`,
+        },
+      }),
     });
-    expect(JSON.parse(droppedMarker.stdout).data?.may_advance).toBe(false);
-    writeFileSync(ticketPath, markedTicket);
-    const assertLocalHostsBlock = (from: 'implement' | 'verify', to: 'verify' | 'done') => {
-      const edit = {
-        file_path: ticketPath,
-        old_string: `phase: ${from}`,
-        new_string: `phase: ${to}`,
-      };
-      const hookEnvironment: NodeJS.ProcessEnv = {
-        ...process.env,
-        CLAUDE_PROJECT_DIR: project,
-        SAFEWORD_PLUGIN_CLI: testCliPath,
-      };
-      delete hookEnvironment.CODEX_HOME;
-      delete hookEnvironment.CLAUDE_PLUGIN_ROOT;
-      if (host === 'Claude Code') {
-        expectHookDeny(attemptExit(from, to), 'stale');
-        return;
-      }
-      if (host === 'OpenAI Codex') {
-        const codex = spawnSync('bun', [codexHookPath], {
-          cwd: project,
-          encoding: 'utf8',
-          env: hookEnvironment,
-          timeout: 20_000,
-          input: JSON.stringify({
-            session_id: 'branch-codex',
-            tool_name: 'Edit',
-            tool_input: edit,
-          }),
-        });
-        expectHookDeny(codex, 'stale');
-        return;
-      }
-      if (host === 'Cursor') {
-        const cursor = spawnSync('bun', [cursorHookPath], {
-          cwd: project,
-          encoding: 'utf8',
-          env: hookEnvironment,
-          timeout: 20_000,
-          input: JSON.stringify({
-            conversation_id: 'branch-cursor',
-            workspace_roots: [project],
-            tool_name: 'Write',
-            tool_input: {
-              file_path: ticketPath,
-              content: readFileSync(ticketPath, 'utf8')
-                .split(`phase: ${from}`)
-                .join(`phase: ${to}`),
-            },
-          }),
-        });
-        expect(cursor.stdout).toContain('stale');
-        expect(JSON.parse(cursor.stdout).permission).toBe('deny');
-        return;
-      }
-      const openCode = spawnSync('bun', [openCodeDispatcherPath], {
+  };
+  writeFileSync(
+    nodePath.join(project, '.project', 'skill-invocations.log'),
+    'review:ABC123-review-branch:phase@implement skip:No reviewable changes.\n',
+  );
+  expectHookDeny(attemptExit(), 'No current branch review');
+  rmSync(nodePath.join(project, '.project', 'skill-invocations.log'));
+  const review = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project, env });
+  const firstReview = JSON.parse(review.stdout) as {
+    data?: { coverage?: string; review_id?: string };
+  };
+  expect(firstReview.data?.coverage).toBe('complete');
+  expect(readFileSync(ticketPath, 'utf8')).toContain(
+    `branch_review_exit_id: ${firstReview.data?.review_id}`,
+  );
+  expectMarkerRemovalBlocked(host, project, ticketPath, String(firstReview.data?.review_id));
+  const markedTicket = readFileSync(ticketPath, 'utf8');
+  writeFileSync(
+    ticketPath,
+    markedTicket
+      .replace(/^branch_review_exit_id:[^\n]*\n/mu, '')
+      .replace('phase: implement', 'phase: verify'),
+  );
+  const droppedMarker = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+    cwd: project,
+  });
+  expect(JSON.parse(droppedMarker.stdout).data?.may_advance).toBe(false);
+  writeFileSync(ticketPath, markedTicket);
+  const assertLocalHostsBlock = (from: 'implement' | 'verify', to: 'verify' | 'done') => {
+    const edit = {
+      file_path: ticketPath,
+      old_string: `phase: ${from}`,
+      new_string: `phase: ${to}`,
+    };
+    const hookEnvironment: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: project,
+      SAFEWORD_PLUGIN_CLI: testCliPath,
+    };
+    delete hookEnvironment.CODEX_HOME;
+    delete hookEnvironment.CLAUDE_PLUGIN_ROOT;
+    if (host === 'Claude Code') {
+      expectHookDeny(attemptExit(from, to), 'stale');
+      return;
+    }
+    if (host === 'OpenAI Codex') {
+      const codex = spawnSync('bun', [codexHookPath], {
         cwd: project,
         encoding: 'utf8',
         env: hookEnvironment,
         timeout: 20_000,
         input: JSON.stringify({
-          hook_event_name: 'PreToolUse',
-          session_id: 'branch-opencode',
+          session_id: 'branch-codex',
           tool_name: 'Edit',
           tool_input: edit,
         }),
       });
-      expect(openCode.status).toBe(2);
-      expect(openCode.stderr).toContain('stale');
-    };
-    const current = attemptExit();
-    expectHookAllow(current);
-    writeFileSync(nodePath.join(project, 'change.txt'), 'uncommitted correction\n');
-    assertLocalHostsBlock('implement', 'verify');
-    writeFileSync(nodePath.join(project, 'change.txt'), 'reviewed content\n');
-    writeFileSync(
-      ledgerPath,
-      ledger
-        .replace('- [ ] RED', '- [x] RED abc1234')
-        .replace('- [ ] GREEN', '- [x] GREEN def5678')
-        .replace('- [ ] REFACTOR', '- [x] REFACTOR skip: no change needed')
-        .replace('- [ ] cross-scenario', '- [x] cross-scenario fed1234')
-        .replace('- [ ] VERIFIED', '- [x] VERIFIED abcdef1'),
-    );
-    expectHookAllow(attemptExit());
-    git(project, 'commit', '--allow-empty', '-m', 'same content, new head');
-    expectHookDeny(attemptExit(), 'stale');
-    assertLocalHostsBlock('implement', 'verify');
-    const afterCommitReview = await runCli(['review', 'branch', 'ABC123', '--json'], {
-      cwd: project,
-      env,
-    });
-    expect(JSON.parse(afterCommitReview.stdout).data?.coverage).toBe('complete');
-    expectHookAllow(attemptExit());
-    const combinedWrite = spawnSync('bun', [hookPath], {
+      expectHookDeny(codex, 'stale');
+      return;
+    }
+    if (host === 'Cursor') {
+      const cursor = spawnSync('bun', [cursorHookPath], {
+        cwd: project,
+        encoding: 'utf8',
+        env: hookEnvironment,
+        timeout: 20_000,
+        input: JSON.stringify({
+          conversation_id: 'branch-cursor',
+          workspace_roots: [project],
+          tool_name: 'Write',
+          tool_input: {
+            file_path: ticketPath,
+            content: readFileSync(ticketPath, 'utf8').split(`phase: ${from}`).join(`phase: ${to}`),
+          },
+        }),
+      });
+      expect(cursor.stdout).toContain('stale');
+      expect(JSON.parse(cursor.stdout).permission).toBe('deny');
+      return;
+    }
+    const openCode = spawnSync('bun', [openCodeDispatcherPath], {
       cwd: project,
       encoding: 'utf8',
-      timeout: TIMEOUT_QUICK,
-      env: {
-        ...process.env,
-        CLAUDE_PROJECT_DIR: project,
-        SAFEWORD_PLUGIN_CLI: testCliPath,
-        SAFEWORD_AGENT_RUNTIME: 'claude',
-      },
+      env: hookEnvironment,
+      timeout: 20_000,
       input: JSON.stringify({
-        session_id: 'branch-review-gate',
         hook_event_name: 'PreToolUse',
-        tool_name: 'Write',
-        tool_input: {
-          file_path: ticketPath,
-          content: readFileSync(ticketPath, 'utf8')
-            .replace('phase: implement', 'phase: verify')
-            .replace('- preserve access rule', '- allow bypass'),
-        },
+        session_id: 'branch-opencode',
+        tool_name: 'Edit',
+        tool_input: edit,
       }),
     });
-    expectHookDeny(combinedWrite, 'ticket goals');
-    writeFileSync(
-      ticketPath,
-      readFileSync(ticketPath, 'utf8').replace('phase: implement', 'phase: verify'),
-    );
-    expect(readFileSync(ticketPath, 'utf8')).toContain('phase: verify');
-    writeFileSync(nodePath.join(ticket, 'verify.md'), '# Verification result\n');
-    writeFileSync(
-      ticketPath,
-      `${readFileSync(ticketPath, 'utf8').trimEnd()}\n\n## Work Log\n\n- Verified tests\n`,
-    );
-    expectHookAllow(attemptExit('verify', 'done'));
-    writeFileSync(nodePath.join(project, 'change.txt'), 'unreviewed correction\n');
-    const stale = attemptExit('verify', 'done');
-    expect(stale.stdout).toContain('permissionDecision');
-    expectHookDeny(stale, 'stale');
-    expect(readFileSync(ticketPath, 'utf8')).toContain('phase: verify');
-    git(project, 'add', '.');
-    git(project, 'commit', '-m', 'verification correction');
-    const verificationReview = await runCli(['review', 'branch', 'ABC123', '--json'], {
-      cwd: project,
-      env,
-    });
-    expect(JSON.parse(verificationReview.stdout).data?.coverage, verificationReview.stdout).toBe(
-      'complete',
-    );
-    expectHookAllow(attemptExit('verify', 'done'));
-    expect(completionProblem()).toBeUndefined();
-    git(project, 'commit', '--allow-empty', '-m', 'same reviewed correction');
-    expectHookAllow(attemptExit('verify', 'done'));
-    writeFileSync(auditSource, 'export const audit = 2;\n');
-    expectHookDeny(attemptExit('verify', 'done'), 'stale');
-    expect(completionProblem()).toContain('stale');
-    writeFileSync(auditSource, 'export const audit = 1;\n');
-    expectHookAllow(attemptExit('verify', 'done'));
-    writeFileSync(
-      ticketPath,
-      readFileSync(ticketPath, 'utf8').replace('- preserve access rule', '- allow bypass'),
-    );
-    expectHookDeny(attemptExit('verify', 'done'), 'stale');
-    assertLocalHostsBlock('verify', 'done');
+    expect(openCode.status).toBe(2);
+    expect(openCode.stderr).toContain('stale');
+  };
+  const current = attemptExit();
+  expectHookAllow(current);
+  writeFileSync(nodePath.join(project, 'change.txt'), 'uncommitted correction\n');
+  assertLocalHostsBlock('implement', 'verify');
+  writeFileSync(nodePath.join(project, 'change.txt'), 'reviewed content\n');
+  writeFileSync(
+    ledgerPath,
+    ledger
+      .replace('- [ ] RED', '- [x] RED abc1234')
+      .replace('- [ ] GREEN', '- [x] GREEN def5678')
+      .replace('- [ ] REFACTOR', '- [x] REFACTOR skip: no change needed')
+      .replace('- [ ] cross-scenario', '- [x] cross-scenario fed1234')
+      .replace('- [ ] VERIFIED', '- [x] VERIFIED abcdef1'),
+  );
+  expectHookAllow(attemptExit());
+  git(project, 'commit', '--allow-empty', '-m', 'same content, new head');
+  expectHookDeny(attemptExit(), 'stale');
+  assertLocalHostsBlock('implement', 'verify');
+  const afterCommitReview = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env,
+  });
+  expect(JSON.parse(afterCommitReview.stdout).data?.coverage).toBe('complete');
+  expectHookAllow(attemptExit());
+  const combinedWrite = spawnSync('bun', [hookPath], {
+    cwd: project,
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: project,
+      SAFEWORD_PLUGIN_CLI: testCliPath,
+      SAFEWORD_AGENT_RUNTIME: 'claude',
+    },
+    input: JSON.stringify({
+      session_id: 'branch-review-gate',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Write',
+      tool_input: {
+        file_path: ticketPath,
+        content: readFileSync(ticketPath, 'utf8')
+          .replace('phase: implement', 'phase: verify')
+          .replace('- preserve access rule', '- allow bypass'),
+      },
+    }),
+  });
+  expectHookDeny(combinedWrite, 'ticket goals');
+  writeFileSync(
+    ticketPath,
+    readFileSync(ticketPath, 'utf8').replace('phase: implement', 'phase: verify'),
+  );
+  expect(readFileSync(ticketPath, 'utf8')).toContain('phase: verify');
+  writeFileSync(nodePath.join(ticket, 'verify.md'), '# Verification result\n');
+  writeFileSync(
+    ticketPath,
+    `${readFileSync(ticketPath, 'utf8').trimEnd()}\n\n## Work Log\n\n- Verified tests\n`,
+  );
+  expectHookAllow(attemptExit('verify', 'done'));
+  writeFileSync(nodePath.join(project, 'change.txt'), 'unreviewed correction\n');
+  const stale = attemptExit('verify', 'done');
+  expect(stale.stdout).toContain('permissionDecision');
+  expectHookDeny(stale, 'stale');
+  expect(readFileSync(ticketPath, 'utf8')).toContain('phase: verify');
+  git(project, 'add', '.');
+  git(project, 'commit', '-m', 'verification correction');
+  const verificationReview = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env,
+  });
+  expect(JSON.parse(verificationReview.stdout).data?.coverage, verificationReview.stdout).toBe(
+    'complete',
+  );
+  expectHookAllow(attemptExit('verify', 'done'));
+  expect(completionProblem()).toBeUndefined();
+  git(project, 'commit', '--allow-empty', '-m', 'same reviewed correction');
+  expectHookAllow(attemptExit('verify', 'done'));
+  writeFileSync(auditSource, 'export const audit = 2;\n');
+  const changedGoalBlocked = attemptExit('verify', 'done');
+  expectHookDeny(changedGoalBlocked, 'stale');
+  expect(completionProblem()).toContain('stale');
+  writeFileSync(auditSource, 'export const audit = 1;\n');
+  expectHookAllow(attemptExit('verify', 'done'));
+  writeFileSync(
+    ticketPath,
+    readFileSync(ticketPath, 'utf8').replace('- preserve access rule', '- allow bypass'),
+  );
+  expectHookDeny(attemptExit('verify', 'done'), 'stale');
+  assertLocalHostsBlock('verify', 'done');
 
-    const verificationReviewId = JSON.parse(verificationReview.stdout).data?.review_id as string;
-    await expectMissingRecordRecovery(project, ticketPath, verificationReviewId, env, () =>
-      attemptExit('verify', 'done'),
-    );
+  const verificationReviewId = JSON.parse(verificationReview.stdout).data?.review_id as string;
+  await expectMissingRecordRecovery(project, ticketPath, verificationReviewId, env, () =>
+    attemptExit('verify', 'done'),
+  );
 
-    git(project, 'reset', '--hard', 'main');
-    git(project, 'clean', '-fd');
-    const recordDirectory = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');
-    const archivedRecords = `${recordDirectory}.legacy-fixture`;
-    renameSync(recordDirectory, archivedRecords);
-    await expectLegacyVerificationUncovered(project, ticketPath);
-    renameSync(archivedRecords, recordDirectory);
-    const noChanges = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project, env });
-    const noChangesReport = JSON.parse(noChanges.stdout) as {
-      data?: { coverage?: string; review_id?: string };
-    };
-    expect(noChangesReport.data?.coverage).toBe('none');
-    expectHookDeny(attemptExit(), 'No branch changes were reviewed');
-    writeFileSync(
-      nodePath.join(project, '.project', 'skill-invocations.log'),
-      'review:ABC123-review-branch:phase@implement skip:No branch changes exist at this implementation exit.\n',
-    );
-    expectHookDeny(attemptExit(), 'No branch changes were reviewed');
-    writeFileSync(
-      nodePath.join(project, '.project', 'skill-invocations.log'),
-      `review:ABC123-review-branch:phase@implement review-id:${noChangesReport.data?.review_id} skip:No branch changes exist at this implementation exit.\n`,
-    );
-    expect(attemptExit().stdout).toContain('No branch changes were reviewed');
-    writeFileSync(
-      ticketPath,
-      readFileSync(ticketPath, 'utf8').replace('phase: implement', 'phase: verify'),
-    );
-    expect(completionProblem()).toBeUndefined();
-    writeFileSync(
-      ticketPath,
-      readFileSync(ticketPath, 'utf8').replace('phase: verify', 'phase: implement'),
-    );
-    git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/missing');
-    const unavailable = await runCli(['review', 'branch', 'ABC123', '--json'], {
-      cwd: project,
-      env,
-    });
-    expect(JSON.parse(unavailable.stdout).data?.coverage).toBe('none');
-    expect(JSON.parse(unavailable.stdout).data?.freshness).toBe('current');
-    expectHookDeny(attemptExit(), 'No branch changes were reviewed');
-    const unavailableId = JSON.parse(unavailable.stdout).data?.review_id as string;
-    writeFileSync(
-      nodePath.join(project, '.project', 'skill-invocations.log'),
-      `review:ABC123-review-branch:phase@implement review-id:${unavailableId} skip:No integration base can be reached for this review.\n`,
-    );
-    expect(attemptExit().stdout).toContain('No branch changes were reviewed');
-    writeFileSync(nodePath.join(project, 'new-work.txt'), 'new work after empty review\n');
-    expectHookDeny(attemptExit(), 'stale');
-  },
-);
+  git(project, 'reset', '--hard', 'main');
+  git(project, 'clean', '-fd');
+  const recordDirectory = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');
+  const archivedRecords = `${recordDirectory}.legacy-fixture`;
+  renameSync(recordDirectory, archivedRecords);
+  await expectLegacyVerificationUncovered(project, ticketPath);
+  renameSync(archivedRecords, recordDirectory);
+  const noChanges = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project, env });
+  const noChangesReport = JSON.parse(noChanges.stdout) as {
+    data?: { coverage?: string; review_id?: string };
+  };
+  expect(noChangesReport.data?.coverage).toBe('none');
+  const emptyBlocked = attemptExit();
+  expectHookDeny(emptyBlocked, 'No branch changes were reviewed');
+  writeFileSync(
+    nodePath.join(project, '.project', 'skill-invocations.log'),
+    'review:ABC123-review-branch:phase@implement skip:No branch changes exist at this implementation exit.\n',
+  );
+  expectHookDeny(attemptExit(), 'No branch changes were reviewed');
+  writeFileSync(
+    nodePath.join(project, '.project', 'skill-invocations.log'),
+    `review:ABC123-review-branch:phase@implement review-id:${noChangesReport.data?.review_id} skip:No branch changes exist at this implementation exit.\n`,
+  );
+  const skippedExit = attemptExit();
+  expectHookAllow(skippedExit);
+  expect(skippedExit.stdout).toContain('No branch changes were reviewed');
+  writeFileSync(
+    ticketPath,
+    readFileSync(ticketPath, 'utf8').replace('phase: implement', 'phase: verify'),
+  );
+  expect(completionProblem()).toBeUndefined();
+  writeFileSync(
+    ticketPath,
+    readFileSync(ticketPath, 'utf8').replace('phase: verify', 'phase: implement'),
+  );
+  git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/missing');
+  const unavailable = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env,
+  });
+  expect(JSON.parse(unavailable.stdout).data?.coverage).toBe('none');
+  expect(JSON.parse(unavailable.stdout).data?.freshness).toBe('current');
+  expectHookDeny(attemptExit(), 'No branch changes were reviewed');
+  const unavailableId = JSON.parse(unavailable.stdout).data?.review_id as string;
+  writeFileSync(
+    nodePath.join(project, '.project', 'skill-invocations.log'),
+    `review:ABC123-review-branch:phase@implement review-id:${unavailableId} skip:No integration base can be reached for this review.\n`,
+  );
+  expect(attemptExit().stdout).toContain('No branch changes were reviewed');
+  writeFileSync(nodePath.join(project, 'new-work.txt'), 'new work after empty review\n');
+  expectHookDeny(attemptExit(), 'stale');
+  return { current, stale, changedGoalBlocked, emptyBlocked, skippedExit, noChangesReport };
+}
+
+const gateProofs = new Map<string, ReturnType<typeof gatherGateProof>>();
+function gateProof(hostCase: string): ReturnType<typeof gatherGateProof> {
+  const existing = gateProofs.get(hostCase);
+  if (existing) return existing;
+  const promise = gatherGateProof(hostCase);
+  gateProofs.set(hostCase, promise);
+  return promise;
+}
+
+it.each([
+  'Claude Code / committed',
+  'Claude Code / left uncommitted',
+  'OpenAI Codex / committed',
+  'OpenAI Codex / left uncommitted',
+  'Cursor / committed',
+  'Cursor / left uncommitted',
+  'OpenCode CLI / committed',
+  'OpenCode CLI / left uncommitted',
+])('exercises branch review exit in %s', async hostCase => {
+  const proof = await gateProof(hostCase);
+  expectHookAllow(proof.current);
+});
+
+it('lets a complete current review finish implementation', async () => {
+  const proof = await gateProof('Claude Code / committed');
+  expectHookAllow(proof.current);
+});
+
+it('rejects a verification code fix until it is reviewed again', async () => {
+  const proof = await gateProof('Claude Code / committed');
+  expectHookDeny(proof.stale, 'stale');
+});
+
+it('rejects changed ticket goals until they are reviewed again', async () => {
+  const proof = await gateProof('Claude Code / committed');
+  expectHookDeny(proof.changedGoalBlocked, 'stale');
+});
+
+it('refuses an empty branch as a completed review but allows its reasoned skip', async () => {
+  const proof = await gateProof('Claude Code / committed');
+  expect(proof.noChangesReport.data?.coverage).toBe('none');
+  expectHookDeny(proof.emptyBlocked, 'No branch changes were reviewed');
+  expectHookAllow(proof.skippedExit);
+});
