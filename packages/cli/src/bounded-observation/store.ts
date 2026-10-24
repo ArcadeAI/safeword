@@ -15,6 +15,7 @@ import nodePath from 'node:path';
 
 import { writeDurableFileExclusive } from '../codex-plugin/durable-write.js';
 import { canonical, digest, profileSha256, purpose } from './contract.js';
+import type { ToolDetails } from './tools.js';
 
 export interface AttemptStart {
   schema_version: 1;
@@ -33,6 +34,8 @@ export interface AttemptStart {
 }
 
 export interface AttemptTerminal extends AttemptStart {
+  tools: Record<string, ToolDetails>;
+  execution_environment: NodeJS.ProcessEnv;
   status: 'observed' | 'refused' | 'interrupted';
   finished_at: string;
   problem?: string;

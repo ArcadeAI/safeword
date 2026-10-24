@@ -44,7 +44,14 @@ import {
   readRecord,
   reserveAttempt,
 } from './store.js';
-import { controlledEnvironment, runtimeIdentity, toolInventory, toolPath } from './tools.js';
+import {
+  controlledEnvironment,
+  executionToolDetails,
+  runtimeIdentity,
+  type ToolDetails,
+  toolInventory,
+  toolPath,
+} from './tools.js';
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -53,7 +60,11 @@ function errorText(error: unknown): string {
 function currentInputs(root: string): Record<string, string> {
   requireCleanInputs(root);
   validateCandidateContract(root);
-  return { ...sourceIdentity(root), ...dependencyIdentity(root), ...toolInventory().identities };
+  return {
+    ...sourceIdentity(root),
+    ...dependencyIdentity(root),
+    ...toolInventory(root).identities,
+  };
 }
 
 function requireIdentical(before: Record<string, string>, after: Record<string, string>): void {
@@ -206,22 +217,26 @@ export async function observeBoundedDelivery(cwd: string): Promise<AttemptTermin
     mode: 0o600,
   });
   const oldMask = process.umask(0o077);
+  let resolvedTools: Record<string, ToolDetails> = {};
+  let executionEnvironment: NodeJS.ProcessEnv = {};
   try {
     start = { ...start, inputs: currentInputs(root) };
     publishRecord(store, directory, 'start', start);
     published = true;
     appendFileSync(diagnostic, 'Inputs bound; preparing an independent committed clone.\n');
-    const tools = toolInventory();
+    const tools = toolInventory(root);
     const bin = nodePath.join(work, 'bin');
     const home = nodePath.join(work, 'home');
     const temporary = nodePath.join(work, 'tmp');
-    for (const path of [bin, home, temporary]) mkdirSync(path, { mode: 0o700 });
+    const probeHome = nodePath.join(work, 'version-probes');
+    for (const path of [bin, home, temporary, probeHome]) mkdirSync(path, { mode: 0o700 });
     const environment = controlledEnvironment(tools, bin, home, temporary);
     environment.PATH = [
       bin,
       nodePath.join(clone, 'packages/cli/node_modules/.bin'),
       nodePath.join(clone, 'node_modules/.bin'),
     ].join(nodePath.delimiter);
+    executionEnvironment = environment;
     const copied = spawnSync(
       toolPath(tools, 'git'),
       [
@@ -249,6 +264,7 @@ export async function observeBoundedDelivery(cwd: string): Promise<AttemptTermin
       });
     }
     requireIdentical(dependencyIdentity(root), dependencyIdentity(clone));
+    resolvedTools = executionToolDetails(tools, root, clone, environment, probeHome);
     const cloneInputs = sourceIdentity(clone);
     const cloneDependencies = dependencyIdentity(clone);
     prepareRelay(toolPath(tools, 'bun'), clone, environment, diagnostic);
@@ -281,6 +297,8 @@ export async function observeBoundedDelivery(cwd: string): Promise<AttemptTermin
     const terminal: AttemptTerminal = {
       ...start,
       status: 'observed',
+      tools: resolvedTools,
+      execution_environment: executionEnvironment,
       finished_at: new Date().toISOString(),
       report_path: report,
       report_sha256: digest(bytes),
@@ -296,6 +314,8 @@ export async function observeBoundedDelivery(cwd: string): Promise<AttemptTermin
     const terminal: AttemptTerminal = {
       ...start,
       status: problem.includes('interrupted') ? 'interrupted' : 'refused',
+      tools: resolvedTools,
+      execution_environment: executionEnvironment,
       finished_at: new Date().toISOString(),
       problem,
       report_path: report,
