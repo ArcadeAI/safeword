@@ -88,6 +88,21 @@ function ticketPath(cwd: string, ticketId: string): string | undefined {
   return folder === undefined ? undefined : nodePath.join(tickets, folder, 'ticket.md');
 }
 
+function recordTicketReview(ticket: string, reviewId: string): void {
+  const content = readFileSync(ticket, 'utf8');
+  const marker = 'branch_review_exit_id';
+  const current = readFrontmatterScalar(content, marker);
+  if (current === reviewId) return;
+  const updated =
+    current === undefined
+      ? content.replace(/^---\r?\n/u, opening => `${opening}${marker}: ${reviewId}\n`)
+      : content.replace(/^branch_review_exit_id:[^\n]*$/mu, () => `${marker}: ${reviewId}`);
+  if (updated === content) throw new Error('Ticket frontmatter cannot record the branch review');
+  const temporary = `${ticket}.${process.pid}.branch-review.tmp`;
+  writeFileSync(temporary, updated, { mode: 0o600 });
+  renameSync(temporary, ticket);
+}
+
 // Git and configuration each have independent failure cases; keep the choice in one place.
 // eslint-disable-next-line complexity -- Git config and remote discovery have separate failure branches.
 function integrationReference(cwd: string): { remote: string; branch: string; ref: string } {
@@ -261,6 +276,7 @@ function unavailableReview(
       content_snapshot: snapshots.content,
       unavailable_reason: reason,
     });
+    recordTicketReview(ticket, record.id);
     return createResult({
       state: 'action_required',
       findings: [{ code: 'BRANCH_REVIEW_UNAVAILABLE', message: reason, severity: 'warning' }],
@@ -320,6 +336,31 @@ function projectLedger(text: string): string {
     .join('\n');
 }
 
+function withoutWorkLog(text: string): string {
+  const lines = text.split('\n');
+  const start = lines.findIndex(line => /^## Work Log\s*$/u.test(line));
+  if (start === -1) return text;
+  let end = start + 1;
+  while (end < lines.length && !/^##\s+/u.test(lines[end] ?? '')) end += 1;
+  return [...lines.slice(0, start), ...lines.slice(end)].join('\n');
+}
+
+function projectExecutionPlan(text: string): string {
+  let inChecklist = false;
+  return text
+    .split('\n')
+    .map(line => {
+      if (/^##\s+/u.test(line)) inChecklist = /^## Delivery checklist\s*$/u.test(line);
+      if (!inChecklist || !line.startsWith('|')) return line;
+      const columns = line.split('|');
+      if (columns.length !== 11 || columns[1]?.trim() === 'ID' || /^\s*---/u.test(columns[1] ?? ''))
+        return line;
+      for (let index = 6; index <= 9; index += 1) columns[index] = ' ';
+      return columns.join('|');
+    })
+    .join('\n');
+}
+
 function projectedBytes(
   path: string,
   bytes: Buffer | undefined,
@@ -329,16 +370,18 @@ function projectedBytes(
   if (bytes === undefined) return '<deleted>';
   const isTicket = path === `${ticketDirectory}/ticket.md`;
   const isLedger = path === `${ticketDirectory}/test-definitions.md`;
-  if (!isTicket && !isLedger) {
+  const isExecutionPlan = path === `${ticketDirectory}/execution-plan.md`;
+  if (!isTicket && !isLedger && !isExecutionPlan) {
     return createHash('sha256').update(bytes).digest('hex');
   }
   let text = bytes.toString('utf8');
   if (isTicket) {
-    text = text.replaceAll(/^(?:phase|status|last_modified):[^\n]*\n/gmu, '');
-    text = text.replace(/^## Work Log\s*$[\s\S]*$/mu, '');
+    text = text.replaceAll(/^(?:phase|status|last_modified|branch_review_exit_id):[^\n]*\n/gmu, '');
+    text = withoutWorkLog(text);
     text = `${text.trimEnd()}\n`;
   }
   if (isLedger) text = projectLedger(text);
+  if (isExecutionPlan) text = projectExecutionPlan(text);
   return digest(text);
 }
 
@@ -646,14 +689,40 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
   if (phase !== 'implement' && phase !== 'verify') {
     return noCoverage(ticketId, 'Branch review can only check implementation exit or completion');
   }
+  const ticket = ticketPath(cwd, ticketId);
+  const marker =
+    ticket === undefined
+      ? undefined
+      : readFrontmatterScalar(readFileSync(ticket, 'utf8'), 'branch_review_exit_id');
+  if (phase === 'verify' && marker === undefined) {
+    return createResult({
+      state: 'healthy',
+      findings: [
+        {
+          code: 'BRANCH_REVIEW_LEGACY_UNCOVERED',
+          message: 'This ticket entered verification before branch-review tracking was installed.',
+          severity: 'info',
+        },
+      ],
+      data: {
+        command: 'review branch-check',
+        ticket_id: ticketId,
+        phase,
+        coverage: 'none',
+        freshness: 'current',
+        legacy_uncovered: true,
+        may_advance: true,
+      },
+    });
+  }
   const record = latestRecord(cwd, ticketId);
-  if (record === undefined) {
+  if (record === undefined || marker !== record.id) {
     return createResult({
       state: 'action_required',
       findings: [
         {
           code: 'BRANCH_REVIEW_MISSING',
-          message: 'No current branch review is recorded.',
+          message: 'No current branch review matches the ticket review marker.',
           severity: 'warning',
         },
       ],
@@ -670,7 +739,6 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
   const fresh = reviewIsCurrent(cwd, record, phase);
   const acknowledgement =
     record.coverage === 'partial' ? readAcknowledgement(cwd, record) : undefined;
-  const ticket = ticketPath(cwd, ticketId);
   const disclosed =
     acknowledgement !== undefined &&
     ticket !== undefined &&
@@ -887,6 +955,7 @@ export async function reviewBranch(
     exit_snapshot: snapshots.exit,
     content_snapshot: snapshots.content,
   });
+  recordTicketReview(ticket, record.id);
   return createResult({
     state:
       freshness === 'current' &&
