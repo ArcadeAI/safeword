@@ -1,0 +1,83 @@
+# Execution Plan: Review complete branch changes before builders finish
+
+**Status:** planned
+**Prepared on:** 2026-10-23
+
+## Pull-request slicing
+
+**Decision:** one pull request
+
+**Rationale:** Inventory, signed result, and exit validator express one claim: the reviewed branch scope is known and still current. Shipping one without the others leaves an unguarded command or a gate without truthful evidence. Host wrappers and docs expose that same contract.
+
+## PR 1 — Review and validate the complete branch at implementation exit
+
+- **Purpose:** Give a BDD builder a ticket-aware branch review with honest coverage and a current exit decision.
+- **Boundary:** Shared CLI Git inventory, bounded coordinator passes, signed result and acknowledgement, phase gate and four local host adapters, docs and generated mirrors. Generic quality review stays compatible; PR readiness and human review stay outside this PR.
+- **Prerequisites:** none; the approved 15 scenarios and Implementation Plan are fixed inputs.
+- **Proof:** Temporary Git remotes and a controlled reviewer subprocess prove inventory, packets, failed passes, signed results, freshness, acknowledgement and phase writes. One registration-to-gate test per local host proves wiring. A small reviewer-output eval checks a cross-file finding.
+- **Completion signal:** All 15 scenarios pass. Every changed path is reviewed or named as omitted. Current complete or acknowledged partial evidence permits exit; stale or absent evidence refuses it. Supported local hosts use the same decision.
+- **Relies on an unmerged successor:** no.
+
+### Tasks and tests
+
+1. **RED — failed later pass:** Add `packages/cli/tests/integration/branch-review.test.ts`. In a temporary bare remote and feature branch, change enough files for two bounded passes. The controlled reviewer approves pass one and fails pass two. Run `bun run test tests/integration/branch-review.test.ts` from `packages/cli`; it must fail because no typed partial result names pass two's paths. Compare reviewed plus omitted paths to an independently run NUL-delimited Git inventory.
+2. **GREEN — inventory and packet:** Add the branch-scoped operation to the shared review CLI and job store. Resolve the configured or remote-default integration ref, fetch it, compute merge base, include committed and nonignored working-tree changes, partition authored evidence under existing packet bounds, and include ticket goals in each pass. Refuse caller-provided base/ref/path selection. Classify deletes, renames, generated files, dirty work, unreadable or sensitive paths, missing base and failed passes; return typed base/head, prioritized findings, reviewed/omitted paths, coverage and freshness. Preserve generic quality-review behavior. Re-run the focused test.
+3. **RED/GREEN — signed state and gate:** Add `packages/cli/tests/integration/branch-review-gate.test.ts` using the real CLI result and ticket phase-write validator. Exercise fetched upstream merges, topic upstream tracking, remote-tip movement, pre-exit amend/rebase, identical-content later commits, and authored or goal changes. Exclude only phase, status, last_modified, Work Log entries, review acknowledgement, verify.md, and non-goal-bearing audit/evidence records from freshness. Complete current evidence advances; partial needs an atomic sidecar bound to review ID, ticket ID and omission digest plus exact generated Work Log disclosure; tampering, no changes, missing base or stale work refuse. Select only the latest completed job. The successful implement-to-verify write is the exit boundary; afterward identical content retains currency, changed authored content or goals does not.
+4. **RED/GREEN — host wiring:** Add `packages/cli/tests/integration/branch-review-host-gates.test.ts`. At both implement-to-verify and verify-to-done, invoke registered Claude Code, Codex, Cursor and OpenCode CLI adapters with the real shared validator, mocking only the host process boundary. RED shows stale work currently passes; GREEN blocks where the host supports blocking and reports advisory behavior otherwise. Report older bundles as uncovered.
+5. **RED/GREEN — findings and words:** Add `packages/cli/tests/integration/branch-review-finding-eval.test.ts` with two small related files and a ticket scenario. A controlled reviewer result must produce affected behavior, relevant paths, consequence and priority. Partial, none and stale reports must name missed paths and a concrete next action. Treat this as a sample, not exhaustive semantic proof.
+6. **REFACTOR:** Simplify after each GREEN. Extract helpers only for repeated real call sites. Record RED/GREEN/REFACTOR ledger evidence with commit SHA or an explicit `skip:` reason.
+7. **Docs and generation:** Edit source BDD/host templates, README and website workflow prose for automatic exit review, coverage, freshness, acknowledgement and reasoned skip. Run `bun run safeword install` from the root, then `bun run fix:generated-surfaces` from `packages/cli`; inspect any lifecycle result-hash change. Do not hand-edit generated carriers.
+8. **Final checks:** From root run `bun run lint`, `bun run build`, then one `bun run test` full suite. From `packages/cli` run `bun run check:generated-surfaces`. Run scenario, verify and audit gates, recording surface limits honestly.
+
+## Obligation ownership
+
+| Accepted obligation | Owning PRs |
+| --- | --- |
+| Merge-base scope without caller narrowing; committed, dirty, deleted, renamed, generated and unavailable path accounting | PR 1 |
+| Bounded ticket-aware review, cross-file findings, failed-pass omissions and plain-language result | PR 1 |
+| Signed complete/partial/none result, latest-job selection, exact omission acknowledgement and disclosure | PR 1 |
+| Full exit snapshot and later authored-content/goal freshness without bookkeeping loops | PR 1 |
+| Four local host exits, advisory limits, older-bundle status and existing-job compatibility | PR 1 |
+| Source docs, generated/dogfood parity, safe rollback to old instruction | PR 1 |
+| Representative real-boundary outcome and reviewer-output sample; no quantitative metric | PR 1 |
+
+## Deferred scope ownership
+
+- PR readiness and GitHub human review remain with existing workflows.
+- Per-edit and RED/GREEN review events are excluded from this ticket.
+
+## Decision accounting
+
+- Branch inventory and coverage authority: unchanged.
+- Bounded review: unchanged.
+- Freshness: unchanged.
+- Exit enforcement: unchanged.
+
+## Proof specifications
+
+| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |
+| --- | --- | --- | --- | --- | --- | --- |
+| branch-git | command | integration | Real Git remote, shared CLI packet, reviewer subprocess, path accounting and signed result | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/branch-review.test.ts"]} |
+| branch-gate | command | integration | Real receipt and ticket phase-write validator, acknowledgement and later freshness | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/branch-review-gate.test.ts"]} |
+| branch-hosts | command | integration | Four registered local host adapters calling the shared phase gate | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/branch-review-host-gates.test.ts"]} |
+| branch-eval | command | integration | Controlled reviewer output for cross-file behavior and user-facing explanation | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/branch-review-finding-eval.test.ts"]} |
+| docs-review | review_receipt | eval | Source workflow instructions and builder-facing language | real_boundary | current_required | {"type":"review_receipt","kind":"quality-review","targets":["README.md","packages/website/src/content/docs/getting-started/workflow.mdx"]} |
+| full-suite | command | integration | Current package behavior and regressions | real_boundary | current_required | {"type":"command","cwd":".","argv":["bun","run","test"]} |
+
+## Delivery checklist
+
+<!-- safeword:delivery-checklist:v1 -->
+
+| ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| outcome-scope | outcome and scope | Account for every changed path against ticket behavior | contributor | branch-git | open | missing | | |
+| resolved-decisions | resolved decisions | Preserve four recorded decisions in result and gate | contributor | branch-gate | open | missing | | |
+| pr-decomposition | dependency and pull-request decomposition | One coherent PR leaves a supported state | contributor | full-suite | open | missing | | |
+| testing | testing | Prove Git, gate, host and finding boundaries | contributor | branch-hosts | open | missing | | |
+| data-compatibility | data and compatibility | Older jobs cannot claim coverage; current jobs retain integrity | contributor | branch-gate | open | missing | | |
+| monitoring | monitoring and failure signals | Partial, none, stale and failed passes give next actions | contributor | branch-eval | open | missing | | |
+| security-privacy | security and privacy | Sensitive bytes stay outside packets while paths remain counted | contributor | branch-git | open | missing | | |
+| rollout-rollback | rollout and rollback | In-flight tickets use new gate after install; revert restores old exit | contributor | branch-gate | open | missing | | |
+| documentation | documentation | Docs and host guidance explain new review and limits | contributor | docs-review | open | missing | | |
+| ownership-dependencies | ownership and human dependencies | Shared CLI owns claim; local hosts call it; no new human approval | contributor | branch-hosts | open | missing | | |
+| completion-evidence | completion evidence | Current suite and generated surfaces pass with ledger complete | contributor | full-suite | open | missing | | |

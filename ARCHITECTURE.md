@@ -1105,6 +1105,20 @@ safeword accepts this trade — **consistency and enforcement over independent b
 
 ---
 
+### Branch-scoped implementation-exit review
+
+**Status:** Proposed
+**Date:** 2026-10-23
+**Ticket:** 1AHFZS
+
+The shared CLI owns the complete merge-base-to-HEAD path inventory for a BDD implementation-exit review. Callers cannot supply a narrower base or file subset. Its signed, ticket-scoped result distinguishes path coverage (`complete`, `partial`, `none`) from content freshness (`current`, `stale`), retains omitted paths and reasons, and binds the reviewed work and ticket goals to the result. Bounded reviewer passes reuse the host-owned coordinator. A path a pass could not review remains omitted; a dirty working tree cannot earn complete coverage.
+
+At implementation exit, a current result must match the reviewed Git work and ticket goals. Partial coverage requires an agent decision bound to exact omissions plus CLI-generated disclosure in the ticket Work Log and gate result. Empty inventory uses the reasoned-skip route. The verify-to-done phase-write gate revalidates authored work and goals, excluding routine records; an identical-content commit alone does not stale review. Generic quality-review stamps cannot assert branch coverage.
+
+Only project configuration may set a remote-tracking integration branch. By default, use the selected remote's symbolic HEAD, never the topic branch's upstream. Fetch at review and exit; compare ref name and recomputed merge base, not a moving remote tip. Exit requires the exact reviewed HEAD. The signed job is immutable. A partial acknowledgement is a separate authenticated atomic record keyed by review ID and omissions, outside the reviewable snapshot. The latest completed review is the candidate. Goal identity includes ticket scope/exclusions/done conditions, Product Plan jobs and Rules, scenarios, and test obligations; named routine metadata and evidence are excluded from exit and later comparisons. Unknown authored files remain reviewable.
+
+This extends the coordinator without a new stage. Existing jobs are not backfilled. Reassess if jobs need portability or packet limits routinely prevent useful coverage.
+
 ### Host-owned cross-agent adversarial review coordinator
 
 **Status:** Accepted
