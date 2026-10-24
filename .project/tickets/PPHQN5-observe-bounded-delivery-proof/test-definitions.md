@@ -27,7 +27,7 @@ request after commit-or-clean instructions. The human proof checks that action;
 the JSON Cucumber control separately checks that execution never starts.
 
 - [x] RED 1be7378a6
-- [ ] GREEN
+- [x] GREEN 6d93f43cc
 - [ ] REFACTOR
 
 ### Scenario: A candidate change during execution prevents a successful observation
