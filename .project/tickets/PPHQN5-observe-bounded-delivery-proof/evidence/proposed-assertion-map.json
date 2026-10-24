@@ -1,0 +1,729 @@
+{
+  "schema_version": 1,
+  "purpose": "subordinate proposed mapping for Implementation Plan review; not shipped contract, receipt, semantic certificate or completion authority",
+  "ticket": "T3E4NS",
+  "source_revision": "f211c4c30fdb40e7fc5f342eaf981143c750db7b",
+  "cases": [
+    {
+      "case_id": "03ff74d76376e79f03706c74c0a60da0b830207a5365eac62d81c6c1eda4961d",
+      "block": "Phase contracts ask the bounded scope and persona questions",
+      "row_index": 0,
+      "expanded_steps": [
+        "the delivered Product, Implementation and Execution review contracts",
+        "their canonical review questions are inspected",
+        "omissions and overreach are checked against accepted authority",
+        "Product outcomes and epistemic status are explicit while guidance remains advisory"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-scope-review.test.ts",
+          "full_name": "planning scope review contract asks every phase to check both omissions and overreach against accepted authority"
+        },
+        {
+          "file": "packages/cli/tests/integration/planning-scope-review.test.ts",
+          "full_name": "planning scope review contract makes persona outcomes and epistemic status Product approval questions"
+        },
+        {
+          "file": "packages/cli/tests/integration/planning-scope-review.test.ts",
+          "full_name": "planning scope review contract treats external guidance as candidate decisions within the accepted boundary"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "81021d29e42dbc17f676c392882b48e9ee7138cfcd1217634c15a9385656912c",
+      "block": "Reviewer evidence survives validated output without inventing missing limits",
+      "row_index": 0,
+      "expanded_steps": [
+        "a new planning verdict with complete versioned source and reuse-limit records",
+        "the provider result is validated",
+        "every declared field survives unchanged"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "full_name": "planning review evidence boundary retains declared source and reuse limits in a versioned reviewer result"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "e2c16c3e3a94534e0916965488a7fb18e8911e438706ea05aaa6e0350b28fa5a",
+      "block": "Reviewer evidence survives validated output without inventing missing limits",
+      "row_index": 1,
+      "expanded_steps": [
+        "a new planning verdict with no required evidence wrapper",
+        "the provider result is validated",
+        "the verdict refuses"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "full_name": "planning review evidence boundary refuses a new planning verdict that omits evidence records"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "33d50a54db46105f2823f877aaa202860c862b2f58fcd239addb57be5eab57da",
+      "block": "Reviewer evidence survives validated output without inventing missing limits",
+      "row_index": 2,
+      "expanded_steps": [
+        "a new planning verdict with an empty license identifier",
+        "the provider result is validated",
+        "the verdict refuses rather than dropping the field"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "full_name": "planning review evidence boundary rejects an empty license identifier instead of silently dropping its limit"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "e6c1f10c0ef4faa475b2e545ca9403f2932484233fdeb6413688ae133f5c4641",
+      "block": "Reviewer evidence survives validated output without inventing missing limits",
+      "row_index": 3,
+      "expanded_steps": [
+        "a new planning verdict with an undeclared evidence field",
+        "the provider result is validated",
+        "the verdict refuses rather than dropping the field"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "full_name": "planning review evidence boundary refuses undeclared evidence fields rather than silently discarding them"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "2f86283e5b6d92639eceabfa7a2be36b410afd907a411a8d73e6d2426f330cd0",
+      "block": "A malformed plan record refuses after the complete plan succeeds",
+      "row_index": 0,
+      "expanded_steps": [
+        "an owned plan whose complete evidence record can prepare for review",
+        "its security limit is removed",
+        "preparation refuses with the missing field named"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+          "full_name": "names missing source limits after a complete owned plan can prepare for dispatch"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "9f40e1dd99d48b4747b0bdadb4030ac6510563267932bc96604bc38b05acac43",
+      "block": "Installed rule edits preserve unrelated Implementation review currency",
+      "row_index": 0,
+      "expanded_steps": [
+        "an approved Implementation review from a trusted installed distribution",
+        "canonical Implementation rules changes",
+        "the Implementation review is stale",
+        "requesting that Implementation review refuses because whole-copy integrity fails"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/installed-planning-copy-admission.test.ts",
+          "full_name": "reconstructs installed rule currency after PLAN_IMPLEMENTATION.md (editorial: false)"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "89c0627f79d45cf6aadb202bd73166a8cedee2ea2258900a9430b22edbdce6ac",
+      "block": "Installed rule edits preserve unrelated Implementation review currency",
+      "row_index": 1,
+      "expanded_steps": [
+        "an approved Implementation review from a trusted installed distribution",
+        "unrelated canonical Execution rules changes",
+        "the Implementation review is approved",
+        "requesting that Implementation review succeeds with unchanged Implementation bytes"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/installed-planning-copy-admission.test.ts",
+          "full_name": "reconstructs installed rule currency after PLAN_EXECUTION.md (editorial: false)"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "be1c7809133b146944b4c1b08fd82afadb99960fe56b3428d26e20489ee15a5b",
+      "block": "Installed rule edits preserve unrelated Implementation review currency",
+      "row_index": 2,
+      "expanded_steps": [
+        "an approved Implementation review from a trusted installed distribution",
+        "prose outside the canonical Implementation region changes",
+        "the Implementation review is approved",
+        "requesting that Implementation review refuses because whole-copy integrity fails"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/installed-planning-copy-admission.test.ts",
+          "full_name": "reconstructs installed rule currency after PLAN_IMPLEMENTATION.md (editorial: true)"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "9a53895e13a245adb6452fa78acf6345c275afad02b03c35197f63d743d8e782",
+      "block": "Refused selectors cannot manufacture permission for fallback",
+      "row_index": 0,
+      "expanded_steps": [
+        "a verified author and an unknown explicit reviewer selector unqualified-model",
+        "every independent candidate is refused before launch",
+        "the review is blocked and records that selector as skipped with a capability failure",
+        "neither the refused reviewer nor fallback receives a packet"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "full_name": "blocks explicit unqualified-model without launching any route when no independent attempt exists"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "a0ea4c948e11b8e65576f08d84336d76956626143a6f76013c498f2cd8f6aa25",
+      "block": "Refused selectors cannot manufacture permission for fallback",
+      "row_index": 1,
+      "expanded_steps": [
+        "a verified author and an unqualified named explicit reviewer selector gpt-6-luna",
+        "every independent candidate is refused before launch",
+        "the review is blocked and records that selector as skipped with a capability failure",
+        "neither the refused reviewer nor fallback receives a packet"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "full_name": "blocks explicit gpt-6-luna without launching any route when no independent attempt exists"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "bf2db0a29157821bc81436d3417f42e9c6c8e621699b4d4bbff4efff9bbf7ea7",
+      "block": "A failed independent attempt precedes eligible fallback",
+      "row_index": 0,
+      "expanded_steps": [
+        "configured independent and fallback reviewers in either declaration order",
+        "the independent reviewer succeeds",
+        "independent review runs first",
+        "fallback never runs"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "full_name": "tries the independent reviewer before fallback when claude precedes codex, codex failure is false, author model is absent, and model is confirmed false"
+        },
+        {
+          "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "full_name": "tries the independent reviewer before fallback when codex precedes claude, codex failure is false, author model is absent, and model is confirmed false"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. Both declaration orders are required for this outcome."
+    },
+    {
+      "case_id": "56a38005e7c51a1c8c1e572b01a589b45ff368d45a58daf044ebcb90f805763f",
+      "block": "A failed independent attempt precedes eligible fallback",
+      "row_index": 1,
+      "expanded_steps": [
+        "configured independent and fallback reviewers in either declaration order",
+        "the independent reviewer actually fails with an eligible typed failure",
+        "independent review runs first",
+        "fallback follows that failure"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "full_name": "tries the independent reviewer before fallback when claude precedes codex, codex failure is true, author model is absent, and model is confirmed false"
+        },
+        {
+          "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+          "full_name": "tries the independent reviewer before fallback when codex precedes claude, codex failure is true, author model is absent, and model is confirmed false"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. Both declaration orders are required for this outcome."
+    },
+    {
+      "case_id": "252a72f4c78b63c513ff734bc4e812aaebb44287d6d74d3351e26848ac48b54c",
+      "block": "Completed observations survive termination",
+      "row_index": 0,
+      "expanded_steps": [
+        "a live worker has checkpointed paired headless results and raw observations",
+        "it is killed before teardown",
+        "the exact completed result and its paired raw observation remain readable"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "retains completed raw observations when the worker is killed before teardown"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "5d3ebf9dc17db0b586dd63405b5be1ed967918fab5e602548260be4c1069c8f8",
+      "block": "Retained reuse checks current identity before any reviewer launch",
+      "row_index": 0,
+      "expanded_steps": [
+        "valid paired completed headless observations and a requested identity with matching current contract, corpus and exact model",
+        "retained reuse preflight runs",
+        "the retained observation is readable and execution proceeds"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "checks retained metadata before any reviewer launch (matching)"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "395c93781f31cdc19f9d13723ffb94230f09932d6da44e03e737bc79ec509c4c",
+      "block": "Retained reuse checks current identity before any reviewer launch",
+      "row_index": 1,
+      "expanded_steps": [
+        "valid paired completed headless observations and a requested identity with a changed expected contract",
+        "retained reuse preflight runs",
+        "reuse refuses before launch"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "checks retained metadata before any reviewer launch (changed contract)"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "e0ab3b9cf30ec23190479b9767634fbc9623a34544f09b31996aae51de9c1476",
+      "block": "Retained reuse checks current identity before any reviewer launch",
+      "row_index": 2,
+      "expanded_steps": [
+        "valid paired completed headless observations and a requested identity with acceptance corpus markers in the request",
+        "retained reuse preflight runs",
+        "reuse refuses before launch"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "checks retained metadata before any reviewer launch (acceptance)"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "407bbdbf7142aa9c1a1757c5dcecd1773c5be5df176a7fbdf8e0b78c91a61f16",
+      "block": "Retained reuse checks current identity before any reviewer launch",
+      "row_index": 3,
+      "expanded_steps": [
+        "valid paired completed headless observations and a requested identity with public CLI dispatch markers in the request",
+        "retained reuse preflight runs",
+        "reuse refuses before launch"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "checks retained metadata before any reviewer launch (CLI)"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "5b868c70a98cc8406d673caa2e96a1a901563e919823014e5168d700cc0554e1",
+      "block": "Retained reuse checks current identity before any reviewer launch",
+      "row_index": 4,
+      "expanded_steps": [
+        "valid paired completed headless observations and a requested identity with an omitted exact model",
+        "retained reuse preflight runs",
+        "reuse refuses before launch"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "checks retained metadata before any reviewer launch (runtime default)"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "773571487800f6fd60b823c1ee45fd32aaf764da2e8bb6a40c74e048c9d33680",
+      "block": "Retained reuse checks current identity before any reviewer launch",
+      "row_index": 5,
+      "expanded_steps": [
+        "valid paired completed headless observations and a requested identity with replay mode markers in the request",
+        "retained reuse preflight runs",
+        "reuse refuses before launch"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "checks retained metadata before any reviewer launch (replay)"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "8876dcefcb5a30a90de4608dc9e119aa6cd1355a86f3693c0af2fdac13e2db69",
+      "block": "Corrupt or unconfirmed retained output refuses",
+      "row_index": 0,
+      "expanded_steps": [
+        "an otherwise valid retained checkpoint",
+        "its raw output has missing confirmation",
+        "reading the checkpoint refuses with exact model confirmation"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "rejects retained passing evidence with missing confirmation"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "2e1b9e7d89036155c58c731228b4962d9b4e32f3d6254425448af0e505454221",
+      "block": "Corrupt or unconfirmed retained output refuses",
+      "row_index": 1,
+      "expanded_steps": [
+        "an otherwise valid retained checkpoint",
+        "its raw output has wrong model",
+        "reading the checkpoint refuses with exact model confirmation"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "rejects retained passing evidence with wrong model"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "e99f6976e85527ddf282b81ef27d1c8e768628755376b06da84cbdc51f73e2ca",
+      "block": "Corrupt or unconfirmed retained output refuses",
+      "row_index": 2,
+      "expanded_steps": [
+        "an otherwise valid retained checkpoint",
+        "its raw output has wrong provider",
+        "reading the checkpoint refuses with exact model confirmation"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "rejects retained passing evidence with wrong provider"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "58a97abb238e0b214b542a5c3c77ccf55f56a2e4279a84fd94ceb8bcda5ebbfa",
+      "block": "Corrupt or unconfirmed retained output refuses",
+      "row_index": 3,
+      "expanded_steps": [
+        "an otherwise valid retained checkpoint",
+        "its raw output has unpaired case identity",
+        "reading the checkpoint refuses with paired raw observation"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "rejects retained passing evidence with unpaired output"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "362359437482bd618d53f9949d79b0381f8c191aea6c5f69773e64bfb7d3abd6",
+      "block": "Corrupt or unconfirmed retained output refuses",
+      "row_index": 4,
+      "expanded_steps": [
+        "an otherwise valid retained checkpoint",
+        "its raw output has CLI dispatch mode",
+        "reading the checkpoint refuses with headless"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "rejects retained passing evidence with CLI output"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "b351af6565279756270be7d26c05ea9062191acb0225a50ab013f8f797c5a463",
+      "block": "Corrupt or unconfirmed retained output refuses",
+      "row_index": 5,
+      "expanded_steps": [
+        "an otherwise valid retained checkpoint",
+        "its raw output has replay dispatch mode",
+        "reading the checkpoint refuses with headless"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+          "full_name": "rejects retained passing evidence with replayed output"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "530bae49b35e94fa8d72886487415472fa895d0f878b715720ff2222e7d98f23",
+      "block": "Qualification evidence refuses incomplete or failed matrices",
+      "row_index": 0,
+      "expanded_steps": [
+        "complete current passing conformance records for an exact reviewer identity",
+        "admission evidence is built",
+        "evidence records the exact identity and all case IDs"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "full_name": "Execution Plan semantic conformance admission writes evidence only after every case passes for each exact identity"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "7b8c3f07d02dbbde91c0f2cbc1befc10fb0ec8e572a7175a057cf03f1fa42cef",
+      "block": "Qualification evidence refuses incomplete or failed matrices",
+      "row_index": 1,
+      "expanded_steps": [
+        "incomplete conformance records for an exact reviewer identity",
+        "admission evidence is built",
+        "admission evidence is refused"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "full_name": "Execution Plan semantic conformance admission refuses to write evidence from a missing case"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "cc3c2607fbbfe01bfb1ac3acb7d8b684515eb8d1fb49edbeb1fccb246ea6f06b",
+      "block": "Qualification evidence refuses incomplete or failed matrices",
+      "row_index": 2,
+      "expanded_steps": [
+        "containing a failed observation conformance records for an exact reviewer identity",
+        "admission evidence is built",
+        "admission evidence is refused"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "full_name": "Execution Plan semantic conformance admission refuses to write evidence from a failing case"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "dcdb57396e74f3995f4d8d6de6e2792634348972b7c60ec81db2ded97b57bf7c",
+      "block": "Route admission binds exact identity and current input bytes",
+      "row_index": 0,
+      "expanded_steps": [
+        "complete passing admission evidence with the matching exact model and current input digests",
+        "configured explicit model routes are filtered",
+        "the matching explicit route is retained"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "full_name": "Execution Plan semantic conformance admission admits exact models and explicit runtime defaults without conflating them"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. One exact assertion tests both matched and unmatched explicit routes; its expected array checks inclusion and exclusion."
+    },
+    {
+      "case_id": "c1dc4b6ff6d5317be161ba6de074d24a91254861a2612e25092cc5dec1813732",
+      "block": "Route admission binds exact identity and current input bytes",
+      "row_index": 1,
+      "expanded_steps": [
+        "complete passing admission evidence with a different exact model",
+        "configured explicit model routes are filtered",
+        "the requested explicit route is absent"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "full_name": "Execution Plan semantic conformance admission admits exact models and explicit runtime defaults without conflating them"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. One exact assertion tests both matched and unmatched explicit routes; its expected array checks inclusion and exclusion."
+    },
+    {
+      "case_id": "db885d32aea332f005a5fb1926cfd893a6ec2835f61cd7441e1f0f3dd80c6a8a",
+      "block": "Route admission binds exact identity and current input bytes",
+      "row_index": 2,
+      "expanded_steps": [
+        "complete passing admission evidence with mismatched contract or corpus digests",
+        "configured explicit model routes are filtered",
+        "no route is retained"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+          "full_name": "Execution Plan semantic conformance admission rejects evidence bound to any other contract or fixture corpus bytes"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "667b226e0cc0365cc857a8cc245f20cdd3df5311c0bfcd270a5d8af88975aa06",
+      "block": "Corrupt reviewer copies refuse and the canonical pair dispatches",
+      "row_index": 0,
+      "expanded_steps": [
+        "an installed canonical authoring copy and canonical reviewer copy",
+        "an Execution Plan review is requested through the installed CLI",
+        "the plan actually reaches the reviewer"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity allows the packaged canonical pair through the installed CLI"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "f3a9ce0ca774c467af3eb5d65bbe53c3c6ef19c32aebbaea38cfbb063aa278aa",
+      "block": "Corrupt reviewer copies refuse and the canonical pair dispatches",
+      "row_index": 1,
+      "expanded_steps": [
+        "an installed canonical authoring copy and appended reviewer-only text reviewer copy",
+        "an Execution Plan review is requested through the installed CLI",
+        "no plan is sent and the phase and reconciliation action are named"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity blocks stale-reviewer through the installed CLI with the failed copy named"
+        },
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity refuses stale-reviewer before dispatching its plan to a reviewer"
+        },
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity names the phase and repair action for stale-reviewer"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "50335a21e51a3e7c939b13c584b49d98cda0359fb7c3e1034b91483d2227260b",
+      "block": "Corrupt reviewer copies refuse and the canonical pair dispatches",
+      "row_index": 2,
+      "expanded_steps": [
+        "an installed canonical authoring copy and stale canonical slicing reviewer copy",
+        "an Execution Plan review is requested through the installed CLI",
+        "no plan is sent and the phase and reconciliation action are named"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity blocks stale-slicing-contract through the installed CLI with the failed copy named"
+        },
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity refuses stale-slicing-contract before dispatching its plan to a reviewer"
+        },
+        {
+          "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+          "full_name": "Execution Plan review-contract identity names the phase and repair action for stale-slicing-contract"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "fc578f9c261ce5933a969f6cf4241c2b33dacb7af312e88804b10e9ddd524f24",
+      "block": "Public documentation describes reduced assurance and its limits",
+      "row_index": 0,
+      "expanded_steps": [
+        "the delivered public overview and Implementation Planning skill guidance",
+        "their fallback and approval descriptions are checked",
+        "reduced assurance remains explicit and planning approval does not clear the later independent architecture check"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/integration/planning-documentation.test.ts",
+          "full_name": "planning fallback documentation describes reduced fallback honestly in the public overview"
+        },
+        {
+          "file": "packages/cli/tests/integration/planning-documentation.test.ts",
+          "full_name": "planning fallback documentation distinguishes planning approval from the later independent architecture gate"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    },
+    {
+      "case_id": "331386a4d8e5ddc36a5aee7bf5bb997cff0d29bcf474d209efcf3f35164d9721",
+      "block": "Native generated distributions carry their canonical template roots",
+      "row_index": 0,
+      "expanded_steps": [
+        "generated Claude assets and the checked-in Codex native distribution",
+        "their templates and bundled runtime are checked",
+        "the Claude bundle contains its canonical template root",
+        "the Codex bundled CLI executes without project dependencies and reports that version"
+      ],
+      "required_assertions": [
+        {
+          "file": "packages/cli/tests/claude-plugin/catalogue.test.ts",
+          "full_name": "Claude plugin catalogue generation packages the canonical template root consumed by the standalone CLI"
+        },
+        {
+          "file": "packages/cli/tests/codex-plugin-version.test.ts",
+          "full_name": "Codex plugin release contract executes the bundled CLI without project dependencies or a populated package cache"
+        }
+      ],
+      "source_limit": "Execution only; semantic adequacy requires review of retained source. No live reviewer qualification or host lifecycle claim."
+    }
+  ],
+  "assertion_sources": [
+    {
+      "file": "packages/cli/tests/claude-plugin/catalogue.test.ts",
+      "sha256": "b71fc45f021e037d608f721a69b586993171608b8d43a3ff6caed0bb5471753a"
+    },
+    {
+      "file": "packages/cli/tests/codex-plugin-version.test.ts",
+      "sha256": "19aed9b4a841cc925c46ddef6559e4a4a024dbb410fc7fbd637619942958e107"
+    },
+    {
+      "file": "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
+      "sha256": "10aaa8cb5c33abafa9c5f90070f3701918c251926d31bec76e1420ce41385638"
+    },
+    {
+      "file": "packages/cli/tests/integration/installed-planning-copy-admission.test.ts",
+      "sha256": "6afbc36da8eb6202821e8fa0cde7c473a948c52d42cba7d5717605a31bb89e20"
+    },
+    {
+      "file": "packages/cli/tests/integration/planning-documentation.test.ts",
+      "sha256": "30082de33044b2e18a0367237c7e48c2846ee06f5c7fbf0b9000ff86ac885af7"
+    },
+    {
+      "file": "packages/cli/tests/integration/planning-evidence-boundary.test.ts",
+      "sha256": "1042c4104766576df66d7422972db298b919f4aef7c816cc5119da5b418d9e8d"
+    },
+    {
+      "file": "packages/cli/tests/integration/planning-review-route-order.test.ts",
+      "sha256": "8d2d63bb53c3a20f17bb245185e742b2be87b34c0c6258954d2c8af95ce4e214"
+    },
+    {
+      "file": "packages/cli/tests/integration/planning-scope-review.test.ts",
+      "sha256": "ec7bc14d18ec7f4c7d81c984691054ea392f4113aeca2144bc20e1b9b7dbb0e4"
+    },
+    {
+      "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
+      "sha256": "01bae383fe71efc870a07f7f78e95056003e6c4054fce3afccdc4804f576bd81"
+    },
+    {
+      "file": "packages/cli/tests/review/execution-plan-contract-identity.test.ts",
+      "sha256": "5f01625f4345e3e37035e991f7bf11a2a920c63c6688010e3e95aa2b91cd0075"
+    }
+  ],
+  "characterization": "Exact names found in the retained earlier 257-pass report, not a new run. Selection is authored from accepted steps and assertion source, not inferred from counts."
+}
