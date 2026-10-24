@@ -158,6 +158,17 @@ export function gradeReport(
     }
   }
   const results = new Map<string, AssertionResult[]>();
+  const actualFiles = files
+    .map(file => nodePath.resolve(file.name))
+    .toSorted((left, right) => left.localeCompare(right));
+  const expectedFiles = fixedFiles
+    .map(file => nodePath.join(clone, 'packages/cli', file))
+    .toSorted((left, right) => left.localeCompare(right));
+  if (canonical(actualFiles) !== canonical(expectedFiles)) {
+    throw new Error(
+      'Incomplete fixed file set in runner report; repair the complete lane and rerun',
+    );
+  }
   for (const file of files) {
     for (const assertion of file.assertionResults) {
       const key = `${nodePath.resolve(file.name)}\0${assertion.fullName}`;

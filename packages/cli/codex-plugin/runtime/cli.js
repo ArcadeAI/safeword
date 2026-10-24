@@ -17494,6 +17494,11 @@ function gradeReport(bytes, clone) {
     }
   }
   const results = new Map;
+  const actualFiles = files.map((file) => nodePath4.resolve(file.name)).toSorted((left, right) => left.localeCompare(right));
+  const expectedFiles = fixedFiles.map((file) => nodePath4.join(clone, "packages/cli", file)).toSorted((left, right) => left.localeCompare(right));
+  if (canonical(actualFiles) !== canonical(expectedFiles)) {
+    throw new Error("Incomplete fixed file set in runner report; repair the complete lane and rerun");
+  }
   for (const file of files) {
     for (const assertion of file.assertionResults) {
       const key = `${nodePath4.resolve(file.name)}\x00${assertion.fullName}`;
