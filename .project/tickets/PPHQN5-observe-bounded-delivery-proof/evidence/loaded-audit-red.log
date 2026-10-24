@@ -1,0 +1,27 @@
+✖ a new reader cannot turn its execution input into an audit exemption (148.377375ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 449.481167
+
+✖ failing tests:
+
+test at packages/cli/tests/integration/bounded-observation-runtime.node.ts:1:561
+✖ a new reader cannot turn its execution input into an audit exemption (148.377375ms)
+  AssertionError [ERR_ASSERTION]: Audit filename must not exempt a new loaded input
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-runtime.node.ts:42:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { 'file:reader.mjs': 'c1a1569f6246fb467dcad4ff2214bca7e24e4d2933172379108fc848ce1ee902', 'mode:reader.mjs': 'fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa', 'source:tracked': '3fe0bb8a4f4e928a69ba87ede5315dbf6c671c2c2c55f0972725c0198864799a' },
+    expected: { 'file:reader.mjs': 'c1a1569f6246fb467dcad4ff2214bca7e24e4d2933172379108fc848ce1ee902', 'mode:reader.mjs': 'fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa', 'source:tracked': '3fe0bb8a4f4e928a69ba87ede5315dbf6c671c2c2c55f0972725c0198864799a' },
+    operator: 'notDeepStrictEqual',
+    diff: 'simple'
+  }

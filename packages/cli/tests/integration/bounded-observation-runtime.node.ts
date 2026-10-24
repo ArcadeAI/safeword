@@ -1,15 +1,53 @@
 /* eslint-disable vitest/no-import-node-test -- Runtime artifact checks stay outside every Vitest parent. */
 
 import assert from 'node:assert/strict';
-import { appendFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import {
+  appendFileSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 
+import { sourceIdentity } from '../../src/bounded-observation/identity.js';
 import { controlledEnvironment } from '../../src/bounded-observation/tools.js';
 import { createObserverCandidate } from '../fixtures/bounded-observation.js';
+
+void test('a new reader cannot turn its execution input into an audit exemption', () => {
+  const prefix = nodePath.join(tmpdir(), 'bounded-loaded-audit-');
+  const directory = mkdtempSync(prefix);
+  const audit =
+    '.project/tickets/PPHQN5-observe-bounded-delivery-proof/evidence/observer-audit-summary.md';
+  try {
+    mkdirSync(nodePath.join(directory, nodePath.dirname(audit)), { recursive: true });
+    writeFileSync(nodePath.join(directory, audit), 'safe');
+    const reader = nodePath.join(directory, 'reader.mjs');
+    writeFileSync(
+      reader,
+      `import {readFileSync} from 'node:fs'; process.stdout.write(readFileSync(${JSON.stringify(audit)}));\n`,
+    );
+    execFileSync('git', ['init', '--quiet', '--template='], { cwd: directory });
+    execFileSync('git', ['add', '.'], { cwd: directory });
+    assert.equal(execFileSync('node', [reader], { cwd: directory, encoding: 'utf8' }), 'safe');
+    const before = sourceIdentity(directory);
+    writeFileSync(nodePath.join(directory, audit), 'changed');
+    assert.equal(execFileSync('node', [reader], { cwd: directory, encoding: 'utf8' }), 'changed');
+    assert.notDeepEqual(
+      sourceIdentity(directory),
+      before,
+      'Audit filename must not exempt a new loaded input',
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 void test('fixed runner preserves the host temporary root used by the shared test lock', () => {
   const prefix = nodePath.join(tmpdir(), 'bounded-lock-location-');
