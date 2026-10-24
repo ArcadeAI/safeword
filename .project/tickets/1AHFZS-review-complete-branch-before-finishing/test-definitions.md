@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A multi-file feature is reviewed from the integration merge base
 
 - [x] RED 897464019
-- [ ] GREEN
+- [x] GREEN fddd53b36
 - [ ] REFACTOR
 
 ### Scenario: A caller cannot shrink the branch by naming a later base
