@@ -41,7 +41,7 @@ Other scenarios remain open; no final actual-checkout proof is claimed.
 ### Scenario: An unmapped delivery case prevents execution
 
 - [x] RED 4e8207dc7
-- [ ] GREEN
+- [x] GREEN dfc49fb24
 - [ ] REFACTOR
 
 ### Scenario: A required assertion without a passing result prevents success
