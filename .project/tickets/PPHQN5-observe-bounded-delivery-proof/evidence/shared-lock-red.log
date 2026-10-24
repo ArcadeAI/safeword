@@ -1,0 +1,32 @@
+✖ fixed runner preserves the host temporary root used by the shared test lock (2.007459ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 298.899
+
+✖ failing tests:
+
+test at packages/cli/tests/integration/bounded-observation-runtime.node.ts:1:432
+✖ fixed runner preserves the host temporary root used by the shared test lock (2.007459ms)
+  AssertionError [ERR_ASSERTION]: Fixed runner must retain the existing shared-lock namespace
+  + actual - expected
+  
+  + '/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/bounded-lock-location-2RGm4e'
+  - '/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T'
+  
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-runtime.node.ts:26:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/bounded-lock-location-2RGm4e',
+    expected: '/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
