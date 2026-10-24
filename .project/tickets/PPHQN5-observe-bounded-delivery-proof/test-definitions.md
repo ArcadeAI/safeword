@@ -17,7 +17,7 @@ no scenario completion or final actual-checkout proof is claimed.
 ### Scenario: A caller cannot substitute an execution command
 
 - [x] RED d6c9231aa
-- [ ] GREEN
+- [x] GREEN c9665017f
 - [ ] REFACTOR
 
 ### Scenario: Uncommitted execution inputs prevent observation
