@@ -215,7 +215,7 @@ export function expectCompleteObservation(
     true,
     `the public CLI cannot produce and verify a complete bounded observation: ${result.stdout}${result.stderr}`,
   );
-  assert.equal(result.exitCode, 0);
+  assert.equal(result.exitCode, 0, result.stdout + result.stderr);
   const data = result.output.data;
   assert.ok(data, 'The public CLI must emit the observation');
   assert.equal(data.status, 'observed');
@@ -256,7 +256,9 @@ export function expectCompleteObservation(
       .toSorted((left, right) => left.localeCompare(right)),
   );
   for (const expected of reviewedObserverMapping.cases) {
-    const actual = data.case_results.find(row => row.case_id === expected.case_id);
+    const actual:
+      { case_id: string; assertions: (RequiredAssertion & { status: string })[] } | undefined =
+      data.case_results.find(row => row.case_id === expected.case_id);
     assert.ok(actual);
     assert.deepEqual(
       actual.assertions.map(({ file, full_name, status }) => ({ file, full_name, status })),
