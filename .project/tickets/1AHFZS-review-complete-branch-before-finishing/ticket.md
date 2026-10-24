@@ -2,7 +2,7 @@
 id: 1AHFZS
 slug: review-complete-branch-before-finishing
 type: feature
-phase: scenario-gate
+phase: plan-implementation
 status: in_progress
 phase_anchors:
   - define-behavior: .project/tickets/1AHFZS-review-complete-branch-before-finishing/spec.md
