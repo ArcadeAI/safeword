@@ -136,7 +136,11 @@ function completeSessionDoneTicket(
   }
 
   if (ticket.type === 'feature') {
-    const problem = branchReviewCompletionProblem(projectDirectory, ticket.folder);
+    const problem = branchReviewCompletionProblem(
+      projectDirectory,
+      ticket.folder,
+      nodePath.join(ticketDirectory, 'ticket.md'),
+    );
     if (problem !== undefined) {
       return { completed: false, blockReason: problem, architectureAdvisory: null };
     }

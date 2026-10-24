@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "524127c3804d08d88d6561ada4b27ee8c679d10a34768d5c473710e716a19d78"
+      "sha256": "774dd95a993c30685cce8f15698c016ce1a7833ac1a764dfed85adb34bdac1eb"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "8be894fad9c54255bcb4e63fff68038f83ef08f31bf5af3a2f3a2a5c1f1fb586"
+      "sha256": "739512be653083b289039c93d2f0a132be1564d312c5cf2f7ffe1ed667a40f5b"
     },
     {
       "path": "runtime/event-groups.json",
@@ -423,7 +423,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-cli.ts",
-      "sha256": "f0bb5833ed5d782c4da62a5ba14eb4e047fb6c297803622e0d0cc9d72bfdf41a"
+      "sha256": "570bdc36f964181b51875d8a0f4a4a81684e14de961fe0d16f8c071f61a90390"
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
@@ -619,7 +619,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "1b20b04c817a9f45c81cfd344df59ae7b337aae9528f2f7e677d31681efe880e"
+      "sha256": "46350d38c82b215e534fe730b4bf5d85fb6464a3ddf6631ffaa0afc8003373be"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -1139,7 +1139,7 @@
     },
     {
       "path": "templates/hooks/codex/stop.ts",
-      "sha256": "f93f90f48bfa2aee024cae5ff3420c18b19d62bc9e85143db1226013f4927077"
+      "sha256": "0d8d0df49283e858652c44f6519e0793ebd462b62852c39a2e724ca5cb856f46"
     },
     {
       "path": "templates/hooks/cursor/after-file-edit.ts",
@@ -1419,7 +1419,7 @@
     },
     {
       "path": "templates/hooks/lib/safeword-cli.ts",
-      "sha256": "f0bb5833ed5d782c4da62a5ba14eb4e047fb6c297803622e0d0cc9d72bfdf41a"
+      "sha256": "570bdc36f964181b51875d8a0f4a4a81684e14de961fe0d16f8c071f61a90390"
     },
     {
       "path": "templates/hooks/lib/safeword-context.ts",
@@ -1615,7 +1615,7 @@
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "6c46ae902ef1882c6ef392bc9fabb50a3d6299a12fc496c596d14b20015d82a2"
+      "sha256": "c376d7d336c0ee7cc834f2222e63198bc52a93daa5200776c648c49e4e0b4a1c"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",

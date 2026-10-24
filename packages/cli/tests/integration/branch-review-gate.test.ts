@@ -325,7 +325,11 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
       const previous = process.env.SAFEWORD_PLUGIN_CLI;
       process.env.SAFEWORD_PLUGIN_CLI = testCliPath;
       try {
-        return branchReviewCompletionProblem(project, 'ABC123-review-branch');
+        return branchReviewCompletionProblem(
+          project,
+          'ABC123-review-branch',
+          nodePath.join(ticket, 'ticket.md'),
+        );
       } finally {
         if (previous === undefined) delete process.env.SAFEWORD_PLUGIN_CLI;
         else process.env.SAFEWORD_PLUGIN_CLI = previous;

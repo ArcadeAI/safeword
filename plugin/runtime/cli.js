@@ -3669,7 +3669,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
-        ".safeword/hooks/stop-quality.ts": "6c46ae902ef1882c6ef392bc9fabb50a3d6299a12fc496c596d14b20015d82a2",
+        ".safeword/hooks/stop-quality.ts": "c376d7d336c0ee7cc834f2222e63198bc52a93daa5200776c648c49e4e0b4a1c",
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "ecdb55e277a4188e5daf1c9a9de3f5e28bed724a14064e374eb4db10a9d0921e",
@@ -81989,7 +81989,6 @@ var init_principle_trace = __esm(() => {
 // templates/hooks/lib/safeword-cli.ts
 var TRUSTED_PATH_SETTINGS, TRUSTED_ENVIRONMENT;
 var init_safeword_cli = __esm(() => {
-  init_namespace_root2();
   TRUSTED_PATH_SETTINGS = [
     "HOME",
     "USERPROFILE",

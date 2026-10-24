@@ -20,8 +20,6 @@ import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { resolveNamespaceRoot } from './namespace-root.js';
-
 export interface SafewordCli {
   command: string;
   args: string[];
@@ -281,6 +279,7 @@ export function askTrustedSafeword<T>(
 export function branchReviewCompletionProblem(
   projectDirectory: string,
   ticketFolder: string,
+  ticketPath: string,
 ): string | undefined {
   const ticketId = ticketFolder.split('-')[0];
   if (!ticketId || !/^[A-Za-z0-9]+$/u.test(ticketId))
@@ -288,14 +287,8 @@ export function branchReviewCompletionProblem(
   // A feature already in verification before branch reviews existed has no
   // marker or local job. Its prior completion route remains available.
   try {
-    const ticket = nodePath.join(
-      resolveNamespaceRoot(projectDirectory),
-      'tickets',
-      ticketFolder,
-      'ticket.md',
-    );
     const jobs = nodePath.join(projectDirectory, '.safeword', 'state', 'reviews', 'branch');
-    const hasMarker = /^branch_review_exit_id:/mu.test(readFileSync(ticket, 'utf8'));
+    const hasMarker = /^branch_review_exit_id:/mu.test(readFileSync(ticketPath, 'utf8'));
     if (!hasMarker && (!existsSync(jobs) || readdirSync(jobs).length === 0)) return undefined;
   } catch {
     // Unreadable local state still needs the trusted checker.
