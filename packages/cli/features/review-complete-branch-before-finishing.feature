@@ -29,6 +29,14 @@ Feature: Review complete branch changes before builders finish
       When the builder reviews the branch
       Then the command refuses the topic ref without saving a review result
 
+    @rejection
+    Scenario: Renamed, deleted, and force-added ignored paths remain in the inventory
+      Given a branch renames one file, deletes another, and force-adds an ignored authored file
+      When the builder reviews the branch
+      Then the rename destination and force-added file are reviewed
+      And the rename source and deleted file are named as omitted with reasons
+      And coverage is partial rather than complete
+
   @branch-review.TBU1.R2
   Rule: branch-review.TBU1.R2 — Findings are prioritized and actionable across files
 
@@ -117,6 +125,13 @@ Feature: Review complete branch changes before builders finish
       Given a branch has authored changes and an explicitly generated path
       When the builder reviews the branch
       Then the report names the generated path as omitted with its reason
+      And the coverage is partial rather than complete
+
+    @rejection
+    Scenario: An oversized authored file cannot count as completely reviewed
+      Given a branch changes an authored file larger than one reviewer packet permits
+      When the builder reviews the branch
+      Then the report names the oversized path as omitted with its reason
       And the coverage is partial rather than complete
 
     @rejection

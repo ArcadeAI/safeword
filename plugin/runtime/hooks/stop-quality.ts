@@ -968,6 +968,15 @@ if (currentPhase === 'done') {
     }
   }
 
+  if (isFeature && ticketInfo.folder) {
+    const problem = branchReviewCompletionProblem(
+      projectDir,
+      ticketInfo.folder,
+      `${ticketsDir}/${ticketInfo.folder}/ticket.md`,
+    );
+    if (problem !== undefined) hardBlockDone(problem);
+  }
+
   // Every done-gate check passed. Settle an owed close before the navigation
   // and architecture nudges below exit, or the gate reruns on every Stop.
   if (owedDoneGateTicket !== undefined) {
@@ -981,14 +990,6 @@ if (currentPhase === 'done') {
 
   // Evidence passed — mark current ticket done and navigate hierarchy
   if (ticketInfo.folder) {
-    if (isFeature) {
-      const problem = branchReviewCompletionProblem(
-        projectDir,
-        ticketInfo.folder,
-        `${ticketsDir}/${ticketInfo.folder}/ticket.md`,
-      );
-      if (problem !== undefined) hardBlockDone(problem);
-    }
     const currentTicketDirectory = `${ticketsDir}/${ticketInfo.folder}`;
     updateTicketStatus(currentTicketDirectory, 'done', 'done');
 

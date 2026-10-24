@@ -3652,7 +3652,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "d070d934d73ed9d7ec4554cf7ffc5baf0cab079566be0a9e1c4931383ffb16c8",
+        ".safeword/hooks/pre-tool-quality.ts": "76f595bfa25c87bf9665a09ed8652cf9ae5490e075b6f73c1388a7b580e75548",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -3669,7 +3669,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
-        ".safeword/hooks/stop-quality.ts": "c376d7d336c0ee7cc834f2222e63198bc52a93daa5200776c648c49e4e0b4a1c",
+        ".safeword/hooks/stop-quality.ts": "ffe7c7a8dfe37ae9823045ee6185ed51ff9e3ef319300e33a349160817822cea",
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "ecdb55e277a4188e5daf1c9a9de3f5e28bed724a14064e374eb4db10a9d0921e",
@@ -31577,6 +31577,12 @@ var init_parse_annotation = __esm(() => {
 });
 
 // templates/hooks/lib/review-ledger.ts
+function reviewScope(ticketId, artifact, contentHash) {
+  return `${ticketId}:${artifact}@${contentHash}`;
+}
+function isSatisfyingSkipStamp(id, stamp) {
+  return stamp.scope === id && stamp.skipReason !== undefined && isValidSkipReason(stamp.skipReason);
+}
 function readCrossAgentReviewPolicy(rawConfig) {
   if (rawConfig === undefined)
     return "prefer";
@@ -55750,16 +55756,16 @@ var PRODUCT_PLAN_RUBRIC_START = "<!-- SAFEWORD:PRODUCT_PLAN_RUBRIC_START -->", P
 import { AsyncLocalStorage } from "async_hooks";
 function withReviewScope(run2) {
   const scope = {};
-  return reviewScope.run(scope, async () => ({ result: await run2(), scope }));
+  return reviewScope2.run(scope, async () => ({ result: await run2(), scope }));
 }
 function recordFinalizedScope(excludedTargets) {
-  const scope = reviewScope.getStore();
+  const scope = reviewScope2.getStore();
   if (scope !== undefined)
     scope.excludedTargets = [...excludedTargets];
 }
-var reviewScope;
+var reviewScope2;
 var init_scope = __esm(() => {
-  reviewScope = new AsyncLocalStorage;
+  reviewScope2 = new AsyncLocalStorage;
 });
 
 // src/review/packet.ts
@@ -85647,6 +85653,72 @@ function branchGateProblem(record3, fresh, findingsResolved, acknowledged) {
     severity: "warning"
   };
 }
+function reasonedSkipFor(cwd, record3) {
+  const log = nodePath140.join(resolveNamespaceRoot2(cwd), "skill-invocations.log");
+  if (!existsSync65(log))
+    return;
+  const ticket = ticketPath(cwd, record3.ticket_id);
+  if (ticket === undefined)
+    return;
+  const scope = reviewScope(nodePath140.basename(nodePath140.dirname(ticket)), "phase", record3.review_phase ?? "implement");
+  return parseReviewStamps(readFileSync92(log, "utf8")).findLast((stamp) => stamp.reviewId === record3.id && isSatisfyingSkipStamp(scope, stamp))?.skipReason;
+}
+function supersededRequestedFindings(cwd, record3) {
+  const directory = branchRecordsDirectory(cwd);
+  if (!existsSync65(directory))
+    return [];
+  const files2 = readdirSync37(directory).filter((name) => /^\d+-[a-f\d-]+\.json$/u.test(name)).toSorted((left, right) => right.localeCompare(left));
+  const findings = [];
+  let older = false;
+  for (const file of files2) {
+    let prior;
+    try {
+      prior = JSON.parse(readFileSync92(nodePath140.join(directory, file), "utf8"));
+    } catch {
+      continue;
+    }
+    if (!validRecord(cwd, prior))
+      continue;
+    if (prior.id === record3.id) {
+      older = true;
+      continue;
+    }
+    if (!older || prior.ticket_id !== record3.ticket_id)
+      continue;
+    findings.push(...prior.review_passes.filter((pass) => pass.status === "changes_requested").flatMap((pass) => pass.findings.map((finding2) => finding2.message)));
+  }
+  return [...new Set(findings)];
+}
+function noneDisclosure(cwd, record3, reason) {
+  const omitted = record3.omitted_paths.map((item) => `${item.path} (${item.reason})`).join(", ");
+  const earlier = supersededRequestedFindings(cwd, record3);
+  const earlierNote = earlier.length > 0 ? `. Earlier requested changes: ${earlier.join("; ")}` : "";
+  return `No branch changes were reviewed (coverage none). Omitted: ${omitted || "none"}. Reasoned skip: ${reason}${earlierNote}`;
+}
+function legacyUncoveredResult(ticketId, phase) {
+  return createResult({
+    state: "healthy",
+    findings: [
+      {
+        code: "BRANCH_REVIEW_LEGACY_UNCOVERED",
+        message: "This ticket entered verification before branch-review tracking was installed.",
+        severity: "info"
+      }
+    ],
+    data: {
+      command: "review branch-check",
+      ticket_id: ticketId,
+      phase,
+      coverage: "none",
+      freshness: "current",
+      legacy_uncovered: true,
+      may_advance: true
+    }
+  });
+}
+function mayAdvanceBranchReview(record3, fresh, findingsResolved, disclosed, skipReason) {
+  return fresh && findingsResolved && (record3.coverage === "complete" || disclosed || skipReason !== undefined);
+}
 function checkBranchReview(cwd, ticketId, phase) {
   if (phase !== "implement" && phase !== "verify") {
     return noCoverage(ticketId, "Branch review can only check implementation exit or completion");
@@ -85655,25 +85727,7 @@ function checkBranchReview(cwd, ticketId, phase) {
   const marker = ticket === undefined ? undefined : readFrontmatterScalar(readFileSync92(ticket, "utf8"), "branch_review_exit_id");
   const record3 = latestRecord(cwd, ticketId);
   if (phase === "verify" && marker === undefined && record3 === undefined) {
-    return createResult({
-      state: "healthy",
-      findings: [
-        {
-          code: "BRANCH_REVIEW_LEGACY_UNCOVERED",
-          message: "This ticket entered verification before branch-review tracking was installed.",
-          severity: "info"
-        }
-      ],
-      data: {
-        command: "review branch-check",
-        ticket_id: ticketId,
-        phase,
-        coverage: "none",
-        freshness: "current",
-        legacy_uncovered: true,
-        may_advance: true
-      }
-    });
+    return legacyUncoveredResult(ticketId, phase);
   }
   if (record3 === undefined || marker !== record3.id) {
     return createResult({
@@ -85699,7 +85753,8 @@ function checkBranchReview(cwd, ticketId, phase) {
   const acknowledgement = record3.coverage === "partial" ? readAcknowledgement(cwd, record3) : undefined;
   const disclosed = acknowledgement !== undefined && ticket !== undefined && workLogContains(readFileSync92(ticket, "utf8"), acknowledgement.disclosure);
   const findingsResolved = record3.review_passes.every((pass) => pass.status === "approved");
-  const mayAdvance = fresh && findingsResolved && (record3.coverage === "complete" || disclosed);
+  const skipReason = record3.coverage === "none" ? reasonedSkipFor(cwd, record3) : undefined;
+  const mayAdvance = mayAdvanceBranchReview(record3, fresh, findingsResolved, disclosed, skipReason);
   const skipEligible = fresh && findingsResolved && record3.coverage === "none" && (phase === "implement" || record3.review_phase === "implement" || record3.unavailable_reason !== undefined);
   return createResult({
     state: mayAdvance ? "healthy" : "action_required",
@@ -85719,7 +85774,8 @@ function checkBranchReview(cwd, ticketId, phase) {
       omitted_paths: record3.omitted_paths,
       branch_findings: record3.branch_findings ?? [],
       fetched_at: record3.fetched_at,
-      ...disclosed && { disclosure: acknowledgement.disclosure }
+      ...disclosed && { disclosure: acknowledgement.disclosure },
+      ...skipReason !== undefined && { disclosure: noneDisclosure(cwd, record3, skipReason) }
     }
   });
 }
@@ -85847,6 +85903,20 @@ async function reviewBranch(cwd, ticketId, offline) {
     }
     const data = result3.data;
     if ((data?.status === "approved" || data?.status === "changes_requested") && typeof data.actual_reviewer === "string") {
+      if (data.independence !== "cross-agent" || data.actual_reviewer === data.author_agent) {
+        findings.push(...result3.findings);
+        omitted.push(...pass.map((path8) => ({
+          path: path8,
+          reason: "review was not independently confirmed"
+        })));
+        passes.push({
+          paths: pass,
+          reviewer: data.actual_reviewer,
+          status: data.status,
+          findings: result3.findings
+        });
+        continue;
+      }
       const reviewerFindings = result3.findings.filter((finding2) => finding2.code === "REVIEWER_FINDING");
       const typed = reviewerFindings.map((finding2) => branchFinding(finding2, pass));
       if (typed.includes(undefined)) {
@@ -85907,8 +85977,7 @@ async function reviewBranch(cwd, ticketId, offline) {
     exit_snapshot: snapshots.exit,
     content_snapshot: snapshots.content
   });
-  if (record3.coverage !== "none" || record3.review_phase !== "verify")
-    recordTicketReview(ticket, record3.id);
+  recordTicketReview(ticket, record3.id);
   return createResult({
     state: freshness === "current" && coverage === "complete" && passes.every((pass) => pass.status === "approved") ? "healthy" : "action_required",
     findings,
@@ -85933,6 +86002,8 @@ async function reviewBranch(cwd, ticketId, offline) {
 }
 var InvalidIntegrationReference, IntegrationFetchFailure;
 var init_branch = __esm(() => {
+  init_namespace_root2();
+  init_review_ledger();
   init_result();
   init_configured_paths();
   init_coordinator();

@@ -177,7 +177,9 @@ it('reviews both authored files from the integration merge base against the tick
     },
   });
   expect(JSON.parse(emptyReplacement.stdout).data?.coverage).toBe('none');
-  expect(readFileSync(ticketPath, 'utf8')).toContain(String(originalMarker));
+  const replacementId = JSON.parse(emptyReplacement.stdout).data?.review_id;
+  expect(readFileSync(ticketPath, 'utf8')).toContain(`branch_review_exit_id: ${replacementId}`);
+  expect(readFileSync(ticketPath, 'utf8')).not.toContain(String(originalMarker));
 
   const ticketBeforeOffline = readFileSync(ticketPath, 'utf8');
   const jobs = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');

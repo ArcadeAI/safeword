@@ -26,11 +26,11 @@ const GATE_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-qu
 const STAMP_PATH = nodePath.resolve(__dirname, '../../templates/hooks/write-review-stamp.ts');
 const TICKET_ID = 'ABC123';
 
-const ticketBody = (phase: string): string =>
+const ticketBody = (phase: string, type = 'feature'): string =>
   [
     '---',
     'id: ABC123',
-    'type: feature',
+    `type: ${type}`,
     `phase: ${phase}`,
     'status: in_progress',
     'last_modified: 2026-06-03T00:00:00.000Z',
@@ -331,7 +331,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
         'export const value = 3;\n',
       );
       commitFeature();
-      writeFileSync(ticketFile, ticketBody('implement'));
+      writeFileSync(ticketFile, ticketBody('implement', 'task'));
 
       stampVerifiedPhase('implement');
       expectHookAllow(runGateEdit('implement', 'verify'));
@@ -401,7 +401,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       'export const value = 3;\n',
     );
     commitFeature();
-    writeFileSync(ticketFile, ticketBody('implement'));
+    writeFileSync(ticketFile, ticketBody('implement', 'task'));
 
     stampVerifiedPhase('implement');
     const responsePath = nodePath.join(
@@ -425,7 +425,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       nodePath.join(projectRoot, 'packages/cli/src/feature.ts'),
       'export const value = 3;\n',
     );
-    writeFileSync(ticketFile, ticketBody('implement'));
+    writeFileSync(ticketFile, ticketBody('implement', 'task'));
     expect(spawnSync('git', ['-C', projectRoot, 'add', '.']).status).toBe(0);
     expect(
       spawnSync('git', [
@@ -570,10 +570,12 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
 
     it('blocks a backward phase move under cross-model with a same-model stamp', () => {
       writeConfig(true, true);
-      writeFileSync(ticketFile, ticketBody('implement'));
+      writeFileSync(ticketFile, ticketBody('implement', 'task'));
       stampPhaseModel('implement', 'claude-opus-4-8');
       expectHookDeny(
-        runGateWrite('define-behavior', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
+        runGateEdit('implement', 'define-behavior', {
+          SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8',
+        }),
         'cross-model',
       );
     });

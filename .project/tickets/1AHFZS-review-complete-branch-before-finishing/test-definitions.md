@@ -24,6 +24,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 9a18e9342
 - [ ] REFACTOR
 
+### Scenario: Renamed, deleted, and force-added ignored paths remain in the inventory
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: branch-review.TBU1.R2 — Findings are prioritized and actionable across files
 
 ### Scenario: A cross-file behavior gap is explained
@@ -87,6 +93,12 @@ test-definitions.md is the R/G/R ledger.
 ## Rule: branch-review.NTB1.R1 — The report distinguishes reviewed paths from omissions
 
 ### Scenario: A skipped generated path cannot count as complete coverage
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An oversized authored file cannot count as completely reviewed
 
 - [ ] RED
 - [ ] GREEN

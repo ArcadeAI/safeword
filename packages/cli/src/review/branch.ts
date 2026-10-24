@@ -12,6 +12,12 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
+import { resolveNamespaceRoot } from '../../templates/hooks/lib/namespace-root.js';
+import {
+  isSatisfyingSkipStamp,
+  parseReviewStamps,
+  reviewScope,
+} from '../../templates/hooks/lib/review-ledger.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
@@ -825,6 +831,95 @@ function branchGateProblem(
       };
 }
 
+function reasonedSkipFor(cwd: string, record: BranchRecord): string | undefined {
+  const log = nodePath.join(resolveNamespaceRoot(cwd), 'skill-invocations.log');
+  if (!existsSync(log)) return undefined;
+  const ticket = ticketPath(cwd, record.ticket_id);
+  if (ticket === undefined) return undefined;
+  const scope = reviewScope(
+    nodePath.basename(nodePath.dirname(ticket)),
+    'phase',
+    record.review_phase ?? 'implement',
+  );
+  return parseReviewStamps(readFileSync(log, 'utf8')).findLast(
+    stamp => stamp.reviewId === record.id && isSatisfyingSkipStamp(scope, stamp),
+  )?.skipReason;
+}
+
+function supersededRequestedFindings(cwd: string, record: BranchRecord): string[] {
+  const directory = branchRecordsDirectory(cwd);
+  if (!existsSync(directory)) return [];
+  const files = readdirSync(directory)
+    .filter(name => /^\d+-[a-f\d-]+\.json$/u.test(name))
+    .toSorted((left, right) => right.localeCompare(left));
+  const findings: string[] = [];
+  let older = false;
+  for (const file of files) {
+    let prior: BranchRecord;
+    try {
+      prior = JSON.parse(readFileSync(nodePath.join(directory, file), 'utf8')) as BranchRecord;
+    } catch {
+      continue;
+    }
+    if (!validRecord(cwd, prior)) continue;
+    if (prior.id === record.id) {
+      older = true;
+      continue;
+    }
+    if (!older || prior.ticket_id !== record.ticket_id) continue;
+    findings.push(
+      ...prior.review_passes
+        .filter(pass => pass.status === 'changes_requested')
+        .flatMap(pass => pass.findings.map(finding => finding.message)),
+    );
+  }
+  return [...new Set(findings)];
+}
+
+function noneDisclosure(cwd: string, record: BranchRecord, reason: string): string {
+  const omitted = record.omitted_paths.map(item => `${item.path} (${item.reason})`).join(', ');
+  const earlier = supersededRequestedFindings(cwd, record);
+  const earlierNote =
+    earlier.length > 0 ? `. Earlier requested changes: ${earlier.join('; ')}` : '';
+  return `No branch changes were reviewed (coverage none). Omitted: ${omitted || 'none'}. Reasoned skip: ${reason}${earlierNote}`;
+}
+
+function legacyUncoveredResult(ticketId: string, phase: string): CliResult {
+  return createResult({
+    state: 'healthy',
+    findings: [
+      {
+        code: 'BRANCH_REVIEW_LEGACY_UNCOVERED',
+        message: 'This ticket entered verification before branch-review tracking was installed.',
+        severity: 'info',
+      },
+    ],
+    data: {
+      command: 'review branch-check',
+      ticket_id: ticketId,
+      phase,
+      coverage: 'none',
+      freshness: 'current',
+      legacy_uncovered: true,
+      may_advance: true,
+    },
+  });
+}
+
+function mayAdvanceBranchReview(
+  record: BranchRecord,
+  fresh: boolean,
+  findingsResolved: boolean,
+  disclosed: boolean,
+  skipReason: string | undefined,
+): boolean {
+  return (
+    fresh &&
+    findingsResolved &&
+    (record.coverage === 'complete' || disclosed || skipReason !== undefined)
+  );
+}
+
 // eslint-disable-next-line complexity -- The gate separates current, reviewed, acknowledged, and disclosed evidence.
 export function checkBranchReview(cwd: string, ticketId: string, phase: string): CliResult {
   if (phase !== 'implement' && phase !== 'verify') {
@@ -837,25 +932,7 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
       : readFrontmatterScalar(readFileSync(ticket, 'utf8'), 'branch_review_exit_id');
   const record = latestRecord(cwd, ticketId);
   if (phase === 'verify' && marker === undefined && record === undefined) {
-    return createResult({
-      state: 'healthy',
-      findings: [
-        {
-          code: 'BRANCH_REVIEW_LEGACY_UNCOVERED',
-          message: 'This ticket entered verification before branch-review tracking was installed.',
-          severity: 'info',
-        },
-      ],
-      data: {
-        command: 'review branch-check',
-        ticket_id: ticketId,
-        phase,
-        coverage: 'none',
-        freshness: 'current',
-        legacy_uncovered: true,
-        may_advance: true,
-      },
-    });
+    return legacyUncoveredResult(ticketId, phase);
   }
   if (record === undefined || marker !== record.id) {
     return createResult({
@@ -885,7 +962,8 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
     ticket !== undefined &&
     workLogContains(readFileSync(ticket, 'utf8'), acknowledgement.disclosure);
   const findingsResolved = record.review_passes.every(pass => pass.status === 'approved');
-  const mayAdvance = fresh && findingsResolved && (record.coverage === 'complete' || disclosed);
+  const skipReason = record.coverage === 'none' ? reasonedSkipFor(cwd, record) : undefined;
+  const mayAdvance = mayAdvanceBranchReview(record, fresh, findingsResolved, disclosed, skipReason);
   const skipEligible =
     fresh &&
     findingsResolved &&
@@ -914,6 +992,7 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
       branch_findings: record.branch_findings ?? [],
       fetched_at: record.fetched_at,
       ...(disclosed && { disclosure: acknowledgement.disclosure }),
+      ...(skipReason !== undefined && { disclosure: noneDisclosure(cwd, record, skipReason) }),
     },
   });
 }
@@ -1077,11 +1156,34 @@ export async function reviewBranch(
       omitted.push(...pass.map(path => ({ path, reason: 'review packet could not be prepared' })));
       continue;
     }
-    const data = result.data as { status?: unknown; actual_reviewer?: unknown } | undefined;
+    const data = result.data as
+      | {
+          status?: unknown;
+          actual_reviewer?: unknown;
+          author_agent?: unknown;
+          independence?: unknown;
+        }
+      | undefined;
     if (
       (data?.status === 'approved' || data?.status === 'changes_requested') &&
       typeof data.actual_reviewer === 'string'
     ) {
+      if (data.independence !== 'cross-agent' || data.actual_reviewer === data.author_agent) {
+        findings.push(...result.findings);
+        omitted.push(
+          ...pass.map(path => ({
+            path,
+            reason: 'review was not independently confirmed',
+          })),
+        );
+        passes.push({
+          paths: pass,
+          reviewer: data.actual_reviewer,
+          status: data.status,
+          findings: result.findings,
+        });
+        continue;
+      }
       const reviewerFindings = result.findings.filter(
         finding => finding.code === 'REVIEWER_FINDING',
       );
@@ -1156,8 +1258,7 @@ export async function reviewBranch(
     exit_snapshot: snapshots.exit,
     content_snapshot: snapshots.content,
   });
-  if (record.coverage !== 'none' || record.review_phase !== 'verify')
-    recordTicketReview(ticket, record.id);
+  recordTicketReview(ticket, record.id);
   return createResult({
     state:
       freshness === 'current' &&

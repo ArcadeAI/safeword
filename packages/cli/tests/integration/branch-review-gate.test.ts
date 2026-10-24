@@ -482,6 +482,29 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     });
     expect(JSON.parse(afterCommitReview.stdout).data?.coverage).toBe('complete');
     expectHookAllow(attemptExit());
+    const combinedWrite = spawnSync('bun', [hookPath], {
+      cwd: project,
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: project,
+        SAFEWORD_PLUGIN_CLI: testCliPath,
+        SAFEWORD_AGENT_RUNTIME: 'claude',
+      },
+      input: JSON.stringify({
+        session_id: 'branch-review-gate',
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Write',
+        tool_input: {
+          file_path: ticketPath,
+          content: readFileSync(ticketPath, 'utf8')
+            .replace('phase: implement', 'phase: verify')
+            .replace('- preserve access rule', '- allow bypass'),
+        },
+      }),
+    });
+    expectHookDeny(combinedWrite, 'ticket goals');
     writeFileSync(
       ticketPath,
       readFileSync(ticketPath, 'utf8').replace('phase: implement', 'phase: verify'),
@@ -536,13 +559,30 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     await expectLegacyVerificationUncovered(project, ticketPath);
     renameSync(archivedRecords, recordDirectory);
     const noChanges = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project, env });
-    expect(JSON.parse(noChanges.stdout).data?.coverage).toBe('none');
+    const noChangesReport = JSON.parse(noChanges.stdout) as {
+      data?: { coverage?: string; review_id?: string };
+    };
+    expect(noChangesReport.data?.coverage).toBe('none');
     expectHookDeny(attemptExit(), 'No branch changes were reviewed');
     writeFileSync(
       nodePath.join(project, '.project', 'skill-invocations.log'),
       'review:ABC123-review-branch:phase@implement skip:No branch changes exist at this implementation exit.\n',
     );
-    expect(attemptExit().stdout).toContain('Reasoned skip: No branch changes exist');
+    expectHookDeny(attemptExit(), 'No branch changes were reviewed');
+    writeFileSync(
+      nodePath.join(project, '.project', 'skill-invocations.log'),
+      `review:ABC123-review-branch:phase@implement review-id:${noChangesReport.data?.review_id} skip:No branch changes exist at this implementation exit.\n`,
+    );
+    expect(attemptExit().stdout).toContain('No branch changes were reviewed');
+    writeFileSync(
+      ticketPath,
+      readFileSync(ticketPath, 'utf8').replace('phase: implement', 'phase: verify'),
+    );
+    expect(completionProblem()).toBeUndefined();
+    writeFileSync(
+      ticketPath,
+      readFileSync(ticketPath, 'utf8').replace('phase: verify', 'phase: implement'),
+    );
     git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/missing');
     const unavailable = await runCli(['review', 'branch', 'ABC123', '--json'], {
       cwd: project,
@@ -550,7 +590,13 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     });
     expect(JSON.parse(unavailable.stdout).data?.coverage).toBe('none');
     expect(JSON.parse(unavailable.stdout).data?.freshness).toBe('current');
-    expect(attemptExit().stdout).toContain('Reasoned skip: No branch changes exist');
+    expectHookDeny(attemptExit(), 'No branch changes were reviewed');
+    const unavailableId = JSON.parse(unavailable.stdout).data?.review_id as string;
+    writeFileSync(
+      nodePath.join(project, '.project', 'skill-invocations.log'),
+      `review:ABC123-review-branch:phase@implement review-id:${unavailableId} skip:No integration base can be reached for this review.\n`,
+    );
+    expect(attemptExit().stdout).toContain('No branch changes were reviewed');
     writeFileSync(nodePath.join(project, 'new-work.txt'), 'new work after empty review\n');
     expectHookDeny(attemptExit(), 'stale');
   },

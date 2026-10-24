@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "774dd95a993c30685cce8f15698c016ce1a7833ac1a764dfed85adb34bdac1eb"
+      "sha256": "77dc66abf53fab327bb600a0bcad04dabb53a7c9a6fb3f0fa3f7f022f309bbdb"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "739512be653083b289039c93d2f0a132be1564d312c5cf2f7ffe1ed667a40f5b"
+      "sha256": "925fed4b73b31ed0bd50e933dcddca4cbf233121573199b3a7da3b2dc7c96bfd"
     },
     {
       "path": "runtime/event-groups.json",
@@ -523,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "0df6135361eb625fe52d6bbc0621aa3b51162f97fb7e22262acfe66679fcdcaf"
+      "sha256": "98811596f0b3e58fb222e1bf2ccba21d70603c89099549153f121cabed37b0b6"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -619,7 +619,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "46350d38c82b215e534fe730b4bf5d85fb6464a3ddf6631ffaa0afc8003373be"
+      "sha256": "9d67e2d20b3bdb0d0f19fc5368f477bf09e0b1d418fcbbd102c0fc5ee84ea58f"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -639,7 +639,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "38f47423d4a7e5db3be0df7e7dd7e5d15bfaf5ca4b4185930eaf345fda8cf567"
+      "sha256": "d54a03ad057338871376e4a00fe94a214c82ad1689f9317a9124af3b3257c9e7"
     },
     {
       "path": "skills/audit/SKILL.md",
@@ -1519,7 +1519,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "d070d934d73ed9d7ec4554cf7ffc5baf0cab079566be0a9e1c4931383ffb16c8"
+      "sha256": "76f595bfa25c87bf9665a09ed8652cf9ae5490e075b6f73c1388a7b580e75548"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1615,7 +1615,7 @@
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "c376d7d336c0ee7cc834f2222e63198bc52a93daa5200776c648c49e4e0b4a1c"
+      "sha256": "ffe7c7a8dfe37ae9823045ee6185ed51ff9e3ef319300e33a349160817822cea"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",
@@ -1635,7 +1635,7 @@
     },
     {
       "path": "templates/hooks/write-review-stamp.ts",
-      "sha256": "38f47423d4a7e5db3be0df7e7dd7e5d15bfaf5ca4b4185930eaf345fda8cf567"
+      "sha256": "d54a03ad057338871376e4a00fe94a214c82ad1689f9317a9124af3b3257c9e7"
     },
     {
       "path": "templates/personas-template.md",

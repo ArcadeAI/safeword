@@ -39,7 +39,7 @@ it('accounts for every changed path when a later bounded review pass fails', asy
   );
   writeFileSync(nodePath.join(project, 'seed.txt'), 'seed\n');
   writeFileSync(nodePath.join(project, 'remove-me.txt'), 'remove this later\n');
-  writeFileSync(nodePath.join(project, '.gitignore'), '.safeword/state/\n');
+  writeFileSync(nodePath.join(project, '.gitignore'), '.safeword/state/\nforce-added.txt\n');
   writeFileSync(nodePath.join(project, '.gitattributes'), 'generated.out generated\n');
   git(project, 'add', '.');
   git(project, 'commit', '-m', 'seed');
@@ -266,6 +266,8 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
 
   git(project, 'mv', 'seed.txt', 'renamed-seed.txt');
   git(project, 'rm', 'remove-me.txt');
+  writeFileSync(nodePath.join(project, 'force-added.txt'), 'authored despite ignore rule\n');
+  git(project, 'add', '-f', 'force-added.txt');
   git(project, 'commit', '-m', 'rename and remove legacy files');
   const renamed = await runCli(['review', 'branch', 'ABC123', '--json'], {
     cwd: project,
@@ -278,6 +280,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   });
   const renamedReport = JSON.parse(renamed.stdout);
   expect(renamedReport.data?.reviewed_paths).toContain('renamed-seed.txt');
+  expect(renamedReport.data?.reviewed_paths).toContain('force-added.txt');
   expect(renamedReport.data?.omitted_paths).toContainEqual({
     path: 'seed.txt',
     reason: 'deleted or renamed source',
@@ -286,6 +289,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     path: 'remove-me.txt',
     reason: 'deleted or renamed source',
   });
+  expect(renamedReport.data?.coverage).toBe('partial');
   const narrowed = await runCli(['review', 'branch', 'ABC123', 'HEAD~1', '--json'], {
     cwd: project,
   });
@@ -348,4 +352,24 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     cwd: project,
   });
   expect(JSON.parse(blockedSkip.stdout).data?.skip_eligible).toBe(false);
+
+  git(project, 'reset', '--hard', 'main');
+  const superseding = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env: {
+      PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+    },
+  });
+  const supersedingId = JSON.parse(superseding.stdout).data?.review_id as string;
+  writeFileSync(
+    nodePath.join(project, '.project', 'skill-invocations.log'),
+    `review:ABC123-review-branch:phase@implement review-id:${supersedingId} skip:No changed work remains at exit.\n`,
+  );
+  const supersedingCheck = await runCli(
+    ['review', 'branch-check', 'ABC123', 'implement', '--json'],
+    { cwd: project },
+  );
+  expect(JSON.parse(supersedingCheck.stdout).data?.may_advance).toBe(true);
+  expect(JSON.parse(supersedingCheck.stdout).data?.disclosure).toContain('Unattributed problem');
 });

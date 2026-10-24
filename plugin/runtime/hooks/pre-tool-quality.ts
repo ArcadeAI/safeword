@@ -987,6 +987,19 @@ function canonicalTicketEditContext(): CanonicalTicketEditContext {
   return cachedCanonicalTicketEditContext;
 }
 
+function ticketGoalsForBranchReview(content: string): string {
+  const withoutBookkeeping = content.replaceAll(
+    /^(?:phase|status|last_modified|branch_review_exit_id):[^\n]*\n/gmu,
+    '',
+  );
+  const lines = withoutBookkeeping.split('\n');
+  const start = lines.findIndex(line => /^## Work Log\s*$/u.test(line));
+  if (start === -1) return `${withoutBookkeeping.trimEnd()}\n`;
+  let end = start + 1;
+  while (end < lines.length && !/^##\s+/u.test(lines[end] ?? '')) end += 1;
+  return `${[...lines.slice(0, start), ...lines.slice(end)].join('\n').trimEnd()}\n`;
+}
+
 if (isCanonicalTicketEdit) {
   const context = canonicalTicketEditContext();
   const priorMarker = frontmatterScalar(context.priorMeta, 'branch_review_exit_id');
@@ -1296,41 +1309,23 @@ if (isCanonicalTicketEdit) {
         ? 'verify'
         : undefined;
   if (proposedType === 'feature' && phase !== undefined) {
+    const ticketEdit = canonicalTicketEditContext();
+    if (
+      ticketGoalsForBranchReview(ticketEdit.priorContent) !==
+      ticketGoalsForBranchReview(ticketEdit.proposedContent)
+    )
+      deny(
+        'The phase change also changes ticket goals, so the saved branch review cannot cover the proposed ticket.',
+        'Save the goal change first, review the branch against it, then change only the phase.',
+      );
     const ticketId = frontmatterScalar(canonicalTicketEditContext().proposedMeta, 'id');
     if (ticketId === undefined) deny('Branch review cannot identify the ticket.');
     const decision = branchReviewGateDecision(ticketId, phase);
     if (decision.denial !== undefined) {
-      const phaseScope = reviewScope(
-        nodePath.basename(nodePath.dirname(editedFile)),
-        'phase',
-        phase,
+      deny(
+        `Branch review is stale or incomplete: ${decision.denial}`,
+        'Run `safeword review branch <ticket-id>` and retry the phase change.',
       );
-      const reasonedSkip =
-        decision.coverage === 'none' &&
-        decision.freshness === 'current' &&
-        decision.skipEligible === true
-          ? readReviewStamps(phaseScope).find(
-              stamp =>
-                stamp.scope === phaseScope &&
-                stamp.skipReason !== undefined &&
-                isValidSkipReason(stamp.skipReason),
-            )
-          : undefined;
-      if (reasonedSkip !== undefined) {
-        console.log(
-          JSON.stringify({
-            hookSpecificOutput: {
-              hookEventName: 'PreToolUse',
-              additionalContext: `Branch review covered no changes. Reasoned skip: ${reasonedSkip.skipReason}`,
-            },
-          }),
-        );
-      } else {
-        deny(
-          `Branch review is stale or incomplete: ${decision.denial}`,
-          'Run `safeword review branch <ticket-id>` and retry the phase change.',
-        );
-      }
     }
     if (decision.disclosure !== undefined) {
       console.log(

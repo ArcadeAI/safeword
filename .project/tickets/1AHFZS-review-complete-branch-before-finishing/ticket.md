@@ -1,12 +1,14 @@
 ---
+branch_review_exit_id: 3eabfed2-3d5a-442f-be96-a70357fc6cb0
 id: 1AHFZS
 slug: review-complete-branch-before-finishing
 type: feature
-phase: implement
+phase: scenario-gate
 status: in_progress
 phase_anchors:
   - define-behavior: .project/tickets/1AHFZS-review-complete-branch-before-finishing/spec.md
   - scenario-gate: packages/cli/features/review-complete-branch-before-finishing.feature
+  - implement: .project/tickets/1AHFZS-review-complete-branch-before-finishing/execution-plan.md
 scope:
   - make the existing BDD implementation-exit quality review select the merge-base-to-HEAD branch change set and ticket behavior context automatically
   - review eligible authored changes in bounded passes while accounting for every changed path, including deletes, renames, generated output, and unavailable evidence
@@ -37,6 +39,10 @@ last_modified: 2026-10-23T00:00:00.000Z
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-10-24 Scenario repair: Independent review found that an oversized authored file could be unaccounted for. Added a twenty-first example under the accepted incomplete-coverage rule; renewed review is pending.
+
+- 2026-10-24 Scenario repair: Added the changed-path example for deleted, renamed, and force-added ignored files inside the builder-approved scope. The resulting twenty scenarios passed independent review under receipt 7663f1ba-de08-48a3-b6ea-2ec19c8e88a7; this replaces the older nineteen-scenario account below.
 
 - 2026-10-23 Scenario repair review: Claude reviewed all nineteen exact scenarios under receipt f28486d9-badc-4255-969a-62c19d49c8a7 and approved with no blocking findings. The builder's earlier approval covered fifteen examples; four later examples stay inside the same approved Rules and out-of-scope line, and the builder asked us to proceed until done. No new product-scope decision was made.
 
