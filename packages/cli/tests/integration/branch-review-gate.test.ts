@@ -474,9 +474,20 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   };
   const current = attemptExit();
   expectHookAllow(current);
-  writeFileSync(nodePath.join(project, 'change.txt'), 'uncommitted correction\n');
+  const changePath = nodePath.join(project, 'change.txt');
+  const committedFix = hostCase.endsWith('/ committed');
+  writeFileSync(changePath, committedFix ? 'committed correction\n' : 'uncommitted correction\n');
+  if (committedFix) {
+    git(project, 'add', 'change.txt');
+    git(project, 'commit', '-m', 'authored correction after review');
+  }
   assertLocalHostsBlock('implement', 'verify');
-  writeFileSync(nodePath.join(project, 'change.txt'), 'reviewed content\n');
+  if (committedFix) {
+    git(project, 'reset', '--hard', 'HEAD~1');
+    writeFileSync(ticketPath, markedTicket);
+  } else {
+    writeFileSync(changePath, 'reviewed content\n');
+  }
   writeFileSync(
     ledgerPath,
     ledger
