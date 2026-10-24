@@ -14,6 +14,8 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import { compareText } from '../../src/bounded-observation/contract.js';
+
 export const observerRepo = nodePath.resolve(import.meta.dirname, '../../../..');
 const mappingPath =
   '.project/tickets/PPHQN5-observe-bounded-delivery-proof/evidence/proposed-assertion-map.json';
@@ -115,12 +117,14 @@ export function createObserverCandidate(): ObserverCandidate {
           .filter(Boolean),
       ),
     ].toSorted((left, right) => left.localeCompare(right));
+    const copiedFiles: string[] = [];
     for (const file of files) {
       const source = nodePath.join(observerRepo, file);
       if (!existsSync(source)) continue;
       const destination = nodePath.join(root, file);
       mkdirSync(nodePath.dirname(destination), { recursive: true });
       cpSync(source, destination, { verbatimSymlinks: true, mode: constants.COPYFILE_FICLONE });
+      copiedFiles.push(file);
     }
     for (const source of reviewedObserverMapping.assertion_sources) {
       const candidateFile = nodePath.join(root, source.file);
@@ -132,7 +136,13 @@ export function createObserverCandidate(): ObserverCandidate {
       );
     }
     git(root, ['init', '--quiet']);
-    git(root, ['add', '--all']);
+    git(root, ['add', '--all', '--force']);
+    const committedFiles = git(root, ['ls-files', '-z']).split('\0').filter(Boolean);
+    assert.deepEqual(
+      committedFiles.toSorted(compareText),
+      copiedFiles.toSorted(compareText),
+      'Retain every copied input, including tracked files matched by ignore rules',
+    );
     git(root, [
       '-c',
       'core.hooksPath=/dev/null',

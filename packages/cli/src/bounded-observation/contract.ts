@@ -10,6 +10,7 @@ import profile from './profile.json';
 
 export const purpose = 'bounded-delivery-observation:v1';
 export const deliveryTicket = 'T3E4NS';
+export const fixedRunnerTimeoutMs = 600_000;
 export const fixedFiles = [
   'tests/bdd-proof-tags.test.ts',
   'tests/integration/planning-scope-review.test.ts',

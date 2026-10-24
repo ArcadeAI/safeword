@@ -152,6 +152,10 @@ status and named non-input audit updates need no rerun while the shipped reader
 code and configuration identity matches. With changed reader code or configuration,
 the observer conservatively binds those files in full. New committed assertion
 bodies remain observable; this fallback does not prohibit source changes.
+The match conservatively covers other tracked repository files too: even a
+documentation edit can disable exemptions until the reviewed identity is refreshed.
+Generated native bundles remain trusted build outputs and must pass the normal
+generated-surface checks; hand-editing them is unsupported.
 
 Runtime refusals use `BOUNDED_OBSERVATION_REFUSED`. Read `errors[].message` for
 the corrective prerequisite before retrying `next_actions[].command`. Invalid

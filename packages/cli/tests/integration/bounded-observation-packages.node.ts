@@ -92,6 +92,9 @@ for (const relative of ['plugin/runtime/cli.js', 'packages/cli/codex-plugin/runt
 
 function unpackNpm(host: ObserverCandidate): string {
   const packageRoot = nodePath.join(observerRepo, 'packages/cli');
+  const userConfig = nodePath.join(host.directory, 'npm-user.npmrc');
+  const globalConfig = nodePath.join(host.directory, 'npm-global.npmrc');
+  for (const path of [userConfig, globalConfig]) writeFileSync(path, '', { mode: 0o600 });
   const packed = JSON.parse(
     execFileSync(
       'npm',
@@ -101,8 +104,8 @@ function unpackNpm(host: ObserverCandidate): string {
         encoding: 'utf8',
         env: {
           ...host.environment,
-          npm_config_userconfig: '/dev/null',
-          npm_config_globalconfig: '/dev/null',
+          npm_config_userconfig: userConfig,
+          npm_config_globalconfig: globalConfig,
           npm_config_cache: nodePath.join(host.directory, 'npm-cache'),
         },
       },

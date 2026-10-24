@@ -22,6 +22,7 @@ import {
   deliveryTicket,
   digest,
   fixedFiles,
+  fixedRunnerTimeoutMs,
   gradeReport,
   profileSha256,
   purpose,
@@ -151,7 +152,7 @@ function runFixedLane(
     };
     process.once('SIGTERM', interrupt);
     process.once('SIGINT', interrupt);
-    const timer = setTimeout(interrupt, 600_000);
+    const timer = setTimeout(interrupt, fixedRunnerTimeoutMs);
     child.stdout.on('data', (bytes: Buffer) => {
       writeSync(stdout, bytes);
       fsyncSync(stdout);

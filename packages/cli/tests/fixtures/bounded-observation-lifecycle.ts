@@ -4,6 +4,7 @@ import { appendFileSync, existsSync, readdirSync, readFileSync, writeFileSync } 
 import nodePath from 'node:path';
 import { setTimeout as pollDelay } from 'node:timers/promises';
 
+import { fixedRunnerTimeoutMs } from '../../src/bounded-observation/contract.js';
 import {
   createObserverCandidate,
   type ObserverCandidate,
@@ -69,7 +70,7 @@ function launch(candidate: ObserverCandidate, marker: string, release: string): 
 }
 
 async function waitForPause(run: PausedObservation): Promise<void> {
-  const deadline = Date.now() + 240_000;
+  const deadline = Date.now() + fixedRunnerTimeoutMs + 60_000;
   while (!existsSync(run.marker)) {
     if (run.exited()) {
       const exit = await run.completed;

@@ -17549,7 +17549,7 @@ function gradeReport(bytes, clone) {
   }
   return cases;
 }
-var purpose = "bounded-delivery-observation:v1", deliveryTicket = "T3E4NS", fixedFiles, profileSha256;
+var purpose = "bounded-delivery-observation:v1", deliveryTicket = "T3E4NS", fixedRunnerTimeoutMs = 600000, fixedFiles, profileSha256;
 var init_contract = __esm(() => {
   init_dist2();
   init_dist();
@@ -17641,7 +17641,7 @@ var audit_readers_default;
 var init_audit_readers = __esm(() => {
   audit_readers_default = {
     schema_version: 1,
-    source_sha256: "f51d6ffb3e90da646d12b3772f38308c4cee1494c37fc7b44d3fb3ccc92d4253"
+    source_sha256: "d0df3880313dd74bbe1cb11f2035dd4cce22c2d1c43ea6cca2fb8c8770238a59"
   };
 });
 
@@ -19143,12 +19143,21 @@ import {
   realpathSync
 } from "fs";
 import nodePath6 from "path";
+function trackedInput(root, path2) {
+  const absolute = nodePath6.join(root, path2);
+  if (!existsSync4(absolute))
+    throw new Error(`Uncommitted input ${path2}; commit or clean the candidate and rerun`);
+  const info2 = lstatSync2(absolute);
+  if (!info2.isFile())
+    throw new Error(`Unsupported tracked input ${path2}; use regular committed files`);
+  return { bytes: readFileSync5(absolute), executable: (info2.mode & 64) !== 0 };
+}
 function auditReaderIdentity(root) {
   const paths = git(root, ["ls-files", "-z"]).split("\x00").filter(Boolean);
-  const readers = paths.filter((path2) => path2 !== readerPolicy && !/^(?:\.project\/|plugin\/|packages\/cli\/codex-plugin\/)/u.test(path2) && /\.(?:[cm]?[jt]sx?|jsonc?|ya?ml|toml|sh|feature|lockb?)$/u.test(path2));
+  const readers = paths.filter((path2) => path2 !== readerPolicy && !/^(?:\.project\/|plugin\/|packages\/cli\/codex-plugin\/)/u.test(path2));
   const identities = readers.map((path2) => {
-    const absolute = nodePath6.join(root, path2);
-    return [path2, digest(readFileSync5(absolute)), lstatSync2(absolute).mode & 73];
+    const input = trackedInput(root, path2);
+    return [path2, digest(input.bytes), input.executable];
   });
   return digest(canonical(identities));
 }
@@ -19210,13 +19219,9 @@ function sourceIdentity(root) {
   for (const path2 of paths) {
     if (path2 === auditSummary && projectAudit)
       continue;
-    const absolute = nodePath6.join(root, path2);
-    const info2 = lstatSync2(absolute);
-    if (!info2.isFile())
-      throw new Error(`Unsupported tracked input ${path2}; use regular committed files`);
-    const bytes = readFileSync5(absolute);
+    const { bytes, executable } = trackedInput(root, path2);
     inputs[`file:${path2}`] = projectAudit ? projectedFile(path2, bytes) : digest(bytes);
-    inputs[`mode:${path2}`] = digest(String((info2.mode & 64) !== 0));
+    inputs[`mode:${path2}`] = digest(String(executable));
   }
   inputs["source:audit-projection"] = digest(String(projectAudit));
   inputs["source:tracked"] = digest(canonical(inputs));
@@ -19281,7 +19286,7 @@ function treeIdentity(root, relative) {
         visit3(nodePath6.join(path2, child));
       }
     } else if (info2.isFile()) {
-      entries.push([path2, `${info2.mode & 73}:${digest(readFileSync5(absolute))}`]);
+      entries.push([path2, `${info2.mode & 64}:${digest(readFileSync5(absolute))}`]);
     } else
       throw new Error(`Unsupported dependency input ${path2}`);
   }
@@ -19596,7 +19601,8 @@ function toolInventory(root) {
   addCodexComponents(inventory);
   const temporaryRoot = realpathSync3(tmpdir());
   identities["environment:policy"] = digest(canonical({
-    version: 2,
+    version: 3,
+    test_lock_wait_ms: fixedRunnerTimeoutMs,
     temporary_root: temporaryRoot,
     platform: process.platform,
     arch: process.arch,
@@ -19720,28 +19726,29 @@ function runtimeIdentity() {
   const directory = import.meta.dirname;
   const moduleDigest = digest(readFileSync7(filename));
   if (filename.endsWith(".ts")) {
-    const packageRoot = nodePath9.resolve(directory, "../..");
-    const manifest2 = nodePath9.join(packageRoot, "package.json");
+    const packageRoot2 = nodePath9.resolve(directory, "../..");
+    const manifest2 = nodePath9.join(packageRoot2, "package.json");
     const packageDigest = digest(readFileSync7(manifest2));
     return digest(canonical({
       module: moduleDigest,
-      source: treeIdentity(packageRoot, "src"),
+      source: treeIdentity(packageRoot2, "src"),
       package: packageDigest,
-      installation: runtimeInstallation(packageRoot)
+      installation: runtimeInstallation(packageRoot2)
     }));
   }
   if (nodePath9.basename(directory) === "dist") {
-    const packageRoot = nodePath9.dirname(directory);
-    const manifest2 = nodePath9.join(packageRoot, "package.json");
+    const packageRoot2 = nodePath9.dirname(directory);
+    const manifest2 = nodePath9.join(packageRoot2, "package.json");
     const packageDigest = digest(readFileSync7(manifest2));
     return digest(canonical({
       module: moduleDigest,
-      distribution: treeIdentity(packageRoot, "dist"),
+      distribution: treeIdentity(packageRoot2, "dist"),
       package: packageDigest,
-      installation: runtimeInstallation(packageRoot)
+      installation: runtimeInstallation(packageRoot2)
     }));
   }
-  return moduleDigest;
+  const packageRoot = nodePath9.dirname(directory);
+  return digest(canonical({ module: moduleDigest, installation: treeIdentity(packageRoot, ".") }));
 }
 function runtimeInstallation(packageRoot) {
   let directory = packageRoot;
@@ -19778,6 +19785,7 @@ function controlledEnvironment(tools, bin, home) {
     TMPDIR: temporary,
     TMP: temporary,
     TEMP: temporary,
+    SAFEWORD_TEST_LOCK_MAX_WAIT_MS: String(fixedRunnerTimeoutMs),
     LANG: "C",
     LC_ALL: "C",
     TZ: "UTC",
@@ -19921,7 +19929,7 @@ function runFixedLane(executable, argv, cwd, environment, directory) {
     };
     process.once("SIGTERM", interrupt);
     process.once("SIGINT", interrupt);
-    const timer = setTimeout(interrupt, 600000);
+    const timer = setTimeout(interrupt, fixedRunnerTimeoutMs);
     child.stdout.on("data", (bytes) => {
       writeSync(stdout, bytes);
       fsyncSync2(stdout);

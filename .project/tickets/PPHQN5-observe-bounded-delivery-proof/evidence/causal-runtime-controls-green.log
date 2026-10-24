@@ -1,0 +1,14 @@
+✔ the shipped audit reader identity matches this reviewed source and configuration (90.506792ms)
+✔ reader identity preserves Git executable semantics across a private checkout (56.708917ms)
+✔ private Node dependency copies preserve normalized execution identity (1.24875ms)
+✔ a new reader cannot turn its execution input into an audit exemption (19284.384084ms)
+✔ fixed runner preserves the host temporary root used by the shared test lock (0.624916ms)
+✔ external runtime dependency bytes participate in runtime identity (35191.938542ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 54851.11775

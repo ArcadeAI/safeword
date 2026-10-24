@@ -24,18 +24,27 @@ const auditTickets = new Set([
 const auditFields = new Set(['phase', 'status', 'created', 'last_modified']);
 const readerPolicy = 'packages/cli/src/bounded-observation/audit-readers.json';
 
+function trackedInput(root: string, path: string): { bytes: Buffer; executable: boolean } {
+  const absolute = nodePath.join(root, path);
+  if (!existsSync(absolute))
+    throw new Error(`Uncommitted input ${path}; commit or clean the candidate and rerun`);
+  const info = lstatSync(absolute);
+  if (!info.isFile())
+    throw new Error(`Unsupported tracked input ${path}; use regular committed files`);
+  return { bytes: readFileSync(absolute), executable: (info.mode & 0o100) !== 0 };
+}
+
 /** Unknown reader code still executes, but gets full-byte input binding. */
 export function auditReaderIdentity(root: string): string {
   const paths = git(root, ['ls-files', '-z']).split('\0').filter(Boolean);
   const readers = paths.filter(
     path =>
       path !== readerPolicy &&
-      !/^(?:\.project\/|plugin\/|packages\/cli\/codex-plugin\/)/u.test(path) &&
-      /\.(?:[cm]?[jt]sx?|jsonc?|ya?ml|toml|sh|feature|lockb?)$/u.test(path),
+      !/^(?:\.project\/|plugin\/|packages\/cli\/codex-plugin\/)/u.test(path),
   );
   const identities = readers.map(path => {
-    const absolute = nodePath.join(root, path);
-    return [path, digest(readFileSync(absolute)), lstatSync(absolute).mode & 0o111];
+    const input = trackedInput(root, path);
+    return [path, digest(input.bytes), input.executable];
   });
   return digest(canonical(identities));
 }
@@ -99,13 +108,9 @@ export function sourceIdentity(root: string): Record<string, string> {
   const inputs: Record<string, string> = {};
   for (const path of paths) {
     if (path === auditSummary && projectAudit) continue;
-    const absolute = nodePath.join(root, path);
-    const info = lstatSync(absolute);
-    if (!info.isFile())
-      throw new Error(`Unsupported tracked input ${path}; use regular committed files`);
-    const bytes = readFileSync(absolute);
+    const { bytes, executable } = trackedInput(root, path);
     inputs[`file:${path}`] = projectAudit ? projectedFile(path, bytes) : digest(bytes);
-    inputs[`mode:${path}`] = digest(String((info.mode & 0o100) !== 0));
+    inputs[`mode:${path}`] = digest(String(executable));
   }
   inputs['source:audit-projection'] = digest(String(projectAudit));
   inputs['source:tracked'] = digest(canonical(inputs));
@@ -182,7 +187,7 @@ export function treeIdentity(root: string, relative: string): string {
         visit(nodePath.join(path, child));
       }
     } else if (info.isFile()) {
-      entries.push([path, `${info.mode & 0o111}:${digest(readFileSync(absolute))}`]);
+      entries.push([path, `${info.mode & 0o100}:${digest(readFileSync(absolute))}`]);
     } else throw new Error(`Unsupported dependency input ${path}`);
   }
   visit(relative);

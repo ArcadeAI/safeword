@@ -14,7 +14,7 @@ import { createRequire } from 'node:module';
 import { release, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { canonical, digest, profileSha256 } from './contract.js';
+import { canonical, digest, fixedRunnerTimeoutMs, profileSha256 } from './contract.js';
 import { canonicalRoot, dependencyIdentity, sourceIdentity, treeIdentity } from './identity.js';
 
 const toolNames = [
@@ -118,7 +118,8 @@ export function toolInventory(root: string): Tools {
   const temporaryRoot = realpathSync(tmpdir());
   identities['environment:policy'] = digest(
     canonical({
-      version: 2,
+      version: 3,
+      test_lock_wait_ms: fixedRunnerTimeoutMs,
       temporary_root: temporaryRoot,
       platform: process.platform,
       arch: process.arch,
@@ -296,8 +297,9 @@ export function runtimeIdentity(): string {
       }),
     );
   }
-  // Native plugin builds are a single bundled CLI, including the shipped profile.
-  return moduleDigest;
+  // Native bundles also load their package metadata and neighboring shipped assets.
+  const packageRoot = nodePath.dirname(directory);
+  return digest(canonical({ module: moduleDigest, installation: treeIdentity(packageRoot, '.') }));
 }
 
 /** Bind the runtime's own installation even when it lives outside the candidate checkout. */
@@ -339,6 +341,7 @@ export function controlledEnvironment(tools: Tools, bin: string, home: string): 
     TMPDIR: temporary,
     TMP: temporary,
     TEMP: temporary,
+    SAFEWORD_TEST_LOCK_MAX_WAIT_MS: String(fixedRunnerTimeoutMs),
     LANG: 'C',
     LC_ALL: 'C',
     TZ: 'UTC',
