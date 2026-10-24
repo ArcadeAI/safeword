@@ -1,0 +1,32 @@
+✖ reader identity preserves Git executable semantics across a private checkout (49.662084ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 259.064666
+
+✖ failing tests:
+
+test at packages/cli/tests/integration/bounded-observation-runtime.node.ts:1:1017
+✖ reader identity preserves Git executable semantics across a private checkout (49.662084ms)
+  AssertionError [ERR_ASSERTION]: Reader identity must normalize executable mode as Git does
+  + actual - expected
+  
+  + '41328ce12127b42cea6b7cb8bf22ff247f88c77b5e584efe5bb67ea60bb1e13c'
+  - '817068625b9caf68bcac70bcdd690b0af1b9c0c7b73cf72cf4c5fb69f7a1a0fa'
+  
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-runtime.node.ts:49:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '41328ce12127b42cea6b7cb8bf22ff247f88c77b5e584efe5bb67ea60bb1e13c',
+    expected: '817068625b9caf68bcac70bcdd690b0af1b9c0c7b73cf72cf4c5fb69f7a1a0fa',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

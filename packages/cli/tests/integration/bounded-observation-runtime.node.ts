@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import {
   appendFileSync,
+  chmodSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -16,9 +18,43 @@ import nodePath from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 
-import { sourceIdentity } from '../../src/bounded-observation/identity.js';
+import { auditReaderIdentity, sourceIdentity } from '../../src/bounded-observation/identity.js';
 import { controlledEnvironment } from '../../src/bounded-observation/tools.js';
-import { createObserverCandidate } from '../fixtures/bounded-observation.js';
+import { createObserverCandidate, observerRepo } from '../fixtures/bounded-observation.js';
+
+void test('the shipped audit reader identity matches this reviewed source and configuration', () => {
+  const path = nodePath.join(
+    observerRepo,
+    'packages/cli/src/bounded-observation/audit-readers.json',
+  );
+  const policy = JSON.parse(readFileSync(path, 'utf8')) as { source_sha256: string };
+  assert.equal(
+    auditReaderIdentity(observerRepo),
+    policy.source_sha256,
+    'Review changed readers, refresh the shipped identity, and regenerate the bundles',
+  );
+});
+
+void test('reader identity preserves Git executable semantics across a private checkout', () => {
+  const prefix = nodePath.join(tmpdir(), 'bounded-reader-mode-');
+  const directory = mkdtempSync(prefix);
+  try {
+    const reader = nodePath.join(directory, 'reader.mjs');
+    writeFileSync(reader, 'export const value = 1;\n');
+    chmodSync(reader, 0o755);
+    execFileSync('git', ['init', '--quiet', '--template='], { cwd: directory });
+    execFileSync('git', ['add', '.'], { cwd: directory });
+    const before = auditReaderIdentity(directory);
+    chmodSync(reader, 0o700);
+    assert.equal(
+      auditReaderIdentity(directory),
+      before,
+      'Reader identity must normalize executable mode as Git does',
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 void test('a new reader cannot turn its execution input into an audit exemption', () => {
   const prefix = nodePath.join(tmpdir(), 'bounded-loaded-audit-');
