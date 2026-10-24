@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -150,4 +150,50 @@ it('says no branch work was reviewed when the integration base is unavailable', 
   expect(report.data?.coverage).toBe('none');
   expect(report.data?.reviewed_paths).toEqual([]);
   expect(report.findings?.[0]?.message).toContain('No branch work was reviewed');
+});
+
+it('refuses a topic branch as configured integration scope', async () => {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-self-base-'));
+  roots.push(root);
+  const remote = nodePath.join(root, 'remote.git');
+  const project = nodePath.join(root, 'project');
+  mkdirSync(project);
+  git(root, 'init', '--bare', remote);
+  git(project, 'init', '-b', 'main');
+  git(project, 'config', 'user.name', 'Test Builder');
+  git(project, 'config', 'user.email', 'builder@example.test');
+  git(project, 'remote', 'add', 'origin', remote);
+  const ticket = nodePath.join(project, '.project', 'tickets', 'ABC123-review-branch');
+  mkdirSync(ticket, { recursive: true });
+  const ticketPath = nodePath.join(ticket, 'ticket.md');
+  writeFileSync(
+    ticketPath,
+    '---\nid: ABC123\ntype: feature\nphase: implement\n---\n# Review branch\n',
+  );
+  writeFileSync(nodePath.join(project, 'seed.txt'), 'base\n');
+  git(project, 'add', '.');
+  git(project, 'commit', '-m', 'seed');
+  git(project, 'push', '-u', 'origin', 'main');
+  git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/main');
+  git(project, 'checkout', '-b', 'topic');
+  writeFileSync(nodePath.join(project, 'source.ts'), 'export const value = 1;\n');
+  git(project, 'add', 'source.ts');
+  git(project, 'commit', '-m', 'feature');
+  git(project, 'push', '-u', 'origin', 'topic');
+  mkdirSync(nodePath.join(project, '.safeword'));
+  writeFileSync(
+    nodePath.join(project, '.safeword', 'config.json'),
+    '{"branchReview":{"integrationRef":"refs/remotes/origin/topic"}}\n',
+  );
+
+  const result = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project });
+  const report = JSON.parse(result.stdout) as {
+    data?: { review_id?: string; coverage?: string };
+    findings?: { message?: string }[];
+  };
+  expect(result.exitCode).toBe(2);
+  expect(report.findings?.[0]?.message ?? '').toContain('topic branch');
+  expect(report.data?.review_id).toBeUndefined();
+  expect(readFileSync(ticketPath, 'utf8')).not.toContain('branch_review_exit_id');
+  expect(existsSync(nodePath.join(project, '.safeword', 'state', 'reviews', 'branch'))).toBe(false);
 });
