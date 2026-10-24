@@ -3,6 +3,7 @@ import {
   closeSync,
   constants,
   existsSync,
+  fstatSync,
   lstatSync,
   mkdirSync,
   openSync,
@@ -65,7 +66,7 @@ function requirePrivateDirectory(path: string): void {
 function safeBytes(path: string): Buffer {
   const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
   try {
-    const info = lstatSync(path);
+    const info = fstatSync(descriptor);
     if (!info.isFile() || (info.mode & 0o077) !== 0)
       throw new Error(`Unsafe evidence file ${path}`);
     return readFileSync(descriptor);
@@ -83,6 +84,9 @@ export function openStore(root: string, create: boolean): AttemptStore {
   }
   if (create) mkdirSync(state, { recursive: true, mode: 0o700 });
   const parent = realpathSync(state);
+  if (parent === root || parent.startsWith(`${root}${nodePath.sep}`)) {
+    throw new Error('Resolved observer state must be outside the source checkout');
+  }
   const safeword = nodePath.join(parent, 'safeword');
   const base = nodePath.join(safeword, 'bounded-observation');
   const namespace = nodePath.join(base, digest(root));
@@ -99,7 +103,7 @@ function privateKey(base: string, create: boolean): Buffer {
     try {
       writeDurableFileExclusive(keyPath, randomBytes(32), { mode: 0o600 });
     } catch (error) {
-      if (!existsSync(keyPath)) throw error;
+      if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error;
     }
   }
   const key = safeBytes(keyPath);

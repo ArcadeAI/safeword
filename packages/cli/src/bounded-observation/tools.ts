@@ -10,6 +10,7 @@ import {
 import nodePath from 'node:path';
 
 import { canonical, digest, profileSha256 } from './contract.js';
+import { treeIdentity } from './identity.js';
 
 const toolNames = [
   'node',
@@ -125,7 +126,35 @@ export function toolInventory(): Tools {
 }
 
 export function runtimeIdentity(): string {
-  return digest(readFileSync(import.meta.filename));
+  const filename = import.meta.filename;
+  const directory = import.meta.dirname;
+  const moduleDigest = digest(readFileSync(filename));
+  if (filename.endsWith('.ts')) {
+    const packageRoot = nodePath.resolve(directory, '../..');
+    const manifest = nodePath.join(packageRoot, 'package.json');
+    const packageDigest = digest(readFileSync(manifest));
+    return digest(
+      canonical({
+        module: moduleDigest,
+        source: treeIdentity(packageRoot, 'src'),
+        package: packageDigest,
+      }),
+    );
+  }
+  if (nodePath.basename(directory) === 'dist') {
+    const packageRoot = nodePath.dirname(directory);
+    const manifest = nodePath.join(packageRoot, 'package.json');
+    const packageDigest = digest(readFileSync(manifest));
+    return digest(
+      canonical({
+        module: moduleDigest,
+        distribution: treeIdentity(packageRoot, 'dist'),
+        package: packageDigest,
+      }),
+    );
+  }
+  // Native plugin builds are a single bundled CLI, including the shipped profile.
+  return moduleDigest;
 }
 
 export function controlledEnvironment(

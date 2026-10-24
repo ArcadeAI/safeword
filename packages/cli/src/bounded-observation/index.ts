@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import {
   appendFileSync,
   closeSync,
@@ -86,6 +86,18 @@ function prepareRelay(
     );
 }
 
+function signalOwnedTree(child: ChildProcess, signal: NodeJS.Signals): void {
+  if (process.platform !== 'win32' && child.pid !== undefined) {
+    try {
+      process.kill(-child.pid, signal);
+      return;
+    } catch {
+      /* Fall back to the owned direct child if its process group has already gone. */
+    }
+  }
+  child.kill(signal);
+}
+
 function runFixedLane(
   executable: string,
   argv: string[],
@@ -100,11 +112,17 @@ function runFixedLane(
       cwd,
       env: environment,
       stdio: ['ignore', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
     });
     let interrupted = false;
+    let escalation: ReturnType<typeof setTimeout> | undefined;
     const interrupt = (): void => {
+      if (interrupted) return;
       interrupted = true;
-      child.kill('SIGTERM');
+      signalOwnedTree(child, 'SIGTERM');
+      escalation = setTimeout(() => {
+        signalOwnedTree(child, 'SIGKILL');
+      }, 5000);
     };
     process.once('SIGTERM', interrupt);
     process.once('SIGINT', interrupt);
@@ -119,17 +137,22 @@ function runFixedLane(
     });
     const finish = (): void => {
       clearTimeout(timer);
+      clearTimeout(escalation);
       process.removeListener('SIGTERM', interrupt);
       process.removeListener('SIGINT', interrupt);
       closeSync(stdout);
       closeSync(stderr);
     };
+    let processError: Error | undefined;
     child.once('error', error => {
-      finish();
-      reject(error);
+      processError = error;
     });
-    child.once('exit', (code, signal) => {
+    child.once('close', (code, signal) => {
       finish();
+      if (processError !== undefined) {
+        reject(processError);
+        return;
+      }
       if (interrupted || code !== 0 || signal !== null) {
         reject(
           new Error(
@@ -151,7 +174,16 @@ export async function observeBoundedDelivery(cwd: string): Promise<AttemptTermin
   const report = nodePath.join(directory, 'report.json');
   const command = {
     public_argv: ['proof', 'observe-bounded-delivery'],
-    runner_argv: ['bun', 'run', 'test', ...fixedFiles, '--reporter=json', `--outputFile=${report}`],
+    runner_argv: [
+      'bun',
+      'run',
+      'test',
+      ...fixedFiles,
+      '--no-cache',
+      '--retry=0',
+      '--reporter=json',
+      `--outputFile=${report}`,
+    ],
   };
   let start: AttemptStart = {
     schema_version: 1,

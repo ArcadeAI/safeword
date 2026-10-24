@@ -232,6 +232,8 @@ export function expectCompleteObservation(
     'run',
     'test',
     ...expectedObserverFiles,
+    '--no-cache',
+    '--retry=0',
     '--reporter=json',
     `--outputFile=${data.report_path}`,
   ]);

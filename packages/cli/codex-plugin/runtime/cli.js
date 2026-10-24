@@ -17604,6 +17604,7 @@ function sourceIdentity(root) {
     if (!info2.isFile())
       throw new Error(`Unsupported tracked input ${path2}; use regular committed files`);
     inputs[`file:${path2}`] = projectedFile(path2, readFileSync4(absolute));
+    inputs[`mode:${path2}`] = digest(String((info2.mode & 64) !== 0));
   }
   inputs["source:tracked"] = digest(canonical(inputs));
   return inputs;
@@ -17628,8 +17629,15 @@ function requireCleanInputs(root) {
   if (git(root, ["rev-parse", "--is-shallow-repository"]).trim() !== "false") {
     throw new Error("Shallow Git input is unsupported; use a complete local checkout");
   }
-  const gitDirectory = git(root, ["rev-parse", "--absolute-git-dir"]).trim();
-  if (existsSync3(nodePath5.join(gitDirectory, "objects/info/alternates")) || git(root, ["replace", "-l"]).trim() !== "") {
+  requireIndependentGitObjects(root);
+}
+function requireIndependentGitObjects(root) {
+  const gitDirectory = git(root, [
+    "rev-parse",
+    "--path-format=absolute",
+    "--git-common-dir"
+  ]).trim();
+  if (existsSync3(nodePath5.join(gitDirectory, "objects/info/alternates")) || existsSync3(nodePath5.join(gitDirectory, "info/grafts")) || git(root, ["replace", "-l"]).trim() !== "") {
     throw new Error("External or replaced Git objects are unsupported; use an independent local checkout");
   }
 }
@@ -17772,6 +17780,7 @@ import {
   closeSync as closeSync2,
   constants,
   existsSync as existsSync4,
+  fstatSync,
   lstatSync as lstatSync2,
   mkdirSync as mkdirSync3,
   openSync as openSync2,
@@ -17794,7 +17803,7 @@ function requirePrivateDirectory(path2) {
 function safeBytes(path2) {
   const descriptor = openSync2(path2, constants.O_RDONLY | constants.O_NOFOLLOW);
   try {
-    const info2 = lstatSync2(path2);
+    const info2 = fstatSync(descriptor);
     if (!info2.isFile() || (info2.mode & 63) !== 0)
       throw new Error(`Unsafe evidence file ${path2}`);
     return readFileSync5(descriptor);
@@ -17810,6 +17819,9 @@ function openStore(root, create) {
   if (create)
     mkdirSync3(state, { recursive: true, mode: 448 });
   const parent = realpathSync2(state);
+  if (parent === root || parent.startsWith(`${root}${nodePath7.sep}`)) {
+    throw new Error("Resolved observer state must be outside the source checkout");
+  }
   const safeword = nodePath7.join(parent, "safeword");
   const base = nodePath7.join(safeword, "bounded-observation");
   const namespace = nodePath7.join(base, digest(root));
@@ -17827,7 +17839,7 @@ function privateKey(base, create) {
     try {
       writeDurableFileExclusive(keyPath, randomBytes(32), { mode: 384 });
     } catch (error2) {
-      if (!existsSync4(keyPath))
+      if (!(error2 instanceof Error && ("code" in error2) && error2.code === "EEXIST"))
         throw error2;
     }
   }
@@ -17974,7 +17986,30 @@ function toolInventory() {
   return { paths, identities };
 }
 function runtimeIdentity() {
-  return digest(readFileSync6(import.meta.filename));
+  const filename = import.meta.filename;
+  const directory = import.meta.dirname;
+  const moduleDigest = digest(readFileSync6(filename));
+  if (filename.endsWith(".ts")) {
+    const packageRoot = nodePath8.resolve(directory, "../..");
+    const manifest = nodePath8.join(packageRoot, "package.json");
+    const packageDigest = digest(readFileSync6(manifest));
+    return digest(canonical({
+      module: moduleDigest,
+      source: treeIdentity(packageRoot, "src"),
+      package: packageDigest
+    }));
+  }
+  if (nodePath8.basename(directory) === "dist") {
+    const packageRoot = nodePath8.dirname(directory);
+    const manifest = nodePath8.join(packageRoot, "package.json");
+    const packageDigest = digest(readFileSync6(manifest));
+    return digest(canonical({
+      module: moduleDigest,
+      distribution: treeIdentity(packageRoot, "dist"),
+      package: packageDigest
+    }));
+  }
+  return moduleDigest;
 }
 function controlledEnvironment(tools, bin, home, temporary) {
   for (const [name, path2] of Object.entries(tools.paths))
@@ -18003,6 +18038,7 @@ function controlledEnvironment(tools, bin, home, temporary) {
 var toolNames;
 var init_tools = __esm(() => {
   init_contract();
+  init_identity();
   toolNames = [
     "node",
     "bun",
@@ -18083,6 +18119,15 @@ ${prepared.stdout}${prepared.stderr}
   if (prepared.status !== 0)
     throw new Error("Fixed relay preparation failed; restore the pinned installed dependencies and rerun");
 }
+function signalOwnedTree(child, signal) {
+  if (process.platform !== "win32" && child.pid !== undefined) {
+    try {
+      process.kill(-child.pid, signal);
+      return;
+    } catch {}
+  }
+  child.kill(signal);
+}
 function runFixedLane(executable, argv, cwd, environment, directory) {
   const stdout = openSync3(nodePath9.join(directory, "stdout.log"), "wx", 384);
   const stderr = openSync3(nodePath9.join(directory, "stderr.log"), "wx", 384);
@@ -18090,12 +18135,19 @@ function runFixedLane(executable, argv, cwd, environment, directory) {
     const child = spawn(executable, argv, {
       cwd,
       env: environment,
-      stdio: ["ignore", "pipe", "pipe"]
+      stdio: ["ignore", "pipe", "pipe"],
+      detached: process.platform !== "win32"
     });
     let interrupted = false;
+    let escalation;
     const interrupt = () => {
+      if (interrupted)
+        return;
       interrupted = true;
-      child.kill("SIGTERM");
+      signalOwnedTree(child, "SIGTERM");
+      escalation = setTimeout(() => {
+        signalOwnedTree(child, "SIGKILL");
+      }, 5000);
     };
     process.once("SIGTERM", interrupt);
     process.once("SIGINT", interrupt);
@@ -18110,17 +18162,22 @@ function runFixedLane(executable, argv, cwd, environment, directory) {
     });
     const finish = () => {
       clearTimeout(timer);
+      clearTimeout(escalation);
       process.removeListener("SIGTERM", interrupt);
       process.removeListener("SIGINT", interrupt);
       closeSync3(stdout);
       closeSync3(stderr);
     };
+    let processError;
     child.once("error", (error2) => {
-      finish();
-      reject(error2);
+      processError = error2;
     });
-    child.once("exit", (code, signal) => {
+    child.once("close", (code, signal) => {
       finish();
+      if (processError !== undefined) {
+        reject(processError);
+        return;
+      }
       if (interrupted || code !== 0 || signal !== null) {
         reject(new Error(`Fixed runner ${interrupted ? "interrupted or timed out" : "failed"} (exit ${code}, signal ${signal}); repair the lane and rerun`));
       } else
@@ -18138,7 +18195,16 @@ async function observeBoundedDelivery(cwd) {
   const report = nodePath9.join(directory, "report.json");
   const command = {
     public_argv: ["proof", "observe-bounded-delivery"],
-    runner_argv: ["bun", "run", "test", ...fixedFiles, "--reporter=json", `--outputFile=${report}`]
+    runner_argv: [
+      "bun",
+      "run",
+      "test",
+      ...fixedFiles,
+      "--no-cache",
+      "--retry=0",
+      "--reporter=json",
+      `--outputFile=${report}`
+    ]
   };
   let start = {
     schema_version: 1,
@@ -29219,7 +29285,7 @@ import {
   closeSync as closeSync4,
   constants as fsConstants,
   existsSync as existsSync14,
-  fstatSync,
+  fstatSync as fstatSync2,
   lstatSync as lstatSync8,
   openSync as openSync4,
   readdirSync as readdirSync8,
@@ -29644,10 +29710,10 @@ function assertHookProofUnchanged(before, after) {
 function readTrustedHookProofJson(path3) {
   const descriptor = openSync4(path3, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
   try {
-    const metadata = fstatSync(descriptor);
+    const metadata = fstatSync2(descriptor);
     assertTrustedHookProofMetadata(metadata);
     const buffer = readDescriptorFully(descriptor, metadata.size);
-    assertHookProofUnchanged(metadata, fstatSync(descriptor));
+    assertHookProofUnchanged(metadata, fstatSync2(descriptor));
     return JSON.parse(buffer.toString("utf8"));
   } finally {
     closeSync4(descriptor);
@@ -46468,7 +46534,7 @@ var init_legacy_classifier = __esm(() => {
 import {
   closeSync as closeSync7,
   constants as fsConstants2,
-  fstatSync as fstatSync2,
+  fstatSync as fstatSync3,
   lstatSync as lstatSync13,
   openSync as openSync7,
   readdirSync as readdirSync9,
@@ -46500,12 +46566,12 @@ function readSmallMetadataFile(path7) {
     if (!isSmallRegularMetadata(linkedBefore))
       return;
     descriptor = openSync7(path7, fsConstants2.O_RDONLY | fsConstants2.O_NONBLOCK | (fsConstants2.O_NOFOLLOW ?? 0));
-    const opened = fstatSync2(descriptor);
+    const opened = fstatSync3(descriptor);
     const linkedAfter = lstatSync13(path7);
     if (!isSameSmallMetadata(linkedBefore, opened, linkedAfter))
       return;
     const content = readSmallDescriptor(descriptor);
-    const final = fstatSync2(descriptor);
+    const final = fstatSync3(descriptor);
     return content !== undefined && isSameSmallMetadata(linkedBefore, final, linkedAfter) ? content : undefined;
   } catch {
     return;
@@ -57293,7 +57359,7 @@ import {
   closeSync as closeSync9,
   constants as constants6,
   existsSync as existsSync28,
-  fstatSync as fstatSync3,
+  fstatSync as fstatSync4,
   lstatSync as lstatSync14,
   mkdirSync as mkdirSync15,
   mkdtempSync as mkdtempSync7,
@@ -57821,7 +57887,7 @@ function fileDigest(path7) {
   let descriptor;
   try {
     descriptor = openSync9(path7, constants6.O_RDONLY | (constants6.O_NOFOLLOW ?? 0));
-    const stat3 = fstatSync3(descriptor);
+    const stat3 = fstatSync4(descriptor);
     if (!stat3.isFile() || stat3.size > MAX_FILE_BYTES)
       return;
     const bytes = readBounded(descriptor, MAX_FILE_BYTES);
@@ -57856,7 +57922,7 @@ function sourceFileChanged(file) {
   let descriptor;
   try {
     descriptor = openSync9(file.source, constants6.O_RDONLY | (constants6.O_NOFOLLOW ?? 0));
-    const current = fstatSync3(descriptor);
+    const current = fstatSync4(descriptor);
     if (!current.isFile() || current.dev !== file.device || current.ino !== file.inode)
       return true;
     if (escapes(file.sourceRoot, realpathSync12(file.source)))
@@ -57883,7 +57949,7 @@ function throwFirstTargetError(errors) {
 function readContainedText(root, source, target, packetBytesRemaining, maxFileBytes = MAX_FILE_BYTES) {
   const descriptor = openSync9(source, constants6.O_RDONLY | (constants6.O_NOFOLLOW ?? 0));
   try {
-    const opened = fstatSync3(descriptor);
+    const opened = fstatSync4(descriptor);
     if (!opened.isFile()) {
       throw new ReviewPacketError(`Review target is not a regular file: ${target}`, "REVIEW_TARGET_NOT_REGULAR");
     }
@@ -58817,7 +58883,7 @@ import {
   chmodSync as chmodSync4,
   closeSync as closeSync10,
   constants as constants7,
-  fstatSync as fstatSync4,
+  fstatSync as fstatSync5,
   lstatSync as lstatSync15,
   mkdirSync as mkdirSync16,
   mkdtempSync as mkdtempSync8,
@@ -59145,7 +59211,7 @@ function hasTrustedExecutableAncestry(candidate) {
   }
 }
 function digestOpenFile(fd2) {
-  if (!fstatSync4(fd2).isFile())
+  if (!fstatSync5(fd2).isFile())
     return;
   const bytes = readFileSync44(fd2);
   return { bytes, digest: createHash28("sha256").update(bytes).digest("hex") };
@@ -59183,7 +59249,7 @@ function stagedTrustedReviewerCopy(reviewer, canonical2, untrustedRoot) {
   let sourceFd;
   try {
     sourceFd = openSync10(canonical2, constants7.O_RDONLY);
-    const sourceMetadata = fstatSync4(sourceFd);
+    const sourceMetadata = fstatSync5(sourceFd);
     const currentUid = currentUserId();
     if (!pathMetadataIsTrusted(sourceMetadata.mode, sourceMetadata.uid, currentUid)) {
       return;
@@ -61873,7 +61939,7 @@ import { createHash as createHash29, createHmac as createHmac2, randomBytes as r
 import {
   closeSync as closeSync11,
   existsSync as existsSync29,
-  fstatSync as fstatSync5,
+  fstatSync as fstatSync6,
   mkdirSync as mkdirSync17,
   openSync as openSync11,
   readdirSync as readdirSync16,
@@ -62136,7 +62202,7 @@ function withFileLock(lock, operation) {
   try {
     return operation();
   } finally {
-    const ownedLock = fstatSync5(descriptor);
+    const ownedLock = fstatSync6(descriptor);
     closeSync11(descriptor);
     try {
       const currentLock = statSync6(lock);
@@ -76919,7 +76985,7 @@ import {
   constants as fsConstants3,
   cpSync as cpSync5,
   existsSync as existsSync53,
-  fstatSync as fstatSync6,
+  fstatSync as fstatSync7,
   lstatSync as lstatSync24,
   mkdirSync as mkdirSync24,
   openSync as openSync13,
@@ -77125,7 +77191,7 @@ function readSafeNamespaceConfig(path8) {
       return;
     }
     descriptor = openSync13(path8, fsConstants3.O_RDONLY | fsConstants3.O_NONBLOCK | (fsConstants3.O_NOFOLLOW ?? 0));
-    const opened = fstatSync6(descriptor);
+    const opened = fstatSync7(descriptor);
     if (!opened.isFile() || opened.nlink !== 1 || opened.dev !== before.dev || opened.ino !== before.ino) {
       return;
     }
@@ -77137,7 +77203,7 @@ function readSafeNamespaceConfig(path8) {
         break;
       offset += count;
     }
-    const after = fstatSync6(descriptor);
+    const after = fstatSync7(descriptor);
     if (offset > MAX_NAMESPACE_CONFIG_BYTES || after.dev !== before.dev || after.ino !== before.ino || after.nlink !== 1) {
       return;
     }
@@ -77679,7 +77745,7 @@ import {
   closeSync as closeSync14,
   constants as fsConstants4,
   existsSync as existsSync55,
-  fstatSync as fstatSync7,
+  fstatSync as fstatSync8,
   lstatSync as lstatSync25,
   openSync as openSync14,
   readdirSync as readdirSync35,
@@ -78241,7 +78307,7 @@ function isSameProjectVersionFile(before, opened, after) {
 function readProjectVersionDescriptor(descriptor) {
   const buffer = Buffer.alloc(MAX_PROJECT_VERSION_BYTES + 1);
   const count = readSync5(descriptor, buffer, 0, buffer.length, 0);
-  const final = fstatSync7(descriptor);
+  const final = fstatSync8(descriptor);
   if (count > MAX_PROJECT_VERSION_BYTES || final.size > MAX_PROJECT_VERSION_BYTES) {
     return;
   }
@@ -78254,7 +78320,7 @@ function readProjectVersionFile(path8, allowMultipleLinks) {
     if (!isSafeProjectVersionMetadata(before, allowMultipleLinks))
       return;
     descriptor = openSync14(path8, fsConstants4.O_RDONLY | fsConstants4.O_NONBLOCK | (fsConstants4.O_NOFOLLOW ?? 0));
-    const opened = fstatSync7(descriptor);
+    const opened = fstatSync8(descriptor);
     const after = lstatSync25(path8);
     if (!isSameProjectVersionFile(before, opened, after) || !isSafeProjectVersionMetadata(opened, allowMultipleLinks)) {
       return;
@@ -79520,7 +79586,7 @@ import {
   constants as fsConstants5,
   existsSync as existsSync56,
   fchmodSync,
-  fstatSync as fstatSync8,
+  fstatSync as fstatSync9,
   fsyncSync as fsyncSync4,
   ftruncateSync,
   lstatSync as lstatSync26,
@@ -79654,8 +79720,8 @@ function openCleanupTarget(root, relative, flags) {
     descriptor = openSync15(path8, flags | (fsConstants5.O_NOFOLLOW ?? 0));
     const targetAfter = lstatSync26(path8);
     const parentAfter = lstatSync26(parentPath);
-    const opened = fstatSync8(descriptor);
-    const openedParent = fstatSync8(parentDescriptor);
+    const opened = fstatSync9(descriptor);
+    const openedParent = fstatSync9(parentDescriptor);
     if (!isValidOpenCleanupTarget({
       targetBefore,
       opened,
@@ -79684,7 +79750,7 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
   beforeQuarantine?.();
   renameSync14(opened.path, safeQuarantinePath);
   const quarantined = lstatSync26(safeQuarantinePath);
-  const descriptor = fstatSync8(opened.descriptor);
+  const descriptor = fstatSync9(opened.descriptor);
   if (!sameFile(quarantined, descriptor) || descriptor.size !== opened.target.size) {
     throw new Error("Claude cleanup quarantined a replacement target; retained it for recovery.");
   }
@@ -79696,7 +79762,7 @@ function revalidateOpenTarget(root, relative, opened) {
   const path8 = assertSafeClaudeCleanupTarget(root, relative);
   const target = lstatSync26(path8);
   const parent = lstatSync26(nodePath120.dirname(path8));
-  const descriptor = fstatSync8(opened.descriptor);
+  const descriptor = fstatSync9(opened.descriptor);
   if (path8 !== opened.path || !sameFile(opened.target, descriptor) || !sameFile(descriptor, target) || !sameFile(opened.parent, parent) || descriptor.size !== opened.target.size || descriptor.nlink !== 1) {
     throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
   }
@@ -80005,7 +80071,7 @@ function readTransactionBytes(path8) {
   try {
     const before = lstatSync26(path8);
     descriptor = openSync15(path8, fsConstants5.O_RDONLY | fsConstants5.O_NONBLOCK | (fsConstants5.O_NOFOLLOW ?? 0));
-    const opened = fstatSync8(descriptor);
+    const opened = fstatSync9(descriptor);
     const after = lstatSync26(path8);
     if (!isTransactionFile(before, opened, after))
       throw new Error("Unsafe transaction file.");
@@ -80017,7 +80083,7 @@ function readTransactionBytes(path8) {
         break;
       offset += count;
     }
-    const final = fstatSync8(descriptor);
+    const final = fstatSync9(descriptor);
     if (offset > MAX_CLAUDE_TRANSACTION_BYTES || !isTransactionFile(before, final, lstatSync26(path8))) {
       throw new Error("Unsafe transaction file.");
     }
@@ -80408,7 +80474,7 @@ import { spawnSync as spawnSync19 } from "child_process";
 import {
   closeSync as closeSync16,
   constants as constants10,
-  fstatSync as fstatSync9,
+  fstatSync as fstatSync10,
   lstatSync as lstatSync27,
   openSync as openSync16,
   readFileSync as readFileSync82,
@@ -80499,7 +80565,7 @@ function readPersonalFile(path8) {
   const noFollow = constants10.O_NOFOLLOW ?? 0;
   const descriptor = openSync16(path8, constants10.O_RDONLY | noFollow);
   try {
-    const fileError = validatePersonalFile(fstatSync9(descriptor), path8);
+    const fileError = validatePersonalFile(fstatSync10(descriptor), path8);
     if (fileError !== undefined)
       return { error: fileError };
     return { content: readFileSync82(descriptor, "utf8") };
@@ -80805,7 +80871,7 @@ import { randomUUID as randomUUID16 } from "crypto";
 import {
   closeSync as closeSync17,
   constants as constants11,
-  fstatSync as fstatSync10,
+  fstatSync as fstatSync11,
   fsyncSync as fsyncSync5,
   linkSync as linkSync3,
   lstatSync as lstatSync28,
@@ -80961,7 +81027,7 @@ var init_remote_workflow_fs = __esm(() => {
     mkdir: mkdirSync26,
     openRead: (path8) => openSync17(path8, constants11.O_RDONLY | constants11.O_NONBLOCK | (constants11.O_NOFOLLOW ?? 0)),
     openPrivate: (path8) => openSync17(path8, "wx", 420),
-    fstat: fstatSync10,
+    fstat: fstatSync11,
     read: (descriptor) => readFileSync83(descriptor, "utf8"),
     write: (descriptor, bytes, offset) => writeSync4(descriptor, bytes, offset),
     sync: fsyncSync5,

@@ -69,6 +69,7 @@ export function sourceIdentity(root: string): Record<string, string> {
     if (!info.isFile())
       throw new Error(`Unsupported tracked input ${path}; use regular committed files`);
     inputs[`file:${path}`] = projectedFile(path, readFileSync(absolute));
+    inputs[`mode:${path}`] = digest(String((info.mode & 0o100) !== 0));
   }
   inputs['source:tracked'] = digest(canonical(inputs));
   return inputs;
@@ -97,9 +98,18 @@ export function requireCleanInputs(root: string): void {
   if (git(root, ['rev-parse', '--is-shallow-repository']).trim() !== 'false') {
     throw new Error('Shallow Git input is unsupported; use a complete local checkout');
   }
-  const gitDirectory = git(root, ['rev-parse', '--absolute-git-dir']).trim();
+  requireIndependentGitObjects(root);
+}
+
+function requireIndependentGitObjects(root: string): void {
+  const gitDirectory = git(root, [
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-common-dir',
+  ]).trim();
   if (
     existsSync(nodePath.join(gitDirectory, 'objects/info/alternates')) ||
+    existsSync(nodePath.join(gitDirectory, 'info/grafts')) ||
     git(root, ['replace', '-l']).trim() !== ''
   ) {
     throw new Error(
