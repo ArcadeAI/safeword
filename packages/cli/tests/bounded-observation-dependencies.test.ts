@@ -57,6 +57,17 @@ describe('bounded installed dependency prerequisites', () => {
     expect(() => dependencyIdentity(root)).toThrow('Installed dependency foo@2.0.0');
   });
 
+  it('refuses direct resolution to a version locked only for another dependency', () => {
+    const root = candidate('2.0.0');
+    const path = nodePath.join(root, 'bun.lock');
+    const lock = JSON.parse(readFileSync(path, 'utf8')) as {
+      packages: Record<string, unknown>;
+    };
+    lock.packages['other/foo'] = ['foo@2.0.0', '', {}, 'fixture-only-integrity'];
+    writeFileSync(path, JSON.stringify(lock));
+    expect(() => dependencyIdentity(root)).toThrow('Installed dependency foo resolves');
+  });
+
   it('refuses a manifest that disagrees with its locked dependency declarations', () => {
     const root = candidate('1.0.0', '2.0.0');
     expect(() => dependencyIdentity(root)).toThrow('Manifest package.json disagrees with bun.lock');
