@@ -1,0 +1,80 @@
+✖ packages/cli/src/cli.ts: wrong repository refusal is complete JSON without stderr (213.090458ms)
+✖ plugin/runtime/cli.js: wrong repository refusal is complete JSON without stderr (192.269791ms)
+✖ packages/cli/codex-plugin/runtime/cli.js: wrong repository refusal is complete JSON without stderr (192.774667ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 695.269041
+
+✖ failing tests:
+
+test at packages/cli/tests/integration/bounded-observation-distribution.node.ts:1:390
+✖ packages/cli/src/cli.ts: wrong repository refusal is complete JSON without stderr (213.090458ms)
+  AssertionError [ERR_ASSERTION]: Machine refusals must keep diagnostics inside the JSON envelope
+  + actual - expected
+  
+  + 'fatal: not a git repository (or any of the parent directories): .git\n'
+  - ''
+  
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-distribution.node.ts:40:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'fatal: not a git repository (or any of the parent directories): .git\n',
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/cli/tests/integration/bounded-observation-distribution.node.ts:1:390
+✖ plugin/runtime/cli.js: wrong repository refusal is complete JSON without stderr (192.269791ms)
+  AssertionError [ERR_ASSERTION]: Machine refusals must keep diagnostics inside the JSON envelope
+  + actual - expected
+  
+  + 'fatal: not a git repository (or any of the parent directories): .git\n'
+  - ''
+  
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-distribution.node.ts:40:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'fatal: not a git repository (or any of the parent directories): .git\n',
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/cli/tests/integration/bounded-observation-distribution.node.ts:1:390
+✖ packages/cli/codex-plugin/runtime/cli.js: wrong repository refusal is complete JSON without stderr (192.774667ms)
+  AssertionError [ERR_ASSERTION]: Machine refusals must keep diagnostics inside the JSON envelope
+  + actual - expected
+  
+  + 'fatal: not a git repository (or any of the parent directories): .git\n'
+  - ''
+  
+      at TestContext.<anonymous> (/Users/alex/.codex/worktrees/aa92/safeword/packages/cli/tests/integration/bounded-observation-distribution.node.ts:40:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'fatal: not a git repository (or any of the parent directories): .git\n',
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

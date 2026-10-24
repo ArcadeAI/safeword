@@ -16,7 +16,7 @@ no scenario completion or final actual-checkout proof is claimed.
 
 ### Scenario: A caller cannot substitute an execution command
 
-- [ ] RED
+- [x] RED d6c9231aa
 - [ ] GREEN
 - [ ] REFACTOR
 
