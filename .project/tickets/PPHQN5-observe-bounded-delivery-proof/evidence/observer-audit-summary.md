@@ -100,3 +100,35 @@ The entries in this section describe earlier checkpoints, not current status.
   are unchanged. Exact failures and setup limitations are retained separately.
 - Final actual-checkout observation and current public verification remain
   outstanding. The ticket stays in implementation.
+
+## Final actual-checkout pilot
+
+The preceding outstanding-pilot entry is superseded by this observed result.
+No bound execution input or verification-status.md was edited after the pilot.
+
+- Producing revision: d67cb06ee822f244e40767335a5bec9161a1dc8a.
+- Retained attempt: 4916f3ad-0659-49ea-8943-32b1981ecff3, status observed.
+- The actual fixed 12-file lane passed 257/257 tests, zero failures or pending
+  results, covering all 37 delivery cases and 46 distinct required assertions.
+  The standalone driver independently reconciled the actual raw report.
+- The public verifier returned current true and authority execution-only.
+  The driver also confirmed unchanged producing HEAD, clean checkout and
+  protected history before and after execution.
+- Raw report SHA-256:
+  bbdb9f917a960320f8599b9169eff47f8da0c57c070677f985101caba05256f0.
+- Protected-history SHA-256:
+  a24ea06dcedb75acd1641a68a0e5d84b0e498f61d5f6583504c1dce7dc881135.
+- Full external pilot record:
+  /Users/alex/.local/state/safeword/observer-pilot-records/2026-10-24-6ad4c246-14b9-4de5-84cf-c16968b3979f/pilot.json.
+  Its SHA-256 is
+  c3dd93df14c07390dd92d859c777c41ca82ac209c958c4c7ada6f1bdcb27d931.
+  It is separate from the durable authenticated attempt store and contains no
+  replacement key or imported authority.
+- This note uses only the explicitly named non-input audit-output path. A final
+  public verification after committing this note must still report current;
+  no other file is exempted or changed to preserve currency.
+- The ticket remains open: its missing R/G/R history and cross-scenario entry
+  are unchanged, ordinary acceptance reproduces inherited failures and missing
+  bindings on main, and the current dependency audit remains failed. The pilot
+  supplies no historical RED, semantic certification, CKWE2D closing authority,
+  merge authority or paid/native qualification.
