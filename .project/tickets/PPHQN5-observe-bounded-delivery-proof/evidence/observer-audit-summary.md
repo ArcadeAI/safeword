@@ -132,3 +132,96 @@ No bound execution input or verification-status.md was edited after the pilot.
   bindings on main, and the current dependency audit remains failed. The pilot
   supplies no historical RED, semantic certification, CKWE2D closing authority,
   merge authority or paid/native qualification.
+
+## Focused evidence-gap review — 2026-10-24
+
+### Review plan and authority
+
+This is a disposition of the seven open observer R/G/R blocks and the
+cross-scenario obligation. It is not a new executable-RED review, a whole-code
+cross-scenario review, semantic certification or a completion receipt. No
+checkbox, accepted scenario, source implementation or shared gate is changed.
+The review examines three questions:
+
+1. Provenance: does retained primary RED evidence belong to each exact scenario,
+   rather than a nearby unit control or another scenario's approved receipt?
+2. Coverage: what actor-facing execution has actually passed, and what are its
+   revision and combined-run limits?
+3. Authority: can the current ordinary gates admit any of these rows, and does
+   an existing alternative apply to this ticket?
+
+Current primary workflow sources are the installed 1.2.0 TDD/review guides,
+the accepted Execution Plan steps 2, 4, 5, 6 and 10, the ledger, and the current
+gate implementation. The packaged TDD guide's implement-exit section requires
+whole-diff quality review, treatment of actual refactor findings and a recorded
+SHA or reasoned no-change disposition for the cross-scenario row. The
+executable-RED rubric requires attested intended actor-boundary failure;
+timeouts, setup errors, passing assertions and supporting unit failures do not
+supply that evidence. The edit hook independently requires a current matching
+executable-RED receipt for GREEN. Retrospective VERIFIED is restricted to CKWE2D
+by packages/cli/src/review/retrospective-gate.ts:304; it is not an alternative
+completion route for PPHQN5 or T3E4NS.
+
+### Execution evidence and exact dispositions
+
+The retained complete Cucumber message stream contains 17 finished cases:
+16 passed and one source-change diagnostic failed. Direct message parsing
+confirms the six non-currency open scenarios below each passed their entire
+case. The later unchanged-assertion currency stream contains four passing
+currency cases. There is no single clean 17-case run after the diagnostic fix.
+The final actual-checkout pilot independently proves the fixed lane, original
+checkout/history preservation and current public verification; it does not
+replace the negative-control cases or primary RED history.
+
+| Open obligation                            | Retained actor-facing execution                                                                                                                                                                                  | Primary RED disposition                                                                                                                                                                                           | Completion disposition                                                                                                                       |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fixed set and unchanged checkout           | Complete CLI observation checked the fixed command, candidate, actual report and unchanged tracked checkout; passed in the 17-case run; final actual-checkout pilot also passed                                  | No scenario-matching primary RED receipt found; the demo/tool-metadata receipts belong to their own proof, not this ledger row                                                                                    | Keep all three boxes open; existing success is coverage, not a transferable RED receipt                                                      |
+| Candidate changes during execution         | A required real assertion reached an observable pause; the owned candidate advanced to a different commit; the public CLI refused and named the stable-candidate recovery; passed                                | No scenario-matching primary RED receipt found; committed bindings are present at fa062c47f, after observer implementation existed                                                                                | Keep all three boxes open; passing the fault control does not establish a prior failing observer implementation                              |
+| Failed runner behind passing assertions    | The owned fixed wrapper produced a complete passing real report, then exited nonzero; the public CLI refused and retained failure diagnostics; passed                                                            | No scenario-matching primary RED receipt found; fa062c47f is a binding commit, not proof of intended RED                                                                                                          | Keep all three boxes open; failed runner input is a successful negative test, not the observer's RED                                         |
+| Altered report                             | A real authenticated successful attempt had report bytes appended; public verification refused without rewriting retained bytes; passed                                                                          | No scenario-matching primary RED receipt found; 561cdb715 adds this binding but its required-result receipt is scoped to another scenario                                                                         | Keep all three boxes open; corruption of evidence is the test arrangement, not evidence of a prior defective verifier                        |
+| Retry retains interruption                 | Owned observer received SIGTERM after the real pause; the same nonempty failed attempt survived a distinct successful retry byte-for-byte and still refused success verification; passed                         | No scenario-matching primary RED receipt found; supporting lifecycle/startup unit failures do not establish this complete public flow's RED                                                                       | Keep all three boxes open; distinguish interrupted attempt evidence from a failing assertion about missing retry behavior                    |
+| Currency follows meaningful changes        | Source, scope, Work Log and designated audit-output examples passed together after 476641567; all four retained original report/terminal bytes                                                                   | Genuine approved diagnostic RED b7a05540 exists for only the first outline row; rejected queued attempt f96c659c earns nothing; the receipt is partial and is not currently admitted for the named whole scenario | Preserve the partial RED and its warnings; keep the whole scenario's three boxes open; do not borrow it for sibling rows                     |
+| History and completion authority unchanged | Real successful observation retained execution-only purpose/authority and unchanged original scopes, ledgers, receipts, phases and all 33 unique deferrals/owners; passed; final checkout history also unchanged | No scenario-matching primary RED receipt found; 561cdb715's binding and final passing preservation check do not establish primary RED for this row                                                                | Keep all three boxes open; evidence of preserved history must not be used to rewrite that history                                            |
+| Cross-scenario review/refactor             | Earlier scoped source reviews, code audit and targeted correction review exist                                                                                                                                   | RED is not the evidence required for this separate row                                                                                                                                                            | Remains open pending the required whole-diff review and actual refactor/no-change disposition; this focused evidence review does not earn it |
+
+The current installed command was queried for each of the seven exact scenario
+names: `review gate executable-red --scenario <name> --ledger
+.project/tickets/PPHQN5-observe-bounded-delivery-proof/test-definitions.md --json`.
+All seven returned exit 2, changed false, status blocked, with
+EXECUTABLE_RED_GATE_BLOCKED and "No trusted executable RED receipt matches"
+the named scenario. This is an observed present denial, not a claim that every
+receipt was always absent or that no further historical evidence could exist.
+No attempt was made to check a box or change the gate. Raw gate results remain
+outside bound inputs under
+/Users/alex/.local/state/safeword/observer-evidence-reviews/2026-10-24-f4cui4zg/.
+
+### Recommendation and limits
+
+No missing runtime behavior is established by this focused pass. It identifies
+a process-evidence gap in this observer delivery: six open scenarios have no
+retained matching primary RED receipt, and currency has a genuine but partial,
+currently unadmitted receipt. Existing passing bindings, lower-level failures,
+review approvals and the final 257-pass observation cannot repair that history.
+Do not invent a production defect, revert functioning behavior to manufacture
+RED, share another scenario's receipt or use skip text as a completion waiver.
+
+The concrete remaining work under ordinary authority is the whole-diff
+cross-scenario review/refactor disposition and any genuinely recoverable
+pre-existing primary evidence. Repeated green executions cannot resolve missing
+historical RED. Under the unchanged gates, this review supplies no route to
+mark PPHQN5 done. A future alternative completion policy/certification route
+would be a separately authorized scope decision and cannot be introduced by
+editing shared gates in this contribution. It must also avoid creating an
+unsupported dependency on closing the observer before its evidence is usable.
+
+The current CLI boundary meets the Maintainer's mechanical execution goal; no
+new NTB/TBU usability observation is claimed. Keeping history and current proof
+separate follows the configured authority and progressive-disclosure principles:
+the evidence stays inspectable, while process omissions remain explicit.
+Inherited ordinary-acceptance and dependency findings remain separate; the
+over-budget branch-review behavior is with 1AHFZS. Original T3E4NS's 42 R/G/R
+entries plus cross-scenario and all 33 deferrals/owners remain uncredited.
+
+The disposition above is the work-product submitted for independent quality
+review. The independent verdict, achieved assurance and any resulting correction
+must be reported separately; this authored disposition is not its own approval.
