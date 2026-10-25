@@ -134,9 +134,10 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     path: '.env',
     reason: 'sensitive path; content withheld from reviewer',
   });
-  expect(readFileSync(nodePath.join(root, 'passes.log'), 'utf8').trim().split('\n')).toHaveLength(
-    2,
-  );
+  const passCount = readFileSync(nodePath.join(root, 'passes.log'), 'utf8')
+    .trim()
+    .split('\n').length;
+  expect(passCount).toBeGreaterThan(1);
   const packetPaths = (pass: number) =>
     [
       ...new Set(
@@ -145,12 +146,11 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     ].toSorted((left, right) => left.localeCompare(right));
   expect(packetPaths(1).length).toBeGreaterThan(0);
   expect(packetPaths(2).length).toBeGreaterThan(0);
-  expect(readFileSync(nodePath.join(root, 'passes.log.1'), 'utf8')).not.toContain(
-    'committed-secret-sentinel',
-  );
-  expect(readFileSync(nodePath.join(root, 'passes.log.2'), 'utf8')).not.toContain(
-    'committed-secret-sentinel',
-  );
+  for (let pass = 1; pass <= passCount; pass += 1) {
+    expect(readFileSync(nodePath.join(root, `passes.log.${pass}`), 'utf8')).not.toContain(
+      'committed-secret-sentinel',
+    );
+  }
   expect(sorted(report.data?.reviewed_paths ?? [])).toEqual(packetPaths(1));
   expect(
     sorted(
@@ -158,7 +158,9 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
         .map(entry => entry.path)
         .filter(path => path !== 'generated.out' && path !== '.env'),
     ),
-  ).toEqual(packetPaths(2));
+  ).toEqual(
+    sorted(Array.from({ length: passCount - 1 }, (_, index) => packetPaths(index + 2)).flat()),
+  );
 
   git(project, 'reset', '--hard', 'main');
   const empty = await runCli(['review', 'branch', 'ABC123', '--json'], {

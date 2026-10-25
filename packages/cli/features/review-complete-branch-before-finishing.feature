@@ -73,8 +73,8 @@ Feature: Review complete branch changes before builders finish
     Scenario: Changed ticket goals require a fresh review
       Given a saved branch review covered the implementation against the accepted ticket goals
       And an accepted ticket goal changes after that review
-      When the builder tries to finish the ticket
-      Then the earlier review is stale and the changed goal needs review
+      When the builder tries to leave implementation
+      Then the ticket stays in implementation and the changed goal needs a fresh review
 
   @branch-review.TBU1.R4
   Rule: branch-review.TBU1.R4 — Implementation exit checks the saved review before advancing
