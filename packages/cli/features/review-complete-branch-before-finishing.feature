@@ -30,10 +30,16 @@ Feature: Review complete branch changes before builders finish
 
     @rejection
     Scenario: A configured topic branch cannot hide earlier work
-      Given the project configures the current topic branch as its integration ref
+      Given the project configures a remote ref with the current topic branch's name as its integration ref
       And the branch has authored changes before its latest push
       When the builder reviews the branch
       Then the command refuses the topic ref without saving a review result
+
+    Scenario: A topic may track a configured non-default integration branch
+      Given the project configures origin/develop as its integration ref while origin/main is the remote default
+      And the topic branch tracks origin/develop and has authored changes
+      When the builder reviews the branch
+      Then the result uses origin/develop as its base and accounts for the authored changes
 
     @rejection
     Scenario: Renamed, deleted, and force-added ignored paths remain in the inventory
@@ -73,9 +79,10 @@ Feature: Review complete branch changes before builders finish
     @rejection
     Scenario: Changed ticket goals require a fresh review
       Given a saved branch review covered the implementation against the accepted ticket goals
+      And the ticket has left implementation
       And an accepted ticket goal changes after that review
-      When the builder tries to leave implementation
-      Then the ticket stays in implementation and the changed goal needs a fresh review
+      When the builder tries to finish the ticket
+      Then completion is refused and the changed goal needs a fresh review
 
   @branch-review.TBU1.R4
   Rule: branch-review.TBU1.R4 — Implementation exit checks the saved review before advancing

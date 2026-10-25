@@ -34,6 +34,12 @@ On 2026-10-25, the builder approved documenting the missing historical RED/GREEN
 - [x] GREEN 9a18e9342
 - [ ] REFACTOR
 
+### Scenario: A topic may track a configured non-default integration branch
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Renamed, deleted, and force-added ignored paths remain in the inventory
 
 - [ ] RED

@@ -85136,13 +85136,6 @@ function configuredIntegrationReference(cwd) {
     throw new InvalidIntegrationReference("branchReview configuration must be an object");
   return branchReview.integrationRef;
 }
-function currentUpstream(cwd) {
-  try {
-    return gitText(cwd, ["rev-parse", "--symbolic-full-name", "@{upstream}"]);
-  } catch {
-    return;
-  }
-}
 function isRemoteDefault(cwd, remote, branch) {
   try {
     return branch === remoteDefaultBranch(cwd, remote);
@@ -85164,8 +85157,8 @@ function integrationReference(cwd) {
 `).includes(match[1]))
       throw new InvalidIntegrationReference("branchReview.integrationRef must use a configured Git remote");
     const currentBranch = gitText(cwd, ["branch", "--show-current"]);
-    if ((match[2] === currentBranch || configured === currentUpstream(cwd)) && !isRemoteDefault(cwd, match[1], match[2]))
-      throw new InvalidIntegrationReference("The configured integration ref names the current topic branch; choose the remote default integration branch instead.");
+    if (match[2] === currentBranch && !isRemoteDefault(cwd, match[1], match[2]))
+      throw new InvalidIntegrationReference("The configured integration ref names the current topic branch; choose a different integration branch.");
     return { remote: match[1], branch: match[2], ref: configured, configured: true };
   }
   const remotes = gitText(cwd, ["remote"]).split(`

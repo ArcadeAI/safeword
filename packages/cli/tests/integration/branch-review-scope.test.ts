@@ -404,7 +404,6 @@ it('refuses a topic branch as configured integration scope', async () => {
   git(project, 'add', 'source.ts');
   git(project, 'commit', '-m', 'feature');
   git(project, 'push', '-u', 'origin', 'topic');
-  git(project, 'branch', '-m', 'fx');
   mkdirSync(nodePath.join(project, '.safeword'));
   writeFileSync(
     nodePath.join(project, '.safeword', 'config.json'),
@@ -447,6 +446,69 @@ it('refuses a topic branch as configured integration scope', async () => {
       false,
     );
   }
+});
+
+it('reviews a topic tracking the configured non-default integration branch', async () => {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-develop-base-'));
+  roots.push(root);
+  const remote = nodePath.join(root, 'remote.git');
+  const project = nodePath.join(root, 'project');
+  mkdirSync(project);
+  git(root, 'init', '--bare', remote);
+  git(project, 'init', '-b', 'main');
+  git(project, 'config', 'user.name', 'Test Builder');
+  git(project, 'config', 'user.email', 'builder@example.test');
+  git(project, 'remote', 'add', 'origin', remote);
+  const ticket = nodePath.join(project, '.project', 'tickets', 'ABC123-review-branch');
+  mkdirSync(ticket, { recursive: true });
+  writeFileSync(
+    nodePath.join(ticket, 'ticket.md'),
+    '---\nid: ABC123\ntype: feature\nphase: implement\n---\n# Review branch\n',
+  );
+  writeFileSync(nodePath.join(project, 'seed.txt'), 'base\n');
+  writeFileSync(nodePath.join(project, '.gitignore'), '.safeword/config.json\n.safeword/state/\n');
+  git(project, 'add', '.');
+  git(project, 'commit', '-m', 'seed');
+  git(project, 'push', '-u', 'origin', 'main');
+  git(remote, 'symbolic-ref', 'HEAD', 'refs/heads/main');
+  git(project, 'remote', 'set-head', 'origin', '-a');
+  git(project, 'checkout', '-b', 'develop');
+  writeFileSync(nodePath.join(project, 'develop.ts'), 'export const shared = true;\n');
+  git(project, 'add', 'develop.ts');
+  git(project, 'commit', '-m', 'shared integration work');
+  git(project, 'push', '-u', 'origin', 'develop');
+  git(project, 'checkout', '-b', 'topic');
+  git(project, 'branch', '--set-upstream-to=origin/develop');
+  writeFileSync(nodePath.join(project, 'topic.ts'), 'export const feature = true;\n');
+  git(project, 'add', 'topic.ts');
+  git(project, 'commit', '-m', 'topic work');
+  mkdirSync(nodePath.join(project, '.safeword'));
+  writeFileSync(
+    nodePath.join(project, '.safeword', 'config.json'),
+    '{"branchReview":{"integrationRef":"refs/remotes/origin/develop"}}\n',
+  );
+
+  const reviewerBin = nodePath.join(createTrustedReviewerDirectory('branch-develop-'), 'bin');
+  mkdirSync(reviewerBin);
+  writeFileSync(
+    nodePath.join(reviewerBin, 'claude'),
+    `${claudeReviewerShellPrelude()}\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Reviewed topic","findings":[]}\\n' "$dispatch_id"\n`,
+    { mode: 0o755 },
+  );
+  const result = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env: {
+      PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    },
+  });
+  const report = JSON.parse(result.stdout) as BranchReport;
+  expect(result.exitCode, JSON.stringify(report)).toBe(0);
+  expect(report.data?.base).toBe(git(project, 'merge-base', 'origin/develop', 'HEAD'));
+  expect(report.data?.reviewed_paths).toContain('topic.ts');
+  expect(report.data?.reviewed_paths).not.toContain('develop.ts');
+  expect(report.data?.coverage).toBe('complete');
 });
 
 it('shows mapped test source with a changed proof manifest', async () => {

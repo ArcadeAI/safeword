@@ -808,8 +808,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   git(project, 'commit', '--allow-empty', '-m', 'same reviewed correction');
   expectHookAllow(attemptExit('verify', 'done'));
   writeFileSync(auditSource, 'export const audit = 2;\n');
-  const changedGoalBlocked = attemptExit('verify', 'done');
-  expectHookDeny(changedGoalBlocked, 'stale');
+  expectHookDeny(attemptExit('verify', 'done'), 'stale');
   expect(completionProblem()).toContain('stale');
   writeFileSync(auditSource, 'export const audit = 1;\n');
   expectHookAllow(attemptExit('verify', 'done'));
@@ -817,7 +816,8 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     ticketPath,
     readFileSync(ticketPath, 'utf8').replace('- preserve access rule', '- allow bypass'),
   );
-  expectHookDeny(attemptExit('verify', 'done'), 'stale');
+  const changedGoalBlocked = attemptExit('verify', 'done');
+  expectHookDeny(changedGoalBlocked, 'stale');
   assertLocalHostsBlock('verify', 'done');
 
   const verificationReviewId = JSON.parse(verificationReview.stdout).data?.review_id as string;

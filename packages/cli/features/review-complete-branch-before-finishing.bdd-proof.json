@@ -81,6 +81,10 @@
       "packages/cli/tests/integration/branch-review-scope.test.ts",
       "refuses a topic branch as configured integration scope"
     ],
+    "A topic may track a configured non-default integration branch": [
+      "packages/cli/tests/integration/branch-review-scope.test.ts",
+      "reviews a topic tracking the configured non-default integration branch"
+    ],
     "Renamed, deleted, and force-added ignored paths remain in the inventory": [
       "packages/cli/tests/integration/branch-review.test.ts",
       "inventories renamed, deleted, and force-added ignored paths"
