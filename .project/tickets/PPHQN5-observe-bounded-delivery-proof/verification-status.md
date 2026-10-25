@@ -1,8 +1,9 @@
 # Observer verification status — incomplete
 
 Resumed on 2026-10-24 against fetched main
-f211c4c30fdb40e7fc5f342eaf981143c750db7b. Implementation remains at
-476641567, with subsequent evidence-only commits. This is a factual progress
+f211c4c30fdb40e7fc5f342eaf981143c750db7b. The initial currency correction was
+476641567; a later whole-code review found and corrected the interleaved-option
+recovery defect at af0ebd42e. This is a factual progress
 record, not `verify.md`, a closing receipt or a claim that the canonical closing
 workflow passed. No shared review/closing gate, installed cache, original
 delivery record or qualification status changed.
@@ -36,8 +37,9 @@ in `evidence/currency-red-queue-timeout-review.json`.
 
 ## Completion obligations that remain open
 
-The observer ledger has 15 of 37 entries checked: five completed R/G/R blocks,
-seven open blocks, and an open cross-scenario review. These seven scenarios have
+The observer ledger has 16 of 37 entries checked: five completed R/G/R blocks
+and the completed cross-scenario assessment. Seven scenario blocks remain open.
+These seven scenarios have
 execution coverage, but their missing primary RED history cannot be inferred
 from a passing binding:
 

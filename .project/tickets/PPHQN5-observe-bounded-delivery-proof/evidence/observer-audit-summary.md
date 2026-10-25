@@ -264,3 +264,59 @@ approved with reduced Claude/claude-opus-5 assurance. Both trusted stamps and
 the normal coding-authorization check succeeded. No shared gate was edited or
 bypassed. Runtime/profile/source changes and final verification remain to be
 recorded below after they actually complete.
+
+### Completed whole-code review and correction
+
+- The recovery fix is committed at af0ebd42e. The existing option scanner now
+  finds the bounded leaf after legitimate interleaved globals. Its original
+  default scan position is unchanged; command acceptance stays with Commander.
+- The three new boolean/separate-value/attached-value cases and the original
+  refusal control passed 4/4. The broader normal-wrapper regression passed
+  136 tests in 13 CLI/observer files. Six runtime controls passed, including
+  the refreshed reader identity and conservative audit-input fallback.
+- Eighteen additional actual source/native requests passed: three entrypoints,
+  two bounded leaves and three flag placements. Each returned invalid-argument
+  refusal with execution-only authority and the fixed recovery command. These
+  requests used a single interleaved JSON flag, addressing the RED review's
+  warning about the Node helper appending another JSON flag.
+- Current lint/Gherkin lint/CLI typecheck, CLI-reference generation check and
+  all five generated-surface checks passed. The current diff code audit found
+  no dependency violations; whole-workspace dead-code, clone totals and upgrade
+  discovery remain explicitly skipped. No new full root regression or full
+  17-case acceptance run is claimed after this narrow parser correction.
+- Independent final quality review 249d9991-c87b-40ff-91da-c9083e8cdc75 approved
+  every one of the 37 requested source, test and documentation targets, with no
+  exclusions or blocking errors. Actual reviewer: Claude/opus, cross-agent.
+  This is whole-code review evidence, distinct from the reduced planning checks.
+- The structural assessment selected no additional code refactor. Keeping the
+  observation transaction together preserves its start/terminal/cleanup
+  relationship; repeated freshness reads protect distinct boundaries. Shared
+  fixture helpers already centralize setup, while different lifecycle/package
+  arrangements preserve their own ownership and cleanup. The parser repair
+  reuses the existing scanner instead of adding a second option parser.
+- The cross-scenario row now records that completed assessment with an explicit
+  no-further-structural-change reason. The ledger has 16/37 checked entries:
+  five completed scenario blocks and the cross-scenario row; seven scenario
+  blocks remain open. No original checked scenario annotation was rewritten.
+
+Remaining reviewer warnings are retained, not treated as approval authority.
+The feature stays WIP and its real-boundary harnesses need a named CI lane
+before release. Public command visibility is an accepted interface decision,
+not changed by cleanup. Pinned tools, the trusted candidate runner, full local
+history for the old-reader fixture and shared-lock timeout interaction remain
+explicit limits. A source/content change can disable audit exemptions; an
+unchanged-content or designated audit-only commit does not automatically stale
+evidence merely because HEAD changed. The final public verifier checks this
+after the final note commit. No cross-distribution verification or minimum-host
+portability claim is added.
+
+Review and check artifacts are retained outside bound inputs under
+/Users/alex/.local/state/safeword/observer-whole-reviews/2026-10-24-5ofxnp5b/.
+The original failed runs, first whole-code approval, rejected planning refresh,
+corrected reduced approvals, genuine new RED and subsequent passing checks are
+all kept. Historical missing RED and all 33 original deferrals remain unchanged.
+The current dependency audit still reports the inherited 12 advisories.
+
+A new actual-checkout pilot is required after these bound code, plan, generated
+and ledger changes are committed. Its result is recorded in the next section
+only after execution; the older attempt is retained as historical evidence.

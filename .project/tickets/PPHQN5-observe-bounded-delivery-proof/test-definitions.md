@@ -3,8 +3,9 @@
 Feature source: `features/observe-bounded-delivery-proof.feature`
 
 These are new observer obligations, not reconstructed history for T3E4NS.
-The caller-override and complete-proof demo have new observer evidence.
-Other scenarios remain open; no final actual-checkout proof is claimed.
+Checked scenario rows retain their earned observer evidence. Unchecked rows
+remain open; current execution results and their limits are recorded in
+`evidence/observer-audit-summary.md` and do not reconstruct missing RED history.
 
 ## Scenario ledger
 
@@ -86,4 +87,4 @@ the JSON Cucumber control separately checks that execution never starts.
 
 ### Cross-scenario review and refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: whole-diff review 249d9991 covered all 37 source, test and documentation targets; no additional structural refactor was warranted after fixing the recovery defect separately in af0ebd42e; missing scenario RED history remains open
