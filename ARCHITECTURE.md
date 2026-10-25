@@ -1,7 +1,7 @@
 # Safeword Architecture
 
 **Version:** 1.25
-**Last Updated:** 2026-10-20
+**Last Updated:** 2026-10-24
 **Status:** Production
 
 ---
@@ -239,6 +239,7 @@ The generated package leaf is the current structural inventory. These purposes e
 
 | Module                        | Responsibility                                                                                                                                   |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `bounded-observation`         | Fixed local delivery execution, authenticated retained attempts, and current-input verification without completion authority                     |
 | `boundary`                    | Evaluates architectural boundary evidence and dependency policy                                                                                  |
 | `claude-plugin`               | Native Claude plugin delivery, execution proof, historical ownership classification, legacy contraction                                          |
 | `cli.ts`                      | Executable composition root that registers public, compatibility, and hidden hook commands                                                       |
@@ -1509,7 +1510,7 @@ fixtures with the oldest supported v2 and current linter in the CI matrix.
 
 ### Bounded observation preserves completion authority
 
-**Status:** proposed
+**Status:** implemented in the unreleased contribution; completion evidence remains open
 **Date:** 2026-10-23
 **Supersedes:** none
 
@@ -1522,7 +1523,7 @@ ownership constrain future consumers, so they need a durable record.
 
 #### Decision
 
-The proposed observer runs only a reviewed, shipped fixed contract in an isolated
+The observer runs only a reviewed, bundled fixed contract in an isolated
 committed candidate and retains authenticated, root-bound attempts outside the
 checkout. Its verifier checks exact required assertion results and current source
 identity. Failed and interrupted attempts survive retry. Ticket semantics stay
@@ -1543,7 +1544,8 @@ authentication is not protection against that owner deliberately forging evidenc
 Withdrawal removes command availability while preserving retained evidence.
 
 Feature decisions remain in the single [observer Implementation Plan](.project/tickets/PPHQN5-observe-bounded-delivery-proof/impl-plan.md).
-This proposal records design intent, not shipped behavior or plan approval.
+This record describes the local implementation. Release, ticket completion and
+independent recovery certification remain separate obligations.
 
 ## References
 

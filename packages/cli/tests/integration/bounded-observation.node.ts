@@ -11,6 +11,42 @@ import {
   runSubstitutedCommand,
 } from '../fixtures/bounded-observation.js';
 
+for (const placement of ['boolean', 'separate-value', 'attached-value'] as const) {
+  void test(`interleaved global options preserve fixed observation recovery (${placement})`, () => {
+    const candidate = createObserverCandidate();
+    try {
+      const options = {
+        boolean: ['--json'],
+        'separate-value': ['--cwd', candidate.root, '--json'],
+        'attached-value': [`--cwd=${candidate.root}`, '--json'],
+      }[placement];
+      const result = runObserverCli(candidate, [
+        'proof',
+        ...options,
+        'observe-bounded-delivery',
+        '--command',
+        `touch ${candidate.directory}/caller-command-ran`,
+      ]);
+      assert.equal(result.exitCode, 1, result.stdout);
+      assert.ok(
+        result.output.errors?.some(
+          error => error.code === 'CLI_ARGUMENT_INVALID' && error.message.includes('--command'),
+        ),
+        result.stdout,
+      );
+      assert.ok(
+        result.output.next_actions?.some(
+          action => action.command === 'safeword proof observe-bounded-delivery',
+        ),
+        `Interleaved global options must preserve fixed observation recovery: ${result.stdout}`,
+      );
+      expectFixedRequestRefusal(result, candidate);
+    } finally {
+      candidate.dispose();
+    }
+  });
+}
+
 void test('real profile produces complete verifiable evidence', { timeout: 900_000 }, () => {
   const candidate = createObserverCandidate();
   try {

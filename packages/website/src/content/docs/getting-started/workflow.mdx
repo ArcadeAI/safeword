@@ -118,8 +118,10 @@ Safeword runs hooks every turn to track which phase the agent is in. These gates
 
 This maintenance command supports the Safeword repository's fixed T3E4NS
 contract: 37 cases and 46 distinct required assertion results. Run it from a
-clean committed Safeword checkout with the pinned Node/Bun toolchain, installed
+clean committed Safeword checkout with complete local Git history, installed
 lockfile dependencies and local Git, Codex, mise, tar and shell tools available.
+This fixed lane requires exactly Node 24.18.1 and Bun 1.3.14, selected by
+`scripts/dev` from the repository's `mise.toml`.
 
 ```bash
 safeword proof observe-bounded-delivery --json --no-input --offline
@@ -165,9 +167,11 @@ Safeword invokes no registry install, model request or qualification route durin
 observation. The lane uses local Codex plugin-packaging commands in disposable
 profiles. `--offline` covers Safeword's declared network operations; this is
 trusted local execution, with no OS network sandbox or third-party telemetry
-guarantee. Source-based observations identify actual test bodies and inputs;
-they do not establish that a same-named assertion still proves its intended
-meaning. Later independent semantic review owns that judgment.
+guarantee. The committed candidate supplies the test script and runner;
+observation records the success or failure that runner reports. Source-based
+observations identify actual test bodies and inputs. Later independent semantic
+review must assess the runner's integrity and whether the assertions prove their
+intended meaning.
 
 <footer class="docs-footer">
 
