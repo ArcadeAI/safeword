@@ -320,3 +320,26 @@ The current dependency audit still reports the inherited 12 advisories.
 A new actual-checkout pilot is required after these bound code, plan, generated
 and ledger changes are committed. Its result is recorded in the next section
 only after execution; the older attempt is retained as historical evidence.
+
+### Final corrected actual-checkout observation
+
+- Producing revision: e155b77d7fedb1bc7470e9ec2d00d922df9eb140.
+- Retained attempt: 6cdc75de-1a54-4829-ae0e-0a630c1cb1eb, status observed;
+  public verification returned current true with execution-only authority.
+- The actual unmodified fixed lane passed 257/257 tests, covering 37 delivery
+  cases and 46 distinct required assertion identities. The driver confirmed
+  unchanged producing HEAD, clean checkout and protected history.
+- Report SHA-256:
+  7f083eed9f9bf3fc274b812d0aea48708fa3fe3fa8a16c52dcdbd78cb8a2b60a.
+- Protected-history SHA-256 is unchanged from the earlier pilot:
+  a24ea06dcedb75acd1641a68a0e5d84b0e498f61d5f6583504c1dce7dc881135.
+- The full external record is final-pilot.json under the whole-review artifact
+  directory named above. Its SHA-256 is
+  4dc14a4484647bc3c76a756aade80adf8e0c128a22ea641c9319f02507eb6483.
+  A post-note-commit public verification is retained there separately, so no
+  bound output is changed merely to report its result.
+- The older attempt is preserved. This new proof covers the corrected source;
+  it does not rewrite the seven open observer scenario histories, any original
+  T3E4NS ledger row or any of the 33 deferred identities and owners. The ticket
+  remains in implementation; no closing, merge or qualification authority is
+  created. Main still resolved to f211c4c30 after the final fetch.
