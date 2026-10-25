@@ -1325,18 +1325,33 @@ if (isCanonicalTicketEdit) {
   const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
   const ticketEdit = canonicalTicketEditContext();
   const priorType = frontmatterScalar(ticketEdit.priorMeta, 'type');
-  if (
-    priorType === 'feature' &&
-    proposedType !== 'feature' &&
-    (priorPhase === 'implement' || priorPhase === 'verify')
-  )
-    deny(
-      'Changing an in-progress feature to another type would bypass its branch review.',
-      'Move the feature back to intake before reclassifying it, or finish the branch review.',
-    );
+  const ticketId = nodePath.basename(nodePath.dirname(editedFile)).split('-', 1)[0] ?? '';
   const closingTicket =
     frontmatterScalar(ticketEdit.priorMeta, 'status') !== 'done' &&
     frontmatterScalar(ticketEdit.proposedMeta, 'status') === 'done';
+  if (
+    priorType === 'feature' &&
+    ['implement', 'verify', 'done'].includes(priorPhase ?? '') &&
+    (frontmatterScalar(ticketEdit.priorMeta, 'id') !==
+      frontmatterScalar(ticketEdit.proposedMeta, 'id') ||
+      proposedPhase !== priorPhase ||
+      closingTicket) &&
+    (frontmatterScalar(ticketEdit.priorMeta, 'id') !== ticketId ||
+      frontmatterScalar(ticketEdit.proposedMeta, 'id') !== ticketId)
+  )
+    deny(
+      'Changing the ticket ID would bypass its branch review.',
+      'Keep the ticket ID matched to its folder and rerun the branch review after repairing it.',
+    );
+  if (
+    priorType === 'feature' &&
+    proposedType !== 'feature' &&
+    (priorPhase === 'implement' || priorPhase === 'verify' || priorPhase === 'done')
+  )
+    deny(
+      'Changing a feature to another type would bypass its branch review.',
+      'Move the feature back to intake before reclassifying it, or finish the branch review.',
+    );
   const phases: ('implement' | 'verify')[] = [];
   if (
     priorPhase === 'implement' &&
@@ -1345,7 +1360,9 @@ if (isCanonicalTicketEdit) {
     phases.push('implement');
   if (
     (proposedPhase === 'done' || closingTicket) &&
-    (priorPhase === 'implement' || priorPhase === 'verify')
+    (priorPhase === 'implement' ||
+      priorPhase === 'verify' ||
+      (closingTicket && priorPhase === 'done'))
   )
     phases.push('verify');
   if (proposedType === 'feature' && phases.length > 0) {
@@ -1357,8 +1374,6 @@ if (isCanonicalTicketEdit) {
         'The phase change also changes ticket goals, so the saved branch review cannot cover the proposed ticket.',
         'Save the goal change first, review the branch against it, then change only the phase.',
       );
-    const ticketId = frontmatterScalar(canonicalTicketEditContext().proposedMeta, 'id');
-    if (ticketId === undefined) deny('Branch review cannot identify the ticket.');
     for (const phase of phases) {
       const decision = branchReviewGateDecision(ticketId, phase);
       if (decision.denial !== undefined) {

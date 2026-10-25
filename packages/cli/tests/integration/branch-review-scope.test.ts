@@ -437,6 +437,8 @@ it('refuses a topic branch as configured integration scope', async () => {
     '{"branchReview":42}',
     '{"branchReview":{"integrationRef":42}}',
     '{"branchReview":{"integrationRef":"HEAD~1"}}',
+    '{"branchReview":{"integrationRef":"refs/remotes/--upload-pack=echo/main"}}',
+    '{"branchReview":{"integrationRef":"refs/remotes/unknown/main"}}',
     '{"branchReview":{"integrationRef":"refs/remotes/origin/missing"}}',
   ]) {
     writeFileSync(nodePath.join(project, '.safeword', 'config.json'), `${invalid}\n`);

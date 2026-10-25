@@ -357,7 +357,7 @@ describe('Cursor done-edit gate (AKNWZK)', () => {
     expect(decision.user_message).toContain('scenarios');
   });
 
-  it('allows a feature close when verify.md and all scenarios are complete', () => {
+  it('continues to the shared phase gate when verify.md and scenarios are complete', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), validVerify);
     writeFileSync(
       nodePath.join(ticketDirectory, 'test-definitions.md'),
@@ -369,7 +369,8 @@ describe('Cursor done-edit gate (AKNWZK)', () => {
       content: doneFrontmatter('feature'),
     });
 
-    expect(decision.permission).toBe('allow');
+    expect(decision.permission).toBe('deny');
+    expect(decision.user_message).toContain('phase');
   });
 
   it('does not gate a ticket.md edit that only sets phase: done (not closing)', () => {

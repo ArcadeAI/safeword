@@ -163,6 +163,18 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     ),
   ).toEqual(sorted([...new Set(laterPacketPaths)]));
 
+  rmSync(nodePath.join(project, 'change-0.txt'));
+  const revertedDirty = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env: {
+      PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_REVIEW_LOG: nodePath.join(root, 'reverted-passes.log'),
+      SAFEWORD_REVIEW_FAKE_VERDICT: 'approve',
+    },
+  });
+  const revertedDirtyReport = JSON.parse(revertedDirty.stdout);
+
   git(project, 'reset', '--hard', 'main');
   const empty = await runCli(['review', 'branch', 'ABC123', '--json'], {
     cwd: project,
@@ -439,6 +451,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   expect(JSON.parse(supersedingCheck.stdout).data?.disclosure).toContain('Unattributed problem');
   return {
     report,
+    revertedDirtyReport,
     focusedReport,
     dirtyReport,
     renamedReport,
@@ -529,6 +542,16 @@ it('keeps a dirty branch current but partially covered', async () => {
   expect(proof.dirtyReport.data?.freshness).toBe('current');
   expect(proof.dirtyReport.data?.coverage).toBe('partial');
   expect(proof.dirtyReport.data?.dirty_paths).toContain('.env');
+});
+
+it('accounts for a committed addition deleted again in the working tree', async () => {
+  const proof = await branchProof();
+  expect(proof.revertedDirtyReport.data?.dirty_paths).toContain('change-0.txt');
+  expect(proof.revertedDirtyReport.data?.omitted_paths).toContainEqual({
+    path: 'change-0.txt',
+    reason: 'deleted or renamed source',
+  });
+  expect(proof.revertedDirtyReport.data?.coverage).not.toBe('complete');
 });
 
 it('omits paths from a failed later review pass', async () => {

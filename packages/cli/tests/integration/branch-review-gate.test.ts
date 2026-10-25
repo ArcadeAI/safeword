@@ -472,6 +472,13 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     data?: { coverage?: string; review_id?: string };
   };
   expect(firstReview.data?.coverage).toBe('complete');
+  const missingTicketCheck = await runCli(
+    ['review', 'branch-check', 'ABC123X', 'verify', '--json'],
+    {
+      cwd: project,
+    },
+  );
+  expect(JSON.parse(missingTicketCheck.stdout).data?.may_advance).toBe(false);
   expect(readFileSync(ticketPath, 'utf8')).toContain(
     `branch_review_exit_id: ${firstReview.data?.review_id}`,
   );
@@ -488,11 +495,18 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   });
   expect(JSON.parse(droppedMarker.stdout).data?.may_advance).toBe(false);
   writeFileSync(ticketPath, markedTicket);
-  const assertLocalHostsBlock = (from: 'implement' | 'verify', to: 'verify' | 'done') => {
+
+  /* eslint-disable complexity -- One adapter fixture checks current, stale, and bypass edits across four hosts. */
+  const assertLocalHostsEdit = (
+    oldString: string,
+    newString: string,
+    allowed = false,
+    denial = 'stale',
+  ) => {
     const edit = {
       file_path: ticketPath,
-      old_string: `phase: ${from}`,
-      new_string: `phase: ${to}`,
+      old_string: oldString,
+      new_string: newString,
     };
     const hookEnvironment: NodeJS.ProcessEnv = {
       ...process.env,
@@ -502,7 +516,9 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     delete hookEnvironment.CODEX_HOME;
     delete hookEnvironment.CLAUDE_PLUGIN_ROOT;
     if (host === 'Claude Code') {
-      expectHookDeny(attemptExit(from, to), 'stale');
+      const result = attemptEdit(oldString, newString);
+      if (allowed) expectHookAllow(result);
+      else expectHookDeny(result, denial);
       return;
     }
     if (host === 'OpenAI Codex') {
@@ -517,7 +533,8 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
           tool_input: edit,
         }),
       });
-      expectHookDeny(codex, 'stale');
+      if (allowed) expectHookAllow(codex);
+      else expectHookDeny(codex, denial);
       return;
     }
     if (host === 'Cursor') {
@@ -532,12 +549,12 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
           tool_name: 'Write',
           tool_input: {
             file_path: ticketPath,
-            content: readFileSync(ticketPath, 'utf8').split(`phase: ${from}`).join(`phase: ${to}`),
+            content: readFileSync(ticketPath, 'utf8').split(oldString).join(newString),
           },
         }),
       });
-      expect(cursor.stdout).toContain('stale');
-      expect(JSON.parse(cursor.stdout).permission).toBe('deny');
+      if (!allowed) expect(cursor.stdout).toContain(denial);
+      expect(JSON.parse(cursor.stdout).permission).toBe(allowed ? 'allow' : 'deny');
       return;
     }
     const openCode = spawnSync('bun', [openCodeDispatcherPath], {
@@ -552,8 +569,15 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
         tool_input: edit,
       }),
     });
-    expect(openCode.status).toBe(2);
-    expect(openCode.stderr).toContain('stale');
+    expect(openCode.status).toBe(allowed ? 0 : 2);
+    if (!allowed) expect(openCode.stderr).toContain(denial);
+  };
+  /* eslint-enable complexity */
+  const assertLocalHostsBlockEdit = (oldString: string, newString: string, denial = 'stale') => {
+    assertLocalHostsEdit(oldString, newString, false, denial);
+  };
+  const assertLocalHostsBlock = (from: 'implement' | 'verify', to: 'verify' | 'done') => {
+    assertLocalHostsBlockEdit(`phase: ${from}`, `phase: ${to}`);
   };
   const current = attemptExit();
   expectHookAllow(current);
@@ -589,7 +613,10 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
       .replace('- [ ] GREEN', '- [x] GREEN def5678')
       .replace('- [ ] REFACTOR', '- [x] REFACTOR skip: no change needed')
       .replace('- [ ] cross-scenario', '- [x] cross-scenario fed1234')
-      .replace('- [ ] VERIFIED', '- [x] VERIFIED abcdef1'),
+      .replace(
+        '- [ ] VERIFIED',
+        '- [x] VERIFIED eligibility=11111111-1111-4111-8111-111111111111 proof=22222222-2222-4222-8222-222222222222',
+      ),
   );
   expectHookAllow(attemptExit());
   git(project, 'commit', '--allow-empty', '-m', 'same content, new head');
@@ -635,6 +662,39 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     `${readFileSync(ticketPath, 'utf8').trimEnd()}\n\n## Work Log\n\n- Verified tests\n`,
   );
   expectHookAllow(attemptExit('verify', 'done'));
+  const beforeDoneClose = readFileSync(ticketPath, 'utf8');
+  const doneVerifyPath = nodePath.join(ticket, 'verify.md');
+  const beforeDoneVerify = readFileSync(doneVerifyPath, 'utf8');
+  const beforeDoneLedger = readFileSync(ledgerPath, 'utf8');
+  writeFileSync(
+    ticketPath,
+    beforeDoneClose
+      .replace('phase: verify', 'phase: done')
+      .replace('type: feature', 'type: feature\nstatus: in_progress'),
+  );
+  writeFileSync(
+    doneVerifyPath,
+    '# Verification result\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
+  );
+  writeFileSync(ledgerPath, ledger.replaceAll('- [ ]', '- [x]').replace('- [x] VERIFIED\n', ''));
+  writeFileSync(changePath, 'unreviewed completion change\n');
+  assertLocalHostsBlockEdit('status: in_progress', 'status: done');
+  assertLocalHostsBlockEdit('id: ABC123', 'id: ABC123X', 'ticket ID');
+  const priorTicketId = readFileSync(ticketPath, 'utf8');
+  writeFileSync(ticketPath, priorTicketId.replace('id: ABC123', 'id: ABC123X'));
+  assertLocalHostsBlockEdit('status: in_progress', 'status: done', 'ticket ID');
+  assertLocalHostsEdit('# Review branch', '# Review branch\n\n## Work Log', true);
+  writeFileSync(ticketPath, priorTicketId);
+  assertLocalHostsBlockEdit('type: feature', 'type: task', 'bypass');
+  assertLocalHostsBlockEdit(
+    'type: feature\nstatus: in_progress',
+    'type: task\nstatus: done',
+    'bypass',
+  );
+  writeFileSync(ticketPath, beforeDoneClose);
+  writeFileSync(doneVerifyPath, beforeDoneVerify);
+  writeFileSync(ledgerPath, beforeDoneLedger);
+  writeFileSync(changePath, 'reviewed content\n');
   writeFileSync(nodePath.join(project, 'change.txt'), 'unreviewed correction\n');
   const stale = attemptExit('verify', 'done');
   expect(stale.stdout).toContain('permissionDecision');
@@ -764,6 +824,29 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   await expectMissingRecordRecovery(project, ticketPath, verificationReviewId, env, () =>
     attemptExit('verify', 'done'),
   );
+
+  if (hostCase === 'Cursor / committed') {
+    writeFileSync(
+      ticketPath,
+      readFileSync(ticketPath, 'utf8')
+        .replace('- allow bypass', '- preserve access rule')
+        .replace('phase: verify', 'phase: done')
+        .replace('type: feature', 'type: feature\nstatus: in_progress'),
+    );
+    writeFileSync(
+      doneVerifyPath,
+      '# Verification result\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
+    );
+    writeFileSync(ledgerPath, ledger.replaceAll('- [ ]', '- [x]').replace('- [x] VERIFIED\n', ''));
+    git(project, 'add', ledgerPath);
+    git(project, 'commit', '-m', 'complete scenario evidence');
+    const closingReview = await runCli(['review', 'branch', 'ABC123', '--json'], {
+      cwd: project,
+      env,
+    });
+    expect(JSON.parse(closingReview.stdout).data?.coverage, closingReview.stdout).toBe('complete');
+    assertLocalHostsEdit('status: in_progress', 'status: done', true);
+  }
 
   git(project, 'reset', '--hard', 'main');
   git(project, 'clean', '-fd');

@@ -56,12 +56,13 @@ Feature: Review complete branch changes before builders finish
   @branch-review.TBU1.R3
   Rule: branch-review.TBU1.R3 — Later changes to reviewed work need a fresh review
 
-    @rejection
+    @rejection @surface.claude-code @surface.openai-codex @surface.cursor @surface.opencode
     Scenario: A code fix during verification cannot inherit the earlier review
       Given a saved branch review covered the implementation at exit
+      And the ticket is in the done phase awaiting its closing status edit
       And verification changes an authored implementation file
-      When the builder tries to finish the ticket
-      Then the earlier review is stale and the changed work needs review
+      When the builder tries to set the ticket status to done
+      Then the close is refused and the stale review and fresh-review action are named
 
     Scenario: Routine ticket records do not restart branch review
       Given a saved branch review covered the implementation at exit

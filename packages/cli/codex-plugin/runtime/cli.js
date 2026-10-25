@@ -3652,7 +3652,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "807729b32387097d12f3565f1ba30c0511a994e600c05e0a46c81d03047d1ba9",
+        ".safeword/hooks/pre-tool-quality.ts": "f83e57d788ef51b78f0abd5fb94baa9ed803fd43c98624724267a753f913e0b2",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -85160,6 +85160,9 @@ function integrationReference(cwd) {
     const match = /^refs\/remotes\/([^/]+)\/(.+)$/u.exec(configured);
     if (match?.[1] === undefined || match[2] === undefined)
       throw new InvalidIntegrationReference("branchReview.integrationRef must name a remote-tracking ref");
+    if (match[1].startsWith("-") || !gitText(cwd, ["remote"]).split(`
+`).includes(match[1]))
+      throw new InvalidIntegrationReference("branchReview.integrationRef must use a configured Git remote");
     const currentBranch = gitText(cwd, ["branch", "--show-current"]);
     if ((match[2] === currentBranch || configured === currentUpstream(cwd)) && !isRemoteDefault(cwd, match[1], match[2]))
       throw new InvalidIntegrationReference("The configured integration ref names the current topic branch; choose the remote default integration branch instead.");
@@ -85174,6 +85177,8 @@ function integrationReference(cwd) {
     remote = remotes[0];
   if (remote === undefined)
     throw new Error("Cannot choose an integration remote");
+  if (remote.startsWith("-"))
+    throw new InvalidIntegrationReference("Invalid Git remote name");
   const branch = remoteDefaultBranch(cwd, remote);
   return { remote, branch, ref: `refs/remotes/${remote}/${branch}`, configured: false };
 }
@@ -85313,7 +85318,7 @@ function unavailableReview(cwd, ticketId, ticket, reason) {
       schema_version: 1,
       id: randomUUID19(),
       ticket_id: ticketId,
-      review_phase: readFrontmatterScalar(readFileSync92(ticket, "utf8"), "phase") === "verify" ? "verify" : "implement",
+      review_phase: readFrontmatterScalar(readFileSync92(ticket, "utf8"), "phase") === "implement" ? "implement" : "verify",
       scope_identity: scopeIdentity(cwd, ""),
       integration_ref: "",
       base: "",
@@ -85378,6 +85383,13 @@ function digest8(value) {
 function isRoutineRecord(path8, ticketDirectory) {
   return path8.startsWith(".safeword/state/") || path8.endsWith("/skill-invocations.log") || path8 === `${ticketDirectory}/verify.md` || path8.startsWith(`${ticketDirectory}/evidence/`) || path8.startsWith(`${ticketDirectory}/audit/`);
 }
+function isProgressLedgerAnnotation(step, line, annotation) {
+  if (step === "VERIFIED") {
+    const kind = parseRetrospectiveAnnotation(line)?.kind;
+    return kind === "unchecked" || kind === "claim";
+  }
+  return annotation === "" || /^[a-f\d]{7,40}$/u.test(annotation) || annotation.startsWith("skip:") || annotation.startsWith("commit:");
+}
 function projectLedger(text) {
   return text.split(`
 `).map((line) => {
@@ -85385,7 +85397,7 @@ function projectLedger(text) {
     if (match?.[1] === undefined || match[2] === undefined)
       return line;
     const annotation = line.slice(match[0].length).trim();
-    if (annotation !== "" && !/^[a-f\d]{7,40}$/u.test(annotation) && !annotation.startsWith("skip:") && !annotation.startsWith("commit:"))
+    if (!isProgressLedgerAnnotation(match[2], line, annotation))
       return line;
     return `${match[1]}[ ] ${match[2]}`;
   }).join(`
@@ -85480,9 +85492,10 @@ function projectedInventory(cwd, base, ticketDirectory) {
       current = undefined;
     }
     const projected = projectedBytes(path8, current, ticketDirectory);
-    if (projected === undefined || projected === projectedBytes(path8, baseBytes(cwd, base, path8), ticketDirectory))
-      return [];
+    const baseline = projectedBytes(path8, baseBytes(cwd, base, path8), ticketDirectory);
     const committed = projectedBytes(path8, baseBytes(cwd, "HEAD", path8), ticketDirectory);
+    if (projected === undefined || projected === baseline && committed === baseline)
+      return [];
     const status = projected === committed ? item.status.replaceAll(/\+dirty:[^+]+/gu, "") : item.status;
     return [{ path: path8, status, projected }];
   });
@@ -85755,13 +85768,14 @@ function branchGateProblem(record3, fresh, findingsResolved, acknowledged) {
       message: "No branch changes were reviewed; retry or record a reasoned skip.",
       severity: "warning"
     };
+  const omittedDetails = record3.omitted_paths.map((item) => `${JSON.stringify(item.path)} (${item.reason})`).join("; ");
   return acknowledged ? {
     code: "BRANCH_REVIEW_DISCLOSURE_MISSING",
     message: "The branch review disclosure is missing from the ticket Work Log.",
     severity: "warning"
   } : {
     code: "BRANCH_REVIEW_INCOMPLETE",
-    message: "The branch review is incomplete; acknowledge its exact omissions or retry.",
+    message: `The branch review is incomplete. Omitted: ${omittedDetails}. Run \`safeword review branch-ack ${record3.ticket_id} ${record3.id} --reason "<reason>"\` to disclose them, or review the branch again.`,
     severity: "warning"
   };
 }
@@ -85854,7 +85868,7 @@ function checkBranchReview(cwd, ticketId, phase) {
   const ticket = ticketPath(cwd, ticketId);
   const marker = ticket === undefined ? undefined : readFrontmatterScalar(readFileSync92(ticket, "utf8"), "branch_review_exit_id");
   const record3 = latestRecord(cwd, ticketId);
-  if (phase === "verify" && marker === undefined && record3 === undefined && !hasPotentialTicketRecord(cwd, ticketId)) {
+  if (ticket !== undefined && phase === "verify" && marker === undefined && record3 === undefined && !hasPotentialTicketRecord(cwd, ticketId)) {
     return legacyUncoveredResult(ticketId, phase);
   }
   if (record3 === undefined || marker !== record3.id) {
@@ -85953,8 +85967,8 @@ async function reviewBranch(cwd, ticketId, offline) {
   if (ticket === undefined || !existsSync65(ticket))
     return noCoverage(ticketId, "Active BDD ticket not found");
   const ticketContent = readFileSync92(ticket, "utf8");
-  if (readFrontmatterScalar(ticketContent, "type") !== "feature" || !["implement", "verify"].includes(readFrontmatterScalar(ticketContent, "phase") ?? "")) {
-    return noCoverage(ticketId, "Branch review requires a feature ticket in implementation or verification");
+  if (readFrontmatterScalar(ticketContent, "type") !== "feature" || !["implement", "verify", "done"].includes(readFrontmatterScalar(ticketContent, "phase") ?? "")) {
+    return noCoverage(ticketId, "Branch review requires a feature ticket in implementation, verification, or completion");
   }
   if (offline)
     return unavailableReview(cwd, ticketId, ticket, "The integration branch was not fetched offline");
@@ -86091,7 +86105,7 @@ async function reviewBranch(cwd, ticketId, offline) {
     schema_version: 1,
     id: randomUUID19(),
     ticket_id: ticketId,
-    review_phase: readFrontmatterScalar(ticketContent, "phase") === "verify" ? "verify" : "implement",
+    review_phase: readFrontmatterScalar(ticketContent, "phase") === "implement" ? "implement" : "verify",
     scope_identity: scopeIdentity(cwd, ref),
     integration_ref: ref,
     base,
@@ -86132,6 +86146,7 @@ async function reviewBranch(cwd, ticketId, offline) {
 var InvalidIntegrationReference, IntegrationFetchFailure;
 var init_branch = __esm(() => {
   init_namespace_root2();
+  init_retrospective_annotation();
   init_review_ledger();
   init_result();
   init_configured_paths();

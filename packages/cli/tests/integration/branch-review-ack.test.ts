@@ -115,6 +115,10 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   };
   const beforeAcknowledgement = attemptExit();
   expectHookDeny(beforeAcknowledgement, 'incomplete');
+  expect(beforeAcknowledgement.stdout).toContain('binary.dat');
+  expect(beforeAcknowledgement.stdout).toContain('large-generated.txt');
+  expect(beforeAcknowledgement.stdout).toContain('branch-ack');
+  expect(beforeAcknowledgement.stdout).toContain(report.data.review_id);
   const ack = await runCli(
     [
       'review',

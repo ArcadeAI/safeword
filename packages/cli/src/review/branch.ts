@@ -13,6 +13,7 @@ import {
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from '../../templates/hooks/lib/namespace-root.js';
+import { parseRetrospectiveAnnotation } from '../../templates/hooks/lib/retrospective-annotation.js';
 import {
   isSatisfyingSkipStamp,
   parseReviewStamps,
@@ -201,6 +202,10 @@ function integrationReference(cwd: string): {
       throw new InvalidIntegrationReference(
         'branchReview.integrationRef must name a remote-tracking ref',
       );
+    if (match[1].startsWith('-') || !gitText(cwd, ['remote']).split('\n').includes(match[1]))
+      throw new InvalidIntegrationReference(
+        'branchReview.integrationRef must use a configured Git remote',
+      );
     const currentBranch = gitText(cwd, ['branch', '--show-current']);
     if (
       (match[2] === currentBranch || configured === currentUpstream(cwd)) &&
@@ -216,6 +221,7 @@ function integrationReference(cwd: string): {
   if (remotes.includes('origin')) remote = 'origin';
   else if (remotes.length === 1) remote = remotes[0];
   if (remote === undefined) throw new Error('Cannot choose an integration remote');
+  if (remote.startsWith('-')) throw new InvalidIntegrationReference('Invalid Git remote name');
   const branch = remoteDefaultBranch(cwd, remote);
   return { remote, branch, ref: `refs/remotes/${remote}/${branch}`, configured: false };
 }
@@ -397,9 +403,9 @@ function unavailableReview(
       id: randomUUID(),
       ticket_id: ticketId,
       review_phase:
-        readFrontmatterScalar(readFileSync(ticket, 'utf8'), 'phase') === 'verify'
-          ? 'verify'
-          : 'implement',
+        readFrontmatterScalar(readFileSync(ticket, 'utf8'), 'phase') === 'implement'
+          ? 'implement'
+          : 'verify',
       scope_identity: scopeIdentity(cwd, ''),
       integration_ref: '',
       base: '',
@@ -477,6 +483,19 @@ function isRoutineRecord(path: string, ticketDirectory: string): boolean {
   );
 }
 
+function isProgressLedgerAnnotation(step: string, line: string, annotation: string): boolean {
+  if (step === 'VERIFIED') {
+    const kind = parseRetrospectiveAnnotation(line)?.kind;
+    return kind === 'unchecked' || kind === 'claim';
+  }
+  return (
+    annotation === '' ||
+    /^[a-f\d]{7,40}$/u.test(annotation) ||
+    annotation.startsWith('skip:') ||
+    annotation.startsWith('commit:')
+  );
+}
+
 function projectLedger(text: string): string {
   return text
     .split('\n')
@@ -485,13 +504,7 @@ function projectLedger(text: string): string {
         /^([ \t]*- )\[[ xX]\] (RED|GREEN|REFACTOR|cross-scenario|VERIFIED)(?=[ \t]|$)/u.exec(line);
       if (match?.[1] === undefined || match[2] === undefined) return line;
       const annotation = line.slice(match[0].length).trim();
-      if (
-        annotation !== '' &&
-        !/^[a-f\d]{7,40}$/u.test(annotation) &&
-        !annotation.startsWith('skip:') &&
-        !annotation.startsWith('commit:')
-      )
-        return line;
+      if (!isProgressLedgerAnnotation(match[2], line, annotation)) return line;
       return `${match[1]}[ ] ${match[2]}`;
     })
     .join('\n');
@@ -592,12 +605,9 @@ function projectedInventory(
       current = undefined;
     }
     const projected = projectedBytes(path, current, ticketDirectory);
-    if (
-      projected === undefined ||
-      projected === projectedBytes(path, baseBytes(cwd, base, path), ticketDirectory)
-    )
-      return [];
+    const baseline = projectedBytes(path, baseBytes(cwd, base, path), ticketDirectory);
     const committed = projectedBytes(path, baseBytes(cwd, 'HEAD', path), ticketDirectory);
+    if (projected === undefined || (projected === baseline && committed === baseline)) return [];
     const status =
       projected === committed ? item.status.replaceAll(/\+dirty:[^+]+/gu, '') : item.status;
     return [{ path, status, projected }];
@@ -935,6 +945,9 @@ function branchGateProblem(
       message: 'No branch changes were reviewed; retry or record a reasoned skip.',
       severity: 'warning',
     };
+  const omittedDetails = record.omitted_paths
+    .map(item => `${JSON.stringify(item.path)} (${item.reason})`)
+    .join('; ');
   return acknowledged
     ? {
         code: 'BRANCH_REVIEW_DISCLOSURE_MISSING',
@@ -943,7 +956,7 @@ function branchGateProblem(
       }
     : {
         code: 'BRANCH_REVIEW_INCOMPLETE',
-        message: 'The branch review is incomplete; acknowledge its exact omissions or retry.',
+        message: `The branch review is incomplete. Omitted: ${omittedDetails}. Run \`safeword review branch-ack ${record.ticket_id} ${record.id} --reason "<reason>"\` to disclose them, or review the branch again.`,
         severity: 'warning',
       };
 }
@@ -1072,6 +1085,7 @@ export function checkBranchReview(cwd: string, ticketId: string, phase: string):
       : readFrontmatterScalar(readFileSync(ticket, 'utf8'), 'branch_review_exit_id');
   const record = latestRecord(cwd, ticketId);
   if (
+    ticket !== undefined &&
     phase === 'verify' &&
     marker === undefined &&
     record === undefined &&
@@ -1208,11 +1222,11 @@ export async function reviewBranch(
   const ticketContent = readFileSync(ticket, 'utf8');
   if (
     readFrontmatterScalar(ticketContent, 'type') !== 'feature' ||
-    !['implement', 'verify'].includes(readFrontmatterScalar(ticketContent, 'phase') ?? '')
+    !['implement', 'verify', 'done'].includes(readFrontmatterScalar(ticketContent, 'phase') ?? '')
   ) {
     return noCoverage(
       ticketId,
-      'Branch review requires a feature ticket in implementation or verification',
+      'Branch review requires a feature ticket in implementation, verification, or completion',
     );
   }
   if (offline)
@@ -1401,7 +1415,7 @@ export async function reviewBranch(
     id: randomUUID(),
     ticket_id: ticketId,
     review_phase:
-      readFrontmatterScalar(ticketContent, 'phase') === 'verify' ? 'verify' : 'implement',
+      readFrontmatterScalar(ticketContent, 'phase') === 'implement' ? 'implement' : 'verify',
     scope_identity: scopeIdentity(cwd, ref),
     integration_ref: ref,
     base,
