@@ -4,6 +4,10 @@ Feature source: `packages/cli/features/review-complete-branch-before-finishing.f
 
 test-definitions.md is the R/G/R ledger.
 
+## Historical test-cycle exception
+
+On 2026-10-25, the builder approved documenting the missing historical RED/GREEN/REFACTOR records for this ticket. Passing tests establish current behavior, but they do not prove that each test failed before its implementation. Unchecked rows remain unchecked rather than claiming an unrecorded test cycle. This exception is disclosed in Draft PR #6125 and does not itself satisfy Safeword's done gate.
+
 ## Rule: branch-review.TBU1.R1 — The review selects and accounts for the complete branch against the ticket
 
 ### Scenario: A multi-file feature is reviewed from the integration merge base
