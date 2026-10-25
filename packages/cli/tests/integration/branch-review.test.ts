@@ -6,7 +6,7 @@ import nodePath from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 
 import { runCli } from '../helpers.js';
-import { createTrustedReviewerDirectory } from '../review-fixtures.js';
+import { claudeReviewerShellPrelude, createTrustedReviewerDirectory } from '../review-fixtures.js';
 
 const roots: string[] = [];
 
@@ -181,8 +181,11 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     'No branch changes were reviewed',
   );
 
-  writeFileSync(nodePath.join(project, 'source.ts'), 'export const allowed = true;\n');
-  writeFileSync(nodePath.join(project, 'caller.ts'), 'export const result = true;\n');
+  writeFileSync(
+    nodePath.join(project, 'source.ts'),
+    "export const canRead = (role: string) => role === 'admin';\n",
+  );
+  writeFileSync(nodePath.join(project, 'caller.ts'), "export const readData = () => 'secret';\n");
   writeFileSync(
     nodePath.join(ticket, 'spec.md'),
     '# Access scenario\nCallers must pass the check before data is returned.\n',
@@ -220,6 +223,9 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   expect(focusedPrompt).toContain('spec.md');
   expect(focusedPrompt).toContain('source.ts');
   expect(focusedPrompt).toContain('caller.ts');
+  expect(focusedPrompt).toContain('Callers must pass the check before data is returned.');
+  expect(focusedPrompt).toContain('export const canRead');
+  expect(focusedPrompt).toContain('export const readData');
   const findingGate = await runCli(['review', 'branch-check', 'ABC123', 'implement', '--json'], {
     cwd: project,
   });
@@ -241,11 +247,17 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     cwd: project,
   });
   expect(JSON.parse(staleGate.stdout).data?.may_advance).toBe(false);
-  writeFileSync(nodePath.join(project, 'source.ts'), 'export const allowed = true;\n');
+  writeFileSync(
+    nodePath.join(project, 'source.ts'),
+    "export const canRead = (role: string) => role === 'admin';\n",
+  );
   git(project, 'add', 'source.ts', 'caller.ts', '.project/tickets/ABC123-review-branch/spec.md');
   git(project, 'commit', '-m', 'save authored access work');
 
   writeFileSync(nodePath.join(project, '.env'), 'PRIVATE_TOKEN=must-stay-local\n');
+  const dirtyPassStart = readFileSync(nodePath.join(root, 'passes.log'), 'utf8')
+    .trim()
+    .split('\n').length;
   const dirty = await runCli(['review', 'branch', 'ABC123', '--json'], {
     cwd: project,
     env: {
@@ -264,9 +276,15 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     reason: 'sensitive path; content withheld from reviewer',
   });
   expect(dirtyReport.data?.next_action).toContain('acknowledge');
-  expect(readFileSync(nodePath.join(root, 'passes.log.5'), 'utf8')).not.toContain(
-    'must-stay-local',
-  );
+  const dirtyPassEnd = readFileSync(nodePath.join(root, 'passes.log'), 'utf8')
+    .trim()
+    .split('\n').length;
+  expect(dirtyPassEnd).toBeGreaterThan(dirtyPassStart);
+  for (let pass = dirtyPassStart + 1; pass <= dirtyPassEnd; pass += 1) {
+    expect(readFileSync(nodePath.join(root, `passes.log.${pass}`), 'utf8')).not.toContain(
+      'must-stay-local',
+    );
+  }
 
   git(project, 'mv', 'seed.txt', 'renamed-seed.txt');
   git(project, 'rm', 'remove-me.txt');
@@ -294,10 +312,15 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     reason: 'deleted or renamed source',
   });
   expect(renamedReport.data?.coverage).toBe('partial');
+  const markerBeforeNarrowing = readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8');
   const narrowed = await runCli(['review', 'branch', 'ABC123', 'HEAD~1', '--json'], {
     cwd: project,
   });
-  expect(JSON.parse(narrowed.stdout).ok).toBe(false);
+  const narrowedReport = JSON.parse(narrowed.stdout);
+  expect(narrowed.exitCode).toBe(1);
+  expect(narrowedReport.errors?.[0]?.message).toContain('too many arguments');
+  expect(narrowedReport.data?.review_id).toBeUndefined();
+  expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toBe(markerBeforeNarrowing);
 
   git(project, 'reset', '--hard', 'main');
   git(project, 'clean', '-fd');
@@ -362,6 +385,39 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   });
   expect(JSON.parse(blockedSkip.stdout).data?.skip_eligible).toBe(false);
 
+  writeFileSync(
+    reviewer,
+    String.raw`${claudeReviewerShellPrelude()}
+printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"A change is required","findings":[]}\n' "$dispatch_id"
+`,
+    { mode: 0o755 },
+  );
+  const findinglessRejection = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env: {
+      PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+    },
+  });
+  const findinglessRejectionReport = JSON.parse(findinglessRejection.stdout);
+
+  writeFileSync(
+    reviewer,
+    String.raw`${claudeReviewerShellPrelude()}
+printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Reviewed files with a non-blocking note","findings":[{"severity":"warning","message":"Consider clearer names."}]}\n' "$dispatch_id"
+`,
+    { mode: 0o755 },
+  );
+  const approvedWithWarning = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env: {
+      PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+    },
+  });
+  const approvedWithWarningReport = JSON.parse(approvedWithWarning.stdout);
+  expect(approvedWithWarning.exitCode).toBe(0);
+
   git(project, 'reset', '--hard', 'main');
   const superseding = await runCli(['review', 'branch', 'ABC123', '--json'], {
     cwd: project,
@@ -386,7 +442,9 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     focusedReport,
     dirtyReport,
     renamedReport,
-    narrowed: JSON.parse(narrowed.stdout),
+    findinglessRejectionReport,
+    approvedWithWarningReport,
+    narrowed: narrowedReport,
     passOne: readFileSync(nodePath.join(root, 'passes.log.1'), 'utf8'),
     passTwo: readFileSync(nodePath.join(root, 'passes.log.2'), 'utf8'),
   };
@@ -400,6 +458,8 @@ const branchProof = (() => {
 it('refuses a caller-supplied later branch base', async () => {
   const proof = await branchProof();
   expect(proof.narrowed.ok).toBe(false);
+  expect(proof.narrowed.errors?.[0]?.message).toContain('too many arguments');
+  expect(proof.narrowed.data?.review_id).toBeUndefined();
 });
 
 it('attributes a cross-file finding to behavior, paths, and consequence', async () => {
@@ -410,6 +470,28 @@ it('attributes a cross-file finding to behavior, paths, and consequence', async 
     consequence: expect.stringContaining('bypass the check'),
   });
   expect(proof.focusedReport.data?.branch_findings).toContainEqual(expectedFinding);
+});
+
+it('credits an approved pass with an unstructured non-blocking warning', async () => {
+  const proof = await branchProof();
+  expect(proof.approvedWithWarningReport.data?.coverage).toBe('complete');
+  expect(proof.approvedWithWarningReport.data?.reviewed_paths).toEqual(
+    expect.arrayContaining(['large-0.txt', 'large-1.txt', 'large-2.txt', 'large-3.txt']),
+  );
+  expect(proof.approvedWithWarningReport.data?.branch_findings).toEqual([]);
+  expect(proof.approvedWithWarningReport.findings).toContainEqual(
+    expect.objectContaining({ message: 'Consider clearer names.' }),
+  );
+});
+
+it('does not credit a request for changes without an actionable finding', async () => {
+  const proof = await branchProof();
+  expect(proof.findinglessRejectionReport.data?.coverage).toBe('none');
+  expect(proof.findinglessRejectionReport.data?.reviewed_paths).toEqual([]);
+  expect(proof.findinglessRejectionReport.data?.omitted_paths).toContainEqual({
+    path: 'large-0.txt',
+    reason: 'review finding lacks behavior, related files, or consequence',
+  });
 });
 
 it('names a skipped generated file as an omission', async () => {
@@ -433,7 +515,13 @@ it('withholds a sensitive file from every review packet', async () => {
 
 it('gives a builder the next action for partial coverage', async () => {
   const proof = await branchProof();
-  expect(proof.dirtyReport.data?.next_action).toContain('acknowledge');
+  expect(proof.dirtyReport.data?.omitted_paths).toContainEqual({
+    path: '.env',
+    reason: 'sensitive path; content withheld from reviewer',
+  });
+  expect(proof.dirtyReport.data?.next_action).toMatch(
+    /review or acknowledge.*before leaving implementation/iu,
+  );
 });
 
 it('keeps a dirty branch current but partially covered', async () => {

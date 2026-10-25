@@ -222,6 +222,22 @@ it('keeps a saved review current after verification checklist progress', async (
     runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], { cwd: project });
   const baseline = await checkReview();
   expectCurrentBranchCheck(baseline.stdout);
+  const laterTest = nodePath.join(project, 'packages', 'app', 'tests', 'access.test.ts');
+  mkdirSync(nodePath.dirname(laterTest), { recursive: true });
+  writeFileSync(laterTest, 'test access after review\n');
+  const afterTest = await checkReview();
+  expect(JSON.parse(afterTest.stdout).data?.freshness).toBe('stale');
+  rmSync(laterTest);
+  const afterTestRemoval = await checkReview();
+  expectCurrentBranchCheck(afterTestRemoval.stdout);
+  const laterScenario = nodePath.join(project, 'features', 'access.feature');
+  mkdirSync(nodePath.dirname(laterScenario), { recursive: true });
+  writeFileSync(laterScenario, 'Feature: access after review\n');
+  const afterScenario = await checkReview();
+  expect(JSON.parse(afterScenario.stdout).data?.freshness).toBe('stale');
+  rmSync(laterScenario);
+  const afterScenarioRemoval = await checkReview();
+  expectCurrentBranchCheck(afterScenarioRemoval.stdout);
   const ticketPath = nodePath.join(ticket, 'ticket.md');
   writeFileSync(
     ticketPath,
@@ -542,6 +558,17 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   const current = attemptExit();
   expectHookAllow(current);
   const changePath = nodePath.join(project, 'change.txt');
+  writeFileSync(changePath, 'staged correction\n');
+  git(project, 'add', 'change.txt');
+  assertLocalHostsBlock('implement', 'verify');
+  git(project, 'reset', 'HEAD', '--', 'change.txt');
+  writeFileSync(changePath, 'reviewed content\n');
+  expectHookAllow(attemptExit());
+  const untrackedPath = nodePath.join(project, 'new-work.ts');
+  writeFileSync(untrackedPath, 'export const newWork = true;\n');
+  assertLocalHostsBlock('implement', 'verify');
+  rmSync(untrackedPath);
+  expectHookAllow(attemptExit());
   const committedFix = hostCase.endsWith('/ committed');
   writeFileSync(changePath, committedFix ? 'committed correction\n' : 'uncommitted correction\n');
   if (committedFix) {

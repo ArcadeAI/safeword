@@ -1341,7 +1341,10 @@ export async function reviewBranch(
         finding => finding.code === 'REVIEWER_FINDING',
       );
       const typed = reviewerFindings.map(finding => branchFinding(finding, pass));
-      if (typed.includes(undefined)) {
+      if (
+        data.status === 'changes_requested' &&
+        (typed.length === 0 || typed.includes(undefined))
+      ) {
         findings.push(...result.findings);
         omitted.push(
           ...pass.map(path => ({
@@ -1357,7 +1360,9 @@ export async function reviewBranch(
         });
         continue;
       }
-      branchFindings.push(...(typed as BranchFinding[]));
+      branchFindings.push(
+        ...typed.filter((finding): finding is BranchFinding => finding !== undefined),
+      );
       reviewed.push(...pass.filter(path => !dirtyPaths.includes(path)));
       findings.push(...result.findings);
       passes.push({
