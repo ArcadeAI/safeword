@@ -225,3 +225,42 @@ entries plus cross-scenario and all 33 deferrals/owners remain uncredited.
 The disposition above is the work-product submitted for independent quality
 review. The independent verdict, achieved assurance and any resulting correction
 must be reported separately; this authored disposition is not its own approval.
+
+## Whole-code review: interleaved-option recovery correction
+
+### Root cause
+
+The independent whole-contribution review covered all 37 requested source,
+test and documentation targets without exclusions and found no blocking code
+error. An additional author boundary check then found a concrete refusal-copy
+defect: `proof --json observe-bounded-delivery --command ...` returned the
+generic invalid-option envelope without the fixed observation recovery action.
+The equivalent request with global flags after the leaf had the correct action.
+
+The cause is adjacency in `isBoundedProofRequest`: it recognizes `proof` and
+checks the immediately following token for the bounded leaf. A legitimate
+interleaved global option makes that check false. `commandTokenIndex` already
+knows how to skip declared global options and consume their separate or attached
+values; reusing that scanner for the leaf avoids a second parser.
+
+Ruled out: malformed or unrecognized global options (the CLI correctly named
+the unsupported `--command`, and the standard-order control returned recovery),
+and fixture/import/configuration failure (all three clean committed candidates
+returned valid JSON and passed the exit/error-code assertions). The failing
+assertion directly requires the fixed recovery action in the actor-visible
+result. This is a real current defect, not an invented failure for an old row.
+
+RED source is retained at bf365509d. Independent executable-RED review
+6961fd66-b755-4333-aef3-e20aa83fae57 approved the three attested failures:
+exit 1, no signal or timeout, and the named failure literal matched. The
+original caller-refusal ledger annotations remain unchanged. This refinement
+earns no RED for the other six scenarios or the currency outline.
+
+The documentation cleanup exposed stale planning context. The normal
+Implementation review first requested removal of stale debugging/progress
+details; its corrected decision summary was approved by bb0f131d with reduced,
+non-independent Claude/opus assurance. Dependent Execution review bf30c16d
+approved with reduced Claude/claude-opus-5 assurance. Both trusted stamps and
+the normal coding-authorization check succeeded. No shared gate was edited or
+bypassed. Runtime/profile/source changes and final verification remain to be
+recorded below after they actually complete.

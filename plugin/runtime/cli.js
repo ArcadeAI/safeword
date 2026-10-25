@@ -17641,7 +17641,7 @@ var audit_readers_default;
 var init_audit_readers = __esm(() => {
   audit_readers_default = {
     schema_version: 1,
-    source_sha256: "beab82a6fc3d7b8dab46114b77e6d796330ac69a0002d711c0701e411c8c3832"
+    source_sha256: "105c49d2c0e865d2faf814069389a12b93eb8653e50fc1af085b9ee99cb30660"
   };
 });
 
@@ -96195,8 +96195,8 @@ function rootOptionMatch(token) {
   const attached = ROOT_OPTIONS.find((candidate) => candidate.required && candidate.short !== undefined && token.startsWith(candidate.short));
   return attached === undefined ? undefined : { option: attached, attached: true };
 }
-function commandTokenIndex(argv) {
-  for (let index = 2;index < argv.length; index += 1) {
+function commandTokenIndex(argv, startIndex = 2) {
+  for (let index = startIndex;index < argv.length; index += 1) {
     const token = argv[index];
     if (token === undefined || token === "--")
       return;
@@ -96227,9 +96227,10 @@ function configureCliOutput(program2, config) {
 }
 function isBoundedProofRequest(argv) {
   const index = commandTokenIndex(argv);
-  if (index === undefined)
+  if (index === undefined || argv[index] !== "proof")
     return false;
-  return argv[index] === "proof" && ["observe-bounded-delivery", "verify-bounded-delivery"].includes(argv[index + 1] ?? "");
+  const leafIndex = commandTokenIndex(argv, index + 1);
+  return leafIndex !== undefined && ["observe-bounded-delivery", "verify-bounded-delivery"].includes(argv[leafIndex] ?? "");
 }
 function argumentFailure(argv, message) {
   if (isBoundedProofRequest(argv))

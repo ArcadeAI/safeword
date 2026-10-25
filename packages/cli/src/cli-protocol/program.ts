@@ -119,8 +119,8 @@ function rootOptionMatch(
   return attached === undefined ? undefined : { option: attached, attached: true };
 }
 
-function commandTokenIndex(argv: readonly string[]): number | undefined {
-  for (let index = 2; index < argv.length; index += 1) {
+function commandTokenIndex(argv: readonly string[], startIndex = 2): number | undefined {
+  for (let index = startIndex; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === undefined || token === '--') return undefined;
     if (!token.startsWith('-')) return index;
@@ -156,10 +156,12 @@ export function configureCliOutput(program: Command, config: OutputConfiguration
 
 function isBoundedProofRequest(argv: readonly string[]): boolean {
   const index = commandTokenIndex(argv);
-  if (index === undefined) return false;
+  if (index === undefined || argv[index] !== 'proof') return false;
+  // Global options are also valid between a command family and its leaf.
+  const leafIndex = commandTokenIndex(argv, index + 1);
   return (
-    argv[index] === 'proof' &&
-    ['observe-bounded-delivery', 'verify-bounded-delivery'].includes(argv[index + 1] ?? '')
+    leafIndex !== undefined &&
+    ['observe-bounded-delivery', 'verify-bounded-delivery'].includes(argv[leafIndex] ?? '')
   );
 }
 
