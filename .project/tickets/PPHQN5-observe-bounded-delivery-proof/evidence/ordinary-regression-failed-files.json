@@ -1,0 +1,18 @@
+[
+  "tests/claude-plugin/dispatch.test.ts",
+  "tests/cli-protocol/machine-contract.test.ts",
+  "tests/hooks/lint-go-context.test.ts",
+  "tests/integration/codex-stop-retro.test.ts",
+  "tests/integration/hooks.test.ts",
+  "tests/integration/override-survival.test.ts",
+  "tests/integration/phase-review-gate.test.ts",
+  "tests/integration/planning-contract-generation.test.ts",
+  "tests/integration/planning-review-disposition.test.ts",
+  "tests/integration/quality-gates.test.ts",
+  "tests/integration/rust-golden-path.test.ts",
+  "tests/integration/stop-retro-filing.test.ts",
+  "tests/integration/write-time-annotation-gate.test.ts",
+  "tests/scripts/lifecycle-fixtures.test.ts",
+  "tests/skills/audit-domain-documentation.test.ts",
+  "tests/test-runner-lock.test.ts"
+]

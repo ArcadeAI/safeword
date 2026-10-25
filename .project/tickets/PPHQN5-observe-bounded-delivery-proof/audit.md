@@ -26,10 +26,14 @@ separate completion obligations; this audit does not fill them.
   Lower controls use the cheapest relevant boundary; real execution stays
   outside Vitest parents. The interrupted direct CLI-contract invocation is
   disclosed in evidence/review-response-current.md and earns no proof credit.
-- Independent review: 56281a69 approved the latest causal/runtime changes with
+- Independent review: 56281a69 approved the causal/runtime changes with
   cross-agent Claude/opus assurance. Its policy/trust warnings are retained in
   evidence/causal-runtime-quality-review.json, not silently treated as errors
   or expanded into new shared gates.
+- The subsequent currency-diagnostic correction was independently approved by
+  3a70d81c. Its four affected freshness cases and six runtime controls pass.
+  The earlier one-case acceptance failure and its genuine diagnostic RED remain
+  retained rather than being replaced with an invented clean historical run.
 
 ## Documentation and knowledge coverage
 
@@ -48,13 +52,21 @@ Maintainer remain configured, with no new host qualification claim.
 
 ## Evidence and limits
 
-Current code audit: evidence/final-code-audit.log. Current runtime review, six
+Current code audit: evidence/final-corrected-code-audit.log. Current runtime review, six
 causal controls, nine distribution refusals, three packaged surface controls and
 lint/typecheck results are retained separately. All 14 original research
 integrity entries still match; 42 original unchecked R/G/R entries, the original
 cross-scenario entry and all 33 deferred objects remain unchanged. This audit
 does not substitute for the final acceptance lane, ordinary regression or clean
 committed-checkout observation.
+
+The resumed ordinary acceptance lane failed with 13 failed and 594 undefined
+scenarios; its affected feature and step sources match main. Focused baseline
+classification and final actual-checkout proof are recorded separately in
+verification-status.md and evidence/observer-audit-summary.md. The dependency
+audit also failed with 12 advisories in the unchanged dependency graph. These
+results do not reverse the scoped code-audit result, and that result does not
+waive these completion limitations.
 
 Audit passed for the scoped code and documentation checks; completion evidence
 remains separately open.

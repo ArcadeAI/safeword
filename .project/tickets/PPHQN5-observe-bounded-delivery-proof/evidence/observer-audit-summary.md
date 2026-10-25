@@ -6,6 +6,10 @@ path is the named audit-output exception in the observer design. The observer
 does not write this file; the final standalone pilot may have its result
 summarized here by the contributor after retaining the actual external attempt.
 
+## Initial implementation checkpoints
+
+The entries in this section describe earlier checkpoints, not current status.
+
 - Main remains f211c4c30 after a fresh fetch. Shared review/closing gates,
   installed caches, original delivery records and all 33 deferrals are unchanged.
 - New demo RED is committed at 9dec94696; diagnostic/type refinement is committed
@@ -50,3 +54,49 @@ summarized here by the contributor after retaining the actual external attempt.
   integrity.pre-format.json.gz under that ticket's evidence directory. The new
   integrity manifest records the format correction and original digest. No
   original delivery input, raw report, RED gap or deferred case object changed.
+
+## Verification resumed on 2026-10-24
+
+- Current implementation is committed through 476641567; 4b378f6d9 retains its
+  verification records. Independent quality review 3a70d81c approved the final
+  currency-diagnostic correction. Earlier full acceptance reached 16 passed and
+  one failed; the affected four freshness cases subsequently passed 4/4, and
+  all six current runtime controls passed. This is not a single clean 17-case
+  rerun. Packaged surface controls passed 3/3 before the diagnostic-only fix.
+- The ordinary root regression failed: 11,817 CLI tests passed, 18 failed and
+  18 skipped across 732 files, with one additional setup-hook failure. Relay
+  passed 198 with one skip and collector passed 153. Repeated host sleep is
+  recorded separately; it is a candidate environmental explanation, not a
+  waiver. All 16 failed files are being rerun under the normal shared wrapper
+  with a process-scoped idle-sleep guard. Original failure output is retained.
+- The current dependency audit failed with 12 advisories: 3 high, 6 moderate,
+  3 low. The dependency graph is unchanged from main. The dated addendum and
+  raw report preserve this inherited limitation; no dependency update or
+  reachability conclusion is implied.
+- A fresh fetch still resolves main to f211c4c30. All 14 research integrity
+  entries match. The inventory still asserts 14 original blocks / 37 cases,
+  42 unchecked R/G/R entries plus cross-scenario, and 33 unique deferred cases
+  with owners DRD65E 1, FC33HK 12, KKP2R3 2 and MCWV4B 18.
+- This feature's own ledger remains 15/37 checked entries: five completed
+  R/G/R blocks, seven open blocks and the open cross-scenario review. Passing
+  bindings and the separately retained diagnostic RED cannot fill other rows.
+  No ticket completion, historical repair, qualification or merge is claimed.
+- 1AHFZS received the current regression, dependency-audit and boundary update.
+  Its branch-review receipts and closing authority remain separate.
+- Recovery completed: all 16 previously failing files passed, 592/592 tests in
+  171.91 seconds, with no source, assertion or timeout changes. Root build and
+  typecheck passed; current lint/Gherkin lint/CLI typecheck passed, and all five
+  generated surfaces are current.
+- Ordinary acceptance finished with 1,778 passed, 13 failed, 594 undefined and
+  three skipped scenarios. A main-only source archive, rebuilt using the same
+  installed dependencies and pinned tools, reproduced all 13 failures and the
+  exact 594 undefined scenario identities. All 7,295 tracked baseline blobs
+  remained unchanged. Dry-run binding census earns no execution credit; the
+  focused execution selected 14 scenarios, one passed and 13 failed.
+- The inherited over-budget evidence case reports complete instead of
+  incomplete and has been handed to 1AHFZS's separate branch-review work. The
+  other failures concern an unavailable review witness, obsolete hook-command
+  expectations and stale selected-test counts. Shared gates and source features
+  are unchanged. Exact failures and setup limitations are retained separately.
+- Final actual-checkout observation and current public verification remain
+  outstanding. The ticket stays in implementation.

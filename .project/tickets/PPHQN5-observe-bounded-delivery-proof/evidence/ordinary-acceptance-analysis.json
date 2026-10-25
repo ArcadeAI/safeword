@@ -1,0 +1,142 @@
+{
+  "ordinary": {
+    "scenarios": 2388,
+    "passed": 1778,
+    "skipped": 3,
+    "undefined": 594,
+    "failed": 13
+  },
+  "undefined_by_feature": {
+    "features/keep-plan-reviews-current-and-trustworthy.feature": 176,
+    "features/keep-tasks-and-patches-proportional.feature": 144,
+    "features/make-planning-gates-understandable-and-scope-safe.feature": 33,
+    "features/migrate-planning-guidance-without-disrupting-features.feature": 79,
+    "features/resolve-disputed-plan-findings.feature": 43,
+    "features/write-clear-reviewable-plans.feature": 119
+  },
+  "failed_scenarios": [
+    {
+      "name": "Safeword CLI enforces and releases the decision boundary",
+      "file": "features/approve-coherent-implementation-plans.feature",
+      "line": 17
+    },
+    {
+      "name": "Evidence over budget cannot look complete or ready",
+      "file": "features/route-ready-prs-with-a-safe-advisory-review.feature",
+      "line": 167
+    },
+    {
+      "name": "Plugin hook commands never point at repo-local hook scripts",
+      "file": "features/test-codex-plugin-migration.feature",
+      "line": 92
+    },
+    {
+      "name": "Release check proves the packed package contains the plugin and hook entrypoints",
+      "file": "features/test-codex-plugin-migration.feature",
+      "line": 141
+    },
+    {
+      "name": "Review-contract identity controls semantic approval",
+      "file": "features/turn-decisions-into-startable-work.feature",
+      "line": 92
+    },
+    {
+      "name": "Review-contract identity controls semantic approval",
+      "file": "features/turn-decisions-into-startable-work.feature",
+      "line": 93
+    },
+    {
+      "name": "Review-contract identity controls semantic approval",
+      "file": "features/turn-decisions-into-startable-work.feature",
+      "line": 94
+    },
+    {
+      "name": "Review-contract identity controls semantic approval",
+      "file": "features/turn-decisions-into-startable-work.feature",
+      "line": 95
+    },
+    {
+      "name": "Review-contract identity controls semantic approval",
+      "file": "features/turn-decisions-into-startable-work.feature",
+      "line": 96
+    },
+    {
+      "name": "Review-contract identity controls semantic approval",
+      "file": "features/turn-decisions-into-startable-work.feature",
+      "line": 97
+    },
+    {
+      "name": "The structural gate reports artifact facts without a semantic verdict",
+      "file": "features/turn-decisions-into-startable-work.feature",
+      "line": 165
+    },
+    {
+      "name": "The structural gate reports artifact facts without a semantic verdict",
+      "file": "features/turn-decisions-into-startable-work.feature",
+      "line": 166
+    },
+    {
+      "name": "The structural gate reports artifact facts without a semantic verdict",
+      "file": "features/turn-decisions-into-startable-work.feature",
+      "line": 167
+    }
+  ],
+  "source_comparisons": [
+    {
+      "path": "features/approve-coherent-implementation-plans.feature",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "features/keep-plan-reviews-current-and-trustworthy.feature",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "features/keep-tasks-and-patches-proportional.feature",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "features/make-planning-gates-understandable-and-scope-safe.feature",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "features/migrate-planning-guidance-without-disrupting-features.feature",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "features/resolve-disputed-plan-findings.feature",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "features/route-ready-prs-with-a-safe-advisory-review.feature",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "features/test-codex-plugin-migration.feature",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "features/turn-decisions-into-startable-work.feature",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "features/write-clear-reviewable-plans.feature",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "steps/plan-implementation-phase.steps.ts",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "steps/route-ready-prs-with-a-safe-advisory-review.steps.ts",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "steps/test-codex-plugin-migration.steps.ts",
+      "byte_identical_to_main": true
+    },
+    {
+      "path": "steps/turn-decisions-into-startable-work.steps.ts",
+      "byte_identical_to_main": true
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "source_revision": "f211c4c30fdb40e7fc5f342eaf981143c750db7b",
+  "source_tree": "4720fc654587641ff0b2d504ba6d3e2674da82fc",
+  "tracked_blobs_checked_after_probes": 7295,
+  "changed_tracked_blobs": [],
+  "arrangement": "Owned archive of main; installed dependency directories linked from the contribution; tools selected by the original trusted scripts/dev; baseline root build succeeded. This is local baseline comparison, not clean-install or qualification proof.",
+  "setup_failures_not_product_credit": [
+    "Initial baseline-local launcher refused the untrusted disposable mise.toml; no trust configuration changed.",
+    "The first CLI-only build lacked relay dist required by imported steps; baseline root build repaired setup before observation."
+  ],
+  "undefined_identity_match": 594,
+  "failed_identity_match": 13,
+  "focused_scenarios": 14,
+  "focused_passed": 1,
+  "focused_failed": 13,
+  "dry_run_execution_credit": false,
+  "dry_run_argv": [
+    "node",
+    "--import",
+    "tsx",
+    "node_modules/@cucumber/cucumber/bin/cucumber.js",
+    "--dry-run",
+    "--format",
+    "summary"
+  ],
+  "focused_argv": [
+    "node",
+    "--import",
+    "tsx",
+    "node_modules/@cucumber/cucumber/bin/cucumber.js",
+    "features/approve-coherent-implementation-plans.feature",
+    "features/route-ready-prs-with-a-safe-advisory-review.feature",
+    "features/test-codex-plugin-migration.feature",
+    "features/turn-decisions-into-startable-work.feature",
+    "--name",
+    "^(?:Evidence\\ over\\ budget\\ cannot\\ look\\ complete\\ or\\ ready|Plugin\\ hook\\ commands\\ never\\ point\\ at\\ repo\\-local\\ hook\\ scripts|Release\\ check\\ proves\\ the\\ packed\\ package\\ contains\\ the\\ plugin\\ and\\ hook\\ entrypoints|Review\\-contract\\ identity\\ controls\\ semantic\\ approval|Safeword\\ CLI\\ enforces\\ and\\ releases\\ the\\ decision\\ boundary|The\\ structural\\ gate\\ reports\\ artifact\\ facts\\ without\\ a\\ semantic\\ verdict)$",
+    "--format",
+    "summary"
+  ],
+  "owned_fixture_removed_after_evidence_retention": true
+}
