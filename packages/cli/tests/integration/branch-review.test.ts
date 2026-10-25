@@ -216,9 +216,10 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     message: expect.stringContaining('source.ts and caller.ts'),
   });
   expect(focusedReport.findings).toEqual(expect.arrayContaining([matchingFinding]));
-  expect(readFileSync(nodePath.join(root, 'passes.log.3'), 'utf8')).toContain('spec.md');
-  expect(readFileSync(nodePath.join(root, 'passes.log.3'), 'utf8')).toContain('source.ts');
-  expect(readFileSync(nodePath.join(root, 'passes.log.3'), 'utf8')).toContain('caller.ts');
+  const focusedPrompt = readFileSync(nodePath.join(root, `passes.log.${passCount + 1}`), 'utf8');
+  expect(focusedPrompt).toContain('spec.md');
+  expect(focusedPrompt).toContain('source.ts');
+  expect(focusedPrompt).toContain('caller.ts');
   const findingGate = await runCli(['review', 'branch-check', 'ABC123', 'implement', '--json'], {
     cwd: project,
   });

@@ -85775,38 +85775,53 @@ function reasonedSkipFor(cwd, record3) {
   const scope = reviewScope(nodePath140.basename(nodePath140.dirname(ticket)), "phase", record3.review_phase ?? "implement");
   return parseReviewStamps(readFileSync92(log, "utf8")).findLast((stamp) => stamp.reviewId === record3.id && isSatisfyingSkipStamp(scope, stamp))?.skipReason;
 }
+function retainedRecordForTicket(cwd, file, ticketId) {
+  let value;
+  try {
+    const path8 = nodePath140.join(branchRecordsDirectory(cwd), file);
+    const content = readFileSync92(path8, "utf8");
+    value = JSON.parse(content);
+  } catch {
+    return { kind: "damaged" };
+  }
+  if (typeof value !== "object" || value === null)
+    return { kind: "damaged" };
+  const owner = value.ticket_id;
+  if (typeof owner === "string" && owner !== ticketId)
+    return { kind: "other" };
+  if (!validRecord(cwd, value))
+    return { kind: "damaged" };
+  return { kind: "record", record: value };
+}
 function supersededRequestedFindings(cwd, record3) {
   const directory = branchRecordsDirectory(cwd);
   if (!existsSync65(directory))
-    return [];
+    return { findings: [], complete: true };
   const files2 = readdirSync37(directory).filter((name) => /^\d+-[a-f\d-]+\.json$/u.test(name)).toSorted((left, right) => right.localeCompare(left));
   const findings = [];
   let older = false;
   for (const file of files2) {
-    let prior;
-    try {
-      prior = JSON.parse(readFileSync92(nodePath140.join(directory, file), "utf8"));
-    } catch {
+    const entry2 = retainedRecordForTicket(cwd, file, record3.ticket_id);
+    if (entry2.kind === "other")
       continue;
-    }
-    if (!validRecord(cwd, prior))
-      continue;
+    if (entry2.kind === "damaged")
+      return { findings, complete: false };
+    const prior = entry2.record;
     if (prior.id === record3.id) {
       older = true;
       continue;
     }
-    if (!older || prior.ticket_id !== record3.ticket_id)
+    if (!older)
       continue;
     findings.push(...prior.review_passes.filter((pass) => pass.status === "changes_requested").flatMap((pass) => pass.findings.map((finding2) => finding2.message)));
   }
-  return [...new Set(findings)];
+  return { findings: [...new Set(findings)], complete: true };
 }
-function noneDisclosure(cwd, record3, reason) {
+function noneDisclosure(record3, reason, earlier) {
   const omitted = record3.omitted_paths.map((item) => `${item.path} (${item.reason})`).join(", ");
   const omittedDescription = record3.base === "" && record3.unavailable_reason ? "exact branch path list unavailable without an integration base" : omitted || "none";
-  const earlier = supersededRequestedFindings(cwd, record3);
   const earlierNote = earlier.length > 0 ? `. Earlier requested changes: ${earlier.join("; ")}` : "";
-  return `No branch changes were reviewed (coverage none). Omitted: ${omittedDescription}. Reasoned skip: ${reason}${earlierNote}`;
+  return `No branch changes were reviewed (coverage none). Omitted: ${omittedDescription}. Reasoned skip: ${reason}${earlierNote}. Earlier review history is limited to retained local jobs.`;
 }
 function legacyUncoveredResult(ticketId, phase) {
   return createResult({
@@ -85867,12 +85882,18 @@ function checkBranchReview(cwd, ticketId, phase) {
   const disclosed = acknowledgement !== undefined && ticket !== undefined && workLogContains(readFileSync92(ticket, "utf8"), acknowledgement.disclosure);
   const findingsResolved = record3.review_passes.every((pass) => pass.status === "approved");
   const skipReason = record3.coverage === "none" ? reasonedSkipFor(cwd, record3) : undefined;
-  const mayAdvance = mayAdvanceBranchReview(record3, fresh, findingsResolved, disclosed, skipReason);
-  const skipEligible = fresh && findingsResolved && record3.coverage === "none";
+  const priorHistory = record3.coverage === "none" ? supersededRequestedFindings(cwd, record3) : undefined;
+  const historyComplete = priorHistory?.complete ?? true;
+  const mayAdvance = historyComplete && mayAdvanceBranchReview(record3, fresh, findingsResolved, disclosed, skipReason);
+  const skipEligible = fresh && findingsResolved && record3.coverage === "none" && historyComplete;
   return createResult({
     state: mayAdvance ? "healthy" : "action_required",
     findings: mayAdvance ? [] : [
-      branchGateProblem(record3, fresh, findingsResolved, acknowledgement !== undefined),
+      historyComplete ? branchGateProblem(record3, fresh, findingsResolved, acknowledgement !== undefined) : {
+        code: "BRANCH_REVIEW_HISTORY_DAMAGED",
+        message: "An earlier retained branch review record is damaged or has unknown ownership; repair the review store before a no-coverage skip.",
+        severity: "warning"
+      },
       ...record3.review_passes.flatMap((pass) => pass.findings)
     ],
     data: {
@@ -85888,7 +85909,9 @@ function checkBranchReview(cwd, ticketId, phase) {
       branch_findings: record3.branch_findings ?? [],
       ...record3.fetched_at && { fetched_at: record3.fetched_at },
       ...disclosed && { disclosure: acknowledgement.disclosure },
-      ...skipReason !== undefined && { disclosure: noneDisclosure(cwd, record3, skipReason) }
+      ...skipReason !== undefined && historyComplete && {
+        disclosure: noneDisclosure(record3, skipReason, priorHistory?.findings ?? [])
+      }
     }
   });
 }

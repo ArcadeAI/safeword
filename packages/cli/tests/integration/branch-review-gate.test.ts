@@ -370,6 +370,10 @@ if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
 fi
 payload=$(cat)
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')
+if [ "\${SAFEWORD_REVIEW_FAKE_FINDING:-}" = '1' ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"Access rule needs repair","findings":[{"severity":"error","message":"The access rule still permits bypass."}]}\\n' "$dispatch_id"
+  exit 0
+fi
 printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Reviewed branch change","findings":[]}\\n' "$dispatch_id"
 `,
     { mode: 0o755 },
@@ -736,6 +740,24 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
 
   git(project, 'reset', '--hard', 'main');
   git(project, 'clean', '-fd');
+  let earlierFindingRecord: string | undefined;
+  if (hostCase === 'Claude Code / committed') {
+    writeFileSync(nodePath.join(project, 'change.txt'), 'unresolved access rule\n');
+    git(project, 'add', 'change.txt');
+    git(project, 'commit', '-m', 'unresolved access rule');
+    const requested = await runCli(['review', 'branch', 'ABC123', '--json'], {
+      cwd: project,
+      env: { ...env, SAFEWORD_REVIEW_FAKE_FINDING: '1' },
+    });
+    const requestedId = JSON.parse(requested.stdout).data?.review_id as string;
+    expect(JSON.parse(requested.stdout).data?.review_passes?.[0]?.status).toBe('changes_requested');
+    const records = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');
+    const requestedFile = readdirSync(records).find(name => name.endsWith(`${requestedId}.json`));
+    if (requestedFile === undefined) throw new Error('requested-change record is missing');
+    earlierFindingRecord = nodePath.join(records, requestedFile);
+    git(project, 'reset', '--hard', 'main');
+    git(project, 'clean', '-fd');
+  }
   const recordDirectory = nodePath.join(project, '.safeword', 'state', 'reviews', 'branch');
   const archivedRecords = `${recordDirectory}.legacy-fixture`;
   renameSync(recordDirectory, archivedRecords);
@@ -760,11 +782,31 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   const skippedExit = attemptExit();
   expectHookAllow(skippedExit);
   expect(skippedExit.stdout).toContain('No branch changes were reviewed');
+  if (earlierFindingRecord !== undefined) {
+    expect(skippedExit.stdout).toContain('The access rule still permits bypass.');
+    expect(skippedExit.stdout).toContain('retained local jobs');
+    const saved = readFileSync(earlierFindingRecord, 'utf8');
+    writeFileSync(earlierFindingRecord, saved.replace('"integrity":"', '"integrity":"broken-'));
+    expectHookDeny(attemptExit(), 'earlier retained branch review record is damaged');
+    writeFileSync(earlierFindingRecord, saved);
+  }
   writeFileSync(
     ticketPath,
     readFileSync(ticketPath, 'utf8').replace('phase: implement', 'phase: verify'),
   );
   expect(completionProblem()).toBeUndefined();
+  if (earlierFindingRecord !== undefined) {
+    const completion = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
+      cwd: project,
+    });
+    expect(JSON.parse(completion.stdout).data?.disclosure).toContain(
+      'The access rule still permits bypass.',
+    );
+    const saved = readFileSync(earlierFindingRecord, 'utf8');
+    writeFileSync(earlierFindingRecord, saved.replace('"integrity":"', '"integrity":"broken-'));
+    expect(completionProblem()).toContain('earlier retained branch review record is damaged');
+    writeFileSync(earlierFindingRecord, saved);
+  }
   writeFileSync(
     ticketPath,
     readFileSync(ticketPath, 'utf8').replace('phase: verify', 'phase: implement'),

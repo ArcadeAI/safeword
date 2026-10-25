@@ -58,6 +58,7 @@
 - Network boundary: unchanged.
 - Exit marker protection: unchanged.
 - Reasoned skip: unchanged.
+- Reviewer capability: unchanged; report the actual reviewer and the documented model-strength limit.
 
 ## Proof specifications
 
@@ -65,7 +66,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | branch-git | command | integration | Real Git remote, shared CLI packet, reviewer subprocess, path accounting and signed result | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/branch-review-scope.test.ts"]} |
 | branch-cli-matrix | command | integration | Real Git path variants and dirty work; captured reviewer packet proves sensitive bytes are absent while path and omission remain; caller narrowing is refused | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/branch-review.test.ts"]} |
-| branch-gate | command | integration | Real receipt and ticket phase-write validator, acknowledgement and later freshness | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/branch-review-gate.test.ts"]} |
+| branch-gate | command | integration | Real receipt and ticket phase-write validator, acknowledgement, later freshness, and earlier requested-change disclosure at exit and done; damaged earlier same-ticket history blocks a no-coverage skip | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/branch-review-gate.test.ts"]} |
 | branch-hosts | command | integration | Four registered local host adapters calling the shared phase gate | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/branch-review-gate.test.ts"]} |
 | docs-review | review_receipt | eval | Source workflow instructions and builder-facing language | real_boundary | current_required | {"type":"review_receipt","kind":"quality-review","targets":["README.md","packages/website/src/content/docs/getting-started/workflow.mdx"]} |
 | full-suite | command | integration | Current package behavior and regressions | real_boundary | current_required | {"type":"command","cwd":".","argv":["bun","run","test"]} |
@@ -77,7 +78,7 @@
 | ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | outcome-scope | outcome and scope | Account for every changed path against ticket behavior | contributor | branch-git | open | missing | | |
-| resolved-decisions | resolved decisions | Preserve nine recorded decisions in result and gate | contributor | branch-gate | open | missing | | |
+| resolved-decisions | resolved decisions | Preserve ten recorded decisions in result and gate | contributor | branch-gate | open | missing | | |
 | pr-decomposition | dependency and pull-request decomposition | One coherent PR leaves a supported state | contributor | full-suite | open | missing | | |
 | testing | testing | Prove Git, gate, host and finding boundaries | contributor | branch-hosts | open | missing | | |
 | data-compatibility | data and compatibility | Older jobs cannot claim coverage; current jobs retain integrity | contributor | branch-gate | open | missing | | |
