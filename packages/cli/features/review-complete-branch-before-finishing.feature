@@ -114,7 +114,7 @@ Feature: Review complete branch changes before builders finish
     @rejection
     Scenario: A partial review cannot advance without acknowledgement
       Given a current review names an omitted changed path
-      And the agent has not acknowledged that omission
+      And an earlier review's acknowledgement names a different review and omitted path
       When the builder tries to leave implementation
       Then the ticket stays in implementation and names the unacknowledged path
 

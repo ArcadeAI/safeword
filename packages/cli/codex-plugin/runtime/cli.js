@@ -85971,7 +85971,21 @@ async function reviewBranch(cwd, ticketId, offline) {
     return noCoverage(ticketId, "Branch review requires a feature ticket in implementation, verification, or completion");
   }
   if (offline)
-    return unavailableReview(cwd, ticketId, ticket, "The integration branch was not fetched offline");
+    return createResult({
+      state: "action_required",
+      findings: [
+        {
+          code: "BRANCH_REVIEW_OFFLINE",
+          message: "Branch review cannot run offline because the integration branch must be fetched.",
+          severity: "warning"
+        }
+      ],
+      data: {
+        command: "review branch",
+        ticket_id: ticketId,
+        next_action: "Retry branch review without --offline."
+      }
+    });
   const ticketDirectory = nodePath140.relative(cwd, nodePath140.dirname(ticket)).split(nodePath140.sep).join("/");
   let base;
   let head;

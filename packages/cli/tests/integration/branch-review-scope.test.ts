@@ -28,6 +28,7 @@ function git(cwd: string, ...args: string[]): string {
 
 type BranchReport = {
   errors?: { message: string }[];
+  findings?: { message: string }[];
   data?: {
     review_id?: string;
     base?: string;
@@ -204,19 +205,15 @@ it('reviews both authored files from the integration merge base against the tick
   });
   const offlineReport = JSON.parse(offline.stdout) as BranchReport;
   expect(offline.exitCode).toBe(2);
-  expect(offlineReport.data?.coverage).toBe('none');
-  expect(offlineReport.data?.reviewed_paths).toEqual([]);
-  expect(offlineReport.data?.review_id).toBeTruthy();
-  expect(readFileSync(ticketPath, 'utf8')).toContain(
-    `branch_review_exit_id: ${offlineReport.data?.review_id}`,
-  );
-  expect(readdirSync(jobs)).toHaveLength(jobsBeforeOffline.length + 1);
+  expect(offlineReport.data?.review_id).toBeUndefined();
+  expect(offlineReport.findings?.[0]?.message).toMatch(/offline/i);
+  expect(readFileSync(ticketPath, 'utf8')).toContain(`branch_review_exit_id: ${replacementId}`);
+  expect(readdirSync(jobs)).toHaveLength(jobsBeforeOffline.length);
   const offlineDecision = await runCli(['review', 'branch-check', 'ABC123', 'verify', '--json'], {
     cwd: project,
   });
   const offlineCheck = JSON.parse(offlineDecision.stdout) as BranchReport;
-  expect(offlineCheck.data?.skip_eligible).toBe(true);
-  expect(offlineCheck.data?.fetched_at).toBeUndefined();
+  expect(offlineCheck.data?.review_id).toBe(replacementId);
 
   git(project, 'remote', 'set-url', 'origin', nodePath.join(root, 'missing-remote.git'));
   const failedFetch = await runCli(['review', 'branch', 'ABC123', '--json'], { cwd: project });
@@ -224,8 +221,8 @@ it('reviews both authored files from the integration merge base against the tick
   expect(failedFetch.exitCode).toBe(2);
   expect(failedReport.data?.coverage).toBe('none');
   expect(failedReport.data?.reviewed_paths).toEqual([]);
-  expect(failedReport.data?.review_id).toBeTruthy();
-  expect(failedReport.data?.review_id).not.toBe(offlineReport.data?.review_id);
+  expect(failedReport.data?.review_id).toMatch(/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/iu);
+  expect(failedReport.data?.review_id).not.toBe(replacementId);
   expect(readFileSync(ticketPath, 'utf8')).toContain(
     `branch_review_exit_id: ${failedReport.data?.review_id}`,
   );
@@ -259,7 +256,7 @@ it('seals no-coverage evidence when a local repository has no remote', async () 
   expect(result.exitCode).toBe(2);
   expect(report.data?.coverage).toBe('none');
   expect(report.data?.reviewed_paths).toEqual([]);
-  expect(report.data?.review_id).toBeTruthy();
+  expect(report.data?.review_id).toMatch(/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/iu);
   expect(readFileSync(ticketPath, 'utf8')).toContain(
     `branch_review_exit_id: ${report.data?.review_id}`,
   );

@@ -180,7 +180,30 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     cwd: project,
   });
   expect(JSON.parse(changedBinary.stdout).data?.freshness).toBe('stale');
-  return { report, beforeAcknowledgement, allowed, disclosure, staleReport };
+  writeFileSync(nodePath.join(project, 'another-binary.dat'), Buffer.from([0x82]));
+  const anotherReview = await runCli(['review', 'branch', 'ABC123', '--json'], {
+    cwd: project,
+    env: {
+      PATH: `${reviewerBin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    },
+  });
+  const anotherReport = JSON.parse(anotherReview.stdout) as typeof report;
+  expect(anotherReport.data.coverage).toBe('partial');
+  expect(anotherReport.data.review_id).not.toBe(report.data.review_id);
+  expect(anotherReport.data.omitted_paths.map(entry => entry.path)).toContain('another-binary.dat');
+  const oldAcknowledgementDenied = attemptExit();
+  expectHookDeny(oldAcknowledgementDenied, 'incomplete');
+  expect(oldAcknowledgementDenied.stdout).toContain('another-binary.dat');
+  return {
+    report,
+    beforeAcknowledgement,
+    allowed,
+    disclosure,
+    staleReport,
+    oldAcknowledgementDenied,
+  };
 }
 
 const acknowledgementProof = (() => {
@@ -199,6 +222,11 @@ it('allows an acknowledged partial review with exact disclosure', async () => {
 it('refuses partial coverage before acknowledgement', async () => {
   const proof = await acknowledgementProof();
   expectHookDeny(proof.beforeAcknowledgement, 'incomplete');
+});
+
+it('does not reuse an earlier acknowledgement for a new review and omitted path', async () => {
+  const proof = await acknowledgementProof();
+  expectHookDeny(proof.oldAcknowledgementDenied, 'incomplete');
 });
 
 it('preserves omitted evidence when an acknowledged review becomes stale', async () => {
