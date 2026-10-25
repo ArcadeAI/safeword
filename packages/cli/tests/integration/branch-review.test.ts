@@ -152,15 +152,16 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     );
   }
   expect(sorted(report.data?.reviewed_paths ?? [])).toEqual(packetPaths(1));
+  const laterPacketPaths = Array.from({ length: passCount - 1 }, (_, index) =>
+    packetPaths(index + 2),
+  ).flat();
   expect(
     sorted(
       (report.data?.omitted_paths ?? [])
         .map(entry => entry.path)
         .filter(path => path !== 'generated.out' && path !== '.env'),
     ),
-  ).toEqual(
-    sorted(Array.from({ length: passCount - 1 }, (_, index) => packetPaths(index + 2)).flat()),
-  );
+  ).toEqual(sorted([...new Set(laterPacketPaths)]));
 
   git(project, 'reset', '--hard', 'main');
   const empty = await runCli(['review', 'branch', 'ABC123', '--json'], {

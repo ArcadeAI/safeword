@@ -51,6 +51,7 @@
 
 - Branch inventory and coverage authority: unchanged.
 - Bounded review: unchanged.
+- Finding attribution and path credit: unchanged.
 - Delete and rename sources: unchanged.
 - Freshness: unchanged.
 - Exit enforcement: unchanged.
@@ -76,7 +77,7 @@
 | ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | outcome-scope | outcome and scope | Account for every changed path against ticket behavior | contributor | branch-git | open | missing | | |
-| resolved-decisions | resolved decisions | Preserve eight recorded decisions in result and gate | contributor | branch-gate | open | missing | | |
+| resolved-decisions | resolved decisions | Preserve nine recorded decisions in result and gate | contributor | branch-gate | open | missing | | |
 | pr-decomposition | dependency and pull-request decomposition | One coherent PR leaves a supported state | contributor | full-suite | open | missing | | |
 | testing | testing | Prove Git, gate, host and finding boundaries | contributor | branch-hosts | open | missing | | |
 | data-compatibility | data and compatibility | Older jobs cannot claim coverage; current jobs retain integrity | contributor | branch-gate | open | missing | | |

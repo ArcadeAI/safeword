@@ -54625,14 +54625,27 @@ function semanticMarkdownIdentity(content) {
 }
 function semanticTicketIdentity(content, reviewKind) {
   const { metadata: metadata2, body } = parseTicketMetadata(content);
-  const retained = Object.fromEntries(Object.entries(metadata2).filter(([key]) => !["phase", "status", "last_modified", "review_dispositions"].includes(key)));
+  const retained = Object.fromEntries(Object.entries(metadata2).filter(([key]) => ![
+    "phase",
+    "status",
+    "last_modified",
+    "phase_anchors",
+    "branch_review_exit_id",
+    "review_dispositions"
+  ].includes(key)));
   if (reviewKind !== undefined && Array.isArray(metadata2.review_dispositions)) {
     const matching = metadata2.review_dispositions.filter((value) => value !== null && typeof value === "object" && !Array.isArray(value) && value.review_kind === reviewKind);
     if (matching.length > 0)
       retained.review_dispositions = matching;
   }
   const nodes = parseMarkdown(body);
-  return identity({ version: 1, metadata: retained, body: normalizeNodes(nodes) });
+  const workLogStart = nodes.findIndex((node) => node.type === "heading" && node.depth === 2 && headingText(node) === "Work Log");
+  const workLogEnd = workLogStart === -1 ? -1 : nodes.findIndex((node, index) => index > workLogStart && node.type === "heading" && (node.depth ?? 0) <= 2);
+  const goalNodes = workLogStart === -1 ? nodes : [
+    ...nodes.slice(0, workLogStart),
+    ...nodes.slice(workLogEnd < 0 ? nodes.length : workLogEnd)
+  ];
+  return identity({ version: 1, metadata: retained, body: normalizeNodes(goalNodes) });
 }
 function headingText(node) {
   return node.value ?? node.children?.map((child) => headingText(child)).join("") ?? "";
