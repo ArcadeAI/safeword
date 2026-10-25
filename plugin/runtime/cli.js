@@ -86048,7 +86048,7 @@ async function reviewBranch(cwd, ticketId, offline) {
       }
       const reviewerFindings = result3.findings.filter((finding2) => finding2.code === "REVIEWER_FINDING");
       const typed = reviewerFindings.map((finding2) => branchFinding(finding2, pass));
-      if (typed.includes(undefined)) {
+      if (data.status === "changes_requested" && (typed.length === 0 || typed.includes(undefined))) {
         findings.push(...result3.findings);
         omitted.push(...pass.map((path8) => ({
           path: path8,
@@ -86062,7 +86062,7 @@ async function reviewBranch(cwd, ticketId, offline) {
         });
         continue;
       }
-      branchFindings.push(...typed);
+      branchFindings.push(...typed.filter((finding2) => finding2 !== undefined));
       reviewed.push(...pass.filter((path8) => !dirtyPaths.includes(path8)));
       findings.push(...result3.findings);
       passes.push({
