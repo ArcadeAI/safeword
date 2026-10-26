@@ -1,0 +1,218 @@
+[
+  {
+    "file": "call-1972-1792990988633.jsonl",
+    "author": "claude",
+    "invocation": 1,
+    "elapsed": 1293,
+    "status": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792990989959.jsonl",
+    "author": "claude",
+    "invocation": 2,
+    "elapsed": 419,
+    "status": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792990990410.jsonl",
+    "author": "claude",
+    "invocation": 3,
+    "elapsed": 321,
+    "status": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792990990764.jsonl",
+    "author": "claude",
+    "invocation": 4,
+    "elapsed": 1205,
+    "status": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792990996054.jsonl",
+    "author": "claude",
+    "invocation": 1,
+    "elapsed": 1131,
+    "status": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792990997218.jsonl",
+    "author": "claude",
+    "invocation": 2,
+    "elapsed": 368,
+    "status": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792990997618.jsonl",
+    "author": "claude",
+    "invocation": 3,
+    "elapsed": 316,
+    "status": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792990997966.jsonl",
+    "author": "claude",
+    "invocation": 4,
+    "elapsed": 995,
+    "status": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991003187.jsonl",
+    "author": "codex",
+    "invocation": 1,
+    "elapsed": 1215,
+    "status": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991004436.jsonl",
+    "author": "codex",
+    "invocation": 2,
+    "elapsed": 438,
+    "status": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991004905.jsonl",
+    "author": "codex",
+    "invocation": 3,
+    "elapsed": 416,
+    "status": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991005353.jsonl",
+    "author": "codex",
+    "invocation": 4,
+    "elapsed": 852,
+    "status": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991006446.jsonl",
+    "author": "codex",
+    "invocation": 1,
+    "elapsed": 1454,
+    "status": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991007937.jsonl",
+    "author": "codex",
+    "invocation": 2,
+    "elapsed": 264,
+    "status": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991008234.jsonl",
+    "author": "codex",
+    "invocation": 3,
+    "elapsed": 423,
+    "status": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991008689.jsonl",
+    "author": "codex",
+    "invocation": 4,
+    "elapsed": 941,
+    "status": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991009850.jsonl",
+    "author": "codex",
+    "invocation": 1,
+    "elapsed": 1140,
+    "status": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991011022.jsonl",
+    "author": "codex",
+    "invocation": 2,
+    "elapsed": 355,
+    "status": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991011410.jsonl",
+    "author": "codex",
+    "invocation": 3,
+    "elapsed": 359,
+    "status": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991011803.jsonl",
+    "author": "codex",
+    "invocation": 4,
+    "elapsed": 1068,
+    "status": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991013108.jsonl",
+    "author": "codex",
+    "invocation": 1,
+    "elapsed": 1044,
+    "status": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991014185.jsonl",
+    "author": "codex",
+    "invocation": 2,
+    "elapsed": 340,
+    "status": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991014559.jsonl",
+    "author": "codex",
+    "invocation": 3,
+    "elapsed": 323,
+    "status": 1,
+    "signal": null,
+    "error": null
+  },
+  {
+    "file": "call-1972-1792991014915.jsonl",
+    "author": "codex",
+    "invocation": 4,
+    "elapsed": 793,
+    "status": 0,
+    "signal": null,
+    "error": null
+  }
+]
