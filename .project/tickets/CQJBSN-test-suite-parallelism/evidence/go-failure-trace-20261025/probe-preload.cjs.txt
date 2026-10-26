@@ -1,0 +1,34 @@
+const cp = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const sampleTree = require('./sample.cjs');
+const { syncBuiltinESMExports } = require('node:module');
+const root = '/Users/alex/.local/state/safeword/production-red-gate-B9M6FY/go-timeout-debug-20261025';
+const original = cp.execFile;
+cp.execFile = function (command, args, options, ...rest) {
+  if (command !== 'bun' || !Array.isArray(args) || !args[0]?.endsWith('/hooks/post-tool-lint.ts') || !options?.cwd?.includes('safeword-go-context-')) {
+    return original.apply(this, arguments);
+  }
+  const start = Date.now();
+  const trace = path.join(root, `hook-${process.pid}-${start}.jsonl`);
+  const record = (event, extra = {}) => fs.appendFileSync(trace, JSON.stringify({ event, time: Date.now(), ...extra }) + '\n');
+  record('hook-start', { cwd: options.cwd, timeout: options.timeout, load: os.loadavg() });
+  const child = original.call(this, command, args, { ...options, env: { ...options.env, PATH: `${root}/bin:${options.env.PATH}`, GO_DEBUG_ORIGINAL_PATH: options.env.PATH, GO_DEBUG_TRACE: trace } }, ...rest);
+  const kill = child.kill;
+  child.kill = function (signal) {
+    record('kill-request', { signal, elapsed: Date.now() - start, stack: new Error().stack });
+    return kill.call(this, signal);
+  };
+  let stdout = '', stderr = '';
+  child.stdout?.on('data', chunk => { if (stdout.length < 65536) stdout += chunk.toString(); });
+  child.stderr?.on('data', chunk => { if (stderr.length < 65536) stderr += chunk.toString(); });
+  child.on('error', error => record('hook-error', { message: error.message, code: error.code }));
+  const sampler = setInterval(() => record('hook-processes', { elapsed: Date.now() - start, ...sampleTree(child.pid) }), 5000);
+  child.on('close', (code, signal) => { clearInterval(sampler); record('hook-close', { elapsed: Date.now() - start, code, signal, killed: child.killed, stdout, stderr, load: os.loadavg() }); });
+  return child;
+};
+for (const key of Reflect.ownKeys(original)) {
+  if (typeof key === 'symbol') Object.defineProperty(cp.execFile, key, Object.getOwnPropertyDescriptor(original, key));
+}
+syncBuiltinESMExports();

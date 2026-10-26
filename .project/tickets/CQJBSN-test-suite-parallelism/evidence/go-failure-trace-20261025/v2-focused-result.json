@@ -1,0 +1,226 @@
+{
+  "scope": "Separate focused validation of the v2 observer; not the probe used for the earlier full run",
+  "exit_code": 0,
+  "exec_session_id": 71121,
+  "passed": 18,
+  "duration_seconds": 18.53,
+  "hook_count": 23,
+  "maximum_hook_ms": 980,
+  "go_test_calls": [
+    {
+      "trace": "go-test-7590-1792988904319.jsonl",
+      "events": [
+        {
+          "event": "go-test-start",
+          "time": 1792988904319,
+          "command": "go",
+          "parameters": [
+            "test",
+            "."
+          ],
+          "cwd": "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-WQ6loi/apps/engine",
+          "timeout": 0
+        },
+        {
+          "event": "go-test-close",
+          "time": 1792988905469,
+          "elapsed": 1150,
+          "code": 0,
+          "signal": null,
+          "killed": false,
+          "stdout": "ok  \texample.com/engine\t0.236s\n",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "trace": "go-test-7590-1792988906452.jsonl",
+      "events": [
+        {
+          "event": "go-test-start",
+          "time": 1792988906452,
+          "command": "go",
+          "parameters": [
+            "test",
+            "."
+          ],
+          "cwd": "/private/var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-go-context-puaRS5/apps/engine/internal/service",
+          "timeout": 0
+        },
+        {
+          "event": "go-test-close",
+          "time": 1792988906500,
+          "elapsed": 48,
+          "code": 0,
+          "signal": null,
+          "killed": false,
+          "stdout": "?   \texample.com/engine/internal/service\t[no test files]\n",
+          "stderr": ""
+        }
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "trace": "hook-7590-1792988913354.jsonl",
+      "elapsed_ms": 734,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988920976.jsonl",
+      "elapsed_ms": 814,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988914936.jsonl",
+      "elapsed_ms": 667,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988908836.jsonl",
+      "elapsed_ms": 773,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988919329.jsonl",
+      "elapsed_ms": 811,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988913054.jsonl",
+      "elapsed_ms": 170,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988912539.jsonl",
+      "elapsed_ms": 513,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988910337.jsonl",
+      "elapsed_ms": 711,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988914138.jsonl",
+      "elapsed_ms": 748,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988909611.jsonl",
+      "elapsed_ms": 726,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988917721.jsonl",
+      "elapsed_ms": 794,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988915652.jsonl",
+      "elapsed_ms": 669,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988905469.jsonl",
+      "elapsed_ms": 980,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988920140.jsonl",
+      "elapsed_ms": 803,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988918515.jsonl",
+      "elapsed_ms": 812,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988917070.jsonl",
+      "elapsed_ms": 649,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988907212.jsonl",
+      "elapsed_ms": 827,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988906500.jsonl",
+      "elapsed_ms": 710,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988908041.jsonl",
+      "elapsed_ms": 794,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988911049.jsonl",
+      "elapsed_ms": 748,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988911799.jsonl",
+      "elapsed_ms": 738,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988916369.jsonl",
+      "elapsed_ms": 653,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    },
+    {
+      "trace": "hook-7590-1792988921791.jsonl",
+      "elapsed_ms": 818,
+      "code": 0,
+      "signal": null,
+      "killed": false
+    }
+  ]
+}

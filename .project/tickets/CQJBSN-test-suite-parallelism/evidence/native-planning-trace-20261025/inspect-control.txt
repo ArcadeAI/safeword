@@ -1,0 +1,26 @@
+{
+  error: Error: spawnSync /Users/alex/.local/share/mise/installs/node/24.18.1/bin/node ETIMEDOUT
+      at Object.spawnSync (node:internal/child_process:1143:20)
+      at spawnSync (node:child_process:911:24)
+      at file:///Users/alex/.codex/worktrees/lint-failure-evidence/safeword/[eval1]:2:14
+      at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async node:internal/modules/esm/loader:224:26
+      at async ModuleLoader.executeModuleJob (node:internal/modules/esm/loader:221:20)
+      at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+    errno: -60,
+    code: 'ETIMEDOUT',
+    syscall: 'spawnSync /Users/alex/.local/share/mise/installs/node/24.18.1/bin/node',
+    path: '/Users/alex/.local/share/mise/installs/node/24.18.1/bin/node',
+    spawnargs: [
+      '-e',
+      'process.stdout.write("control stdout");process.stderr.write("control stderr");setTimeout(()=>{},10000)'
+    ]
+  },
+  status: null,
+  signal: 'SIGTERM',
+  output: [ null, 'control stdout', 'control stderr' ],
+  pid: 61955,
+  stdout: 'control stdout',
+  stderr: 'control stderr'
+}

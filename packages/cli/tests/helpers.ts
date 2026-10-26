@@ -1168,11 +1168,14 @@ export function runLintHook(
  * emitted by the hook when this suite adds another language.
  */
 export function assertLintHookSucceeded(result: SpawnSyncReturns<string>): string {
+  const diagnostics = `stdout: ${result.stdout ?? ''}\nstderr: ${result.stderr ?? ''}`;
   if (result.error) {
-    throw new Error(`Lint hook failed to start: ${result.error.message}`);
+    const reason =
+      'code' in result.error && result.error.code === 'ETIMEDOUT' ? 'timed out' : 'failed to start';
+    throw new Error(`Lint hook ${reason}: ${result.error.message}\n${diagnostics}`);
   }
   if (result.status !== 0) {
-    throw new Error(`Lint hook exited with status ${String(result.status)}`);
+    throw new Error(`Lint hook exited with status ${String(result.status)}\n${diagnostics}`);
   }
 
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
