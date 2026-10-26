@@ -3,10 +3,10 @@ id: 4FXYQV
 slug: preserve-lint-failure-evidence
 type: task
 subtype: bug-investigated
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-10-26T02:48:10.938Z
-last_modified: 2026-10-26T02:48:10.938Z
+last_modified: 2026-10-26T03:17:56Z
 ---
 
 # Preserve lint failure evidence for maintainers
@@ -34,9 +34,9 @@ merge or paid qualification is authorized.
 when `result.error` exists, and also drops them on a nonzero status. It labels
 every spawn error as a failure to start, including ETIMEDOUT after execution.
 A real controlled Node timeout retained both output streams; inspection shows
-the helper discards them. The external proof is
-`lint-timeout-debug-20261025/timeout-output-proof.json` in the session evidence
-root. Missing child output at the Node boundary is ruled out for this
+the helper discards them. [Controlled timeout evidence](evidence/controlled-timeout.json)
+is an unchanged copy of `lint-timeout-debug-20261025/timeout-output-proof.json`
+in the session evidence root. Missing child output at the Node boundary is ruled out for this
 controlled proof. Deterministic fixture failure is ruled out by unchanged
 passing runs. Neither observation identifies the historical stall's cause.
 
@@ -79,3 +79,12 @@ task in verify until authorized closure; original maintenance remains closed.
   would add indirection without useful reuse. No production behavior changed.
 - Root lint, Gherkin lint and CLI typecheck completed successfully. Final full
   regression and independent implementation review remain pending.
+- Verification update supersedes that pending line: the diagnostic-only branch
+  is isolated from main as recorded in review-context.md. One normal review
+  `b4d42211-f9df-42a3-b9f3-c8800894e3a9` approved all six changed paths;
+  the normal implementation stamp succeeded before advancing to verify.
+  Isolated focused tests passed all 19 cases in 22.66 seconds, with lint and
+  types passing. The original stacked final full run instead found one
+  separate Go subprocess failure; its 18-case focused repeat passed. Both
+  results are retained in verify.md and raw excerpts. The task remains open
+  in verify; neither the historical stall nor full regression is declared fixed.

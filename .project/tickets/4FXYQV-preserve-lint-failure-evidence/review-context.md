@@ -1,5 +1,24 @@
 # Diagnostic repair review context
 
+## Isolated delivery
+
+The diagnostic delta is now isolated on `codex/preserve-lint-failure-evidence`,
+based on main `f211c4c30fdb40e7fc5f342eaf981143c750db7b`, in
+`/Users/alex/.codex/worktrees/lint-failure-evidence/safeword`. Cherry-picks
+9f2f60a3f, d9a410272 and 0af39c7cb preserve the diagnostic changes and records
+from the stacked branch. The two changed code/test files match byte-for-byte.
+No guard, maintenance dependency update, generated output or original ticket
+history is imported. The original stacked branch remains intact.
+
+The narrow stacked-branch review approved the delta, but the unchanged
+implementation phase gate correctly refused its stamp because it did not
+cover the inherited entire branch. That inventory exceeds the current packet
+limit. This isolated branch instead permits one normal review to cover its
+whole actual change set. No review budget, scope gate or stamp was forged.
+The earlier test results below describe their original stacked snapshot;
+isolated focused verification is still pending. No full-main verification or
+dependency-clean claim is inherited from the maintenance stack.
+
 ## Review questions
 
 Does the helper preserve available stdout/stderr on failures without changing

@@ -91,3 +91,29 @@ normal starts and exits in the successful run cannot rule them out historically.
 Keep the external trace probe available for a recurrence. Do not replace
 diagnosis with a timeout increase or repeated uninstrumented green runs. A
 repair of the original stall still requires evidence of its mechanism.
+
+## Final uninstrumented regression — separate Go failure
+
+The stacked branch's final uninstrumented run after the diagnostic fix exited
+1: 727 files passed, one failed; 11841 tests passed, one failed, 12 existing
+skips, 978.64 seconds. The original override-survival scenario and all new
+diagnostic cases passed. The failure was instead
+`lint-go-context.test.ts`, `loads sibling declarations when the edited file is
+a package test`, after 30813 ms.
+
+Its separate async runner rejects with `new Error(stderr)` at its child close
+handler. The observed stderr/message was empty; the handler did not retain
+stdout, exit code or signal. It has its own 30000-ms execFile limit, so the
+duration is consistent with that boundary but does not prove why it exited.
+This file is unchanged from main and does not use the repaired helper. No Go
+source, runner, assertion or budget was changed here.
+
+One whole-file focused reproduction then passed all 18 Go cases in 15.61
+seconds, exit 0. Preserve both results. The earlier Bash-only trace did not
+instrument this different async runner, so it supplies no failure-stage cause
+for the Go event. Follow-up should retain that runner's actual close code,
+signal, output and internal tool timing before any repair. Do not call the
+full regression green or classify this as the TypeScript timeout recurring.
+
+This is a new observation in the existing reliability workstream, not a change
+to the original observer's 33 recorded deferrals or missing historical RED.
