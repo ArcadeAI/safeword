@@ -69,3 +69,13 @@ task in verify until authorized closure; original maintenance remains closed.
   passes. Failures show the missing output and timeout reason, not syntax,
   imports or setup. Raw record: `diagnostics-red-final.log` in the session
   evidence directory. No helper implementation changed before this run.
+- GREEN: all 19 cases passed across lint-hook-result and the real
+  override-survival fixture, exit 0, 23.67 seconds. The implementation changes
+  only exception diagnostics: captured streams are included for spawn errors
+  and nonzero exits, and the timeout reason uses the error code. Existing
+  infrastructure rejection and successful returns remain unchanged.
+- Refactor check: no structural change warranted. One shared diagnostics
+  string serves the two failure paths; an additional helper or new abstraction
+  would add indirection without useful reuse. No production behavior changed.
+- Root lint, Gherkin lint and CLI typecheck completed successfully. Final full
+  regression and independent implementation review remain pending.
