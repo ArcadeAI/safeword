@@ -1,8 +1,26 @@
 # Diagnostic repair verification
 
+## Verify Checklist
+
+**Test Suite:** ❌ One failure in the final stacked full run; isolated focused proof is 19/19 passing.
+**Gherkin:** ⏭️ Skipped — no acceptance behavior changed; no isolated acceptance run claimed.
+**Build:** ✅ Success — isolated CLI built by the normal focused-test wrapper; no release qualification.
+**Lint:** ✅ Clean — root lint passed in both workspaces.
+**Typecheck:** ✅ Clean — CLI typecheck passed in both workspaces.
+**Scenarios:** ⏭️ Skipped — internal task with inline contract tests, not a feature ledger.
+**Refactor:** ✅ No change warranted — one shared diagnostic string; no useful further extraction.
+**PR Scope:** ✅ Diff matches ticket scope — two test/helper code paths plus diagnostic investigation and verification records; no PR opened.
+**Dep Drift:** ✅ Clean — no dependency, manifest or architectural import changes; this is not a security-scan claim.
+**Parent Epic:** N/A
+**Reconcile:** ✅ No pattern deviation — existing helper and result contract retained.
+**Experience:** ⏭️ N/A — internal test diagnostics; no persona experience claim.
+**Surface Evidence:** ⏭️ N/A — no product surface changed; real hook fixture retained as regression proof.
+**Evidence limits:** ⚠️ Original stall unreproduced; separate full-stack Go failure; no full-main suite on the isolated branch.
+
 ## Result
 
-The diagnostic-loss defect is repaired and independently approved. All 19
+The helper now preserves failure output and labels ETIMEDOUT correctly; the
+repair is independently approved. All 19
 focused cases pass on the isolated branch. The original TypeScript stall
 remains unexplained, and the final full regression on the preserved stacked
 branch is red from a separate Go subprocess failure. No all-green full-suite,
@@ -27,7 +45,7 @@ byte-for-byte in both workspaces:
 | packages/cli/tests/helpers.ts | 13c3d46a78b5f4b8dd966aa95938368ba71e1df7d3de57c192c915d95baff860 |
 | packages/cli/tests/lint-hook-result.test.ts | 4df5256131a4f8f0795e0b4eff7b55db7fb242c9da6894603094a9d2f64c2d08 |
 
-No production hook, assertion, timeout, worker setting, dependency or shared
+No production hook, existing test expectation, timeout, worker setting, dependency or shared
 review policy changed. No independent full-main suite was run on the isolated
 branch; its actual focused and static results are identified below. Clean
 dependency scans from the maintenance stack do not transfer to this main-based
@@ -104,6 +122,11 @@ generated/parity output. `command-exit-observations.json` transcribes the
 observed exec tool completion statuses and session identifiers for static
 checks; these statuses were not printed by the command stdout logs. This is
 explicit observer metadata, not a signed execution attestation or an extra run.
+
+`workspace-hashes.json` separately records both workspaces' matching hashes.
+`isolated-build-excerpt.txt` retains the isolated wrapper's actual build-success
+lines and its worktree-specific Vitest result. These supplement the earlier
+review packet's proof gaps; no command was rerun to produce them.
 
 The saved trace probe remains available for a TypeScript recurrence. A Go
 follow-up must instrument its different async runner before diagnosing it.

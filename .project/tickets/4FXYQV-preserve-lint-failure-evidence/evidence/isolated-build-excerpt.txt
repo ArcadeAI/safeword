@@ -1,0 +1,24 @@
+Verbatim selected lines from isolated-focused.log, original order; nonmatching build-file listings omitted.
+$ bun run --cwd packages/retro-relay test && bun run --cwd packages/retro-collector test && bun run --cwd packages/cli test tests/lint-hook-result.test.ts tests/integration/override-survival.test.ts
+$ bun run build && vitest run
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/lint-failure-evidence/safeword/packages/retro-relay/tsup.config.ts
+CLI Target: node22
+ESM ⚡️ Build success in 14ms
+DTS ⚡️ Build success in 693ms
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/lint-failure-evidence/safeword/packages/retro-relay
+ Test Files  9 passed (9)
+      Tests  198 passed | 1 skipped (199)
+ESM ⚡️ Build success in 11ms
+DTS ⚡️ Build success in 612ms
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/lint-failure-evidence/safeword/packages/retro-collector
+ Test Files  4 passed (4)
+      Tests  153 passed (153)
+ESM ⚡️ Build success in 123ms
+DTS ⚡️ Build success in 2340ms
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/lint-failure-evidence/safeword/packages/cli
+ Test Files  2 passed (2)
+      Tests  19 passed (19)
