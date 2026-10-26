@@ -1,0 +1,840 @@
+{
+  "tests_passed": 47,
+  "files_passed": 3,
+  "exit_code": 0,
+  "traced_hooks": 23,
+  "maximum_ms": 1923,
+  "hooks": [
+    {
+      "file": "hook-62514-1792986923053.jsonl",
+      "start": 1792986923053,
+      "ms": 981,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 51,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 51,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 59,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 239,
+          "code": 1
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986939330.jsonl",
+      "start": 1792986939330,
+      "ms": 816,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 49,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 48,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 56,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 181,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986937535.jsonl",
+      "start": 1792986937536,
+      "ms": 943,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 49,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 48,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 56,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 185,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986934747.jsonl",
+      "start": 1792986934747,
+      "ms": 938,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 49,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 50,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 57,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 247,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986938478.jsonl",
+      "start": 1792986938478,
+      "ms": 820,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 49,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 50,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 56,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 166,
+          "code": 1
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986925764.jsonl",
+      "start": 1792986925764,
+      "ms": 755,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 50,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 48,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 55,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 114,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986930509.jsonl",
+      "start": 1792986930509,
+      "ms": 794,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 53,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 53,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 61,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 124,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986931358.jsonl",
+      "start": 1792986931358,
+      "ms": 766,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 51,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 53,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 52,
+          "code": 3
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 52,
+          "code": 3
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986928745.jsonl",
+      "start": 1792986928745,
+      "ms": 565,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 49,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 49,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986935685.jsonl",
+      "start": 1792986935685,
+      "ms": 1848,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 49,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 50,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 57,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 1194,
+          "code": 1
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986927258.jsonl",
+      "start": 1792986927258,
+      "ms": 734,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 48,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 51,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 54,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 113,
+          "code": 1
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986924036.jsonl",
+      "start": 1792986924036,
+      "ms": 928,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 50,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 49,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 56,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 196,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986940146.jsonl",
+      "start": 1792986940146,
+      "ms": 791,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 47,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 47,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 54,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 171,
+          "code": 1
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986922275.jsonl",
+      "start": 1792986922275,
+      "ms": 776,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 51,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 50,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 61,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 123,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986929312.jsonl",
+      "start": 1792986929312,
+      "ms": 182,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": []
+    },
+    {
+      "file": "hook-62514-1792986926519.jsonl",
+      "start": 1792986926519,
+      "ms": 737,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 48,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 48,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 55,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 112,
+          "code": 1
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986932179.jsonl",
+      "start": 1792986932179,
+      "ms": 770,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 49,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 51,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 50,
+          "code": 3
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 50,
+          "code": 3
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986920290.jsonl",
+      "start": 1792986920290,
+      "ms": 1923,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 50,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 51,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 60,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 1256,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986929629.jsonl",
+      "start": 1792986929629,
+      "ms": 824,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 52,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 50,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 62,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 152,
+          "code": 1
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986933001.jsonl",
+      "start": 1792986933001,
+      "ms": 714,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 53,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 50,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 50,
+          "code": 3
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 52,
+          "code": 3
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986933769.jsonl",
+      "start": 1792986933769,
+      "ms": 972,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 60,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 63,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 61,
+          "code": 3
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 53,
+          "code": 3
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986924964.jsonl",
+      "start": 1792986924964,
+      "ms": 797,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 49,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 47,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 56,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 172,
+          "code": 1
+        }
+      ]
+    },
+    {
+      "file": "hook-62514-1792986927993.jsonl",
+      "start": 1792986927993,
+      "ms": 750,
+      "code": 0,
+      "signal": null,
+      "killed": false,
+      "tools": [
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 50,
+          "code": 0
+        },
+        {
+          "args": [
+            "version"
+          ],
+          "ms": 49,
+          "code": 0
+        },
+        {
+          "args": [
+            "fmt"
+          ],
+          "ms": 61,
+          "code": 0
+        },
+        {
+          "args": [
+            "run"
+          ],
+          "ms": 103,
+          "code": 1
+        }
+      ]
+    }
+  ]
+}
