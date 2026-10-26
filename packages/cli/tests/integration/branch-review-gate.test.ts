@@ -946,6 +946,26 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
     for (const args of [
       ['--phase', 'implement', '--review-id', unavailableId, '--skip', 'No integration base'],
       ['--ticket', 'ABC123-review-branch', '--phase', 'implement', '--skip', 'No integration base'],
+      [
+        '--ticket',
+        'ABC123-review-branch',
+        '--phase',
+        'plan-implementation',
+        '--review-id',
+        unavailableId,
+        '--skip',
+        'No integration base',
+      ],
+      [
+        '--ticket',
+        'ABC123-review-branch',
+        '--phase',
+        'implement',
+        '--review-id',
+        '00000000-0000-4000-8000-000000000000',
+        '--skip',
+        'No integration base',
+      ],
     ]) {
       const incomplete = spawnSync('bun', [writeReviewStampPath, ...args], {
         cwd: project,
