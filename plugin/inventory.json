@@ -639,7 +639,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "d54a03ad057338871376e4a00fe94a214c82ad1689f9317a9124af3b3257c9e7"
+      "sha256": "7bcfe737114f0045c7f8da81e6b18cba6511d527e535332cdbaec77752859b52"
     },
     {
       "path": "skills/audit/SKILL.md",
@@ -1635,7 +1635,7 @@
     },
     {
       "path": "templates/hooks/write-review-stamp.ts",
-      "sha256": "d54a03ad057338871376e4a00fe94a214c82ad1689f9317a9124af3b3257c9e7"
+      "sha256": "7bcfe737114f0045c7f8da81e6b18cba6511d527e535332cdbaec77752859b52"
     },
     {
       "path": "templates/personas-template.md",

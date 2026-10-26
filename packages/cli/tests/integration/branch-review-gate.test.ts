@@ -40,6 +40,10 @@ const openCodeDispatcherPath = nodePath.resolve(
   import.meta.dirname,
   '../../dist/opencode/dispatcher.js',
 );
+const writeReviewStampPath = nodePath.resolve(
+  import.meta.dirname,
+  '../../templates/hooks/write-review-stamp.ts',
+);
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
@@ -930,10 +934,49 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   expect(JSON.parse(unavailable.stdout).data?.freshness).toBe('current');
   expectHookDeny(attemptExit(), 'No branch changes were reviewed');
   const unavailableId = JSON.parse(unavailable.stdout).data?.review_id as string;
-  writeFileSync(
-    nodePath.join(project, '.project', 'skill-invocations.log'),
-    `review:ABC123-review-branch:phase@implement review-id:${unavailableId} skip:No integration base can be reached for this review.\n`,
-  );
+  if (host === 'OpenCode CLI') {
+    const stampEnvironment: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: project,
+      SAFEWORD_AGENT_RUNTIME: 'opencode',
+      SAFEWORD_PLUGIN_CLI: testCliPath,
+    };
+    delete stampEnvironment.CLAUDE_SESSION_ID;
+    delete stampEnvironment.CODEX_THREAD_ID;
+    for (const args of [
+      ['--phase', 'implement', '--review-id', unavailableId, '--skip', 'No integration base'],
+      ['--ticket', 'ABC123-review-branch', '--phase', 'implement', '--skip', 'No integration base'],
+    ]) {
+      const incomplete = spawnSync('bun', [writeReviewStampPath, ...args], {
+        cwd: project,
+        encoding: 'utf8',
+        env: stampEnvironment,
+      });
+      expect(incomplete.status).toBe(1);
+      expect(incomplete.stdout).toContain('missing run identity');
+    }
+    const stamped = spawnSync(
+      'bun',
+      [
+        writeReviewStampPath,
+        '--ticket',
+        'ABC123-review-branch',
+        '--phase',
+        'implement',
+        '--review-id',
+        unavailableId,
+        '--skip',
+        'No integration base can be reached for this review.',
+      ],
+      { cwd: project, encoding: 'utf8', env: stampEnvironment },
+    );
+    expect(stamped.status, stamped.stdout).toBe(0);
+  } else {
+    writeFileSync(
+      nodePath.join(project, '.project', 'skill-invocations.log'),
+      `review:ABC123-review-branch:phase@implement review-id:${unavailableId} skip:No integration base can be reached for this review.\n`,
+    );
+  }
   const unavailableExit = attemptExit();
   expect(unavailableExit.stdout).toContain('No branch changes were reviewed');
   expect(unavailableExit.stdout).toContain('exact branch path list unavailable');
