@@ -1,0 +1,97 @@
+{
+  "feature": "packages/cli/features/review-complete-branch-before-finishing.feature",
+  "scenarios": {
+    "A multi-file feature is reviewed from the integration merge base": [
+      "packages/cli/tests/integration/branch-review-scope.test.ts",
+      "reviews both authored files from the integration merge base against the ticket"
+    ],
+    "A caller cannot shrink the branch by naming a later base": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "refuses a caller-supplied later branch base"
+    ],
+    "A caller cannot shrink the branch by naming selected files": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "refuses a caller-selected subset of branch files"
+    ],
+    "A cross-file behavior gap is explained": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "attributes a cross-file finding to behavior, paths, and consequence"
+    ],
+    "A code fix during verification cannot inherit the earlier review": [
+      "packages/cli/tests/integration/branch-review-gate.test.ts",
+      "rejects a verification code fix until it is reviewed again"
+    ],
+    "Routine ticket records do not restart branch review": [
+      "packages/cli/tests/integration/branch-review-gate.test.ts",
+      "keeps a saved review current after verification checklist progress"
+    ],
+    "Changed ticket goals require a fresh review": [
+      "packages/cli/tests/integration/branch-review-gate.test.ts",
+      "rejects changed ticket goals until they are reviewed again"
+    ],
+    "A current complete review lets implementation finish": [
+      "packages/cli/tests/integration/branch-review-gate.test.ts",
+      "lets a complete current review finish implementation"
+    ],
+    "Each supported local host refuses changed work at implementation exit": [
+      "packages/cli/tests/integration/branch-review-gate.test.ts",
+      "exercises branch review exit in %s"
+    ],
+    "A partial review can continue with clear disclosure": [
+      "packages/cli/tests/integration/branch-review-ack.test.ts",
+      "allows an acknowledged partial review with exact disclosure"
+    ],
+    "A partial review cannot advance without acknowledgement": [
+      "packages/cli/tests/integration/branch-review-ack.test.ts",
+      "refuses partial coverage before acknowledgement"
+    ],
+    "No branch changes cannot pass as a completed review": [
+      "packages/cli/tests/integration/branch-review-gate.test.ts",
+      "refuses an empty branch as a completed review but allows its reasoned skip"
+    ],
+    "A skipped generated path cannot count as complete coverage": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "names a skipped generated file as an omission"
+    ],
+    "Sensitive file content stays out of the reviewer packet": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "withholds a sensitive file from every review packet"
+    ],
+    "A builder sees the next action for a partial review": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "gives a builder the next action for partial coverage"
+    ],
+    "Missing integration base cannot claim a completed review": [
+      "packages/cli/tests/integration/branch-review-scope.test.ts",
+      "says no branch work was reviewed when the integration base is unavailable"
+    ],
+    "A dirty branch is current but only partially covered": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "keeps a dirty branch current but partially covered"
+    ],
+    "A failed later review pass leaves its paths omitted": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "omits paths from a failed later review pass"
+    ],
+    "Stale review still shows its missing evidence": [
+      "packages/cli/tests/integration/branch-review-ack.test.ts",
+      "preserves omitted evidence when an acknowledged review becomes stale"
+    ],
+    "A configured topic branch cannot hide earlier work": [
+      "packages/cli/tests/integration/branch-review-scope.test.ts",
+      "refuses a topic branch as configured integration scope"
+    ],
+    "A topic may track a configured non-default integration branch": [
+      "packages/cli/tests/integration/branch-review-scope.test.ts",
+      "reviews a topic tracking the configured non-default integration branch"
+    ],
+    "Renamed, deleted, and force-added ignored paths remain in the inventory": [
+      "packages/cli/tests/integration/branch-review.test.ts",
+      "inventories renamed, deleted, and force-added ignored paths"
+    ],
+    "An oversized authored file cannot count as completely reviewed": [
+      "packages/cli/tests/integration/branch-review-ack.test.ts",
+      "marks an oversized authored file as omitted"
+    ]
+  }
+}

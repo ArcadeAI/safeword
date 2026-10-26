@@ -130,18 +130,20 @@ To disable a specific hook, remove the safeword hook entry from that agent's con
 
 Independent-review requirements on top of the always-on gates.
 
-Work moves through phases — `intake`, `define-behavior`, `scenario-gate`, `plan-implementation`, `plan-execution`, `implement`, `verify`, `done` — and a phase change is an edit to `phase:` in the ticket's `ticket.md`. The phase-exit review gate reads that edit before it lands and blocks it until the phase you are leaving carries an independent review stamp (written after a fresh-context review run via `safeword review run`), or an explicitly logged skip reason.
+Work moves through phases — `intake`, `define-behavior`, `scenario-gate`, `plan-implementation`, `plan-execution`, `implement`, `verify`, `done` — and a phase change is an edit to `phase:` in the ticket's `ticket.md`. The phase-exit review gate reads that edit before it lands and blocks it until the phase you are leaving carries an independent review stamp (written after a fresh-context review run via `safeword review run`), or an explicitly logged skip reason. For a feature's `implement → verify` exit, a branch review replaces that stamp and is always checked.
 
 **This gate is on at every exit by default**, including on a fresh install with no `reviewGate` key. Choose which exits it guards:
 
-| `reviewGate` value                     | Effect                                                               |
-| -------------------------------------- | -------------------------------------------------------------------- |
-| _(key absent)_                         | Every phase exit needs a review stamp. The default.                  |
-| `true`                                 | Same, and additionally turns on the per-asset inline stamp (Tier 1). |
-| `["define-behavior", "scenario-gate"]` | Only the exits you name. Everything else advances silently.          |
-| `false`                                | Off entirely.                                                        |
+| `reviewGate` value                     | Effect                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------- |
+| _(key absent)_                         | Every other phase exit needs a review stamp. The default.                             |
+| `true`                                 | Same, and additionally turns on the per-asset inline stamp (Tier 1).                  |
+| `["define-behavior", "scenario-gate"]` | Only the named exits need stamps; feature implementation still needs a branch review. |
+| `false`                                | Stamp gate off; feature implementation still needs a branch review.                   |
 
-A list is the usual way to tune this: it buys independent review where judgment carries the phase and skips exits that machine evidence already guards — `implement → verify` has tests, `verify → done` has the done gate. An unusable value (a bare string, a number, malformed JSON) keeps the default rather than reading as off, so a typo cannot quietly remove a gate; an empty list is a considered choice and does disable it.
+A list is the usual way to tune the stamp gate: it buys independent review where judgment carries the phase and skips exits that machine evidence already guards. The feature `implement → verify` branch review and `verify → done` done gate still apply. An unusable value (a bare string, a number, malformed JSON) keeps the default rather than reading as off, so a typo cannot quietly remove a gate; an empty list is a considered choice and does disable the stamp gate.
+
+Branch review uses the remote's default branch unless `.safeword/config.json` sets `"branchReview": { "integrationRef": "refs/remotes/origin/develop" }`. The value must name a remote-tracking branch. A topic branch may track the configured integration branch; Safeword reviews its changes from their merge base. A configured non-default ref with the same name as the current local topic branch is refused, because it could hide earlier topic work.
 
 Each blocked exit names the phase, prints the exact `safeword review run` command for it, and says how to narrow the gate. `scenario-gate`, `plan-implementation`, and `plan-execution` use specialist rubrics generated from the same contracts that guide their authors; other exits use the general `quality-review`.
 

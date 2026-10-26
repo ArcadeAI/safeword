@@ -5,6 +5,7 @@ export type ReviewAuthor = ReviewAgent | 'cursor' | 'unknown';
 export type SupportedReviewAuthor = Exclude<ReviewAuthor, 'unknown'>;
 export type ReviewKind =
   | 'quality-review'
+  | 'branch-review'
   | 'scenario-gate'
   | 'plan-implementation'
   | 'plan-execution'
@@ -241,6 +242,7 @@ export interface ReviewPacket {
 
 const REVIEW_KINDS = new Set<ReviewKind>([
   'quality-review',
+  'branch-review',
   'scenario-gate',
   'plan-implementation',
   'plan-execution',

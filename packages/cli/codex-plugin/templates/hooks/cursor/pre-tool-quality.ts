@@ -85,9 +85,8 @@ if (nodePath.basename(filePath) === 'ticket.md') {
     if (!verdict.ok) {
       emitDecisionAndExit(toCursorDecision(verdict.reason));
     }
-    // Evidence present — allow. ticket.md is a meta path the edit gate permits
-    // anyway, so there is nothing further to check.
-    emitAllowAndExit();
+    // Continue through the shared edit gate: a current branch review is also
+    // required before this closing edit can finish a feature.
   }
 }
 

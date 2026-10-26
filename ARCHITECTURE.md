@@ -1105,6 +1105,22 @@ safeword accepts this trade — **consistency and enforcement over independent b
 
 ---
 
+### Branch-scoped implementation-exit review
+
+**Status:** Proposed
+**Date:** 2026-10-23
+**Ticket:** 1AHFZS
+
+The shared CLI inventories every merge-base-to-HEAD path for BDD implementation exit; callers cannot narrow the base or files. Its signed ticket result separates path coverage (`complete`, `partial`, `none`) from content freshness (`current`, `stale`), names omissions, and binds reviewed work and goals. Bounded passes use the host-owned coordinator. Unreviewed paths stay omitted; dirty work cannot earn complete coverage.
+
+Implementation exit requires a current result matching reviewed Git work and ticket goals. Partial coverage needs an agent decision bound to exact omissions plus CLI-generated disclosure in the Work Log and gate result. A reasoned skip needs a current sealed `none` result. Review stores a ticket result ID: marked tickets without local results cannot finish; pre-upgrade verification tickets stay unmarked. The verify-to-done gate rechecks authored work and goals, excluding routine records. Identical-content commits alone do not stale review. Generic quality-review stamps do not prove branch coverage.
+
+OpenCode shell branch-review skips at feature `implement` or `verify` may use a synthetic run ID only after the trusted checker confirms a current sealed `none` result for that ticket and ID. Other stamps require normal identity; gates still check work and omissions.
+
+Project config alone selects the integration ref; default is the remote symbolic HEAD, never topic upstream. Review fetches; exit stays offline and checks the local ref and merge base. The result records fetch time. Exit requires the reviewed HEAD. Signed jobs are immutable. Partial acknowledgements are authenticated sidecars keyed by review ID and omissions. The latest completed review is the candidate. Goals include ticket scope, exclusions, done conditions, Product Plan jobs and Rules, scenarios, and tests; routine metadata and evidence do not count. Unknown authored files remain reviewable.
+
+This extends the coordinator without a new stage. Existing jobs are not backfilled. Reassess if jobs need portability or packet limits routinely prevent useful coverage.
+
 ### Host-owned cross-agent adversarial review coordinator
 
 **Status:** Accepted

@@ -115,7 +115,7 @@ describe('Claude plugin catalogue generation', () => {
     const tdd = assets.find(asset => asset.relativePath === 'skills/bdd/TDD.md');
 
     expect(tdd?.content).toContain('run `/safeword:verify`, then `/audit`');
-    expect(tdd?.content).toContain('Run `/quality-review`');
+    expect(tdd?.content).toContain('Invoke `/quality-review` for the whole-ticket pass.');
     expect(tdd?.content).not.toContain('/safeword:audit');
     expect(tdd?.content).not.toContain('/safeword:quality-review');
   });

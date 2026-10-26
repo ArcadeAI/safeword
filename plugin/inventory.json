@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "7757fd8cdc1021f375ed11a0a24d1149fa3fcc6b07a488430ce5045ca94e1c7d"
+      "sha256": "7a2ca74c861b696b3397943a1bd0f7b4814d7311f9ee4057c1a0f928e12ab25f"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "229c5c66ae8c2e0cafbbc7fabc463ce5e7e8835181aa236a732b40e6ad1084ef"
+      "sha256": "75bf9ef2b6adec0dce7a69a9f95298f210445c794842424a0eece0e71e47b9f3"
     },
     {
       "path": "runtime/event-groups.json",
@@ -423,7 +423,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-cli.ts",
-      "sha256": "09a9b1adacd39fa442f97f9f39b08fce1287eac2d61dde35680f6eb45d51bbc3"
+      "sha256": "570bdc36f964181b51875d8a0f4a4a81684e14de961fe0d16f8c071f61a90390"
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
@@ -523,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "280ae29da28874b3cd96b9cf4a5d8dc2bffc7c36ca075c202f764c61e52823b0"
+      "sha256": "b446e17d415be7315bc62bcd0e440770cbc3ac7727300017d3e5b09422e2b7ab"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -619,7 +619,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "dcf91e0e562587d1373b745edcaf49680d2a170f2daf7b9acac4da36bafafb39"
+      "sha256": "9d67e2d20b3bdb0d0f19fc5368f477bf09e0b1d418fcbbd102c0fc5ee84ea58f"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -639,7 +639,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "38f47423d4a7e5db3be0df7e7dd7e5d15bfaf5ca4b4185930eaf345fda8cf567"
+      "sha256": "7bcfe737114f0045c7f8da81e6b18cba6511d527e535332cdbaec77752859b52"
     },
     {
       "path": "skills/audit/SKILL.md",
@@ -677,7 +677,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "2a7abf93128b0ee32a53d027cc7d81d59ab5acd17576b9a3484420d1d224abf1"
+      "sha256": "439484a4df61bba7d8dd1d9de387a5bbb4c79d51e51ca918b4fa28d7c0a37957"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -744,8 +744,8 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "7109fb8eb3a4558d94bd24cce500bed41d7107dda0f9e78a76702de6a75afbdb",
-      "skill_sha256": "6a209281871a2b244c3e1172edf0a1facd0535c3ba76d908da6e0788f0aeba12"
+      "sha256": "9bd636b9437e76654f9ff2eaed6842255e3e06f6f96dd3f3e90d7885cc9a5f51",
+      "skill_sha256": "24abbcb67dade66faaa319ff0ec5549546909ad6cacbf4642f4c9436a76dff44"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -1139,7 +1139,7 @@
     },
     {
       "path": "templates/hooks/codex/stop.ts",
-      "sha256": "e98d3c6834149be7091cc2df6dfdbd851d4090e7957fac0a0036c14a4a3d9f31"
+      "sha256": "0d8d0df49283e858652c44f6519e0793ebd462b62852c39a2e724ca5cb856f46"
     },
     {
       "path": "templates/hooks/cursor/after-file-edit.ts",
@@ -1151,7 +1151,7 @@
     },
     {
       "path": "templates/hooks/cursor/gate-adapter.ts",
-      "sha256": "3c6a1f0d8d04d7e7888630f27772e448fa5082417d4c0b6f79d212161da0c1ce"
+      "sha256": "462ea72981ccba45ed4c9f8a992cfaaa26d8d97f8937e295906f4084d34e9a9f"
     },
     {
       "path": "templates/hooks/cursor/post-tool-quality.ts",
@@ -1163,7 +1163,7 @@
     },
     {
       "path": "templates/hooks/cursor/pre-tool-quality.ts",
-      "sha256": "705d01fe0aa6ae4989b0eecae905f6f7ebdb761894b2b2793f1b513d2a77df83"
+      "sha256": "9c540fc769fb8919a28824cd967b5c1107acddc6b293ca0cf6fd1e8411850ab2"
     },
     {
       "path": "templates/hooks/cursor/stop.ts",
@@ -1419,7 +1419,7 @@
     },
     {
       "path": "templates/hooks/lib/safeword-cli.ts",
-      "sha256": "09a9b1adacd39fa442f97f9f39b08fce1287eac2d61dde35680f6eb45d51bbc3"
+      "sha256": "570bdc36f964181b51875d8a0f4a4a81684e14de961fe0d16f8c071f61a90390"
     },
     {
       "path": "templates/hooks/lib/safeword-context.ts",
@@ -1519,7 +1519,7 @@
     },
     {
       "path": "templates/hooks/pre-tool-quality.ts",
-      "sha256": "3e2071275815d93ca154aa0af8d0b766087f3b4824b31fc511dd62112e7369dc"
+      "sha256": "f83e57d788ef51b78f0abd5fb94baa9ed803fd43c98624724267a753f913e0b2"
     },
     {
       "path": "templates/hooks/pre-tool-stale-main.ts",
@@ -1615,7 +1615,7 @@
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "d0bfeac753eb4a2a7f1cc89f8e0f9592546ef52cb9cb923845880e387dfd7274"
+      "sha256": "ffe7c7a8dfe37ae9823045ee6185ed51ff9e3ef319300e33a349160817822cea"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",
@@ -1635,7 +1635,7 @@
     },
     {
       "path": "templates/hooks/write-review-stamp.ts",
-      "sha256": "38f47423d4a7e5db3be0df7e7dd7e5d15bfaf5ca4b4185930eaf345fda8cf567"
+      "sha256": "7bcfe737114f0045c7f8da81e6b18cba6511d527e535332cdbaec77752859b52"
     },
     {
       "path": "templates/personas-template.md",
@@ -1703,7 +1703,7 @@
     },
     {
       "path": "templates/skills/bdd/TDD.md",
-      "sha256": "db5fa9697dc4c3c7c65f539587150b2ee8c484d1d6f78a94fb0551b3db270cfb"
+      "sha256": "f7318a534e3cefb40821e3c294f5dd4139c699c723ae851720a153950e972fa5"
     },
     {
       "path": "templates/skills/bdd/VERIFY.md",
@@ -1759,7 +1759,7 @@
     },
     {
       "path": "templates/skills/quality-review/SKILL.md",
-      "sha256": "ef63c3ca21b2c383c46d143fec48d229b4e17675015a77e858638dbefbdcfbac"
+      "sha256": "a8b6f6ec46e4733c66a3030162e1849cb31a887ab78b2c2437c48d06dec144ae"
     },
     {
       "path": "templates/skills/refactor/SKILL.md",

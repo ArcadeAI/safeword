@@ -35,6 +35,7 @@ import {
   readFreshCursorReviewStampIdentity,
 } from './lib/cursor-run-identity.ts';
 import { readSessionState } from './lib/quality-state.ts';
+import { askTrustedSafeword } from './lib/safeword-cli.ts';
 import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledger.ts';
 import { readReviewReceipt } from './lib/read-receipt.ts';
 import {
@@ -254,14 +255,58 @@ const runIdentity =
     : (readBridgedRunIdentity() ?? environmentIdentity);
 // OpenCode's profile hook receives the session id, but its shell tool does not
 // pass that id to this command. A verified coordinator receipt supplies a
-// narrower identity for this one stamp; receiptGateVerdict below must still
-// authenticate it before anything is written.
+// narrower identity for this one stamp. A branch-review skip can use the same
+// fallback only after a trusted CLI confirms a current, sealed none result.
+function eligibleOpenCodeBranchSkip(): boolean {
+  if (
+    runIdentity.runtime !== 'opencode' ||
+    reviewId === undefined ||
+    skipReason === undefined ||
+    explicitTicket === undefined ||
+    positional[0] !== '--phase'
+  )
+    return false;
+  const phase = positional[1];
+  if (phase !== 'implement' && phase !== 'verify') return false;
+  const ticketId = explicitTicket.split('-')[0];
+  if (!ticketId) return false;
+  const answer = askTrustedSafeword(
+    projectDirectory,
+    ['review', 'branch-check', ticketId, phase],
+    run => {
+      try {
+        const result = JSON.parse(run.stdout) as {
+          data?: {
+            command?: unknown;
+            ticket_id?: unknown;
+            review_id?: unknown;
+            coverage?: unknown;
+            freshness?: unknown;
+            skip_eligible?: unknown;
+          };
+        };
+        if (result.data?.command !== 'review branch-check') return undefined;
+        return (
+          result.data.ticket_id === ticketId &&
+          result.data.review_id === reviewId &&
+          result.data.coverage === 'none' &&
+          result.data.freshness === 'current' &&
+          result.data.skip_eligible === true
+        );
+      } catch {
+        return undefined;
+      }
+    },
+  );
+  return answer.kind === 'answered' && answer.value;
+}
+
 const sessionId =
   runIdentity.sessionKey ??
   (runIdentity.runtime === 'opencode' &&
   reviewId !== undefined &&
-  skipReason === undefined &&
-  claimsCoordinatorVerdict(independence)
+  ((skipReason === undefined && claimsCoordinatorVerdict(independence)) ||
+    eligibleOpenCodeBranchSkip())
     ? `opencode-review-${reviewId}`
     : fail('missing run identity for review stamp'));
 
@@ -361,7 +406,7 @@ function resolveScope(ticketFolder: string): {
 
 const { scope, label, claim } = resolveScope(resolveTicketFolder());
 
-if (reviewId !== undefined) {
+if (reviewId !== undefined && skipReason === undefined) {
   const receipt = readReviewReceipt(reviewId, projectDirectory);
   if (receipt === undefined)
     fail(

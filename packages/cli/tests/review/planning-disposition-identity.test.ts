@@ -19,4 +19,17 @@ describe('planning disposition currency', () => {
       semanticTicketIdentity(before, 'plan-execution'),
     );
   });
+
+  it('keeps planning approvals current when branch-review bookkeeping changes', () => {
+    const original = `${before}\n## Work Log\n\n- Earlier review.\n`;
+    const updated = original
+      .replace('type: feature', 'type: feature\nbranch_review_exit_id: new-review')
+      .replace('- Earlier review.', '- Latest review.');
+    expect(semanticTicketIdentity(updated, 'scenario-gate')).toBe(
+      semanticTicketIdentity(original, 'scenario-gate'),
+    );
+    expect(
+      semanticTicketIdentity(updated.replace('preserve approved behavior', 'change goals')),
+    ).not.toBe(semanticTicketIdentity(original));
+  });
 });

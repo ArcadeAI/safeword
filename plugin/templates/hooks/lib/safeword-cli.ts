@@ -16,7 +16,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -273,6 +273,53 @@ export function askTrustedSafeword<T>(
   }
   const tried = candidates.map(cli => [cli.command, ...cli.args].join(' ')).join(', ');
   return { kind: 'unanswered', tried };
+}
+
+/** Recheck the signed branch result immediately before a feature is marked done. */
+export function branchReviewCompletionProblem(
+  projectDirectory: string,
+  ticketFolder: string,
+  ticketPath: string,
+): string | undefined {
+  const ticketId = ticketFolder.split('-')[0];
+  if (!ticketId || !/^[A-Za-z0-9]+$/u.test(ticketId))
+    return 'The active ticket has no valid ID for branch review.';
+  // A feature already in verification before branch reviews existed has no
+  // marker or local job. Its prior completion route remains available.
+  try {
+    const jobs = nodePath.join(projectDirectory, '.safeword', 'state', 'reviews', 'branch');
+    const hasMarker = /^branch_review_exit_id:/mu.test(readFileSync(ticketPath, 'utf8'));
+    if (!hasMarker && (!existsSync(jobs) || readdirSync(jobs).length === 0)) return undefined;
+  } catch {
+    // Unreadable local state still needs the trusted checker.
+  }
+  const answer = askTrustedSafeword(
+    projectDirectory,
+    ['review', 'branch-check', ticketId, 'verify'],
+    run => {
+      try {
+        const result = JSON.parse(run.stdout) as {
+          data?: { command?: unknown; ticket_id?: unknown; phase?: unknown; may_advance?: unknown };
+          findings?: Array<{ message?: unknown }>;
+        };
+        if (
+          result.data?.command !== 'review branch-check' ||
+          result.data.ticket_id !== ticketId ||
+          result.data.phase !== 'verify' ||
+          typeof result.data.may_advance !== 'boolean'
+        )
+          return undefined;
+        return run.status === 0 && result.data.may_advance
+          ? { problem: undefined }
+          : { problem: String(result.findings?.[0]?.message ?? 'The branch review is stale.') };
+      } catch {
+        return undefined;
+      }
+    },
+  );
+  return answer.kind === 'answered'
+    ? answer.value.problem
+    : 'The trusted branch-review checker could not confirm a current review.';
 }
 
 /** A package.json's name and version, or an empty record when it is missing or malformed. */

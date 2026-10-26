@@ -223,6 +223,20 @@ describe('Cursor gate adapter helpers (T3DV1K)', () => {
       });
     });
 
+    it('shows an allowed branch-review disclosure to the user and agent', () => {
+      const stdout = JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          additionalContext: 'Coverage partial: generated.out was omitted.',
+        },
+      });
+      expect(decideFromGate({ stdout, failed: false, timedOut: false })).toEqual({
+        permission: 'allow',
+        user_message: 'Coverage partial: generated.out was omitted.',
+        agent_message: 'Coverage partial: generated.out was omitted.',
+      });
+    });
+
     it('passes through a clean denial verdict from the gate', () => {
       const stdout = JSON.stringify({
         hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'no tests' },
