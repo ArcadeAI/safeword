@@ -1,0 +1,73 @@
+$ bun run --cwd packages/retro-relay test && bun run --cwd packages/retro-collector test && bun run --cwd packages/cli test tests/bounded-observation.test.ts
+$ bun run build && vitest run
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/aa92/safeword/packages/retro-relay/tsup.config.ts
+CLI Target: node22
+CLI Cleaning output folder
+ESM Build start
+ESM dist/main.js               848.00 B
+ESM dist/chunk-XO4XPAFC.js     90.77 KB
+ESM dist/index.js              3.30 KB
+ESM dist/main.js.map           1.56 KB
+ESM dist/chunk-XO4XPAFC.js.map 170.09 KB
+ESM dist/index.js.map          6.01 KB
+ESM ⚡️ Build success in 16ms
+DTS Build start
+DTS ⚡️ Build success in 894ms
+DTS dist/main.d.ts  13.00 B
+DTS dist/index.d.ts 9.50 KB
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/aa92/safeword/packages/retro-relay
+
+
+ Test Files  9 passed (9)
+      Tests  198 passed | 1 skipped (199)
+   Start at  22:57:06
+   Duration  9.54s (tests 86%, transform 7%, import 6%)
+
+$ bun run build && vitest run
+$ tsup
+CLI Building entry: src/index.ts, src/main.ts, src/worker-main.ts, src/worker.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/alex/.codex/worktrees/aa92/safeword/packages/retro-collector/tsup.config.ts
+CLI Target: node24
+CLI Cleaning output folder
+ESM Build start
+ESM dist/index.js              140.00 B
+ESM dist/chunk-JFIHCTGV.js     2.88 KB
+ESM dist/worker-main.js        1.25 KB
+ESM dist/chunk-2S4U6WKG.js     29.46 KB
+ESM dist/main.js               1.64 KB
+ESM dist/worker.js             217.00 B
+ESM dist/chunk-JFIHCTGV.js.map 6.04 KB
+ESM dist/index.js.map          71.00 B
+ESM dist/worker-main.js.map    2.29 KB
+ESM dist/chunk-2S4U6WKG.js.map 53.50 KB
+ESM dist/worker.js.map         71.00 B
+ESM dist/main.js.map           2.79 KB
+ESM ⚡️ Build success in 9ms
+DTS Build start
+DTS ⚡️ Build success in 573ms
+DTS dist/main.d.ts        13.00 B
+DTS dist/worker.d.ts      935.00 B
+DTS dist/index.d.ts       2.64 KB
+DTS dist/worker-main.d.ts 13.00 B
+
+ RUN  v5.0.3 /Users/alex/.codex/worktrees/aa92/safeword/packages/retro-collector
+
+
+ Test Files  4 passed (4)
+      Tests  153 passed (153)
+   Start at  22:57:16
+   Duration  1.36s (tests 91%, transform 6%, import 2%)
+
+$ node scripts/run-vitest-with-build-lock.mjs tests/bounded-observation.test.ts
+Waiting for safeword package test lock (1s elapsed; owner PID 9949; checkout /Users/alex/.codex/worktrees/ffcf/safeword).
+Waiting for safeword package test lock (31s elapsed; owner PID 9949; checkout /Users/alex/.codex/worktrees/ffcf/safeword).
+Safeword package test lock busy: could not acquire /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-locks/safeword-package-test.lock after waiting 1m 0s; no test was started. The active owner is PID 9949 in /Users/alex/.codex/worktrees/ffcf/safeword. A transition may be blocked at /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-locks/safeword-package-test.lock.transition. Re-run after it finishes, set SAFEWORD_TEST_LOCK_MAX_WAIT_MS to a larger positive millisecond value, or remove either directory only if you are sure no package test is running.
+error: script "test" exited with code 75
+error: script "test" exited with code 75

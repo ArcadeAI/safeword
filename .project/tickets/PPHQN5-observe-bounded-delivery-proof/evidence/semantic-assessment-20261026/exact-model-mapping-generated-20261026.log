@@ -1,0 +1,31 @@
+→ generate-cursor-wrappers.ts
+→ generate-claude-historical-catalogue.ts
+→ generate-claude-plugin.ts
+→ generate-codex-plugin.ts
+→ lifecycle origin-main fixtures (update, then verify)
+993 |   if (!isURLInstance(fileURLOrPath))
+994 |     return fileURLOrPath;
+995 |   return Bun.fileURLToPath(fileURLOrPath);
+996 | }
+997 | var { Error, TypeError } = globalThis;
+998 |   let err = new Error(message);
+                  ^
+error: Command failed: node scripts/run-vitest-with-build-lock.mjs tests/lifecycle/origin-main-contract.test.ts
+Waiting for safeword package test lock (1s elapsed; owner PID 9949; checkout /Users/alex/.codex/worktrees/ffcf/safeword).
+Waiting for safeword package test lock (31s elapsed; owner PID 9949; checkout /Users/alex/.codex/worktrees/ffcf/safeword).
+Safeword package test lock busy: could not acquire /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-locks/safeword-package-test.lock after waiting 1m 0s; no test was started. The active owner is PID 9949 in /Users/alex/.codex/worktrees/ffcf/safeword. A transition may be blocked at /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-locks/safeword-package-test.lock.transition. Re-run after it finishes, set SAFEWORD_TEST_LOCK_MAX_WAIT_MS to a larger positive millisecond value, or remove either directory only if you are sure no package test is running.
+
+   code: 75,
+ killed: false,
+ signal: null,
+    cmd: "node scripts/run-vitest-with-build-lock.mjs tests/lifecycle/origin-main-contract.test.ts",
+ stdout: "",
+ stderr: "Waiting for safeword package test lock (1s elapsed; owner PID 9949; checkout /Users/alex/.codex/worktrees/ffcf/safeword).\nWaiting for safeword package test lock (31s elapsed; owner PID 9949; checkout /Users/alex/.codex/worktrees/ffcf/safeword).\nSafeword package test lock busy: could not acquire /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-locks/safeword-package-test.lock after waiting 1m 0s; no test was started. The active owner is PID 9949 in /Users/alex/.codex/worktrees/ffcf/safeword. A transition may be blocked at /var/folders/v4/1hqkg6ln4nd71j_bjw3_xxb00000gn/T/safeword-test-locks/safeword-package-test.lock.transition. Re-run after it finishes, set SAFEWORD_TEST_LOCK_MAX_WAIT_MS to a larger positive millisecond value, or remove either directory only if you are sure no package test is running.\n",
+
+      at genericNodeError (node:child_process:998:13)
+      at exitHandler (node:child_process:103:28)
+      at emit (node:events:98:22)
+      at #maybeClose (node:child_process:766:16)
+      at #handleOnExit (node:child_process:520:72)
+
+Bun v1.3.14 (macOS arm64)

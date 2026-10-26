@@ -17338,7 +17338,7 @@ var init_profile = __esm(() => {
         required_assertions: [
           {
             file: "packages/cli/tests/review/execution-plan-conformance.test.ts",
-            full_name: "Execution Plan semantic conformance admission admits exact models and explicit runtime defaults without conflating them"
+            full_name: "Execution Plan semantic conformance admission preserves admitted degraded labeling and deterministically exhausts an empty set"
           }
         ]
       },
@@ -17641,7 +17641,7 @@ var audit_readers_default;
 var init_audit_readers = __esm(() => {
   audit_readers_default = {
     schema_version: 1,
-    source_sha256: "105c49d2c0e865d2faf814069389a12b93eb8653e50fc1af085b9ee99cb30660"
+    source_sha256: "aeeaeec128b8b11d40ebcd49382e264a6ad99fbe67cc923e569f70b3a5daa59c"
   };
 });
 

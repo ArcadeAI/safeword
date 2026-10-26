@@ -469,7 +469,7 @@
       "required_assertions": [
         {
           "file": "packages/cli/tests/review/execution-plan-conformance.test.ts",
-          "full_name": "Execution Plan semantic conformance admission admits exact models and explicit runtime defaults without conflating them"
+          "full_name": "Execution Plan semantic conformance admission preserves admitted degraded labeling and deterministically exhausts an empty set"
         }
       ]
     },

@@ -1,0 +1,12 @@
+1 | import assert from "node:assert/strict"; import path from "node:path"; import { fixedFiles, observationProfile, gradeReport } from "./packages/cli/src/bounded-observation/contract.ts"; const clone="/committed-candidate"; const name="Execution Plan semantic conformance admission preserves admitted degraded labeling and deterministically exhausts an empty set"; const sets=new Map(); for (const row of observationProfile.cases) for(const a of row.required_assertions){const names=sets.get(a.file)??new Set(); names.add(a.full_name); sets.set(a.file,names);} const report={success:true,numFailedTests:0,numFailedTestSuites:0,testResults:fixedFiles.map(file=>({name:path.join(clone,"packages/cli",file),status:"passed",assertionResults:[...(sets.get(`packages/cli/${file}`)??[])].map(fullName=>({fullName,status:"passed"}))}))}; gradeReport(Buffer.from(JSON.stringify(report)),clone); for(const file of report.testResults) file.assertionResults=file.assertionResults.filter(a=>a.fullName!==name); assert.throws(()=>gradeReport
+
+AssertionError: Missing expected exception: Missing different-exact-model denial proof must refuse despite matching-route success
+ generatedMessage: false,
+     actual: undefined,
+   expected: [Function],
+   operator: "throws",
+       code: "ERR_ASSERTION"
+
+      at /Users/alex/.codex/worktrees/aa92/safeword/[eval]:1:1003
+
+Bun v1.3.14 (macOS arm64)

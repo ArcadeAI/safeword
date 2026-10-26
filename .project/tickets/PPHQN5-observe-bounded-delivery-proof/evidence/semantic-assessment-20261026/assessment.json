@@ -1,0 +1,100 @@
+{
+  "purpose": "Current case-to-assertion assessment; not a semantic certificate, RED receipt or completion authority",
+  "reviewed_candidate_before_correction": "1e1e1fce5f84b372944673e5dda0433cd69d62d5",
+  "prior_actual_observation": "b2a0a8c5-f54a-4278-bdda-18cd52b442f7",
+  "prior_observation_limit": "257 tests passed and 37 cases were observed under the prior 46-assertion profile; correction changes bound inputs and requires new observation",
+  "case_count": 37,
+  "required_unique_assertions_after_correction": 47,
+  "correction": "Use the existing different-exact-model denial assertion for case c1dc4b6f; require it in the shipped profile and regression test. No reviewer filter behavior changed.",
+  "limits": "Every block retains its accepted proof limit. Named unproven clauses prevent execution results from being read as full semantic coverage.",
+  "unsupported": [
+    {
+      "case_id": "89c0627f79d45cf6aadb202bd73166a8cedee2ea2258900a9430b22edbdce6ac",
+      "block": "Installed rule edits preserve unrelated Implementation review currency",
+      "clauses": [
+        "The test does not compare Implementation bytes before and after the Execution-rule edit."
+      ]
+    },
+    {
+      "case_id": "56a38005e7c51a1c8c1e572b01a589b45ff368d45a58daf044ebcb90f805763f",
+      "block": "A failed independent attempt precedes eligible fallback",
+      "clauses": [
+        "The route matrix does not assert the eligible typed failure recorded for the independent route or its event order relative to fallback."
+      ]
+    },
+    {
+      "case_id": "252a72f4c78b63c513ff734bc4e812aaebb44287d6d74d3351e26848ac48b54c",
+      "block": "Completed observations survive termination",
+      "clauses": [
+        "Headless model-confirmed eligibility and readability through readExecutionCheckpoint are not established by raw JSON survival."
+      ]
+    },
+    {
+      "case_id": "5d3ebf9dc17db0b586dd63405b5be1ed967918fab5e602548260be4c1069c8f8",
+      "block": "Retained reuse checks current identity before any reviewer launch",
+      "clauses": [
+        "Production harness pre-egress ordering is not established by an inline fixture launch marker."
+      ]
+    },
+    {
+      "case_id": "395c93781f31cdc19f9d13723ffb94230f09932d6da44e03e737bc79ec509c4c",
+      "block": "Retained reuse checks current identity before any reviewer launch",
+      "clauses": [
+        "Production harness pre-egress ordering is not established by an inline fixture launch marker."
+      ]
+    },
+    {
+      "case_id": "e0ab3b9cf30ec23190479b9767634fbc9623a34544f09b31996aae51de9c1476",
+      "block": "Retained reuse checks current identity before any reviewer launch",
+      "clauses": [
+        "Production harness pre-egress ordering is not established by an inline fixture launch marker."
+      ]
+    },
+    {
+      "case_id": "407bbdbf7142aa9c1a1757c5dcecd1773c5be5df176a7fbdf8e0b78c91a61f16",
+      "block": "Retained reuse checks current identity before any reviewer launch",
+      "clauses": [
+        "Production harness pre-egress ordering is not established by an inline fixture launch marker."
+      ]
+    },
+    {
+      "case_id": "5b868c70a98cc8406d673caa2e96a1a901563e919823014e5168d700cc0554e1",
+      "block": "Retained reuse checks current identity before any reviewer launch",
+      "clauses": [
+        "Production harness pre-egress ordering is not established by an inline fixture launch marker."
+      ]
+    },
+    {
+      "case_id": "773571487800f6fd60b823c1ee45fd32aaf764da2e8bb6a40c74e048c9d33680",
+      "block": "Retained reuse checks current identity before any reviewer launch",
+      "clauses": [
+        "Production harness pre-egress ordering is not established by an inline fixture launch marker."
+      ]
+    }
+  ],
+  "red_provenance": "Direct real-grader control exited 1 before profile correction because missing different-model denial did not throw. The first Vitest command exited 75 without starting tests; its longer-wait successor remains queued and will run against corrected sources, so it is not claimed as RED. No trusted historical RED receipt is manufactured.",
+  "review_history": "c18a1397 requested changes; a5c17bcf became stale after a lint repair. bdc0fcde requested changes without observer-spec context. Final cross-agent Claude review 167b6741-920c-4158-8559-30e4362687b9 approved with no errors after reading the accepted execution-only boundary and the documented responses. Non-blocking limits and pre-existing test-title warnings remain disclosed.",
+  "preserved": "Seven original open observer scenario blocks, original delivery RED gaps, SHA collision and all 33 historical deferrals remain unchanged. No shared gates, cache, qualification, certification or closing integration changed.",
+  "static_verification": "Targeted ESLint and CLI typecheck exited 0. All 277 parity pairs / 11 contracts and all five generated surfaces passed. The first all-surfaces --fix command regenerated plugin carriers but its lifecycle verification failed to acquire the shared test lock (no test started); subsequent non-mutating surface verification passed.",
+  "scope": "One existing mapped proof requirement corrected; no new certification schema, source-hash admission gate, shared review policy, historical ledger edit or paid qualification.",
+  "historical_preservation": {
+    "integrity_entries_checked": 14,
+    "changed": [],
+    "deferrals": 33,
+    "owners": {
+      "DRD65E": 1,
+      "FC33HK": 12,
+      "KKP2R3": 2,
+      "MCWV4B": 18
+    }
+  },
+  "focused_verification": {
+    "command": "SAFEWORD_TEST_LOCK_MAX_WAIT_MS=1800000 scripts/dev bun run test tests/bounded-observation.test.ts",
+    "exit_code": 0,
+    "files_passed": 1,
+    "tests_passed": 35,
+    "duration_seconds": 0.197,
+    "limit": "Queued behind another checkout; ran only after source correction. This is GREEN, not the pre-change RED."
+  },
+  "next": "Commit the scoped mapping repair, then obtain and verify one new fixed-lane observation. Do not convert the execution-only assessment into semantic certification or close historical ledgers."
+}

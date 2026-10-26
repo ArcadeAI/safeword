@@ -76,7 +76,7 @@ describe('fixed bounded-observation result reconciliation', () => {
     const identities = rows.flatMap(row =>
       row.assertions.map(assertion => `${assertion.file}\0${assertion.full_name}`),
     );
-    expect(new Set(identities).size).toBe(46);
+    expect(new Set(identities).size).toBe(47);
   });
   it.each(['pending', 'skipped', 'todo', 'failed'])('refuses a required %s result', status => {
     const value = report();
@@ -89,6 +89,17 @@ describe('fixed bounded-observation result reconciliation', () => {
     const value = report();
     firstRequired(value).assertionResults.shift();
     expect(() => gradeReport(bytes(value), clone)).toThrow('exact-once');
+  });
+  it('requires the different-exact-model denial proof even when matching routes pass', () => {
+    const value = report();
+    const file = value.testResults.find(candidate =>
+      candidate.name.endsWith('/tests/review/execution-plan-conformance.test.ts'),
+    );
+    if (file === undefined) throw new Error('Conformance fixture is absent');
+    const name =
+      'Execution Plan semantic conformance admission preserves admitted degraded labeling and deterministically exhausts an empty set';
+    file.assertionResults = file.assertionResults.filter(assertion => assertion.fullName !== name);
+    expect(() => gradeReport(bytes(value), clone)).toThrow(name);
   });
   it('refuses an ambiguous repeated required result', () => {
     const value = report();
