@@ -57,6 +57,8 @@ interface FixtureState {
   readonly oversizedVersionStderr?: boolean;
   readonly pluginEnabled?: boolean;
   readonly unexpectedPayload?: boolean;
+  /** False when the marketplace has no newer plugin, so `plugin update` changes nothing. */
+  readonly updateAdvances?: boolean;
 }
 
 function prepareInstallPath(root: string, state: FixtureState): string {
@@ -160,6 +162,11 @@ function writePluginListOverride(
     projectPath: project,
   });
   writeFileSync(path, `${JSON.stringify(plugins)}\n`);
+}
+
+function pluginUpdateCommand(state: FixtureState, installedState: string): string {
+  if (state.updateAdvances === false) return ':';
+  return String.raw`printf '%s\n' ${JSON.stringify(SAFEWORD_SCHEMA.version)} > ${JSON.stringify(installedState)}`;
 }
 
 function versionCommand(state: FixtureState, outputPath: string): string {
@@ -342,7 +349,7 @@ case "$*" in
     printf '%s\n' ${JSON.stringify(SAFEWORD_SCHEMA.version)} > ${JSON.stringify(installedState)}
     touch ${JSON.stringify(enabledState)}
     ;;
-  'plugin update safeword@safeword --scope project') printf '%s\n' ${JSON.stringify(SAFEWORD_SCHEMA.version)} > ${JSON.stringify(installedState)} ;;
+  'plugin update safeword@safeword --scope project') ${pluginUpdateCommand(state, installedState)} ;;
   'plugin enable safeword@safeword --scope project') touch ${JSON.stringify(enabledState)} ;;
   *) exit 97 ;;
 esac
@@ -917,7 +924,14 @@ describe('Claude marketplace update enrollment', () => {
 describe('Claude plugin in the Safeword source repository', () => {
   // The source repo runs an unreleased CLI, so no promoted plugin can match its
   // version; the published plugin also stands its hooks down there.
-  const RELEASED_VERSION = '0.72.0';
+  const RELEASED_VERSION = '1.1.0';
+  const PRERELEASE_AHEAD = '2.0.0-rc.1';
+  const KEEP_MARKETPLACE = { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' };
+  const released = {
+    installedVersion: RELEASED_VERSION,
+    payloadVersion: RELEASED_VERSION,
+    updateAdvances: false,
+  };
 
   it('accepts the newest released plugin without attempting an impossible update', () => {
     const { log, project } = fixture(
@@ -962,16 +976,54 @@ describe('Claude plugin in the Safeword source repository', () => {
   });
 
   it('keeps requiring the CLI version outside the source repository', () => {
-    const { project } = fixture(
-      true,
-      OFFICIAL_MARKETPLACE_REF,
-      { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' },
-      { installedVersion: RELEASED_VERSION, payloadVersion: RELEASED_VERSION },
-    );
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, released);
 
     const result = installClaudePlugin(project);
 
     expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('CLAUDE_PLUGIN_UNVERIFIED');
+    expect(readFileSync(log, 'utf8')).toContain('plugin update safeword@safeword --scope project');
     expect(result.findings).toEqual([]);
+  });
+
+  it('does not extend the released-plugin exception to a plugin newer than the CLI', () => {
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      dogfoodRepo: true,
+      installedVersion: PRERELEASE_AHEAD,
+      payloadVersion: PRERELEASE_AHEAD,
+    });
+
+    expect(observeApplicableClaudePlugins(project).installations[0]?.health).toBe('wrong-version');
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('CLAUDE_PLUGIN_DOWNGRADE_REFUSED');
+    expect(readFileSync(log, 'utf8')).not.toContain('plugin update');
+  });
+
+  it('rejects a released plugin whose payload identity names another version', () => {
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      ...released,
+      dogfoodRepo: true,
+      payloadVersion: '1.0.0',
+    });
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED');
+  });
+
+  it('reports a released plugin as current only inside the source repository', () => {
+    const source = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      ...released,
+      dogfoodRepo: true,
+    });
+    expect(observeApplicableClaudePlugins(source.project).installations[0]?.health).toBe('current');
+
+    const consumer = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, released);
+    expect(observeApplicableClaudePlugins(consumer.project).installations[0]?.health).toBe(
+      'wrong-version',
+    );
   });
 });
