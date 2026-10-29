@@ -35,6 +35,8 @@ const originalProjectDirectory = process.env.CLAUDE_PROJECT_DIR;
 
 interface FixtureState {
   readonly cacheMetadata?: boolean;
+  /** Mark the fixture project as the Safeword source (dogfood) repository. */
+  readonly dogfoodRepo?: boolean;
   readonly healthyPayload?: boolean;
   readonly installedVersion?: string | false;
   readonly largePluginInventory?: boolean;
@@ -48,21 +50,37 @@ interface FixtureState {
   readonly marketplaceListedSource?: Record<string, unknown>;
   readonly marketplaceRemoveFails?: boolean;
   readonly omittedUserScope?: boolean;
+  /** Plugin version the installed payload's identity declares (a released build). */
+  readonly payloadVersion?: string;
   readonly oversizedPluginInventory?: boolean;
   readonly oversizedVersionOutput?: boolean;
   readonly oversizedVersionStderr?: boolean;
   readonly pluginEnabled?: boolean;
   readonly unexpectedPayload?: boolean;
+  /** False when the marketplace has no newer plugin, so `plugin update` changes nothing. */
+  readonly updateAdvances?: boolean;
 }
 
 function prepareInstallPath(root: string, state: FixtureState): string {
   if (state.healthyPayload === false) return nodePath.join(root, 'broken-plugin');
-  if (state.cacheMetadata !== true && state.unexpectedPayload !== true) {
+  if (
+    state.cacheMetadata !== true &&
+    state.unexpectedPayload !== true &&
+    state.payloadVersion === undefined
+  ) {
     return nodePath.join(REPO_ROOT, 'plugin');
   }
 
   const installPath = nodePath.join(root, 'cached-plugin');
   cpSync(nodePath.join(REPO_ROOT, 'plugin'), installPath, { recursive: true });
+  if (state.payloadVersion !== undefined) {
+    const identityPath = nodePath.join(installPath, 'identity.json');
+    const identity = JSON.parse(readFileSync(identityPath, 'utf8')) as Record<string, unknown>;
+    writeFileSync(
+      identityPath,
+      `${JSON.stringify({ ...identity, plugin_version: state.payloadVersion }, undefined, 2)}\n`,
+    );
+  }
   if (state.cacheMetadata === true) {
     const leaseDirectory = nodePath.join(installPath, '.in_use');
     mkdirSync(leaseDirectory);
@@ -144,6 +162,11 @@ function writePluginListOverride(
     projectPath: project,
   });
   writeFileSync(path, `${JSON.stringify(plugins)}\n`);
+}
+
+function pluginUpdateCommand(state: FixtureState, installedState: string): string {
+  if (state.updateAdvances === false) return ':';
+  return String.raw`printf '%s\n' ${JSON.stringify(SAFEWORD_SCHEMA.version)} > ${JSON.stringify(installedState)}`;
 }
 
 function versionCommand(state: FixtureState, outputPath: string): string {
@@ -244,6 +267,9 @@ function fixture(
     extraKnownMarketplaces: state.marketplaceDeclared === false ? {} : { safeword: declaration },
   };
   writeFileSync(settingsPath, `${JSON.stringify(settings, undefined, 2)}\n`);
+  if (state.dogfoodRepo === true) {
+    writeFileSync(nodePath.join(project, 'package.json'), '{"name":"safeword"}\n');
+  }
   const persistedMarketplaceSettings = JSON.stringify({
     extraKnownMarketplaces: {
       safeword: {
@@ -323,7 +349,7 @@ case "$*" in
     printf '%s\n' ${JSON.stringify(SAFEWORD_SCHEMA.version)} > ${JSON.stringify(installedState)}
     touch ${JSON.stringify(enabledState)}
     ;;
-  'plugin update safeword@safeword --scope project') printf '%s\n' ${JSON.stringify(SAFEWORD_SCHEMA.version)} > ${JSON.stringify(installedState)} ;;
+  'plugin update safeword@safeword --scope project') ${pluginUpdateCommand(state, installedState)} ;;
   'plugin enable safeword@safeword --scope project') touch ${JSON.stringify(enabledState)} ;;
   *) exit 97 ;;
 esac
@@ -891,6 +917,113 @@ describe('Claude marketplace update enrollment', () => {
     expect(result.state).toBe('failed');
     expect(result.errors[0]?.message).toContain(
       'installed native payload contains an unlisted asset: unexpected-runtime.js',
+    );
+  });
+});
+
+describe('Claude plugin in the Safeword source repository', () => {
+  // The source repo runs an unreleased CLI, so no promoted plugin can match its
+  // version; the published plugin also stands its hooks down there.
+  const RELEASED_VERSION = '1.1.0';
+  const PRERELEASE_AHEAD = '2.0.0-rc.1';
+  const KEEP_MARKETPLACE = { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' };
+  const released = {
+    installedVersion: RELEASED_VERSION,
+    payloadVersion: RELEASED_VERSION,
+    updateAdvances: false,
+  };
+
+  it('accepts the newest released plugin without attempting an impossible update', () => {
+    const { log, project } = fixture(
+      true,
+      OFFICIAL_MARKETPLACE_REF,
+      { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' },
+      { dogfoodRepo: true, installedVersion: RELEASED_VERSION, payloadVersion: RELEASED_VERSION },
+    );
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('healthy');
+    expect(readFileSync(log, 'utf8')).not.toContain('plugin update');
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        code: 'CLAUDE_PLUGIN_DOGFOOD_RELEASED',
+        severity: 'info',
+        message: expect.stringContaining(RELEASED_VERSION),
+      }),
+    ]);
+  });
+
+  it('still re-enables a disabled released plugin', () => {
+    const { log, project } = fixture(
+      true,
+      OFFICIAL_MARKETPLACE_REF,
+      { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' },
+      {
+        dogfoodRepo: true,
+        installedVersion: RELEASED_VERSION,
+        payloadVersion: RELEASED_VERSION,
+        pluginEnabled: false,
+      },
+    );
+
+    const result = installClaudePlugin(project);
+    const commands = readFileSync(log, 'utf8');
+
+    expect(result.state).toBe('action_required');
+    expect(commands).toContain('plugin enable safeword@safeword --scope project');
+    expect(commands).not.toContain('plugin update');
+  });
+
+  it('keeps requiring the CLI version outside the source repository', () => {
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, released);
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('CLAUDE_PLUGIN_UNVERIFIED');
+    expect(readFileSync(log, 'utf8')).toContain('plugin update safeword@safeword --scope project');
+    expect(result.findings).toEqual([]);
+  });
+
+  it('does not extend the released-plugin exception to a plugin newer than the CLI', () => {
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      dogfoodRepo: true,
+      installedVersion: PRERELEASE_AHEAD,
+      payloadVersion: PRERELEASE_AHEAD,
+    });
+
+    expect(observeApplicableClaudePlugins(project).installations[0]?.health).toBe('wrong-version');
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('CLAUDE_PLUGIN_DOWNGRADE_REFUSED');
+    expect(readFileSync(log, 'utf8')).not.toContain('plugin update');
+  });
+
+  it('rejects a released plugin whose payload identity names another version', () => {
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      ...released,
+      dogfoodRepo: true,
+      payloadVersion: '1.0.0',
+    });
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED');
+  });
+
+  it('reports a released plugin as current only inside the source repository', () => {
+    const source = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, {
+      ...released,
+      dogfoodRepo: true,
+    });
+    expect(observeApplicableClaudePlugins(source.project).installations[0]?.health).toBe('current');
+
+    const consumer = fixture(true, OFFICIAL_MARKETPLACE_REF, KEEP_MARKETPLACE, released);
+    expect(observeApplicableClaudePlugins(consumer.project).installations[0]?.health).toBe(
+      'wrong-version',
     );
   });
 });
