@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto';
 
-import type { CapabilityRevision } from './capability-catalogue.js';
+import type {
+  CapabilityPairRecord,
+  CapabilityRevision,
+  PinnedCapabilityRevision,
+} from './capability-catalogue.js';
 import type { ReviewPacket } from './contract.js';
 import type { ReviewerExecution } from './runtime.js';
 
@@ -76,6 +80,27 @@ export function capabilityRevision(
     }),
     rubric_digest: digest(sortedEntries(rubrics)),
     settings_digest: digest(sortedEntries(manifest.settings)),
+  };
+}
+
+/** One exact Claude/Codex model pair qualified against the shared corpus. */
+export interface CapabilityModelPair {
+  readonly anthropic_model: string;
+  readonly openai_model: string;
+}
+
+/** The pair's model ids join the shared settings, so each pair keeps its own settings revision. */
+export function capabilityManifestForPair(
+  manifest: CapabilityManifest,
+  pair: CapabilityModelPair,
+): CapabilityManifest {
+  return {
+    ...manifest,
+    settings: {
+      ...manifest.settings,
+      anthropic_model: pair.anthropic_model,
+      openai_model: pair.openai_model,
+    },
   };
 }
 
@@ -335,4 +360,93 @@ export function compareCapabilityRuns(
   return [...authorPasses].every(([id, count]) => (candidatePasses.get(id) ?? 0) >= count)
     ? 'not_weaker'
     : 'weaker';
+}
+
+export interface BuiltCapabilityCatalogue {
+  readonly revisions: readonly PinnedCapabilityRevision[];
+  readonly pairs: readonly CapabilityPairRecord[];
+  readonly unqualified: readonly CapabilityModelPair[];
+}
+
+function pairRecord(
+  revision: CapabilityRevision,
+  author: SealedCapabilityResults,
+  reviewer: SealedCapabilityResults,
+  direction: 'not_weaker' | 'weaker',
+): CapabilityPairRecord {
+  return {
+    ...revision,
+    author_provider: author.provider,
+    author_model: author.model,
+    reviewer_provider: reviewer.provider,
+    reviewer_model: reviewer.model,
+    direction,
+    qualification: 'pinned-corpus',
+    evidence_date:
+      author.evidence_date.localeCompare(reviewer.evidence_date) > 0
+        ? author.evidence_date
+        : reviewer.evidence_date,
+    results_digest: createHash('sha256')
+      .update(`${author.results_digest}\0${reviewer.results_digest}`)
+      .digest('hex'),
+  };
+}
+
+function pairEvidence(
+  pair: CapabilityModelPair,
+  evidenceFor: (model: string) => SealedCapabilityResults | undefined,
+): { claude: SealedCapabilityResults; codex: SealedCapabilityResults } | undefined {
+  const claude = evidenceFor(pair.anthropic_model);
+  const codex = evidenceFor(pair.openai_model);
+  if (claude === undefined && codex === undefined) return undefined;
+  const label = `${pair.anthropic_model} / ${pair.openai_model}`;
+  if (claude === undefined || codex === undefined)
+    throw new Error(`Capability evidence for ${label} is partial; record both models`);
+  if (
+    claude.provider !== 'anthropic' ||
+    claude.model !== pair.anthropic_model ||
+    codex.provider !== 'openai' ||
+    codex.model !== pair.openai_model
+  )
+    throw new Error(`Capability evidence for ${label} does not match the pinned exact models`);
+  return { claude, codex };
+}
+
+/**
+ * Build the packaged catalogue from sealed evidence. A pinned pair with no evidence stays
+ * unqualified; partial, cross-pair or unordered evidence is refused rather than omitted.
+ */
+export function buildCapabilityCatalogue(
+  manifest: CapabilityManifest,
+  rubrics: Readonly<Record<string, string>>,
+  pinnedPairs: readonly CapabilityModelPair[],
+  evidenceFor: (model: string) => SealedCapabilityResults | undefined,
+): BuiltCapabilityCatalogue {
+  const models = pinnedPairs.flatMap(pair => [pair.anthropic_model, pair.openai_model]);
+  if (new Set(models).size !== models.length)
+    throw new Error('Pinned capability pairs must not share a model; evidence is stored per model');
+  const revisions: PinnedCapabilityRevision[] = [];
+  const pairs: CapabilityPairRecord[] = [];
+  const unqualified: CapabilityModelPair[] = [];
+  for (const pair of pinnedPairs) {
+    const evidence = pairEvidence(pair, evidenceFor);
+    if (evidence === undefined) {
+      unqualified.push(pair);
+      continue;
+    }
+    const { claude, codex } = evidence;
+    const label = `${pair.anthropic_model} / ${pair.openai_model}`;
+    const pairManifest = capabilityManifestForPair(manifest, pair);
+    const forward = compareSealedCapabilityResults(pairManifest, rubrics, claude, codex);
+    const reverse = compareSealedCapabilityResults(pairManifest, rubrics, codex, claude);
+    if (forward === 'unknown' || reverse === 'unknown')
+      throw new Error(`Capability ordering for ${label} is unqualified`);
+    const revision = capabilityRevision(pairManifest, rubrics);
+    revisions.push({ ...revision, models: [pair.anthropic_model, pair.openai_model] });
+    pairs.push(
+      pairRecord(revision, claude, codex, forward),
+      pairRecord(revision, codex, claude, reverse),
+    );
+  }
+  return { revisions, pairs, unqualified };
 }

@@ -4,7 +4,7 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
-import type { CapabilityManifest } from '../../src/review/capability-eval.js';
+import type { CapabilityManifest, CapabilityModelPair } from '../../src/review/capability-eval.js';
 import type { ReviewPacket } from '../../src/review/contract.js';
 import { reviewerPromptInstructions } from '../../src/review/review-rubric.js';
 import { reviewOutputSchema } from '../../src/review/runtime.js';
@@ -245,6 +245,15 @@ function packet(
     ...executionFields,
   };
 }
+
+/**
+ * Exact pairs qualified against this corpus. The manifest settings name the first pair; each
+ * pair's revision substitutes its own models. Append pairs; never edit a qualified one.
+ */
+export const REVIEWER_CAPABILITY_PINNED_PAIRS = [
+  { anthropic_model: 'claude-opus-5', openai_model: 'gpt-6-astra' },
+  { anthropic_model: 'claude-opus-5-5', openai_model: 'gpt-6.1-sol' },
+] as const satisfies readonly CapabilityModelPair[];
 
 export const REVIEWER_CAPABILITY_MANIFEST: CapabilityManifest = {
   schema_version: 1,

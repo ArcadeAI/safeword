@@ -123,3 +123,50 @@ describe('reviewer capability comparison', () => {
     ).toBe('not_weaker');
   });
 });
+
+describe('pinned reviewer capability revisions', () => {
+  const pinned = [
+    { ...current, models: ['vendor-a/author-1', 'vendor-b/reviewer-2'] as const },
+    {
+      ...current,
+      settings_digest: 'settings-2',
+      models: ['vendor-a/author-9', 'vendor-b/reviewer-9'] as const,
+    },
+  ];
+  const author = { provider: 'vendor-a', model: 'vendor-a/author-1' };
+  const reviewer = { provider: 'vendor-b', model: 'vendor-b/reviewer-2' };
+
+  it('admits each pinned pair only at its own settings revision', () => {
+    const added = {
+      ...qualified,
+      author_model: 'vendor-a/author-9',
+      reviewer_model: 'vendor-b/reviewer-9',
+      settings_digest: 'settings-2',
+    };
+    expect(compareReviewerCapability(author, reviewer, pinned, [qualified, added])).toBe(
+      'not_weaker',
+    );
+    expect(
+      compareReviewerCapability(
+        { ...author, model: 'vendor-a/author-9' },
+        { ...reviewer, model: 'vendor-b/reviewer-9' },
+        pinned,
+        [qualified, added],
+      ),
+    ).toBe('not_weaker');
+  });
+
+  it('refuses a record whose models do not belong to the revision it claims', () => {
+    const mixed = { ...qualified, reviewer_model: 'vendor-b/reviewer-9' };
+    expect(
+      compareReviewerCapability(author, { ...reviewer, model: 'vendor-b/reviewer-9' }, pinned, [
+        mixed,
+      ]),
+    ).toBe('unknown');
+    expect(
+      compareReviewerCapability(author, reviewer, pinned, [
+        { ...qualified, settings_digest: 'settings-2' },
+      ]),
+    ).toBe('unknown');
+  });
+});

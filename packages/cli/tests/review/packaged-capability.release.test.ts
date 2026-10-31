@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -7,26 +7,36 @@ import { describe, expect, it } from 'vitest';
 import {
   PACKAGED_CAPABILITY_PAIRS,
   PACKAGED_CAPABILITY_REVISION,
+  PACKAGED_CAPABILITY_REVISIONS,
   PACKAGED_CAPABILITY_SETTINGS,
   reviewerCapabilityFailure,
 } from '../../src/review/capability-catalogue.js';
 import {
+  buildCapabilityCatalogue,
   capabilityRevision,
   compareSealedCapabilityResults,
   type SealedCapabilityResults,
 } from '../../src/review/capability-eval.js';
 import {
   REVIEWER_CAPABILITY_MANIFEST,
+  REVIEWER_CAPABILITY_PINNED_PAIRS,
   REVIEWER_CAPABILITY_RUBRICS,
 } from '../fixtures/reviewer-capability-corpus.js';
 
-function evidence(model: string): SealedCapabilityResults {
-  const path = nodePath.join(
+function evidencePath(model: string): string {
+  return nodePath.join(
     import.meta.dirname,
     '../fixtures/reviewer-capability-evidence',
     `${model}.json`,
   );
-  return JSON.parse(readFileSync(path, 'utf8')) as SealedCapabilityResults;
+}
+
+function evidence(model: string): SealedCapabilityResults {
+  return JSON.parse(readFileSync(evidencePath(model), 'utf8')) as SealedCapabilityResults;
+}
+
+function optionalEvidence(model: string): SealedCapabilityResults | undefined {
+  return existsSync(evidencePath(model)) ? evidence(model) : undefined;
 }
 
 describe('packaged reviewer capability evidence', () => {
@@ -123,6 +133,53 @@ describe('packaged reviewer capability evidence', () => {
             : reviewer.evidence_date,
         results_digest: resultsDigest,
       });
+    }
+  });
+
+  it('packages exactly the pinned pairs whose sealed evidence is present', () => {
+    const built = buildCapabilityCatalogue(
+      REVIEWER_CAPABILITY_MANIFEST,
+      REVIEWER_CAPABILITY_RUBRICS,
+      REVIEWER_CAPABILITY_PINNED_PAIRS,
+      optionalEvidence,
+    );
+    expect(PACKAGED_CAPABILITY_REVISIONS).toEqual(built.revisions);
+    expect(PACKAGED_CAPABILITY_PAIRS).toEqual(built.pairs);
+    expect(PACKAGED_CAPABILITY_REVISIONS[0]).toEqual({
+      ...PACKAGED_CAPABILITY_REVISION,
+      models: ['claude-opus-5', 'gpt-6-astra'],
+    });
+    for (const pair of built.unqualified) {
+      expect(
+        reviewerCapabilityFailure(
+          { provider: 'anthropic', model: pair.anthropic_model },
+          pair.openai_model,
+          { provider: 'openai', model: pair.openai_model },
+          PACKAGED_CAPABILITY_REVISIONS,
+          PACKAGED_CAPABILITY_PAIRS,
+        ),
+      ).toBe('reviewer_capability_unknown');
+    }
+  });
+
+  it('never combines models from different pinned pairs', () => {
+    const mixed = REVIEWER_CAPABILITY_PINNED_PAIRS.flatMap(author =>
+      REVIEWER_CAPABILITY_PINNED_PAIRS.filter(reviewer => reviewer !== author).map(reviewer => ({
+        author: author.anthropic_model,
+        reviewer: reviewer.openai_model,
+      })),
+    );
+    expect(mixed.length).toBeGreaterThan(0);
+    for (const { author, reviewer } of mixed) {
+      expect(
+        reviewerCapabilityFailure(
+          { provider: 'anthropic', model: author },
+          reviewer,
+          { provider: 'openai', model: reviewer },
+          PACKAGED_CAPABILITY_REVISIONS,
+          PACKAGED_CAPABILITY_PAIRS,
+        ),
+      ).toBe('reviewer_capability_unknown');
     }
   });
 });
