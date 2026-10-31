@@ -5,6 +5,15 @@ export const PACKAGED_CAPABILITY_REVISION = {
   settings_digest: 'acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d',
 } as const;
 
+export const PACKAGED_CAPABILITY_REVISIONS = [
+  {
+    corpus_digest: '8d21738cf94eb7ecefcc0c9fab21edfa76aa7675e5586fd43553a4615cf62c9e',
+    rubric_digest: 'aabd225cd0c21f04539a08744d4f58e3b0132615862d40a4d637edad69dfd478',
+    settings_digest: 'acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d',
+    models: ['claude-opus-5', 'gpt-6-astra'],
+  },
+] as const;
+
 export const PACKAGED_CAPABILITY_SETTINGS = {
   anthropic_model: 'claude-opus-5',
   openai_model: 'gpt-6-astra',

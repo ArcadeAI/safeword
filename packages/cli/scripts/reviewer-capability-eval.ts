@@ -1,13 +1,16 @@
 #!/usr/bin/env bun
 
-import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import * as prettier from 'prettier';
 
 import {
+  buildCapabilityCatalogue,
   type CapabilityManifest,
+  capabilityManifestForPair,
+  type CapabilityModelPair,
+  capabilityRevision,
   collectCapabilityResults,
   compareSealedCapabilityResults,
   rescoreCapabilityResults,
@@ -17,6 +20,7 @@ import {
 import { runHeadlessReviewerWithProvenance } from '../src/review/runtime.js';
 import {
   REVIEWER_CAPABILITY_MANIFEST,
+  REVIEWER_CAPABILITY_PINNED_PAIRS,
   REVIEWER_CAPABILITY_RUBRICS,
 } from '../tests/fixtures/reviewer-capability-corpus.js';
 
@@ -25,41 +29,48 @@ const evidenceDirectory = nodePath.join(packageRoot, 'tests/fixtures/reviewer-ca
 const cataloguePath = nodePath.join(packageRoot, 'src/review/capability-catalogue.generated.ts');
 const rubrics = REVIEWER_CAPABILITY_RUBRICS;
 
-function modelFor(reviewer: 'claude' | 'codex'): string {
-  const key = reviewer === 'claude' ? 'anthropic_model' : 'openai_model';
-  const model = REVIEWER_CAPABILITY_MANIFEST.settings[key];
-  if (model === undefined || model === '') throw new Error(`Missing pinned ${key}`);
-  return model;
+function modelFor(reviewer: 'claude' | 'codex', pair: CapabilityModelPair): string {
+  return reviewer === 'claude' ? pair.anthropic_model : pair.openai_model;
 }
 
-function evidencePath(reviewer: 'claude' | 'codex'): string {
-  return nodePath.join(evidenceDirectory, `${modelFor(reviewer)}.json`);
+function evidencePath(model: string): string {
+  return nodePath.join(evidenceDirectory, `${model}.json`);
 }
 
-function readEvidence(reviewer: 'claude' | 'codex'): SealedCapabilityResults {
-  return JSON.parse(readFileSync(evidencePath(reviewer), 'utf8')) as SealedCapabilityResults;
+function readEvidence(model: string): SealedCapabilityResults | undefined {
+  const path = evidencePath(model);
+  return existsSync(path)
+    ? (JSON.parse(readFileSync(path, 'utf8')) as SealedCapabilityResults)
+    : undefined;
 }
 
-function passingRuns(result: SealedCapabilityResults): number {
-  const labels = new Map(
-    REVIEWER_CAPABILITY_MANIFEST.fixtures.map(fixture => [fixture.label.id, fixture.label]),
+function selectedPair(argument: string | undefined): CapabilityModelPair {
+  if (argument === undefined) return REVIEWER_CAPABILITY_PINNED_PAIRS[0];
+  const pair = REVIEWER_CAPABILITY_PINNED_PAIRS.find(
+    candidate => `${candidate.anthropic_model}/${candidate.openai_model}` === argument,
   );
+  if (pair === undefined) throw new Error(`Unpinned capability pair: ${argument}`);
+  return pair;
+}
+
+function passingRuns(manifest: CapabilityManifest, result: SealedCapabilityResults): number {
+  const labels = new Map(manifest.fixtures.map(fixture => [fixture.label.id, fixture.label]));
   return result.runs.filter(run => {
     const label = labels.get(run.fixture_id);
     return label !== undefined && scoreCapabilityRun(label, run);
   }).length;
 }
 
-async function record(reviewer: 'claude' | 'codex'): Promise<void> {
+async function record(reviewer: 'claude' | 'codex', pair: CapabilityModelPair): Promise<void> {
+  const manifest = capabilityManifestForPair(REVIEWER_CAPABILITY_MANIFEST, pair);
   process.env.SAFEWORD_REVIEW_WORKER = '1';
-  process.env.SAFEWORD_REVIEW_TIMEOUT_MS = REVIEWER_CAPABILITY_MANIFEST.settings.review_timeout_ms;
-  process.env.SAFEWORD_REVIEW_RUN_BOUND_MS =
-    REVIEWER_CAPABILITY_MANIFEST.settings.review_run_bound_ms;
+  process.env.SAFEWORD_REVIEW_TIMEOUT_MS = manifest.settings.review_timeout_ms;
+  process.env.SAFEWORD_REVIEW_RUN_BOUND_MS = manifest.settings.review_run_bound_ms;
   const provider = reviewer === 'claude' ? 'anthropic' : 'openai';
-  const model = modelFor(reviewer);
+  const model = modelFor(reviewer, pair);
   let attempted = 0;
   const result = await collectCapabilityResults({
-    manifest: REVIEWER_CAPABILITY_MANIFEST,
+    manifest,
     rubrics,
     provider,
     model,
@@ -74,71 +85,28 @@ async function record(reviewer: 'claude' | 'codex'): Promise<void> {
     },
   });
   mkdirSync(evidenceDirectory, { recursive: true });
-  writeFileSync(evidencePath(reviewer), `${JSON.stringify(result, undefined, 2)}\n`);
-  const passes = passingRuns(result);
+  writeFileSync(evidencePath(model), `${JSON.stringify(result, undefined, 2)}\n`);
+  const passes = passingRuns(manifest, result);
   process.stdout.write(`${model}: ${passes}/${result.runs.length} scored runs passed\n`);
-  if (
-    compareSealedCapabilityResults(REVIEWER_CAPABILITY_MANIFEST, rubrics, result, result) !==
-    'not_weaker'
-  ) {
+  if (compareSealedCapabilityResults(manifest, rubrics, result, result) !== 'not_weaker') {
     process.exitCode = 1;
   }
 }
 
 async function catalogueSource(): Promise<string> {
-  const claude = readEvidence('claude');
-  const codex = readEvidence('codex');
-  if (
-    claude.provider !== 'anthropic' ||
-    claude.model !== modelFor('claude') ||
-    codex.provider !== 'openai' ||
-    codex.model !== modelFor('codex')
-  ) {
-    throw new Error('Capability evidence does not match the pinned exact models');
-  }
-  const forward = compareSealedCapabilityResults(
+  const catalogue = buildCapabilityCatalogue(
     REVIEWER_CAPABILITY_MANIFEST,
     rubrics,
-    claude,
-    codex,
+    REVIEWER_CAPABILITY_PINNED_PAIRS,
+    readEvidence,
   );
-  const reverse = compareSealedCapabilityResults(
-    REVIEWER_CAPABILITY_MANIFEST,
-    rubrics,
-    codex,
-    claude,
-  );
-  process.stdout.write(`Claude to Codex: ${forward}; Codex to Claude: ${reverse}\n`);
-  if (forward === 'unknown' || reverse === 'unknown') {
-    throw new Error('Shipped default cross-provider capability ordering is unqualified');
+  for (const pair of catalogue.unqualified) {
+    process.stdout.write(
+      `${pair.anthropic_model} / ${pair.openai_model}: no sealed evidence; left unqualified\n`,
+    );
   }
-  const revision = {
-    corpus_digest: claude.corpus_digest,
-    rubric_digest: claude.rubric_digest,
-    settings_digest: claude.settings_digest,
-  };
-  const pairs = (
-    [
-      [claude, codex, forward],
-      [codex, claude, reverse],
-    ] as const
-  ).map(([author, reviewer, direction]) => ({
-    ...revision,
-    author_provider: author.provider,
-    author_model: author.model,
-    reviewer_provider: reviewer.provider,
-    reviewer_model: reviewer.model,
-    direction,
-    qualification: 'pinned-corpus',
-    evidence_date:
-      author.evidence_date.localeCompare(reviewer.evidence_date) > 0
-        ? author.evidence_date
-        : reviewer.evidence_date,
-    results_digest: createHash('sha256')
-      .update(`${author.results_digest}\0${reviewer.results_digest}`)
-      .digest('hex'),
-  }));
-  const source = `// Generated by scripts/reviewer-capability-eval.ts from sealed live evidence.\nexport const PACKAGED_CAPABILITY_REVISION = ${JSON.stringify(revision, undefined, 2)} as const;\n\nexport const PACKAGED_CAPABILITY_SETTINGS = ${JSON.stringify(REVIEWER_CAPABILITY_MANIFEST.settings, undefined, 2)} as const;\n\nexport const PACKAGED_CAPABILITY_PAIRS = ${JSON.stringify(pairs, undefined, 2)} as const;\n`;
+  const revision = capabilityRevision(REVIEWER_CAPABILITY_MANIFEST, rubrics);
+  const source = `// Generated by scripts/reviewer-capability-eval.ts from sealed live evidence.\nexport const PACKAGED_CAPABILITY_REVISION = ${JSON.stringify(revision, undefined, 2)} as const;\n\nexport const PACKAGED_CAPABILITY_REVISIONS = ${JSON.stringify(catalogue.revisions, undefined, 2)} as const;\n\nexport const PACKAGED_CAPABILITY_SETTINGS = ${JSON.stringify(REVIEWER_CAPABILITY_MANIFEST.settings, undefined, 2)} as const;\n\nexport const PACKAGED_CAPABILITY_PAIRS = ${JSON.stringify(catalogue.pairs, undefined, 2)} as const;\n`;
   const options = await prettier.resolveConfig(cataloguePath);
   return prettier.format(source, { ...options, filepath: cataloguePath });
 }
@@ -149,34 +117,44 @@ async function verify(): Promise<void> {
   }
 }
 
-const [command, reviewer] = process.argv.slice(2);
+const [command, reviewer, pairFlag, pairArgument] = process.argv.slice(2);
+if (pairFlag !== undefined && pairFlag !== '--pair') throw new Error(`Unknown option: ${pairFlag}`);
 try {
   if (command === undefined || command === 'verify') await verify();
   else if (command === 'generate') writeFileSync(cataloguePath, await catalogueSource());
   else if (command === 'record' && (reviewer === 'claude' || reviewer === 'codex')) {
-    await record(reviewer);
+    await record(reviewer, selectedPair(pairArgument));
   } else if (command === 'rescore' && reviewer !== undefined) {
     const previous = JSON.parse(readFileSync(reviewer, 'utf8')) as CapabilityManifest;
-    // Compute both before writing either: a failed migration leaves both original files intact.
-    const rescored = (['claude', 'codex'] as const).map(agent => ({
-      agent,
-      result: rescoreCapabilityResults(
-        previous,
-        REVIEWER_CAPABILITY_MANIFEST,
-        rubrics,
-        readEvidence(agent),
-        new Date().toISOString(),
-      ),
-    }));
-    for (const { agent, result } of rescored) {
-      writeFileSync(evidencePath(agent), `${JSON.stringify(result, undefined, 2)}\n`);
+    // Compute every result before writing any: a failed migration leaves all originals intact.
+    const rescored = REVIEWER_CAPABILITY_PINNED_PAIRS.flatMap(pair => {
+      const current = capabilityManifestForPair(REVIEWER_CAPABILITY_MANIFEST, pair);
+      return [pair.anthropic_model, pair.openai_model].flatMap(model => {
+        const original = readEvidence(model);
+        if (original === undefined) return [];
+        return [
+          {
+            current,
+            result: rescoreCapabilityResults(
+              capabilityManifestForPair(previous, pair),
+              current,
+              rubrics,
+              original,
+              new Date().toISOString(),
+            ),
+          },
+        ];
+      });
+    });
+    for (const { current, result } of rescored) {
+      writeFileSync(evidencePath(result.model), `${JSON.stringify(result, undefined, 2)}\n`);
       process.stdout.write(
-        `${result.model}: ${passingRuns(result)}/${result.runs.length} rescored observations; collected ${result.evidence_date}; original seal ${result.rescored_from?.results_digest}\n`,
+        `${result.model}: ${passingRuns(current, result)}/${result.runs.length} rescored observations; collected ${result.evidence_date}; original seal ${result.rescored_from?.results_digest}\n`,
       );
     }
   } else {
     throw new Error(
-      'Usage: bun run test:eval:reviewer-capability [verify | generate | record claude | record codex | rescore <previous-manifest.json>]',
+      'Usage: bun run test:eval:reviewer-capability [verify | generate | record claude|codex [--pair <anthropic>/<openai>] | rescore <previous-manifest.json>]',
     );
   }
 } catch (error) {

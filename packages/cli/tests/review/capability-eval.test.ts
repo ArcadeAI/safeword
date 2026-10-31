@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildCapabilityCatalogue,
   type CapabilityFixture,
   type CapabilityManifest,
+  capabilityManifestForPair,
   capabilityRevision,
   type CapabilityRun,
   collectCapabilityResults,
@@ -12,7 +14,11 @@ import {
   scoreCapabilityRun,
   sealCapabilityResults,
 } from '../../src/review/capability-eval.js';
-import { REVIEWER_CAPABILITY_MANIFEST } from '../fixtures/reviewer-capability-corpus.js';
+import {
+  REVIEWER_CAPABILITY_MANIFEST,
+  REVIEWER_CAPABILITY_PINNED_PAIRS,
+  REVIEWER_CAPABILITY_RUBRICS,
+} from '../fixtures/reviewer-capability-corpus.js';
 
 const fixtures: CapabilityFixture[] = [
   { id: 'product-approve', verdict: 'approve', required: [], forbidden: ['invented-scope'] },
@@ -440,5 +446,128 @@ describe('reviewer capability evaluation', () => {
     );
     const altered = { ...candidate, runs: withVerdict(candidate.runs, 0, 'request_changes') };
     expect(compareSealedCapabilityResults(manifest, rubrics, author, altered)).toBe('unknown');
+  });
+});
+
+describe('pinned reviewer capability pairs', () => {
+  const existing = { anthropic_model: 'claude-old', openai_model: 'gpt-old' };
+  const added = { anthropic_model: 'claude-new', openai_model: 'gpt-new' };
+
+  function sealedFor(pair: typeof existing, model: string, provider: 'anthropic' | 'openai') {
+    return sealCapabilityResults(
+      provider,
+      model,
+      capabilityRevision(capabilityManifestForPair(manifest, pair), rubrics),
+      runs(),
+      '2026-10-30',
+    );
+  }
+
+  function evidenceFrom(...results: ReturnType<typeof sealedFor>[]) {
+    return (model: string) => results.find(result => result.model === model);
+  }
+
+  it('keeps the shipped pair revision byte-identical when it is pinned in the pair list', () => {
+    const [first] = REVIEWER_CAPABILITY_PINNED_PAIRS;
+    expect(
+      capabilityRevision(
+        capabilityManifestForPair(REVIEWER_CAPABILITY_MANIFEST, first),
+        REVIEWER_CAPABILITY_RUBRICS,
+      ),
+    ).toEqual({
+      ...capabilityRevision(REVIEWER_CAPABILITY_MANIFEST, REVIEWER_CAPABILITY_RUBRICS),
+      settings_digest: 'acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d',
+    });
+  });
+
+  it('pins the latest Opus and Sol pair with its own settings revision', () => {
+    expect(REVIEWER_CAPABILITY_PINNED_PAIRS).toContainEqual({
+      anthropic_model: 'claude-opus-5-5',
+      openai_model: 'gpt-6.1-sol',
+    });
+    const revisions = REVIEWER_CAPABILITY_PINNED_PAIRS.map(pair =>
+      capabilityRevision(
+        capabilityManifestForPair(REVIEWER_CAPABILITY_MANIFEST, pair),
+        REVIEWER_CAPABILITY_RUBRICS,
+      ),
+    );
+    expect(new Set(revisions.map(revision => revision.corpus_digest)).size).toBe(1);
+    expect(new Set(revisions.map(revision => revision.rubric_digest)).size).toBe(1);
+    expect(new Set(revisions.map(revision => revision.settings_digest)).size).toBe(
+      revisions.length,
+    );
+  });
+
+  it('emits every pair with complete evidence and leaves a pair without evidence unqualified', () => {
+    const catalogue = buildCapabilityCatalogue(
+      manifest,
+      rubrics,
+      [existing, added],
+      evidenceFrom(
+        sealedFor(existing, 'claude-old', 'anthropic'),
+        sealedFor(existing, 'gpt-old', 'openai'),
+      ),
+    );
+    expect(catalogue.unqualified).toEqual([added]);
+    expect(catalogue.revisions).toEqual([
+      {
+        ...capabilityRevision(capabilityManifestForPair(manifest, existing), rubrics),
+        models: ['claude-old', 'gpt-old'],
+      },
+    ]);
+    expect(catalogue.pairs.map(record => [record.author_model, record.reviewer_model])).toEqual([
+      ['claude-old', 'gpt-old'],
+      ['gpt-old', 'claude-old'],
+    ]);
+
+    const both = buildCapabilityCatalogue(
+      manifest,
+      rubrics,
+      [existing, added],
+      evidenceFrom(
+        sealedFor(existing, 'claude-old', 'anthropic'),
+        sealedFor(existing, 'gpt-old', 'openai'),
+        sealedFor(added, 'claude-new', 'anthropic'),
+        sealedFor(added, 'gpt-new', 'openai'),
+      ),
+    );
+    expect(both.unqualified).toEqual([]);
+    expect(both.pairs).toHaveLength(4);
+    expect(both.pairs.slice(0, 2)).toEqual(catalogue.pairs);
+  });
+
+  it('refuses partial, cross-pair or shared-model evidence instead of omitting it', () => {
+    const old = [
+      sealedFor(existing, 'claude-old', 'anthropic'),
+      sealedFor(existing, 'gpt-old', 'openai'),
+    ];
+    expect(() =>
+      buildCapabilityCatalogue(
+        manifest,
+        rubrics,
+        [existing, added],
+        evidenceFrom(...old, sealedFor(added, 'claude-new', 'anthropic')),
+      ),
+    ).toThrow(/partial/i);
+    expect(() =>
+      buildCapabilityCatalogue(
+        manifest,
+        rubrics,
+        [existing, added],
+        evidenceFrom(
+          ...old,
+          sealedFor(existing, 'claude-new', 'anthropic'),
+          sealedFor(existing, 'gpt-new', 'openai'),
+        ),
+      ),
+    ).toThrow(/unqualified/i);
+    expect(() =>
+      buildCapabilityCatalogue(
+        manifest,
+        rubrics,
+        [existing, { ...added, openai_model: 'gpt-old' }],
+        evidenceFrom(...old),
+      ),
+    ).toThrow(/share/i);
   });
 });
