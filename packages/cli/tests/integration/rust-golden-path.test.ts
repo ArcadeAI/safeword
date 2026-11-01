@@ -31,6 +31,7 @@ import {
   runCli,
   runLintHook,
   setupOrThrow,
+  SKIP_INSTALL_ENV,
   writeTestFile,
 } from '../helpers';
 
@@ -709,7 +710,10 @@ describe('E2E: Add Rust to Existing TypeScript Project', () => {
 
       // Run upgrade to detect and install Rust pack
       // Note: upgrade command doesn't have --yes flag
-      await runCli(['upgrade'], { cwd: projectDirectory });
+      // Skip the npm dependency install like the setup above: these assertions cover
+      // pack configs, and the network install alone took most of this 60 s budget (#6357).
+      const result = await runCli(['upgrade'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
+      expect(result.exitCode, result.stderr).toBe(0);
     }, 60_000);
 
     it('installs Rust pack configs', () => {

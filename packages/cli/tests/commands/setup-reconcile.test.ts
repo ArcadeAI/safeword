@@ -20,6 +20,7 @@ import {
   removeTemporaryDirectory,
   runCli,
   setupReconcileTest,
+  SKIP_INSTALL_ENV,
 } from '../helpers';
 
 describe('Setup Command - Reconcile Integration', () => {
@@ -288,7 +289,9 @@ describe('Setup Command - Reconcile Integration', () => {
         recursive: true,
       });
 
-      const result = await runCli(['setup'], { cwd: temporaryDirectory });
+      // Convergence is about reconciling files; skip the incidental npm install, which
+      // dependency-install suites cover and which alone exceeded this test's budget (#6357).
+      const result = await runCli(['setup'], { cwd: temporaryDirectory, env: SKIP_INSTALL_ENV });
 
       expect(result.exitCode, result.stderr).toBe(0);
     });
