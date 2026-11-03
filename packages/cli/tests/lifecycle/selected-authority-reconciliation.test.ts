@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CommandInvocation } from '../../src/cli-protocol/handler.js';
 import { createResult } from '../../src/cli-protocol/result.js';
@@ -85,7 +85,15 @@ function projectBytes(cwd: string, relativePath: string): string {
   return readFileSync(nodePath.join(cwd, relativePath), 'utf8');
 }
 
+// These cases assert lifecycle file ownership and profile state, never installed
+// packages; the real dependency install took ~93 s of this file locally and
+// pushed single cases past 60 s on CI (#6357).
+beforeEach(() => {
+  vi.stubEnv('SAFEWORD_SKIP_INSTALL', '1');
+});
+
 afterEach(() => {
+  vi.unstubAllEnvs();
   profileState.codex = false;
   profileState.claude = false;
   profileState.opencode = false;
