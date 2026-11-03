@@ -78,6 +78,40 @@ ${review}
 `;
 }
 
+/** The qualified pair, or the latest pinned pair that has no sealed evidence yet. */
+function routePair(pinnedUnqualified: boolean): { author: string; reviewer: string } {
+  return pinnedUnqualified
+    ? { author: 'claude-opus-5-5', reviewer: 'gpt-6.1-sol' }
+    : { author: 'claude-opus-5', reviewer: 'gpt-6-astra' };
+}
+
+/** A pinned pair without sealed evidence earns no review credit: no reviewer runs and nothing falls back. */
+function assertPinnedPairRefused(
+  output: { data: Record<string, unknown>; findings: { code: string }[] },
+  independentInvoked: string,
+  sameAgentInvoked: string,
+): void {
+  expect(output.data).toMatchObject({
+    status: 'blocked',
+    independence: 'none',
+    capability_failure: 'reviewer_capability_unknown',
+    review_routes: [
+      expect.objectContaining({
+        reviewer: 'codex',
+        model: 'gpt-6.1-sol',
+        status: 'skipped',
+        failure: 'reviewer_capability_unknown',
+      }),
+      expect.objectContaining({ reviewer: 'claude', status: 'unattempted' }),
+    ],
+  });
+  expect(output.findings).toContainEqual(
+    expect.objectContaining({ code: 'REVIEWER_CAPABILITY_UNKNOWN' }),
+  );
+  expect(existsSync(independentInvoked)).toBe(false);
+  expect(existsSync(sameAgentInvoked)).toBe(false);
+}
+
 async function assertQualifiedAdmission(
   flags: { authorKnown: boolean; codexConfirmed: boolean; codexFails: boolean },
   project: string,
@@ -133,11 +167,16 @@ it.each([
   ['codex', 'claude', true, 'absent', false],
   ['codex', 'claude', false, 'known', false],
   ['codex', 'claude', false, 'known', true],
+  ['codex', 'claude', false, 'pinned-unqualified', true],
 ] as const)(
   'tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, author model is %s, and model is confirmed %s',
   // eslint-disable-next-line complexity -- The route-order matrix shares one real CLI fixture.
   async (first, second, codexFails, authorModelState, codexConfirmed) => {
-    const authorKnown = authorModelState === 'known';
+    // The latest pinned pair has no sealed evidence yet, so its confirmed reviewer stays unqualified.
+    const pinnedUnqualified = authorModelState === 'pinned-unqualified';
+    const authorKnown = authorModelState === 'known' || pinnedUnqualified;
+    const capabilityRefused = authorKnown && !codexConfirmed;
+    const pair = routePair(pinnedUnqualified);
     const project = createTemporaryDirectory();
     projects.push(project);
     await createConfiguredProject(project);
@@ -152,7 +191,7 @@ it.each([
           claude: [
             {
               reviewer: first,
-              ...(first === 'codex' && codexConfirmed && { model: 'gpt-6-astra' }),
+              ...(first === 'codex' && codexConfirmed && { model: pair.reviewer }),
             },
             { reviewer: second },
           ],
@@ -210,15 +249,21 @@ it.each([
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_NO_UPDATE_CHECK: '1',
           SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(reviewer, '.review-keys'),
-          ...(authorKnown && { SAFEWORD_AUTHOR_MODEL: 'claude-opus-5' }),
+          ...(authorKnown && {
+            SAFEWORD_AUTHOR_MODEL: pair.author,
+          }),
           ...(authorModelState === 'empty' && { SAFEWORD_AUTHOR_MODEL: '' }),
         },
       },
     );
     const output = JSON.parse(reviewed.stdout);
+    if (pinnedUnqualified) {
+      assertPinnedPairRefused(output, independentInvoked, sameAgentInvoked);
+      return;
+    }
     expect(output.data).toMatchObject({
       status: 'approved',
-      actual_reviewer: codexFails || (authorKnown && !codexConfirmed) ? 'claude' : 'codex',
+      actual_reviewer: codexFails || capabilityRefused ? 'claude' : 'codex',
       independence: codexConfirmed ? 'cross-agent' : 'reduced',
     });
     await assertQualifiedAdmission(
@@ -228,8 +273,8 @@ it.each([
       output.data.review_id,
     );
     expect(existsSync(independentInvoked)).toBe(true);
-    expect(existsSync(sameAgentInvoked)).toBe(codexFails || (authorKnown && !codexConfirmed));
-    if (authorKnown && !codexConfirmed) {
+    expect(existsSync(sameAgentInvoked)).toBe(codexFails || capabilityRefused);
+    if (capabilityRefused) {
       expect(JSON.parse(readFileSync(packets.claude, 'utf8'))).toEqual(
         JSON.parse(readFileSync(packets.codex, 'utf8')),
       );
@@ -241,7 +286,7 @@ it.each([
         }),
       );
     }
-    if (codexFails || (authorKnown && !codexConfirmed)) {
+    if (codexFails || capabilityRefused) {
       expect(output.findings).toContainEqual(
         expect.objectContaining({ code: 'REVIEW_INDEPENDENCE_REDUCED' }),
       );

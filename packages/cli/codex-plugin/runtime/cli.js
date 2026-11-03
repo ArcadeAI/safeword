@@ -32286,13 +32286,16 @@ function readFrontmatterScalar(content, field) {
 }
 
 // src/review/capability-catalogue.generated.ts
-var PACKAGED_CAPABILITY_REVISION, PACKAGED_CAPABILITY_SETTINGS, PACKAGED_CAPABILITY_PAIRS;
+var PACKAGED_CAPABILITY_REVISIONS, PACKAGED_CAPABILITY_SETTINGS, PACKAGED_CAPABILITY_PAIRS;
 var init_capability_catalogue_generated = __esm(() => {
-  PACKAGED_CAPABILITY_REVISION = {
-    corpus_digest: "8d21738cf94eb7ecefcc0c9fab21edfa76aa7675e5586fd43553a4615cf62c9e",
-    rubric_digest: "aabd225cd0c21f04539a08744d4f58e3b0132615862d40a4d637edad69dfd478",
-    settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d"
-  };
+  PACKAGED_CAPABILITY_REVISIONS = [
+    {
+      corpus_digest: "8d21738cf94eb7ecefcc0c9fab21edfa76aa7675e5586fd43553a4615cf62c9e",
+      rubric_digest: "aabd225cd0c21f04539a08744d4f58e3b0132615862d40a4d637edad69dfd478",
+      settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
+      models: ["claude-opus-5", "gpt-6-astra"]
+    }
+  ];
   PACKAGED_CAPABILITY_SETTINGS = {
     anthropic_model: "claude-opus-5",
     openai_model: "gpt-6-astra",
@@ -32333,8 +32336,16 @@ var init_capability_catalogue_generated = __esm(() => {
 });
 
 // src/review/capability-catalogue.ts
+function sameRevision(record, revision) {
+  return record.corpus_digest === revision.corpus_digest && record.rubric_digest === revision.rubric_digest && record.settings_digest === revision.settings_digest;
+}
 function matchesRevision(record, current) {
-  return record.corpus_digest === current.corpus_digest && record.rubric_digest === current.rubric_digest && record.settings_digest === current.settings_digest;
+  if (!Array.isArray(current))
+    return sameRevision(record, current);
+  return current.some((revision) => {
+    const [first, second] = revision.models;
+    return sameRevision(record, revision) && (record.author_model === first && record.reviewer_model === second || record.author_model === second && record.reviewer_model === first);
+  });
 }
 function hasQualifiedEvidence(record) {
   return record.qualification !== "unqualified" && record.author_provider !== "" && record.reviewer_provider !== "" && (record.qualification !== "provider-order" || record.author_provider === record.reviewer_provider) && record.evidence_date !== "" && record.results_digest !== "";
@@ -32351,11 +32362,11 @@ function reviewerCapabilityFailure(author, requestedModel, confirmed, current, r
     return "reviewer_capability_weaker";
   return comparison === "not_weaker" ? undefined : "reviewer_capability_unknown";
 }
-var PACKAGED_CAPABILITY_REVISION2, PACKAGED_CAPABILITY_PAIRS2;
+var PACKAGED_CAPABILITY_REVISIONS2, PACKAGED_CAPABILITY_PAIRS2;
 var init_capability_catalogue = __esm(() => {
   init_capability_catalogue_generated();
   init_capability_catalogue_generated();
-  PACKAGED_CAPABILITY_REVISION2 = PACKAGED_CAPABILITY_REVISION;
+  PACKAGED_CAPABILITY_REVISIONS2 = PACKAGED_CAPABILITY_REVISIONS;
   PACKAGED_CAPABILITY_PAIRS2 = PACKAGED_CAPABILITY_PAIRS;
 });
 
@@ -59302,7 +59313,7 @@ function rankedReviewerCapabilityFailure(planning, author, route, confirmedModel
   const authorModel = process.env[AUTHOR_MODEL_ENV];
   if (!planning || author !== "claude" || authorModel === undefined || authorModel.trim() === "")
     return;
-  return reviewerCapabilityFailure({ provider: "anthropic", model: authorModel }, route.model, confirmedModel2, PACKAGED_CAPABILITY_REVISION2, PACKAGED_CAPABILITY_PAIRS2);
+  return reviewerCapabilityFailure({ provider: "anthropic", model: authorModel }, route.model, confirmedModel2, PACKAGED_CAPABILITY_REVISIONS2, PACKAGED_CAPABILITY_PAIRS2);
 }
 function retainUnqualifiedRejection(current, output, route) {
   return current?.output.verdict === "request_changes" ? current : { output, route };

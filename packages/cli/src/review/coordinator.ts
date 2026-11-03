@@ -8,7 +8,7 @@ import { type CliResult, createResult, type Effect, type Finding } from '../cli-
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import {
   PACKAGED_CAPABILITY_PAIRS,
-  PACKAGED_CAPABILITY_REVISION,
+  PACKAGED_CAPABILITY_REVISIONS,
   PACKAGED_CAPABILITY_SETTINGS,
   reviewerCapabilityFailure,
 } from './capability-catalogue.js';
@@ -1012,7 +1012,7 @@ function rankedReviewerCapabilityFailure(
     { provider: 'anthropic', model: authorModel },
     route.model,
     confirmedModel,
-    PACKAGED_CAPABILITY_REVISION,
+    PACKAGED_CAPABILITY_REVISIONS,
     PACKAGED_CAPABILITY_PAIRS,
   );
 }
