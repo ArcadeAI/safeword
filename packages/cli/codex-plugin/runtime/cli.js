@@ -71061,6 +71061,9 @@ function assertConvergeablePluginVersion(plugin, effects) {
     throw new ClaudeProfileError("CLAUDE_PLUGIN_DOWNGRADE_REFUSED", `Claude reported ${CLAUDE_PLUGIN_ID} ${plugin.version}, which is newer than ${VERSION}; refusing an implicit downgrade.`, effects);
   }
 }
+function acceptedPluginVersion(cwd, plugin) {
+  return typeof plugin.version === "string" && isSafePackageVersion(plugin.version) && compareVersions(plugin.version, VERSION) < 0 && isDogfoodRepo(cwd) ? plugin.version : VERSION;
+}
 function convergePlugin(cwd, scope, effects) {
   const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
   if (plugin === undefined) {
@@ -71068,7 +71071,7 @@ function convergePlugin(cwd, scope, effects) {
     effects.push({ kind: "install", target: CLAUDE_PLUGIN_ID, operation: scope });
   } else {
     assertConvergeablePluginVersion(plugin, effects);
-    if (plugin.version !== VERSION) {
+    if (plugin.version !== acceptedPluginVersion(cwd, plugin)) {
       runClaude(cwd, ["plugin", "update", CLAUDE_PLUGIN_ID, "--scope", scope], effects);
       effects.push({ kind: "update", target: CLAUDE_PLUGIN_ID, operation: scope });
     }
@@ -71090,8 +71093,8 @@ function assertInstalledAsset(installPath, asset) {
     throw new TypeError(`installed asset failed integrity validation: ${asset.path}`);
   }
 }
-function assertInstalledIdentity(identity2, inventory, inventoryContent) {
-  if (identity2.schema_version !== 1 || identity2.plugin_version !== VERSION || identity2.inventory_sha256 !== createHash36("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
+function assertInstalledIdentity(identity2, inventory, inventoryContent, expectedVersion) {
+  if (identity2.schema_version !== 1 || identity2.plugin_version !== expectedVersion || identity2.inventory_sha256 !== createHash36("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
     throw new TypeError("installed identity or inventory is inconsistent");
   }
 }
@@ -71102,7 +71105,7 @@ function assertRequiredNativeAssets(assets) {
       throw new TypeError(`installed native asset is missing: ${required}`);
   }
 }
-function validateNativePayload(plugin) {
+function validateNativePayload(plugin, expectedVersion) {
   if (typeof plugin.installPath !== "string" || !lstatSync18(plugin.installPath).isDirectory()) {
     throw new TypeError("installed plugin path is missing");
   }
@@ -71111,7 +71114,7 @@ function validateNativePayload(plugin) {
   const identity2 = JSON.parse(readFileSync62(identityPath, "utf8"));
   const inventoryContent = readFileSync62(inventoryPath, "utf8");
   const inventory = JSON.parse(inventoryContent);
-  assertInstalledIdentity(identity2, inventory, inventoryContent);
+  assertInstalledIdentity(identity2, inventory, inventoryContent, expectedVersion);
   assertRequiredNativeAssets(inventory.assets);
   for (const asset of inventory.assets)
     assertInstalledAsset(plugin.installPath, asset);
@@ -71175,19 +71178,20 @@ function observeApplicableClaudePlugins(cwd) {
     installations: plugins.map((plugin) => ({
       scope: pluginScope(plugin) ?? "user",
       plugin,
-      ...observeInstalledPlugin(plugin)
+      ...observeInstalledPlugin(plugin, projectRoot)
     }))
   };
 }
-function observeInstalledPlugin(plugin) {
+function observeInstalledPlugin(plugin, projectRoot) {
   if (plugin === undefined)
     return { health: "missing" };
-  if (plugin.version !== VERSION)
+  const expectedVersion = acceptedPluginVersion(projectRoot, plugin);
+  if (plugin.version !== expectedVersion)
     return { health: "wrong-version", plugin };
   if (plugin.enabled !== true)
     return { health: "disabled", plugin };
   try {
-    validateNativePayload(plugin);
+    validateNativePayload(plugin, expectedVersion);
   } catch (error2) {
     return {
       health: "errored",
@@ -71207,9 +71211,9 @@ function unsupportedHostNextAction(error2, message) {
 function isUnsupportedHostError(error2) {
   return error2 instanceof ClaudeProfileError && ["CLAUDE_HOST_UNAVAILABLE", "CLAUDE_VERSION_UNSUPPORTED"].includes(error2.code);
 }
-function assertNativePayload(plugin, effects) {
+function assertNativePayload(plugin, expectedVersion, effects) {
   try {
-    validateNativePayload(plugin);
+    validateNativePayload(plugin, expectedVersion);
   } catch (error2) {
     throw new ClaudeProfileError("CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED", `Claude installed plugin metadata, but its native payload could not be verified: ${error2 instanceof Error ? error2.message : String(error2)}`, effects);
   }
@@ -71222,8 +71226,9 @@ function verifyPlugin(cwd, scope, effects) {
     throw new ClaudeProfileError("CLAUDE_PLUGIN_POSTCONDITION_UNVERIFIED", `Claude completed the selected-scope mutations, but the final plugin state could not be observed: ${error2 instanceof Error ? error2.message : String(error2)}`, effects);
   }
   const plugin = safewordPlugin(entries, scope, cwd);
-  if (plugin?.version === VERSION && plugin.enabled === true && pluginScope(plugin) === scope) {
-    assertNativePayload(plugin, effects);
+  const expectedVersion = plugin === undefined ? VERSION : acceptedPluginVersion(cwd, plugin);
+  if (plugin?.version === expectedVersion && plugin.enabled === true && pluginScope(plugin) === scope) {
+    assertNativePayload(plugin, expectedVersion, effects);
     return entries;
   }
   throw new ClaudeProfileError("CLAUDE_PLUGIN_UNVERIFIED", `Claude did not report ${CLAUDE_PLUGIN_ID} ${VERSION} as enabled at ${scope} scope.`, effects);
@@ -71261,6 +71266,17 @@ function claudeInstallRequiresMutation(cwd, scope) {
     return true;
   }
 }
+function releasedPluginFindings(plugin) {
+  if (plugin === undefined || plugin.version === VERSION)
+    return [];
+  return [
+    {
+      code: "CLAUDE_PLUGIN_DOGFOOD_RELEASED",
+      severity: "info",
+      message: `Safeword source repo: Claude uses released plugin ${String(plugin.version)} while this CLI is unreleased ${VERSION}; the repo's own .claude hooks stay authoritative.`
+    }
+  ];
+}
 function installClaudePlugin(cwd, scope = "project") {
   const effects = [];
   let marketplaceReplacement;
@@ -71275,6 +71291,7 @@ function installClaudePlugin(cwd, scope = "project") {
     return createResult({
       state: effects.length === 0 ? "healthy" : "action_required",
       changed: effects.length > 0,
+      findings: releasedPluginFindings(safewordPlugin(plugins, scope, projectRoot)),
       effects: {
         configuration: effects,
         network: effects.filter((effect) => effect.target === MARKETPLACE_NAME && ["add", "update"].includes(effect.kind) || effect.target === CLAUDE_PLUGIN_ID && ["install", "update"].includes(effect.kind)).map((effect) => ({ ...effect, target: "Claude plugin marketplace" }))
@@ -71347,6 +71364,7 @@ function uninstallClaudePlugin(cwd, scope = "project") {
 var MINIMUM_CLAUDE_VERSION, CLAUDE_COMMAND_TIMEOUT_MS = 30000, MAXIMUM_CLAUDE_OUTPUT_BYTES, MARKETPLACE_NAME = "safeword", MARKETPLACE_BASE = "https://github.com/ArcadeAI/safeword.git", MARKETPLACE_REPO = "ArcadeAI/safeword", ClaudeProfileError, DIAGNOSTIC_FAILURES;
 var init_profile = __esm(() => {
   init_main();
+  init_dogfood();
   init_result();
   init_durable_write();
   init_fs();
