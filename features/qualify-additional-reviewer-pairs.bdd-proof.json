@@ -1,0 +1,33 @@
+{
+  "feature": "features/qualify-additional-reviewer-pairs.feature",
+  "scenarios": {
+    "The latest pinned pair gets its own settings revision": [
+      "packages/cli/tests/review/capability-eval.test.ts",
+      "pins the latest Opus and Sol pair with its own settings revision"
+    ],
+    "The shipped pair keeps its exact settings digest": [
+      "packages/cli/tests/review/capability-eval.test.ts",
+      "keeps the shipped pair revision byte-identical when it is pinned in the pair list"
+    ],
+    "Each pinned pair is admitted at its own settings revision": [
+      "packages/cli/tests/review/capability-catalogue.test.ts",
+      "admits each pinned pair only at its own settings revision"
+    ],
+    "A second qualified pair is admitted through planning review": [
+      "packages/cli/tests/integration/planning-review-pinned-pairs.test.ts",
+      "admits a second qualified pinned pair through the planning review route"
+    ],
+    "Partial, cross-pair or shared-model evidence is refused": [
+      "packages/cli/tests/review/capability-eval.test.ts",
+      "refuses partial, cross-pair or shared-model evidence instead of omitting it"
+    ],
+    "Rescoring refuses partial or mismatched evidence": [
+      "packages/cli/tests/review/capability-eval.test.ts",
+      "rescores only complete pinned pairs and refuses partial or mismatched evidence"
+    ],
+    "The catalogue emits only pinned pairs with complete evidence": [
+      "packages/cli/tests/review/capability-eval.test.ts",
+      "emits every pair with complete evidence and leaves a pair without evidence unqualified"
+    ]
+  }
+}
