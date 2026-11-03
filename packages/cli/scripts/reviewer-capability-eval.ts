@@ -13,7 +13,7 @@ import {
   capabilityRevision,
   collectCapabilityResults,
   compareSealedCapabilityResults,
-  rescoreCapabilityResults,
+  rescorePinnedCapabilityEvidence,
   scoreCapabilityRun,
   type SealedCapabilityResults,
 } from '../src/review/capability-eval.js';
@@ -127,29 +127,17 @@ try {
   } else if (command === 'rescore' && reviewer !== undefined) {
     const previous = JSON.parse(readFileSync(reviewer, 'utf8')) as CapabilityManifest;
     // Compute every result before writing any: a failed migration leaves all originals intact.
-    const rescored = REVIEWER_CAPABILITY_PINNED_PAIRS.flatMap(pair => {
-      const current = capabilityManifestForPair(REVIEWER_CAPABILITY_MANIFEST, pair);
-      return [pair.anthropic_model, pair.openai_model].flatMap(model => {
-        const original = readEvidence(model);
-        if (original === undefined) return [];
-        return [
-          {
-            current,
-            result: rescoreCapabilityResults(
-              capabilityManifestForPair(previous, pair),
-              current,
-              rubrics,
-              original,
-              new Date().toISOString(),
-            ),
-          },
-        ];
-      });
-    });
-    for (const { current, result } of rescored) {
+    const rescored = rescorePinnedCapabilityEvidence(
+      { previous, current: REVIEWER_CAPABILITY_MANIFEST },
+      rubrics,
+      REVIEWER_CAPABILITY_PINNED_PAIRS,
+      readEvidence,
+      new Date().toISOString(),
+    );
+    for (const { manifest, result } of rescored) {
       writeFileSync(evidencePath(result.model), `${JSON.stringify(result, undefined, 2)}\n`);
       process.stdout.write(
-        `${result.model}: ${passingRuns(current, result)}/${result.runs.length} rescored observations; collected ${result.evidence_date}; original seal ${result.rescored_from?.results_digest}\n`,
+        `${result.model}: ${passingRuns(manifest, result)}/${result.runs.length} rescored observations; collected ${result.evidence_date}; original seal ${result.rescored_from?.results_digest}\n`,
       );
     }
   } else {

@@ -11,6 +11,7 @@ import {
   compareCapabilityRuns,
   compareSealedCapabilityResults,
   rescoreCapabilityResults,
+  rescorePinnedCapabilityEvidence,
   scoreCapabilityRun,
   sealCapabilityResults,
 } from '../../src/review/capability-eval.js';
@@ -567,6 +568,50 @@ describe('pinned reviewer capability pairs', () => {
         rubrics,
         [existing, { ...added, openai_model: 'gpt-old' }],
         evidenceFrom(...old),
+      ),
+    ).toThrow(/share/i);
+  });
+
+  it('rescores only complete pinned pairs and refuses partial or mismatched evidence', () => {
+    const claudeOld = sealedFor(existing, 'claude-old', 'anthropic');
+    const gptOld = sealedFor(existing, 'gpt-old', 'openai');
+    const old = [claudeOld, gptOld];
+    const manifests = { previous: manifest, current: manifest };
+    const rescored = rescorePinnedCapabilityEvidence(
+      manifests,
+      rubrics,
+      [existing, added],
+      evidenceFrom(...old),
+      'now',
+    );
+    expect(rescored.map(({ result }) => result.model)).toEqual(['claude-old', 'gpt-old']);
+    expect(rescored.every(({ result }) => result.rescored_from !== undefined)).toBe(true);
+
+    expect(() =>
+      rescorePinnedCapabilityEvidence(
+        manifests,
+        rubrics,
+        [existing, added],
+        evidenceFrom(...old, sealedFor(added, 'claude-new', 'anthropic')),
+        'now',
+      ),
+    ).toThrow(/partial/i);
+    expect(() =>
+      rescorePinnedCapabilityEvidence(
+        manifests,
+        rubrics,
+        [existing],
+        evidenceFrom(claudeOld, { ...gptOld, provider: 'anthropic' }),
+        'now',
+      ),
+    ).toThrow(/exact models/i);
+    expect(() =>
+      rescorePinnedCapabilityEvidence(
+        manifests,
+        rubrics,
+        [existing, { ...added, openai_model: 'gpt-old' }],
+        evidenceFrom(...old),
+        'now',
       ),
     ).toThrow(/share/i);
   });

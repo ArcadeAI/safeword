@@ -412,6 +412,36 @@ function pairEvidence(
   return { claude, codex };
 }
 
+function assertDistinctPinnedModels(pinnedPairs: readonly CapabilityModelPair[]): void {
+  const models = pinnedPairs.flatMap(pair => [pair.anthropic_model, pair.openai_model]);
+  if (new Set(models).size !== models.length)
+    throw new Error('Pinned capability pairs must not share a model; evidence is stored per model');
+}
+
+/**
+ * Regrade every pinned pair's sealed evidence for a changed rubric. A pair with no evidence is
+ * skipped; partial or mismatched evidence is refused, as when building the catalogue.
+ */
+export function rescorePinnedCapabilityEvidence(
+  manifests: { previous: CapabilityManifest; current: CapabilityManifest },
+  rubrics: Readonly<Record<string, string>>,
+  pinnedPairs: readonly CapabilityModelPair[],
+  evidenceFor: (model: string) => SealedCapabilityResults | undefined,
+  scoredAt: string,
+): { manifest: CapabilityManifest; result: SealedCapabilityResults }[] {
+  assertDistinctPinnedModels(pinnedPairs);
+  return pinnedPairs.flatMap(pair => {
+    const evidence = pairEvidence(pair, evidenceFor);
+    if (evidence === undefined) return [];
+    const before = capabilityManifestForPair(manifests.previous, pair);
+    const manifest = capabilityManifestForPair(manifests.current, pair);
+    return [evidence.claude, evidence.codex].map(original => ({
+      manifest,
+      result: rescoreCapabilityResults(before, manifest, rubrics, original, scoredAt),
+    }));
+  });
+}
+
 /**
  * Build the packaged catalogue from sealed evidence. A pinned pair with no evidence stays
  * unqualified; partial, cross-pair or unordered evidence is refused rather than omitted.
@@ -422,9 +452,7 @@ export function buildCapabilityCatalogue(
   pinnedPairs: readonly CapabilityModelPair[],
   evidenceFor: (model: string) => SealedCapabilityResults | undefined,
 ): BuiltCapabilityCatalogue {
-  const models = pinnedPairs.flatMap(pair => [pair.anthropic_model, pair.openai_model]);
-  if (new Set(models).size !== models.length)
-    throw new Error('Pinned capability pairs must not share a model; evidence is stored per model');
+  assertDistinctPinnedModels(pinnedPairs);
   const revisions: PinnedCapabilityRevision[] = [];
   const pairs: CapabilityPairRecord[] = [];
   const unqualified: CapabilityModelPair[] = [];
