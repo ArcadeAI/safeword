@@ -1255,6 +1255,41 @@ async function executePrimaryReview(
   };
 }
 
+/**
+ * Runs a fallback reviewer on its built-in primary model. As on the primary
+ * route, a CLI that cannot select a model still reviews on its default.
+ */
+async function executeOnPrimaryModel(
+  input: ReviewRunInput,
+  reviewer: ReviewAgent,
+  prepared: ReturnType<typeof prepareReviewPacket>,
+  runDeadline: number,
+): Promise<{
+  readonly execution: Awaited<ReturnType<typeof executeReview>>;
+  readonly prepared: ReturnType<typeof prepareReviewPacket>;
+}> {
+  const model = readPrimaryReviewerModel(input.cwd, reviewer);
+  const execution = await executeReview(reviewer, prepared, model, runDeadline);
+  const modelUnsupported =
+    model !== undefined &&
+    execution.outcome.kind === 'failed' &&
+    execution.outcome.failure === 'unsupported' &&
+    !execution.outcome.terminal;
+  if (!modelUnsupported || !canFundRoute(runDeadline)) return { execution, prepared };
+  const retryPrepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation,
+  });
+  const retried = await executeReview(reviewer, retryPrepared, undefined, runDeadline);
+  return {
+    execution: {
+      outcome: retried.outcome,
+      sourceChanged: execution.sourceChanged || retried.sourceChanged,
+      snapshotChanged: execution.snapshotChanged || retried.snapshotChanged,
+    },
+    prepared: retryPrepared,
+  };
+}
+
 function prepareFallbackReview(
   input: ReviewRunInput,
   assignedReviewer: ReviewAgent,
@@ -1332,13 +1367,13 @@ function fallbackAssurance(kind: ReviewKind, reviewer: ReviewAgent, input: Degra
 }
 
 async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResult> {
-  const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(
+  const { execution, prepared } = await executeOnPrimaryModel(
+    input,
     input.author,
-    prepared,
-    undefined,
+    prepareFallbackReview(input, input.assignedReviewer, input.author),
     input.runDeadline,
   );
+  const { outcome, sourceChanged, snapshotChanged } = execution;
   const fallback =
     outcome.kind === 'completed'
       ? ({ kind: 'completed' } as const)
@@ -1523,16 +1558,16 @@ async function runIndependentFallback(
   input.progress?.start(
     `${agentName(input.preferredReviewer)} did not complete; trying an independent ${agentName(input.reviewer)} review…`,
   );
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation,
-  });
   input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(input.reviewer)}…`);
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(
+  const { execution, prepared } = await executeOnPrimaryModel(
+    input,
     input.reviewer,
-    prepared,
-    undefined,
+    prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+      attestation: input.executionAttestation,
+    }),
     input.runDeadline,
   );
+  const { outcome, sourceChanged, snapshotChanged } = execution;
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.reviewer,

@@ -31883,17 +31883,12 @@ function builtInReviewRoutes(cwd, author) {
     return [];
   const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
   const alternateModel = readAlternateReviewerModel(cwd, plan.preferred);
-  const fallbackModel = readPrimaryReviewerModel(cwd, plan.independentFallback);
-  const routes = [
-    {
-      reviewer: plan.preferred,
-      ...primaryModel !== undefined && { model: primaryModel },
-      independence: "cross-agent"
-    },
+  return [
+    { reviewer: plan.preferred, ...modelFor(primaryModel), independence: "cross-agent" },
     ...alternateModel !== undefined && alternateModel !== primaryModel ? [{ reviewer: plan.preferred, model: alternateModel, independence: "cross-agent" }] : [],
     {
       reviewer: plan.independentFallback,
-      ...modelFor(fallbackModel),
+      ...modelFor(readPrimaryReviewerModel(cwd, plan.independentFallback)),
       independence: "cross-agent"
     },
     ...plan.degradedFallback === undefined ? [] : [
@@ -31904,7 +31899,6 @@ function builtInReviewRoutes(cwd, author) {
       }
     ]
   ];
-  return routes;
 }
 function readPrimaryReviewerModel(cwd, reviewer) {
   return readReviewerModel(cwd, reviewer, "PRIMARY", "crossAgentReviewPrimaryModel") ?? DEFAULT_PRIMARY_MODEL[reviewer];
@@ -58261,6 +58255,25 @@ async function executePrimaryReview(input, reviewer, primaryModel, runDeadline) 
     preferredModelFailure: rejectedModelFailure
   };
 }
+async function executeOnPrimaryModel(input, reviewer, prepared, runDeadline) {
+  const model = readPrimaryReviewerModel(input.cwd, reviewer);
+  const execution = await executeReview(reviewer, prepared, model, runDeadline);
+  const modelUnsupported = model !== undefined && execution.outcome.kind === "failed" && execution.outcome.failure === "unsupported" && !execution.outcome.terminal;
+  if (!modelUnsupported || !canFundRoute(runDeadline))
+    return { execution, prepared };
+  const retryPrepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation
+  });
+  const retried = await executeReview(reviewer, retryPrepared, undefined, runDeadline);
+  return {
+    execution: {
+      outcome: retried.outcome,
+      sourceChanged: execution.sourceChanged || retried.sourceChanged,
+      snapshotChanged: execution.snapshotChanged || retried.snapshotChanged
+    },
+    prepared: retryPrepared
+  };
+}
 function prepareFallbackReview(input, assignedReviewer, author) {
   const fallbackName = agentName(author);
   input.progress?.start(`${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback\u2026`);
@@ -58322,8 +58335,8 @@ function fallbackAssurance(kind, reviewer, input) {
   };
 }
 async function runDegradedFallback(input) {
-  const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared, undefined, input.runDeadline);
+  const { execution, prepared } = await executeOnPrimaryModel(input, input.author, prepareFallbackReview(input, input.assignedReviewer, input.author), input.runDeadline);
+  const { outcome, sourceChanged, snapshotChanged } = execution;
   const fallback = outcome.kind === "completed" ? { kind: "completed" } : { kind: "failed", failure: outcome.failure };
   const changedResult = changedReviewResult({
     author: input.author,
@@ -58446,11 +58459,11 @@ async function runIndependentFallback(input) {
   if (!canFundRoute(input.runDeadline))
     return { kind: "skipped" };
   input.progress?.start(`${agentName(input.preferredReviewer)} did not complete; trying an independent ${agentName(input.reviewer)} review\u2026`);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation
-  });
   input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(input.reviewer)}\u2026`);
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.reviewer, prepared, undefined, input.runDeadline);
+  const { execution, prepared } = await executeOnPrimaryModel(input, input.reviewer, prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation
+  }), input.runDeadline);
+  const { outcome, sourceChanged, snapshotChanged } = execution;
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.reviewer,

@@ -483,4 +483,40 @@ describe('alternate-model review route', () => {
     });
     expect(readFileSync(modelLog, 'utf8').trim().split('\n', 1)[0]).toBe('gpt-6.1-sol');
   });
+
+  it('asks the same-agent fallback for the latest Opus when no independent reviewer exists', async () => {
+    const directory = createTemporaryDirectory();
+    const modelLog = nodePath.join(directory, 'model.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    writeConfig(directory, { crossAgentReview: 'prefer' });
+    // Only Claude is installed, so Codex and OpenCode are unavailable and the
+    // ordinary review falls back to the author's own runtime.
+    const bin = installModelDependentReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_MODEL_LOG: modelLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    const payload = JSON.parse(result.stdout) as { data: Record<string, unknown> };
+    expect(payload.data).toMatchObject({ actual_reviewer: 'claude' });
+    expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(['opus']);
+  });
 });
