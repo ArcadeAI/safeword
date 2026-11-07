@@ -86,7 +86,7 @@
       ],
       [
         "packages/cli/tests/integration/planning-documentation.test.ts",
-        "distinguishes planning approval from the later independent architecture gate"
+        "tells planners the architecture gate accepts a design review at any independence"
       ]
     ]
   }

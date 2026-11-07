@@ -92,7 +92,7 @@ Feature: Keep bounded planning reviews trustworthy for plan authors
     Scenario: Public documentation describes reduced assurance and its limits
       Given the delivered public overview and Implementation Planning skill guidance
       When their fallback and approval descriptions are checked
-      Then reduced assurance remains explicit and planning approval does not clear the later independent architecture check
+      Then reduced assurance remains explicit and the later architecture check accepts a reduced design review
 
     @surface.claude-code @surface.openai-codex
     Scenario: Native generated distributions carry their canonical template roots
