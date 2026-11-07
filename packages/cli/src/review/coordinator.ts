@@ -867,10 +867,11 @@ async function runConfiguredRankedRoutes({
   const unavailable = new Set<ReviewAgent>();
   let degraded: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined;
   const runDeadline = Date.now() + runBoundMs();
-  const orderedRoutes = orderedReviewRoutes(planning, routes);
+  const orderedRoutes = [...orderedReviewRoutes(planning, routes)];
   const prepared = preparedRankedPacket(input, existingPrepared);
 
   try {
+    // Array iterators read the live length, so a queued runtime-default retry runs in turn.
     for (const [index, route] of orderedRoutes.entries()) {
       const skipped = skippedRankedRoute(route, degraded, unavailable);
       if (skipped !== undefined) {
@@ -904,6 +905,7 @@ async function runConfiguredRankedRoutes({
         };
       }
       if (assessment.kind === 'failed') {
+        queueRuntimeDefaultRetry(orderedRoutes, index, assessment);
         const result = rankedFailureResult({
           run: input,
           author,
@@ -1025,6 +1027,30 @@ function hostContinuationResult(input: {
       },
     },
   });
+}
+
+/**
+ * A configured model is a routing preference, not a prerequisite: when a
+ * reviewer's last model route fails because its CLI cannot select a model and
+ * no default-model route for it exists, try that reviewer once on its runtime
+ * default, as the primary route does.
+ */
+function queueRuntimeDefaultRetry(
+  routes: ReviewRoute[],
+  index: number,
+  failure: { readonly failure: ReviewFailure; readonly terminal: boolean },
+): void {
+  const route = routes[index];
+  if (route?.model === undefined || failure.failure !== 'unsupported' || failure.terminal) return;
+  // Skip when a later route still covers this reviewer, or its default already ran.
+  const covered = routes.some(
+    (other, position) =>
+      position !== index &&
+      other.reviewer === route.reviewer &&
+      (position > index || other.model === undefined),
+  );
+  if (covered) return;
+  routes.splice(index + 1, 0, { reviewer: route.reviewer, independence: route.independence });
 }
 
 function orderedReviewRoutes(

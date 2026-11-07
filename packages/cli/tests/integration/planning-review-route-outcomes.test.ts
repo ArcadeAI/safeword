@@ -11,12 +11,28 @@ import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
 const dispatchedPackets = vi.hoisted(() => [] as { dispatch_id: string }[]);
 const dispatchedEfforts = vi.hoisted(() => [] as (string | undefined)[]);
 
+/** A fixture reviewer whose CLI cannot select a model refuses every model route. */
+function modelSelectionFailure(
+  reviewer: string,
+  model: string | undefined,
+): { readonly message: string; readonly terminal: boolean; readonly failure: string } | undefined {
+  if (process.env.SAFEWORD_TEST_MODEL_UNSUPPORTED !== '1') return undefined;
+  if (reviewer === 'claude' || model === undefined) return undefined;
+  return {
+    message: 'fixture reviewer cannot select a model',
+    terminal: false,
+    failure: 'unsupported',
+  };
+}
+
 /** Which configured fixture failure, if any, this reviewer launch raises. */
 function fixtureFailure(
   reviewer: string,
   model: string | undefined,
-): { readonly message: string; readonly terminal: boolean } | undefined {
+): { readonly message: string; readonly terminal: boolean; readonly failure?: string } | undefined {
   const environment = process.env;
+  const unsupported = modelSelectionFailure(reviewer, model);
+  if (unsupported !== undefined) return unsupported;
   if (environment.SAFEWORD_TEST_REVIEWERS_FAIL === '1')
     return { message: 'fixture reviewer failure', terminal: false };
   if (
@@ -56,7 +72,7 @@ vi.mock('../../src/review/runtime.js', async importOriginal => {
       const failure = fixtureFailure(reviewer, options.model);
       if (failure !== undefined)
         return Promise.reject(
-          new RuntimeError('process_failed', failure.message, failure.terminal),
+          new RuntimeError(failure.failure ?? 'process_failed', failure.message, failure.terminal),
         );
       return Promise.resolve({
         output: {
@@ -350,6 +366,23 @@ it('launches no further reviewer after an ordinary review alternate cannot be st
     alternate_model_failure: 'process_failed',
   });
   expect(dispatchedPackets).toHaveLength(2);
+});
+
+it('keeps an independent planning review when the reviewer cannot select a model', async () => {
+  const { project, ticket, configPath, config } = await planningFixture();
+  vi.stubEnv('SAFEWORD_TEST_MODEL_UNSUPPORTED', '1');
+  const { crossAgentReviewRoutes: _routes, ...withoutRoutes } = config as Record<string, unknown>;
+  writeFileSync(configPath, JSON.stringify(withoutRoutes));
+  const result = await runReview({
+    cwd: project,
+    kind: 'plan-implementation',
+    targets: [`${ticket}/impl-plan.md`],
+    context: [`${ticket}/spec.md`],
+  });
+  // Sol and Terra are refused, then Codex reviews on its runtime default.
+  expect(result.data).toMatchObject({ actual_reviewer: 'codex', independence: 'cross-agent' });
+  expect(result.data).not.toHaveProperty('reviewer_model');
+  expect(dispatchedPackets).toHaveLength(3);
 });
 
 it('uses the pinned medium effort for planning review', async () => {

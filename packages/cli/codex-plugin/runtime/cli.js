@@ -57989,7 +57989,7 @@ async function runConfiguredRankedRoutes({
   const unavailable2 = new Set;
   let degraded;
   const runDeadline = Date.now() + runBoundMs();
-  const orderedRoutes = orderedReviewRoutes(planning, routes);
+  const orderedRoutes = [...orderedReviewRoutes(planning, routes)];
   const prepared = preparedRankedPacket(input, existingPrepared);
   try {
     for (const [index, route] of orderedRoutes.entries()) {
@@ -58020,6 +58020,7 @@ async function runConfiguredRankedRoutes({
         };
       }
       if (assessment.kind === "failed") {
+        queueRuntimeDefaultRetry(orderedRoutes, index, assessment);
         const result = rankedFailureResult({
           run: input,
           author,
@@ -58116,6 +58117,15 @@ function hostContinuationResult(input) {
       }
     }
   });
+}
+function queueRuntimeDefaultRetry(routes, index, failure) {
+  const route = routes[index];
+  if (route?.model === undefined || failure.failure !== "unsupported" || failure.terminal)
+    return;
+  const covered = routes.some((other, position) => position !== index && other.reviewer === route.reviewer && (position > index || other.model === undefined));
+  if (covered)
+    return;
+  routes.splice(index + 1, 0, { reviewer: route.reviewer, independence: route.independence });
 }
 function orderedReviewRoutes(planning, routes) {
   if (!planning)
