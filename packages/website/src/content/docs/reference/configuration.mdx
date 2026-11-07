@@ -150,7 +150,7 @@ Terminal handoff correction is independent of review. It is on by default for Cl
 Two further review knobs, both opt-in and default off:
 
 - `stopQualityReview: true` — restores the review prompt and the decision-brief reply contract that used to fire whenever the agent finished a turn. Off by default: measured across 13 concurrent sessions it intervened once in roughly 220 turn-ends, to reformat a reply, and never produced a code change — the moment an agent stops has no relationship to the work it just did. The Stop hook's evidence gates (done, impl-plan, architecture, cumulative artifacts, typecheck advisory) are unaffected and always run; so is the phase-exit review gate above, which fires when work actually moves between phases.
-- `architectureReviewGate: true` — a new-flow feature can't reach verify/done until its `impl-plan.md` design has been independently reviewed: the Decisions section must cite evidence (URL or `[n]` marker), and the review stamp binds to the plan's content hash — editing the design after review invalidates it. Add `crossModelReview: true` to require the reviewer run on a different model than the author.
+- `architectureReviewGate: true` — a new-flow feature can't reach verify/done until its `impl-plan.md` design has been independently reviewed: the Decisions section must cite evidence (URL or `[n]` marker), and the review stamp binds to the plan's content hash — editing the design after review invalidates it. A reduced-independence review satisfies it.
 
 Adversarial reviews use `crossAgentReview` to choose their reviewer route:
 
@@ -203,10 +203,9 @@ On macOS and Linux the user profile is `$XDG_CONFIG_HOME/safeword/config.json`, 
 Only `crossAgentReviewRoutes` is user-scoped today; review policy and legacy primary/alternate model settings remain project-scoped. Effective route reads validate both files before applying precedence, so malformed JSON in either file fails visibly even when the other scope has a route. Fix or remove the named malformed file, then retry.
 
 - `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. When failures permit further attempts and the run budget allows, Safeword tries the eligible alternate-model route, then OpenCode, then a same-agent headless fallback. OpenCode-authored work routes to Claude and then Codex; OpenCode self-review is never independent. A completed same-agent result names the actual reviewer and states that the review was not independent. After eligible planning CLI routes fail, a foreground agent may receive a sealed continuation for host-native or self-review findings; their actual verdict is preserved.
-- `require` — only a qualified independent result satisfies the planning gate. A completed same-agent headless review returns the existing independence-required failure. Exhaustion remains action required; restore an independent reviewer or explicitly choose `prefer`. This policy does not issue the sealed foreground continuation described above.
-- `off` — applies to non-planning review kinds only. Product, scenario, Implementation and Execution planning remain blocked until review policy is `prefer` or `require`; `off` cannot bypass their required review.
+- `off` — applies to non-planning review kinds only. Product, scenario, Implementation and Execution planning remain blocked until review policy is `prefer`; `off` cannot bypass their required review.
 
-Authentication is recoverable reviewer state, not a failed route. If a preferred or alternate independent route is not signed in, Safeword returns `REVIEW_AUTHENTICATION_REQUIRED` with that reviewer's login command and does not start a same-agent fallback. Managed agent workflows run the command, allow any browser or device login to finish, and retry the same review once; another authentication denial remains an explicit blocker.
+The former `require` value is retired and read as `prefer`: independent review never blocks. A signed-out independent reviewer is a failed route like any other; Safeword falls back and names that reviewer's sign-in command so a later run can regain independent coverage.
 
 Without `crossAgentReviewRoutes`, Execution Plan review selects exact defaults
 `claude-opus-5` and `gpt-6-astra`. Other review kinds retain Claude's `opus`
@@ -222,34 +221,21 @@ Invalid legacy environment selectors fall through to the configured selector;
 invalid configured selectors fall through to the built-in default. Explicit
 `crossAgentReviewRoutes` entries instead reject unsafe identifiers.
 
-For planning review with a verified Claude author, explicit Claude/Codex model
-selectors must have a current sealed capability comparison before launch.
-Unknown and observed weaker selectors are recorded as skipped typed refusals;
-they receive no packet. Pin a currently qualified exact selector in the named
-route and retry. Runtime-default routes and OpenCode retain the existing
-launch-and-confirm behavior. An unknown author cannot earn an independent
-capability claim; without verified author-model identity, a successful
-different-agent planning review records reduced independence under `prefer`.
-The verified-author check currently supports only Claude-authored sessions
-whose host supplies the exact author model. Under `require`, a missing verified
-Claude identity, or any Codex- or OpenCode-authored planning session, returns
-`AUTHOR_CAPABILITY_UNKNOWN` and blocks with independence `none`, even if an
-independent CLI completed the review. There is no user configuration that
-establishes verified author capability for those other hosts; use `prefer` with
-its disclosed reduced assurance, or move authoritative planning to a supported
-Claude host. Do not set an author-model environment variable to manufacture
-verified identity.
+Reviewer selectors are not ranked against the author's model. A review completed
+by a different agent records `cross-agent` independence; a review completed by
+the author's own agent records reduced independence. Execution Plan review still
+launches only reviewer identities admitted by the packaged Execution Plan
+conformance results; when none can run, the review falls back rather than
+blocking.
 
 Cursor planning uses the built-in Claude/Codex chain unless explicit routes
-replace it. The same verified-author restriction applies to Cursor planning.
-Non-planning Cursor reviews need an explicit compatible independent route in
+replace it. Non-planning Cursor reviews need an explicit compatible independent route in
 `crossAgentReviewRoutes.cursor`; their legacy chain has no compatible reviewer.
 
-Planning fallback requires at least one actual independent attempt with a
-typed failure and exhaustion of every stronger route. All-skipped routes stay
-blocked even under `prefer`; skipped refusals never become attempted reviews.
-Permitted sealed-packet fallback records the actual reviewer and reduced
-independence, and cannot satisfy `require`. This receipt does not grant human
+Planning fallback does not wait for an independent attempt: when no independent
+route can run, the same-agent route runs, and when no route completes the sealed
+packet continues on the host. That fallback records the actual reviewer and
+reduced independence. This receipt does not grant human
 design approval, merge authority or downstream completion. Codex Cloud and
 OpenCode Desktop remain advisory surfaces.
 
@@ -349,9 +335,9 @@ When a new decision is required, `safeword ticket approve-plan <ticket-id>` pres
 
 ### Other settings
 
-All keys live in `.safeword/config.json`. Review policy defaults to `prefer` when
-the file is absent, but an unreadable or malformed file fails closed to
-`require`. Individual settings apply their documented validation and defaults.
+All keys live in `.safeword/config.json`. Review policy defaults to `prefer`,
+including when the file is absent, unreadable or malformed. Individual settings
+apply their documented validation and defaults.
 
 | Key                                       | Default                   | Effect                                                                                                                                                                                              |
 | ----------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
