@@ -48,7 +48,7 @@ printf 'not-a-review\n'
 }
 
 describe('when an alternate independent route exposes expired authentication', () => {
-  it('returns a reauthentication handoff without launching the author fallback', async () => {
+  it('records the signed-out alternate and continues to the author fallback', async () => {
     const directory = createTemporaryDirectory();
     const host = createTrustedReviewerDirectory('safeword-alternate-auth-');
     const routeLog = nodePath.join(directory, 'routes.log');
@@ -91,17 +91,20 @@ describe('when an alternate independent route exposes expired authentication', (
     };
     const explanation = payload.findings.map(finding => finding.message).join(' ');
 
+    // The fixture's author fallback returns no valid review, so nothing completes, but the
+    // signed-out alternate no longer stops the run before that fallback is tried.
     expect(result.exitCode, result.stdout).toBe(2);
-    expect(payload.findings[0]?.code).toBe('REVIEW_AUTHENTICATION_REQUIRED');
-    expect(explanation).toMatch(/reauthenticate Codex/iu);
-    expect(payload.recovery).toEqual([expect.objectContaining({ command: 'codex login' })]);
+    expect(payload.findings.map(finding => finding.code)).not.toContain(
+      'REVIEW_AUTHENTICATION_REQUIRED',
+    );
+    expect(explanation).toMatch(/Codex/u);
     expect(payload.data).toMatchObject({
       preferred_failure: 'timed_out',
       alternate_model: 'vendor-model-2',
       alternate_model_failure: 'not_authenticated',
+      fallback_failure: 'invalid_output',
+      independence: 'none',
     });
-    expect(payload.data).not.toHaveProperty('fallback_failure');
-    expect(payload.data.independence).toBe('none');
-    expect(readFileSync(routeLog, 'utf8')).toBe('codex\ncodex\n');
+    expect(readFileSync(routeLog, 'utf8')).toBe('codex\ncodex\nclaude\n');
   }, 30_000);
 });

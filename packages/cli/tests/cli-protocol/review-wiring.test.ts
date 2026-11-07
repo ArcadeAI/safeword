@@ -2373,17 +2373,20 @@ describe('cross-agent review public-command wiring', () => {
     {
       failure: 'auth',
       classification: 'not_authenticated',
-      action: 'Reauthenticate Codex, then retry the original independent review.',
+      action:
+        'Sign Codex in with `codex login`, then run the review again for independent coverage.',
     },
     {
       failure: 'auth-stdout',
       classification: 'not_authenticated',
-      action: 'Reauthenticate Codex, then retry the original independent review.',
+      action:
+        'Sign Codex in with `codex login`, then run the review again for independent coverage.',
     },
     {
       failure: 'auth-expired-stdout',
       classification: 'not_authenticated',
-      action: 'Reauthenticate Codex, then retry the original independent review.',
+      action:
+        'Sign Codex in with `codex login`, then run the review again for independent coverage.',
     },
     {
       failure: 'process',
@@ -2473,7 +2476,7 @@ describe('cross-agent review public-command wiring', () => {
       loginCommand: 'claude auth login',
     },
   ] as const)(
-    'hands an unauthenticated $reviewer route back for reauthentication before fallback',
+    'falls back with a labeled same-agent review and a sign-in hint when $reviewer is signed out',
     async ({ author, reviewer, reviewerName, loginCommand }) => {
       const directory = createTemporaryDirectory();
       const log = nodePath.join(directory, 'review.log');
@@ -2505,36 +2508,28 @@ describe('cross-agent review public-command wiring', () => {
         },
       );
 
-      expect(result.exitCode, result.stdout).toBe(2);
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        state: 'action_required',
-        findings: [
-          {
-            code: 'REVIEW_AUTHENTICATION_REQUIRED',
-            message: expect.stringContaining(
-              `The independent ${reviewerName} review needs authentication. Reauthenticate ${reviewerName}`,
-            ),
-          },
-        ],
-        effects: {
-          network: [{ kind: 'review', target: reviewer, operation: 'request' }],
-        },
-        recovery: [
-          {
-            command: loginCommand,
-            description: expect.stringMatching(/reauthenticate.*retry/iu),
-            requires_human: true,
-          },
-        ],
-        data: {
-          status: 'blocked',
-          assigned_reviewer: reviewer,
-          preferred_failure: 'not_authenticated',
-          review_policy: 'prefer',
-          independence: 'none',
-        },
+      // A signed-out independent reviewer no longer pauses the review: the author's own
+      // headless review runs, is labeled not independent, and names the sign-in command.
+      expect(result.exitCode, result.stdout).toBe(0);
+      const output = JSON.parse(result.stdout) as {
+        findings: readonly { code: string; message: string }[];
+        data: Record<string, unknown>;
+      };
+      expect(output.data).toMatchObject({
+        status: 'approved',
+        assigned_reviewer: reviewer,
+        actual_reviewer: author,
+        preferred_failure: 'not_authenticated',
+        independence: 'degraded',
       });
-      expect(readFileSync(log, 'utf8')).toBe(`${reviewer}\n`);
+      expect(output.findings.map(finding => finding.code)).not.toContain(
+        'REVIEW_AUTHENTICATION_REQUIRED',
+      );
+      expect(JSON.stringify(output.findings)).toContain(loginCommand);
+      expect(JSON.stringify(output.findings)).toContain(reviewerName);
+      const launches = readFileSync(log, 'utf8').trim().split('\n');
+      expect(launches[0]).toBe(reviewer);
+      expect(launches.at(-1)).toBe(author);
     },
   );
 
@@ -3219,7 +3214,7 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it('preserves the configured-model rejection when the default-model retry needs authentication', async () => {
+  it('preserves the configured-model rejection when the default-model retry is signed out', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -3254,22 +3249,26 @@ describe('cross-agent review public-command wiring', () => {
       },
     );
 
+    // No other reviewer is installed, so nothing completes; the result keeps both causes
+    // and names the signed-out state instead of pausing for reauthentication.
     expect(result.exitCode, result.stdout).toBe(2);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'action_required',
-      findings: [{ code: 'REVIEW_AUTHENTICATION_REQUIRED' }],
-      recovery: [{ command: 'codex login', requires_human: true }],
-      data: {
-        status: 'blocked',
-        assigned_reviewer: 'codex',
-        preferred_model: 'vendor-model-1',
-        preferred_model_failure: 'unsupported',
-        preferred_failure: 'not_authenticated',
-        review_policy: 'prefer',
-        independence: 'none',
-      },
+    const output = JSON.parse(result.stdout) as {
+      findings: readonly { code: string }[];
+      data: Record<string, unknown>;
+    };
+    expect(output.data).toMatchObject({
+      status: 'blocked',
+      assigned_reviewer: 'codex',
+      preferred_model: 'vendor-model-1',
+      preferred_model_failure: 'unsupported',
+      preferred_failure: 'not_authenticated',
+      independence: 'none',
     });
-    expect(readFileSync(log, 'utf8')).toBe('codex\n');
+    expect(output.findings.map(finding => finding.code)).not.toContain(
+      'REVIEW_AUTHENTICATION_REQUIRED',
+    );
+    expect(result.stdout).toContain('is not signed in');
+    expect(readFileSync(log, 'utf8').trim().split('\n', 1)[0]).toBe('codex');
   });
 
   it.each([
@@ -4788,7 +4787,7 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it('hands ranked-route authentication back before any fallback runs', async () => {
+  it('moves past a signed-out ranked route to the next independent reviewer', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -4831,23 +4830,18 @@ describe('cross-agent review public-command wiring', () => {
       },
     );
 
-    expect(result.exitCode, result.stdout).toBe(2);
-    expect(readFileSync(log, 'utf8')).toBe('codex\n');
+    // The signed-out Codex profile makes every Codex route unusable, so OpenCode reviews next.
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
-      findings: [{ code: 'REVIEW_AUTHENTICATION_REQUIRED' }],
-      recovery: [{ command: 'codex login', requires_human: true }],
       data: {
-        assigned_reviewer: 'codex',
-        preferred_model: 'model-a',
-        preferred_failure: 'not_authenticated',
-        independence: 'none',
+        status: 'approved',
+        actual_reviewer: 'opencode',
+        independence: 'cross-agent',
         review_routes: [
-          {
-            reviewer: 'codex',
-            model: 'model-a',
-            status: 'attempted',
-            failure: 'not_authenticated',
-          },
+          { reviewer: 'codex', model: 'model-a', failure: 'not_authenticated' },
+          { reviewer: 'codex', model: 'model-b', status: 'skipped' },
+          { reviewer: 'opencode', model: 'vendor/model-c', status: 'attempted' },
         ],
       },
     });

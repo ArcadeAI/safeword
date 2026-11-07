@@ -58917,6 +58917,8 @@ function nextStepFor(reviewer, failure) {
     return `Run ${name} --help to diagnose it, then retry review.`;
   if (failure === "launch_failed")
     return `Run ${name} --help and fix its launch failure, then retry review.`;
+  if (failure === "not_authenticated")
+    return `Sign ${name} in with \`${reviewerLoginCommand(reviewer)}\`, then run the review again for independent coverage.`;
   return "Run the review again.";
 }
 function degradedDescription(assignedReviewer, actualReviewer, failure) {
@@ -59079,37 +59081,8 @@ function recordRankedFailure(route, failure, evidence, unavailable2) {
   }
   return failure.terminal;
 }
-function rankedAuthenticationRequiredResult(input) {
-  const result = authenticationRequiredResult({
-    author: input.author,
-    assignedReviewer: input.route.reviewer,
-    preferredModel: input.route.model,
-    preferredFailure: "not_authenticated",
-    policy: input.policy,
-    degradedReviewRecorded: input.degraded !== undefined
-  });
-  return {
-    ...result,
-    findings: [
-      ...result.findings,
-      ...input.degraded ? reviewerFeedback(input.degraded.output) : []
-    ],
-    effects: { ...result.effects, network: rankedNetworkEffects(input.evidence) },
-    data: {
-      ...result.data,
-      review_routes: input.evidence,
-      ...input.degraded !== undefined && {
-        actual_reviewer: input.degraded.output.reviewer_agent,
-        reviewer_output: input.degraded.output
-      }
-    }
-  };
-}
 function rankedFailureResult(input) {
   const terminal = recordRankedFailure(input.route, input.failure, input.evidence, input.unavailable);
-  if (input.route.independence === "cross-agent" && input.failure.failure === "not_authenticated") {
-    return rankedAuthenticationRequiredResult(input);
-  }
   if (!terminal)
     return;
   input.evidence.push(...input.remainingRoutes.map((route) => ({ ...route, status: "unattempted" })));
@@ -59389,42 +59362,6 @@ function routeFailureData(input) {
     }
   };
 }
-function authenticationRequiredResult(input) {
-  const reviewer = agentName(input.assignedReviewer);
-  const evidenceMessage = input.degradedReviewRecorded ? "A same-agent review completed, but no independent evidence was recorded." : "No fallback or review evidence was recorded.";
-  return createResult({
-    state: "action_required",
-    findings: [
-      {
-        code: "REVIEW_AUTHENTICATION_REQUIRED",
-        message: `The independent ${reviewer} review needs authentication. Reauthenticate ${reviewer}, then retry the same review. ${evidenceMessage}`,
-        severity: "warning"
-      }
-    ],
-    effects: {
-      network: [
-        ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
-        ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure)
-      ]
-    },
-    recovery: [
-      {
-        command: reviewerLoginCommand(input.assignedReviewer),
-        description: `Reauthenticate ${reviewer}, then retry the original independent review.`,
-        requiresHuman: true
-      }
-    ],
-    data: {
-      command: "review run",
-      status: "blocked",
-      author_agent: input.author,
-      assigned_reviewer: input.assignedReviewer,
-      ...routeFailureData(input),
-      review_policy: input.policy,
-      independence: input.degradedReviewRecorded ? "degraded" : "none"
-    }
-  });
-}
 function reviewRequest(reviewer) {
   return { kind: "review", target: reviewer, operation: "request" };
 }
@@ -59638,7 +59575,7 @@ async function runAlternateModelRoute(input) {
     return { kind: "completed", result: changedResult };
   const assessment = assessReviewOutcome(outcome, input.reviewer, prepared.packet.dispatch_id);
   if (assessment.kind === "failed") {
-    return resolveAlternateModelFailure(input, model, assessment);
+    return resolveAlternateModelFailure(model, assessment);
   }
   const output = assessment.output;
   const result = independentReviewResult({
@@ -59711,24 +59648,10 @@ async function runIndependentFallback(input) {
     })
   };
 }
-function resolveAlternateModelFailure(input, model, assessment) {
+function resolveAlternateModelFailure(model, assessment) {
   if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure))
     return { kind: "skipped" };
-  if (assessment.failure !== "not_authenticated")
-    return { ...assessment, model };
-  return {
-    kind: "completed",
-    result: authenticationRequiredResult({
-      author: input.author,
-      assignedReviewer: input.reviewer,
-      preferredModel: input.preferredModel,
-      preferredModelFailure: input.preferredModelFailure,
-      preferredFailure: input.preferredFailure,
-      alternateModel: model,
-      alternateFailure: assessment.failure,
-      policy: input.policy
-    })
-  };
+  return { ...assessment, model };
 }
 async function runRemainingRoutes(input) {
   const alternate = input.preferredTerminal ? { kind: "skipped" } : await runAlternateModelRoute({
@@ -59831,16 +59754,6 @@ function exhaustedRunResult(input) {
   });
 }
 function runAfterPrimaryFailure(input, details) {
-  if (details.failure === "not_authenticated") {
-    return authenticationRequiredResult({
-      author: details.author,
-      assignedReviewer: details.reviewer,
-      preferredModel: details.preferredModel,
-      preferredModelFailure: details.preferredModelFailure,
-      preferredFailure: details.failure,
-      policy: details.policy
-    });
-  }
   if (details.terminal) {
     return exhaustedRunResult({
       ...input,
