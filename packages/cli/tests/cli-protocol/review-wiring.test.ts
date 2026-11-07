@@ -20,8 +20,8 @@ import {
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
 import type { ReviewPacket } from '../../src/review/contract.js';
-import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
+import { EXECUTION_PLAN_SAMPLES } from '../fixtures/execution-plan-samples.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
@@ -928,13 +928,13 @@ describe('cross-agent review public-command wiring', () => {
     expect(existsSync(reviewLog)).toBe(false);
   });
 
-  it('gives a Claude-authored Execution Plan a reduced review from the admitted Claude route when no Codex reviewer is admitted', async () => {
+  it('sends a Claude-authored Execution Plan to Codex on the latest Sol as an independent review', async () => {
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');
     const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
     mkdirSync(ticketDirectory, { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
-    const acceptedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+    const acceptedPlan = EXECUTION_PLAN_SAMPLES.find(
       testCase => testCase.id === 'one-coherent-change',
     )?.execution_plan;
     if (acceptedPlan === undefined) throw new Error('Missing accepted slicing fixture');
@@ -943,7 +943,7 @@ describe('cross-agent review public-command wiring', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), acceptedPlan);
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
     writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
-    // Both CLIs are installed; only the Claude identity is admitted for Execution Plan review.
+    // Both CLIs are installed; with no reviewer qualification, Codex reviews first.
     const bin = installFakeReviewer(directory, 'claude');
     installFakeReviewer(directory, 'codex');
     const executionPlanRecord = JSON.stringify({
@@ -1003,14 +1003,14 @@ describe('cross-agent review public-command wiring', () => {
     expect(output.data).toMatchObject({
       status: 'approved',
       review_kind: 'plan-execution',
-      actual_reviewer: 'claude',
-      independence: 'reduced',
+      actual_reviewer: 'codex',
+      reviewer_model: 'gpt-6.1-sol',
+      independence: 'cross-agent',
     });
-    expect(output.findings.map(finding => finding.code)).not.toContain('REVIEW_ROUTES_EXHAUSTED');
-    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude']);
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['codex']);
   });
 
-  it('activates Execution Plan review only for a ticket-owned plan through an admitted route', async () => {
+  it('activates Execution Plan review only for a ticket-owned plan', async () => {
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');
     const promptLog = nodePath.join(directory, 'prompt.log');
@@ -1018,7 +1018,7 @@ describe('cross-agent review public-command wiring', () => {
     mkdirSync(ticketDirectory, { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
     const executionPlanPath = nodePath.join(ticketDirectory, 'execution-plan.md');
-    const acceptedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+    const acceptedPlan = EXECUTION_PLAN_SAMPLES.find(
       testCase => testCase.id === 'one-coherent-change',
     )?.execution_plan;
     if (acceptedPlan === undefined) throw new Error('Missing accepted slicing fixture');
@@ -1083,7 +1083,7 @@ describe('cross-agent review public-command wiring', () => {
         status: 'approved',
         review_kind: 'plan-execution',
         assigned_reviewer: 'claude',
-        reviewer_model: 'claude-opus-5',
+        reviewer_model: 'opus',
         reviewer_output: { execution_plan_record: JSON.parse(executionPlanRecord) },
       },
     });
@@ -1186,11 +1186,11 @@ describe('cross-agent review public-command wiring', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
     writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
     const executionPlanPath = nodePath.join(ticketDirectory, 'execution-plan.md');
-    const unresolvedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+    const unresolvedPlan = EXECUTION_PLAN_SAMPLES.find(
       testCase => testCase.id === 'omitted-slicing-decision',
     )?.execution_plan;
     if (unresolvedPlan === undefined) throw new Error('Missing unresolved slicing fixture');
-    const acceptedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+    const acceptedPlan = EXECUTION_PLAN_SAMPLES.find(
       testCase => testCase.id === 'one-coherent-change',
     )?.execution_plan;
     if (acceptedPlan === undefined) throw new Error('Missing accepted slicing fixture');
@@ -1292,7 +1292,7 @@ describe('cross-agent review public-command wiring', () => {
   });
 
   it('keeps an accepted proof obligation open when the plan calls it not applicable', async () => {
-    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+    const testCase = EXECUTION_PLAN_SAMPLES.find(
       candidate => candidate.id === 'dismissed-applicable-work',
     );
     if (testCase === undefined) throw new Error('Missing applicable-work conformance fixture');
@@ -1349,64 +1349,6 @@ describe('cross-agent review public-command wiring', () => {
       testCase.execution_plan,
     );
     expect(readFileSync(reviewLog, 'utf8').trim()).toBe('claude');
-  });
-
-  it('hands the review to the host before dispatch when no configured route has current admission', async () => {
-    const executionPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
-      testCase => testCase.id === 'one-coherent-change',
-    )?.execution_plan;
-    if (executionPlan === undefined) throw new Error('Missing accepted execution plan fixture');
-    const directory = createTemporaryDirectory();
-    const reviewLog = nodePath.join(directory, 'review.log');
-    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
-    mkdirSync(ticketDirectory, { recursive: true });
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
-    writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), executionPlan);
-    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
-    writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
-    writeFileSync(
-      nodePath.join(directory, '.safeword', 'config.json'),
-      JSON.stringify({
-        crossAgentReviewRoutes: {
-          codex: [{ reviewer: 'claude', model: 'sonnet' }],
-        },
-      }),
-    );
-    const bin = installFakeReviewer(directory, 'claude');
-
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'plan-execution',
-        '.project/tickets/T1-feature/execution-plan.md',
-        '--context',
-        '.project/tickets/T1-feature/impl-plan.md',
-        '--context',
-        '.project/tickets/T1-feature/behavior.feature',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: {
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'codex',
-          SAFEWORD_REVIEW_LOG: reviewLog,
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-        },
-      },
-    );
-
-    expect(result.exitCode, result.stdout).toBe(2);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      findings: [{ code: 'REVIEW_CONTINUATION_REQUIRED' }],
-      data: { status: 'continuation_required', review_kind: 'plan-execution', review_routes: [] },
-    });
-    expect(existsSync(reviewLog)).toBe(false);
   });
 
   it('reviews the ticket plan when a divergent host-private copy exists', async () => {
@@ -1607,7 +1549,7 @@ describe('cross-agent review public-command wiring', () => {
       findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
       data: { status: 'blocked', independence: 'none' },
     });
-    expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nclaude\n');
     expect(result.stdout).not.toContain('"state":"healthy"');
   });
 
@@ -1734,7 +1676,7 @@ describe('cross-agent review public-command wiring', () => {
     );
 
     expect(result.exitCode, result.stdout).toBe(0);
-    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\nclaude\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
       data: {
         actual_reviewer: 'claude',
@@ -2088,7 +2030,7 @@ describe('cross-agent review public-command wiring', () => {
       );
 
       expect(result.exitCode, result.stdout).toBe(2);
-      expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
+      expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\nclaude\n');
       const payload = JSON.parse(result.stdout);
       expect(payload).toMatchObject({
         state: 'action_required',
@@ -2445,10 +2387,14 @@ describe('cross-agent review public-command wiring', () => {
       expect(payload).toMatchObject({
         state: 'action_required',
         effects: {
+          // The latest-Sol attempt and its Terra retry both reach Codex.
           network:
             classification === 'not_installed'
               ? []
-              : [{ kind: 'review', target: 'codex', operation: 'request' }],
+              : [
+                  { kind: 'review', target: 'codex', operation: 'request' },
+                  { kind: 'review', target: 'codex', operation: 'request' },
+                ],
         },
         recovery: [{ description: action }],
         data: {
@@ -2638,7 +2584,7 @@ describe('cross-agent review public-command wiring', () => {
         independence: 'degraded',
       },
     });
-    expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nclaude\n');
   });
 
   it('tries the next configured model after an attempt-scoped failure', async () => {
@@ -2930,7 +2876,7 @@ describe('cross-agent review public-command wiring', () => {
     await expectOpenCodeFallback({
       author: 'claude',
       preferred: 'codex',
-      attempts: ['codex', 'opencode'],
+      attempts: ['codex', 'codex', 'opencode'],
       policy: 'prefer',
     });
   });
@@ -2939,7 +2885,7 @@ describe('cross-agent review public-command wiring', () => {
     await expectOpenCodeFallback({
       author: 'claude',
       preferred: 'codex',
-      attempts: ['codex', 'opencode'],
+      attempts: ['codex', 'codex', 'opencode'],
       policy: 'require',
     });
   });
@@ -2987,7 +2933,7 @@ describe('cross-agent review public-command wiring', () => {
     );
 
     expect(result.exitCode, result.stdout).toBe(0);
-    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'healthy',
       data: {
@@ -3115,7 +3061,7 @@ describe('cross-agent review public-command wiring', () => {
       },
     });
     expect(JSON.parse(result.stdout).data).not.toHaveProperty('reviewer_output');
-    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\nclaude\n');
   });
 
   async function expectOpenCodeFailure(input: {
@@ -3169,6 +3115,7 @@ describe('cross-agent review public-command wiring', () => {
       effects: {
         network: [
           { kind: 'review', target: 'codex', operation: 'request' },
+          { kind: 'review', target: 'codex', operation: 'request' },
           { kind: 'review', target: 'opencode', operation: 'request' },
           { kind: 'review', target: 'claude', operation: 'request' },
         ],
@@ -3181,7 +3128,7 @@ describe('cross-agent review public-command wiring', () => {
         independence: 'degraded',
       },
     });
-    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\nclaude\n');
   }
 
   it('returns degraded same-author feedback after OpenCode fails under prefer policy', async () => {

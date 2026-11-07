@@ -5,7 +5,6 @@ import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult, type Effect, type Finding } from '../cli-protocol/result.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
-import { PACKAGED_CAPABILITY_SETTINGS } from './capability-catalogue.js';
 import { retryCommand } from './command.js';
 import type {
   RedExecutionAttestation,
@@ -18,7 +17,6 @@ import type {
   SupportedReviewAuthor,
   UnverifiedReviewerOutput,
 } from './contract.js';
-import { filterExecutionPlanRoutes } from './execution-plan-conformance.js';
 import { prepareReviewPacket } from './packet.js';
 import type { ReviewRoute } from './policy.js';
 import {
@@ -289,6 +287,9 @@ export function hostContinuationCompletion(input: {
   });
 }
 
+/** Reasoning effort for planning reviewers (Claude effort, Codex reasoning). */
+const PLANNING_REVIEW_EFFORT = 'medium';
+
 const MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000;
 
 export function terminalSafeReviewerText(value: string): string {
@@ -330,10 +331,7 @@ async function executeReview(
         ...((prepared.packet.planning_phase !== undefined ||
           isPlanningReview(prepared.packet.kind)) &&
           reviewer !== 'opencode' && {
-            effort:
-              reviewer === 'codex'
-                ? PACKAGED_CAPABILITY_SETTINGS.codex_reasoning
-                : PACKAGED_CAPABILITY_SETTINGS.claude_effort,
+            effort: PLANNING_REVIEW_EFFORT,
           }),
       },
     );
@@ -1962,30 +1960,20 @@ function selectRankedReview(
       ? prepareReviewPacket(input.cwd, input.kind, input.targets, input.context)
       : undefined;
   const productPlan = productPacket?.packet.planning_phase === 'product-plan';
-  const routes = rankedReviewRoutes(input, author, configured, productPlan);
+  const planning = isPlanningReview(input.kind) || productPlan;
+  const routes = planning ? planningRoutes(input.cwd, author, configured) : configured;
   if (!productPlan || routes === undefined) productPacket?.cleanup();
   if (routes === undefined) return undefined;
-  return {
-    routes,
-    planning: isPlanningReview(input.kind) || productPlan,
-    ...(productPlan && { prepared: productPacket }),
-  };
+  return { routes, planning, ...(productPlan && { prepared: productPacket }) };
 }
 
-function rankedReviewRoutes(
-  input: ReviewRunInput,
+/** Planning work always gets ordered routes: the configured ones, or the built-in chain. */
+function planningRoutes(
+  cwd: string,
   author: SupportedReviewAuthor,
   configured: readonly ReviewRoute[] | undefined,
-  productPlan: boolean,
-): readonly ReviewRoute[] | undefined {
-  if (input.kind !== 'plan-execution')
-    return isPlanningReview(input.kind) || productPlan
-      ? (configured ?? builtInReviewRoutes(input.cwd, author))
-      : configured;
-  return filterExecutionPlanRoutes(
-    input.kind,
-    configured ?? builtInReviewRoutes(input.cwd, author, input.kind),
-  );
+): readonly ReviewRoute[] {
+  return configured ?? builtInReviewRoutes(cwd, author);
 }
 
 export async function runReview(input: ReviewRunInput): Promise<CliResult> {

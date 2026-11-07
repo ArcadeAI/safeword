@@ -17,7 +17,7 @@ it('fails a bound acceptance step when its proof hook never ran', () => {
       [
         'Feature: Detect an omitted proof hook',
         '  Scenario: A bound step without the owning Rule tag',
-        '    Given an accepted contribution is one coherent independently provable change',
+        '    Given packaged Safeword CLI configuration and a deterministic recorder replacing only the external reviewer process',
         '',
       ].join('\n'),
     );

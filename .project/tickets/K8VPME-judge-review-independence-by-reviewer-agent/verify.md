@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Local environment limitation: 11723 passed, 3 failed. The 3 failures fail identically on unmodified main 27ebad272 on this machine. `lint-go-context` (2) fails because the Go toolchain mixes compile go1.25.14 with go tool go1.27.1. `plan-execution-journey` (1) fails because its copied dist CLI cannot resolve `yaml` outside node_modules.
+**Test Suite:** ⚠️ Local environment limitation: 11607 passed, 3 failed (run after the qualification tear-out). `lint-go-context` (2) fails because the Go toolchain mixes compile go1.25.14 with go tool go1.27.1, identically on main. `bdd-proof-adapter` (1) used a step from a removed qualification scenario; repointed to a surviving step and now passes. A second pass also hit a load-only timeout in `review-candidate-share`, which passes alone and in the first pass.
 **Gherkin:** ✅ Acceptance lane passes (599 scenarios, 11786 steps)
 **Build:** ✅ Success
 **Lint:** ✅ Clean (eslint on changed source and tests; prettier applied)
@@ -15,7 +15,11 @@
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ No new friction. Walked a Claude author through plan-execution review with no admitted Codex reviewer; worst step before = `REVIEW_ROUTES_EXHAUSTED` dead end; now the admitted Claude route reviews and the receipt says `reduced`; new steps vs before = 0
 **Surface Evidence:** ✅ Safeword CLI: `bun run test` (planning-review-*, review-wiring, coding-authorization, phase/architecture gates) plus cucumber acceptance lane
-**Evidence limits:** ⚠️ Go toolchain version mismatch and the journey test's isolated CLI copy fail on unmodified main too; dependency audit reports pre-existing advisories (fast-uri; Python certifi, filelock, msgpack) unrelated to this change
+**Evidence limits:** ⚠️ Go toolchain version mismatch fails `lint-go-context` and `govulncheck` on unmodified main too; dependency audit reports pre-existing advisories (fast-uri; Python certifi, filelock, msgpack) unrelated to this change. The root dogfood acceptance lane (not run in CI) still has 9 test-count mismatches in `turn-decisions-into-startable-work` proofs whose expected counts and test files this change did not alter.
+
+## Qualification removal (2026-11-07)
+
+User decision: no reviewer qualification. Every review kind uses Claude `opus`→`sonnet` or Codex `gpt-6.1-sol`→`gpt-6.1-terra`. Removed the Execution Plan admission, capability corpus, evaluation harness, generated catalogue and their tests and scenarios. Package tests, both acceptance lanes for edited features, release tests, proof map, lint and typecheck pass.
 
 Lifecycle origin-main fixtures: `cursor-install` and `cursor-uninstall` result hashes changed because the removed `session-author-model.ts` hook no longer appears in their created/removed file lists.
 

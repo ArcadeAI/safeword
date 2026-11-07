@@ -90,13 +90,6 @@ Feature: Complete contributions with a default delivery checklist
       When Safeword evaluates a checklist that labels it a human-owned dependency instead of completing it through the installed CLI
       Then the human-owned disposition is rejected, no completion is granted, and the response tells the contributor to complete it
 
-    @rejection @live
-    @execution-plan-semantic
-    Scenario: Applicable contributor work cannot be dismissed as not applicable
-      Given an applicable test obligation is required by the accepted proof boundary
-      When Safeword reviews a checklist that marks the obligation as not applicable through the installed CLI
-      Then the not-applicable disposition is rejected, the test obligation remains open, and the response names the accepted proof boundary
-
     @rejection @proof.vitest
     Scenario: An unreviewed applicability change cannot hide admitted work
       Given execution has begun with a reviewed applicable documentation obligation still open
@@ -137,26 +130,6 @@ Feature: Complete contributions with a default delivery checklist
         | small_work_type |
         | task |
         | patch |
-
-  @plan-implementability.TBU2.A639WN.R5 @surface.safeword-cli
-  Rule: plan-implementability.TBU2.A639WN.R5 — Large feature contributions use the reviewable pull-request slicing contract from child 6XW8H7, while a contribution small enough for one coherent review records that decision without artificial decomposition
-
-    @live @execution-plan-semantic
-    Scenario Outline: The checklist records the appropriate PR-slicing outcome
-      Given a contribution contains <change_shape>
-      When Safeword completes its work-decomposition checklist item through the installed CLI
-      Then the checklist <slicing_outcome>
-
-      Examples:
-        | change_shape | slicing_outcome |
-        | several dependency-ordered independently provable changes | references the coherent pull-request slices defined by the Execution Plan |
-        | one coherent independently provable change | records one pull request and why another split would add no review value |
-
-    @rejection @live @execution-plan-semantic
-    Scenario: A large contribution cannot leave PR slicing unresolved
-      Given a contribution contains several independently provable changes and its checklist has no pull-request slicing decision
-      When Safeword reviews the Execution Plan through the installed CLI
-      Then the plan is denied, the item remains open, and the missing pull-request slicing decision is named with one concrete action to record it
 
   @plan-implementability.TBU2.A639WN.R6 @surface.safeword-cli
   Rule: plan-implementability.TBU2.A639WN.R6 — Safeword reports contributor readiness only when every contributor-controlled obligation is completed and proven, reports pending human approvals or ownership as unresolved dependencies, and never treats readiness evidence as human approval or merge authority

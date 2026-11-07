@@ -14,8 +14,8 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { VERSION } from '../../src/version.js';
+import { EXECUTION_PLAN_SAMPLES } from '../fixtures/execution-plan-samples.js';
 import { realBunExecutable } from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
@@ -115,7 +115,7 @@ function writePhaseTicket(ticket: string, phase: NativePlanningPhase): void {
     '# Implementation Plan\n\nPreserve the accepted scope and implement its reviewed approach.\n',
   );
   if (phase !== 'plan-execution') return;
-  const executionCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+  const executionCase = EXECUTION_PLAN_SAMPLES.find(
     candidate => candidate.id === 'one-coherent-change',
   );
   if (executionCase === undefined) throw new Error('Missing canonical Execution Plan fixture');

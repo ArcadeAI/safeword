@@ -111,9 +111,10 @@ describe('review routes CLI wiring', () => {
       data: {
         source: 'built-in',
         routes: [
-          { reviewer: 'codex', independence: 'cross-agent' },
+          { reviewer: 'codex', model: 'gpt-6.1-sol', independence: 'cross-agent' },
+          { reviewer: 'codex', model: 'gpt-6.1-terra', independence: 'cross-agent' },
           { reviewer: 'opencode', independence: 'cross-agent' },
-          { reviewer: 'claude', independence: 'degraded' },
+          { reviewer: 'claude', model: 'opus', independence: 'degraded' },
         ],
       },
     });

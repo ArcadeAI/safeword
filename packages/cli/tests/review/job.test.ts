@@ -797,7 +797,13 @@ describe('durable review jobs', () => {
 
     expect(completed.error).toBeUndefined();
     expect(completed.status).toBe(0);
-    expect(completed.stderr).toBe('Requesting an independent Codex review…\n');
+    // Each attempted Codex route (latest Sol, Terra retry, runtime default) announces itself.
+    expect(
+      completed.stderr
+        .trim()
+        .split('\n')
+        .every(line => line === 'Requesting an independent Codex review…'),
+    ).toBe(true);
     expect(completed.stderr).not.toContain('reviewed after caller exit');
     expect(JSON.parse(completed.stdout)).toMatchObject({
       state: 'healthy',

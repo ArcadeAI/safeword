@@ -2,13 +2,7 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { readCrossAgentReviewPolicy } from '../../templates/hooks/lib/review-ledger.js';
-import type {
-  ReviewAgent,
-  ReviewAuthor,
-  ReviewKind,
-  ReviewPolicy,
-  SupportedReviewAuthor,
-} from './contract.js';
+import type { ReviewAgent, ReviewAuthor, ReviewPolicy, SupportedReviewAuthor } from './contract.js';
 import { effectiveConfiguredRoutes } from './preferences.js';
 import { MODEL_NAME, type ReviewRoute } from './route-config.js';
 
@@ -56,11 +50,16 @@ export function reviewRoutePlan(author: ReviewAuthor): ReviewRoutePlan | undefin
   return undefined;
 }
 
-const DEFAULT_PRIMARY_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'opus' };
-const DEFAULT_ALTERNATE_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'sonnet' };
-const EXECUTION_PRIMARY_MODEL: Partial<Record<ReviewAgent, string>> = {
-  claude: 'claude-opus-5',
-  codex: 'gpt-6-astra',
+// Every review kind uses each agent's latest flagship first and retries on its
+// smaller sibling. Claude's `opus`/`sonnet` aliases track the newest release;
+// Codex has no alias, so update these names when a new Sol or Terra ships.
+const DEFAULT_PRIMARY_MODEL: Partial<Record<ReviewAgent, string>> = {
+  claude: 'opus',
+  codex: 'gpt-6.1-sol',
+};
+const DEFAULT_ALTERNATE_MODEL: Partial<Record<ReviewAgent, string>> = {
+  claude: 'sonnet',
+  codex: 'gpt-6.1-terra',
 };
 
 export function readConfiguredReviewRoutes(
@@ -72,15 +71,19 @@ export function readConfiguredReviewRoutes(
   return effectiveConfiguredRoutes(cwd, author)?.routes;
 }
 
+function modelFor(model: string | undefined): { readonly model?: string } {
+  return model === undefined ? {} : { model };
+}
+
 export function builtInReviewRoutes(
   cwd: string,
   author: SupportedReviewAuthor,
-  kind?: ReviewKind,
 ): readonly ReviewRoute[] {
   const plan = reviewRoutePlan(author);
   if (plan === undefined) return [];
-  const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred, kind);
-  const alternateModel = readAlternateReviewerModel(cwd, plan.preferred, kind);
+  const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
+  const alternateModel = readAlternateReviewerModel(cwd, plan.preferred);
+  const fallbackModel = readPrimaryReviewerModel(cwd, plan.independentFallback);
   const routes: readonly ReviewRoute[] = [
     {
       reviewer: plan.preferred,
@@ -90,34 +93,28 @@ export function builtInReviewRoutes(
     ...(alternateModel !== undefined && alternateModel !== primaryModel
       ? [{ reviewer: plan.preferred, model: alternateModel, independence: 'cross-agent' as const }]
       : []),
-    { reviewer: plan.independentFallback, independence: 'cross-agent' },
+    {
+      reviewer: plan.independentFallback,
+      ...modelFor(fallbackModel),
+      independence: 'cross-agent',
+    },
     ...(plan.degradedFallback === undefined
       ? []
       : [
           {
             reviewer: plan.degradedFallback,
+            ...modelFor(readPrimaryReviewerModel(cwd, plan.degradedFallback)),
             independence: 'degraded' as const,
           },
         ]),
   ];
-  if (kind !== 'plan-execution') return routes;
-  return routes.map(route => {
-    if (route.model !== undefined) return route;
-    const model = readPrimaryReviewerModel(cwd, route.reviewer, kind);
-    return model === undefined ? route : { ...route, model };
-  });
+  return routes;
 }
 
-export function readPrimaryReviewerModel(
-  cwd: string,
-  reviewer: ReviewAgent,
-  kind?: ReviewKind,
-): string | undefined {
+export function readPrimaryReviewerModel(cwd: string, reviewer: ReviewAgent): string | undefined {
   return (
     readReviewerModel(cwd, reviewer, 'PRIMARY', 'crossAgentReviewPrimaryModel') ??
-    (kind === 'plan-execution'
-      ? EXECUTION_PRIMARY_MODEL[reviewer]
-      : DEFAULT_PRIMARY_MODEL[reviewer])
+    DEFAULT_PRIMARY_MODEL[reviewer]
   );
 }
 
@@ -126,14 +123,10 @@ export function readPrimaryReviewerModel(
  * cannot complete. Explicit values override the Claude default; agents without
  * a default retain their authenticated profile behavior.
  */
-export function readAlternateReviewerModel(
-  cwd: string,
-  reviewer: ReviewAgent,
-  kind?: ReviewKind,
-): string | undefined {
+export function readAlternateReviewerModel(cwd: string, reviewer: ReviewAgent): string | undefined {
   return (
     readReviewerModel(cwd, reviewer, 'ALTERNATE', 'crossAgentReviewAlternateModel') ??
-    (kind === 'plan-execution' ? undefined : DEFAULT_ALTERNATE_MODEL[reviewer])
+    DEFAULT_ALTERNATE_MODEL[reviewer]
   );
 }
 

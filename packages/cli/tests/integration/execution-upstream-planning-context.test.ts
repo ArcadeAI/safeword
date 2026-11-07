@@ -5,9 +5,9 @@ import process from 'node:process';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
 import { PLAN_REVIEW_RUBRIC } from '../../src/review/plan-rubric.generated.js';
+import { EXECUTION_PLAN_SAMPLES } from '../fixtures/execution-plan-samples.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import {
@@ -23,9 +23,7 @@ const specPath = `${folder}/spec.md`;
 const target = `${folder}/execution-plan.md`;
 const implementationPath = `${folder}/impl-plan.md`;
 const scenarioPath = `${folder}/behavior.feature`;
-const delivery = EXECUTION_PLAN_CONFORMANCE_CASES.find(
-  candidate => candidate.id === 'one-coherent-change',
-);
+const delivery = EXECUTION_PLAN_SAMPLES.find(candidate => candidate.id === 'one-coherent-change');
 if (delivery === undefined) throw new Error('Missing canonical Execution Plan fixture');
 const executionPlan = delivery.execution_plan;
 const implementation =

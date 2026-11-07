@@ -72,67 +72,6 @@ Feature: Keep bounded planning reviews trustworthy for plan authors
         | succeeds | never runs |
         | actually fails with an eligible typed failure | follows that failure |
 
-  @plan-implementability.TBU4.T3E4NS.R5
-  Rule: plan-implementability.TBU4.T3E4NS.R5 — Saved observations remain bounded headless evidence
-
-    Scenario: Completed observations survive termination
-      Given a live worker has checkpointed paired headless results and raw observations
-      When it is killed before teardown
-      Then the exact completed result and its paired raw observation remain readable
-
-    Scenario Outline: Retained reuse checks current identity before any reviewer launch
-      Given valid paired completed headless observations and a requested identity with <identity_state>
-      When retained reuse preflight runs
-      Then <result>
-
-      Examples:
-        | identity_state | result |
-        | matching current contract, corpus and exact model | the retained observation is readable and execution proceeds |
-        | a changed expected contract | reuse refuses before launch |
-        | acceptance corpus markers in the request | reuse refuses before launch |
-        | public CLI dispatch markers in the request | reuse refuses before launch |
-        | an omitted exact model | reuse refuses before launch |
-        | replay mode markers in the request | reuse refuses before launch |
-
-    Scenario Outline: Corrupt or unconfirmed retained output refuses
-      Given an otherwise valid retained checkpoint
-      When its raw output has <invalid_state>
-      Then reading the checkpoint refuses with <diagnostic>
-
-      Examples:
-        | invalid_state | diagnostic |
-        | missing confirmation | exact model confirmation |
-        | wrong model | exact model confirmation |
-        | wrong provider | exact model confirmation |
-        | unpaired case identity | paired raw observation |
-        | CLI dispatch mode | headless |
-        | replay dispatch mode | headless |
-
-  @plan-implementability.TBU4.T3E4NS.R6 @surface.safeword-cli
-  Rule: plan-implementability.TBU4.T3E4NS.R6 — Admission follows current exact-model passing observations
-
-    Scenario Outline: Qualification evidence refuses incomplete or failed matrices
-      Given <matrix_state> conformance records for an exact reviewer identity
-      When admission evidence is built
-      Then <result>
-
-      Examples:
-        | matrix_state | result |
-        | complete current passing | evidence records the exact identity and all case IDs |
-        | incomplete | admission evidence is refused |
-        | containing a failed observation | admission evidence is refused |
-
-    Scenario Outline: Route admission binds exact identity and current input bytes
-      Given complete passing admission evidence with <binding>
-      When configured explicit model routes are filtered
-      Then <result>
-
-      Examples:
-        | binding | result |
-        | the matching exact model and current input digests | the matching explicit route is retained |
-        | a different exact model | the requested explicit route is absent |
-        | mismatched contract or corpus digests | no route is retained |
-
   @plan-implementability.TBU4.T3E4NS.R7 @surface.safeword-cli
   Rule: plan-implementability.TBU4.T3E4NS.R7 — Copy corruption refuses before reviewer dispatch
 

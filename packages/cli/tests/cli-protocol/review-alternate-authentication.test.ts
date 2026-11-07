@@ -12,7 +12,7 @@ import {
 
 afterAll(cleanupTrustedReviewerDirectories);
 
-/** The default model times out before the alternate exposes expired auth. */
+/** The primary (latest Sol) times out before the alternate exposes expired auth. */
 function installTimedOutPrimaryWithUnauthenticatedAlternate(host: string): string {
   const bin = nodePath.join(host, 'bin');
   mkdirSync(bin, { recursive: true });
@@ -23,7 +23,7 @@ function installTimedOutPrimaryWithUnauthenticatedAlternate(host: string): strin
 set -eu
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\n' '${REVIEWER_CAPABILITIES.codex}'; exit 0; fi
 printf 'codex\n' >> "$SAFEWORD_REVIEW_ROUTE_LOG"
-if printf '%s' "$*" | /usr/bin/grep -q -- '--model'; then
+if printf '%s' "$*" | /usr/bin/grep -q -- 'vendor-model-2'; then
   printf 'not logged in\n' >&2
   exit 1
 fi

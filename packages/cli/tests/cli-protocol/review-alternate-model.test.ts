@@ -172,7 +172,7 @@ describe('alternate-model review route', () => {
         JSON.stringify(payload.data.execution_attestation),
       );
       expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(
-        reviewer === 'claude' ? ['opus', 'vendor-model-2'] : ['vendor-model-2'],
+        reviewer === 'claude' ? ['opus', 'vendor-model-2'] : ['gpt-6.1-sol', 'vendor-model-2'],
       );
     },
   );
@@ -238,7 +238,7 @@ describe('alternate-model review route', () => {
       });
       // The required cross-agent check is satisfied by the alternate model.
       expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(
-        reviewer === 'claude' ? ['opus', 'vendor-model-2'] : ['vendor-model-2'],
+        reviewer === 'claude' ? ['opus', 'vendor-model-2'] : ['gpt-6.1-sol', 'vendor-model-2'],
       );
     },
   );
@@ -444,7 +444,7 @@ describe('alternate-model review route', () => {
     );
   });
 
-  it('passes no model at all when none is configured', async () => {
+  it('asks Codex for the latest Sol first when no model is configured', async () => {
     const directory = createTemporaryDirectory();
     const modelLog = nodePath.join(directory, 'model.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
@@ -475,12 +475,12 @@ describe('alternate-model review route', () => {
       },
     );
 
-    // The reviewer refuses without a model, so the exhausted result and absent
-    // model log together prove the real executable ran without `--model`.
+    // With no configured model, the real executable is asked for the latest Sol.
     const payload = JSON.parse(result.stdout) as { data: Record<string, unknown> };
-    expect(payload.data).toMatchObject({ status: 'blocked', independence: 'none' });
-    expect(payload.data.preferred_failure).toBe('process_failed');
-    expect(payload.data).not.toHaveProperty('reviewer_model');
-    expect(() => readFileSync(modelLog, 'utf8')).toThrow();
+    expect(payload.data).toMatchObject({
+      reviewer_model: 'gpt-6.1-sol',
+      independence: 'cross-agent',
+    });
+    expect(readFileSync(modelLog, 'utf8').trim().split('\n', 1)[0]).toBe('gpt-6.1-sol');
   });
 });

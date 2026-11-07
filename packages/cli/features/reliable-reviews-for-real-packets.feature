@@ -174,11 +174,11 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the reviewer is asked to review on that model
 
     @rejection
-    Scenario: An unusable configured model is treated as none configured
+    Scenario: An unusable configured model is replaced by the built-in fallback
       Given a configured alternate model outside the accepted grammar
       And the reviewer agent's default model never answers
       When the independent review runs
-      Then the reviewer is never asked for a review on an alternate model
+      Then the built-in Terra fallback is used instead of the unusable model
 
   @reliable-reviews-for-real-packets.TBU3.R4 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.TBU3.R4 — A later route starts only when the shared run bound can still fund a meaningful attempt
@@ -194,7 +194,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Given a configured alternate model for the reviewer agent
       And the run bound is reached while an early route is still working
       When the independent review runs
-      Then the reviewer is never asked for a review on an alternate model
+      Then the reviewer is never asked for a review on the configured alternate model
 
   @reliable-reviews-for-real-packets.TBU3.R5 @surface.claude-code
   Rule: reliable-reviews-for-real-packets.TBU3.R5 — Every route is tried in a fixed order; the run bound stops any route whose reviewer has not exited with valid output before its deadline

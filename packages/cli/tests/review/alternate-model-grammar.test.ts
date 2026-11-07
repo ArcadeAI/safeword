@@ -78,11 +78,11 @@ describe('the alternate model grammar', () => {
     expect(readAlternateReviewerModel(directory, 'claude')).toBe('sonnet');
   });
 
-  it('leaves Codex model selection to its authenticated profile by default', () => {
+  it('defaults Codex reviews to the latest Sol with a Terra fallback', () => {
     const directory = projectConfiguring(undefined);
 
-    expect(readPrimaryReviewerModel(directory, 'codex')).toBeUndefined();
-    expect(readAlternateReviewerModel(directory, 'codex')).toBeUndefined();
+    expect(readPrimaryReviewerModel(directory, 'codex')).toBe('gpt-6.1-sol');
+    expect(readAlternateReviewerModel(directory, 'codex')).toBe('gpt-6.1-terra');
   });
 
   it('allows the Claude defaults to be overridden independently', () => {
@@ -132,8 +132,8 @@ describe('the alternate model grammar', () => {
     ['a leading hyphen', '-sonnet'],
     ['one character too long', 'a'.repeat(201)],
     ['a non-string', 42],
-  ])('treats %s as no model configured', (_label, model) => {
-    expect(readAlternateReviewerModel(projectConfiguring(model), 'codex')).toBeUndefined();
+  ])('ignores %s and keeps the built-in Codex fallback', (_label, model) => {
+    expect(readAlternateReviewerModel(projectConfiguring(model), 'codex')).toBe('gpt-6.1-terra');
   });
 
   it('falls through to the configured value when the environment override is unusable', () => {

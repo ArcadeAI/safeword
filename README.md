@@ -427,10 +427,12 @@ immutable packet.
 Independent review never blocks. Independence means a different agent
 reviewed: Claude reviewing Codex-authored work, or the reverse. Whenever no
 different agent can review, for any reason (not installed, not signed in,
-failed, unqualified for the review kind, or out of run budget), Safeword falls
+failed, or out of run budget), Safeword falls
 back to the same agent. The receipt names the actual reviewer and records
 reduced independence, which still satisfies the phase gate. A signed-out
 reviewer is reported with its sign-in command rather than pausing the review.
+Every review uses the latest Opus or Sol first and may retry on Sonnet or
+Terra; reviewers are not qualified per review kind.
 
 Planning reviews check both missing accepted work and proposed work beyond the
 user's scope. Product Plans inventory each accepted persona's consequential

@@ -55,48 +55,6 @@
       "packages/cli/tests/integration/planning-review-route-order.test.ts",
       "tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, and model is pinned %s"
     ],
-    "Completed observations survive termination": [
-      [
-        "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
-        "retains completed raw observations when the worker is killed before teardown"
-      ]
-    ],
-    "Corrupt or unconfirmed retained output refuses": [
-      [
-        "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
-        "rejects retained passing evidence with $label"
-      ]
-    ],
-    "Retained reuse checks current identity before any reviewer launch": [
-      [
-        "packages/cli/tests/integration/execution-plan-checkpoint.test.ts",
-        "checks retained metadata before any reviewer launch ($label)"
-      ]
-    ],
-    "Qualification evidence refuses incomplete or failed matrices": [
-      [
-        "packages/cli/tests/review/execution-plan-conformance.test.ts",
-        "writes evidence only after every case passes for each exact identity"
-      ],
-      [
-        "packages/cli/tests/review/execution-plan-conformance.test.ts",
-        "refuses to write evidence from %s"
-      ]
-    ],
-    "Route admission binds exact identity and current input bytes": [
-      [
-        "packages/cli/tests/review/execution-plan-conformance.test.ts",
-        "admits exact models and explicit runtime defaults without conflating them"
-      ],
-      [
-        "packages/cli/tests/review/execution-plan-conformance.test.ts",
-        "preserves admitted degraded labeling and deterministically exhausts an empty set"
-      ],
-      [
-        "packages/cli/tests/review/execution-plan-conformance.test.ts",
-        "rejects evidence bound to any other contract or fixture corpus bytes"
-      ]
-    ],
     "Corrupt reviewer copies refuse and the canonical pair dispatches": [
       [
         "packages/cli/tests/review/execution-plan-contract-identity.test.ts",

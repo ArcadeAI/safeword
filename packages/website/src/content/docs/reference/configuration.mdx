@@ -207,9 +207,11 @@ Only `crossAgentReviewRoutes` is user-scoped today; review policy and legacy pri
 
 The former `require` value is retired and read as `prefer`: independent review never blocks. A signed-out independent reviewer is a failed route like any other; Safeword falls back and names that reviewer's sign-in command so a later run can regain independent coverage.
 
-Without `crossAgentReviewRoutes`, Execution Plan review selects exact defaults
-`claude-opus-5` and `gpt-6-astra`. Other review kinds retain Claude's `opus`
-primary and `sonnet` alternate, and Codex's authenticated profile. Override
+Without `crossAgentReviewRoutes`, every review kind uses each agent's latest
+flagship first and retries on its smaller sibling: Claude `opus` then `sonnet`
+(aliases that track the newest release), and Codex `gpt-6.1-sol` then
+`gpt-6.1-terra`. Codex has no "latest" alias, so Safeword releases update those
+names when a new Sol or Terra ships. Override
 either legacy route per agent with `crossAgentReviewPrimaryModel` or
 `crossAgentReviewAlternateModel`; environment variables
 `SAFEWORD_REVIEW_PRIMARY_MODEL_CLAUDE`, `SAFEWORD_REVIEW_PRIMARY_MODEL_CODEX`,
@@ -221,12 +223,9 @@ Invalid legacy environment selectors fall through to the configured selector;
 invalid configured selectors fall through to the built-in default. Explicit
 `crossAgentReviewRoutes` entries instead reject unsafe identifiers.
 
-Reviewer selectors are not ranked against the author's model. A review completed
-by a different agent records `cross-agent` independence; a review completed by
-the author's own agent records reduced independence. Execution Plan review still
-launches only reviewer identities admitted by the packaged Execution Plan
-conformance results; when none can run, the review falls back rather than
-blocking.
+Reviewers are not qualified or ranked against the author's model. A review
+completed by a different agent records `cross-agent` independence; a review
+completed by the author's own agent records reduced independence.
 
 Cursor planning uses the built-in Claude/Codex chain unless explicit routes
 replace it. Non-planning Cursor reviews need an explicit compatible independent route in

@@ -19,7 +19,10 @@ function fixtureFailure(
   const environment = process.env;
   if (environment.SAFEWORD_TEST_REVIEWERS_FAIL === '1')
     return { message: 'fixture reviewer failure', terminal: false };
-  if (environment.SAFEWORD_TEST_PRIMARY_FAILS === '1' && model === undefined)
+  if (
+    environment.SAFEWORD_TEST_PRIMARY_FAILS === '1' &&
+    (model === undefined || model === 'gpt-6.1-sol')
+  )
     return { message: 'fixture primary failure', terminal: false };
   if (model !== undefined && model === environment.SAFEWORD_TEST_TERMINAL_MODEL)
     return { message: 'fixture alternate could not be stopped', terminal: true };

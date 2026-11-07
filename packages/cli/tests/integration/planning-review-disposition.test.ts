@@ -10,8 +10,8 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
-import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { parseFrontmatter } from '../../templates/hooks/lib/hierarchy.js';
+import { EXECUTION_PLAN_SAMPLES } from '../fixtures/execution-plan-samples.js';
 import {
   createConfiguredProject,
   createTemporaryDirectory,
@@ -35,9 +35,7 @@ type Kind = 'quality-review' | 'plan-implementation' | 'plan-execution';
 type PromptEdit = string | { path: string; before: string; after: string };
 
 function executionFixture() {
-  const plan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
-    row => row.id === 'one-coherent-change',
-  )?.execution_plan;
+  const plan = EXECUTION_PLAN_SAMPLES.find(row => row.id === 'one-coherent-change')?.execution_plan;
   if (plan === undefined) throw new Error('Missing accepted execution fixture');
   const parsed = parseDeliveryPlanContract(plan);
   if (!parsed.ok) throw new Error(parsed.message);
