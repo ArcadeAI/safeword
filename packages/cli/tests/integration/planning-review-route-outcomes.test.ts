@@ -258,6 +258,26 @@ it.each(['prefer', 'require'] as const)(
   },
 );
 
+it('hands a planning review to the host when the run budget cannot fund any route', async () => {
+  const { project, ticket } = await planningFixture();
+  // A route needs at least the per-review timeout; a smaller run bound funds none.
+  vi.stubEnv('SAFEWORD_REVIEW_TIMEOUT_MS', '5000');
+  vi.stubEnv('SAFEWORD_REVIEW_RUN_BOUND_MS', '1000');
+  const result = await runReview({
+    cwd: project,
+    kind: 'plan-implementation',
+    targets: [`${ticket}/impl-plan.md`],
+    context: [`${ticket}/spec.md`],
+  });
+  expect(result.data).toMatchObject({
+    status: 'continuation_required',
+    continuation: { tier: 'fresh-context' },
+    review_routes: [{ reviewer: 'codex', status: 'unattempted' }],
+  });
+  expect(result.findings.map(finding => finding.code)).not.toContain('REVIEW_ROUTES_EXHAUSTED');
+  expect(dispatchedPackets).toHaveLength(0);
+});
+
 it('uses the pinned medium effort for planning review', async () => {
   const { project, ticket } = await planningFixture();
   await runReview({

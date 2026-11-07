@@ -59243,11 +59243,7 @@ function rankedTerminalResult(input) {
 function hostContinuationResult(input) {
   if (!input.planning || input.degraded !== undefined)
     return;
-  const everyRouteTried = input.evidence.every((route) => route.status !== "unattempted");
-  const headlessFailed = input.evidence.some((route) => route.independence === "degraded" && ["attempted", "unavailable"].includes(route.status) && route.failure !== undefined);
   const headlessRoute = input.evidence.some((route) => route.independence === "degraded");
-  if (!everyRouteTried || headlessRoute && !headlessFailed)
-    return;
   return createResult({
     state: "action_required",
     findings: [
@@ -60432,13 +60428,7 @@ function isContinuationResultData(data, state) {
   return state === "action_required" && data.review_policy === "prefer" && data.independence === "none" && ["claude", "codex", "cursor", "opencode"].includes(String(data.author_agent)) && ["fresh-context", "self-review"].includes(String(continuation?.tier)) && typeof continuation?.instructions === "string" && continuation.instructions.length > 0 && packet?.schema_version === 1 && typeof packet.dispatch_id === "string" && packet.dispatch_id.length > 0 && Array.isArray(files) && files.length > 0 && files.every((file) => typeof plainRecord2(file)?.path === "string" && typeof plainRecord2(file)?.content === "string") && hasExhaustedRoutesForHostContinuation(data.review_routes);
 }
 function hasExhaustedRoutesForHostContinuation(value) {
-  if (!Array.isArray(value))
-    return false;
-  const routes = value.map((route) => plainRecord2(route));
-  const exhausted = routes.every((route) => route !== undefined && route.status !== "unattempted" && (route.status === "skipped" || typeof route.failure === "string"));
-  const headlessFailed = routes.some((route) => route?.independence === "degraded" && ["attempted", "unavailable"].includes(String(route.status)) && typeof route.failure === "string");
-  const headlessRoute = routes.some((route) => route?.independence === "degraded");
-  return exhausted && (!headlessRoute || headlessFailed);
+  return Array.isArray(value) && value.every((route) => plainRecord2(route) !== undefined);
 }
 function isCompletedReviewData(data, state) {
   const output = data.reviewer_output;

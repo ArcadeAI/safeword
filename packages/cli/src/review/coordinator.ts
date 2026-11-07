@@ -986,17 +986,10 @@ function hostContinuationResult(input: {
   readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
 }): CliResult | undefined {
   // No reviewer completed. A planning review then continues on the host as a
-  // fresh-context review rather than blocking, whatever made the routes fail.
+  // fresh-context review rather than blocking, whatever stopped the routes:
+  // failure, unavailability, or a run budget too small to fund the rest.
   if (!input.planning || input.degraded !== undefined) return undefined;
-  const everyRouteTried = input.evidence.every(route => route.status !== 'unattempted');
-  const headlessFailed = input.evidence.some(
-    route =>
-      route.independence === 'degraded' &&
-      ['attempted', 'unavailable'].includes(route.status) &&
-      route.failure !== undefined,
-  );
   const headlessRoute = input.evidence.some(route => route.independence === 'degraded');
-  if (!everyRouteTried || (headlessRoute && !headlessFailed)) return undefined;
   return createResult({
     state: 'action_required',
     findings: [
