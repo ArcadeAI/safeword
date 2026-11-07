@@ -11,6 +11,23 @@ import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
 const dispatchedPackets = vi.hoisted(() => [] as { dispatch_id: string }[]);
 const dispatchedEfforts = vi.hoisted(() => [] as (string | undefined)[]);
 
+/** Which configured fixture failure, if any, this reviewer launch raises. */
+function fixtureFailure(
+  reviewer: string,
+  model: string | undefined,
+): { readonly message: string; readonly terminal: boolean } | undefined {
+  const environment = process.env;
+  if (environment.SAFEWORD_TEST_REVIEWERS_FAIL === '1')
+    return { message: 'fixture reviewer failure', terminal: false };
+  if (environment.SAFEWORD_TEST_PRIMARY_FAILS === '1' && model === undefined)
+    return { message: 'fixture primary failure', terminal: false };
+  if (model !== undefined && model === environment.SAFEWORD_TEST_TERMINAL_MODEL)
+    return { message: 'fixture alternate could not be stopped', terminal: true };
+  if (environment.SAFEWORD_TEST_TERMINAL_FAILURE === '1' && reviewer !== 'claude')
+    return { message: 'fixture reviewer could not be stopped', terminal: true };
+  return undefined;
+}
+
 function fixtureRejects(reviewer: string): boolean {
   return reviewer !== 'claude' && process.env.SAFEWORD_TEST_INDEPENDENT_REJECTION === '1';
 }
@@ -33,11 +50,10 @@ vi.mock('../../src/review/runtime.js', async importOriginal => {
     ) => {
       dispatchedPackets.push(packet);
       dispatchedEfforts.push(options.effort);
-      if (process.env.SAFEWORD_TEST_REVIEWERS_FAIL === '1')
-        return Promise.reject(new RuntimeError('process_failed', 'fixture reviewer failure'));
-      if (process.env.SAFEWORD_TEST_TERMINAL_FAILURE === '1' && reviewer !== 'claude')
+      const failure = fixtureFailure(reviewer, options.model);
+      if (failure !== undefined)
         return Promise.reject(
-          new RuntimeError('process_failed', 'fixture reviewer could not be stopped', true),
+          new RuntimeError('process_failed', failure.message, failure.terminal),
         );
       return Promise.resolve({
         output: {
@@ -312,6 +328,25 @@ it('hands a planning review to the host after a terminal reviewer failure withou
   });
   expect(result.findings.map(finding => finding.code)).not.toContain('REVIEW_ROUTES_EXHAUSTED');
   expect(dispatchedPackets).toHaveLength(1);
+});
+
+it('launches no further reviewer after an ordinary review alternate cannot be stopped', async () => {
+  const { project, configPath, config } = await planningFixture();
+  vi.stubEnv('SAFEWORD_TEST_PRIMARY_FAILS', '1');
+  vi.stubEnv('SAFEWORD_TEST_TERMINAL_MODEL', 'alt-model');
+  const { crossAgentReviewRoutes: _routes, ...withoutRoutes } = config as Record<string, unknown>;
+  writeFileSync(
+    configPath,
+    JSON.stringify({ ...withoutRoutes, crossAgentReviewAlternateModel: { codex: 'alt-model' } }),
+  );
+  writeFileSync(nodePath.join(project, 'notes.md'), '# Ordinary review\n\nNo planning contract.\n');
+  const result = await runReview({ cwd: project, kind: 'quality-review', targets: ['notes.md'] });
+  expect(result.data).toMatchObject({
+    status: 'blocked',
+    alternate_model: 'alt-model',
+    alternate_model_failure: 'process_failed',
+  });
+  expect(dispatchedPackets).toHaveLength(2);
 });
 
 it('uses the pinned medium effort for planning review', async () => {

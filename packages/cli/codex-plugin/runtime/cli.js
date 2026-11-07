@@ -59673,7 +59673,7 @@ async function runRemainingRoutes(input) {
     return alternate.result;
   const alternateFailure = alternate.kind === "failed" ? alternate.failure : undefined;
   const alternateModel = alternate.kind === "failed" ? alternate.model : undefined;
-  if (!canFundRoute(input.runDeadline)) {
+  if (endsHeadlessLaunches(alternate, input.runDeadline)) {
     return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
   }
   const independent = await runIndependentFallback({
@@ -59686,7 +59686,7 @@ async function runRemainingRoutes(input) {
   if (independent.kind === "completed")
     return independent.result;
   const independentFallbackFailure = independent.kind === "failed" ? independent.failure : undefined;
-  if (!canFundRoute(input.runDeadline)) {
+  if (endsHeadlessLaunches(independent, input.runDeadline)) {
     return exhaustedRunResult({
       ...input,
       alternateFailure,
@@ -59700,6 +59700,9 @@ async function runRemainingRoutes(input) {
     alternateModel,
     independentFallbackFailure
   });
+}
+function endsHeadlessLaunches(outcome, runDeadline) {
+  return outcome.kind === "failed" && outcome.terminal === true || !canFundRoute(runDeadline);
 }
 function exhaustedRunResult(input) {
   return createResult({

@@ -1643,7 +1643,7 @@ async function runRemainingRoutes(
   // never happened and must not be reported as a route that failed.
   const alternateFailure = alternate.kind === 'failed' ? alternate.failure : undefined;
   const alternateModel = alternate.kind === 'failed' ? alternate.model : undefined;
-  if (!canFundRoute(input.runDeadline)) {
+  if (endsHeadlessLaunches(alternate, input.runDeadline)) {
     return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
   }
   const independent = await runIndependentFallback({
@@ -1656,7 +1656,7 @@ async function runRemainingRoutes(
   if (independent.kind === 'completed') return independent.result;
   const independentFallbackFailure =
     independent.kind === 'failed' ? independent.failure : undefined;
-  if (!canFundRoute(input.runDeadline)) {
+  if (endsHeadlessLaunches(independent, input.runDeadline)) {
     return exhaustedRunResult({
       ...input,
       alternateFailure,
@@ -1672,7 +1672,15 @@ async function runRemainingRoutes(
   });
 }
 
-/** The run bound arrived before a later route could be funded. */
+/** A reviewer that could not be stopped, or a spent run budget, ends headless launches. */
+function endsHeadlessLaunches(
+  outcome: { readonly kind: string; readonly terminal?: boolean },
+  runDeadline: number,
+): boolean {
+  return (outcome.kind === 'failed' && outcome.terminal === true) || !canFundRoute(runDeadline);
+}
+
+/** No later route can run: the budget is spent or a reviewer could not be stopped. */
 function exhaustedRunResult(input: {
   readonly author: ReviewAgent;
   readonly assignedReviewer: ReviewAgent;
