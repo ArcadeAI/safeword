@@ -928,6 +928,88 @@ describe('cross-agent review public-command wiring', () => {
     expect(existsSync(reviewLog)).toBe(false);
   });
 
+  it('gives a Claude-authored Execution Plan a reduced review from the admitted Claude route when no Codex reviewer is admitted', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    const acceptedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      testCase => testCase.id === 'one-coherent-change',
+    )?.execution_plan;
+    if (acceptedPlan === undefined) throw new Error('Missing accepted slicing fixture');
+    const acceptedContract = parseDeliveryPlanContract(acceptedPlan);
+    if (!acceptedContract.ok) throw new Error(acceptedContract.message);
+    writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), acceptedPlan);
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
+    // Both CLIs are installed; only the Claude identity is admitted for Execution Plan review.
+    const bin = installFakeReviewer(directory, 'claude');
+    installFakeReviewer(directory, 'codex');
+    const executionPlanRecord = JSON.stringify({
+      slicing_decision: 'one_pull_request',
+      rationale: 'One coherent activation change.',
+      slices: [
+        {
+          name: 'Complete delivery',
+          purpose: 'Deliver the complete typed Execution Plan review capability.',
+          boundary: 'The complete reviewed delivery boundary.',
+          prerequisites: [],
+          proof: 'The real CLI integration test passes.',
+          completion_signal: 'The command retains an admitted approval.',
+          relies_on_unmerged_successor: false,
+        },
+      ],
+      obligation_owners: [{ obligation: 'Accepted behavior', slices: ['Complete delivery'] }],
+      decision_statuses: [{ decision: 'Use one coordinator', status: 'unchanged' }],
+      accepted_scenarios_covered: true,
+      accepted_approach_preserved: true,
+      normalized_plan_digest: normalizedExecutionPlanDigest(acceptedPlan),
+      delivery_definition: createExecutionPlanDeliveryDefinition(acceptedContract, false),
+    });
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'plan-execution',
+        '.project/tickets/T1-feature/execution-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/impl-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/behavior.feature',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: executionPlanRecord,
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    const output = JSON.parse(result.stdout) as {
+      findings: readonly { code: string }[];
+      data: Record<string, unknown>;
+    };
+    expect(output.data).toMatchObject({
+      status: 'approved',
+      review_kind: 'plan-execution',
+      actual_reviewer: 'claude',
+      independence: 'reduced',
+    });
+    expect(output.findings.map(finding => finding.code)).not.toContain('REVIEW_ROUTES_EXHAUSTED');
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude']);
+  });
+
   it('activates Execution Plan review only for a ticket-owned plan through an admitted route', async () => {
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');
