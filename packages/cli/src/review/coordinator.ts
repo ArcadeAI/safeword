@@ -759,9 +759,12 @@ function rankedFailureResult(input: {
   );
   // A signed-out reviewer is a failed route like any other: fall back and say why.
   if (!terminal) return undefined;
+  // A reviewer that could not be stopped ends headless launches for this run.
   input.evidence.push(
     ...input.remainingRoutes.map(route => ({ ...route, status: 'unattempted' as const })),
   );
+  // Planning still never blocks: the caller hands the sealed packet to the host.
+  if (input.planning) return undefined;
   return rankedExhaustedResult({
     author: input.author,
     policy: input.policy,
@@ -853,6 +856,7 @@ function preparedRankedPacket(
   );
 }
 
+// eslint-disable-next-line sonarjs/cognitive-complexity -- The loop preserves route order across completed, failed, skipped, and unfunded routes.
 async function runConfiguredRankedRoutes({
   input,
   author,
@@ -915,6 +919,7 @@ async function runConfiguredRankedRoutes({
           degraded,
         });
         if (result !== undefined) return result;
+        if (assessment.terminal) break;
         continue;
       }
 

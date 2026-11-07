@@ -17,7 +17,11 @@ function fixtureRejects(reviewer: string): boolean {
 
 vi.mock('../../src/review/runtime.js', async importOriginal => {
   const actual = await importOriginal<Record<string, unknown>>();
-  const RuntimeError = actual.ReviewRuntimeError as new (failure: string, message: string) => Error;
+  const RuntimeError = actual.ReviewRuntimeError as new (
+    failure: string,
+    message: string,
+    terminal?: boolean,
+  ) => Error;
   return {
     ...actual,
     runHeadlessReviewerWithProvenance: (
@@ -31,6 +35,10 @@ vi.mock('../../src/review/runtime.js', async importOriginal => {
       dispatchedEfforts.push(options.effort);
       if (process.env.SAFEWORD_TEST_REVIEWERS_FAIL === '1')
         return Promise.reject(new RuntimeError('process_failed', 'fixture reviewer failure'));
+      if (process.env.SAFEWORD_TEST_TERMINAL_FAILURE === '1' && reviewer !== 'claude')
+        return Promise.reject(
+          new RuntimeError('process_failed', 'fixture reviewer could not be stopped', true),
+        );
       return Promise.resolve({
         output: {
           schema_version: 1,
@@ -276,6 +284,34 @@ it('hands a planning review to the host when the run budget cannot fund any rout
   });
   expect(result.findings.map(finding => finding.code)).not.toContain('REVIEW_ROUTES_EXHAUSTED');
   expect(dispatchedPackets).toHaveLength(0);
+});
+
+it('hands a planning review to the host after a terminal reviewer failure without launching more reviewers', async () => {
+  const { project, ticket, configPath, config } = await planningFixture();
+  vi.stubEnv('SAFEWORD_TEST_TERMINAL_FAILURE', '1');
+  writeFileSync(
+    configPath,
+    JSON.stringify({
+      ...config,
+      crossAgentReviewRoutes: { claude: [{ reviewer: 'codex' }, { reviewer: 'claude' }] },
+    }),
+  );
+  const result = await runReview({
+    cwd: project,
+    kind: 'plan-implementation',
+    targets: [`${ticket}/impl-plan.md`],
+    context: [`${ticket}/spec.md`],
+  });
+  expect(result.data).toMatchObject({
+    status: 'continuation_required',
+    continuation: { tier: 'fresh-context' },
+    review_routes: [
+      { reviewer: 'codex', status: 'attempted', failure: 'process_failed' },
+      { reviewer: 'claude', status: 'unattempted' },
+    ],
+  });
+  expect(result.findings.map(finding => finding.code)).not.toContain('REVIEW_ROUTES_EXHAUSTED');
+  expect(dispatchedPackets).toHaveLength(1);
 });
 
 it('uses the pinned medium effort for planning review', async () => {

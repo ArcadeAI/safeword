@@ -59086,6 +59086,8 @@ function rankedFailureResult(input) {
   if (!terminal)
     return;
   input.evidence.push(...input.remainingRoutes.map((route) => ({ ...route, status: "unattempted" })));
+  if (input.planning)
+    return;
   return rankedExhaustedResult({
     author: input.author,
     policy: input.policy,
@@ -59190,6 +59192,8 @@ async function runConfiguredRankedRoutes({
         });
         if (result !== undefined)
           return result;
+        if (assessment.terminal)
+          break;
         continue;
       }
       evidence.push({ ...route, status: "attempted" });
