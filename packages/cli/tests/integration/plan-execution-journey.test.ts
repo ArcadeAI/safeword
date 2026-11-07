@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -396,6 +397,14 @@ describe('Execution Plan cold-start journey', () => {
         nodePath.resolve(nodePath.dirname(PACKAGED_CLI), '../templates'),
         nodePath.join(receiptPluginRoot, 'templates'),
         { recursive: true },
+      );
+      // dist/ is code-split and imports its declared runtime dependencies (for example
+      // `yaml`), so give the copied install the package's resolved node_modules, as a
+      // real install has, instead of relying on which chunk a command happens to load.
+      symlinkSync(
+        nodePath.resolve(nodePath.dirname(PACKAGED_CLI), '../node_modules'),
+        nodePath.join(receiptPluginRoot, 'node_modules'),
+        'dir',
       );
       // Outside the project: trusted CLIs ignore a key root project code could write.
       const reviewKeyRoot = createTrustedReviewerDirectory('safeword-review-keys-');
