@@ -59,7 +59,7 @@ function projectConfiguringPrimary(model: unknown): string {
 }
 
 describe('the alternate model grammar', () => {
-  it('defaults a missing config to prefer but fails closed when an existing config is malformed', () => {
+  it('defaults a missing or malformed config to prefer', () => {
     const missing = mkdtempSync(nodePath.join(tmpdir(), 'safeword-missing-policy-'));
     directories.push(missing);
     const malformed = mkdtempSync(nodePath.join(tmpdir(), 'safeword-malformed-policy-'));
@@ -68,7 +68,7 @@ describe('the alternate model grammar', () => {
     writeFileSync(nodePath.join(malformed, '.safeword', 'config.json'), '{');
 
     expect(readReviewPolicy(missing)).toBe('prefer');
-    expect(readReviewPolicy(malformed)).toBe('require');
+    expect(readReviewPolicy(malformed)).toBe('prefer');
   });
 
   it('defaults Claude reviews to Opus with a Sonnet fallback', () => {

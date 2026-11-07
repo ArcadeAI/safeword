@@ -685,12 +685,6 @@ function isContinuationResultData(data: Record<string, unknown>, state: unknown)
 function hasExhaustedRoutesForHostContinuation(value: unknown): boolean {
   if (!Array.isArray(value)) return false;
   const routes = value.map(route => plainRecord(route));
-  const exhaustedIndependent = routes.some(
-    route =>
-      route?.independence === 'cross-agent' &&
-      typeof route.failure === 'string' &&
-      route.status === 'attempted',
-  );
   const exhausted = routes.every(
     route =>
       route !== undefined &&
@@ -704,7 +698,7 @@ function hasExhaustedRoutesForHostContinuation(value: unknown): boolean {
       typeof route.failure === 'string',
   );
   const headlessRoute = routes.some(route => route?.independence === 'degraded');
-  return exhaustedIndependent && exhausted && (!headlessRoute || headlessFailed);
+  return exhausted && (!headlessRoute || headlessFailed);
 }
 
 function isCompletedReviewData(data: Record<string, unknown>, state: unknown): boolean {

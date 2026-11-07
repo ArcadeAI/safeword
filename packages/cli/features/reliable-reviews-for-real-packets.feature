@@ -227,12 +227,12 @@ Feature: Keep independent reviews reliable for real ticket packets
         | Codex  | Claude   | claude-small-review  |
         | Codex  | Claude   | claude-large-review  |
 
-    @rejection
-    Scenario: A required review refuses an author-runtime result
+    Scenario: A retired required policy returns an author-runtime result labelled as not independent
       Given a required cross-agent review policy
       And only the author's own runtime completed the review
       When a builder runs the public review command
-      Then the command reports the required check as unsatisfied
+      Then the review returns a verdict
+      And the result reports that the check was not independent
 
   @reliable-reviews-for-real-packets.NTB1.R1 @surface.claude-code @surface.openai-codex
   Rule: reliable-reviews-for-real-packets.NTB1.R1 — When both routes fail, the explanation names each route's own cause, not one generic failure
@@ -267,7 +267,7 @@ Feature: Keep independent reviews reliable for real ticket packets
       Then the explanation contains neither that output nor the credential
 
   @reliable-reviews-for-real-packets.NTB1.R3 @surface.claude-code
-  Rule: reliable-reviews-for-real-packets.NTB1.R3 — A review that ran but was not independent still never satisfies a required cross-agent check
+  Rule: reliable-reviews-for-real-packets.NTB1.R3 — A review that ran but was not independent is always labelled as not independent
 
     Scenario: A preferred policy still returns a verdict labelled as not independent
       Given a preferred cross-agent review policy
@@ -277,8 +277,9 @@ Feature: Keep independent reviews reliable for real ticket packets
       And the result reports that the check was not independent
 
     @rejection
-    Scenario: A required cross-agent check is not satisfied by the author reviewing itself
+    Scenario: A retired required policy never relabels the author reviewing itself as independent
       Given a required cross-agent review policy
       And only the author's own runtime completed the review
       When the review result is reported
-      Then the required cross-agent check is not satisfied
+      Then the review returns a verdict
+      And the result reports that the check was not independent

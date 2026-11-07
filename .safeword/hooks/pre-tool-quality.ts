@@ -33,17 +33,12 @@ import { hasInspirationActivationCandidate } from './lib/inspiration.ts';
 import { classifyAnnotation, isValidSha, isValidSkipReason } from './lib/parse-annotation.ts';
 import { classifyPrReadinessCommand, evaluatePrReadiness } from './lib/pr-readiness-guard.ts';
 import {
-  AUTHOR_MODEL_ENV,
   detectPhaseAdvance,
   gatePhaseAdvance,
   hashArtifact,
-  isCrossModelReviewRequired,
-  isSatisfyingCoordinatorReviewStamp,
   isReviewGateEnabled,
   reviewGateAppliesToPhase,
-  modelsMatch,
   parseReviewStamps,
-  readCrossAgentReviewPolicy,
   type ReviewStamp,
   reviewGateForNextAsset,
   reviewScope,
@@ -278,22 +273,6 @@ function reviewGateAppliesTo(phase: string): boolean {
   );
 }
 
-// Whether phase-exit reviews must run on a different model than the author
-// (ticket 7A0B2K, reusing MR5M3A's `crossModelReview` knob). Off by default.
-function isCrossModelOn(): boolean {
-  const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
-  return isCrossModelReviewRequired(
-    existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
-  );
-}
-
-function crossAgentReviewPolicy() {
-  const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
-  return readCrossAgentReviewPolicy(
-    existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
-  );
-}
-
 /** The receipt check's verdict from one trusted CLI run, or undefined when it gave no valid result. */
 function receiptGateVerdict(
   run: { status: number | null; stdout: string },
@@ -486,13 +465,8 @@ function recordedReviewStamps(): ReviewStamp[] {
   return parseReviewStamps(readFileSync(logFile, 'utf8'));
 }
 
-function readReviewStamps(scope: string, requirePinnedReviewerModel = false): ReviewStamp[] {
-  return verifiedStamps(
-    recordedReviewStamps(),
-    projectDirectory,
-    scope,
-    requirePinnedReviewerModel,
-  );
+function readReviewStamps(scope: string): ReviewStamp[] {
+  return verifiedStamps(recordedReviewStamps(), projectDirectory, scope);
 }
 
 /**
@@ -824,7 +798,7 @@ if (
         hashArtifact(specContent),
       );
       const stamps = readReviewStamps(priorScope);
-      if (!reviewGateForNextAsset(priorScope, stamps, crossAgentReviewPolicy()).ok) {
+      if (!reviewGateForNextAsset(priorScope, stamps).ok) {
         deny(
           'spec.md has not been reviewed at its current content. Review it (or log a skip with a reason) before writing scenarios.',
           'Run `/self-review` (or log a skip), then create test-definitions.md.',
@@ -990,11 +964,7 @@ if (isCanonicalTicketEdit) {
       const planContent = existsSync(planPath) ? readFileSync(planPath, 'utf8') : '';
       const ticketScope = nodePath.basename(ticketDirectory);
       const planScope = reviewScope(ticketScope, 'impl-plan', hashArtifact(planContent));
-      const reviewVerdict = reviewGateForNextAsset(
-        planScope,
-        readReviewStamps(planScope),
-        crossAgentReviewPolicy(),
-      );
+      const reviewVerdict = reviewGateForNextAsset(planScope, readReviewStamps(planScope));
       if (!reviewVerdict.ok) {
         const planScopePrefix = `${ticketScope}:impl-plan@`;
         const hasSupersededReview = recordedReviewStamps().some(
@@ -1175,39 +1145,11 @@ if (isCanonicalTicketEdit) {
     const ticketDirectory = nodePath.dirname(editedFile);
     const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
     const stamps = readReviewStamps(phaseScope);
-    if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
+    if (!gatePhaseAdvance(phaseScope, stamps).ok) {
       deny(
         `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
         `Run \`safeword review run ${reviewKindForPhase(exitedPhase)} <ticket.md and the work this phase produced>\`, then record its author_agent, actual_reviewer, independence, review id, and reviewer_model with \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\`. To stop gating this exit, narrow \`reviewGate\` in .safeword/config.json to the phases you want (or set it to false).`,
       );
-    }
-    // Ceiling-raiser (7A0B2K): under cross-model, a real-review stamp must record a
-    // model different from the author. Evaluate over ALL real-review stamps at this
-    // scope (the log is append-only, so a corrected re-review can follow a same-model
-    // attempt) — pass if any is cross-model. A logged skip records no real-review
-    // stamp, so it deliberately bypasses this, matching the arch-gate's escape valve.
-    else if (
-      isCrossModelOn() &&
-      !stamps.some(
-        stamp =>
-          stamp.scope === phaseScope &&
-          stamp.skipReason !== undefined &&
-          isValidSkipReason(stamp.skipReason),
-      )
-    ) {
-      const modelVerifiedStamps = readReviewStamps(phaseScope, true);
-      const realReviews = modelVerifiedStamps.filter(stamp =>
-        isSatisfyingCoordinatorReviewStamp(phaseScope, stamp, crossAgentReviewPolicy()),
-      );
-      const hasCrossModelReview = realReviews.some(
-        s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
-      );
-      if (!hasCrossModelReview) {
-        deny(
-          `Phase "${exitedPhase}" review (cross-model): the phase review must be performed by a different model than the author.`,
-          `Re-run the phase's \`safeword review run\` command with a different configured reviewer model, then record the returned provenance and reviewer_model via \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
-        );
-      }
     }
   }
 }

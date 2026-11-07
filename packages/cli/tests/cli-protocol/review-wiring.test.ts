@@ -1269,7 +1269,7 @@ describe('cross-agent review public-command wiring', () => {
     expect(readFileSync(reviewLog, 'utf8').trim()).toBe('claude');
   });
 
-  it('fails closed before dispatch when no configured route has current admission', async () => {
+  it('hands the review to the host before dispatch when no configured route has current admission', async () => {
     const executionPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
       testCase => testCase.id === 'one-coherent-change',
     )?.execution_plan;
@@ -1321,8 +1321,8 @@ describe('cross-agent review public-command wiring', () => {
 
     expect(result.exitCode, result.stdout).toBe(2);
     expect(JSON.parse(result.stdout)).toMatchObject({
-      findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
-      data: { status: 'blocked', review_kind: 'plan-execution', review_routes: [] },
+      findings: [{ code: 'REVIEW_CONTINUATION_REQUIRED' }],
+      data: { status: 'continuation_required', review_kind: 'plan-execution', review_routes: [] },
     });
     expect(existsSync(reviewLog)).toBe(false);
   });
@@ -1839,20 +1839,12 @@ describe('cross-agent review public-command wiring', () => {
         state: 'action_required',
         findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
         effects: { network: [] },
-        recovery:
-          policy === 'require'
-            ? [
-                {
-                  command: 'safeword review run quality-review -- review-input.md',
-                  description:
-                    'Run this review in an environment with a usable independent reviewer.',
-                },
-              ]
-            : [],
+        recovery: [],
         data: {
           status: 'blocked',
           author_agent: 'cursor',
-          review_policy: policy,
+          // The retired require policy reads as prefer.
+          review_policy: 'prefer',
           independence: 'none',
         },
       });
@@ -2070,7 +2062,7 @@ describe('cross-agent review public-command wiring', () => {
       expect(JSON.parse(result.stdout)).toMatchObject({
         state: 'failed',
         errors: [{ code: 'REVIEWER_WRITE_ATTEMPT' }],
-        data: { review_policy: policy, independence: 'none' },
+        data: { review_policy: 'prefer', independence: 'none' },
       });
     },
   );
@@ -3125,16 +3117,6 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it('blocks after OpenCode fails under require policy', async () => {
-    await expectOpenCodeFailure({
-      routeFailure: 'process',
-      recordedFailure: 'process_failed',
-      policy: 'require',
-      exitCode: 2,
-      state: 'action_required',
-    });
-  });
-
   it('records a timed-out OpenCode route without independent evidence', async () => {
     await expectOpenCodeFailure({
       routeFailure: 'timeout',
@@ -3264,82 +3246,6 @@ describe('cross-agent review public-command wiring', () => {
       expect(readFileSync(log, 'utf8')).toBe(`${author}\n${author}\n`);
     },
   );
-
-  it('does not let a degraded fallback satisfy hard cross-agent enforcement', async () => {
-    const directory = createTemporaryDirectory();
-    const log = nodePath.join(directory, 'review.log');
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, '.safeword', 'config.json'),
-      JSON.stringify({ crossAgentReview: 'require' }),
-    );
-    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'codex');
-    installFakeReviewer(directory, 'claude');
-
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'quality-review',
-        'review-input.md',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: {
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_REVIEW_FAKE_FAILURE: 'process',
-          SAFEWORD_REVIEW_FAKE_FAILURE_AGENT: 'codex',
-          SAFEWORD_REVIEW_LOG: log,
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-        },
-      },
-    );
-
-    const output = JSON.parse(result.stdout);
-    expect(result.exitCode).toBe(2);
-    expect(output).toMatchObject({
-      state: 'action_required',
-      recovery: [
-        {
-          command: 'safeword review run quality-review -- review-input.md',
-          description: 'Restore the Codex reviewer, then retry the independent review.',
-        },
-      ],
-      data: {
-        status: 'blocked',
-        assigned_reviewer: 'codex',
-        actual_reviewer: 'claude',
-        preferred_failure: 'process_failed',
-        review_policy: 'require',
-        independence: 'degraded',
-      },
-    });
-    const humanResult = await runCli(
-      ['review', 'run', 'quality-review', 'review-input.md', '--no-input', '--cwd', directory],
-      {
-        cwd: directory,
-        env: {
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_REVIEW_FAKE_FAILURE: 'process',
-          SAFEWORD_REVIEW_FAKE_FAILURE_AGENT: 'codex',
-          SAFEWORD_REVIEW_LOG: log,
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-        },
-      },
-    );
-    expect(humanResult.stdout.split('\n', 1)[0]).toBe(
-      'Review blocked — standard coverage achieved; required independent coverage is unsatisfied.',
-    );
-    expect(humanResult.stdout).toContain(output.findings[0].message);
-    expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\ncodex\nclaude\n');
-  });
 
   it('blocks with one recovery action after exhausting safe review routes', async () => {
     const directory = createTemporaryDirectory();

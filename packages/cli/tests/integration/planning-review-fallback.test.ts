@@ -26,33 +26,17 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-async function assertPolicyFlip(
-  enabled: boolean,
-  project: string,
-  ticket: string,
-  environment: Record<string, string>,
-): Promise<void> {
+function setRetiredRequirePolicy(enabled: boolean, project: string): void {
   if (!enabled) return;
+  // The retired require policy reads as prefer, so admission below must still succeed.
   const configPath = nodePath.join(project, '.safeword/config.json');
-  const previous = readFileSync(configPath, 'utf8');
-  writeFileSync(
-    configPath,
-    JSON.stringify({ ...JSON.parse(previous), crossAgentReview: 'require' }),
-  );
-  const refused = await runCli(
-    ['ticket', 'approve-plan', 'FAL123', '--cwd', project, '--json', '--no-input'],
-    { cwd: project, env: environment },
-  );
-  expect(refused.exitCode, refused.stdout).toBe(2);
-  expect(JSON.parse(refused.stdout).findings).toContainEqual(
-    expect.objectContaining({
-      message: expect.stringContaining('current require policy needs cross-agent review'),
-    }),
-  );
-  expect(readFileSync(nodePath.join(project, ticket, 'ticket.md'), 'utf8')).toContain(
-    'phase: plan-implementation',
-  );
-  writeFileSync(configPath, previous);
+  const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+  writeFileSync(configPath, JSON.stringify({ ...config, crossAgentReview: 'require' }));
+}
+
+/** Claude reviewing OpenCode's work is a different agent; every other author reviewed itself. */
+function expectedIndependence(author: string): 'cross-agent' | 'reduced' {
+  return author === 'opencode' ? 'cross-agent' : 'reduced';
 }
 
 describe('planning fallback after independent route exhaustion', () => {
@@ -259,7 +243,7 @@ describe('planning fallback after independent route exhaustion', () => {
       status: 'approved',
       review_kind: 'plan-implementation',
       actual_reviewer: author === 'opencode' ? 'claude' : author,
-      independence: 'reduced',
+      independence: expectedIndependence(author),
     });
     expect(output.findings).not.toContainEqual(
       expect.objectContaining({ code: 'REVIEW_INDEPENDENCE_DEGRADED' }),
@@ -287,7 +271,7 @@ describe('planning fallback after independent route exhaustion', () => {
       '--reviewer-agent',
       author === 'opencode' ? 'claude' : author,
       '--independence',
-      'reduced',
+      expectedIndependence(author),
       '--review-id',
       output.data.review_id,
       '--phase',
@@ -340,13 +324,15 @@ describe('planning fallback after independent route exhaustion', () => {
     if (stamp.status !== 0) {
       throw new Error(`stamp failed: ${stamp.stdout}\n${stamp.stderr}\n${stamp.error ?? ''}`);
     }
-    await assertPolicyFlip(options.flipPolicy === true, project, ticket, environment);
+    setRetiredRequirePolicy(options.flipPolicy === true, project);
     const approved = await runCli(
       ['ticket', 'approve-plan', 'FAL123', '--cwd', project, '--json', '--no-input'],
       { cwd: project, env: environment },
     );
     expect(approved.exitCode, approved.stdout).toBe(0);
-    expect(JSON.parse(approved.stdout).data).toMatchObject({ achieved_independence: 'reduced' });
+    expect(JSON.parse(approved.stdout).data).toMatchObject({
+      achieved_independence: expectedIndependence(author),
+    });
     expect(readFileSync(nodePath.join(project, ticket, 'ticket.md'), 'utf8')).toContain(
       'phase: plan-execution',
     );
@@ -373,7 +359,7 @@ describe('planning fallback after independent route exhaustion', () => {
     ).toMatchObject({ achieved_independence: 'reduced' });
   });
 
-  it('refuses a reduced receipt after policy changes to require', async () => {
+  it('admits a reduced receipt under the retired require policy', async () => {
     expect(
       await reviewThroughAdmission(false, 'claude', false, false, { flipPolicy: true }),
     ).toMatchObject({ achieved_independence: 'reduced' });
@@ -393,7 +379,7 @@ describe('planning fallback after independent route exhaustion', () => {
 
   it('admits an OpenCode-authored review through its authenticated receipt without a Claude session', async () => {
     expect(await reviewThroughAdmission(false, 'opencode')).toMatchObject({
-      achieved_independence: 'reduced',
+      achieved_independence: 'cross-agent',
     });
   });
 });

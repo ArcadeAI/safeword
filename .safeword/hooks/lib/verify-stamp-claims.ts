@@ -101,7 +101,6 @@ export function verifiedStamps(
   stamps: readonly ReviewStamp[],
   projectDirectory: string,
   scope: string,
-  requirePinnedReviewerModel = false,
 ): ReviewStamp[] {
   const readReceipt = createReviewReceiptReader(projectDirectory);
   let claimContext: ReturnType<typeof reviewClaimContext> | undefined;
@@ -127,11 +126,6 @@ export function verifiedStamps(
       });
       if (claim === undefined) return false;
 
-      const receipt = readReceipt(stamp.reviewId);
-      if (!receiptGateVerdict(claim, receipt).ok) return false;
-      return (
-        !requirePinnedReviewerModel ||
-        (stamp.model !== undefined && receipt?.reviewerModel === stamp.model)
-      );
+      return receiptGateVerdict(claim, readReceipt(stamp.reviewId)).ok;
     });
 }

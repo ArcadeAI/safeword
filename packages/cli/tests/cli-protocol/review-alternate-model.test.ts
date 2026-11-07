@@ -400,7 +400,7 @@ describe('alternate-model review route', () => {
     expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(['opus', 'sonnet']);
   });
 
-  it('refuses to let the author reviewing itself satisfy a required check', async () => {
+  it('labels the author reviewing itself as degraded instead of blocking', async () => {
     const directory = createTemporaryDirectory();
     const modelLog = nodePath.join(directory, 'model.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
@@ -435,11 +435,13 @@ describe('alternate-model review route', () => {
       data: Record<string, unknown>;
     };
     expect(payload.data).toMatchObject({
-      status: 'blocked',
+      status: 'approved',
       actual_reviewer: 'claude',
       independence: 'degraded',
     });
-    expect(payload.findings.map(finding => finding.code)).toContain('REVIEW_INDEPENDENCE_REQUIRED');
+    expect(payload.findings.map(finding => finding.code)).not.toContain(
+      'REVIEW_INDEPENDENCE_REQUIRED',
+    );
   });
 
   it('passes no model at all when none is configured', async () => {

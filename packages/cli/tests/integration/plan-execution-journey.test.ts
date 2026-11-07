@@ -523,7 +523,7 @@ describe('Execution Plan cold-start journey', () => {
             '--reviewer-agent',
             'claude',
             '--independence',
-            'reduced',
+            'cross-agent',
             '--review-id',
             result.data.review_id,
           ],

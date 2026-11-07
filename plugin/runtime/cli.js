@@ -3610,11 +3610,11 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/DISCOVERY.md": "9d8f44d62752433582ce76ea019716a09fabcfb3af65c9fc644dd60972372557",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_EXECUTION.md": "b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "7097df93aee9e2050d756a20b7518eb2c3663ca63a3fc5c8ee72518401a493f4",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "f2755439c7903b47122775b6707d5275ed5d5bffb2a37b5cefaa190a276aa171",
         ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
         ".claude/skills/bdd/SKILL.md": "898e21405b0735f13087e3c986df79b2a6428309536cb43d77f5c57777f1bd90",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "db5fa9697dc4c3c7c65f539587150b2ee8c484d1d6f78a94fb0551b3db270cfb",
+        ".claude/skills/bdd/TDD.md": "f18f14822d63c7a91199ca4a0d0277a1d7e5521156980a2f7e259ceaea1c93ef",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -3625,14 +3625,14 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/explain/SKILL.md": "6673eccef3a9e68659c4e4b81b1e63bf9da03b1ae802dc7d22f419cb7c65472d",
         ".claude/skills/figure-it-out/SKILL.md": "18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d",
         ".claude/skills/finish-review/REVIEWER.md": "9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7",
-        ".claude/skills/finish-review/SKILL.md": "707ba187ea4f8f77cf5523b1fa4cf75c7ef48458b358f63ab147901ad560546f",
+        ".claude/skills/finish-review/SKILL.md": "003936abdb031d977fc46341e01135f0d63e953511874693f2dfcbab1c57d96f",
         ".claude/skills/lint/SKILL.md": "f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14",
         ".claude/skills/pr-readiness/SKILL.md": "42fc32b8bef9a50d85c5d9ac81dcb3edab91f9d92c3e6bfe842fbabba2eed749",
-        ".claude/skills/quality-review/SKILL.md": "ef63c3ca21b2c383c46d143fec48d229b4e17675015a77e858638dbefbdcfbac",
+        ".claude/skills/quality-review/SKILL.md": "18074e344da7036621dfae6c53d082957ef5c5f6b0d0032c04b7d06bbf59bc47",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "c437336466eedacbac427d85841e6137757a4d81864fefc9317569412c0ebc78",
         ".claude/skills/retro/SKILL.md": "da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb",
-        ".claude/skills/review-spec/SKILL.md": "c8f780832cf160bbae051b59a8e6a1e0510558996170a04caefc0ae19c6f0e9b",
+        ".claude/skills/review-spec/SKILL.md": "e84a6da34e0adbc49446fc253bab119cb8ff1467db4628080e6f6a124bfd0380",
         ".claude/skills/self-review/SKILL.md": "7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "ae59212a4d368359c3144bde65bb18caaa02fb15590ca72398f15ad507679c70",
@@ -3652,13 +3652,12 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "32b7dc3cd73b8a0361625489238ce88bff32ce01ea27ffcec65d39ceafcb8fdb",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "3e2071275815d93ca154aa0af8d0b766087f3b4824b31fc511dd62112e7369dc",
+        ".safeword/hooks/pre-tool-quality.ts": "0182b1726ade1b7e0f035202d87fca254cb9b371e9b4b9830fdd740a1b834e8e",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
         ".safeword/hooks/prompt-timestamp.ts": "d7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3",
         ".safeword/hooks/session-architecture-heal.ts": "142c5a5358d57c9a587019f6e37fe84ed604638d1963e1c28eea12db2a8439f3",
-        ".safeword/hooks/session-author-model.ts": "9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291",
         ".safeword/hooks/session-auto-upgrade.ts": "51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0",
         ".safeword/hooks/session-bun-check.sh": "47e97a2f787228347213521d8391ab6b001e19270aed8e2795f13d6ea0603c29",
         ".safeword/hooks/session-cleanup-quality.ts": "b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2",
@@ -3669,7 +3668,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
-        ".safeword/hooks/stop-quality.ts": "d0bfeac753eb4a2a7f1cc89f8e0f9592546ef52cb9cb923845880e387dfd7274",
+        ".safeword/hooks/stop-quality.ts": "8081f7d919d1432e519007ebbd658a3a9fb32e12266bc176604886b7cec1d163",
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "ecdb55e277a4188e5daf1c9a9de3f5e28bed724a14064e374eb4db10a9d0921e",
@@ -3685,7 +3684,6 @@ var init_historical_catalogue_generated = __esm(() => {
           "9ecd49f0d9143ba458f3db192dbe811184c6666ea3e74f9bf1d34d310dd0ba33",
           "eaaf5018219f6868c77b5e78e40363a77fd3cd18f6d92890677196616d7ef97d",
           "8c7cf4fdb7cbecebcb4a9f3ec16cdf6aa777c1dfcf7110cb432798c86e31276c",
-          "82821d39ad90cc6d81c5ac22a97e68ecafbba6cf1281ae1c875d0503a26f6d3f",
           "f859fd42b853152ccfb4352e25d9b0c5026ab169d5c20291422395988e22e923",
           "d3086b18bd08c1fc5779951d6d2162bf15ca2ccfc9ac689b7f38007bf27a1bc8"
         ],
@@ -15211,7 +15209,6 @@ var init_config = __esm(() => {
       hook(`bun ${HOOKS_DIR}/session-version.ts`),
       hook(`bun ${HOOKS_DIR}/session-lint-check.ts`),
       hook(`bun ${HOOKS_DIR}/session-architecture-heal.ts`),
-      hook(`bun ${HOOKS_DIR}/session-author-model.ts`),
       hook(`bun ${HOOKS_DIR}/session-start-reentry.ts`),
       matchedHook("compact", `bun ${HOOKS_DIR}/session-compact-context.ts`)
     ],
@@ -16340,6 +16337,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/stop-quality.sh",
       ".safeword/hooks/cursor/after-file-edit.sh",
       ".safeword/hooks/cursor/stop.sh",
+      ".safeword/hooks/session-author-model.ts",
       ".safeword/lib/common.sh",
       ".safeword/lib/jq-fallback.sh",
       ".claude/skills/safeword-enforcing-tdd/SKILL.md",
@@ -16583,9 +16581,6 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       },
       ".safeword/hooks/session-architecture-heal.ts": {
         template: "hooks/session-architecture-heal.ts"
-      },
-      ".safeword/hooks/session-author-model.ts": {
-        template: "hooks/session-author-model.ts"
       },
       ".safeword/hooks/session-compact-context.ts": {
         template: "hooks/session-compact-context.ts"
@@ -31585,7 +31580,7 @@ function readCrossAgentReviewPolicy(rawConfig) {
     if (typeof config !== "object" || config === null)
       return "prefer";
     const value = config.crossAgentReview;
-    return value === "require" || value === "off" ? value : "prefer";
+    return value === "off" ? "off" : "prefer";
   } catch {
     return "prefer";
   }
@@ -31620,7 +31615,7 @@ function parseReviewStamps(logContent) {
   }
   return stamps;
 }
-var COORDINATOR_CLAIMS, REVIEW_LINE, AUTHOR_MODEL_ENV = "SAFEWORD_AUTHOR_MODEL";
+var COORDINATOR_CLAIMS, REVIEW_LINE;
 var init_review_ledger = __esm(() => {
   init_parse_annotation();
   COORDINATOR_CLAIMS = new Set(["cross-agent", "reduced", "degraded"]);
@@ -31831,7 +31826,6 @@ var init_preferences = __esm(() => {
 var exports_policy = {};
 __export(exports_policy, {
   reviewRoutePlan: () => reviewRoutePlan,
-  reviewPolicyAllowsAssurance: () => reviewPolicyAllowsAssurance,
   readReviewPolicy: () => readReviewPolicy,
   readPrimaryReviewerModel: () => readPrimaryReviewerModel,
   readConfiguredReviewRoutes: () => readConfiguredReviewRoutes,
@@ -31942,14 +31936,11 @@ function readReviewPolicy(cwd) {
     const raw = readFileSync29(nodePath44.join(cwd, ".safeword", "config.json"), "utf8");
     const config = JSON.parse(raw);
     if (typeof config !== "object" || config === null || Array.isArray(config))
-      return "require";
+      return "prefer";
     return readCrossAgentReviewPolicy(raw);
-  } catch (error2) {
-    return error2.code === "ENOENT" ? "prefer" : "require";
+  } catch {
+    return "prefer";
   }
-}
-function reviewPolicyAllowsAssurance(cwd, independence) {
-  return readReviewPolicy(cwd) !== "require" || independence === "cross-agent";
 }
 var DEFAULT_PRIMARY_MODEL, DEFAULT_ALTERNATE_MODEL, EXECUTION_PRIMARY_MODEL;
 var init_policy = __esm(() => {
@@ -32286,13 +32277,8 @@ function readFrontmatterScalar(content, field) {
 }
 
 // src/review/capability-catalogue.generated.ts
-var PACKAGED_CAPABILITY_REVISION, PACKAGED_CAPABILITY_SETTINGS, PACKAGED_CAPABILITY_PAIRS;
+var PACKAGED_CAPABILITY_SETTINGS;
 var init_capability_catalogue_generated = __esm(() => {
-  PACKAGED_CAPABILITY_REVISION = {
-    corpus_digest: "8d21738cf94eb7ecefcc0c9fab21edfa76aa7675e5586fd43553a4615cf62c9e",
-    rubric_digest: "aabd225cd0c21f04539a08744d4f58e3b0132615862d40a4d637edad69dfd478",
-    settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d"
-  };
   PACKAGED_CAPABILITY_SETTINGS = {
     anthropic_model: "claude-opus-5",
     openai_model: "gpt-6-astra",
@@ -32302,61 +32288,12 @@ var init_capability_catalogue_generated = __esm(() => {
     review_timeout_ms: "600000",
     review_run_bound_ms: "1800000"
   };
-  PACKAGED_CAPABILITY_PAIRS = [
-    {
-      corpus_digest: "8d21738cf94eb7ecefcc0c9fab21edfa76aa7675e5586fd43553a4615cf62c9e",
-      rubric_digest: "aabd225cd0c21f04539a08744d4f58e3b0132615862d40a4d637edad69dfd478",
-      settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
-      author_provider: "anthropic",
-      author_model: "claude-opus-5",
-      reviewer_provider: "openai",
-      reviewer_model: "gpt-6-astra",
-      direction: "not_weaker",
-      qualification: "pinned-corpus",
-      evidence_date: "2026-10-21",
-      results_digest: "b351531639cc189798389099daf095f84acbc6586dac455cd3c0c3d863af3f16"
-    },
-    {
-      corpus_digest: "8d21738cf94eb7ecefcc0c9fab21edfa76aa7675e5586fd43553a4615cf62c9e",
-      rubric_digest: "aabd225cd0c21f04539a08744d4f58e3b0132615862d40a4d637edad69dfd478",
-      settings_digest: "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
-      author_provider: "openai",
-      author_model: "gpt-6-astra",
-      reviewer_provider: "anthropic",
-      reviewer_model: "claude-opus-5",
-      direction: "not_weaker",
-      qualification: "pinned-corpus",
-      evidence_date: "2026-10-21",
-      results_digest: "8b18a67715b718720ce0bae5ccf49d37c7229c6ef75511dba7043f6d3bff818d"
-    }
-  ];
 });
 
 // src/review/capability-catalogue.ts
-function matchesRevision(record, current) {
-  return record.corpus_digest === current.corpus_digest && record.rubric_digest === current.rubric_digest && record.settings_digest === current.settings_digest;
-}
-function hasQualifiedEvidence(record) {
-  return record.qualification !== "unqualified" && record.author_provider !== "" && record.reviewer_provider !== "" && (record.qualification !== "provider-order" || record.author_provider === record.reviewer_provider) && record.evidence_date !== "" && record.results_digest !== "";
-}
-function compareReviewerCapability(author, reviewer, current, records) {
-  const matching = records.filter((record) => record.author_provider === author.provider && record.author_model === author.model && record.reviewer_provider === reviewer.provider && record.reviewer_model === reviewer.model && matchesRevision(record, current) && hasQualifiedEvidence(record));
-  return matching.length === 1 ? matching[0]?.direction ?? "unknown" : "unknown";
-}
-function reviewerCapabilityFailure(author, requestedModel, confirmed, current, records) {
-  if (requestedModel === undefined || confirmed?.model !== requestedModel)
-    return "reviewer_capability_unknown";
-  const comparison = compareReviewerCapability(author, confirmed, current, records);
-  if (comparison === "weaker")
-    return "reviewer_capability_weaker";
-  return comparison === "not_weaker" ? undefined : "reviewer_capability_unknown";
-}
-var PACKAGED_CAPABILITY_REVISION2, PACKAGED_CAPABILITY_PAIRS2;
 var init_capability_catalogue = __esm(() => {
   init_capability_catalogue_generated();
   init_capability_catalogue_generated();
-  PACKAGED_CAPABILITY_REVISION2 = PACKAGED_CAPABILITY_REVISION;
-  PACKAGED_CAPABILITY_PAIRS2 = PACKAGED_CAPABILITY_PAIRS;
 });
 
 // src/execution-plan/delivery-checklist.ts
@@ -36849,7 +36786,7 @@ var init_contracts_generated = __esm(() => {
     },
     "plan-implementation": {
       relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      sha256: "7097df93aee9e2050d756a20b7518eb2c3663ca63a3fc5c8ee72518401a493f4"
+      sha256: "f2755439c7903b47122775b6707d5275ed5d5bffb2a37b5cefaa190a276aa171"
     },
     "plan-execution": {
       relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
@@ -36883,7 +36820,7 @@ function readPlanningAuthor(root, phase, identity, verifyWholeCopy = true) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase, verifyWholeCopy = true) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "8fe3812619a384e569571e00548b2b168dbdbd55f1f06ccacf1fa14bdf5d6a7c" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } };
+  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "571d445190f5c5791ebed2454a841ea70d63cbb2a1f4d2a65e32ffebf5b607b3" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "63bf87b2b350efc6127a5a251f301f3e429137baf2a988b61b1b22a86425284c" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "2c04a8957a40a26484f001038840406b239d16de33826b7574a63a5f29b72b67" } };
   return readPlanningAuthor(packageRoot(), phase, copies[phase], verifyWholeCopy);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {
@@ -58790,7 +58727,7 @@ function verifyProvenance(output, assignedReviewer, dispatchId) {
   return { kind: "verified", output };
 }
 function independentReviewResult(input) {
-  const result = createResult({
+  return createResult({
     state: input.output.verdict === "approve" ? "healthy" : "action_required",
     findings: [
       {
@@ -58831,30 +58768,6 @@ function independentReviewResult(input) {
       reviewer_output: input.output
     }
   });
-  return withPlanningAuthorCapability(input, result);
-}
-function withPlanningAuthorCapability(input, result) {
-  const authorModel = process.env[AUTHOR_MODEL_ENV];
-  if (!(input.planning ?? isPlanningReview2(input.kind)) || input.author === "claude" && authorModel !== undefined && authorModel.trim() !== "")
-    return result;
-  return {
-    ...result,
-    state: input.policy === "require" ? "action_required" : result.state,
-    findings: [
-      {
-        code: "AUTHOR_CAPABILITY_UNKNOWN",
-        message: "This host did not provide a verified exact author model for the planning review.",
-        severity: "warning"
-      },
-      ...result.findings.filter((finding) => finding.code !== "REVIEW_INDEPENDENCE")
-    ],
-    data: {
-      ...result.data,
-      status: input.policy === "require" ? "blocked" : result.data.status,
-      independence: input.policy === "require" ? "none" : "reduced",
-      capability_failure: "author_capability_unknown"
-    }
-  };
 }
 function reviewerFeedback(output) {
   return [
@@ -59004,8 +58917,6 @@ function nextStepFor(reviewer, failure) {
     return `Run ${name} --help to diagnose it, then retry review.`;
   if (failure === "launch_failed")
     return `Run ${name} --help and fix its launch failure, then retry review.`;
-  if (failure === "reviewer_capability_unknown" || failure === "reviewer_capability_weaker")
-    return `Pin a supported exact reviewer model for ${name}, then retry review.`;
   return "Run the review again.";
 }
 function degradedDescription(assignedReviewer, actualReviewer, failure) {
@@ -59026,13 +58937,7 @@ function unsupportedAuthorResult(input) {
         severity: "warning"
       }
     ],
-    recovery: input.policy === "require" ? [
-      {
-        command: retryCommand(input.kind, input.targets, input.context),
-        description: "Run this review in an environment with a usable independent reviewer.",
-        requiresHuman: true
-      }
-    ] : [],
+    recovery: [],
     data: {
       command: "review run",
       status: "blocked",
@@ -59104,15 +59009,8 @@ function rankedFailureExplanation(evidence) {
     return `${agentName(route.reviewer)}${model} ${causePhrase(route.failure)}.`;
   }).join(" ");
 }
-function rankedBlockingCode(hasDegraded, hasUnqualified, hasWeaker) {
-  if (hasDegraded)
-    return "REVIEW_INDEPENDENCE_REQUIRED";
-  if (hasUnqualified)
-    return "REVIEWER_CAPABILITY_UNKNOWN";
-  return hasWeaker ? "REVIEWER_CAPABILITY_WEAKER" : "REVIEW_ROUTES_EXHAUSTED";
-}
 function rankedExhaustedResult(input) {
-  if (input.degraded !== undefined && input.policy === "prefer") {
+  if (input.degraded !== undefined) {
     return createResult({
       state: input.degraded.output.verdict === "approve" ? "healthy" : "action_required",
       findings: [
@@ -59136,27 +59034,18 @@ function rankedExhaustedResult(input) {
     });
   }
   const evaluated = input.evidence.filter((route) => ["attempted", "unavailable"].includes(route.status));
-  const hasDegraded = input.degraded !== undefined;
-  const achievedIndependence = hasDegraded ? "degraded" : "none";
-  const independence = hasDegraded && input.planning ? "reduced" : achievedIndependence;
   const evaluatedLabel = evaluated.length === 1 ? "route was" : "routes were";
-  const hasWeaker = input.evidence.some((route) => route.failure === "reviewer_capability_weaker");
-  const hasUnknown = input.unqualified !== undefined || input.evidence.some((route) => route.failure === "reviewer_capability_unknown");
-  const code = rankedBlockingCode(hasDegraded, hasUnknown, hasWeaker);
   const failureExplanation = rankedFailureExplanation(input.evidence);
   const failureDetail = failureExplanation === "" ? "" : ` ${failureExplanation}`;
-  const message = hasDegraded ? "A same-agent review completed, but the configured independent-review requirement remains unsatisfied." : `${evaluated.length} configured review ${evaluatedLabel} evaluated; no independent check was recorded.${failureDetail}`;
   const firstFailure = input.evidence.find((route) => route.failure !== undefined);
   return createResult({
     state: "action_required",
     findings: [
       {
-        code,
-        message,
+        code: "REVIEW_ROUTES_EXHAUSTED",
+        message: `${evaluated.length} configured review ${evaluatedLabel} evaluated; no reviewer completed.${failureDetail}`,
         severity: "warning"
-      },
-      ...input.unqualified === undefined ? [] : reviewerFeedback(input.unqualified.output),
-      ...hasDegraded ? reviewerFeedback(input.degraded.output) : []
+      }
     ],
     effects: { network: rankedNetworkEffects(input.evidence) },
     recovery: [
@@ -59171,24 +59060,8 @@ function rankedExhaustedResult(input) {
       status: "blocked",
       author_agent: input.author,
       review_policy: input.policy,
-      independence,
-      review_routes: input.evidence,
-      ...hasUnknown && { capability_failure: "reviewer_capability_unknown" },
-      ...input.unqualified !== undefined && {
-        actual_reviewer: input.unqualified.output.reviewer_agent,
-        reviewer_output: input.unqualified.output
-      },
-      ...!hasUnknown && hasWeaker && {
-        capability_failure: "reviewer_capability_weaker"
-      },
-      ...input.degraded !== undefined && {
-        assigned_reviewer: input.degraded.route.reviewer,
-        actual_reviewer: input.degraded.output.reviewer_agent,
-        ...input.degraded.route.model !== undefined && {
-          reviewer_model: input.degraded.route.model
-        },
-        reviewer_output: input.degraded.output
-      }
+      independence: "none",
+      review_routes: input.evidence
     }
   });
 }
@@ -59248,8 +59121,7 @@ function rankedFailureResult(input) {
     targets: input.run.targets,
     context: input.run.context,
     evidence: input.evidence,
-    degraded: input.degraded,
-    unqualified: input.unqualified
+    degraded: input.degraded
   });
 }
 async function executeRankedRoute(input) {
@@ -59281,53 +59153,14 @@ async function runRankedRoutes({
   planning,
   prepared
 }) {
-  if (planning && routes.every((route) => route.independence !== "cross-agent")) {
-    prepared?.cleanup();
-    return rankedExhaustedResult({
-      author,
-      policy,
-      kind: input.kind,
-      planning,
-      targets: input.targets,
-      context: input.context,
-      evidence: routes.map((route) => ({ ...route, status: "unattempted" }))
-    });
-  }
   return runConfiguredRankedRoutes({ input, author, policy, routes, planning, prepared });
 }
-function cannotAttemptRankedRoute(planning, route, evidence, deadline) {
-  return !canFundRoute(deadline) || planningFallbackLacksIndependentExhaustion(planning, route, evidence);
-}
-function rankedReviewerCapabilityFailure(planning, author, route, confirmedModel2) {
-  const authorModel = process.env[AUTHOR_MODEL_ENV];
-  if (!planning || author !== "claude" || authorModel === undefined || authorModel.trim() === "")
-    return;
-  return reviewerCapabilityFailure({ provider: "anthropic", model: authorModel }, route.model, confirmedModel2, PACKAGED_CAPABILITY_REVISION2, PACKAGED_CAPABILITY_PAIRS2);
-}
-function retainUnqualifiedRejection(current, output, route) {
-  return current?.output.verdict === "request_changes" ? current : { output, route };
-}
-function unqualifiedReviewFeedback(retained) {
-  if (retained?.output.verdict !== "request_changes")
-    return [];
-  return reviewerFeedback(retained.output).map((finding) => ({
-    code: "REVIEW_UNQUALIFIED_FEEDBACK",
-    severity: finding.severity === "error" ? "warning" : finding.severity,
-    message: terminalSafeReviewerText(`Earlier unqualified ${agentName(retained.route.reviewer)} feedback: ${finding.message}`)
-  }));
+function cannotAttemptRankedRoute(deadline) {
+  return !canFundRoute(deadline);
 }
 function preparedRankedPacket(input, existing) {
   return existing ?? prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
     attestation: input.executionAttestation
-  });
-}
-function requestedReviewerCapabilityFailure(planning, author, route) {
-  if (route.independence !== "cross-agent" || route.model === undefined || route.reviewer === "opencode")
-    return;
-  const provider = route.reviewer === "codex" ? "openai" : "anthropic";
-  return rankedReviewerCapabilityFailure(planning, author, route, {
-    provider,
-    model: route.model
   });
 }
 async function runConfiguredRankedRoutes({
@@ -59341,18 +59174,17 @@ async function runConfiguredRankedRoutes({
   const evidence = [];
   const unavailable2 = new Set;
   let degraded;
-  let unqualified;
   const runDeadline = Date.now() + runBoundMs();
   const orderedRoutes = orderedReviewRoutes(planning, routes);
   const prepared = preparedRankedPacket(input, existingPrepared);
   try {
     for (const [index, route] of orderedRoutes.entries()) {
-      const skipped = skippedRankedRoute(planning, author, route, degraded, unavailable2);
+      const skipped = skippedRankedRoute(route, degraded, unavailable2);
       if (skipped !== undefined) {
         evidence.push(skipped);
         continue;
       }
-      if (cannotAttemptRankedRoute(planning, route, evidence, runDeadline)) {
+      if (cannotAttemptRankedRoute(runDeadline)) {
         evidence.push(...orderedRoutes.slice(index).map((remaining) => ({ ...remaining, status: "unattempted" })));
         break;
       }
@@ -59384,8 +59216,7 @@ async function runConfiguredRankedRoutes({
           failure: assessment,
           evidence,
           unavailable: unavailable2,
-          degraded,
-          unqualified
+          degraded
         });
         if (result !== undefined)
           return result;
@@ -59393,16 +59224,6 @@ async function runConfiguredRankedRoutes({
       }
       evidence.push({ ...route, status: "attempted" });
       if (route.independence === "cross-agent") {
-        const capabilityFailure = rankedReviewerCapabilityFailure(planning, author, route, assessment.confirmedModel);
-        if (capabilityFailure !== undefined) {
-          evidence[evidence.length - 1] = {
-            ...route,
-            status: "attempted",
-            failure: capabilityFailure
-          };
-          unqualified = capabilityFailure === "reviewer_capability_unknown" ? retainUnqualifiedRejection(unqualified, assessment.output, route) : unqualified;
-          continue;
-        }
         const result = independentReviewResult({
           cwd: input.cwd,
           author,
@@ -59418,7 +59239,6 @@ async function runConfiguredRankedRoutes({
         });
         return {
           ...result,
-          findings: [...result.findings, ...unqualifiedReviewFeedback(unqualified)],
           effects: { ...result.effects, network: rankedNetworkEffects(evidence) },
           data: { ...result.data, review_routes: evidence }
         };
@@ -59432,7 +59252,6 @@ async function runConfiguredRankedRoutes({
       planning,
       evidence,
       prepared,
-      unqualified,
       degraded
     });
   } finally {
@@ -59440,8 +59259,7 @@ async function runConfiguredRankedRoutes({
   }
 }
 function rankedTerminalResult(input) {
-  const rejected = input.unqualified?.output.verdict === "request_changes";
-  return (rejected ? undefined : hostContinuationResult(input)) ?? rankedExhaustedResult({
+  return hostContinuationResult(input) ?? rankedExhaustedResult({
     author: input.author,
     policy: input.policy,
     kind: input.input.kind,
@@ -59449,18 +59267,16 @@ function rankedTerminalResult(input) {
     targets: input.input.targets,
     context: input.input.context,
     evidence: input.evidence,
-    degraded: rejected ? undefined : input.degraded,
-    unqualified: input.unqualified
+    degraded: input.degraded
   });
 }
 function hostContinuationResult(input) {
-  if (!input.planning || input.policy !== "prefer" || input.degraded !== undefined)
+  if (!input.planning || input.degraded !== undefined)
     return;
-  const independentExhausted = input.evidence.some((route) => independentRouteWasExhausted(route));
   const strongerExhausted = input.evidence.every((route) => route.status !== "unattempted");
   const headlessFailed = input.evidence.some((route) => route.independence === "degraded" && ["attempted", "unavailable"].includes(route.status) && route.failure !== undefined);
   const headlessRoute = input.evidence.some((route) => route.independence === "degraded");
-  if (!independentExhausted || !strongerExhausted || headlessRoute && !headlessFailed)
+  if (!strongerExhausted || headlessRoute && !headlessFailed)
     return;
   return createResult({
     state: "action_required",
@@ -59469,8 +59285,7 @@ function hostContinuationResult(input) {
         code: "REVIEW_CONTINUATION_REQUIRED",
         message: headlessRoute ? "The independent and same-agent headless routes did not complete. A fresh-context review of the sealed packet is next." : "The independent routes did not complete, and no headless reviewer route was configured. A fresh-context review of the sealed packet is next.",
         severity: "warning"
-      },
-      ...input.unqualified === undefined ? [] : reviewerFeedback(input.unqualified.output)
+      }
     ],
     effects: { network: rankedNetworkEffects(input.evidence) },
     data: {
@@ -59498,17 +59313,10 @@ function orderedReviewRoutes(planning, routes) {
     ...routes.filter((route) => route.independence === "degraded")
   ];
 }
-function independentRouteWasExhausted(route) {
-  return route.independence === "cross-agent" && route.failure !== undefined && route.status === "attempted";
-}
-function planningFallbackLacksIndependentExhaustion(planning, route, evidence) {
-  return planning && route.independence === "degraded" && evidence.every((candidate) => !independentRouteWasExhausted(candidate));
-}
-function skippedRankedRoute(planning, author, route, degraded, unavailable2) {
+function skippedRankedRoute(route, degraded, unavailable2) {
   if (unavailable2.has(route.reviewer) || degraded !== undefined && route.independence === "degraded")
     return { ...route, status: "skipped" };
-  const failure = requestedReviewerCapabilityFailure(planning, author, route);
-  return failure === undefined ? undefined : { ...route, status: "skipped", failure };
+  return;
 }
 function changedReviewResult(input) {
   const network = input.network ?? [
@@ -59786,40 +59594,6 @@ async function runDegradedFallback(input) {
   }
   const completedOutput = assessment.output;
   const assurance = fallbackAssurance(input.kind, input.assignedReviewer, input);
-  if (input.policy === "require") {
-    return createResult({
-      state: "action_required",
-      findings: [
-        {
-          code: "REVIEW_INDEPENDENCE_REQUIRED",
-          message: `This review was not independent: the same agent (${agentName(completedOutput.reviewer_agent)}) checked its own work in a separate headless process, so the cross-agent gate remains unsatisfied.`,
-          severity: "warning"
-        },
-        ...reviewerFeedback(completedOutput)
-      ],
-      effects: {
-        network: degradedFallbackNetworkEffects(input, { kind: "completed" })
-      },
-      recovery: [
-        {
-          command: retryCommand(input.kind, input.targets, input.context),
-          description: `Restore the ${agentName(input.assignedReviewer)} reviewer, then retry the independent review.`,
-          requiresHuman: true
-        }
-      ],
-      data: {
-        command: "review run",
-        status: "blocked",
-        author_agent: input.author,
-        assigned_reviewer: input.assignedReviewer,
-        actual_reviewer: completedOutput.reviewer_agent,
-        ...routeFailureData(input),
-        review_policy: input.policy,
-        independence: assurance.independence,
-        reviewer_output: completedOutput
-      }
-    });
-  }
   return createResult({
     state: completedOutput.verdict === "approve" ? "healthy" : "action_required",
     findings: [assurance.finding, ...reviewerFeedback(completedOutput)],
@@ -60101,13 +59875,7 @@ async function runReviewCore(input) {
     return policyOffResult(input, author);
   const routes = reviewRoutePlan(author);
   if (routes === undefined) {
-    return unsupportedAuthorResult({
-      author,
-      policy,
-      kind: input.kind,
-      targets: input.targets,
-      context: input.context
-    });
+    return unsupportedAuthorResult({ author, policy });
   }
   let configuredRoutes;
   try {
@@ -60119,13 +59887,7 @@ async function runReviewCore(input) {
   if (ranked !== undefined)
     return runRankedRoutes({ input, author: routes.author, policy, ...ranked });
   if (routes.author === "cursor")
-    return unsupportedAuthorResult({
-      author,
-      policy,
-      kind: input.kind,
-      targets: input.targets,
-      context: input.context
-    });
+    return unsupportedAuthorResult({ author, policy });
   const reviewer = routes.preferred;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
   const runDeadline = Date.now() + runBoundMs();
@@ -60288,7 +60050,6 @@ async function runReview(input) {
 }
 var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, RUNTIME_WIDE_FAILURES, NON_ATTEMPT_FAILURES, ALTERNATE_MODEL_SKIP_FAILURES;
 var init_coordinator = __esm(() => {
-  init_review_ledger();
   init_run_identity();
   init_result();
   init_capability_catalogue();
@@ -60308,8 +60069,6 @@ var init_coordinator = __esm(() => {
     launch_failed: "could not launch its compatibility check",
     not_authenticated: "is not signed in",
     invalid_output: "gave an answer that could not be accepted",
-    reviewer_capability_unknown: "did not establish a qualified reviewer model",
-    reviewer_capability_weaker: "was proven weaker than the author model",
     REVIEWER_PROVENANCE_MISSING: "gave an answer that did not identify it as the reviewer",
     REVIEWER_PROVENANCE_CONTRADICTORY: "gave an answer that did not identify it as the reviewer"
   };
@@ -60766,11 +60525,10 @@ function hasExhaustedRoutesForHostContinuation(value) {
   if (!Array.isArray(value))
     return false;
   const routes = value.map((route) => plainRecord2(route));
-  const exhaustedIndependent = routes.some((route) => route?.independence === "cross-agent" && typeof route.failure === "string" && route.status === "attempted");
   const exhausted = routes.every((route) => route !== undefined && route.status !== "unattempted" && (route.status === "skipped" || typeof route.failure === "string"));
   const headlessFailed = routes.some((route) => route?.independence === "degraded" && ["attempted", "unavailable"].includes(String(route.status)) && typeof route.failure === "string");
   const headlessRoute = routes.some((route) => route?.independence === "degraded");
-  return exhaustedIndependent && exhausted && (!headlessRoute || headlessFailed);
+  return exhausted && (!headlessRoute || headlessFailed);
 }
 function isCompletedReviewData(data, state) {
   const output = data.reviewer_output;
@@ -82612,7 +82370,7 @@ function assuranceMatches(candidate, stamp, independence) {
     typeof data.actual_reviewer === "string"
   ].every(Boolean);
 }
-function assuranceAdmission(candidate, stamp, label, cwd) {
+function assuranceAdmission(candidate, stamp, label) {
   const { data } = candidate;
   const independence = data.independence;
   if (independence !== "cross-agent" && independence !== "reduced" && independence !== "degraded") {
@@ -82639,12 +82397,6 @@ function assuranceAdmission(candidate, stamp, label, cwd) {
     return {
       kind: "unearned_assurance",
       message: `The recorded assurance disagrees with the authenticated ${label} review.`
-    };
-  }
-  if (!reviewPolicyAllowsAssurance(cwd, independence)) {
-    return {
-      kind: "unearned_assurance",
-      message: `The ${label} review has ${independence} independence, but the current require policy needs cross-agent review.`
     };
   }
   return {
@@ -82674,14 +82426,13 @@ function phaseReviewAdmission(input) {
     if (output.verdict !== "approve" || data.status !== "approved") {
       return { kind: "not_admitted" };
     }
-    return assuranceAdmission(candidate, stamp, input.label, input.cwd);
+    return assuranceAdmission(candidate, stamp, input.label);
   }
   return { kind: "not_admitted" };
 }
 var init_phase_admission = __esm(() => {
   init_review_ledger();
   init_job();
-  init_policy();
 });
 
 // src/utils/planning-contract-copy-failure.ts
@@ -83484,7 +83235,7 @@ function candidateAdmission(input, stamp) {
     return { kind: "rejected", message: rejectionMessage2(output) };
   }
   const independence = achievedIndependence(data, output, stamp);
-  if (independence === undefined || !reviewPolicyAllowsAssurance(input.cwd, independence))
+  if (independence === undefined)
     return { kind: "unearned_assurance" };
   if (data.status !== "approved")
     return { kind: "not_admitted" };
@@ -83521,7 +83272,6 @@ var init_delivery_admission = __esm(() => {
   init_review_ledger();
   init_execution_plan_output();
   init_job();
-  init_policy();
 });
 
 // src/execution-plan/delivery-compatibility.ts

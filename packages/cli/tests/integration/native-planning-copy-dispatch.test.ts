@@ -228,8 +228,8 @@ describe('Complete native planning author-copy dispatch', () => {
           review_kind: kind,
           author_agent: author,
           actual_reviewer: reviewerAgent,
-          // These reviewer fakes provide no confirmed model provenance.
-          independence: 'reduced',
+          // A different agent reviewed, so the review is independent.
+          independence: 'cross-agent',
         },
       });
       expect(readFileSync(reviewer.calls, 'utf8')).toBe('review\n');

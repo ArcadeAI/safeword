@@ -12,7 +12,7 @@ export type ReviewKind =
   | 'executable-red'
   | 'retrospective-eligibility'
   | 'retrospective-proof';
-export type ReviewPolicy = 'prefer' | 'require' | 'off';
+export type ReviewPolicy = 'prefer' | 'off';
 export type RedEvidenceClass =
   'pure-contract' | 'simulated-host' | 'local-live-host' | 'external-live-host';
 
@@ -70,8 +70,6 @@ export type ReviewFailure =
   | 'process_failed'
   | 'timed_out'
   | 'invalid_output'
-  | 'reviewer_capability_unknown'
-  | 'reviewer_capability_weaker'
   | 'REVIEWER_PROVENANCE_MISSING'
   | 'REVIEWER_PROVENANCE_CONTRADICTORY';
 

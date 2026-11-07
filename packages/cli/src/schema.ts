@@ -677,6 +677,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/stop-quality.sh',
     '.safeword/hooks/cursor/after-file-edit.sh',
     '.safeword/hooks/cursor/stop.sh',
+    // Author-model capture removed: independence is judged by reviewing agent (K8VPME)
+    '.safeword/hooks/session-author-model.ts',
     // Shell libraries no longer needed with Bun
     '.safeword/lib/common.sh',
     '.safeword/lib/jq-fallback.sh',
@@ -965,9 +967,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/session-architecture-heal.ts': {
       template: 'hooks/session-architecture-heal.ts',
-    },
-    '.safeword/hooks/session-author-model.ts': {
-      template: 'hooks/session-author-model.ts',
     },
     '.safeword/hooks/session-compact-context.ts': {
       template: 'hooks/session-compact-context.ts',

@@ -174,14 +174,9 @@ export function readReviewPolicy(cwd: string): ReviewPolicy {
   try {
     const raw = readFileSync(nodePath.join(cwd, '.safeword', 'config.json'), 'utf8');
     const config: unknown = JSON.parse(raw);
-    if (typeof config !== 'object' || config === null || Array.isArray(config)) return 'require';
+    if (typeof config !== 'object' || config === null || Array.isArray(config)) return 'prefer';
     return readCrossAgentReviewPolicy(raw);
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'prefer' : 'require';
+  } catch {
+    return 'prefer';
   }
-}
-
-/** Admission follows current policy, even when a receipt was earned under prefer. */
-export function reviewPolicyAllowsAssurance(cwd: string, independence: string): boolean {
-  return readReviewPolicy(cwd) !== 'require' || independence === 'cross-agent';
 }

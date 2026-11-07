@@ -987,10 +987,6 @@ Then(
   },
 );
 
-Then('the command reports the required check as unsatisfied', function (this: SafewordWorld) {
-  assert.equal(payload(this).data.status, 'blocked');
-});
-
 Then('the explanation says the assigned reviewer ran out of time', function (this: SafewordWorld) {
   assert.match(explanation(this), /ran out of time/iu);
 });
@@ -1034,8 +1030,4 @@ Then('the review returns a verdict', function (this: SafewordWorld) {
 
 Then('the result reports that the check was not independent', function (this: SafewordWorld) {
   assert.notEqual(payload(this).data.independence, 'cross-agent');
-});
-
-Then('the required cross-agent check is not satisfied', function (this: SafewordWorld) {
-  assert.equal(payload(this).data.status, 'blocked');
 });

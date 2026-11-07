@@ -3,6 +3,8 @@ import {
   PACKAGED_CAPABILITY_REVISION as generatedRevision,
 } from './capability-catalogue.generated.js';
 
+// Measurement records from the reviewer capability harness. They are retained as
+// evidence only; review routing no longer ranks reviewers by them (K8VPME).
 export interface CapabilityRevision {
   readonly corpus_digest: string;
   readonly rubric_digest: string;
@@ -20,67 +22,7 @@ export interface CapabilityPairRecord extends CapabilityRevision {
   readonly results_digest: string;
 }
 
-export type CapabilityComparison = 'not_weaker' | 'weaker' | 'unknown';
-
-export interface CapabilityModelIdentity {
-  readonly provider: string;
-  readonly model: string;
-}
-
 export const PACKAGED_CAPABILITY_REVISION: CapabilityRevision = generatedRevision;
 export const PACKAGED_CAPABILITY_PAIRS: readonly CapabilityPairRecord[] = generatedPairs;
-
-function matchesRevision(record: CapabilityPairRecord, current: CapabilityRevision): boolean {
-  return (
-    record.corpus_digest === current.corpus_digest &&
-    record.rubric_digest === current.rubric_digest &&
-    record.settings_digest === current.settings_digest
-  );
-}
-
-function hasQualifiedEvidence(record: CapabilityPairRecord): boolean {
-  return (
-    record.qualification !== 'unqualified' &&
-    record.author_provider !== '' &&
-    record.reviewer_provider !== '' &&
-    (record.qualification !== 'provider-order' ||
-      record.author_provider === record.reviewer_provider) &&
-    record.evidence_date !== '' &&
-    record.results_digest !== ''
-  );
-}
-
-/** Only current, qualified evidence for the exact directional pair carries authority. */
-export function compareReviewerCapability(
-  author: CapabilityModelIdentity,
-  reviewer: CapabilityModelIdentity,
-  current: CapabilityRevision,
-  records: readonly CapabilityPairRecord[],
-): CapabilityComparison {
-  const matching = records.filter(
-    record =>
-      record.author_provider === author.provider &&
-      record.author_model === author.model &&
-      record.reviewer_provider === reviewer.provider &&
-      record.reviewer_model === reviewer.model &&
-      matchesRevision(record, current) &&
-      hasQualifiedEvidence(record),
-  );
-  return matching.length === 1 ? (matching[0]?.direction ?? 'unknown') : 'unknown';
-}
-
-export function reviewerCapabilityFailure(
-  author: CapabilityModelIdentity,
-  requestedModel: string | undefined,
-  confirmed: CapabilityModelIdentity | undefined,
-  current: CapabilityRevision,
-  records: readonly CapabilityPairRecord[],
-): 'reviewer_capability_weaker' | 'reviewer_capability_unknown' | undefined {
-  if (requestedModel === undefined || confirmed?.model !== requestedModel)
-    return 'reviewer_capability_unknown';
-  const comparison = compareReviewerCapability(author, confirmed, current, records);
-  if (comparison === 'weaker') return 'reviewer_capability_weaker';
-  return comparison === 'not_weaker' ? undefined : 'reviewer_capability_unknown';
-}
 
 export { PACKAGED_CAPABILITY_SETTINGS } from './capability-catalogue.generated.js';

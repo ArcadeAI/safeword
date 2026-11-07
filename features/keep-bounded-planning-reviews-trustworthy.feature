@@ -48,18 +48,18 @@ Feature: Keep bounded planning reviews trustworthy for plan authors
         | prose outside the canonical Implementation region | approved | refuses because whole-copy integrity fails |
 
   @plan-implementability.TBU4.T3E4NS.R4 @surface.safeword-cli
-  Rule: plan-implementability.TBU4.T3E4NS.R4 — Fallback requires a real independent attempt
+  Rule: plan-implementability.TBU4.T3E4NS.R4 — Independent review is tried first, and fallback never waits on independence
 
-    Scenario Outline: Refused selectors cannot manufacture permission for fallback
-      Given a verified author and an <partition> explicit reviewer selector <selector>
-      When every independent candidate is refused before launch
-      Then the review is blocked and records that selector as skipped with a capability failure
-      And neither the refused reviewer nor fallback receives a packet
+    Scenario Outline: An unrated explicit selector still reviews independently
+      Given an author with no recorded model and an <partition> explicit reviewer selector <selector>
+      When the planning review runs
+      Then that selector receives the packet and its verdict is recorded as cross-agent
+      And fallback does not run
 
       Examples:
         | partition | selector |
-        | unknown | unqualified-model |
-        | unqualified named | gpt-6-luna |
+        | unknown | unrated-model |
+        | unrated named | gpt-6-luna |
 
     Scenario Outline: A failed independent attempt precedes eligible fallback
       Given configured independent and fallback reviewers in either declaration order

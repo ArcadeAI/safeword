@@ -47,13 +47,13 @@
         "stales only dependent approvals after canonical $phase contract bytes change"
       ]
     ],
-    "Refused selectors cannot manufacture permission for fallback": [
+    "An unrated explicit selector still reviews independently": [
       "packages/cli/tests/integration/planning-review-route-order.test.ts",
-      "blocks explicit %s without launching any route when no independent attempt exists"
+      "launches explicit %s without a strength rating and records it as cross-agent"
     ],
     "A failed independent attempt precedes eligible fallback": [
       "packages/cli/tests/integration/planning-review-route-order.test.ts",
-      "tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, author model is %s, and model is confirmed %s"
+      "tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, and model is pinned %s"
     ],
     "Completed observations survive termination": [
       [
