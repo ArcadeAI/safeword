@@ -83,19 +83,14 @@ export function builtInReviewRoutes(
   if (plan === undefined) return [];
   const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
   const alternateModel = readAlternateReviewerModel(cwd, plan.preferred);
-  const fallbackModel = readPrimaryReviewerModel(cwd, plan.independentFallback);
   const routes: readonly ReviewRoute[] = [
-    {
-      reviewer: plan.preferred,
-      ...(primaryModel !== undefined && { model: primaryModel }),
-      independence: 'cross-agent',
-    },
+    { reviewer: plan.preferred, ...modelFor(primaryModel), independence: 'cross-agent' },
     ...(alternateModel !== undefined && alternateModel !== primaryModel
       ? [{ reviewer: plan.preferred, model: alternateModel, independence: 'cross-agent' as const }]
       : []),
     {
       reviewer: plan.independentFallback,
-      ...modelFor(fallbackModel),
+      ...modelFor(readPrimaryReviewerModel(cwd, plan.independentFallback)),
       independence: 'cross-agent',
     },
     ...(plan.degradedFallback === undefined
