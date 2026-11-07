@@ -26,10 +26,8 @@ last_modified: 2026-11-07T16:34:00.000Z
 
 **Out of Scope:**
 
-- Execution Plan admission (63-case job test) still decides which reviewers may review Execution Plans. Failing it now means fallback, not a block.
 - Policy `off` behavior.
-- Routing Execution Plan reviews to another Codex model.
-- Retiring the capability measurement harness (`reviewer-capability-eval.ts`, `capability-eval.ts`, corpus, generated catalogue, release check). `PACKAGED_CAPABILITY_SETTINGS` stays for reviewer launch settings.
+- Resolving a "latest" Codex model at runtime (Codex has no supported alias; names are bumped per release).
 - Rendering of historical results that recorded `review_policy: require` (presentation keeps reading them).
 
 **Done When:**
@@ -50,3 +48,4 @@ last_modified: 2026-11-07T16:34:00.000Z
 - 2026-11-07T16:12:07.160Z Started: Created ticket K8VPME
 - 2026-11-07T16:20:00.000Z User decided to drop reviewer-strength ranking: future specialist models may review better than general ones. Classified as task (removal, no new state/flows).
 - 2026-11-07T16:33:00.000Z User expanded scope: independent review is still attempted first but must never block; mark `reduced` when a different agent could not review. Removes the failed-attempt precondition for planning fallback and `require` blocking.
+- 2026-11-07T22:30:00.000Z User dropped reviewer qualification: every review uses Claude `opus`→`sonnet` or Codex `gpt-6.1-sol`→`gpt-6.1-terra`. Execution Plan admission, capability corpus, eval harness and generated catalogue removed (fd6b4e4f2). User chose fixed Codex names over a runtime "latest" lookup.
