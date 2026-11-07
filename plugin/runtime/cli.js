@@ -59155,9 +59155,6 @@ async function runRankedRoutes({
 }) {
   return runConfiguredRankedRoutes({ input, author, policy, routes, planning, prepared });
 }
-function cannotAttemptRankedRoute(deadline) {
-  return !canFundRoute(deadline);
-}
 function preparedRankedPacket(input, existing) {
   return existing ?? prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
     attestation: input.executionAttestation
@@ -59184,7 +59181,7 @@ async function runConfiguredRankedRoutes({
         evidence.push(skipped);
         continue;
       }
-      if (cannotAttemptRankedRoute(runDeadline)) {
+      if (!canFundRoute(runDeadline)) {
         evidence.push(...orderedRoutes.slice(index).map((remaining) => ({ ...remaining, status: "unattempted" })));
         break;
       }
@@ -59273,10 +59270,10 @@ function rankedTerminalResult(input) {
 function hostContinuationResult(input) {
   if (!input.planning || input.degraded !== undefined)
     return;
-  const strongerExhausted = input.evidence.every((route) => route.status !== "unattempted");
+  const everyRouteTried = input.evidence.every((route) => route.status !== "unattempted");
   const headlessFailed = input.evidence.some((route) => route.independence === "degraded" && ["attempted", "unavailable"].includes(route.status) && route.failure !== undefined);
   const headlessRoute = input.evidence.some((route) => route.independence === "degraded");
-  if (!strongerExhausted || headlessRoute && !headlessFailed)
+  if (!everyRouteTried || headlessRoute && !headlessFailed)
     return;
   return createResult({
     state: "action_required",
