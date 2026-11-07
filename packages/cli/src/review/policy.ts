@@ -83,7 +83,7 @@ export function builtInReviewRoutes(
   if (plan === undefined) return [];
   const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
   const alternateModel = readAlternateReviewerModel(cwd, plan.preferred);
-  const routes: readonly ReviewRoute[] = [
+  return [
     { reviewer: plan.preferred, ...modelFor(primaryModel), independence: 'cross-agent' },
     ...(alternateModel !== undefined && alternateModel !== primaryModel
       ? [{ reviewer: plan.preferred, model: alternateModel, independence: 'cross-agent' as const }]
@@ -103,7 +103,6 @@ export function builtInReviewRoutes(
           },
         ]),
   ];
-  return routes;
 }
 
 export function readPrimaryReviewerModel(cwd: string, reviewer: ReviewAgent): string | undefined {
@@ -115,8 +114,8 @@ export function readPrimaryReviewerModel(cwd: string, reviewer: ReviewAgent): st
 
 /**
  * The model Safeword should retry the reviewer agent on when its primary route
- * cannot complete. Explicit values override the Claude default; agents without
- * a default retain their authenticated profile behavior.
+ * cannot complete. Explicit values override the built-in Claude and Codex
+ * defaults; agents without one (OpenCode) keep their authenticated profile.
  */
 export function readAlternateReviewerModel(cwd: string, reviewer: ReviewAgent): string | undefined {
   return (
