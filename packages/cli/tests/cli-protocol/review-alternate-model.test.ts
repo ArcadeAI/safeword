@@ -44,15 +44,20 @@ if [ -z "$model" ]; then
 fi
 printf '%s\n' "$model" >> "$SAFEWORD_REVIEW_MODEL_LOG"
 accepted_model=$(printenv SAFEWORD_REVIEW_ACCEPTED_MODEL || true)
+rejected=''
 if [ -n "$accepted_model" ] && [ "$model" != "$accepted_model" ]; then
   rejected_model_behaviour=$(printenv SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR || true)
   if [ "$rejected_model_behaviour" = "timeout" ]; then exec /bin/sleep 3600; fi
-  printf 'model unavailable\n' >&2
-  exit 7
+  # A rejected model that still answers, but for another dispatch.
+  if [ "$rejected_model_behaviour" = "mismatched" ]; then rejected=mismatched; else
+    printf 'model unavailable\n' >&2
+    exit 7
+  fi
 fi
 payload=$(cat)
 printf '%s\n' "$payload" > "$SAFEWORD_REVIEW_MODEL_LOG.packet"
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+if [ "$rejected" = "mismatched" ]; then dispatch_id=mismatched; fi
 printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
 `,
     { mode: 0o755 },
@@ -562,5 +567,44 @@ describe('alternate-model review route', () => {
     ]);
     // Both Codex requests, the failed Sol one and the completed Terra one, are recorded.
     expect(payload.effects.network.filter(effect => effect.target === 'codex')).toHaveLength(2);
+  });
+
+  it('retries the fallback on Terra when Sol returns output for another dispatch', async () => {
+    const directory = createTemporaryDirectory();
+    const modelLog = nodePath.join(directory, 'model.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    writeConfig(directory, { crossAgentReview: 'prefer' });
+    const bin = installModelDependentReviewer(directory, 'codex');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'opencode',
+          SAFEWORD_REVIEW_MODEL_LOG: modelLog,
+          SAFEWORD_REVIEW_ACCEPTED_MODEL: 'gpt-6.1-terra',
+          SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR: 'mismatched',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    const payload = JSON.parse(result.stdout) as { data: Record<string, unknown> };
+    expect(payload.data).toMatchObject({ actual_reviewer: 'codex', independence: 'cross-agent' });
+    expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual([
+      'gpt-6.1-sol',
+      'gpt-6.1-terra',
+    ]);
   });
 });

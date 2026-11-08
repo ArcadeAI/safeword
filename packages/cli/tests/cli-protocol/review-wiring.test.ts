@@ -2030,7 +2030,7 @@ describe('cross-agent review public-command wiring', () => {
       );
 
       expect(result.exitCode, result.stdout).toBe(2);
-      expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\nclaude\n');
+      expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\nclaude\nclaude\n');
       const payload = JSON.parse(result.stdout);
       expect(payload).toMatchObject({
         state: 'action_required',
@@ -3061,7 +3061,7 @@ describe('cross-agent review public-command wiring', () => {
       },
     });
     expect(JSON.parse(result.stdout).data).not.toHaveProperty('reviewer_output');
-    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\nclaude\n');
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nopencode\nclaude\nclaude\n');
   });
 
   async function expectOpenCodeFailure(input: {

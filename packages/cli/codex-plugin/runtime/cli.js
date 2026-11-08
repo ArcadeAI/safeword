@@ -58279,10 +58279,12 @@ async function executeOnModelChain(input, reviewer, firstPrepared, runDeadline) 
   const attempts = modelSelectionUnsupported(chain[0], execution.outcome) ? [undefined] : chain.slice(1);
   const priorRequests = [];
   for (const model of attempts) {
-    const { outcome } = execution;
-    if (outcome.kind !== "failed" || outcome.terminal || !canFundRoute(runDeadline))
+    const assessed = assessReviewOutcome(execution.outcome, reviewer, prepared.packet.dispatch_id);
+    if (assessed.kind !== "failed" || assessed.terminal || !canFundRoute(runDeadline))
       break;
-    priorRequests.push(...networkEffectsForFailure(reviewer, outcome.failure));
+    if (sourceChanged || snapshotChanged)
+      break;
+    priorRequests.push(...networkEffectsForFailure(reviewer, assessed.failure));
     prepared = freshPacket();
     execution = await executeReview(reviewer, prepared, model, runDeadline);
     sourceChanged ||= execution.sourceChanged;

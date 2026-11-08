@@ -1339,9 +1339,12 @@ async function executeOnModelChain(
     : chain.slice(1);
   const priorRequests: Effect[] = [];
   for (const model of attempts) {
-    const { outcome } = execution;
-    if (outcome.kind !== 'failed' || outcome.terminal || !canFundRoute(runDeadline)) break;
-    priorRequests.push(...networkEffectsForFailure(reviewer, outcome.failure));
+    // Judge each attempt as the caller will, so output that fails provenance
+    // still earns the alternate model its turn.
+    const assessed = assessReviewOutcome(execution.outcome, reviewer, prepared.packet.dispatch_id);
+    if (assessed.kind !== 'failed' || assessed.terminal || !canFundRoute(runDeadline)) break;
+    if (sourceChanged || snapshotChanged) break;
+    priorRequests.push(...networkEffectsForFailure(reviewer, assessed.failure));
     prepared = freshPacket();
     execution = await executeReview(reviewer, prepared, model, runDeadline);
     sourceChanged ||= execution.sourceChanged;
