@@ -2,9 +2,9 @@
 
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Local environment limitation: 11607 passed, 3 failed (run after the qualification tear-out). `lint-go-context` (2) fails because the Go toolchain mixes compile go1.25.14 with go tool go1.27.1, identically on main. `bdd-proof-adapter` (1) used a step from a removed qualification scenario; repointed to a surviving step and now passes. A second pass also hit a load-only timeout in `review-candidate-share`, which passes alone and in the first pass.
+**Test Suite:** ⚠️ Local environment limitation: 11612 passed, 2 failed at e4efb0093. Both failures are `lint-go-context`, because the Go toolchain mixes compile go1.25.14 with go tool go1.27.1 (seen identically on main in the earlier pass). CI is green on this commit.
 **Gherkin:** ✅ Acceptance lane passes (599 scenarios, 11786 steps)
-**Build:** ✅ Success
+**Build:** ⚠️ Local environment limitation: all JavaScript packages and the website built; the Go step fails on the same go1.25.14/go1.27.1 mismatch. CI build passes.
 **Lint:** ✅ Clean (eslint on changed source and tests; prettier applied)
 **Typecheck:** ✅ Clean (`tsc --noEmit` in packages/cli)
 **Scenarios:** ⏭️ Skipped — task ticket with inline tests, no test-definitions.md
@@ -50,4 +50,10 @@ Lifecycle origin-main fixtures: `cursor-install` and `cursor-uninstall` result h
   7. **Approved** (review 0a3405b4). One non-blocking warning: when a fallback completes on its alternate model, the receipt does not name the model that reviewed.
 - **Audit:** two documentation-drift errors fixed (09d939630); the doc test that pinned the old wording was updated (5eb246cd5). Depcruise clean; no references to deleted code remain.
 - **Gap noted:** the local pre-commit surface check reported plugin bundles current after a `src/review` change; only CI caught that they were stale.
+
+## Closing verify and audit at e4efb0093 (2026-11-07)
+
+- **Verify:** 11612 tests passed and 2 failed (`lint-go-context`, Go toolchain mismatch); 599 scenarios and 52 proof tests passed; typecheck and eslint clean; JavaScript and website builds succeeded, Go step failed on the same mismatch. CI: 15 checks passed, 8 skipped, none failed.
+- **Dependency audit:** the lane exits 1. It reports the existing JavaScript and Python advisories, and `govulncheck` cannot run because of the Go mismatch. This branch changes no dependencies.
+- **Audit passed:** 0 errors, 0 warnings. Depcruise clean (568 modules), sync-config current, surface tags resolve, no weak patterns in added tests, README and ARCHITECTURE.md match the model chain. No impl-plan, so no principle trace applies.
 
