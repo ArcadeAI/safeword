@@ -858,12 +858,7 @@ function preparedRankedPacket(
   input: ReviewRunInput,
   existing: ReturnType<typeof prepareReviewPacket> | undefined,
 ): ReturnType<typeof prepareReviewPacket> {
-  return (
-    existing ??
-    prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-      attestation: input.executionAttestation,
-    })
-  );
+  return existing ?? freshReviewPacket(input);
 }
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- The loop preserves route order across completed, failed, skipped, and unfunded routes.
@@ -1236,9 +1231,7 @@ function preparePrimaryReview(
   reviewer: ReviewAgent,
 ): ReturnType<typeof prepareReviewPacket> {
   const name = agentName(reviewer);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation,
-  });
+  const prepared = freshReviewPacket(input);
   input.progress?.start(`Requesting an independent ${name} review…`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}…`);
   return prepared;
@@ -1294,6 +1287,13 @@ async function executePrimaryReview(
   };
 }
 
+/** A new packet (fresh dispatch id) for the run's targets, context and execution attestation. */
+function freshReviewPacket(input: ReviewRunInput): ReturnType<typeof prepareReviewPacket> {
+  return prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation,
+  });
+}
+
 function modelSelectionUnsupported(
   model: string | undefined,
   outcome: Awaited<ReturnType<typeof executeReview>>['outcome'],
@@ -1324,10 +1324,6 @@ async function executeOnModelChain(
   /** The model the reported attempt requested, when one was selected. */
   readonly model: string | undefined;
 }> {
-  const freshPacket = (): ReturnType<typeof prepareReviewPacket> =>
-    prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-      attestation: input.executionAttestation,
-    });
   const chain = reviewerModelChain(input.cwd, reviewer);
   let prepared = firstPrepared;
   let model = chain[0];
@@ -1348,7 +1344,7 @@ async function executeOnModelChain(
     if (assessed.kind !== 'failed' || assessed.terminal || !canFundRoute(runDeadline)) break;
     if (sourceChanged || snapshotChanged) break;
     priorRequests.push(...networkEffectsForFailure(reviewer, assessed.failure));
-    prepared = freshPacket();
+    prepared = freshReviewPacket(input);
     model = nextModel;
     execution = await executeReview(reviewer, prepared, model, runDeadline);
     sourceChanged ||= execution.sourceChanged;
@@ -1371,9 +1367,7 @@ function prepareFallbackReview(
   input.progress?.start(
     `${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback…`,
   );
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation,
-  });
+  const prepared = freshReviewPacket(input);
   input.progress?.heartbeat?.(`Still waiting for a response from the ${fallbackName} fallback…`);
   return prepared;
 }
@@ -1567,9 +1561,7 @@ async function runAlternateModelRoute(
   input.progress?.start(
     `Trying ${agentName(input.reviewer)} again with the configured alternate model…`,
   );
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation,
-  });
+  const prepared = freshReviewPacket(input);
   input.progress?.heartbeat?.(
     `Still waiting for ${agentName(input.reviewer)} on the alternate model…`,
   );
@@ -1652,14 +1644,7 @@ async function runIndependentFallback(
     prepared,
     priorRequests,
     model: completedModel,
-  } = await executeOnModelChain(
-    input,
-    input.reviewer,
-    prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-      attestation: input.executionAttestation,
-    }),
-    input.runDeadline,
-  );
+  } = await executeOnModelChain(input, input.reviewer, freshReviewPacket(input), input.runDeadline);
   const { outcome, sourceChanged, snapshotChanged } = execution;
   const changedResult = changedReviewResult({
     author: input.author,

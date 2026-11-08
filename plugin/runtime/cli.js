@@ -57972,9 +57972,7 @@ async function runRankedRoutes({
   return runConfiguredRankedRoutes({ input, author, policy, routes, planning, prepared });
 }
 function preparedRankedPacket(input, existing) {
-  return existing ?? prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation
-  });
+  return existing ?? freshReviewPacket(input);
 }
 async function runConfiguredRankedRoutes({
   input,
@@ -58229,9 +58227,7 @@ function degradedNetworkEffects(input) {
 }
 function preparePrimaryReview(input, reviewer) {
   const name = agentName(reviewer);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation
-  });
+  const prepared = freshReviewPacket(input);
   input.progress?.start(`Requesting an independent ${name} review\u2026`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}\u2026`);
   return prepared;
@@ -58264,13 +58260,15 @@ async function executePrimaryReview(input, reviewer, primaryModel, runDeadline) 
     preferredModelFailure: rejectedModelFailure
   };
 }
+function freshReviewPacket(input) {
+  return prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation
+  });
+}
 function modelSelectionUnsupported(model, outcome) {
   return model !== undefined && outcome.kind === "failed" && outcome.failure === "unsupported" && !outcome.terminal;
 }
 async function executeOnModelChain(input, reviewer, firstPrepared, runDeadline) {
-  const freshPacket = () => prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation
-  });
   const chain = reviewerModelChain(input.cwd, reviewer);
   let prepared = firstPrepared;
   let model = chain[0];
@@ -58286,7 +58284,7 @@ async function executeOnModelChain(input, reviewer, firstPrepared, runDeadline) 
     if (sourceChanged || snapshotChanged)
       break;
     priorRequests.push(...networkEffectsForFailure(reviewer, assessed.failure));
-    prepared = freshPacket();
+    prepared = freshReviewPacket(input);
     model = nextModel;
     execution = await executeReview(reviewer, prepared, model, runDeadline);
     sourceChanged ||= execution.sourceChanged;
@@ -58302,9 +58300,7 @@ async function executeOnModelChain(input, reviewer, firstPrepared, runDeadline) 
 function prepareFallbackReview(input, assignedReviewer, author) {
   const fallbackName = agentName(author);
   input.progress?.start(`${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback\u2026`);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation
-  });
+  const prepared = freshReviewPacket(input);
   input.progress?.heartbeat?.(`Still waiting for a response from the ${fallbackName} fallback\u2026`);
   return prepared;
 }
@@ -58444,9 +58440,7 @@ async function runAlternateModelRoute(input) {
     return { kind: "skipped" };
   }
   input.progress?.start(`Trying ${agentName(input.reviewer)} again with the configured alternate model\u2026`);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation
-  });
+  const prepared = freshReviewPacket(input);
   input.progress?.heartbeat?.(`Still waiting for ${agentName(input.reviewer)} on the alternate model\u2026`);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.reviewer, prepared, model, input.runDeadline);
   const changedResult = changedReviewResult({
@@ -58496,9 +58490,7 @@ async function runIndependentFallback(input) {
     prepared,
     priorRequests,
     model: completedModel
-  } = await executeOnModelChain(input, input.reviewer, prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation
-  }), input.runDeadline);
+  } = await executeOnModelChain(input, input.reviewer, freshReviewPacket(input), input.runDeadline);
   const { outcome, sourceChanged, snapshotChanged } = execution;
   const changedResult = changedReviewResult({
     author: input.author,
