@@ -2,13 +2,13 @@
 
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Local environment limitation: 11612 passed, 2 failed at e4efb0093. Both failures are `lint-go-context`, because the Go toolchain mixes compile go1.25.14 with go tool go1.27.1 (seen identically on main in the earlier pass). CI is green on this commit.
+**Test Suite:** ⚠️ Local environment limitation: 11612 passed, 2 failed at f56abd616. Both failures are `lint-go-context`, because the Go toolchain mixes compile go1.25.14 with go tool go1.27.1 (seen identically on main in the earlier pass). CI is green on this commit.
 **Gherkin:** ✅ Acceptance lane passes (599 scenarios, 11786 steps)
 **Build:** ⚠️ Local environment limitation: all JavaScript packages and the website built; the Go step fails on the same go1.25.14/go1.27.1 mismatch. CI build passes.
 **Lint:** ✅ Clean (eslint on changed source and tests; prettier applied)
 **Typecheck:** ✅ Clean (`tsc --noEmit` in packages/cli)
 **Scenarios:** ⏭️ Skipped — task ticket with inline tests, no test-definitions.md
-**Refactor:** ✅ Completed — 7dfab30c6 (inlined the funding check, renamed the all-routes-tried test); removal leftovers cleaned in place
+**Refactor:** ✅ Completed — 7dfab30c6, f9c0a11c2, fad9207cb, and f56abd616 (one helper builds every attested review packet, after the fallback fixes)
 **PR Scope:** ✅ Diff matches ticket scope. The coordinator, policy, admission, hooks, schema and skill docs implement non-blocking independence. Dogfood features T3E4NS R4 and DR6M6N NTB1.R3 were rewritten because they encoded the reversed rules. Generated surfaces and the dogfood install were regenerated.
 **Dep Drift:** ✅ Clean — no dependency changes
 **Parent Epic:** N/A
@@ -57,3 +57,12 @@ Lifecycle origin-main fixtures: `cursor-install` and `cursor-uninstall` result h
 - **Dependency audit:** the lane exits 1. It reports the existing JavaScript and Python advisories, and `govulncheck` cannot run because of the Go mismatch. This branch changes no dependencies.
 - **Audit passed:** 0 errors, 0 warnings. Depcruise clean (568 modules), sync-config current, surface tags resolve, no weak patterns in added tests, README and ARCHITECTURE.md match the model chain. No impl-plan, so no principle trace applies.
 
+## Gap closure before merge (2026-11-08)
+
+The refactor and quality review had run before the last fixes (`56458b19e` through `e4efb0093`). Closed both:
+
+- **Refactor:** f56abd616 builds every attested review packet through one helper (six copies removed). Review tests: 1462 passed.
+- **Quality review (Codex gpt-6.1-sol, cross-agent):** approved the changes since the last approval (review 3646eafd), no findings.
+- **TDD review:** removing either half of the receipt-model fix fails a test ("asks the same-agent fallback for the latest Opus…", "retries the independent fallback on Terra when Sol fails").
+- **Verify at f56abd616:** 11612 passed, 2 failed (`lint-go-context`, local Go toolchain mismatch); 599 scenarios and 52 proof tests passed; typecheck clean. The dependency lane reports the same existing advisories.
+- **Audit passed:** 0 errors, 0 warnings at f56abd616. Depcruise clean (568 modules), sync-config current.

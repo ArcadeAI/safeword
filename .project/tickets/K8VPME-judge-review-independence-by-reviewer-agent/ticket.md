@@ -2,10 +2,10 @@
 id: K8VPME
 slug: judge-review-independence-by-reviewer-agent
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-11-07T16:12:07.160Z
-last_modified: 2026-11-07T16:34:00.000Z
+last_modified: 2026-11-08T15:06:00.000Z
 ---
 
 # Stop downgrading planning reviews over unknown author models
