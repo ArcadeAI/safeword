@@ -1321,6 +1321,8 @@ async function executeOnModelChain(
   readonly prepared: ReturnType<typeof prepareReviewPacket>;
   /** Requests made by earlier attempts in the chain, before the reported one. */
   readonly priorRequests: readonly Effect[];
+  /** The model the reported attempt requested, when one was selected. */
+  readonly model: string | undefined;
 }> {
   const freshPacket = (): ReturnType<typeof prepareReviewPacket> =>
     prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
@@ -1328,7 +1330,8 @@ async function executeOnModelChain(
     });
   const chain = reviewerModelChain(input.cwd, reviewer);
   let prepared = firstPrepared;
-  let execution = await executeReview(reviewer, prepared, chain[0], runDeadline);
+  let model = chain[0];
+  let execution = await executeReview(reviewer, prepared, model, runDeadline);
   let sourceChanged = execution.sourceChanged;
   let snapshotChanged = execution.snapshotChanged;
   const attempts: readonly (string | undefined)[] = modelSelectionUnsupported(
@@ -1338,7 +1341,7 @@ async function executeOnModelChain(
     ? [undefined]
     : chain.slice(1);
   const priorRequests: Effect[] = [];
-  for (const model of attempts) {
+  for (const nextModel of attempts) {
     // Judge each attempt as the caller will, so output that fails provenance
     // still earns the alternate model its turn.
     const assessed = assessReviewOutcome(execution.outcome, reviewer, prepared.packet.dispatch_id);
@@ -1346,6 +1349,7 @@ async function executeOnModelChain(
     if (sourceChanged || snapshotChanged) break;
     priorRequests.push(...networkEffectsForFailure(reviewer, assessed.failure));
     prepared = freshPacket();
+    model = nextModel;
     execution = await executeReview(reviewer, prepared, model, runDeadline);
     sourceChanged ||= execution.sourceChanged;
     snapshotChanged ||= execution.snapshotChanged;
@@ -1354,6 +1358,7 @@ async function executeOnModelChain(
     execution: { ...execution, sourceChanged, snapshotChanged },
     prepared,
     priorRequests,
+    model,
   };
 }
 
@@ -1437,7 +1442,12 @@ function fallbackAssurance(kind: ReviewKind, reviewer: ReviewAgent, input: Degra
 }
 
 async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResult> {
-  const { execution, prepared, priorRequests } = await executeOnModelChain(
+  const {
+    execution,
+    prepared,
+    priorRequests,
+    model: completedModel,
+  } = await executeOnModelChain(
     input,
     input.author,
     prepareFallbackReview(input, input.assignedReviewer, input.author),
@@ -1517,6 +1527,8 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
       actual_reviewer: completedOutput.reviewer_agent,
       ...routeFailureData(input),
       independence: assurance.independence,
+      ...(completedModel !== undefined && { reviewer_model: completedModel }),
+      ...confirmedReviewerData(assessment.confirmedModel),
       reviewer_output: completedOutput,
     },
   });
@@ -1635,7 +1647,12 @@ async function runIndependentFallback(
     `${agentName(input.preferredReviewer)} did not complete; trying an independent ${agentName(input.reviewer)} review…`,
   );
   input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(input.reviewer)}…`);
-  const { execution, prepared, priorRequests } = await executeOnModelChain(
+  const {
+    execution,
+    prepared,
+    priorRequests,
+    model: completedModel,
+  } = await executeOnModelChain(
     input,
     input.reviewer,
     prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
@@ -1675,6 +1692,8 @@ async function runIndependentFallback(
     kind: 'completed',
     result: independentReviewResult({
       fallbackRequests: priorRequests,
+      model: completedModel,
+      confirmedModel: assessment.confirmedModel,
       cwd: input.cwd,
       author: input.author,
       policy: input.policy,

@@ -521,7 +521,7 @@ describe('alternate-model review route', () => {
     );
 
     const payload = JSON.parse(result.stdout) as { data: Record<string, unknown> };
-    expect(payload.data).toMatchObject({ actual_reviewer: 'claude' });
+    expect(payload.data).toMatchObject({ actual_reviewer: 'claude', reviewer_model: 'opus' });
     expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(['opus']);
   });
 
@@ -560,7 +560,12 @@ describe('alternate-model review route', () => {
       data: Record<string, unknown>;
       effects: { network: { target: string }[] };
     };
-    expect(payload.data).toMatchObject({ actual_reviewer: 'codex', independence: 'cross-agent' });
+    // The receipt names the model that actually reviewed.
+    expect(payload.data).toMatchObject({
+      actual_reviewer: 'codex',
+      independence: 'cross-agent',
+      reviewer_model: 'gpt-6.1-terra',
+    });
     expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual([
       'gpt-6.1-sol',
       'gpt-6.1-terra',

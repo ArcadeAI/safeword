@@ -58273,12 +58273,13 @@ async function executeOnModelChain(input, reviewer, firstPrepared, runDeadline) 
   });
   const chain = reviewerModelChain(input.cwd, reviewer);
   let prepared = firstPrepared;
-  let execution = await executeReview(reviewer, prepared, chain[0], runDeadline);
+  let model = chain[0];
+  let execution = await executeReview(reviewer, prepared, model, runDeadline);
   let sourceChanged = execution.sourceChanged;
   let snapshotChanged = execution.snapshotChanged;
   const attempts = modelSelectionUnsupported(chain[0], execution.outcome) ? [undefined] : chain.slice(1);
   const priorRequests = [];
-  for (const model of attempts) {
+  for (const nextModel of attempts) {
     const assessed = assessReviewOutcome(execution.outcome, reviewer, prepared.packet.dispatch_id);
     if (assessed.kind !== "failed" || assessed.terminal || !canFundRoute(runDeadline))
       break;
@@ -58286,6 +58287,7 @@ async function executeOnModelChain(input, reviewer, firstPrepared, runDeadline) 
       break;
     priorRequests.push(...networkEffectsForFailure(reviewer, assessed.failure));
     prepared = freshPacket();
+    model = nextModel;
     execution = await executeReview(reviewer, prepared, model, runDeadline);
     sourceChanged ||= execution.sourceChanged;
     snapshotChanged ||= execution.snapshotChanged;
@@ -58293,7 +58295,8 @@ async function executeOnModelChain(input, reviewer, firstPrepared, runDeadline) 
   return {
     execution: { ...execution, sourceChanged, snapshotChanged },
     prepared,
-    priorRequests
+    priorRequests,
+    model
   };
 }
 function prepareFallbackReview(input, assignedReviewer, author) {
@@ -58359,7 +58362,12 @@ function fallbackAssurance(kind, reviewer, input) {
   };
 }
 async function runDegradedFallback(input) {
-  const { execution, prepared, priorRequests } = await executeOnModelChain(input, input.author, prepareFallbackReview(input, input.assignedReviewer, input.author), input.runDeadline);
+  const {
+    execution,
+    prepared,
+    priorRequests,
+    model: completedModel
+  } = await executeOnModelChain(input, input.author, prepareFallbackReview(input, input.assignedReviewer, input.author), input.runDeadline);
   const { outcome, sourceChanged, snapshotChanged } = execution;
   const fallback = outcome.kind === "completed" ? { kind: "completed" } : { kind: "failed", failure: outcome.failure };
   const changedResult = changedReviewResult({
@@ -58424,6 +58432,8 @@ async function runDegradedFallback(input) {
       actual_reviewer: completedOutput.reviewer_agent,
       ...routeFailureData(input),
       independence: assurance.independence,
+      ...completedModel !== undefined && { reviewer_model: completedModel },
+      ...confirmedReviewerData(assessment.confirmedModel),
       reviewer_output: completedOutput
     }
   });
@@ -58481,7 +58491,12 @@ async function runIndependentFallback(input) {
     return { kind: "skipped" };
   input.progress?.start(`${agentName(input.preferredReviewer)} did not complete; trying an independent ${agentName(input.reviewer)} review\u2026`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(input.reviewer)}\u2026`);
-  const { execution, prepared, priorRequests } = await executeOnModelChain(input, input.reviewer, prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+  const {
+    execution,
+    prepared,
+    priorRequests,
+    model: completedModel
+  } = await executeOnModelChain(input, input.reviewer, prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
     attestation: input.executionAttestation
   }), input.runDeadline);
   const { outcome, sourceChanged, snapshotChanged } = execution;
@@ -58515,6 +58530,8 @@ async function runIndependentFallback(input) {
     kind: "completed",
     result: independentReviewResult({
       fallbackRequests: priorRequests,
+      model: completedModel,
+      confirmedModel: assessment.confirmedModel,
       cwd: input.cwd,
       author: input.author,
       policy: input.policy,
